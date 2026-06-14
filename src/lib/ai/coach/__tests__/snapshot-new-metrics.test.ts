@@ -333,3 +333,77 @@ describe("buildCoachSnapshot — Apple Health additive metrics (v1.4.23)", () =>
     expect(snapshot.bodyFat).toBeDefined();
   });
 });
+
+/**
+ * v1.17.0 — WHOOP-native day strain (0–21) reaches the Coach snapshot as its
+ * own `dayStrain` block, distinct from the computed `derived.STRAIN_SCORE`.
+ * The read is a SEPARATE `where.type === "DAY_STRAIN"` query, so the fixtures
+ * here discriminate the mock by type rather than returning one flat array.
+ */
+describe("buildCoachSnapshot — WHOOP-native day strain (v1.17.0)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetCoachSnapshotCacheForTests();
+    prismaMock.moodEntry.findMany.mockResolvedValue([]);
+    prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
+    prismaMock.medication.findMany.mockResolvedValue([]);
+    prismaMock.workout.findMany.mockResolvedValue([]);
+    prismaMock.user.findUnique.mockResolvedValue({ coachPrefsJson: null });
+    featuresMock.mockResolvedValue({
+      bloodPressure: undefined,
+      weight: undefined,
+      pulse: undefined,
+      mood: undefined,
+    });
+  });
+
+  /** Route each findMany to rows matching its `where.type` filter. */
+  function mockByType(byType: Record<string, ReturnType<typeof daysAgo>[]>) {
+    prismaMock.measurement.findMany.mockImplementation((args: unknown) => {
+      const where = (args as { where?: { type?: unknown } }).where;
+      const t = where?.type;
+      if (typeof t === "string") return Promise.resolve(byType[t] ?? []);
+      if (t && typeof t === "object" && "in" in t) {
+        const wanted = (t as { in: string[] }).in;
+        return Promise.resolve(
+          wanted.flatMap((typeName) => byType[typeName] ?? []),
+        );
+      }
+      return Promise.resolve([]);
+    });
+  }
+
+  it("emits a native dayStrain block on DAY_STRAIN rows for a WHOOP user", async () => {
+    mockByType({
+      HEART_RATE_VARIABILITY: [daysAgo(2, 64, "HEART_RATE_VARIABILITY")],
+      // Ascending (oldest first), mirroring the `orderBy: measuredAt asc` read.
+      DAY_STRAIN: [daysAgo(3, 11.8, "DAY_STRAIN"), daysAgo(1, 14.2, "DAY_STRAIN")],
+    });
+
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ["hrv"],
+      window: "last30days",
+    });
+    const snapshot = JSON.parse(out.snapshotJson) as Record<string, unknown>;
+    const dayStrain = snapshot.dayStrain as Record<string, unknown> | undefined;
+
+    expect(dayStrain).toBeDefined();
+    expect(dayStrain?.scale).toBe("0-21");
+    expect(dayStrain?.latest).toBe(14.2);
+    expect(dayStrain?.days).toBe(2);
+  });
+
+  it("omits dayStrain when the account has no DAY_STRAIN rows", async () => {
+    mockByType({
+      HEART_RATE_VARIABILITY: [daysAgo(2, 64, "HEART_RATE_VARIABILITY")],
+    });
+
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ["hrv"],
+      window: "last30days",
+    });
+    const snapshot = JSON.parse(out.snapshotJson) as Record<string, unknown>;
+
+    expect(snapshot.dayStrain).toBeUndefined();
+  });
+});

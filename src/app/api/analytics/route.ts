@@ -22,6 +22,7 @@ import { deriveBpWindow90 } from "@/lib/analytics/window-confidence";
 import { computeCorrelationHypothesesFastPath } from "@/lib/analytics/correlations-fast-path";
 import {
   computeGlucoseClinicalMetrics,
+  GLUCOSE_PANEL_WINDOW_DAYS,
   type GlucoseClinicalMetrics,
 } from "@/lib/analytics/glucose-metrics";
 
@@ -346,7 +347,9 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // v1.4.29 H2 — bound to the trailing 30 days. The dashboard tile
   // path only reads the trailing window; pre-bound this query
   // walked every persisted BG row a multi-year user has written.
-  const glucoseSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const glucoseSince = new Date(
+    Date.now() - GLUCOSE_PANEL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
   const glucoseRows = await prisma.measurement.findMany({
     where: {
       userId: user.id,
@@ -379,7 +382,7 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // "still learning" state from a populated object rather than a missing key.
   const glucoseClinical: GlucoseClinicalMetrics = computeGlucoseClinicalMetrics(
     glucoseRows.map((r) => ({ measuredAt: r.measuredAt, mgdl: r.value })),
-    { windowDays: 30, now: new Date() },
+    { windowDays: GLUCOSE_PANEL_WINDOW_DAYS, now: new Date() },
   );
 
   // v1.4.20 phase B3 — three pre-defined correlation hypotheses.

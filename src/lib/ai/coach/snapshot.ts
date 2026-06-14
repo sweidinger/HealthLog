@@ -24,7 +24,10 @@ import {
 } from "@/lib/validations/coach-prefs";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
-import { computeGlucoseClinicalMetrics } from "@/lib/analytics/glucose-metrics";
+import {
+  computeGlucoseClinicalMetrics,
+  GLUCOSE_PANEL_WINDOW_DAYS,
+} from "@/lib/analytics/glucose-metrics";
 import {
   reconstructSleepNights,
   type SleepStageRow,
@@ -96,7 +99,7 @@ const DEFAULT_WINDOW: CoachScopeWindow = "last30days";
  * narration window so the coach's TIR/GMI/CV% always equals what the panel
  * renders.
  */
-const GLUCOSE_CLINICAL_WINDOW_DAYS = 30;
+const GLUCOSE_CLINICAL_WINDOW_DAYS = GLUCOSE_PANEL_WINDOW_DAYS;
 
 /**
  * v1.17.0 — the sleep-rhythm read (sleep-debt + chronotype) is a fixed
@@ -936,6 +939,23 @@ async function buildCoachSnapshotImpl(
   const derivedBlockPromise = derivedActive
     ? buildDerivedSnapshotBlock(userId, derivedProfile, now)
     : null;
+  // v1.17.0 — WHOOP-native day strain (0–21), distinct from the COMPUTED
+  // STRAIN_SCORE (0–100) the derived block carries. Gated on the same
+  // wellness/activity signals so it rides the existing parallel batch; the
+  // block is omitted when the account has no DAY_STRAIN rows (every
+  // non-WHOOP account). Native-over-computed mirrors how recovery resolves.
+  const dayStrainRowsPromise = derivedActive
+    ? prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "DAY_STRAIN",
+          measuredAt: { gte: cutoff },
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "asc" },
+        select: { value: true, measuredAt: true },
+      })
+    : null;
   const trajectoryBlockPromise = derivedActive
     ? buildTrajectorySnapshotBlock(userId, derivedProfile, now)
     : null;
@@ -967,6 +987,7 @@ async function buildCoachSnapshotImpl(
     glucoseClinicalRows,
     glp1Block,
     derivedBlock,
+    dayStrainRows,
     trajectoryBlock,
     memoryBlock,
     cycleBlock,
@@ -979,6 +1000,7 @@ async function buildCoachSnapshotImpl(
     glucoseClinicalRowsPromise,
     glp1BlockPromise,
     derivedBlockPromise,
+    dayStrainRowsPromise,
     trajectoryBlockPromise,
     memoryBlockPromise,
     cycleBlockPromise,
@@ -1675,6 +1697,33 @@ async function buildCoachSnapshotImpl(
       snapshot.derived = derivedBlock;
       metrics.add("hrv");
       registerBlock("derived", "hrv");
+    }
+
+    // ── v1.17.0 — WHOOP-native day strain ────────────────────────────────
+    // The device's gold-standard strain on its native 0–21 scale, kept
+    // distinct from the COMPUTED `derived.STRAIN_SCORE` (0–100). When both
+    // exist we surface the native number AND flag it as the device signal
+    // so the model prefers it (native-over-computed, mirroring recovery).
+    // Omitted for every account without a DAY_STRAIN row.
+    if (dayStrainRows && dayStrainRows.length > 0) {
+      const latest = dayStrainRows[dayStrainRows.length - 1];
+      const recent = dayStrainRows.filter((r) => r.measuredAt >= recentCutoff);
+      const mean =
+        recent.length > 0
+          ? Math.round(
+              (recent.reduce((sum, r) => sum + r.value, 0) / recent.length) *
+                10,
+            ) / 10
+          : Math.round(latest.value * 10) / 10;
+      snapshot.dayStrain = {
+        source: "WHOOP-native",
+        scale: "0-21",
+        latest: Math.round(latest.value * 10) / 10,
+        recentMean: mean,
+        days: dayStrainRows.length,
+        note: "Device-native day strain; prefer over derived.STRAIN_SCORE (computed 0-100 proxy).",
+      };
+      registerBlock("dayStrain", "hrv");
     }
 
     // ── v1.11.0 (Epic B, Pillar 3) — short-horizon trajectory block ──────

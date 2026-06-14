@@ -91,6 +91,16 @@ export const CV_INSTABILITY_THRESHOLD = 36;
 
 /** Battelino 2019 reporting defaults. */
 export const DEFAULT_WINDOW_DAYS = 14;
+
+/**
+ * Window the clinical glucose panel (TIR / GMI / eA1C / CV) covers wherever it
+ * renders outside an ad-hoc report period — analytics route, dashboard
+ * snapshot, and the Coach snapshot. Distinct from the 14-day Battelino default
+ * the standalone metric reader uses; one export so the "same number
+ * everywhere" guarantee doesn't depend on hand-synced literals. The doctor PDF
+ * deliberately uses the report period instead and does NOT read this.
+ */
+export const GLUCOSE_PANEL_WINDOW_DAYS = 30;
 const DEFAULT_MIN_READINGS = 14;
 const DEFAULT_MIN_SPAN_DAYS = 7;
 
