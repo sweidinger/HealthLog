@@ -2,12 +2,19 @@
 
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FlaskConical, Loader2, Trash2 } from "lucide-react";
+import { FlaskConical, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 import { formatDate } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
@@ -104,8 +111,18 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
 
   if (isLoading) {
     return (
-      <div className="flex h-48 items-center justify-center">
-        <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+      <div className="space-y-3" data-slot="lab-list-loading">
+        {Array.from({ length: 3 }, (_, i) => (
+          <Card key={i} aria-hidden="true">
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-56" />
+              </div>
+              <Skeleton className="h-8 w-24 self-end sm:self-center" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
@@ -137,49 +154,18 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
     <div className="space-y-3">
       {groups.map((group) => (
         <Card key={group.analyte.toLowerCase()}>
-          <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="font-medium">{group.analyte}</span>
-                {group.panel ? (
-                  <span className="text-muted-foreground text-xs">
-                    {group.panel}
-                  </span>
-                ) : null}
-                <ReferenceRangeBadge status={group.latest.rangeStatus} />
-              </div>
-              <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
-                <span className="text-foreground font-semibold tabular-nums">
-                  {formatValue(group.latest.value)} {group.latest.unit}
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+              <span className="font-medium">{group.analyte}</span>
+              {group.panel ? (
+                <span className="text-muted-foreground text-xs font-normal">
+                  {group.panel}
                 </span>
-                {group.latest.referenceLow !== null ||
-                group.latest.referenceHigh !== null ? (
-                  <span className="text-xs">
-                    {t("labs.referenceLabel")}{" "}
-                    {group.latest.referenceLow !== null &&
-                    group.latest.referenceHigh !== null
-                      ? `${formatValue(group.latest.referenceLow)}–${formatValue(group.latest.referenceHigh)}`
-                      : group.latest.referenceHigh !== null
-                        ? `≤ ${formatValue(group.latest.referenceHigh)}`
-                        : `≥ ${formatValue(group.latest.referenceLow as number)}`}
-                  </span>
-                ) : null}
-                <span className="text-xs">
-                  {formatDate(group.latest.takenAt)}
-                </span>
-                {group.readings.length > 1 ? (
-                  <span className="text-xs">
-                    {t("labs.readingsCount", {
-                      count: group.readings.length,
-                    })}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-            <div className="flex items-center gap-3 self-end sm:self-center">
-              <LabTrendSparkline
-                values={group.readings.map((r) => r.value)}
-              />
+              ) : null}
+              <ReferenceRangeBadge status={group.latest.rangeStatus} />
+            </CardTitle>
+            <CardAction className="flex items-center gap-3">
+              <LabTrendSparkline values={group.readings.map((r) => r.value)} />
               <Button
                 variant="ghost"
                 size="icon"
@@ -190,6 +176,35 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
+              <span className="text-foreground font-semibold tabular-nums">
+                {formatValue(group.latest.value)} {group.latest.unit}
+              </span>
+              {group.latest.referenceLow !== null ||
+              group.latest.referenceHigh !== null ? (
+                <span className="text-xs">
+                  {t("labs.referenceLabel")}{" "}
+                  {group.latest.referenceLow !== null &&
+                  group.latest.referenceHigh !== null
+                    ? `${formatValue(group.latest.referenceLow)}–${formatValue(group.latest.referenceHigh)}`
+                    : group.latest.referenceHigh !== null
+                      ? `≤ ${formatValue(group.latest.referenceHigh)}`
+                      : `≥ ${formatValue(group.latest.referenceLow as number)}`}
+                </span>
+              ) : null}
+              <span className="text-xs">
+                {formatDate(group.latest.takenAt)}
+              </span>
+              {group.readings.length > 1 ? (
+                <span className="text-xs">
+                  {t("labs.readingsCount", {
+                    count: group.readings.length,
+                  })}
+                </span>
+              ) : null}
             </div>
           </CardContent>
         </Card>

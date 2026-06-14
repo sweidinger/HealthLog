@@ -3602,6 +3602,7 @@
     "recovery": {
       "title": "Recupero",
       "description": "Quanto bene il tuo corpo si è ripreso: i segnali di recupero, sforzo e carico che il tuo wearable registra durante la notte.",
+      "emptyTitle": "Ancora nessun dato di recupero",
       "empty": "Ancora nessun dato di recupero. Collega un account WHOOP, Polar o Oura e questi punteggi si popoleranno appena il dispositivo si sincronizza.",
       "recharge": {
         "title": "Ricarica",

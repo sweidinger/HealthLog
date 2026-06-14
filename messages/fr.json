@@ -3602,6 +3602,7 @@
     "recovery": {
       "title": "Récupération",
       "description": "À quel point votre corps a récupéré : les signaux de récupération, de charge et d'effort que votre wearable enregistre la nuit.",
+      "emptyTitle": "Pas encore de données de récupération",
       "empty": "Pas encore de données de récupération. Connectez un compte WHOOP, Polar ou Oura et ces scores se rempliront dès que votre appareil se synchronise.",
       "recharge": {
         "title": "Recharge",

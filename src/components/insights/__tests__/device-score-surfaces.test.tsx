@@ -80,6 +80,16 @@ function analyticsWith(summaries: Record<string, DataSummary>) {
   };
 }
 
+function analyticsLoading() {
+  return {
+    data: undefined,
+    isLoading: true,
+    isEmpty: false,
+    error: null,
+    refetch: () => {},
+  };
+}
+
 beforeEach(() => {
   analyticsMock.mockReset();
 });
@@ -133,6 +143,27 @@ describe("<DeviceScoreTile> gating", () => {
   });
 });
 
+describe("device-score loading skeletons", () => {
+  it("paints the shared Skeleton grid for sleep-quality while loading", () => {
+    analyticsMock.mockReturnValue(analyticsLoading());
+    const html = render(<SleepQualitySection enabled />);
+    expect(html).toContain('data-slot="sleep-quality-loading"');
+    expect(html).toContain('data-slot="device-score-grid-skeleton"');
+    expect(html).toContain('data-slot="skeleton"');
+    // No real tiles while the slice is still loading.
+    expect(html).not.toContain('data-slot="device-score-tile"');
+  });
+
+  it("paints the shared Skeleton grid for recovery while loading", () => {
+    analyticsMock.mockReturnValue(analyticsLoading());
+    const html = render(<RecoverySection />);
+    expect(html).toContain('data-slot="recovery-loading"');
+    expect(html).toContain('data-slot="device-score-grid-skeleton"');
+    expect(html).toContain('data-slot="skeleton"');
+    expect(html).not.toContain('data-slot="recovery-empty"');
+  });
+});
+
 describe("<SleepQualitySection> data-gating", () => {
   it("collapses to nothing when no sleep-quality metric has data", () => {
     analyticsMock.mockReturnValue(
@@ -171,6 +202,9 @@ describe("<RecoverySection> data-gating", () => {
     );
     const html = render(<RecoverySection />);
     expect(html).toContain('data-slot="recovery-empty"');
+    // Routed through the shared <EmptyState> (dashed bordered card), not the
+    // old hand-rolled div — the empty title comes from the unified primitive.
+    expect(html).toContain("border-dashed");
     expect(html).not.toContain('data-slot="recovery-group-strain"');
   });
 
