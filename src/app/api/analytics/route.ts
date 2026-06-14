@@ -20,6 +20,10 @@ import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fas
 import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
 import { deriveBpWindow90 } from "@/lib/analytics/window-confidence";
 import { computeCorrelationHypothesesFastPath } from "@/lib/analytics/correlations-fast-path";
+import {
+  computeGlucoseClinicalMetrics,
+  type GlucoseClinicalMetrics,
+} from "@/lib/analytics/glucose-metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -365,6 +369,19 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     }
   }
 
+  // v1.17.0 — server-authoritative glucose clinical panel. The TIR / GMI /
+  // eA1C / CV% headline and the advanced J-index + LBGI/HBGI tier are computed
+  // ONCE here over the declared 30-day window (matching `glucoseSince`) so the
+  // insights panel, the coach snapshot, and the doctor report all render the
+  // same numbers instead of each re-deriving. The learning gate keeps a thin
+  // spot-data window from being asserted as a clinical AGP. Always present in
+  // the payload (even with zero readings) so the client renders the calm
+  // "still learning" state from a populated object rather than a missing key.
+  const glucoseClinical: GlucoseClinicalMetrics = computeGlucoseClinicalMetrics(
+    glucoseRows.map((r) => ({ measuredAt: r.measuredAt, mgdl: r.value })),
+    { windowDays: 30, now: new Date() },
+  );
+
   // v1.4.20 phase B3 — three pre-defined correlation hypotheses.
   // v1.4.37 W2 — probe-gated helper. The 28-day scan window (down
   // from 30 to keep the cold critical path tight while still
@@ -420,6 +437,7 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     bpInTargetCount90,
     bpInTargetSpanDays90,
     glucoseByContext,
+    glucoseClinical,
     correlations,
     healthScore,
     sleepStages,

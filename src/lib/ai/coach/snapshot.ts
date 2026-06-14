@@ -24,6 +24,7 @@ import {
 } from "@/lib/validations/coach-prefs";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
+import { computeGlucoseClinicalMetrics } from "@/lib/analytics/glucose-metrics";
 import {
   reconstructSleepNights,
   type SleepStageRow,
@@ -1344,9 +1345,66 @@ async function buildCoachSnapshotImpl(
         );
         contexts[ctx] = { recent, weekly };
       }
+      // v1.17.0 — clinical panel summary from the ONE literature-locked
+      // engine the insights panel + doctor report also consume, so the coach
+      // never quotes a TIR / GMI / CV% figure the panel doesn't show. Computed
+      // on canonical mg/dL over the resolved coach window; gated by
+      // `stillLearning` so a thin spot-data window is offered as a calm
+      // "still learning" note rather than asserted as a clinical AGP. The
+      // headline mean is converted ONCE to the user's display unit for parity
+      // with the per-context lines above; the unit-agnostic fractions / indices
+      // travel as-is.
+      const clinicalRaw = computeGlucoseClinicalMetrics(
+        glucoseRows.map((r) => ({ measuredAt: r.measuredAt, mgdl: r.value })),
+        { windowDays: windowDays, now },
+      );
+      const clinical = clinicalRaw.stillLearning
+        ? {
+            stillLearning: true as const,
+            reason: clinicalRaw.stillLearningReason,
+            readingCount: clinicalRaw.readingCount,
+            spanDays: Math.round(clinicalRaw.actualSpanDays),
+          }
+        : {
+            stillLearning: false as const,
+            windowDays: clinicalRaw.windowDays,
+            spanDays: Math.round(clinicalRaw.actualSpanDays),
+            readingCount: clinicalRaw.readingCount,
+            meanInRange:
+              clinicalRaw.meanMgdl !== null
+                ? Math.round(
+                    convertGlucose(clinicalRaw.meanMgdl, glucoseUnit) *
+                      (glucoseUnit === "mmol/L" ? 10 : 1),
+                  ) / (glucoseUnit === "mmol/L" ? 10 : 1)
+                : null,
+            tirPercent: clinicalRaw.distribution
+              ? Math.round(clinicalRaw.distribution.tir * 100)
+              : null,
+            timeBelowPercent: clinicalRaw.distribution
+              ? Math.round(clinicalRaw.distribution.tbrLevel1 * 100)
+              : null,
+            timeAbovePercent: clinicalRaw.distribution
+              ? Math.round(clinicalRaw.distribution.tarLevel1 * 100)
+              : null,
+            gmi:
+              clinicalRaw.gmi !== null
+                ? Math.round(clinicalRaw.gmi * 10) / 10
+                : null,
+            estimatedA1c:
+              clinicalRaw.estimatedA1c !== null
+                ? Math.round(clinicalRaw.estimatedA1c * 10) / 10
+                : null,
+            cvPercent: clinicalRaw.variability
+              ? Math.round(clinicalRaw.variability.cv)
+              : null,
+            unstable: clinicalRaw.variability?.unstable ?? null,
+            // Spot-reading estimate, never a CGM AGP — pinned so the model
+            // never narrates these as continuous-trace clinical figures.
+            isSpotEstimate: true as const,
+          };
       // The display unit travels with the block so the prompt renders
       // "<value> <unit>" and the EVIDENCE BLOCK tags glucose lines correctly.
-      snapshot.glucose = { unit: glucoseUnit, byContext: contexts };
+      snapshot.glucose = { unit: glucoseUnit, byContext: contexts, clinical };
       metrics.add("glucose");
       counts.glucose = glucoseRows.length;
       registerBlock("glucose", "glucose");
