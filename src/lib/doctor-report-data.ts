@@ -252,6 +252,7 @@ interface RecoveryMeasurementRow {
  */
 export function summariseCanonicalRecovery(
   measurements: readonly RecoveryMeasurementRow[],
+  timezone?: string | null,
 ): WellnessScoreSummary | null {
   const recovery = measurements.filter((m) => m.type === "RECOVERY_SCORE");
   if (recovery.length === 0) return null;
@@ -261,6 +262,7 @@ export function summariseCanonicalRecovery(
       measuredAt: m.measuredAt,
       source: m.source,
     })),
+    timezone,
   );
   if (canonical.length === 0) return null;
   // `resolveCanonicalRecovery` returns rows newest-first; the report wants the
@@ -996,7 +998,7 @@ export async function collectDoctorReportData(
   // the SAME value the tile + iOS feed show — one number, one engine.
   const wellnessScoreSummaries = WELLNESS_SCORE_REPORT_TYPES.flatMap((type) => {
     if (type === "RECOVERY_SCORE") {
-      const summary = summariseCanonicalRecovery(measurements);
+      const summary = summariseCanonicalRecovery(measurements, reportTz);
       return summary ? [summary] : [];
     }
     const s = stats[type];
