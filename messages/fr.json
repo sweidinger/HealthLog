@@ -5931,7 +5931,10 @@
       "contraceptive": "Contraception",
       "severity": "Intensité",
       "severityLevel": "Intensité {level} sur 4",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "temperatureSection": "Température et ovulation",
+      "intimacySection": "Intimité et contraception",
+      "testsSection": "Tests"
     },
     "settings": {
       "title": "Réglages du cycle",

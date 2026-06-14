@@ -42,6 +42,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
+import {
+  SheetSection,
+  SheetSectionCount,
+} from "@/components/ui/sheet-section";
 import { useTranslations } from "@/lib/i18n/context";
 import { CUSTOM_SYMPTOM_ICON_ALLOWLIST } from "@/lib/cycle/custom-symptoms-shared";
 import { CYCLE_SYMPTOM_CATALOG } from "./symptom-catalog";
@@ -249,6 +253,62 @@ export function buildDayLogInput(
   };
 }
 
+/**
+ * v1.17.0 — section summary-badge counts for the sectioned log-day sheet.
+ *
+ * Each helper reports how many fields a collapsed section holds, so the
+ * badge communicates its contents without expanding it. Pure + exported
+ * for the unit tests.
+ */
+export function symptomsCount(s: DayLogFormState): number {
+  return s.symptoms.size;
+}
+
+/**
+ * Temperature & ovulation: BBT reading, OPK, and the symptothermal secondary
+ * sign. Only the sign the section actually renders is counted — mucus when
+ * `showCervix` is false, the three cervix observations when true — so the
+ * badge never reports a stale value from the surface that isn't shown (e.g.
+ * after the user flips the advanced-settings secondary-symptom choice).
+ */
+export function temperatureCount(
+  s: DayLogFormState,
+  showCervix: boolean,
+): number {
+  let n = 0;
+  if (resolveBbt(s.bbt) != null) n += 1;
+  if (s.opk) n += 1;
+  if (showCervix) {
+    if (s.cervixPosition) n += 1;
+    if (s.cervixFirmness) n += 1;
+    if (s.cervixOpening) n += 1;
+  } else if (s.mucus) {
+    n += 1;
+  }
+  return n;
+}
+
+/** Intimacy & contraception: intercourse logged, and any contraceptive. */
+export function intimacyCount(s: DayLogFormState): number {
+  let n = 0;
+  if (s.intercourse) n += 1;
+  if (s.contraceptive) n += 1;
+  return n;
+}
+
+/** Tests: pregnancy + progesterone home-test results. */
+export function testsCount(s: DayLogFormState): number {
+  let n = 0;
+  if (s.pregnancyTest) n += 1;
+  if (s.progesteroneTest) n += 1;
+  return n;
+}
+
+/** Note: 1 when the free-text note carries content. */
+export function noteCount(s: DayLogFormState): number {
+  return s.note.trim() ? 1 : 0;
+}
+
 export interface LogDaySheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -421,25 +481,28 @@ export function LogDaySheet({
     });
   }
 
+  // The live form state, shared by the save-payload builders and the section
+  // summary badges (so a collapsed section reports what it holds).
+  const formState: DayLogFormState = {
+    flow,
+    intermenstrual,
+    bbt,
+    bbtDisturbed,
+    opk,
+    mucus,
+    cervixPosition,
+    cervixFirmness,
+    cervixOpening,
+    intercourse,
+    protectedSex,
+    pregnancyTest,
+    progesteroneTest,
+    contraceptive,
+    note,
+    symptoms,
+  };
+
   async function handleSave() {
-    const state: DayLogFormState = {
-      flow,
-      intermenstrual,
-      bbt,
-      bbtDisturbed,
-      opk,
-      mucus,
-      cervixPosition,
-      cervixFirmness,
-      cervixOpening,
-      intercourse,
-      protectedSex,
-      pregnancyTest,
-      progesteroneTest,
-      contraceptive,
-      note,
-      symptoms,
-    };
     // v1.16.4 — catch so a rejected save doesn't escape as an unhandled
     // rejection; the inline `logDay.isError || patchDay.isError` strip in the
     // footer carries the visible failure signal and the sheet stays open.
@@ -449,10 +512,10 @@ export function LogDaySheet({
         // chip actually CLEARS (the POST merge can only add/keep — QA W-2).
         await patchDay.mutateAsync({
           id: rowId,
-          patch: buildDayLogPatch(state),
+          patch: buildDayLogPatch(formState),
         });
       } else {
-        await logDay.mutateAsync(buildDayLogInput(state, date));
+        await logDay.mutateAsync(buildDayLogInput(formState, date));
       }
       onOpenChange(false);
     } catch {
@@ -573,7 +636,9 @@ export function LogDaySheet({
         ) : null}
       </div>
 
-      {/* Flow */}
+      {/* Quick row — Flow is the single most common period sign, so it
+          stays always-open at the top alongside the intermenstrual toggle.
+          Everything else lives in collapsible sections below. */}
       <Field label={t("cycle.sheet.flow")}>
         <div className="flex flex-wrap gap-2">
           {FLOW_LEVELS.map((f) => (
@@ -599,7 +664,10 @@ export function LogDaySheet({
       </Field>
 
       {/* Symptoms */}
-      <Field label={t("cycle.sheet.symptoms")}>
+      <SheetSection
+        title={t("cycle.sheet.symptoms")}
+        summary={<SheetSectionCount count={symptomsCount(formState)} />}
+      >
         <div className="space-y-3">
           {CYCLE_SYMPTOM_CATALOG.map((cat) => (
             <div key={cat.key} className="space-y-1.5">
@@ -656,10 +724,18 @@ export function LogDaySheet({
             </div>
           </div>
         </div>
-      </Field>
+      </SheetSection>
 
-      {/* BBT */}
-      <Field label={t("cycle.sheet.temperature")}>
+      {/* Temperature & ovulation — BBT, OPK, and the symptothermal secondary
+          sign (mucus or cervix) grouped under one disclosure. */}
+      <SheetSection
+        title={t("cycle.sheet.temperatureSection")}
+        summary={
+          <SheetSectionCount count={temperatureCount(formState, showCervix)} />
+        }
+      >
+        {/* BBT */}
+        <Field label={t("cycle.sheet.temperature")}>
         <input
           type="number"
           inputMode="decimal"
@@ -756,9 +832,15 @@ export function LogDaySheet({
           </div>
         </Field>
       )}
+      </SheetSection>
 
-      {/* Intercourse + protection */}
-      <Field label={t("cycle.sheet.intercourse")}>
+      {/* Intimacy & contraception */}
+      <SheetSection
+        title={t("cycle.sheet.intimacySection")}
+        summary={<SheetSectionCount count={intimacyCount(formState)} />}
+      >
+        {/* Intercourse + protection */}
+        <Field label={t("cycle.sheet.intercourse")}>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="cycle-intercourse" className="text-sm font-normal">
@@ -786,57 +868,71 @@ export function LogDaySheet({
             </div>
           ) : null}
         </div>
-      </Field>
+        </Field>
 
-      {/* Pregnancy test */}
-      <Field label={t("cycle.sheet.pregnancyTest")}>
-        <div className="flex flex-wrap gap-2">
-          {TEST_RESULTS.map((v) => (
-            <Chip
-              key={v}
-              active={pregnancyTest === v}
-              onClick={() => setPregnancyTest((cur) => (cur === v ? null : v))}
-            >
-              {t(`cycle.testResult.${v}`)}
-            </Chip>
-          ))}
-        </div>
-      </Field>
+        {/* Contraceptive */}
+        <Field label={t("cycle.sheet.contraceptive")}>
+          <div className="flex flex-wrap gap-2">
+            {CONTRACEPTIVE_KINDS.map((v) => (
+              <Chip
+                key={v}
+                active={contraceptive === v}
+                onClick={() =>
+                  setContraceptive((cur) => (cur === v ? null : v))
+                }
+              >
+                {t(`cycle.contraceptive.${v}`)}
+              </Chip>
+            ))}
+          </div>
+        </Field>
+      </SheetSection>
 
-      {/* Progesterone test */}
-      <Field label={t("cycle.sheet.progesteroneTest")}>
-        <div className="flex flex-wrap gap-2">
-          {TEST_RESULTS.map((v) => (
-            <Chip
-              key={v}
-              active={progesteroneTest === v}
-              onClick={() =>
-                setProgesteroneTest((cur) => (cur === v ? null : v))
-              }
-            >
-              {t(`cycle.testResult.${v}`)}
-            </Chip>
-          ))}
-        </div>
-      </Field>
+      {/* Tests */}
+      <SheetSection
+        title={t("cycle.sheet.testsSection")}
+        summary={<SheetSectionCount count={testsCount(formState)} />}
+      >
+        {/* Pregnancy test */}
+        <Field label={t("cycle.sheet.pregnancyTest")}>
+          <div className="flex flex-wrap gap-2">
+            {TEST_RESULTS.map((v) => (
+              <Chip
+                key={v}
+                active={pregnancyTest === v}
+                onClick={() =>
+                  setPregnancyTest((cur) => (cur === v ? null : v))
+                }
+              >
+                {t(`cycle.testResult.${v}`)}
+              </Chip>
+            ))}
+          </div>
+        </Field>
 
-      {/* Contraceptive */}
-      <Field label={t("cycle.sheet.contraceptive")}>
-        <div className="flex flex-wrap gap-2">
-          {CONTRACEPTIVE_KINDS.map((v) => (
-            <Chip
-              key={v}
-              active={contraceptive === v}
-              onClick={() => setContraceptive((cur) => (cur === v ? null : v))}
-            >
-              {t(`cycle.contraceptive.${v}`)}
-            </Chip>
-          ))}
-        </div>
-      </Field>
+        {/* Progesterone test */}
+        <Field label={t("cycle.sheet.progesteroneTest")}>
+          <div className="flex flex-wrap gap-2">
+            {TEST_RESULTS.map((v) => (
+              <Chip
+                key={v}
+                active={progesteroneTest === v}
+                onClick={() =>
+                  setProgesteroneTest((cur) => (cur === v ? null : v))
+                }
+              >
+                {t(`cycle.testResult.${v}`)}
+              </Chip>
+            ))}
+          </div>
+        </Field>
+      </SheetSection>
 
       {/* Note */}
-      <Field label={t("cycle.sheet.note")}>
+      <SheetSection
+        title={t("cycle.sheet.note")}
+        summary={<SheetSectionCount count={noteCount(formState)} />}
+      >
         <Textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -845,7 +941,7 @@ export function LogDaySheet({
           placeholder={t("cycle.sheet.notePlaceholder")}
           aria-label={t("cycle.sheet.note")}
         />
-      </Field>
+      </SheetSection>
 
       {logDay.isError || patchDay.isError ? (
         <p className="text-destructive text-sm" role="alert">

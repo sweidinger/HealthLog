@@ -5931,7 +5931,10 @@
       "contraceptive": "Verhütung",
       "severity": "Schweregrad",
       "severityLevel": "Schweregrad {level} von 4",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "temperatureSection": "Temperatur & Eisprung",
+      "intimacySection": "Intimität & Verhütung",
+      "testsSection": "Tests"
     },
     "settings": {
       "title": "Zyklus-Einstellungen",

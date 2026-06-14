@@ -5931,7 +5931,10 @@
       "saved": "Day saved",
       "saveError": "Could not save. Try again.",
       "periodStarted": "Period start logged",
-      "clear": "None"
+      "clear": "None",
+      "temperatureSection": "Temperature & ovulation",
+      "intimacySection": "Intimacy & contraception",
+      "testsSection": "Tests"
     },
     "testResult": {
       "POSITIVE": "Positive",
