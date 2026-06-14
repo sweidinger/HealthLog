@@ -92,3 +92,54 @@ describe("<SleepHypnogram> — lane derivation", () => {
     expect(src).toContain("ticks={lanes.map((_, i) => lanes.length - 1 - i)}");
   });
 });
+
+describe("<SleepHypnogram> — timeline bar visibility", () => {
+  const sharedEnd = "2026-06-09T06:00:00.000Z";
+
+  it("draws the timeline bar for a multi-stage night whose segments share a right edge", () => {
+    // Distinct STARTS but a shared END instant — the shape a summary-derived
+    // writer reconstructs to. The earlier end-instant guard hid the bar here;
+    // gating on the start instant restores it. (Regression: bar vanished,
+    // leaving only the breakdown numbers.)
+    const session: SleepHypnogramSession = {
+      ...baseSession,
+      segments: [
+        {
+          stage: "CORE",
+          start: "2026-06-08T22:30:00.000Z",
+          end: sharedEnd,
+          minutes: 200,
+        },
+        {
+          stage: "DEEP",
+          start: "2026-06-09T01:00:00.000Z",
+          end: sharedEnd,
+          minutes: 100,
+        },
+        {
+          stage: "REM",
+          start: "2026-06-09T03:00:00.000Z",
+          end: sharedEnd,
+          minutes: 120,
+        },
+      ],
+    };
+    expect(render(session)).toContain('role="img"');
+  });
+
+  it("collapses to the breakdown footer for a degenerate single-instant session", () => {
+    // Every segment stamped on ONE instant — no real timeline, so only the
+    // breakdown footer, no bar.
+    const instant = "2026-06-09T06:00:00.000Z";
+    const session: SleepHypnogramSession = {
+      ...baseSession,
+      segments: [
+        { stage: "CORE", start: instant, end: instant, minutes: 200 },
+        { stage: "DEEP", start: instant, end: instant, minutes: 100 },
+      ],
+    };
+    const html = render(session);
+    expect(html).not.toContain('role="img"');
+    expect(html).toContain('data-slot="sleep-hypnogram-breakdown"');
+  });
+});
