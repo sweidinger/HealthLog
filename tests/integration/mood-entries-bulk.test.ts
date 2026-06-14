@@ -195,7 +195,7 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
             moodLoggedAt: "2026-05-16T08:00:00.000Z",
             ratedFactors: [
               { key: "factor_work", rating: 4 },
-              { key: "factor_sleep_quality", rating: 2 },
+              { key: "factor_sadness", rating: 2 },
             ],
           },
         ],
@@ -220,7 +220,7 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
         rating: l.rating,
       })),
     ).toEqual([
-      { key: "factor_sleep_quality", kind: "RATED", rating: 2 },
+      { key: "factor_sadness", kind: "RATED", rating: 2 },
       { key: "factor_work", kind: "RATED", rating: 4 },
     ]);
   });
@@ -239,8 +239,8 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
           {
             mood: "GUT",
             moodLoggedAt: "2026-05-16T08:00:00.000Z",
-            // factor_sleep_quality scale is 1..5; rating 9 is out of range.
-            ratedFactors: [{ key: "factor_sleep_quality", rating: 9 }],
+            // factor_sadness scale is 1..5; rating 9 is out of range.
+            ratedFactors: [{ key: "factor_sadness", rating: 9 }],
           },
         ],
       }),
