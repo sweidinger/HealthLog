@@ -720,7 +720,12 @@
       "iconGroupWeather": "Pogoda",
       "iconGroupPlaces": "Miejsca",
       "iconGroupMisc": "Inne"
-    }
+    },
+    "sectionMoreTags": "Więcej tagów",
+    "sectionFactors": "Czynniki",
+    "sectionNoteDetails": "Notatka i szczegóły",
+    "quickTagsHelp": "Twoje częste tagi — jedno dotknięcie",
+    "quickTagsExpand": "Więcej"
   },
   "medications": {
     "title": "Leki",
@@ -5926,7 +5931,10 @@
       "contraceptive": "Antykoncepcja",
       "severity": "Nasilenie",
       "severityLevel": "Nasilenie {level} z 4",
-      "delete": "Usuń"
+      "delete": "Usuń",
+      "temperatureSection": "Temperatura i owulacja",
+      "intimacySection": "Intymność i antykoncepcja",
+      "testsSection": "Testy"
     },
     "settings": {
       "title": "Ustawienia cyklu",

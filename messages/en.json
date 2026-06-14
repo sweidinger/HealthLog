@@ -720,7 +720,12 @@
       "iconGroupWeather": "Weather",
       "iconGroupPlaces": "Places",
       "iconGroupMisc": "Other"
-    }
+    },
+    "sectionMoreTags": "More tags",
+    "sectionFactors": "Factors",
+    "sectionNoteDetails": "Note & details",
+    "quickTagsHelp": "Your frequent tags — one tap",
+    "quickTagsExpand": "More"
   },
   "medications": {
     "title": "Medications",
@@ -5926,7 +5931,10 @@
       "saved": "Day saved",
       "saveError": "Could not save. Try again.",
       "periodStarted": "Period start logged",
-      "clear": "None"
+      "clear": "None",
+      "temperatureSection": "Temperature & ovulation",
+      "intimacySection": "Intimacy & contraception",
+      "testsSection": "Tests"
     },
     "testResult": {
       "POSITIVE": "Positive",

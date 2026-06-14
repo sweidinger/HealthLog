@@ -24,13 +24,27 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
-import { Loader2, MoreHorizontal, Plus, RotateCcw } from "lucide-react";
+import {
+  ListChecks,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  RotateCcw,
+  SlidersHorizontal,
+  StickyNote,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "@/lib/i18n/context";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
 import { invalidateKeys, moodDependentKeys } from "@/lib/query-keys";
 import { ApiError, apiPost } from "@/lib/api/api-fetch";
+import {
+  SheetSection,
+  SheetSectionCount,
+} from "@/components/ui/sheet-section";
 import { MoodTagPicker, type RatedFactor } from "./mood-tag-picker";
+import { MoodQuickTags } from "./mood-quick-tags";
+import { useRecentTags } from "./recent-tags";
 import { moodFaceIcon } from "./mood-tag-icons";
 
 // v1.12.0 — best-on-the-left face order for the "How are you?" hero,
@@ -116,6 +130,11 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
   // fields the user actively fills count toward "dirty"; the timestamp
   // always carries an auto-populated default, so it is excluded.
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  // v1.17.0 — MRU tag history powers the always-open Quick row; tapping the
+  // Quick row's "+" expands the full "More tags" section (controlled so the
+  // chip can open it).
+  const { recent, recordUse } = useRecentTags();
+  const [moreTagsOpen, setMoreTagsOpen] = useState(false);
   const isDirty =
     mood !== "" ||
     tagsInput.trim() !== "" ||
@@ -193,7 +212,11 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
         moodLoggedAt: timestamp,
       });
 
+      // v1.17.0 — promote the saved structured tags to the Quick row's MRU
+      // history so the next entry surfaces them as one-tap chips.
+      if (tagKeys.length > 0) recordUse(tagKeys);
       resetForm();
+      setMoreTagsOpen(false);
       await invalidateKeys(queryClient, moodDependentKeys);
       toast.success(t("common.saved"));
       onSuccess?.();
@@ -259,6 +282,16 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
   // primary input and a fast log is a single tap + Save.
   const moodPicked = mood !== "";
 
+  // v1.17.0 — the "Note & details" badge counts the free-text tags entered
+  // plus the note (when present), so a collapsed section communicates what
+  // it holds. The auto-populated timestamp is excluded (it always carries a
+  // default, so it would never read as "empty").
+  const freeTextTagCount = tagsInput
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean).length;
+  const detailsCount = freeTextTagCount + (note.trim() ? 1 : 0);
+
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       {/* v1.12.0 — "How are you?" 5-face hero. The five faces are a
@@ -318,152 +351,182 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
       </div>
 
       {moodPicked && (
-        <div
-          className="space-y-4 border-t pt-4"
-          data-slot="mood-annotate-panel"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="mood-logged-at">{t("mood.timestamp")}</Label>
-            <DateTimeInput
-              id="mood-logged-at"
-              value={moodLoggedAt}
-              onChange={(e) => setMoodLoggedAt(e.target.value)}
-              // v1.17 W1b — match the server bound: no future instant.
-              max={getDefaultMoodLoggedAtValue()}
-              required
-              aria-required="true"
-              aria-invalid={!!error || undefined}
-              aria-describedby={errorDescriptor}
-            />
-          </div>
+        <div className="space-y-3" data-slot="mood-annotate-panel">
+          {/* v1.17.0 — always-open Quick row: MRU one-tap tags + a "+" that
+              expands the full "More tags" section. The common case stays a
+              face + a couple of taps + Save. */}
+          <MoodQuickTags
+            selected={tagKeys}
+            onToggle={toggleTagKey}
+            recent={recent}
+            onExpand={() => setMoreTagsOpen(true)}
+          />
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="tags">
-                {t("mood.tags")}{" "}
-                <span className="text-muted-foreground font-normal">
-                  ({t("common.optional")})
-                </span>
-              </Label>
-              <span className="text-muted-foreground text-xs">
-                {t("mood.tagsHelp")}
-              </span>
-            </div>
-            <Input
-              id="tags"
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-              placeholder={t("mood.tagsPlaceholder")}
-              enterKeyHint="done"
-              autoCapitalize="none"
-              autoComplete="off"
+          {/* v1.17.0 — "More tags": the full structured-tag taxonomy
+              (binary tiles + custom). Controlled so the Quick row's "+" can
+              open it; the badge reports how many tags are selected. */}
+          <SheetSection
+            title={t("mood.sectionMoreTags")}
+            icon={<ListChecks />}
+            open={moreTagsOpen}
+            onOpenChange={setMoreTagsOpen}
+            summary={<SheetSectionCount count={tagKeys.length} />}
+          >
+            <MoodTagPicker
+              selected={tagKeys}
+              onToggle={toggleTagKey}
+              mode="binary"
             />
-            {/* v1.4.25 W4d — GLP-1 side-effect quick-tags. Tapping a chip
-            appends the localised label to the free-text tag list.
-            Always visible for now (cheap UX; the Coach side-effect
-            aggregator filters on the canonical English tag set so the
-            German labels still register correctly). */}
-            <div className="space-y-1.5 pt-1">
-              <p className="text-muted-foreground text-xs">
-                {t("medications.sideEffectTagsHelp")}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {GLP1_SIDE_EFFECT_KEYS.map((key) => {
-                  const label = t(key);
-                  const tags = tagsInput
-                    .split(",")
-                    .map((p) => p.trim().toLowerCase());
-                  const isActive = tags.includes(label.toLowerCase());
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => {
-                        if (isActive) {
-                          const next = tagsInput
-                            .split(",")
-                            .map((p) => p.trim())
-                            .filter(
-                              (p) => p.toLowerCase() !== label.toLowerCase(),
-                            );
-                          setTagsInput(next.join(", "));
-                        } else {
-                          const next = tagsInput.trim()
-                            ? `${tagsInput.replace(/[,\s]+$/, "")}, ${label}`
-                            : label;
-                          setTagsInput(next);
-                        }
-                      }}
-                      className={`inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs transition-colors ${
-                        isActive
-                          ? "border-primary bg-primary/15 text-primary"
-                          : "border-border/70 bg-muted text-foreground/75 hover:bg-accent hover:text-foreground"
-                      }`}
-                      aria-pressed={isActive}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          </SheetSection>
 
-          {/* v1.8.5 / v1.12.0 — structured-tag taxonomy picker. Additive next
-          to the free-text input above; an entry can carry both axes. The
-          picker also surfaces the FACTOR-kind tags as 1..scaleMax rating
-          controls, lifted here as `ratedFactors`. */}
-          <div className="space-y-2">
-            <Label>
-              {t("mood.tagPicker")}{" "}
-              <span className="text-muted-foreground font-normal">
-                ({t("common.optional")})
-              </span>
-            </Label>
+          {/* v1.17.0 — "Factors": the FACTOR-kind segmented ratings, kept
+              exactly as the existing segmented control. */}
+          <SheetSection
+            title={t("mood.sectionFactors")}
+            icon={<SlidersHorizontal />}
+            summary={<SheetSectionCount count={ratedFactors.length} />}
+          >
             <MoodTagPicker
               selected={tagKeys}
               onToggle={toggleTagKey}
               ratedFactors={ratedFactors}
               onRateFactor={rateFactor}
+              mode="rated"
             />
-          </div>
+          </SheetSection>
 
-          {/* v1.8.5 (C1) — free-text note. */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="mood-note">
-                {t("mood.note")}{" "}
-                <span className="text-muted-foreground font-normal">
-                  ({t("common.optional")})
+          {/* v1.17.0 — "Note & details": free-text tags, GLP-1 quick-tags,
+              the note field, and the timestamp. The badge counts whichever
+              of these carry input. */}
+          <SheetSection
+            title={t("mood.sectionNoteDetails")}
+            icon={<StickyNote />}
+            summary={<SheetSectionCount count={detailsCount} />}
+          >
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="tags">
+                  {t("mood.tags")}{" "}
+                  <span className="text-muted-foreground font-normal">
+                    ({t("common.optional")})
+                  </span>
+                </Label>
+                <span className="text-muted-foreground text-xs">
+                  {t("mood.tagsHelp")}
                 </span>
-              </Label>
-              {/* v1.11.5 — character counter so the `maxLength` cap no longer
-              truncates silently. Turns destructive (warns) as the input
-              approaches the limit. */}
-              <span
-                data-testid="mood-note-counter"
-                className={`text-xs tabular-nums ${
-                  note.length >= NOTE_MAX_LENGTH
-                    ? "text-destructive"
-                    : "text-muted-foreground"
-                }`}
-                aria-live="polite"
-              >
-                {t("mood.noteCharCount", {
-                  count: String(note.length),
-                  max: String(NOTE_MAX_LENGTH),
-                })}
-              </span>
+              </div>
+              <Input
+                id="tags"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                placeholder={t("mood.tagsPlaceholder")}
+                enterKeyHint="done"
+                autoCapitalize="none"
+                autoComplete="off"
+              />
+              {/* v1.4.25 W4d — GLP-1 side-effect quick-tags. Tapping a chip
+              appends the localised label to the free-text tag list.
+              Always visible for now (cheap UX; the Coach side-effect
+              aggregator filters on the canonical English tag set so the
+              German labels still register correctly). */}
+              <div className="space-y-1.5 pt-1">
+                <p className="text-muted-foreground text-xs">
+                  {t("medications.sideEffectTagsHelp")}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {GLP1_SIDE_EFFECT_KEYS.map((key) => {
+                    const label = t(key);
+                    const tags = tagsInput
+                      .split(",")
+                      .map((p) => p.trim().toLowerCase());
+                    const isActive = tags.includes(label.toLowerCase());
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          if (isActive) {
+                            const next = tagsInput
+                              .split(",")
+                              .map((p) => p.trim())
+                              .filter(
+                                (p) => p.toLowerCase() !== label.toLowerCase(),
+                              );
+                            setTagsInput(next.join(", "));
+                          } else {
+                            const next = tagsInput.trim()
+                              ? `${tagsInput.replace(/[,\s]+$/, "")}, ${label}`
+                              : label;
+                            setTagsInput(next);
+                          }
+                        }}
+                        className={`inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs transition-colors ${
+                          isActive
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border/70 bg-muted text-foreground/75 hover:bg-accent hover:text-foreground"
+                        }`}
+                        aria-pressed={isActive}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-            <Textarea
-              id="mood-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder={t("mood.notePlaceholder")}
-              maxLength={NOTE_MAX_LENGTH}
-              rows={3}
-            />
-          </div>
+
+            {/* v1.8.5 (C1) — free-text note. */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="mood-note">
+                  {t("mood.note")}{" "}
+                  <span className="text-muted-foreground font-normal">
+                    ({t("common.optional")})
+                  </span>
+                </Label>
+                {/* v1.11.5 — character counter so the `maxLength` cap no
+                longer truncates silently. Turns destructive (warns) as the
+                input approaches the limit. */}
+                <span
+                  data-testid="mood-note-counter"
+                  className={`text-xs tabular-nums ${
+                    note.length >= NOTE_MAX_LENGTH
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  }`}
+                  aria-live="polite"
+                >
+                  {t("mood.noteCharCount", {
+                    count: String(note.length),
+                    max: String(NOTE_MAX_LENGTH),
+                  })}
+                </span>
+              </div>
+              <Textarea
+                id="mood-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={t("mood.notePlaceholder")}
+                maxLength={NOTE_MAX_LENGTH}
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mood-logged-at">{t("mood.timestamp")}</Label>
+              <DateTimeInput
+                id="mood-logged-at"
+                value={moodLoggedAt}
+                onChange={(e) => setMoodLoggedAt(e.target.value)}
+                // v1.17 W1b — match the server bound: no future instant.
+                max={getDefaultMoodLoggedAtValue()}
+                required
+                aria-required="true"
+                aria-invalid={!!error || undefined}
+                aria-describedby={errorDescriptor}
+              />
+            </div>
+          </SheetSection>
         </div>
       )}
 

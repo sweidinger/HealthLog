@@ -720,7 +720,12 @@
       "iconGroupWeather": "Meteo",
       "iconGroupPlaces": "Luoghi",
       "iconGroupMisc": "Altro"
-    }
+    },
+    "sectionMoreTags": "Altri tag",
+    "sectionFactors": "Fattori",
+    "sectionNoteDetails": "Nota e dettagli",
+    "quickTagsHelp": "I tuoi tag frequenti: un tocco",
+    "quickTagsExpand": "Altro"
   },
   "medications": {
     "title": "Farmaci",
@@ -5926,7 +5931,10 @@
       "contraceptive": "Contraccettivo",
       "severity": "Intensità",
       "severityLevel": "Intensità {level} su 4",
-      "delete": "Elimina"
+      "delete": "Elimina",
+      "temperatureSection": "Temperatura e ovulazione",
+      "intimacySection": "Intimità e contraccezione",
+      "testsSection": "Test"
     },
     "settings": {
       "title": "Impostazioni del ciclo",

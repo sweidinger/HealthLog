@@ -77,6 +77,7 @@ export function MoodTagPicker({
   onToggle,
   ratedFactors = [],
   onRateFactor,
+  mode = "all",
 }: {
   /** Selected binary tag keys (sent as `tagKeys`). */
   selected: string[];
@@ -89,6 +90,13 @@ export function MoodTagPicker({
    * when omitted the picker only surfaces binary tags.
    */
   onRateFactor?: (key: string, rating: number | null) => void;
+  /**
+   * v1.17.0 — which tag kinds to surface. The sectioned add-sheet renders
+   * the binary tiles under "More tags" (`mode="binary"`) and the segmented
+   * factor ratings under "Factors" (`mode="rated"`) as two separate
+   * sections; the default `"all"` keeps the legacy interleaved layout.
+   */
+  mode?: "all" | "binary" | "rated";
 }) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -116,6 +124,8 @@ export function MoodTagPicker({
 
   const selectedSet = new Set(selected);
   const ratingByKey = new Map(ratedFactors.map((f) => [f.key, f.rating]));
+  const showBinary = mode !== "rated";
+  const showRated = mode !== "binary";
 
   const groupOptions = data.categories.map((category) => ({
     key: category.key,
@@ -131,10 +141,15 @@ export function MoodTagPicker({
     <div className="space-y-4" data-slot="mood-tag-picker">
       {data.categories.map((category) => {
         const CategoryIcon = moodTagIcon(category.icon);
-        const binaryTags = category.tags.filter((tag) => tag.kind !== "RATED");
-        const ratedTags = category.tags.filter((tag) => tag.kind === "RATED");
+        const binaryTags = showBinary
+          ? category.tags.filter((tag) => tag.kind !== "RATED")
+          : [];
+        const ratedTags = showRated
+          ? category.tags.filter((tag) => tag.kind === "RATED")
+          : [];
         // Self-gate an empty category (e.g. a RATED-only category when no
-        // `onRateFactor` is wired) so the picker never shows a bare heading.
+        // `onRateFactor` is wired, or a mode that filters all tags out) so
+        // the picker never shows a bare heading.
         if (binaryTags.length === 0 && ratedTags.length === 0) return null;
         if (ratedTags.length > 0 && !onRateFactor && binaryTags.length === 0) {
           return null;
@@ -147,7 +162,7 @@ export function MoodTagPicker({
               <span>{category.label ?? t(category.labelKey)}</span>
             </div>
 
-            {
+            {showBinary && (
               <div className="flex flex-wrap gap-2">
                 {binaryTags.map((tag) => {
                   const TagIcon = moodTagIcon(tag.icon);
@@ -178,7 +193,7 @@ export function MoodTagPicker({
                   onClick={() => setCreateGroupKey(category.key)}
                 />
               </div>
-            }
+            )}
 
             {ratedTags.length > 0 && onRateFactor && (
               <div className="space-y-2" data-slot="mood-factor-ratings">
@@ -262,8 +277,9 @@ export function MoodTagPicker({
 
       {/* Bootstrap node for the seeded Custom group: before the first
           custom tag exists the plain read carries no `custom` category,
-          so the inline-create entry point renders synthetically. */}
-      {!hasCustomGroup && (
+          so the inline-create entry point renders synthetically. Only the
+          binary-tag surfaces it (custom tags are binary). */}
+      {showBinary && !hasCustomGroup && (
         <div className="space-y-2" data-slot="mood-tag-custom-bootstrap">
           <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
             <Tag className="h-3.5 w-3.5" aria-hidden="true" />
