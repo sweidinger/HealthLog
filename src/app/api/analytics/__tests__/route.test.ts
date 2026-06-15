@@ -78,10 +78,28 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+// v1.18.0 — the health-score fast path resolves the per-user module map to
+// drop disabled-module pillars; stub the gate so analytics tests don't need
+// the real DB-backed resolver (default: every module enabled).
+vi.mock("@/lib/modules/gate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/modules/gate")>();
+  return {
+    ...actual,
+    resolveModuleMap: vi.fn(),
+    isModuleEnabled: vi.fn(),
+    requireModuleEnabled: vi.fn(),
+  };
+});
+
 import { GET } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
+import {
+  resolveModuleMap,
+  isModuleEnabled,
+  requireModuleEnabled,
+} from "@/lib/modules/gate";
 
 const SESSION_USER = {
   id: "user-1",
@@ -105,6 +123,11 @@ beforeEach(() => {
   // on the prior test's cached response).
   __resetAllCachesForTests();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  vi.mocked(resolveModuleMap).mockResolvedValue({} as never);
+  vi.mocked(isModuleEnabled).mockResolvedValue(true as never);
+  vi.mocked(requireModuleEnabled).mockResolvedValue({
+    enabled: true,
+  } as never);
   vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
     [] as never,
