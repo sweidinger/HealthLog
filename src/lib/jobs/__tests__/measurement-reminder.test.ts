@@ -295,6 +295,68 @@ describe("runMeasurementReminderTick", () => {
     );
   });
 
+  it("v1.18.0 — skips a glucose reminder when the Glucose module is off, and advances", async () => {
+    const { prisma, updates } = makePrisma({
+      reminders: [reminder({ measurementType: "BLOOD_GLUCOSE" })],
+      measurementMatch: null,
+    });
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    const isModuleEnabled = vi.fn(async () => false);
+
+    const summary = await runMeasurementReminderTick(
+      prisma as never,
+      NINE_LOCAL,
+      { dispatch, isModuleEnabled },
+    );
+
+    expect(summary.skippedModuleDisabled).toBe(1);
+    expect(summary.dispatched).toBe(0);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(isModuleEnabled).toHaveBeenCalledWith("u1", "glucose");
+    // Advances past the cycle so it does not re-evaluate every tick.
+    expect(updates).toHaveLength(1);
+    expect(updates[0].data.nextDueAt).toBeInstanceOf(Date);
+  });
+
+  it("v1.18.0 — still dispatches a glucose reminder when the Glucose module is on", async () => {
+    const { prisma } = makePrisma({
+      reminders: [reminder({ measurementType: "BLOOD_GLUCOSE" })],
+      measurementMatch: null,
+    });
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    const isModuleEnabled = vi.fn(async () => true);
+
+    const summary = await runMeasurementReminderTick(
+      prisma as never,
+      NINE_LOCAL,
+      { dispatch, isModuleEnabled },
+    );
+
+    expect(summary.skippedModuleDisabled).toBe(0);
+    expect(summary.dispatched).toBe(1);
+    expect(isModuleEnabled).toHaveBeenCalledWith("u1", "glucose");
+  });
+
+  it("v1.18.0 — a core-vital (BP) reminder never consults the module gate and dispatches", async () => {
+    const { prisma } = makePrisma({
+      reminders: [reminder({ measurementType: "BLOOD_PRESSURE_SYS" })],
+      measurementMatch: null,
+    });
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    const isModuleEnabled = vi.fn(async () => false); // even if everything is "off"
+
+    const summary = await runMeasurementReminderTick(
+      prisma as never,
+      NINE_LOCAL,
+      { dispatch, isModuleEnabled },
+    );
+
+    expect(summary.skippedModuleDisabled).toBe(0);
+    expect(summary.dispatched).toBe(1);
+    // A core domain has no ModuleKey — the gate is never consulted.
+    expect(isModuleEnabled).not.toHaveBeenCalled();
+  });
+
   it("skips a reminder outside its notify-hour window", async () => {
     const { prisma } = makePrisma({
       reminders: [reminder({ measurementType: null })],

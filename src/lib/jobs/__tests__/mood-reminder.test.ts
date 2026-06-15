@@ -46,6 +46,14 @@ const NO_CHANNEL: DispatchOutcome = {
   channelsSucceeded: 0,
 };
 
+/**
+ * v1.18.0 — default module-gate stub for the dispatch-path tests: every
+ * module reads as enabled, so these tests exercise the window / ledger /
+ * locale contract unchanged. The disabled-module skip has its own test
+ * that injects a gate returning `false`.
+ */
+const MODULE_ON = async () => true;
+
 interface FakePrismaState {
   candidates: Array<{
     id: string;
@@ -254,6 +262,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, inWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(1);
@@ -292,6 +301,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, at09, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(1);
@@ -317,6 +327,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, inWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(0);
@@ -338,6 +349,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, inWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(1);
@@ -357,6 +369,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, outOfWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(0);
@@ -374,7 +387,10 @@ describe("runMoodReminderTick", () => {
     const prisma = makePrisma(state);
     const dispatch = vi.fn<DispatchFn>(async () => OK);
 
-    await runMoodReminderTick(prisma as never, inWindow, { dispatch });
+    await runMoodReminderTick(prisma as never, inWindow, {
+      dispatch,
+      isModuleEnabled: MODULE_ON,
+    });
 
     expect(prisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { moodReminderEnabled: true } }),
@@ -395,6 +411,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, inWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(0);
@@ -417,6 +434,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, inWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(0);
@@ -438,6 +456,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, inWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(0);
@@ -463,6 +482,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, inWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     // The dispatcher delivered (OK), the ledger insert hit P2002. The
@@ -492,6 +512,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, inWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(1);
@@ -514,6 +535,7 @@ describe("runMoodReminderTick", () => {
 
     const summary = await runMoodReminderTick(prisma as never, inWindow, {
       dispatch,
+      isModuleEnabled: MODULE_ON,
     });
 
     expect(summary.dispatched).toBe(2);
@@ -524,6 +546,52 @@ describe("runMoodReminderTick", () => {
     });
     expect(titles).toContain("Stimmung erfassen");
     expect(titles).toContain("Log your mood");
+  });
+
+  it("v1.18.0 — skips a user who turned the Mood module off", async () => {
+    const state: FakePrismaState = {
+      candidates: [{ id: "u-off", timezone: "Europe/Berlin", locale: "de" }],
+      moodEntries: [],
+      dispatches: [],
+      raceUserIds: new Set(),
+    };
+    const prisma = makePrisma(state);
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    // Module disabled for this user.
+    const isModuleEnabled = vi.fn(async () => false);
+
+    const summary = await runMoodReminderTick(prisma as never, inWindow, {
+      dispatch,
+      isModuleEnabled,
+    });
+
+    expect(summary.skippedModuleDisabled).toBe(1);
+    expect(summary.dispatched).toBe(0);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(state.dispatches).toHaveLength(0);
+    expect(isModuleEnabled).toHaveBeenCalledWith("u-off", "mood");
+  });
+
+  it("v1.18.0 — still dispatches when the Mood module is enabled", async () => {
+    const state: FakePrismaState = {
+      candidates: [{ id: "u-on", timezone: "Europe/Berlin", locale: "de" }],
+      moodEntries: [],
+      dispatches: [],
+      raceUserIds: new Set(),
+    };
+    const prisma = makePrisma(state);
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    const isModuleEnabled = vi.fn(async () => true);
+
+    const summary = await runMoodReminderTick(prisma as never, inWindow, {
+      dispatch,
+      isModuleEnabled,
+    });
+
+    expect(summary.skippedModuleDisabled).toBe(0);
+    expect(summary.dispatched).toBe(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(isModuleEnabled).toHaveBeenCalledWith("u-on", "mood");
   });
 
   it("dispatches per-user locale for fr/es/it/pl (regression: resolver dropped 4/6)", async () => {
@@ -541,7 +609,10 @@ describe("runMoodReminderTick", () => {
     const prisma = makePrisma(state);
     const dispatch = vi.fn<DispatchFn>(async () => OK);
 
-    await runMoodReminderTick(prisma as never, inWindow, { dispatch });
+    await runMoodReminderTick(prisma as never, inWindow, {
+      dispatch,
+      isModuleEnabled: MODULE_ON,
+    });
 
     const titles = dispatch.mock.calls.map((c) => c[0].title);
     const enTitle = buildMoodReminderPayload("en").title;

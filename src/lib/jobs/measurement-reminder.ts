@@ -36,10 +36,35 @@ import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
 import { getEvent } from "@/lib/logging/context";
 import { isMeasurementReminderClientManaged } from "@/lib/validations/notification-prefs";
+import { isModuleEnabled } from "@/lib/modules/gate";
+import type { ModuleKey } from "@/lib/modules/registry";
 import {
   computeReminderNextDueAt,
   type ReminderScheduleInput,
 } from "@/lib/measurement-reminders/scheduling";
+
+/**
+ * v1.18.0 — map a reminder's `measurementType` to the toggleable module
+ * that owns it, or `null` when the type is a CORE domain (weight, blood
+ * pressure, pulse, body composition) or has no module of its own. A
+ * `null` reminder type (free-text Vorsorge entry) also yields `null`.
+ *
+ * Only the two secondary-domain types carry a gate: glucose and sleep.
+ * Everything else is core and dispatches regardless — disabling a module
+ * must never silence a core-vital reminder.
+ */
+function moduleForMeasurementType(
+  type: MeasurementType | null,
+): ModuleKey | null {
+  switch (type) {
+    case "BLOOD_GLUCOSE":
+      return "glucose";
+    case "SLEEP_DURATION":
+      return "sleep";
+    default:
+      return null;
+  }
+}
 
 /**
  * Slack added to `now` when scanning for due reminders, so a `nextDueAt`
@@ -56,6 +81,7 @@ export interface MeasurementReminderSummary {
   autoResolved: number;
   skippedNotDue: number;
   skippedOutsideWindow: number;
+  skippedModuleDisabled: number;
   skippedClientManaged: number;
   skippedNoChannel: number;
   failed: number;
@@ -133,9 +159,16 @@ export async function runMeasurementReminderTick(
   now: Date,
   options: {
     dispatch?: typeof dispatchNotification;
+    /**
+     * v1.18.0 module gate — injectable so the unit tests pin the
+     * disabled-module skip without the gate's DB reads. Defaults to the
+     * real `isModuleEnabled` resolver.
+     */
+    isModuleEnabled?: typeof isModuleEnabled;
   } = {},
 ): Promise<MeasurementReminderSummary> {
   const dispatchImpl = options.dispatch ?? dispatchNotification;
+  const moduleGate = options.isModuleEnabled ?? isModuleEnabled;
 
   const summary: MeasurementReminderSummary = {
     candidatesScanned: 0,
@@ -144,6 +177,7 @@ export async function runMeasurementReminderTick(
     autoResolved: 0,
     skippedNotDue: 0,
     skippedOutsideWindow: 0,
+    skippedModuleDisabled: 0,
     skippedClientManaged: 0,
     skippedNoChannel: 0,
     failed: 0,
@@ -248,6 +282,26 @@ export async function runMeasurementReminderTick(
       }
 
       summary.inWindow += 1;
+
+      // v1.18.0 module gate — a reminder whose measurement type belongs to
+      // a toggleable module (glucose / sleep) must not fire once the user
+      // turns that module off. Core-vital reminders (weight / BP / pulse /
+      // body comp) and free-text reminders map to no module and are never
+      // gated. Checked after the due + window gates so the gate read only
+      // fires for reminders that would otherwise dispatch this tick.
+      const gatedModule = moduleForMeasurementType(reminder.measurementType);
+      if (gatedModule !== null && !(await moduleGate(reminder.user.id, gatedModule))) {
+        getEvent()?.addMeta(
+          "measurement_reminder.skipped_module_disabled",
+          `${reminder.id}:${gatedModule}`,
+        );
+        summary.skippedModuleDisabled += 1;
+        // Advance past this cycle so a disabled-module reminder does not pin
+        // the server tick re-evaluating the same overdue slot every 15
+        // minutes for the rest of the day (the client-managed precedent).
+        await advanceNextDue(prisma, reminder, timezone, now);
+        continue;
+      }
 
       // Per-user client-managed suppression (the medication precedent).
       if (
