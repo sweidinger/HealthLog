@@ -4122,6 +4122,21 @@
           "title": "Notification channels",
           "description": "APNs, Telegram, ntfy, Web Push, Webhook, and Email."
         }
+      },
+      "modules": {
+        "title": "Modules",
+        "saved": "Saved.",
+        "error": "Couldn't save. Please try again.",
+        "toggleable": {
+          "title": "What you track",
+          "description": "Optional areas. Disabled modules drop out of the navigation, tiles, and insights — your data stays untouched."
+        },
+        "core": {
+          "title": "Always on",
+          "description": "HealthLog's foundations. These areas can't be turned off.",
+          "note": "Core area — always on"
+        },
+        "description": "Choose what HealthLog tracks for you. Turn individual areas on or off — the navigation, tiles, and insights adapt right away."
       }
     },
     "profile": "Profile",
@@ -6510,6 +6525,68 @@
       "save": "Save",
       "savedToast": "Result saved",
       "saveError": "Could not save the result"
+    }
+  },
+  "modules": {
+    "cycle": {
+      "label": "Cycle",
+      "description": "Track period, phases, and predictions."
+    },
+    "mood": {
+      "label": "Mood",
+      "description": "Log daily mood and tags."
+    },
+    "sleep": {
+      "label": "Sleep",
+      "description": "Sleep duration, stages, and timeline."
+    },
+    "glucose": {
+      "label": "Glucose",
+      "description": "Blood-glucose readings and trends."
+    },
+    "workouts": {
+      "label": "Workouts",
+      "description": "Training sessions and activity."
+    },
+    "recovery": {
+      "label": "Recovery",
+      "description": "Recovery and strain metrics from your devices."
+    },
+    "labs": {
+      "label": "Lab results",
+      "description": "Capture lab results and keep their history."
+    },
+    "achievements": {
+      "label": "Achievements",
+      "description": "Badges and streaks for your routine."
+    },
+    "coach": {
+      "label": "Coach",
+      "description": "AI chat grounded in your own data."
+    },
+    "insights": {
+      "label": "Insights",
+      "description": "AI analysis, briefing, and correlations."
+    },
+    "doctorReport": {
+      "label": "Doctor report",
+      "description": "PDF and FHIR export for your practice."
+    },
+    "weight": {
+      "label": "Weight",
+      "description": "Weight and body composition."
+    },
+    "bloodPressure": {
+      "label": "Blood pressure",
+      "description": "Systolic and diastolic."
+    },
+    "pulse": {
+      "label": "Pulse",
+      "description": "Resting pulse and heart rate."
+    },
+    "medications": {
+      "label": "Medications",
+      "description": "Schedules, intakes, and compliance."
     }
   }
 }

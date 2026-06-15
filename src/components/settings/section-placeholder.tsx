@@ -14,6 +14,7 @@
 import {
   AlarmClock,
   Bell,
+  Blocks,
   Download,
   Info,
   KeyRound,
@@ -36,6 +37,7 @@ import type { SettingsSectionSlug } from "./section-slugs";
 
 const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   account: User,
+  modules: Blocks,
   integrations: Link2,
   notifications: Bell,
   reminders: AlarmClock,

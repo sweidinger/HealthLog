@@ -12,6 +12,7 @@ import { InsightsSection } from "@/components/settings/insights-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
 import { LayoutSection } from "@/components/settings/layout-section";
 import { MedicationsSection } from "@/components/settings/medications-section";
+import { ModulesSection } from "@/components/settings/modules-section";
 import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { RemindersSection } from "@/components/settings/reminders-section";
@@ -51,6 +52,7 @@ const SECTION_COMPONENTS: Record<
   () => JSX.Element | null
 > = {
   account: AccountSection,
+  modules: ModulesSection,
   about: AboutSection,
   ai: AiSection,
   integrations: IntegrationsSection,

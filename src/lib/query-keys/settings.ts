@@ -21,6 +21,15 @@ export const settingsKeys = {
   /** v1.8.5 — user-level injection-site preferences (global exclusion). */
   injectionSitePrefs: () => ["settings", "injection-site-prefs"] as const,
 
+  /**
+   * v1.18.0 — the per-user module enable/disable map behind
+   * `GET/PATCH /api/auth/me/modules`. Used as the Module-hub mutation key;
+   * the resolved map itself rides on `authMe()` (the `/auth/me` payload),
+   * so the toggle mutation invalidates `authMe()` to re-gate the nav,
+   * Insights pills, and dashboard tiles in lockstep.
+   */
+  modulesPrefs: () => ["settings", "modules"] as const,
+
   apiVersion: () => ["api", "version"] as const,
   publicVersion: () => ["public", "version"] as const,
   /** v1.15.12 H1 — admin overview "update available" check against the

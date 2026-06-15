@@ -20,6 +20,7 @@ import { usePathname } from "next/navigation";
 import {
   AlarmClock,
   Bell,
+  Blocks,
   Download,
   Info,
   KeyRound,
@@ -80,6 +81,13 @@ interface SettingsSection {
  */
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { slug: "account", titleKey: "settings.sections.account.title", icon: User },
+  // v1.18.0 — the "Was du trackst" hub. Sits right below Account: the one
+  // place to enable/disable the secondary tracking domains.
+  {
+    slug: "modules",
+    titleKey: "settings.sections.modules.title",
+    icon: Blocks,
+  },
   {
     slug: "integrations",
     titleKey: "settings.sections.integrations.title",

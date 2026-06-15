@@ -63,8 +63,11 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // Layout hub instead of four standalone nav entries.
     // v1.17.1 — `reminders` is the one "Reminders & Notifications" home and
     // sits right after `notifications`.
+    // v1.18.0 — `modules` ("Was du trackst") sits right after `account` as
+    // the single front door for enabling/disabling secondary domains.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
+      "modules",
       "integrations",
       "notifications",
       "reminders",

@@ -4122,6 +4122,21 @@
           "title": "Benachrichtigungskanäle",
           "description": "APNs, Telegram, ntfy, Web Push, Webhook und E-Mail."
         }
+      },
+      "modules": {
+        "title": "Module",
+        "saved": "Gespeichert.",
+        "error": "Konnte nicht gespeichert werden. Bitte erneut versuchen.",
+        "toggleable": {
+          "title": "Was du trackst",
+          "description": "Optionale Bereiche. Deaktivierte Module verschwinden aus Navigation, Kacheln und Auswertungen — deine Daten bleiben erhalten."
+        },
+        "core": {
+          "title": "Immer aktiv",
+          "description": "Die Grundlagen von HealthLog. Diese Bereiche lassen sich nicht abschalten.",
+          "note": "Kernbereich — immer aktiv"
+        },
+        "description": "Lege fest, was HealthLog für dich erfasst. Schalte einzelne Bereiche ein oder aus — die Navigation, Kacheln und Auswertungen passen sich sofort an."
       }
     },
     "profile": "Profil",
@@ -6510,6 +6525,68 @@
       "save": "Speichern",
       "savedToast": "Wert gespeichert",
       "saveError": "Wert konnte nicht gespeichert werden"
+    }
+  },
+  "modules": {
+    "cycle": {
+      "label": "Zyklus",
+      "description": "Periode, Phasen und Vorhersagen verfolgen."
+    },
+    "mood": {
+      "label": "Stimmung",
+      "description": "Tägliche Stimmung und Tags erfassen."
+    },
+    "sleep": {
+      "label": "Schlaf",
+      "description": "Schlafdauer, Phasen und Schlaf-Timeline."
+    },
+    "glucose": {
+      "label": "Glukose",
+      "description": "Blutzuckerwerte und Verläufe."
+    },
+    "workouts": {
+      "label": "Workouts",
+      "description": "Trainingseinheiten und Aktivität."
+    },
+    "recovery": {
+      "label": "Erholung",
+      "description": "Erholungs- und Belastungswerte deiner Geräte."
+    },
+    "labs": {
+      "label": "Laborwerte",
+      "description": "Laborergebnisse erfassen und im Verlauf ablegen."
+    },
+    "achievements": {
+      "label": "Erfolge",
+      "description": "Abzeichen und Serien für deine Routine."
+    },
+    "coach": {
+      "label": "Coach",
+      "description": "KI-Chat mit Bezug zu deinen Daten."
+    },
+    "insights": {
+      "label": "Auswertungen",
+      "description": "KI-Analysen, Briefing und Korrelationen."
+    },
+    "doctorReport": {
+      "label": "Arztbericht",
+      "description": "PDF- und FHIR-Export für deine Praxis."
+    },
+    "weight": {
+      "label": "Gewicht",
+      "description": "Gewicht und Körperzusammensetzung."
+    },
+    "bloodPressure": {
+      "label": "Blutdruck",
+      "description": "Systolisch und diastolisch."
+    },
+    "pulse": {
+      "label": "Puls",
+      "description": "Ruhepuls und Herzfrequenz."
+    },
+    "medications": {
+      "label": "Medikamente",
+      "description": "Pläne, Einnahmen und Compliance."
     }
   }
 }

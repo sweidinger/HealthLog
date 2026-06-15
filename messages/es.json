@@ -4122,6 +4122,21 @@
           "title": "Canales de notificación",
           "description": "APNs, Telegram, ntfy, Web Push, Webhook y correo."
         }
+      },
+      "modules": {
+        "title": "Módulos",
+        "saved": "Guardado.",
+        "error": "No se pudo guardar. Inténtalo de nuevo.",
+        "toggleable": {
+          "title": "Qué registras",
+          "description": "Áreas opcionales. Los módulos desactivados desaparecen de la navegación, los paneles y los análisis; tus datos se conservan."
+        },
+        "core": {
+          "title": "Siempre activos",
+          "description": "Los pilares de HealthLog. Estas áreas no se pueden desactivar.",
+          "note": "Área esencial — siempre activa"
+        },
+        "description": "Elige qué registra HealthLog por ti. Activa o desactiva áreas concretas: la navegación, los paneles y los análisis se adaptan al instante."
       }
     },
     "profile": "Perfil",
@@ -6510,6 +6525,68 @@
       "save": "Guardar",
       "savedToast": "Resultado guardado",
       "saveError": "No se pudo guardar el resultado"
+    }
+  },
+  "modules": {
+    "cycle": {
+      "label": "Ciclo",
+      "description": "Registra periodo, fases y predicciones."
+    },
+    "mood": {
+      "label": "Estado de ánimo",
+      "description": "Registra el ánimo diario y etiquetas."
+    },
+    "sleep": {
+      "label": "Sueño",
+      "description": "Duración, fases y cronología del sueño."
+    },
+    "glucose": {
+      "label": "Glucosa",
+      "description": "Lecturas de glucosa y tendencias."
+    },
+    "workouts": {
+      "label": "Entrenamientos",
+      "description": "Sesiones de entrenamiento y actividad."
+    },
+    "recovery": {
+      "label": "Recuperación",
+      "description": "Métricas de recuperación y carga de tus dispositivos."
+    },
+    "labs": {
+      "label": "Resultados de laboratorio",
+      "description": "Registra resultados de laboratorio y su historial."
+    },
+    "achievements": {
+      "label": "Logros",
+      "description": "Insignias y rachas para tu rutina."
+    },
+    "coach": {
+      "label": "Coach",
+      "description": "Chat de IA basado en tus propios datos."
+    },
+    "insights": {
+      "label": "Análisis",
+      "description": "Análisis de IA, resumen y correlaciones."
+    },
+    "doctorReport": {
+      "label": "Informe médico",
+      "description": "Exportación PDF y FHIR para tu consulta."
+    },
+    "weight": {
+      "label": "Peso",
+      "description": "Peso y composición corporal."
+    },
+    "bloodPressure": {
+      "label": "Presión arterial",
+      "description": "Sistólica y diastólica."
+    },
+    "pulse": {
+      "label": "Pulso",
+      "description": "Pulso en reposo y frecuencia cardiaca."
+    },
+    "medications": {
+      "label": "Medicamentos",
+      "description": "Pautas, tomas y cumplimiento."
     }
   }
 }

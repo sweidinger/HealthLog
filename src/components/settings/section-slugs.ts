@@ -34,6 +34,9 @@
 // the hub is consolidation by linking.
 export const SETTINGS_SECTION_SLUGS = [
   "account",
+  // v1.18.0 — `modules` ("Was du trackst") sits right after account: the
+  // single front door for enabling/disabling secondary tracking domains.
+  "modules",
   "integrations",
   "notifications",
   "reminders",
