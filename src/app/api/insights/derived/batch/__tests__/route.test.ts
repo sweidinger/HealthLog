@@ -61,7 +61,16 @@ vi.mock("@/lib/insights/derived", async (importOriginal) => {
   };
 });
 
+// v1.18.0 — the route resolves the per-user module map to drop disabled-
+// module derived scores; stub it so the batch tests stay focused (default:
+// every module enabled) and the profile-read count isn't perturbed.
+vi.mock("@/lib/modules/gate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/modules/gate")>();
+  return { ...actual, resolveModuleMap: vi.fn() };
+});
+
 import { GET } from "../route";
+import { resolveModuleMap } from "@/lib/modules/gate";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
@@ -96,6 +105,7 @@ beforeEach(() => {
   __resetAllCachesForTests();
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
   vi.mocked(prisma.appSettings.findUnique).mockResolvedValue(null as never);
+  vi.mocked(resolveModuleMap).mockResolvedValue({} as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     dateOfBirth: new Date("1986-01-01"),
     gender: "MALE",

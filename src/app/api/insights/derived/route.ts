@@ -41,15 +41,19 @@ export const dynamic = "force-dynamic";
 /**
  * Derived scores that are NATIVE to a toggleable module rather than a core
  * vital. SLEEP_SCORE is the sleep module's; the strain / recovery / stress
- * trio belongs to the WHOOP/Polar recovery module. The composite baselines
- * (VITALS_BASELINE, READINESS, HRV_BALANCE, …) read off core vitals and
- * stay open — a metric absent from this map carries no module gate.
+ * trio belongs to the WHOOP/Polar recovery module. READINESS equals the
+ * computed recovery score (same number, recovery-native), so it is gated on
+ * the recovery module too. The remaining composite baselines
+ * (VITALS_BASELINE, HRV_BALANCE, …) read off core vitals and stay open — a
+ * metric absent from this map carries no module gate. Exported so the batch
+ * route gates on the SAME map and the two routes cannot drift.
  */
-const DERIVED_MODULE: Partial<Record<DerivedMetricId, ModuleKey>> = {
+export const DERIVED_MODULE: Partial<Record<DerivedMetricId, ModuleKey>> = {
   SLEEP_SCORE: "sleep",
   RECOVERY_SCORE: "recovery",
   STRAIN_SCORE: "recovery",
   STRESS_SCORE: "recovery",
+  READINESS: "recovery",
 };
 
 // Closed enum derived from the registry so the route + registry cannot
