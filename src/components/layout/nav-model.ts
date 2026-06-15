@@ -3,7 +3,6 @@ import {
   Bell,
   Bug,
   Droplets,
-  Dumbbell,
   FlaskConical,
   Home,
   Lightbulb,
@@ -92,15 +91,10 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     icon: Stethoscope,
     tourId: "nav-vorsorge",
   },
-  {
-    href: "/insights/workouts",
-    tKey: "nav.workouts",
-    icon: Dumbbell,
-    tourId: "nav-workouts",
-  },
-  // v1.18.0 — Recovery left the left-nav: it surfaces as an Insights pill
-  // (`/insights/recovery`) rather than a top-level destination, so it no
-  // longer appears in `NAV_DESTINATIONS`.
+  // v1.18.0 — Workouts and Recovery both left the left-nav: each already
+  // surfaces as an Insights tab-strip pill (`/insights/workouts` gated on
+  // a workout row, `/insights/recovery` always present), so neither is a
+  // top-level `NAV_DESTINATIONS` entry any more.
   {
     href: "/insights",
     tKey: "nav.insights",

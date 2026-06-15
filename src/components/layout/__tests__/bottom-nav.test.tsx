@@ -7,8 +7,9 @@
  *     `aria-haspopup="dialog"`), not a navigation link
  *   - the More button opens a hub (closed by default under SSR)
  *   - the More hub is a real hub: Measurements + Mood (which left the
- *     always-visible strip) stay reachable here, alongside Workouts,
- *     Achievements, Notifications and Settings — nothing is orphaned
+ *     always-visible strip) stay reachable here, alongside Achievements,
+ *     Notifications and Settings — nothing is orphaned (v1.18.0 — Workouts
+ *     and Recovery left the nav for their Insights pills)
  *   - WCAG 2.5.5 floor: every strip entry is `min-h-11 min-w-11`
  *
  * v1.8.6 — the Targets (Zielwerte) page is deprecated and dropped from

@@ -3,9 +3,10 @@
  *
  * Pins the coherence contract the desktop sidebar and the mobile
  * bottom-nav both consume: one ordered destination list (so the two bars
- * tell one story), Workouts AND Coach as first-class destinations on both
+ * tell one story), the Coach as a first-class destination on both
  * surfaces, cycle gated by the account flag, and an active-resolver that
- * prefers the most-specific sibling under `/insights`.
+ * prefers the most-specific sibling under `/insights`. (v1.18.0 —
+ * Workouts and Recovery left the left nav for their Insights pills.)
  */
 import { describe, expect, it } from "vitest";
 
@@ -182,12 +183,13 @@ describe("isNavDestinationActive most-specific resolution", () => {
     expect(isNavDestinationActive("/insights", "/coach")).toBe(false);
   });
 
-  it("does not light up Insights when on its Workouts sibling", () => {
-    expect(
-      isNavDestinationActive("/insights/workouts", "/insights/workouts"),
-    ).toBe(true);
+  it("lights up Insights on its Workouts sub-route (no longer a separate nav home)", () => {
+    // v1.18.0 — Workouts left the left nav for its Insights pill, so it is
+    // no longer a more-specific NAV_DESTINATIONS sibling. The Insights nav
+    // home now reads active on `/insights/workouts`, like any other
+    // `/insights/*` sub-route.
     expect(isNavDestinationActive("/insights", "/insights/workouts")).toBe(
-      false,
+      true,
     );
   });
 
