@@ -43,10 +43,18 @@ vi.mock("@/lib/ai/coach/bytes-codec", () => ({
 vi.mock("@/lib/ai/coach/about-me", () => ({
   getSelfContextForUser: vi.fn(),
 }));
+vi.mock("@/lib/modules/gate", () => ({
+  requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
+}));
 
 vi.mock("@/lib/api-response", () => ({
   apiSuccess: (data: unknown) => ({ data, error: null, status: 200 }),
-  apiError: (error: string, status: number) => ({ data: null, error, status }),
+  apiError: (error: string, status: number, meta?: unknown) => ({
+    data: null,
+    error,
+    status,
+    meta,
+  }),
   getClientIp: () => "127.0.0.1",
   returnAllZodIssues: (_e: unknown, status: number) => ({
     data: null,
@@ -59,9 +67,11 @@ vi.mock("@/lib/api-response", () => ({
 import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSelfContextForUser } from "@/lib/ai/coach/about-me";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 const transaction = prisma.$transaction as ReturnType<typeof vi.fn>;
 const getCtx = getSelfContextForUser as ReturnType<typeof vi.fn>;
+const gate = requireModuleEnabled as ReturnType<typeof vi.fn>;
 
 function adoptRequest(body: { question?: string; answer: string }): Request {
   return new Request("http://localhost/api/coach/about-me/adopt", {
@@ -87,6 +97,29 @@ describe("POST /api/coach/about-me/adopt", () => {
     tx.userHealthProfile.upsert.mockResolvedValue({ id: "p1" });
     tx.userHealthProfile.update.mockResolvedValue({ updatedAt: new Date() });
     tx.$queryRaw.mockResolvedValue([{ id: "p1" }]);
+    gate.mockResolvedValue({ enabled: true });
+  });
+
+  // v1.18.0 — Coach module gate (operator availability OR per-user
+  // disableCoach) short-circuits before the locked read-modify-write.
+  it("returns 403 module.disabled when Coach is disabled, without a write", async () => {
+    gate.mockResolvedValue({
+      enabled: false,
+      response: {
+        data: null,
+        error: 'Module "coach" is not enabled',
+        status: 403,
+        meta: { errorCode: "module.disabled", module: "coach" },
+      },
+    });
+
+    const res = await post(
+      adoptRequest({ question: "What matters?", answer: "evening walks" }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(gate).toHaveBeenCalledWith("u1", "coach");
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it("runs the read-modify-write inside one transaction with a row lock", async () => {
