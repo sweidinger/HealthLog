@@ -86,7 +86,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // v1.18.0 — `modules` ("Was du trackst") sits right after `account` as
     // the single front door for enabling/disabling secondary domains.
     // v1.18.0 (S5) — `gesundheitsakte` (the full health-record export) lifts
-    // out of Export & Import into its own top-level entry, before `export`.
+    // out of Export & Import into its own top-level entry, before `export`;
+    // `coach` gathers the Coach preference cards out of the AI section and
+    // sits right after `ai`.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "modules",
@@ -99,6 +101,7 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "mood",
       "thresholds",
       "ai",
+      "coach",
       "api",
       "gesundheitsakte",
       "export",
@@ -217,6 +220,19 @@ describe("<SettingsShell>", () => {
     const moodActive =
       /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/mood"|<a\b[^>]*\bhref="\/settings\/mood"[^>]*\baria-current="page"/g;
     expect(enabled.match(moodActive)?.length ?? 0).toBe(2);
+  });
+
+  it("module-gates the Coach entry off `user.modules.coach` (v1.18.0 S5)", () => {
+    // Fail-open default: coach undefined → entry shown.
+    expect(renderShell({ active: "account" })).toContain(
+      'href="/settings/coach"',
+    );
+    // Explicitly disabled → entry hidden.
+    const disabled = renderShell({
+      active: "account",
+      modules: { coach: false },
+    });
+    expect(disabled).not.toContain('href="/settings/coach"');
   });
 
   it("falls back to `account` when the pathname doesn't match a known slug", () => {

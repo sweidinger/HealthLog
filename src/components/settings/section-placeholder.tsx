@@ -14,6 +14,7 @@
 import {
   Bell,
   Blocks,
+  Bot,
   Download,
   FileHeart,
   Info,
@@ -46,6 +47,7 @@ const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   mood: Smile,
   thresholds: SlidersHorizontal,
   ai: Sparkles,
+  coach: Bot,
   api: KeyRound,
   gesundheitsakte: FileHeart,
   export: Download,

@@ -4125,6 +4125,10 @@
       "gesundheitsakte": {
         "title": "Historial médico",
         "description": "Exporta tu historial médico completo como PDF, FHIR R4 o un paquete ZIP combinado."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Activa el Coach, tono y alcance, recuerdos guardados."
       }
     },
     "profile": "Perfil",

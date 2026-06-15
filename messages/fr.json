@@ -4125,6 +4125,10 @@
       "gesundheitsakte": {
         "title": "Dossier médical",
         "description": "Exportez votre dossier médical complet au format PDF, FHIR R4 ou en paquet ZIP combiné."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Activez le Coach, le ton et la portée, les souvenirs enregistrés."
       }
     },
     "profile": "Profil",

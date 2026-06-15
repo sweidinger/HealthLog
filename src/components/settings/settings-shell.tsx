@@ -20,6 +20,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Blocks,
+  Bot,
   Download,
   FileHeart,
   Info,
@@ -145,6 +146,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     icon: SlidersHorizontal,
   },
   { slug: "ai", titleKey: "settings.sections.ai.title", icon: Sparkles },
+  // v1.18.0 (S5) — Coach: the Coach preference cards get their own entry,
+  // shown only when the coach module is enabled. The AI entry above keeps
+  // provider / model / BYOK configuration.
+  {
+    slug: "coach",
+    titleKey: "settings.sections.coach.title",
+    icon: Bot,
+    moduleGate: "coach",
+  },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
   // v1.18.0 (S5) — the full health record (PDF + FHIR R4 + zip package)
   // earns its own home, lifted out of Export & Import. Always available.

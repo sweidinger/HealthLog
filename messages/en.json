@@ -4125,6 +4125,10 @@
       "gesundheitsakte": {
         "title": "Health record",
         "description": "Export your full health record as PDF, FHIR R4, or a combined ZIP package."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Enable the Coach, tone and scope, stored memories."
       }
     },
     "profile": "Profile",

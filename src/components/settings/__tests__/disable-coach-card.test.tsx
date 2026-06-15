@@ -32,12 +32,15 @@ vi.mock("@/hooks/use-auth", async () => {
   };
 });
 
-// Stub every other query hook the parent `<AiSection>` triggers so
-// the SSR pass doesn't blow up. The disable-coach card itself doesn't
-// trigger any GET — it only writes through PATCH on click.
+// Stub the navigation hooks the parent `<CoachSection>` (and its child
+// cards) reach for so the SSR pass doesn't blow up. The disable-coach card
+// itself doesn't trigger any GET — it only writes through PATCH on click.
+//
+// v1.18.0 (S5) — the Coach cards moved from `<AiSection>` to the dedicated
+// `<CoachSection>`; this contract test renders the new parent.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  usePathname: () => "/settings/ai",
+  usePathname: () => "/settings/coach",
   useSearchParams: () => new URLSearchParams(""),
 }));
 
@@ -67,7 +70,7 @@ function buildUser(disableCoach: boolean): AuthUser {
   };
 }
 
-import { AiSection } from "../ai-section";
+import { CoachSection } from "../coach-section";
 
 function makeFetch() {
   return vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
@@ -104,7 +107,7 @@ function render(): string {
   return renderToStaticMarkup(
     <QueryClientProvider client={client}>
       <I18nProvider initialLocale="en">
-        <AiSection />
+        <CoachSection />
       </I18nProvider>
     </QueryClientProvider>,
   );

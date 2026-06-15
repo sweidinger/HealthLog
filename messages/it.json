@@ -4125,6 +4125,10 @@
       "gesundheitsakte": {
         "title": "Cartella clinica",
         "description": "Esporta la tua cartella clinica completa in PDF, FHIR R4 o in un pacchetto ZIP combinato."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Attiva il Coach, tono e ambito, ricordi salvati."
       }
     },
     "profile": "Profilo",

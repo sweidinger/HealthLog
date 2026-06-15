@@ -4125,6 +4125,10 @@
       "gesundheitsakte": {
         "title": "Dokumentacja zdrowotna",
         "description": "Wyeksportuj pełną dokumentację zdrowotną jako PDF, FHIR R4 lub łączony pakiet ZIP."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Włącz Coacha, ton i zakres, zapisane wspomnienia."
       }
     },
     "profile": "Profil",

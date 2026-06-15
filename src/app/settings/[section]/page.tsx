@@ -6,6 +6,7 @@ import { AboutSection } from "@/components/settings/about-section";
 import { AdvancedSection } from "@/components/settings/advanced-section";
 import { AiSection } from "@/components/settings/ai-section";
 import { ApiSection } from "@/components/settings/api-section";
+import { CoachSection } from "@/components/settings/coach-section";
 import { DashboardSection } from "@/components/settings/dashboard-section";
 import { ExportSection } from "@/components/settings/export-section";
 import { GesundheitsakteSection } from "@/components/settings/gesundheitsakte-section";
@@ -52,6 +53,7 @@ const SECTION_COMPONENTS: Record<
   modules: ModulesSection,
   about: AboutSection,
   ai: AiSection,
+  coach: CoachSection,
   integrations: IntegrationsSection,
   notifications: NotificationsSection,
   layout: LayoutSection,

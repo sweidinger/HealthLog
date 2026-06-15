@@ -48,6 +48,10 @@ export const SETTINGS_SECTION_SLUGS = [
   "mood",
   "thresholds",
   "ai",
+  // v1.18.0 (S5) — `coach` gathers the Coach preference cards (disable
+  // toggle, preferences, memory) out of the AI section, module-gated on
+  // the coach module. The `ai` entry keeps provider / model / BYOK only.
+  "coach",
   "api",
   "gesundheitsakte",
   "export",

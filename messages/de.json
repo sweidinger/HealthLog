@@ -4125,6 +4125,10 @@
       "gesundheitsakte": {
         "title": "Gesundheitsakte",
         "description": "Vollständige Gesundheitsakte als PDF, FHIR R4 oder kombiniertes ZIP-Paket exportieren."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Coach aktivieren, Ton und Umfang, gespeicherte Erinnerungen."
       }
     },
     "profile": "Profil",
