@@ -6,6 +6,7 @@ import { FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 
 import { DeleteButton } from "@/components/data-list";
+import { formatReferenceRange } from "@/lib/labs/reference-range";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -186,12 +187,11 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
               group.latest.referenceHigh !== null ? (
                 <span className="text-xs">
                   {t("labs.referenceLabel")}{" "}
-                  {group.latest.referenceLow !== null &&
-                  group.latest.referenceHigh !== null
-                    ? `${formatValue(group.latest.referenceLow)}–${formatValue(group.latest.referenceHigh)}`
-                    : group.latest.referenceHigh !== null
-                      ? `≤ ${formatValue(group.latest.referenceHigh)}`
-                      : `≥ ${formatValue(group.latest.referenceLow as number)}`}
+                  {formatReferenceRange(
+                    group.latest.referenceLow,
+                    group.latest.referenceHigh,
+                    formatValue,
+                  )}
                 </span>
               ) : null}
               <span className="text-xs">

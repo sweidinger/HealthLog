@@ -145,25 +145,12 @@ export const listLabResultsSchema = z.object({
 export type ListLabResultsInput = z.infer<typeof listLabResultsSchema>;
 
 /**
- * Reference-range classification. Deliberately a three-state, NEUTRAL
- * verdict — the badge that renders it must stay calm and informative, NOT
- * alarming (no red "out of range" tint). `"unknown"` when the lab reported
- * no usable bounds.
- *
- * Bounds are treated as inclusive: a value exactly on the reference limit
- * reads as in-range, matching how labs print "≤" / "≥" reference notation.
+ * Reference-range classification lives in `@/lib/labs/reference-range` so the
+ * API response, the doctor-report PDF, and the lab list card all share one
+ * implementation. Re-exported here for the existing import sites.
  */
-export type ReferenceRangeStatus = "in-range" | "below" | "above" | "unknown";
-
-export function classifyReferenceRange(
-  value: number,
-  referenceLow: number | null | undefined,
-  referenceHigh: number | null | undefined,
-): ReferenceRangeStatus {
-  const hasLow = referenceLow !== null && referenceLow !== undefined;
-  const hasHigh = referenceHigh !== null && referenceHigh !== undefined;
-  if (!hasLow && !hasHigh) return "unknown";
-  if (hasLow && value < (referenceLow as number)) return "below";
-  if (hasHigh && value > (referenceHigh as number)) return "above";
-  return "in-range";
-}
+export {
+  classifyReferenceRange,
+  formatReferenceRange,
+  type ReferenceRangeStatus,
+} from "@/lib/labs/reference-range";
