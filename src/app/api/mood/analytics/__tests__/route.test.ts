@@ -37,6 +37,12 @@ vi.mock("@/lib/auth/audit", () => ({
 
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 
+// v1.18.0 — pin the mood module gate to "enabled" so this suite stays
+// focused on the mood-series engine; the gate is covered elsewhere.
+vi.mock("@/lib/modules/gate", () => ({
+  requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
+}));
+
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));

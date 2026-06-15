@@ -22,6 +22,12 @@ vi.mock("@/lib/rollups/measurement-read", () => ({
   loadUserSourcePriority: vi.fn(async () => null),
 }));
 
+// v1.18.0 — pin the sleep module gate to "enabled" so this suite stays
+// focused on the sleep-rhythm read; the gate is covered elsewhere.
+vi.mock("@/lib/modules/gate", () => ({
+  requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
+}));
+
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
