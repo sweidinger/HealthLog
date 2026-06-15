@@ -240,9 +240,15 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     const imported = await syncUserSleep("user-1");
     expect(imported).toBe(1);
     expect(prisma.measurement.create).not.toHaveBeenCalled();
+    // Re-sync keys on the stable externalId and refreshes value, the
+    // END-stamped measuredAt (enddate may shift) and the stage.
     expect(prisma.measurement.update).toHaveBeenCalledWith({
       where: { id: "row-1" },
-      data: { value: 60 },
+      data: {
+        value: 60,
+        measuredAt: new Date(1715003600 * 1000),
+        sleepStage: "DEEP",
+      },
     });
   });
 

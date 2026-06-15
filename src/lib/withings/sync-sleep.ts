@@ -275,20 +275,25 @@ export async function syncUserSleep(
     const externalId = `withings:sleep:${userId}:${segment.id ?? "no-id"}:${segmentIndex}`;
 
     try {
+      // Key the re-sync lookup on the STABLE `externalId` (segment id +
+      // index), not `measuredAt`. Withings re-aggregates a night between
+      // syncs, so a segment's `enddate` — and therefore its END-stamped
+      // `measuredAt` — shifts; keying on `measuredAt` would miss the prior
+      // row and then collide with the unique `externalId`, leaving the night
+      // stuck at the stale value. Update both `value` and `measuredAt`.
       const existing = await prisma.measurement.findFirst({
         where: {
           userId,
           type: SLEEP_TYPE,
-          measuredAt,
           source: "WITHINGS",
-          sleepStage: stage,
+          externalId,
         },
         select: { id: true },
       });
       if (existing) {
         await prisma.measurement.update({
           where: { id: existing.id },
-          data: { value: minutes },
+          data: { value: minutes, measuredAt, sleepStage: stage },
         });
       } else {
         await prisma.measurement.create({
