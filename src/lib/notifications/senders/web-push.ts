@@ -91,7 +91,7 @@ export async function sendViaWebPush(
       tag: payload.discreet ? "REMINDER" : payload.eventType,
       // v1.15.20 — opt-in deep link: a dispatcher payload may carry a
       // same-origin path in `metadata.url` (e.g. the Coach nudge's
-      // `/insights/coach`); everything else keeps the legacy "/" click
+      // `/coach`); everything else keeps the legacy "/" click
       // target. Only relative paths are honoured so a poisoned metadata
       // value can never point the SW at a foreign origin.
       url:

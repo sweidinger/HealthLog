@@ -20,13 +20,14 @@ import { useDisableCoach } from "@/hooks/use-disable-coach";
  * thin chrome wrapper that supplies a "minimize back to drawer"
  * control where the drawer supplies "maximize" + "close".
  *
- * The route lives inside `app/insights/layout.tsx` (sticky tab strip +
- * mobile FAB) and the authenticated `<AuthShell>` (which provides the
- * `<CoachLaunchProvider>` the minimize control reopens the drawer
- * through), so the page inherits the same Coach feature gating as every
- * other Insights surface. When the operator's master flag is off or the
- * user opted out, the page redirects back to `/insights` rather than
- * painting a dead chat shell.
+ * v1.18.0 — the route is a standalone top-level page (`/coach`), no longer
+ * nested under `app/insights/layout.tsx`, so it renders in the standard
+ * page chrome WITHOUT the Insights tab strip. It still sits inside the
+ * authenticated `<AuthShell>` (which provides the `<CoachLaunchProvider>`
+ * the minimize control reopens the drawer through), so the page inherits
+ * the same Coach feature gating as every other Coach surface. When the
+ * operator's master flag is off or the user opted out, the page redirects
+ * back to `/insights` rather than painting a dead chat shell.
  */
 export default function CoachPage() {
   const { t } = useTranslations();

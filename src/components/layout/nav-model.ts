@@ -3,9 +3,7 @@ import {
   Bell,
   Bug,
   Droplets,
-  Dumbbell,
   FlaskConical,
-  HeartPulse,
   Home,
   Lightbulb,
   MessagesSquare,
@@ -93,23 +91,10 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     icon: Stethoscope,
     tourId: "nav-vorsorge",
   },
-  {
-    href: "/insights/workouts",
-    tKey: "nav.workouts",
-    icon: Dumbbell,
-    tourId: "nav-workouts",
-  },
-  // v1.17.1 — the Recovery surface gets a nav home alongside Workouts. It
-  // hosts the WHOOP / Polar device-native recovery + strain scores that were
-  // stored end-to-end but had no page. Like Workouts it is shown to every
-  // account (the page itself data-gates each block, so a non-wearable user
-  // lands on a calm empty note rather than a broken surface).
-  {
-    href: "/insights/recovery",
-    tKey: "nav.recovery",
-    icon: HeartPulse,
-    tourId: "nav-recovery",
-  },
+  // v1.18.0 — Workouts and Recovery both left the left-nav: each already
+  // surfaces as an Insights tab-strip pill (`/insights/workouts` gated on
+  // a workout row, `/insights/recovery` always present), so neither is a
+  // top-level `NAV_DESTINATIONS` entry any more.
   {
     href: "/insights",
     tKey: "nav.insights",
@@ -121,7 +106,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
   // states, per-metric icons …) but nowhere in the nav, so a new user
   // could miss the differentiator entirely. The other entry points stay.
   {
-    href: "/insights/coach",
+    href: "/coach",
     tKey: "nav.coach",
     icon: MessagesSquare,
     tourId: "nav-coach",
@@ -240,8 +225,8 @@ export function mobileMoreHubDestinations(opts: {
  * Whether `href` is the active nav destination for the current `pathname`,
  * resolved against the full destination set so the most-specific entry
  * wins. Without this, a plain `startsWith("/insights")` would light up
- * Insights while the user is on its siblings `/insights/workouts` or
- * `/insights/coach` — both of which are now their own top-level nav homes.
+ * Insights while the user is on its sibling `/insights/workouts`, which
+ * is its own nav home (Coach lives at the top-level `/coach`).
  * The dashboard (`/`) only matches an exact path.
  */
 export function isNavDestinationActive(
@@ -254,7 +239,7 @@ export function isNavDestinationActive(
     pathname === candidate || pathname.startsWith(`${candidate}/`);
   if (!matches(href)) return false;
   // A longer sibling that also matches is the more specific home — defer
-  // to it (e.g. on `/insights/coach`, `/insights` must NOT read active).
+  // to it (e.g. on `/insights/workouts`, `/insights` must NOT read active).
   const moreSpecific = destinations.some(
     (d) => d.href !== href && d.href.startsWith(`${href}/`) && matches(d.href),
   );

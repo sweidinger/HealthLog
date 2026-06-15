@@ -26,7 +26,7 @@ import { apiGet } from "@/lib/api/api-fetch";
  * nudge (server-derived), or opened the Coach on this device (local
  * seen stamp keyed by the nudge timestamp).
  *
- * The FAB hides inside the Coach view itself (`/insights/coach`) — a
+ * The FAB hides inside the Coach view itself (`/coach`) — a
  * launcher pointing at the page the user is already on is noise.
  *
  * It yields while a data-list selection bar is mounted (CSS `:has()`
@@ -76,7 +76,7 @@ export function LayoutCoachFab() {
   });
 
   const coachAvailable = !!launch && flags.coach && !disableCoach;
-  const onCoachPage = pathname?.startsWith("/insights/coach") ?? false;
+  const onCoachPage = pathname?.startsWith("/coach") ?? false;
 
   const { data: status } = useQuery({
     queryKey: queryKeys.coachNudgeStatus(),

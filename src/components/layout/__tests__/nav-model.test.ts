@@ -3,9 +3,10 @@
  *
  * Pins the coherence contract the desktop sidebar and the mobile
  * bottom-nav both consume: one ordered destination list (so the two bars
- * tell one story), Workouts AND Coach as first-class destinations on both
+ * tell one story), the Coach as a first-class destination on both
  * surfaces, cycle gated by the account flag, and an active-resolver that
- * prefers the most-specific sibling under `/insights`.
+ * prefers the most-specific sibling under `/insights`. (v1.18.0 —
+ * Workouts and Recovery left the left nav for their Insights pills.)
  */
 import { describe, expect, it } from "vitest";
 
@@ -20,16 +21,13 @@ import {
 } from "../nav-model";
 
 describe("nav-model destination list", () => {
-  it("lists Workouts and Coach as first-class destinations", () => {
+  it("lists Coach as a first-class destination", () => {
     const hrefs = NAV_DESTINATIONS.map((d) => d.href);
-    expect(hrefs).toContain("/insights/workouts");
-    expect(hrefs).toContain("/insights/coach");
+    expect(hrefs).toContain("/coach");
   });
 
-  it("gives the Coach exactly one nav home (F-3)", () => {
-    const coach = NAV_DESTINATIONS.filter(
-      (d) => d.href === "/insights/coach",
-    );
+  it("gives the Coach exactly one nav home at the top-level /coach (F-3)", () => {
+    const coach = NAV_DESTINATIONS.filter((d) => d.href === "/coach");
     expect(coach).toHaveLength(1);
     expect(coach[0]!.tKey).toBe("nav.coach");
   });
@@ -56,9 +54,16 @@ describe("nav-model destination list", () => {
     expect(hrefs).toContain("/vorsorge");
     const vorsorge = NAV_DESTINATIONS.find((d) => d.href === "/vorsorge");
     expect(vorsorge?.tKey).toBe("nav.vorsorge");
-    // Peer to Labs / Recovery: sits in the clinical spine, before Insights.
+    // Peer to Labs: sits in the clinical spine, before Insights.
     expect(hrefs.indexOf("/labs")).toBeLessThan(hrefs.indexOf("/vorsorge"));
     expect(hrefs.indexOf("/vorsorge")).toBeLessThan(hrefs.indexOf("/insights"));
+  });
+
+  it("does not list Recovery as a left-nav destination (it is an Insights pill)", () => {
+    // v1.18.0 — Recovery moved off the left nav and surfaces as an
+    // Insights tab-strip pill at `/insights/recovery` instead.
+    const hrefs = NAV_DESTINATIONS.map((d) => d.href);
+    expect(hrefs).not.toContain("/insights/recovery");
   });
 
 });
@@ -171,19 +176,20 @@ describe("isNavDestinationActive most-specific resolution", () => {
     expect(isNavDestinationActive("/", "/measurements")).toBe(false);
   });
 
-  it("does not light up Insights when on its Coach sibling", () => {
-    expect(isNavDestinationActive("/insights/coach", "/insights/coach")).toBe(
-      true,
-    );
-    expect(isNavDestinationActive("/insights", "/insights/coach")).toBe(false);
+  it("lights up the top-level Coach home on its own route", () => {
+    expect(isNavDestinationActive("/coach", "/coach")).toBe(true);
+    // The standalone /coach route is not a sibling of /insights, so the
+    // Insights entry must stay dark on it.
+    expect(isNavDestinationActive("/insights", "/coach")).toBe(false);
   });
 
-  it("does not light up Insights when on its Workouts sibling", () => {
-    expect(
-      isNavDestinationActive("/insights/workouts", "/insights/workouts"),
-    ).toBe(true);
+  it("lights up Insights on its Workouts sub-route (no longer a separate nav home)", () => {
+    // v1.18.0 — Workouts left the left nav for its Insights pill, so it is
+    // no longer a more-specific NAV_DESTINATIONS sibling. The Insights nav
+    // home now reads active on `/insights/workouts`, like any other
+    // `/insights/*` sub-route.
     expect(isNavDestinationActive("/insights", "/insights/workouts")).toBe(
-      false,
+      true,
     );
   });
 

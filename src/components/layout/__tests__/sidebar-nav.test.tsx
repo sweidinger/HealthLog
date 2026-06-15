@@ -133,22 +133,22 @@ describe("<SidebarNav> targets deprecation (v1.8.6)", () => {
 });
 
 describe("<SidebarNav> unified destination model (v1.17.1 F-1 / F-3)", () => {
-  it("surfaces Workouts and the Coach as first-class sidebar destinations", () => {
-    // Pre-unify the sidebar hid Workouts entirely and had no Coach home,
-    // while the mobile bar promoted Workouts and still missed Coach. Both
-    // now render the one shared model, so both carry both destinations.
+  it("surfaces the Coach as a first-class sidebar destination", () => {
+    // Pre-unify the sidebar had no Coach home while the mobile bar missed
+    // it too; both now render the one shared model so both carry it.
+    // (v1.18.0 — Workouts left the left nav for its Insights pill, so it is
+    // no longer a sidebar destination.)
     const html = render();
-    expect(html).toContain('href="/insights/workouts"');
-    expect(html).toContain('href="/insights/coach"');
-    expect(html).toContain("Workouts");
+    expect(html).toContain('href="/coach"');
     expect(html).toContain("Coach");
+    expect(html).not.toContain('href="/insights/workouts"');
   });
 
   it("marks Coach active without also marking Insights active", () => {
-    const html = render({ pathname: "/insights/coach" });
-    // The Coach link carries aria-current="page"; the Insights link, its
-    // less-specific sibling, must not (most-specific resolution).
-    const coach = html.match(/<a[^>]*href="\/insights\/coach"[^>]*>/);
+    const html = render({ pathname: "/coach" });
+    // The Coach link carries aria-current="page"; the standalone /coach
+    // route is not a sibling of /insights, so the Insights link must not.
+    const coach = html.match(/<a[^>]*href="\/coach"[^>]*>/);
     const insights = html.match(/<a[^>]*href="\/insights"[^>]*>/);
     expect(coach?.[0]).toMatch(/aria-current="page"/);
     expect(insights?.[0]).not.toMatch(/aria-current="page"/);

@@ -218,7 +218,7 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
           >
             {t("insights.coach.settingsSourcesPointer")}{" "}
             <Link
-              href="/insights/coach"
+              href="/coach"
               className="text-foreground underline underline-offset-2"
             >
               {t("insights.coach.settingsSourcesPointerLink")}

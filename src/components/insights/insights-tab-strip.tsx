@@ -420,6 +420,18 @@ function buildTabs(
       href: INSIGHTS_OVERVIEW_PATH,
       labelKey: "insights.navOverview",
     },
+    // v1.18.0 — Recovery is an Insights pill, no longer a left-nav home.
+    // It is a composite wearable surface (WHOOP / Polar / Oura recovery,
+    // strain, ANS charge, cardio load), not a single MeasurementType, so
+    // it has no `summaries[METRIC].count` to gate on. The page itself
+    // data-gates every block and falls back to a calm empty note, so the
+    // pill is always present like Overview rather than carrying its own
+    // availability signal.
+    {
+      kind: "link",
+      href: `${INSIGHTS_OVERVIEW_PATH}/recovery`,
+      labelKey: "insights.navRecovery",
+    },
   ];
 
   // v1.4.34 IW-D — track which groups have already been emitted so the

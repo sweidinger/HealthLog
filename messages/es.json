@@ -2784,6 +2784,7 @@
       }
     },
     "navWorkouts": "Entrenamientos",
+    "navRecovery": "Recuperación",
     "workouts": {
       "title": "Entrenamientos",
       "description": "Carreras, salidas en bici, paseos y sesiones de fuerza recientes, deduplicados entre Apple Watch y Withings.",

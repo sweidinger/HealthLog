@@ -94,6 +94,25 @@ describe("<InsightsTabStrip> — availability gating (v1.4.27 F19)", () => {
     expect(html).toContain(">Overview<");
   });
 
+  it("always renders the Recovery pill (composite wearable surface, self-gated page)", () => {
+    // v1.18.0 — Recovery left the left-nav for an Insights pill. It is a
+    // composite WHOOP / Polar / Oura surface, not a single MeasurementType,
+    // so it has no `summaries[METRIC].count` to gate on; the page itself
+    // data-gates each block and falls back to a calm empty note, so the
+    // pill is always present (like Overview) regardless of availability.
+    const noAvailability = render(<InsightsTabStrip />);
+    expect(noAvailability).toContain(">Recovery<");
+    expect(noAvailability).toContain('href="/insights/recovery"');
+
+    const emptyAvailability: InsightInputs = {
+      summaries: {},
+      hasMood: false,
+      hasMedication: false,
+    };
+    const html = render(<InsightsTabStrip availability={emptyAvailability} />);
+    expect(html).toContain(">Recovery<");
+  });
+
   it("lights up Mood when hasMood flips to true", () => {
     const availability: InsightInputs = {
       summaries: {},

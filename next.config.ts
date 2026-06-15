@@ -98,19 +98,30 @@ const nextConfig: NextConfig = {
       ["stimmung", "mood"],
       ["medikamente", "medications"],
     ];
-    return insightsSlugRenames.flatMap(([from, to]) => [
+    return [
+      ...insightsSlugRenames.flatMap(([from, to]) => [
+        {
+          source: `/insights/${from}`,
+          destination: `/insights/${to}`,
+          permanent: true,
+        },
+        // Preserve any nested path (e.g. a future `/insights/sleep/2026-05-31`).
+        {
+          source: `/insights/${from}/:path*`,
+          destination: `/insights/${to}/:path*`,
+          permanent: true,
+        },
+      ]),
+      // v1.18.0 — the Coach moved out of the Insights surface to a
+      // standalone top-level page. The legacy `/insights/coach` URL
+      // 301-redirects to `/coach` so bookmarks, the PWA's cached
+      // navigation, and any pre-update push deep-link keep resolving.
       {
-        source: `/insights/${from}`,
-        destination: `/insights/${to}`,
+        source: "/insights/coach",
+        destination: "/coach",
         permanent: true,
       },
-      // Preserve any nested path (e.g. a future `/insights/sleep/2026-05-31`).
-      {
-        source: `/insights/${from}/:path*`,
-        destination: `/insights/${to}/:path*`,
-        permanent: true,
-      },
-    ]);
+    ];
   },
   async headers() {
     return [

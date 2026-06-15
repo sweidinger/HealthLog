@@ -35,7 +35,7 @@ import { useCoachConversation, useSendCoachMessage } from "./use-coach";
 /**
  * v1.12.0 (Coach v2 #6) — shared chat surface for both the Coach drawer
  * (`<CoachDrawer>`, right/bottom `<Sheet>` overlay) and the full-page
- * Coach route (`/insights/coach`).
+ * Coach route (`/coach`).
  *
  * This component is the single source of truth for the Coach
  * conversation: it owns the active-conversation id, the streaming send

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import { useSelectedLayoutSegment } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { useTranslations } from "@/lib/i18n/context";
@@ -76,13 +75,6 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   const advisorEnabled =
     mounted && isAuthenticated && flags.enabled && flags.briefing;
 
-  // v1.12.6 — the Coach segment is excluded from the generic disclaimer
-  // footer (v1.16.1 dropped the in-chat disclaimer line entirely; the
-  // chat surface stays footer-free by design). Every other segment — the
-  // overview (null segment), the metric sub-pages, mood, medications, the
-  // raw values table — keeps the single generic footer.
-  const segment = useSelectedLayoutSegment();
-  const showDisclaimerFooter = segment !== "coach";
   const advisor = useInsightsAdvisorQuery(advisorEnabled);
 
   // Shared analytics fetch — the layout shell only reads
@@ -176,15 +168,15 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
           rhythm events) stay on their own cards — those convey real,
           non-generic information. Other waves remove the generic line from the
           overview / mood / medications pages; this footer is where it lives.
-          Suppressed on the Coach route, which carries its own disclaimer. */}
-      {showDisclaimerFooter ? (
-        <p
-          data-slot="insights-disclaimer-footer"
-          className="text-muted-foreground border-border/60 border-t pt-4 text-center text-xs leading-relaxed"
-        >
-          {t("insights.disclaimer.footer")}
-        </p>
-      ) : null}
+          v1.18.0 — Coach moved to the standalone `/coach` route (its own
+          disclaimer), so this footer now renders under every `/insights/*`
+          route unconditionally. */}
+      <p
+        data-slot="insights-disclaimer-footer"
+        className="text-muted-foreground border-border/60 border-t pt-4 text-center text-xs leading-relaxed"
+      >
+        {t("insights.disclaimer.footer")}
+      </p>
     </div>
   );
 }
