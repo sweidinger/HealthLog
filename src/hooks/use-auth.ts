@@ -90,9 +90,11 @@ export interface AuthUser {
    * opt-out) and already reflected here, so nav + Insights pill gates read
    * this map rather than re-deriving. Coerced to `{}` against a stale /me
    * payload (older server image without the field) so every gate fails open
-   * — a missing map never blanks the nav.
+   * — a missing map never blanks the nav. Optional so existing `AuthUser`
+   * test fixtures stay valid; `fetchMe` always populates it (empty map when
+   * absent), so live code reads a real map.
    */
-  modules: Partial<Record<ModuleKey, boolean>>;
+  modules?: Partial<Record<ModuleKey, boolean>>;
 }
 
 async function fetchMe(): Promise<AuthUser> {

@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatDate } from "@/lib/format";
 import { useAchievementsQuery } from "@/lib/queries/use-achievements-query";
@@ -81,6 +82,13 @@ const RECENT_LIMIT = 3;
  */
 export function RecentAchievementsCard() {
   const { t } = useTranslations();
+  const { user, isAuthenticated } = useAuth();
+
+  // v1.18.0 — the achievements module gate. When the account has the
+  // module turned off the dashboard tile disappears entirely (the data
+  // query never fires; the API would 403 anyway). Default-on: an absent
+  // key reads as enabled, so the tile only hides on an explicit `false`.
+  const achievementsEnabled = user?.modules?.achievements !== false;
 
   // `isPending` (no data yet, fetch in flight or gated) drives the
   // loading branch. Rendering the empty / content branch before the
@@ -89,9 +97,16 @@ export function RecentAchievementsCard() {
   // content) for the fetch window, then swapped once the real payload
   // landed. A skeleton holds the card's footprint without committing to
   // a content shape it may have to retract.
-  const { data, isPending } = useAchievementsQuery();
+  const { data, isPending } = useAchievementsQuery({
+    enabled: isAuthenticated && achievementsEnabled,
+  });
 
   const recent = pickRecentUnlocks(data?.achievements ?? [], RECENT_LIMIT);
+
+  // Module off ⇒ render nothing so the tile vanishes from the dashboard.
+  if (!achievementsEnabled) {
+    return null;
+  }
 
   return (
     <div

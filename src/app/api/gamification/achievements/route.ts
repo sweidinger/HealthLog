@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
@@ -469,6 +470,21 @@ function getCompliance80DaySeries(
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  // v1.18.0 — when the account has the achievements module turned off the
+  // whole gamification surface disappears: no badge evaluation, no unlock
+  // persistence, no payload. Returns the 403 `module.disabled` envelope
+  // verbatim so the client (web + iOS) hides the page / dashboard tile /
+  // unlock toast in lock-step with this refusal.
+  const gate = await requireModuleEnabled(user.id, "achievements");
+  if (!gate.enabled) {
+    annotate({
+      action: { name: "gamification.achievements" },
+      meta: { moduleDisabled: true },
+    });
+    return gate.response;
+  }
+
   const formatParam = request.nextUrl.searchParams.get("format");
   const isIosFormat = formatParam === "ios";
   annotate({
