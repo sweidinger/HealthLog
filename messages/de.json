@@ -4120,7 +4120,9 @@
           "description": "Die Grundlagen von HealthLog. Diese Bereiche lassen sich nicht abschalten.",
           "note": "Kernbereich — immer aktiv"
         },
-        "description": "Lege fest, was HealthLog für dich erfasst. Schalte einzelne Bereiche ein oder aus — die Navigation, Kacheln und Auswertungen passen sich sofort an."
+        "description": "Lege fest, was HealthLog für dich erfasst. Schalte einzelne Bereiche ein oder aus — die Navigation, Kacheln und Auswertungen passen sich sofort an.",
+        "manageIn": "In {section} verwalten",
+        "operatorDisabled": "Serverweit deaktiviert"
       },
       "gesundheitsakte": {
         "title": "Gesundheitsakte",

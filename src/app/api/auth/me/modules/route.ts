@@ -11,15 +11,18 @@
  *                                returns the freshly-resolved module map.
  *
  * The body schema (`modulePrefsPatchSchema`) is `strict()` over the
- * canonical toggleable key set, so a core-domain key (`weight`,
- * `bloodPressure`, `pulse`, `medications`) or any unknown key is a 422 —
- * the core measurement engine + meds can never be disabled here.
+ * directly-owned toggleable key set, so a core-domain key (`weight`,
+ * `bloodPressure`, `pulse`, `medications`), a delegated key (`cycle`,
+ * `coach`), or any unknown key is a 422 — the core measurement engine +
+ * meds can never be disabled here, and a value for a delegated module can
+ * never land inert in `modulePreferencesJson`. The delegated modules are
+ * managed at their real control (cycle in Account, coach in Settings →
+ * Coach); the Modules hub deep-links there rather than offering a dead
+ * toggle.
  *
  * `userId` is always narrowed from `requireAuth()`; the body never
  * carries it. The semantics are a DISABLED allowlist: a key set to
  * `false` disables that module; `true` (or absence) leaves it enabled.
- * cycle/coach keys are accepted for forward-compat but the gate ignores
- * the blob for them (they delegate to their existing source of truth).
  */
 import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
 import {

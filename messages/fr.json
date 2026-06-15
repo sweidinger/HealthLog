@@ -4120,7 +4120,9 @@
           "description": "Les fondations de HealthLog. Ces domaines ne peuvent pas être désactivés.",
           "note": "Domaine essentiel — toujours actif"
         },
-        "description": "Choisissez ce que HealthLog suit pour vous. Activez ou désactivez chaque domaine : la navigation, les tuiles et les analyses s'adaptent aussitôt."
+        "description": "Choisissez ce que HealthLog suit pour vous. Activez ou désactivez chaque domaine : la navigation, les tuiles et les analyses s'adaptent aussitôt.",
+        "manageIn": "Gérer dans {section}",
+        "operatorDisabled": "Désactivé sur tout le serveur"
       },
       "gesundheitsakte": {
         "title": "Dossier médical",

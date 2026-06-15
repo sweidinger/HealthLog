@@ -20,7 +20,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "@/lib/i18n/context";
 import type { AuthUser } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
-import { MODULE_KEYS, CORE_DOMAIN_KEYS } from "@/lib/modules/registry";
+import {
+  MODULE_KEYS,
+  CORE_DOMAIN_KEYS,
+  moduleDelegatesTo,
+} from "@/lib/modules/registry";
 
 // Capture the latest useMutation config + a shared mutate spy so we can
 // invoke `mutationFn` / `onSuccess` by hand (the SSR pass can't fire a
@@ -104,12 +108,22 @@ afterEach(() => {
 });
 
 describe("<ModulesSection>", () => {
-  it("renders a Switch for every toggleable + core module", () => {
+  it("renders a Switch for every non-delegated toggleable module, a managed deep-link for delegated ones, and locked switches for core", () => {
     const html = render();
     for (const key of MODULE_KEYS) {
-      expect(html, `toggleable switch ${key}`).toContain(
-        `id="module-toggle-${key}"`,
-      );
+      if (moduleDelegatesTo(key) !== undefined) {
+        // Delegated modules (cycle/coach) are owned by their real control
+        // elsewhere — they render as a read-only "manage in X" deep-link,
+        // never a live Switch that would write an inert disabled-allowlist
+        // entry the gate ignores.
+        expect(html, `delegated has no switch ${key}`).not.toContain(
+          `id="module-toggle-${key}"`,
+        );
+      } else {
+        expect(html, `toggleable switch ${key}`).toContain(
+          `id="module-toggle-${key}"`,
+        );
+      }
     }
     for (const key of CORE_DOMAIN_KEYS) {
       expect(html, `core switch ${key}`).toContain(`id="module-toggle-${key}"`);

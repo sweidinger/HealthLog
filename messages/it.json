@@ -4120,7 +4120,9 @@
           "description": "Le fondamenta di HealthLog. Questi ambiti non possono essere disattivati.",
           "note": "Ambito di base — sempre attivo"
         },
-        "description": "Scegli cosa registra HealthLog per te. Attiva o disattiva i singoli ambiti: navigazione, riquadri e analisi si adattano subito."
+        "description": "Scegli cosa registra HealthLog per te. Attiva o disattiva i singoli ambiti: navigazione, riquadri e analisi si adattano subito.",
+        "manageIn": "Gestisci in {section}",
+        "operatorDisabled": "Disattivato a livello di server"
       },
       "gesundheitsakte": {
         "title": "Cartella clinica",

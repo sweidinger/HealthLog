@@ -4120,7 +4120,9 @@
           "description": "Los pilares de HealthLog. Estas áreas no se pueden desactivar.",
           "note": "Área esencial — siempre activa"
         },
-        "description": "Elige qué registra HealthLog por ti. Activa o desactiva áreas concretas: la navegación, los paneles y los análisis se adaptan al instante."
+        "description": "Elige qué registra HealthLog por ti. Activa o desactiva áreas concretas: la navegación, los paneles y los análisis se adaptan al instante.",
+        "manageIn": "Gestionar en {section}",
+        "operatorDisabled": "Desactivado en todo el servidor"
       },
       "gesundheitsakte": {
         "title": "Historial médico",

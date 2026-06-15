@@ -4120,7 +4120,9 @@
           "description": "Podstawy HealthLog. Tych obszarów nie można wyłączyć.",
           "note": "Obszar podstawowy — zawsze aktywny"
         },
-        "description": "Wybierz, co HealthLog ma dla Ciebie śledzić. Włączaj i wyłączaj poszczególne obszary — nawigacja, kafelki i analizy dostosują się od razu."
+        "description": "Wybierz, co HealthLog ma dla Ciebie śledzić. Włączaj i wyłączaj poszczególne obszary — nawigacja, kafelki i analizy dostosują się od razu.",
+        "manageIn": "Zarządzaj w {section}",
+        "operatorDisabled": "Wyłączone na całym serwerze"
       },
       "gesundheitsakte": {
         "title": "Dokumentacja zdrowotna",

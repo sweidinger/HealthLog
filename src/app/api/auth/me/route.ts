@@ -6,7 +6,10 @@ import { buildAvatarUrl } from "@/lib/avatar";
 import { decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { isCycleEnabled } from "@/lib/cycle/gate";
-import { resolveModuleMap } from "@/lib/modules/gate";
+import {
+  resolveModuleMap,
+  getOperatorModuleAvailability,
+} from "@/lib/modules/gate";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +25,7 @@ export const GET = apiHandler(async () => {
   // cycle-tracking gate; no row is forced, a NULL toggle derives from
   // gender) is a Postgres round-trip. Running them sequentially added
   // the cookie hop to every /me — and /me sits on every app boot path.
-  const [, cycleProfile, modules] = await Promise.all([
+  const [, cycleProfile, modules, moduleAvailability] = await Promise.all([
     setOnboardingPendingCookie(user.onboardingCompletedAt == null),
     prisma.cycleProfile.findUnique({
       where: { userId: user.id },
@@ -34,6 +37,12 @@ export const GET = apiHandler(async () => {
     // disabled-allowlist `modulePreferencesJson`. Default-on. Clients
     // hide a whole module surface end-to-end when its key is `false`.
     resolveModuleMap(user.id),
+    // v1.18.0 — operator-layer availability map (server-wide kill-switch).
+    // The resolved `modules` map above already AND-s this in, so it cannot
+    // distinguish operator-off from user-off. The Modules hub needs that
+    // distinction to render an operator-disabled module as a read-only
+    // "disabled server-wide" row instead of a live toggle that no-ops.
+    getOperatorModuleAvailability(),
   ]);
   const cycleTrackingEnabled = isCycleEnabled(user.gender, cycleProfile);
 
@@ -99,5 +108,11 @@ export const GET = apiHandler(async () => {
     // resolved `disableCoach` + operator master flag, so this map is the
     // single thing a client needs to gate every secondary domain.
     modules,
+    // v1.18.0 — operator-layer availability per toggleable module. `false`
+    // ⇒ the operator turned the module off server-wide (off for every
+    // account regardless of personal preference). The Modules hub reads
+    // this to show a "disabled server-wide" read-only row; everywhere else
+    // the already-AND-ed `modules` map is the single gate to read.
+    moduleAvailability,
   });
 });
