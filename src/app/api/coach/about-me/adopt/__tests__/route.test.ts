@@ -43,6 +43,9 @@ vi.mock("@/lib/ai/coach/bytes-codec", () => ({
 vi.mock("@/lib/ai/coach/about-me", () => ({
   getSelfContextForUser: vi.fn(),
 }));
+vi.mock("@/lib/modules/gate", () => ({
+  requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
+}));
 
 vi.mock("@/lib/api-response", () => ({
   apiSuccess: (data: unknown) => ({ data, error: null, status: 200 }),

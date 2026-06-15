@@ -24,6 +24,7 @@ import {
   PENDING_QUESTION_MAX_CHARS,
   setPendingQuestionsForUser,
 } from "@/lib/ai/coach/about-me";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 const dismissSchema = z.object({
   /** Exact question text to dismiss. Omitted = dismiss all. */
@@ -32,6 +33,9 @@ const dismissSchema = z.object({
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
+  // v1.18.0 — Coach module gate (operator availability + disableCoach).
+  const gate = await requireModuleEnabled(user.id, "coach");
+  if (!gate.enabled) return gate.response;
   const questions = await getPendingQuestionsForUser(user.id);
   annotate({
     action: { name: "coach.about_me.questions.get" },
@@ -42,6 +46,9 @@ export const GET = apiHandler(async () => {
 
 export const DELETE = apiHandler(async (req: Request) => {
   const { user } = await requireAuth();
+  // v1.18.0 — Coach module gate (operator availability + disableCoach).
+  const gate = await requireModuleEnabled(user.id, "coach");
+  if (!gate.enabled) return gate.response;
 
   const { data: body, error: jsonError } = await safeJson(req, {
     maxBytes: 4 * 1024,
