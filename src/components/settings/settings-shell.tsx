@@ -26,6 +26,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Link2,
+  Pill,
   Settings2,
   SlidersHorizontal,
   Smile,
@@ -121,6 +122,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.layout.title",
     icon: LayoutDashboard,
   },
+  // v1.18.0 (S5) — Medikamente: medication-specific settings (list view +
+  // order + injection sites). Medications is a CORE domain, so the entry is
+  // always shown. Was a hidden child of the Layout hub.
+  {
+    slug: "medications",
+    titleKey: "settings.sections.medications.title",
+    icon: Pill,
+  },
   // v1.18.0 (S5) — Stimmung: the mood-tag management surface gets its own
   // nav entry, shown only when the mood module is enabled. Was a hidden
   // child of the Layout hub.
@@ -176,12 +185,12 @@ export interface SettingsShellProps {
 // when the user is on one of them the Layout nav entry is the one that
 // reads active.
 //
-// v1.18.0 (S5) — `mood` (Stimmung) graduated to its own nav entry, so it
-// is no longer a Layout-hub child for highlighting purposes.
+// v1.18.0 (S5) — `mood` (Stimmung) and `medications` (Medikamente)
+// graduated to their own nav entries, so they are no longer Layout-hub
+// children for highlighting purposes.
 const LAYOUT_CHILD_SLUGS: ReadonlySet<string> = new Set([
   "dashboard",
   "insights",
-  "medications",
 ]);
 
 /** Map a Layout child editor onto the Layout hub for nav highlighting. */

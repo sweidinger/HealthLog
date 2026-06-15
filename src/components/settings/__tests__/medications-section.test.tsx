@@ -36,7 +36,13 @@ vi.mock("@tanstack/react-query", () => ({
     }
     return { data: null, isLoading: false };
   },
-  useQueryClient: () => ({ setQueryData: vi.fn(), getQueryData: vi.fn() }),
+  useQueryClient: () => ({
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    invalidateQueries: vi.fn(),
+  }),
+  // v1.18.0 (S5) — the gathered injection-sites card uses `useMutation`.
+  useMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("sonner", () => ({
@@ -45,6 +51,17 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/charts/reduced-motion", () => ({
   prefersReducedMotion: () => true,
+}));
+
+// v1.18.0 (S5) — the section now reads `useAuth()` to gate the
+// injection-sites card it gathered from the account profile.
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { id: "u1", role: "USER" },
+    isAuthenticated: true,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
@@ -109,6 +126,13 @@ describe("<MedicationsSection> — SSR smoke", () => {
       html.indexOf("Aspirin"),
     );
     expect(lastActive).toBeLessThan(html.indexOf("Amoxicillin"));
+  });
+
+  it("gathers the injection-sites card (moved from the account profile)", () => {
+    // v1.18.0 (S5) — injection-site exclusions are a medication setting and
+    // now live on this screen alongside the list view + order.
+    const html = render();
+    expect(html).toContain("Globally excluded injection sites");
   });
 
   it("feeds the editor the saved order (active block re-sorted by layout.order)", () => {

@@ -20,17 +20,14 @@ function render(locale: "en" | "de" = "en") {
 }
 
 describe("<LayoutSection>", () => {
-  it("links to the personalization editors it still hosts", () => {
+  it("links to the arrangement editors it still hosts", () => {
     const html = render();
-    for (const href of [
-      "/settings/dashboard",
-      "/settings/insights",
-      "/settings/medications",
-    ]) {
+    for (const href of ["/settings/dashboard", "/settings/insights"]) {
       expect(html).toContain(`href="${href}"`);
     }
-    // v1.18.0 (S5) — Mood (Stimmung) graduated to its own module-gated
-    // nav entry and is no longer linked from the Layout hub.
+    // v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung)
+    // graduated to their own nav entries and are no longer linked here.
+    expect(html).not.toContain('href="/settings/medications"');
     expect(html).not.toContain('href="/settings/mood"');
   });
 
@@ -38,11 +35,11 @@ describe("<LayoutSection>", () => {
     const html = render();
     expect(html).toContain("Dashboard");
     expect(html).toContain("Insights");
-    expect(html).toContain("Medications");
   });
 
   it("resolves its copy in German too", () => {
     const html = render("de");
-    expect(html).toContain("Medikamente");
+    expect(html).toContain("Layout");
+    expect(html).not.toContain("settings.sections.layout.");
   });
 });

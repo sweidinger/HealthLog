@@ -177,11 +177,7 @@ describe("<SettingsShell>", () => {
     // On `/settings/dashboard` (a Layout child reached through the hub) the
     // Layout nav entry must read active even though Dashboard has no nav
     // entry of its own. Both layouts emit the active link → two matches.
-    for (const child of [
-      "/settings/dashboard",
-      "/settings/insights",
-      "/settings/medications",
-    ]) {
+    for (const child of ["/settings/dashboard", "/settings/insights"]) {
       const html = renderShell({ pathname: child });
       const layoutActive =
         /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/layout"|<a\b[^>]*\bhref="\/settings\/layout"[^>]*\baria-current="page"/g;
@@ -193,8 +189,8 @@ describe("<SettingsShell>", () => {
     // The page passes `active={section}` explicitly; a child slug must
     // still resolve onto the Layout hub for nav highlighting.
     const html = renderShell({
-      active: "medications",
-      pathname: "/settings/medications",
+      active: "dashboard",
+      pathname: "/settings/dashboard",
     });
     const layoutActive =
       /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/layout"|<a\b[^>]*\bhref="\/settings\/layout"[^>]*\baria-current="page"/g;
@@ -238,15 +234,14 @@ describe("<SettingsShell>", () => {
     // (single-line; the longer "Notification channels" wrapped). The
     // `/notifications` inbox now shares the "Notifications" label.
     expect(html).toContain("Notifications");
-    // v1.17.1 (F-2) — the personalization editors (Dashboard, Insights,
-    // Medications) are reached through one Layout hub entry; the hub
-    // itself is the single nav entry for that concept.
+    // v1.17.1 (F-2) — the dashboard + insights arrangement editors are
+    // reached through one Layout hub entry.
     expect(html).toContain('href="/settings/layout"');
     expect(html).toContain("Layout &amp; Personalization");
-    // Dashboard / Insights / Medications stay Layout-hub children.
-    expect(html).not.toContain('href="/settings/medications"');
-    // v1.18.0 (S5) — Mood (Stimmung) graduated to its own module-gated
-    // nav entry. With the default fail-open mock it renders.
+    // v1.18.0 (S5) — Medications (Medikamente, always shown — a CORE
+    // domain) and Mood (Stimmung, gated; fail-open mock shows it) are their
+    // own nav entries now.
+    expect(html).toContain('href="/settings/medications"');
     expect(html).toContain('href="/settings/mood"');
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
     // form so we don't accidentally match a parser that double-escapes.
@@ -276,12 +271,12 @@ describe("<SettingsShell>", () => {
     // compound "Benachrichtigungs-Kanäle" wrapped). The `/notifications`
     // inbox now shares the "Benachrichtigungen" label.
     expect(html).toContain("Benachrichtigungen");
-    // v1.17.1 (F-2) — the personalization editors are reached through one
+    // v1.17.1 (F-2) — the arrangement editors are reached through one
     // Layout hub entry ("Layout & Personalisierung").
     expect(html).toContain('href="/settings/layout"');
     expect(html).toContain("Layout &amp; Personalisierung");
-    expect(html).not.toContain('href="/settings/medications"');
-    // v1.18.0 (S5) — Mood (Stimmung) is its own nav entry now.
+    // v1.18.0 (S5) — Medications + Mood are their own nav entries now.
+    expect(html).toContain('href="/settings/medications"');
     expect(html).toContain('href="/settings/mood"');
     // v1.18.0 (S3) — Targets keeps its German nav entry ("Zielwerte");
     // Sources folded into Integrations as a sub-tab.
