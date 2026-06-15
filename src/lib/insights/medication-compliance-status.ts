@@ -5,7 +5,8 @@ import {
 } from "@/lib/ai/prompts/medication-compliance";
 import {
   buildComplianceMedicationContext,
-  calculateCompliance,
+  buildMedicationComplianceBundle,
+  dailyComplianceRatesFromLedger,
   lastNonSkippedTakenAt,
   SCHEDULE_COMPLIANCE_SELECT,
 } from "@/lib/analytics/compliance";
@@ -224,49 +225,33 @@ export async function generateMedicationComplianceStatusForUser(
       lastNonSkippedTakenAt(events),
       userTz,
     );
-    const compliance7 = calculateCompliance(
+    // v1.18.0 — one shared cadence-aware expansion pass yields BOTH the
+    // canonical compliance7 / compliance30 (the values shown in this same
+    // snapshot) AND the unified dose-history ledger the per-day series is
+    // built from, so the series can never disagree with compliance30.
+    const bundle = buildMedicationComplianceBundle(
       events,
       medication.schedules,
-      7,
-      medication.createdAt,
-      { medicationContext },
+      medicationContext,
+      now,
     );
-    const compliance30 = calculateCompliance(
-      events,
-      medication.schedules,
-      30,
-      medication.createdAt,
-      { medicationContext },
+    const compliance7 = bundle.compliance7;
+    const compliance30 = bundle.compliance30;
+
+    // v1.18.0 — the per-day series honours the medication's cadence
+    // (daysOfWeek + intervalWeeks + rolling / RRULE / cyclic): only days the
+    // schedule actually expected a dose produce a point, and each day's rate
+    // uses the SAME taken / (taken + missed) tally as compliance30. The old
+    // path divided every event-day by `schedules.length`, treating every
+    // calendar day as fully dose-due — which made a weekly-cadence med's
+    // per-day series contradict its own compliance30. Reusing the canonical
+    // ledger fixes that by construction.
+    const perDayRecords = dailyComplianceRatesFromLedger(bundle.ledgerRows).map(
+      (day) => ({
+        measuredAt: day.date,
+        value: round(day.rate, 1),
+      }),
     );
-
-    // Collapse the events into one rate-per-day record, then run them
-    // through the shared bucketing helper so the model receives the
-    // canonical 360 daily + 24 monthly view per medication.
-    const byDay = new Map<
-      string,
-      { expected: number; taken: number; skipped: number; date: Date }
-    >();
-    const expectedPerDay = Math.max(1, medication.schedules.length);
-
-    for (const event of events) {
-      const dayKey = toBerlinDayKey(event.scheduledFor);
-      const bucket = byDay.get(dayKey) ?? {
-        expected: medication.schedules.length,
-        taken: 0,
-        skipped: 0,
-        date: event.scheduledFor,
-      };
-      if (event.takenAt && !event.skipped) bucket.taken += 1;
-      if (event.skipped) bucket.skipped += 1;
-      byDay.set(dayKey, bucket);
-    }
-
-    const perDayRecords = Array.from(byDay.values())
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .map((stats) => ({
-        measuredAt: stats.date,
-        value: round(Math.min(100, (stats.taken / expectedPerDay) * 100), 1),
-      }));
 
     // `applyPayloadBudget` gives the latest-day focus; the compact
     // graded series is what reaches the prompt.

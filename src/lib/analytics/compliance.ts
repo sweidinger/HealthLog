@@ -52,6 +52,7 @@ import {
   type RecurrenceContext,
   type ScheduleType,
 } from "@/lib/medications/scheduling/recurrence";
+import { toBerlinDayKey } from "@/lib/tz/resolver";
 
 export interface IntakeEvent {
   takenAt: Date | null;
@@ -1834,6 +1835,85 @@ export function buildMedicationComplianceBundle(
   };
 
   return { compliance7, compliance30, complianceDisplay, ledgerRows, ledgerFrom };
+}
+
+/**
+ * One day of the cadence-aware compliance series: the day's compliance %
+ * over the doses the schedule actually expected that day, plus the raw
+ * taken / missed counts behind it.
+ */
+export interface DailyComplianceRate {
+  /** The day's anchor instant (the first expected slot of the day). */
+  date: Date;
+  /** round(100 · taken / (taken + missed)), capped at 100. */
+  rate: number;
+  /** Doses taken (on-time + late) on the day. */
+  taken: number;
+  /** Expected doses never acted on past their miss cutoff, on the day. */
+  missed: number;
+}
+
+/**
+ * v1.18.0 — collapse unified dose-history ledger rows into a cadence-aware
+ * per-day compliance series.
+ *
+ * Only days the schedule's cadence actually expected a dose produce a point:
+ * the series is grouped over the ledger's scheduled `slot` rows, so an
+ * off-cadence weekday (a weekly Monday-only med on a Tuesday) or an off-week
+ * (the off-week of a bi-weekly schedule) emits no point at all and therefore
+ * can never be read as a 0% "miss". Each day's rate uses the SAME
+ * taken / (taken + missed) tally — and the SAME on-time-plus-late numerator,
+ * skip / ad-hoc / upcoming exclusions — that {@link tallyLedgerRows} applies
+ * to `compliance7` / `compliance30`, so the per-day series and the window
+ * rates are computed from one ledger and cannot contradict each other.
+ *
+ * `ad_hoc` rows (off-schedule top-ups, no defensible slot) and `upcoming`
+ * rows (the window hasn't opened) are dropped before grouping, exactly as the
+ * window tally excludes them. A day whose only ledger rows are skips yields no
+ * point (zero denominator) rather than a misleading 0%.
+ */
+export function dailyComplianceRatesFromLedger(
+  ledgerRows: DoseHistoryRow[],
+): DailyComplianceRate[] {
+  const byDay = new Map<
+    string,
+    { taken: number; missed: number; date: Date }
+  >();
+
+  for (const row of ledgerRows) {
+    // Only scheduled slots have a defensible denominator; ad-hoc top-ups are
+    // excluded from the rate exactly as `tallyLedgerRows` excludes them.
+    if (row.kind !== "slot") continue;
+    const isTaken =
+      row.status === "taken_on_time" || row.status === "taken_late";
+    const isMissed = row.status === "missed";
+    // `skipped` (deliberate) and `upcoming` (window not open) advance neither
+    // counter — they never enter the day's denominator.
+    if (!isTaken && !isMissed) continue;
+
+    const dayKey = toBerlinDayKey(row.at);
+    const bucket = byDay.get(dayKey) ?? { taken: 0, missed: 0, date: row.at };
+    if (isTaken) bucket.taken += 1;
+    else bucket.missed += 1;
+    // Keep the earliest slot instant of the day as the point's anchor.
+    if (row.at.getTime() < bucket.date.getTime()) bucket.date = row.at;
+    byDay.set(dayKey, bucket);
+  }
+
+  return Array.from(byDay.values())
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .map((day) => {
+      const denom = day.taken + day.missed;
+      return {
+        date: day.date,
+        rate:
+          denom > 0
+            ? Math.min(100, Math.round((day.taken / denom) * 100))
+            : 100,
+        taken: day.taken,
+        missed: day.missed,
+      };
+    });
 }
 
 /**

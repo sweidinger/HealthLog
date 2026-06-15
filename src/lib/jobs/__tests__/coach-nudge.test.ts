@@ -45,6 +45,13 @@ vi.mock("@/lib/ai/coach/bytes-codec", () => ({
   decryptFromBytes: vi.fn(() => "morning blood pressure"),
   encryptToBytes: vi.fn(),
 }));
+// The sleep-debt branch resolves the user's source priority through the
+// real `@/lib/db` prisma; stub it so the unit suite stays DB-free. A
+// null priority is the no-custom-priority default — `reconstructSleepNights`
+// (pure) then runs normally on the stubbed measurement rows.
+vi.mock("@/lib/rollups/measurement-read", () => ({
+  loadUserSourcePriority: vi.fn(async () => null),
+}));
 
 function dose(taken: boolean, skipped = false, autoMissed?: boolean) {
   return {

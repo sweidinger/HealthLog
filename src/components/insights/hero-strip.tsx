@@ -7,6 +7,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useDisableCoach } from "@/hooks/use-disable-coach";
+import { useModuleEnabled } from "@/hooks/use-module-enabled";
 import { cn } from "@/lib/utils";
 import { SuggestedPrompts } from "./suggested-prompts";
 import {
@@ -149,6 +150,11 @@ export function HeroStrip({
   // tests render the strip without a QueryClient.
   const disableCoach = useDisableCoach();
   const coachEnabled = flags.coach && !disableCoach;
+  // v1.18.0 R4 — mood-module state so the score card hides its Mood row
+  // when the account turned the module off (the server already drops the
+  // pillar from the number itself). SSR-safe + default-on, matching the
+  // disabled-allowlist gate.
+  const moodEnabled = useModuleEnabled("mood");
   const greetingKey = resolveGreetingKey(now ?? new Date());
   const greetingBase = t(greetingKey);
   const greeting = userName ? `${greetingBase}, ${userName}` : greetingBase;
@@ -339,6 +345,7 @@ export function HeroStrip({
             band={healthScore.band}
             components={healthScore.components}
             delta={healthScore.delta}
+            moodEnabled={moodEnabled}
             onAskCoach={
               // v1.4.37 W5 — short-circuit the prop drilling even
               // though `HealthScoreCard` retired its inline button in
