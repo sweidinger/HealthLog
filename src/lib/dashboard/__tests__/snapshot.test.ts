@@ -57,11 +57,39 @@ vi.mock("@/lib/analytics/health-score-fast-path", () => ({
   computeUserHealthScoreFastPath: (...a: unknown[]) =>
     computeUserHealthScoreFastPath(...a),
 }));
+// v1.18.0 — module gate. Default-mocked all-on so the existing envelope
+// tests keep their full tile set; the module-gating suite below passes
+// an explicit map through the `modules` option instead.
+const resolveModuleMap = vi.fn();
+vi.mock("@/lib/modules/gate", () => ({
+  resolveModuleMap: (...a: unknown[]) => resolveModuleMap(...a),
+}));
+
+/** All eleven toggleable keys on, with optional per-key overrides. */
+function moduleMap(
+  overrides: Partial<Record<ModuleKey, boolean>> = {},
+): Record<ModuleKey, boolean> {
+  const base: Record<ModuleKey, boolean> = {
+    cycle: true,
+    mood: true,
+    sleep: true,
+    glucose: true,
+    workouts: true,
+    recovery: true,
+    labs: true,
+    achievements: true,
+    coach: true,
+    insights: true,
+    doctorReport: true,
+  };
+  return { ...base, ...overrides };
+}
 
 import {
   buildDashboardSnapshot,
   type SnapshotUserInput,
 } from "../snapshot";
+import type { ModuleKey } from "@/lib/modules/gate";
 
 const emptySummary = {
   count: 0,
@@ -133,6 +161,7 @@ beforeEach(() => {
     nextDueMedicationName: null,
   });
   computeUserHealthScoreFastPath.mockResolvedValue(null);
+  resolveModuleMap.mockResolvedValue(moduleMap());
 });
 
 describe("buildDashboardSnapshot — envelope shape", () => {
@@ -764,5 +793,145 @@ describe("buildDashboardSnapshot — additive proof", () => {
     expect(snap.tiles).toHaveProperty("summaries");
     expect(snap.tiles).toHaveProperty("lastSeenByType");
     expect(snap.tiles).toHaveProperty("mood");
+  });
+});
+
+describe("buildDashboardSnapshot — module gating (v1.18.0)", () => {
+  const widget = (snap: { layout: { widgets: { id: string; visible: boolean; tileVisible?: boolean }[] } }, id: string) =>
+    snap.layout.widgets.find((w) => w.id === id);
+  const cat = (snap: { layoutCatalogue: { id: string; visible: boolean }[] }, id: string) =>
+    snap.layoutCatalogue.find((w) => w.id === id);
+
+  beforeEach(() => {
+    // A warm, data-rich account so every toggleable surface would
+    // otherwise render — the assertions then prove the disabled ones drop.
+    probeRollupCoverage.mockResolvedValue(
+      new Map([
+        ["WEIGHT", true],
+        ["BLOOD_PRESSURE_SYS", true],
+        ["BLOOD_PRESSURE_DIA", true],
+      ]),
+    );
+    computeBpInTargetFastPath.mockResolvedValue({
+      last7Days: { pct: 70 },
+      last30Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
+      allTime: { pct: 75 },
+      priorMonth: { pct: 60 },
+      priorYear: { pct: 50 },
+    });
+    computeSummariesSlice.mockResolvedValue({
+      summaries: {
+        WEIGHT: { ...emptySummary, count: 3, latest: 80 },
+        SLEEP_DURATION: { ...emptySummary, count: 5, latest: 420 },
+        BLOOD_GLUCOSE: { ...emptySummary, count: 9, latest: 95 },
+      },
+      lastSeenByType: {
+        WEIGHT: { lastSeenAt: new Date().toISOString() },
+        SLEEP_DURATION: { lastSeenAt: new Date().toISOString() },
+        BLOOD_GLUCOSE: { lastSeenAt: new Date().toISOString() },
+      },
+      bmi: null,
+    });
+    // Glucose rows so `extras.glucoseByContext` + `glucoseClinical` populate.
+    fakePrisma.measurement.findMany.mockResolvedValue([
+      { value: 95, measuredAt: new Date(), glucoseContext: "FASTING" },
+      { value: 110, measuredAt: new Date(), glucoseContext: "FASTING" },
+    ]);
+    // Mood entries so the tile would otherwise carry a summary.
+    fakePrisma.moodEntry.findMany.mockResolvedValue([
+      { date: new Date(), score: 4 },
+    ]);
+  });
+
+  it("all modules on: every toggleable tile + its data is present", async () => {
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser(), {
+      modules: () => Promise.resolve(moduleMap()),
+    });
+    expect(widget(snap, "mood")!.visible).toBe(true);
+    expect(widget(snap, "sleep")).toBeDefined();
+    expect(widget(snap, "glucose")).toBeDefined();
+    expect(widget(snap, "achievements")!.visible).toBe(true);
+    expect(widget(snap, "recentWorkouts")!.visible).toBe(true);
+    expect(snap.tiles.summaries.SLEEP_DURATION).toBeDefined();
+    expect(snap.tiles.summaries.BLOOD_GLUCOSE).toBeDefined();
+    expect(snap.tiles.mood.entries.length).toBeGreaterThan(0);
+    expect(Object.keys(snap.extras!.glucoseByContext).length).toBeGreaterThan(0);
+  });
+
+  it("mood disabled: tile hidden + mood block emptied", async () => {
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser(), {
+      modules: () => Promise.resolve(moduleMap({ mood: false })),
+    });
+    expect(widget(snap, "mood")!.visible).toBe(false);
+    expect(widget(snap, "mood")!.tileVisible).toBe(false);
+    expect(cat(snap, "mood")!.visible).toBe(false);
+    expect(snap.tiles.mood.entries).toEqual([]);
+    expect(snap.tiles.mood.summary).toBeNull();
+    // Core tile unaffected.
+    expect(widget(snap, "weight")!.visible).toBe(true);
+  });
+
+  it("sleep disabled: tile hidden + SLEEP_DURATION stripped from summaries", async () => {
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser(), {
+      modules: () => Promise.resolve(moduleMap({ sleep: false })),
+    });
+    expect(widget(snap, "sleep")!.visible).toBe(false);
+    expect(snap.tiles.summaries.SLEEP_DURATION).toBeUndefined();
+    expect(snap.tiles.lastSeenByType.SLEEP_DURATION).toBeUndefined();
+    expect(snap.metricStates.sleep).toBeUndefined();
+    // Glucose untouched.
+    expect(snap.tiles.summaries.BLOOD_GLUCOSE).toBeDefined();
+  });
+
+  it("glucose disabled: tile hidden + summary stripped + clinical panel cleared", async () => {
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser(), {
+      modules: () => Promise.resolve(moduleMap({ glucose: false })),
+    });
+    expect(widget(snap, "glucose")!.visible).toBe(false);
+    expect(snap.tiles.summaries.BLOOD_GLUCOSE).toBeUndefined();
+    expect(snap.metricStates.bloodGlucose).toBeUndefined();
+    expect(snap.extras!.glucoseByContext).toEqual({});
+    // Sleep untouched.
+    expect(snap.tiles.summaries.SLEEP_DURATION).toBeDefined();
+  });
+
+  it("workouts disabled: recent-workouts tile hidden", async () => {
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser(), {
+      modules: () => Promise.resolve(moduleMap({ workouts: false })),
+    });
+    expect(widget(snap, "recentWorkouts")!.visible).toBe(false);
+    expect(widget(snap, "recentWorkouts")!.tileVisible).toBe(false);
+    expect(cat(snap, "recentWorkouts")!.visible).toBe(false);
+  });
+
+  it("achievements disabled: recent-unlocks tile hidden", async () => {
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser(), {
+      modules: () => Promise.resolve(moduleMap({ achievements: false })),
+    });
+    expect(widget(snap, "achievements")!.visible).toBe(false);
+  });
+
+  it("insights disabled: Daily Briefing surface goes to disabled state", async () => {
+    const snap = await buildDashboardSnapshot(
+      fakePrisma,
+      baseUser({
+        insightsCachedText: JSON.stringify({
+          dailyBriefing: { headline: "x", body: "y", generatedAt: new Date().toISOString() },
+        }),
+        insightsCachedAt: new Date(),
+      }),
+      { modules: () => Promise.resolve(moduleMap({ insights: false })) },
+    );
+    expect(snap.briefingState).toBe("disabled");
+    expect(snap.briefing).toBeNull();
+  });
+
+  it("defaults to resolveModuleMap when no override is injected", async () => {
+    resolveModuleMap.mockResolvedValue(moduleMap({ mood: false }));
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+    expect(resolveModuleMap).toHaveBeenCalledWith("user-1");
+    expect(widget(snap, "mood")!.visible).toBe(false);
   });
 });
