@@ -55,6 +55,7 @@ import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
 import { pickCanonicalWorkoutRows } from "@/lib/measurements/pick-canonical-workout-rows";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -170,6 +171,13 @@ async function buildWorkoutsResponse(
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "workouts.list" } });
+
+  // v1.18.0 B1 — the workouts surface is a toggleable module. A disabled
+  // account must not be able to read the list even with a valid Bearer
+  // token. The batch INGEST route stays ungated so synced data still
+  // lands while the surface is hidden.
+  const gate = await requireModuleEnabled(user.id, "workouts");
+  if (!gate.enabled) return gate.response;
 
   const { searchParams } = new URL(request.url);
   const limit = Math.min(
