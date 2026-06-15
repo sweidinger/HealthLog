@@ -2,7 +2,7 @@
 
 /**
  * v1.15.20 — Settings → Notifications opt-out for the proactive Coach
- * nudge (the daily 05:15 cron that points the user at /insights/coach
+ * nudge (the daily 05:15 cron that points the user at /coach
  * when a deterministic trigger fires). Default ON; the toggle writes
  * `notificationPrefs.coach.nudgesEnabled` through the roaming
  * notification-prefs blob so web + iOS share one source of truth.

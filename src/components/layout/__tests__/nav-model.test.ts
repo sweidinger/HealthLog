@@ -20,16 +20,13 @@ import {
 } from "../nav-model";
 
 describe("nav-model destination list", () => {
-  it("lists Workouts and Coach as first-class destinations", () => {
+  it("lists Coach as a first-class destination", () => {
     const hrefs = NAV_DESTINATIONS.map((d) => d.href);
-    expect(hrefs).toContain("/insights/workouts");
-    expect(hrefs).toContain("/insights/coach");
+    expect(hrefs).toContain("/coach");
   });
 
-  it("gives the Coach exactly one nav home (F-3)", () => {
-    const coach = NAV_DESTINATIONS.filter(
-      (d) => d.href === "/insights/coach",
-    );
+  it("gives the Coach exactly one nav home at the top-level /coach (F-3)", () => {
+    const coach = NAV_DESTINATIONS.filter((d) => d.href === "/coach");
     expect(coach).toHaveLength(1);
     expect(coach[0]!.tKey).toBe("nav.coach");
   });
@@ -171,11 +168,11 @@ describe("isNavDestinationActive most-specific resolution", () => {
     expect(isNavDestinationActive("/", "/measurements")).toBe(false);
   });
 
-  it("does not light up Insights when on its Coach sibling", () => {
-    expect(isNavDestinationActive("/insights/coach", "/insights/coach")).toBe(
-      true,
-    );
-    expect(isNavDestinationActive("/insights", "/insights/coach")).toBe(false);
+  it("lights up the top-level Coach home on its own route", () => {
+    expect(isNavDestinationActive("/coach", "/coach")).toBe(true);
+    // The standalone /coach route is not a sibling of /insights, so the
+    // Insights entry must stay dark on it.
+    expect(isNavDestinationActive("/insights", "/coach")).toBe(false);
   });
 
   it("does not light up Insights when on its Workouts sibling", () => {

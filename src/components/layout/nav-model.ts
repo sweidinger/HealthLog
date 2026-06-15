@@ -121,7 +121,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
   // states, per-metric icons …) but nowhere in the nav, so a new user
   // could miss the differentiator entirely. The other entry points stay.
   {
-    href: "/insights/coach",
+    href: "/coach",
     tKey: "nav.coach",
     icon: MessagesSquare,
     tourId: "nav-coach",
@@ -240,8 +240,8 @@ export function mobileMoreHubDestinations(opts: {
  * Whether `href` is the active nav destination for the current `pathname`,
  * resolved against the full destination set so the most-specific entry
  * wins. Without this, a plain `startsWith("/insights")` would light up
- * Insights while the user is on its siblings `/insights/workouts` or
- * `/insights/coach` — both of which are now their own top-level nav homes.
+ * Insights while the user is on its sibling `/insights/workouts`, which
+ * is its own nav home (Coach lives at the top-level `/coach`).
  * The dashboard (`/`) only matches an exact path.
  */
 export function isNavDestinationActive(
@@ -254,7 +254,7 @@ export function isNavDestinationActive(
     pathname === candidate || pathname.startsWith(`${candidate}/`);
   if (!matches(href)) return false;
   // A longer sibling that also matches is the more specific home — defer
-  // to it (e.g. on `/insights/coach`, `/insights` must NOT read active).
+  // to it (e.g. on `/insights/workouts`, `/insights` must NOT read active).
   const moreSpecific = destinations.some(
     (d) => d.href !== href && d.href.startsWith(`${href}/`) && matches(d.href),
   );

@@ -62,7 +62,7 @@ export const EVENT_TYPES = [
   // v1.15.20 — proactive Coach nudge. Fired by the 05:15 Europe/Berlin
   // cron when a deterministic trigger (7-day compliance < 60 %, BP
   // weekly mean above target, sharply falling recovery score) warrants
-  // pointing the user at /insights/coach. Capped at one nudge per user
+  // pointing the user at /coach. Capped at one nudge per user
   // per rolling week via the `push_attempts` ledger; per-user opt-out
   // lives in `notificationPrefs.coach.nudgesEnabled`.
   "COACH_NUDGE",

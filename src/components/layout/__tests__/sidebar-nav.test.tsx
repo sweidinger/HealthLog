@@ -139,16 +139,16 @@ describe("<SidebarNav> unified destination model (v1.17.1 F-1 / F-3)", () => {
     // now render the one shared model, so both carry both destinations.
     const html = render();
     expect(html).toContain('href="/insights/workouts"');
-    expect(html).toContain('href="/insights/coach"');
+    expect(html).toContain('href="/coach"');
     expect(html).toContain("Workouts");
     expect(html).toContain("Coach");
   });
 
   it("marks Coach active without also marking Insights active", () => {
-    const html = render({ pathname: "/insights/coach" });
-    // The Coach link carries aria-current="page"; the Insights link, its
-    // less-specific sibling, must not (most-specific resolution).
-    const coach = html.match(/<a[^>]*href="\/insights\/coach"[^>]*>/);
+    const html = render({ pathname: "/coach" });
+    // The Coach link carries aria-current="page"; the standalone /coach
+    // route is not a sibling of /insights, so the Insights link must not.
+    const coach = html.match(/<a[^>]*href="\/coach"[^>]*>/);
     const insights = html.match(/<a[^>]*href="\/insights"[^>]*>/);
     expect(coach?.[0]).toMatch(/aria-current="page"/);
     expect(insights?.[0]).not.toMatch(/aria-current="page"/);

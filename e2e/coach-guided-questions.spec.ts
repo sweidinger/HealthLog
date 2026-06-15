@@ -143,7 +143,7 @@ test.describe("Coach guided clarifying questions", () => {
       "flow logic is viewport-independent; desktop run suffices",
     );
 
-    await page.goto("/insights/coach", { waitUntil: "domcontentloaded" });
+    await page.goto("/coach", { waitUntil: "domcontentloaded" });
 
     // 1. Entry card with the three choices.
     const offer = page.locator('[data-slot="coach-guided-offer"]');
@@ -197,7 +197,7 @@ test.describe("Coach guided clarifying questions", () => {
       "flow logic is viewport-independent; desktop run suffices",
     );
 
-    await page.goto("/insights/coach", { waitUntil: "domcontentloaded" });
+    await page.goto("/coach", { waitUntil: "domcontentloaded" });
 
     const offer = page.locator('[data-slot="coach-guided-offer"]');
     await expect(offer).toBeVisible({ timeout: 10_000 });
@@ -216,7 +216,7 @@ test.describe("Coach guided clarifying questions", () => {
       "flow logic is viewport-independent; desktop run suffices",
     );
 
-    await page.goto("/insights/coach", { waitUntil: "domcontentloaded" });
+    await page.goto("/coach", { waitUntil: "domcontentloaded" });
 
     const offer = page.locator('[data-slot="coach-guided-offer"]');
     await expect(offer).toBeVisible({ timeout: 10_000 });

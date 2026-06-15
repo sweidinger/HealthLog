@@ -295,7 +295,8 @@ describe("Coach per-user disableCoach invariant", () => {
     // v1.12.0 — the full-page Coach route mirrors the launch-button /
     // FAB gate: operator master flag OR per-user opt-out redirects the
     // page back to `/insights` instead of painting a dead chat shell.
-    "src/app/insights/coach/page.tsx",
+    // v1.18.0 — moved to the standalone top-level `/coach` route.
+    "src/app/coach/page.tsx",
     // The hook itself + its `useAuth`-backed reader.
     "src/hooks/use-disable-coach.ts",
     // Cross-cut gates owned by sibling invariants / route tests.

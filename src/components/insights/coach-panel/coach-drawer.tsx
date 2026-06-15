@@ -38,7 +38,7 @@ export {
  * v1.12.0 (Coach v2 #6) — the chat surface itself (header actions,
  * body, thread, composer, rails, settings, mobile trays) is now the
  * shared `<CoachConversation>` component, reused verbatim by the
- * full-page Coach route (`/insights/coach`). This file is the drawer
+ * full-page Coach route (`/coach`). This file is the drawer
  * CHROME only: the `<Sheet>` wrapper, the close button, and the
  * maximize control that hands the conversation off to the full page.
  */
@@ -85,7 +85,7 @@ export function CoachDrawer({ open, onOpenChange, prefill }: CoachDrawerProps) {
     // then route to the dedicated page.
     onOpenChange(false);
     resetRef.current?.();
-    router.push("/insights/coach");
+    router.push("/coach");
   }, [onOpenChange, router]);
 
   return (

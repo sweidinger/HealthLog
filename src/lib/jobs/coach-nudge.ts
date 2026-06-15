@@ -4,7 +4,7 @@
  * One daily cron tick (05:15 Europe/Berlin, after the nightly score
  * passes have settled) evaluates a small set of DETERMINISTIC triggers
  * per user and — when one fires — dispatches a single `COACH_NUDGE`
- * notification deep-linking to `/insights/coach`. No AI call happens
+ * notification deep-linking to `/coach`. No AI call happens
  * here: the triggers are plain arithmetic over already-persisted rows;
  * the Coach conversation the nudge invites the user into is where the
  * model gets involved.
@@ -809,7 +809,7 @@ export async function runCoachNudgeTick(
           trigger,
           // Deep link — the web-push sender threads this into the
           // service-worker payload's click target.
-          url: "/insights/coach",
+          url: "/coach",
         },
       });
 

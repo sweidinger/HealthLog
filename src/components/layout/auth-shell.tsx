@@ -199,7 +199,7 @@ export function AuthShell({
   //
   // v1.16.8 — `<LayoutCoachFab>` joins the shell too: the floating
   // Coach launcher renders once here for every authenticated route
-  // (it hides itself on `/insights/coach` and carries the unread-nudge
+  // (it hides itself on `/coach` and carries the unread-nudge
   // dot). The routed insights layout no longer mounts it.
   return (
     <CoachLaunchProvider>
