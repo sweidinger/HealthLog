@@ -2,9 +2,10 @@
 
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FlaskConical, Trash2 } from "lucide-react";
+import { FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 
+import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -166,16 +167,14 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
             </CardTitle>
             <CardAction className="flex items-center gap-3">
               <LabTrendSparkline values={group.readings.map((r) => r.value)} />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-destructive"
-                aria-label={t("labs.deleteLatest")}
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(group.latest.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <DeleteButton
+                onConfirm={() => deleteMutation.mutate(group.latest.id)}
+                title={t("labs.deleteConfirmTitle")}
+                description={t("labs.deleteConfirmDescription")}
+                confirmLabel={t("labs.deleteLatest")}
+                className="size-9"
+                iconClassName="h-4 w-4"
+              />
             </CardAction>
           </CardHeader>
           <CardContent>

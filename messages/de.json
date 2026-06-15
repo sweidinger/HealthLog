@@ -6437,6 +6437,8 @@
     "addButton": "Erinnerung hinzufügen",
     "markDone": "Erledigt",
     "delete": "Löschen",
+    "deleteConfirmTitle": "Erinnerung löschen?",
+    "deleteConfirmDescription": "Diese Vorsorge-Erinnerung wird dauerhaft gelöscht.",
     "disabledBadge": "Aus",
     "nextDue": {
       "none": "Nicht geplant",
@@ -6493,6 +6495,8 @@
     "referenceLabel": "Referenz",
     "readingsCount": "{count} Werte",
     "deleteLatest": "Letzten Wert löschen",
+    "deleteConfirmTitle": "Laborwert löschen?",
+    "deleteConfirmDescription": "Dieser Laborwert wird dauerhaft gelöscht.",
     "deletedToast": "Wert gelöscht",
     "deleteError": "Wert konnte nicht gelöscht werden",
     "loadError": "Laborwerte konnten nicht geladen werden",
