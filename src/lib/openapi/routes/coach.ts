@@ -13,6 +13,7 @@ import {
   INSIGHTS_SECTION_IDS,
 } from "@/lib/insights-layout";
 import { COACH_FACT_CATEGORIES } from "@/lib/ai/coach/facts";
+import { coachChatRequestSchema } from "@/lib/ai/coach/types";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { createShareLinkSchema } from "@/lib/validations/clinician-share-link";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
@@ -147,7 +148,295 @@ const coachFactDeletedResponse = z.object({
     ),
 });
 
+// ── Coach conversation history (v1.18.0) ─────────────────────────────
+// List + detail + delete surface for the Coach's persisted chat
+// conversations. Bodies are stored encrypted at rest; the detail
+// endpoint decrypts every message server-side, so the client never
+// handles a key. The list endpoint stays metadata-only (no decryption).
+
+const coachProvenanceSchema = z
+  .object({
+    windows: z
+      .array(
+        z.enum([
+          "last7days",
+          "last30days",
+          "last90days",
+          "lastYear",
+          "allTime",
+        ]),
+      )
+      .describe("Analysis windows the assistant drew on this turn."),
+    metrics: z
+      .array(z.string())
+      .describe(
+        "Stable metric-topic keys referenced (e.g. bp, weight, sleep, glucose). `general` is the empty-snapshot sentinel. The client translates these labels; the server never localises them.",
+      ),
+    counts: z
+      .record(z.string(), z.number().int())
+      .optional()
+      .describe("Per-metric sample-count summary; absent on an empty snapshot."),
+    keyValues: z
+      .array(
+        z.object({
+          label: z.string(),
+          value: z.string(),
+          unit: z.string().optional(),
+          window: z.string().optional(),
+        }),
+      )
+      .optional()
+      .describe(
+        "Load-bearing numbers the assistant surfaced, rendered in the collapsible evidence block. Hard-capped at 8 entries.",
+      ),
+  })
+  .meta({
+    id: "CoachProvenance",
+    description:
+      "Provenance envelope attached to an assistant message — labels and counts only, plus the optional evidence key-values. No raw timestamps.",
+  });
+
+const coachMessageSchema = z
+  .object({
+    id: z.string(),
+    role: z.enum(["user", "assistant"]),
+    content: z
+      .string()
+      .describe("Decrypted message body — the server decrypts on read."),
+    createdAt: z.iso.datetime({ offset: true }),
+    metricSource: coachProvenanceSchema
+      .nullable()
+      .describe("Provenance envelope (assistant turns); null for user turns."),
+    providerType: z
+      .string()
+      .nullable()
+      .describe(
+        "Provider that produced the reply (e.g. anthropic, openai, local, refusal); null for user turns.",
+      ),
+    promptVersion: z
+      .string()
+      .nullable()
+      .describe("Coach prompt version that produced the reply; null for user turns."),
+  })
+  .meta({
+    id: "CoachMessage",
+    description:
+      "One Coach chat message, decrypted server-side. Ordered oldest-first within a conversation.",
+  });
+
+const coachConversationSchema = z
+  .object({
+    id: z.string(),
+    title: z.string().describe("Title summarised from the first user message."),
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z
+      .iso.datetime({ offset: true })
+      .describe("Bumped on every appended message; the rail orders by this."),
+    messageCount: z.number().int(),
+  })
+  .meta({
+    id: "CoachConversation",
+    description:
+      "Lightweight conversation metadata for the history rail. No message bodies — the rail does not decrypt.",
+  });
+
+const coachConversationsPageSchema = z
+  .object({
+    conversations: z.array(coachConversationSchema),
+    nextCursor: z
+      .string()
+      .nullable()
+      .describe(
+        "Id of the last conversation on this page; pass it back as `cursor` for the next page. Null at the end of the list.",
+      ),
+  })
+  .meta({
+    id: "CoachConversationsPage",
+    description:
+      "Cursor-paginated page of the caller's Coach conversations, most-recent activity first.",
+  });
+
+const coachConversationDetailSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+    messageCount: z.number().int(),
+    messages: z
+      .array(coachMessageSchema)
+      .describe("Every message in the conversation, decrypted, oldest-first."),
+    summary: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        "Rolling summary of turns elided past the history window; null when none is on file.",
+      ),
+  })
+  .meta({
+    id: "CoachConversationDetail",
+    description:
+      "Full conversation with every message decrypted server-side. The client renders the bodies directly; no decryption key is involved.",
+  });
+
+const coachConversationDeletedResponse = z.object({
+  deleted: z
+    .literal(true)
+    .describe("Always true on success; a foreign / unknown id is a 404."),
+});
+
+coachChatRequestSchema.meta({
+  id: "CoachChatRequest",
+  description:
+    "Inbound Coach turn. `message` is the user's turn (1–4 000 chars). `conversationId` is omitted to start a new conversation (the server mints a title from the first message) and supplied to continue one. `scope` narrows which metrics the snapshot ships and which window the timeline covers; omitted fields fall back to server defaults. `locale` picks the reply language. `guidedQuestion` carries the clarifying question a message answers (client-side bubble, never persisted). No `userId` field — the owner is narrowed from the session / Bearer.",
+});
+
 export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/insights/chat": {
+    get: {
+      tags: ["Insights"],
+      summary: "List the caller's Coach conversations",
+      description:
+        "v1.18.0 — cursor-paginated list of the caller's Coach conversations for the history rail, most-recent activity first. Metadata only (id, title, timestamps, message count); message bodies are not decrypted here. `limit` defaults to 20, capped at 50; pass the returned `nextCursor` back as `cursor` for the next page (null at the end). Coach-gated (`requireAssistantSurface(\"coach\")`); a disabled surface 403s. Auth via cookie or Bearer; the owner is narrowed from the session.",
+      parameters: [
+        {
+          name: "cursor",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+          description:
+            "Id of the last conversation on the previous page. Omit for the first page.",
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+          description: "Page size. Defaults to 20, capped at 50.",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "A page of the caller's conversations.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachConversationsPageSchema,
+                "CoachConversationsPageResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Insights"],
+      summary: "Send a Coach turn (streaming reply)",
+      description:
+        "v1.18.0 — sends a user turn and streams the assistant reply as Server-Sent Events. The response is `text/event-stream`, not JSON: one `data: <json>\\n\\n` frame per event. Frame `type` is one of `token` (a chunk of reply text: `{ type, token }`), `provenance` (the evidence envelope: `{ type, metricSource }`), `done` (`{ type, conversationId, messageId }`), or `error` (`{ type, code, message }`). The HTTP status is 200 even for a provider/refusal outcome — clients dispatch on the `error` frame, not the status. Clients ignore unknown frame types (additive evolution). Omitting `conversationId` starts a new conversation. Coach-gated; budget- and rate-limited. Auth via cookie or Bearer.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: coachChatRequestSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Server-Sent Events stream of `token` / `provenance` / `done` / `error` frames.",
+          content: {
+            "text/event-stream": {
+              schema: {
+                type: "string",
+                description:
+                  "SSE frames: `data: <json>\\n\\n`. See the operation description for the per-`type` frame shapes.",
+              },
+            },
+          },
+        },
+        "403": {
+          description:
+            "Coach surface disabled (`errorCode: assistant.disabled.coach`) or AI consent required (`errorCode: consent.ai.required`).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "413": {
+          description: "Request body exceeds the 64 KB cap.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/chat/{id}": {
+    get: {
+      tags: ["Insights"],
+      summary: "Read one Coach conversation with all messages",
+      description:
+        "v1.18.0 — returns one conversation with every message decrypted server-side and ordered oldest-first, plus the rolling `summary` when one is on file. The client renders the bodies directly; no decryption key is involved. A foreign / unknown id maps to 404 (never 403) so the existence channel does not leak across accounts. Coach-gated. Auth via cookie or Bearer.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "Conversation id.",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "The conversation with all decrypted messages.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachConversationDetailSchema,
+                "CoachConversationDetailResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Conversation not found or not owned by the caller.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Insights"],
+      summary: "Delete one Coach conversation",
+      description:
+        "v1.18.0 — hard-deletes a conversation and every message under it. A foreign / unknown id maps to 404 (never 403). Coach-gated. Auth via cookie or Bearer.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "Conversation id.",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "The conversation was deleted.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachConversationDeletedResponse,
+                "CoachConversationDeleted",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Conversation not found or not owned by the caller.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/insights/layout": {
     get: {
       tags: ["Insights"],

@@ -3927,6 +3927,224 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/insights/chat:
+    get:
+      tags:
+        - Insights
+      summary: List the caller's Coach conversations
+      description: v1.18.0 — cursor-paginated list of the caller's Coach conversations for the history rail, most-recent
+        activity first. Metadata only (id, title, timestamps, message count); message bodies are not decrypted here.
+        `limit` defaults to 20, capped at 50; pass the returned `nextCursor` back as `cursor` for the next page (null at
+        the end). Coach-gated (`requireAssistantSurface("coach")`); a disabled surface 403s. Auth via cookie or Bearer;
+        the owner is narrowed from the session.
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Id of the last conversation on the previous page. Omit for the first page.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: Page size. Defaults to 20, capped at 50.
+      responses:
+        "200":
+          description: A page of the caller's conversations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachConversationsPageResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Insights
+      summary: Send a Coach turn (streaming reply)
+      description: "v1.18.0 — sends a user turn and streams the assistant reply as Server-Sent Events. The response is
+        `text/event-stream`, not JSON: one `data: <json>\\n\\n` frame per event. Frame `type` is one of `token` (a chunk
+        of reply text: `{ type, token }`), `provenance` (the evidence envelope: `{ type, metricSource }`), `done` (`{
+        type, conversationId, messageId }`), or `error` (`{ type, code, message }`). The HTTP status is 200 even for a
+        provider/refusal outcome — clients dispatch on the `error` frame, not the status. Clients ignore unknown frame
+        types (additive evolution). Omitting `conversationId` starts a new conversation. Coach-gated; budget- and
+        rate-limited. Auth via cookie or Bearer."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversationId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+                prefill:
+                  type: string
+                  maxLength: 2000
+                locale:
+                  type: string
+                  enum:
+                    - en
+                    - de
+                scope:
+                  type: object
+                  properties:
+                    sources:
+                      maxItems: 40
+                      type: array
+                      items:
+                        type: string
+                        enum:
+                          - bp
+                          - weight
+                          - pulse
+                          - mood
+                          - compliance
+                          - hrv
+                          - sleep
+                          - resting_hr
+                          - steps
+                          - active_energy
+                          - flights
+                          - distance
+                          - vo2_max
+                          - body_temp
+                          - walking_hr
+                          - respiratory_rate
+                          - spo2
+                          - pulse_wave_velocity
+                          - vascular_age
+                          - body_fat
+                          - fat_mass
+                          - fat_free_mass
+                          - muscle_mass
+                          - lean_body_mass
+                          - bone_mass
+                          - total_body_water
+                          - bmi
+                          - visceral_fat
+                          - glucose
+                          - walking_steadiness
+                          - walking_asymmetry
+                          - walking_double_support
+                          - walking_step_length
+                          - walking_speed
+                          - audio_env
+                          - audio_headphone
+                          - audio_event
+                          - daylight
+                          - skin_temp
+                          - workouts
+                    window:
+                      type: string
+                      enum:
+                        - last7days
+                        - last30days
+                        - last90days
+                        - lastYear
+                        - allTime
+                guidedQuestion:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+              required:
+                - message
+      responses:
+        "200":
+          description: Server-Sent Events stream of `token` / `provenance` / `done` / `error` frames.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: "SSE frames: `data: <json>\\n\\n`. See the operation description for the per-`type` frame shapes."
+        "401": *a1
+        "403":
+          description: "Coach surface disabled (`errorCode: assistant.disabled.coach`) or AI consent required (`errorCode:
+            consent.ai.required`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "413":
+          description: Request body exceeds the 64 KB cap.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/insights/chat/{id}:
+    get:
+      tags:
+        - Insights
+      summary: Read one Coach conversation with all messages
+      description: v1.18.0 — returns one conversation with every message decrypted server-side and ordered oldest-first, plus
+        the rolling `summary` when one is on file. The client renders the bodies directly; no decryption key is
+        involved. A foreign / unknown id maps to 404 (never 403) so the existence channel does not leak across accounts.
+        Coach-gated. Auth via cookie or Bearer.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Conversation id.
+      responses:
+        "200":
+          description: The conversation with all decrypted messages.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachConversationDetailResponse"
+        "401": *a1
+        "404":
+          description: Conversation not found or not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Insights
+      summary: Delete one Coach conversation
+      description: v1.18.0 — hard-deletes a conversation and every message under it. A foreign / unknown id maps to 404 (never
+        403). Coach-gated. Auth via cookie or Bearer.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Conversation id.
+      responses:
+        "200":
+          description: The conversation was deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachConversationDeleted"
+        "401": *a1
+        "404":
+          description: Conversation not found or not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
   /api/insights/layout:
     get:
       tags:
@@ -13759,6 +13977,247 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/NotificationPrefs"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachConversationsPageResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoachConversationsPage"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachConversationsPage:
+      type: object
+      properties:
+        conversations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachConversation"
+        nextCursor:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Id of the last conversation on this page; pass it back as `cursor` for the next page. Null at the end of
+            the list.
+      required:
+        - conversations
+        - nextCursor
+      additionalProperties: false
+      description: Cursor-paginated page of the caller's Coach conversations, most-recent activity first.
+    CoachConversation:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          description: Title summarised from the first user message.
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: Bumped on every appended message; the rail orders by this.
+        messageCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - id
+        - title
+        - createdAt
+        - updatedAt
+        - messageCount
+      additionalProperties: false
+      description: Lightweight conversation metadata for the history rail. No message bodies — the rail does not decrypt.
+    CoachConversationDetailResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoachConversationDetail"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachConversationDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        messageCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachMessage"
+          description: Every message in the conversation, decrypted, oldest-first.
+        summary:
+          description: Rolling summary of turns elided past the history window; null when none is on file.
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - id
+        - title
+        - createdAt
+        - updatedAt
+        - messageCount
+        - messages
+      additionalProperties: false
+      description: Full conversation with every message decrypted server-side. The client renders the bodies directly; no
+        decryption key is involved.
+    CoachMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+        content:
+          type: string
+          description: Decrypted message body — the server decrypts on read.
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        metricSource:
+          anyOf:
+            - $ref: "#/components/schemas/CoachProvenance"
+            - type: "null"
+          description: Provenance envelope (assistant turns); null for user turns.
+        providerType:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Provider that produced the reply (e.g. anthropic, openai, local, refusal); null for user turns.
+        promptVersion:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Coach prompt version that produced the reply; null for user turns.
+      required:
+        - id
+        - role
+        - content
+        - createdAt
+        - metricSource
+        - providerType
+        - promptVersion
+      additionalProperties: false
+      description: One Coach chat message, decrypted server-side. Ordered oldest-first within a conversation.
+    CoachProvenance:
+      type: object
+      properties:
+        windows:
+          type: array
+          items:
+            type: string
+            enum:
+              - last7days
+              - last30days
+              - last90days
+              - lastYear
+              - allTime
+          description: Analysis windows the assistant drew on this turn.
+        metrics:
+          type: array
+          items:
+            type: string
+          description: Stable metric-topic keys referenced (e.g. bp, weight, sleep, glucose). `general` is the empty-snapshot
+            sentinel. The client translates these labels; the server never localises them.
+        counts:
+          description: Per-metric sample-count summary; absent on an empty snapshot.
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: integer
+            minimum: -9007199254740991
+            maximum: 9007199254740991
+        keyValues:
+          description: Load-bearing numbers the assistant surfaced, rendered in the collapsible evidence block. Hard-capped at 8
+            entries.
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              value:
+                type: string
+              unit:
+                type: string
+              window:
+                type: string
+            required:
+              - label
+              - value
+            additionalProperties: false
+      required:
+        - windows
+        - metrics
+      additionalProperties: false
+      description: Provenance envelope attached to an assistant message — labels and counts only, plus the optional evidence
+        key-values. No raw timestamps.
+    CoachConversationDeleted:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+              const: true
+              description: Always true on success; a foreign / unknown id is a 404.
+          required:
+            - deleted
+          additionalProperties: false
         error:
           type: "null"
         meta:
