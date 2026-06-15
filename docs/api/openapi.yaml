@@ -1918,6 +1918,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/SleepNightResponse"
         "401": *a1
+        "403": &a5
+          description: 'Module disabled for this account: the user (or operator) has the module turned off. `meta.errorCode` =
+            `module.disabled` and `meta.module` carries the disabled module key (e.g. "sleep"). Returned even for a
+            valid Bearer token. Clients hide the whole module surface end-to-end rather than retry.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/sleep/rhythm:
@@ -1939,6 +1947,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/SleepRhythmResponse"
         "401": *a1
+        "403": *a5
         "422": *a3
         "429": *a4
   /api/workouts:
@@ -5154,7 +5163,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MoodCustomTagPatchEnvelope"
         "401": *a1
-        "404": &a5
+        "404": &a6
           description: Not found / not owned by the caller.
           content:
             application/json:
@@ -5189,7 +5198,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MoodCustomTagDeleteEnvelope"
         "401": *a1
-        "404": *a5
+        "404": *a6
         "422": *a3
         "429": *a4
   /api/mood/tags/{key}/hidden:
@@ -5230,7 +5239,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "401": *a1
-        "404": *a5
+        "404": *a6
         "422": *a3
         "429": *a4
   /api/mood/tags/groups:
@@ -5305,7 +5314,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MoodTagGroupPatchEnvelope"
         "401": *a1
-        "404": *a5
+        "404": *a6
         "422": *a3
         "429": *a4
     delete:
@@ -5336,7 +5345,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MoodTagGroupDeleteEnvelope"
         "401": *a1
-        "404": *a5
+        "404": *a6
         "422": *a3
         "429": *a4
   /api/mood/tags/layout:
@@ -5589,7 +5598,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MeasurementReminderEnvelope"
         "401": *a1
-        "404": &a6
+        "404": &a7
           description: Measurement reminder not found / not owned.
           content:
             application/json:
@@ -5623,7 +5632,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MeasurementReminderPatchEnvelope"
         "401": *a1
-        "404": *a6
+        "404": *a7
         "422": *a3
         "429": *a4
     delete:
@@ -5645,7 +5654,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MeasurementReminderDeleteEnvelope"
         "401": *a1
-        "404": *a6
+        "404": *a7
         "422": *a3
         "429": *a4
   /api/measurement-reminders/{id}/satisfy:
@@ -5669,7 +5678,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MeasurementReminderSatisfyEnvelope"
         "401": *a1
-        "404": *a6
+        "404": *a7
         "422": *a3
         "429": *a4
   /api/labs:
@@ -5816,7 +5825,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/GetLabResultResponse"
         "401": *a1
-        "404": &a7
+        "404": &a8
           description: Lab result not found (or owned by another user).
           content:
             application/json:
@@ -5890,7 +5899,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/UpdateLabResultResponse"
         "401": *a1
-        "404": *a7
+        "404": *a8
         "422": *a3
         "429": *a4
     delete:
@@ -5912,7 +5921,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/DeleteLabResultResponse"
         "401": *a1
-        "404": *a7
+        "404": *a8
         "422": *a3
         "429": *a4
 components:
@@ -13751,6 +13760,8 @@ components:
             - type: string
             - type: "null"
           description: German KVNR, decrypted for the form prefill.
+        modules:
+          $ref: "#/components/schemas/ModuleMap"
       required:
         - username
         - email
@@ -13765,9 +13776,11 @@ components:
         - insurerName
         - insurerIkNumber
         - insuranceNumber
+        - modules
       additionalProperties: false
       description: Flattened profile fields for the native client (GET). The KVNR is decrypted server-side; the IKNR (v1.8.6)
-        is plaintext at rest.
+        is plaintext at rest. The `modules` map mirrors the /api/auth/me projection so the alias carries the same module
+        flags.
     PatchProfileResponse:
       type: object
       properties:

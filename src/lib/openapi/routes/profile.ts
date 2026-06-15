@@ -219,11 +219,15 @@ const profileResponse = z
       .string()
       .nullable()
       .describe("German KVNR, decrypted for the form prefill."),
+    // v1.18.0 — resolved module enable/disable map, identical to the
+    // /api/auth/me projection. The native client reads this alias, so it
+    // must carry the same server-authoritative module flags.
+    modules: moduleMapResolved,
   })
   .meta({
     id: "ProfileResponse",
     description:
-      "Flattened profile fields for the native client (GET). The KVNR is decrypted server-side; the IKNR (v1.8.6) is plaintext at rest.",
+      "Flattened profile fields for the native client (GET). The KVNR is decrypted server-side; the IKNR (v1.8.6) is plaintext at rest. The `modules` map mirrors the /api/auth/me projection so the alias carries the same module flags.",
   });
 
 // The PATCH echo mirrors GET but reports KVNR presence as a boolean
