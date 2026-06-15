@@ -3856,11 +3856,24 @@
       },
       "integrations": {
         "title": "Intégrations",
-        "description": "Withings, moodLog et autres services connectés."
+        "description": "Withings, moodLog et autres services connectés.",
+        "tabs": {
+          "connections": "Connexions",
+          "channels": "Canaux",
+          "sources": "Sources"
+        },
+        "connections": {
+          "description": "Connecter Withings, WHOOP, Fitbit, Polar, Oura et Nightscout."
+        },
+        "channels": {
+          "description": "Telegram, ntfy, Web Push, Webhook et e-mail : les voies par lesquelles les notifications sont envoyées."
+        }
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Aperçu en direct de chaque canal configuré."
+        "description": "Quels rappels se déclenchent. Les canaux de diffusion se trouvent dans Intégrations.",
+        "channelsHint": "Telegram, ntfy, Web Push, Webhook et e-mail se configurent désormais dans",
+        "channelsHintLink": "Intégrations → Canaux"
       },
       "layout": {
         "title": "Disposition et personnalisation",

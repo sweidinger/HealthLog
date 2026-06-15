@@ -1,56 +1,37 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
-import { queryKeys } from "@/lib/query-keys";
 import { CoachNudgeCard } from "@/components/settings/coach-nudge-card";
 import { LowStockCard } from "@/components/settings/low-stock-card";
 import { MoodReminderCard } from "@/components/settings/mood-reminder-card";
-import { NotificationStatusCard } from "@/components/settings/notification-status-card";
-import { NtfyCard } from "@/components/settings/ntfy-card";
-import { TelegramCard } from "@/components/settings/telegram-card";
-import { WebPushCard } from "@/components/settings/web-push-card";
-import { WebhookCard } from "@/components/settings/webhook-card";
-import { EmailCard } from "@/components/settings/email-card";
-import { apiGet } from "@/lib/api/api-fetch";
 
-interface GlobalServiceAvailability {
-  telegramGlobal: boolean;
-  ntfyGlobal: boolean;
-  webPushGlobal: boolean;
-  apiGlobal: boolean;
-  moodLogGlobal: boolean;
-}
-
+/**
+ * `<NotificationsSection>` — Settings → Notifications.
+ *
+ * v1.18.0 (S3) — the delivery CHANNELS (Telegram / ntfy / Web Push / Webhook /
+ * Email + the live per-channel status surface) moved to Settings →
+ * Integrations → Channels: a channel is a delivery provider, the same family as
+ * a connected device, not a notification preference. What stays here is the
+ * reminder-TYPE content (which events fire): mood reminder, medication
+ * low-stock runway, proactive Coach nudge. S4 will consolidate these onto the
+ * Reminders hub.
+ */
 export function NotificationsSection() {
   const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
-
-  const { data: globalServices } = useQuery({
-    queryKey: queryKeys.settingsGlobalServices(),
-    queryFn: async () => {
-      return apiGet<GlobalServiceAvailability>("/api/settings/global-services");
-    },
-    enabled: isAuthenticated,
-  });
-
-  const showTelegram = globalServices?.telegramGlobal ?? true;
-  const showNtfy = globalServices?.ntfyGlobal ?? true;
-  const showWebPush = globalServices?.webPushGlobal ?? true;
 
   return (
     <section
       aria-labelledby="settings-section-notifications-title"
       className="space-y-6"
     >
-      {/* v1.4.33 IW7 — disambiguate the channel-config screen from the
-          inbox at `/notifications`. Both surfaces used to be named plain
-          "Notifications", so the crumb spells out where the user is and
-          offers a one-tap jump to the inbox. */}
+      {/* v1.4.33 IW7 — disambiguate this settings screen from the inbox at
+          `/notifications`. The crumb spells out where the user is and offers a
+          one-tap jump to the inbox. */}
       <nav
         aria-label={t("nav.breadcrumb")}
         className="text-muted-foreground text-xs"
@@ -83,40 +64,21 @@ export function NotificationsSection() {
         <p className="text-muted-foreground text-sm">
           {t("settings.sections.notifications.description")}
         </p>
+        {/* v1.18.0 (S3) — the delivery channels now live under Integrations.
+            Cross-link so a user looking for "where do I connect Telegram"
+            finds them in one tap. */}
+        <p className="text-muted-foreground text-xs">
+          {t("settings.sections.notifications.channelsHint")}{" "}
+          <Link
+            href="/settings/integrations"
+            className="text-primary underline underline-offset-2"
+            data-slot="notifications-channels-cross-link"
+          >
+            {t("settings.sections.notifications.channelsHintLink")}
+          </Link>
+        </p>
       </header>
 
-      <NotificationStatusCard />
-
-      {/* v1.4.27 MB3 — `scroll-mt-28` keeps each notification card's
-          anchor target below the safe-area sticky page header when the
-          user lands on `/settings/notifications#telegram` or similar.
-          Without the offset the section title pins under the header on
-          mobile and the user has to scroll back up to find it. */}
-      {showTelegram && (
-        <div id="telegram" className="scroll-mt-28">
-          <TelegramCard isAuthenticated={isAuthenticated} />
-        </div>
-      )}
-      {showNtfy && (
-        <div id="ntfy" className="scroll-mt-28">
-          <NtfyCard isAuthenticated={isAuthenticated} />
-        </div>
-      )}
-      {showWebPush && (
-        <div id="web-push" className="scroll-mt-28">
-          <WebPushCard />
-        </div>
-      )}
-      {/* v1.17.1 — generic outbound webhook (Gotify / Discord / Slack /
-          Matrix / Home Assistant in one channel). */}
-      <div id="webhook" className="scroll-mt-28">
-        <WebhookCard isAuthenticated={isAuthenticated} />
-      </div>
-      {/* v1.17.1 — SMTP / email. The card hides itself when the operator
-          hasn't configured SMTP_* env, so it never shows a dead toggle. */}
-      <div id="email" className="scroll-mt-28">
-        <EmailCard isAuthenticated={isAuthenticated} />
-      </div>
       <div id="mood-reminder" className="scroll-mt-28">
         <MoodReminderCard isAuthenticated={isAuthenticated} />
       </div>
