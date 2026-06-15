@@ -51,6 +51,7 @@ function buildUser(timeFormat: TimeFormatPreference): AuthUser {
     insurerIkNumber: null,
     insuranceNumber: null,
     cycleTrackingEnabled: false,
+    modules: {},
   };
 }
 

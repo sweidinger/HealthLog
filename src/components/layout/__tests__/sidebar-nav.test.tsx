@@ -19,7 +19,10 @@ const mockUserRef = {
     email: "user@example.com",
     role: "USER" as "USER" | "ADMIN",
     avatarUrl: null,
-    cycleTrackingEnabled: false,
+    // v1.18.0 — nav gating reads the resolved per-user module map; cycle is
+    // the delegated `cycle` key on it (no bespoke boolean). An absent key
+    // fails open (entry shows), matching the gate's default-on contract.
+    modules: {} as Record<string, boolean>,
   },
 };
 vi.mock("@/hooks/use-auth", () => ({
@@ -57,16 +60,16 @@ function render({
   pathname = "/",
   bugReportEnabled = true,
   role = "USER" as "USER" | "ADMIN",
-  cycleTrackingEnabled = false,
+  modules = {} as Record<string, boolean>,
 }: {
   pathname?: string;
   bugReportEnabled?: boolean;
   role?: "USER" | "ADMIN";
-  cycleTrackingEnabled?: boolean;
+  modules?: Record<string, boolean>;
 } = {}) {
   mockPathnameRef.value = pathname;
   mockSettingsRef.value = { bugReportEnabled };
-  mockUserRef.value = { ...mockUserRef.value, role, cycleTrackingEnabled };
+  mockUserRef.value = { ...mockUserRef.value, role, modules };
   return renderToStaticMarkup(
     // The nav reads `useQueryClient()` for the medications intent
     // prefetch (v1.16.7); a fresh client per render keeps the SSR
@@ -94,20 +97,20 @@ describe("<SidebarNav> bug-report toggle", () => {
   });
 });
 
-describe("<SidebarNav> cycle entry gate (v1.15.0)", () => {
-  it("renders the Cycle entry when cycle tracking is enabled", () => {
-    const html = render({ cycleTrackingEnabled: true });
+describe("<SidebarNav> cycle entry gate (v1.15.0 / v1.18.0 module map)", () => {
+  it("renders the Cycle entry when the cycle module is enabled", () => {
+    const html = render({ modules: { cycle: true } });
     expect(html).toContain('href="/cycle"');
     expect(html).toContain("Cycle");
   });
 
-  it("hides the Cycle entry when cycle tracking is disabled", () => {
-    const html = render({ cycleTrackingEnabled: false });
+  it("hides the Cycle entry when the cycle module is disabled", () => {
+    const html = render({ modules: { cycle: false } });
     expect(html).not.toContain('href="/cycle"');
   });
 
   it("places the Cycle entry between Medications and Insights when enabled", () => {
-    const html = render({ cycleTrackingEnabled: true });
+    const html = render({ modules: { cycle: true } });
     const med = html.indexOf('href="/medications"');
     const cycle = html.indexOf('href="/cycle"');
     const insights = html.indexOf('href="/insights"');
@@ -117,6 +120,52 @@ describe("<SidebarNav> cycle entry gate (v1.15.0)", () => {
     // Cycle sits after Medications and before Insights in document order.
     expect(med).toBeLessThan(cycle);
     expect(cycle).toBeLessThan(insights);
+  });
+});
+
+describe("<SidebarNav> module gating (v1.18.0)", () => {
+  it("hides a disabled module's nav entry (mood / labs / coach / achievements)", () => {
+    const html = render({
+      modules: {
+        mood: false,
+        labs: false,
+        coach: false,
+        achievements: false,
+      },
+    });
+    expect(html).not.toContain('href="/mood"');
+    expect(html).not.toContain('href="/labs"');
+    expect(html).not.toContain('href="/coach"');
+    expect(html).not.toContain('href="/achievements"');
+    // Core destinations stay regardless of the module map.
+    expect(html).toContain('href="/measurements"');
+    expect(html).toContain('href="/medications"');
+    expect(html).toContain('href="/insights"');
+    expect(html).toContain('href="/vorsorge"');
+  });
+
+  it("renders a module's nav entry when its module is enabled", () => {
+    const html = render({
+      modules: {
+        mood: true,
+        labs: true,
+        coach: true,
+        achievements: true,
+      },
+    });
+    expect(html).toContain('href="/mood"');
+    expect(html).toContain('href="/labs"');
+    expect(html).toContain('href="/coach"');
+    expect(html).toContain('href="/achievements"');
+  });
+
+  it("fails open: an empty module map keeps every gated entry visible", () => {
+    const html = render({ modules: {} });
+    expect(html).toContain('href="/mood"');
+    expect(html).toContain('href="/cycle"');
+    expect(html).toContain('href="/labs"');
+    expect(html).toContain('href="/coach"');
+    expect(html).toContain('href="/achievements"');
   });
 });
 

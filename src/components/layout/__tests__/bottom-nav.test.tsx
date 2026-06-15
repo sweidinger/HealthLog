@@ -25,12 +25,13 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
-// `<BottomNav>` reads `cycleTrackingEnabled` from `useAuth()` to gate the
-// cycle hub entry. Each test mutates `mockUserRef.value` before rendering.
+// v1.18.0 — `<BottomNav>` reads the resolved per-user module map from
+// `useAuth()` to gate the hub entries (cycle is the delegated `cycle` key).
+// Each test mutates `mockUserRef.value` before rendering.
 const mockUserRef = {
-  value: { id: "u1", cycleTrackingEnabled: false } as {
+  value: { id: "u1", modules: {} } as {
     id: string;
-    cycleTrackingEnabled: boolean;
+    modules: Record<string, boolean>;
   } | null,
 };
 vi.mock("@/hooks/use-auth", () => ({
@@ -133,19 +134,28 @@ describe("<BottomNav> iOS-parity layout", () => {
     expect(hasLabelFirst || hasTestidFirst).toBe(true);
   });
 
-  it("keeps the cycle hub entry out of the closed-hub strip when the gate is off", () => {
-    mockUserRef.value = { id: "u1", cycleTrackingEnabled: false };
+  it("keeps the cycle hub entry out of the closed-hub strip when its module is off", () => {
+    mockUserRef.value = { id: "u1", modules: { cycle: false } };
     const html = render();
     // Like Measurements / Mood, the cycle entry lives in the More hub
     // (rendered on open — exercised in e2e), never an always-visible strip.
     expect(html).not.toContain('href="/cycle"');
   });
 
-  it("renders without error when the cycle gate is on (entry rides the More hub)", () => {
-    mockUserRef.value = { id: "u1", cycleTrackingEnabled: true };
+  it("renders without error when the cycle module is on (entry rides the More hub)", () => {
+    mockUserRef.value = { id: "u1", modules: { cycle: true } };
     // The closed-hub SSR markup carries no hub items either way; this guards
-    // that gating on the flag never throws.
+    // that gating on the module map never throws.
     expect(() => render()).not.toThrow();
-    mockUserRef.value = { id: "u1", cycleTrackingEnabled: false };
+    mockUserRef.value = { id: "u1", modules: {} };
+  });
+
+  it("gating on a disabled module never throws (v1.18.0)", () => {
+    mockUserRef.value = {
+      id: "u1",
+      modules: { mood: false, labs: false, coach: false, achievements: false },
+    };
+    expect(() => render()).not.toThrow();
+    mockUserRef.value = { id: "u1", modules: {} };
   });
 });
