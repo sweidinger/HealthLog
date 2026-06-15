@@ -33,6 +33,7 @@ import {
   PERIOD_CONFIRM_GRACE_DAYS,
   FERTILE_SOON_LEAD_DAYS,
 } from "../cycle-reminder";
+import { isCycleEnabled } from "@/lib/cycle/gate";
 import type { NotificationPayload } from "@/lib/notifications/types";
 import type { DispatchOutcome } from "@/lib/notifications/dispatcher";
 
@@ -297,13 +298,38 @@ describe("buildCycleReminderPayload", () => {
 });
 
 describe("runCycleReminderTick", () => {
-  function run(state: FakeState, dispatch: DispatchFn, now = AT_0900_BERLIN) {
+  function run(
+    state: FakeState,
+    dispatch: DispatchFn,
+    now = AT_0900_BERLIN,
+    overrides: {
+      /**
+       * v1.18.0 — inject the module gate. Default resolves the per-user
+       * cycle toggle off the FakeState user (the same `isCycleEnabled`
+       * derivation the cron used to apply inline), so the gender-derivation
+       * cases stay faithful. Pass `operatorOff: true` to assert the operator
+       * server-wide kill-switch suppresses every push regardless of the
+       * per-user toggle.
+       */
+      operatorOff?: boolean;
+    } = {},
+  ) {
     const prisma = makePrisma(state);
+    const isModuleEnabled = vi.fn(async (userId: string) => {
+      if (overrides.operatorOff) return false;
+      const pred = state.predictions.find((p) => p.userId === userId);
+      const u = pred?.user;
+      return isCycleEnabled(u?.gender ?? null, u?.cycleProfile ?? null);
+    });
     return runCycleReminderTick(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       prisma as any,
       now,
-      { dispatch: dispatch as typeof import("@/lib/notifications/dispatcher").dispatchNotification },
+      {
+        dispatch: dispatch as typeof import("@/lib/notifications/dispatcher").dispatchNotification,
+        isModuleEnabled:
+          isModuleEnabled as unknown as typeof import("@/lib/modules/gate").isModuleEnabled,
+      },
     );
   }
 
@@ -447,6 +473,26 @@ describe("runCycleReminderTick", () => {
     const summary = await run(state, dispatch);
     expect(dispatch).not.toHaveBeenCalled();
     expect(summary.dispatchedPeriodSoon).toBe(0);
+    expect(summary.skippedModuleDisabled).toBe(1);
+  });
+
+  it("operator server-wide kill-switch suppresses every cycle push (v1.18.0)", async () => {
+    // A fully cycle-enabled FEMALE account with an in-window prediction:
+    // the only thing stopping the push is the operator-level module gate.
+    const state: FakeState = {
+      predictions: [
+        { userId: "u1", nextPeriodStart: "2026-05-19", user: baseUser() },
+      ],
+      observedStarts: {},
+      alreadyOk: new Set(),
+    };
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    const summary = await run(state, dispatch, AT_0900_BERLIN, {
+      operatorOff: true,
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(summary.dispatchedPeriodSoon).toBe(0);
+    expect(summary.skippedModuleDisabled).toBe(1);
   });
 
   it("opts a non-FEMALE account in via the explicit cycleTrackingEnabled flag", async () => {

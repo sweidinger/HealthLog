@@ -38,6 +38,16 @@ const featuresMock = extractFeatures as unknown as ReturnType<typeof vi.fn>;
 import { MODULE_KEYS, type ModuleKey } from "@/lib/modules/registry";
 vi.mock("@/lib/modules/gate", () => ({
   resolveModuleMap: vi.fn(),
+  // v1.18.0 — the coach cycle block gates through
+  // `isCycleAvailableForUser` → `isModuleEnabled(userId, "cycle")`. Back it
+  // with the same resolved map the tests drive via `resolveModuleMap`.
+  isModuleEnabled: vi.fn(async (...args: [string, ModuleKey]) => {
+    const key = args[1];
+    const map = await (resolveModuleMap as unknown as () => Promise<
+      Record<ModuleKey, boolean>
+    >)();
+    return map[key] !== false;
+  }),
 }));
 import { resolveModuleMap } from "@/lib/modules/gate";
 const resolveModuleMapMock = resolveModuleMap as unknown as ReturnType<

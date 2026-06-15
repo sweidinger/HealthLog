@@ -47,7 +47,7 @@ import { buildDerivedSnapshotBlock } from "./derived-snapshot";
 import { buildCoachMemoryBlock } from "./memory-snapshot";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import { buildCycleSnapshotBlock } from "./cycle-snapshot";
-import { isCycleEnabled } from "@/lib/cycle/gate";
+import { isCycleAvailableForUser } from "@/lib/cycle/gate";
 import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
 import {
   buildComplianceLedgerRows,
@@ -177,8 +177,9 @@ const CORE_CLUSTERS: ReadonlySet<CoachDataCluster> = new Set<CoachDataCluster>([
  *                   build off the sleep signal alone.
  *
  * `cycle` is intentionally absent: its block already resolves through the
- * single-source-of-truth cycle gate (`isCycleEnabled`) below, exactly as
- * the W1 foundation prescribes. `coach` is the surface being narrated, not
+ * fully two-layer cycle gate (`isCycleAvailableForUser` — the per-user
+ * toggle AND the operator server-wide kill-switch) below, exactly as the
+ * W1 foundation prescribes. `coach` is the surface being narrated, not
  * a data domain. `labs` / `achievements` / `insights` / `doctorReport`
  * own no coach-snapshot data domain.
  */
@@ -1037,15 +1038,16 @@ async function buildCoachSnapshotImpl(
     now,
     coachLocale,
   );
-  // v1.15 — cycle/phase block, gated on the resolved cycle toggle so a
+  // v1.15 — cycle/phase block, gated on the resolved cycle module so a
   // non-cycle account issues no query (the helper short-circuits to null
   // before any read for a disabled account). The block is descriptive only —
   // current phase + day-of-cycle, the next predicted event (period range,
   // fertile window goal-gated), and the headline phase-correlation finding.
-  const cycleEnabled = isCycleEnabled(
-    prefsRow?.gender,
-    prefsRow?.cycleProfile ?? null,
-  );
+  // v1.18.0 — the gate is the FULLY-resolved cycle module
+  // (`isCycleAvailableForUser` → the per-user toggle AND the operator
+  // server-wide kill-switch), so an operator-off instance never injects the
+  // cycle block into the coach prompt.
+  const cycleEnabled = await isCycleAvailableForUser(userId);
   const cycleBlockPromise = cycleEnabled
     ? buildCycleSnapshotBlock(userId, prefsRow?.gender, now, userTz)
     : null;

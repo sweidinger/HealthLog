@@ -404,11 +404,16 @@ export default function InsightsPage() {
         // v1.15.3 — the cycle ring rides the scores strip as a gated sibling
         // tile, only for a cycle-tracking account, so its calendar read never
         // fires otherwise (the same `/api/auth/me` gate the sidebar nav uses).
-        extraTile={user?.cycleTrackingEnabled ? <CycleRingTile /> : undefined}
+        // v1.18.0 — gate on the resolved `modules.cycle` flag (per-user toggle
+        // AND the operator server-wide kill-switch) so an operator-off
+        // instance never renders the ring nor fires its calendar read.
+        extraTile={
+          user?.modules?.cycle === true ? <CycleRingTile /> : undefined
+        }
         // v1.15.5 — when the cycle ring is shown it TAKES the Strain slot:
         // hide Strain so the strip stays compact instead of growing a sixth
         // tile. Strain stays visible for non-cycle accounts.
-        hideStrain={user?.cycleTrackingEnabled === true}
+        hideStrain={user?.modules?.cycle === true}
       />
     ),
     "daily-briefing": flags.briefing ? (

@@ -37,6 +37,18 @@ const allModulesEnabled = (): Record<ModuleKey, boolean> =>
 
 vi.mock("@/lib/modules/gate", () => ({
   resolveModuleMap: vi.fn(),
+  // v1.18.0 — the coach cycle block now gates through
+  // `isCycleAvailableForUser` → `isModuleEnabled(userId, "cycle")`. Back the
+  // mock with the same resolved map the tests already drive via
+  // `resolveModuleMap`, so flipping `cycle` off in a fixture also closes the
+  // cycle block (operator/user kill-switch parity) without a DB read.
+  isModuleEnabled: vi.fn(async (...args: [string, ModuleKey]) => {
+    const key = args[1];
+    const map = await (resolveModuleMap as unknown as () => Promise<
+      Record<ModuleKey, boolean>
+    >)();
+    return map[key] !== false;
+  }),
 }));
 import { resolveModuleMap } from "@/lib/modules/gate";
 const resolveModuleMapMock = resolveModuleMap as unknown as ReturnType<
