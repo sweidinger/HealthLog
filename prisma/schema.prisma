@@ -401,6 +401,35 @@ model User {
   // `useAuth()` hook.
   disableCoach Boolean @default(false) @map("disable_coach")
 
+  // v1.18.0 — module enable/disable foundation.
+  //
+  // A DISABLED allowlist for the optional ("secondary") domains. The
+  // contract is default-on: a NULL column, an empty object, or a key
+  // simply absent all mean "module enabled". A key present and set to
+  // `false` means that module is OFF; `true` is redundant-but-allowed.
+  // No backfill — every existing user reads as all-on.
+  //
+  // Shape (string keys ⇒ boolean):
+  //   { "mood": false, "glucose": false, ... }
+  //
+  // The canonical key set + which keys are toggleable lives in
+  // `src/lib/modules/registry.ts`; the resolver + 403 guard live in
+  // `src/lib/modules/gate.ts`. CORE domains (weight, blood pressure,
+  // pulse, medications — the measurement engine + meds) are NEVER
+  // present here and the gate refuses to disable them, so a crafted
+  // `{ "weight": false }` blob cannot turn the core engine off.
+  //
+  // Two modules do NOT resolve from this column to avoid a double
+  // source of truth: `cycle` delegates to `CycleProfile`/`isCycleEnabled`
+  // and `coach` delegates to `User.disableCoach` + the operator-level
+  // assistant master flag. The column may still carry a `cycle`/`coach`
+  // key for forward-compat but the gate ignores it for those two.
+  //
+  // Persisted via `PATCH /api/auth/me/modules` with field-by-field
+  // merge semantics (no mass assignment); surfaced resolved on
+  // `GET /api/auth/me` as a `modules: { <key>: boolean }` map.
+  modulePreferencesJson Json? @map("module_preferences_json")
+
   // v1.5.5 — self-hosted avatar storage.
   //
   // Replaces the Gravatar third-party leak (the old `getGravatarUrl`

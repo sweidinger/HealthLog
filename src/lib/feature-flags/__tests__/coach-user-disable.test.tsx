@@ -317,6 +317,12 @@ describe("Coach per-user disableCoach invariant", () => {
     // builder.
     "src/lib/dashboard/snapshot.ts",
     "src/app/api/dashboard/snapshot/route.ts",
+    // v1.18.0 — the module enable/disable gate delegates the `coach`
+    // module to the SAME two-layer source of truth (`user.disableCoach`
+    // AND the operator assistant master flag) rather than owning a
+    // second copy in `modulePreferencesJson`. Covered by the coach-
+    // delegation cases in `src/lib/modules/__tests__/gate.test.ts`.
+    "src/lib/modules/gate.ts",
   ];
 
   /**

@@ -6,6 +6,7 @@ import { buildAvatarUrl } from "@/lib/avatar";
 import { decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { isCycleEnabled } from "@/lib/cycle/gate";
+import { resolveModuleMap } from "@/lib/modules/gate";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +22,18 @@ export const GET = apiHandler(async () => {
   // cycle-tracking gate; no row is forced, a NULL toggle derives from
   // gender) is a Postgres round-trip. Running them sequentially added
   // the cookie hop to every /me — and /me sits on every app boot path.
-  const [, cycleProfile] = await Promise.all([
+  const [, cycleProfile, modules] = await Promise.all([
     setOnboardingPendingCookie(user.onboardingCompletedAt == null),
     prisma.cycleProfile.findUnique({
       where: { userId: user.id },
       select: { cycleTrackingEnabled: true },
     }),
+    // v1.18.0 — resolved module enable/disable map for every toggleable
+    // module. cycle/coach reflect their real delegated state (the cycle
+    // gate / disableCoach + operator assistant flag); the rest read the
+    // disabled-allowlist `modulePreferencesJson`. Default-on. Clients
+    // hide a whole module surface end-to-end when its key is `false`.
+    resolveModuleMap(user.id),
   ]);
   const cycleTrackingEnabled = isCycleEnabled(user.gender, cycleProfile);
 
@@ -85,5 +92,12 @@ export const GET = apiHandler(async () => {
     // v1.15.0 — cycle-tracking feature gate, resolved server-side. iOS
     // hides the whole cycle tab when this is false.
     cycleTrackingEnabled,
+    // v1.18.0 — module enable/disable map. `{ <moduleKey>: boolean }`
+    // for every toggleable module; `false` means the module is OFF and
+    // the surface should disappear end-to-end (nav, dashboard, insights,
+    // …). `cycle` mirrors `cycleTrackingEnabled` and `coach` mirrors the
+    // resolved `disableCoach` + operator master flag, so this map is the
+    // single thing a client needs to gate every secondary domain.
+    modules,
   });
 });
