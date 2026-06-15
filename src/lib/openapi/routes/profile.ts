@@ -10,7 +10,44 @@ import type { ZodOpenApiObject } from "zod-openapi";
 import { coachPrefsSchema } from "@/lib/validations/coach-prefs";
 import { notificationPrefsSchema } from "@/lib/validations/notification-prefs";
 import { sourcePrioritySchema } from "@/lib/validations/source-priority";
+import { modulePrefsPatchSchema } from "@/lib/validations/modules";
+import { MODULE_KEYS } from "@/lib/modules/registry";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
+
+// v1.18.0 — module enable/disable. The PATCH request is the REAL runtime
+// validator (`modulePrefsPatchSchema` — strict over the toggleable key
+// set; a core-domain or unknown key is a 422). The response is the
+// fully-resolved `{ <moduleKey>: boolean }` map for every toggleable
+// module: `cycle` mirrors the cycle gate, `coach` mirrors the resolved
+// `disableCoach` + operator master flag, the rest read the per-user
+// disabled-allowlist. The map is the single thing a client needs to gate
+// every secondary domain end-to-end.
+const modulePrefsPatchRequest = modulePrefsPatchSchema.meta({
+  id: "ModulePrefsPatchRequest",
+  description:
+    'Partial module enable/disable update. Each key is an optional boolean; an omitted key is left untouched, `false` disables the module, `true` (re-)enables it. Only the toggleable "secondary domains" are accepted — a core-domain key (`weight`, `bloodPressure`, `pulse`, `medications`) or any unknown key is a 422, so the measurement engine + medications can never be disabled here. `cycle`/`coach` are accepted for forward-compat but their real enabled-state is owned elsewhere (the cycle gate / `disableCoach` + the operator assistant flag).',
+});
+
+const moduleMapResolved = z
+  .object(
+    Object.fromEntries(
+      MODULE_KEYS.map((k) => [
+        k,
+        z
+          .boolean()
+          .describe(`Whether the "${k}" module is enabled for this account.`),
+      ]),
+    ),
+  )
+  .meta({
+    id: "ModuleMap",
+    description:
+      "Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means the surface should disappear end-to-end (nav, dashboard, insights, …). `cycle` mirrors `cycleTrackingEnabled`; `coach` mirrors the resolved per-user opt-out + operator master flag.",
+  });
+
+const moduleMapEnvelopeInner = z
+  .object({ modules: moduleMapResolved })
+  .meta({ id: "ModulesResponse" });
 
 // v1.4.49 — single schema for the per-user Coach opt-out flag. Previously
 // split into `disableCoachBody` (PATCH request) and `disableCoachData`
@@ -366,6 +403,54 @@ export const profilePaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 disableCoachFlag,
                 "PatchDisableCoachResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/modules": {
+    get: {
+      tags: ["Auth"],
+      summary: "Read the resolved per-user module enable/disable map",
+      description:
+        "Returns the fully-resolved `{ <moduleKey>: boolean }` map for every toggleable module. `cycle` reflects the cycle gate, `coach` reflects the resolved per-user opt-out + operator master flag, and the rest read the per-user disabled-allowlist (`modulePreferencesJson`). Default-on: a fresh account reads every module enabled. iOS/web read this to hide a whole module surface end-to-end.",
+      responses: {
+        "200": {
+          description: "Resolved module map.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                moduleMapEnvelopeInner,
+                "GetModulesResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    patch: {
+      tags: ["Auth"],
+      summary: "Update per-user module enable/disable preferences",
+      description:
+        "Merges the supplied keys into the persisted disabled-allowlist (`modulePreferencesJson`) field-by-field — a PATCH touching only one module leaves the siblings intact. Refuses to disable a core module (`weight`, `bloodPressure`, `pulse`, `medications`) or any unknown key with a 422. `userId` is never accepted from the body. Always returns the fully-resolved next-state map so clients can hard-set their optimistic update. Rate-limit 60/min per user.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: modulePrefsPatchRequest },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Resolved next-state module map echoed back.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                moduleMapEnvelopeInner,
+                "PatchModulesResponse",
               ),
             },
           },

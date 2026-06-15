@@ -3081,6 +3081,50 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/auth/me/modules:
+    get:
+      tags:
+        - Auth
+      summary: Read the resolved per-user module enable/disable map
+      description: "Returns the fully-resolved `{ <moduleKey>: boolean }` map for every toggleable module. `cycle` reflects
+        the cycle gate, `coach` reflects the resolved per-user opt-out + operator master flag, and the rest read the
+        per-user disabled-allowlist (`modulePreferencesJson`). Default-on: a fresh account reads every module enabled.
+        iOS/web read this to hide a whole module surface end-to-end."
+      responses:
+        "200":
+          description: Resolved module map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetModulesResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Auth
+      summary: Update per-user module enable/disable preferences
+      description: Merges the supplied keys into the persisted disabled-allowlist (`modulePreferencesJson`) field-by-field — a
+        PATCH touching only one module leaves the siblings intact. Refuses to disable a core module (`weight`,
+        `bloodPressure`, `pulse`, `medications`) or any unknown key with a 422. `userId` is never accepted from the
+        body. Always returns the fully-resolved next-state map so clients can hard-set their optimistic update.
+        Rate-limit 60/min per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModulePrefsPatchRequest"
+      responses:
+        "200":
+          description: Resolved next-state module map echoed back.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatchModulesResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/auth/me/source-priority:
     get:
       tags:
@@ -6548,6 +6592,37 @@ components:
       required:
         - disableCoach
       description: Per-account Coach opt-out toggle (v1.4.47 W3). `true` hides the Coach FAB and short-circuits its API gates.
+    ModulePrefsPatchRequest:
+      type: object
+      properties:
+        cycle:
+          type: boolean
+        mood:
+          type: boolean
+        sleep:
+          type: boolean
+        glucose:
+          type: boolean
+        workouts:
+          type: boolean
+        recovery:
+          type: boolean
+        labs:
+          type: boolean
+        achievements:
+          type: boolean
+        coach:
+          type: boolean
+        insights:
+          type: boolean
+        doctorReport:
+          type: boolean
+      additionalProperties: false
+      description: Partial module enable/disable update. Each key is an optional boolean; an omitted key is left untouched,
+        `false` disables the module, `true` (re-)enables it. Only the toggleable "secondary domains" are accepted — a
+        core-domain key (`weight`, `bloodPressure`, `pulse`, `medications`) or any unknown key is a 422, so the
+        measurement engine + medications can never be disabled here. `cycle`/`coach` are accepted for forward-compat but
+        their real enabled-state is owned elsewhere (the cycle gate / `disableCoach` + the operator assistant flag).
     ProfileUpdateRequest:
       type: object
       properties:
@@ -12045,6 +12120,100 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/DisableCoachFlagOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetModulesResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ModulesResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ModulesResponse:
+      type: object
+      properties:
+        modules:
+          $ref: "#/components/schemas/ModuleMap"
+      required:
+        - modules
+      additionalProperties: false
+    ModuleMap:
+      type: object
+      properties:
+        cycle:
+          type: boolean
+          description: Whether the "cycle" module is enabled for this account.
+        mood:
+          type: boolean
+          description: Whether the "mood" module is enabled for this account.
+        sleep:
+          type: boolean
+          description: Whether the "sleep" module is enabled for this account.
+        glucose:
+          type: boolean
+          description: Whether the "glucose" module is enabled for this account.
+        workouts:
+          type: boolean
+          description: Whether the "workouts" module is enabled for this account.
+        recovery:
+          type: boolean
+          description: Whether the "recovery" module is enabled for this account.
+        labs:
+          type: boolean
+          description: Whether the "labs" module is enabled for this account.
+        achievements:
+          type: boolean
+          description: Whether the "achievements" module is enabled for this account.
+        coach:
+          type: boolean
+          description: Whether the "coach" module is enabled for this account.
+        insights:
+          type: boolean
+          description: Whether the "insights" module is enabled for this account.
+        doctorReport:
+          type: boolean
+          description: Whether the "doctorReport" module is enabled for this account.
+      required:
+        - cycle
+        - mood
+        - sleep
+        - glucose
+        - workouts
+        - recovery
+        - labs
+        - achievements
+        - coach
+        - insights
+        - doctorReport
+      additionalProperties: false
+      description: Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means
+        the surface should disappear end-to-end (nav, dashboard, insights, …). `cycle` mirrors `cycleTrackingEnabled`;
+        `coach` mirrors the resolved per-user opt-out + operator master flag.
+    PatchModulesResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ModulesResponse"
         error:
           type: "null"
         meta:
