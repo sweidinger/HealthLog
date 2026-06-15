@@ -33,6 +33,22 @@ const prismaMock = prisma as unknown as {
 };
 const featuresMock = extractFeatures as unknown as ReturnType<typeof vi.fn>;
 
+// v1.18.0 — the snapshot now resolves the per-user module map; stub it so the
+// default fixture is "all modules on" (legacy behaviour) without the real gate.
+import { MODULE_KEYS, type ModuleKey } from "@/lib/modules/registry";
+vi.mock("@/lib/modules/gate", () => ({
+  resolveModuleMap: vi.fn(),
+}));
+import { resolveModuleMap } from "@/lib/modules/gate";
+const resolveModuleMapMock = resolveModuleMap as unknown as ReturnType<
+  typeof vi.fn
+>;
+const allModulesEnabled = (): Record<ModuleKey, boolean> =>
+  Object.fromEntries(MODULE_KEYS.map((k) => [k, true])) as Record<
+    ModuleKey,
+    boolean
+  >;
+
 /**
  * v1.4.23 W4 F6 — pins the Apple Health timeline blocks the Coach
  * snapshot must ship when the user has HealthKit data and explicitly
@@ -60,6 +76,7 @@ describe("buildCoachSnapshot — Apple Health additive metrics (v1.4.23)", () =>
     // v1.4.33 — `buildCoachSnapshot` now memoises results in-process
     // for 60 s; reset between tests so each fixture is read fresh.
     __resetCoachSnapshotCacheForTests();
+    resolveModuleMapMock.mockResolvedValue(allModulesEnabled());
     prismaMock.moodEntry.findMany.mockResolvedValue([]);
     prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
     prismaMock.medication.findMany.mockResolvedValue([]);
@@ -344,6 +361,7 @@ describe("buildCoachSnapshot — WHOOP-native day strain (v1.17.0)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     __resetCoachSnapshotCacheForTests();
+    resolveModuleMapMock.mockResolvedValue(allModulesEnabled());
     prismaMock.moodEntry.findMany.mockResolvedValue([]);
     prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
     prismaMock.medication.findMany.mockResolvedValue([]);

@@ -22,12 +22,45 @@ vi.mock("@/lib/insights/features", () => ({
   extractFeatures: vi.fn(),
 }));
 
+// v1.18.0 — the snapshot resolves the per-user module map at build start
+// so a disabled data-domain module's data never enters the coach context.
+// Mock the gate's `resolveModuleMap` so the default fixture is "all
+// modules on" (the legacy behaviour) and individual tests can flip a
+// single module off without standing up the real gate's DB reads.
+import { MODULE_KEYS, type ModuleKey } from "@/lib/modules/registry";
+
+const allModulesEnabled = (): Record<ModuleKey, boolean> =>
+  Object.fromEntries(MODULE_KEYS.map((k) => [k, true])) as Record<
+    ModuleKey,
+    boolean
+  >;
+
+vi.mock("@/lib/modules/gate", () => ({
+  resolveModuleMap: vi.fn(),
+}));
+import { resolveModuleMap } from "@/lib/modules/gate";
+const resolveModuleMapMock = resolveModuleMap as unknown as ReturnType<
+  typeof vi.fn
+>;
+
 // The rolling-profile memory block reads its own persisted sources
 // (period narrative + band transitions); stub it out here so the
 // query-count + cache assertions below stay scoped to the core snapshot
 // reads. Its own assembly is covered in memory-snapshot.test.ts.
 vi.mock("../memory-snapshot", () => ({
   buildCoachMemoryBlock: vi.fn().mockResolvedValue(null),
+}));
+
+// v1.18.0 — the recovery composites (derived block + trajectory) are read
+// through these builders. Stub them so the recovery-disable test can
+// assert they are never invoked (the disabled module pays no read cost);
+// their own assembly is covered in derived-snapshot.test.ts /
+// trajectory-snapshot.test.ts.
+vi.mock("../derived-snapshot", () => ({
+  buildDerivedSnapshotBlock: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("../trajectory-snapshot", () => ({
+  buildTrajectorySnapshotBlock: vi.fn().mockResolvedValue(null),
 }));
 
 import { prisma } from "@/lib/db";
@@ -79,6 +112,8 @@ describe("buildCoachSnapshot", () => {
     // v1.4.23 H4 — snapshot now reads `User.coachPrefsJson` to apply
     // per-user excludeMetrics. Default null = use legacy defaults.
     prismaMock.user.findUnique.mockResolvedValue({ coachPrefsJson: null });
+    // v1.18.0 — default fixture: every toggleable module enabled.
+    resolveModuleMapMock.mockResolvedValue(allModulesEnabled());
     featuresMock.mockResolvedValue({
       bloodPressure: undefined,
       weight: undefined,
@@ -521,6 +556,158 @@ describe("buildCoachSnapshot", () => {
     const out = await buildCoachSnapshot("user-1", { sources: ["sleep"] });
     const parsed = JSON.parse(out.snapshotJson);
     expect(parsed.sleepRhythm).toBeUndefined();
+  });
+
+  // ── v1.18.0 module enable/disable — disabled domains never reach the
+  // coach context ───────────────────────────────────────────────────────
+  //
+  // When a toggleable data-domain module is disabled for the account, the
+  // snapshot must exclude that domain entirely — the source drops from
+  // `scope.sources`, no block is emitted, and the provenance metric is
+  // absent. The gate's resolved map is authoritative (delegations already
+  // resolved), so the snapshot folds it into the same SYSTEM-side
+  // exclusion the user's `excludeMetrics` flow already drives.
+
+  it("drops the mood domain from the snapshot when the mood module is disabled", async () => {
+    resolveModuleMapMock.mockResolvedValue({
+      ...allModulesEnabled(),
+      mood: false,
+    });
+    featuresMock.mockResolvedValue({
+      mood: { avg30: 4.2, coverage: { count: 12 } },
+    });
+    prismaMock.moodEntry.findMany.mockResolvedValue([
+      {
+        moodLoggedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        score: 4,
+      },
+    ]);
+
+    const out = await buildCoachSnapshot("user-1", { sources: ["mood"] });
+    const parsed = JSON.parse(out.snapshotJson);
+
+    // No mood block, no mood source in scope, no mood metric in provenance.
+    expect(parsed.mood).toBeUndefined();
+    expect(parsed.scope.sources).not.toContain("mood");
+    expect(out.provenance.metrics).not.toContain("mood");
+    // The disabled domain's table is never even read.
+    expect(prismaMock.moodEntry.findMany).not.toHaveBeenCalled();
+  });
+
+  it("drops the glucose domain when the glucose module is disabled", async () => {
+    resolveModuleMapMock.mockResolvedValue({
+      ...allModulesEnabled(),
+      glucose: false,
+    });
+    featuresMock.mockResolvedValue({});
+    prismaMock.measurement.findMany.mockResolvedValue([
+      daysAgo(2, 105, "BLOOD_GLUCOSE"),
+      daysAgo(4, 98, "BLOOD_GLUCOSE"),
+    ]);
+
+    const out = await buildCoachSnapshot("user-1", { sources: ["glucose"] });
+    const parsed = JSON.parse(out.snapshotJson);
+
+    expect(parsed.glucose).toBeUndefined();
+    expect(parsed.scope.sources).not.toContain("glucose");
+    expect(out.provenance.metrics).not.toContain("glucose");
+  });
+
+  it("drops the sleep + sleepRhythm blocks when the sleep module is disabled", async () => {
+    resolveModuleMapMock.mockResolvedValue({
+      ...allModulesEnabled(),
+      sleep: false,
+    });
+    // 14 nights that would otherwise build both the sleep block and a
+    // ready sleepRhythm DTO.
+    const rows = Array.from({ length: 14 }, (_, i) => {
+      const dd = String(1 + i).padStart(2, "0");
+      return {
+        type: "SLEEP_DURATION",
+        value: 360 + (i % 3) * 20,
+        measuredAt: new Date(`2026-06-${dd}T06:00:00Z`),
+        sleepStage: "ASLEEP" as const,
+        source: null,
+        deviceType: null,
+      };
+    });
+    prismaMock.measurement.findMany.mockResolvedValue(rows);
+    featuresMock.mockResolvedValue({
+      context: { heightCm: null, ageYears: 40, gender: null },
+    });
+    prismaMock.user.findUnique.mockResolvedValue({
+      coachPrefsJson: null,
+      timezone: "UTC",
+    });
+
+    const out = await buildCoachSnapshot("user-1", { sources: ["sleep"] });
+    const parsed = JSON.parse(out.snapshotJson);
+
+    expect(parsed.sleep).toBeUndefined();
+    expect(parsed.sleepRhythm).toBeUndefined();
+    expect(parsed.scope.sources).not.toContain("sleep");
+    expect(out.provenance.metrics).not.toContain("sleep");
+  });
+
+  it("drops the recovery composites when the recovery module is disabled, even with sleep on", async () => {
+    // Recovery off but sleep on. `derivedActive` reads the sleep signal,
+    // so without an explicit recovery gate the derived / dayStrain /
+    // trajectory blocks would still build off sleep alone.
+    resolveModuleMapMock.mockResolvedValue({
+      ...allModulesEnabled(),
+      recovery: false,
+    });
+    const { buildDerivedSnapshotBlock } = await import("../derived-snapshot");
+    const { buildTrajectorySnapshotBlock } = await import(
+      "../trajectory-snapshot"
+    );
+
+    prismaMock.measurement.findMany.mockResolvedValue([]);
+    featuresMock.mockResolvedValue({
+      context: { heightCm: 180, ageYears: 40, gender: "MALE" },
+    });
+
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ["sleep", "hrv", "resting_hr", "vo2_max"],
+    });
+    const parsed = JSON.parse(out.snapshotJson);
+
+    // No recovery composites reach the prompt.
+    expect(parsed.derived).toBeUndefined();
+    expect(parsed.dayStrain).toBeUndefined();
+    expect(parsed.trajectory).toBeUndefined();
+    // The recovery source tokens are stripped from scope.
+    for (const src of ["hrv", "resting_hr", "vo2_max"]) {
+      expect(parsed.scope.sources).not.toContain(src);
+    }
+    // The derived / trajectory readers are never even called — the
+    // disabled module pays no read cost.
+    expect(buildDerivedSnapshotBlock).not.toHaveBeenCalled();
+    expect(buildTrajectorySnapshotBlock).not.toHaveBeenCalled();
+  });
+
+  it("keeps an enabled domain present while a sibling module is disabled", async () => {
+    // glucose off, weight on — weight must still flow through.
+    resolveModuleMapMock.mockResolvedValue({
+      ...allModulesEnabled(),
+      glucose: false,
+    });
+    featuresMock.mockResolvedValue({
+      weight: { latest: 80, coverage: { count: 4 } },
+    });
+    prismaMock.measurement.findMany.mockResolvedValue([
+      daysAgo(2, 80.0, "WEIGHT"),
+    ]);
+
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ["weight", "glucose"],
+    });
+    const parsed = JSON.parse(out.snapshotJson);
+
+    expect(parsed.weight).toBeDefined();
+    expect(parsed.scope.sources).toContain("weight");
+    expect(out.provenance.metrics).toContain("weight");
+    expect(parsed.scope.sources).not.toContain("glucose");
   });
 });
 
