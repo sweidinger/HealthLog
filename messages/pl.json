@@ -6439,6 +6439,8 @@
     "addButton": "Dodaj przypomnienie",
     "markDone": "Gotowe",
     "delete": "Usuń",
+    "deleteConfirmTitle": "Usunąć przypomnienie?",
+    "deleteConfirmDescription": "To przypomnienie profilaktyczne zostanie trwale usunięte.",
     "disabledBadge": "Wył.",
     "nextDue": {
       "none": "Niezaplanowane",
@@ -6495,6 +6497,8 @@
     "referenceLabel": "Norma",
     "readingsCount": "{count} wyników",
     "deleteLatest": "Usuń ostatni wynik",
+    "deleteConfirmTitle": "Usunąć wynik laboratoryjny?",
+    "deleteConfirmDescription": "Ten wynik laboratoryjny zostanie trwale usunięty.",
     "deletedToast": "Wynik usunięty",
     "deleteError": "Nie udało się usunąć wyniku",
     "loadError": "Nie udało się wczytać wyników",

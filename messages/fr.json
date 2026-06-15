@@ -6439,6 +6439,8 @@
     "addButton": "Ajouter un rappel",
     "markDone": "Terminé",
     "delete": "Supprimer",
+    "deleteConfirmTitle": "Supprimer le rappel ?",
+    "deleteConfirmDescription": "Ce rappel de prévention sera définitivement supprimé.",
     "disabledBadge": "Désactivé",
     "nextDue": {
       "none": "Non planifié",
@@ -6495,6 +6497,8 @@
     "referenceLabel": "Référence",
     "readingsCount": "{count} valeurs",
     "deleteLatest": "Supprimer la dernière valeur",
+    "deleteConfirmTitle": "Supprimer le résultat d'analyse ?",
+    "deleteConfirmDescription": "Ce résultat d'analyse sera définitivement supprimé.",
     "deletedToast": "Résultat supprimé",
     "deleteError": "Impossible de supprimer le résultat",
     "loadError": "Impossible de charger les résultats",

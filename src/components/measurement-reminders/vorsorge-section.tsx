@@ -13,9 +13,10 @@
  * relative to "now" but never recomputes the cadence.
  */
 import { useState } from "react";
-import { CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Plus } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
+import { DeleteButton } from "@/components/data-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -365,16 +366,14 @@ function VorsorgeCard({
               <CheckCircle2 className="mr-1 h-4 w-4" />
               {t("measurementReminders.markDone")}
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={onRemove}
-              disabled={busy}
-              aria-label={t("measurementReminders.delete")}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <DeleteButton
+              onConfirm={onRemove}
+              title={t("measurementReminders.deleteConfirmTitle")}
+              description={t("measurementReminders.deleteConfirmDescription")}
+              confirmLabel={t("measurementReminders.delete")}
+              className="size-9"
+              iconClassName="h-4 w-4"
+            />
           </CardAction>
         </CardHeader>
         <CardContent className="space-y-1">

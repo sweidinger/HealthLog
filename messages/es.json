@@ -6439,6 +6439,8 @@
     "addButton": "Añadir recordatorio",
     "markDone": "Hecho",
     "delete": "Eliminar",
+    "deleteConfirmTitle": "¿Eliminar recordatorio?",
+    "deleteConfirmDescription": "Este recordatorio de prevención se eliminará de forma permanente.",
     "disabledBadge": "Apagado",
     "nextDue": {
       "none": "Sin programar",
@@ -6495,6 +6497,8 @@
     "referenceLabel": "Referencia",
     "readingsCount": "{count} valores",
     "deleteLatest": "Eliminar el último valor",
+    "deleteConfirmTitle": "¿Eliminar resultado de laboratorio?",
+    "deleteConfirmDescription": "Este resultado de laboratorio se eliminará de forma permanente.",
     "deletedToast": "Resultado eliminado",
     "deleteError": "No se pudo eliminar el resultado",
     "loadError": "No se pudieron cargar los resultados",

@@ -6439,6 +6439,8 @@
     "addButton": "Aggiungi promemoria",
     "markDone": "Fatto",
     "delete": "Elimina",
+    "deleteConfirmTitle": "Eliminare il promemoria?",
+    "deleteConfirmDescription": "Questo promemoria di prevenzione verrà eliminato definitivamente.",
     "disabledBadge": "Disattivato",
     "nextDue": {
       "none": "Non pianificato",
@@ -6495,6 +6497,8 @@
     "referenceLabel": "Riferimento",
     "readingsCount": "{count} valori",
     "deleteLatest": "Elimina l'ultimo valore",
+    "deleteConfirmTitle": "Eliminare il risultato di laboratorio?",
+    "deleteConfirmDescription": "Questo risultato di laboratorio verrà eliminato definitivamente.",
     "deletedToast": "Risultato eliminato",
     "deleteError": "Impossibile eliminare il risultato",
     "loadError": "Impossibile caricare i risultati",

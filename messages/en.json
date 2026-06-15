@@ -6439,6 +6439,8 @@
     "addButton": "Add reminder",
     "markDone": "Done",
     "delete": "Delete",
+    "deleteConfirmTitle": "Delete reminder?",
+    "deleteConfirmDescription": "This preventive-care reminder will be permanently deleted.",
     "disabledBadge": "Off",
     "nextDue": {
       "none": "Not scheduled",
@@ -6495,6 +6497,8 @@
     "referenceLabel": "Reference",
     "readingsCount": "{count} readings",
     "deleteLatest": "Delete latest reading",
+    "deleteConfirmTitle": "Delete lab result?",
+    "deleteConfirmDescription": "This lab result will be permanently deleted.",
     "deletedToast": "Result deleted",
     "deleteError": "Could not delete the result",
     "loadError": "Could not load lab results",

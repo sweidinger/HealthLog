@@ -14,6 +14,10 @@ import autoTable from "jspdf-autotable";
 import { makeFormatters } from "./format-locale";
 import type { Locale } from "./i18n/config";
 import { convertGlucose, resolveGlucoseUnit } from "./glucose";
+import {
+  classifyReferenceRange,
+  formatReferenceRange,
+} from "./labs/reference-range";
 import type { DoctorReportData } from "./doctor-report-data";
 
 type T = (key: string, params?: Record<string, string | number>) => string;
@@ -1338,15 +1342,8 @@ export function buildDoctorReportPdfDocument(
     doc.text(t("doctorReport.labsTitle"), margin, y);
     y += 6;
 
-    const rangeText = (
-      low: number | null,
-      high: number | null,
-    ): string => {
-      if (low !== null && high !== null) return `${num(low)}–${num(high)}`;
-      if (high !== null) return `≤ ${num(high)}`;
-      if (low !== null) return `≥ ${num(low)}`;
-      return "—";
-    };
+    const rangeText = (low: number | null, high: number | null): string =>
+      formatReferenceRange(low, high, num, { emptyText: "—" });
     // Quiet, non-colour status glyph. In-range reads as a neutral dash so
     // the table is not a field of warning marks; out-of-range reads as a
     // direction arrow the clinician can scan, with no alarm tint.
@@ -1355,10 +1352,16 @@ export function buildDoctorReportPdfDocument(
       low: number | null,
       high: number | null,
     ): string => {
-      if (low === null && high === null) return "";
-      if (low !== null && value < low) return "↓";
-      if (high !== null && value > high) return "↑";
-      return "—";
+      switch (classifyReferenceRange(value, low, high)) {
+        case "unknown":
+          return "";
+        case "below":
+          return "↓";
+        case "above":
+          return "↑";
+        default:
+          return "—";
+      }
     };
 
     const labRows = data.labResults.map((lr) => [
