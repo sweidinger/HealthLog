@@ -363,6 +363,66 @@ describe("GET /api/analytics", () => {
     expect(body.data.lastSeenByType.PULSE).toBeNull();
   });
 
+  // v1.18.0 B1 — the default slice serves the glucose-only surfaces
+  // (per-context summaries + the TIR/GMI/eA1C clinical panel) only when
+  // the `glucose` module is enabled. A disabled-glucose account nulls
+  // both fields rather than 403-ing the whole core-metrics payload.
+  function seedGlucoseRows() {
+    const measuredAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    vi.mocked(prisma.measurement.findMany).mockImplementation(
+      (async (args: { where?: { type?: string } }) => {
+        if (args?.where?.type === "BLOOD_GLUCOSE") {
+          return [
+            { value: 95, measuredAt, glucoseContext: "FASTING" },
+            { value: 140, measuredAt, glucoseContext: "POSTPRANDIAL" },
+          ];
+        }
+        return [];
+      }) as never,
+    );
+  }
+
+  it("serves glucose clinical + per-context when glucose enabled", async () => {
+    seedGlucoseRows();
+    vi.mocked(isModuleEnabled).mockResolvedValue(true as never);
+    const res = await (
+      GET as unknown as (...args: never[]) => Promise<Response>
+    )();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        glucoseByContext: Record<string, unknown> | null;
+        glucoseClinical: unknown | null;
+      };
+    };
+    expect(body.data.glucoseClinical).not.toBeNull();
+    expect(body.data.glucoseByContext).not.toBeNull();
+    expect(body.data.glucoseByContext?.FASTING).toBeDefined();
+  });
+
+  it("nulls glucose clinical + per-context when glucose disabled", async () => {
+    seedGlucoseRows();
+    vi.mocked(isModuleEnabled).mockImplementation(
+      (async (_userId: string, key: string) => key !== "glucose") as never,
+    );
+    const res = await (
+      GET as unknown as (...args: never[]) => Promise<Response>
+    )();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        glucoseByContext: Record<string, unknown> | null;
+        glucoseClinical: unknown | null;
+        summaries: Record<string, { count: number }>;
+      };
+    };
+    // Core metrics still served — the route did NOT 403.
+    expect(body.data.summaries.WEIGHT.count).toBe(0);
+    // Glucose-only surfaces are nulled.
+    expect(body.data.glucoseClinical).toBeNull();
+    expect(body.data.glucoseByContext).toBeNull();
+  });
+
   // v1.4.49.1 — the 15-way per-type `fetchMeasurementSeriesChunked`
   // fan-out was removed entirely; the default slice now delegates to
   // `computeSummariesSlice` which runs three rollup-tier `$queryRaw`

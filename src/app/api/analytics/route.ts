@@ -427,6 +427,14 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // already blanks the mood tile + the coach snapshot unions mood out;
   // this closes the matching gap on the Health Score.
   const moodEnabled = await isModuleEnabled(user.id, "mood");
+  // v1.18.0 B1 — resolve the `glucose` module server-side. The analytics
+  // route serves core metrics too, so a disabled-glucose account must NOT
+  // 403 the whole payload; instead the glucose-only surfaces (per-context
+  // summaries + the TIR/GMI/eA1C clinical panel) are nulled out so they
+  // never reach a hidden surface. Mirrors the mood-pillar gate above.
+  const glucoseEnabled = await isModuleEnabled(user.id, "glucose");
+  const glucoseByContextOut = glucoseEnabled ? glucoseByContext : null;
+  const glucoseClinicalOut = glucoseEnabled ? glucoseClinical : null;
   const healthScore = await computeUserHealthScoreFastPath({
     userId: user.id,
     ...bpInputs,
@@ -447,8 +455,8 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     bpInTargetPctPriorYear,
     bpInTargetCount90,
     bpInTargetSpanDays90,
-    glucoseByContext,
-    glucoseClinical,
+    glucoseByContext: glucoseByContextOut,
+    glucoseClinical: glucoseClinicalOut,
     correlations,
     healthScore,
     sleepStages,
