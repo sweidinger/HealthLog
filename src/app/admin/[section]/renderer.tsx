@@ -29,6 +29,7 @@ import { FeedbackInboxSection } from "@/components/admin/feedback-inbox-section"
 import { GeneralSettingsSection } from "@/components/admin/general-settings-section";
 import { IntegrationsGroupSection } from "@/components/admin/integrations-group-section";
 import { LoginOverviewSection } from "@/components/admin/login-overview-section";
+import { ModuleAvailabilitySection } from "@/components/admin/module-availability-section";
 import { RemindersSection } from "@/components/admin/reminders-section";
 import { ServicesSection } from "@/components/admin/services-section";
 import { SystemStatusSection } from "@/components/admin/system-status-section";
@@ -105,6 +106,7 @@ export function AdminSectionRenderer({
           subtitle={t("admin.section.assistant.subtitle")}
         >
           <AssistantSection />
+          <ModuleAvailabilitySection />
           <AiServerKeySection />
         </SectionFrame>
       );

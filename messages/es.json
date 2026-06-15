@@ -5013,6 +5013,12 @@
         "description": "El icono ? junto a la línea de delta del Health-Score. El dígito del delta permanece visible siempre."
       }
     },
+    "modules": {
+      "title": "Disponibilidad de módulos",
+      "description": "Desactiva un módulo para todo el servidor. Un módulo desactivado aquí queda apagado para todas las cuentas, sin importar la preferencia personal. Los dominios principales (peso, presión arterial, pulso, medicación) están siempre activos y no se pueden desactivar.",
+      "disabledHint": "Desactivado en todo el servidor",
+      "saveError": "No se pudo actualizar la disponibilidad de módulos."
+    },
     "bugReportRepo": "Repositorio",
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Token de issues",

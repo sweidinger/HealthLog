@@ -5013,6 +5013,12 @@
         "description": "Das ?-Symbol neben der Health-Score-Differenz. Die Zahl bleibt unabhängig davon sichtbar."
       }
     },
+    "modules": {
+      "title": "Modulverfügbarkeit",
+      "description": "Schalte ein Modul für den gesamten Server ab. Ein hier deaktiviertes Modul ist für jedes Konto aus – unabhängig von den persönlichen Einstellungen. Kerndaten (Gewicht, Blutdruck, Puls, Medikamente) sind immer aktiv und lassen sich nicht abschalten.",
+      "disabledHint": "Serverweit deaktiviert",
+      "saveError": "Modulverfügbarkeit konnte nicht aktualisiert werden."
+    },
     "bugReportRepo": "Repository",
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Issue-Token",

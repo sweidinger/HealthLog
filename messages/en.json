@@ -5013,6 +5013,12 @@
         "description": "The ? glyph next to the Health-Score delta line. The delta digit stays visible regardless."
       }
     },
+    "modules": {
+      "title": "Module availability",
+      "description": "Turn a module off for the whole server. A module disabled here is off for every account regardless of personal preference. Core domains (weight, blood pressure, pulse, medications) are always on and cannot be disabled.",
+      "disabledHint": "Disabled server-wide",
+      "saveError": "Could not update module availability."
+    },
     "bugReportRepo": "Repository",
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Issue token",

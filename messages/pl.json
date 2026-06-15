@@ -5013,6 +5013,12 @@
         "description": "Ikona ? obok linii delty Health-Score. Cyfra delty pozostaje widoczna niezależnie."
       }
     },
+    "modules": {
+      "title": "Dostępność modułów",
+      "description": "Wyłącz moduł dla całego serwera. Moduł wyłączony tutaj jest nieaktywny dla każdego konta, niezależnie od preferencji użytkownika. Domeny podstawowe (waga, ciśnienie, tętno, leki) są zawsze włączone i nie można ich wyłączyć.",
+      "disabledHint": "Wyłączone na całym serwerze",
+      "saveError": "Nie udało się zaktualizować dostępności modułów."
+    },
     "bugReportRepo": "Repozytorium",
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Token zgłoszeń",
