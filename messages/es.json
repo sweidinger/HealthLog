@@ -4121,6 +4121,10 @@
           "note": "Área esencial — siempre activa"
         },
         "description": "Elige qué registra HealthLog por ti. Activa o desactiva áreas concretas: la navegación, los paneles y los análisis se adaptan al instante."
+      },
+      "gesundheitsakte": {
+        "title": "Historial médico",
+        "description": "Exporta tu historial médico completo como PDF, FHIR R4 o un paquete ZIP combinado."
       }
     },
     "profile": "Perfil",

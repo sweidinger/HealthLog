@@ -21,6 +21,7 @@ import {
   Bell,
   Blocks,
   Download,
+  FileHeart,
   Info,
   KeyRound,
   LayoutDashboard,
@@ -116,6 +117,13 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   },
   { slug: "ai", titleKey: "settings.sections.ai.title", icon: Sparkles },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
+  // v1.18.0 (S5) — the full health record (PDF + FHIR R4 + zip package)
+  // earns its own home, lifted out of Export & Import. Always available.
+  {
+    slug: "gesundheitsakte",
+    titleKey: "settings.sections.gesundheitsakte.title",
+    icon: FileHeart,
+  },
   {
     slug: "export",
     titleKey: "settings.sections.export.title",

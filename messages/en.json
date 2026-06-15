@@ -4121,6 +4121,10 @@
           "note": "Core area — always on"
         },
         "description": "Choose what HealthLog tracks for you. Turn individual areas on or off — the navigation, tiles, and insights adapt right away."
+      },
+      "gesundheitsakte": {
+        "title": "Health record",
+        "description": "Export your full health record as PDF, FHIR R4, or a combined ZIP package."
       }
     },
     "profile": "Profile",

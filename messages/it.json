@@ -4121,6 +4121,10 @@
           "note": "Ambito di base — sempre attivo"
         },
         "description": "Scegli cosa registra HealthLog per te. Attiva o disattiva i singoli ambiti: navigazione, riquadri e analisi si adattano subito."
+      },
+      "gesundheitsakte": {
+        "title": "Cartella clinica",
+        "description": "Esporta la tua cartella clinica completa in PDF, FHIR R4 o in un pacchetto ZIP combinato."
       }
     },
     "profile": "Profilo",

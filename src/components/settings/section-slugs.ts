@@ -31,6 +31,9 @@
 // canonical editors; reminder TYPES now live centrally in `notifications`,
 // each row gated on its module. `/settings/reminders` 301-redirects to
 // `/settings/notifications` (next.config.ts).
+// v1.18.0 (S5) — per-submodule settings split. `gesundheitsakte` (the full
+// health-record export, always available) lifts out of Export & Import into
+// its own top-level entry.
 export const SETTINGS_SECTION_SLUGS = [
   "account",
   // v1.18.0 — `modules` ("Was du trackst") sits right after account: the
@@ -46,6 +49,7 @@ export const SETTINGS_SECTION_SLUGS = [
   "thresholds",
   "ai",
   "api",
+  "gesundheitsakte",
   "export",
   "advanced",
   "about",

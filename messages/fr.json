@@ -4121,6 +4121,10 @@
           "note": "Domaine essentiel — toujours actif"
         },
         "description": "Choisissez ce que HealthLog suit pour vous. Activez ou désactivez chaque domaine : la navigation, les tuiles et les analyses s'adaptent aussitôt."
+      },
+      "gesundheitsakte": {
+        "title": "Dossier médical",
+        "description": "Exportez votre dossier médical complet au format PDF, FHIR R4 ou en paquet ZIP combiné."
       }
     },
     "profile": "Profil",

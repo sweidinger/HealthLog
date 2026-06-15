@@ -8,6 +8,7 @@ import { AiSection } from "@/components/settings/ai-section";
 import { ApiSection } from "@/components/settings/api-section";
 import { DashboardSection } from "@/components/settings/dashboard-section";
 import { ExportSection } from "@/components/settings/export-section";
+import { GesundheitsakteSection } from "@/components/settings/gesundheitsakte-section";
 import { InsightsSection } from "@/components/settings/insights-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
 import { LayoutSection } from "@/components/settings/layout-section";
@@ -29,8 +30,7 @@ import { SettingsShell } from "@/components/settings/settings-shell";
 
 /**
  * Dynamic settings section route. Each of the `SETTINGS_SECTION_SLUGS`
- * (14 today — 10 nav-visible sections plus the four routable-but-hidden
- * Layout child editors) is pre-rendered at build via
+ * is pre-rendered at build via
  * `generateStaticParams()` so the URLs are
  * statically known to Next.js, while the `dynamicParams = false` flag below
  * tells the router to 404 (instead of attempting on-demand rendering) for any
@@ -61,6 +61,7 @@ const SECTION_COMPONENTS: Record<
   mood: MoodSection,
   thresholds: ThresholdsSection,
   api: ApiSection,
+  gesundheitsakte: GesundheitsakteSection,
   export: ExportSection,
   advanced: AdvancedSection,
 };

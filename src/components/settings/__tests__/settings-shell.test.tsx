@@ -67,6 +67,8 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // 301-redirects to `/settings/notifications`.
     // v1.18.0 — `modules` ("Was du trackst") sits right after `account` as
     // the single front door for enabling/disabling secondary domains.
+    // v1.18.0 (S5) — `gesundheitsakte` (the full health-record export) lifts
+    // out of Export & Import into its own top-level entry, before `export`.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "modules",
@@ -80,6 +82,7 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "thresholds",
       "ai",
       "api",
+      "gesundheitsakte",
       "export",
       "advanced",
       "about",
@@ -204,6 +207,9 @@ describe("<SettingsShell>", () => {
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
     // form so we don't accidentally match a parser that double-escapes.
     expect(html).toContain("API &amp; Tokens");
+    // v1.18.0 (S5) — the health record is its own top-level entry.
+    expect(html).toContain('href="/settings/gesundheitsakte"');
+    expect(html).toContain("Health record");
     // v1.4.16 phase B7: the consolidated Export section is a top-level
     // entry in the sidebar; the link must be present in both locales.
     expect(html).toContain('href="/settings/export"');

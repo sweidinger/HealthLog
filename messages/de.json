@@ -4121,6 +4121,10 @@
           "note": "Kernbereich — immer aktiv"
         },
         "description": "Lege fest, was HealthLog für dich erfasst. Schalte einzelne Bereiche ein oder aus — die Navigation, Kacheln und Auswertungen passen sich sofort an."
+      },
+      "gesundheitsakte": {
+        "title": "Gesundheitsakte",
+        "description": "Vollständige Gesundheitsakte als PDF, FHIR R4 oder kombiniertes ZIP-Paket exportieren."
       }
     },
     "profile": "Profil",

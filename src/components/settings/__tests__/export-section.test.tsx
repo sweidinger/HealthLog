@@ -2,7 +2,6 @@
  * v1.4.16 Phase B7 — Settings → Export section.
  *
  * The consolidated Export page surfaces:
- *   - Health Record export panel (the page hero, v1.12)
  *   - Measurements CSV
  *   - Medications CSV (with optional intake-history toggle)
  *   - Mood CSV
@@ -12,10 +11,10 @@
  * download/generate button. SSR-only smoke test — interaction is
  * exercised by the e2e suite.
  *
- * The health-record export takes the page hero. The doctor-report PDF
- * now lives under the health-record export and is no longer offered as
- * a separate card here. The four CSV/JSON tiles stay under a "Weitere
- * Export-Optionen" / "Other export options" sub-heading. Each component
+ * v1.18.0 (S5) — the full health-record export moved out to its own
+ * top-level "Gesundheitsakte" section; this page keeps only the generic
+ * CSV/JSON data-out paths under a "Weitere Export-Optionen" / "Other
+ * export options" sub-heading plus the import surface. Each component
  * owns its own contract test; this suite pins the page-level shape.
  */
 import { describe, expect, it, vi } from "vitest";
@@ -77,12 +76,11 @@ describe("<ExportSection> — SSR smoke", () => {
     expect(html).not.toContain('data-testid="export-card-cycle"');
   });
 
-  it("mounts the health-record export panel as the page hero", () => {
+  it("no longer mounts the health-record export panel (moved to Gesundheitsakte)", () => {
     const html = render(<ExportSection />);
-    // v1.12 — the health-record export owns the hero treatment.
-    expect(html).toContain('data-testid="health-record-export-panel"');
-    expect(html).toContain("hero-gradient");
-    expect(html).toContain("glow-purple");
+    // v1.18.0 (S5) — the full health-record export lives in its own
+    // top-level Gesundheitsakte section now, not on this page.
+    expect(html).not.toContain('data-testid="health-record-export-panel"');
   });
 
   it("no longer mounts a separate doctor-report card", () => {
@@ -130,7 +128,7 @@ describe("<ExportSection> — SSR smoke", () => {
     expect(buttonMatches?.length ?? 0).toBe(4);
   });
 
-  it("German locale renders the DE heading + hero copy", () => {
+  it("German locale renders the DE heading + sub-heading copy", () => {
     const html = render(<ExportSection />, "de");
     expect(html).toContain("Export");
     expect(html).toContain("Weitere Export-Optionen");
