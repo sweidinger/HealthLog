@@ -2,17 +2,19 @@ import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
-import { getPolarCredentials } from "@/lib/polar/client";
+import { getPolarClientCredentials } from "@/lib/polar/credentials";
 import { getIntegrationStatus } from "@/lib/integrations/status";
 
 /**
  * v1.17.0 (F4) — Polar connection status for the current user.
  *
- * `available` reports whether the server has the shared OAuth app configured
- * (env client id/secret) so the card can grey out the connect button when the
- * operator hasn't set it up. `connected` is whether a token is stored. The
- * ledger snapshot (state / lastSuccessAt / lastError) comes off the shared
- * `polar` IntegrationKey. The access token + member id are NEVER returned.
+ * `available` reports whether usable OAuth credentials resolve for this user —
+ * per-user BYO keys (v1.17.1) first, then the shared env app — so the card can
+ * grey out the connect button when neither is set. `hasOwnCredentials` reports
+ * whether the user has stored their own BYO pair (drives the saved-placeholder
+ * UI). `connected` is whether a token is stored. The ledger snapshot (state /
+ * lastSuccessAt / lastError) comes off the shared `polar` IntegrationKey. The
+ * access token, member id, and client secret are NEVER returned.
  */
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
@@ -20,14 +22,25 @@ export const GET = apiHandler(async () => {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { polarAccessTokenEncrypted: true },
+    select: {
+      polarAccessTokenEncrypted: true,
+      polarClientIdEncrypted: true,
+      polarClientSecretEncrypted: true,
+    },
   });
 
-  const available = !!getPolarCredentials();
+  const available = !!(await getPolarClientCredentials(user.id));
   const connected = !!dbUser?.polarAccessTokenEncrypted;
+  const hasOwnCredentials =
+    !!dbUser?.polarClientIdEncrypted && !!dbUser?.polarClientSecretEncrypted;
 
   if (!connected) {
-    return apiSuccess({ connected: false, configured: false, available });
+    return apiSuccess({
+      connected: false,
+      configured: false,
+      available,
+      hasOwnCredentials,
+    });
   }
 
   const status = await getIntegrationStatus(user.id, "polar");
@@ -36,6 +49,7 @@ export const GET = apiHandler(async () => {
     connected: true,
     configured: true,
     available,
+    hasOwnCredentials,
     state: status.state,
     lastSuccessAt: status.lastSuccessAt,
     lastAttemptAt: status.lastAttemptAt,

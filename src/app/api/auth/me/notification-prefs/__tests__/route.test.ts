@@ -103,6 +103,9 @@ describe("GET /api/auth/me/notification-prefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
       },
+      measurementReminder: {
+        clientManaged: false,
+      },
     });
   });
 
@@ -134,6 +137,9 @@ describe("GET /api/auth/me/notification-prefs", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+      },
+      measurementReminder: {
+        clientManaged: false,
       },
     });
   });
@@ -168,6 +174,9 @@ describe("GET /api/auth/me/notification-prefs", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+      },
+      measurementReminder: {
+        clientManaged: false,
       },
     });
   });
@@ -214,6 +223,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
       },
+      measurementReminder: {
+        clientManaged: false,
+      },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -234,6 +246,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             nudgeVitals: true,
             nudgeRoutine: true,
             nudgeFrequency: "weekly",
+          },
+          measurementReminder: {
+            clientManaged: false,
           },
         },
       },
@@ -260,6 +275,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
               nudgeRoutine: true,
               nudgeFrequency: "weekly",
             },
+            measurementReminder: {
+              clientManaged: false,
+            },
           },
           next: {
             medication: {
@@ -276,6 +294,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
               nudgeVitals: true,
               nudgeRoutine: true,
               nudgeFrequency: "weekly",
+            },
+            measurementReminder: {
+              clientManaged: false,
             },
           },
           changed: ["medication"],
@@ -347,6 +368,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             nudgeRoutine: true,
             nudgeFrequency: "weekly",
           },
+          measurementReminder: {
+            clientManaged: false,
+          },
         },
       },
     });
@@ -382,6 +406,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
       },
+      measurementReminder: {
+        clientManaged: false,
+      },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -402,6 +429,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             nudgeVitals: true,
             nudgeRoutine: true,
             nudgeFrequency: "weekly",
+          },
+          measurementReminder: {
+            clientManaged: false,
           },
         },
       },
@@ -442,6 +472,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             nudgeVitals: true,
             nudgeRoutine: true,
             nudgeFrequency: "weekly",
+          },
+          measurementReminder: {
+            clientManaged: false,
           },
         },
       },

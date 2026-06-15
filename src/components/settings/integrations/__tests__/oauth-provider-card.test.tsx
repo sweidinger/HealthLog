@@ -23,7 +23,13 @@ vi.mock("@tanstack/react-query", () => ({
 import { I18nProvider } from "@/lib/i18n/context";
 import { OAuthProviderCard } from "../oauth-provider-card";
 
-function render() {
+function render({
+  credentials = false,
+  viewModel,
+}: {
+  credentials?: boolean;
+  viewModel?: Parameters<typeof OAuthProviderCard>[0]["viewModel"];
+} = {}) {
   return renderToStaticMarkup(
     <I18nProvider initialLocale="en">
       <OAuthProviderCard
@@ -32,6 +38,8 @@ function render() {
         i18nPrefix="settings.polar"
         icon={Watch}
         dataHref="/insights/sleep"
+        credentials={credentials}
+        viewModel={viewModel}
       />
     </I18nProvider>,
   );
@@ -73,6 +81,25 @@ describe("OAuthProviderCard — parked + test + data-link parity", () => {
     expect(html).toContain('href="/insights/sleep"');
   });
 
+  it("reads off the passed view-model instead of the per-card fetch (04-M2)", () => {
+    // The per-card useQuery mock returns null; the card must render the
+    // connected state from the supplied envelope view-model alone, proving the
+    // /api/<provider>/status round-trip is no longer the source.
+    statusPayload = null;
+    const html = render({
+      viewModel: {
+        connected: true,
+        configured: true,
+        available: true,
+        state: "connected",
+        lastSuccessAt: "2026-06-01T00:00:00.000Z",
+        lastError: null,
+      },
+    });
+    expect(html).toContain('data-testid="polar-data-link"');
+    expect(html).toContain("Test connection");
+  });
+
   it("does not render the data link or test button when disconnected", () => {
     statusPayload = {
       connected: false,
@@ -84,5 +111,40 @@ describe("OAuthProviderCard — parked + test + data-link parity", () => {
     expect(html).not.toContain("Test connection");
     // The connect CTA stands in instead.
     expect(html).toContain('data-testid="polar-connect"');
+  });
+});
+
+describe("OAuthProviderCard — per-user BYO credentials form (v1.17.1)", () => {
+  it("renders the credentials form only when the `credentials` prop is set", () => {
+    statusPayload = {
+      connected: false,
+      configured: false,
+      available: true,
+      hasOwnCredentials: false,
+    };
+    // Opt-in: the BYO client-id/secret form + save button appear.
+    const withForm = render({ credentials: true });
+    expect(withForm).toContain('data-testid="polar-credentials"');
+    expect(withForm).toContain('id="polar-clientid"');
+    expect(withForm).toContain('id="polar-secret"');
+
+    // Default: no credential inputs (env-only behaviour preserved).
+    const withoutForm = render();
+    expect(withoutForm).not.toContain('data-testid="polar-credentials"');
+    expect(withoutForm).not.toContain('id="polar-clientid"');
+  });
+
+  it("shows the saved-placeholder once the user has stored their own pair", () => {
+    statusPayload = {
+      connected: true,
+      configured: true,
+      available: true,
+      hasOwnCredentials: true,
+      state: "connected",
+      lastSuccessAt: null,
+      lastError: null,
+    };
+    const html = render({ credentials: true });
+    expect(html).toContain("Saved — enter new to replace");
   });
 });

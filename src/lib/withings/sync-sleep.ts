@@ -26,10 +26,13 @@
  * when Withings re-emits the night with adjusted segment boundaries.
  *
  * Date semantics: each segment's `measuredAt` is the segment's
- * `startdate` (unix seconds → `Date`). The duration in minutes lands
- * in `value`. The HealthLog analytics aggregator already groups
- * stage rows under their parent night via the per-night `dayKey`
- * helper, so the segment-level timestamp is the canonical sort key.
+ * `enddate` (unix seconds → `Date`). Every reader treats `measuredAt`
+ * as the segment END and resolves the span as `start = end − duration`
+ * (`sleep-night.ts` `segmentOf`); stamping the START shifted the whole
+ * night one segment-length earlier. The duration in minutes lands in
+ * `value`. The HealthLog analytics aggregator groups stage rows under
+ * their parent night via the per-night `dayKey` helper, so the
+ * segment-level END timestamp is the canonical sort key.
  */
 import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 
@@ -258,7 +261,11 @@ export async function syncUserSleep(
       segmentIndex++;
       continue;
     }
-    const measuredAt = new Date(segment.startdate * 1000);
+    // `measuredAt` is the segment END (`enddate`). Every reader treats
+    // `measuredAt` as the END instant — `segmentOf` resolves the span as
+    // `start = measuredAt − value·60_000` (sleep-night.ts). Stamping the START
+    // here shifted the whole night one segment-length earlier; END is correct.
+    const measuredAt = new Date(segment.enddate * 1000);
     const durationSec = Math.max(0, segment.enddate - segment.startdate);
     // Canonical SLEEP_DURATION unit is minutes (Apple Health alignment,
     // v1.4.23 schema note). Round so re-sync doesn't flip values on
@@ -268,20 +275,25 @@ export async function syncUserSleep(
     const externalId = `withings:sleep:${userId}:${segment.id ?? "no-id"}:${segmentIndex}`;
 
     try {
+      // Key the re-sync lookup on the STABLE `externalId` (segment id +
+      // index), not `measuredAt`. Withings re-aggregates a night between
+      // syncs, so a segment's `enddate` — and therefore its END-stamped
+      // `measuredAt` — shifts; keying on `measuredAt` would miss the prior
+      // row and then collide with the unique `externalId`, leaving the night
+      // stuck at the stale value. Update both `value` and `measuredAt`.
       const existing = await prisma.measurement.findFirst({
         where: {
           userId,
           type: SLEEP_TYPE,
-          measuredAt,
           source: "WITHINGS",
-          sleepStage: stage,
+          externalId,
         },
         select: { id: true },
       });
       if (existing) {
         await prisma.measurement.update({
           where: { id: existing.id },
-          data: { value: minutes },
+          data: { value: minutes, measuredAt, sleepStage: stage },
         });
       } else {
         await prisma.measurement.create({

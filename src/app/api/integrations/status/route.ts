@@ -24,6 +24,8 @@ import {
   getPersistentFailureThreshold,
   type IntegrationKey,
 } from "@/lib/integrations/status";
+import { getOuraClientCredentials } from "@/lib/oura/credentials";
+import { getPolarClientCredentials } from "@/lib/polar/credentials";
 import { hasActivityScope } from "@/lib/withings/client";
 import { readMoodLogSecret } from "@/lib/moodlog-secret";
 
@@ -38,16 +40,25 @@ export const GET = apiHandler(async () => {
     moodLogStatus,
     whoopStatus,
     fitbitStatus,
+    polarStatus,
+    ouraStatus,
     dbUser,
     withingsConn,
     whoopConn,
     fitbitConn,
     moodLogEntryCount,
+    // v1.17.1 — `available` reports whether usable OAuth credentials resolve
+    // (per-user BYO first, then the shared env app), mirroring the per-card
+    // /api/<provider>/status the consolidated envelope now replaces.
+    polarAvailable,
+    ouraAvailable,
   ] = await Promise.all([
     getIntegrationStatus(user.id, "withings"),
     getIntegrationStatus(user.id, "moodlog"),
     getIntegrationStatus(user.id, "whoop"),
     getIntegrationStatus(user.id, "fitbit"),
+    getIntegrationStatus(user.id, "polar"),
+    getIntegrationStatus(user.id, "oura"),
     prisma.user.findUnique({
       where: { id: user.id },
       select: {
@@ -57,6 +68,12 @@ export const GET = apiHandler(async () => {
         whoopClientSecretEncrypted: true,
         fitbitClientIdEncrypted: true,
         fitbitClientSecretEncrypted: true,
+        polarAccessTokenEncrypted: true,
+        polarClientIdEncrypted: true,
+        polarClientSecretEncrypted: true,
+        ouraAccessTokenEncrypted: true,
+        ouraClientIdEncrypted: true,
+        ouraClientSecretEncrypted: true,
         moodLogUrlEncrypted: true,
         moodLogApiKeyEncrypted: true,
         moodLogEnabled: true,
@@ -95,6 +112,8 @@ export const GET = apiHandler(async () => {
     prisma.moodEntry.count({
       where: { userId: user.id, deletedAt: null },
     }),
+    getPolarClientCredentials(user.id).then((c) => !!c),
+    getOuraClientCredentials(user.id).then((c) => !!c),
   ]);
 
   const now = Date.now();
@@ -164,6 +183,28 @@ export const GET = apiHandler(async () => {
           : null,
         backfillCompleted: fitbitConn ? !!fitbitConn.backfillCompletedAt : null,
       } satisfies IntegrationViewModel & FitbitExtras,
+      {
+        ...polarStatus,
+        // `connected` = a stored access token; `configured` mirrors it (the
+        // OAuth card has no separate "credentials saved but disconnected" view
+        // beyond `hasOwnCredentials`). The card greys out the connect button
+        // when no usable credentials resolve (`available`).
+        connected: !!dbUser?.polarAccessTokenEncrypted,
+        configured: !!dbUser?.polarAccessTokenEncrypted,
+        available: polarAvailable,
+        hasOwnCredentials:
+          !!dbUser?.polarClientIdEncrypted &&
+          !!dbUser?.polarClientSecretEncrypted,
+      } satisfies IntegrationViewModel & OAuthProviderExtras,
+      {
+        ...ouraStatus,
+        connected: !!dbUser?.ouraAccessTokenEncrypted,
+        configured: !!dbUser?.ouraAccessTokenEncrypted,
+        available: ouraAvailable,
+        hasOwnCredentials:
+          !!dbUser?.ouraClientIdEncrypted &&
+          !!dbUser?.ouraClientSecretEncrypted,
+      } satisfies IntegrationViewModel & OAuthProviderExtras,
     ],
   });
 });
@@ -213,4 +254,14 @@ interface FitbitExtras {
   tokenExpiresAt: string | null;
   tokenExpired: boolean | null;
   backfillCompleted: boolean | null;
+}
+
+// v1.17.1 — Polar / Oura fold into the consolidated envelope. They carry the
+// per-user BYO-key flags the shared OAuth card reads instead of the dedicated
+// /api/<provider>/status round-trip the page used to fire per card.
+interface OAuthProviderExtras {
+  connected: boolean;
+  configured: boolean;
+  available: boolean;
+  hasOwnCredentials: boolean;
 }

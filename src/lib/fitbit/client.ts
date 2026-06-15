@@ -1244,10 +1244,18 @@ function sleepSessionAnchor(point: FitbitDataPoint): string {
 }
 
 /**
- * Map one Google sleep session into per-stage `SLEEP_DURATION` rows. Each
- * stage's segments are summed into one row carrying the stage's `SleepStage`,
- * `measuredAt = the latest segment END for that stage`, and a stage-scoped
- * fieldTag so the (up to six) stage rows for one night stay distinct under the
+ * Map one Google sleep session into per-SEGMENT `SLEEP_DURATION` rows. The
+ * Google sleep payload carries a real per-stage segment series (each with its
+ * own start/end), so one row is emitted PER SEGMENT — `measuredAt = that
+ * segment's END` — rather than collapsing a stage's segments onto a single
+ * lastEnd instant. The collapsed shape stamped every stage total on its last
+ * end, so the hypnogram reconstructed all of a stage's time as one block ending
+ * at the night's right edge (the stacked-bar artefact); per-segment rows lay
+ * each block at its true clock time. The timeline is MEASURED (real onsets), so
+ * these rows are NOT flagged reconstructed — unlike WHOOP, which has no onsets.
+ *
+ * Each segment carries a stage-scoped, INDEXED fieldTag so the several segments
+ * of one stage stay distinct under the `(userId, type, source, externalId)`
  * dedup key. Unknown stage labels are skipped; a session with no parseable
  * segment yields nothing.
  */
@@ -1257,38 +1265,24 @@ export function mapSleepSession(
   const segments = readSleepSegments(point);
   if (segments.length === 0) return [];
 
-  // Accumulate per-stage minutes + track the latest end instant for each stage.
-  const perStage = new Map<
-    FitbitSleepStage,
-    { minutes: number; lastEnd: Date }
-  >();
+  const anchor = sleepSessionAnchor(point);
+  const out: FitbitMappedMeasurement[] = [];
+  let segIndex = 0;
   for (const seg of segments) {
     const stage = mapFitbitSleepStage(seg.stage);
     if (!stage) continue;
     const mins = minutesBetween(seg.startTime, seg.endTime);
-    if (mins === null) continue;
+    if (mins === null || !(mins > 0)) continue;
     const end = new Date(seg.endTime as string);
-    const prev = perStage.get(stage);
-    if (prev) {
-      prev.minutes += mins;
-      if (end > prev.lastEnd) prev.lastEnd = end;
-    } else {
-      perStage.set(stage, { minutes: mins, lastEnd: end });
-    }
-  }
-
-  const anchor = sleepSessionAnchor(point);
-  const out: FitbitMappedMeasurement[] = [];
-  for (const [stage, agg] of perStage) {
-    if (!(agg.minutes > 0)) continue;
     out.push({
       type: "SLEEP_DURATION",
-      value: round2(agg.minutes),
+      value: round2(mins),
       unit: "minutes",
-      measuredAt: agg.lastEnd,
-      fieldTag: `${anchor}:sleep_${stage.toLowerCase()}`,
+      measuredAt: end,
+      fieldTag: `${anchor}:sleep_${stage.toLowerCase()}:${segIndex}`,
       sleepStage: stage,
     });
+    segIndex += 1;
   }
   return out;
 }

@@ -481,6 +481,12 @@ export function MeasurementForm({
           aria-invalid={!!error || undefined}
           aria-describedby={errorDescriptor}
         />
+        {/* v1.17.1 — surface that the timestamp is editable. The picker
+            already defaults to now and accepts any earlier instant; many
+            users never notice they can backdate a reading. */}
+        <p className="text-muted-foreground text-xs">
+          {t("measurements.timestampBackdateHint")}
+        </p>
       </div>
 
       <div className="space-y-2">

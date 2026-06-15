@@ -53,6 +53,13 @@ vi.mock("@/lib/medications/inventory/consumption", () => ({
   restoreForIntake: vi.fn().mockResolvedValue(undefined),
 }));
 
+// v1.17.1 (#22) — silent cross-device intake sync. Mocked so the route
+// test asserts the wiring (called with the right slot + origin token)
+// without reaching the APNs senders.
+vi.mock("@/lib/notifications/medication-intake-sync", () => ({
+  dispatchMedicationIntakeSync: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 
 vi.mock("@/lib/db-compat", () => ({
@@ -75,6 +82,7 @@ import {
   consumeForIntake,
   restoreForIntake,
 } from "@/lib/medications/inventory/consumption";
+import { dispatchMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
 
 const SESSION_OK = {
@@ -386,6 +394,44 @@ describe("POST /api/medications/intake", () => {
       expect.objectContaining({ userId: "user-1", eventId: "e1" }),
     );
     expect(consumeForIntake).not.toHaveBeenCalled();
+  });
+
+  // ── v1.17.1 (#22) — silent cross-device intake sync wiring ──────────
+
+  it("dispatches the silent intake sync with the affected slot + origin device", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const slot = new Date("2026-05-18T10:00:00.000Z");
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue({
+      id: "e1",
+      userId: "user-1",
+      medicationId: "m1",
+      scheduledFor: slot,
+    } as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue({
+      id: "e1",
+      skipped: true,
+      takenAt: null,
+      scheduledFor: slot,
+    } as never);
+
+    const r = new NextRequest("http://localhost/api/medications/intake", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-device-id": "origin-device-token",
+      },
+      body: JSON.stringify({ intakeId: "e1", status: "skipped" }),
+    });
+    const res = await POST(r);
+    expect(res.status).toBe(200);
+
+    expect(dispatchMedicationIntakeSync).toHaveBeenCalledTimes(1);
+    expect(dispatchMedicationIntakeSync).toHaveBeenCalledWith({
+      userId: "user-1",
+      medicationId: "m1",
+      scheduledFor: "2026-05-18T10:00:00.000Z",
+      originDeviceToken: "origin-device-token",
+    });
   });
 
   // ── v1.16.10 — inventory consumption seams ──────────────────────────

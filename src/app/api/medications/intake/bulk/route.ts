@@ -68,6 +68,7 @@ import {
   type InjectionSiteValue,
 } from "@/lib/validations/medication";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
+import { dispatchMedicationIntakeSyncBulk } from "@/lib/notifications/medication-intake-sync";
 
 const MAX_ENTRIES_PER_BATCH = 500;
 const BATCH_RATE_LIMIT_MAX = 60;
@@ -238,6 +239,14 @@ async function postBulk(request: NextRequest): Promise<Response> {
   const touchedDays = new Map<
     string,
     { medicationId: string; dayKey: string }
+  >();
+  // v1.17.1 (#22) — distinct `(medicationId, scheduledFor)` slots whose
+  // state actually changed in this batch (a row inserted / updated), so the
+  // silent cross-device sync fires once per affected slot — not once per
+  // row, and not for pending echoes / duplicates that changed nothing.
+  const syncSlots = new Map<
+    string,
+    { medicationId: string; scheduledFor: string }
   >();
 
   for (let i = 0; i < entries.length; i++) {
@@ -583,6 +592,18 @@ async function postBulk(request: NextRequest): Promise<Response> {
         medicationId: entry.medicationId,
         dayKey,
       });
+      // v1.17.1 (#22) — collect the slot for the silent cross-device sync
+      // only when the row's state actually changed (inserted / updated). A
+      // pending echo, duplicate, or no-downgrade no-op leaves the visible
+      // dose state untouched, so it must not wake the user's other devices.
+      const lastStatus = results[results.length - 1]?.status;
+      if (lastStatus === "inserted" || lastStatus === "updated") {
+        const scheduledForIso = effectiveScheduledFor.toISOString();
+        syncSlots.set(`${entry.medicationId}|${scheduledForIso}`, {
+          medicationId: entry.medicationId,
+          scheduledFor: scheduledForIso,
+        });
+      }
     } catch (err: unknown) {
       // P2002 = unique-constraint violation. Two shapes reach here:
       //   1. an idempotencyKey collision on the unscheduled/PRN insert →
@@ -677,6 +698,19 @@ async function postBulk(request: NextRequest): Promise<Response> {
         },
       });
     }
+  }
+
+  // v1.17.1 (#22) — silent cross-device intake sync. One push per device
+  // per distinct affected slot (the map de-dupes), excluding the
+  // originating device (`X-Device-Id` = registered `Device.token`).
+  // APNs-only, best-effort, fire-and-forget: the canonical rows are already
+  // persisted, so a sync-push miss never affects the batch response.
+  if (syncSlots.size > 0) {
+    void dispatchMedicationIntakeSyncBulk({
+      userId: user.id,
+      slots: Array.from(syncSlots.values()),
+      originDeviceToken: request.headers.get("x-device-id"),
+    });
   }
 
   return apiSuccess({

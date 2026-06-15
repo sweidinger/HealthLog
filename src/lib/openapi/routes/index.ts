@@ -28,8 +28,11 @@ import { consentPaths } from "./consent";
 import { cyclePaths } from "./cycle";
 import { devicePaths } from "./devices";
 import { healthRecordPaths } from "./health-record";
+import { importPaths } from "./import";
 import { insightsPaths } from "./insights";
+import { labsPaths } from "./labs";
 import { measurementPaths } from "./measurements";
+import { measurementReminderPaths } from "./measurement-reminders";
 import { medicationPaths, medicationResource } from "./medications";
 import { metaPaths } from "./meta";
 import { moodPaths } from "./mood";
@@ -57,6 +60,9 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...moodPaths,
   ...settingsPaths,
   ...consentPaths,
+  ...importPaths,
+  ...measurementReminderPaths,
+  ...labsPaths,
 };
 
 export const openApiComponents: NonNullable<ZodOpenApiObject["components"]> = {

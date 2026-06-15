@@ -43,6 +43,7 @@ import {
   pillStateFor,
   type IntegrationStatusViewModel,
 } from "./shared";
+import { IntegrationSetupGuideLink } from "./setup-guide-link";
 
 export function WhoopCard({
   viewModel,
@@ -456,6 +457,8 @@ export function WhoopCard({
             {t("settings.whoopNoCredentials")}
           </div>
         )}
+
+        <IntegrationSetupGuideLink provider="whoop" />
       </div>
     </div>
   );

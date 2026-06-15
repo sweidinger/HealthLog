@@ -107,6 +107,35 @@ services:
       # container (the `environment:` block is a whitelist). See
       # docs/ops/tls-cert-pin.md.
       TLS_LEAF_SPKI_PINS: "${TLS_LEAF_SPKI_PINS:-}"
+      # v1.17.1 — SMTP transport for the email notification channel (optional,
+      # all-or-none: HOST + PORT + FROM enable it; USER/PASS optional; SECURE
+      # toggles implicit TLS). Listed here so operator values in .env reach the
+      # container (the `environment:` block is a whitelist — vars not listed
+      # never propagate from .env, even with `${VAR}` substitution at
+      # compose-up). Per-user recipient is stored in the DB, not here.
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASS: "${SMTP_PASS:-}"
+      SMTP_SECURE: "${SMTP_SECURE:-}"
+      # v1.17.1 — Web Push VAPID keys (optional). The admin Settings panel stores
+      # these in the DB (the supported path); these env vars are the fallback the
+      # loader reads when the DB pair is unset. Listed here so the documented env
+      # path reaches the container under the bundled compose. See
+      # docs/self-hosting/notifications.md.
+      VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY:-}"
+      VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY:-}"
+      VAPID_SUBJECT: "${VAPID_SUBJECT:-}"
+      # APNs for a self-hosted native iOS build (optional, env-only — no admin UI
+      # for the .p8). APNS_KEY_B64 is the escape-free base64 form preferred over
+      # APNS_KEY/APNS_KEY_FILE; the key must be scoped "Sandbox & Production".
+      # PWA users need none of this (Web Push covers them). See
+      # docs/self-hosting/notifications.md.
+      APNS_KEY_B64: "${APNS_KEY_B64:-}"
+      APNS_KEY_ID: "${APNS_KEY_ID:-}"
+      APNS_TEAM_ID: "${APNS_TEAM_ID:-}"
+      APNS_BUNDLE_ID: "${APNS_BUNDLE_ID:-}"
     depends_on:
       db:
         condition: service_healthy

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { LearningGate } from "@/components/ui/learning-gate";
 import type {
   DerivedConfidence,
   DerivedCoverage,
@@ -180,13 +181,13 @@ export function ScoreAnatomyView({
       </div>
 
       {insufficient ? (
-        <p
-          data-slot="score-anatomy-insufficient"
-          className="text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-center text-xs"
-        >
-          {insufficientNote ??
-            t("insights.derived.anatomy.insufficient")}
-        </p>
+        <LearningGate
+          variant="bordered"
+          bodySlot="score-anatomy-insufficient"
+          message={
+            insufficientNote ?? t("insights.derived.anatomy.insufficient")
+          }
+        />
       ) : (
         <div data-slot="score-anatomy-contributors" className="space-y-3">
           <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">

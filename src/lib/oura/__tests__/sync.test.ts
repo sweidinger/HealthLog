@@ -7,6 +7,8 @@ const {
   fetchReadinessMock,
   fetchSleepMock,
   fetchActivityMock,
+  fetchDailySleepMock,
+  fetchSpo2Mock,
   refreshMock,
   upsertMock,
   recordSuccessMock,
@@ -20,6 +22,8 @@ const {
   fetchReadinessMock: vi.fn(),
   fetchSleepMock: vi.fn(),
   fetchActivityMock: vi.fn(),
+  fetchDailySleepMock: vi.fn(),
+  fetchSpo2Mock: vi.fn(),
   refreshMock: vi.fn(),
   upsertMock: vi.fn(),
   recordSuccessMock: vi.fn(),
@@ -31,6 +35,7 @@ const {
 vi.mock("../credentials", () => ({
   getOuraConnection: getConnMock,
   storeOuraTokens: storeTokensMock,
+  getOuraClientCredentials: getCredsMock,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -57,10 +62,11 @@ vi.mock("../client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../client")>();
   return {
     ...actual,
-    getOuraCredentials: getCredsMock,
     fetchReadiness: fetchReadinessMock,
     fetchSleep: fetchSleepMock,
     fetchDailyActivity: fetchActivityMock,
+    fetchDailySleep: fetchDailySleepMock,
+    fetchDailySpo2: fetchSpo2Mock,
     refreshAccessToken: refreshMock,
   };
 });
@@ -73,10 +79,14 @@ const CONN = { accessToken: "acc", refreshToken: "ref" };
 beforeEach(() => {
   getConnMock.mockReset();
   storeTokensMock.mockReset().mockResolvedValue(undefined);
-  getCredsMock.mockReset().mockReturnValue({ clientId: "c", clientSecret: "s" });
+  getCredsMock
+    .mockReset()
+    .mockResolvedValue({ clientId: "c", clientSecret: "s" });
   fetchReadinessMock.mockReset().mockResolvedValue([]);
   fetchSleepMock.mockReset().mockResolvedValue([]);
   fetchActivityMock.mockReset().mockResolvedValue([]);
+  fetchDailySleepMock.mockReset().mockResolvedValue([]);
+  fetchSpo2Mock.mockReset().mockResolvedValue([]);
   refreshMock.mockReset();
   upsertMock.mockReset().mockResolvedValue({});
   recordSuccessMock.mockReset().mockResolvedValue(undefined);
@@ -155,6 +165,49 @@ describe("syncUserOura", () => {
       expect.objectContaining({ integration: "oura", kind: "reauth_required" }),
     );
     expect(recordSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a nap and the main sleep distinct via record-scoped externalIds (B2)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    // Two sleep records on the same day: a main sleep + a nap.
+    fetchSleepMock.mockResolvedValue([
+      { id: "main", day: "2026-06-10", deep_sleep_duration: 3600 },
+      { id: "nap", day: "2026-06-10", deep_sleep_duration: 1200 },
+    ]);
+    await syncUserOura("u1");
+    const externalIds = upsertMock.mock.calls.map(
+      (c) => c[0].where.userId_type_source_externalId.externalId,
+    );
+    expect(externalIds).toContain("sleep:main:sleep_deep");
+    expect(externalIds).toContain("sleep:nap:sleep_deep");
+    // The legacy day-keyed collapse would have produced one shared key.
+    expect(new Set(externalIds).size).toBe(externalIds.length);
+  });
+
+  it("writes the Sleep Score and SpO2 from the new collections", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchDailySleepMock.mockResolvedValue([
+      { id: "s", day: "2026-06-10", score: 80 },
+    ]);
+    fetchSpo2Mock.mockResolvedValue([
+      { id: "o", day: "2026-06-10", spo2_percentage: { average: 97 } },
+    ]);
+    await syncUserOura("u1");
+    const written = upsertMock.mock.calls.map((c) => ({
+      type: c[0].where.userId_type_source_externalId.type,
+      externalId: c[0].where.userId_type_source_externalId.externalId,
+      value: c[0].create.value,
+    }));
+    expect(written).toContainEqual({
+      type: "SLEEP_SCORE",
+      externalId: "daily_sleep:2026-06-10:sleep_score",
+      value: 80,
+    });
+    expect(written).toContainEqual({
+      type: "OXYGEN_SATURATION",
+      externalId: "spo2:2026-06-10:spo2",
+      value: 97,
+    });
   });
 
   it("does NOT refresh on a 403 (not an expiry case)", async () => {

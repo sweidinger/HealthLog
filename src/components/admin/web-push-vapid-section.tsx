@@ -1,12 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { BellRing, Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { BellRing, KeyRound, Loader2 } from "lucide-react";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
+import { apiFetchRaw } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 import {
   ConfiguredBadge,
   PasswordInput,
@@ -16,6 +30,7 @@ import {
 
 export function WebPushVapidSection() {
   const { t } = useTranslations();
+  const queryClient = useQueryClient();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();
   const [webPushVapidPublicKeyDraft, setWebPushVapidPublicKeyDraft] = useState<
@@ -26,6 +41,12 @@ export function WebPushVapidSection() {
   const [webPushVapidSubjectDraft, setWebPushVapidSubjectDraft] = useState<
     string | null
   >(null);
+  const [generating, setGenerating] = useState(false);
+  // Overwrite guard: the first generate returns 409 when keys already exist;
+  // we surface the project's AlertDialog (not a native window.confirm) before
+  // retrying with force, since regenerating invalidates every live Web-Push
+  // subscription.
+  const [overwriteConfirmOpen, setOverwriteConfirmOpen] = useState(false);
 
   const webPushVapidPublicKeyValue =
     webPushVapidPublicKeyDraft ?? settings?.webPushVapidPublicKey ?? "";
@@ -50,6 +71,51 @@ export function WebPushVapidSection() {
         setWebPushVapidSubjectDraft(null);
       },
     });
+  }
+
+  async function generateVapidKeys(force: boolean) {
+    setGenerating(true);
+    try {
+      const res = await apiFetchRaw(
+        "/api/admin/settings/web-push-vapid/generate",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(force ? { force: true } : {}),
+        },
+      );
+
+      if (res.status === 409) {
+        // Overwrite guard — existing keys would be replaced. Surface the
+        // in-app confirm dialog (regenerating invalidates current
+        // subscriptions); the dialog action retries with force.
+        setOverwriteConfirmOpen(true);
+        return;
+      }
+
+      if (!res.ok) {
+        toast.error(t("admin.webPushVapidGenerateFailed"));
+        return;
+      }
+
+      const json = (await res.json()) as {
+        data: { webPushVapidPublicKey: string; webPushVapidSubject: string };
+      };
+      // The private key was minted and encrypted server-side; only the
+      // public key + subject come back. Populate the visible fields and
+      // leave the private-key input empty (it stays "configured").
+      setWebPushVapidPublicKeyDraft(json.data.webPushVapidPublicKey);
+      setWebPushVapidSubjectDraft(json.data.webPushVapidSubject);
+      setWebPushVapidPrivateKeyDraft("");
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminSettings(),
+      });
+      toast.success(t("admin.webPushVapidGenerated"));
+    } catch {
+      toast.error(t("admin.webPushVapidGenerateFailed"));
+    } finally {
+      setGenerating(false);
+    }
   }
 
   return (
@@ -123,6 +189,21 @@ export function WebPushVapidSection() {
 
       <div className="mt-4 flex justify-end gap-2">
         <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void generateVapidKeys(false)}
+          disabled={generating || updateSettings.isPending}
+        >
+          {generating ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <KeyRound className="h-3.5 w-3.5" />
+          )}
+          {generating
+            ? t("admin.webPushVapidGenerating")
+            : t("admin.webPushVapidGenerate")}
+        </Button>
+        <Button
           size="sm"
           onClick={saveWebPushVapidSettings}
           disabled={updateSettings.isPending}
@@ -133,6 +214,31 @@ export function WebPushVapidSection() {
           {t("common.save")}
         </Button>
       </div>
+
+      <AlertDialog
+        open={overwriteConfirmOpen}
+        onOpenChange={setOverwriteConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("admin.webPushVapidGenerateConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("admin.webPushVapidGenerateConfirm")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => void generateVapidKeys(true)}
+            >
+              {t("admin.webPushVapidRegenerate")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

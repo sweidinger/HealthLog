@@ -6,6 +6,7 @@ import {
   DEFAULT_NOTIFICATION_PREFS,
   DEFAULT_REORDER_LEAD_DAYS,
   isCycleReminderClientManaged,
+  isMeasurementReminderClientManaged,
   isMedicationReminderClientManaged,
   notificationPrefsSchema,
   parseNotificationPrefs,
@@ -109,6 +110,9 @@ describe("parseNotificationPrefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
       },
+      measurementReminder: {
+        clientManaged: false,
+      },
     });
   });
 
@@ -128,6 +132,9 @@ describe("parseNotificationPrefs", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+      },
+      measurementReminder: {
+        clientManaged: false,
       },
     });
   });
@@ -150,6 +157,9 @@ describe("parseNotificationPrefs", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+      },
+      measurementReminder: {
+        clientManaged: false,
       },
     });
   });
@@ -189,6 +199,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
       },
+      measurementReminder: {
+        clientManaged: false,
+      },
     });
   });
 
@@ -215,6 +228,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
       },
+      measurementReminder: {
+        clientManaged: false,
+      },
     });
   });
 
@@ -237,6 +253,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+      },
+      measurementReminder: {
+        clientManaged: false,
       },
     });
   });
@@ -261,6 +280,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
       },
+      measurementReminder: {
+        clientManaged: false,
+      },
     });
   });
 
@@ -284,6 +306,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+      },
+      measurementReminder: {
+        clientManaged: false,
       },
     });
   });
@@ -350,6 +375,38 @@ describe("isCycleReminderClientManaged — cron-skip gate", () => {
     // The medication `deliveryDefault: client` must NOT suppress cycle pushes.
     expect(
       isCycleReminderClientManaged({
+        medication: { deliveryDefault: "client" },
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("isMeasurementReminderClientManaged — cron-skip gate", () => {
+  it("returns false for a null / undefined row (server-managed default)", () => {
+    expect(isMeasurementReminderClientManaged(null)).toBe(false);
+    expect(isMeasurementReminderClientManaged(undefined)).toBe(false);
+  });
+
+  it("returns false when the user has not opted in", () => {
+    expect(
+      isMeasurementReminderClientManaged({
+        measurementReminder: { clientManaged: false },
+      }),
+    ).toBe(false);
+  });
+
+  it("returns true when the iOS app owns local Vorsorge reminders", () => {
+    expect(
+      isMeasurementReminderClientManaged({
+        measurementReminder: { clientManaged: true },
+      }),
+    ).toBe(true);
+  });
+
+  it("is independent of the cycle / medication client-managed flags", () => {
+    expect(
+      isMeasurementReminderClientManaged({
+        cycle: { clientManaged: true },
         medication: { deliveryDefault: "client" },
       }),
     ).toBe(false);

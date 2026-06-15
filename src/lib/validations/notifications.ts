@@ -243,6 +243,36 @@ export const ntfySettingsSchema = z.object({
   enabled: z.boolean(),
 });
 
+/**
+ * Generic-webhook channel settings (v1.17.1). The URL is user-supplied and
+ * must pass the SSRF floor (`isPublicUrl`) at input time; the dispatcher
+ * re-checks it at fetch time via `safeFetch({ requirePublicHost: true })`. The
+ * optional header name/value carry a shared secret (e.g. Gotify token).
+ */
+export const webhookSettingsSchema = z.object({
+  url: z
+    .url("Ungültige Webhook-URL")
+    .max(500)
+    .refine(
+      (url) => isPublicUrl(url),
+      "Webhook-URL darf nicht auf interne Netzwerke zeigen",
+    )
+    .optional()
+    .or(z.literal("")),
+  headerName: z.string().max(100).optional().or(z.literal("")),
+  headerValue: z.string().max(500).optional().or(z.literal("")),
+  enabled: z.boolean(),
+});
+
+/**
+ * Email channel settings (v1.17.1). The SMTP transport is operator-configured;
+ * the only per-user value is the recipient address.
+ */
+export const emailSettingsSchema = z.object({
+  recipient: z.email("Ungültige E-Mail-Adresse").max(254).optional().or(z.literal("")),
+  enabled: z.boolean(),
+});
+
 export const webPushSubscriptionSchema = z.object({
   endpoint: z
     .url("Ungültiger Endpoint")

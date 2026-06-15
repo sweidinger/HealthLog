@@ -3,7 +3,8 @@ import { apiError } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getAuthorizationUrl, getOuraCredentials } from "@/lib/oura/client";
+import { getAuthorizationUrl } from "@/lib/oura/client";
+import { getOuraClientCredentials } from "@/lib/oura/credentials";
 import {
   OAUTH_STATE_TTL_MS,
   mintSignedState,
@@ -14,7 +15,9 @@ import { NextResponse } from "next/server";
 /**
  * v1.17.0 (F4) — redirect the user to the Oura consent screen.
  *
- * Full OAuth from env (`OURA_CLIENT_ID` / `OURA_CLIENT_SECRET`). CSRF via the
+ * Credentials resolve DB-first then env (`getOuraClientCredentials`): a user's
+ * BYO Oura client id/secret wins, falling back to the shared env app
+ * (`OURA_CLIENT_ID` / `OURA_CLIENT_SECRET`) when none is stored. CSRF via the
  * stateless signed state (`src/lib/oauth/signed-state.ts`): the same token is
  * the `state` URL param AND an httpOnly cookie. Rate-limited per user.
  */
@@ -40,7 +43,7 @@ export const GET = apiHandler(async () => {
     );
   }
 
-  const creds = getOuraCredentials();
+  const creds = await getOuraClientCredentials(user.id);
   if (!creds) {
     return apiError("Oura integration is not configured on this server.", 400);
   }

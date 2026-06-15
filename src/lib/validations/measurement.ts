@@ -100,6 +100,22 @@ export const measurementTypeEnum = z.enum([
   "AVERAGE_HEART_RATE",
   "MAX_HEART_RATE",
   "SLEEP_DISTURBANCE_COUNT",
+  // v1.17.1 — Polar Nightly Recharge + Training Load Pro components ingested
+  // server-side as `source = POLAR`. ANS_CHARGE is the HRV-based autonomic
+  // charge (distinct from the 1–6 recovery band that maps to RECOVERY_SCORE);
+  // CARDIO_LOAD is Polar's device-native cardiovascular-strain figure (distinct
+  // from WHOOP DAY_STRAIN and the COMPUTED STRAIN_SCORE).
+  "ANS_CHARGE",
+  "CARDIO_LOAD",
+  // ── v1.17.1 — Oura coverage completion (additive) ──
+  // Oura's headline 0–100 Sleep Score (`daily_sleep.score`), distinct from the
+  // WHOOP SLEEP_PERFORMANCE / SLEEP_EFFICIENCY sub-scores. The body-temperature
+  // deviation is a SIGNED °C offset from the user's baseline
+  // (`daily_readiness.temperature_deviation`), not an absolute reading, so it
+  // never shares the BODY_TEMPERATURE / SKIN_TEMPERATURE / WRIST_TEMPERATURE
+  // buckets. Both ingest server-side as `source = OURA`.
+  "SLEEP_SCORE",
+  "BODY_TEMPERATURE_DEVIATION",
 ]);
 
 /**
@@ -312,6 +328,14 @@ const unitMap: Record<string, string> = {
   MAX_HEART_RATE: "bpm",
   // Per-night sleep disturbance tally — a plain integer count.
   SLEEP_DISTURBANCE_COUNT: "count",
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  ANS_CHARGE: "score",
+  CARDIO_LOAD: "score",
+  // ── v1.17.1 — Oura coverage completion ──
+  // Oura's headline 0–100 Sleep Score — bare "score" like the other 0–100 scores.
+  SLEEP_SCORE: "score",
+  // Signed body-temperature deviation in °C (Oura nightly baseline offset).
+  BODY_TEMPERATURE_DEVIATION: "celsius",
 };
 
 export function getUnitForType(type: string): string {
@@ -487,6 +511,21 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // Per-night sleep disturbance count — 0 is an undisturbed night; 200 is a
   // generous ceiling over any plausible severely-fragmented night.
   SLEEP_DISTURBANCE_COUNT: { min: 0, max: 200 },
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  // ANS charge is a baseline-relative autonomic deviation that can run
+  // negative; a generous symmetric ±100 band covers any plausible reading.
+  // Cardio Load is a non-negative cumulative-strain figure; 1000 is a generous
+  // ceiling over any plausible single-day training load.
+  ANS_CHARGE: { min: -100, max: 100 },
+  CARDIO_LOAD: { min: 0, max: 1000 },
+  // ── v1.17.1 — Oura coverage completion ──
+  // Sleep Score (0–100), same band as the other score classes.
+  SLEEP_SCORE: { min: 0, max: 100 },
+  // Body-temperature deviation (°C) — a signed nightly offset centred on 0.
+  // Oura clamps its own display near ±1 °C; ±5 °C is a generous band that
+  // rejects an obvious sensor glitch while keeping every real illness /
+  // luteal-phase swing.
+  BODY_TEMPERATURE_DEVIATION: { min: -5, max: 5 },
 };
 
 export function validateMeasurementRange(

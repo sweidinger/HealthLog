@@ -36,6 +36,7 @@ import {
   pillStateFor,
   type IntegrationStatusViewModel,
 } from "./shared";
+import { IntegrationSetupGuideLink } from "./setup-guide-link";
 
 export function WithingsCard({
   viewModel,
@@ -491,6 +492,8 @@ export function WithingsCard({
             {t("settings.withingsNoCredentials")}
           </div>
         )}
+
+        <IntegrationSetupGuideLink provider="withings" />
       </div>
     </div>
   );

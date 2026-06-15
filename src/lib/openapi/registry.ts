@@ -72,6 +72,8 @@ const openApiBase: Pick<
     { name: "Export" },
     { name: "Sync" },
     { name: "Cycle" },
+    { name: "MeasurementReminders" },
+    { name: "Labs" },
     { name: "Admin" },
     { name: "Meta" },
   ],

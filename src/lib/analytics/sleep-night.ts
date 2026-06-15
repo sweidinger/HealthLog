@@ -282,6 +282,21 @@ export interface SleepNight {
 const NO_SOURCE = "__none__";
 
 /**
+ * Sources whose per-segment stage ORDER is synthesised, not measured. WHOOP's
+ * v2 API exposes only per-stage duration totals (no onset timestamps), so the
+ * ingest mapper reconstructs a contiguous timeline in a fixed physiological
+ * order (`whoop/client.ts` + `polar/client.ts` `mapSleep`, both via the shared
+ * `reconstructContiguousSleepTimeline` builder). A session won by such a source
+ * carries `reconstructed: true` so the UI labels it as an approximate layout.
+ * Apple Health / Oura / Withings / Fitbit all store a real per-segment series
+ * and stay off this set.
+ */
+const RECONSTRUCTED_TIMELINE_SOURCES: ReadonlySet<string> = new Set<string>([
+  "WHOOP",
+  "POLAR",
+]);
+
+/**
  * Separator between the source and device-type parts of a writer key.
  * ` ` cannot appear in a `MeasurementSource` enum literal or a
  * device-type tag, so the split-back is unambiguous.
@@ -615,6 +630,17 @@ export interface SleepSession {
   awakenings: number;
   /** The canonical source's segments, sorted by start, for the hypnogram. */
   segments: SleepSegment[];
+  /**
+   * `true` when the winning writer's stage ORDER is synthesised rather than
+   * measured. WHOOP's v2 API returns only per-stage duration totals — no onset
+   * timestamps — so the server reconstructs a contiguous timeline in a fixed
+   * physiological order (`whoop/client.ts` `mapSleep`). The segment positions
+   * are then approximate, not measured, and the UI / iOS must label the night
+   * as an approximate layout (never present it as measured stage timing).
+   * Sources that store a real per-segment series (Apple Health, Withings,
+   * Fitbit) stay `false`.
+   */
+  reconstructed: boolean;
 }
 
 /** Resolve a stage row to its absolute span (start = end − duration). */
@@ -760,6 +786,11 @@ export function reconstructSleepSessions(
       stages,
       awakenings: countAwakenings(segments),
       segments,
+      // The winning writer's stage order is synthetic when its source
+      // reconstructs the timeline (WHOOP). The UI labels such a night as an
+      // approximate layout; a real-series source (Apple/Withings/Fitbit) is
+      // measured.
+      reconstructed: RECONSTRUCTED_TIMELINE_SOURCES.has(canonicalSource),
     });
   }
   return sessions.sort((a, b) => a.start.getTime() - b.start.getTime());

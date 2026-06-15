@@ -115,6 +115,15 @@ export const ALLOWED_CHART_TOKENS = [
   "metric:AVERAGE_HEART_RATE",
   "metric:MAX_HEART_RATE",
   "metric:SLEEP_DISTURBANCE_COUNT",
+  // v1.17.1 — Polar-native recovery / strain components. Continuous daily
+  // series, so each carries a `metric:<TYPE>` token and renders through the
+  // generic chart renderer alongside the WHOOP-native score classes.
+  "metric:ANS_CHARGE",
+  "metric:CARDIO_LOAD",
+  // v1.17.1 — Oura coverage completion. Both are continuous nightly series, so
+  // each carries a `metric:<TYPE>` token and renders through the generic chart.
+  "metric:SLEEP_SCORE",
+  "metric:BODY_TEMPERATURE_DEVIATION",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
@@ -230,6 +239,10 @@ const ORPHAN_ENUMS = [
   "AVERAGE_HEART_RATE",
   "MAX_HEART_RATE",
   "SLEEP_DISTURBANCE_COUNT",
+  // v1.17.1 — Oura coverage completion, same shape: strip the bare enum name
+  // if the model drops it into prose.
+  "SLEEP_SCORE",
+  "BODY_TEMPERATURE_DEVIATION",
 ] as const;
 
 // `\b` boundaries keep ordinary English prose untouched — "weight"

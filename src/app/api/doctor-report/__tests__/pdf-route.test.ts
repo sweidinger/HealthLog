@@ -9,6 +9,7 @@ vi.mock("@/lib/db", () => ({
     medication: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
+    labResult: { findMany: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() },
   },
@@ -71,6 +72,7 @@ function setEmptyDataMocks() {
     [] as never,
   );
   vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.labResult.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     username: "testuser",
     dateOfBirth: null,

@@ -51,6 +51,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nProvider } from "@/lib/i18n/context";
 import { SidebarNav } from "../sidebar-nav";
 import { ADMIN_SECTIONS } from "@/components/admin/admin-shell";
+import { visibleUtilityDestinations } from "../nav-model";
 
 function render({
   pathname = "/",
@@ -128,6 +129,60 @@ describe("<SidebarNav> targets deprecation (v1.8.6)", () => {
     const html = render();
     expect(html).not.toContain('href="/targets"');
     expect(html).toContain('href="/insights"');
+  });
+});
+
+describe("<SidebarNav> unified destination model (v1.17.1 F-1 / F-3)", () => {
+  it("surfaces Workouts and the Coach as first-class sidebar destinations", () => {
+    // Pre-unify the sidebar hid Workouts entirely and had no Coach home,
+    // while the mobile bar promoted Workouts and still missed Coach. Both
+    // now render the one shared model, so both carry both destinations.
+    const html = render();
+    expect(html).toContain('href="/insights/workouts"');
+    expect(html).toContain('href="/insights/coach"');
+    expect(html).toContain("Workouts");
+    expect(html).toContain("Coach");
+  });
+
+  it("marks Coach active without also marking Insights active", () => {
+    const html = render({ pathname: "/insights/coach" });
+    // The Coach link carries aria-current="page"; the Insights link, its
+    // less-specific sibling, must not (most-specific resolution).
+    const coach = html.match(/<a[^>]*href="\/insights\/coach"[^>]*>/);
+    const insights = html.match(/<a[^>]*href="\/insights"[^>]*>/);
+    expect(coach?.[0]).toMatch(/aria-current="page"/);
+    expect(insights?.[0]).not.toMatch(/aria-current="page"/);
+  });
+});
+
+describe("<SidebarNav> shared utility tail (v1.17.1 N-1 parity guard)", () => {
+  // The footer renders the shared utility tail EXCEPT Notifications, which
+  // lives in the avatar dropdown (a Radix menu that is collapsed — and so
+  // not in the SSR markup — until opened). The footer-visible utilities are
+  // therefore the shared list minus `/notifications`. Asserting they all
+  // render straight from the shared list is the parity net that keeps the
+  // sidebar footer from drifting away from the mobile More-hub tail.
+  const footerUtilities = (bugReportEnabled: boolean) =>
+    visibleUtilityDestinations(bugReportEnabled).filter(
+      (d) => d.href !== "/notifications",
+    );
+
+  it("renders every footer utility destination straight from the shared list", () => {
+    const html = render({ bugReportEnabled: true });
+    for (const dest of footerUtilities(true)) {
+      expect(html).toContain(`href="${dest.href}"`);
+    }
+    // Bug Report and Settings are the footer utilities; both are present.
+    expect(html).toContain('href="/bugreport"');
+    expect(html).toContain('href="/settings/account"');
+  });
+
+  it("drops the bug-report utility entry when the operator flag is off", () => {
+    const html = render({ bugReportEnabled: false });
+    for (const dest of footerUtilities(false)) {
+      expect(html).toContain(`href="${dest.href}"`);
+    }
+    expect(html).not.toContain('href="/bugreport"');
   });
 });
 

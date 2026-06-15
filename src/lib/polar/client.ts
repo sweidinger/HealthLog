@@ -4,8 +4,8 @@
  *
  * Mirrors the WHOOP client structure (`src/lib/whoop/client.ts`): hand-rolled
  * fetch over `safeFetch` (no SDK), an OAuth handshake, typed collection
- * fetchers, and a single source-of-truth field→Measurement mapping
- * (`POLAR_FIELD_MAP`).
+ * fetchers, and per-resource field→Measurement mappers (self-documenting; there
+ * is no separate reference constant).
  *
  * Polar specifics that differ from WHOOP:
  *   - The token endpoint uses HTTP Basic auth (`base64(client_id:client_secret)`)
@@ -22,6 +22,7 @@
  */
 import { getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
+import { reconstructContiguousSleepTimeline } from "@/lib/sleep/reconstruct-timeline";
 import { PolarApiError, classifyPolarResponse } from "./response-classifier";
 
 const POLAR_API_BASE = "https://www.polaraccesslink.com";
@@ -33,9 +34,11 @@ export interface PolarCredentials {
   clientSecret: string;
 }
 
-/** Resolve the env-configured shared OAuth credentials (F4 = full OAuth from
- * env, not per-user BYO keys). Returns null when unconfigured so the connect
- * route can surface a clean "integration disabled" message. */
+/** Resolve the env-configured shared OAuth credentials. This is the fallback
+ * the per-user BYO-key resolver (`getPolarClientCredentials`) drops to when a
+ * user has not stored their own AccessLink app id/secret. Returns null when
+ * unconfigured so the connect route can surface a clean "integration disabled"
+ * message. */
 export function getPolarCredentials(): PolarCredentials | null {
   const clientId = process.env.POLAR_CLIENT_ID;
   const clientSecret = process.env.POLAR_CLIENT_SECRET;
@@ -201,6 +204,30 @@ export interface PolarActivity {
   "active-calories"?: number | null;
   "active-steps"?: number | null;
   calories?: number | null;
+  /** Estimated walking/running distance derived from steps, in METRES. */
+  distance_from_steps?: number | null;
+}
+
+/**
+ * One Polar Training Load Pro record (cardio-load collection). `cardio_load` is
+ * the session/day cardiovascular load figure — Polar's WHOOP-day-strain
+ * analogue. `strain` / `tolerance` / `cardio_load_ratio` describe the
+ * acute-vs-chronic balance; only `cardio_load` is mapped today (the others are
+ * derived ratios we don't surface yet).
+ */
+export interface PolarCardioLoad {
+  date: string;
+  cardio_load?: number | null;
+  strain?: number | null;
+  tolerance?: number | null;
+  cardio_load_ratio?: number | null;
+}
+
+/** One Polar SpO2 (Elixir pulse-ox) test result. `blood_oxygen_percentage` is
+ * the recorded SpO2 reading in percent (0..100). */
+export interface PolarSpo2 {
+  date: string;
+  blood_oxygen_percentage?: number | null;
 }
 
 interface CollectionResult<T> {
@@ -284,6 +311,34 @@ export function fetchActivities(
   );
 }
 
+/** Training Load Pro collection — `cardio_load` strain figures for the recent
+ * window. Records live under the `cardio-loads` key. */
+export function fetchCardioLoads(
+  accessToken: string,
+  userId: string,
+): Promise<PolarCardioLoad[]> {
+  return fetchCollection<PolarCardioLoad>(
+    `/v3/users/${encodeURIComponent(userId)}/cardio-load`,
+    accessToken,
+    "fetchCardioLoads",
+    "cardio-loads",
+  );
+}
+
+/** SpO2 (Elixir pulse-ox) collection — nightly blood-oxygen readings. Records
+ * live under the `tests` key. */
+export function fetchSpo2(
+  accessToken: string,
+  userId: string,
+): Promise<PolarSpo2[]> {
+  return fetchCollection<PolarSpo2>(
+    `/v3/users/${encodeURIComponent(userId)}/spo2-tests`,
+    accessToken,
+    "fetchSpo2",
+    "tests",
+  );
+}
+
 // ─── Field → Measurement mapping ───────────────────────────────
 
 const SEC_TO_MIN = 1 / 60;
@@ -293,14 +348,31 @@ function round2(n: number): number {
 }
 
 /** A single mapped reading destined for one `Measurement` row. The sync layer
- * stamps `source = POLAR` + `externalId = <date>:<fieldTag>`. */
+ * stamps `source = POLAR` + `externalId = <resource>:<date>:<fieldTag>` unless
+ * the mapper supplies its own full `externalId` (the per-segment sleep rows
+ * need an index in the key). */
 export interface MappedMeasurement {
   type: string;
   value: number;
   unit: string;
   measuredAt: Date;
   fieldTag: string;
-  sleepStage?: "CORE" | "DEEP" | "REM";
+  sleepStage?: "CORE" | "DEEP" | "REM" | "AWAKE" | "IN_BED";
+  /**
+   * Full externalId for rows the mapper keys itself rather than letting the
+   * sync layer build `<resource>:<date>:<fieldTag>`. The reconstructed sleep
+   * segments (one row per synthetic span) carry an index so the several rows of
+   * one stage stay distinct under `userId_type_source_externalId`. When set the
+   * sync layer uses it verbatim.
+   */
+  externalId?: string;
+  /**
+   * `true` on per-segment sleep rows whose ORDER is synthesised. When Polar
+   * gives only per-stage duration totals (no per-stage onset timestamps), the
+   * timeline is reconstructed in a fixed physiological order; the UI labels such
+   * a night as an approximate layout and never presents it as measured timing.
+   */
+  reconstructed?: boolean;
 }
 
 /** A `nightly_recharge_status` is Polar's 1–6 recovery band; map it to a
@@ -360,21 +432,115 @@ export function mapNightlyRecharge(r: PolarNightlyRecharge): MappedMeasurement[]
       fieldTag: "resp_rate",
     });
   }
+  // ANS charge — the HRV-based autonomic-nervous-system component of Nightly
+  // Recharge, Polar's primary differentiated recovery signal. It is a deviation
+  // around the personal baseline (can be negative), so map it through as-is
+  // rather than clamping like the 1–6 recovery band. `0` is a valid reading
+  // (baseline), so guard on `number` only, not truthiness.
+  if (typeof r.ans_charge === "number") {
+    out.push({
+      type: "ANS_CHARGE",
+      value: round2(r.ans_charge),
+      unit: "score",
+      measuredAt,
+      fieldTag: "ans_charge",
+    });
+  }
   return out;
 }
 
-/** Map one Polar Sleep record: per-stage `SLEEP_DURATION` (s→min) + the
- * `SLEEP_SCORE` percentage where present. */
+/**
+ * Map one Polar Sleep record into per-stage `SLEEP_DURATION` rows + the
+ * `SLEEP_SCORE` percentage.
+ *
+ * `measuredAt` follows the END-instant convention every other sleep integration
+ * uses (WHOOP/Withings/Fitbit) and that the canonical night-grouper
+ * (`analytics/sleep-night.ts`) depends on: each stage segment is stamped at its
+ * own END instant so the hypnogram has an ordered internal timeline and the
+ * wake-day key resolves to the right LOCAL day even for negative-UTC users.
+ *
+ * Polar's sleep collection carries only per-stage DURATION totals plus the
+ * night's `sleep_start_time` / `sleep_end_time` (ISO-8601 with local offset) —
+ * no per-stage onset timestamps. So we RECONSTRUCT an ordered, contiguous
+ * timeline exactly like WHOOP: lay the asleep stages back-to-back from
+ * `sleep_start_time` in a fixed physiological order (CORE → DEEP → REM),
+ * emitting one timed row per segment ending at the running cursor, and stamp the
+ * `IN_BED` envelope + the score row at `sleep_end_time`. The ORDER is synthetic,
+ * so every reconstructed segment is flagged `reconstructed: true` and keyed by
+ * an indexed externalId so the several rows of one night stay distinct.
+ *
+ * If the night carries no usable start/end (older records, missing fields) we
+ * fall back to a midnight-UTC anchor and emit untimed stage rows — degraded but
+ * never wrong-day for the common UTC-positive case, matching the pre-fix shape.
+ */
 export function mapSleep(s: PolarSleep): MappedMeasurement[] {
-  const measuredAt = new Date(`${s.date}T00:00:00.000Z`);
-  if (Number.isNaN(measuredAt.getTime())) return [];
   const out: MappedMeasurement[] = [];
 
-  const stages: Array<[number | null | undefined, MappedMeasurement["sleepStage"], string]> = [
+  const startMs = s.sleep_start_time ? Date.parse(s.sleep_start_time) : NaN;
+  const endMs = s.sleep_end_time ? Date.parse(s.sleep_end_time) : NaN;
+  const haveWindow =
+    Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs;
+
+  const stages: Array<
+    [number | null | undefined, "CORE" | "DEEP" | "REM" | "AWAKE", string]
+  > = [
+    // AWAKE first — Polar reports the night's total interruption time, but no
+    // per-stage onset. Lay it as a leading settling-in/awake block so the asleep
+    // stages partition the remaining window and the night reader can surface a
+    // real awakeMinutes / efficiency rather than reading the night as fully
+    // consolidated. Matches WHOOP's leading-AWAKE ordering.
+    [s.total_interruption_duration, "AWAKE", "sleep_awake"],
     [s.light_sleep, "CORE", "sleep_core"],
     [s.deep_sleep, "DEEP", "sleep_deep"],
     [s.rem_sleep, "REM", "sleep_rem"],
   ];
+
+  if (haveWindow) {
+    // Reconstructed timeline: lay each stage contiguously from onset, one timed
+    // row per segment ending at the running cursor. The order is synthetic
+    // (Polar gives no per-stage onset), so the shared builder flags every
+    // segment reconstructed; the same algorithm backs WHOOP's `mapSleep`.
+    out.push(
+      ...reconstructContiguousSleepTimeline({
+        startMs,
+        stages: stages.map(([sec, stage, fieldTag]) => ({
+          durationMs:
+            typeof sec === "number" && Number.isFinite(sec) ? sec * 1000 : sec,
+          stage,
+          fieldTag,
+        })),
+        // IN_BED — single envelope row over the whole sleep window, stamped at
+        // the sleep END so the in-bed reader resolves the span back to
+        // [start, end].
+        inBed: {
+          durationMs: endMs - startMs,
+          measuredAt: new Date(endMs),
+          fieldTag: "sleep_in_bed",
+        },
+        // Indexed externalId keeps the several segment rows of one night
+        // distinct under userId_type_source_externalId.
+        externalIdFor: (fieldTag, index) =>
+          `sleep:${s.date}:seg:${fieldTag}:${index}`,
+      }),
+    );
+
+    if (typeof s.sleep_score === "number") {
+      out.push({
+        type: "SLEEP_PERFORMANCE",
+        value: round2(s.sleep_score),
+        unit: "%",
+        measuredAt: new Date(endMs),
+        fieldTag: "sleep_score",
+      });
+    }
+    return out;
+  }
+
+  // Fallback: no usable window. Anchor at midnight UTC of the wake date and emit
+  // untimed stage rows (the pre-v1.17.1 shape) so a record missing the window
+  // fields still contributes a night total.
+  const measuredAt = new Date(`${s.date}T00:00:00.000Z`);
+  if (Number.isNaN(measuredAt.getTime())) return [];
   for (const [sec, stage, fieldTag] of stages) {
     if (typeof sec === "number" && sec >= 0) {
       out.push({
@@ -428,7 +594,54 @@ export function mapActivity(a: PolarActivity): MappedMeasurement[] {
       fieldTag: "active_energy",
     });
   }
+  // Distance derived from steps, already in METRES (canonical SI for
+  // WALKING_RUNNING_DISTANCE). Fills the POLAR slot the distance ladder already
+  // ranks — previously a phantom entry with no producer.
+  const distance = a.distance_from_steps;
+  if (typeof distance === "number" && distance >= 0) {
+    out.push({
+      type: "WALKING_RUNNING_DISTANCE",
+      value: round2(distance),
+      unit: "meters",
+      measuredAt,
+      fieldTag: "distance",
+    });
+  }
   return out;
 }
 
-/** Field→Measurement reference table (mirror of the mappers above). */
+/** Map one Polar Training Load Pro record: `cardio_load` → `CARDIO_LOAD`
+ * (Polar's device-native cardiovascular-strain figure). `0` is a valid load, so
+ * guard on `number` only. */
+export function mapCardioLoad(c: PolarCardioLoad): MappedMeasurement[] {
+  const measuredAt = new Date(`${c.date}T00:00:00.000Z`);
+  if (Number.isNaN(measuredAt.getTime())) return [];
+  if (typeof c.cardio_load !== "number" || c.cardio_load < 0) return [];
+  return [
+    {
+      type: "CARDIO_LOAD",
+      value: round2(c.cardio_load),
+      unit: "score",
+      measuredAt,
+      fieldTag: "cardio_load",
+    },
+  ];
+}
+
+/** Map one Polar SpO2 test result: `blood_oxygen_percentage` →
+ * `OXYGEN_SATURATION` (percent, 0..100). */
+export function mapSpo2(r: PolarSpo2): MappedMeasurement[] {
+  const measuredAt = new Date(`${r.date}T00:00:00.000Z`);
+  if (Number.isNaN(measuredAt.getTime())) return [];
+  const pct = r.blood_oxygen_percentage;
+  if (typeof pct !== "number" || pct <= 0 || pct > 100) return [];
+  return [
+    {
+      type: "OXYGEN_SATURATION",
+      value: round2(pct),
+      unit: "%",
+      measuredAt,
+      fieldTag: "spo2",
+    },
+  ];
+}

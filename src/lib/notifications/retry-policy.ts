@@ -115,10 +115,24 @@ export function classifyTelegramError(description: string | undefined): {
  */
 export function classifyHttpStatus(
   status: number | undefined,
-  service: "web-push" | "ntfy",
+  service: "web-push" | "ntfy" | "webhook",
 ): { hardReject: boolean; reason: string } {
   if (status === undefined) {
     return { hardReject: false, reason: `${service}_network_error` };
+  }
+  if (service === "webhook") {
+    // A user-supplied relay (Gotify / Discord / Slack / Matrix / HA). 410 Gone
+    // and 404 Not Found mean the endpoint was deleted — permanent, do not
+    // retry. 401/403 mean the shared secret is wrong — also permanent until
+    // the user fixes the config, so we hard-reject and surface the reason in
+    // the Settings card rather than burning the backoff schedule on a
+    // misconfiguration. Everything else (5xx, 429, timeout) is transient.
+    if (status === 410) return { hardReject: true, reason: "webhook_410_gone" };
+    if (status === 404)
+      return { hardReject: true, reason: "webhook_404_not_found" };
+    if (status === 401 || status === 403)
+      return { hardReject: true, reason: "webhook_auth_rejected" };
+    return { hardReject: false, reason: `webhook_${status}` };
   }
   if (service === "web-push") {
     // 410 Gone = subscription is permanently invalid (push provider

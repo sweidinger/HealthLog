@@ -43,6 +43,16 @@ const deviceRegisterRequest = z
       .describe(
         'v1.7.0 per-device medication-delivery override. NULL / omitted = inherit the user-level roaming default. "server" forces server APNs for this device; "client" forces local. Stored + echoed; cron suppression stays user-level.',
       ),
+    liveActivityPushToken: z
+      .string()
+      .min(8)
+      .max(256)
+      .regex(/^[A-Fa-f0-9]+$/)
+      .nullable()
+      .optional()
+      .describe(
+        "v1.17.1 (#22) hex-encoded ActivityKit Live Activity push token (distinct from the device APNs token). The server addresses a Live Activity update / end push on a medication-intake mutation. Omitted = keep the prior value; null = clear it when the Activity ends.",
+      ),
   })
   .meta({
     id: "DeviceRegisterRequest",

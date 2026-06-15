@@ -61,10 +61,7 @@ import {
   probeRollupCoverage,
   type RollupCoverageMap,
 } from "@/lib/rollups/measurement-coverage";
-import {
-  ensureUserMoodRollupsFresh,
-  readMoodDayRollups,
-} from "@/lib/rollups/mood-rollups";
+import { buildMoodDailySeries } from "@/lib/analytics/mood-series";
 import {
   resolveDashboardLayout,
   DASHBOARD_WIDGET_CATALOGUE_IDS,
@@ -84,9 +81,6 @@ import type { HealthScoreBand } from "@/lib/analytics/health-score";
 
 /** Briefing freshness window — mirrors the 24 h TTL on the advisor cache. */
 const BRIEFING_TTL_MS = 24 * 60 * 60 * 1000;
-
-/** Five-year mood window — mirrors `/api/mood/analytics`. */
-const MOOD_ROLLUP_WINDOW_MS = 5 * 365 * 24 * 60 * 60 * 1000;
 
 const GLUCOSE_CONTEXTS = [
   "FASTING",
@@ -339,14 +333,6 @@ export interface SnapshotUserInput {
   dashboardWidgetsJson: unknown;
 }
 
-/** Format a UTC `Date` as a YYYY-MM-DD label (matches mood rollup tier). */
-function utcDayLabel(d: Date): string {
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 /** Wall-clock hour in `tz`, used for the server-side greeting. */
 function hourInTimezone(now: Date, tz: string): number {
   try {
@@ -383,63 +369,20 @@ function enrichLastSeen(
   return out;
 }
 
-/** Read-only mood block, lifting the rollup-tier read from `/api/mood/analytics`. */
+/**
+ * Read-only mood block. v1.17.1 — delegates to the single mood engine
+ * `buildMoodDailySeries` so the dashboard tile reads the exact numbers
+ * `/api/mood/analytics` (the insights mood sparkline source) returns.
+ */
 async function buildMoodBlock(
-  prisma: PrismaClient,
+  client: PrismaClient,
   userId: string,
 ): Promise<{
   summary: DataSummary | null;
   entries: DashboardSnapshotMoodEntry[];
 }> {
-  void ensureUserMoodRollupsFresh(userId);
-
-  const since = new Date(Date.now() - MOOD_ROLLUP_WINDOW_MS);
-  const rollups = await readMoodDayRollups(userId, since);
-
-  if (rollups.length > 0) {
-    const entries = rollups
-      .map((r) => ({
-        date: utcDayLabel(r.bucketStart),
-        score: Math.round(r.mean * 100) / 100,
-        samples: r.count,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-    const dataPoints: DataPoint[] = rollups.map((r) => ({
-      date: r.bucketStart,
-      value: r.mean,
-    }));
-    return { summary: summarize(dataPoints), entries };
-  }
-
-  // Coverage fallback — mirror the live walk in `/api/mood/analytics`.
-  const moodEntries = await prisma.moodEntry.findMany({
-    // v1.7.0 sync — exclude tombstoned rows from the dashboard snapshot.
-    where: { userId, deletedAt: null },
-    orderBy: { moodLoggedAt: "asc" },
-    select: { date: true, score: true },
-  });
-  if (moodEntries.length === 0) {
-    return { summary: summarize([]), entries: [] };
-  }
-  const byDay = new Map<string, { sum: number; count: number }>();
-  for (const e of moodEntries) {
-    const cur = byDay.get(e.date) ?? { sum: 0, count: 0 };
-    cur.sum += e.score;
-    cur.count += 1;
-    byDay.set(e.date, cur);
-  }
-  const entries = Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      date: day,
-      score: Math.round((stats.sum / stats.count) * 100) / 100,
-      samples: stats.count,
-    }));
-  const dataPoints: DataPoint[] = entries.map((e) => ({
-    date: new Date(`${e.date}T12:00:00.000Z`),
-    value: e.score,
-  }));
-  return { summary: summarize(dataPoints), entries };
+  const series = await buildMoodDailySeries(userId, client);
+  return { summary: series.summary, entries: series.entries };
 }
 
 /**

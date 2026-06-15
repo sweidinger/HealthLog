@@ -17,6 +17,7 @@
  */
 import { getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
+import { reconstructContiguousSleepTimeline } from "@/lib/sleep/reconstruct-timeline";
 import { WhoopApiError, classifyWhoopResponse } from "./response-classifier";
 
 const WHOOP_API_BASE = "https://api.prod.whoop.com/developer";
@@ -505,19 +506,23 @@ export interface MappedMeasurement {
   fieldTag: string;
   /** Per-stage sleep rows carry the SleepStage; everything else omits it. */
   sleepStage?: "CORE" | "DEEP" | "REM" | "AWAKE" | "IN_BED";
+  /**
+   * Full externalId for rows the mapper must key itself rather than letting
+   * the sync layer build `<resource-uuid>:<fieldTag>`. The reconstructed sleep
+   * segments (one row per synthetic span) need an index in the key so the
+   * several rows of one stage stay distinct under
+   * `userId_type_source_externalId`. When set the sync layer uses it verbatim.
+   */
+  externalId?: string;
+  /**
+   * `true` on the synthesised per-segment sleep rows whose ORDER is invented:
+   * WHOOP's v2 API returns only per-stage duration totals (no onset
+   * timestamps), so the timeline is reconstructed in a fixed physiological
+   * order. The night is flagged so the UI labels it as an approximate layout
+   * and never presents it as measured stage timing.
+   */
+  reconstructed?: boolean;
 }
-
-/** WHOOP sleep stage → HealthLog SleepStage (light→CORE, slow-wave→DEEP). */
-const SLEEP_STAGE_MAP: Record<
-  string,
-  { stage: MappedMeasurement["sleepStage"]; fieldTag: string }
-> = {
-  total_light_sleep_time_milli: { stage: "CORE", fieldTag: "sleep_core" },
-  total_slow_wave_sleep_time_milli: { stage: "DEEP", fieldTag: "sleep_deep" },
-  total_rem_sleep_time_milli: { stage: "REM", fieldTag: "sleep_rem" },
-  total_awake_time_milli: { stage: "AWAKE", fieldTag: "sleep_awake" },
-  total_in_bed_time_milli: { stage: "IN_BED", fieldTag: "sleep_in_bed" },
-};
 
 function round2(n: number): number {
   return parseFloat(n.toFixed(2));
@@ -589,18 +594,56 @@ export function mapSleep(s: WhoopSleep): MappedMeasurement[] {
   const out: MappedMeasurement[] = [];
 
   const stages = s.score.stage_summary;
-  for (const [key, mapping] of Object.entries(SLEEP_STAGE_MAP)) {
-    const ms = stages[key as keyof typeof stages];
-    if (typeof ms !== "number") continue;
-    out.push({
-      type: "SLEEP_DURATION",
-      value: round2(ms * MS_TO_MIN),
-      unit: "minutes",
-      measuredAt,
-      fieldTag: mapping.fieldTag,
-      sleepStage: mapping.stage,
-    });
-  }
+
+  // WHOOP v2 returns only per-stage DURATION totals (no per-stage onset
+  // timestamps, no hypnogram endpoint). Stamping every stage total on the one
+  // sleep-END instant makes the hypnogram reconstruct five spans that all touch
+  // the night's right edge (the stacked-bar artefact). Since the API never
+  // carries an order, we RECONSTRUCT an ordered, contiguous timeline: lay the
+  // asleep stages back-to-back from sleep ONSET in a fixed physiological order,
+  // emitting one timed row per segment with `measuredAt = that segment's END`.
+  // The ORDER is synthetic, so every reconstructed row is flagged
+  // `reconstructed: true` and the night DTO advertises it — the UI labels it as
+  // an approximate layout and never presents it as measured stage timing.
+  //
+  // IN_BED stays a single envelope row spanning the whole [start, end] window:
+  // the in-bed reader wants the union envelope, not a placed segment. AWAKE is
+  // laid as a leading segment from onset so the asleep stages still partition
+  // the remaining window.
+  const onset = new Date(s.start).getTime();
+  // Order the laid-out stages: a brief AWAKE settling-in block, then the asleep
+  // stages CORE → DEEP → REM. Each carries its own duration; the shared builder
+  // walks the cursor forward so the spans are contiguous and non-overlapping,
+  // and lays the IN_BED envelope over the whole window. The order is synthetic
+  // (WHOOP gives no per-stage onset), so every laid segment is flagged
+  // reconstructed; the same algorithm backs Polar's `mapSleep`.
+  out.push(
+    ...reconstructContiguousSleepTimeline({
+      startMs: onset,
+      stages: [
+        { durationMs: stages.total_awake_time_milli, stage: "AWAKE", fieldTag: "sleep_awake" },
+        { durationMs: stages.total_light_sleep_time_milli, stage: "CORE", fieldTag: "sleep_core" },
+        {
+          durationMs: stages.total_slow_wave_sleep_time_milli,
+          stage: "DEEP",
+          fieldTag: "sleep_deep",
+        },
+        { durationMs: stages.total_rem_sleep_time_milli, stage: "REM", fieldTag: "sleep_rem" },
+      ],
+      // IN_BED — single envelope row over the whole sleep window. `measuredAt`
+      // is the sleep END so `segmentOf` resolves the span back to [start, end];
+      // the in-bed union-envelope reader consumes the full window.
+      inBed: {
+        durationMs: stages.total_in_bed_time_milli,
+        measuredAt,
+        fieldTag: "sleep_in_bed",
+      },
+      // The sync layer keys reconstructed rows by this externalId verbatim; the
+      // index keeps the several rows of one night distinct under
+      // userId_type_source_externalId.
+      externalIdFor: (tag, index) => `${s.id}:seg:${tag}:${index}`,
+    }),
+  );
 
   const need = s.score.sleep_needed;
   const totalNeedMilli =

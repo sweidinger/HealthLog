@@ -127,12 +127,26 @@ model User {
   // tokens are stored encrypted.
   polarAccessTokenEncrypted  String? @map("polar_access_token_encrypted")
   polarUserIdEncrypted       String? @map("polar_user_id_encrypted")
+  // v1.17.1 — Polar BYO-app client credentials (W1c, per-user, encrypted at
+  // app level). Mirrors the WHOOP/Fitbit `clientId`/`clientSecret` columns 1:1
+  // so a self-hoster pastes their own Polar AccessLink app's client id/secret
+  // into Settings before the OAuth connect flow runs. Stored encrypted as a
+  // string via `src/lib/crypto.ts`, matching every other `*Encrypted` column.
+  polarClientIdEncrypted     String? @map("polar_client_id_encrypted")
+  polarClientSecretEncrypted String? @map("polar_client_secret_encrypted")
 
   // v1.17.0 — Oura OAuth credentials (F4, per-user, encrypted at app level).
   // Mirrors the WHOOP credential columns; OAuth access/refresh tokens stored
   // encrypted.
   ouraAccessTokenEncrypted  String? @map("oura_access_token_encrypted")
   ouraRefreshTokenEncrypted String? @map("oura_refresh_token_encrypted")
+  // v1.17.1 — Oura BYO-app client credentials (W1c, per-user, encrypted at app
+  // level). Mirrors the WHOOP/Fitbit `clientId`/`clientSecret` columns 1:1 so a
+  // self-hoster pastes their own Oura Cloud app's client id/secret into Settings
+  // before the OAuth connect flow runs. Stored encrypted as a string via
+  // `src/lib/crypto.ts`, matching every other `*Encrypted` column.
+  ouraClientIdEncrypted     String? @map("oura_client_id_encrypted")
+  ouraClientSecretEncrypted String? @map("oura_client_secret_encrypted")
 
   // moodLog integration (per-user, encrypted)
   moodLogUrlEncrypted    String?   @map("mood_log_url_encrypted")
@@ -222,6 +236,15 @@ model User {
   //             round-trip — the column stays at 4 for completed users)
   // Null = legacy pre-W14b user; the wizard treats null as 0 on mount.
   onboardingStep          Int       @default(0) @map("onboarding_step")
+  // v1.17.1 — goal slugs chosen during onboarding (GoalsChipPicker).
+  // Seeds dashboard tile pinning + reminder suggestions; NOT a clinical
+  // target store (targets are fully derived from height/age/gender +
+  // clinical refs in /api/insights/targets). Empty [] = skipped / no
+  // preference. The slug set is the closed enum
+  // `ONBOARDING_GOAL_SLUGS` in src/lib/onboarding/goals.ts; a String[]
+  // (not a relation) mirrors `insightsExcludeMetrics` precedent — the
+  // set is small and fixed, never queried relationally.
+  onboardingGoals         String[]  @default([]) @map("onboarding_goals")
   // v1.4.15 Phase B5: tracks whether the user has finished (or
   // explicitly dismissed) the spotlight tour that overlays the
   // dashboard on first arrival. Distinct from the wizard at
@@ -527,6 +550,15 @@ model User {
   // v1.11.0 W3 — one durable period-narrative row per (period, locale).
   // Delete/regenerate-clean; the generated prose is AES-256-GCM at rest.
   insightNarratives           InsightNarrative[]
+  // v1.17.1 — preventive-care / measurement (Vorsorge) reminders. One row
+  // per user-created reminder ("BP every 7 days", "annual blood panel").
+  // Server computes the canonical `nextDueAt`; the cron fires through the
+  // existing notification dispatcher. Soft-deleted.
+  measurementReminders        MeasurementReminder[]
+  // v1.17.1 — minimal structured lab store (LDL, HbA1c, ferritin, TSH, …)
+  // that pairs with the Vorsorge "annual blood panel" reminder so a result
+  // has somewhere to land. Soft-deleted.
+  labResults                  LabResult[]
 
   // v1.7.0 profile — optional patient-identity fields surfaced on the
   // health-record export cover (PDF) and the FHIR `Patient` resource.
@@ -741,6 +773,29 @@ enum MeasurementType {
   AVERAGE_HEART_RATE // bpm — WHOOP `cycle.score.average_heart_rate`. The day's whole-cycle average heart rate.
   MAX_HEART_RATE // bpm — WHOOP `cycle.score.max_heart_rate`. The day's whole-cycle peak heart rate.
   SLEEP_DISTURBANCE_COUNT // count — WHOOP `sleep.score.stage_summary.disturbance_count`. Per-night tally of sleep disturbances.
+
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro coverage (additive) ──
+  // Two native Polar signals with no existing home. ANS_CHARGE is the HRV-based
+  // autonomic-nervous-system charge component of Nightly Recharge — Polar's most
+  // differentiated recovery signal, distinct from the 1–6 recovery band that
+  // already maps to RECOVERY_SCORE. CARDIO_LOAD is Polar's Training Load Pro
+  // cardiovascular-strain figure (its WHOOP-day-strain analogue); kept distinct
+  // from DAY_STRAIN (WHOOP's 0–21 scale) and the COMPUTED STRAIN_SCORE proxy so
+  // each device-native value keeps its own bucket and native scale.
+  ANS_CHARGE // score — Polar Nightly Recharge `ans_charge`. The HRV-based autonomic-nervous-system charge (typically ~-10..+10 around the personal baseline; higher = more recovered). Descriptive, not a clinical assessment.
+  CARDIO_LOAD // score — Polar Training Load Pro `cardio_load`. The session/day cardiovascular load (TRIMP-lineage strain). Distinct from WHOOP DAY_STRAIN (0–21) and the COMPUTED STRAIN_SCORE so the device-native value never shares a bucket.
+  // ── v1.17.1 — Oura coverage completion (additive) ──
+  // Oura's headline 0–100 Sleep Score from the `daily_sleep` collection
+  // (distinct from the per-stage `sleep` detail). Stored as `source = OURA`,
+  // unit `score`. Kept apart from SLEEP_PERFORMANCE / SLEEP_EFFICIENCY (WHOOP
+  // sub-scores) so two vendors' headline numbers never share a bucket.
+  SLEEP_SCORE // score (0–100) — Oura `daily_sleep.score`. Per-night sleep quality headline.
+  // Oura nightly body-temperature deviation from the user's personal baseline
+  // (`daily_readiness.temperature_deviation`), in °C. NOT an absolute
+  // temperature — a signed offset (illness / luteal-phase / stress signal),
+  // so it cannot share the BODY_TEMPERATURE / SKIN_TEMPERATURE / WRIST_TEMPERATURE
+  // absolute-reading buckets. Plausible band is small and centred on 0.
+  BODY_TEMPERATURE_DEVIATION // celsius (signed deviation) — Oura `daily_readiness.temperature_deviation`.
 
   @@map("measurement_type")
 }
@@ -2150,6 +2205,13 @@ model WithingsConnection {
   /// has never re-authed since v1.4.25 — the UI surfaces a banner
   /// inviting them to reconnect.
   scope          String?   @map("scope")
+  /// v1.17.1 — one-shot marker for the sleep-stamp backfill. Pre-fix Withings
+  /// sleep rows were stamped with the segment START; the reader treats
+  /// `measuredAt` as the END, shifting every night one segment-length earlier.
+  /// The boot-time backfill deletes the affected WITHINGS / SLEEP_DURATION rows
+  /// and re-syncs with the corrected END stamp, then sets this so the discovery
+  /// query drops the connection. Null = backfill not yet run.
+  sleepTimelineBackfillAt DateTime? @map("sleep_timeline_backfill_at")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
@@ -2226,6 +2288,13 @@ model WhoopConnection {
   /// Set once the self-converging history backfill walks every collection to
   /// completion. Null = backfill still in flight (or never started).
   backfillCompletedAt DateTime? @map("backfill_completed_at")
+  /// v1.17.1 — one-shot marker for the sleep-timeline backfill. Pre-fix WHOOP
+  /// sleep rows stamped all five stage totals on the one sleep-END instant, so
+  /// the hypnogram stacked them on the night's right edge. The boot-time
+  /// backfill deletes the legacy summary rows and re-syncs the reconstructed
+  /// per-segment timeline, then sets this so the discovery query drops the
+  /// connection. Null = backfill not yet run.
+  sleepTimelineBackfillAt DateTime? @map("sleep_timeline_backfill_at")
   /// Max heart rate from the WHOOP body-measurement profile — a profile
   /// constant, not a time series, so it lives here rather than as a
   /// Measurement row.
@@ -3090,6 +3159,14 @@ model Device {
   /// echoed in v1.7.0; cron suppression stays user-level (APNs fans out to
   /// all the user's devices and iOS dedupes locally).
   medicationDelivery String? @map("medication_delivery")
+  /// v1.17.1 (#22) — APNs push token for the iOS Live Activity update/end
+  /// channel. ActivityKit issues a per-Activity push token distinct from the
+  /// device APNs token; the server stores the most recent one so the worker
+  /// can push a Live Activity content-state update or an end signal. NULL when
+  /// the device has no active Live Activity. The iOS client owns the
+  /// ActivityKit lifecycle and registers/clears this token; no server-side
+  /// behaviour hangs off it beyond addressing the update push.
+  liveActivityPushToken String? @map("live_activity_push_token")
   lastSeen        DateTime @default(now()) @map("last_seen")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -3103,6 +3180,104 @@ model Device {
   // SQL and intentionally omitted here. Do not re-add `@@index([apnsToken])`
   // (the non-unique sibling) — the partial unique index supersedes it.
   @@map("devices")
+}
+
+// ─── Measurement / Vorsorge reminders ────────────────────────
+
+/// v1.17.1 — preventive-care ("Vorsorge") reminders: "measure BP every 7
+/// days", "annual blood panel", "log weight weekly". Reuses the existing
+/// medication-reminder cadence vocabulary (`intervalDays` rolling cadence OR
+/// an RFC-5545 `rrule`) so the recurrence engine drives the due-date math, and
+/// rides the existing notification dispatcher + `push_attempts` ledger. The
+/// completion target is either a `measurementType` (auto-resolved when a
+/// matching measurement lands) or a free-text `label` for non-measurement
+/// Vorsorge that only resolves on a manual check-off. `nextDueAt` is
+/// server-computed + stored (server-authoritative — iOS consumes the resolved
+/// value, never recomputes). Soft-deleted.
+model MeasurementReminder {
+  id              String           @id @default(cuid())
+  userId          String           @map("user_id")
+  /// User-facing copy: "Blutdruck messen", "Großes Blutbild".
+  label           String
+  /// Auto-resolve target. NULL = free-text / checklist Vorsorge (a blood
+  /// panel, a dermatology check) with no measurement to match against; those
+  /// resolve only on a manual satisfy. Non-NULL = the cron advances
+  /// `lastSatisfiedAt` when a matching Measurement of this type lands.
+  measurementType MeasurementType? @map("measurement_type")
+  /// Rolling cadence: fire every N days (7 / 30 / 365). Maps to the recurrence
+  /// engine's `rollingIntervalDays`. Mutually exclusive with `rrule` in
+  /// practice; both NULL is a one-shot reminder anchored on `anchorDate`.
+  intervalDays    Int?             @map("interval_days")
+  /// Optional RFC-5545 recurrence (e.g. `FREQ=YEARLY`). Maps straight through
+  /// the same recurrence engine the medication schedules use.
+  rrule           String?
+  /// First-due anchor; the resolver falls back to `lastSatisfiedAt ?? createdAt`
+  /// when NULL.
+  anchorDate      DateTime?        @map("anchor_date")
+  /// Local hour (0–23) to fire the nudge, mirroring the mood-reminder hour.
+  /// DST-safe windowing is applied at the cron via the existing TZ helpers.
+  notifyHour      Int              @default(9) @map("notify_hour")
+  /// Free-text "wo": "Hausarzt", "Labor Dr. X". Optional.
+  location        String?
+  /// Server-computed canonical next-due instant (server-authoritative).
+  nextDueAt       DateTime?        @map("next_due_at")
+  /// When the reminder was last fulfilled (a matching measurement or a manual
+  /// satisfy). Re-anchors the next-due computation.
+  lastSatisfiedAt DateTime?        @map("last_satisfied_at")
+  /// Master on/off for this reminder. Distinct from soft-delete: a disabled
+  /// reminder is retained + editable but never fires.
+  enabled         Boolean          @default(true)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
+  deletedAt       DateTime?        @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deletedAt])
+  @@index([userId, nextDueAt])
+  @@map("measurement_reminders")
+}
+
+// ─── Lab results ─────────────────────────────────────────────
+
+/// v1.17.1 — minimal structured lab store pairing with the Vorsorge "annual
+/// blood panel" reminder. HealthLog has no first-class blood-biomarker type
+/// beyond glucose, so a self-hoster who gets a panel back had nowhere to record
+/// LDL / HbA1c / ferritin / TSH. This is the lean storage row: one analyte per
+/// row, optional panel grouping, optional reference range. The doctor-report /
+/// charting wiring lands in sibling work — this model only owns the shape.
+/// Soft-deleted.
+model LabResult {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  /// Optional grouping label, e.g. "Großes Blutbild". NULL = standalone value.
+  panel         String?
+  /// The biomarker name, e.g. "LDL", "HbA1c", "Ferritin".
+  analyte       String
+  value         Float
+  unit          String
+  /// Optional reference-range bounds as reported by the lab.
+  referenceLow  Float?    @map("reference_low")
+  referenceHigh Float?    @map("reference_high")
+  /// When the sample was taken (UTC instant; wall-clock anchoring is the
+  /// reader's concern per the schema's UTC-only convention).
+  takenAt       DateTime  @map("taken_at")
+  /// Provenance: "MANUAL" today; import paths set their own source string.
+  source        String    @default("MANUAL")
+  /// Optional free-text note, AES-256-GCM encrypted at rest via
+  /// `src/lib/crypto.ts` (Bytes column, `*Encrypted` suffix per convention).
+  noteEncrypted Bytes?    @map("note_encrypted")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
+  deletedAt     DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, analyte, takenAt])
+  @@index([userId, deletedAt])
+  @@map("lab_results")
 }
 
 // ─── User Achievements ───────────────────────────────────────

@@ -380,6 +380,64 @@ describe("reconstructSleepSessions", () => {
     expect(sessions[0].asleepMinutes).toBe(420);
   });
 
+  it("flags a WHOOP-won night as reconstructed (synthetic stage order) with clock-time-distinct segments", () => {
+    // The ingest mapper reconstructs an ordered, contiguous WHOOP timeline.
+    // The reconstructed segments carry distinct measuredAt instants, so the
+    // hypnogram lays them at distinct clock times (no shared right edge).
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"), // 21:00→01:00
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 120, "WHOOP"), // 01:00→03:00
+      srcRow("2026-06-04T05:00:00.000Z", "REM", 120, "WHOOP"), //  03:00→05:00
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    const s = sessions[0];
+    expect(s.source).toBe("WHOOP");
+    expect(s.reconstructed).toBe(true);
+    // No two segments end on the same instant — not stacked on the right edge.
+    const ends = s.segments.map((seg) => seg.end.getTime());
+    expect(new Set(ends).size).toBe(ends.length);
+  });
+
+  it("flags a Polar-won night as reconstructed (synthetic stage order)", () => {
+    // Polar exposes only per-stage duration totals, so its mapper reconstructs
+    // a contiguous CORE→DEEP→REM order exactly like WHOOP. The reader must label
+    // such a night reconstructed so the UI never presents the synthetic order as
+    // measured timing.
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "POLAR"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 120, "POLAR"),
+      srcRow("2026-06-04T05:00:00.000Z", "REM", 120, "POLAR"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("POLAR");
+    expect(sessions[0].reconstructed).toBe(true);
+  });
+
+  it("does NOT flag an Apple-Health night as reconstructed (measured timeline)", () => {
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "APPLE_HEALTH"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("APPLE_HEALTH");
+    expect(sessions[0].reconstructed).toBe(false);
+  });
+
+  it("does NOT flag a Withings night as reconstructed (real per-segment series)", () => {
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WITHINGS"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "WITHINGS"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("WITHINGS");
+    expect(sessions[0].reconstructed).toBe(false);
+  });
+
   it("drops the bare ASLEEP aggregate from segments + stages when granular exists (HIGH H1, v1.11.5)", () => {
     // Apple-Health shape: granular CORE/DEEP/REM PLUS the unspecified ASLEEP
     // aggregate covering the same period, plus IN_BED. The hypnogram must not

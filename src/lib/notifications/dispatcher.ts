@@ -4,6 +4,8 @@ import type {
   NotificationPayload,
   TelegramChannelConfig,
   NtfyChannelConfig,
+  WebhookChannelConfig,
+  EmailChannelConfig,
   ChannelType,
   EventType,
 } from "@/lib/notifications/types";
@@ -12,6 +14,8 @@ import { sendViaTelegram } from "@/lib/notifications/senders/telegram";
 import { sendViaNtfy } from "@/lib/notifications/senders/ntfy";
 import { sendViaWebPush } from "@/lib/notifications/senders/web-push";
 import { sendViaApns } from "@/lib/notifications/senders/apns";
+import { sendViaWebhook } from "@/lib/notifications/senders/webhook";
+import { sendViaEmail } from "@/lib/notifications/senders/email";
 import type { SendOutcome } from "@/lib/notifications/retry-policy";
 import {
   isChannelInCooldown,
@@ -295,6 +299,34 @@ async function sendToChannel(
       }
       return sendViaNtfy(config, payload);
     }
+    case "WEBHOOK": {
+      let config: WebhookChannelConfig;
+      try {
+        config = JSON.parse(decrypted) as WebhookChannelConfig;
+      } catch {
+        getEvent()?.addWarning("Failed to parse webhook channel config");
+        return {
+          ok: false,
+          hardReject: false,
+          reason: "webhook_config_parse_failed",
+        };
+      }
+      return sendViaWebhook(config, payload);
+    }
+    case "EMAIL": {
+      let config: EmailChannelConfig;
+      try {
+        config = JSON.parse(decrypted) as EmailChannelConfig;
+      } catch {
+        getEvent()?.addWarning("Failed to parse email channel config");
+        return {
+          ok: false,
+          hardReject: false,
+          reason: "email_config_parse_failed",
+        };
+      }
+      return sendViaEmail(config, payload);
+    }
     case "WEB_PUSH": {
       return sendViaWebPush(payload.userId, payload);
     }
@@ -334,8 +366,15 @@ function channelPriority(type: string): number {
       return 1;
     case "NTFY":
       return 2;
-    case "WEB_PUSH":
+    // v1.17.1 — generic webhook + email sit between the self-host-friendly
+    // relays and Web Push: a user who configures them wants them ahead of the
+    // browser-must-be-alive fallback.
+    case "WEBHOOK":
       return 3;
+    case "EMAIL":
+      return 4;
+    case "WEB_PUSH":
+      return 5;
     default:
       return 99;
   }

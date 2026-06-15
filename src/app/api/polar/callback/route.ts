@@ -4,11 +4,8 @@ import { getSession } from "@/lib/auth/session";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { encrypt } from "@/lib/crypto";
-import {
-  exchangeCode,
-  getPolarCredentials,
-  registerUser,
-} from "@/lib/polar/client";
+import { exchangeCode, registerUser } from "@/lib/polar/client";
+import { getPolarClientCredentials } from "@/lib/polar/credentials";
 import {
   oauthStateCookieName,
   stateMatchesCookie,
@@ -75,7 +72,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   if (!code) return ERR("nocode");
 
   try {
-    const creds = getPolarCredentials();
+    const creds = await getPolarClientCredentials(userId);
     if (!creds) return ERR("nocreds");
 
     const tokens = await exchangeCode(code, creds);

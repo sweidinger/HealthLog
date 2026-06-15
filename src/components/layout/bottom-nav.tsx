@@ -1,25 +1,22 @@
 "use client";
 
 import {
-  Activity,
-  Bell,
-  Bug,
-  Droplets,
-  Dumbbell,
   Home,
   Lightbulb,
   MoreHorizontal,
   Pill,
   Plus,
-  Settings,
-  Trophy,
-  Waves,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { medicationsPrefetchIntentProps } from "@/lib/queries/prefetch-medications";
-import { useState } from "react";
+import {
+  isNavDestinationActive,
+  mobileMoreHubDestinations,
+} from "@/components/layout/nav-model";
+import { useMemo, useState } from "react";
 import { useAppSettings } from "@/components/app-settings-provider";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -36,7 +33,7 @@ import { useTranslations } from "@/lib/i18n/context";
 interface NavLink {
   href: string;
   tKey: string;
-  icon: typeof Home;
+  icon: LucideIcon;
 }
 
 // v1.12.x — iOS-parity bottom bar (additive middle-path).
@@ -47,12 +44,14 @@ interface NavLink {
 // the existing measurement / medication / mood quick-entry surfaces
 // (see `<CapturePicker>`).
 //
-// PRIMARY_LEFT / PRIMARY_RIGHT are the two anchor pairs that flank the
-// center action. The previous strip (Home · Measurements · Mood ·
-// Medications · Insights) carried Measurements and Mood inline; those
-// stay fully reachable — through the center capture picker AND the More
-// hub below — so nothing is orphaned. On desktop the sidebar still
-// lists every destination.
+// v1.17.1 (F-1) — the two always-visible flanking anchors and the "More"
+// hub are now BOTH derived from the one shared destination model
+// (`nav-model.ts`), the same ordered list the desktop sidebar renders.
+// The bar keeps its ergonomic 5-slot shape, but the hub is computed by the
+// model's `mobileMoreHubDestinations()` (feature list minus the primary
+// slots, plus the shared utility tail) — so the two surfaces tell one story
+// instead of two hand-curated ones that drift, and the headline invariant
+// is a tested model function rather than inline bar logic.
 const PRIMARY_LEFT: ReadonlyArray<NavLink> = [
   { href: "/", tKey: "nav.dashboard", icon: Home },
   { href: "/medications", tKey: "nav.medications", icon: Pill },
@@ -61,38 +60,6 @@ const PRIMARY_LEFT: ReadonlyArray<NavLink> = [
 const PRIMARY_RIGHT: ReadonlyArray<NavLink> = [
   { href: "/insights", tKey: "nav.insights", icon: Lightbulb },
 ];
-
-// The "More" hub — a real hub of the remaining top-level destinations,
-// not just an overflow bucket. Measurements and Mood live here (they
-// left the always-visible strip when the center capture action took the
-// middle slot), alongside Workouts, Achievements, Notifications and
-// Settings. Every entry is an existing top-level route.
-const MORE_HUB: ReadonlyArray<NavLink> = [
-  { href: "/measurements", tKey: "nav.measurements", icon: Activity },
-  { href: "/mood", tKey: "nav.mood", icon: Waves },
-  { href: "/insights/workouts", tKey: "nav.workouts", icon: Dumbbell },
-  { href: "/achievements", tKey: "nav.achievements", icon: Trophy },
-  { href: "/notifications", tKey: "nav.notifications", icon: Bell },
-  { href: "/settings/account", tKey: "nav.settings", icon: Settings },
-];
-
-// v1.15.0 — the cycle entry, spliced into the More hub only when the
-// account's `cycleTrackingEnabled` gate is true. Hidden for everyone else.
-const CYCLE_HUB_ITEM: NavLink = {
-  href: "/cycle",
-  tKey: "nav.cycle",
-  icon: Droplets,
-};
-
-// The bug-report entry, spliced into the More hub under the same
-// `bugReportEnabled` operator flag that gates the desktop sidebar
-// entry. Pre-splice the route was desktop-only — a phone user had no
-// path to `/bugreport` at all.
-const BUGREPORT_HUB_ITEM: NavLink = {
-  href: "/bugreport",
-  tKey: "nav.bugreport",
-  icon: Bug,
-};
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -106,23 +73,21 @@ export function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
 
-  // v1.15.0 — splice the cycle entry into the More hub after Mood when the
-  // account's gate is on, so it never appears for accounts without it.
-  const cycleAwareHub: ReadonlyArray<NavLink> = user?.cycleTrackingEnabled
-    ? [MORE_HUB[0], MORE_HUB[1], CYCLE_HUB_ITEM, ...MORE_HUB.slice(2)]
-    : MORE_HUB;
-  // Bug report sits directly before Settings (the hub's last entry)
-  // when the operator flag is on — same gate as the desktop sidebar.
-  const moreHub: ReadonlyArray<NavLink> = bugReportEnabled
-    ? [
-        ...cycleAwareHub.slice(0, -1),
-        BUGREPORT_HUB_ITEM,
-        cycleAwareHub[cycleAwareHub.length - 1],
-      ]
-    : cycleAwareHub;
+  // v1.17.1 (F-1) — the More hub is the model-computed hub: every visible
+  // feature destination that isn't a primary slot, plus the shared utility
+  // tail. Cycle + Bug Report are gated by the same flags the sidebar uses,
+  // so the two surfaces gate identically and cannot drift.
+  const moreHub = useMemo<ReadonlyArray<NavLink>>(
+    () =>
+      mobileMoreHubDestinations({
+        cycleTrackingEnabled: user?.cycleTrackingEnabled,
+        bugReportEnabled,
+      }),
+    [user?.cycleTrackingEnabled, bugReportEnabled],
+  );
 
   function isActiveLink(href: string) {
-    return href === "/" ? pathname === "/" : pathname.startsWith(href);
+    return isNavDestinationActive(href, pathname);
   }
 
   // The "More" entry is treated as active when any of its children

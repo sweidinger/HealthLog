@@ -114,6 +114,12 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   AVERAGE_HEART_RATE: "measurements.typeAverageHeartRate",
   MAX_HEART_RATE: "measurements.typeMaxHeartRate",
   SLEEP_DISTURBANCE_COUNT: "measurements.typeSleepDisturbanceCount",
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  ANS_CHARGE: "measurements.typeAnsCharge",
+  CARDIO_LOAD: "measurements.typeCardioLoad",
+  // ── v1.17.1 — Oura coverage completion ──
+  SLEEP_SCORE: "measurements.typeSleepScore",
+  BODY_TEMPERATURE_DEVIATION: "measurements.typeBodyTemperatureDeviation",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -225,6 +231,14 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   AVERAGE_HEART_RATE: HeartPulse,
   MAX_HEART_RATE: Heart,
   SLEEP_DISTURBANCE_COUNT: Waves,
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  // HeartPulse reads as the autonomic-charge signal; Gauge carries the
+  // cardio-load strain figure (same family as DAY_STRAIN).
+  ANS_CHARGE: HeartPulse,
+  CARDIO_LOAD: Gauge,
+  // ── v1.17.1 — Oura coverage completion ──
+  SLEEP_SCORE: Moon,
+  BODY_TEMPERATURE_DEVIATION: Thermometer,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -326,4 +340,13 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   AVERAGE_HEART_RATE: "bg-chart-3/20 text-chart-3",
   MAX_HEART_RATE: "bg-chart-3/20 text-chart-3",
   SLEEP_DISTURBANCE_COUNT: "bg-chart-2/20 text-chart-2",
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  // chart-1 (strain/score family) for both, matching DAY_STRAIN.
+  ANS_CHARGE: "bg-chart-1/20 text-chart-1",
+  CARDIO_LOAD: "bg-chart-1/20 text-chart-1",
+  // ── v1.17.1 — Oura coverage completion ──
+  // chart-2 (sleep family) for the Sleep Score; chart-5 (metabolic/thermal)
+  // for the body-temperature deviation.
+  SLEEP_SCORE: "bg-chart-2/20 text-chart-2",
+  BODY_TEMPERATURE_DEVIATION: "bg-chart-5/20 text-chart-5",
 };

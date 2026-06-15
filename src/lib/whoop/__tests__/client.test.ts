@@ -320,13 +320,62 @@ describe("mapSleep", () => {
   it("maps per-stage SLEEP_DURATION rows (ms→min) with sleepStage", () => {
     const rows = mapSleep(base);
     const dur = rows.filter((r) => r.type === "SLEEP_DURATION");
-    const byStage = Object.fromEntries(dur.map((r) => [r.sleepStage, r.value]));
-    expect(byStage.CORE).toBe(240); // light → CORE
-    expect(byStage.DEEP).toBe(90); // slow-wave → DEEP
-    expect(byStage.REM).toBe(120);
-    expect(byStage.AWAKE).toBe(30);
-    expect(byStage.IN_BED).toBe(480);
+    // One asleep/awake row per reconstructed segment + one IN_BED envelope. The
+    // per-stage TOTALS are unchanged (the reconstruction only reorders timing).
+    const minutesByStage: Record<string, number> = {};
+    for (const r of dur) {
+      minutesByStage[r.sleepStage!] =
+        (minutesByStage[r.sleepStage!] ?? 0) + r.value;
+    }
+    expect(minutesByStage.CORE).toBe(240); // light → CORE
+    expect(minutesByStage.DEEP).toBe(90); // slow-wave → DEEP
+    expect(minutesByStage.REM).toBe(120);
+    expect(minutesByStage.AWAKE).toBe(30);
+    expect(minutesByStage.IN_BED).toBe(480);
     expect(dur.every((r) => r.unit === "minutes")).toBe(true);
+  });
+
+  it("reconstructs an ordered, contiguous, non-overlapping per-segment timeline from sleep ONSET", () => {
+    const segs = mapSleep(base)
+      .filter((r) => r.type === "SLEEP_DURATION" && r.sleepStage !== "IN_BED")
+      .map((r) => ({
+        stage: r.sleepStage,
+        end: r.measuredAt.getTime(),
+        start: r.measuredAt.getTime() - r.value * 60_000,
+        reconstructed: r.reconstructed,
+      }))
+      .sort((a, b) => a.start - b.start);
+
+    // AWAKE (lead) → CORE → DEEP → REM, laid back-to-back.
+    expect(segs.map((s) => s.stage)).toEqual(["AWAKE", "CORE", "DEEP", "REM"]);
+    // First segment starts at sleep ONSET (s.start), not the END edge.
+    expect(segs[0].start).toBe(new Date(base.start).getTime());
+    // Contiguous + non-overlapping: each segment's start == previous end.
+    for (let i = 1; i < segs.length; i++) {
+      expect(segs[i].start).toBe(segs[i - 1].end);
+    }
+    // Distinct END instants — no stacking on the night's right edge.
+    expect(new Set(segs.map((s) => s.end)).size).toBe(segs.length);
+    // Every reconstructed row is flagged so the UI labels the night approximate.
+    expect(segs.every((s) => s.reconstructed === true)).toBe(true);
+  });
+
+  it("emits IN_BED as a single un-reconstructed envelope row over [start, end]", () => {
+    const inBed = mapSleep(base).filter((r) => r.sleepStage === "IN_BED");
+    expect(inBed).toHaveLength(1);
+    const r = inBed[0]!;
+    expect(r.value).toBe(480);
+    // measuredAt = sleep END → segmentOf resolves the span back to the window.
+    expect(r.measuredAt.toISOString()).toBe(base.end);
+    expect(r.reconstructed).toBeUndefined();
+  });
+
+  it("gives each reconstructed segment a distinct indexed externalId", () => {
+    const ids = mapSleep(base)
+      .filter((r) => r.reconstructed)
+      .map((r) => r.externalId);
+    expect(ids.every((id) => id?.startsWith("sleep-uuid:seg:"))).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("sums SLEEP_NEED components ms→min", () => {
@@ -344,9 +393,9 @@ describe("mapSleep", () => {
     expect(byType.RESPIRATORY_RATE?.unit).toBe("breaths/min");
   });
 
-  it("uses sleep.end as measuredAt", () => {
-    const row = mapSleep(base)[0]!;
-    expect(row.measuredAt.toISOString()).toBe("2026-06-01T07:00:00.000Z");
+  it("stamps the non-segment scores on sleep.end", () => {
+    const need = mapSleep(base).find((r) => r.type === "SLEEP_NEED")!;
+    expect(need.measuredAt.toISOString()).toBe("2026-06-01T07:00:00.000Z");
   });
 
   it("emits nothing for an unscored sleep", () => {

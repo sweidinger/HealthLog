@@ -134,6 +134,14 @@ function isChannelConfigPresent(
     if (type === "NTFY") {
       return typeof parsed.topic === "string" && parsed.topic.length > 0;
     }
+    if (type === "WEBHOOK") {
+      return typeof parsed.url === "string" && parsed.url.length > 0;
+    }
+    if (type === "EMAIL") {
+      return (
+        typeof parsed.recipient === "string" && parsed.recipient.length > 0
+      );
+    }
     return false;
   } catch {
     return false;

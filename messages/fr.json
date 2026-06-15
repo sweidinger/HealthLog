@@ -151,7 +151,8 @@
       "sleep": "Durée du sommeil",
       "cycle": "Cycle menstruel",
       "empty": "Pas de données sur la période sélectionnée. Le rapport conservera la page de garde.",
-      "unavailableHint": "Pas de données sur cette période"
+      "unavailableHint": "Pas de données sur cette période",
+      "labs": "Résultats d'analyses"
     },
     "insurer": "Assurance maladie",
     "insuranceNumber": "N° d’assuré",
@@ -182,7 +183,13 @@
       "FOLLICULAR": "Folliculaire",
       "OVULATORY": "Ovulatoire",
       "LUTEAL": "Lutéale"
-    }
+    },
+    "labsTitle": "Résultats d'analyses",
+    "labsColAnalyte": "Biomarqueur",
+    "labsColValue": "Valeur",
+    "labsColReference": "Référence",
+    "labsColStatus": "Statut",
+    "labsColDate": "Date"
   },
   "errorBoundary": {
     "title": "Une erreur est survenue",
@@ -221,6 +228,7 @@
     "accountSettings": "Paramètres du compte",
     "mood": "Humeur",
     "workouts": "Entraînements",
+    "coach": "Coach",
     "skipToContent": "Aller au contenu",
     "sidebar": "Barre latérale",
     "mainNavigation": "Navigation principale",
@@ -240,7 +248,10 @@
       "mood": "Humeur",
       "moodDescription": "Enregistrer l'humeur et les tags"
     },
-    "cycle": "Cycle"
+    "cycle": "Cycle",
+    "labs": "Analyses",
+    "recovery": "Récupération",
+    "vorsorge": "Prévention"
   },
   "auth": {
     "login": "Se connecter",
@@ -482,6 +493,7 @@
     "pulseLabel": "Pouls (bpm)",
     "valueWithUnit": "Valeur ({unit})",
     "timestamp": "Heure",
+    "timestampBackdateHint": "Ajustez la date et l'heure pour enregistrer un relevé passé.",
     "notesPlaceholder": "p. ex. après le repas",
     "formReset": "Réinitialiser le formulaire",
     "saveError": "Erreur lors de l’enregistrement",
@@ -541,6 +553,10 @@
     "typeAverageHeartRate": "Fréquence cardiaque moyenne",
     "typeMaxHeartRate": "Fréquence cardiaque maximale",
     "typeSleepDisturbanceCount": "Perturbations du sommeil",
+    "typeAnsCharge": "Charge SNA",
+    "typeCardioLoad": "Charge cardio",
+    "typeSleepScore": "Score de sommeil",
+    "typeBodyTemperatureDeviation": "Écart de température corporelle",
     "filterBySource": "Filtrer par source",
     "sourceComputed": "Calculé",
     "sourceWhoop": "WHOOP",
@@ -2619,7 +2635,9 @@
         "sleepScoreBody": "Votre score de sommeil résume toute une nuit en un seul chiffre — durée, efficacité, régularité des horaires et équilibre entre sommeil léger, profond et paradoxal. Observez la tendance sur plusieurs semaines plutôt que de courir après un score parfait sur une seule nuit.",
         "recoveryBody": "La récupération reflète la qualité du rétablissement de votre corps, à partir de signaux nocturnes comme la variabilité de la fréquence cardiaque et la fréquence au repos. Un score élevé est un feu vert pour pousser ; un score plus bas suggère que votre organisme se reconstruit encore.",
         "strainBody": "La charge mesure l'effort cardiovasculaire et physique que vous avez imposé à votre corps, des entraînements à une journée active debout. Dès qu'il y a assez d'historique, elle est évaluée par rapport à votre propre effort habituel, pas à un standard extérieur.",
-        "stressBody": "Le stress est ici une estimation de la charge physiologique sur votre système nerveux, lue surtout à partir des schémas de variabilité de la fréquence cardiaque et non de ce que vous ressentez consciemment. Un score plus bas indique un état calme et bien régulé ; un score plus élevé invite à prévoir de la récupération."
+        "stressBody": "Le stress est ici une estimation de la charge physiologique sur votre système nerveux, lue surtout à partir des schémas de variabilité de la fréquence cardiaque et non de ce que vous ressentez consciemment. Un score plus bas indique un état calme et bien régulé ; un score plus élevé invite à prévoir de la récupération.",
+        "recoveryPageTitle": "Récupération",
+        "recoveryPageBody": "La récupération rassemble les signaux nocturnes enregistrés par votre wearable — recharge, effort, charge ainsi que vos totaux de fréquence cardiaque et d'énergie du jour — pour montrer à quel point votre corps a récupéré. Observez la tendance sur plusieurs jours plutôt qu'un seul chiffre ; une valeur plus faible invite à lever le pied, ce n'est pas une alarme."
       },
       "stats": {
         "label": "Statistiques récapitulatives",
@@ -3569,7 +3587,46 @@
     "customize": "Personnaliser les Analyses",
     "regenerateRateLimited": "Limite d'actualisation atteinte — réessayez plus tard.",
     "regenerateUnavailable": "Aucune nouvelle analyse reçue — réessayez plus tard.",
-    "regenerateError": "Actualisation en cours — réessayez dans un instant."
+    "regenerateError": "Actualisation en cours — réessayez dans un instant.",
+    "deviceScore": {
+      "learning": "Nous apprenons encore votre référence : quelques nuits de plus compléteront la tendance.",
+      "average": "Moyenne sur 30 jours {value}",
+      "unitScore": "points",
+      "unitMinutes": "min",
+      "unitBpm": "bpm",
+      "unitKj": "kJ"
+    },
+    "sleepQuality": {
+      "title": "Qualité du sommeil",
+      "subtitle": "Scores nocturnes de votre wearable"
+    },
+    "recovery": {
+      "title": "Récupération",
+      "description": "À quel point votre corps a récupéré : les signaux de récupération, de charge et d'effort que votre wearable enregistre la nuit.",
+      "emptyTitle": "Pas encore de données de récupération",
+      "empty": "Pas encore de données de récupération. Connectez un compte WHOOP, Polar ou Oura et ces scores se rempliront dès que votre appareil se synchronise.",
+      "recharge": {
+        "title": "Recharge",
+        "subtitle": "Charge du système nerveux autonome"
+      },
+      "strain": {
+        "title": "Effort et charge",
+        "subtitle": "Charge cardiovasculaire quotidienne"
+      },
+      "cardio": {
+        "title": "Cœur et énergie du jour",
+        "subtitle": "Totaux cardiaques et énergétiques de la journée"
+      },
+      "scoreLink": {
+        "title": "Score de récupération",
+        "subtitle": "Voyez comment se décompose le score nocturne",
+        "cta": "Voir"
+      }
+    },
+    "bodyTempDeviation": {
+      "title": "Écart de température corporelle",
+      "subtitle": "Écart nocturne par rapport à votre référence"
+    }
   },
   "thresholds": {
     "defaultLabel": "Par défaut",
@@ -3648,7 +3705,7 @@
     },
     "goals": {
       "title": "Que souhaitez-vous suivre ?",
-      "body": "Sélectionnez les domaines qui comptent pour vous : cela vous aide à décider quoi suivre et configurer ensuite.",
+      "body": "Sélectionnez les domaines qui comptent pour vous : nous les afficherons en premier sur votre tableau de bord, et ils vous aident à décider quoi configurer ensuite.",
       "helpHint": "Un à trois axes prioritaires fonctionnent généralement le mieux, mais vous pourrez en ajouter plus tard.",
       "options": {
         "weightManagement": "Gestion du poids",
@@ -3733,6 +3790,17 @@
         "title": "Repérez les tendances",
         "body": "Résumés quotidiens, graphiques de tendances et un coach qui met en avant ce qui a changé — le tout sur votre appareil."
       }
+    },
+    "anamnesis": {
+      "title": "À propos de votre santé (facultatif)",
+      "subtitle": "Un peu de contexte pour que HealthLog interprète vos valeurs plus justement.",
+      "intro": "Partagez autant ou aussi peu que vous le souhaitez : chaque champ est facultatif et modifiable à tout moment dans les Réglages.",
+      "conditionsLabel": "Affections en cours",
+      "conditionsPlaceholder": "p. ex. hypertension, diabète de type 2",
+      "conditionsHint": "Aide HealthLog à replacer vos mesures dans leur contexte plutôt que de signaler l'attendu.",
+      "allergiesLabel": "Allergies ou intolérances",
+      "allergiesPlaceholder": "p. ex. pénicilline, lactose",
+      "privacyNote": "Stocké chiffré et utilisé uniquement pour un meilleur contexte. Nous ne demandons pas vos médicaments ici — ajoutez-les quand vous voulez depuis la page Médicaments."
     }
   },
   "gettingStarted": {
@@ -3792,6 +3860,27 @@
       "notifications": {
         "title": "Notifications",
         "description": "Aperçu en direct de chaque canal configuré."
+      },
+      "layout": {
+        "title": "Disposition et personnalisation",
+        "description": "Organisez la disposition de votre application — un seul endroit pour le tableau de bord, les analyses, les médicaments et l’humeur.",
+        "backToHub": "Retour à Disposition et personnalisation",
+        "dashboard": {
+          "title": "Tableau de bord",
+          "description": "Disposition et ordre des tuiles."
+        },
+        "insights": {
+          "title": "Analyses",
+          "description": "Ordre de la vue d'ensemble et des onglets de navigation."
+        },
+        "medications": {
+          "title": "Médicaments",
+          "description": "Vue de la liste et ordre des médicaments."
+        },
+        "mood": {
+          "title": "Étiquettes d’humeur",
+          "description": "Groupes, étiquettes et ordre du sélecteur d’humeur."
+        }
       },
       "dashboard": {
         "title": "Tableau de bord",
@@ -3920,6 +4009,7 @@
         "import": {
           "heading": "Import",
           "description": "Importez des données dans HealthLog depuis un export Apple Santé ou un fichier JSON. L'import ignore les lignes déjà présentes : le relancer est sans risque.",
+          "charCount": "{used} / {max} caractères",
           "appleHealth": {
             "title": "Apple Santé",
             "description": "Importez le fichier export.zip de l'app Santé sur iPhone (Profil → Exporter toutes les données de santé).",
@@ -3958,6 +4048,27 @@
             "failed": "L'import a échoué. Veuillez réessayer.",
             "readFailed": "Impossible de lire ce fichier.",
             "resultSummary": "{measurements} mesures et {moods} entrées d'humeur importées, {skipped} ignorées."
+          },
+          "csv": {
+            "title": "Fichier CSV",
+            "description": "Importez des mesures depuis un tableur ou l'export d'un appareil. Une ligne par relevé.",
+            "pasteLabel": "Coller le CSV",
+            "fileInputLabel": "Choisir un fichier CSV à importer",
+            "schemaHint": "Colonnes : type, value, unit, measuredAt (avec décalage horaire) et, en option, glucoseContext, notes, externalId.",
+            "docsLink": "Voir le schéma des colonnes et un exemple.",
+            "uploadFile": "Téléverser un fichier",
+            "downloadExample": "Télécharger un exemple",
+            "preview": "Aperçu",
+            "import": "Importer",
+            "empty": "Ajoutez au moins une ligne CSV avant d'importer.",
+            "rateLimited": "Trop d'imports cette heure (limite 5). Veuillez réessayer plus tard.",
+            "tooLarge": "Ce fichier est trop volumineux (limite 16 Mo).",
+            "invalidPayload": "Le CSV n'a pas pu être analysé. Vérifiez la ligne d'en-tête et réessayez.",
+            "failed": "L'import a échoué. Veuillez réessayer.",
+            "readFailed": "Impossible de lire ce fichier.",
+            "previewSummary": "Aperçu : {inserted} seraient importées, {skipped} ignorées.",
+            "resultSummary": "{inserted} nouvelles importées et {updated} mises à jour, {skipped} ignorées.",
+            "rowError": "Ligne {line} : {reason}"
           }
         }
       },
@@ -3980,6 +4091,36 @@
       "mood": {
         "title": "Étiquettes d’humeur",
         "description": "Groupes, étiquettes et ordre du sélecteur d’humeur."
+      },
+      "reminders": {
+        "title": "Rappels et notifications",
+        "description": "Un seul endroit pour chaque rappel — quoi et quand — ainsi que les canaux qui les délivrent.",
+        "categoriesGroup": "Rappels",
+        "channelsGroup": "Canaux de diffusion",
+        "medication": {
+          "title": "Rappels de médication",
+          "description": "Heures et fenêtres de prise, configurées sur chaque médicament."
+        },
+        "vorsorge": {
+          "title": "Prévention",
+          "description": "Bilans et mesures récurrents, avec le lieu où se rendre."
+        },
+        "mood": {
+          "title": "Suivi de l'humeur",
+          "description": "Un rappel quotidien pour noter votre ressenti."
+        },
+        "lowStock": {
+          "title": "Marge de stock faible",
+          "description": "Soyez averti avant qu'un médicament ne s'épuise."
+        },
+        "coach": {
+          "title": "Suggestion du coach",
+          "description": "Invitations proactives du coach IA."
+        },
+        "channels": {
+          "title": "Canaux de notification",
+          "description": "APNs, Telegram, ntfy, Web Push, Webhook et e-mail."
+        }
       }
     },
     "profile": "Profil",
@@ -4067,6 +4208,17 @@
     "ntfyTopic": "Topic",
     "ntfyAuthToken": "Jeton d’authentification (facultatif)",
     "ntfyAuthTokenHint": "Nécessaire uniquement pour les sujets privés avec contrôle d’accès.",
+    "webhook": "Webhook",
+    "webhookDescription": "Envoyer les notifications par POST vers n’importe quelle URL — Gotify, Discord, Slack, Matrix ou Home Assistant.",
+    "webhookEnable": "Activer le webhook",
+    "webhookUrl": "URL du webhook",
+    "webhookUrlHint": "L’URL complète pour le POST. Doit être accessible publiquement.",
+    "webhookHeaderName": "Nom d’en-tête (facultatif)",
+    "webhookHeaderValue": "Valeur d’en-tête (facultatif)",
+    "email": "E-mail",
+    "emailDescription": "Recevoir les alertes et les rappels par e-mail.",
+    "emailEnable": "Activer l’e-mail",
+    "emailRecipient": "Adresse du destinataire",
     "webPush": "Push navigateur",
     "webPushDescription": "Recevez des notifications directement dans votre navigateur, même lorsque HealthLog n’est pas ouvert.",
     "webPushNotSupported": "Votre navigateur ne prend pas en charge les notifications push.",
@@ -4315,6 +4467,18 @@
     "whoopConnect": "Se connecter avec WHOOP",
     "whoopNoCredentials": "Veuillez saisir vos identifiants API ci-dessus pour connecter WHOOP.",
     "whoopBackfillInProgress": "Importation de votre historique WHOOP en arrière-plan…",
+    "whoopOauthConnected": "WHOOP connecté — la première synchronisation démarre en arrière-plan.",
+    "whoopOauthFailed": "Échec de la connexion à WHOOP",
+    "whoopOauthError": {
+      "csrf1": "La vérification de sécurité a échoué car le cookie du navigateur était absent. Veuillez relancer la connexion dans le même navigateur.",
+      "state": "La réponse de WHOOP ne correspondait à aucune demande de connexion en cours. Veuillez relancer la connexion.",
+      "expired": "La demande de connexion a expiré avant d'aboutir. Veuillez relancer la connexion.",
+      "cross_user": "La réponse appartient à une demande d'un autre compte. Veuillez relancer la connexion depuis votre propre compte.",
+      "nocode": "WHOOP n'a pas renvoyé de code d'autorisation. Réessayez et autorisez l'accès dans la fenêtre WHOOP.",
+      "nocreds": "WHOOP n'est pas configuré. Ajoutez vos identifiants OAuth WHOOP ci-dessus et réessayez.",
+      "token": "L'échange de jeton avec WHOOP a échoué. Veuillez relancer la connexion.",
+      "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
+    },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit et Pixel",
     "fitbitDescription": "Connectez Google Health pour synchroniser vos données Fitbit et Pixel Watch : poids, masse grasse, fréquence cardiaque au repos, saturation en oxygène, variabilité de la fréquence cardiaque et plus encore.",
@@ -4342,6 +4506,18 @@
     "fitbitConnect": "Se connecter à Google Health",
     "fitbitNoCredentials": "Veuillez saisir vos identifiants d'API ci-dessus pour connecter Google Health.",
     "fitbitBackfillInProgress": "Importation de votre historique Google Health en arrière-plan…",
+    "fitbitOauthConnected": "Google Health connecté — la première synchronisation démarre en arrière-plan.",
+    "fitbitOauthFailed": "Échec de la connexion à Google Health",
+    "fitbitOauthError": {
+      "csrf1": "La vérification de sécurité a échoué car le cookie du navigateur était absent. Veuillez relancer la connexion dans le même navigateur.",
+      "state": "La réponse de Google ne correspondait à aucune demande de connexion en cours. Veuillez relancer la connexion.",
+      "expired": "La demande de connexion a expiré avant d'aboutir. Veuillez relancer la connexion.",
+      "cross_user": "La réponse appartient à une demande d'un autre compte. Veuillez relancer la connexion depuis votre propre compte.",
+      "nocode": "Google n'a pas renvoyé de code d'autorisation. Réessayez et autorisez l'accès dans la fenêtre Google.",
+      "nocreds": "Google Health n'est pas configuré. Ajoutez vos identifiants OAuth Google ci-dessus et réessayez.",
+      "token": "L'échange de jeton avec Google a échoué. Veuillez relancer la connexion.",
+      "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
+    },
     "integrations": {
       "withings": {
         "reconnect": {
@@ -4537,7 +4713,8 @@
       "includeAiSummary": "Ajouter le résumé IA (non validé cliniquement)",
       "fhirNote": "La sortie structurée suit la norme FHIR R4 (compatible ePA).",
       "generate": "Générer",
-      "error": "Échec de l’export ({code})."
+      "error": "Échec de l’export ({code}).",
+      "labs": "Résultats d'analyses"
     },
     "globalExcludedInjectionSitesLabel": "Sites d'injection exclus globalement",
     "globalExcludedInjectionSitesHint": "Les sites listés ici ne sont proposés pour aucun médicament et sont refusés lors de l'enregistrement d'une dose, même si un médicament les privilégie.",
@@ -4603,7 +4780,14 @@
     "polarDescription": "Connectez votre compte Polar pour synchroniser la récupération Nightly Recharge, les phases de sommeil et l'activité quotidienne.",
     "polarViewData": "Voir votre sommeil et récupération",
     "polarHelp": "Connectez-vous à Polar pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
-    "polarUnavailable": "Polar n'est pas configuré sur ce serveur. Demandez à votre administrateur d'ajouter les identifiants OAuth Polar.",
+    "polarCredentials": "Identifiants API",
+    "polarCredentialsHelp": "Facultatif : enregistrez votre propre application Polar AccessLink et collez ici son Client ID et son Client Secret. Laissez vide pour utiliser l'application Polar partagée du serveur.",
+    "polarClientId": "Client ID",
+    "polarClientSecret": "Client Secret",
+    "polarCredentialsSaved": "Identifiants enregistrés",
+    "polarCredentialsSavedPlaceholder": "Enregistré — saisir de nouveaux pour remplacer",
+    "polarSaveCredentials": "Enregistrer",
+    "polarUnavailable": "Polar n'est pas configuré sur ce serveur. Ajoutez vos propres identifiants OAuth Polar ci-dessus, ou demandez à votre administrateur de configurer l'application partagée.",
     "polarConnect": "Connecter Polar",
     "polarDisconnect": "Déconnecter",
     "polarDisconnectTitle": "Déconnecter Polar ?",
@@ -4624,7 +4808,14 @@
     "ouraDescription": "Connectez votre compte Oura pour synchroniser le readiness, les phases de sommeil, la VFC et l'activité quotidienne.",
     "ouraViewData": "Voir votre sommeil et récupération",
     "ouraHelp": "Connectez-vous à Oura pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
-    "ouraUnavailable": "Oura n'est pas configuré sur ce serveur. Demandez à votre administrateur d'ajouter les identifiants OAuth Oura.",
+    "ouraCredentials": "Identifiants API",
+    "ouraCredentialsHelp": "Facultatif : enregistrez votre propre application Oura et collez ici son Client ID et son Client Secret. Laissez vide pour utiliser l'application Oura partagée du serveur.",
+    "ouraClientId": "Client ID",
+    "ouraClientSecret": "Client Secret",
+    "ouraCredentialsSaved": "Identifiants enregistrés",
+    "ouraCredentialsSavedPlaceholder": "Enregistré — saisir de nouveaux pour remplacer",
+    "ouraSaveCredentials": "Enregistrer",
+    "ouraUnavailable": "Oura n'est pas configuré sur ce serveur. Ajoutez vos propres identifiants OAuth Oura ci-dessus, ou demandez à votre administrateur de configurer l'application partagée.",
     "ouraConnect": "Connecter Oura",
     "ouraDisconnect": "Déconnecter",
     "ouraDisconnectTitle": "Déconnecter Oura ?",
@@ -4640,7 +4831,8 @@
       "token": "L'échange de jeton avec Oura a échoué. Veuillez relancer la connexion.",
       "rate_limited": "Trop de tentatives de connexion. Patientez un instant et réessayez.",
       "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
-    }
+    },
+    "integrationSetupGuide": "Guide de configuration"
   },
   "admin": {
     "title": "Administration",
@@ -4763,6 +4955,13 @@
     "webPushVapidPrivateKeyPlaceholder": "Facultatif : saisissez une nouvelle clé privée",
     "webPushVapidSubject": "Subject VAPID",
     "webPushVapidSubjectPlaceholder": "mailto:you@example.com",
+    "webPushVapidGenerate": "Générer les clés",
+    "webPushVapidGenerating": "Génération…",
+    "webPushVapidGenerated": "Clés VAPID générées. Enregistrez le sujet pour terminer.",
+    "webPushVapidGenerateFailed": "Impossible de générer les clés VAPID.",
+    "webPushVapidGenerateConfirm": "Les clés VAPID sont déjà configurées. Générer une nouvelle paire invalide tous les abonnements push du navigateur — chaque appareil doit se réabonner. Continuer ?",
+    "webPushVapidGenerateConfirmTitle": "Régénérer les clés VAPID ?",
+    "webPushVapidRegenerate": "Régénérer",
     "configured": "Configuré",
     "monitoringTestSuccess": "Événement de test envoyé",
     "monitoringTestFailed": "Échec du test de surveillance",
@@ -4930,6 +5129,15 @@
     "authTokenRevoke": "Jeton révoqué",
     "medicationReminders": "Rappels de médicaments",
     "medicationRemindersDescription": "Seuils des transitions de couleur des badges de rappel sur les fiches de médicaments.",
+    "notificationHealth": {
+      "title": "État de distribution",
+      "description": "Résultats de distribution de tous les utilisateurs sur les dernières 24 heures.",
+      "empty": "Aucune notification envoyée sur cette période.",
+      "ok": "OK",
+      "error": "Échecs",
+      "skipped": "Ignorées",
+      "autoDisabled": "Canaux désactivés automatiquement"
+    },
     "reminderLateMinutes": "Seuil de retard (minutes)",
     "reminderLateMinutesDescription": "Minutes après la fin de la fenêtre avant que le badge passe du jaune à l'orange.",
     "reminderMissedMinutes": "Seuil d'oubli (minutes)",
@@ -6208,5 +6416,99 @@
     "deleteN": "Supprimer ({count})",
     "clearSelection": "Effacer la sélection",
     "selectionBarLabel": "Actions de sélection"
+  },
+  "measurementReminders": {
+    "sectionTitle": "Prévention",
+    "sectionDescription": "Rappels de ce qu'il faut mesurer ou vérifier, quand et où.",
+    "addButton": "Ajouter un rappel",
+    "markDone": "Terminé",
+    "delete": "Supprimer",
+    "disabledBadge": "Désactivé",
+    "nextDue": {
+      "none": "Non planifié",
+      "today": "À faire aujourd'hui",
+      "tomorrow": "À faire demain",
+      "inDays": "Dans {days} jours"
+    },
+    "overdueByDays": "En retard de {days} jours",
+    "cadence": {
+      "everyNDays": "Tous les {days} jours",
+      "custom": "Planning personnalisé"
+    },
+    "location": {
+      "prefix": "Chez : {location}"
+    },
+    "types": {
+      "WEIGHT": "Poids",
+      "BLOOD_PRESSURE_SYS": "Tension artérielle",
+      "PULSE": "Pouls",
+      "BLOOD_GLUCOSE": "Glycémie",
+      "OXYGEN_SATURATION": "Saturation en oxygène",
+      "BODY_FAT": "Masse grasse",
+      "BODY_TEMPERATURE": "Température corporelle"
+    },
+    "empty": {
+      "title": "Aucun rappel pour l'instant",
+      "description": "Ajoutez un rappel pour mesurer régulièrement votre tension ou planifier un bilan sanguin annuel."
+    },
+    "form": {
+      "label": "Libellé",
+      "labelPlaceholder": "ex. Mesurer la tension",
+      "kind": "Type",
+      "kindType": "Lié à une mesure",
+      "kindFreeText": "Vérification libre",
+      "measurementType": "Mesure",
+      "cadence": "Répétition",
+      "notifyHour": "Rappeler à",
+      "location": "Où (facultatif)",
+      "locationPlaceholder": "ex. Médecin, Laboratoire",
+      "save": "Enregistrer"
+    },
+    "pushTitle": "Rappel de prévention",
+    "pushBody": "C'est l'heure : {label}",
+    "pushLocation": "(chez {location})"
+  },
+  "labs": {
+    "title": "Résultats d'analyses",
+    "subtitle": "Analyses sanguines et biomarqueurs",
+    "addResult": "Ajouter",
+    "addDescription": "Enregistrez un biomarqueur à partir d'un compte rendu de laboratoire.",
+    "addFirst": "Ajouter votre premier résultat",
+    "emptyTitle": "Aucun résultat pour l'instant",
+    "emptyDescription": "Enregistrez des analyses comme l'HbA1c, le LDL ou la ferritine pour les suivre dans le temps et les partager avec votre médecin.",
+    "referenceLabel": "Référence",
+    "readingsCount": "{count} valeurs",
+    "deleteLatest": "Supprimer la dernière valeur",
+    "deletedToast": "Résultat supprimé",
+    "deleteError": "Impossible de supprimer le résultat",
+    "loadError": "Impossible de charger les résultats",
+    "range": {
+      "inRange": "Dans la norme",
+      "below": "Sous la norme",
+      "above": "Au-dessus de la norme"
+    },
+    "form": {
+      "analyte": "Biomarqueur",
+      "analytePlaceholder": "ex. HbA1c, LDL, Ferritine",
+      "value": "Valeur",
+      "unit": "Unité",
+      "unitPlaceholder": "ex. mg/dL, %, ng/mL",
+      "takenAt": "Date du prélèvement",
+      "optionalGroup": "Facultatif",
+      "panel": "Panel",
+      "panelPlaceholder": "ex. Numération formule sanguine",
+      "referenceLow": "Référence basse",
+      "referenceHigh": "Référence haute",
+      "referenceLowPlaceholder": "Borne inférieure",
+      "referenceHighPlaceholder": "Borne supérieure",
+      "referenceHint": "Reprenez l'intervalle de référence de votre compte rendu. Chaque borne est facultative.",
+      "note": "Note",
+      "notePlaceholder": "Contexte facultatif pour ce résultat",
+      "requiredError": "Le biomarqueur, la valeur et l'unité sont obligatoires.",
+      "rangeOrderError": "La référence basse ne doit pas dépasser la référence haute.",
+      "save": "Enregistrer",
+      "savedToast": "Résultat enregistré",
+      "saveError": "Impossible d'enregistrer le résultat"
+    }
   }
 }

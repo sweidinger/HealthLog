@@ -2,16 +2,19 @@
  * Fitbit / Google Health sleep-bundle sync (v1.12.0, W5).
  *
  * Reads sleep sessions from the `sleep.readonly` Restricted bundle and maps
- * each into per-stage `SLEEP_DURATION` rows via `mapSleepSession` (minutes per
- * stage; `measuredAt = the stage's END instant; harmonised onto the shared
- * `SleepStage` enum IN_BED/AWAKE/ASLEEP/REM/CORE/DEEP that the night-total +
- * hypnogram readers already consume for WHOOP / Apple). Upserts as
+ * each into per-SEGMENT `SLEEP_DURATION` rows via `mapSleepSession` (one row
+ * per stage segment; `measuredAt = that segment's END instant; harmonised onto
+ * the shared `SleepStage` enum IN_BED/AWAKE/ASLEEP/REM/CORE/DEEP that the
+ * night-total + hypnogram readers already consume for WHOOP / Apple). Google
+ * carries a real per-segment series, so the rows lay each block at its true
+ * clock time (a MEASURED timeline, not reconstructed). Upserts as
  * `source = FITBIT`.
  *
- * Per-stage rows carry the `sleepStage` axis so the (up to six) stage rows for
- * one night stay distinct under the `(userId, type, source, externalId)` dedup
- * key. externalId = `<session-anchor>:sleep_<stage>` — a re-scored night
- * overwrites in place. A 24 h overlap covers Google's after-the-fact re-score.
+ * Each segment carries the `sleepStage` axis and an indexed fieldTag so the
+ * several segments of one stage stay distinct under the
+ * `(userId, type, source, externalId)` dedup key. externalId =
+ * `<session-anchor>:sleep_<stage>:<i>` — a re-scored night overwrites in place.
+ * A 24 h overlap covers Google's after-the-fact re-score.
  *
  * A per-data-class 403 soft-skips the resource — the sleep bundle is granted
  * independently of activity / metrics in the Google consent flow.

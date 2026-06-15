@@ -8,11 +8,13 @@ import { toast } from "sonner";
 
 import { FitbitCard } from "@/components/settings/integrations/fitbit-card";
 import { NightscoutCard } from "@/components/settings/integrations/nightscout-card";
+import type { OAuthProviderStatus } from "@/components/settings/integrations/oauth-provider-card";
 import { OuraCard } from "@/components/settings/integrations/oura-card";
 import { PolarCard } from "@/components/settings/integrations/polar-card";
 import {
   pickStatus,
   useIntegrationStatuses,
+  type IntegrationStatusViewModel,
 } from "@/components/settings/integrations/shared";
 import { WhoopCard } from "@/components/settings/integrations/whoop-card";
 import { WithingsCard } from "@/components/settings/integrations/withings-card";
@@ -42,6 +44,97 @@ const WITHINGS_OAUTH_ERROR_KEYS: Record<string, string> = {
 type WithingsOauthOutcome =
   | { kind: "connected" }
   | { kind: "error"; reason: string };
+
+/**
+ * The OAuth providers whose callbacks redirect back to the settings page with a
+ * `?<provider>=connected|error&reason=<tag>` outcome param. Polar/Oura own a
+ * per-card status query; WHOOP/Fitbit read off the consolidated envelope — both
+ * are invalidated on a successful return so the card repaints either way.
+ */
+const OAUTH_OUTCOME_PROVIDERS = ["polar", "oura", "whoop", "fitbit"] as const;
+type OAuthOutcomeProvider = (typeof OAUTH_OUTCOME_PROVIDERS)[number];
+
+const OAUTH_OUTCOME_KEYS: Record<
+  OAuthOutcomeProvider,
+  () => readonly unknown[]
+> = {
+  polar: queryKeys.polar,
+  oura: queryKeys.oura,
+  whoop: queryKeys.whoop,
+  fitbit: queryKeys.fitbit,
+};
+
+/**
+ * Reason tags the four OAuth callbacks emit. Known tags resolve to a specific
+ * message; anything else falls back to the provider's `generic` copy. Union of
+ * the Polar/Oura set (`rate_limited`) and the WHOOP/Fitbit set (`expired`).
+ */
+const OAUTH_OUTCOME_REASONS = new Set([
+  "csrf1",
+  "state",
+  "cross_user",
+  "nocode",
+  "nocreds",
+  "token",
+  "rate_limited",
+  "expired",
+]);
+
+type OAuthOutcome =
+  | { provider: OAuthOutcomeProvider; kind: "connected" }
+  | { provider: OAuthOutcomeProvider; kind: "error"; reason: string };
+
+/**
+ * Parse the OAuth-return outcome from a URL query string. Reads the first
+ * provider whose `?<provider>=connected|error` param is present, in
+ * `OAUTH_OUTCOME_PROVIDERS` order. Pure + exported so the four-provider
+ * coverage is unit-testable without a browser.
+ */
+export function parseOAuthOutcome(search: string): OAuthOutcome | null {
+  const params = new URLSearchParams(search);
+  for (const provider of OAUTH_OUTCOME_PROVIDERS) {
+    const v = params.get(provider);
+    if (v === "connected") return { provider, kind: "connected" };
+    if (v === "error") {
+      return { provider, kind: "error", reason: params.get("reason") ?? "unknown" };
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve the i18n key for an error reason tag. Known tags map to the
+ * provider-specific message; anything else falls back to `generic`.
+ */
+export function oauthReasonKey(
+  provider: OAuthOutcomeProvider,
+  reason: string,
+): string {
+  return OAUTH_OUTCOME_REASONS.has(reason)
+    ? `settings.${provider}OauthError.${reason}`
+    : `settings.${provider}OauthError.generic`;
+}
+
+/**
+ * Adapt the consolidated-envelope view-model into the OAuth card's status
+ * shape. Returns `undefined` when the envelope hasn't loaded so the card
+ * renders its loading/disconnected default rather than a half-populated state.
+ */
+function toOAuthStatus(
+  vm: IntegrationStatusViewModel | undefined,
+): OAuthProviderStatus | undefined {
+  if (!vm) return undefined;
+  return {
+    connected: vm.connected ?? false,
+    configured: vm.configured ?? false,
+    available: vm.available ?? false,
+    hasOwnCredentials: vm.hasOwnCredentials,
+    state: vm.state,
+    lastSuccessAt: vm.lastSuccessAt,
+    lastAttemptAt: vm.lastAttemptAt,
+    lastError: vm.lastError,
+  };
+}
 
 export function IntegrationsSection() {
   const { t } = useTranslations();
@@ -92,23 +185,16 @@ export function IntegrationsSection() {
     }
   }, [withingsOauthOutcome, router, queryClient, t]);
 
-  // v1.17.0 (F4) — generic OAuth-callback toast for the env-based providers.
-  // The Polar / Oura callbacks redirect back with `?<provider>=connected` or
-  // `?<provider>=error&reason=<tag>`; surface the outcome as a toast and scrub
-  // the one-shot params so a reload doesn't replay it.
-  const [oauthOutcome] = useState<
-    { provider: "polar" | "oura"; kind: "connected" } | { provider: "polar" | "oura"; kind: "error"; reason: string } | null
-  >(() => {
+  // v1.17.0 (F4) — generic OAuth-callback toast for the OAuth providers.
+  // The Polar / Oura / WHOOP / Fitbit callbacks redirect back with
+  // `?<provider>=connected` or `?<provider>=error&reason=<tag>`; surface the
+  // outcome as a toast and scrub the one-shot params so a reload doesn't replay
+  // it. Pre-v1.17.1 only Polar/Oura were read here — a user returning from a
+  // WHOOP or Fitbit round-trip landed on a silently unchanged settings page,
+  // the same gap the Withings handler was written to close.
+  const [oauthOutcome] = useState<OAuthOutcome | null>(() => {
     if (typeof window === "undefined") return null;
-    const params = new URLSearchParams(window.location.search);
-    for (const provider of ["polar", "oura"] as const) {
-      const v = params.get(provider);
-      if (v === "connected") return { provider, kind: "connected" };
-      if (v === "error") {
-        return { provider, kind: "error", reason: params.get("reason") ?? "unknown" };
-      }
-    }
-    return null;
+    return parseOAuthOutcome(window.location.search);
   });
 
   useEffect(() => {
@@ -118,27 +204,19 @@ export function IntegrationsSection() {
     url.searchParams.delete(provider);
     url.searchParams.delete("reason");
     router.replace(`${url.pathname}${url.search}`, { scroll: false });
-    const key = provider === "polar" ? queryKeys.polar() : queryKeys.oura();
     if (oauthOutcome.kind === "connected") {
       toast.success(t(`settings.${provider}OauthConnected`));
-      queryClient.invalidateQueries({ queryKey: key });
+      // Polar/Oura own a per-card status query; WHOOP/Fitbit read off the
+      // consolidated envelope — invalidate both so the card repaints either way.
+      queryClient.invalidateQueries({ queryKey: OAUTH_OUTCOME_KEYS[provider]() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrationsStatus(),
+      });
     } else {
       // Known reason tags resolve to a specific message; anything else falls
       // back to the generic copy (matching the Withings handler).
-      const knownReasons = new Set([
-        "csrf1",
-        "state",
-        "cross_user",
-        "nocode",
-        "nocreds",
-        "token",
-        "rate_limited",
-      ]);
-      const reasonKey = knownReasons.has(oauthOutcome.reason)
-        ? `settings.${provider}OauthError.${oauthOutcome.reason}`
-        : `settings.${provider}OauthError.generic`;
       toast.error(t(`settings.${provider}OauthFailed`), {
-        description: t(reasonKey),
+        description: t(oauthReasonKey(provider, oauthOutcome.reason)),
         duration: 10_000,
       });
     }
@@ -147,6 +225,10 @@ export function IntegrationsSection() {
   const withingsViewModel = pickStatus(integrationStatus, "withings");
   const whoopViewModel = pickStatus(integrationStatus, "whoop");
   const fitbitViewModel = pickStatus(integrationStatus, "fitbit");
+  // v1.17.1 — Polar/Oura now read off the same consolidated envelope; the cards
+  // no longer fire their own /api/<provider>/status round-trip.
+  const polarViewModel = toOAuthStatus(pickStatus(integrationStatus, "polar"));
+  const ouraViewModel = toOAuthStatus(pickStatus(integrationStatus, "oura"));
 
   return (
     <section
@@ -179,8 +261,8 @@ export function IntegrationsSection() {
       <WithingsCard viewModel={withingsViewModel} />
       <WhoopCard viewModel={whoopViewModel} />
       <FitbitCard viewModel={fitbitViewModel} />
-      <PolarCard enabled={isAuthenticated} />
-      <OuraCard enabled={isAuthenticated} />
+      <PolarCard enabled={isAuthenticated} viewModel={polarViewModel} />
+      <OuraCard enabled={isAuthenticated} viewModel={ouraViewModel} />
       <NightscoutCard enabled={isAuthenticated} />
     </section>
   );

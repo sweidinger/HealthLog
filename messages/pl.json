@@ -151,7 +151,8 @@
       "sleep": "Czas snu",
       "cycle": "Cykl menstruacyjny",
       "empty": "Brak danych dla wybranego okresu. Raport zachowa stronę tytułową.",
-      "unavailableHint": "Brak danych w tym okresie"
+      "unavailableHint": "Brak danych w tym okresie",
+      "labs": "Wyniki badań"
     },
     "insurer": "Ubezpieczyciel zdrowotny",
     "insuranceNumber": "Nr ubezpieczonego",
@@ -182,7 +183,13 @@
       "FOLLICULAR": "Folikularna",
       "OVULATORY": "Owulacyjna",
       "LUTEAL": "Lutealna"
-    }
+    },
+    "labsTitle": "Wyniki badań",
+    "labsColAnalyte": "Biomarker",
+    "labsColValue": "Wartość",
+    "labsColReference": "Norma",
+    "labsColStatus": "Status",
+    "labsColDate": "Data"
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",
@@ -221,6 +228,7 @@
     "accountSettings": "Ustawienia konta",
     "mood": "Nastrój",
     "workouts": "Treningi",
+    "coach": "Coach",
     "skipToContent": "Przejdź do treści",
     "sidebar": "Pasek boczny",
     "mainNavigation": "Nawigacja główna",
@@ -240,7 +248,10 @@
       "mood": "Nastrój",
       "moodDescription": "Zapisz nastrój i tagi"
     },
-    "cycle": "Cykl"
+    "cycle": "Cykl",
+    "labs": "Wyniki badań",
+    "recovery": "Regeneracja",
+    "vorsorge": "Profilaktyka"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -482,6 +493,7 @@
     "pulseLabel": "Tętno (uderz./min)",
     "valueWithUnit": "Wartość ({unit})",
     "timestamp": "Czas",
+    "timestampBackdateHint": "Dostosuj datę i godzinę, aby zapisać odczyt z przeszłości.",
     "notesPlaceholder": "np. po jedzeniu",
     "formReset": "Resetuj formularz",
     "saveError": "Błąd zapisu",
@@ -541,6 +553,10 @@
     "typeAverageHeartRate": "Średnie tętno",
     "typeMaxHeartRate": "Maksymalne tętno",
     "typeSleepDisturbanceCount": "Zakłócenia snu",
+    "typeAnsCharge": "Ładunek ANS",
+    "typeCardioLoad": "Obciążenie kardio",
+    "typeSleepScore": "Wynik snu",
+    "typeBodyTemperatureDeviation": "Odchylenie temperatury ciała",
     "filterBySource": "Filtruj według źródła",
     "sourceComputed": "Obliczone",
     "sourceWhoop": "WHOOP",
@@ -2619,7 +2635,9 @@
         "sleepScoreBody": "Twój wynik snu streszcza całą noc w jednej liczbie — długość, efektywność, regularność pór oraz proporcje snu lekkiego, głębokiego i REM. Obserwuj wzorzec w ujęciu tygodni, zamiast gonić za idealnym wynikiem jednej nocy.",
         "recoveryBody": "Regeneracja odzwierciedla, jak dobrze Twoje ciało się odbudowało — opiera się na nocnych sygnałach, takich jak zmienność rytmu serca i tętno spoczynkowe. Wysoki wynik to zielone światło, by przyspieszyć; niższy sugeruje, że organizm wciąż się regeneruje.",
         "strainBody": "Obciążenie ujmuje, ile wysiłku sercowo-naczyniowego i fizycznego nałożyłeś na swoje ciało — od treningów po aktywny dzień na nogach. Gdy zbierze się wystarczająco danych, jest oceniane względem Twojego własnego typowego wysiłku, a nie cudzej miary.",
-        "stressBody": "Stres jest tu szacunkiem fizjologicznego obciążenia Twojego układu nerwowego, odczytywanym głównie ze wzorców zmienności rytmu serca, a nie z tego, jak się świadomie czujesz. Niższy wynik wskazuje na spokojny, dobrze regulowany stan; wyższy to zachęta, by wpleść regenerację."
+        "stressBody": "Stres jest tu szacunkiem fizjologicznego obciążenia Twojego układu nerwowego, odczytywanym głównie ze wzorców zmienności rytmu serca, a nie z tego, jak się świadomie czujesz. Niższy wynik wskazuje na spokojny, dobrze regulowany stan; wyższy to zachęta, by wpleść regenerację.",
+        "recoveryPageTitle": "Regeneracja",
+        "recoveryPageBody": "Regeneracja łączy nocne sygnały rejestrowane przez Twoje urządzenie – recharge, obciążenie, load oraz dzienne sumy tętna i energii – aby pokazać, jak dobrze Twój organizm się zregenerował. Patrz na wzorzec w ciągu kilku dni, a nie na pojedynczą liczbę; niższy wynik to zaproszenie do zwolnienia tempa, a nie alarm."
       },
       "stats": {
         "label": "Statystyki podsumowujące",
@@ -3569,7 +3587,46 @@
     "customize": "Dostosuj Analizy",
     "regenerateRateLimited": "Osiągnięto limit odświeżeń — spróbuj ponownie później.",
     "regenerateUnavailable": "Nie otrzymano nowej analizy — spróbuj ponownie później.",
-    "regenerateError": "Trwa odświeżanie — spróbuj ponownie za chwilę."
+    "regenerateError": "Trwa odświeżanie — spróbuj ponownie za chwilę.",
+    "deviceScore": {
+      "learning": "Wciąż poznajemy Twoją linię bazową – kilka kolejnych nocy uzupełni trend.",
+      "average": "Średnia z 30 dni {value}",
+      "unitScore": "pkt",
+      "unitMinutes": "min",
+      "unitBpm": "ud./min",
+      "unitKj": "kJ"
+    },
+    "sleepQuality": {
+      "title": "Jakość snu",
+      "subtitle": "Nocne wyniki z Twojego urządzenia"
+    },
+    "recovery": {
+      "title": "Regeneracja",
+      "description": "Jak dobrze Twój organizm się zregenerował – sygnały regeneracji, obciążenia i load, które Twoje urządzenie rejestruje w nocy.",
+      "emptyTitle": "Brak danych o regeneracji",
+      "empty": "Brak danych o regeneracji. Połącz konto WHOOP, Polar lub Oura, a te wyniki uzupełnią się po synchronizacji urządzenia.",
+      "recharge": {
+        "title": "Recharge",
+        "subtitle": "Ładowanie autonomicznego układu nerwowego"
+      },
+      "strain": {
+        "title": "Obciążenie i load",
+        "subtitle": "Dzienne obciążenie sercowo-naczyniowe"
+      },
+      "cardio": {
+        "title": "Serce i energia w ciągu dnia",
+        "subtitle": "Całodobowe sumy sercowe i energetyczne"
+      },
+      "scoreLink": {
+        "title": "Wynik regeneracji",
+        "subtitle": "Zobacz, jak rozkłada się nocny wynik",
+        "cta": "Zobacz"
+      }
+    },
+    "bodyTempDeviation": {
+      "title": "Odchylenie temperatury ciała",
+      "subtitle": "Nocne odchylenie od Twojej linii bazowej"
+    }
   },
   "thresholds": {
     "defaultLabel": "Domyślne",
@@ -3648,7 +3705,7 @@
     },
     "goals": {
       "title": "Co chcesz śledzić?",
-      "body": "Wybierz obszary, które są dla Ciebie ważne — to pomaga zdecydować, co śledzić i co skonfigurować w następnej kolejności.",
+      "body": "Wybierz obszary, które są dla Ciebie ważne — pokażemy je najpierw na pulpicie i pomogą Ci zdecydować, co skonfigurować dalej.",
       "helpHint": "Od jednego do trzech priorytetów zwykle sprawdza się najlepiej — możesz dodać kolejne w dowolnej chwili.",
       "options": {
         "weightManagement": "Kontrola wagi",
@@ -3733,6 +3790,17 @@
         "title": "Zobacz wzorce",
         "body": "Codzienne podsumowania, wykresy trendów i coach, który wskazuje co się zmieniło — wszystko na Twoim urządzeniu."
       }
+    },
+    "anamnesis": {
+      "title": "O Twoim zdrowiu (opcjonalnie)",
+      "subtitle": "Trochę kontekstu, aby HealthLog rzetelniej odczytywał Twoje wyniki.",
+      "intro": "Podziel się tym, czym chcesz — każde pole jest opcjonalne i możesz je zmienić w dowolnej chwili w Ustawieniach.",
+      "conditionsLabel": "Aktualne schorzenia",
+      "conditionsPlaceholder": "np. nadciśnienie, cukrzyca typu 2",
+      "conditionsHint": "Pomaga HealthLog ujmować Twoje pomiary w kontekście, zamiast oznaczać to, czego należy się spodziewać.",
+      "allergiesLabel": "Alergie lub nietolerancje",
+      "allergiesPlaceholder": "np. penicylina, laktoza",
+      "privacyNote": "Przechowywane w postaci zaszyfrowanej i używane tylko po to, by dać Ci lepszy kontekst. Nie pytamy tu o leki — dodasz je w dowolnej chwili na stronie Leki."
     }
   },
   "gettingStarted": {
@@ -3792,6 +3860,27 @@
       "notifications": {
         "title": "Powiadomienia",
         "description": "Podgląd na żywo każdego skonfigurowanego kanału."
+      },
+      "layout": {
+        "title": "Układ i personalizacja",
+        "description": "Ustal, jak rozłożona jest Twoja aplikacja — jedno miejsce dla pulpitu, analiz, leków i nastroju.",
+        "backToHub": "Powrót do Układ i personalizacja",
+        "dashboard": {
+          "title": "Pulpit",
+          "description": "Układ i kolejność kafelków."
+        },
+        "insights": {
+          "title": "Analizy",
+          "description": "Kolejność przeglądu i pigułek nawigacyjnych."
+        },
+        "medications": {
+          "title": "Leki",
+          "description": "Widok listy i kolejność leków."
+        },
+        "mood": {
+          "title": "Tagi nastroju",
+          "description": "Grupy, tagi i kolejność w wyborze nastroju."
+        }
       },
       "dashboard": {
         "title": "Pulpit",
@@ -3920,6 +4009,7 @@
         "import": {
           "heading": "Import",
           "description": "Zaimportuj dane do HealthLog z eksportu Apple Health lub pliku JSON. Import pomija wiersze, które już istnieją, więc ponowne uruchomienie jest bezpieczne.",
+          "charCount": "{used} / {max} znaków",
           "appleHealth": {
             "title": "Apple Health",
             "description": "Prześlij plik export.zip z aplikacji Zdrowie na iPhonie (Profil → Eksportuj wszystkie dane zdrowotne).",
@@ -3958,6 +4048,27 @@
             "failed": "Import nie powiódł się. Spróbuj ponownie.",
             "readFailed": "Nie można odczytać tego pliku.",
             "resultSummary": "Zaimportowano {measurements} pomiarów i {moods} wpisów nastroju, pominięto {skipped}."
+          },
+          "csv": {
+            "title": "Plik CSV",
+            "description": "Importuj pomiary z arkusza lub eksportu z urządzenia. Jeden wiersz na odczyt.",
+            "pasteLabel": "Wklej CSV",
+            "fileInputLabel": "Wybierz plik CSV do zaimportowania",
+            "schemaHint": "Kolumny: type, value, unit, measuredAt (z przesunięciem strefy czasowej) oraz opcjonalnie glucoseContext, notes, externalId.",
+            "docsLink": "Zobacz schemat kolumn i przykład.",
+            "uploadFile": "Prześlij plik",
+            "downloadExample": "Pobierz przykład",
+            "preview": "Podgląd",
+            "import": "Importuj",
+            "empty": "Dodaj co najmniej jeden wiersz CSV przed importem.",
+            "rateLimited": "Zbyt wiele importów w tej godzinie (limit 5). Spróbuj ponownie później.",
+            "tooLarge": "Ten plik jest za duży (limit 16 MB).",
+            "invalidPayload": "Nie udało się przetworzyć pliku CSV. Sprawdź wiersz nagłówka i spróbuj ponownie.",
+            "failed": "Import nie powiódł się. Spróbuj ponownie.",
+            "readFailed": "Nie udało się odczytać tego pliku.",
+            "previewSummary": "Podgląd: {inserted} zostanie zaimportowanych, pominięto {skipped}.",
+            "resultSummary": "Zaimportowano {inserted} nowych i zaktualizowano {updated}, pominięto {skipped}.",
+            "rowError": "Wiersz {line}: {reason}"
           }
         }
       },
@@ -3980,6 +4091,36 @@
       "mood": {
         "title": "Tagi nastroju",
         "description": "Grupy, tagi i kolejność w wyborze nastroju."
+      },
+      "reminders": {
+        "title": "Przypomnienia i powiadomienia",
+        "description": "Jedno miejsce dla każdego przypomnienia — o czym i kiedy — oraz kanały, które je dostarczają.",
+        "categoriesGroup": "Przypomnienia",
+        "channelsGroup": "Kanały dostarczania",
+        "medication": {
+          "title": "Przypomnienia o lekach",
+          "description": "Godziny i okna dawek, ustawiane przy każdym leku."
+        },
+        "vorsorge": {
+          "title": "Profilaktyka",
+          "description": "Cykliczne badania i pomiary wraz z miejscem, gdzie się udać."
+        },
+        "mood": {
+          "title": "Zapis nastroju",
+          "description": "Codzienne przypomnienie, by zapisać samopoczucie."
+        },
+        "lowStock": {
+          "title": "Zapas na wyczerpaniu",
+          "description": "Otrzymaj ostrzeżenie, zanim lek się skończy."
+        },
+        "coach": {
+          "title": "Podpowiedź trenera",
+          "description": "Proaktywne wskazówki od trenera AI."
+        },
+        "channels": {
+          "title": "Kanały powiadomień",
+          "description": "APNs, Telegram, ntfy, Web Push, Webhook i e-mail."
+        }
       }
     },
     "profile": "Profil",
@@ -4067,6 +4208,17 @@
     "ntfyTopic": "Topic",
     "ntfyAuthToken": "Token uwierzytelniania (opcjonalny)",
     "ntfyAuthTokenHint": "Wymagany tylko dla prywatnych tematów z kontrolą dostępu.",
+    "webhook": "Webhook",
+    "webhookDescription": "Wysyłaj powiadomienia metodą POST na dowolny URL — Gotify, Discord, Slack, Matrix lub Home Assistant.",
+    "webhookEnable": "Włącz webhook",
+    "webhookUrl": "Adres URL webhooka",
+    "webhookUrlHint": "Pełny adres URL dla żądania POST. Musi być publicznie dostępny.",
+    "webhookHeaderName": "Nazwa nagłówka (opcjonalnie)",
+    "webhookHeaderValue": "Wartość nagłówka (opcjonalnie)",
+    "email": "E-mail",
+    "emailDescription": "Otrzymuj alerty i przypomnienia e-mailem.",
+    "emailEnable": "Włącz e-mail",
+    "emailRecipient": "Adres odbiorcy",
     "webPush": "Push przeglądarki",
     "webPushDescription": "Otrzymuj powiadomienia bezpośrednio w przeglądarce, nawet gdy HealthLog nie jest otwarty.",
     "webPushNotSupported": "Twoja przeglądarka nie obsługuje powiadomień push.",
@@ -4315,6 +4467,18 @@
     "whoopConnect": "Połącz z WHOOP",
     "whoopNoCredentials": "Wprowadź powyżej swoje dane API, aby połączyć WHOOP.",
     "whoopBackfillInProgress": "Importowanie historii WHOOP w tle…",
+    "whoopOauthConnected": "WHOOP połączony — pierwsza synchronizacja startuje w tle.",
+    "whoopOauthFailed": "Połączenie z WHOOP nie powiodło się",
+    "whoopOauthError": {
+      "csrf1": "Kontrola bezpieczeństwa nie powiodła się, ponieważ brakowało pliku cookie przeglądarki. Rozpocznij połączenie ponownie w tej samej przeglądarce.",
+      "state": "Odpowiedź z WHOOP nie pasowała do żadnego otwartego żądania połączenia. Rozpocznij połączenie ponownie.",
+      "expired": "Żądanie połączenia wygasło przed zakończeniem. Rozpocznij połączenie ponownie.",
+      "cross_user": "Odpowiedź należy do żądania z innego konta. Rozpocznij połączenie ponownie z własnego konta.",
+      "nocode": "WHOOP nie zwrócił kodu autoryzacji. Spróbuj ponownie i zezwól na dostęp w oknie WHOOP.",
+      "nocreds": "WHOOP nie jest skonfigurowany. Dodaj powyżej swoje dane OAuth WHOOP i spróbuj ponownie.",
+      "token": "Wymiana tokena z WHOOP nie powiodła się. Rozpocznij połączenie ponownie.",
+      "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
+    },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit i Pixel",
     "fitbitDescription": "Połącz Google Health, aby synchronizować dane z Fitbita i Pixel Watch — wagę, tkankę tłuszczową, tętno spoczynkowe, saturację, zmienność rytmu serca i więcej.",
@@ -4342,6 +4506,18 @@
     "fitbitConnect": "Połącz z Google Health",
     "fitbitNoCredentials": "Wprowadź powyżej swoje dane uwierzytelniające API, aby połączyć Google Health.",
     "fitbitBackfillInProgress": "Importowanie historii Google Health w tle…",
+    "fitbitOauthConnected": "Google Health połączony — pierwsza synchronizacja startuje w tle.",
+    "fitbitOauthFailed": "Połączenie z Google Health nie powiodło się",
+    "fitbitOauthError": {
+      "csrf1": "Kontrola bezpieczeństwa nie powiodła się, ponieważ brakowało pliku cookie przeglądarki. Rozpocznij połączenie ponownie w tej samej przeglądarce.",
+      "state": "Odpowiedź z Google nie pasowała do żadnego otwartego żądania połączenia. Rozpocznij połączenie ponownie.",
+      "expired": "Żądanie połączenia wygasło przed zakończeniem. Rozpocznij połączenie ponownie.",
+      "cross_user": "Odpowiedź należy do żądania z innego konta. Rozpocznij połączenie ponownie z własnego konta.",
+      "nocode": "Google nie zwrócił kodu autoryzacji. Spróbuj ponownie i zezwól na dostęp w oknie Google.",
+      "nocreds": "Google Health nie jest skonfigurowany. Dodaj powyżej swoje dane OAuth Google i spróbuj ponownie.",
+      "token": "Wymiana tokena z Google nie powiodła się. Rozpocznij połączenie ponownie.",
+      "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
+    },
     "integrations": {
       "withings": {
         "reconnect": {
@@ -4537,7 +4713,8 @@
       "includeAiSummary": "Dołącz podsumowanie AI (niezweryfikowane klinicznie)",
       "fhirNote": "Dane ustrukturyzowane są zgodne ze standardem FHIR R4 (kompatybilne z ePA).",
       "generate": "Generuj",
-      "error": "Eksport nie powiódł się ({code})."
+      "error": "Eksport nie powiódł się ({code}).",
+      "labs": "Wyniki badań"
     },
     "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
     "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje.",
@@ -4603,7 +4780,14 @@
     "polarDescription": "Połącz konto Polar, aby synchronizować regenerację Nightly Recharge, fazy snu i aktywność dzienną.",
     "polarViewData": "Zobacz sen i regenerację",
     "polarHelp": "Zaloguj się w Polar, aby przyznać dostęp. Dane są pobierane w tle raz na godzinę.",
-    "polarUnavailable": "Polar nie jest skonfigurowany na tym serwerze. Poproś administratora o dodanie danych OAuth Polar.",
+    "polarCredentials": "Dane API",
+    "polarCredentialsHelp": "Opcjonalnie: zarejestruj własną aplikację Polar AccessLink i wklej tutaj jej Client ID oraz Client Secret. Pozostaw puste, aby użyć współdzielonej aplikacji Polar serwera.",
+    "polarClientId": "Client ID",
+    "polarClientSecret": "Client Secret",
+    "polarCredentialsSaved": "Dane zapisane",
+    "polarCredentialsSavedPlaceholder": "Zapisano — wpisz nowe, aby zastąpić",
+    "polarSaveCredentials": "Zapisz",
+    "polarUnavailable": "Polar nie jest skonfigurowany na tym serwerze. Dodaj powyżej własne dane OAuth Polar lub poproś administratora o skonfigurowanie współdzielonej aplikacji.",
     "polarConnect": "Połącz Polar",
     "polarDisconnect": "Rozłącz",
     "polarDisconnectTitle": "Rozłączyć Polar?",
@@ -4624,7 +4808,14 @@
     "ouraDescription": "Połącz konto Oura, aby synchronizować readiness, fazy snu, HRV i aktywność dzienną.",
     "ouraViewData": "Zobacz sen i regenerację",
     "ouraHelp": "Zaloguj się w Oura, aby przyznać dostęp. Dane są pobierane w tle raz na godzinę.",
-    "ouraUnavailable": "Oura nie jest skonfigurowana na tym serwerze. Poproś administratora o dodanie danych OAuth Oura.",
+    "ouraCredentials": "Dane API",
+    "ouraCredentialsHelp": "Opcjonalnie: zarejestruj własną aplikację Oura i wklej tutaj jej Client ID oraz Client Secret. Pozostaw puste, aby użyć współdzielonej aplikacji Oura serwera.",
+    "ouraClientId": "Client ID",
+    "ouraClientSecret": "Client Secret",
+    "ouraCredentialsSaved": "Dane zapisane",
+    "ouraCredentialsSavedPlaceholder": "Zapisano — wpisz nowe, aby zastąpić",
+    "ouraSaveCredentials": "Zapisz",
+    "ouraUnavailable": "Oura nie jest skonfigurowana na tym serwerze. Dodaj powyżej własne dane OAuth Oura lub poproś administratora o skonfigurowanie współdzielonej aplikacji.",
     "ouraConnect": "Połącz Oura",
     "ouraDisconnect": "Rozłącz",
     "ouraDisconnectTitle": "Rozłączyć Oura?",
@@ -4640,7 +4831,8 @@
       "token": "Wymiana tokena z Oura nie powiodła się. Rozpocznij połączenie ponownie.",
       "rate_limited": "Zbyt wiele prób połączenia. Poczekaj chwilę i spróbuj ponownie.",
       "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
-    }
+    },
+    "integrationSetupGuide": "Przewodnik konfiguracji"
   },
   "admin": {
     "title": "Administracja",
@@ -4763,6 +4955,13 @@
     "webPushVapidPrivateKeyPlaceholder": "Opcjonalnie: wprowadź nowy klucz prywatny",
     "webPushVapidSubject": "Subject VAPID",
     "webPushVapidSubjectPlaceholder": "mailto:you@example.com",
+    "webPushVapidGenerate": "Wygeneruj klucze",
+    "webPushVapidGenerating": "Generowanie…",
+    "webPushVapidGenerated": "Klucze VAPID wygenerowane. Zapisz temat, aby zakończyć.",
+    "webPushVapidGenerateFailed": "Nie udało się wygenerować kluczy VAPID.",
+    "webPushVapidGenerateConfirm": "Klucze VAPID są już skonfigurowane. Wygenerowanie nowej pary unieważnia wszystkie subskrypcje push w przeglądarce — każde urządzenie musi zasubskrybować ponownie. Kontynuować?",
+    "webPushVapidGenerateConfirmTitle": "Wygenerować nowe klucze VAPID?",
+    "webPushVapidRegenerate": "Wygeneruj ponownie",
     "configured": "Skonfigurowano",
     "monitoringTestSuccess": "Wysłano zdarzenie testowe",
     "monitoringTestFailed": "Test monitorowania nie powiódł się",
@@ -4930,6 +5129,15 @@
     "authTokenRevoke": "Token unieważniony",
     "medicationReminders": "Przypomnienia o lekach",
     "medicationRemindersDescription": "Progi zmian koloru oznaczeń przypomnień na kartach leków.",
+    "notificationHealth": {
+      "title": "Stan dostarczania",
+      "description": "Wyniki dostarczania wszystkich użytkowników z ostatnich 24 godzin.",
+      "empty": "W tym okresie nie wysłano żadnych powiadomień.",
+      "ok": "OK",
+      "error": "Nieudane",
+      "skipped": "Pominięte",
+      "autoDisabled": "Automatycznie wyłączone kanały"
+    },
     "reminderLateMinutes": "Próg opóźnienia (minuty)",
     "reminderLateMinutesDescription": "Minuty po końcu okna, zanim oznaczenie zmieni kolor z żółtego na pomarańczowy.",
     "reminderMissedMinutes": "Próg pominięcia (minuty)",
@@ -6208,5 +6416,99 @@
     "deleteN": "Usuń ({count})",
     "clearSelection": "Wyczyść zaznaczenie",
     "selectionBarLabel": "Akcje zaznaczenia"
+  },
+  "measurementReminders": {
+    "sectionTitle": "Profilaktyka",
+    "sectionDescription": "Przypomnienia, co, kiedy i gdzie zmierzyć lub sprawdzić.",
+    "addButton": "Dodaj przypomnienie",
+    "markDone": "Gotowe",
+    "delete": "Usuń",
+    "disabledBadge": "Wył.",
+    "nextDue": {
+      "none": "Niezaplanowane",
+      "today": "Termin dzisiaj",
+      "tomorrow": "Termin jutro",
+      "inDays": "Za {days} dni"
+    },
+    "overdueByDays": "Zaległe od {days} dni",
+    "cadence": {
+      "everyNDays": "Co {days} dni",
+      "custom": "Własny harmonogram"
+    },
+    "location": {
+      "prefix": "U: {location}"
+    },
+    "types": {
+      "WEIGHT": "Waga",
+      "BLOOD_PRESSURE_SYS": "Ciśnienie krwi",
+      "PULSE": "Tętno",
+      "BLOOD_GLUCOSE": "Glukoza we krwi",
+      "OXYGEN_SATURATION": "Saturacja tlenem",
+      "BODY_FAT": "Tkanka tłuszczowa",
+      "BODY_TEMPERATURE": "Temperatura ciała"
+    },
+    "empty": {
+      "title": "Brak przypomnień",
+      "description": "Dodaj przypomnienie, aby regularnie mierzyć ciśnienie krwi lub zaplanować coroczne badanie krwi."
+    },
+    "form": {
+      "label": "Etykieta",
+      "labelPlaceholder": "np. Zmierz ciśnienie krwi",
+      "kind": "Typ",
+      "kindType": "Powiązane z pomiarem",
+      "kindFreeText": "Sprawdzenie tekstowe",
+      "measurementType": "Pomiar",
+      "cadence": "Powtarzaj",
+      "notifyHour": "Przypomnij o",
+      "location": "Gdzie (opcjonalnie)",
+      "locationPlaceholder": "np. Lekarz, Laboratorium",
+      "save": "Zapisz"
+    },
+    "pushTitle": "Przypomnienie profilaktyczne",
+    "pushBody": "Czas na: {label}",
+    "pushLocation": "(u {location})"
+  },
+  "labs": {
+    "title": "Wyniki badań",
+    "subtitle": "Badania krwi i biomarkery",
+    "addResult": "Dodaj",
+    "addDescription": "Zapisz biomarker z wyniku laboratoryjnego.",
+    "addFirst": "Dodaj pierwszy wynik",
+    "emptyTitle": "Brak wyników badań",
+    "emptyDescription": "Zapisuj badania takie jak HbA1c, LDL czy ferrytyna, aby śledzić je w czasie i udostępniać lekarzowi.",
+    "referenceLabel": "Norma",
+    "readingsCount": "{count} wyników",
+    "deleteLatest": "Usuń ostatni wynik",
+    "deletedToast": "Wynik usunięty",
+    "deleteError": "Nie udało się usunąć wyniku",
+    "loadError": "Nie udało się wczytać wyników",
+    "range": {
+      "inRange": "W normie",
+      "below": "Poniżej normy",
+      "above": "Powyżej normy"
+    },
+    "form": {
+      "analyte": "Biomarker",
+      "analytePlaceholder": "np. HbA1c, LDL, ferrytyna",
+      "value": "Wartość",
+      "unit": "Jednostka",
+      "unitPlaceholder": "np. mg/dl, %, ng/ml",
+      "takenAt": "Data pobrania",
+      "optionalGroup": "Opcjonalne",
+      "panel": "Panel",
+      "panelPlaceholder": "np. Morfologia krwi",
+      "referenceLow": "Norma dolna",
+      "referenceHigh": "Norma górna",
+      "referenceLowPlaceholder": "Dolna granica",
+      "referenceHighPlaceholder": "Górna granica",
+      "referenceHint": "Przepisz zakres referencyjny z wyniku laboratoryjnego. Każda z granic jest opcjonalna.",
+      "note": "Notatka",
+      "notePlaceholder": "Opcjonalny kontekst tego wyniku",
+      "requiredError": "Biomarker, wartość i jednostka są wymagane.",
+      "rangeOrderError": "Norma dolna nie może przekraczać górnej.",
+      "save": "Zapisz",
+      "savedToast": "Wynik zapisany",
+      "saveError": "Nie udało się zapisać wyniku"
+    }
   }
 }

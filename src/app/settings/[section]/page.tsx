@@ -10,9 +10,11 @@ import { DashboardSection } from "@/components/settings/dashboard-section";
 import { ExportSection } from "@/components/settings/export-section";
 import { InsightsSection } from "@/components/settings/insights-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
+import { LayoutSection } from "@/components/settings/layout-section";
 import { MedicationsSection } from "@/components/settings/medications-section";
 import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
+import { RemindersSection } from "@/components/settings/reminders-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
 // v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are two
 // separate sections again. `ThresholdsSection` renders the target-range
@@ -28,8 +30,10 @@ import {
 import { SettingsShell } from "@/components/settings/settings-shell";
 
 /**
- * Dynamic settings section route. Each of the eight `SETTINGS_SECTION_SLUGS`
- * is pre-rendered at build via `generateStaticParams()` so the URLs are
+ * Dynamic settings section route. Each of the `SETTINGS_SECTION_SLUGS`
+ * (16 today — 12 nav-visible sections plus the four routable-but-hidden
+ * Layout child editors) is pre-rendered at build via
+ * `generateStaticParams()` so the URLs are
  * statically known to Next.js, while the `dynamicParams = false` flag below
  * tells the router to 404 (instead of attempting on-demand rendering) for any
  * slug not in the list — which is exactly what `notFound()` would do at
@@ -51,6 +55,8 @@ const SECTION_COMPONENTS: Record<
   ai: AiSection,
   integrations: IntegrationsSection,
   notifications: NotificationsSection,
+  reminders: RemindersSection,
+  layout: LayoutSection,
   dashboard: DashboardSection,
   insights: InsightsSection,
   medications: MedicationsSection,

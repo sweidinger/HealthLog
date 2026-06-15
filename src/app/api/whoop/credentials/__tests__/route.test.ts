@@ -15,6 +15,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
 vi.mock("@/lib/crypto", () => ({ encrypt: (s: string) => `enc:${s}` }));
+vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn() }));
+vi.mock("@/lib/integrations/status", () => ({ markDisconnected: vi.fn() }));
 
 vi.mock("@/lib/api-response", () => ({
   apiSuccess: (data: unknown) => ({ data, error: null, status: 200 }),
@@ -30,6 +32,8 @@ vi.mock("@/lib/api-response", () => ({
 
 import { GET, PUT, DELETE } from "../route";
 import { prisma } from "@/lib/db";
+import { auditLog } from "@/lib/auth/audit";
+import { markDisconnected } from "@/lib/integrations/status";
 
 const userFind = prisma.user.findUnique as ReturnType<typeof vi.fn>;
 const userUpdate = prisma.user.update as ReturnType<typeof vi.fn>;
@@ -90,5 +94,17 @@ describe("/api/whoop/credentials", () => {
         whoopClientSecretEncrypted: null,
       },
     });
+  });
+
+  it("DELETE audits the teardown and parks the ledger (04-L1 parity)", async () => {
+    userUpdate.mockResolvedValue({});
+    (prisma.whoopConnection.delete as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {},
+    );
+    await (DELETE as unknown as () => Promise<unknown>)();
+    expect(auditLog).toHaveBeenCalledWith("whoop.credentials.delete", {
+      userId: "u1",
+    });
+    expect(markDisconnected).toHaveBeenCalledWith("u1", "whoop");
   });
 });

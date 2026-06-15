@@ -194,7 +194,7 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     expect(firstDuration.data.unit).toBe("minutes");
   });
 
-  it("converts startdate (unix seconds) to a Date in measuredAt", async () => {
+  it("stamps measuredAt at the segment END (enddate, unix seconds → Date)", async () => {
     installFetchMock([
       { startdate: 1715000000, enddate: 1715003600, state: 2, id: 1 },
     ]);
@@ -205,7 +205,10 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     const arg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
       data: { measuredAt: Date };
     };
-    expect(arg.data.measuredAt.getTime()).toBe(1715000000 * 1000);
+    // measuredAt is the segment END — every reader treats it as the END and
+    // resolves the span as start = end − duration. Stamping the START shifted
+    // the night one segment-length earlier.
+    expect(arg.data.measuredAt.getTime()).toBe(1715003600 * 1000);
   });
 
   it("skips state 4 (synthetic marker) without throwing", async () => {
@@ -237,9 +240,15 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     const imported = await syncUserSleep("user-1");
     expect(imported).toBe(1);
     expect(prisma.measurement.create).not.toHaveBeenCalled();
+    // Re-sync keys on the stable externalId and refreshes value, the
+    // END-stamped measuredAt (enddate may shift) and the stage.
     expect(prisma.measurement.update).toHaveBeenCalledWith({
       where: { id: "row-1" },
-      data: { value: 60 },
+      data: {
+        value: 60,
+        measuredAt: new Date(1715003600 * 1000),
+        sleepStage: "DEEP",
+      },
     });
   });
 

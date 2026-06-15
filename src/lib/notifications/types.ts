@@ -4,7 +4,25 @@
  * Events: medication reminders, anomalies, compliance, etc.
  */
 
-export const CHANNEL_TYPES = ["TELEGRAM", "NTFY", "WEB_PUSH", "APNS"] as const;
+export const CHANNEL_TYPES = [
+  "TELEGRAM",
+  "NTFY",
+  "WEB_PUSH",
+  "APNS",
+  // v1.17.1 — generic outbound webhook. The user supplies a public URL and an
+  // optional shared secret/header; the dispatcher POSTs a small JSON payload
+  // ({ title, message, eventType, ... }) through `safeFetch` with
+  // `requirePublicHost: true`, exactly like ntfy. One channel covers Gotify,
+  // Discord, Slack, Matrix (via a bridge), Home Assistant, and any homelab
+  // relay that accepts an inbound JSON POST.
+  "WEBHOOK",
+  // v1.17.1 — SMTP / email. Alerts + reminders over email — the channel every
+  // self-hoster already has. The SMTP transport is OPERATOR-configured via
+  // `SMTP_*` env (absent → channel never offered, like APNs today); the
+  // per-user config carries only the recipient address. Bodies stay plain text
+  // (no markdown library — hard rule).
+  "EMAIL",
+] as const;
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
 
 export const EVENT_TYPES = [
@@ -56,6 +74,26 @@ export const EVENT_TYPES = [
   // refill or threshold change. ON at the channel layer — the real
   // gate is the per-user threshold in `notificationPrefs.medication`.
   "MEDICATION_LOW_STOCK",
+  // v1.17.1 — Vorsorge (measurement / preventive-care) reminder. Fired by
+  // the every-15-min measurement-reminder cron when a user-created
+  // reminder ("measure BP every 7 days", "annual blood panel") is due
+  // inside the user's local notify-hour window. ON by default at the
+  // channel layer (see EVENT_DEFAULT_ENABLED): these are reminders the
+  // user explicitly created, so silence-by-default would be surprising.
+  // The real gate is the per-reminder `enabled` flag plus the per-user
+  // `notificationPrefs.measurementReminder.clientManaged` suppression.
+  // NOT time-sensitive — a Vorsorge nudge is not a Focus-bypass case.
+  "MEASUREMENT_REMINDER",
+  // v1.17.1 (#22) — silent medication-intake cross-device sync. Fired on a
+  // medication-intake mutation (single + bulk) to the user's OTHER iOS
+  // devices so a Live Activity / Home-Screen widget reconciles after a dose
+  // is logged on one device. APNs-ONLY by construction: it is a silent
+  // `apns-push-type: background` push (content-available, no alert) and has
+  // no Telegram / ntfy / Web Push semantics, so it never fans out to those
+  // channels (the dispatcher would have nothing meaningful to deliver and a
+  // user-visible Telegram message on every dose would be noise). Routed
+  // through the dedicated intake-sync sender, not the alert cascade.
+  "MEDICATION_INTAKE_SYNC",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -102,6 +140,17 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // push per medication per crossing. An explicit per-channel
   // `NotificationPreference` row still wins.
   MEDICATION_LOW_STOCK: true,
+  // v1.17.1 — ON at the channel layer; the real gates are the per-reminder
+  // `enabled` flag and the per-user `measurementReminder.clientManaged`
+  // suppression the cron reads. An explicit per-channel
+  // `NotificationPreference` row still wins.
+  MEASUREMENT_REMINDER: true,
+  // v1.17.1 (#22) — ON at the channel layer; an explicit per-channel
+  // `NotificationPreference` row (APNS, eventType MEDICATION_INTAKE_SYNC,
+  // enabled=false) still suppresses it. There is no second user-facing
+  // toggle: this is plumbing that keeps the user's own devices coherent,
+  // not a notification the user chooses to receive.
+  MEDICATION_INTAKE_SYNC: true,
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {
@@ -109,6 +158,8 @@ export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {
   NTFY: "ntfy",
   WEB_PUSH: "Web Push",
   APNS: "Apple Push (APNs)",
+  WEBHOOK: "Webhook",
+  EMAIL: "Email",
 };
 
 // ── Channel config shapes (stored as encrypted JSON) ──
@@ -122,6 +173,33 @@ export interface NtfyChannelConfig {
   serverUrl: string;
   topic: string;
   authToken?: string;
+}
+
+/**
+ * Generic-webhook channel config (v1.17.1). The user supplies a public URL and
+ * an OPTIONAL custom header (e.g. `Authorization: Bearer <token>` for Gotify,
+ * or a Discord/Slack incoming-webhook URL needs no header). The dispatcher
+ * POSTs a JSON body — see `sendViaWebhook` — through `safeFetch` with
+ * `requirePublicHost: true` so the SSRF floor + DNS-rebinding pin apply to the
+ * user-supplied host exactly as they do for ntfy.
+ */
+export interface WebhookChannelConfig {
+  url: string;
+  /** Optional header name to attach (e.g. "Authorization"). */
+  headerName?: string;
+  /** Optional header value (e.g. "Bearer <token>"). Encrypted at rest. */
+  headerValue?: string;
+}
+
+/**
+ * Email channel config (v1.17.1). The SMTP TRANSPORT (host/port/auth/from) is
+ * operator-supplied via `SMTP_*` env and loaded in `email-config.ts`; the only
+ * per-user value is the recipient address. Splitting it this way keeps SMTP
+ * credentials out of every user's encrypted channel blob — they live once in
+ * the operator's env, exactly like the APNs key.
+ */
+export interface EmailChannelConfig {
+  recipient: string;
 }
 
 // ── Notification payload ──

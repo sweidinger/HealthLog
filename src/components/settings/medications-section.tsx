@@ -8,6 +8,7 @@ import {
   type ReorderMedication,
 } from "@/components/medications/medication-order-editor";
 import { MedicationViewToggle } from "@/components/medications/medication-view-toggle";
+import { SettingsHubBackLink } from "@/components/settings/settings-hub-back-link";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { applyMedicationOrder } from "@/lib/medications/medication-order";
@@ -68,7 +69,11 @@ export function MedicationsSection() {
       aria-labelledby="settings-section-medications-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      <header className="space-y-2">
+        <SettingsHubBackLink
+          href="/settings/layout"
+          labelKey="settings.sections.layout.backToHub"
+        />
         <h1 id="settings-section-medications-title" className="sr-only">
           {t("settings.sections.medications.title")}
         </h1>
