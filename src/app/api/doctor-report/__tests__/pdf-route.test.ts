@@ -39,11 +39,36 @@ vi.mock("@/lib/logging/transports", () => ({
   emitIfSampled: vi.fn(),
 }));
 
+// v1.18.0 — the doctor-report aggregator resolves the per-user module map
+// so a disabled data-domain module never reaches the report. Stub the gate
+// to "all modules enabled" (an empty map ⇒ default-on) so these pre-existing
+// route tests don't stand up the real gate's DB reads.
+vi.mock("@/lib/modules/gate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/modules/gate")>();
+  return {
+    ...actual,
+    resolveModuleMap: vi.fn(),
+    isModuleEnabled: vi.fn(),
+    requireModuleEnabled: vi.fn(),
+  };
+});
+
 import { POST } from "../pdf/route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { auditLog } from "@/lib/auth/audit";
+import {
+  resolveModuleMap,
+  isModuleEnabled,
+  requireModuleEnabled,
+} from "@/lib/modules/gate";
+
+function setModuleGateAllEnabled() {
+  vi.mocked(resolveModuleMap).mockResolvedValue({} as never);
+  vi.mocked(isModuleEnabled).mockResolvedValue(true);
+  vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true } as never);
+}
 
 function makeRequest(
   body?: Record<string, unknown>,
@@ -86,6 +111,7 @@ function setEmptyDataMocks() {
 describe("POST /api/doctor-report/pdf", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    setModuleGateAllEnabled();
   });
 
   it("returns 401 when not authenticated", async () => {

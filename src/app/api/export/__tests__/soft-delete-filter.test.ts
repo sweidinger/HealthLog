@@ -51,9 +51,27 @@ vi.mock("@/lib/tz/resolver", () => ({
   resolveUserTimezone: vi.fn().mockResolvedValue("Europe/Berlin"),
 }));
 
+// v1.18.0 — the achievements route gates on `requireModuleEnabled`. Stub
+// the gate to "all modules enabled" (an empty map ⇒ default-on) so this
+// pre-existing soft-delete test doesn't stand up the real gate's DB reads.
+vi.mock("@/lib/modules/gate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/modules/gate")>();
+  return {
+    ...actual,
+    resolveModuleMap: vi.fn(),
+    isModuleEnabled: vi.fn(),
+    requireModuleEnabled: vi.fn(),
+  };
+});
+
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  resolveModuleMap,
+  isModuleEnabled,
+  requireModuleEnabled,
+} from "@/lib/modules/gate";
 
 const SESSION_OK = {
   user: {
@@ -69,6 +87,9 @@ function mkReq(url: string): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(resolveModuleMap).mockResolvedValue({} as never);
+  vi.mocked(isModuleEnabled).mockResolvedValue(true);
+  vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true } as never);
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
