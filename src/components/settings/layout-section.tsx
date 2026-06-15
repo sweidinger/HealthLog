@@ -5,7 +5,6 @@ import {
   ChevronRight,
   LayoutDashboard,
   Pill,
-  Smile,
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
@@ -50,12 +49,8 @@ const LAYOUT_LINKS: ReadonlyArray<LayoutLink> = [
     titleKey: "settings.sections.layout.medications.title",
     descriptionKey: "settings.sections.layout.medications.description",
   },
-  {
-    href: "/settings/mood",
-    icon: Smile,
-    titleKey: "settings.sections.layout.mood.title",
-    descriptionKey: "settings.sections.layout.mood.description",
-  },
+  // v1.18.0 (S5) — Mood (Stimmung) graduated to its own top-level,
+  // module-gated nav entry, so it is no longer linked from the Layout hub.
 ];
 
 export function LayoutSection() {

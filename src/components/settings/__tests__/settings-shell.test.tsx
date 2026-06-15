@@ -11,6 +11,22 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockPathnameRef.value,
 }));
 
+// v1.18.0 (S5) — the shell module-gates per-submodule nav entries off
+// `useAuth().user.modules`. The mock returns a user whose modules map is
+// mutated per-test via `mockModulesRef`. `undefined` (the default) means
+// every gate fails open, so all entries render.
+const mockModulesRef: { value: Record<string, boolean> | undefined } = {
+  value: undefined,
+};
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { id: "u1", role: "USER", modules: mockModulesRef.value },
+    isAuthenticated: true,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
+
 import { I18nProvider } from "@/lib/i18n/context";
 import {
   SETTINGS_SECTION_SLUGS,
@@ -23,8 +39,10 @@ function renderShell(props: {
   active?: (typeof SETTINGS_SECTION_SLUGS)[number];
   pathname?: string;
   locale?: "en" | "de";
+  modules?: Record<string, boolean>;
 }) {
   mockPathnameRef.value = props.pathname ?? "/settings/account";
+  mockModulesRef.value = props.modules;
   return renderToStaticMarkup(
     <I18nProvider initialLocale={props.locale ?? "en"}>
       <SettingsShell active={props.active}>
@@ -163,7 +181,6 @@ describe("<SettingsShell>", () => {
       "/settings/dashboard",
       "/settings/insights",
       "/settings/medications",
-      "/settings/mood",
     ]) {
       const html = renderShell({ pathname: child });
       const layoutActive =
@@ -175,10 +192,35 @@ describe("<SettingsShell>", () => {
   it("highlights the Layout hub when the active prop is a Layout child", () => {
     // The page passes `active={section}` explicitly; a child slug must
     // still resolve onto the Layout hub for nav highlighting.
-    const html = renderShell({ active: "mood", pathname: "/settings/mood" });
+    const html = renderShell({
+      active: "medications",
+      pathname: "/settings/medications",
+    });
     const layoutActive =
       /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/layout"|<a\b[^>]*\bhref="\/settings\/layout"[^>]*\baria-current="page"/g;
     expect(html.match(layoutActive)?.length ?? 0).toBe(2);
+  });
+
+  it("module-gates the Stimmung entry off `user.modules.mood` (v1.18.0 S5)", () => {
+    // Fail-open default: mood undefined → entry shown.
+    expect(renderShell({ active: "account" })).toContain(
+      'href="/settings/mood"',
+    );
+    // Explicitly disabled → entry hidden.
+    const disabled = renderShell({
+      active: "account",
+      modules: { mood: false },
+    });
+    expect(disabled).not.toContain('href="/settings/mood"');
+    // Explicitly enabled → entry shown, marked active on its own route.
+    const enabled = renderShell({
+      active: "mood",
+      pathname: "/settings/mood",
+      modules: { mood: true },
+    });
+    const moodActive =
+      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/mood"|<a\b[^>]*\bhref="\/settings\/mood"[^>]*\baria-current="page"/g;
+    expect(enabled.match(moodActive)?.length ?? 0).toBe(2);
   });
 
   it("falls back to `account` when the pathname doesn't match a known slug", () => {
@@ -196,14 +238,16 @@ describe("<SettingsShell>", () => {
     // (single-line; the longer "Notification channels" wrapped). The
     // `/notifications` inbox now shares the "Notifications" label.
     expect(html).toContain("Notifications");
-    // v1.17.1 (F-2) — the four personalization editors (Dashboard,
-    // Insights, Medications, Mood) are reached through one Layout hub
-    // entry; the hub itself is the single nav entry for the concept.
+    // v1.17.1 (F-2) — the personalization editors (Dashboard, Insights,
+    // Medications) are reached through one Layout hub entry; the hub
+    // itself is the single nav entry for that concept.
     expect(html).toContain('href="/settings/layout"');
     expect(html).toContain("Layout &amp; Personalization");
-    // The four editors are no longer standalone nav entries.
+    // Dashboard / Insights / Medications stay Layout-hub children.
     expect(html).not.toContain('href="/settings/medications"');
-    expect(html).not.toContain('href="/settings/mood"');
+    // v1.18.0 (S5) — Mood (Stimmung) graduated to its own module-gated
+    // nav entry. With the default fail-open mock it renders.
+    expect(html).toContain('href="/settings/mood"');
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
     // form so we don't accidentally match a parser that double-escapes.
     expect(html).toContain("API &amp; Tokens");
@@ -232,13 +276,13 @@ describe("<SettingsShell>", () => {
     // compound "Benachrichtigungs-Kanäle" wrapped). The `/notifications`
     // inbox now shares the "Benachrichtigungen" label.
     expect(html).toContain("Benachrichtigungen");
-    // v1.17.1 (F-2) — the four personalization editors are reached through
-    // one Layout hub entry ("Layout & Personalisierung"); they are no
-    // longer standalone German nav entries.
+    // v1.17.1 (F-2) — the personalization editors are reached through one
+    // Layout hub entry ("Layout & Personalisierung").
     expect(html).toContain('href="/settings/layout"');
     expect(html).toContain("Layout &amp; Personalisierung");
     expect(html).not.toContain('href="/settings/medications"');
-    expect(html).not.toContain('href="/settings/mood"');
+    // v1.18.0 (S5) — Mood (Stimmung) is its own nav entry now.
+    expect(html).toContain('href="/settings/mood"');
     // v1.18.0 (S3) — Targets keeps its German nav entry ("Zielwerte");
     // Sources folded into Integrations as a sub-tab.
     expect(html).toContain("Zielwerte");

@@ -28,6 +28,7 @@ import {
   Link2,
   Settings2,
   SlidersHorizontal,
+  Smile,
   Sparkles,
   User,
   type LucideIcon,
@@ -35,7 +36,9 @@ import {
 
 import { cn } from "@/lib/utils";
 import { scrollBehaviorForUser } from "@/lib/motion";
+import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import type { ModuleKey } from "@/lib/modules/registry";
 import {
   SETTINGS_SECTION_SLUGS,
   isSettingsSectionSlug,
@@ -60,6 +63,14 @@ interface SettingsSection {
   /** i18n key under `settings.sections.<slug>.title`. */
   titleKey: string;
   icon: LucideIcon;
+  /**
+   * v1.18.0 (S5) — per-submodule entries are listed only when their module
+   * is enabled. When set, the nav entry hides if the resolved
+   * `useAuth().user.modules` map has the key explicitly `false`. The gate
+   * fails OPEN (a missing key reads as enabled) so a stale `/me` payload
+   * never blanks an entry. Omitted = always shown (global / CORE entries).
+   */
+  moduleGate?: ModuleKey;
 }
 
 /**
@@ -110,6 +121,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.layout.title",
     icon: LayoutDashboard,
   },
+  // v1.18.0 (S5) — Stimmung: the mood-tag management surface gets its own
+  // nav entry, shown only when the mood module is enabled. Was a hidden
+  // child of the Layout hub.
+  {
+    slug: "mood",
+    titleKey: "settings.sections.mood.title",
+    icon: Smile,
+    moduleGate: "mood",
+  },
   {
     slug: "thresholds",
     titleKey: "settings.sections.thresholds.title",
@@ -151,15 +171,17 @@ export interface SettingsShellProps {
   children: React.ReactNode;
 }
 
-// v1.17.1 (F-2) — the four personalization editors live under the Layout
+// v1.17.1 (F-2) — the personalization editors live under the Layout
 // hub. They keep their own routes but are NOT standalone nav entries, so
 // when the user is on one of them the Layout nav entry is the one that
 // reads active.
+//
+// v1.18.0 (S5) — `mood` (Stimmung) graduated to its own nav entry, so it
+// is no longer a Layout-hub child for highlighting purposes.
 const LAYOUT_CHILD_SLUGS: ReadonlySet<string> = new Set([
   "dashboard",
   "insights",
   "medications",
-  "mood",
 ]);
 
 /** Map a Layout child editor onto the Layout hub for nav highlighting. */
@@ -184,7 +206,20 @@ function deriveActiveSlug(
 export function SettingsShell({ active, children }: SettingsShellProps) {
   const pathname = usePathname();
   const { t } = useTranslations();
+  const { user } = useAuth();
   const activeSlug = deriveActiveSlug(pathname, active);
+
+  // v1.18.0 (S5) — per-submodule entries are listed only when their module
+  // is enabled. Read from the resolved `useAuth().user.modules` map (the
+  // same map the Module hub, nav, and Insights pills gate off). Fail OPEN
+  // (`!== false`): a missing key, or a not-yet-resolved `/me` payload,
+  // reads as enabled so an entry never silently disappears. Entries with
+  // no `moduleGate` (global / CORE) are always shown.
+  const modules = user?.modules;
+  const visibleSections = SETTINGS_SECTIONS.filter(
+    (section) =>
+      !section.moduleGate || modules?.[section.moduleGate] !== false,
+  );
 
   // v1.4.33 IW4 — keep the active chip in view inside the horizontal
   // mobile strip. On a 393 CSS px viewport the strip is wider than the
@@ -247,7 +282,7 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
         className="no-scrollbar -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
-          {SETTINGS_SECTIONS.map((section) => {
+          {visibleSections.map((section) => {
             const isActive = section.slug === activeSlug;
             const Icon = section.icon;
             return (
@@ -282,7 +317,7 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
         >
           <div className="sticky top-20">
             <ul className="space-y-1">
-              {SETTINGS_SECTIONS.map((section) => {
+              {visibleSections.map((section) => {
                 const isActive = section.slug === activeSlug;
                 const Icon = section.icon;
                 return (
