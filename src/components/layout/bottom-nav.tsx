@@ -220,7 +220,15 @@ export function BottomNav() {
                   )}
                 >
                   <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  <span className="min-w-0 text-sm font-medium leading-tight">
+                  {/* v1.18.0 — the label must stay inside the tile across all
+                      six locales. The longest single-word label (German
+                      "Benachrichtigungen") has no natural break opportunity, so
+                      `min-w-0` alone is not enough — the unbroken word forces the
+                      span past the grid track and overflows the tile. `min-w-0`
+                      lets the flex child shrink below its content width,
+                      `break-words` introduces a break inside the long word, and
+                      the auto-height tile (`min-h-14`) absorbs the second line. */}
+                  <span className="min-w-0 break-words text-sm font-medium leading-tight">
                     {t(item.tKey)}
                   </span>
                 </Link>
