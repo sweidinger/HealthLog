@@ -15,7 +15,6 @@ import { MedicationsSection } from "@/components/settings/medications-section";
 import { ModulesSection } from "@/components/settings/modules-section";
 import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
-import { RemindersSection } from "@/components/settings/reminders-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
 // v1.18.0 (S3) — `sources` no longer has a standalone route; source priority
 // renders inside Settings → Integrations as the "Sources" sub-tab.
@@ -30,7 +29,7 @@ import { SettingsShell } from "@/components/settings/settings-shell";
 
 /**
  * Dynamic settings section route. Each of the `SETTINGS_SECTION_SLUGS`
- * (15 today — 11 nav-visible sections plus the four routable-but-hidden
+ * (14 today — 10 nav-visible sections plus the four routable-but-hidden
  * Layout child editors) is pre-rendered at build via
  * `generateStaticParams()` so the URLs are
  * statically known to Next.js, while the `dynamicParams = false` flag below
@@ -55,7 +54,6 @@ const SECTION_COMPONENTS: Record<
   ai: AiSection,
   integrations: IntegrationsSection,
   notifications: NotificationsSection,
-  reminders: RemindersSection,
   layout: LayoutSection,
   dashboard: DashboardSection,
   insights: InsightsSection,

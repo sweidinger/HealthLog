@@ -18,7 +18,6 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  AlarmClock,
   Bell,
   Blocks,
   Download,
@@ -92,19 +91,13 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.integrations.title",
     icon: Link2,
   },
+  // v1.18.0 (S4) — "Benachrichtigungen" is now the single module-gated
+  // reminder-types home. The separate "Erinnerungen" hub (a link-only page)
+  // is gone; reminder TYPES live here, each row gated on its module.
   {
     slug: "notifications",
     titleKey: "settings.sections.notifications.title",
     icon: Bell,
-  },
-  // v1.17.1 — the one "Reminders & Notifications" home. Gathers the
-  // scattered reminder categories (medication / mood / Vorsorge / low-stock
-  // / coach nudge) and links to the notification channels. The canonical
-  // editors keep their own routes; this nav entry is the single front door.
-  {
-    slug: "reminders",
-    titleKey: "settings.sections.reminders.title",
-    icon: AlarmClock,
   },
   // v1.17.1 (F-2) — one "Layout & Personalization" nav entry replaces the
   // four scattered Dashboard / Insights / Medications / Mood "arrange"

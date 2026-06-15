@@ -62,8 +62,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // slugs (`dashboard`, `insights`, `medications`, `mood`) keep their
     // routes so deep links resolve, but they are reached through the
     // Layout hub instead of four standalone nav entries.
-    // v1.17.1 — `reminders` is the one "Reminders & Notifications" home and
-    // sits right after `notifications`.
+    // v1.18.0 (S4) — the standalone `reminders` hub is gone; reminder TYPES
+    // live in `notifications`, each gated on its module. `/settings/reminders`
+    // 301-redirects to `/settings/notifications`.
     // v1.18.0 — `modules` ("Was du trackst") sits right after `account` as
     // the single front door for enabling/disabling secondary domains.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
@@ -71,7 +72,6 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "modules",
       "integrations",
       "notifications",
-      "reminders",
       "layout",
       "dashboard",
       "insights",

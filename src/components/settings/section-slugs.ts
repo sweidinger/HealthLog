@@ -26,11 +26,11 @@
 // `layout` entry instead of four scattered "arrange" entries, so the
 // concept reads as one place. The four editor slugs stay in this list so
 // their routes still resolve; they are simply not listed in the shell nav.
-// v1.17.1 — `reminders` sits right after `notifications`: the one
-// "Reminders & Notifications" home that gathers the scattered reminder
-// categories (medication, mood, Vorsorge, low-stock, coach nudge) and links
-// to the notification channels. The canonical editors keep their own routes;
-// the hub is consolidation by linking.
+// v1.18.0 (S4) — the standalone `reminders` hub is gone. It was a
+// link-only page ("doppelt gemoppelt") that merely deep-linked into the
+// canonical editors; reminder TYPES now live centrally in `notifications`,
+// each row gated on its module. `/settings/reminders` 301-redirects to
+// `/settings/notifications` (next.config.ts).
 export const SETTINGS_SECTION_SLUGS = [
   "account",
   // v1.18.0 — `modules` ("Was du trackst") sits right after account: the
@@ -38,7 +38,6 @@ export const SETTINGS_SECTION_SLUGS = [
   "modules",
   "integrations",
   "notifications",
-  "reminders",
   "layout",
   "dashboard",
   "insights",

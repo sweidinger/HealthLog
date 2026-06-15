@@ -12,7 +12,6 @@
  */
 
 import {
-  AlarmClock,
   Bell,
   Blocks,
   Download,
@@ -39,7 +38,6 @@ const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   modules: Blocks,
   integrations: Link2,
   notifications: Bell,
-  reminders: AlarmClock,
   layout: LayoutDashboard,
   dashboard: LayoutDashboard,
   insights: TrendingUp,

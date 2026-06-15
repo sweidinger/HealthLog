@@ -130,6 +130,16 @@ const nextConfig: NextConfig = {
         destination: "/settings/integrations",
         permanent: true,
       },
+      // v1.18.0 (S4) — the standalone "Erinnerungen" hub at
+      // `/settings/reminders` was a link-only page that duplicated the
+      // canonical editors. Reminder TYPES now live in Notifications, each
+      // gated on its module. 301-redirect so bookmarks, the PWA's cached
+      // navigation, and the old cross-links keep resolving.
+      {
+        source: "/settings/reminders",
+        destination: "/settings/notifications",
+        permanent: true,
+      },
     ];
   },
   async headers() {
