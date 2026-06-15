@@ -25,6 +25,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled, type ModuleKey } from "@/lib/modules/gate";
 import { prisma } from "@/lib/db";
 import {
   computeDerivedMetric,
@@ -36,6 +37,20 @@ import { resolveDerivedAssessment } from "@/lib/insights/derived/derived-assessm
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Derived scores that are NATIVE to a toggleable module rather than a core
+ * vital. SLEEP_SCORE is the sleep module's; the strain / recovery / stress
+ * trio belongs to the WHOOP/Polar recovery module. The composite baselines
+ * (VITALS_BASELINE, READINESS, HRV_BALANCE, …) read off core vitals and
+ * stay open — a metric absent from this map carries no module gate.
+ */
+const DERIVED_MODULE: Partial<Record<DerivedMetricId, ModuleKey>> = {
+  SLEEP_SCORE: "sleep",
+  RECOVERY_SCORE: "recovery",
+  STRAIN_SCORE: "recovery",
+  STRESS_SCORE: "recovery",
+};
 
 // Closed enum derived from the registry so the route + registry cannot
 // drift — an id added to the registry is accepted automatically, an
@@ -72,6 +87,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
   const metric = parsed.data.metric as DerivedMetricId;
+
+  // Per-domain gate: a derived score owned by a toggleable module
+  // (sleep / recovery) is refused with a 403 module.disabled envelope when
+  // the account has that module turned off. Core-vital composites stay open.
+  const moduleKey = DERIVED_MODULE[metric];
+  if (moduleKey) {
+    const gate = await requireModuleEnabled(user.id, moduleKey);
+    if (!gate.enabled) return gate.response;
+  }
 
   // Profile read once via the shared loader (the same one the batch route
   // and the nightly score jobs use), passed into the pure compute function
