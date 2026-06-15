@@ -53,9 +53,16 @@ describe("nav-model destination list", () => {
     expect(hrefs).toContain("/vorsorge");
     const vorsorge = NAV_DESTINATIONS.find((d) => d.href === "/vorsorge");
     expect(vorsorge?.tKey).toBe("nav.vorsorge");
-    // Peer to Labs / Recovery: sits in the clinical spine, before Insights.
+    // Peer to Labs: sits in the clinical spine, before Insights.
     expect(hrefs.indexOf("/labs")).toBeLessThan(hrefs.indexOf("/vorsorge"));
     expect(hrefs.indexOf("/vorsorge")).toBeLessThan(hrefs.indexOf("/insights"));
+  });
+
+  it("does not list Recovery as a left-nav destination (it is an Insights pill)", () => {
+    // v1.18.0 — Recovery moved off the left nav and surfaces as an
+    // Insights tab-strip pill at `/insights/recovery` instead.
+    const hrefs = NAV_DESTINATIONS.map((d) => d.href);
+    expect(hrefs).not.toContain("/insights/recovery");
   });
 
 });

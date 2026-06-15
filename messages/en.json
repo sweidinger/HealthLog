@@ -2784,6 +2784,7 @@
       }
     },
     "navWorkouts": "Workouts",
+    "navRecovery": "Recovery",
     "workouts": {
       "title": "Workouts",
       "description": "Recent runs, rides, walks and strength sessions, deduped across Apple Watch and Withings sources.",

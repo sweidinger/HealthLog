@@ -2784,6 +2784,7 @@
       }
     },
     "navWorkouts": "Treningi",
+    "navRecovery": "Regeneracja",
     "workouts": {
       "title": "Treningi",
       "description": "Ostatnie biegi, jazdy, marsze i treningi siłowe — zdeduplikowane między Apple Watch a Withings.",
