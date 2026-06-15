@@ -111,18 +111,31 @@ const DEVICE_TYPE_LABEL_KEYS: Record<DeviceType, string> = {
   unknown: "settings.sections.sources.deviceLabels.unknown",
 };
 
+export interface SourcesSectionProps {
+  /**
+   * `"standalone"` (the default) renders the full page header + the
+   * cross-link back to Integrations — the shape used while Sources had its
+   * own `/settings/sources` route. `"subtab"` (v1.18.0 S3) suppresses both:
+   * Sources now renders inside the Integrations → Sources sub-tab, so the
+   * page header is the parent section's and a cross-link back to the page
+   * that already contains it would be circular.
+   */
+  variant?: "standalone" | "subtab";
+}
+
 /**
- * `<SourcesSection>` — route-level wrapper for `/settings/sources`
- * (the "Sources" / "Quellen" page).
+ * `<SourcesSection>` — the per-metric source-priority + device-type ladders.
  *
- * v1.8.7.1 — Sources is its own settings page again (it was merged into
- * the combined "Targets & Sources" page under `/settings/thresholds` in
- * v1.4.34 IW-D). The section renders its own page header (h1 + subtitle)
- * and owns the per-metric source-priority + device-type ladders.
+ * v1.18.0 (S3) — Sources folded into Settings → Integrations as the "Sources"
+ * sub-tab (`variant="subtab"`), since deciding which connection wins when two
+ * report the same metric is an Integrations concern. The standalone
+ * `/settings/sources` route is gone; `/settings/sources` 301-redirects to
+ * `/settings/integrations` (see `next.config.ts`).
  */
-export function SourcesSection() {
+export function SourcesSection({ variant = "standalone" }: SourcesSectionProps = {}) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  const isSubtab = variant === "subtab";
 
   const { data: remote, isLoading } = useQuery({
     queryKey: queryKeys.sourcePriority(),
@@ -285,26 +298,35 @@ export function SourcesSection() {
       aria-labelledby="settings-section-sources-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
-        <h1 id="settings-section-sources-title" className="sr-only">
-          {t("settings.sections.sources.title")}
-        </h1>
+      {isSubtab ? (
+        // Sub-tab mode: the Integrations section owns the page header, and a
+        // cross-link back to the page that already contains this tab would be
+        // circular. Surface only the one-line description.
         <p className="text-muted-foreground text-sm">
           {t("settings.sections.sources.description")}
         </p>
-        {/* Cross-link back to Settings → Integrations — the page that
-            actually adds / removes the sources this ladder ranks. */}
-        <p className="text-muted-foreground text-xs">
-          {t("settings.sections.sources.integrationsHint")}{" "}
-          <Link
-            href="/settings/integrations"
-            className="text-primary underline underline-offset-2"
-            data-slot="sources-integrations-cross-link"
-          >
-            {t("settings.sections.sources.integrationsHintLink")}
-          </Link>
-        </p>
-      </header>
+      ) : (
+        <header className="space-y-1">
+          <h1 id="settings-section-sources-title" className="sr-only">
+            {t("settings.sections.sources.title")}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {t("settings.sections.sources.description")}
+          </p>
+          {/* Cross-link back to Settings → Integrations — the page that
+              actually adds / removes the sources this ladder ranks. */}
+          <p className="text-muted-foreground text-xs">
+            {t("settings.sections.sources.integrationsHint")}{" "}
+            <Link
+              href="/settings/integrations"
+              className="text-primary underline underline-offset-2"
+              data-slot="sources-integrations-cross-link"
+            >
+              {t("settings.sections.sources.integrationsHintLink")}
+            </Link>
+          </p>
+        </header>
+      )}
 
       <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
         <SettingsCardHeader

@@ -17,12 +17,10 @@ import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { RemindersSection } from "@/components/settings/reminders-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
-// v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are two
-// separate sections again. `ThresholdsSection` renders the target-range
-// editor; `SourcesSection` (standalone mode) renders the source-priority
-// ladders. Both are served by this dynamic route.
+// v1.18.0 (S3) — `sources` no longer has a standalone route; source priority
+// renders inside Settings → Integrations as the "Sources" sub-tab.
+// `/settings/sources` 301-redirects to `/settings/integrations` (next.config.ts).
 import { ThresholdsSection } from "@/components/settings/thresholds-section";
-import { SourcesSection } from "@/components/settings/sources-section";
 import {
   SETTINGS_SECTION_SLUGS,
   isSettingsSectionSlug,
@@ -32,7 +30,7 @@ import { SettingsShell } from "@/components/settings/settings-shell";
 
 /**
  * Dynamic settings section route. Each of the `SETTINGS_SECTION_SLUGS`
- * (16 today — 12 nav-visible sections plus the four routable-but-hidden
+ * (15 today — 11 nav-visible sections plus the four routable-but-hidden
  * Layout child editors) is pre-rendered at build via
  * `generateStaticParams()` so the URLs are
  * statically known to Next.js, while the `dynamicParams = false` flag below
@@ -64,7 +62,6 @@ const SECTION_COMPONENTS: Record<
   medications: MedicationsSection,
   mood: MoodSection,
   thresholds: ThresholdsSection,
-  sources: () => <SourcesSection />,
   api: ApiSection,
   export: ExportSection,
   advanced: AdvancedSection,

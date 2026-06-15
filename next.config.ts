@@ -121,6 +121,15 @@ const nextConfig: NextConfig = {
         destination: "/coach",
         permanent: true,
       },
+      // v1.18.0 (S3) — Sources folded into Settings → Integrations as the
+      // "Sources" sub-tab; the standalone `/settings/sources` page is gone.
+      // 301-redirect so bookmarks, the PWA's cached navigation, and the old
+      // cross-links keep resolving.
+      {
+        source: "/settings/sources",
+        destination: "/settings/integrations",
+        permanent: true,
+      },
     ];
   },
   async headers() {

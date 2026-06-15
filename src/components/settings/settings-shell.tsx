@@ -24,7 +24,6 @@ import {
   Download,
   Info,
   KeyRound,
-  Layers,
   LayoutDashboard,
   Link2,
   Settings2,
@@ -74,10 +73,10 @@ interface SettingsSection {
  * settings navigation. It is now both a regular (last) shell entry and
  * a user-card dropdown item ("Über HealthLog" / "About HealthLog").
  *
- * v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are two
- * separate sidebar entries again (merged into a single "Targets &
- * Sources" page in v1.4.34 IW-D, split back here). Both are served by
- * the dynamic `[section]` route.
+ * v1.18.0 (S3) — `sources` is no longer a sidebar entry: source priority
+ * folded into Settings → Integrations as the "Sources" sub-tab.
+ * `thresholds` (Targets) keeps its own entry, served by the dynamic
+ * `[section]` route.
  */
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { slug: "account", titleKey: "settings.sections.account.title", icon: User },
@@ -121,11 +120,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "thresholds",
     titleKey: "settings.sections.thresholds.title",
     icon: SlidersHorizontal,
-  },
-  {
-    slug: "sources",
-    titleKey: "settings.sections.sources.title",
-    icon: Layers,
   },
   { slug: "ai", titleKey: "settings.sections.ai.title", icon: Sparkles },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },

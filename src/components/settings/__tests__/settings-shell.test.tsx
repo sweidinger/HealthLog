@@ -45,9 +45,10 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // `api` and `advanced` so every "give me my data out" path lives in
     // one place.
     // v1.4.25 W5e added `sources` between `thresholds` and `ai`; v1.4.34
-    // IW-D merged it into `thresholds`.
-    // v1.8.7.1 — `sources` (Sources) is its own slug again, sitting
-    // between `thresholds` (Targets) and `ai`.
+    // IW-D merged it into `thresholds`; v1.8.7.1 split it back out.
+    // v1.18.0 (S3) — `sources` is no longer a standalone slug: source
+    // priority folded into Settings → Integrations as the "Sources"
+    // sub-tab. `/settings/sources` 301-redirects to `/settings/integrations`.
     // v1.15.18 — `insights` sits between `dashboard` and `thresholds`: the
     // overview-arrange + pill-sort customise surface for `/insights`.
     // v1.16.10 — `medications` sits between `insights` and `thresholds`:
@@ -77,7 +78,6 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "medications",
       "mood",
       "thresholds",
-      "sources",
       "ai",
       "api",
       "export",
@@ -211,13 +211,11 @@ describe("<SettingsShell>", () => {
     // About is back in the settings nav as the last entry (it also
     // stays linked from the sidebar user-card dropdown).
     expect(html).toContain('href="/settings/about"');
-    // v1.8.7.1 — Targets and Sources are two separate nav entries again.
+    // v1.18.0 (S3) — Targets keeps its own nav entry; Sources folded into
+    // Integrations as a sub-tab, so it is no longer a standalone nav entry.
     expect(html).toContain('href="/settings/thresholds"');
-    expect(html).toContain('href="/settings/sources"');
+    expect(html).not.toContain('href="/settings/sources"');
     expect(html).toContain("Targets");
-    // v1.12.0 — the source-priority entry adopts the canonical
-    // "Source priority" / "Quellen-Priorität" label (handover §5).
-    expect(html).toContain("Source priority");
   });
 
   it("resolves every section title via the i18n provider — German", () => {
@@ -235,10 +233,9 @@ describe("<SettingsShell>", () => {
     expect(html).toContain("Layout &amp; Personalisierung");
     expect(html).not.toContain('href="/settings/medications"');
     expect(html).not.toContain('href="/settings/mood"');
-    // v1.8.7.1 — Targets and Sources are two separate German nav
-    // entries again: "Zielwerte" and "Quellen".
+    // v1.18.0 (S3) — Targets keeps its German nav entry ("Zielwerte");
+    // Sources folded into Integrations as a sub-tab.
     expect(html).toContain("Zielwerte");
-    expect(html).toContain("Quellen");
     // v1.8.7.1 — the AI Insights section is named "KI-Auswertungen" in
     // German (the "KI" prefix makes the AI nature explicit).
     expect(html).toContain("KI-Auswertungen");
@@ -248,8 +245,8 @@ describe("<SettingsShell>", () => {
     // "Über diese App" (About) is back as the last in-shell nav entry
     // (the sidebar user-card dropdown keeps its own link too).
     expect(html).toContain('href="/settings/about"');
-    // v1.8.7.1 — both Targets and Sources nav entries are present.
-    expect(html).toContain('href="/settings/sources"');
+    // v1.18.0 (S3) — Sources is no longer a standalone nav entry.
+    expect(html).not.toContain('href="/settings/sources"');
   });
 
   it("does NOT surface the raw key when a translation resolves — guards against missing JSON entries", () => {

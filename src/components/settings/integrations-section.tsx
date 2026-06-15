@@ -11,6 +11,10 @@
  *      per-channel status surface (moved here from Settings → Notifications,
  *      where it never belonged: channels are delivery providers, not
  *      reminder preferences). See `notification-channels-panel.tsx`.
+ *   3. Sources — the per-metric source-priority + device-type ladders that
+ *      decide which connection wins when two report the same metric. Folded in
+ *      from the former standalone `/settings/sources` page. See
+ *      `sources-section.tsx` (sub-tab mode).
  *
  * `parseOAuthOutcome` / `oauthReasonKey` are re-exported from
  * `connections-panel.tsx` so existing unit-test imports keep resolving.
@@ -21,6 +25,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConnectionsPanel } from "@/components/settings/integrations/connections-panel";
 import { NotificationChannelsPanel } from "@/components/settings/integrations/notification-channels-panel";
+import { SourcesSection } from "@/components/settings/sources-section";
 import { useTranslations } from "@/lib/i18n/context";
 
 export {
@@ -28,7 +33,7 @@ export {
   oauthReasonKey,
 } from "@/components/settings/integrations/connections-panel";
 
-type IntegrationsTab = "connections" | "channels";
+type IntegrationsTab = "connections" | "channels" | "sources";
 
 export function IntegrationsSection() {
   const { t } = useTranslations();
@@ -59,6 +64,9 @@ export function IntegrationsSection() {
           <TabsTrigger value="channels">
             {t("settings.sections.integrations.tabs.channels")}
           </TabsTrigger>
+          <TabsTrigger value="sources">
+            {t("settings.sections.integrations.tabs.sources")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="connections">
@@ -66,6 +74,9 @@ export function IntegrationsSection() {
         </TabsContent>
         <TabsContent value="channels">
           <NotificationChannelsPanel />
+        </TabsContent>
+        <TabsContent value="sources">
+          <SourcesSection variant="subtab" />
         </TabsContent>
       </Tabs>
     </section>
