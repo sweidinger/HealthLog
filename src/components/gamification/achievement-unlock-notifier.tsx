@@ -3,6 +3,7 @@
 import { Sparkles, Trophy } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAchievementsQuery } from "@/lib/queries/use-achievements-query";
 
@@ -56,6 +57,14 @@ export function AchievementUnlockNotifier({
   userId,
 }: AchievementUnlockNotifierProps) {
   const { t } = useTranslations();
+  const { user } = useAuth();
+
+  // v1.18.0 — the achievements module gate. When the account has the
+  // module turned off the notifier goes inert: the polling query never
+  // fires and no unlock toast can surface. Default-on: an absent key reads
+  // as enabled, so the notifier only stands down on an explicit `false`.
+  const achievementsEnabled = user?.modules?.achievements !== false;
+
   const storageKey = useMemo(() => `${STORAGE_KEY_PREFIX}:${userId}`, [userId]);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const localStateReadyRef = useRef(false);
@@ -70,6 +79,7 @@ export function AchievementUnlockNotifier({
   // long-open tabs still surface new unlocks without forcing the card
   // to re-render on the same cadence.
   const { data } = useAchievementsQuery({
+    enabled: !!user && achievementsEnabled,
     refetchInterval: 2 * 60 * 1000,
   });
 

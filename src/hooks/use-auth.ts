@@ -80,6 +80,17 @@ export interface AuthUser {
    * stale /me payload (older server image without the field) in `fetchMe`.
    */
   cycleTrackingEnabled: boolean;
+  /**
+   * v1.18.0 — per-user module enable/disable map resolved server-side
+   * (`resolveModuleMap`). A `false` entry hides every surface that module
+   * owns; an absent key reads as enabled (default-on, fail-open), matching
+   * the gate's disabled-allowlist semantics. A stale /me payload without
+   * the field coerces to an empty map in `fetchMe`, so every surface stays
+   * visible rather than vanishing on a partial-deploy rollback. Optional
+   * so existing `AuthUser` test fixtures stay valid; `fetchMe` always
+   * populates it (empty map when absent), so live code reads a real map.
+   */
+  modules?: Record<string, boolean>;
 }
 
 async function fetchMe(): Promise<AuthUser> {
@@ -117,6 +128,11 @@ async function fetchMe(): Promise<AuthUser> {
     // v1.15.0 — coerce against a stale /me payload so the cycle nav entry
     // stays hidden by default when the field is absent.
     cycleTrackingEnabled: data.cycleTrackingEnabled === true,
+    // v1.18.0 — coerce against a stale /me payload so module gates default
+    // to enabled (empty map ⇒ every key reads on) rather than hiding a
+    // surface on an older server image without the field.
+    modules:
+      data.modules && typeof data.modules === "object" ? data.modules : {},
   };
 }
 

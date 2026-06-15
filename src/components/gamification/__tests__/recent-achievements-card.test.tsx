@@ -14,8 +14,10 @@ import type { AchievementProgress } from "@/lib/gamification/achievements";
  *      with their localized title + completedAt date.
  */
 
+let mockUser: { modules?: Record<string, boolean> } | null = {};
+
 vi.mock("@/hooks/use-auth", () => ({
-  useAuth: () => ({ isAuthenticated: true }),
+  useAuth: () => ({ isAuthenticated: true, user: mockUser }),
 }));
 
 let mockData:
@@ -54,6 +56,7 @@ function render() {
 beforeEach(() => {
   vi.clearAllMocks();
   mockIsPending = false;
+  mockUser = {};
 });
 
 const baseAchievement: AchievementProgress = {
@@ -127,6 +130,41 @@ describe("pickRecentUnlocks", () => {
       5,
     );
     expect(result.map((item) => item.id)).toEqual(["dated", "no-date"]);
+  });
+});
+
+describe("<RecentAchievementsCard> — achievements module gate", () => {
+  it("renders nothing when the achievements module is disabled", () => {
+    // v1.18.0 — an explicit `false` for the module hides the dashboard
+    // tile entirely so the surface disappears in lock-step with the page
+    // and the 403 route.
+    mockUser = { modules: { achievements: false } };
+    mockData = {
+      summary: {},
+      achievements: [
+        { ...baseAchievement, id: "a", completedAt: "2026-04-15T12:00:00.000Z" },
+      ],
+      metrics: {},
+    };
+    expect(render()).toBe("");
+  });
+
+  it("renders the tile when the module is enabled (explicit true)", () => {
+    mockUser = { modules: { achievements: true } };
+    mockData = {
+      summary: {},
+      achievements: [
+        { ...baseAchievement, id: "a", completedAt: "2026-04-15T12:00:00.000Z" },
+      ],
+      metrics: {},
+    };
+    expect(render()).toContain('data-slot="recent-achievements-card"');
+  });
+
+  it("renders the tile by default when the module key is absent (default-on)", () => {
+    mockUser = { modules: {} };
+    mockData = { summary: {}, achievements: [], metrics: {} };
+    expect(render()).toContain('data-slot="recent-achievements-card"');
   });
 });
 

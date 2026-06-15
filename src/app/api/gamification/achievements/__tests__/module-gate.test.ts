@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+/**
+ * v1.18.0 — the achievements module gate on
+ * `GET /api/gamification/achievements`.
+ *
+ * Disabled  ⇒ a 403 `module.disabled` envelope, and the heavy badge
+ *             aggregation never runs (no Prisma reads, no unlock
+ *             persistence). This is what makes the surface DISAPPEAR for
+ *             an account that has turned the module off — the web page,
+ *             the dashboard tile, and the unlock notifier all gate the
+ *             same route and the same `/api/auth/me` module map.
+ * Enabled   ⇒ the route behaves exactly as before (200 + payload).
+ */
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: { findMany: vi.fn() },
@@ -18,23 +31,10 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
-
-// v1.18.0 — this suite predates the achievements module gate and only
-// mocks the aggregation Prisma models. Pin the gate to "enabled" (a plain
-// async fn so `vi.resetAllMocks()` can't blank it out) so the format
-// branches stay in scope; the gate's enable/disable behaviour is covered
-// in module-gate.test.ts.
-vi.mock("@/lib/modules/gate", () => ({
-  requireModuleEnabled: async () => ({ enabled: true }),
-  MODULE_DISABLED_ERROR_CODE: "module.disabled",
-}));
-
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
-
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
-
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
   cookies: vi.fn(async () => ({
@@ -44,9 +44,19 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+// The module gate is mocked directly so this test asserts the route's
+// branch on the gate decision, not the resolver internals (those have
+// their own unit coverage in src/lib/modules/__tests__/gate.test.ts).
+vi.mock("@/lib/modules/gate", () => ({
+  requireModuleEnabled: vi.fn(),
+  MODULE_DISABLED_ERROR_CODE: "module.disabled",
+}));
+
 import { GET } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { requireModuleEnabled } from "@/lib/modules/gate";
+import { apiError } from "@/lib/api-response";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
 
 const SESSION_OK = {
@@ -63,8 +73,6 @@ const SESSION_OK = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  // v1.4.34 IW-G — reset achievement LRU between tests so each case
-  // observes a cold cache.
   __resetAllCachesForTests();
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
@@ -83,58 +91,63 @@ beforeEach(() => {
   );
 });
 
-describe("GET /api/gamification/achievements?format=ios", () => {
-  it("returns 401 when unauthenticated", async () => {
-    vi.mocked(getSession).mockResolvedValue(null);
-    const res = await GET(
-      new NextRequest(
-        "http://localhost/api/gamification/achievements?format=ios",
-      ),
-    );
-    expect(res.status).toBe(401);
-  });
-
-  it("returns a flat iOS-shaped achievement array", async () => {
+describe("GET /api/gamification/achievements — achievements module gate", () => {
+  it("returns the 403 module.disabled envelope when the module is off", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    const res = await GET(
-      new NextRequest(
-        "http://localhost/api/gamification/achievements?format=ios",
-      ),
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      data: Array<{
-        id: string;
-        key: string;
-        title: string;
-        description: string;
-        iconName: string;
-        unlocked: boolean;
-        unlockedAt: string | null;
-        progress: number;
-      }>;
-    };
-    expect(Array.isArray(body.data)).toBe(true);
-    expect(body.data.length).toBeGreaterThan(0);
-    const first = body.data[0];
-    expect(first.id).toEqual(expect.any(String));
-    expect(first.key).toEqual(expect.any(String));
-    expect(first.title).toEqual(expect.any(String));
-    expect(first.iconName).toEqual(expect.any(String));
-    expect(first.progress).toBeGreaterThanOrEqual(0);
-    expect(first.progress).toBeLessThanOrEqual(1);
-  });
+    vi.mocked(requireModuleEnabled).mockResolvedValue({
+      enabled: false,
+      response: apiError("Module \"achievements\" is not enabled", 403, {
+        errorCode: "module.disabled",
+        module: "achievements",
+      }),
+    });
 
-  it("falls back to the legacy wrapped shape when no format is given", async () => {
-    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     const res = await GET(
       new NextRequest("http://localhost/api/gamification/achievements"),
     );
+
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as {
+      data: null;
+      error: string;
+      meta: { errorCode: string; module: string };
+    };
+    expect(body.data).toBeNull();
+    expect(body.meta.errorCode).toBe("module.disabled");
+    expect(body.meta.module).toBe("achievements");
+
+    // The disappearance is total: no badge aggregation ran.
+    expect(prisma.measurement.findMany).not.toHaveBeenCalled();
+    expect(prisma.userAchievement.findMany).not.toHaveBeenCalled();
+    expect(prisma.userAchievement.createMany).not.toHaveBeenCalled();
+  });
+
+  it("serves the payload normally when the module is enabled", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true });
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/gamification/achievements"),
+    );
+
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       data: { achievements: unknown[]; summary: unknown };
     };
     expect(body.data.achievements).toBeDefined();
     expect(body.data.summary).toBeDefined();
+    expect(prisma.userAchievement.findMany).toHaveBeenCalled();
+  });
+
+  it("still 401s before the module gate when unauthenticated", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/gamification/achievements"),
+    );
+
+    expect(res.status).toBe(401);
+    // Auth is the outer guard — the module gate is never consulted.
+    expect(requireModuleEnabled).not.toHaveBeenCalled();
   });
 });
