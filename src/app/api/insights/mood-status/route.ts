@@ -8,11 +8,18 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 export const dynamic = "force-dynamic";
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  // Per-domain gate: the mood module must be enabled for this account
+  // before the mood AI-status surface is served (mirrors the cycle gate).
+  const gate = await requireModuleEnabled(user.id, "mood");
+  if (!gate.enabled) return gate.response;
+
   await requireAssistantSurface("insightStatus");
 
   const localeParam = request.nextUrl.searchParams.get("locale");
