@@ -3871,9 +3871,10 @@
       },
       "notifications": {
         "title": "Notificaciones",
-        "description": "Qué recordatorios se activan. Los canales de entrega están en Integraciones.",
+        "description": "Todos los recordatorios en un solo lugar: qué se recuerda y cuándo. Los canales de entrega están en Integraciones.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook y correo se configuran ahora en",
-        "channelsHintLink": "Integraciones → Canales"
+        "channelsHintLink": "Integraciones → Canales",
+        "inboxLink": "Abrir la bandeja de entrada"
       },
       "layout": {
         "title": "Diseño y personalización",
@@ -4105,36 +4106,6 @@
       "mood": {
         "title": "Etiquetas de ánimo",
         "description": "Grupos, etiquetas y orden del selector de ánimo."
-      },
-      "reminders": {
-        "title": "Recordatorios y notificaciones",
-        "description": "Un único lugar para cada recordatorio — qué se recuerda y cuándo — y los canales que lo entregan.",
-        "categoriesGroup": "Recordatorios",
-        "channelsGroup": "Canales de entrega",
-        "medication": {
-          "title": "Recordatorios de medicación",
-          "description": "Horas y ventanas de dosis, configuradas en cada medicamento."
-        },
-        "vorsorge": {
-          "title": "Cuidado preventivo",
-          "description": "Revisiones y mediciones periódicas, con el lugar al que acudir."
-        },
-        "mood": {
-          "title": "Registro de ánimo",
-          "description": "Un aviso diario para registrar cómo te sientes."
-        },
-        "lowStock": {
-          "title": "Margen por bajo stock",
-          "description": "Recibe un aviso antes de que se acabe un medicamento."
-        },
-        "coach": {
-          "title": "Sugerencia del coach",
-          "description": "Indicaciones proactivas del coach de IA."
-        },
-        "channels": {
-          "title": "Canales de notificación",
-          "description": "APNs, Telegram, ntfy, Web Push, Webhook y correo."
-        }
       },
       "modules": {
         "title": "Módulos",

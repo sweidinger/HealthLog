@@ -3871,9 +3871,10 @@
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Quels rappels se déclenchent. Les canaux de diffusion se trouvent dans Intégrations.",
+        "description": "Tous les rappels au même endroit — quoi et quand. Les canaux de diffusion se trouvent dans Intégrations.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook et e-mail se configurent désormais dans",
-        "channelsHintLink": "Intégrations → Canaux"
+        "channelsHintLink": "Intégrations → Canaux",
+        "inboxLink": "Ouvrir la boîte de réception"
       },
       "layout": {
         "title": "Disposition et personnalisation",
@@ -4105,36 +4106,6 @@
       "mood": {
         "title": "Étiquettes d’humeur",
         "description": "Groupes, étiquettes et ordre du sélecteur d’humeur."
-      },
-      "reminders": {
-        "title": "Rappels et notifications",
-        "description": "Un seul endroit pour chaque rappel — quoi et quand — ainsi que les canaux qui les délivrent.",
-        "categoriesGroup": "Rappels",
-        "channelsGroup": "Canaux de diffusion",
-        "medication": {
-          "title": "Rappels de médication",
-          "description": "Heures et fenêtres de prise, configurées sur chaque médicament."
-        },
-        "vorsorge": {
-          "title": "Prévention",
-          "description": "Bilans et mesures récurrents, avec le lieu où se rendre."
-        },
-        "mood": {
-          "title": "Suivi de l'humeur",
-          "description": "Un rappel quotidien pour noter votre ressenti."
-        },
-        "lowStock": {
-          "title": "Marge de stock faible",
-          "description": "Soyez averti avant qu'un médicament ne s'épuise."
-        },
-        "coach": {
-          "title": "Suggestion du coach",
-          "description": "Invitations proactives du coach IA."
-        },
-        "channels": {
-          "title": "Canaux de notification",
-          "description": "APNs, Telegram, ntfy, Web Push, Webhook et e-mail."
-        }
       },
       "modules": {
         "title": "Modules",

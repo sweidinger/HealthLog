@@ -3871,9 +3871,10 @@
       },
       "notifications": {
         "title": "Powiadomienia",
-        "description": "Które przypomnienia są uruchamiane. Kanały dostarczania znajdują się w Integracjach.",
+        "description": "Wszystkie przypomnienia w jednym miejscu — co i kiedy. Kanały dostarczania znajdują się w Integracjach.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook i e-mail konfigurujesz teraz w",
-        "channelsHintLink": "Integracje → Kanały"
+        "channelsHintLink": "Integracje → Kanały",
+        "inboxLink": "Otwórz skrzynkę odbiorczą"
       },
       "layout": {
         "title": "Układ i personalizacja",
@@ -4105,36 +4106,6 @@
       "mood": {
         "title": "Tagi nastroju",
         "description": "Grupy, tagi i kolejność w wyborze nastroju."
-      },
-      "reminders": {
-        "title": "Przypomnienia i powiadomienia",
-        "description": "Jedno miejsce dla każdego przypomnienia — o czym i kiedy — oraz kanały, które je dostarczają.",
-        "categoriesGroup": "Przypomnienia",
-        "channelsGroup": "Kanały dostarczania",
-        "medication": {
-          "title": "Przypomnienia o lekach",
-          "description": "Godziny i okna dawek, ustawiane przy każdym leku."
-        },
-        "vorsorge": {
-          "title": "Profilaktyka",
-          "description": "Cykliczne badania i pomiary wraz z miejscem, gdzie się udać."
-        },
-        "mood": {
-          "title": "Zapis nastroju",
-          "description": "Codzienne przypomnienie, by zapisać samopoczucie."
-        },
-        "lowStock": {
-          "title": "Zapas na wyczerpaniu",
-          "description": "Otrzymaj ostrzeżenie, zanim lek się skończy."
-        },
-        "coach": {
-          "title": "Podpowiedź trenera",
-          "description": "Proaktywne wskazówki od trenera AI."
-        },
-        "channels": {
-          "title": "Kanały powiadomień",
-          "description": "APNs, Telegram, ntfy, Web Push, Webhook i e-mail."
-        }
       },
       "modules": {
         "title": "Moduły",

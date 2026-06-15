@@ -3871,9 +3871,10 @@
       },
       "notifications": {
         "title": "Benachrichtigungen",
-        "description": "Welche Erinnerungen ausgelöst werden. Die Zustellkanäle liegen unter Integrationen.",
+        "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird. Die Zustellkanäle liegen unter Integrationen.",
         "channelsHint": "Telegram, ntfy, Web-Push, Webhook und E-Mail richtest du jetzt unter",
-        "channelsHintLink": "Integrationen → Kanäle"
+        "channelsHintLink": "Integrationen → Kanäle",
+        "inboxLink": "Posteingang öffnen"
       },
       "layout": {
         "title": "Layout & Personalisierung",
@@ -4105,36 +4106,6 @@
       "mood": {
         "title": "Stimmungs-Tags",
         "description": "Gruppen, Tags und Reihenfolge der Tag-Auswahl."
-      },
-      "reminders": {
-        "title": "Erinnerungen & Benachrichtigungen",
-        "description": "Ein Ort für jede Erinnerung — woran und wann erinnert wird — und die Kanäle, die sie zustellen.",
-        "categoriesGroup": "Erinnerungen",
-        "channelsGroup": "Zustellkanäle",
-        "medication": {
-          "title": "Medikamenten-Erinnerungen",
-          "description": "Einnahmezeiten und Zeitfenster, je Medikament eingestellt."
-        },
-        "vorsorge": {
-          "title": "Vorsorge",
-          "description": "Wiederkehrende Untersuchungen und Messungen, inklusive Ort."
-        },
-        "mood": {
-          "title": "Stimmungs-Check-in",
-          "description": "Eine tägliche Erinnerung, dein Befinden zu erfassen."
-        },
-        "lowStock": {
-          "title": "Reichweite bei Restbestand",
-          "description": "Werde gewarnt, bevor ein Medikament zur Neige geht."
-        },
-        "coach": {
-          "title": "Coach-Hinweis",
-          "description": "Proaktive Impulse vom KI-Coach."
-        },
-        "channels": {
-          "title": "Benachrichtigungskanäle",
-          "description": "APNs, Telegram, ntfy, Web Push, Webhook und E-Mail."
-        }
       },
       "modules": {
         "title": "Module",

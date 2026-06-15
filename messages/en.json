@@ -3871,9 +3871,10 @@
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Which reminders fire. The delivery channels live under Integrations.",
+        "description": "Every reminder in one place — what gets reminded and when. The delivery channels live under Integrations.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook, and Email are now set up under",
-        "channelsHintLink": "Integrations → Channels"
+        "channelsHintLink": "Integrations → Channels",
+        "inboxLink": "Open the inbox"
       },
       "layout": {
         "title": "Layout & Personalization",
@@ -4105,36 +4106,6 @@
       "mood": {
         "title": "Mood tags",
         "description": "Groups, tags, and order of the mood picker."
-      },
-      "reminders": {
-        "title": "Reminders & Notifications",
-        "description": "One home for every reminder — what gets reminded and when — plus the channels that deliver them.",
-        "categoriesGroup": "Reminders",
-        "channelsGroup": "Delivery channels",
-        "medication": {
-          "title": "Medication reminders",
-          "description": "Dose times and windows, configured on each medication."
-        },
-        "vorsorge": {
-          "title": "Preventive care",
-          "description": "Recurring check-ups and measurements, with where to go."
-        },
-        "mood": {
-          "title": "Mood check-in",
-          "description": "A daily nudge to log how you feel."
-        },
-        "lowStock": {
-          "title": "Low-stock runway",
-          "description": "Get warned before a medication runs out."
-        },
-        "coach": {
-          "title": "Coach nudge",
-          "description": "Proactive prompts from the AI coach."
-        },
-        "channels": {
-          "title": "Notification channels",
-          "description": "APNs, Telegram, ntfy, Web Push, Webhook, and Email."
-        }
       },
       "modules": {
         "title": "Modules",
