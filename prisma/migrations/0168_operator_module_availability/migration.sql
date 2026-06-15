@@ -1,0 +1,39 @@
+-- v1.18.0 — operator-level server-wide module availability.
+--
+-- A single nullable JSONB blob on `app_settings` carrying a DISABLED
+-- allowlist for the toggleable ("secondary") modules — the second layer of
+-- the two-layer module model. This sits ABOVE the per-user
+-- `users.module_preferences_json`: an operator-disabled module is off for
+-- EVERY account regardless of that account's personal preference, exactly
+-- like the coach master flag (`assistant_coach_enabled`) sits above
+-- `users.disable_coach`.
+--
+-- The contract mirrors the per-user column (default-on):
+--
+--   * NULL column            → every module available
+--   * empty object `{}`       → every module available
+--   * key absent              → that module available
+--   * key present & `false`   → that module DISABLED server-wide
+--   * key present & `true`    → available (redundant-but-allowed)
+--
+-- No backfill — every existing instance keeps every module available. The
+-- application resolver (`src/lib/modules/gate.ts`) tolerates a missing
+-- column / null row and reads all-available, so a partial deploy where the
+-- schema lands ahead of (or behind) the app code keeps working.
+--
+-- CORE domains (weight, blood pressure, pulse, medications) are never
+-- written here and the admin write endpoint refuses them, so the
+-- measurement engine + meds can never be turned off server-wide either.
+--
+-- No additional index — the single `app_settings` singleton row is read by
+-- primary key, matching the convention of every other JSON column on the
+-- table.
+--
+-- Idempotent guard (`IF NOT EXISTS`) so reruns are safe on prod.
+--
+-- Reversibility: down migration is
+--   ALTER TABLE "app_settings" DROP COLUMN IF EXISTS "module_availability_json";
+-- A roll-back loses operator-level opt-outs (every module falls back to
+-- available), which is the safe default — no data is destroyed.
+ALTER TABLE "app_settings"
+    ADD COLUMN IF NOT EXISTS "module_availability_json" JSONB;

@@ -9,18 +9,29 @@
  * (`src/lib/cycle/gate.ts`) and the assistant feature flags
  * (`src/lib/feature-flags/index.ts`).
  *
- * Source-of-truth discipline (NO double source of truth):
+ * TWO-LAYER model (operator AND user). Every toggleable module's final
+ * enabled-state is `operatorAvailable(key) && userEnabled(key)`:
+ *
+ *   - LAYER 1 (operator): the server-wide availability allowlist on
+ *              `AppSettings.moduleAvailabilityJson`, resolved by
+ *              `getOperatorModuleAvailability()`. A module the operator
+ *              turns off is off for EVERY account regardless of personal
+ *              preference — mirroring the coach master flag above
+ *              `User.disableCoach`. Default-available.
+ *   - LAYER 2 (user): the per-account opt-out described below.
+ *
+ * Source-of-truth discipline (NO double source of truth) for LAYER 2:
  *
  *   - `cycle`  delegates to `isCycleEnabled(gender, CycleProfile)` — the
  *              existing cycle gate. `modulePreferencesJson.cycle` is
- *              ignored on purpose.
+ *              ignored on purpose. Still AND-ed with operator availability.
  *   - `coach`  delegates to `User.disableCoach` AND the operator-level
  *              assistant master flag (`getAssistantFlags().coach`). Both
  *              must agree, matching the two-layer model the client gates
- *              already enforce.
- *   - every other module resolves purely from `modulePreferencesJson`
- *              as a DISABLED allowlist (absent / empty / `true` ⇒ on; an
- *              explicit `false` ⇒ off). Default-on.
+ *              already enforce. Also AND-ed with operator availability.
+ *   - every other module resolves its user-layer state purely from
+ *              `modulePreferencesJson` as a DISABLED allowlist (absent /
+ *              empty / `true` ⇒ on; an explicit `false` ⇒ off). Default-on.
  *
  * Fail-closed posture: the resolver only ever DISABLES a module when it
  * sees an explicit, well-typed `false` (or, for delegated modules, the
@@ -39,10 +50,19 @@ import { isCycleEnabled } from "@/lib/cycle/gate";
 import { getAssistantFlags } from "@/lib/feature-flags";
 import { memoizePerRequest } from "@/lib/request-cache";
 import {
+  getOperatorModuleAvailability,
+  type OperatorModuleAvailability,
+} from "./operator-availability";
+import {
   MODULE_KEYS,
   moduleDelegatesTo,
   type ModuleKey,
 } from "./registry";
+
+export {
+  getOperatorModuleAvailability,
+  type OperatorModuleAvailability,
+} from "./operator-availability";
 
 export { MODULE_KEYS } from "./registry";
 export type { ModuleKey } from "./registry";
@@ -83,16 +103,35 @@ export function normalisePrefs(raw: unknown): Record<string, boolean> {
 }
 
 /**
- * Pure resolver — exposed for unit tests so the disabled-allowlist +
- * delegation logic can be asserted without a DB. `assistantCoach` is the
- * resolved operator-level `getAssistantFlags().coach`; pass it in so this
- * stays synchronous and side-effect-free.
+ * Pure resolver — exposed for unit tests so the two-layer (operator AND
+ * user) resolution can be asserted without a DB.
+ *
+ * `assistantCoach` is the resolved operator-level `getAssistantFlags().coach`
+ * and `operatorAvailability` is the resolved
+ * `getOperatorModuleAvailability()` map; both are passed in so this stays
+ * synchronous and side-effect-free.
+ *
+ * Resolution is `operatorAvailable(key) && userEnabled(key)`:
+ *
+ *   - operator layer: an explicit operator `false` for the key disables it
+ *     server-wide and short-circuits — no per-user state can re-enable it
+ *     (matching the coach master flag winning over the per-user opt-out).
+ *   - user layer: cycle/coach delegate to their real source; every other
+ *     module reads the per-user disabled allowlist.
  */
 export function resolveModuleEnabled(
   key: ModuleKey,
   inputs: ModuleGateInputs,
   assistantCoach: boolean,
+  operatorAvailability: OperatorModuleAvailability,
 ): boolean {
+  // LAYER 1 — operator server-wide availability. An operator-disabled
+  // module is off for everyone regardless of personal preference.
+  if (operatorAvailability[key] === false) {
+    return false;
+  }
+
+  // LAYER 2 — per-user state.
   const delegate = moduleDelegatesTo(key);
 
   if (delegate === "cycle") {
@@ -103,7 +142,7 @@ export function resolveModuleEnabled(
   }
 
   if (delegate === "coach") {
-    // Two-layer model: operator master flag AND per-user opt-out.
+    // Two-layer model: assistant master flag AND per-user opt-out.
     return assistantCoach && !inputs.disableCoach;
   }
 
@@ -146,12 +185,20 @@ export async function isModuleEnabled(
   userId: string,
   moduleKey: ModuleKey,
 ): Promise<boolean> {
-  const inputs = await loadInputs(userId);
+  const [inputs, operatorAvailability] = await Promise.all([
+    loadInputs(userId),
+    getOperatorModuleAvailability(),
+  ]);
   const delegate = moduleDelegatesTo(moduleKey);
   // Only pay the assistant-flags read when resolving the coach delegate.
   const assistantCoach =
     delegate === "coach" ? (await getAssistantFlags()).coach : false;
-  return resolveModuleEnabled(moduleKey, inputs, assistantCoach);
+  return resolveModuleEnabled(
+    moduleKey,
+    inputs,
+    assistantCoach,
+    operatorAvailability,
+  );
 }
 
 /**
@@ -162,11 +209,20 @@ export async function isModuleEnabled(
 export async function resolveModuleMap(
   userId: string,
 ): Promise<Record<ModuleKey, boolean>> {
-  const inputs = await loadInputs(userId);
-  const assistantCoach = (await getAssistantFlags()).coach;
+  const [inputs, operatorAvailability, assistantFlags] = await Promise.all([
+    loadInputs(userId),
+    getOperatorModuleAvailability(),
+    getAssistantFlags(),
+  ]);
+  const assistantCoach = assistantFlags.coach;
   const out = {} as Record<ModuleKey, boolean>;
   for (const key of MODULE_KEYS) {
-    out[key] = resolveModuleEnabled(key, inputs, assistantCoach);
+    out[key] = resolveModuleEnabled(
+      key,
+      inputs,
+      assistantCoach,
+      operatorAvailability,
+    );
   }
   return out;
 }

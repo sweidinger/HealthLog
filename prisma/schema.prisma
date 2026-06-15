@@ -2873,6 +2873,18 @@ model AppSettings {
   assistantCorrelationsEnabled         Boolean @default(true) @map("assistant_correlations_enabled")
   assistantHealthScoreExplainerEnabled Boolean @default(true) @map("assistant_health_score_explainer_enabled")
 
+  // v1.18.0 — operator-level server-wide module availability. A DISABLED
+  // allowlist mirroring the per-user `User.modulePreferencesJson`: absent /
+  // empty / `true` ⇒ available, an explicit `false` ⇒ disabled for EVERY
+  // account regardless of personal preference. This is the second layer of
+  // the two-layer module model (operator AND user), exactly like the coach
+  // master flag (`assistant_coach_enabled`) sits above `User.disableCoach`.
+  // NULL = every module available (no admin action needed on upgrade). Core
+  // domains (weight, BP, pulse, medications) are never written here and the
+  // admin write endpoint refuses them, so the measurement engine + meds can
+  // never be disabled. Resolved in `src/lib/modules/gate.ts`.
+  moduleAvailabilityJson Json? @map("module_availability_json")
+
   @@map("app_settings")
 }
 
