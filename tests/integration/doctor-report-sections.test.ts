@@ -110,7 +110,58 @@ async function seedUserWithEveryDataType(username: string): Promise<string> {
         unit: "bpm",
         measuredAt,
       },
+      // v1.18.0 module-gated data types (no `sections` toggle of their own).
+      {
+        userId: user.id,
+        type: "BLOOD_GLUCOSE",
+        value: 95,
+        unit: "mg/dL",
+        glucoseContext: "FASTING",
+        measuredAt,
+      },
+      {
+        userId: user.id,
+        type: "RECOVERY_SCORE",
+        value: 72,
+        unit: "score",
+        source: "WHOOP",
+        measuredAt,
+      },
+      {
+        userId: user.id,
+        type: "STRESS_SCORE",
+        value: 40,
+        unit: "score",
+        measuredAt,
+      },
+      {
+        userId: user.id,
+        type: "STRAIN_SCORE",
+        value: 12,
+        unit: "score",
+        measuredAt,
+      },
+      {
+        userId: user.id,
+        type: "ACTIVITY_STEPS",
+        value: 8200,
+        unit: "count",
+        measuredAt,
+      },
     ],
+  });
+
+  // Lab result — module `labs` owns these; the `labs` section toggle is ON by
+  // default so a present `labs` module surfaces the panel.
+  await prisma.labResult.create({
+    data: {
+      userId: user.id,
+      panel: "Lipids",
+      analyte: "LDL",
+      value: 110,
+      unit: "mg/dL",
+      takenAt: measuredAt,
+    },
   });
 
   await prisma.moodEntry.create({
@@ -246,6 +297,107 @@ describe("doctor-report — per-section toggles", () => {
     expect(data.stats.PULSE).toBeDefined();
     expect(data.bmi).not.toBeNull();
     expect(Object.keys(data.compliance).length).toBeGreaterThan(0);
+  });
+});
+
+describe("doctor-report — module enable/disable gating", () => {
+  // A fully-enabled module map (the default-on shape `resolveModuleMap` would
+  // return for an account that never toggled a module off).
+  const ALL_ON = {
+    cycle: true,
+    mood: true,
+    sleep: true,
+    glucose: true,
+    workouts: true,
+    recovery: true,
+    labs: true,
+    achievements: true,
+    coach: true,
+    insights: true,
+    doctorReport: true,
+  } as const;
+
+  it("includes every module's data when all modules are enabled", async () => {
+    const userId = await seedUserWithEveryDataType("dr-modules-all-on");
+
+    const data = await collectDoctorReportData(userId, RANGE, {
+      // Opt mood in so the present-case asserts the full surface.
+      sections: { mood: true },
+      moduleMap: { ...ALL_ON },
+    });
+
+    expect(Object.keys(data.glucoseStats).length).toBeGreaterThan(0);
+    expect(data.measurements.ACTIVITY_STEPS).toBeDefined();
+    expect(data.measurements.BLOOD_GLUCOSE).toBeDefined();
+    expect(data.labResults).not.toBeNull();
+    expect(data.mood).not.toBeNull();
+    const scoreTypes = (data.wellnessScores ?? []).map((s) => s.type);
+    expect(scoreTypes).toEqual(
+      expect.arrayContaining([
+        "RECOVERY_SCORE",
+        "STRESS_SCORE",
+        "STRAIN_SCORE",
+      ]),
+    );
+  });
+
+  it("excludes a disabled module's section/resources from the payload", async () => {
+    const userId = await seedUserWithEveryDataType("dr-modules-off");
+
+    const data = await collectDoctorReportData(userId, RANGE, {
+      // The user opted mood in at the report level, but turned the modules off
+      // — the module gate wins, so none of these surface.
+      sections: { mood: true, sleep: true, labs: true },
+      moduleMap: {
+        ...ALL_ON,
+        glucose: false,
+        sleep: false,
+        workouts: false,
+        recovery: false,
+        labs: false,
+        mood: false,
+      },
+    });
+
+    // Glucose panel collapses entirely (stats + raw series).
+    expect(data.glucoseStats).toEqual({});
+    expect(data.glucoseRanges).toEqual({});
+    expect(data.measurements.BLOOD_GLUCOSE).toBeUndefined();
+    // Sleep series stripped (sections + module agree).
+    expect(data.measurements.SLEEP_DURATION).toBeUndefined();
+    // Workout activity series stripped.
+    expect(data.measurements.ACTIVITY_STEPS).toBeUndefined();
+    expect(data.stats.ACTIVITY_STEPS).toBeUndefined();
+    // Labs panel gone.
+    expect(data.labResults).toBeNull();
+    // Mood never assembled.
+    expect(data.mood).toBeNull();
+    // Recovery + strain wellness scores dropped (recovery + workouts off).
+    const scoreTypes = (data.wellnessScores ?? []).map((s) => s.type);
+    expect(scoreTypes).not.toContain("RECOVERY_SCORE");
+    expect(scoreTypes).not.toContain("STRESS_SCORE");
+    expect(scoreTypes).not.toContain("STRAIN_SCORE");
+    // Core clinical sections stay unconditional.
+    expect(data.stats.WEIGHT).toBeDefined();
+    expect(data.stats.BLOOD_PRESSURE_SYS).toBeDefined();
+    expect(data.stats.PULSE).toBeDefined();
+    expect(Object.keys(data.compliance).length).toBeGreaterThan(0);
+  });
+
+  it("gates recovery and workouts independently (recovery off, workouts on)", async () => {
+    const userId = await seedUserWithEveryDataType("dr-modules-recovery-off");
+
+    const data = await collectDoctorReportData(userId, RANGE, {
+      moduleMap: { ...ALL_ON, recovery: false },
+    });
+
+    const scoreTypes = (data.wellnessScores ?? []).map((s) => s.type);
+    // Recovery readiness scores gone…
+    expect(scoreTypes).not.toContain("RECOVERY_SCORE");
+    expect(scoreTypes).not.toContain("STRESS_SCORE");
+    // …but the workout-owned strain score + activity series stay.
+    expect(scoreTypes).toContain("STRAIN_SCORE");
+    expect(data.measurements.ACTIVITY_STEPS).toBeDefined();
   });
 });
 

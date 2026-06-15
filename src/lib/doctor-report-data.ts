@@ -36,6 +36,7 @@ import {
   type DoctorReportPrefs,
 } from "@/lib/validations/doctor-report-prefs";
 import { buildCycleExportSummary } from "@/lib/cycle/export-data";
+import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
 import {
   buildComplianceMedicationContext,
   lastNonSkippedTakenAt,
@@ -483,6 +484,18 @@ export interface CollectDoctorReportOptions {
    * don't accidentally print a section the user opted out of.
    */
   sections?: Partial<DoctorReportPrefs>;
+  /**
+   * v1.18.0 — resolved per-user module enable/disable map. When omitted the
+   * aggregator resolves it itself via `resolveModuleMap(userId)`. A disabled
+   * module forces its report section / FHIR resources out of the payload,
+   * regardless of the user's per-report `sections` toggles: a user who turned
+   * off the Sleep module exports no sleep series, mood Observations, glucose
+   * panel, recovery/strain scores, cycle summary, or lab results for the
+   * modules they no longer keep. Core clinical sections (weight / BP / pulse /
+   * medications) carry no module key and are always included. Injectable for
+   * tests so the module ↔ section mapping can be asserted without a DB.
+   */
+  moduleMap?: Record<ModuleKey, boolean>;
 }
 
 /**
@@ -602,10 +615,33 @@ export async function collectDoctorReportData(
   // either way (the queries are cheap on indexed columns) and stripped
   // from the returned payload below — keeping a single source of
   // truth for the data shape regardless of toggle state.
+  // v1.18.0 — resolve the per-user module map up-front (once per build). A
+  // disabled module's section/resources are excluded from the export so the
+  // PDF + FHIR bundle reflect only the modules the user keeps. The map is
+  // ANDed over the user's per-report `sections` toggles: a disabled module
+  // forces its section off even if the report toggle says on (you can't share
+  // data for a module you turned off), while leaving the others untouched.
+  // Core clinical sections (weight / BP / pulse / medications) have no module
+  // key and stay unconditional. Injectable for tests.
+  const moduleMap =
+    options.moduleMap ?? (await resolveModuleMap(userId));
+
   const sections: DoctorReportPrefs = {
     ...DEFAULT_DOCTOR_REPORT_PREFS,
     ...(options.sections ?? {}),
   };
+  // Module gate: a disabled module wins over the report toggle. Each report
+  // section maps to its owning module key; core sections (bp/weight/pulse/
+  // bmi/compliance) carry no key and are never gated here.
+  if (moduleMap.mood === false) sections.mood = false;
+  if (moduleMap.sleep === false) sections.sleep = false;
+  if (moduleMap.cycle === false) sections.cycle = false;
+  if (moduleMap.labs === false) sections.labs = false;
+  // Module gates with no `sections` key — applied directly to the data slices
+  // below (glucose panel, recovery/strain wellness scores, workout series).
+  const glucoseEnabled = moduleMap.glucose !== false;
+  const recoveryEnabled = moduleMap.recovery !== false;
+  const workoutsEnabled = moduleMap.workouts !== false;
 
   const [measurements, medications, intakeEvents, moodEntries, userProfile] =
     await Promise.all([
@@ -916,7 +952,12 @@ export async function collectDoctorReportData(
   // Per-context glucose stats + effective ranges (canonical mg/dL).
   const glucoseStats: Record<string, DoctorReportStats> = {};
   const glucoseRanges: Record<string, { min: number; max: number }> = {};
-  const glucoseRows = measurements.filter((m) => m.type === "BLOOD_GLUCOSE");
+  // v1.18.0 — when the glucose module is disabled, no glucose row enters the
+  // panel: stats, ranges, and the clinical metrics all collapse to empty so the
+  // PDF + FHIR Observations carry no glucose for this user.
+  const glucoseRows = glucoseEnabled
+    ? measurements.filter((m) => m.type === "BLOOD_GLUCOSE")
+    : [];
   const overrides = (userProfile?.thresholdsJson ??
     null) as ThresholdOverridesJson | null;
   const profileForRange = {
@@ -966,8 +1007,8 @@ export async function collectDoctorReportData(
   // `stats`, and `compliance` lets the PDF renderer treat "section
   // disabled" identically to "section had no rows" — both paths skip
   // the table. Mood is already null when disabled (we never queried).
-  const filteredByType = filterMeasurementKeys(byType, sections);
-  const filteredStats = filterMeasurementKeys(stats, sections);
+  const filteredByType = filterMeasurementKeys(byType, sections, moduleMap);
+  const filteredStats = filterMeasurementKeys(stats, sections, moduleMap);
   const filteredCompliance = sections.compliance ? compliance : {};
   const filteredBmi = sections.bmi ? bmi : null;
 
@@ -1085,6 +1126,19 @@ export async function collectDoctorReportData(
   // series. Resolve to the canonical row per day (WHOOP wins) so the PDF reads
   // the SAME value the tile + iOS feed show — one number, one engine.
   const wellnessScoreSummaries = WELLNESS_SCORE_REPORT_TYPES.flatMap((type) => {
+    // v1.18.0 — module gate per score type. Recovery + stress are the
+    // recovery/readiness signals (recovery module); strain is the
+    // training-load signal derived from the workouts table (workouts module).
+    // A disabled owning module drops the score from the wellness summary and,
+    // since the FHIR exporter sources these Observations from
+    // `data.wellnessScores`, from the bundle too.
+    if (type === "STRAIN_SCORE" && !workoutsEnabled) return [];
+    if (
+      (type === "RECOVERY_SCORE" || type === "STRESS_SCORE") &&
+      !recoveryEnabled
+    ) {
+      return [];
+    }
     if (type === "RECOVERY_SCORE") {
       const summary = summariseCanonicalRecovery(measurements, reportTz);
       return summary ? [summary] : [];
@@ -1234,14 +1288,52 @@ const MEASUREMENT_TYPE_SECTION: Record<string, keyof DoctorReportPrefs> = {
   SLEEP_DURATION: "sleep",
 };
 
+/**
+ * v1.18.0 — per-measurement-type → owning module mapping for the types that
+ * carry no `sections` toggle but DO belong to a toggleable module. When the
+ * module is disabled, the type is stripped from `measurements` + `stats` so the
+ * series never reaches the PDF tables or a FHIR Observation.
+ *
+ *   - `workouts` owns the activity / movement series (steps, active energy,
+ *     distance, flights, the walking-gait + stair metrics) and the
+ *     training-load `STRAIN_SCORE`.
+ *   - `recovery` owns the readiness signals `RECOVERY_SCORE` + `STRESS_SCORE`.
+ *   - `glucose` owns the raw `BLOOD_GLUCOSE` series (the glucose panel itself is
+ *     gated where it is assembled; this strips the raw rows too).
+ *
+ * Core clinical types (BP / weight / pulse / body-composition / vitals) carry
+ * no module and are never gated here. `sleep` / `mood` / `cycle` / `labs` ride
+ * the `sections` mechanism instead.
+ */
+const MEASUREMENT_TYPE_MODULE: Record<string, ModuleKey> = {
+  ACTIVITY_STEPS: "workouts",
+  ACTIVE_ENERGY_BURNED: "workouts",
+  FLIGHTS_CLIMBED: "workouts",
+  WALKING_RUNNING_DISTANCE: "workouts",
+  WALKING_SPEED: "workouts",
+  WALKING_ASYMMETRY: "workouts",
+  WALKING_STEP_LENGTH: "workouts",
+  WALKING_DOUBLE_SUPPORT: "workouts",
+  SIX_MINUTE_WALK_DISTANCE: "workouts",
+  STAIR_ASCENT_SPEED: "workouts",
+  STAIR_DESCENT_SPEED: "workouts",
+  STRAIN_SCORE: "workouts",
+  RECOVERY_SCORE: "recovery",
+  STRESS_SCORE: "recovery",
+  BLOOD_GLUCOSE: "glucose",
+};
+
 function filterMeasurementKeys<T>(
   map: Record<string, T>,
   sections: DoctorReportPrefs,
+  moduleMap: Record<ModuleKey, boolean>,
 ): Record<string, T> {
   const out: Record<string, T> = {};
   for (const [type, value] of Object.entries(map)) {
     const sectionKey = MEASUREMENT_TYPE_SECTION[type];
     if (sectionKey && sections[sectionKey] === false) continue;
+    const moduleKey = MEASUREMENT_TYPE_MODULE[type];
+    if (moduleKey && moduleMap[moduleKey] === false) continue;
     out[type] = value;
   }
   return out;
