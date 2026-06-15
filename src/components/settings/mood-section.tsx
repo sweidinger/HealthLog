@@ -2,6 +2,7 @@
 
 import { Archive, Folders, Loader2, Tags } from "lucide-react";
 
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { ArchivedTagsCard } from "@/components/mood/manage/archived-tags-card";
 import { TagGroupsCard } from "@/components/mood/manage/tag-groups-card";
 import { TagManagerCard } from "@/components/mood/manage/tag-manager-card";
@@ -58,12 +59,10 @@ export function MoodSection() {
         id="mood-groups"
         className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2">
-          <Folders className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("mood.manage.groupsTitle")}
-          </h2>
-        </div>
+        <SettingsCardHeader
+          icon={Folders}
+          title={t("mood.manage.groupsTitle")}
+        />
         {isLoading || !catalog ? loading : <TagGroupsCard catalog={catalog} />}
       </div>
 
@@ -72,12 +71,7 @@ export function MoodSection() {
         id="mood-tags"
         className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2">
-          <Tags className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("mood.manage.tagsTitle")}
-          </h2>
-        </div>
+        <SettingsCardHeader icon={Tags} title={t("mood.manage.tagsTitle")} />
         {isLoading || !catalog ? loading : <TagManagerCard catalog={catalog} />}
       </div>
 
@@ -86,12 +80,10 @@ export function MoodSection() {
         id="mood-archived"
         className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2">
-          <Archive className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("mood.manage.archivedTitle")}
-          </h2>
-        </div>
+        <SettingsCardHeader
+          icon={Archive}
+          title={t("mood.manage.archivedTitle")}
+        />
         {isLoading || !catalog ? (
           loading
         ) : (

@@ -13,9 +13,10 @@
  * relative to "now" but never recomputes the cadence.
  */
 import { useState } from "react";
-import { CheckCircle2, Plus } from "lucide-react";
+import { CalendarClock, CheckCircle2, Plus } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { DeleteButton } from "@/components/data-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -120,28 +121,23 @@ export function VorsorgeSection({ enabled = true }: { enabled?: boolean }) {
       aria-labelledby="vorsorge-section-title"
       className="space-y-4"
     >
-      <header className="flex items-center justify-between gap-2">
-        <div className="space-y-1">
-          <h2
-            id="vorsorge-section-title"
-            className="text-lg font-semibold"
+      <SettingsCardHeader
+        icon={CalendarClock}
+        titleId="vorsorge-section-title"
+        title={t("measurementReminders.sectionTitle")}
+        description={t("measurementReminders.sectionDescription")}
+        status={
+          <Button
+            type="button"
+            variant={showForm ? "outline" : "default"}
+            className="min-h-11 shrink-0 sm:min-h-9"
+            onClick={() => setShowForm((v) => !v)}
           >
-            {t("measurementReminders.sectionTitle")}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            {t("measurementReminders.sectionDescription")}
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant={showForm ? "outline" : "default"}
-          onClick={() => setShowForm((v) => !v)}
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          {t("measurementReminders.addButton")}
-        </Button>
-      </header>
+            <Plus className="h-4 w-4" />
+            {t("measurementReminders.addButton")}
+          </Button>
+        }
+      />
 
       {showForm && (
         <Card>

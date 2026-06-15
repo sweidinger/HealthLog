@@ -24,6 +24,7 @@
 import { useId, useState } from "react";
 import { ChevronDown, Download, FileText, Loader2 } from "lucide-react";
 
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -202,21 +203,13 @@ export function HealthRecordExportPanel() {
         "relative isolate overflow-hidden rounded-xl p-4 sm:p-5",
       )}
     >
-      <div className="mb-1 flex items-center gap-2">
-        <FileText
-          className="text-muted-foreground h-5 w-5 shrink-0"
-          aria-hidden="true"
-        />
-        <h2
-          id="health-record-export-title"
-          className="text-lg font-semibold tracking-tight sm:text-xl"
-        >
-          {t("settings.healthRecord.title")}
-        </h2>
-      </div>
-      <p className="text-muted-foreground mb-4 max-w-2xl text-sm leading-snug">
-        {t("settings.healthRecord.description")}
-      </p>
+      <SettingsCardHeader
+        className="mb-4"
+        icon={FileText}
+        titleId="health-record-export-title"
+        title={t("settings.healthRecord.title")}
+        description={t("settings.healthRecord.description")}
+      />
 
       <div className="space-y-4">
         {/* Format + range share a row on desktop so the panel opens

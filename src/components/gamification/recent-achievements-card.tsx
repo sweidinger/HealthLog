@@ -115,14 +115,14 @@ export function RecentAchievementsCard() {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Trophy className="text-primary h-4 w-4" aria-hidden="true" />
+          <Trophy className="text-muted-foreground h-4 w-4" aria-hidden="true" />
           <h2 className="text-sm font-semibold">
             {t("achievements.dashboardCard.title")}
           </h2>
         </div>
         <Link
           href="/achievements"
-          className="text-primary hover:text-primary/80 inline-flex min-h-11 items-center text-xs font-medium underline-offset-4 hover:underline"
+          className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-xs"
         >
           {t("achievements.dashboardCard.viewAll")}
         </Link>

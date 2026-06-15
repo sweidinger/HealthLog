@@ -109,14 +109,14 @@ export function RecentWorkoutsTile() {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Activity className="text-primary size-4" aria-hidden="true" />
+          <Activity className="text-muted-foreground size-4" aria-hidden="true" />
           <h2 className="text-sm font-semibold">
             {t("dashboard.recentWorkouts.title")}
           </h2>
         </div>
         <Link
           href="/insights/workouts"
-          className="text-muted-foreground hover:text-foreground text-xs"
+          className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-xs"
         >
           {t("dashboard.recentWorkouts.viewAll")}
         </Link>

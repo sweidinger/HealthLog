@@ -8,6 +8,7 @@ import {
   type ReorderMedication,
 } from "@/components/medications/medication-order-editor";
 import { MedicationViewToggle } from "@/components/medications/medication-view-toggle";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
 import { useAuth } from "@/hooks/use-auth";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -90,12 +91,10 @@ export function MedicationsSection() {
         id="medications-view"
         className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2">
-          <LayoutGrid className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("medications.viewToggleLabel")}
-          </h2>
-        </div>
+        <SettingsCardHeader
+          icon={LayoutGrid}
+          title={t("medications.viewToggleLabel")}
+        />
         <div className="border-border bg-background/30 flex min-h-12 items-center justify-between gap-3 rounded-md border px-3 py-2">
           <p className="text-muted-foreground min-w-0 text-xs">
             {t("medications.viewToggleHint")}
@@ -113,15 +112,11 @@ export function MedicationsSection() {
         id="medications-order"
         className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2">
-          <Pill className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("medications.reorderTitle")}
-          </h2>
-        </div>
-        <p className="text-muted-foreground text-xs">
-          {t("medications.reorderDescription")}
-        </p>
+        <SettingsCardHeader
+          icon={Pill}
+          title={t("medications.reorderTitle")}
+          description={t("medications.reorderDescription")}
+        />
         {isLoading || isLayoutLoading ? (
           <div className="text-muted-foreground flex items-center gap-2 text-sm">
             <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
