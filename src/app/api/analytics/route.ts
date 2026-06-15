@@ -17,6 +17,7 @@ import {
   type BpInTargetEnvelope,
 } from "@/lib/analytics/bp-in-target-fast-path";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
 import { deriveBpWindow90 } from "@/lib/analytics/window-confidence";
 import { computeCorrelationHypothesesFastPath } from "@/lib/analytics/correlations-fast-path";
@@ -420,12 +421,19 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // same prior-week delta values). The hand-rolled per-surface assembly that
   // let the two diverge is gone.
   const bpInputs = buildHealthScoreBpInputs(bpEnvelope, bpEnvelopePriorWeek);
+  // v1.18.0 R4 — resolve the `mood` module server-side so a disabled-mood
+  // account drops the mood-stability pillar from the ring instead of
+  // being silently scored on data hidden everywhere else. The dashboard
+  // already blanks the mood tile + the coach snapshot unions mood out;
+  // this closes the matching gap on the Health Score.
+  const moodEnabled = await isModuleEnabled(user.id, "mood");
   const healthScore = await computeUserHealthScoreFastPath({
     userId: user.id,
     ...bpInputs,
     heightCm: user.heightCm ?? null,
     now: new Date(),
     coverage,
+    moodEnabled,
   });
 
   return {

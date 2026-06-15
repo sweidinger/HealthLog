@@ -78,6 +78,15 @@ export interface HealthScoreCardProps {
    * starts collapsed.
    */
   initiallyExpanded?: boolean;
+  /**
+   * v1.18.0 R4 — when the `mood` module is disabled for the account the
+   * server already drops the mood-stability pillar from the score (the
+   * pillar arrives null-weighted). This hides the Mood row from the
+   * component + provenance lists too so the card never advertises a
+   * pillar the user turned off. Default-on so omitting it keeps the
+   * four-row layout for the common (mood-enabled) case.
+   */
+  moodEnabled?: boolean;
 }
 
 type ComponentKey = keyof HealthScoreCardProps["components"];
@@ -164,6 +173,7 @@ export function HealthScoreCard({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onAskCoach: _onAskCoach,
   initiallyExpanded = false,
+  moodEnabled = true,
 }: HealthScoreCardProps) {
   const { t, locale } = useTranslations();
   // The asOf timestamps render under the source pill as a tooltip
@@ -198,9 +208,14 @@ export function HealthScoreCard({
   // without relying on visual proximity alone.
   const deltaExplainerId = useId();
 
-  const componentEntries = (
-    Object.keys(components) as Array<ComponentKey>
-  ).map((key) => ({
+  // v1.18.0 R4 — drop the Mood pillar from the card's row lists when the
+  // module is disabled. The server already null-weights it in the score;
+  // hiding the row keeps the card from naming a pillar the account turned
+  // off (it would otherwise render as a permanently empty "Mood" line).
+  const visibleKeys = (Object.keys(components) as Array<ComponentKey>).filter(
+    (key) => moodEnabled || key !== "mood",
+  );
+  const componentEntries = visibleKeys.map((key) => ({
     key,
     label: t(COMPONENT_LABEL_KEY[key]),
     value: components[key].value,
@@ -211,6 +226,7 @@ export function HealthScoreCard({
   // null values sink to the bottom (`weight * 0 === 0`); the tie-break
   // is the alphabetical key order so determinism holds across renders.
   const provenanceRows = COMPONENT_ORDER
+    .filter((key) => moodEnabled || key !== "mood")
     .map((key) => {
       const c = components[key];
       const inferredSource: HealthScoreComponentSource =

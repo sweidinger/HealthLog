@@ -668,6 +668,127 @@ describe("computeUserHealthScoreFastPath", () => {
   });
 
   /**
+   * v1.18.0 R4 — module-aware mood pillar. With the mood module disabled
+   * the helper must NOT read mood, must null-weight the mood pillar, and
+   * must re-normalise the surviving pillars so the score isn't penalised
+   * (or inflated) by a pillar the user can no longer see. Golden fixture:
+   * an identical profile with strong, stable mood scored mood-on vs
+   * mood-off must produce a different, correctly re-weighted score.
+   */
+  describe("module-aware mood pillar (R4)", () => {
+    // A profile with BP + steady high mood (low variance → high
+    // stability) + nothing else, so the mood pillar's contribution is
+    // unambiguous. Six entries clears the 5-entry stability floor.
+    function steadyMood(now: Date) {
+      return Array.from({ length: 6 }, (_v, i) => ({
+        score: 4,
+        moodLoggedAt: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),
+      }));
+    }
+
+    it("weights the mood pillar when moodEnabled is omitted (pre-v1.18.0 default)", async () => {
+      const coverage = new Map<string, boolean>();
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      const now = new Date("2026-06-07T12:00:00.000Z");
+      MOOD_FIND_MANY.mockResolvedValue(steadyMood(now));
+
+      const result = await computeUserHealthScoreFastPath({
+        userId: "user-mood-on",
+        bpInTargetPct: 60,
+        bpGradedScore: 60,
+        heightCm: null,
+        now,
+        coverage,
+      });
+
+      expect(result).not.toBeNull();
+      // Mood read fired and the pillar carries a non-zero weight.
+      expect(MOOD_FIND_MANY).toHaveBeenCalled();
+      expect(result?.components.mood.value).not.toBeNull();
+      expect(result?.components.mood.weight).toBeGreaterThan(0);
+    });
+
+    it("drops the mood pillar and re-normalises the score when moodEnabled is false", async () => {
+      const coverage = new Map<string, boolean>();
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      const now = new Date("2026-06-07T12:00:00.000Z");
+      // Even if mood rows existed they must be ignored — the helper
+      // should never issue the read when the module is off.
+      MOOD_FIND_MANY.mockResolvedValue(steadyMood(now));
+
+      const result = await computeUserHealthScoreFastPath({
+        userId: "user-mood-off",
+        bpInTargetPct: 60,
+        bpGradedScore: 60,
+        heightCm: null,
+        now,
+        coverage,
+        moodEnabled: false,
+      });
+
+      expect(result).not.toBeNull();
+      // The disabled module is off the round-trip budget entirely.
+      expect(MOOD_FIND_MANY).not.toHaveBeenCalled();
+      // Mood pillar null-weighted; surviving pillar (BP) absorbs the
+      // freed weight via proportional redistribution.
+      expect(result?.components.mood.value).toBeNull();
+      expect(result?.components.mood.weight).toBe(0);
+      expect(result?.components.bp.weight).toBe(1);
+      // BP is the only present pillar → score is the BP graded value.
+      expect(result?.score).toBe(60);
+    });
+
+    it("golden: mood-on vs mood-off yield different, correctly re-weighted scores", async () => {
+      const coverage = new Map<string, boolean>();
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+      const now = new Date("2026-06-07T12:00:00.000Z");
+
+      // Mood-ON: BP=60 (0.30) + perfect-stability mood=100 (0.20).
+      // present base weights = 0.50 → bp 0.6, mood 0.4 →
+      // 60*0.6 + 100*0.4 = 36 + 40 = 76.
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      MOOD_FIND_MANY.mockResolvedValue(
+        // Constant score → coefficient of variation 0 → stability 100.
+        Array.from({ length: 6 }, (_v, i) => ({
+          score: 5,
+          moodLoggedAt: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),
+        })),
+      );
+      const onResult = await computeUserHealthScoreFastPath({
+        userId: "user-golden-on",
+        bpInTargetPct: 60,
+        bpGradedScore: 60,
+        heightCm: null,
+        now,
+        coverage,
+      });
+
+      // Mood-OFF: only BP=60 survives → score 60.
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      const offResult = await computeUserHealthScoreFastPath({
+        userId: "user-golden-off",
+        bpInTargetPct: 60,
+        bpGradedScore: 60,
+        heightCm: null,
+        now,
+        coverage,
+        moodEnabled: false,
+      });
+
+      expect(onResult?.score).toBe(76);
+      expect(offResult?.score).toBe(60);
+      // The mood-off score is NOT silently dragged toward 0 by a phantom
+      // pillar — it equals the honest single-pillar BP score.
+      expect(offResult?.score).not.toBe(onResult?.score);
+    });
+  });
+
+  /**
    * v1.15.12 A1 — the graded clinical-proximity score, when supplied,
    * becomes the BP pillar VALUE; the binary in-target rate only gates
    * presence. A "borderline-stage-1" profile that read ~16/100 under the
