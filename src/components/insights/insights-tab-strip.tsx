@@ -34,6 +34,7 @@ import {
   type InsightInputs,
   type InsightMetric,
 } from "@/lib/insights/metric-availability";
+import type { ModuleKey } from "@/lib/modules/registry";
 
 /**
  * v1.4.25 W4 — routed tab strip for `/insights`.
@@ -114,6 +115,16 @@ export interface InsightsTabStripProps {
    * `SUB_PAGE_SLUGS` / `SUB_PAGE_GROUP_ORDER` order.
    */
   tileOrder?: ReadonlyMap<string, number>;
+  /**
+   * v1.18.0 — the account's resolved module enable/disable map (the
+   * `modules` field from `GET /api/auth/me`; cycle + coach already
+   * delegated). A pill belonging to a toggleable module (mood / sleep /
+   * glucose / workouts) is hidden when its key is `false`; the Recovery
+   * pill gates on `recovery`. Core metric pills carry no module key and are
+   * unaffected. Absent (legacy mounts / auth not yet loaded) keeps every
+   * pill — fail-open, matching the gate's default-on contract.
+   */
+  modules?: InsightsModuleMap;
 }
 
 /**
@@ -324,6 +335,46 @@ export const SUB_PAGE_TABS: Record<
 };
 
 /**
+ * v1.18.0 — slug → module gate. A sub-page pill belonging to a toggleable
+ * module is hidden when that module is disabled in the account's resolved
+ * module map (from `GET /api/auth/me`'s `modules`), on TOP of the data +
+ * layout gates. Slugs absent from this map are core metrics (BP, pulse,
+ * weight, body composition, activity, cardio, hearing, environment,
+ * medications …) and never gate on a module — only on data availability.
+ *
+ * `labs` has no metric pill; it surfaces via the left nav only. The
+ * Recovery pill is gated separately below (it has no slug — it is a
+ * composite always-present link, so it reads the `recovery` module key
+ * directly in `buildTabs`).
+ */
+const SUB_PAGE_MODULE: Partial<Record<SubPageSlug, ModuleKey>> = {
+  mood: "mood",
+  sleep: "sleep",
+  "breathing-disturbances": "sleep",
+  "blood-glucose": "glucose",
+  workouts: "workouts",
+};
+
+/**
+ * v1.18.0 — a partial `ModuleKey → enabled` map (the `modules` field
+ * `GET /api/auth/me` returns; cycle + coach already delegated). A pill
+ * gated by a module is hidden only when its key resolves to an explicit
+ * `false`; a missing key or an absent map (auth not yet loaded) keeps the
+ * pill — fail-open, mirroring the gate's default-on contract.
+ */
+export type InsightsModuleMap = Partial<Record<ModuleKey, boolean>>;
+
+/** True unless the slug's module is explicitly disabled in the map. */
+function isSlugModuleEnabled(
+  slug: SubPageSlug,
+  modules: InsightsModuleMap | undefined,
+): boolean {
+  const key = SUB_PAGE_MODULE[slug];
+  if (!key) return true;
+  return modules?.[key] !== false;
+}
+
+/**
  * v1.4.34 IW-D — group metadata (label + popover header) keyed by
  * `SubPageGroup`. The strip renders one parent pill per group. v1.7.0
  * adds the body / activity / cardiovascular / hearing / environment /
@@ -369,6 +420,7 @@ function buildTabs(
   availability: InsightInputs | undefined,
   visibleTileIds: ReadonlySet<string> | undefined,
   tileOrder: ReadonlyMap<string, number> | undefined,
+  modules: InsightsModuleMap | undefined,
 ): TabEntry[] {
   // v1.4.36 W4d — strict gating contract: a sub-page only surfaces a
   // pill when the availability inputs CONFIRM the metric has at
@@ -391,11 +443,16 @@ function buildTabs(
   // behaviour — the layout query then narrows the set on resolve. The
   // group child `order` follows the layout (via `orderedSlugs` below),
   // falling back to `SUB_PAGE_GROUP_ORDER` when the layout is absent.
+  // v1.18.0 — a THIRD gate on top of data + layout: a pill belonging to a
+  // toggleable module (mood / sleep / glucose / workouts) is hidden when
+  // that module is disabled in the account's resolved module map. Core
+  // metric pills carry no module key and pass this gate unconditionally.
   const visibleSlugs = availability
     ? SUB_PAGE_SLUGS.filter(
         (slug) =>
           hasMetricData(SUB_PAGE_TABS[slug].metric, availability) &&
-          (visibleTileIds === undefined || visibleTileIds.has(slug)),
+          (visibleTileIds === undefined || visibleTileIds.has(slug)) &&
+          isSlugModuleEnabled(slug, modules),
       )
     : [];
 
@@ -420,19 +477,21 @@ function buildTabs(
       href: INSIGHTS_OVERVIEW_PATH,
       labelKey: "insights.navOverview",
     },
-    // v1.18.0 — Recovery is an Insights pill, no longer a left-nav home.
-    // It is a composite wearable surface (WHOOP / Polar / Oura recovery,
-    // strain, ANS charge, cardio load), not a single MeasurementType, so
-    // it has no `summaries[METRIC].count` to gate on. The page itself
-    // data-gates every block and falls back to a calm empty note, so the
-    // pill is always present like Overview rather than carrying its own
-    // availability signal.
-    {
+  ];
+
+  // v1.18.0 — Recovery is an Insights pill, no longer a left-nav home. It
+  // is a composite wearable surface (WHOOP / Polar / Oura recovery, strain,
+  // ANS charge, cardio load), not a single MeasurementType, so it has no
+  // `summaries[METRIC].count` to gate on — the page data-gates every block
+  // and falls back to a calm empty note. The pill is otherwise present like
+  // Overview, but it is hidden when the `recovery` module is disabled.
+  if (modules?.recovery !== false) {
+    entries.push({
       kind: "link",
       href: `${INSIGHTS_OVERVIEW_PATH}/recovery`,
       labelKey: "insights.navRecovery",
-    },
-  ];
+    });
+  }
 
   // v1.4.34 IW-D — track which groups have already been emitted so the
   // first encountered group-member triggers the parent pill at the
@@ -484,6 +543,7 @@ function InsightsTabStripImpl({
   availability,
   visibleTileIds,
   tileOrder,
+  modules,
 }: InsightsTabStripProps) {
   const { t } = useTranslations();
   const pathname = usePathname();
@@ -500,8 +560,8 @@ function InsightsTabStripImpl({
   // "Anpassen". The shell memoises both props so an unchanged layout
   // doesn't churn the array.
   const tabs = useMemo(
-    () => buildTabs(availability, visibleTileIds, tileOrder),
-    [availability, visibleTileIds, tileOrder],
+    () => buildTabs(availability, visibleTileIds, tileOrder, modules),
+    [availability, visibleTileIds, tileOrder, modules],
   );
 
   // Fire a toast on the falling edge of `regenerating`. Same rising-edge ref

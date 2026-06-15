@@ -103,23 +103,73 @@ describe("nav-model utility tail (N-1 — one shared list)", () => {
   });
 });
 
-describe("visibleNavDestinations cycle gate", () => {
-  it("includes Cycle (between Medications and Insights) only when enabled", () => {
-    const off = visibleNavDestinations(false).map((d) => d.href);
-    const on = visibleNavDestinations(true).map((d) => d.href);
+describe("visibleNavDestinations module gate", () => {
+  it("includes Cycle (between Medications and Insights) only when its module is enabled", () => {
+    // v1.18.0 — cycle is `requiresModule: "cycle"` and reads the delegated
+    // `cycle` key from the same resolved module map every other gate uses.
+    const off = visibleNavDestinations({ cycle: false }).map((d) => d.href);
+    const on = visibleNavDestinations({ cycle: true }).map((d) => d.href);
     expect(off).not.toContain("/cycle");
     expect(on).toContain("/cycle");
     expect(on.indexOf("/medications")).toBeLessThan(on.indexOf("/cycle"));
     expect(on.indexOf("/cycle")).toBeLessThan(on.indexOf("/insights"));
   });
+
+  it("drops a module-gated entry (mood / labs / coach / achievements) when its module is disabled", () => {
+    const disabled = visibleNavDestinations({
+      mood: false,
+      labs: false,
+      coach: false,
+      achievements: false,
+    }).map((d) => d.href);
+    expect(disabled).not.toContain("/mood");
+    expect(disabled).not.toContain("/labs");
+    expect(disabled).not.toContain("/coach");
+    expect(disabled).not.toContain("/achievements");
+  });
+
+  it("keeps every module-gated entry when its module is enabled", () => {
+    const enabled = visibleNavDestinations({
+      mood: true,
+      labs: true,
+      coach: true,
+      achievements: true,
+    }).map((d) => d.href);
+    expect(enabled).toContain("/mood");
+    expect(enabled).toContain("/labs");
+    expect(enabled).toContain("/coach");
+    expect(enabled).toContain("/achievements");
+  });
+
+  it("fails open: a missing key or an undefined map keeps the gated entry", () => {
+    // Default-on contract — a stale /me payload (no module map) must not
+    // blank the nav. An empty map and `undefined` both keep every entry.
+    const emptyMap = visibleNavDestinations({}).map((d) => d.href);
+    const noMap = visibleNavDestinations(undefined).map((d) => d.href);
+    for (const hrefs of [emptyMap, noMap]) {
+      expect(hrefs).toContain("/mood");
+      expect(hrefs).toContain("/cycle");
+      expect(hrefs).toContain("/labs");
+      expect(hrefs).toContain("/coach");
+      expect(hrefs).toContain("/achievements");
+    }
+    // Core destinations always render regardless of the map.
+    expect(emptyMap).toContain("/measurements");
+    expect(emptyMap).toContain("/medications");
+    expect(emptyMap).toContain("/insights");
+    expect(emptyMap).toContain("/vorsorge");
+  });
 });
 
 describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
   it("is exactly the visible feature destinations minus the primary slots, then the utility tail", () => {
-    const opts = { cycleTrackingEnabled: false, bugReportEnabled: false };
+    const opts = {
+      modules: { cycle: false } as const,
+      bugReportEnabled: false,
+    };
     const hub = mobileMoreHubDestinations(opts).map((d) => d.href);
 
-    const expectedFeatures = visibleNavDestinations(opts.cycleTrackingEnabled)
+    const expectedFeatures = visibleNavDestinations(opts.modules)
       .map((d) => d.href)
       .filter((href) => !BOTTOM_NAV_PRIMARY_SLOT_HREFS.includes(href));
     const expectedTail = visibleUtilityDestinations(
@@ -131,7 +181,7 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
 
   it("never contains a primary slot (Home / Meds / Insights)", () => {
     const hub = mobileMoreHubDestinations({
-      cycleTrackingEnabled: true,
+      modules: { cycle: true },
       bugReportEnabled: true,
     }).map((d) => d.href);
     for (const slot of BOTTOM_NAV_PRIMARY_SLOT_HREFS) {
@@ -141,7 +191,7 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
 
   it("keeps the feature destinations and the utility tail reachable in the hub", () => {
     const hub = mobileMoreHubDestinations({
-      cycleTrackingEnabled: false,
+      modules: { cycle: false },
       bugReportEnabled: true,
     }).map((d) => d.href);
     // Feature surfaces that left the always-visible strip stay reachable.
@@ -154,18 +204,20 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
     expect(hub).toContain("/notifications");
   });
 
-  it("gates Cycle and Bug Report by the same flags the sidebar uses", () => {
+  it("gates Cycle by the module map and Bug Report by the operator flag, same as the sidebar", () => {
     const off = mobileMoreHubDestinations({
-      cycleTrackingEnabled: false,
+      modules: { cycle: false, mood: false },
       bugReportEnabled: false,
     }).map((d) => d.href);
     const on = mobileMoreHubDestinations({
-      cycleTrackingEnabled: true,
+      modules: { cycle: true, mood: true },
       bugReportEnabled: true,
     }).map((d) => d.href);
     expect(off).not.toContain("/cycle");
+    expect(off).not.toContain("/mood");
     expect(off).not.toContain("/bugreport");
     expect(on).toContain("/cycle");
+    expect(on).toContain("/mood");
     expect(on).toContain("/bugreport");
   });
 });

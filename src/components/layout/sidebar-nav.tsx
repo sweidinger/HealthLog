@@ -240,10 +240,12 @@ export function SidebarNav() {
   const onAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
   // v1.17.1 (F-1) — the sidebar renders the one shared destination model
   // (`nav-model.ts`), the same ordered list the mobile bottom-nav derives
-  // its "More" hub from. Cycle is filtered in/out by the account gate.
+  // its "More" hub from. v1.18.0 — entries are filtered by the account's
+  // resolved module map (mood, cycle, labs, coach, achievements …); cycle +
+  // coach are delegated server-side and already reflected in that map.
   const visibleNavItems = useMemo(
-    () => visibleNavDestinations(user?.cycleTrackingEnabled),
-    [user?.cycleTrackingEnabled],
+    () => visibleNavDestinations(user?.modules),
+    [user?.modules],
   );
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;

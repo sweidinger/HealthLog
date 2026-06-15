@@ -53,7 +53,7 @@ interface ComprehensivePayload {
 
 export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   const { t } = useTranslations();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   // v1.4.33 F18 — gate the advisor POST on the operator's assistant
   // feature flag. Pre-fix, every /insights mount fired POST
   // /api/insights/generate even when the operator had disabled the
@@ -157,6 +157,7 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
         availability={availability}
         visibleTileIds={visibleTileIds}
         tileOrder={tileOrder}
+        modules={user?.modules}
       />
       {children}
       {/* v1.12.6 — SINGLE SOURCE of the generic Insights disclaimer.

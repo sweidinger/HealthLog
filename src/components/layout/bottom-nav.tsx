@@ -80,10 +80,10 @@ export function BottomNav() {
   const moreHub = useMemo<ReadonlyArray<NavLink>>(
     () =>
       mobileMoreHubDestinations({
-        cycleTrackingEnabled: user?.cycleTrackingEnabled,
+        modules: user?.modules,
         bugReportEnabled,
       }),
-    [user?.cycleTrackingEnabled, bugReportEnabled],
+    [user?.modules, bugReportEnabled],
   );
 
   function isActiveLink(href: string) {

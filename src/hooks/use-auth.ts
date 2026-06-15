@@ -9,6 +9,7 @@ import { retryOnceOnTransientError } from "@/lib/queries/retry-transient";
 import { useTranslations } from "@/lib/i18n/context";
 import type { TimeFormatPreference } from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
+import type { ModuleKey } from "@/lib/modules/registry";
 
 export interface AuthUser {
   id: string;
@@ -80,6 +81,18 @@ export interface AuthUser {
    * stale /me payload (older server image without the field) in `fetchMe`.
    */
   cycleTrackingEnabled: boolean;
+  /**
+   * v1.18.0 — the resolved per-user module enable/disable map. Each
+   * toggleable module key (mood, sleep, glucose, workouts, recovery, labs,
+   * achievements, coach, insights, doctorReport, cycle) is `true` when the
+   * module is enabled for this account, `false` when disabled. `cycle` and
+   * `coach` are delegated server-side (gender + opt-in / operator flag +
+   * opt-out) and already reflected here, so nav + Insights pill gates read
+   * this map rather than re-deriving. Coerced to `{}` against a stale /me
+   * payload (older server image without the field) so every gate fails open
+   * — a missing map never blanks the nav.
+   */
+  modules: Partial<Record<ModuleKey, boolean>>;
 }
 
 async function fetchMe(): Promise<AuthUser> {
@@ -117,6 +130,11 @@ async function fetchMe(): Promise<AuthUser> {
     // v1.15.0 — coerce against a stale /me payload so the cycle nav entry
     // stays hidden by default when the field is absent.
     cycleTrackingEnabled: data.cycleTrackingEnabled === true,
+    // v1.18.0 — coerce against a stale /me payload (older server image
+    // without the module map) to an empty map so every module gate fails
+    // open: a missing key reads as enabled and the nav stays intact.
+    modules:
+      data.modules && typeof data.modules === "object" ? data.modules : {},
   };
 }
 
