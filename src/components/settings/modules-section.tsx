@@ -52,6 +52,7 @@ import { queryKeys } from "@/lib/query-keys";
 import {
   CORE_DOMAIN_KEYS,
   MODULE_REGISTRY,
+  moduleDelegatesTo,
   type CoreDomainKey,
   type ModuleKey,
 } from "@/lib/modules/registry";
@@ -85,12 +86,16 @@ export function ModulesSection() {
   const queryClient = useQueryClient();
 
   const modules = user?.modules ?? {};
+  const moduleAvailability = user?.moduleAvailability ?? {};
 
   const toggle = useMutation({
     // Factory-routed; the in-repo eslint rule forbids a bare literal here.
     mutationKey: queryKeys.modulesPrefs(),
     mutationFn: async (vars: { key: ModuleKey; enabled: boolean }) => {
       // DISABLED allowlist: send only the single key the user flipped.
+      // Delegated keys (cycle/coach) never reach here — they render as
+      // read-only deep-link rows, so the PATCH only ever carries a
+      // directly-owned key.
       return apiPatch("/api/auth/me/modules", { [vars.key]: vars.enabled });
     },
     onSuccess: () => {
@@ -131,6 +136,14 @@ export function ModulesSection() {
             const def = MODULE_REGISTRY[key];
             // Default-on: a module is enabled unless explicitly `false`.
             const enabled = modules[key] !== false;
+            // Delegated modules (cycle/coach) are owned elsewhere — never a
+            // live toggle here; deep-link to their real control instead.
+            const delegated = moduleDelegatesTo(key) !== undefined;
+            // Operator turned this module off server-wide: no per-user
+            // toggle can re-enable it, so show a read-only note. Delegated
+            // rows already deep-link, so this only matters for owned keys.
+            const operatorDisabled =
+              !delegated && moduleAvailability[key] === false;
             return (
               <ModuleToggleRow
                 key={key}
@@ -140,6 +153,23 @@ export function ModulesSection() {
                 description={t(def.descriptionKey)}
                 enabled={enabled}
                 pending={toggle.isPending}
+                managedAt={
+                  delegated && def.managedAt
+                    ? {
+                        href: def.managedAt.href,
+                        label: t(def.managedAt.labelKey),
+                      }
+                    : undefined
+                }
+                manageLinkLabel={
+                  delegated && def.managedAt
+                    ? t("settings.sections.modules.manageIn", {
+                        section: t(def.managedAt.labelKey),
+                      })
+                    : undefined
+                }
+                operatorDisabled={operatorDisabled}
+                operatorNote={t("settings.sections.modules.operatorDisabled")}
                 onToggle={(next) => toggle.mutate({ key, enabled: next })}
               />
             );

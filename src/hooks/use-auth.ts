@@ -95,6 +95,17 @@ export interface AuthUser {
    * absent), so live code reads a real map.
    */
   modules?: Partial<Record<ModuleKey, boolean>>;
+  /**
+   * v1.18.0 — operator-layer availability per toggleable module. `false`
+   * ⇒ the operator disabled the module server-wide (off for every account,
+   * regardless of personal preference). Distinct from `modules`, which is
+   * the already-AND-ed effective state and cannot tell operator-off from
+   * user-off apart. Only the Modules hub needs this distinction (to render
+   * an operator-disabled module as a read-only "disabled server-wide" row);
+   * every other gate reads `modules`. Coerced to `{}` against a stale /me
+   * payload so a missing map reads as all-available.
+   */
+  moduleAvailability?: Partial<Record<ModuleKey, boolean>>;
 }
 
 async function fetchMe(): Promise<AuthUser> {
@@ -137,6 +148,13 @@ async function fetchMe(): Promise<AuthUser> {
     // open: a missing key reads as enabled and the nav stays intact.
     modules:
       data.modules && typeof data.modules === "object" ? data.modules : {},
+    // v1.18.0 — operator availability map, coerced against a stale payload
+    // to an empty map (all-available) so the Modules hub never shows a
+    // spurious "disabled server-wide" row on an older server image.
+    moduleAvailability:
+      data.moduleAvailability && typeof data.moduleAvailability === "object"
+        ? data.moduleAvailability
+        : {},
   };
 }
 

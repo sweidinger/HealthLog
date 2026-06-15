@@ -65,6 +65,13 @@ export interface ModuleDefinition {
    * there is exactly one source of truth. See `ModuleDelegation`.
    */
   delegatesTo?: ModuleDelegation;
+  /**
+   * For delegated modules only: where the real on/off control lives, so the
+   * Modules hub can render a read-only "managed in X" row that deep-links to
+   * the canonical control instead of a dead toggle. `href` is the in-app
+   * link; `labelKey` names the destination ("Account", "Coach settings").
+   */
+  managedAt?: { href: string; labelKey: string };
 }
 
 /**
@@ -138,6 +145,11 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       descriptionKey: "modules.cycle.description",
       category: "tracking",
       delegatesTo: "cycle",
+      // The real on/off lives in the Account section's cycle-tracking card.
+      managedAt: {
+        href: "/settings/account#cycle-tracking",
+        labelKey: "settings.sections.account.title",
+      },
     },
     mood: {
       key: "mood",
@@ -187,6 +199,11 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       descriptionKey: "modules.coach.description",
       category: "intelligence",
       delegatesTo: "coach",
+      // The real on/off lives in the dedicated Coach settings section.
+      managedAt: {
+        href: "/settings/coach",
+        labelKey: "settings.sections.coach.title",
+      },
     },
     insights: {
       key: "insights",

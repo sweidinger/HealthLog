@@ -4120,7 +4120,9 @@
           "description": "HealthLog's foundations. These areas can't be turned off.",
           "note": "Core area — always on"
         },
-        "description": "Choose what HealthLog tracks for you. Turn individual areas on or off — the navigation, tiles, and insights adapt right away."
+        "description": "Choose what HealthLog tracks for you. Turn individual areas on or off — the navigation, tiles, and insights adapt right away.",
+        "manageIn": "Manage in {section}",
+        "operatorDisabled": "Disabled server-wide"
       },
       "gesundheitsakte": {
         "title": "Health record",
