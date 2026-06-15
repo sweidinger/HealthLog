@@ -364,6 +364,10 @@ export async function runCycleReminderTick(
 
       // Gate ENTIRELY on cycle tracking being enabled (gender-derived or
       // explicit opt-in) — a disabled account never receives a cycle push.
+      // v1.18.0 — this IS the cycle module gate: the `cycle` ModuleKey
+      // delegates to `isCycleEnabled`, so turning the Cycle module off
+      // here is the same single source of truth the gate reads. No extra
+      // `isModuleEnabled(userId, "cycle")` round-trip is needed.
       if (!isCycleEnabled(user.gender, profile)) {
         summary.skippedOutsideWindow += 1;
         continue;

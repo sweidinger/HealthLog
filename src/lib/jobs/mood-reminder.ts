@@ -27,6 +27,7 @@ import { defaultLocale, locales } from "@/lib/i18n/config";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
 import { getEvent } from "@/lib/logging/context";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import {
   DEFAULT_MOOD_REMINDER_HOUR,
   resolveMoodReminderHour,
@@ -53,6 +54,7 @@ export interface MoodReminderSummary {
   skippedAlreadyLogged: number;
   skippedAlreadyDispatched: number;
   skippedOutsideWindow: number;
+  skippedModuleDisabled: number;
   skippedNoChannel: number;
   failed: number;
 }
@@ -142,9 +144,16 @@ export async function runMoodReminderTick(
   now: Date,
   options: {
     dispatch?: typeof dispatchNotification;
+    /**
+     * v1.18.0 module gate — injectable so the unit tests pin the
+     * disabled-module skip without booting the gate's DB reads. Defaults
+     * to the real `isModuleEnabled` resolver.
+     */
+    isModuleEnabled?: typeof isModuleEnabled;
   } = {},
 ): Promise<MoodReminderSummary> {
   const dispatchImpl = options.dispatch ?? dispatchNotification;
+  const moduleGate = options.isModuleEnabled ?? isModuleEnabled;
 
   const summary: MoodReminderSummary = {
     candidatesScanned: 0,
@@ -153,6 +162,7 @@ export async function runMoodReminderTick(
     skippedAlreadyLogged: 0,
     skippedAlreadyDispatched: 0,
     skippedOutsideWindow: 0,
+    skippedModuleDisabled: 0,
     skippedNoChannel: 0,
     failed: 0,
   };
@@ -180,6 +190,15 @@ export async function runMoodReminderTick(
       }
 
       summary.inWindow += 1;
+
+      // v1.18.0 module gate — a user who turned the Mood module off never
+      // receives its reminder. Checked after the window gate so the gate
+      // read only fires for the in-window cohort, not every opted-in user.
+      if (!(await moduleGate(user.id, "mood"))) {
+        summary.skippedModuleDisabled += 1;
+        getEvent()?.addMeta("mood_reminder.skipped_module_disabled", user.id);
+        continue;
+      }
 
       // Cheaper guard first: the ledger lookup is a single indexed row
       // while the mood-entry scan touches today's mood writes.
