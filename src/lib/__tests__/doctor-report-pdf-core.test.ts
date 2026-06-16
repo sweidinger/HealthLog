@@ -439,3 +439,52 @@ describe("doctor-report-pdf-core type-map coverage", () => {
     expect(text).toContain("Oxygen saturation");
   });
 });
+
+// ── clinical glucose panel ── the server-computed TIR / GMI / eA1C panel must
+// render in the PDF whenever glucose readings exist, and stay absent otherwise.
+describe("doctor-report clinical glucose panel", () => {
+  function denseReadings(): { measuredAt: Date; mgdl: number }[] {
+    const out: { measuredAt: Date; mgdl: number }[] = [];
+    for (let d = 0; d < 60; d += 1) {
+      for (let h = 0; h < 24; h += 1) {
+        out.push({
+          measuredAt: new Date(
+            FIXED_NOW.getTime() - d * 86_400_000 - h * 3_600_000,
+          ),
+          mgdl: 110 + ((d + h) % 7) * 8,
+        });
+      }
+    }
+    return out;
+  }
+
+  it("renders the clinical panel title + TIR/GMI rows when readings exist", async () => {
+    const data = makeData({
+      glucoseClinical: computeGlucoseClinicalMetrics(denseReadings(), {
+        now: FIXED_NOW,
+        windowDays: 90,
+      }),
+    });
+    expect(data.glucoseClinical.readingCount).toBeGreaterThan(0);
+    const bytes = renderDoctorReportPdfBytes(data, {
+      t: getServerTranslator("en").t,
+      locale: "en",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    expect(text).toContain("Glucose overview (clinical)");
+    expect(text).toContain("Time in range");
+    expect(text).toContain("Glucose Management Indicator");
+  });
+
+  it("omits the clinical panel when there are no glucose readings", async () => {
+    const data = makeData(); // empty (zero-reading) glucose panel
+    const bytes = renderDoctorReportPdfBytes(data, {
+      t: getServerTranslator("en").t,
+      locale: "en",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    expect(text).not.toContain("Glucose overview (clinical)");
+  });
+});
