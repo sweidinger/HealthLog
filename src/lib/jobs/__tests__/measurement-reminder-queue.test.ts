@@ -58,3 +58,25 @@ describe("reminder-worker — measurement-reminder wiring", () => {
     );
   });
 });
+
+describe("reminder-worker — eventful reminder-satisfy wiring (v1.18.1)", () => {
+  it("imports the satisfy queue constants", () => {
+    expect(source).toMatch(/from\s*["']@\/lib\/jobs\/reminder-satisfy["']/);
+    expect(source).toMatch(/\bREMINDER_SATISFY_QUEUE\b/);
+  });
+
+  it("registers the satisfy queue in the allQueues loop", () => {
+    const allQueuesMatch = source.match(/const allQueues\s*=\s*\[([\s\S]*?)\];/);
+    expect(allQueuesMatch).not.toBeNull();
+    expect(allQueuesMatch![1]).toMatch(/\bREMINDER_SATISFY_QUEUE\b/);
+  });
+
+  it("binds a boss.work handler for the satisfy queue", () => {
+    expect(source).toMatch(
+      /boss\.work[\s\S]{0,200}REMINDER_SATISFY_QUEUE[\s\S]{0,200}handleReminderSatisfy/,
+    );
+    expect(source).toMatch(
+      /handleReminderSatisfy[\s\S]{0,600}runReminderSatisfyForUser/,
+    );
+  });
+});

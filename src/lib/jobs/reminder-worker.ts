@@ -43,6 +43,11 @@ import {
   type PrDetectionPayload,
 } from "@/lib/jobs/pr-detection";
 import {
+  REMINDER_SATISFY_QUEUE,
+  REMINDER_SATISFY_CONCURRENCY,
+  type ReminderSatisfyPayload,
+} from "@/lib/jobs/reminder-satisfy";
+import {
   MEDICATION_INVENTORY_EXPIRE_QUEUE,
   MEDICATION_INVENTORY_EXPIRE_CRON,
   type MedicationInventoryExpirePayload,
@@ -250,6 +255,7 @@ import {
   handleMoodReminderCheck,
   handleCycleReminderCheck,
   handleMeasurementReminderCheck,
+  handleReminderSatisfy,
 } from "./reminder/mood-cycle-checks";
 import {
   HostMetricSamplePayload,
@@ -677,6 +683,11 @@ export async function startReminderWorker() {
     // schedule below silently no-ops (the v1.4.37 dead-queue class).
     TLS_PIN_MONITOR_QUEUE,
     PR_DETECTION_QUEUE,
+    // v1.18.1 — eventful Vorsorge satisfaction. No cron of its own (the
+    // 15-min measurement-reminder check is the safety-net); enqueued by the
+    // ingest paths. Must still be registered here or the worker binding
+    // below never provisions the queue (v1.4.37 dead-queue lesson).
+    REMINDER_SATISFY_QUEUE,
     MEDICATION_INVENTORY_EXPIRE_QUEUE,
     // v1.4.46 — hourly auto-skip pass for stale unmarked intakes.
     // Same pg-boss v12 createQueue contract as the other crons; without
@@ -1280,6 +1291,14 @@ export async function startReminderWorker() {
     PR_DETECTION_QUEUE,
     { localConcurrency: PR_DETECTION_CONCURRENCY },
     handlePrDetection,
+  );
+  // v1.18.1 — eventful Vorsorge satisfaction. Resolves a user's reminders
+  // against their just-landed measurement / lab. Read-heavy on the user's
+  // own data; the same small concurrency budget as PR detection.
+  await boss.work<ReminderSatisfyPayload>(
+    REMINDER_SATISFY_QUEUE,
+    { localConcurrency: REMINDER_SATISFY_CONCURRENCY },
+    handleReminderSatisfy,
   );
   await boss.work<MedicationInventoryExpirePayload>(
     MEDICATION_INVENTORY_EXPIRE_QUEUE,

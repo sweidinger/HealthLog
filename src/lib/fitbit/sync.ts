@@ -672,6 +672,10 @@ export async function runFitbitPollCohort(
     concurrency?: number;
     sync?: (userId: string) => Promise<number>;
     onUserError?: (userId: string, err: unknown) => void;
+    /** v1.18.1 — invoked after a user's sync lands `imported` measurements,
+     *  so the worker can fire the eventful Vorsorge satisfaction enqueue
+     *  without the fitbit lib reaching into the job layer. */
+    onUserSynced?: (userId: string, imported: number) => void;
   } = {},
 ): Promise<{ usersSynced: number; measurementsImported: number }> {
   const sync = opts.sync ?? ((userId: string) => syncUserFitbit(userId));
@@ -689,6 +693,7 @@ export async function runFitbitPollCohort(
           const n = await sync(userId);
           measurementsImported = measurementsImported + n;
           usersSynced = usersSynced + 1;
+          opts.onUserSynced?.(userId, n);
         } catch (err) {
           opts.onUserError?.(userId, err);
         }
