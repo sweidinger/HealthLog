@@ -155,7 +155,10 @@ describe("admin sections — SSR smoke", () => {
     expect(html).toContain("No feedback yet");
   });
 
-  it("admin slug list contains ai-quality (renderer parity)", () => {
-    expect(ADMIN_SECTION_SLUGS).toContain("ai-quality");
+  it("admin slug list contains coach (renderer parity)", () => {
+    // v1.18.1 — ai-quality / assistant / coach-feedback folded into one
+    // "coach" section. The standalone component still renders above; the
+    // slug parity assertion tracks the consolidated nav entry.
+    expect(ADMIN_SECTION_SLUGS).toContain("coach");
   });
 });

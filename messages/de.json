@@ -5274,17 +5274,9 @@
         "title": "Integrationen",
         "subtitle": "Umami, GlitchTip, Web Push und Bug-Reports konfigurieren."
       },
-      "ai-quality": {
-        "title": "Auswertungs-Qualität",
-        "subtitle": "Hilfreichkeit nach Schweregrad und Provider — Nutzer-Feedback der letzten 30 Tage."
-      },
-      "assistant": {
-        "title": "Assistenz-Oberflächen",
-        "subtitle": "Jede modellgestützte Oberfläche separat ein- oder ausschalten, ohne die Provider-Konfiguration zu entfernen."
-      },
-      "coach-feedback": {
-        "title": "Coach-Feedback",
-        "subtitle": "Hilfreich-Quote pro Coach-Prompt-Version, Tonfall und Ausführlichkeit der letzten 30 Tage."
+      "coach": {
+        "title": "Coach",
+        "subtitle": "Assistenz-Oberflächen, Server-Schlüssel sowie die Feedback-Qualitäts-Tabellen für Coach und Auswertungen an einem Ort."
       },
       "feedback": {
         "title": "Feedback",
