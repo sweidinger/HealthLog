@@ -11,6 +11,7 @@ import {
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { withIdempotency } from "@/lib/idempotency";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { encryptNoteToBytes } from "@/lib/labs/store";
 import { annotate } from "@/lib/logging/context";
 import {
@@ -183,6 +184,11 @@ async function postLabResult(request: NextRequest) {
     action: { name: "labs.create" },
     meta: { labResultId: created.id },
   });
+
+  // v1.18.1 (D2) — eventful Lab↔Vorsorge satisfaction. A lab panel just
+  // landed; resolve the user's free-text "annual blood panel" reminders
+  // now rather than waiting on the 15-min cron. Fire-and-forget.
+  void enqueueReminderSatisfy(user.id).catch(() => {});
 
   return apiSuccess(serialiseLabResult(created), 201);
 }

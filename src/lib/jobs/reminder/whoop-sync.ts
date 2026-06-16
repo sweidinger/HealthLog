@@ -20,6 +20,7 @@ import {
   syncUserWorkout,
   syncWhoopWorkoutById,
 } from "@/lib/whoop/sync-workout";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { getWorkerPrisma } from "./shared";
 
 /**
@@ -91,11 +92,17 @@ export async function runWhoopResourceSync(
       let measurementsImported = 0;
       for (const { userId, resourceId } of targets) {
         try {
-          measurementsImported +=
+          const imported =
             resourceId && byIdFn
               ? await byIdFn(userId, resourceId)
               : await syncFn(userId);
+          measurementsImported += imported;
           usersSynced++;
+          // v1.18.1 — a fresh reading landed; resolve this user's Vorsorge
+          // reminders eventfully. Fire-and-forget; the cron is the net.
+          if (imported > 0) {
+            void enqueueReminderSatisfy(userId).catch(() => {});
+          }
         } catch (err) {
           evt.addWarning(`${taskName} failed for user ${userId}: ${err}`);
         }

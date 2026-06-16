@@ -126,6 +126,9 @@ interface FakeReminder {
 function makePrisma(opts: {
   reminders: FakeReminder[];
   measurementMatch?: { measuredAt: Date } | null;
+  /** v1.18.1 (D2) — a free-text reminder now auto-resolves from a matching
+   *  LabResult. Default `null` (no lab landed). */
+  labMatch?: { takenAt: Date } | null;
 }) {
   const updates: Array<{ id: string; data: Record<string, unknown> }> = [];
   const prisma = {
@@ -146,6 +149,9 @@ function makePrisma(opts: {
     },
     measurement: {
       findFirst: vi.fn(async () => opts.measurementMatch ?? null),
+    },
+    labResult: {
+      findFirst: vi.fn(async () => opts.labMatch ?? null),
     },
   };
   return { prisma, updates };
@@ -220,11 +226,13 @@ describe("runMeasurementReminderTick", () => {
     expect(advanced.getTime()).toBeGreaterThan(NINE_LOCAL.getTime());
   });
 
-  it("free-text reminder never auto-resolves (no measurement query match path)", async () => {
+  it("free-text reminder never queries Measurement (matches on LabResult instead)", async () => {
     const { prisma } = makePrisma({
       reminders: [reminder({ measurementType: null })],
-      // Even if a reading existed, a free-text reminder must not query it.
+      // Even if a reading existed, a free-text reminder must not query it —
+      // it resolves from a LabResult (D2), and none landed here.
       measurementMatch: { measuredAt: new Date("2026-06-14T18:00:00Z") },
+      labMatch: null,
     });
     const dispatch = vi.fn<DispatchFn>(async () => OK);
 
@@ -236,6 +244,29 @@ describe("runMeasurementReminderTick", () => {
 
     expect(summary.autoResolved).toBe(0);
     expect(summary.dispatched).toBe(1);
+    expect(prisma.measurement.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("v1.18.1 (D2) — free-text reminder auto-resolves from a matching LabResult", async () => {
+    const takenAt = new Date("2026-06-14T18:00:00Z");
+    const { prisma, updates } = makePrisma({
+      reminders: [reminder({ measurementType: null })],
+      labMatch: { takenAt },
+    });
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+
+    const summary = await runMeasurementReminderTick(
+      prisma as never,
+      NINE_LOCAL,
+      { dispatch },
+    );
+
+    expect(summary.autoResolved).toBe(1);
+    expect(summary.dispatched).toBe(0);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(updates).toHaveLength(1);
+    expect(updates[0].data.lastSatisfiedAt).toEqual(takenAt);
+    // A free-text reminder resolves from labs, never from measurements.
     expect(prisma.measurement.findFirst).not.toHaveBeenCalled();
   });
 

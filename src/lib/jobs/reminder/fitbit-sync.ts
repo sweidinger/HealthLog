@@ -8,6 +8,7 @@ import { type Job } from "pg-boss";
 import { recordError } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { runFitbitPollCohort } from "@/lib/fitbit/sync";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { cleanupExpiredFitbitOAuthStates } from "@/lib/jobs/fitbit-oauth-state-cleanup";
 import { getWorkerPrisma } from "./shared";
 
@@ -45,6 +46,13 @@ export async function handleFitbitSync(jobs: Job<FitbitSyncPayload>[]) {
         {
           onUserError: (userId, err) =>
             evt.addWarning(`job.fitbit_sync failed for user ${userId}: ${err}`),
+          // v1.18.1 — a fresh reading landed; resolve the user's Vorsorge
+          // reminders eventfully. Fire-and-forget; the cron is the net.
+          onUserSynced: (userId, imported) => {
+            if (imported > 0) {
+              void enqueueReminderSatisfy(userId).catch(() => {});
+            }
+          },
         },
       );
 

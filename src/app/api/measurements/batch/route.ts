@@ -52,6 +52,7 @@ import { validateMeasurementRange } from "@/lib/validations/measurement";
 import { deviceTypeEnum } from "@/lib/validations/source-priority";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
@@ -599,6 +600,10 @@ async function postBatch(request: NextRequest): Promise<Response> {
   // personal record.
   if (insertedCount > 0 || updatedCount > 0 || duplicateCount > 0) {
     const silent = entries.length > PR_DETECTION_SILENT_THRESHOLD;
+    // v1.18.1 — eventful Vorsorge satisfaction. A matching reading just
+    // landed; resolve the user's reminders now rather than waiting on the
+    // 15-min cron. Fire-and-forget — the cron reconciles on enqueue miss.
+    void enqueueReminderSatisfy(user.id).catch(() => {});
     try {
       await enqueuePrDetection(user.id, { silent });
       await auditLog("personal_records.detection_enqueued", {

@@ -6478,7 +6478,19 @@
       "BLOOD_GLUCOSE": "Blood glucose",
       "OXYGEN_SATURATION": "Oxygen saturation",
       "BODY_FAT": "Body fat",
-      "BODY_TEMPERATURE": "Body temperature"
+      "BODY_TEMPERATURE": "Body temperature",
+      "FAT_MASS": "Fat mass",
+      "FAT_FREE_MASS": "Fat-free mass",
+      "MUSCLE_MASS": "Muscle mass",
+      "LEAN_BODY_MASS": "Lean body mass",
+      "BONE_MASS": "Bone mass",
+      "TOTAL_BODY_WATER": "Body water",
+      "VISCERAL_FAT": "Visceral fat",
+      "BODY_MASS_INDEX": "Body mass index (BMI)"
+    },
+    "typeGroups": {
+      "vitals": "Vitals",
+      "bodyComposition": "Body composition"
     },
     "empty": {
       "title": "No reminders yet",

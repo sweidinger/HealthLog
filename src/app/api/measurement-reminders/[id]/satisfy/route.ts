@@ -13,10 +13,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
-import {
-  computeReminderNextDueAt,
-  type ReminderScheduleInput,
-} from "@/lib/measurement-reminders/scheduling";
+import { satisfyReminder } from "@/lib/measurement-reminders/satisfy";
 import { toMeasurementReminderDto } from "@/lib/measurement-reminders/dto";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -42,19 +39,14 @@ export const POST = apiHandler(
     const timezone = userRow?.timezone || DEFAULT_TIMEZONE;
 
     const now = new Date();
-    const scheduleInput: ReminderScheduleInput = {
-      intervalDays: existing.intervalDays,
-      rrule: existing.rrule,
-      anchorDate: existing.anchorDate,
-      notifyHour: existing.notifyHour,
-      lastSatisfiedAt: now,
-      createdAt: existing.createdAt,
-    };
-    const nextDueAt = computeReminderNextDueAt(scheduleInput, timezone, now);
+    // The ONE shared satisfaction primitive — same code the cron
+    // auto-resolve and the eventful worker use. A manual "Erledigt" is
+    // always strictly after any prior satisfy, so the forward-only guard
+    // advances it.
+    await satisfyReminder(prisma, existing, timezone, now);
 
-    const updated = await prisma.measurementReminder.update({
+    const updated = await prisma.measurementReminder.findUniqueOrThrow({
       where: { id },
-      data: { lastSatisfiedAt: now, nextDueAt },
     });
 
     await auditLog("measurementReminder.satisfy", {

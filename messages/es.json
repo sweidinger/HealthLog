@@ -6478,7 +6478,19 @@
       "BLOOD_GLUCOSE": "Glucosa en sangre",
       "OXYGEN_SATURATION": "Saturación de oxígeno",
       "BODY_FAT": "Grasa corporal",
-      "BODY_TEMPERATURE": "Temperatura corporal"
+      "BODY_TEMPERATURE": "Temperatura corporal",
+      "FAT_MASS": "Masa grasa",
+      "FAT_FREE_MASS": "Masa libre de grasa",
+      "MUSCLE_MASS": "Masa muscular",
+      "LEAN_BODY_MASS": "Masa magra",
+      "BONE_MASS": "Masa ósea",
+      "TOTAL_BODY_WATER": "Agua corporal",
+      "VISCERAL_FAT": "Grasa visceral",
+      "BODY_MASS_INDEX": "Índice de masa corporal (IMC)"
+    },
+    "typeGroups": {
+      "vitals": "Constantes vitales",
+      "bodyComposition": "Composición corporal"
     },
     "empty": {
       "title": "Aún no hay recordatorios",

@@ -10,6 +10,7 @@ import { withBackgroundEvent } from "@/lib/logging/background";
 import { syncUserMeasurements } from "@/lib/withings/sync";
 import { syncUserActivity } from "@/lib/withings/sync-activity";
 import { syncUserSleep } from "@/lib/withings/sync-sleep";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { getWorkerPrisma } from "./shared";
 
 export interface WithingsSyncPayload {
@@ -64,6 +65,11 @@ export async function handleWithingsFallbackSync(
           const imported = await syncUserMeasurements(connection.userId);
           usersSynced++;
           measurementsImported += imported;
+          // v1.18.1 — a fresh reading landed; resolve this user's Vorsorge
+          // reminders eventfully. Fire-and-forget; the cron is the net.
+          if (imported > 0) {
+            void enqueueReminderSatisfy(connection.userId).catch(() => {});
+          }
         } catch (err) {
           evt.addWarning(
             `Fallback sync failed for user ${connection.userId}: ${err}`,
@@ -131,6 +137,9 @@ export async function handleWithingsActivitySync(
           const imported = await syncUserActivity(userId);
           usersSynced++;
           measurementsImported += imported;
+          if (imported > 0) {
+            void enqueueReminderSatisfy(userId).catch(() => {});
+          }
         } catch (err) {
           evt.addWarning(
             `Withings activity sync failed for user ${userId}: ${err}`,
@@ -186,6 +195,9 @@ export async function handleWithingsSleepSync(
           const imported = await syncUserSleep(userId);
           usersSynced++;
           measurementsImported += imported;
+          if (imported > 0) {
+            void enqueueReminderSatisfy(userId).catch(() => {});
+          }
         } catch (err) {
           evt.addWarning(
             `Withings sleep sync failed for user ${userId}: ${err}`,
