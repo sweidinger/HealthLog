@@ -25,7 +25,11 @@ import {
 import type {
   GlucoseContext,
   MeasurementSource,
+  MeasurementType,
 } from "@/generated/prisma/client";
+import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
+import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
+import { userDayKey } from "@/lib/tz/resolver";
 import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
 import {
   reconstructSleepNights,
@@ -286,6 +290,70 @@ interface RecoveryMeasurementRow {
   value: number;
   measuredAt: Date;
   source: MeasurementSource;
+}
+
+/** Minimal Measurement shape the canonical-source collapse consults. */
+export interface CanonicalCollapseRow {
+  type: string;
+  value: number;
+  measuredAt: Date;
+  source: MeasurementSource;
+  deviceType?: string | null;
+}
+
+/**
+ * Collapse a window's raw Measurement rows to one canonical source per metric
+ * before the doctor report computes per-type avg/min/max. Without this the PDF
+ * + FHIR stats blend every source (a WHOOP + Apple-Watch resting-heart-rate
+ * day would average two readings), while the dashboard / insights aggregator
+ * already collapse to the ladder-canonical source per day. This routes the rows
+ * through the SAME picker (`pickCanonicalSourceRows`, keyed by
+ * `metricKeyForType` + the user's day key + source-priority ladder), so the two
+ * surfaces report identical numbers.
+ *
+ * SLEEP_DURATION is passed through untouched: it carries per-stage rows that
+ * `reconstructSleepNights` resolves with its own source de-dup downstream, so a
+ * pre-collapse here would drop stages the night reconstruction needs. A type
+ * with no ladder, or a day with a single source, passes through unchanged via
+ * the picker's documented fallback. Exported for unit tests.
+ */
+export function collapseMeasurementsToCanonical<T extends CanonicalCollapseRow>(
+  measurements: readonly T[],
+  timezone: string,
+  sourcePriorityJson: unknown,
+): T[] {
+  const dayKey = (d: Date) => userDayKey(d, timezone);
+  const byType = new Map<string, T[]>();
+  for (const m of measurements) {
+    const slot = byType.get(m.type);
+    if (slot) slot.push(m);
+    else byType.set(m.type, [m]);
+  }
+  const out: T[] = [];
+  for (const [type, rows] of byType) {
+    const metricKey =
+      type === "SLEEP_DURATION"
+        ? null
+        : metricKeyForType(type as MeasurementType);
+    if (!metricKey) {
+      out.push(...rows);
+      continue;
+    }
+    const { canonicalRows } = pickCanonicalSourceRows(
+      rows.map((m) => ({
+        ...m,
+        type: m.type as MeasurementType,
+      })),
+      metricKey,
+      sourcePriorityJson,
+      dayKey,
+    );
+    // `pickCanonicalSourceRows` returns the spread copies; re-key back to the
+    // original rows by reference identity is unnecessary because the spread
+    // preserves every field the caller reads (value / measuredAt / type).
+    out.push(...(canonicalRows as unknown as T[]));
+  }
+  return out;
 }
 
 /**
@@ -739,17 +807,34 @@ export async function collectDoctorReportData(
       }),
     ]);
 
-  // Group measurements by type.
+  const reportTz = userProfile?.timezone ?? "Europe/Berlin";
+
+  // v1.18.0 — collapse each multi-source metric to its CANONICAL source before
+  // grouping, so the report's per-type avg/min/max match the dashboard rather
+  // than blending overlapping sources (e.g. WHOOP + Apple Watch resting-heart-
+  // rate summed into one inflated mean). See `collapseMeasurementsToCanonical`.
+  const canonicalMeasurements = collapseMeasurementsToCanonical(
+    measurements,
+    reportTz,
+    userProfile?.sourcePriorityJson ?? null,
+  );
+
+  // Group measurements by type (canonical-source-collapsed).
   const byType: Record<
     string,
     Array<{ value: number; measuredAt: string }>
   > = {};
-  for (const m of measurements) {
+  for (const m of canonicalMeasurements) {
     if (!byType[m.type]) byType[m.type] = [];
     byType[m.type].push({
       value: m.value,
       measuredAt: m.measuredAt.toISOString(),
     });
+  }
+  // measuredAt-ascending within each type so `latest` (last element) is the
+  // most recent reading after the canonical collapse reorders by bucket.
+  for (const entries of Object.values(byType)) {
+    entries.sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
   }
 
   // v1.17.1 parity — SLEEP_DURATION enters `byType` as RAW per-stage rows (a
@@ -759,7 +844,6 @@ export async function collectDoctorReportData(
   // and the v1.17.1 stamping fixes rewrite exactly those raw stage rows. Route
   // the report's sleep value through the same engine — one number, one surface
   // — exactly as RECOVERY_SCORE routes through `summariseCanonicalRecovery`.
-  const reportTz = userProfile?.timezone ?? "Europe/Berlin";
   const sleepRows = measurements.filter(
     (m) => m.type === "SLEEP_DURATION",
   ) as unknown as SleepStageRow[];
