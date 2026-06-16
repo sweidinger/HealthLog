@@ -6834,6 +6834,34 @@
       "headache": "Ból głowy",
       "bodyAches": "Bóle ciała",
       "fatigue": "Zmęczenie"
+    },
+    "correlation": {
+      "title": "Jak przebiegało",
+      "learning": "Wciąż się uczę — zapisz jeszcze kilka dni, aby zobaczyć tu wzorce.",
+      "preOnsetTitle": "Jak się zapowiadało",
+      "preOnsetBody": "Sygnały, które odbiegły od Twojej bazy przed oznaczonym początkiem.",
+      "nadirTitle": "Co się zmieniło",
+      "nadirBody": "Jak daleko każdy śledzony sygnał odbiegł od Twojego typowego zakresu.",
+      "recoveryGapTitle": "Luka rekonwalescencji",
+      "recoveryGapLag": "Twoje wartości ustabilizowały się {days} dni po tym, jak poczułeś się lepiej.",
+      "recoveryGapLead": "Twoje wartości ustabilizowały się {days} dni przed oznaczeniem wyzdrowienia.",
+      "recoveryGapSame": "Twoje wartości ustabilizowały się tego samego dnia, gdy poczułeś się lepiej.",
+      "redFlagTitle": "Warto przyjrzeć się bliżej",
+      "redFlagSpo2": "Twoje wysycenie tlenem pozostawało niskie przez kilka dni. Jeśli się powtórzy, zasięgnij pomocy medycznej.",
+      "redFlagFever": "Miałeś utrzymującą się gorączkę. Jeśli się powtórzy, zasięgnij pomocy medycznej.",
+      "direction": {
+        "above": "powyżej Twojej normy",
+        "below": "poniżej Twojej normy"
+      }
+    },
+    "insights": {
+      "title": "Twoja historia chorób",
+      "countOne": "W tym okresie zapisałeś 1 epizod.",
+      "countOther": "W tym okresie zapisałeś {count} epizodów.",
+      "typicalGap": "Typowa luka rekonwalescencji: {days} dni między poprawą a ustabilizowaniem wartości.",
+      "typicalGapLearning": "Jeszcze kilka zakończonych epizodów i pojawi się tu typowa luka rekonwalescencji.",
+      "byMonth": "Kiedy zwykle zapisujesz epizody",
+      "none": "Brak epizodów zapisanych w tym okresie."
     }
   },
   "coach": {

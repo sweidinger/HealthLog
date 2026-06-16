@@ -6834,6 +6834,34 @@
       "headache": "Headache",
       "bodyAches": "Body aches",
       "fatigue": "Fatigue"
+    },
+    "correlation": {
+      "title": "How it unfolded",
+      "learning": "Still learning — log a few more days to see patterns here.",
+      "preOnsetTitle": "How it announced itself",
+      "preOnsetBody": "Signals that drifted from your baseline before you marked the onset.",
+      "nadirTitle": "What changed",
+      "nadirBody": "How far each tracked signal strayed from your typical range.",
+      "recoveryGapTitle": "Recovery gap",
+      "recoveryGapLag": "Your numbers settled {days} days after you felt better.",
+      "recoveryGapLead": "Your numbers settled {days} days before you marked recovery.",
+      "recoveryGapSame": "Your numbers settled the same day you felt better.",
+      "redFlagTitle": "Worth a closer look",
+      "redFlagSpo2": "Your oxygen saturation stayed low for several days. If this recurs, seek medical care.",
+      "redFlagFever": "You ran a sustained fever. If this recurs, seek medical care.",
+      "direction": {
+        "above": "above your usual",
+        "below": "below your usual"
+      }
+    },
+    "insights": {
+      "title": "Your illness history",
+      "countOne": "You logged 1 episode in this period.",
+      "countOther": "You logged {count} episodes in this period.",
+      "typicalGap": "Typical recovery gap: {days} days between feeling better and your numbers settling.",
+      "typicalGapLearning": "A few more resolved episodes and a typical recovery gap will appear here.",
+      "byMonth": "When you tend to log episodes",
+      "none": "No episodes logged in this period."
     }
   },
   "coach": {

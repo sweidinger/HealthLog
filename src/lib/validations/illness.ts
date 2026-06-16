@@ -133,3 +133,14 @@ export type IllnessDayLogInput = z.infer<typeof illnessDayLogInputSchema>;
 
 /** The single-day read query: `GET .../day-logs?date=YYYY-MM-DD`. */
 export const illnessDayLogQuerySchema = z.object({ date: dateString });
+
+/* ── P3 retrospective insight window ─────────────────────────────────── */
+
+/**
+ * The retrospective-insight window query: `GET /api/illness/insights?
+ * windowDays=365`. Bounded 30..1095 days; defaults to a trailing year.
+ * Retrospective only — the engine summarises past episodes, never forecasts.
+ */
+export const illnessInsightsQuerySchema = z.object({
+  windowDays: z.coerce.number().int().min(30).max(1095).optional(),
+});

@@ -6834,6 +6834,34 @@
       "headache": "Mal de tête",
       "bodyAches": "Courbatures",
       "fatigue": "Fatigue"
+    },
+    "correlation": {
+      "title": "Comment cela s'est déroulé",
+      "learning": "Encore en apprentissage — enregistre quelques jours de plus pour voir des tendances ici.",
+      "preOnsetTitle": "Comment cela s'est annoncé",
+      "preOnsetBody": "Signaux qui se sont écartés de ta base avant le début que tu as noté.",
+      "nadirTitle": "Ce qui a changé",
+      "nadirBody": "À quel point chaque signal suivi s'est écarté de ta plage habituelle.",
+      "recoveryGapTitle": "Écart de récupération",
+      "recoveryGapLag": "Tes valeurs se sont stabilisées {days} jours après que tu te sois senti mieux.",
+      "recoveryGapLead": "Tes valeurs se sont stabilisées {days} jours avant que tu notes la guérison.",
+      "recoveryGapSame": "Tes valeurs se sont stabilisées le jour même où tu t'es senti mieux.",
+      "redFlagTitle": "À examiner de plus près",
+      "redFlagSpo2": "Ta saturation en oxygène est restée basse plusieurs jours. Si cela se reproduit, consulte un médecin.",
+      "redFlagFever": "Tu as eu une fièvre persistante. Si cela se reproduit, consulte un médecin.",
+      "direction": {
+        "above": "au-dessus de ton habituel",
+        "below": "en dessous de ton habituel"
+      }
+    },
+    "insights": {
+      "title": "Ton historique de maladies",
+      "countOne": "Tu as enregistré 1 épisode sur cette période.",
+      "countOther": "Tu as enregistré {count} épisodes sur cette période.",
+      "typicalGap": "Écart de récupération typique : {days} jours entre le mieux-être et la stabilisation de tes valeurs.",
+      "typicalGapLearning": "Encore quelques épisodes résolus et un écart de récupération typique apparaîtra ici.",
+      "byMonth": "Quand tu enregistres des épisodes",
+      "none": "Aucun épisode enregistré sur cette période."
     }
   },
   "coach": {

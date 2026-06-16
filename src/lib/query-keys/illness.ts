@@ -18,4 +18,17 @@ export const illnessKeys = {
   illnessEpisode: (id: string) => ["illness", "episode", id] as const,
   illnessDayLog: (episodeId: string, date: string) =>
     ["illness", "day-log", episodeId, date] as const,
+  /**
+   * v1.18.1 P3 — the per-episode retrospective correlation findings
+   * (pre-onset scan, nadir, recovery-gap). Server-authoritative; the read
+   * is gated, so the surface pattern-matches `status` rather than recomputing.
+   */
+  illnessCorrelation: (id: string) =>
+    ["illness", "correlation", id] as const,
+  /**
+   * v1.18.1 P3 — the cross-episode retrospective summary ("sick N times ·
+   * typical recovery gap X days") over a trailing window in days.
+   */
+  illnessInsights: (windowDays: number) =>
+    ["illness", "insights", windowDays] as const,
 };

@@ -6834,6 +6834,34 @@
       "headache": "Kopfschmerzen",
       "bodyAches": "Gliederschmerzen",
       "fatigue": "Erschöpfung"
+    },
+    "correlation": {
+      "title": "Wie es verlief",
+      "learning": "Noch am Lernen — erfasse ein paar weitere Tage, um hier Muster zu sehen.",
+      "preOnsetTitle": "Wie es sich ankündigte",
+      "preOnsetBody": "Werte, die vor dem Beginn von deiner Baseline abwichen.",
+      "nadirTitle": "Was sich änderte",
+      "nadirBody": "Wie weit jeder erfasste Wert von deinem typischen Bereich abwich.",
+      "recoveryGapTitle": "Erholungslücke",
+      "recoveryGapLag": "Deine Werte normalisierten sich {days} Tage, nachdem es dir besser ging.",
+      "recoveryGapLead": "Deine Werte normalisierten sich {days} Tage, bevor du Genesung vermerktest.",
+      "recoveryGapSame": "Deine Werte normalisierten sich am selben Tag, an dem es dir besser ging.",
+      "redFlagTitle": "Genauer ansehen",
+      "redFlagSpo2": "Deine Sauerstoffsättigung blieb mehrere Tage niedrig. Wenn das erneut auftritt, suche ärztliche Hilfe.",
+      "redFlagFever": "Du hattest anhaltend Fieber. Wenn das erneut auftritt, suche ärztliche Hilfe.",
+      "direction": {
+        "above": "über deinem Üblichen",
+        "below": "unter deinem Üblichen"
+      }
+    },
+    "insights": {
+      "title": "Dein Krankheitsverlauf",
+      "countOne": "Du hast in diesem Zeitraum 1 Episode erfasst.",
+      "countOther": "Du hast in diesem Zeitraum {count} Episoden erfasst.",
+      "typicalGap": "Typische Erholungslücke: {days} Tage zwischen Besserung und normalisierten Werten.",
+      "typicalGapLearning": "Noch ein paar abgeschlossene Episoden und hier erscheint eine typische Erholungslücke.",
+      "byMonth": "Wann du Episoden erfasst",
+      "none": "In diesem Zeitraum keine Episoden erfasst."
     }
   },
   "coach": {
