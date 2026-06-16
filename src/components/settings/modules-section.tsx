@@ -118,21 +118,19 @@ export function ModulesSection() {
       aria-labelledby="settings-section-modules-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
+      <header>
         <h1 id="settings-section-modules-title" className="sr-only">
           {t("settings.sections.modules.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.modules.description")}
-        </p>
       </header>
 
-      {/* Toggleable modules */}
+      {/* Toggleable modules. v1.18.1 (D2) — the explanatory line above the
+          first card dropped; the per-row labels carry the meaning. */}
       <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <SettingsCardHeader
           icon={Blocks}
           title={t("settings.sections.modules.toggleable.title")}
-          description={t("settings.sections.modules.toggleable.description")}
           className="mb-2"
         />
         <div className="divide-border divide-y pl-7">

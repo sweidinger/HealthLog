@@ -10,11 +10,14 @@
  *
  * v1.18.0 (S5) — the Coach preference cards (disable toggle, preferences,
  * memory) moved out to the dedicated Coach section. The AI section keeps
- * only provider / model / BYOK configuration plus the "about me" context
- * (which the daily briefing reads too, so it is not Coach-only).
+ * only provider / model / BYOK configuration.
+ *
+ * v1.18.1 (D8) — the "About me" context moved to Settings → Account (under
+ * Profil, before Zyklus-Tracking). It is personal medical context the daily
+ * briefing reads too, so it belongs with the account profile rather than the
+ * provider-configuration screen.
  */
 
-import { AboutMeSection } from "@/components/settings/about-me-section";
 import { AiInsightsCard } from "@/components/settings/ai/ai-insights-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
@@ -34,22 +37,17 @@ export function AiSection() {
 
   return (
     <section aria-labelledby="settings-section-ai-title" className="space-y-6">
-      <header className="space-y-1">
+      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
+      <header>
         <h1 id="settings-section-ai-title" className="sr-only">
           {t("settings.sections.ai.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.ai.description")}
-        </p>
       </header>
 
       <AiInsightsCard isAuthenticated={authed} />
 
-      {/* v1.15.20 — user-authored "about me" context for the Coach +
-          daily briefing. Not gated on the Coach toggle: the briefing
-          reads it too, so it stays in the AI section rather than the
-          Coach section. */}
-      <AboutMeSection isAuthenticated={authed} />
+      {/* v1.18.1 (D8) — the "About me" context moved to Settings → Account
+          (under Profil, before Zyklus-Tracking). */}
     </section>
   );
 }

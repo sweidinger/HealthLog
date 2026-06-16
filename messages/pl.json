@@ -3893,7 +3893,7 @@
         "inboxLink": "Otwórz skrzynkę odbiorczą"
       },
       "layout": {
-        "title": "Układ i personalizacja",
+        "title": "Układ",
         "description": "Ustal, jak rozłożone są pulpit i analizy.",
         "backToHub": "Powrót do Układ i personalizacja",
         "dashboard": {
@@ -4147,6 +4147,10 @@
       "coach": {
         "title": "Coach",
         "description": "Włącz Coacha, ton i zakres, zapisane wspomnienia."
+      },
+      "channels": {
+        "title": "Kanały",
+        "description": "Dostarczanie przez Telegram, ntfy, Web Push, Webhook i e-mail."
       }
     },
     "profile": "Profil",
@@ -4858,7 +4862,17 @@
       "rate_limited": "Zbyt wiele prób połączenia. Poczekaj chwilę i spróbuj ponownie.",
       "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
     },
-    "integrationSetupGuide": "Przewodnik konfiguracji"
+    "integrationSetupGuide": "Przewodnik konfiguracji",
+    "coach": {
+      "activate": {
+        "title": "Włącz Coacha",
+        "description": "Pokazuje przycisk i panel Coacha. Domyślnie włączony — wyłącz, aby ukryć Coacha wszędzie.",
+        "toggleAria": "Włącz przycisk i panel Coacha",
+        "savedOn": "Coach włączony.",
+        "savedOff": "Coach ukryty.",
+        "saveError": "Nie udało się zapisać zmiany. Spróbuj ponownie."
+      }
+    }
   },
   "admin": {
     "title": "Administracja",
@@ -6713,7 +6727,7 @@
       "description": "Czat AI oparty na Twoich danych."
     },
     "insights": {
-      "label": "Analizy",
+      "label": "Insights",
       "description": "Analizy AI, briefing i korelacje."
     },
     "doctorReport": {

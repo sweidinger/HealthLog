@@ -58,13 +58,10 @@ export function LayoutSection() {
       aria-labelledby="settings-section-layout-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      <header>
         <h1 id="settings-section-layout-title" className="sr-only">
           {t("settings.sections.layout.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.layout.description")}
-        </p>
       </header>
 
       <ul className="space-y-3">

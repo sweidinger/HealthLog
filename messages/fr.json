@@ -3893,7 +3893,7 @@
         "inboxLink": "Ouvrir la boîte de réception"
       },
       "layout": {
-        "title": "Disposition et personnalisation",
+        "title": "Disposition",
         "description": "Organisez la disposition du tableau de bord et des analyses.",
         "backToHub": "Retour à Disposition et personnalisation",
         "dashboard": {
@@ -4147,6 +4147,10 @@
       "coach": {
         "title": "Coach",
         "description": "Activez le Coach, le ton et la portée, les souvenirs enregistrés."
+      },
+      "channels": {
+        "title": "Canaux",
+        "description": "Distribution via Telegram, ntfy, Web Push, Webhook et e-mail."
       }
     },
     "profile": "Profil",
@@ -4858,7 +4862,17 @@
       "rate_limited": "Trop de tentatives de connexion. Patientez un instant et réessayez.",
       "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
     },
-    "integrationSetupGuide": "Guide de configuration"
+    "integrationSetupGuide": "Guide de configuration",
+    "coach": {
+      "activate": {
+        "title": "Activer le Coach",
+        "description": "Affiche le bouton et le panneau du Coach. Activé par défaut — désactivez-le pour masquer le Coach partout.",
+        "toggleAria": "Activer le bouton et le panneau du Coach",
+        "savedOn": "Coach activé.",
+        "savedOff": "Coach masqué.",
+        "saveError": "Impossible d enregistrer la modification. Veuillez réessayer."
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -6713,7 +6727,7 @@
       "description": "Chat IA fondé sur vos propres données."
     },
     "insights": {
-      "label": "Analyses",
+      "label": "Insights",
       "description": "Analyses IA, briefing et corrélations."
     },
     "doctorReport": {

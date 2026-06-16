@@ -75,13 +75,10 @@ export function ExportSection() {
       aria-labelledby="settings-section-export-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      <header>
         <h1 id="settings-section-export-title" className="sr-only">
           {t("settings.sections.export.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.export.description")}
-        </p>
       </header>
 
       {/* v1.18.0 (S5) — the full health-record export moved to its own

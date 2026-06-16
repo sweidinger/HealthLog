@@ -18,9 +18,10 @@ import { ModulesSection } from "@/components/settings/modules-section";
 import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
-// v1.18.0 (S3) — `sources` no longer has a standalone route; source priority
-// renders inside Settings → Integrations as the "Sources" sub-tab.
-// `/settings/sources` 301-redirects to `/settings/integrations` (next.config.ts).
+// v1.18.1 (D4) — `channels` and `sources` are standalone left-side entries
+// again (split out of the Integrations sub-tabs).
+import { ChannelsSection } from "@/components/settings/channels-section";
+import { SourcesSection } from "@/components/settings/sources-section";
 import { ThresholdsSection } from "@/components/settings/thresholds-section";
 import {
   SETTINGS_SECTION_SLUGS,
@@ -55,6 +56,8 @@ const SECTION_COMPONENTS: Record<
   ai: AiSection,
   coach: CoachSection,
   integrations: IntegrationsSection,
+  channels: ChannelsSection,
+  sources: SourcesSection,
   notifications: NotificationsSection,
   layout: LayoutSection,
   dashboard: DashboardSection,

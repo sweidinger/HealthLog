@@ -3893,7 +3893,7 @@
         "inboxLink": "Abrir la bandeja de entrada"
       },
       "layout": {
-        "title": "Diseño y personalización",
+        "title": "Diseño",
         "description": "Organiza cómo están dispuestos el panel y los análisis.",
         "backToHub": "Volver a Diseño y personalización",
         "dashboard": {
@@ -4147,6 +4147,10 @@
       "coach": {
         "title": "Coach",
         "description": "Activa el Coach, tono y alcance, recuerdos guardados."
+      },
+      "channels": {
+        "title": "Canales",
+        "description": "Envío por Telegram, ntfy, Web Push, Webhook y correo electrónico."
       }
     },
     "profile": "Perfil",
@@ -4858,7 +4862,17 @@
       "rate_limited": "Demasiados intentos de conexión. Espera un momento e inténtalo de nuevo.",
       "generic": "Error desconocido al conectar. Inicia la conexión de nuevo."
     },
-    "integrationSetupGuide": "Guía de configuración"
+    "integrationSetupGuide": "Guía de configuración",
+    "coach": {
+      "activate": {
+        "title": "Activar el Coach",
+        "description": "Muestra el botón y el panel del Coach. Activado por defecto: desactívalo para ocultar el Coach en todas partes.",
+        "toggleAria": "Activar el botón y el panel del Coach",
+        "savedOn": "Coach activado.",
+        "savedOff": "Coach oculto.",
+        "saveError": "No se pudo guardar el cambio. Inténtalo de nuevo."
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -6713,7 +6727,7 @@
       "description": "Chat de IA basado en tus propios datos."
     },
     "insights": {
-      "label": "Análisis",
+      "label": "Insights",
       "description": "Análisis de IA, resumen y correlaciones."
     },
     "doctorReport": {

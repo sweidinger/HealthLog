@@ -26,8 +26,10 @@ import {
   Info,
   KeyRound,
   LayoutDashboard,
+  Layers,
   Link2,
   Pill,
+  Radio,
   Settings2,
   SlidersHorizontal,
   Smile,
@@ -104,6 +106,20 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "integrations",
     titleKey: "settings.sections.integrations.title",
     icon: Link2,
+  },
+  // v1.18.1 (D4) — Kanäle (delivery channels) split out of the Integrations
+  // sub-tabs into its own entry. A channel is a delivery provider.
+  {
+    slug: "channels",
+    titleKey: "settings.sections.channels.title",
+    icon: Radio,
+  },
+  // v1.18.1 (D4) — Quellen (source weighting) split out into its own entry:
+  // which connection wins when two report the same metric.
+  {
+    slug: "sources",
+    titleKey: "settings.sections.sources.title",
+    icon: Layers,
   },
   // v1.18.0 (S4) — "Benachrichtigungen" is now the single module-gated
   // reminder-types home. The separate "Erinnerungen" hub (a link-only page)

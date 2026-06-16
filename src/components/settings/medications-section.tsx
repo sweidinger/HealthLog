@@ -76,13 +76,10 @@ export function MedicationsSection() {
       aria-labelledby="settings-section-medications-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      <header>
         <h1 id="settings-section-medications-title" className="sr-only">
           {t("settings.sections.medications.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.medications.description")}
-        </p>
       </header>
 
       {/* View preference — cards vs table. The shared header toggle

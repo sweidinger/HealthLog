@@ -237,7 +237,9 @@ describe("PATCH /api/auth/me/modules", () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     primeUser();
 
-    for (const core of ["weight", "bloodPressure", "pulse", "medications"]) {
+    // v1.18.1 (D3) — medications graduated to a toggleable module, so only
+    // weight / blood pressure / pulse stay refused as core domains.
+    for (const core of ["weight", "bloodPressure", "pulse"]) {
       const res = await (PATCH as (r: Request) => Promise<Response>)(
         mkPatch({ [core]: false }),
       );

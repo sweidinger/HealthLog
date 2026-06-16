@@ -45,13 +45,10 @@ export function MoodSection() {
       aria-labelledby="settings-section-mood-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      <header>
         <h1 id="settings-section-mood-title" className="sr-only">
           {t("settings.sections.mood.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.mood.description")}
-        </p>
       </header>
 
       {/* Groups — picker group order + own groups. */}

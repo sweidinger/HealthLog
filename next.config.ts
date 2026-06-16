@@ -121,15 +121,9 @@ const nextConfig: NextConfig = {
         destination: "/coach",
         permanent: true,
       },
-      // v1.18.0 (S3) — Sources folded into Settings → Integrations as the
-      // "Sources" sub-tab; the standalone `/settings/sources` page is gone.
-      // 301-redirect so bookmarks, the PWA's cached navigation, and the old
-      // cross-links keep resolving.
-      {
-        source: "/settings/sources",
-        destination: "/settings/integrations",
-        permanent: true,
-      },
+      // v1.18.1 (D4) — Sources is a standalone `/settings/sources` route again
+      // (split back out of the Integrations sub-tabs), so the v1.18.0 redirect
+      // to `/settings/integrations` was dropped.
       // v1.18.0 (S4) — the standalone "Erinnerungen" hub at
       // `/settings/reminders` was a link-only page that duplicated the
       // canonical editors. Reminder TYPES now live in Notifications, each

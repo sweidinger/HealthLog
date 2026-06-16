@@ -42,25 +42,26 @@ function render(locale: "en" | "de" = "en") {
 }
 
 describe("<CoachSection> — SSR smoke", () => {
-  it("renders the section scaffold + the Hide-Coach toggle card", () => {
+  it("renders the section scaffold + the Activate-Coach toggle card", () => {
     authState.disableCoach = false;
     const html = render();
     expect(html).toContain('id="settings-section-coach-title"');
     expect(html).toContain('data-testid="settings-disable-coach-card"');
     expect(html).toContain('data-testid="settings-disable-coach-switch"');
-    expect(html).toContain("Hide Coach");
-    expect(html).toContain("Hides the Coach button and drawer everywhere.");
+    // v1.18.1 (D7) — polarity flipped to activate/default-on.
+    expect(html).toContain("Activate Coach");
+    expect(html).toContain("Show the Coach button and drawer. On by default");
     // Raw key never leaks past i18n.
     expect(html).not.toContain("settings.sections.coach.");
+    expect(html).not.toContain("settings.coach.activate.");
   });
 
-  it("renders the German Hide-Coach copy", () => {
+  it("renders the German Activate-Coach copy", () => {
     authState.disableCoach = false;
     const html = render("de");
-    expect(html).toContain("Coach ausblenden");
-    expect(html).toContain(
-      "Versteckt den Coach-Button und das Coach-Panel auf allen Seiten.",
-    );
+    expect(html).toContain("Coach aktivieren");
+    expect(html).toContain("Standardmäßig an");
     expect(html).not.toContain("settings.sections.coach.");
+    expect(html).not.toContain("settings.coach.activate.");
   });
 });

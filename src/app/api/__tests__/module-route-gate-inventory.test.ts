@@ -173,7 +173,9 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   "src/app/api/medications/compliance/route.ts",
   "src/app/api/medications/intake/route.ts",
   "src/app/api/medications/intake/bulk/route.ts",
-  "src/app/api/medications/extract/route.ts",
+  // NB: `medications/extract` is NOT exempt — it gates on
+  // `requireAssistantSurface("coach")` (the NL-extraction is an assistant
+  // surface), so the inventory already counts it as a delegated gate.
   "src/app/api/medications/[id]/route.ts",
   "src/app/api/medications/[id]/api-endpoint/route.ts",
   "src/app/api/medications/[id]/cadence/route.ts",
