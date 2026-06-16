@@ -81,6 +81,32 @@ export interface AchievementDefinition {
 }
 
 /**
+ * v1.18.0 — module ownership for an achievement metric. Returns the
+ * `ModuleKey` whose enable/disable state governs the badge, or `null`
+ * when the badge belongs to a core domain (vitals, medications) or to
+ * an account-wide capability (security, login, bug reports) that has no
+ * toggleable module behind it.
+ *
+ * The string literals here intentionally mirror `MODULE_KEYS` in
+ * `@/lib/modules/registry` without importing it, so this pure lib stays
+ * free of the gate's transitive dependencies. The module gate (B5) reads
+ * this map to skip badge categories whose owning module is turned off —
+ * a sleep badge must not unlock while the sleep module is disabled.
+ */
+export function moduleForMetric(metric: AchievementMetricKey): string | null {
+  switch (metric) {
+    case "moodEntryCount":
+    case "moodDayStreak":
+    case "moodImprovementHit":
+      return "mood";
+    case "sleepLogDayStreak":
+      return "sleep";
+    default:
+      return null;
+  }
+}
+
+/**
  * v1.4.18 — discovery flags. Predicate input for
  * `applyDiscoveryFilter`. A flag is true iff the user has at least one
  * data point for the underlying metric (a medication, a mood entry,

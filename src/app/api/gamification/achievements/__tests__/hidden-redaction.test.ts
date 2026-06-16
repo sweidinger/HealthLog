@@ -27,6 +27,8 @@ vi.mock("@/lib/modules/gate", () => ({
   // Plain async fn (not a `vi.fn`) so `vi.resetAllMocks()` in beforeEach
   // can't blank it out and flip the gate to a falsy decision.
   requireModuleEnabled: async () => ({ enabled: true }),
+  // v1.18.0 B5 — all modules on so the per-module badge filter is inert.
+  resolveModuleMap: async () => ({}),
   MODULE_DISABLED_ERROR_CODE: "module.disabled",
 }));
 
