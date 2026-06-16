@@ -89,10 +89,12 @@ test.describe("Settings mobile consistency (Pixel 5)", () => {
     await page.goto("/settings/account", { waitUntil: "networkidle" });
     await page.waitForLoadState("networkidle");
 
-    // Both the password card and the tour card need the action button
-    // to live within (or above the bottom of) the parent card. On
-    // mobile the button stacks below the title — it's allowed to
-    // extend the card's height, but not push past the right edge.
+    // The account page's action button(s) must live within (or above the
+    // bottom of) the parent card. Since v1.18.1 the "restart onboarding"
+    // tour button moved to Settings → Advanced, so account carries the
+    // change-password button; the tour button is matched here too in case
+    // it is present. On mobile the button stacks below the title — it's
+    // allowed to extend the card's height, but not push past the right edge.
     const overflowCheck = await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll("button"));
       const targets = buttons.filter((b) => {
@@ -118,8 +120,8 @@ test.describe("Settings mobile consistency (Pixel 5)", () => {
 
     expect(
       overflowCheck.length,
-      "expected to find password + tour buttons",
-    ).toBeGreaterThanOrEqual(2);
+      "expected to find the change-password action button on /settings/account",
+    ).toBeGreaterThanOrEqual(1);
 
     for (const t of overflowCheck) {
       expect(t.cardRight, `card for "${t.text}"`).not.toBeNull();
