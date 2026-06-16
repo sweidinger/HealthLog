@@ -1,0 +1,162 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  ENCRYPTED_COLUMNS,
+  encryptedColumnKey,
+  type EncryptedColumn,
+} from "../encrypted-columns";
+
+const ROOT = join(__dirname, "../../../..");
+const SCHEMA_PATH = join(ROOT, "prisma", "schema.prisma");
+const ROTATION_SCRIPT_PATH = join(
+  ROOT,
+  "scripts",
+  "rotate-encryption-key.ts",
+);
+
+/**
+ * Reversibly-encrypted columns whose Prisma field name does NOT end in
+ * `Encrypted`. These are historically-named encrypted columns; they are
+ * called out explicitly here so the schema scan can detect a NEW encrypted
+ * column even when it follows the `*Encrypted` convention, without
+ * mis-flagging unrelated columns. The scan's primary signal is the
+ * `*Encrypted` suffix; this set covers the documented exceptions.
+ */
+const NON_SUFFIX_ENCRYPTED: ReadonlySet<string> = new Set([
+  // WithingsConnection / WhoopConnection / FitbitConnection
+  "accessToken",
+  "refreshToken",
+  // NotificationChannel
+  "config",
+  // PushSubscription
+  "p256dh",
+  "auth",
+  // IntegrationStatus
+  "lastError",
+  // CoachMessage / InsightNarrative
+  "encryptedContent",
+  // User (Telegram + moodLog)
+  "telegramBotToken",
+  "moodLogWebhookSecret",
+]);
+
+/**
+ * Columns that match the encrypted-column scan signal but are NOT
+ * reversibly encrypted and therefore deliberately excluded from rotation.
+ */
+const NOT_ENCRYPTED: ReadonlySet<string> = new Set<string>([
+  // RefreshToken.accessTokenHash — HMAC, one-way (no rotation path).
+  "RefreshToken.accessTokenHash",
+]);
+
+interface SchemaColumn {
+  model: string;
+  field: string;
+  /** "String" | "Bytes" | ... — the declared Prisma scalar. */
+  type: string;
+}
+
+/**
+ * Parse schema.prisma into (model, field, type) triples. Lightweight: tracks
+ * the current `model X {` block and reads the first two tokens of each field
+ * line.
+ */
+function parseSchemaColumns(): SchemaColumn[] {
+  const src = readFileSync(SCHEMA_PATH, "utf8");
+  const columns: SchemaColumn[] = [];
+  let model: string | null = null;
+  for (const rawLine of src.split("\n")) {
+    const line = rawLine.trim();
+    if (line.startsWith("//") || line.startsWith("///") || line === "") {
+      continue;
+    }
+    const modelMatch = /^model\s+(\w+)\s*\{/.exec(line);
+    if (modelMatch) {
+      model = modelMatch[1];
+      continue;
+    }
+    if (line === "}") {
+      model = null;
+      continue;
+    }
+    if (!model) continue;
+    // Field line: `<name> <Type>...`. Skip block attributes (`@@map`) and
+    // relation/attribute-only lines.
+    const fieldMatch = /^(\w+)\s+([A-Za-z]+)(\?|\[\])?/.exec(line);
+    if (!fieldMatch) continue;
+    columns.push({ model, field: fieldMatch[1], type: fieldMatch[2] });
+  }
+  return columns;
+}
+
+/**
+ * Decide whether a schema column carries AES-256-GCM ciphertext. Signal:
+ * the `*Encrypted` suffix, OR membership in the documented non-suffix set.
+ */
+function isEncryptedColumn(c: SchemaColumn): boolean {
+  const key = `${c.model}.${c.field}`;
+  if (NOT_ENCRYPTED.has(key)) return false;
+  if (c.field.endsWith("Encrypted")) return true;
+  return NON_SUFFIX_ENCRYPTED.has(c.field);
+}
+
+describe("encrypted-column registry", () => {
+  it("has no duplicate entries", () => {
+    const keys = ENCRYPTED_COLUMNS.map(encryptedColumnKey);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("assigns the right storage kind for each column type", () => {
+    const schema = parseSchemaColumns();
+    const typeByKey = new Map<string, string>(
+      schema.map((c) => [`${c.model}.${c.field}`, c.type]),
+    );
+    for (const col of ENCRYPTED_COLUMNS) {
+      const key = encryptedColumnKey(col);
+      const type = typeByKey.get(key);
+      expect(type, `registry column ${key} not found in schema`).toBeDefined();
+      const expectedKind = type === "Bytes" ? "bytes" : "string";
+      expect(col.kind, `${key} declared ${type} but kind=${col.kind}`).toBe(
+        expectedKind,
+      );
+    }
+  });
+
+  it("covers EVERY encrypted column in prisma/schema.prisma", () => {
+    const schemaEncrypted = parseSchemaColumns()
+      .filter(isEncryptedColumn)
+      .map((c) => `${c.model}.${c.field}`)
+      .sort();
+    const registered = ENCRYPTED_COLUMNS.map(encryptedColumnKey).sort();
+
+    // Any schema column the registry forgot is a rotation gap (data-loss
+    // risk on key drop). Any registry column missing from the schema is a
+    // stale entry. Both fail here.
+    const missingFromRegistry = schemaEncrypted.filter(
+      (k) => !registered.includes(k),
+    );
+    const staleInRegistry = registered.filter(
+      (k) => !schemaEncrypted.includes(k),
+    );
+    expect(
+      missingFromRegistry,
+      "encrypted schema columns NOT wired into the rotation registry",
+    ).toEqual([]);
+    expect(
+      staleInRegistry,
+      "registry columns that no longer exist in the schema",
+    ).toEqual([]);
+  });
+
+  it("is fully referenced by the key-rotation script", () => {
+    const script = readFileSync(ROTATION_SCRIPT_PATH, "utf8");
+    const unreferenced = ENCRYPTED_COLUMNS.filter(
+      (c: EncryptedColumn) => !script.includes(`"${c.field}"`),
+    ).map(encryptedColumnKey);
+    expect(
+      unreferenced,
+      "registry columns NOT referenced by scripts/rotate-encryption-key.ts",
+    ).toEqual([]);
+  });
+});
