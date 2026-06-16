@@ -51,6 +51,7 @@ const NOW = new Date("2026-01-21T12:00:00Z");
 
 const db = vi.hoisted(() => ({
   measurement: { findMany: vi.fn() },
+  illnessDayLog: { findMany: vi.fn() },
 }));
 const rollup = vi.hoisted(() => ({
   probeRollupCoverage: vi.fn(),
@@ -93,6 +94,8 @@ function rawRowsWithin(from: Date, to: Date) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // No day-log fever rows in the parity/contamination fixtures.
+  db.illnessDayLog.findMany.mockResolvedValue([]);
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -141,6 +144,7 @@ describe("computeEpisodeCorrelation — rollup-vs-live parity", () => {
     //    baseline engine's live fallback groups raw rows itself for the
     //    trailing read; we serve the same DAILY universe for any window. ──
     vi.clearAllMocks();
+    db.illnessDayLog.findMany.mockResolvedValue([]);
     const noCoverage = new Map<string, boolean>(
       ILLNESS_SCAN_TYPES.map((t) => [String(t), false]),
     );
@@ -178,6 +182,67 @@ describe("computeEpisodeCorrelation — rollup-vs-live parity", () => {
     // that then holds for ≥3 observed days).
     expect(dayOut.value.recoveryGapDays).toBeNull();
     expect(dayOut.value.returns[0]?.returnedDay).toBe("2026-01-17");
+  });
+});
+
+describe("computeEpisodeCorrelation — user-tz day keying", () => {
+  it("keys a 03:00Z reading to the user's LOCAL day (negative-offset tz)", async () => {
+    // America/Los_Angeles is UTC−8 (−7 DST). A 2026-01-12T03:00Z reading is
+    // 2026-01-11 19:00 local → local day 2026-01-11, NOT the UTC 2026-01-12.
+    // The vital series must key by the user's day so it lines up with the
+    // tz-keyed onset/feltBetter markers (the off-by-one this fix closes).
+    rollup.probeRollupCoverage.mockResolvedValue(
+      new Map<string, boolean>(ILLNESS_SCAN_TYPES.map((t) => [String(t), false])),
+    );
+    rollup.readBestGranularityRollups.mockResolvedValue(null);
+
+    // A simple RHR universe with a notable spike whose UTC timestamp crosses
+    // the local midnight. Baseline window is flat-ish at 55.
+    const rows: Array<{ value: number; measuredAt: Date }> = [];
+    // 20 baseline days at 55 ± small jitter, ending well before the episode.
+    let cursor = Date.parse("2025-12-20T20:00:00Z");
+    const jit = [-2, -1, 0, 1, 2];
+    for (let i = 0; i < 20; i++) {
+      rows.push({ value: 55 + jit[i % jit.length], measuredAt: new Date(cursor) });
+      cursor += 24 * 60 * 60 * 1000;
+    }
+    // Episode-span readings, including the boundary-crossing 03:00Z spike.
+    rows.push({ value: 56, measuredAt: new Date("2026-01-10T20:00:00Z") });
+    rows.push({ value: 76, measuredAt: new Date("2026-01-12T03:00:00Z") }); // local 01-11
+    rows.push({ value: 74, measuredAt: new Date("2026-01-13T20:00:00Z") });
+    rows.push({ value: 70, measuredAt: new Date("2026-01-15T20:00:00Z") });
+    rows.push({ value: 60, measuredAt: new Date("2026-01-16T20:00:00Z") });
+    rows.push({ value: 58, measuredAt: new Date("2026-01-17T20:00:00Z") });
+
+    db.measurement.findMany.mockImplementation(
+      async ({ where }: { where: { type: string; measuredAt: { gte: Date; lt?: Date } } }) => {
+        if (where.type !== "RESTING_HEART_RATE") return [];
+        const from = where.measuredAt.gte.getTime();
+        const to = where.measuredAt.lt?.getTime() ?? NOW.getTime();
+        return rows.filter(
+          (r) => r.measuredAt.getTime() >= from && r.measuredAt.getTime() < to,
+        );
+      },
+    );
+
+    const episode = {
+      id: "ep-tz",
+      onsetAt: new Date("2026-01-11T08:00:00Z"), // local 01-11 00:00 LA
+      resolvedAt: null as Date | null,
+      lifecycle: "ACUTE",
+    };
+
+    const out = await computeEpisodeCorrelation(
+      "u1",
+      episode,
+      "America/Los_Angeles",
+      NOW,
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    // The 76 spike lands on the user-local day 2026-01-11, not the UTC 01-12.
+    expect(out.value.nadir[0]?.value).toBe(76);
+    expect(out.value.nadir[0]?.day).toBe("2026-01-11");
   });
 });
 

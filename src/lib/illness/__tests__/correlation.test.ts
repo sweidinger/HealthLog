@@ -291,4 +291,143 @@ describe("computeIllnessCorrelation — red-flag escalation", () => {
     if (out.status !== "ok") return;
     expect(out.value.redFlags).toHaveLength(0);
   });
+
+  it("escalates a MAD=0 (rock-steady) SpO2 that drops — decoupled from the band", () => {
+    // A perfectly steady 98 baseline → MAD=0 → the band is DROPPED, so this
+    // vital never participates in the banded loop. A 90% SpO2 run must STILL
+    // escalate (the safety-critical case the band filter previously hid). To
+    // satisfy the episode-coverage floor we add a separate banded RHR vital.
+    const spo2: MeasurementType = "OXYGEN_SATURATION";
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          {
+            type: spo2,
+            baselineDays: flatBaseline(98, 21, "2026-01-02"), // MAD = 0 → no band
+            episodeDays: [
+              { day: "2026-01-10", mean: 90 },
+              { day: "2026-01-11", mean: 89 },
+              { day: "2026-01-12", mean: 90 }, // 3 days ≤ 92
+              { day: "2026-01-13", mean: 97 },
+            ],
+          },
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: flatBaseline(55, 5, "2026-01-15"),
+          },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const spo2Flag = out.value.redFlags.find(
+      (f) => f.reason === "sustained_low_spo2",
+    );
+    expect(spo2Flag).toBeDefined();
+    expect(spo2Flag?.worstValue).toBe(89);
+    expect(spo2Flag?.days).toBe(3);
+  });
+
+  it("escalates a sustained fever logged via the day-log feverC (no temp series)", () => {
+    // No BODY_TEMPERATURE vital at all — the canonical journaling-fever path.
+    // A banded RHR vital satisfies the coverage floor; the fever escalates
+    // purely from the day-log feverC union.
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: flatBaseline(55, 5, "2026-01-15"),
+          },
+        ],
+        dayLogFever: [
+          { day: "2026-01-10", feverC: 39.2 },
+          { day: "2026-01-11", feverC: 38.9 },
+          { day: "2026-01-12", feverC: 38.6 }, // 3 days ≥ 38.5
+          { day: "2026-01-13", feverC: 37.4 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const fever = out.value.redFlags.find((f) => f.reason === "sustained_fever");
+    expect(fever).toBeDefined();
+    expect(fever?.days).toBe(3);
+    expect(fever?.worstValue).toBe(39.2);
+  });
+
+  it("uses per-day MAX for fever so an evening spike is not masked by the mean", () => {
+    // The mean episode series stays sub-fever; the per-day MAX crosses 38.5.
+    const temp: MeasurementType = "BODY_TEMPERATURE";
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          {
+            type: temp,
+            baselineDays: jitteredBaseline(36.6, 0.2, 21, "2026-01-02"),
+            episodeDays: [
+              { day: "2026-01-10", mean: 37.4 },
+              { day: "2026-01-11", mean: 37.5 },
+              { day: "2026-01-12", mean: 37.6 },
+            ],
+            episodeDayMax: [
+              { day: "2026-01-10", mean: 38.8 },
+              { day: "2026-01-11", mean: 38.7 },
+              { day: "2026-01-12", mean: 38.9 }, // 3 days max ≥ 38.5
+            ],
+          },
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: flatBaseline(55, 5, "2026-01-15"),
+          },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const fever = out.value.redFlags.find((f) => f.reason === "sustained_fever");
+    expect(fever).toBeDefined();
+    expect(fever?.days).toBe(3);
+  });
+});
+
+describe("computeIllnessCorrelation — return anchor", () => {
+  it("never reports a return BEFORE the first deviation (no spurious gap)", () => {
+    // The vital is IN BAND for the first 4 active days (the run-up), then
+    // spikes, then settles. A naive scan from i=0 would call the early in-band
+    // run the 'return' and yield a negative gap. The anchored search must pick
+    // the post-deviation settle (01-19), giving a positive gap.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 55 }, // in band (run-up)
+      { day: "2026-01-11", mean: 55 },
+      { day: "2026-01-12", mean: 55 },
+      { day: "2026-01-13", mean: 75 }, // FIRST deviation
+      { day: "2026-01-14", mean: 74 },
+      { day: "2026-01-15", mean: 70 },
+      { day: "2026-01-19", mean: 55 }, // settle start
+      { day: "2026-01-20", mean: 55 },
+      { day: "2026-01-21", mean: 55 }, // stable 3 days
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: { onsetDay: "2026-01-10", feltBetterDay: "2026-01-15", lifecycle: "ACUTE" },
+        series: [{ type, baselineDays, episodeDays }],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    // The return is the post-deviation settle, NOT the 01-10 run-up.
+    expect(out.value.returns[0]?.returnedDay).toBe("2026-01-19");
+    // Gap = 01-19 − 01-15 = +4 (positive — body lagged), never negative.
+    expect(out.value.recoveryGapDays).toBe(4);
+    expect(out.value.recoveryGapDays).toBeGreaterThan(0);
+  });
 });
