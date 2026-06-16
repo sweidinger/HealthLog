@@ -76,7 +76,11 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   "src/app/api/labs",
   "src/app/api/cycle",
   "src/app/api/gamification",
-  "src/app/api/doctor-report",
+  // v1.18.0 B3 — the legacy `/api/doctor-report` tree (JSON + server-PDF +
+  // availability probe) was orphaned dead code (no production caller) and
+  // removed. The live doctor-report / FHIR surface is `/api/export/health-record`,
+  // which gates on the `doctorReport` module directly AND through the
+  // `collectDoctorReportData` builder.
   "src/app/api/fhir",
 ];
 
@@ -116,10 +120,6 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   "src/app/api/labs/route.ts",
   "src/app/api/labs/[id]/route.ts",
   // ── INFRA / UI-ONLY ───────────────────────────────────────────────
-  // Section-availability presence probe for the doctor-report dialog —
-  // returns per-section row-count booleans, no module data. The dialog
-  // itself is hidden when the doctorReport module is off.
-  "src/app/api/doctor-report/availability/route.ts",
   // Static FHIR CapabilityStatement — server metadata, no user data.
   "src/app/api/fhir/metadata/route.ts",
 ];
