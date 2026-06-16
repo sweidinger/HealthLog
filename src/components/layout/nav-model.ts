@@ -118,6 +118,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     tKey: "nav.insights",
     icon: Lightbulb,
     tourId: "nav-insights",
+    requiresModule: "insights",
   },
   // v1.17.1 (F-3) — the Coach finally gets a single labeled nav home. It
   // was reachable from seven scattered entry points (FAB, hero CTA, empty

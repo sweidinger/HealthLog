@@ -16,6 +16,7 @@ import {
   isNavDestinationActive,
   mobileMoreHubDestinations,
 } from "@/components/layout/nav-model";
+import type { ModuleKey } from "@/lib/modules/registry";
 import { useMemo, useState } from "react";
 import { useAppSettings } from "@/components/app-settings-provider";
 import { useAuth } from "@/hooks/use-auth";
@@ -57,8 +58,21 @@ const PRIMARY_LEFT: ReadonlyArray<NavLink> = [
   { href: "/medications", tKey: "nav.medications", icon: Pill },
 ];
 
-const PRIMARY_RIGHT: ReadonlyArray<NavLink> = [
-  { href: "/insights", tKey: "nav.insights", icon: Lightbulb },
+// v1.18.0 — the Insights primary slot is module-gated. Insights is now a
+// toggleable module (`requiresModule: "insights"` in the shared nav model),
+// so the fixed slot must respect the same per-user map the More hub already
+// honours rather than pinning a destination the account turned off. When
+// insights is disabled the slot is dropped (it is excluded from the More hub
+// by `BOTTOM_NAV_PRIMARY_SLOT_HREFS`, so a disabled module is hidden
+// everywhere, not relocated). Fail-open: a missing key / unloaded map keeps
+// the slot, mirroring the gate's default-on contract.
+const PRIMARY_RIGHT: ReadonlyArray<NavLink & { requiresModule?: ModuleKey }> = [
+  {
+    href: "/insights",
+    tKey: "nav.insights",
+    icon: Lightbulb,
+    requiresModule: "insights",
+  },
 ];
 
 export function BottomNav() {
@@ -84,6 +98,18 @@ export function BottomNav() {
         bugReportEnabled,
       }),
     [user?.modules, bugReportEnabled],
+  );
+
+  // v1.18.0 — drop a module-gated primary slot (Insights) when the account
+  // has that module disabled. Fail-open: a missing key / unloaded map keeps
+  // the slot, mirroring the gate + More-hub default-on contract.
+  const primaryRight = useMemo(
+    () =>
+      PRIMARY_RIGHT.filter(
+        (item) =>
+          !item.requiresModule || user?.modules?.[item.requiresModule] !== false,
+      ),
+    [user?.modules],
   );
 
   function isActiveLink(href: string) {
@@ -160,7 +186,7 @@ export function BottomNav() {
             </button>
           </div>
 
-          {PRIMARY_RIGHT.map(renderPrimary)}
+          {primaryRight.map(renderPrimary)}
 
           <button
             type="button"

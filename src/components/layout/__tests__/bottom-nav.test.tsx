@@ -150,6 +150,27 @@ describe("<BottomNav> iOS-parity layout", () => {
     mockUserRef.value = { id: "u1", modules: {} };
   });
 
+  it("drops the Insights primary slot when the insights module is off (v1.18.0)", () => {
+    // The Insights slot is a fixed primary anchor, but it is now
+    // module-gated: a disabled insights module must remove it from the
+    // strip (and it is excluded from the More hub by the primary-slot
+    // filter, so the module is hidden everywhere, not relocated).
+    mockUserRef.value = { id: "u1", modules: { insights: false } };
+    const html = render();
+    expect(html).not.toContain('href="/insights"');
+    // Sibling primary slots are unaffected.
+    expect(html).toContain('href="/"');
+    expect(html).toContain('href="/medications"');
+    mockUserRef.value = { id: "u1", modules: {} };
+  });
+
+  it("keeps the Insights primary slot when the insights module is on", () => {
+    mockUserRef.value = { id: "u1", modules: { insights: true } };
+    const html = render();
+    expect(html).toContain('href="/insights"');
+    mockUserRef.value = { id: "u1", modules: {} };
+  });
+
   it("gating on a disabled module never throws (v1.18.0)", () => {
     mockUserRef.value = {
       id: "u1",
