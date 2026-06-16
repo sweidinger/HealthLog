@@ -33,6 +33,7 @@ export function BiomarkerManager() {
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<BiomarkerDto | null>(null);
+  const [formFooterEl, setFormFooterEl] = useState<HTMLDivElement | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.biomarkers(),
@@ -165,9 +166,13 @@ export function BiomarkerManager() {
             : t("labs.biomarker.defineTitle")
         }
         description={t("labs.biomarker.defineDescription")}
+        footer={
+          <div ref={setFormFooterEl} className="flex w-full justify-end gap-2" />
+        }
       >
         <BiomarkerForm
           existing={editing ?? undefined}
+          footerSlot={formFooterEl}
           onSuccess={afterSave}
           onCancel={() => setFormOpen(false)}
         />

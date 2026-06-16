@@ -101,6 +101,13 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
     [data?.results],
   );
 
+  // The list caps at 500 rows server-side (the `limit` ceiling). Surface a
+  // calm "showing latest N of M" hint when the cap truncates so the count is
+  // never silently wrong — proper cursor paging is a later iteration.
+  const total = data?.meta?.total ?? 0;
+  const shown = data?.results?.length ?? 0;
+  const truncated = total > shown;
+
   if (isLoading) {
     return (
       <div className="space-y-3" data-slot="lab-list-loading">
@@ -144,6 +151,11 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
 
   return (
     <div className="space-y-3">
+      {truncated ? (
+        <p className="text-muted-foreground text-xs">
+          {t("labs.showingLatestOf", { shown, total })}
+        </p>
+      ) : null}
       {groups.map((group) => {
         const body = (
           <>

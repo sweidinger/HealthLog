@@ -120,7 +120,10 @@ export default function MeasurementsPage() {
             {t("measurements.subtitle")}
           </p>
         </div>
-        <Button className="shrink-0" onClick={() => setDialogOpen(true)}>
+        <Button
+          className="min-h-11 shrink-0 sm:min-h-9"
+          onClick={() => setDialogOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           {t("measurements.addMeasurement")}
         </Button>

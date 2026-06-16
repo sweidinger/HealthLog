@@ -6723,7 +6723,9 @@
         "electrolytes": "Elettroliti",
         "bloodCount": "Emocromo"
       }
-    }
+    },
+    "noteLoadFailed": "Impossibile caricare la nota; resterà invariata al salvataggio.",
+    "showingLatestOf": "Visualizzazione degli ultimi {shown} risultati su {total}"
   },
   "modules": {
     "cycle": {

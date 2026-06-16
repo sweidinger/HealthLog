@@ -4,6 +4,7 @@ import { _resetCryptoCacheForTests } from "@/lib/crypto";
 
 import {
   decryptContextFromBytes,
+  decryptContextSoft,
   encryptContextToBytes,
 } from "../biomarker-store";
 
@@ -31,5 +32,23 @@ describe("biomarker context codec", () => {
     const bytes = encryptContextToBytes(plain);
     const asString = Buffer.from(bytes).toString("utf8");
     expect(asString).not.toContain(plain);
+  });
+
+  describe("decryptContextSoft (fail-soft list decrypt)", () => {
+    it("returns null for a null payload", () => {
+      expect(decryptContextSoft(null)).toBeNull();
+    });
+
+    it("round-trips a valid payload like the throwing variant", () => {
+      const bytes = encryptContextToBytes("morning fasting panel");
+      expect(decryptContextSoft(bytes)).toBe("morning fasting panel");
+    });
+
+    it("returns null instead of throwing on a malformed / bad-key row", () => {
+      // A non-ciphertext payload would throw in `decryptContextFromBytes`.
+      const garbage = new Uint8Array(Buffer.from("not-a-ciphertext"));
+      expect(() => decryptContextFromBytes(garbage)).toThrow();
+      expect(decryptContextSoft(garbage)).toBeNull();
+    });
   });
 });

@@ -18,7 +18,11 @@ import {
 } from "@/lib/labs/serialise";
 import { decryptNoteFromBytes, encryptNoteToBytes } from "@/lib/labs/store";
 import { annotate } from "@/lib/logging/context";
-import { updateLabResultSchema } from "@/lib/validations/labs";
+import {
+  effectiveBound,
+  isInvertedRange,
+  updateLabResultSchema,
+} from "@/lib/validations/labs";
 
 /**
  * v1.17.1 — single lab-result resource (`/api/labs/{id}`).
@@ -125,6 +129,27 @@ export const PUT = apiHandler(
 
     const d = parsed.data;
 
+    // A reading linked to a catalog marker resolves its name / unit / range
+    // FROM the biomarker (server-authoritative). Editing those catalog-owned
+    // fields on a linked row is meaningless — they would persist as stale
+    // historical columns the serialiser ignores. Reject the attempt with a
+    // 422 rather than silently no-op, so the client never believes an edit
+    // landed. Edit such fields on the Biomarker itself instead.
+    const isLinked = existing.biomarkerId !== null;
+    if (
+      isLinked &&
+      (d.analyte !== undefined ||
+        d.unit !== undefined ||
+        d.panel !== undefined ||
+        d.referenceLow !== undefined ||
+        d.referenceHigh !== undefined)
+    ) {
+      return apiError(
+        "analyte / unit / panel / reference range are resolved from the linked biomarker and cannot be edited on a linked reading",
+        422,
+      );
+    }
+
     // Build `data` field-by-field. `undefined` → leave the column untouched;
     // an explicit `null` on `panel` / `note` / a reference bound clears it.
     // A reading linked to a catalog marker is edited via VALUE / takenAt /
@@ -137,6 +162,21 @@ export const PUT = apiHandler(
     if (d.referenceLow !== undefined) data.referenceLow = d.referenceLow;
     if (d.referenceHigh !== undefined) data.referenceHigh = d.referenceHigh;
     if (d.takenAt !== undefined) data.takenAt = d.takenAt;
+
+    // Inverted-range guard for a PARTIAL bound update. The schema-level
+    // refine only fires when both bounds arrive in one request; a request
+    // that moves a single bound below/above the row's existing other bound
+    // would otherwise persist an inverted range. Merge the effective bounds
+    // (parsed value when present, else the stored value) and 422 when both
+    // resolve to concrete numbers with low > high.
+    if (
+      isInvertedRange(
+        effectiveBound(d.referenceLow, existing.referenceLow),
+        effectiveBound(d.referenceHigh, existing.referenceHigh),
+      )
+    ) {
+      return apiError("referenceLow must not exceed referenceHigh", 422);
+    }
     if (d.note !== undefined) {
       data.noteEncrypted = d.note ? encryptNoteToBytes(d.note) : null;
     }

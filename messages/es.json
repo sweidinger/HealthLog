@@ -6723,7 +6723,9 @@
         "electrolytes": "Electrolitos",
         "bloodCount": "Hemograma"
       }
-    }
+    },
+    "noteLoadFailed": "No se pudo cargar la nota; se mantendrá sin cambios al guardar.",
+    "showingLatestOf": "Mostrando los {shown} resultados más recientes de {total}"
   },
   "modules": {
     "cycle": {

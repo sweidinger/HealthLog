@@ -6723,7 +6723,9 @@
         "electrolytes": "Electrolytes",
         "bloodCount": "Blood count"
       }
-    }
+    },
+    "noteLoadFailed": "Note could not be loaded; it will be kept unchanged when you save.",
+    "showingLatestOf": "Showing the latest {shown} of {total} readings"
   },
   "modules": {
     "cycle": {

@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError, apiDelete, apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
 import { formatDateShort } from "@/lib/format";
 import { formatLabValue } from "@/lib/labs/format-value";
+import { resolveNoteForUpdate } from "@/lib/labs/note-update";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -39,9 +40,10 @@ function parseDecimal(raw: string): number | null {
 
 /**
  * v1.18.1 — reverse-chronological reading history for one biomarker, with
- * full edit / amend / delete (L5). Edit opens a sheet that loads the
- * decrypted note from the single-resource GET; delete soft-deletes with an
- * Undo toast that restores via `/api/labs/restore` (the measurement pattern).
+ * full edit + delete (L5). Edit opens a sheet that loads the decrypted note
+ * from the single-resource GET; delete soft-deletes with an Undo toast that
+ * restores via `/api/labs/restore` (the measurement pattern). An edit
+ * overwrites in place — there is no append-only amendment trail.
  */
 export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
   const { t } = useTranslations();
@@ -53,6 +55,12 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
   const [editNote, setEditNote] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  // True when the decrypted-note GET failed to load for the row being edited.
+  // We must NOT send `note: null` in that case — an empty editor then would
+  // wipe a note we simply couldn't read. Instead the PUT omits `note` so the
+  // server preserves the stored ciphertext untouched.
+  const [noteLoadFailed, setNoteLoadFailed] = useState(false);
+  const [hasNote, setHasNote] = useState(false);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
@@ -87,12 +95,14 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
       id: string;
       value: number;
       takenAt: string;
-      note: string | null;
+      // `undefined` → omit `note` from the PUT (leave the stored note
+      // untouched); `null` → clear it; a string → set it.
+      note: string | null | undefined;
     }) =>
       apiPut<LabResultDto>(`/api/labs/${body.id}`, {
         value: body.value,
         takenAt: body.takenAt,
-        note: body.note,
+        ...(body.note === undefined ? {} : { note: body.note }),
       }),
     onSuccess: () => {
       invalidate();
@@ -112,6 +122,8 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
     setEditTakenAt(toDateTimeLocal(reading.takenAt));
     setEditNote("");
     setEditError(null);
+    setNoteLoadFailed(false);
+    setHasNote(reading.hasNote);
     // Load the decrypted note (list rows withhold it).
     setEditLoading(true);
     try {
@@ -120,7 +132,10 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
       );
       setEditNote(detail.note ?? "");
     } catch {
-      /* leave note blank on a load miss */
+      // The note couldn't be loaded. Flag it so the submit path omits `note`
+      // (preserving the stored ciphertext) rather than sending `null` and
+      // wiping a note we just failed to read.
+      setNoteLoadFailed(true);
     } finally {
       setEditLoading(false);
     }
@@ -149,7 +164,13 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
       id: editingId,
       value: numericValue,
       takenAt: takenDate.toISOString(),
-      note: editNote.trim() ? editNote.trim() : null,
+      // `undefined` → omit `note` (server preserves the stored note when its
+      // decrypted load failed); `null` → clear; text → set.
+      note: resolveNoteForUpdate({
+        noteLoadFailed,
+        hadNote: hasNote,
+        editorValue: editNote,
+      }),
     });
   }
 
@@ -240,8 +261,13 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
               onChange={(e) => setEditNote(e.target.value)}
               maxLength={NOTE_MAX_LENGTH}
               rows={2}
-              disabled={editLoading}
+              disabled={editLoading || (noteLoadFailed && hasNote)}
             />
+            {noteLoadFailed && hasNote ? (
+              <p className="text-muted-foreground text-xs">
+                {t("labs.noteLoadFailed")}
+              </p>
+            ) : null}
           </div>
           {editError ? (
             <p className="text-destructive text-sm" role="alert">
