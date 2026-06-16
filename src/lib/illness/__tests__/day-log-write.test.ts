@@ -8,11 +8,21 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const db = vi.hoisted(() => ({
-  illnessSymptom: { findMany: vi.fn() },
-  illnessSymptomLink: { deleteMany: vi.fn(), createMany: vi.fn() },
-  illnessDayLog: { findUnique: vi.fn(), upsert: vi.fn() },
-}));
+const db = vi.hoisted(() => {
+  const client = {
+    illnessSymptom: { findMany: vi.fn() },
+    illnessSymptomLink: { deleteMany: vi.fn(), createMany: vi.fn() },
+    illnessDayLog: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+    },
+    // The upsert helper runs in one interactive transaction; the mock just
+    // hands the same client through as `tx`.
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(client)),
+  };
+  return client;
+});
 
 vi.mock("@/lib/db", () => ({ prisma: db }));
 vi.mock("@/lib/ai/coach/bytes-codec", () => ({
@@ -30,7 +40,20 @@ import type { IllnessDayLogInput } from "@/lib/validations/illness";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  db.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+    fn(db),
+  );
   db.illnessDayLog.upsert.mockResolvedValue({ id: "dl-1" });
+  db.illnessDayLog.findUniqueOrThrow.mockResolvedValue({
+    id: "dl-1",
+    episodeId: "ep1",
+    date: "2026-06-16",
+    functionalImpact: null,
+    feverC: null,
+    noteEncrypted: null,
+    updatedAt: new Date("2026-06-16T12:00:00Z"),
+    symptomLinks: [],
+  });
 });
 
 describe("resolveIllnessSymptomIds", () => {

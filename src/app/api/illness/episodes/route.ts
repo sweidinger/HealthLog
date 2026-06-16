@@ -24,6 +24,7 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { requireIllnessEnabled } from "@/lib/illness/gate";
+import { withIdempotency } from "@/lib/idempotency";
 import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import {
   illnessEpisodeCreateSchema,
@@ -67,7 +68,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
   return apiSuccess(rows.map(toIllnessEpisodeDTO));
 });
 
-export const POST = apiHandler(async (request: NextRequest) => {
+// `withIdempotency` lets an iOS retry / double-tap re-send the same
+// `Idempotency-Key` without minting a duplicate episode (siblings — labs,
+// measurements — wrap their creates the same way).
+export const POST = apiHandler(withIdempotency<[NextRequest]>(postEpisode));
+
+async function postEpisode(request: NextRequest): Promise<Response> {
   const { user } = await requireAuth();
 
   const gate = await requireIllnessEnabled(user.id);
@@ -135,4 +141,4 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   return apiSuccess(toIllnessEpisodeDTO(created), 201);
-});
+}

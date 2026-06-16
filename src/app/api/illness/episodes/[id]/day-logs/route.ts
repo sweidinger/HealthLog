@@ -115,11 +115,6 @@ export const POST = apiHandler(
     const tz = user.timezone ?? DEFAULT_TIMEZONE;
     const result = await upsertIllnessDayLog(user.id, id, parsed.data, tz);
 
-    const row = await prisma.illnessDayLog.findUniqueOrThrow({
-      where: { id: result.id },
-      include: dayLogSymptomInclude,
-    });
-
     await auditLog("illness.day-log.upsert", {
       userId: user.id,
       ipAddress: getClientIp(request),
@@ -135,6 +130,6 @@ export const POST = apiHandler(
       meta: { existed: result.existed },
     });
 
-    return apiSuccess(toIllnessDayLogDTO(row), result.existed ? 200 : 201);
+    return apiSuccess(result.dto, result.existed ? 200 : 201);
   },
 );

@@ -1,7 +1,8 @@
 /**
  * `GET    /api/illness/episodes/{id}` — one owned, live episode.
  * `PATCH  /api/illness/episodes/{id}` — edit it (partial; field-by-field).
- * `DELETE /api/illness/episodes/{id}` — soft-delete it (idempotent, 204).
+ * `DELETE /api/illness/episodes/{id}` — soft-delete it (idempotent;
+ *          returns `{ deleted: true }`).
  *
  * Born-gated + owner-scoped. `userId` is narrowed from auth and fed to the
  * Prisma `where`; the body never carries it. `note` is encrypted at rest.
@@ -62,7 +63,13 @@ export const PATCH = apiHandler(
     const { id } = await params;
     const existing = await prisma.illnessEpisode.findUnique({
       where: { id },
-      select: { id: true, userId: true, deletedAt: true },
+      select: {
+        id: true,
+        userId: true,
+        deletedAt: true,
+        onsetAt: true,
+        resolvedAt: true,
+      },
     });
     if (!existing || existing.userId !== user.id || existing.deletedAt !== null) {
       return apiError("Episode not found", 404);
@@ -80,6 +87,23 @@ export const PATCH = apiHandler(
       });
     }
     const entry = parsed.data;
+
+    // Window invariant against the MERGED state: a partial edit touching only
+    // one instant is validated against the stored value (the schema already
+    // catches a both-in-body inversion).
+    const mergedOnset =
+      entry.onsetAt !== undefined ? new Date(entry.onsetAt) : existing.onsetAt;
+    const mergedResolved =
+      entry.resolvedAt !== undefined
+        ? entry.resolvedAt
+          ? new Date(entry.resolvedAt)
+          : null
+        : existing.resolvedAt;
+    if (mergedResolved && mergedResolved < mergedOnset) {
+      return apiError("resolvedAt must be on or after onsetAt", 422, {
+        errorCode: "illness.episode.invalid-window",
+      });
+    }
 
     // A re-parent must point at an owned, live episode.
     if (entry.parentConditionId) {
@@ -173,6 +197,8 @@ export const DELETE = apiHandler(
       },
     });
 
-    return new Response(null, { status: 204 });
+    // Standard `{ deleted: true }` envelope (the cross-module DELETE shape) so
+    // the client never has to special-case a bodyless 204 here.
+    return apiSuccess({ deleted: true });
   },
 );
