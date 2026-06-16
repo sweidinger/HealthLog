@@ -16,9 +16,10 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ isAuthenticated: true, user: mockUser }),
 }));
 
-const useAchievementsQuery = vi.fn(
-  (_opts?: { enabled?: boolean }) => ({ data: undefined }),
-);
+const useAchievementsQuery =
+  vi.fn<(opts?: { enabled?: boolean }) => { data: undefined }>(() => ({
+    data: undefined,
+  }));
 
 vi.mock("@/lib/queries/use-achievements-query", () => ({
   useAchievementsQuery: (opts?: { enabled?: boolean }) =>
