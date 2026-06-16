@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   setTourForceLaunch,
   shouldAutoLaunchTour,
+  tourIncludesAchievements,
   TOUR_AUTOLAUNCH_DELAY_MS,
   tourForceLaunchKey,
 } from "../tour-launcher";
@@ -129,6 +130,27 @@ describe("shouldAutoLaunchTour() — v1.4.47 W5 chain-gate", () => {
     // confront this test. The number lives in the source and is
     // re-exported for tests + for any future runtime introspection.
     expect(TOUR_AUTOLAUNCH_DELAY_MS).toBe(24 * 60 * 60 * 1000);
+  });
+});
+
+describe("tourIncludesAchievements() — v1.18.0 B5 module gate", () => {
+  it("includes the achievements stop by default (no module map)", () => {
+    expect(tourIncludesAchievements(undefined)).toBe(true);
+    expect(tourIncludesAchievements({})).toBe(true);
+  });
+
+  it("includes the achievements stop when the module is explicitly on", () => {
+    expect(tourIncludesAchievements({ achievements: true })).toBe(true);
+  });
+
+  it("drops the achievements stop when the module is explicitly off", () => {
+    expect(tourIncludesAchievements({ achievements: false })).toBe(false);
+  });
+
+  it("ignores other disabled modules — only the achievements key matters", () => {
+    expect(
+      tourIncludesAchievements({ sleep: false, mood: false }),
+    ).toBe(true);
   });
 });
 
