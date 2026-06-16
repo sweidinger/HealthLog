@@ -3871,7 +3871,7 @@
       },
       "integrations": {
         "title": "Integrazioni",
-        "description": "Withings, moodLog e altri servizi collegati.",
+        "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto.",
         "tabs": {
           "connections": "Connessioni",
           "channels": "Canali",
@@ -3893,7 +3893,7 @@
       },
       "layout": {
         "title": "Layout e personalizzazione",
-        "description": "Organizza la disposizione della tua app — un unico posto per cruscotto, approfondimenti, farmaci e umore.",
+        "description": "Organizza la disposizione del cruscotto e degli approfondimenti.",
         "backToHub": "Torna a Layout e personalizzazione",
         "dashboard": {
           "title": "Cruscotto",
@@ -3981,7 +3981,7 @@
       },
       "ai": {
         "title": "Analisi IA",
-        "description": "Provider, modello, chiave."
+        "description": "Provider, modello e chiave API per gli approfondimenti, oltre al tuo contesto «su di me»."
       },
       "api": {
         "title": "API & Tokens",
@@ -3993,7 +3993,7 @@
       },
       "export": {
         "title": "Esporta e importa",
-        "description": "Scarica i tuoi dati sanitari come PDF, CSV o backup JSON completo, oppure importa dati da Apple Salute o da un file JSON.",
+        "description": "Scarica i tuoi dati come CSV o backup JSON completo, oppure importa da Apple Salute, JSON o CSV. Il referto medico ora si trova in Cartella sanitaria.",
         "otherOptionsHeading": "Altre opzioni di esportazione",
         "downloadFailed": "Impossibile scaricare l'esportazione. Riprova.",
         "hero": {
@@ -4116,11 +4116,11 @@
       },
       "medications": {
         "title": "Farmaci",
-        "description": "Vista elenco e ordine dei farmaci."
+        "description": "Vista elenco, ordine e siti di iniezione dei tuoi farmaci."
       },
       "mood": {
         "title": "Tag dell’umore",
-        "description": "Gruppi, tag e ordine del selettore dell’umore."
+        "description": "Gruppi, tag e tag archiviati del selettore dell’umore."
       },
       "modules": {
         "title": "Moduli",
