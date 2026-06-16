@@ -87,9 +87,12 @@ function moduleMap(
 
 import {
   buildDashboardSnapshot,
+  WIDGET_MODULE_BY_ID,
+  SUMMARY_TYPE_MODULE,
   type SnapshotUserInput,
 } from "../snapshot";
 import type { ModuleKey } from "@/lib/modules/gate";
+import { MODULE_KEYS } from "@/lib/modules/registry";
 
 const emptySummary = {
   count: 0,
@@ -793,6 +796,67 @@ describe("buildDashboardSnapshot — additive proof", () => {
     expect(snap.tiles).toHaveProperty("summaries");
     expect(snap.tiles).toHaveProperty("lastSeenByType");
     expect(snap.tiles).toHaveProperty("mood");
+  });
+});
+
+describe("module gating maps — every toggleable-domain widget is mapped (v1.18.0)", () => {
+  // The dashboard widget ids that belong to a toggleable module. A new
+  // toggleable widget MUST be added here AND to `WIDGET_MODULE_BY_ID`, or
+  // it would leak onto a disabled-module account's dashboard.
+  const TOGGLEABLE_WIDGET_IDS = [
+    "mood",
+    "sleep",
+    "glucose",
+    "achievements",
+    "recentWorkouts",
+    "cardioRecovery",
+    "sixMinuteWalk",
+    "stairAscentSpeed",
+    "stairDescentSpeed",
+    "breathingDisturbances",
+  ] as const;
+
+  it("every toggleable-domain widget id has a module mapping", () => {
+    for (const id of TOGGLEABLE_WIDGET_IDS) {
+      expect(
+        WIDGET_MODULE_BY_ID[id],
+        `widget "${id}" is missing a WIDGET_MODULE_BY_ID entry`,
+      ).toBeDefined();
+    }
+  });
+
+  it("every mapped widget value is a real ModuleKey", () => {
+    for (const [id, key] of Object.entries(WIDGET_MODULE_BY_ID)) {
+      expect(
+        MODULE_KEYS.includes(key as ModuleKey),
+        `widget "${id}" maps to unknown module "${key}"`,
+      ).toBe(true);
+    }
+  });
+
+  it("every summary-type mapping value is a real ModuleKey", () => {
+    for (const [type, key] of Object.entries(SUMMARY_TYPE_MODULE)) {
+      expect(
+        MODULE_KEYS.includes(key as ModuleKey),
+        `summary type "${type}" maps to unknown module "${key}"`,
+      ).toBe(true);
+    }
+  });
+
+  it("recovery-domain widgets resolve to the recovery module", () => {
+    expect(WIDGET_MODULE_BY_ID.cardioRecovery).toBe("recovery");
+    expect(WIDGET_MODULE_BY_ID.sixMinuteWalk).toBe("recovery");
+    expect(WIDGET_MODULE_BY_ID.stairAscentSpeed).toBe("recovery");
+    expect(WIDGET_MODULE_BY_ID.stairDescentSpeed).toBe("recovery");
+    expect(SUMMARY_TYPE_MODULE.CARDIO_RECOVERY).toBe("recovery");
+    expect(SUMMARY_TYPE_MODULE.SIX_MINUTE_WALK_DISTANCE).toBe("recovery");
+    expect(SUMMARY_TYPE_MODULE.STAIR_ASCENT_SPEED).toBe("recovery");
+    expect(SUMMARY_TYPE_MODULE.STAIR_DESCENT_SPEED).toBe("recovery");
+  });
+
+  it("breathing-disturbance widget + type resolve to the sleep module", () => {
+    expect(WIDGET_MODULE_BY_ID.breathingDisturbances).toBe("sleep");
+    expect(SUMMARY_TYPE_MODULE.BREATHING_DISTURBANCES).toBe("sleep");
   });
 });
 
