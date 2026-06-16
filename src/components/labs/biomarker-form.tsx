@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,6 +42,13 @@ interface BiomarkerFormProps {
   existing?: BiomarkerDto;
   onSuccess?: (saved: BiomarkerDto) => void;
   onCancel?: () => void;
+  /**
+   * When mounted inside a `<ResponsiveSheet>` the caller passes the sheet's
+   * footer slot element here; the Cancel / Save row portals into it so the
+   * bottom-sheet branch can sticky-pin it. The Save button stays tied to the
+   * `<form>` via the HTML `form` attribute.
+   */
+  footerSlot?: HTMLElement | null;
 }
 
 /**
@@ -57,8 +65,10 @@ export function BiomarkerForm({
   existing,
   onSuccess,
   onCancel,
+  footerSlot,
 }: BiomarkerFormProps) {
   const { t } = useTranslations();
+  const formId = useId();
 
   const [name, setName] = useState(existing?.name ?? "");
   const [unit, setUnit] = useState(existing?.unit ?? "");
@@ -129,8 +139,29 @@ export function BiomarkerForm({
     }
   }
 
+  const footerNode = (
+    <>
+      {onCancel ? (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          {t("common.cancel")}
+        </Button>
+      ) : null}
+      <Button type="submit" form={formId} disabled={submitting}>
+        {submitting ? (
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+        ) : null}
+        {t("labs.biomarker.form.save")}
+      </Button>
+    </>
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-5">
       {!existing ? (
         <div className="space-y-1.5">
           <Label htmlFor="biomarker-seed">
@@ -258,24 +289,11 @@ export function BiomarkerForm({
         </p>
       ) : null}
 
-      <div className="flex justify-end gap-2">
-        {onCancel ? (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onCancel}
-            disabled={submitting}
-          >
-            {t("common.cancel")}
-          </Button>
-        ) : null}
-        <Button type="submit" disabled={submitting}>
-          {submitting ? (
-            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-          ) : null}
-          {t("labs.biomarker.form.save")}
-        </Button>
-      </div>
+      {footerSlot ? (
+        createPortal(footerNode, footerSlot)
+      ) : (
+        <div className="flex justify-end gap-2">{footerNode}</div>
+      )}
     </form>
   );
 }

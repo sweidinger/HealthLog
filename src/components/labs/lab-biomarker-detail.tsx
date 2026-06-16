@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FlaskConical, Plus } from "lucide-react";
+import { FlaskConical, Pencil, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
+import { BiomarkerForm } from "./biomarker-form";
 import { LabBiomarkerChart } from "./lab-biomarker-chart";
 import { LabForm } from "./lab-form";
 import { LabHistoryList } from "./lab-history-list";
@@ -35,6 +36,10 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  // Sticky-footer slot for the add-value sheet (the form portals here).
+  const [addFooterEl, setAddFooterEl] = useState<HTMLDivElement | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(null);
 
   const { data: marker, isError: markerError } = useQuery({
     queryKey: queryKeys.biomarkerDetail(biomarkerId),
@@ -62,6 +67,9 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   });
 
   const readings: LabResultDto[] = list?.results ?? [];
+  // The reading feed caps at 500 server-side; surface a hint when truncated.
+  const total = list?.meta?.total ?? 0;
+  const truncated = total > readings.length;
   const latest =
     readings.length > 0
       ? [...readings].sort(
@@ -72,6 +80,16 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
 
   function afterAdd() {
     setAddOpen(false);
+    queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
+  }
+
+  function afterEditMarker() {
+    setEditOpen(false);
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.biomarkerDetail(biomarkerId),
+    });
+    queryClient.invalidateQueries({ queryKey: queryKeys.biomarkers() });
+    // Resolved name / unit / range on every reading derives from the marker.
     queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
   }
 
@@ -105,10 +123,25 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             </p>
           ) : null}
         </div>
-        <Button onClick={() => setAddOpen(true)} className="shrink-0">
-          <Plus className="h-4 w-4" />
-          {t("labs.addResult")}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+            onClick={() => setEditOpen(true)}
+            disabled={!marker}
+            aria-label={t("labs.biomarker.edit")}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={() => setAddOpen(true)}
+            className="min-h-11 shrink-0 sm:min-h-9"
+          >
+            <Plus className="h-4 w-4" />
+            {t("labs.addResult")}
+          </Button>
+        </div>
       </div>
 
       {latest ? (
@@ -156,6 +189,14 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
       {readings.length > 0 ? (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold">{t("labs.detail.history")}</h2>
+          {truncated ? (
+            <p className="text-muted-foreground text-xs">
+              {t("labs.showingLatestOf", {
+                shown: readings.length,
+                total,
+              })}
+            </p>
+          ) : null}
           <Card>
             <CardContent className="py-0">
               <LabHistoryList readings={readings} />
@@ -169,12 +210,35 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
         onOpenChange={setAddOpen}
         title={t("labs.addResult")}
         description={t("labs.addDescription")}
+        footer={
+          <div ref={setAddFooterEl} className="flex w-full justify-end gap-2" />
+        }
       >
         <LabForm
           lockedBiomarkerId={biomarkerId}
+          footerSlot={addFooterEl}
           onSuccess={afterAdd}
           onCancel={() => setAddOpen(false)}
         />
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title={t("labs.biomarker.editTitle")}
+        description={t("labs.biomarker.defineDescription")}
+        footer={
+          <div ref={setEditFooterEl} className="flex w-full justify-end gap-2" />
+        }
+      >
+        {marker ? (
+          <BiomarkerForm
+            existing={marker}
+            footerSlot={editFooterEl}
+            onSuccess={afterEditMarker}
+            onCancel={() => setEditOpen(false)}
+          />
+        ) : null}
       </ResponsiveSheet>
     </div>
   );

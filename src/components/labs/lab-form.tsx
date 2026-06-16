@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +55,14 @@ interface LabFormProps {
   lockedBiomarkerId?: string;
   onSuccess?: (created: LabResultDto) => void;
   onCancel?: () => void;
+  /**
+   * When mounted inside a `<ResponsiveSheet>` the caller passes the sheet's
+   * footer slot element here. The Cancel / Save action row is portalled into
+   * it so the bottom-sheet branch can sticky-pin it above the keyboard; the
+   * Save button stays tied to the `<form>` via the HTML `form` attribute so
+   * submit-on-Enter and portalled-click both still submit.
+   */
+  footerSlot?: HTMLElement | null;
 }
 
 /**
@@ -70,9 +79,11 @@ export function LabForm({
   lockedBiomarkerId,
   onSuccess,
   onCancel,
+  footerSlot,
 }: LabFormProps) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  const formId = useId();
 
   const { data: catalog, isLoading: catalogLoading } = useQuery({
     queryKey: queryKeys.biomarkers(),
@@ -88,6 +99,9 @@ export function LabForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [defineOpen, setDefineOpen] = useState(false);
+  const [defineFooterEl, setDefineFooterEl] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   const markers = catalog?.biomarkers ?? [];
   const selected = markers.find((m) => m.id === biomarkerId);
@@ -148,9 +162,30 @@ export function LabForm({
       )
     : "";
 
+  const footerNode = (
+    <>
+      {onCancel ? (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          {t("common.cancel")}
+        </Button>
+      ) : null}
+      <Button type="submit" form={formId} disabled={submitting}>
+        {submitting ? (
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+        ) : null}
+        {t("labs.form.save")}
+      </Button>
+    </>
+  );
+
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form id={formId} onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
           <Label htmlFor="lab-biomarker">{t("labs.form.biomarker")}</Label>
           <Select
@@ -239,33 +274,30 @@ export function LabForm({
           </p>
         ) : null}
 
-        <div className="flex justify-end gap-2">
-          {onCancel ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onCancel}
-              disabled={submitting}
-            >
-              {t("common.cancel")}
-            </Button>
-          ) : null}
-          <Button type="submit" disabled={submitting}>
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-            ) : null}
-            {t("labs.form.save")}
-          </Button>
-        </div>
+        {/* When no footer slot is supplied (rare — e.g. a non-sheet host) the
+            action row renders inline; inside a sheet it portals into the
+            sticky footer. */}
+        {footerSlot ? null : (
+          <div className="flex justify-end gap-2">{footerNode}</div>
+        )}
       </form>
+
+      {footerSlot ? createPortal(footerNode, footerSlot) : null}
 
       <ResponsiveSheet
         open={defineOpen}
         onOpenChange={setDefineOpen}
         title={t("labs.biomarker.defineTitle")}
         description={t("labs.biomarker.defineDescription")}
+        footer={
+          <div
+            ref={setDefineFooterEl}
+            className="flex w-full justify-end gap-2"
+          />
+        }
       >
         <BiomarkerForm
+          footerSlot={defineFooterEl}
           onSuccess={afterDefine}
           onCancel={() => setDefineOpen(false)}
         />
