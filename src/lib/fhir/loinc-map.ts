@@ -304,6 +304,21 @@ export const GLUCOSE_LOINC: Record<string, { loinc: string; display: string }> =
     BEDTIME: { loinc: "2339-0", display: "Glucose [Mass/volume] in Blood" },
   };
 
+/* ── Clinical glucose-panel LOINCs (v1.18.0) ───────────────────────────
+ * The CGM/spot-reading composite metrics the doctor report computes by the
+ * one literature-locked engine. Each carries the published LOINC term where
+ * one exists; the variability CV% has no published LOINC and is emitted as a
+ * survey-category text-only concept by the builder (honest about what we have).
+ */
+/** Time in range 70–180 mg/dL [Battelino 2019]. */
+export const GLUCOSE_TIR_LOINC = "97510-2";
+/** Glucose Management Indicator (GMI) [Bergenstal 2018]. */
+export const GLUCOSE_GMI_LOINC = "97506-0";
+/** Mean glucose over the reporting period. */
+export const GLUCOSE_MEAN_LOINC = "97507-8";
+/** Estimated A1C (ADAG, derived from mean glucose). */
+export const GLUCOSE_EA1C_LOINC = "41995-2";
+
 /** Medication-adherence Observation LOINC. */
 export const MEDICATION_ADHERENCE_LOINC = "71799-1";
 /** Mood Observation LOINC (opt-in only). */

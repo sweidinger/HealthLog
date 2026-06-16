@@ -189,7 +189,22 @@
     "labsColValue": "Value",
     "labsColReference": "Reference",
     "labsColStatus": "Status",
-    "labsColDate": "Date"
+    "labsColDate": "Date",
+    "glucoseClinical": {
+      "title": "Glucose overview (clinical)",
+      "colMetric": "Metric",
+      "colValue": "Value",
+      "tirInRange": "Time in range (70–180 mg/dL)",
+      "tirLow": "Low (< 70 mg/dL)",
+      "tirVeryLow": "Very low (< 54 mg/dL)",
+      "tirHigh": "High (> 180 mg/dL)",
+      "tirVeryHigh": "Very high (> 250 mg/dL)",
+      "mean": "Average glucose",
+      "gmi": "Glucose Management Indicator (GMI)",
+      "eA1c": "Estimated A1C",
+      "cv": "Variability (CV%)",
+      "spotCaveat": "These are spot-reading estimates from individual measurements, not a continuous-monitor profile — read them as a direction of travel rather than a clinical verdict."
+    }
   },
   "errorBoundary": {
     "title": "Something went wrong",

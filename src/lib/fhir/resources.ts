@@ -29,6 +29,10 @@ import {
   BP_DIA_LOINC,
   BP_UNIT,
   GLUCOSE_LOINC,
+  GLUCOSE_TIR_LOINC,
+  GLUCOSE_GMI_LOINC,
+  GLUCOSE_MEAN_LOINC,
+  GLUCOSE_EA1C_LOINC,
   MEDICATION_ADHERENCE_LOINC,
   MOOD_LOINC,
   LMP_LOINC,
@@ -509,6 +513,106 @@ export function observationsFromReportData(
         code: glucoseUnit === "mmol/L" ? "mmol/L" : "mg/dL",
       },
     });
+  }
+
+  // --- Clinical glucose-panel Observations (v1.18.0) ---------------------
+  // The server-computed TIR / GMI / estimated-A1C / mean / CV% over the report
+  // period, by the one literature-locked engine the insights panel + coach +
+  // PDF consume. Emitted only when readings exist (the aggregator zeroes the
+  // panel when the glucose module is off, so an absent panel = module off OR no
+  // data). Each carries the published LOINC where one exists; CV% has none and
+  // rides a `survey` text-only concept. Percent metrics use UCUM `%`.
+  const clinical = data.glucoseClinical;
+  if (clinical && clinical.readingCount > 0) {
+    const pushClinical = (
+      opts: {
+        loinc?: string;
+        text: string;
+        value: number;
+        unit: string;
+        ucum: string;
+        survey?: boolean;
+      },
+    ) => {
+      obsSeq += 1;
+      push({
+        resourceType: "Observation",
+        id: `obs-${obsSeq}`,
+        status: "final",
+        category: [categoryConcept(opts.survey ? "survey" : "laboratory")],
+        code: opts.loinc
+          ? {
+              coding: [
+                { system: LOINC_SYSTEM, code: opts.loinc, display: opts.text },
+              ],
+              text: opts.text,
+            }
+          : { text: opts.text },
+        subject: patientRef,
+        effectiveDateTime: data.period.end,
+        valueQuantity: {
+          value: opts.value,
+          unit: opts.unit,
+          system: UCUM_SYSTEM,
+          code: opts.ucum,
+        },
+        ...(clinical.isSpotEstimate
+          ? {
+              note: [
+                {
+                  text: "Spot-reading estimate from individual measurements, not a continuous-monitor profile.",
+                },
+              ],
+            }
+          : {}),
+      });
+    };
+
+    if (clinical.distribution) {
+      pushClinical({
+        loinc: GLUCOSE_TIR_LOINC,
+        text: "Glucose time in range (70–180 mg/dL)",
+        value: Math.round(clinical.distribution.tir * 1000) / 10,
+        unit: "%",
+        ucum: "%",
+      });
+    }
+    if (clinical.meanMgdl !== null) {
+      pushClinical({
+        loinc: GLUCOSE_MEAN_LOINC,
+        text: "Mean glucose",
+        value: convertGlucose(clinical.meanMgdl, glucoseUnit),
+        unit: glucoseUnit,
+        ucum: glucoseUnit === "mmol/L" ? "mmol/L" : "mg/dL",
+      });
+    }
+    if (clinical.gmi !== null) {
+      pushClinical({
+        loinc: GLUCOSE_GMI_LOINC,
+        text: "Glucose Management Indicator (GMI)",
+        value: Math.round(clinical.gmi * 10) / 10,
+        unit: "%",
+        ucum: "%",
+      });
+    }
+    if (clinical.estimatedA1c !== null) {
+      pushClinical({
+        loinc: GLUCOSE_EA1C_LOINC,
+        text: "Estimated A1C",
+        value: Math.round(clinical.estimatedA1c * 10) / 10,
+        unit: "%",
+        ucum: "%",
+      });
+    }
+    if (clinical.variability !== null) {
+      pushClinical({
+        text: "Glucose variability (coefficient of variation)",
+        value: Math.round(clinical.variability.cv * 10) / 10,
+        unit: "%",
+        ucum: "%",
+        survey: true,
+      });
+    }
   }
 
   // --- Lab-result Observations (v1.17.1) ---------------------------------

@@ -189,7 +189,22 @@
     "labsColValue": "Wartość",
     "labsColReference": "Norma",
     "labsColStatus": "Status",
-    "labsColDate": "Data"
+    "labsColDate": "Data",
+    "glucoseClinical": {
+      "title": "Przegląd glukozy (kliniczny)",
+      "colMetric": "Wskaźnik",
+      "colValue": "Wartość",
+      "tirInRange": "Czas w zakresie (70–180 mg/dl)",
+      "tirLow": "Niski (< 70 mg/dl)",
+      "tirVeryLow": "Bardzo niski (< 54 mg/dl)",
+      "tirHigh": "Wysoki (> 180 mg/dl)",
+      "tirVeryHigh": "Bardzo wysoki (> 250 mg/dl)",
+      "mean": "Średnia glukoza",
+      "gmi": "Wskaźnik zarządzania glukozą (GMI)",
+      "eA1c": "Szacowane HbA1c",
+      "cv": "Zmienność (CV%)",
+      "spotCaveat": "To szacunki z pojedynczych pomiarów, nie profil z monitora ciągłego — czytaj je jako kierunek zmian, a nie kliniczny werdykt."
+    }
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",
