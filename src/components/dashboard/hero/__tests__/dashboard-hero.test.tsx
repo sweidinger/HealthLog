@@ -361,7 +361,7 @@ describe("<DashboardHero> — verdict variants", () => {
 });
 
 describe("<DashboardHero> — dose row", () => {
-  it("prints the day tally with the v1.16.6 card chrome and the Pill icon", () => {
+  it("prints the day tally with the neutral chip chrome and the Pill icon", () => {
     const html = render(
       baseSnapshot({
         medsToday: medsToday({ scheduledToday: 3, takenToday: 1 }),
@@ -372,15 +372,13 @@ describe("<DashboardHero> — dose row", () => {
       /<div[^>]*data-slot="dashboard-hero-doses"[^>]*>/,
     );
     expect(doseRow).not.toBeNull();
-    for (const cls of [
-      "bg-card/65",
-      "border-border/60",
-      "rounded-xl",
-      "shadow-sm",
-      "backdrop-blur-sm",
-    ]) {
+    // v1.18.1: chip sits on a neutral muted surface over the plain card —
+    // no translucent card tint, no blur, no shadow (the gradient is gone).
+    for (const cls of ["bg-muted/50", "border-border/60", "rounded-xl"]) {
       expect(doseRow![0]).toContain(cls);
     }
+    expect(doseRow![0]).not.toContain("backdrop-blur");
+    expect(doseRow![0]).not.toContain("shadow-sm");
   });
 
   it("all doses resolved (taken + skipped) → 'Alle Dosen für heute erledigt'", () => {
@@ -581,8 +579,17 @@ describe("<DashboardHero> — source pins", () => {
     expect(src).toMatch(/resolveDashboardVerdict\(snapshot,\s*new Date\(\)\)/);
   });
 
-  it("uses the hero-gradient chrome WITHOUT glow-purple", () => {
-    expect(src).toContain("hero-gradient");
+  it("wears the plain card surface — no gradient, no glow", () => {
+    // v1.18.1: the band drops the gradient hero treatment and sits on the
+    // same `bg-card` + border + radius as the surrounding chart cards.
+    expect(src).toContain("bg-card");
+    expect(src).toContain("border-border");
+    expect(src).toContain("rounded-xl");
+    expect(src).not.toContain("hero-gradient");
     expect(src).not.toContain("glow-purple");
+  });
+
+  it("renders the score ring flat (no bloom / pulse / sheen / sweep)", () => {
+    expect(src).toMatch(/<ScoreRing[^>]*\n(?:[^>]*\n)*?\s*flat\b/);
   });
 });

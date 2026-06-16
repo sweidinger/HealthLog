@@ -705,6 +705,11 @@
     0 0 3px color-mix(in srgb, var(--ring-glow) 45%, transparent)
   );
 }
+/* Flat 2-D arc — no bloom, no pulse. The dashboard hero ring uses this so it
+   reads as calmly as the chart + tile surfaces around it. */
+.wellness-ring-arc--flat {
+  filter: none;
+}
 .wellness-ring-arc--pulse {
   /* Breathe a few times to celebrate a strong score, then settle — an
      infinite loop would repaint the (non-compositable) drop-shadow filter
