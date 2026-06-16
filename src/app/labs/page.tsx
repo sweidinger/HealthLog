@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus } from "lucide-react";
+import { FlaskConical, Loader2, Plus } from "lucide-react";
 
+import { BiomarkerManager } from "@/components/labs/biomarker-manager";
 import { LabForm } from "@/components/labs/lab-form";
 import { LabList } from "@/components/labs/lab-list";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export default function LabsPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslations();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const refreshVisible = useCallback(
     () => queryClient.invalidateQueries({ type: "active" }),
@@ -30,7 +32,7 @@ export default function LabsPage() {
   );
   const pull = usePullToRefresh({
     onRefresh: refreshVisible,
-    disabled: dialogOpen,
+    disabled: dialogOpen || manageOpen,
   });
 
   useEffect(() => {
@@ -59,13 +61,25 @@ export default function LabsPage() {
             {t("labs.subtitle")}
           </p>
         </div>
-        <Button
-          onClick={() => setDialogOpen(true)}
-          className="min-h-11 shrink-0 sm:min-h-9"
-        >
-          <Plus className="h-4 w-4" />
-          {t("labs.addResult")}
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setManageOpen(true)}
+            className="min-h-11 sm:min-h-9"
+          >
+            <FlaskConical className="h-4 w-4" />
+            <span className="hidden sm:inline">
+              {t("labs.biomarker.manage")}
+            </span>
+          </Button>
+          <Button
+            onClick={() => setDialogOpen(true)}
+            className="min-h-11 sm:min-h-9"
+          >
+            <Plus className="h-4 w-4" />
+            {t("labs.addResult")}
+          </Button>
+        </div>
       </div>
 
       <ResponsiveSheet
@@ -83,6 +97,15 @@ export default function LabsPage() {
           }}
           onCancel={() => setDialogOpen(false)}
         />
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        open={manageOpen}
+        onOpenChange={setManageOpen}
+        title={t("labs.biomarker.manageTitle")}
+        description={t("labs.biomarker.manageSheetDescription")}
+      >
+        <BiomarkerManager />
       </ResponsiveSheet>
 
       <LabList onAddFirst={() => setDialogOpen(true)} />
