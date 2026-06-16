@@ -18,7 +18,10 @@ import {
   classifyReferenceRange,
   formatReferenceRange,
 } from "./labs/reference-range";
-import type { DoctorReportData } from "./doctor-report-data";
+import {
+  adherenceRatePercent,
+  type DoctorReportData,
+} from "./doctor-report-data";
 
 type T = (key: string, params?: Record<string, string | number>) => string;
 
@@ -333,10 +336,11 @@ function buildClinicalSummaryLines(
   const compEntries = Object.values(data.compliance);
   const totalDoses = compEntries.reduce((s, c) => s + c.total, 0);
   const totalTaken = compEntries.reduce((s, c) => s + c.taken, 0);
-  if (totalDoses > 0) {
+  const headlineRate = adherenceRatePercent(totalTaken, totalDoses);
+  if (headlineRate !== null) {
     lines.push(
       t("doctorReport.summaryAdherence", {
-        rate: num((totalTaken / totalDoses) * 100, 1),
+        rate: num(headlineRate, 0),
       }),
     );
   }
@@ -986,7 +990,9 @@ export function buildDoctorReportPdfDocument(
       // detail-page adherence %. The column is labelled "Expected" rather
       // than "Total" so the row stays internally coherent: Taken + Missed =
       // Expected, with Skipped shown alongside as informational.
-      const rate = c.total > 0 ? `${num((c.taken / c.total) * 100, 1)}%` : "—";
+      // Integer percent via the canonical rounding — matches the in-app card.
+      const ratePct = adherenceRatePercent(c.taken, c.total);
+      const rate = ratePct !== null ? `${num(ratePct, 0)}%` : "—";
       return [
         name,
         String(c.taken),
@@ -1090,13 +1096,16 @@ export function buildDoctorReportPdfDocument(
         );
         y += 5;
       }
-      if (med.compliance.total > 0) {
-        const rate = (med.compliance.taken / med.compliance.total) * 100;
+      const glp1Rate = adherenceRatePercent(
+        med.compliance.taken,
+        med.compliance.total,
+      );
+      if (glp1Rate !== null) {
         doc.text(
           t("doctorReport.glp1Compliance", {
             taken: med.compliance.taken,
             total: med.compliance.total,
-            rate: num(rate, 1),
+            rate: num(glp1Rate, 0),
           }),
           margin,
           y,
