@@ -146,6 +146,27 @@ function makePrisma(opts: {
           return { id: where.id, ...data };
         },
       ),
+      // v1.18.1 — two callers use `updateMany` against this model now:
+      //  - `satisfyReminder` (conditional forward-only write) — has `where.id`
+      //    and should record the write so the satisfy assertions still see it.
+      //  - the tick's expired-COACH cleanup sweep — no `where.id`; record
+      //    nothing and report zero rows cleaned (the fixtures carry no
+      //    expired COACH rows).
+      updateMany: vi.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { id?: string };
+          data: Record<string, unknown>;
+        }) => {
+          if (where.id) {
+            updates.push({ id: where.id, data });
+            return { count: 1 };
+          }
+          return { count: 0 };
+        },
+      ),
     },
     measurement: {
       findFirst: vi.fn(async () => opts.measurementMatch ?? null),

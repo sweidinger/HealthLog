@@ -6551,11 +6551,17 @@
       "notifyHour": "Przypomnij o",
       "location": "Gdzie (opcjonalnie)",
       "locationPlaceholder": "np. Lekarz, Laboratorium",
-      "save": "Zapisz"
+      "save": "Zapisz",
+      "createTitle": "Nowe przypomnienie",
+      "editTitle": "Edytuj przypomnienie"
     },
     "pushTitle": "Przypomnienie profilaktyczne",
     "pushBody": "Czas na: {label}",
-    "pushLocation": "(u {location})"
+    "pushLocation": "(u {location})",
+    "edit": "Edytuj",
+    "originCoach": "Coach",
+    "enabledToggleAria": "Włącz lub wyłącz to przypomnienie",
+    "until": "Do {date}"
   },
   "labs": {
     "title": "Wyniki badań",

@@ -6,6 +6,7 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  byHourTimesOfDay,
   computeReminderNextDueAt,
   type ReminderScheduleInput,
 } from "../scheduling";
@@ -96,5 +97,52 @@ describe("computeReminderNextDueAt", () => {
     expect(due).not.toBeNull();
     expect(due!.getUTCFullYear()).toBe(2027);
     expect(due!.getUTCMonth()).toBe(5); // June (0-indexed)
+  });
+
+  // v1.18.1 — the twice-daily BP protocol (BYHOUR=7,19) must fire at BOTH
+  // clock hours, not collapse to the single notifyHour.
+  it("rrule BYHOUR=7,19: next due lands on the earliest unfired clock hour", () => {
+    const reminder = base({
+      rrule: "FREQ=DAILY;BYHOUR=7,19;INTERVAL=1",
+      anchorDate: new Date("2026-06-10T00:00:00Z"),
+      createdAt: new Date("2026-06-10T00:00:00Z"),
+      notifyHour: 7,
+    });
+    // After 06:00 Berlin (04:00Z) on the anchor day → the 07:00 slot.
+    const morning = computeReminderNextDueAt(
+      reminder,
+      TZ,
+      new Date("2026-06-10T04:00:00Z"),
+    );
+    // 07:00 Berlin == 05:00Z (DST).
+    expect(morning!.toISOString()).toBe("2026-06-10T05:00:00.000Z");
+
+    // After the morning slot but before evening → the 19:00 slot SAME day.
+    const evening = computeReminderNextDueAt(
+      reminder,
+      TZ,
+      new Date("2026-06-10T06:00:00Z"),
+    );
+    // 19:00 Berlin == 17:00Z (DST).
+    expect(evening!.toISOString()).toBe("2026-06-10T17:00:00.000Z");
+  });
+});
+
+describe("byHourTimesOfDay", () => {
+  it("parses BYHOUR into sorted, deduped HH:00 strings", () => {
+    expect(byHourTimesOfDay("FREQ=DAILY;BYHOUR=19,7,7;INTERVAL=1")).toEqual([
+      "07:00",
+      "19:00",
+    ]);
+  });
+
+  it("returns null for an rrule without BYHOUR", () => {
+    expect(byHourTimesOfDay("FREQ=YEARLY")).toBeNull();
+    expect(byHourTimesOfDay(null)).toBeNull();
+  });
+
+  it("drops out-of-range hours and returns null when none survive", () => {
+    expect(byHourTimesOfDay("FREQ=DAILY;BYHOUR=24,99")).toBeNull();
+    expect(byHourTimesOfDay("FREQ=DAILY;BYHOUR=6,30")).toEqual(["06:00"]);
   });
 });

@@ -6551,11 +6551,17 @@
       "notifyHour": "Ricorda alle",
       "location": "Dove (facoltativo)",
       "locationPlaceholder": "es. Medico, Laboratorio",
-      "save": "Salva"
+      "save": "Salva",
+      "createTitle": "Nuovo promemoria",
+      "editTitle": "Modifica promemoria"
     },
     "pushTitle": "Promemoria di prevenzione",
     "pushBody": "È ora di: {label}",
-    "pushLocation": "(presso {location})"
+    "pushLocation": "(presso {location})",
+    "edit": "Modifica",
+    "originCoach": "Coach",
+    "enabledToggleAria": "Attiva o disattiva questo promemoria",
+    "until": "Fino al {date}"
   },
   "labs": {
     "title": "Risultati degli esami",

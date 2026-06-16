@@ -19,8 +19,10 @@
  */
 import { NextRequest } from "next/server";
 
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import {
   apiError,
@@ -54,6 +56,18 @@ async function postAction(request: NextRequest): Promise<Response> {
   // disabled-coach account cannot drive the endpoint directly.
   const gate = await requireModuleEnabled(user.id, "coach");
   if (!gate.enabled) return gate.response;
+
+  // Per-user rate limit — the action card is one-tap, so a tight per-user
+  // bucket (userId, never IP) is the right granularity. Mirrors the
+  // labs/restore convention; a trust-violation can never widen it.
+  const rate = await checkRateLimit(
+    `coach:reminder-suggestion:${user.id}`,
+    30,
+    60_000,
+  );
+  if (!rate.allowed) {
+    return apiError("coach.suggestion.rateLimited", 429);
+  }
 
   const { data: body, error: jsonError } = await safeJson(request, {
     maxBytes: 4 * 1024,
@@ -150,22 +164,44 @@ async function postAction(request: NextRequest): Promise<Response> {
 
   // Field-by-field — no mass assignment. `origin: COACH` is the
   // provenance the UI labels and the SUGGEST gate dedupes against.
-  const created = await prisma.measurementReminder.create({
-    data: {
-      userId: user.id,
-      label: cadence.labelKey,
-      measurementType: cadence.measurementType,
-      intervalDays: cadence.intervalDays,
-      rrule: cadence.rrule,
-      anchorDate: null,
-      endsOn,
-      origin: "COACH",
-      notifyHour: cadence.notifyHour,
-      location: null,
-      enabled: true,
-      nextDueAt,
-    },
-  });
+  let created;
+  try {
+    created = await prisma.measurementReminder.create({
+      data: {
+        userId: user.id,
+        label: cadence.labelKey,
+        measurementType: cadence.measurementType,
+        intervalDays: cadence.intervalDays,
+        rrule: cadence.rrule,
+        anchorDate: null,
+        endsOn,
+        origin: "COACH",
+        notifyHour: cadence.notifyHour,
+        location: null,
+        enabled: true,
+        nextDueAt,
+      },
+    });
+  } catch (err) {
+    // Structural dedup backstop: the 0172 partial unique index
+    // (`origin = 'COACH' AND deleted_at IS NULL` per user+metric) wins the
+    // race the read-then-create above can lose. Treat the violation as the
+    // same idempotent "already have one" outcome.
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      annotate({
+        action: { name: "coach.reminder.accept.duplicate" },
+        meta: { cadenceId, reason: "unique-violation" },
+      });
+      return apiSuccess(
+        { ok: true, action: "accept", reminder: null, duplicate: true },
+        200,
+      );
+    }
+    throw err;
+  }
 
   await auditLog("measurementReminder.create.coach", {
     userId: user.id,

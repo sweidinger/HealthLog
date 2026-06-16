@@ -6551,11 +6551,17 @@
       "notifyHour": "Rappeler à",
       "location": "Où (facultatif)",
       "locationPlaceholder": "ex. Médecin, Laboratoire",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "createTitle": "Nouveau rappel",
+      "editTitle": "Modifier le rappel"
     },
     "pushTitle": "Rappel de prévention",
     "pushBody": "C'est l'heure : {label}",
-    "pushLocation": "(chez {location})"
+    "pushLocation": "(chez {location})",
+    "edit": "Modifier",
+    "originCoach": "Coach",
+    "enabledToggleAria": "Activer ou désactiver ce rappel",
+    "until": "Jusqu'au {date}"
   },
   "labs": {
     "title": "Résultats d'analyses",

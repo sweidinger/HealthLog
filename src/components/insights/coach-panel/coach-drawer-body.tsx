@@ -97,7 +97,11 @@ export function CoachDrawerBody({
             two-height split). */}
         <div
           data-slot="coach-drawer-rail-tray-strip"
-          className="border-border/70 flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3"
+          // v1.18.1 (W-COACH-UI C4) — match the header band's `px-3 sm:px-4`
+          // inset so the rail-tray strip, the header, and the adjacent
+          // history-rail `<h2>` (px-4) all share the same horizontal divider
+          // line at sm+ rather than stepping in/out by a pixel.
+          className="border-border/70 flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3 sm:px-4"
         >
           <Button
             type="button"

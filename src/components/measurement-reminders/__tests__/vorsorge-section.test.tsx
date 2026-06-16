@@ -18,6 +18,7 @@ vi.mock("@/hooks/use-measurement-reminders", () => ({
   useMeasurementReminders: () => remindersMock(),
   useMeasurementReminderMutations: () => ({
     create: { mutate: vi.fn(), isPending: false },
+    update: { mutate: vi.fn(), isPending: false },
     remove: { mutate: vi.fn(), isPending: false },
     satisfy: { mutate: vi.fn(), isPending: false },
   }),
@@ -70,5 +71,36 @@ describe("<VorsorgeSection> loading + empty", () => {
     expect(html).toContain("Annual blood panel");
     expect(html).not.toContain('data-slot="empty-state"');
     expect(html).not.toContain('data-slot="vorsorge-loading"');
+  });
+
+  it("translates a COACH-origin label i18n key and shows the neutral badge", () => {
+    const reminder: MeasurementReminder = {
+      id: "c1",
+      // A COACH row stores the cadence preset's i18n KEY in `label`.
+      label: "coach.reminderSuggestion.cadence.bp722",
+      measurementType: "BLOOD_PRESSURE_SYS",
+      intervalDays: null,
+      rrule: "FREQ=DAILY;BYHOUR=7,19;INTERVAL=1",
+      anchorDate: null,
+      endsOn: "2030-01-08T00:00:00.000Z",
+      origin: "COACH",
+      nextDueAt: null,
+      notifyHour: 7,
+      location: null,
+      lastSatisfiedAt: null,
+      enabled: true,
+      createdAt: "2030-01-01T00:00:00.000Z",
+      updatedAt: "2030-01-01T00:00:00.000Z",
+    } as MeasurementReminder;
+    remindersMock.mockReturnValue({ data: [reminder], isLoading: false });
+    const html = render(<VorsorgeSection />);
+    // The raw i18n key must never leak; the resolved EN string shows instead.
+    expect(html).not.toContain("coach.reminderSuggestion.cadence.bp722");
+    expect(html).toContain(
+      "Measure your blood pressure twice a day for a week",
+    );
+    // Neutral "Coach" provenance badge + an "until <date>" course line.
+    expect(html).toContain("Coach");
+    expect(html).toContain("Until");
   });
 });

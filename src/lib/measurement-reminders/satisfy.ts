@@ -92,10 +92,26 @@ export async function satisfyReminder(
     satisfiedAt,
   );
 
-  await prisma.measurementReminder.update({
-    where: { id: reminder.id },
+  // v1.18.1 — close the forward-only TOCTOU: the in-memory guard above can
+  // pass concurrently in the cron poll AND the eventful worker for the same
+  // reading. Make the write itself conditional so exactly one wins. The
+  // `updateMany` filter re-asserts the forward-only invariant against the
+  // CURRENT row state; a racing writer that already advanced `lastSatisfiedAt`
+  // to >= satisfiedAt yields `count === 0`, which we treat as a no-op rather
+  // than re-stamping an older instant.
+  const result = await prisma.measurementReminder.updateMany({
+    where: {
+      id: reminder.id,
+      OR: [
+        { lastSatisfiedAt: null },
+        { lastSatisfiedAt: { lt: satisfiedAt } },
+      ],
+    },
     data: { lastSatisfiedAt: satisfiedAt, nextDueAt },
   });
+  if (result.count === 0) {
+    return { satisfied: false, nextDueAt: null };
+  }
 
   return { satisfied: true, nextDueAt };
 }

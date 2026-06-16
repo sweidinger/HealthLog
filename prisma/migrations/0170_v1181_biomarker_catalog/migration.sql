@@ -1,4 +1,4 @@
--- v1.19.0 — user-scoped biomarker catalog.
+-- v1.18.1 — user-scoped biomarker catalog.
 --
 -- The lean v1.17.1 `lab_results` row stores analyte / unit / reference_low /
 -- reference_high on EVERY row, so recording the same marker three times means

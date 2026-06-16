@@ -363,6 +363,10 @@ export function CoachConversation({
           surface === "page" ? (
             <HistoryRail
               activeId={currentConversationId}
+              // v1.18.1 — the `<aside>` band already renders the
+              // "Conversations" <h2>; suppress the rail's own <h3> so the
+              // heading is not stacked twice on the page surface.
+              hideHeading
               onSelect={(id) => {
                 // v1.16.5 — switching conversations drops the guided
                 // session; unanswered questions stay pending.

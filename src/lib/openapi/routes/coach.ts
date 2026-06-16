@@ -16,7 +16,93 @@ import { COACH_FACT_CATEGORIES } from "@/lib/ai/coach/facts";
 import { coachChatRequestSchema } from "@/lib/ai/coach/types";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { createShareLinkSchema } from "@/lib/validations/clinician-share-link";
+import { coachReminderSuggestionActionSchema } from "@/lib/validations/coach-reminder-suggestion";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
+
+// ── Coach cadence suggestions (v1.18.1) ──────────────────────────────
+// The action endpoint behind the one-tap reminder-suggestion card. The
+// client sends ONLY the cadence id + the action; the server resolves the
+// metric + schedule + course window from the closed catalog and (for
+// `accept`) mints a `MeasurementReminder` with `origin: COACH`.
+coachReminderSuggestionActionSchema.meta({
+  id: "CoachReminderSuggestionAction",
+  description:
+    "v1.18.1 — act on a Coach cadence suggestion. `cadenceId` names a closed-catalog preset (e.g. `weight_daily`, `bp_7_2_2`); the client never sends a schedule. `action`: `accept` creates a `MeasurementReminder` (origin: COACH) through the same engine the Vorsorge surface uses; `dismiss` records dismissal memory; `stop` suppresses all future cadence suggestions. Strict: unknown keys 422.",
+});
+
+const coachReminderSuggestionResultSchema = z
+  .object({
+    ok: z.literal(true),
+    action: z.enum(["accept", "dismiss", "stop"]),
+    reminder: z
+      .unknown()
+      .nullable()
+      .optional()
+      .describe(
+        "On `accept` of a fresh suggestion: the created MeasurementReminder DTO. Null when the action was a prefs-only dismiss/stop, or when an accept hit the structural dedup (`duplicate: true`).",
+      ),
+    duplicate: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when an `accept` matched an already-live COACH reminder for the same metric (idempotent no-op).",
+      ),
+  })
+  .meta({
+    id: "CoachReminderSuggestionResult",
+    description:
+      "Outcome of a Coach cadence-suggestion action. `accept` returns 201 with the created reminder (or 200 + `duplicate: true` when one already exists); `dismiss`/`stop` return 200.",
+  });
+
+export const coachReminderSuggestionPaths: NonNullable<
+  ZodOpenApiObject["paths"]
+> = {
+  "/api/coach/reminder-suggestions": {
+    post: {
+      tags: ["Insights"],
+      summary: "Act on a Coach cadence suggestion",
+      description:
+        "v1.18.1 — accept / dismiss / stop a Coach-proposed measurement cadence. Coach-gated (`requireModuleEnabled(\"coach\")`); a disabled surface 403s. `accept` resolves the cadence from the closed server-side catalog and creates a `MeasurementReminder` with `origin: COACH` (201), or returns 200 with `duplicate: true` when a live COACH reminder for that metric already exists — idempotent against a re-tapped or stale card, with a partial unique index as the structural backstop. Per-user rate-limited (429 on excess). Auth via cookie or Bearer; the owner is narrowed from the session.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: coachReminderSuggestionActionSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "A dismiss/stop, or an accept that matched an existing reminder (`duplicate: true`).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachReminderSuggestionResultSchema,
+                "CoachReminderSuggestionResultOk",
+              ),
+            },
+          },
+        },
+        "201": {
+          description: "An accept that created a new reminder.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachReminderSuggestionResultSchema,
+                "CoachReminderSuggestionResultCreated",
+              ),
+            },
+          },
+        },
+        "403": {
+          description: "Coach surface (or the cadence's module) disabled.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        // 401 / 422 / 429 come from stdResponses.
+        ...stdResponses,
+      },
+    },
+  },
+};
 
 const coachMessageFeedbackBody = z
   .object({

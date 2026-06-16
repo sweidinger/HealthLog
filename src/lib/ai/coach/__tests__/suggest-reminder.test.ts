@@ -26,6 +26,28 @@ describe("parseSuggestReminder", () => {
     expect(r.malformed).toBe(false);
   });
 
+  it("keeps prose written AFTER the block (text-before + text-after)", () => {
+    const raw =
+      "Before the block.\n" +
+      "---SUGGEST-REMINDER---\ncadence: bp_7_2_2\n---END---\n" +
+      "And a closing thought after it.";
+    const r = parseSuggestReminder(raw);
+    expect(r.cadence?.id).toBe("bp_7_2_2");
+    expect(r.prose).toContain("Before the block.");
+    expect(r.prose).toContain("And a closing thought after it.");
+    expect(r.prose).not.toContain("SUGGEST-REMINDER");
+  });
+
+  it("keeps trailing prose even on a malformed block", () => {
+    const raw =
+      "Before.\n---SUGGEST-REMINDER---\ncadence: bp_hourly\n---END---\nAfter.";
+    const r = parseSuggestReminder(raw);
+    expect(r.malformed).toBe(true);
+    expect(r.prose).toContain("Before.");
+    expect(r.prose).toContain("After.");
+    expect(r.prose).not.toContain("SUGGEST-REMINDER");
+  });
+
   it("strips quotes/backticks the model may add around the id", () => {
     const raw =
       "text\n---SUGGEST-REMINDER---\ncadence: `weight_daily`\n---END---";

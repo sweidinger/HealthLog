@@ -4387,6 +4387,59 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/coach/reminder-suggestions:
+    post:
+      tags:
+        - Insights
+      summary: Act on a Coach cadence suggestion
+      description: 'v1.18.1 — accept / dismiss / stop a Coach-proposed measurement cadence. Coach-gated
+        (`requireModuleEnabled("coach")`); a disabled surface 403s. `accept` resolves the cadence from the closed
+        server-side catalog and creates a `MeasurementReminder` with `origin: COACH` (201), or returns 200 with
+        `duplicate: true` when a live COACH reminder for that metric already exists — idempotent against a re-tapped or
+        stale card, with a partial unique index as the structural backstop. Per-user rate-limited (429 on excess). Auth
+        via cookie or Bearer; the owner is narrowed from the session.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cadenceId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                action:
+                  type: string
+                  enum:
+                    - accept
+                    - dismiss
+                    - stop
+              required:
+                - cadenceId
+                - action
+      responses:
+        "200":
+          description: "A dismiss/stop, or an accept that matched an existing reminder (`duplicate: true`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachReminderSuggestionResultOk"
+        "201":
+          description: An accept that created a new reminder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachReminderSuggestionResultCreated"
+        "401": *a1
+        "403":
+          description: Coach surface (or the cadence's module) disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
   /api/admin/invites:
     get:
       tags:
@@ -15257,6 +15310,67 @@ components:
           required:
             - questions
           additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachReminderSuggestionResultOk:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoachReminderSuggestionResult"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachReminderSuggestionResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        action:
+          type: string
+          enum:
+            - accept
+            - dismiss
+            - stop
+        reminder:
+          description: "On `accept` of a fresh suggestion: the created MeasurementReminder DTO. Null when the action was a
+            prefs-only dismiss/stop, or when an accept hit the structural dedup (`duplicate: true`)."
+          anyOf:
+            - {}
+            - type: "null"
+        duplicate:
+          description: True when an `accept` matched an already-live COACH reminder for the same metric (idempotent no-op).
+          type: boolean
+      required:
+        - ok
+        - action
+      additionalProperties: false
+      description: "Outcome of a Coach cadence-suggestion action. `accept` returns 201 with the created reminder (or 200 +
+        `duplicate: true` when one already exists); `dismiss`/`stop` return 200."
+    CoachReminderSuggestionResultCreated:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoachReminderSuggestionResult"
         error:
           type: "null"
         meta:

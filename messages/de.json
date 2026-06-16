@@ -6551,11 +6551,17 @@
       "notifyHour": "Erinnern um",
       "location": "Wo (optional)",
       "locationPlaceholder": "z. B. Hausarzt, Labor",
-      "save": "Speichern"
+      "save": "Speichern",
+      "createTitle": "Neue Erinnerung",
+      "editTitle": "Erinnerung bearbeiten"
     },
     "pushTitle": "Vorsorge-Erinnerung",
     "pushBody": "Fällig: {label}",
-    "pushLocation": "(bei {location})"
+    "pushLocation": "(bei {location})",
+    "edit": "Bearbeiten",
+    "originCoach": "Coach",
+    "enabledToggleAria": "Diese Erinnerung aktivieren oder deaktivieren",
+    "until": "Bis {date}"
   },
   "labs": {
     "title": "Laborwerte",

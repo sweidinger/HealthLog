@@ -3298,6 +3298,11 @@ model MeasurementReminder {
 
   @@index([userId, deletedAt])
   @@index([userId, nextDueAt])
+  // v1.18.1 — structural accept-dedup for COACH-minted reminders: at most
+  // one LIVE COACH reminder per (user, metric). Enforced as a PARTIAL unique
+  // index (`WHERE origin = 'COACH' AND deleted_at IS NULL`) created by the
+  // 0172 migration — Prisma's schema DSL cannot express a filtered unique
+  // index, so the migration owns the constraint and this is a pointer to it.
   @@map("measurement_reminders")
 }
 

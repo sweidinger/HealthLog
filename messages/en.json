@@ -6551,11 +6551,17 @@
       "notifyHour": "Remind at",
       "location": "Where (optional)",
       "locationPlaceholder": "e.g. GP, Lab",
-      "save": "Save"
+      "save": "Save",
+      "createTitle": "New reminder",
+      "editTitle": "Edit reminder"
     },
     "pushTitle": "Preventive-care reminder",
     "pushBody": "Time for: {label}",
-    "pushLocation": "(at {location})"
+    "pushLocation": "(at {location})",
+    "edit": "Edit",
+    "originCoach": "Coach",
+    "enabledToggleAria": "Enable or disable this reminder",
+    "until": "Until {date}"
   },
   "labs": {
     "title": "Lab results",
