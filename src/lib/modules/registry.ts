@@ -10,11 +10,12 @@
  *
  * Two classes of domain:
  *
- *   - CORE (always-on): weight, blood pressure, pulse, medications — the
- *     measurement engine + meds. These are NOT in `MODULE_KEYS` and have
- *     NO registry entry. They can never be disabled; the gate has no key
- *     to flip and the write endpoint refuses them. This is structural,
- *     not a runtime check future code can soften.
+ *   - CORE (always-on): weight, blood pressure, pulse — the measurement
+ *     engine. These are NOT in `MODULE_KEYS` and have NO registry entry.
+ *     They can never be disabled; the gate has no key to flip and the
+ *     write endpoint refuses them. This is structural, not a runtime check
+ *     future code can soften. (Medications was CORE through v1.18.0; D3
+ *     graduated it to a fail-open toggleable module below.)
  *
  *   - TOGGLEABLE (the "secondary domains"): the maintainer-chosen scope
  *     below. Each carries a stable key, an i18n label + description key,
@@ -118,11 +119,12 @@ export const MODULE_KEYS = [
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 
 /**
- * CORE domains — the always-on measurement engine + medications. Listed
- * here for documentation + the write-endpoint denylist; they have NO
- * `ModuleDefinition` and can never appear as a toggle. A crafted
- * `{ "weight": false }` blob is inert: `weight` is not a `ModuleKey`, so
- * the gate never reads it and the PATCH validator rejects it.
+ * CORE domains — the always-on measurement engine (weight / blood pressure
+ * / pulse). Listed here for documentation + the write-endpoint denylist;
+ * they have NO `ModuleDefinition` and can never appear as a toggle. A
+ * crafted `{ "weight": false }` blob is inert: `weight` is not a
+ * `ModuleKey`, so the gate never reads it and the PATCH validator rejects
+ * it. (Medications is a toggleable module since D3 — see `MODULE_KEYS`.)
  */
 export const CORE_DOMAIN_KEYS = [
   "weight",
