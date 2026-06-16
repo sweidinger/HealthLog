@@ -436,11 +436,15 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   const glucoseEnabled = await isModuleEnabled(user.id, "glucose");
   const glucoseByContextOut = glucoseEnabled ? glucoseByContext : null;
   const glucoseClinicalOut = glucoseEnabled ? glucoseClinical : null;
+  // The reference instant the score is graded as-of. Reused below so the Rest
+  // Mode annotation resolves against the SAME window the score covers, not a
+  // fresh "now" that could fall outside it.
+  const scoredAt = new Date();
   const healthScore = await computeUserHealthScoreFastPath({
     userId: user.id,
     ...bpInputs,
     heightCm: user.heightCm ?? null,
-    now: new Date(),
+    now: scoredAt,
     coverage,
     moodEnabled,
   });
@@ -449,8 +453,9 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // active we frame the score (not penalise it): the number above is left
   // exactly as computed and we attach a value-free "you were unwell" context.
   // Resolved server-side so iOS mirrors the same fact, never recomputing it.
+  // Resolved as-of the scored window (`scoredAt`), not a fresh now.
   if (healthScore) {
-    const restMode = await resolveRestMode(user.id);
+    const restMode = await resolveRestMode(user.id, scoredAt);
     healthScore.restMode = restMode.active
       ? {
           active: true,

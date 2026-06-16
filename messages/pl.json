@@ -123,37 +123,6 @@
     "glucoseBelowTarget": "poniżej celu",
     "glucoseAboveTarget": "powyżej celu",
     "practiceLabel": "Gabinet",
-    "dialog": {
-      "title": "Raport medyczny (PDF)",
-      "description": "Ustaw okres analizy i (opcjonalnie) nazwę gabinetu — oba pojawią się na stronie tytułowej.",
-      "startLabel": "Od",
-      "endLabel": "Do",
-      "practiceLabel": "Gabinet / klinika (opcjonalnie)",
-      "practicePlaceholder": "np. dr Müller — lekarz rodzinny",
-      "preset90d": "Ostatnie 90 dni",
-      "preset180d": "Ostatnie 6 miesięcy",
-      "preset365d": "Ostatnie 12 miesięcy",
-      "submit": "Wygeneruj PDF",
-      "cancel": "Anuluj",
-      "errorEndBeforeStart": "Data końcowa nie może być wcześniejsza niż początkowa.",
-      "errorRangeTooLong": "Okres analizy nie może przekraczać 2 lat.",
-      "errorInvalidDate": "Wybierz poprawną datę początku i końca."
-    },
-    "sections": {
-      "title": "Wybierz zawartość",
-      "bp": "Ciśnienie krwi",
-      "weight": "Waga",
-      "pulse": "Tętno spoczynkowe",
-      "bmi": "Wskaźnik masy ciała (BMI)",
-      "mood": "Nastrój",
-      "moodSensitive": "Wrażliwe — domyślnie wyłączone.",
-      "compliance": "Przestrzeganie leków",
-      "sleep": "Czas snu",
-      "cycle": "Cykl menstruacyjny",
-      "empty": "Brak danych dla wybranego okresu. Raport zachowa stronę tytułową.",
-      "unavailableHint": "Brak danych w tym okresie",
-      "labs": "Wyniki badań"
-    },
     "insurer": "Ubezpieczyciel zdrowotny",
     "insuranceNumber": "Nr ubezpieczonego",
     "summaryTitle": "Podsumowanie kliniczne",
@@ -1640,17 +1609,7 @@
         "copyToken": "Kopiuj token",
         "mintedHint": "Skopiuj ten token teraz — jest pokazywany tylko raz."
       },
-      "edit": {
-        "planOption": "Edytuj plan",
-        "advancedOption": "Ustawienia zaawansowane"
-      },
       "advanced": {
-        "title": "Ustawienia zaawansowane",
-        "group": {
-          "data": "Dane",
-          "lifecycle": "Cykl życia",
-          "externalApi": "Zewnętrzne API"
-        },
         "dataPortability": {
           "import": {
             "title": "Importuj przyjęcia",
@@ -2196,23 +2155,6 @@
       "confidenceLow": "Niska pewność",
       "pendingLabel": "Komentarz trendu jest generowany"
     },
-    "range": {
-      "label": "Okres",
-      "noPriorData": "brak danych z poprzedniego okresu",
-      "option": {
-        "7d": "7d",
-        "30d": "30d",
-        "90d": "90d",
-        "1y": "1r"
-      },
-      "priorLabel": {
-        "7d": "vs poprzednie 7d",
-        "30d": "vs poprzednie 30d",
-        "90d": "vs poprzednie 90d",
-        "1y": "vs poprzedni rok"
-      },
-      "noChange": "bez zmian"
-    },
     "correlationRow": {
       "title": "Korelacje",
       "disclaimer": "Korelacje są obserwacyjne, nie przyczynowe — porozmawiaj z lekarzem, jeśli ciśnienie jest wysokie.",
@@ -2553,14 +2495,6 @@
       "bmiDescription": "BMI obliczone z twojej wagi i wzrostu, z oceną.",
       "target": {
         "adjustLink": "Dostosuj zakres docelowy"
-      },
-      "primary": {
-        "avg30Label": "Średnia z 30 dni",
-        "inRangeLabel": "W zakresie",
-        "inRangeAria": "{pct}% zarejestrowanych dni w zakresie celu"
-      },
-      "lastMeasurement": {
-        "label": "Ostatni pomiar"
       },
       "explainer": {
         "trigger": "Czym jest {title}?",
@@ -3649,11 +3583,6 @@
         "title": "Serce i energia w ciągu dnia",
         "subtitle": "Całodobowe sumy sercowe i energetyczne"
       },
-      "scoreLink": {
-        "title": "Wynik regeneracji",
-        "subtitle": "Zobacz, jak rozkłada się nocny wynik",
-        "cta": "Zobacz"
-      },
       "block": {
         "ansChargeExplainer": "Jak naładowany jest Twój autonomiczny układ nerwowy na dany dzień — odczyt regeneracji oparty na nocnych sygnałach serca i oddechu.",
         "dayStrainExplainer": "Dzienne obciążenie sercowo-naczyniowe na skali wysiłku Twojego urządzenia. Odczytuj je w odniesieniu do regeneracji, nie jako cel sam w sobie.",
@@ -3896,18 +3825,7 @@
       },
       "integrations": {
         "title": "Integracje",
-        "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
-        "tabs": {
-          "connections": "Połączenia",
-          "channels": "Kanały",
-          "sources": "Źródła"
-        },
-        "connections": {
-          "description": "Połącz Withings, WHOOP, Fitbit, Polar, Oura i Nightscout."
-        },
-        "channels": {
-          "description": "Telegram, ntfy, Web Push, Webhook i e-mail — drogi dostarczania powiadomień."
-        }
+        "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu."
       },
       "notifications": {
         "title": "Powiadomienia",
@@ -3927,14 +3845,6 @@
         "insights": {
           "title": "Analizy",
           "description": "Kolejność przeglądu i pigułek nawigacyjnych."
-        },
-        "medications": {
-          "title": "Leki",
-          "description": "Widok listy i kolejność leków."
-        },
-        "mood": {
-          "title": "Tagi nastroju",
-          "description": "Grupy, tagi i kolejność w wyborze nastroju."
         }
       },
       "dashboard": {
@@ -4021,12 +3931,6 @@
         "description": "Pobierz swoje dane jako CSV lub pełną kopię zapasową JSON albo zaimportuj z Apple Health, JSON lub CSV. Raport dla lekarza znajdziesz teraz w Dokumentacji zdrowotnej.",
         "otherOptionsHeading": "Inne opcje eksportu",
         "downloadFailed": "Nie udało się pobrać eksportu. Spróbuj ponownie.",
-        "hero": {
-          "eyebrow": "Wizyta u lekarza",
-          "valueStatement": "Raport PDF do druku na wizytę u lekarza — parametry życiowe, BMI, klasyfikacja ciśnienia, przestrzeganie leczenia oraz (opcjonalnie) zapis nastroju, na kilku stronach.",
-          "cta": "Skonfiguruj i wygeneruj raport",
-          "formatHint": "PDF · gotowe do druku"
-        },
         "actions": {
           "download": "Pobierz"
         },
@@ -4035,10 +3939,6 @@
           "until": "Do"
         },
         "cards": {
-          "doctorReport": {
-            "title": "Raport dla lekarza",
-            "description": "PDF do druku na wizytę lekarską — parametry życiowe, BMI, klasyfikacja ciśnienia, przestrzeganie leczenia, nastrój."
-          },
           "measurementsCsv": {
             "title": "Pomiary",
             "description": "Waga, ciśnienie, tętno, glukoza i wszystkie inne pomiary jako wartości rozdzielone przecinkami."
@@ -4415,14 +4315,6 @@
         "forgotError": "Nie udało się zapomnieć tej informacji. Spróbuj ponownie.",
         "clearedToast": "Zapomniano {count} zapisanych informacji.",
         "clearError": "Nie udało się usunąć zapisanych informacji. Spróbuj ponownie."
-      },
-      "disableCoach": {
-        "title": "Ukryj Coacha",
-        "description": "Ukrywa przycisk Coacha i panel na wszystkich stronach.",
-        "toggleAria": "Ukryj przycisk Coacha i panel",
-        "savedHidden": "Coach ukryty.",
-        "savedShown": "Coach widoczny.",
-        "saveError": "Nie udało się zapisać zmiany. Spróbuj ponownie."
       },
       "aboutMe": {
         "title": "O mnie",
@@ -5906,11 +5798,6 @@
         "fiveDaysAgo": "5 dni temu",
         "sixDaysAgo": "6 dni temu"
       }
-    },
-    "relativeDay": {
-      "today": "Dzisiaj",
-      "yesterday": "Wczoraj",
-      "daysAgo": "{count} dni temu"
     },
     "edit": {
       "openLabel": "Edytuj zakres docelowy dla {metric}",

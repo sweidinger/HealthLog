@@ -123,37 +123,6 @@
     "glucoseBelowTarget": "sous la cible",
     "glucoseAboveTarget": "au-dessus de la cible",
     "practiceLabel": "Cabinet",
-    "dialog": {
-      "title": "Rapport médical (PDF)",
-      "description": "Définis la période d’analyse et (optionnel) le nom du cabinet — les deux apparaîtront sur la page de garde.",
-      "startLabel": "Du",
-      "endLabel": "Au",
-      "practiceLabel": "Cabinet / clinique (optionnel)",
-      "practicePlaceholder": "p. ex. Dr Müller — médecin généraliste",
-      "preset90d": "90 derniers jours",
-      "preset180d": "6 derniers mois",
-      "preset365d": "12 derniers mois",
-      "submit": "Générer le PDF",
-      "cancel": "Annuler",
-      "errorEndBeforeStart": "La date de fin ne peut pas être antérieure à la date de début.",
-      "errorRangeTooLong": "La période d’analyse ne peut pas dépasser 2 ans.",
-      "errorInvalidDate": "Choisis une date de début et une date de fin valides."
-    },
-    "sections": {
-      "title": "Choisir le contenu",
-      "bp": "Tension artérielle",
-      "weight": "Poids",
-      "pulse": "Pouls au repos",
-      "bmi": "Indice de masse corporelle (IMC)",
-      "mood": "Humeur",
-      "moodSensitive": "Sensible — désactivé par défaut.",
-      "compliance": "Observance des médicaments",
-      "sleep": "Durée du sommeil",
-      "cycle": "Cycle menstruel",
-      "empty": "Pas de données sur la période sélectionnée. Le rapport conservera la page de garde.",
-      "unavailableHint": "Pas de données sur cette période",
-      "labs": "Résultats d'analyses"
-    },
     "insurer": "Assurance maladie",
     "insuranceNumber": "N° d’assuré",
     "summaryTitle": "Résumé clinique",
@@ -1640,17 +1609,7 @@
         "copyToken": "Copier le jeton",
         "mintedHint": "Copiez ce jeton maintenant — il n’est affiché qu’une seule fois."
       },
-      "edit": {
-        "planOption": "Modifier le plan",
-        "advancedOption": "Paramètres avancés"
-      },
       "advanced": {
-        "title": "Paramètres avancés",
-        "group": {
-          "data": "Données",
-          "lifecycle": "Cycle de vie",
-          "externalApi": "API externe"
-        },
         "dataPortability": {
           "import": {
             "title": "Importer les prises",
@@ -2196,23 +2155,6 @@
       "confidenceLow": "Confiance faible",
       "pendingLabel": "Commentaire de tendance en cours de génération"
     },
-    "range": {
-      "label": "Période",
-      "noPriorData": "aucune donnée sur la période précédente",
-      "option": {
-        "7d": "7j",
-        "30d": "30j",
-        "90d": "90j",
-        "1y": "1an"
-      },
-      "priorLabel": {
-        "7d": "vs 7j précédents",
-        "30d": "vs 30j précédents",
-        "90d": "vs 90j précédents",
-        "1y": "vs année précédente"
-      },
-      "noChange": "aucun changement"
-    },
     "correlationRow": {
       "title": "Corrélations",
       "disclaimer": "Les corrélations sont observationnelles, pas causales — parle à ton médecin si ta tension est élevée.",
@@ -2553,14 +2495,6 @@
       "bmiDescription": "IMC dérivé de ton poids et de ta taille, avec évaluation.",
       "target": {
         "adjustLink": "Ajuster la plage cible"
-      },
-      "primary": {
-        "avg30Label": "Moyenne sur 30 jours",
-        "inRangeLabel": "Dans la cible",
-        "inRangeAria": "{pct}% des jours enregistrés dans la cible"
-      },
-      "lastMeasurement": {
-        "label": "Dernière mesure"
       },
       "explainer": {
         "trigger": "Qu'est-ce que {title} ?",
@@ -3649,11 +3583,6 @@
         "title": "Cœur et énergie du jour",
         "subtitle": "Totaux cardiaques et énergétiques de la journée"
       },
-      "scoreLink": {
-        "title": "Score de récupération",
-        "subtitle": "Voyez comment se décompose le score nocturne",
-        "cta": "Voir"
-      },
       "block": {
         "ansChargeExplainer": "À quel point votre système nerveux autonome est rechargé pour la journée — une mesure de recharge issue de vos signaux nocturnes de cœur et de respiration.",
         "dayStrainExplainer": "La charge cardiovasculaire de la journée sur l'échelle d'effort de votre appareil. Lisez-la au regard de votre récupération, pas comme un objectif en soi.",
@@ -3896,18 +3825,7 @@
       },
       "integrations": {
         "title": "Intégrations",
-        "description": "Services connectés, canaux de diffusion et priorité des sources au même endroit.",
-        "tabs": {
-          "connections": "Connexions",
-          "channels": "Canaux",
-          "sources": "Sources"
-        },
-        "connections": {
-          "description": "Connecter Withings, WHOOP, Fitbit, Polar, Oura et Nightscout."
-        },
-        "channels": {
-          "description": "Telegram, ntfy, Web Push, Webhook et e-mail : les voies par lesquelles les notifications sont envoyées."
-        }
+        "description": "Services connectés, canaux de diffusion et priorité des sources au même endroit."
       },
       "notifications": {
         "title": "Notifications",
@@ -3927,14 +3845,6 @@
         "insights": {
           "title": "Analyses",
           "description": "Ordre de la vue d'ensemble et des onglets de navigation."
-        },
-        "medications": {
-          "title": "Médicaments",
-          "description": "Vue de la liste et ordre des médicaments."
-        },
-        "mood": {
-          "title": "Étiquettes d’humeur",
-          "description": "Groupes, étiquettes et ordre du sélecteur d’humeur."
         }
       },
       "dashboard": {
@@ -4021,12 +3931,6 @@
         "description": "Téléchargez vos données en CSV ou en sauvegarde JSON complète, ou importez depuis Apple Santé, JSON ou CSV. Le compte rendu médical se trouve désormais dans Dossier de santé.",
         "otherOptionsHeading": "Autres options d'export",
         "downloadFailed": "Échec du téléchargement de l'export. Veuillez réessayer.",
-        "hero": {
-          "eyebrow": "Rendez-vous médical",
-          "valueStatement": "Un rapport PDF imprimable pour votre rendez-vous médical — constantes, IMC, classification de tension, observance des traitements et (en option) historique de l'humeur, en quelques pages.",
-          "cta": "Configurer & générer le rapport",
-          "formatHint": "PDF · prêt à imprimer"
-        },
         "actions": {
           "download": "Télécharger"
         },
@@ -4035,10 +3939,6 @@
           "until": "Jusqu’au"
         },
         "cards": {
-          "doctorReport": {
-            "title": "Rapport médical",
-            "description": "PDF imprimable pour le rendez-vous médical — constantes, IMC, classification de la tension, observance des traitements, humeur."
-          },
           "measurementsCsv": {
             "title": "Mesures",
             "description": "Poids, tension artérielle, pouls, glycémie et toutes les autres mesures en valeurs séparées par des virgules."
@@ -4415,14 +4315,6 @@
         "forgotError": "Impossible d'oublier cette information. Veuillez réessayer.",
         "clearedToast": "{count} informations enregistrées oubliées.",
         "clearError": "Impossible d'effacer les informations enregistrées. Veuillez réessayer."
-      },
-      "disableCoach": {
-        "title": "Masquer le Coach",
-        "description": "Masque le bouton et le panneau du Coach sur toutes les pages.",
-        "toggleAria": "Masquer le bouton et le panneau du Coach",
-        "savedHidden": "Coach masqué.",
-        "savedShown": "Coach visible.",
-        "saveError": "Impossible d'enregistrer la modification. Veuillez réessayer."
       },
       "aboutMe": {
         "title": "À propos de moi",
@@ -5906,11 +5798,6 @@
         "fiveDaysAgo": "il y a 5 jours",
         "sixDaysAgo": "il y a 6 jours"
       }
-    },
-    "relativeDay": {
-      "today": "Aujourd'hui",
-      "yesterday": "Hier",
-      "daysAgo": "il y a {count} jours"
     },
     "edit": {
       "openLabel": "Modifier la plage cible de {metric}",

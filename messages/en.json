@@ -123,37 +123,6 @@
     "glucoseBelowTarget": "below target",
     "glucoseAboveTarget": "above target",
     "practiceLabel": "Practice",
-    "dialog": {
-      "title": "Doctor report (PDF)",
-      "description": "Pick the reporting period and (optionally) the practice name; both are printed on the cover.",
-      "startLabel": "Start date",
-      "endLabel": "End date",
-      "practiceLabel": "Practice / clinic name (optional)",
-      "practicePlaceholder": "e.g. Dr. Müller — Family practice",
-      "preset90d": "Last 90 days",
-      "preset180d": "Last 6 months",
-      "preset365d": "Last 12 months",
-      "submit": "Generate PDF",
-      "cancel": "Cancel",
-      "errorEndBeforeStart": "End date must be on or after the start date.",
-      "errorRangeTooLong": "The reporting period cannot exceed 2 years.",
-      "errorInvalidDate": "Please select a valid start and end date."
-    },
-    "sections": {
-      "title": "Choose sections",
-      "bp": "Blood pressure",
-      "weight": "Weight",
-      "pulse": "Resting pulse",
-      "bmi": "Body Mass Index (BMI)",
-      "mood": "Mood",
-      "moodSensitive": "Sensitive — off by default.",
-      "compliance": "Medication adherence",
-      "sleep": "Sleep duration",
-      "cycle": "Menstrual cycle",
-      "empty": "No data was recorded in this date range yet. The report will still include the cover page.",
-      "unavailableHint": "No data in this period",
-      "labs": "Lab results"
-    },
     "insurer": "Health insurer",
     "insuranceNumber": "Insurance no.",
     "summaryTitle": "Clinical summary",
@@ -1640,17 +1609,7 @@
         "copyToken": "Copy token",
         "mintedHint": "Copy this token now — it is shown only once."
       },
-      "edit": {
-        "planOption": "Edit plan",
-        "advancedOption": "Advanced settings"
-      },
       "advanced": {
-        "title": "Advanced settings",
-        "group": {
-          "data": "Data",
-          "lifecycle": "Lifecycle",
-          "externalApi": "External API"
-        },
         "dataPortability": {
           "import": {
             "title": "Import intakes",
@@ -2196,23 +2155,6 @@
       "confidenceLow": "Low confidence",
       "pendingLabel": "Generating trend commentary"
     },
-    "range": {
-      "label": "Time range",
-      "noPriorData": "no prior-period data",
-      "option": {
-        "7d": "7d",
-        "30d": "30d",
-        "90d": "90d",
-        "1y": "1y"
-      },
-      "priorLabel": {
-        "7d": "vs prior 7d",
-        "30d": "vs prior 30d",
-        "90d": "vs prior 90d",
-        "1y": "vs prior year"
-      },
-      "noChange": "no change"
-    },
     "correlationRow": {
       "title": "Relationships",
       "disclaimer": "Relationships are observational, not causal — talk to your doctor if BP runs high.",
@@ -2553,14 +2495,6 @@
       "bmiDescription": "BMI derived from your weight and height, with a written assessment.",
       "target": {
         "adjustLink": "Adjust target range"
-      },
-      "primary": {
-        "avg30Label": "30-day average",
-        "inRangeLabel": "In range",
-        "inRangeAria": "{pct}% of logged days within target"
-      },
-      "lastMeasurement": {
-        "label": "Last measurement"
       },
       "explainer": {
         "trigger": "What is {title}?",
@@ -3649,11 +3583,6 @@
         "title": "Daily heart & energy",
         "subtitle": "Whole-day cardiac and energy totals"
       },
-      "scoreLink": {
-        "title": "Recovery score",
-        "subtitle": "See how the nightly score breaks down",
-        "cta": "View"
-      },
       "block": {
         "ansChargeExplainer": "How charged your autonomic nervous system is for the day ahead — a recharge reading drawn from your overnight heart and breathing signals.",
         "dayStrainExplainer": "The day's whole-body cardiovascular load on your device's strain scale. Read it against your recovery, not as a goal on its own.",
@@ -3896,18 +3825,7 @@
       },
       "integrations": {
         "title": "Integrations",
-        "description": "Connected services, delivery channels, and source priority in one place.",
-        "tabs": {
-          "connections": "Connections",
-          "channels": "Channels",
-          "sources": "Sources"
-        },
-        "connections": {
-          "description": "Connect Withings, WHOOP, Fitbit, Polar, Oura, and Nightscout."
-        },
-        "channels": {
-          "description": "Telegram, ntfy, Web Push, Webhook, and Email — the routes notifications are delivered through."
-        }
+        "description": "Connected services, delivery channels, and source priority in one place."
       },
       "notifications": {
         "title": "Notifications",
@@ -3927,14 +3845,6 @@
         "insights": {
           "title": "Insights",
           "description": "Overview sections and navigation-pill order."
-        },
-        "medications": {
-          "title": "Medications",
-          "description": "List view and medication order."
-        },
-        "mood": {
-          "title": "Mood tags",
-          "description": "Groups, tags, and order of the mood picker."
         }
       },
       "dashboard": {
@@ -4021,12 +3931,6 @@
         "description": "Download your data as CSV or a full JSON backup — or import from Apple Health, JSON, or CSV. The doctor report now lives under Health Record.",
         "otherOptionsHeading": "Other export options",
         "downloadFailed": "Couldn't download the export. Please try again.",
-        "hero": {
-          "eyebrow": "Doctor visit",
-          "valueStatement": "A printable PDF report for your doctor's appointment — vitals, BMI, blood-pressure classification, medication adherence and (optionally) mood, all on a few pages.",
-          "cta": "Configure & generate report",
-          "formatHint": "PDF · print-ready"
-        },
         "actions": {
           "download": "Download"
         },
@@ -4035,10 +3939,6 @@
           "until": "Until"
         },
         "cards": {
-          "doctorReport": {
-            "title": "Doctor Report",
-            "description": "Printable PDF for the doctor's appointment — vitals, BMI, BP classification, medication adherence, mood."
-          },
           "measurementsCsv": {
             "title": "Measurements",
             "description": "Weight, blood pressure, pulse, glucose, and every other measurement as comma-separated values."
@@ -4415,14 +4315,6 @@
         "forgotError": "Could not forget that fact. Please try again.",
         "clearedToast": "Forgot {count} stored facts.",
         "clearError": "Could not clear the stored facts. Please try again."
-      },
-      "disableCoach": {
-        "title": "Hide Coach",
-        "description": "Hides the Coach button and drawer everywhere.",
-        "toggleAria": "Hide the Coach button and drawer",
-        "savedHidden": "Coach hidden.",
-        "savedShown": "Coach visible.",
-        "saveError": "Could not save the change. Please try again."
       },
       "aboutMe": {
         "title": "About me",
@@ -5906,11 +5798,6 @@
         "fiveDaysAgo": "5 days ago",
         "sixDaysAgo": "6 days ago"
       }
-    },
-    "relativeDay": {
-      "today": "today",
-      "yesterday": "yesterday",
-      "daysAgo": "{count} days ago"
     },
     "edit": {
       "openLabel": "Edit target range for {metric}",

@@ -123,37 +123,6 @@
     "glucoseBelowTarget": "unter Ziel",
     "glucoseAboveTarget": "über Ziel",
     "practiceLabel": "Praxis",
-    "dialog": {
-      "title": "Arztbericht (PDF)",
-      "description": "Lege den Auswertungszeitraum fest und (optional) den Praxisnamen — beide erscheinen auf dem Deckblatt.",
-      "startLabel": "Von",
-      "endLabel": "Bis",
-      "practiceLabel": "Praxis / Klinik (optional)",
-      "practicePlaceholder": "z. B. Dr. Müller — Hausarztpraxis",
-      "preset90d": "Letzte 90 Tage",
-      "preset180d": "Letzte 6 Monate",
-      "preset365d": "Letzte 12 Monate",
-      "submit": "PDF erstellen",
-      "cancel": "Abbrechen",
-      "errorEndBeforeStart": "Das Ende-Datum darf nicht vor dem Start liegen.",
-      "errorRangeTooLong": "Der Auswertungszeitraum darf maximal 2 Jahre umfassen.",
-      "errorInvalidDate": "Bitte wähle ein gültiges Start- und Ende-Datum."
-    },
-    "sections": {
-      "title": "Inhalte auswählen",
-      "bp": "Blutdruck",
-      "weight": "Gewicht",
-      "pulse": "Ruhepuls",
-      "bmi": "Body-Mass-Index (BMI)",
-      "mood": "Stimmung",
-      "moodSensitive": "Sensibel — standardmäßig aus.",
-      "compliance": "Therapietreue",
-      "sleep": "Schlafdauer",
-      "cycle": "Menstruationszyklus",
-      "empty": "Für den gewählten Zeitraum liegen noch keine Daten vor. Der Bericht enthält dennoch das Deckblatt.",
-      "unavailableHint": "Keine Daten in diesem Zeitraum",
-      "labs": "Laborwerte"
-    },
     "insurer": "Krankenkasse",
     "insuranceNumber": "Versichertennr.",
     "summaryTitle": "Klinische Zusammenfassung",
@@ -1640,17 +1609,7 @@
         "copyToken": "Token kopieren",
         "mintedHint": "Token jetzt kopieren — es wird nur einmal angezeigt."
       },
-      "edit": {
-        "planOption": "Plan bearbeiten",
-        "advancedOption": "Erweiterte Einstellungen"
-      },
       "advanced": {
-        "title": "Erweiterte Einstellungen",
-        "group": {
-          "data": "Daten",
-          "lifecycle": "Lebenszyklus",
-          "externalApi": "Externe API"
-        },
         "dataPortability": {
           "import": {
             "title": "Einnahmen importieren",
@@ -2196,23 +2155,6 @@
       "confidenceLow": "Geringe Konfidenz",
       "pendingLabel": "Trend-Kommentar wird generiert"
     },
-    "range": {
-      "label": "Zeitraum",
-      "noPriorData": "keine Daten im Vorzeitraum",
-      "option": {
-        "7d": "7T",
-        "30d": "30T",
-        "90d": "90T",
-        "1y": "1J"
-      },
-      "priorLabel": {
-        "7d": "ggü. vorherigen 7T",
-        "30d": "ggü. vorherigen 30T",
-        "90d": "ggü. vorherigen 90T",
-        "1y": "ggü. Vorjahr"
-      },
-      "noChange": "keine Änderung"
-    },
     "correlationRow": {
       "title": "Zusammenhänge",
       "disclaimer": "Zusammenhänge sind beobachtend, nicht kausal — sprich mit deinem Arzt, wenn der Blutdruck hoch ist.",
@@ -2553,14 +2495,6 @@
       "bmiDescription": "BMI aus deinem Gewicht und deiner Größe abgeleitet, mit Einschätzung.",
       "target": {
         "adjustLink": "Zielbereich anpassen"
-      },
-      "primary": {
-        "avg30Label": "30-Tage-Durchschnitt",
-        "inRangeLabel": "Im Zielbereich",
-        "inRangeAria": "{pct}% der erfassten Tage im Zielbereich"
-      },
-      "lastMeasurement": {
-        "label": "Letzte Messung"
       },
       "explainer": {
         "trigger": "Was ist {title}?",
@@ -3649,11 +3583,6 @@
         "title": "Herz & Energie pro Tag",
         "subtitle": "Herz- und Energiewerte des ganzen Tages"
       },
-      "scoreLink": {
-        "title": "Erholungs-Score",
-        "subtitle": "Sieh dir an, wie sich der nächtliche Score zusammensetzt",
-        "cta": "Ansehen"
-      },
       "block": {
         "ansChargeExplainer": "Wie aufgeladen dein autonomes Nervensystem in den Tag startet – ein Recharge-Wert aus deinen nächtlichen Herz- und Atemsignalen.",
         "dayStrainExplainer": "Die kardiovaskuläre Tagesbelastung auf der Belastungsskala deines Geräts. Lies sie im Verhältnis zu deiner Erholung, nicht als Ziel für sich.",
@@ -3896,18 +3825,7 @@
       },
       "integrations": {
         "title": "Integrationen",
-        "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort.",
-        "tabs": {
-          "connections": "Verbindungen",
-          "channels": "Kanäle",
-          "sources": "Quellen"
-        },
-        "connections": {
-          "description": "Withings, WHOOP, Fitbit, Polar, Oura und Nightscout verbinden."
-        },
-        "channels": {
-          "description": "Telegram, ntfy, Web-Push, Webhook und E-Mail – die Wege, über die Benachrichtigungen zugestellt werden."
-        }
+        "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort."
       },
       "notifications": {
         "title": "Benachrichtigungen",
@@ -3927,14 +3845,6 @@
         "insights": {
           "title": "Insights",
           "description": "Reihenfolge der Übersicht und der Navigations-Pills."
-        },
-        "medications": {
-          "title": "Medikamente",
-          "description": "Listenansicht und Reihenfolge der Medikamente."
-        },
-        "mood": {
-          "title": "Stimmungs-Tags",
-          "description": "Gruppen, Tags und Reihenfolge der Tag-Auswahl."
         }
       },
       "dashboard": {
@@ -4021,12 +3931,6 @@
         "description": "Lade deine Daten als CSV oder vollständiges JSON-Backup herunter — oder importiere aus Apple Health, JSON oder CSV. Den Arztbericht findest du jetzt unter Gesundheitsakte.",
         "otherOptionsHeading": "Weitere Export-Optionen",
         "downloadFailed": "Der Export konnte nicht heruntergeladen werden. Bitte versuche es erneut.",
-        "hero": {
-          "eyebrow": "Arzttermin",
-          "valueStatement": "Ein druckbarer PDF-Bericht für den Arzttermin — Vitalwerte, BMI, Blutdruck-Klassifikation, Therapietreue und (optional) Stimmungsverlauf, alles auf wenigen Seiten.",
-          "cta": "Bericht konfigurieren & generieren",
-          "formatHint": "PDF · druckfertig"
-        },
         "actions": {
           "download": "Herunterladen"
         },
@@ -4035,10 +3939,6 @@
           "until": "Bis"
         },
         "cards": {
-          "doctorReport": {
-            "title": "Arztbericht",
-            "description": "Druckbares PDF für den Arzttermin — Vitalwerte, BMI, BD-Klassifikation, Therapietreue, Stimmung."
-          },
           "measurementsCsv": {
             "title": "Messwerte",
             "description": "Gewicht, Blutdruck, Puls, Glukose und alle weiteren Messungen als CSV-Datei."
@@ -4415,14 +4315,6 @@
         "forgotError": "Konnte diese Angabe nicht vergessen. Bitte erneut versuchen.",
         "clearedToast": "{count} gespeicherte Angaben vergessen.",
         "clearError": "Konnte die gespeicherten Angaben nicht löschen. Bitte erneut versuchen."
-      },
-      "disableCoach": {
-        "title": "Coach ausblenden",
-        "description": "Versteckt den Coach-Button und das Coach-Panel auf allen Seiten.",
-        "toggleAria": "Coach-Button und Coach-Panel ausblenden",
-        "savedHidden": "Coach ist ausgeblendet.",
-        "savedShown": "Coach ist sichtbar.",
-        "saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen."
       },
       "aboutMe": {
         "title": "Über mich",
@@ -5906,11 +5798,6 @@
         "fiveDaysAgo": "vor 5 Tagen",
         "sixDaysAgo": "vor 6 Tagen"
       }
-    },
-    "relativeDay": {
-      "today": "heute",
-      "yesterday": "gestern",
-      "daysAgo": "vor {count} Tagen"
     },
     "edit": {
       "openLabel": "Zielbereich für {metric} bearbeiten",
