@@ -266,7 +266,8 @@
     "cycle": "Cycle",
     "labs": "Analyses",
     "recovery": "Récupération",
-    "vorsorge": "Prévention"
+    "vorsorge": "Prévention",
+    "illness": "Maladie"
   },
   "auth": {
     "login": "Se connecter",
@@ -6734,6 +6735,84 @@
     "medications": {
       "label": "Médicaments",
       "description": "Schémas, prises et observance."
+    },
+    "illness": {
+      "label": "Journal de maladie",
+      "description": "Suivez les épisodes de maladie et d'affections avec un historique quotidien des symptômes."
+    }
+  },
+  "illness": {
+    "title": "Journal de maladie",
+    "subtitle": "Un suivi rétrospectif de vos épisodes de maladie et d'affections.",
+    "disclaimer": "Un journal personnel, pas un dispositif médical. Il ne diagnostique ni ne prédit.",
+    "newEpisode": "Nouvel épisode",
+    "logDay": "Enregistrer un jour",
+    "markRecovered": "Marquer comme rétabli",
+    "onsetOn": "Débuté le {date}",
+    "recoveredOn": "rétabli {date}",
+    "status": {
+      "active": "En cours",
+      "ongoing": "Persistant",
+      "recovered": "Rétabli"
+    },
+    "empty": {
+      "title": "Aucun épisode pour l'instant",
+      "body": "Démarrez un épisode pour tenir un historique quotidien des symptômes et revoir son évolution."
+    },
+    "type": {
+      "INFECTION": "Infection",
+      "ALLERGY": "Allergie",
+      "INJURY": "Blessure",
+      "MENTAL_HEALTH": "Santé mentale",
+      "AUTOIMMUNE": "Auto-immune",
+      "CHRONIC": "Chronique",
+      "OTHER": "Autre"
+    },
+    "lifecycle": {
+      "ACUTE": "Aiguë",
+      "CHRONIC_ONGOING": "Chronique / persistante",
+      "RECURRING": "Récurrente",
+      "FLARE": "Poussée"
+    },
+    "new": {
+      "title": "Nouvel épisode",
+      "description": "Enregistrez une maladie ou une affection. Vous pourrez ensuite noter les symptômes au quotidien.",
+      "label": "Nom",
+      "labelPlaceholder": "p. ex. Rhume",
+      "type": "Type",
+      "lifecycle": "Évolution",
+      "onset": "Débuté le",
+      "note": "Note",
+      "notePlaceholder": "Ce qui mérite d'être noté (chiffré).",
+      "saveError": "Impossible d'enregistrer l'épisode. Veuillez réessayer."
+    },
+    "sheet": {
+      "title": "Enregistrer {date}",
+      "description": "Notez les symptômes du jour, votre forme et une éventuelle fièvre.",
+      "symptoms": "Symptômes",
+      "functionalImpact": "Votre forme",
+      "fever": "Température",
+      "note": "Note",
+      "noteSet": "Définie",
+      "notePlaceholder": "Comment s'est passée la journée (chiffré).",
+      "severityFor": "Intensité de {symptom}",
+      "saveError": "Impossible d'enregistrer la journée. Veuillez réessayer."
+    },
+    "impact": {
+      "0": "Pleinement fonctionnel",
+      "1": "Légèrement limité",
+      "2": "Surtout au repos",
+      "3": "Alité"
+    },
+    "symptom": {
+      "runnyNose": "Nez qui coule",
+      "stuffyNose": "Nez bouché",
+      "sneezing": "Éternuements",
+      "soreThroat": "Mal de gorge",
+      "cough": "Toux",
+      "headache": "Mal de tête",
+      "bodyAches": "Courbatures",
+      "fatigue": "Fatigue"
     }
   }
 }

@@ -1,0 +1,92 @@
+"use client";
+
+/**
+ * v1.18.1 — illness / condition-journal read + write hooks.
+ *
+ * Reads unwrap the envelope `data` (via `apiGet`/`apiPost`) per the project
+ * rule; every key is factory-routed through `queryKeys.illness*`. Writes
+ * invalidate the whole `["illness"]` prefix so the episode history list and
+ * an open day-log sheet repaint in lockstep after a log.
+ */
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
+
+import type {
+  IllnessDayLogDTO,
+  IllnessDayLogInput,
+  IllnessEpisodeCreateInput,
+  IllnessEpisodeDTO,
+} from "./types";
+
+/** Newest-first episode list. */
+export function useIllnessEpisodes(includeResolved = true) {
+  return useQuery({
+    queryKey: queryKeys.illnessEpisodes(includeResolved),
+    queryFn: () =>
+      apiGet<IllnessEpisodeDTO[]>(
+        `/api/illness/episodes?includeResolved=${includeResolved}`,
+      ),
+  });
+}
+
+/** One episode's day-log for a given date (null when nothing is logged). */
+export function useIllnessDayLog(episodeId: string | null, date: string) {
+  return useQuery({
+    queryKey: queryKeys.illnessDayLog(episodeId ?? "none", date),
+    enabled: episodeId !== null,
+    queryFn: () =>
+      apiGet<IllnessDayLogDTO | null>(
+        `/api/illness/episodes/${episodeId}/day-logs?date=${date}`,
+      ),
+  });
+}
+
+function useInvalidateIllness() {
+  const qc = useQueryClient();
+  return () => qc.invalidateQueries({ queryKey: queryKeys.illness() });
+}
+
+/** Create an episode. */
+export function useCreateEpisode() {
+  const invalidate = useInvalidateIllness();
+  return useMutation({
+    mutationFn: (input: IllnessEpisodeCreateInput) =>
+      apiPost<IllnessEpisodeDTO>("/api/illness/episodes", input),
+    onSuccess: invalidate,
+  });
+}
+
+/** Mark an episode recovered. */
+export function useResolveEpisode() {
+  const invalidate = useInvalidateIllness();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiPatch<IllnessEpisodeDTO>(`/api/illness/episodes/${id}/resolve`, {}),
+    onSuccess: invalidate,
+  });
+}
+
+/** Soft-delete an episode. */
+export function useDeleteEpisode() {
+  const invalidate = useInvalidateIllness();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiDelete<void>(`/api/illness/episodes/${id}`),
+    onSuccess: invalidate,
+  });
+}
+
+/** Upsert one day-log on an episode. */
+export function useUpsertDayLog(episodeId: string) {
+  const invalidate = useInvalidateIllness();
+  return useMutation({
+    mutationFn: (input: IllnessDayLogInput) =>
+      apiPost<IllnessDayLogDTO>(
+        `/api/illness/episodes/${episodeId}/day-logs`,
+        input,
+      ),
+    onSuccess: invalidate,
+  });
+}

@@ -77,6 +77,7 @@ function moduleMap(
     workouts: true,
     recovery: true,
     labs: true,
+    illness: true,
     achievements: true,
     coach: true,
     insights: true,

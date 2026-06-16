@@ -266,7 +266,8 @@
     "cycle": "Ciclo",
     "labs": "Análisis",
     "recovery": "Recuperación",
-    "vorsorge": "Prevención"
+    "vorsorge": "Prevención",
+    "illness": "Enfermedad"
   },
   "auth": {
     "login": "Iniciar sesión",
@@ -6734,6 +6735,84 @@
     "medications": {
       "label": "Medicamentos",
       "description": "Pautas, tomas y cumplimiento."
+    },
+    "illness": {
+      "label": "Diario de enfermedad",
+      "description": "Registra episodios de enfermedad y dolencias con un historial diario de síntomas."
+    }
+  },
+  "illness": {
+    "title": "Diario de enfermedad",
+    "subtitle": "Un registro retrospectivo de tus episodios de enfermedad y dolencias.",
+    "disclaimer": "Un diario personal, no un dispositivo médico. No diagnostica ni predice.",
+    "newEpisode": "Nuevo episodio",
+    "logDay": "Registrar un día",
+    "markRecovered": "Marcar como recuperado",
+    "onsetOn": "Comenzó el {date}",
+    "recoveredOn": "recuperado {date}",
+    "status": {
+      "active": "Activo",
+      "ongoing": "En curso",
+      "recovered": "Recuperado"
+    },
+    "empty": {
+      "title": "Aún no hay episodios",
+      "body": "Inicia un episodio para llevar un historial diario de síntomas y revisar cómo evolucionó."
+    },
+    "type": {
+      "INFECTION": "Infección",
+      "ALLERGY": "Alergia",
+      "INJURY": "Lesión",
+      "MENTAL_HEALTH": "Salud mental",
+      "AUTOIMMUNE": "Autoinmune",
+      "CHRONIC": "Crónica",
+      "OTHER": "Otro"
+    },
+    "lifecycle": {
+      "ACUTE": "Aguda",
+      "CHRONIC_ONGOING": "Crónica / en curso",
+      "RECURRING": "Recurrente",
+      "FLARE": "Brote"
+    },
+    "new": {
+      "title": "Nuevo episodio",
+      "description": "Registra una enfermedad o dolencia. Luego podrás anotar síntomas diarios.",
+      "label": "Nombre",
+      "labelPlaceholder": "p. ej. Resfriado común",
+      "type": "Tipo",
+      "lifecycle": "Curso",
+      "onset": "Comenzó el",
+      "note": "Nota",
+      "notePlaceholder": "Algo que valga la pena recordar (cifrado).",
+      "saveError": "No se pudo guardar el episodio. Inténtalo de nuevo."
+    },
+    "sheet": {
+      "title": "Registrar {date}",
+      "description": "Anota los síntomas de hoy, cómo funcionas y la fiebre, si la hay.",
+      "symptoms": "Síntomas",
+      "functionalImpact": "Cómo funcionas",
+      "fever": "Temperatura",
+      "note": "Nota",
+      "noteSet": "Definida",
+      "notePlaceholder": "Cómo te sentiste hoy (cifrado).",
+      "severityFor": "Gravedad de {symptom}",
+      "saveError": "No se pudo guardar el día. Inténtalo de nuevo."
+    },
+    "impact": {
+      "0": "Plenamente funcional",
+      "1": "Algo limitado",
+      "2": "Mayormente en reposo",
+      "3": "En cama"
+    },
+    "symptom": {
+      "runnyNose": "Goteo nasal",
+      "stuffyNose": "Congestión nasal",
+      "sneezing": "Estornudos",
+      "soreThroat": "Dolor de garganta",
+      "cough": "Tos",
+      "headache": "Dolor de cabeza",
+      "bodyAches": "Dolores musculares",
+      "fatigue": "Fatiga"
     }
   }
 }

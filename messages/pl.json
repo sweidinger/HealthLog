@@ -266,7 +266,8 @@
     "cycle": "Cykl",
     "labs": "Wyniki badań",
     "recovery": "Regeneracja",
-    "vorsorge": "Profilaktyka"
+    "vorsorge": "Profilaktyka",
+    "illness": "Choroba"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -6734,6 +6735,84 @@
     "medications": {
       "label": "Leki",
       "description": "Schematy, przyjęcia i zgodność."
+    },
+    "illness": {
+      "label": "Dziennik chorób",
+      "description": "Zapisuj epizody chorób i dolegliwości z dziennym przebiegiem objawów."
+    }
+  },
+  "illness": {
+    "title": "Dziennik chorób",
+    "subtitle": "Retrospektywny zapis Twoich epizodów chorób i dolegliwości.",
+    "disclaimer": "Osobisty dziennik — nie wyrób medyczny. Nie diagnozuje ani nie przewiduje.",
+    "newEpisode": "Nowy epizod",
+    "logDay": "Zapisz dzień",
+    "markRecovered": "Oznacz jako wyleczone",
+    "onsetOn": "Początek {date}",
+    "recoveredOn": "wyleczono {date}",
+    "status": {
+      "active": "Aktywny",
+      "ongoing": "Trwający",
+      "recovered": "Wyleczony"
+    },
+    "empty": {
+      "title": "Brak epizodów",
+      "body": "Rozpocznij epizod, aby prowadzić dzienny przebieg objawów i prześledzić, jak się rozwijał."
+    },
+    "type": {
+      "INFECTION": "Infekcja",
+      "ALLERGY": "Alergia",
+      "INJURY": "Uraz",
+      "MENTAL_HEALTH": "Zdrowie psychiczne",
+      "AUTOIMMUNE": "Autoimmunologiczna",
+      "CHRONIC": "Przewlekła",
+      "OTHER": "Inne"
+    },
+    "lifecycle": {
+      "ACUTE": "Ostra",
+      "CHRONIC_ONGOING": "Przewlekła / trwająca",
+      "RECURRING": "Nawracająca",
+      "FLARE": "Zaostrzenie"
+    },
+    "new": {
+      "title": "Nowy epizod",
+      "description": "Zapisz chorobę lub dolegliwość. Codzienne objawy możesz notować później.",
+      "label": "Nazwa",
+      "labelPlaceholder": "np. Przeziębienie",
+      "type": "Typ",
+      "lifecycle": "Przebieg",
+      "onset": "Początek",
+      "note": "Notatka",
+      "notePlaceholder": "Cokolwiek wartego zapamiętania (zaszyfrowane).",
+      "saveError": "Nie udało się zapisać epizodu. Spróbuj ponownie."
+    },
+    "sheet": {
+      "title": "Zapisz {date}",
+      "description": "Zanotuj dzisiejsze objawy, swoją sprawność i ewentualną gorączkę.",
+      "symptoms": "Objawy",
+      "functionalImpact": "Sprawność",
+      "fever": "Temperatura",
+      "note": "Notatka",
+      "noteSet": "Ustawiona",
+      "notePlaceholder": "Jak minął dzień (zaszyfrowane).",
+      "severityFor": "Nasilenie: {symptom}",
+      "saveError": "Nie udało się zapisać dnia. Spróbuj ponownie."
+    },
+    "impact": {
+      "0": "Pełna sprawność",
+      "1": "Lekko ograniczona",
+      "2": "Głównie odpoczynek",
+      "3": "W łóżku"
+    },
+    "symptom": {
+      "runnyNose": "Katar",
+      "stuffyNose": "Zatkany nos",
+      "sneezing": "Kichanie",
+      "soreThroat": "Ból gardła",
+      "cough": "Kaszel",
+      "headache": "Ból głowy",
+      "bodyAches": "Bóle ciała",
+      "fatigue": "Zmęczenie"
     }
   }
 }

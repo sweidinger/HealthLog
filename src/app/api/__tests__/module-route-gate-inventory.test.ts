@@ -77,6 +77,14 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   // v1.18.1 — the user-scoped Biomarker catalog backs the Labs feature.
   "src/app/api/biomarkers",
   "src/app/api/cycle",
+  // v1.18.1 (W-B) — the illness/condition journal. Every `/api/illness/*`
+  // route gates on the born-gated `illness` module via the thin
+  // `requireIllnessEnabled(...)` wrapper (which re-stamps the
+  // illness-specific errorCode over `requireModuleEnabled("illness")`),
+  // recognised below as a delegated gate. Walking the tree means a NEW
+  // ungated illness route fails this test BY NAME rather than leaking the
+  // surface over a Bearer token when the account never opted in.
+  "src/app/api/illness",
   "src/app/api/gamification",
   // v1.18.0 B3 — the legacy `/api/doctor-report` tree (JSON + server-PDF +
   // availability probe) was orphaned dead code (no production caller) and
@@ -178,6 +186,12 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
 const MODULE_GATE_NEEDLE = "requireModuleEnabled(";
 const CYCLE_GATE_NEEDLE = "requireCycleEnabled(";
 const COACH_GATE_NEEDLE = 'requireAssistantSurface("coach")';
+// v1.18.1 — the illness journal's thin gate wrapper. `requireIllnessEnabled`
+// delegates to `requireModuleEnabled(userId, "illness")` and re-stamps the
+// illness-specific errorCode, exactly mirroring how `cycle` delegates to
+// `requireCycleEnabled`. Recognised as a delegated gate so illness routes
+// are not flagged as ungated.
+const ILLNESS_GATE_NEEDLE = "requireIllnessEnabled(";
 // Builder aggregators that resolve `resolveModuleMap` once and exclude
 // disabled-module sections/resources at the build boundary.
 const BUILDER_GATE_NEEDLES: ReadonlyArray<string> = [
@@ -261,6 +275,7 @@ describe("module API route gate inventory", () => {
       "workouts",
       "recovery",
       "labs",
+      "illness",
       "achievements",
       "cycle",
       "coach",
@@ -286,6 +301,7 @@ describe("module API route gate inventory", () => {
       if (fileHasCall(text, MODULE_GATE_NEEDLE)) continue;
       if (fileHasCall(text, CYCLE_GATE_NEEDLE)) continue;
       if (fileHasCall(text, COACH_GATE_NEEDLE)) continue;
+      if (fileHasCall(text, ILLNESS_GATE_NEEDLE)) continue;
       if (BUILDER_GATE_NEEDLES.some((n) => fileHasCall(text, n))) continue;
 
       if (exempt.has(path)) continue;
@@ -356,6 +372,7 @@ describe("module API route gate inventory", () => {
         fileHasCall(text, MODULE_GATE_NEEDLE) ||
         fileHasCall(text, CYCLE_GATE_NEEDLE) ||
         fileHasCall(text, COACH_GATE_NEEDLE) ||
+        fileHasCall(text, ILLNESS_GATE_NEEDLE) ||
         BUILDER_GATE_NEEDLES.some((n) => fileHasCall(text, n))
       ) {
         stillGated.push(path);

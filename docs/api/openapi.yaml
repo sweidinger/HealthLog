@@ -7048,6 +7048,8 @@ components:
           type: boolean
         labs:
           type: boolean
+        illness:
+          type: boolean
         achievements:
           type: boolean
         insights:
@@ -12638,6 +12640,9 @@ components:
         labs:
           type: boolean
           description: Whether the "labs" module is enabled for this account.
+        illness:
+          type: boolean
+          description: Whether the "illness" module is enabled for this account.
         achievements:
           type: boolean
           description: Whether the "achievements" module is enabled for this account.
@@ -12658,6 +12663,7 @@ components:
         - workouts
         - recovery
         - labs
+        - illness
         - achievements
         - coach
         - insights
