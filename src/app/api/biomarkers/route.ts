@@ -13,7 +13,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { withIdempotency } from "@/lib/idempotency";
 import {
-  decryptContextFromBytes,
+  decryptContextSoft,
   encryptContextToBytes,
 } from "@/lib/labs/biomarker-store";
 import { annotate } from "@/lib/logging/context";
@@ -21,6 +21,12 @@ import { createBiomarkerSchema } from "@/lib/validations/biomarkers";
 
 /**
  * v1.18.1 — user-scoped Biomarker catalog (`/api/biomarkers`).
+ *
+ * Module gate: like `/api/labs/*`, this is intentionally NOT server-gated.
+ * The Labs module toggle is a UX-only nav preference; the data is owner-scoped
+ * and read by cross-feature surfaces (Vorsorge reminder resolution, the
+ * doctor-report PDF) regardless of the toggle. Deliberate opt-out, in contrast
+ * to the born-gated `/api/illness/*` routes.
  *
  * The catalog is the Labs feature's primary object: a marker is defined ONCE
  * (name, unit, reference bounds, optional context) and every later reading
@@ -33,7 +39,10 @@ import { createBiomarkerSchema } from "@/lib/validations/biomarkers";
  */
 
 // The encrypted context bytes are never echoed back; `hasContext` flags
-// presence and the single-resource GET returns the decrypted text.
+// presence. The list path decrypts FAIL-SOFT (`decryptContextSoft` → null on
+// a bad-key / malformed row) so one un-decryptable row never 500s the whole
+// catalog — the single-resource GET is the authoritative read for the
+// plaintext context. This bounds the fail-closed blast radius to one marker.
 function serialiseBiomarker(row: {
   id: string;
   name: string;
@@ -53,9 +62,7 @@ function serialiseBiomarker(row: {
     upperBound: row.upperBound,
     panel: row.panel,
     hasContext: row.contextEncrypted !== null,
-    context: row.contextEncrypted
-      ? decryptContextFromBytes(row.contextEncrypted)
-      : null,
+    context: decryptContextSoft(row.contextEncrypted),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
