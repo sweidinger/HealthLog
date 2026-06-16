@@ -53,6 +53,7 @@ import { GET } from "../route";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { apiError } from "@/lib/api-response";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -99,5 +100,35 @@ describe("GET /api/insights/blood-pressure-status — assistant-flag gate", () =
     vi.mocked(getSession).mockResolvedValue(null);
     const res = await callGet(makeReq());
     expect(res.status).toBe(401);
+  });
+});
+
+// v1.18.0 (B2) — the route now also requires the `insights` module.
+// Representative coverage that a disabled module short-circuits with the
+// 403 module.disabled envelope before any provider / cache work; the
+// inventory test guards that EVERY insights AI route carries this gate.
+describe("GET /api/insights/blood-pressure-status — insights module gate", () => {
+  it("returns 200 when insights is enabled (default)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 403 + module.disabled when insights is off", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(requireModuleEnabled).mockResolvedValueOnce({
+      enabled: false,
+      response: apiError('Module "insights" is not enabled', 403, {
+        errorCode: "module.disabled",
+        module: "insights",
+      }),
+    });
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as {
+      meta?: { errorCode?: string; module?: string };
+    };
+    expect(body.meta?.errorCode).toBe("module.disabled");
+    expect(body.meta?.module).toBe("insights");
   });
 });
