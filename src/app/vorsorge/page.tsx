@@ -25,7 +25,7 @@ export default function VorsorgePage() {
 
   return (
     <div className="space-y-6">
-      <VorsorgeSection enabled={isAuthenticated} />
+      <VorsorgeSection enabled={isAuthenticated} variant="page" />
     </div>
   );
 }

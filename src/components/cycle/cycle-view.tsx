@@ -137,18 +137,21 @@ export function CycleView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">
             {t("cycle.title")}
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p className="text-muted-foreground text-xs sm:text-sm">
             {t("cycle.subtitle")}
           </p>
         </div>
-        <Button onClick={() => openSheet(today)} className="gap-2">
+        <Button
+          onClick={() => openSheet(today)}
+          className="min-h-11 shrink-0 sm:min-h-9"
+        >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">{t("cycle.logToday")}</span>
+          {t("cycle.logToday")}
         </Button>
       </div>
 
