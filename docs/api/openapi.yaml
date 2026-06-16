@@ -3041,6 +3041,28 @@ paths:
                       - medication
                       - mobility
                       - environment
+                reminderSuggestions:
+                  type: object
+                  properties:
+                    enabled:
+                      default: true
+                      type: boolean
+                    stopped:
+                      default: false
+                      type: boolean
+                    dismissedCadences:
+                      default: []
+                      maxItems: 32
+                      type: array
+                      items:
+                        type: string
+                        maxLength: 64
+                    lastSuggestedAt:
+                      default: null
+                      anyOf:
+                        - type: string
+                          maxLength: 40
+                        - type: "null"
       responses:
         "200":
           description: Saved preferences echoed back.
@@ -12227,6 +12249,34 @@ components:
                   - medication
                   - mobility
                   - environment
+            reminderSuggestions:
+              type: object
+              properties:
+                enabled:
+                  default: true
+                  type: boolean
+                stopped:
+                  default: false
+                  type: boolean
+                dismissedCadences:
+                  default: []
+                  maxItems: 32
+                  type: array
+                  items:
+                    type: string
+                    maxLength: 64
+                lastSuggestedAt:
+                  default: null
+                  anyOf:
+                    - type: string
+                      maxLength: 40
+                    - type: "null"
+              required:
+                - enabled
+                - stopped
+                - dismissedCadences
+                - lastSuggestedAt
+              additionalProperties: false
           required:
             - tone
             - verbosity
@@ -12311,6 +12361,34 @@ components:
                   - medication
                   - mobility
                   - environment
+            reminderSuggestions:
+              type: object
+              properties:
+                enabled:
+                  default: true
+                  type: boolean
+                stopped:
+                  default: false
+                  type: boolean
+                dismissedCadences:
+                  default: []
+                  maxItems: 32
+                  type: array
+                  items:
+                    type: string
+                    maxLength: 64
+                lastSuggestedAt:
+                  default: null
+                  anyOf:
+                    - type: string
+                      maxLength: 40
+                    - type: "null"
+              required:
+                - enabled
+                - stopped
+                - dismissedCadences
+                - lastSuggestedAt
+              additionalProperties: false
           required:
             - tone
             - verbosity
@@ -16941,6 +17019,17 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
+        endsOn:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        origin:
+          type: string
+          enum:
+            - VORSORGE
+            - COACH
         notifyHour:
           type: integer
           minimum: -9007199254740991
@@ -16978,6 +17067,8 @@ components:
         - intervalDays
         - rrule
         - anchorDate
+        - endsOn
+        - origin
         - notifyHour
         - location
         - nextDueAt
@@ -16987,7 +17078,9 @@ components:
         - updatedAt
       additionalProperties: false
       description: A Vorsorge reminder. nextDueAt is server-computed (server-authoritative). A free-text reminder carries
-        measurementType=null and resolves only on a manual satisfy.
+        measurementType=null and resolves only on a manual satisfy. origin distinguishes a user-created (VORSORGE)
+        reminder from one minted by a Coach cadence suggestion (COACH); endsOn bounds a finite course window (null =
+        open-ended).
     MeasurementReminderCreatedEnvelope:
       type: object
       properties:

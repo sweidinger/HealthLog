@@ -6619,5 +6619,26 @@
       "label": "Medicamentos",
       "description": "Pautas, tomas y cumplimiento."
     }
+  },
+  "coach": {
+    "reminderSuggestion": {
+      "title": "¿Crear un recordatorio?",
+      "accept": "Crear recordatorio",
+      "dismiss": "Ahora no",
+      "stop": "Ya mido suficiente",
+      "accepted": "Recordatorio creado",
+      "dismissed": "De acuerdo, no lo volveré a sugerir",
+      "stopped": "Entendido, dejaré de sugerir recordatorios",
+      "failed": "No se pudo crear, inténtalo de nuevo",
+      "cadence": {
+        "weightDaily": "Pésate a diario, más o menos a la misma hora",
+        "bp722": "Mide tu tensión dos veces al día durante una semana",
+        "glucoseStructured": "Mide tu glucosa con un horario diario estructurado"
+      }
+    },
+    "settings": {
+      "reminderSuggestionsLabel": "Sugerencias de frecuencia",
+      "reminderSuggestionsDescription": "Permite que el Coach ofrezca de vez en cuando un recordatorio basado en evidencia para medir una métrica con más regularidad."
+    }
   }
 }

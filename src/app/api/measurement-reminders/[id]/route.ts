@@ -147,6 +147,9 @@ export const PATCH = apiHandler(
         (updateData.notifyHour as number | undefined) ?? existing.notifyHour,
       lastSatisfiedAt: existing.lastSatisfiedAt,
       createdAt: existing.createdAt,
+      // v1.18.1 — preserve the course window so an edit of a finite
+      // (Coach-suggested) cadence keeps self-expiring.
+      endsOn: existing.endsOn,
     };
     const after =
       existing.lastSatisfiedAt && existing.lastSatisfiedAt > now

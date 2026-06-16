@@ -127,6 +127,43 @@ export const DEFAULT_COACH_CLUSTERS: ReadonlyArray<CoachDataCluster> = [
 ];
 
 /**
+ * v1.18.1 (Workstream C) — Coach cadence-suggestion state. Persisted
+ * inside the same `coachPrefsJson` blob so the suggestion engine has a
+ * single, atomic place for the non-naggy machinery:
+ *
+ *   - `enabled`: master opt-out for cadence suggestions (default ON; the
+ *     toggle lives under Coach / Reminders settings).
+ *   - `stopped`: the explicit "you measure enough — stop" path. Once the
+ *     user picks it the Coach never suggests a cadence again until they
+ *     re-enable. Distinct from `enabled:false` only in provenance (the user
+ *     said "stop" from the card vs flipped the settings toggle); both
+ *     suppress.
+ *   - `dismissedCadences`: cadence ids the user dismissed. A dismissed
+ *     cadence is never re-suggested (dismissal memory).
+ *   - `lastSuggestedAt`: ISO instant of the last suggestion actually shown.
+ *     Drives the cooldown (no second suggestion within the cooldown window).
+ *
+ * The shape is fully optional + defaulted so every legacy blob parses as
+ * "suggestions on, nothing dismissed".
+ */
+export const coachReminderSuggestionPrefsSchema = z.object({
+  enabled: z.boolean().default(true),
+  stopped: z.boolean().default(false),
+  dismissedCadences: z.array(z.string().max(64)).max(32).default([]),
+  lastSuggestedAt: z.string().max(40).nullable().default(null),
+});
+export type CoachReminderSuggestionPrefs = z.infer<
+  typeof coachReminderSuggestionPrefsSchema
+>;
+
+export const DEFAULT_REMINDER_SUGGESTION_PREFS: CoachReminderSuggestionPrefs = {
+  enabled: true,
+  stopped: false,
+  dismissedCadences: [],
+  lastSuggestedAt: null,
+};
+
+/**
  * Full preferences shape. Defaults are inlined into the schema so a
  * `safeParse({})` call returns the legacy v1.4.22 defaults — saves a
  * sprinkle of `?? defaultX` calls at the call sites.
@@ -144,6 +181,12 @@ export const coachPrefsSchema = z.object({
   // — an empty array means "the user turned everything off", which is a
   // distinct, valid state from "never picked".
   dataClusters: z.array(coachDataClusterEnum).max(10).optional(),
+  // v1.18.1 (Workstream C) — cadence-suggestion state. Optional with NO
+  // top-level default so a legacy blob (and `parse({})`) stays byte-
+  // identical: an absent key reads as `undefined`, and call sites fall
+  // back to `DEFAULT_REMINDER_SUGGESTION_PREFS`. When the key IS present,
+  // its inner fields default (so `{}` fills to the all-on shape).
+  reminderSuggestions: coachReminderSuggestionPrefsSchema.optional(),
 });
 
 export type CoachPrefs = z.infer<typeof coachPrefsSchema>;

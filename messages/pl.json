@@ -6619,5 +6619,26 @@
       "label": "Leki",
       "description": "Schematy, przyjęcia i zgodność."
     }
+  },
+  "coach": {
+    "reminderSuggestion": {
+      "title": "Ustawić przypomnienie?",
+      "accept": "Ustaw przypomnienie",
+      "dismiss": "Nie teraz",
+      "stop": "Mierzę wystarczająco",
+      "accepted": "Przypomnienie ustawione",
+      "dismissed": "Dobrze, nie zaproponuję tego ponownie",
+      "stopped": "Rozumiem, przestanę proponować przypomnienia",
+      "failed": "Nie udało się ustawić, spróbuj ponownie",
+      "cadence": {
+        "weightDaily": "Waż się codziennie, mniej więcej o tej samej porze",
+        "bp722": "Mierz ciśnienie dwa razy dziennie przez tydzień",
+        "glucoseStructured": "Mierz glukozę według ustrukturyzowanego planu dziennego"
+      }
+    },
+    "settings": {
+      "reminderSuggestionsLabel": "Sugestie częstotliwości",
+      "reminderSuggestionsDescription": "Pozwól Coachowi od czasu do czasu zaproponować oparte na dowodach przypomnienie, aby mierzyć daną wartość bardziej regularnie."
+    }
   }
 }

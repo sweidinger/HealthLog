@@ -6619,5 +6619,26 @@
       "label": "Medications",
       "description": "Schedules, intakes, and compliance."
     }
+  },
+  "coach": {
+    "reminderSuggestion": {
+      "title": "Set a reminder?",
+      "accept": "Set reminder",
+      "dismiss": "Not now",
+      "stop": "I measure enough",
+      "accepted": "Reminder set",
+      "dismissed": "Okay, I won't suggest this again",
+      "stopped": "Got it — I'll stop suggesting reminders",
+      "failed": "Couldn't set that up — please try again",
+      "cadence": {
+        "weightDaily": "Weigh yourself daily, around the same time",
+        "bp722": "Measure your blood pressure twice a day for a week",
+        "glucoseStructured": "Test your glucose on a structured daily schedule"
+      }
+    },
+    "settings": {
+      "reminderSuggestionsLabel": "Cadence suggestions",
+      "reminderSuggestionsDescription": "Let the Coach offer an occasional, evidence-based reminder to measure a metric more regularly."
+    }
   }
 }

@@ -171,4 +171,35 @@ describe("parseCoachPrefs", () => {
       "mood",
     ]);
   });
+
+  // v1.18.1 (Workstream C) — reminder-suggestion sub-shape.
+  it("a legacy blob (no reminderSuggestions) parses with the key absent", () => {
+    const out = parseCoachPrefs({ tone: "warm" });
+    expect(out.reminderSuggestions).toBeUndefined();
+  });
+
+  it("fills the reminderSuggestions defaults when the key is an empty object", () => {
+    const out = coachPrefsSchema.parse({ reminderSuggestions: {} });
+    expect(out.reminderSuggestions).toEqual({
+      enabled: true,
+      stopped: false,
+      dismissedCadences: [],
+      lastSuggestedAt: null,
+    });
+  });
+
+  it("round-trips a populated reminderSuggestions block", () => {
+    const out = coachPrefsSchema.parse({
+      reminderSuggestions: {
+        enabled: true,
+        stopped: false,
+        dismissedCadences: ["bp_7_2_2"],
+        lastSuggestedAt: "2026-06-16T12:00:00.000Z",
+      },
+    });
+    expect(out.reminderSuggestions?.dismissedCadences).toEqual(["bp_7_2_2"]);
+    expect(out.reminderSuggestions?.lastSuggestedAt).toBe(
+      "2026-06-16T12:00:00.000Z",
+    );
+  });
 });

@@ -41,6 +41,13 @@ export interface ReminderScheduleInput {
   notifyHour: number;
   lastSatisfiedAt: Date | null;
   createdAt: Date;
+  /**
+   * v1.18.1 (Workstream C) — optional course-window end. NULL ⇒ open-ended
+   * (the existing behaviour). Non-NULL bounds a finite cadence: the
+   * recurrence engine stops producing occurrences past this instant, so a
+   * Coach-suggested time-boxed protocol (ESH/AHA 7-day BP) self-expires.
+   */
+  endsOn?: Date | null;
 }
 
 function hourToHhmm(hour: number): string {
@@ -86,7 +93,7 @@ export function buildReminderRecurrence(
     medication: {
       id: "measurement-reminder",
       startsOn,
-      endsOn: null,
+      endsOn: reminder.endsOn ?? null,
       oneShot: false,
       createdAt: reminder.createdAt,
     },

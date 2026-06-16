@@ -10,6 +10,7 @@ import type {
   CoachProvenance,
   CoachScope,
   CoachStreamEvent,
+  CoachSuggestion,
 } from "@/lib/ai/coach/types";
 import { apiDelete, apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
@@ -178,6 +179,11 @@ export interface CoachStreamingMessage {
   content: string;
   /** Provenance frame — populated once the server emits it. */
   metricSource: CoachProvenance | null;
+  /**
+   * v1.18.1 (Workstream C) — cadence suggestion from the additive
+   * `suggestion` frame, if the turn carried one. Null otherwise.
+   */
+  suggestion: CoachSuggestion | null;
   /** True until the `done` frame closes the stream. */
   inProgress: boolean;
   /** Final messageId once `done` lands; null otherwise. */
@@ -220,6 +226,7 @@ export interface CoachOptimisticUserMessage {
 const EMPTY_STREAMING: CoachStreamingMessage = {
   content: "",
   metricSource: null,
+  suggestion: null,
   inProgress: false,
   messageId: null,
   errorCode: null,
@@ -314,6 +321,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
       setStreaming({
         content: "",
         metricSource: null,
+        suggestion: null,
         inProgress: true,
         messageId: null,
         errorCode: null,
@@ -326,6 +334,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         setStreaming({
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: "coach.network",
@@ -358,6 +367,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         setStreaming({
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: "coach.network",
@@ -369,6 +379,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         setStreaming({
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: `coach.http.${response.status}`,
@@ -405,6 +416,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         setStreaming({
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: structured ?? `coach.http.${response.status}`,
@@ -423,6 +435,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
       let resolvedConversationId: string | null = null;
       let collectedContent = "";
       let collectedProvenance: CoachProvenance | null = null;
+      let collectedSuggestion: CoachSuggestion | null = null;
       let lastError: string | null = null;
       let messageId: string | null = null;
 
@@ -447,6 +460,13 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
                 setStreaming((prev) => ({
                   ...prev,
                   metricSource: evt.metricSource,
+                }));
+                break;
+              case "suggestion":
+                collectedSuggestion = evt.suggestion;
+                setStreaming((prev) => ({
+                  ...prev,
+                  suggestion: evt.suggestion,
                 }));
                 break;
               case "done":
@@ -478,6 +498,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
       setStreaming({
         content: collectedContent,
         metricSource: collectedProvenance,
+        suggestion: collectedSuggestion,
         inProgress: false,
         messageId,
         errorCode: lastError,
@@ -529,4 +550,5 @@ export type {
   CoachConversationDTO,
   CoachConversationDetailDTO,
   CoachProvenance,
+  CoachSuggestion,
 };
