@@ -5177,6 +5177,7 @@
     "deleteAllConfirm": "Vraiment supprimer toutes les données ?",
     "deleteAllConfirmDescription": "Cette action supprimera définitivement toutes les mesures, médicaments, événements de prise, jetons d'API, connexions Withings, défis d'authentification ouverts, canaux de notification (Telegram, ntfy, Web Push), abonnements push et suppressions de messages Telegram en file d'attente pour tous les utilisateurs. Les comptes utilisateurs, le journal d'audit et les retours soumis sont conservés afin que l'effacement reste traçable et que les rapports de bug restent triables.",
     "deleteButton": "Supprimer toutes les données",
+    "deleteAllPromptLabel": "Tapez {token} pour continuer",
     "finalDelete": "Supprimer définitivement",
     "deletedResult": "Deleted: {measurements} measurements, {medications} Médicaments,{intakeEvents} intakes, {apiTokens} API tokens, {withingsConnections} Withings connections, {authChallenges} auth challenges, {notificationChannels} notification channels, {pushSubscriptions} push subscriptions, {telegramScheduledDeletions} queued Telegram deletions. Feedback rows preserved.",
     "authRegister": "Inscription",

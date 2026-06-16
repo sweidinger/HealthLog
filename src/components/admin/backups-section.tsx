@@ -39,7 +39,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatDateTime } from "@/lib/format";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -70,6 +69,7 @@ function RestoreRowDialog({
   onConfirm: () => void;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
   const matched = typed.trim() === "RESTORE";
@@ -108,7 +108,7 @@ function RestoreRowDialog({
           <AlertDialogDescription>
             {t("admin.section.backups.restoreDescription", {
               username: row.username,
-              when: formatDateTime(row.createdAt),
+              when: fmt.dateTime(row.createdAt),
             })}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -501,7 +501,7 @@ export function BackupsSection() {
                     {formatBytes(row.sizeBytes, fmt)}
                   </td>
                   <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
-                    {formatDateTime(row.createdAt)}
+                    {fmt.dateTime(row.createdAt)}
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">
