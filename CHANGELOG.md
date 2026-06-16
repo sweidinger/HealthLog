@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+## [1.18.1] — 2026-06-16 — labs that hold a catalog, a condition journal, and reminders that only nudge when you forget
+
+A large release that turns two thin features into proper ones and adds two more, all in the existing visual language. Lab results gain a biomarker catalog: define a marker once with its unit and reference range, then log a value by picking it — with a full dashboard-style chart, edit and undo. A new condition journal records an illness from onset to recovery and, once it has enough of your own history, reflects back how it announced itself and how long recovery took — retrospective only, never a diagnosis. Preventive-care reminders now fire only when a measurement is actually overdue and clear themselves the moment a reading arrives from any source, and the coach can suggest an evidence-based measurement cadence you accept with one tap — both feeding one shared reminder engine. The settings menu, the dashboard header, the recovery page and the coach view were tightened so every module reads as one app. Medications can now be switched off like any other module; the core vitals — weight, blood pressure, pulse — stay always on. No breaking changes.
+
+### Added
+
+- **Lab biomarkers with a reference range you set once.** Define a biomarker — name, unit, lower and upper bound, an optional note — from a suggested common panel or your own, then record a value by picking the marker instead of retyping its range every time. Each biomarker gets a proper chart with its target band, a full reading history, and edit, correct and undo. Every reading links to a catalog marker, so none is a dead end.
+- **A condition journal.** Track any illness or condition — acute, chronic, recurring, or a flare hanging off an earlier one — with a daily symptom-and-severity log and an encrypted note. Once there is enough of your own data, a retrospective view shows how often you have been unwell and your typical recovery gap (when your body returned to baseline versus when you felt better), computed from your own baseline and withheld until it is sure. It never predicts or diagnoses, and a sustained red-flag pattern points you to care rather than reassuring you. The area ships switched off; turn it on under "What you track".
+- **Rest Mode.** While a condition is active, your scores, recovery and streaks are annotated rather than penalised and cadence nudges pause — an active illness never changes a measured number, only the narrative around it. A calm banner explains it on the dashboard and recovery view, and condition episodes carry into the doctor-report PDF and the FHIR export as patient-reported conditions.
+- **Coach measurement-cadence suggestions.** When a real change warrants it, the coach can suggest an evidence-based cadence — daily weight, morning-and-evening blood pressure for a week, structured glucose — that you accept with one tap to create a reminder. It stays non-naggy: capped, cooled-down, dismissible, and willing to say you already measure enough.
+
+### Changed
+
+- **Preventive-care reminders only nudge when you forget.** A reminder now clears itself the moment a matching measurement arrives — entered by hand or synced from a device — and reschedules its next due date, so the self-disciplined are left alone and the reminder is a safety net for gaps. Coach suggestions and preventive-care reminders run on one shared engine; reminders can be edited, carry a quiet "Coach" badge and course-window end date, and the linkable measurement set now covers the full range of types.
+- **Every module reads as one app.** Labs, the condition journal and preventive care now use the same add-entry sheet, overflow menus and confirm-before-delete guards as medications. The settings sections drop their leading blurbs and align consistently, integrations split into Connections, Channels and Sources as their own entries, the coach setting reads as "activate the coach" (on by default), and the "About me" health context moved into the account profile.
+- **A calmer dashboard and a consistent recovery page.** The daily-overview header now sits flat alongside the other tiles instead of as a glowing hero. The recovery page follows the same shape as every other metric page — heading, a short explanation, history with high, median and mean, a chart with a 7- and 30-point view, a target band and an assessment — and the duplicate score block was removed. The coach view was rebalanced for symmetry and space.
+- **Medications is now an optional module.** It can be switched off like cycle, sleep or labs; weight, blood pressure and pulse remain the always-on core.
+- **A richer cycle log.** The day sheet gains a phase-context header, inline field explanations, and a fertility section that opens itself when your goal calls for it.
+- **Admin tidy-up.** The coach feedback, insight-quality and assistant-surface panels consolidate into one coach area, the backups panel leads with its counts, and the danger zone now requires typing a confirmation like the less-destructive restore already did.
+
+### Fixed
+
+- The illness recovery-gap engine no longer reports a return before a vital deviated, escalates a red-flag for rock-steady oxygen or temperature, reads journalled fever, and keys days by your own time zone rather than UTC.
+- Lab readings logged without a catalog marker are linked on write instead of stranded; a failed note-load no longer wipes the note on edit; and a partial reference-range edit can no longer save an inverted range.
+- The morning-and-evening blood-pressure protocol now schedules both times instead of one. Reminder satisfaction is race-safe across the cron and event paths.
+
+### Security
+
+- The encryption-key rotation script now covers every encrypted column in the schema — including the new lab, biomarker and condition notes and a tail of previously-missed integration and profile fields — driven from a single registry that a test asserts is complete, so a future encrypted column cannot silently miss rotation. The admin data-wipe is gated behind a typed confirmation and a per-user rate limit.
+- Pin `hono` to `≥ 4.12.25` through an override, clearing the CORS-middleware advisory (GHSA-88fw-hqm2-52qc). The package is pulled in only by Prisma's and the shadcn CLI's tooling; the app is Next.js and sets no CORS headers anywhere, so the issue was never reachable at runtime.
+- Pin `picomatch` to `≥ 4.0.4` through an override, clearing the ReDoS advisory (CVE-2026-33671). The package is a transitive build dependency.
+
+### Operator note
+
+- Additive migrations only (`0169`–`0172`): reminder course-window fields, the biomarker catalog and lab link, the condition-journal tables, and a partial unique index for coach-minted reminders. No backfill and no deploy-time action required. The condition journal ships disabled by default. **If you rotate `ENCRYPTION_KEYS`, re-run `scripts/rotate-encryption-key.ts` after upgrading** — it now re-encrypts several columns it previously skipped; do not drop a legacy key until it reports zero remaining rows.
+
 ## [1.18.0] — 2026-06-16 — turn off what you don't track, and a settings menu that finally reads as one app
 
 This release makes the app yours to shape. Every optional area — cycle, mood, sleep, glucose, workouts, recovery, labs, achievements, the coach, AI insights and the doctor-report — can be turned off, and when it is, it disappears everywhere at once: out of the navigation, off the dashboard, gone from insights, the coach, your reminders, achievements and the exported report. Your data is kept; turn the area back on and it returns. The settings menu was redesigned alongside it, so notification channels, integrations, sources and per-area pages each sit where you'd look for them instead of spread across overlapping hubs. The core vitals — weight, blood pressure, pulse and medications — are always on. No breaking changes.

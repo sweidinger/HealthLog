@@ -17,28 +17,50 @@ import { z } from "zod/v4";
 /**
  * The auto-resolve target types. Kept as an explicit allow-list rather
  * than the full `MeasurementType` enum: a Vorsorge reminder only makes
- * sense for the metrics a user actively measures on a cadence (BP,
- * weight, glucose, pulse, SpO2, body composition, body temperature).
- * Free-text reminders pass `null` and resolve only on a manual satisfy.
+ * sense for the metrics a user actively goes and measures on a cadence —
+ * vitals + the body-composition family a scale produces.
+ *
+ * v1.18.1 (V3) widens the original 7 to the full ~15 active-measurement
+ * set. The DB column is the full `MeasurementType` enum, so this is a
+ * pure application-layer change — no migration.
+ *
+ * DELIBERATELY excluded: passive wearable scores + cumulative activity +
+ * device events (RECOVERY_SCORE, ACTIVITY_STEPS, IRREGULAR_RHYTHM_*, …),
+ * and the passive nightly samples RESTING_HEART_RATE / HEART_RATE_VARIABILITY
+ * / VO2_MAX — nudging a user to "go measure" a passive sample makes no
+ * sense (they still auto-satisfy any free-text reminder via a LabResult if
+ * ever wanted, but they are not "remind me to measure" targets).
  *
  * BP is matched on `BLOOD_PRESSURE_SYS` as the canonical sentinel — a BP
  * reading is two rows (SYS + DIA) and matching either would double-count;
- * SYS is the agreed "a BP was measured" anchor.
+ * SYS is the agreed "a BP was measured" anchor. A single step-on-the-scale
+ * event writes WEIGHT + several body-composition rows at once, so any one
+ * of them satisfies its linked reminder.
  */
 export const measurementReminderTypeEnum = z
   .enum([
+    // Vitals
     "WEIGHT",
     "BLOOD_PRESSURE_SYS",
     "PULSE",
     "BLOOD_GLUCOSE",
     "OXYGEN_SATURATION",
-    "BODY_FAT",
     "BODY_TEMPERATURE",
+    // Body composition (one scale reading produces the whole family)
+    "BODY_FAT",
+    "FAT_MASS",
+    "FAT_FREE_MASS",
+    "MUSCLE_MASS",
+    "LEAN_BODY_MASS",
+    "BONE_MASS",
+    "TOTAL_BODY_WATER",
+    "VISCERAL_FAT",
+    "BODY_MASS_INDEX",
   ])
   .meta({
     id: "MeasurementReminderType",
     description:
-      "Auto-resolve target metric. BP resolves on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured' sentinel). Omit for a free-text Vorsorge that resolves only on a manual satisfy.",
+      "Auto-resolve target metric (vitals + body-composition family). BP resolves on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured' sentinel). Omit for a free-text Vorsorge that resolves only on a manual satisfy or a matching lab result.",
   });
 
 export type MeasurementReminderType = z.infer<
@@ -147,6 +169,8 @@ export const measurementReminderDto = z
     intervalDays: z.number().int().nullable(),
     rrule: z.string().nullable(),
     anchorDate: z.iso.datetime({ offset: true }).nullable(),
+    endsOn: z.iso.datetime({ offset: true }).nullable(),
+    origin: z.enum(["VORSORGE", "COACH"]),
     notifyHour: z.number().int(),
     location: z.string().nullable(),
     nextDueAt: z.iso.datetime({ offset: true }).nullable(),
@@ -158,5 +182,5 @@ export const measurementReminderDto = z
   .meta({
     id: "MeasurementReminderDTO",
     description:
-      "A Vorsorge reminder. nextDueAt is server-computed (server-authoritative). A free-text reminder carries measurementType=null and resolves only on a manual satisfy.",
+      "A Vorsorge reminder. nextDueAt is server-computed (server-authoritative). A free-text reminder carries measurementType=null and resolves only on a manual satisfy. origin distinguishes a user-created (VORSORGE) reminder from one minted by a Coach cadence suggestion (COACH); endsOn bounds a finite course window (null = open-ended).",
   });

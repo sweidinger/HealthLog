@@ -39,7 +39,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatDateTime } from "@/lib/format";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -70,6 +69,7 @@ function RestoreRowDialog({
   onConfirm: () => void;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
   const matched = typed.trim() === "RESTORE";
@@ -108,7 +108,7 @@ function RestoreRowDialog({
           <AlertDialogDescription>
             {t("admin.section.backups.restoreDescription", {
               username: row.username,
-              when: formatDateTime(row.createdAt),
+              when: fmt.dateTime(row.createdAt),
             })}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -333,6 +333,13 @@ export function BackupsSection() {
 
   return (
     <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      {/* v1.18.1 E3 — the snapshot count leads (numbers first), the
+          "Run now" button follows, and the explainer + docs link move
+          into the header's description slot. Previously the description
+          sat in a separate `mt-1 pl-7` paragraph that crowded the button
+          directly above it; routing it through the header's `space-y-1`
+          stack restores breathing room and left-aligns it under the
+          title. */}
       <SettingsCardHeader
         icon={Database}
         title={t("admin.section.backups.title")}
@@ -358,22 +365,23 @@ export function BackupsSection() {
             {t("admin.section.backups.runNow")}
           </Button>
         }
+        description={
+          <p>
+            {t("admin.section.backups.description")}{" "}
+            {/* External docs link — `noopener noreferrer` because this
+                leaves the admin shell. */}
+            <a
+              href="https://docs.healthlog.dev/admin/backups"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary inline-flex items-center gap-1 underline-offset-2 hover:underline"
+            >
+              <BookOpen className="h-3 w-3" aria-hidden="true" />
+              {t("admin.section.backups.docsLink")}
+            </a>
+          </p>
+        }
       />
-      <p className="text-muted-foreground mt-1 pl-7 text-xs">
-        {t("admin.section.backups.description")}{" "}
-        {/* External docs link — Phase E will publish the matching page on
-            the docs site. `noopener noreferrer` because this leaves the
-            admin shell. */}
-        <a
-          href="https://docs.healthlog.dev/admin/backups"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary inline-flex items-center gap-1 underline-offset-2 hover:underline"
-        >
-          <BookOpen className="h-3 w-3" aria-hidden="true" />
-          {t("admin.section.backups.docsLink")}
-        </a>
-      </p>
 
       {/* Upload card — separate from the table so admins can ingest a
           backup file independently of any existing rows. The visible
@@ -493,7 +501,7 @@ export function BackupsSection() {
                     {formatBytes(row.sizeBytes, fmt)}
                   </td>
                   <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
-                    {formatDateTime(row.createdAt)}
+                    {fmt.dateTime(row.createdAt)}
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">

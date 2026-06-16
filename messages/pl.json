@@ -123,37 +123,6 @@
     "glucoseBelowTarget": "poniżej celu",
     "glucoseAboveTarget": "powyżej celu",
     "practiceLabel": "Gabinet",
-    "dialog": {
-      "title": "Raport medyczny (PDF)",
-      "description": "Ustaw okres analizy i (opcjonalnie) nazwę gabinetu — oba pojawią się na stronie tytułowej.",
-      "startLabel": "Od",
-      "endLabel": "Do",
-      "practiceLabel": "Gabinet / klinika (opcjonalnie)",
-      "practicePlaceholder": "np. dr Müller — lekarz rodzinny",
-      "preset90d": "Ostatnie 90 dni",
-      "preset180d": "Ostatnie 6 miesięcy",
-      "preset365d": "Ostatnie 12 miesięcy",
-      "submit": "Wygeneruj PDF",
-      "cancel": "Anuluj",
-      "errorEndBeforeStart": "Data końcowa nie może być wcześniejsza niż początkowa.",
-      "errorRangeTooLong": "Okres analizy nie może przekraczać 2 lat.",
-      "errorInvalidDate": "Wybierz poprawną datę początku i końca."
-    },
-    "sections": {
-      "title": "Wybierz zawartość",
-      "bp": "Ciśnienie krwi",
-      "weight": "Waga",
-      "pulse": "Tętno spoczynkowe",
-      "bmi": "Wskaźnik masy ciała (BMI)",
-      "mood": "Nastrój",
-      "moodSensitive": "Wrażliwe — domyślnie wyłączone.",
-      "compliance": "Przestrzeganie leków",
-      "sleep": "Czas snu",
-      "cycle": "Cykl menstruacyjny",
-      "empty": "Brak danych dla wybranego okresu. Raport zachowa stronę tytułową.",
-      "unavailableHint": "Brak danych w tym okresie",
-      "labs": "Wyniki badań"
-    },
     "insurer": "Ubezpieczyciel zdrowotny",
     "insuranceNumber": "Nr ubezpieczonego",
     "summaryTitle": "Podsumowanie kliniczne",
@@ -204,7 +173,14 @@
       "eA1c": "Szacowane HbA1c",
       "cv": "Zmienność (CV%)",
       "spotCaveat": "To szacunki z pojedynczych pomiarów, nie profil z monitora ciągłego — czytaj je jako kierunek zmian, a nie kliniczny werdykt."
-    }
+    },
+    "illnessTitle": "Schorzenia i choroby",
+    "illnessOngoing": "Trwająca",
+    "illnessColCondition": "Schorzenie",
+    "illnessColType": "Typ",
+    "illnessColLifecycle": "Przebieg",
+    "illnessColOnset": "Początek",
+    "illnessColResolved": "Ustąpiła"
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",
@@ -266,7 +242,8 @@
     "cycle": "Cykl",
     "labs": "Wyniki badań",
     "recovery": "Regeneracja",
-    "vorsorge": "Profilaktyka"
+    "vorsorge": "Profilaktyka",
+    "illness": "Choroba"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -1632,17 +1609,7 @@
         "copyToken": "Kopiuj token",
         "mintedHint": "Skopiuj ten token teraz — jest pokazywany tylko raz."
       },
-      "edit": {
-        "planOption": "Edytuj plan",
-        "advancedOption": "Ustawienia zaawansowane"
-      },
       "advanced": {
-        "title": "Ustawienia zaawansowane",
-        "group": {
-          "data": "Dane",
-          "lifecycle": "Cykl życia",
-          "externalApi": "Zewnętrzne API"
-        },
         "dataPortability": {
           "import": {
             "title": "Importuj przyjęcia",
@@ -2188,23 +2155,6 @@
       "confidenceLow": "Niska pewność",
       "pendingLabel": "Komentarz trendu jest generowany"
     },
-    "range": {
-      "label": "Okres",
-      "noPriorData": "brak danych z poprzedniego okresu",
-      "option": {
-        "7d": "7d",
-        "30d": "30d",
-        "90d": "90d",
-        "1y": "1r"
-      },
-      "priorLabel": {
-        "7d": "vs poprzednie 7d",
-        "30d": "vs poprzednie 30d",
-        "90d": "vs poprzednie 90d",
-        "1y": "vs poprzedni rok"
-      },
-      "noChange": "bez zmian"
-    },
     "correlationRow": {
       "title": "Korelacje",
       "disclaimer": "Korelacje są obserwacyjne, nie przyczynowe — porozmawiaj z lekarzem, jeśli ciśnienie jest wysokie.",
@@ -2546,14 +2496,6 @@
       "target": {
         "adjustLink": "Dostosuj zakres docelowy"
       },
-      "primary": {
-        "avg30Label": "Średnia z 30 dni",
-        "inRangeLabel": "W zakresie",
-        "inRangeAria": "{pct}% zarejestrowanych dni w zakresie celu"
-      },
-      "lastMeasurement": {
-        "label": "Ostatni pomiar"
-      },
       "explainer": {
         "trigger": "Czym jest {title}?",
         "bloodPressureTitle": "Ciśnienie krwi",
@@ -2646,6 +2588,8 @@
         "stairDescentSpeedBody": "To prędkość, z jaką schodzisz bieg schodów. Razem z prędkością wchodzenia odzwierciedla kontrolę nóg i równowagę — stałe tempo to dobry znak, a spadające warto obserwować.",
         "breathingDisturbancesTitle": "Zaburzenia oddychania we śnie",
         "breathingDisturbancesBody": "Twój Apple Watch potrafi oszacować, jak często Twój oddech był przerywany podczas snu. Niższy wskaźnik jest lepszy; poziom, który Apple oznacza jako podwyższony — zwłaszcza przez wiele nocy — warto omówić z lekarzem.",
+        "stepsTitle": "Kroki",
+        "stepsBody": "Liczba kroków to łączna liczba kroków wykonanych każdego dnia. To najprostsza miara codziennego ruchu — wyższa dzienna liczba zwykle odzwierciedla bardziej aktywny tryb życia, a stały nawyk liczy się bardziej niż pojedynczy intensywny dzień.",
         "readinessBody": "Gotowość to pojedynczy dzienny odczyt tego, jak przygotowane jest Twoje ciało, by zmierzyć się z dniem — łączy tętno spoczynkowe, zmienność rytmu serca, sen i regularność ostatnich nocy. Wyższy wynik oznacza, że Twój organizm wygląda na wypoczęty i pełen zasobów; niższy to delikatna wskazówka, by zwolnić tempo.",
         "sleepScoreBody": "Twój wynik snu streszcza całą noc w jednej liczbie — długość, efektywność, regularność pór oraz proporcje snu lekkiego, głębokiego i REM. Obserwuj wzorzec w ujęciu tygodni, zamiast gonić za idealnym wynikiem jednej nocy.",
         "recoveryBody": "Regeneracja odzwierciedla, jak dobrze Twoje ciało się odbudowało — opiera się na nocnych sygnałach, takich jak zmienność rytmu serca i tętno spoczynkowe. Wysoki wynik to zielone światło, by przyspieszyć; niższy sugeruje, że organizm wciąż się regeneruje.",
@@ -2750,6 +2694,11 @@
       "critical": "Krytyczny"
     },
     "assessmentTitle": "Ocena",
+    "restMode": {
+      "title": "Tryb odpoczynku",
+      "body": "Trwa epizod choroby lub dolegliwości, więc odzwierciedla to okres rekonwalescencji. Twój wynik nie jest za to obniżany.",
+      "bodySince": "Od {since} trwa epizod choroby lub dolegliwości, więc odzwierciedla to okres rekonwalescencji. Twój wynik nie jest za to obniżany."
+    },
     "assessmentShowMore": "Pokaż więcej",
     "assessmentShowLess": "Pokaż mniej",
     "bloodPressureSectionTitle": "Ciśnienie krwi",
@@ -3461,7 +3410,8 @@
         "watchVital": "Poza zakresem: {vital}. Często to jednorazowy odczyt — warto obserwować przez kilka dni.",
         "firedHeadline": "Dziś {count} Twoich parametrów życiowych jest poza osobistym zakresem.",
         "factors": "Możliwe czynniki — nigdy przyczyna: intensywny trening, słaby sen, alkohol, wysokość, stres lub choroba. To wskazówka z Twoich własnych baz, nie diagnoza.",
-        "building": "Budujemy Twoje osobiste bazy — zarejestruj jeszcze kilka dni, a to się pojawi."
+        "building": "Budujemy Twoje osobiste bazy — zarejestruj jeszcze kilka dni, a to się pojawi.",
+        "illnessExplained": "Te odchylenia prawdopodobnie wynikają z zapisanego schorzenia."
       },
       "trajectory": {
         "cardTitle": "Krótkoterminowy rzut",
@@ -3633,10 +3583,14 @@
         "title": "Serce i energia w ciągu dnia",
         "subtitle": "Całodobowe sumy sercowe i energetyczne"
       },
-      "scoreLink": {
-        "title": "Wynik regeneracji",
-        "subtitle": "Zobacz, jak rozkłada się nocny wynik",
-        "cta": "Zobacz"
+      "block": {
+        "ansChargeExplainer": "Jak naładowany jest Twój autonomiczny układ nerwowy na dany dzień — odczyt regeneracji oparty na nocnych sygnałach serca i oddechu.",
+        "dayStrainExplainer": "Dzienne obciążenie sercowo-naczyniowe na skali wysiłku Twojego urządzenia. Odczytuj je w odniesieniu do regeneracji, nie jako cel sam w sobie.",
+        "workoutStrainExplainer": "Jak wymagający był pojedynczy trening na tej samej skali wysiłku — koszt sercowo-naczyniowy tej sesji.",
+        "cardioLoadExplainer": "Przybliżenie obciążenia treningowego, które śledzi nagromadzone obciążenie sercowo-naczyniowe. Porównuj je z własnymi ostatnimi dniami.",
+        "averageHeartRateExplainer": "Twoje średnie tętno w ciągu całego dnia lub cyklu, zgodnie z odczytem Twojego urządzenia.",
+        "maxHeartRateExplainer": "Twoje maksymalne tętno w ciągu całego dnia lub cyklu, zgodnie z odczytem Twojego urządzenia.",
+        "energyExpenditureKjExplainer": "Energia, którą Twój organizm wydatkował w ciągu dnia, w kilodżulach, zgodnie z natywnym odczytem urządzenia."
       }
     },
     "bodyTempDeviation": {
@@ -3871,18 +3825,7 @@
       },
       "integrations": {
         "title": "Integracje",
-        "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
-        "tabs": {
-          "connections": "Połączenia",
-          "channels": "Kanały",
-          "sources": "Źródła"
-        },
-        "connections": {
-          "description": "Połącz Withings, WHOOP, Fitbit, Polar, Oura i Nightscout."
-        },
-        "channels": {
-          "description": "Telegram, ntfy, Web Push, Webhook i e-mail — drogi dostarczania powiadomień."
-        }
+        "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu."
       },
       "notifications": {
         "title": "Powiadomienia",
@@ -3892,7 +3835,7 @@
         "inboxLink": "Otwórz skrzynkę odbiorczą"
       },
       "layout": {
-        "title": "Układ i personalizacja",
+        "title": "Układ",
         "description": "Ustal, jak rozłożone są pulpit i analizy.",
         "backToHub": "Powrót do Układ i personalizacja",
         "dashboard": {
@@ -3902,14 +3845,6 @@
         "insights": {
           "title": "Analizy",
           "description": "Kolejność przeglądu i pigułek nawigacyjnych."
-        },
-        "medications": {
-          "title": "Leki",
-          "description": "Widok listy i kolejność leków."
-        },
-        "mood": {
-          "title": "Tagi nastroju",
-          "description": "Grupy, tagi i kolejność w wyborze nastroju."
         }
       },
       "dashboard": {
@@ -3996,12 +3931,6 @@
         "description": "Pobierz swoje dane jako CSV lub pełną kopię zapasową JSON albo zaimportuj z Apple Health, JSON lub CSV. Raport dla lekarza znajdziesz teraz w Dokumentacji zdrowotnej.",
         "otherOptionsHeading": "Inne opcje eksportu",
         "downloadFailed": "Nie udało się pobrać eksportu. Spróbuj ponownie.",
-        "hero": {
-          "eyebrow": "Wizyta u lekarza",
-          "valueStatement": "Raport PDF do druku na wizytę u lekarza — parametry życiowe, BMI, klasyfikacja ciśnienia, przestrzeganie leczenia oraz (opcjonalnie) zapis nastroju, na kilku stronach.",
-          "cta": "Skonfiguruj i wygeneruj raport",
-          "formatHint": "PDF · gotowe do druku"
-        },
         "actions": {
           "download": "Pobierz"
         },
@@ -4010,10 +3939,6 @@
           "until": "Do"
         },
         "cards": {
-          "doctorReport": {
-            "title": "Raport dla lekarza",
-            "description": "PDF do druku na wizytę lekarską — parametry życiowe, BMI, klasyfikacja ciśnienia, przestrzeganie leczenia, nastrój."
-          },
           "measurementsCsv": {
             "title": "Pomiary",
             "description": "Waga, ciśnienie, tętno, glukoza i wszystkie inne pomiary jako wartości rozdzielone przecinkami."
@@ -4146,6 +4071,10 @@
       "coach": {
         "title": "Coach",
         "description": "Włącz Coacha, ton i zakres, zapisane wspomnienia."
+      },
+      "channels": {
+        "title": "Kanały",
+        "description": "Dostarczanie przez Telegram, ntfy, Web Push, Webhook i e-mail."
       }
     },
     "profile": "Profil",
@@ -4386,14 +4315,6 @@
         "forgotError": "Nie udało się zapomnieć tej informacji. Spróbuj ponownie.",
         "clearedToast": "Zapomniano {count} zapisanych informacji.",
         "clearError": "Nie udało się usunąć zapisanych informacji. Spróbuj ponownie."
-      },
-      "disableCoach": {
-        "title": "Ukryj Coacha",
-        "description": "Ukrywa przycisk Coacha i panel na wszystkich stronach.",
-        "toggleAria": "Ukryj przycisk Coacha i panel",
-        "savedHidden": "Coach ukryty.",
-        "savedShown": "Coach widoczny.",
-        "saveError": "Nie udało się zapisać zmiany. Spróbuj ponownie."
       },
       "aboutMe": {
         "title": "O mnie",
@@ -4857,7 +4778,17 @@
       "rate_limited": "Zbyt wiele prób połączenia. Poczekaj chwilę i spróbuj ponownie.",
       "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
     },
-    "integrationSetupGuide": "Przewodnik konfiguracji"
+    "integrationSetupGuide": "Przewodnik konfiguracji",
+    "coach": {
+      "activate": {
+        "title": "Włącz Coacha",
+        "description": "Pokazuje przycisk i panel Coacha. Domyślnie włączony — wyłącz, aby ukryć Coacha wszędzie.",
+        "toggleAria": "Włącz przycisk i panel Coacha",
+        "savedOn": "Coach włączony.",
+        "savedOff": "Coach ukryty.",
+        "saveError": "Nie udało się zapisać zmiany. Spróbuj ponownie."
+      }
+    }
   },
   "admin": {
     "title": "Administracja",
@@ -5145,6 +5076,7 @@
     "deleteAllConfirm": "Na pewno usunąć wszystkie dane?",
     "deleteAllConfirmDescription": "Spowoduje to trwałe usunięcie wszystkich pomiarów, leków, zdarzeń przyjęcia, tokenów API, połączeń Withings, otwartych wyzwań uwierzytelniania, kanałów powiadomień (Telegram, ntfy, Web Push), subskrypcji push oraz zakolejkowanych usunięć wiadomości Telegram wszystkich użytkowników. Konta użytkowników, dziennik audytu i przesłane opinie zostają zachowane, aby samo usunięcie pozostało możliwe do prześledzenia, a zgłoszenia błędów — do obsłużenia.",
     "deleteButton": "Usuń wszystkie dane",
+    "deleteAllPromptLabel": "Wpisz {token}, aby kontynuować",
     "finalDelete": "Usuń trwale",
     "deletedResult": "Deleted: {measurements} measurements, {medications} Leki,{intakeEvents} intakes, {apiTokens} API tokens, {withingsConnections} Withings connections, {authChallenges} auth challenges, {notificationChannels} notification channels, {pushSubscriptions} push subscriptions, {telegramScheduledDeletions} queued Telegram deletions. Feedback rows preserved.",
     "authRegister": "Rejestracja",
@@ -5273,17 +5205,9 @@
         "title": "Integracje",
         "subtitle": "Skonfiguruj Umami, GlitchTip, Web Push i zgłoszenia błędów."
       },
-      "ai-quality": {
-        "title": "Jakość analiz",
-        "subtitle": "Oceny przydatności pogrupowane według ważności i dostawcy, z ostatnich 30 dni opinii użytkowników."
-      },
-      "assistant": {
-        "title": "Powierzchnie asystenta",
-        "subtitle": "Włącz lub wyłącz każdą powierzchnię opartą na modelu bez usuwania konfiguracji dostawcy."
-      },
-      "coach-feedback": {
-        "title": "Opinie o Coachu",
-        "subtitle": "Wskaźnik przydatności według wersji promptu, tonu i szczegółowości Coacha z ostatnich 30 dni."
+      "coach": {
+        "title": "Coach",
+        "subtitle": "Powierzchnie asystenta, klucz serwera oraz tabele jakości opinii Coacha i analiz w jednym miejscu."
       },
       "feedback": {
         "title": "Opinie",
@@ -5875,11 +5799,6 @@
         "sixDaysAgo": "6 dni temu"
       }
     },
-    "relativeDay": {
-      "today": "Dzisiaj",
-      "yesterday": "Wczoraj",
-      "daysAgo": "{count} dni temu"
-    },
     "edit": {
       "openLabel": "Edytuj zakres docelowy dla {metric}",
       "title": "Edytuj zakres docelowy — {metric}",
@@ -6344,7 +6263,9 @@
       "delete": "Usuń",
       "temperatureSection": "Temperatura i owulacja",
       "intimacySection": "Intymność i antykoncepcja",
-      "testsSection": "Testy"
+      "testsSection": "Testy",
+      "phaseDayHeader": "Dzień {day} · {phase}",
+      "bbtHint": "Zmierz ją rano zaraz po przebudzeniu, przed wstaniem."
     },
     "settings": {
       "title": "Ustawienia cyklu",
@@ -6420,6 +6341,24 @@
       "ovulationEstimate": "Szac. owulacja",
       "tooltipTemp": "{temp} °C",
       "ovulationConfirmed": "Potwierdzona owulacja"
+    },
+    "fieldInfo": {
+      "bbt": "Twoja temperatura spoczynkowa, mierzona rano zaraz po przebudzeniu, przed wstaniem. Po owulacji nieznacznie rośnie (o około 0,2–0,3 °C).",
+      "bbtLabel": "Czym jest temperatura podstawowa?",
+      "mucus": "Wydzielina z pochwy zmienia się w cyklu — od suchej lub lepkiej do kremowej, a następnie wodnistej i przypominającej białko jaja w najbardziej płodnych dniach.",
+      "mucusLabel": "Czym jest śluz szyjkowy?",
+      "ovulationTest": "Domowy test moczu wykrywający skok LH — wyrzut hormonu około 24–36 h przed owulacją. Wynik dodatni wskazuje najbardziej płodne okno.",
+      "ovulationTestLabel": "Czym jest test owulacyjny?",
+      "spotting": "Lekkie krwawienie poza okresem.",
+      "spottingLabel": "Czym jest plamienie między okresami?",
+      "pregnancyTest": "Wynik domowego testu ciążowego (hCG).",
+      "pregnancyTestLabel": "Czym jest test ciążowy?",
+      "progesteroneTest": "Test potwierdzający, że doszło do owulacji — progesteron rośnie po niej.",
+      "progesteroneTestLabel": "Czym jest test progesteronu?",
+      "intercourse": "Czy tego dnia doszło do stosunku.",
+      "intercourseLabel": "Co śledzi stosunek?",
+      "protected": "Czy podczas stosunku zastosowano antykoncepcję.",
+      "protectedLabel": "Co oznacza zabezpieczony?"
     }
   },
   "cycleReminders": {
@@ -6478,7 +6417,19 @@
       "BLOOD_GLUCOSE": "Glukoza we krwi",
       "OXYGEN_SATURATION": "Saturacja tlenem",
       "BODY_FAT": "Tkanka tłuszczowa",
-      "BODY_TEMPERATURE": "Temperatura ciała"
+      "BODY_TEMPERATURE": "Temperatura ciała",
+      "FAT_MASS": "Masa tłuszczowa",
+      "FAT_FREE_MASS": "Masa beztłuszczowa",
+      "MUSCLE_MASS": "Masa mięśniowa",
+      "LEAN_BODY_MASS": "Masa szczupła",
+      "BONE_MASS": "Masa kostna",
+      "TOTAL_BODY_WATER": "Woda w organizmie",
+      "VISCERAL_FAT": "Tłuszcz trzewny",
+      "BODY_MASS_INDEX": "Wskaźnik masy ciała (BMI)"
+    },
+    "typeGroups": {
+      "vitals": "Parametry życiowe",
+      "bodyComposition": "Skład ciała"
     },
     "empty": {
       "title": "Brak przypomnień",
@@ -6495,22 +6446,28 @@
       "notifyHour": "Przypomnij o",
       "location": "Gdzie (opcjonalnie)",
       "locationPlaceholder": "np. Lekarz, Laboratorium",
-      "save": "Zapisz"
+      "save": "Zapisz",
+      "createTitle": "Nowe przypomnienie",
+      "editTitle": "Edytuj przypomnienie"
     },
     "pushTitle": "Przypomnienie profilaktyczne",
     "pushBody": "Czas na: {label}",
-    "pushLocation": "(u {location})"
+    "pushLocation": "(u {location})",
+    "edit": "Edytuj",
+    "originCoach": "Coach",
+    "enabledToggleAria": "Włącz lub wyłącz to przypomnienie",
+    "until": "Do {date}"
   },
   "labs": {
     "title": "Wyniki badań",
     "subtitle": "Badania krwi i biomarkery",
-    "addResult": "Dodaj",
+    "addResult": "Dodaj wynik",
     "addDescription": "Zapisz biomarker z wyniku laboratoryjnego.",
     "addFirst": "Dodaj pierwszy wynik",
     "emptyTitle": "Brak wyników badań",
     "emptyDescription": "Zapisuj badania takie jak HbA1c, LDL czy ferrytyna, aby śledzić je w czasie i udostępniać lekarzowi.",
     "referenceLabel": "Norma",
-    "readingsCount": "{count} wyników",
+    "readingsCount": "{count} pomiarów",
     "deleteLatest": "Usuń ostatni wynik",
     "deleteConfirmTitle": "Usunąć wynik laboratoryjny?",
     "deleteConfirmDescription": "Ten wynik laboratoryjny zostanie trwale usunięty.",
@@ -6539,12 +6496,130 @@
       "referenceHint": "Przepisz zakres referencyjny z wyniku laboratoryjnego. Każda z granic jest opcjonalna.",
       "note": "Notatka",
       "notePlaceholder": "Opcjonalny kontekst tego wyniku",
-      "requiredError": "Biomarker, wartość i jednostka są wymagane.",
+      "requiredError": "Podaj wartość.",
       "rangeOrderError": "Norma dolna nie może przekraczać górnej.",
       "save": "Zapisz",
       "savedToast": "Wynik zapisany",
-      "saveError": "Nie udało się zapisać wyniku"
-    }
+      "saveError": "Nie udało się zapisać wyniku",
+      "biomarker": "Biomarker",
+      "biomarkerPlaceholder": "Wybierz biomarker",
+      "defineNew": "+ Zdefiniuj nowy biomarker",
+      "noBiomarkersHint": "Najpierw zdefiniuj biomarker, aby zapisać wartość.",
+      "pickBiomarkerError": "Najpierw wybierz biomarker."
+    },
+    "backToLabs": "Wróć do wyników",
+    "hasNote": "Notatka",
+    "editTitle": "Edytuj pomiar",
+    "editDescription": "Popraw wartość, datę lub notatkę tego pomiaru.",
+    "editedToast": "Pomiar zaktualizowany",
+    "editError": "Nie udało się zaktualizować pomiaru",
+    "editTimestampError": "Podaj prawidłową datę.",
+    "editReading": "Edytuj pomiar",
+    "deleteReading": "Usuń pomiar",
+    "restoredToast": "Pomiar przywrócony",
+    "restoreError": "Nie udało się przywrócić pomiaru",
+    "detail": {
+      "history": "Historia",
+      "emptyTitle": "Brak pomiarów",
+      "emptyDescription": "Dodaj wartość, aby śledzić ten biomarker w czasie."
+    },
+    "chart": {
+      "empty": "Brak pomiarów w tym okresie.",
+      "valueLabel": "Wartość",
+      "range": {
+        "30": "30 d",
+        "90": "90 d",
+        "365": "1 r",
+        "all": "Wszystko"
+      }
+    },
+    "biomarker": {
+      "manage": "Biomarkery",
+      "manageTitle": "Biomarkery",
+      "manageSheetDescription": "Zdefiniuj śledzone markery. Każdy ustawiasz raz wraz z jednostką i zakresem referencyjnym.",
+      "managerDescription": "Zdefiniuj marker raz — jednostka i zakres są używane dla każdego pomiaru.",
+      "define": "Zdefiniuj",
+      "defineFirst": "Zdefiniuj pierwszy biomarker",
+      "defineTitle": "Zdefiniuj biomarker",
+      "defineDescription": "Ustaw nazwę, jednostkę i zakres raz. Marker wybierasz przy dodawaniu wartości.",
+      "editTitle": "Edytuj biomarker",
+      "edit": "Edytuj",
+      "delete": "Usuń",
+      "deletedToast": "Biomarker usunięty",
+      "deleteError": "Nie udało się usunąć biomarkera",
+      "deleteConfirmTitle": "Usunąć biomarker?",
+      "deleteConfirmDescription": "Definicja zostanie usunięta. Istniejące pomiary pozostaną, ale bez powiązania.",
+      "emptyTitle": "Brak biomarkerów",
+      "emptyDescription": "Zdefiniuj markery, takie jak LDL lub HbA1c, aby zapisywać wartości.",
+      "loadError": "Nie udało się wczytać biomarkerów",
+      "noRange": "Brak zakresu referencyjnego",
+      "form": {
+        "seedLabel": "Zacznij od popularnego markera",
+        "seedPlaceholder": "Wybierz marker (opcjonalnie)",
+        "seedHint": "Wybór wypełnia pola poniżej — dopasuj zakres do swojego laboratorium.",
+        "name": "Nazwa",
+        "namePlaceholder": "np. Cholesterol LDL",
+        "unit": "Jednostka",
+        "unitPlaceholder": "np. mg/dl",
+        "panel": "Panel",
+        "panelPlaceholder": "np. Lipidy",
+        "lowerBound": "Dolna granica",
+        "upperBound": "Górna granica",
+        "lowerPlaceholder": "Dolna granica",
+        "upperPlaceholder": "Górna granica",
+        "context": "Kontekst",
+        "contextPlaceholder": "Opcjonalna notatka o tym markerze",
+        "rangeHint": "Obie granice są opcjonalne — zostaw jedną pustą dla zakresu otwartego (np. LDL < 116).",
+        "requiredError": "Nazwa i jednostka są wymagane.",
+        "rangeOrderError": "Dolna granica nie może przekraczać górnej.",
+        "save": "Zapisz biomarker",
+        "savedToast": "Biomarker zapisany",
+        "updatedToast": "Biomarker zaktualizowany",
+        "saveError": "Nie udało się zapisać biomarkera"
+      }
+    },
+    "catalog": {
+      "total-cholesterol": "Cholesterol całkowity",
+      "ldl": "Cholesterol LDL",
+      "hdl": "Cholesterol HDL",
+      "triglycerides": "Trójglicerydy",
+      "fasting-glucose": "Glukoza na czczo",
+      "hba1c": "HbA1c",
+      "tsh": "TSH",
+      "ft3": "Wolne T3",
+      "ft4": "Wolne T4",
+      "ferritin": "Ferrytyna",
+      "transferrin-saturation": "Wysycenie transferyny",
+      "vitamin-d": "Witamina D (25-OH)",
+      "vitamin-b12": "Witamina B12",
+      "folate": "Kwas foliowy",
+      "hs-crp": "hs-CRP",
+      "creatinine": "Kreatynina",
+      "egfr": "eGFR",
+      "alt": "ALT",
+      "ast": "AST",
+      "ggt": "GGTP",
+      "sodium": "Sód",
+      "potassium": "Potas",
+      "hemoglobin": "Hemoglobina",
+      "hematocrit": "Hematokryt",
+      "wbc": "Leukocyty",
+      "platelets": "Płytki krwi",
+      "panel": {
+        "lipids": "Lipidy",
+        "glucose": "Metabolizm glukozy",
+        "thyroid": "Tarczyca",
+        "iron": "Żelazo",
+        "vitamins": "Witaminy",
+        "inflammation": "Stan zapalny",
+        "renal": "Nerki",
+        "liver": "Wątroba",
+        "electrolytes": "Elektrolity",
+        "bloodCount": "Morfologia krwi"
+      }
+    },
+    "noteLoadFailed": "Nie udało się wczytać notatki; pozostanie niezmieniona po zapisaniu.",
+    "showingLatestOf": "Wyświetlanie najnowszych {shown} z {total} wyników"
   },
   "modules": {
     "cycle": {
@@ -6584,7 +6659,7 @@
       "description": "Czat AI oparty na Twoich danych."
     },
     "insights": {
-      "label": "Analizy",
+      "label": "Insights",
       "description": "Analizy AI, briefing i korelacje."
     },
     "doctorReport": {
@@ -6606,6 +6681,165 @@
     "medications": {
       "label": "Leki",
       "description": "Schematy, przyjęcia i zgodność."
+    },
+    "illness": {
+      "label": "Dziennik chorób",
+      "description": "Zapisuj epizody chorób i dolegliwości z dziennym przebiegiem objawów."
+    }
+  },
+  "illness": {
+    "title": "Dziennik chorób",
+    "subtitle": "Retrospektywny zapis Twoich epizodów chorób i dolegliwości.",
+    "disclaimer": "Osobisty dziennik — nie wyrób medyczny. Nie diagnozuje ani nie przewiduje.",
+    "newEpisode": "Nowy epizod",
+    "logDay": "Zapisz dzień",
+    "markRecovered": "Oznacz jako wyleczone",
+    "onsetOn": "Początek {date}",
+    "recoveredOn": "wyleczono {date}",
+    "status": {
+      "active": "Aktywny",
+      "ongoing": "Trwający",
+      "recovered": "Wyleczony"
+    },
+    "empty": {
+      "title": "Brak epizodów",
+      "body": "Rozpocznij epizod, aby prowadzić dzienny przebieg objawów i prześledzić, jak się rozwijał."
+    },
+    "type": {
+      "INFECTION": "Infekcja",
+      "ALLERGY": "Alergia",
+      "INJURY": "Uraz",
+      "MENTAL_HEALTH": "Zdrowie psychiczne",
+      "AUTOIMMUNE": "Autoimmunologiczna",
+      "CHRONIC": "Przewlekła",
+      "OTHER": "Inne"
+    },
+    "lifecycle": {
+      "ACUTE": "Ostra",
+      "CHRONIC_ONGOING": "Przewlekła / trwająca",
+      "RECURRING": "Nawracająca",
+      "FLARE": "Zaostrzenie"
+    },
+    "new": {
+      "title": "Nowy epizod",
+      "description": "Zapisz chorobę lub dolegliwość. Codzienne objawy możesz notować później.",
+      "label": "Nazwa",
+      "labelPlaceholder": "np. Przeziębienie",
+      "type": "Typ",
+      "lifecycle": "Przebieg",
+      "onset": "Początek",
+      "note": "Notatka",
+      "notePlaceholder": "Cokolwiek wartego zapamiętania (zaszyfrowane).",
+      "saveError": "Nie udało się zapisać epizodu. Spróbuj ponownie.",
+      "parent": "Part of",
+      "parentNone": "Not linked"
+    },
+    "sheet": {
+      "title": "Zapisz {date}",
+      "description": "Zanotuj dzisiejsze objawy, swoją sprawność i ewentualną gorączkę.",
+      "symptoms": "Objawy",
+      "functionalImpact": "Sprawność",
+      "fever": "Temperatura",
+      "note": "Notatka",
+      "noteSet": "Ustawiona",
+      "notePlaceholder": "Jak minął dzień (zaszyfrowane).",
+      "severityFor": "Nasilenie: {symptom}",
+      "saveError": "Nie udało się zapisać dnia. Spróbuj ponownie.",
+      "day": "Day"
+    },
+    "impact": {
+      "0": "Pełna sprawność",
+      "1": "Lekko ograniczona",
+      "2": "Głównie odpoczynek",
+      "3": "W łóżku"
+    },
+    "symptom": {
+      "runnyNose": "Katar",
+      "stuffyNose": "Zatkany nos",
+      "sneezing": "Kichanie",
+      "soreThroat": "Ból gardła",
+      "cough": "Kaszel",
+      "headache": "Ból głowy",
+      "bodyAches": "Bóle ciała",
+      "fatigue": "Zmęczenie"
+    },
+    "correlation": {
+      "title": "Jak przebiegało",
+      "learning": "Wciąż się uczę — zapisz jeszcze kilka dni, aby zobaczyć tu wzorce.",
+      "preOnsetTitle": "Jak się zapowiadało",
+      "preOnsetBody": "Sygnały, które odbiegły od Twojej bazy przed oznaczonym początkiem.",
+      "nadirTitle": "Co się zmieniło",
+      "nadirBody": "Jak daleko każdy śledzony sygnał odbiegł od Twojego typowego zakresu.",
+      "recoveryGapTitle": "Luka rekonwalescencji",
+      "recoveryGapLag": "Twoje wartości ustabilizowały się {days} dni po tym, jak poczułeś się lepiej.",
+      "recoveryGapLead": "Twoje wartości ustabilizowały się {days} dni przed oznaczeniem wyzdrowienia.",
+      "recoveryGapSame": "Twoje wartości ustabilizowały się tego samego dnia, gdy poczułeś się lepiej.",
+      "redFlagTitle": "Warto przyjrzeć się bliżej",
+      "redFlagSpo2": "Twoje wysycenie tlenem pozostawało niskie przez kilka dni. Jeśli się powtórzy, zasięgnij pomocy medycznej.",
+      "redFlagFever": "Miałeś utrzymującą się gorączkę. Jeśli się powtórzy, zasięgnij pomocy medycznej.",
+      "direction": {
+        "above": "powyżej Twojej normy",
+        "below": "poniżej Twojej normy"
+      }
+    },
+    "insights": {
+      "title": "Twoja historia chorób",
+      "countOne": "W tym okresie zapisałeś 1 epizod.",
+      "countOther": "W tym okresie zapisałeś {count} epizodów.",
+      "typicalGap": "Typowa luka rekonwalescencji: {days} dni między poprawą a ustabilizowaniem wartości.",
+      "typicalGapLearning": "Jeszcze kilka zakończonych epizodów i pojawi się tu typowa luka rekonwalescencji.",
+      "byMonth": "Kiedy zwykle zapisujesz epizody",
+      "none": "Brak epizodów zapisanych w tym okresie."
+    },
+    "loadError": "Could not load this episode.",
+    "backToList": "Back to journal",
+    "detail": {
+      "note": "Note"
+    },
+    "edit": {
+      "title": "Edit episode",
+      "description": "Update this episode's details."
+    },
+    "menu": {
+      "label": "Episode actions"
+    },
+    "deleteConfirm": {
+      "title": "Delete this episode?",
+      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+    },
+    "vital": {
+      "RESTING_HEART_RATE": "Resting heart rate",
+      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RECOVERY_SCORE": "Recovery",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_TEMPERATURE": "Body temperature",
+      "SKIN_TEMPERATURE": "Skin temperature",
+      "RESPIRATORY_RATE": "Respiratory rate",
+      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
+      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "PULSE": "Pulse",
+      "WEIGHT": "Weight"
+    }
+  },
+  "coach": {
+    "reminderSuggestion": {
+      "title": "Ustawić przypomnienie?",
+      "accept": "Ustaw przypomnienie",
+      "dismiss": "Nie teraz",
+      "stop": "Mierzę wystarczająco",
+      "accepted": "Przypomnienie ustawione",
+      "dismissed": "Dobrze, nie zaproponuję tego ponownie",
+      "stopped": "Rozumiem, przestanę proponować przypomnienia",
+      "failed": "Nie udało się ustawić, spróbuj ponownie",
+      "cadence": {
+        "weightDaily": "Waż się codziennie, mniej więcej o tej samej porze",
+        "bp722": "Mierz ciśnienie dwa razy dziennie przez tydzień",
+        "glucoseStructured": "Mierz glukozę według ustrukturyzowanego planu dziennego"
+      }
+    },
+    "settings": {
+      "reminderSuggestionsLabel": "Sugestie częstotliwości",
+      "reminderSuggestionsDescription": "Pozwól Coachowi od czasu do czasu zaproponować oparte na dowodach przypomnienie, aby mierzyć daną wartość bardziej regularnie."
     }
   }
 }

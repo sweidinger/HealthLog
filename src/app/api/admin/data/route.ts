@@ -26,6 +26,22 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAdmin();
   annotate({ action: { name: "admin.data.delete" } });
 
+  // v1.18.1 — the documented convention buckets authenticated admin
+  // mutations on `userId`, not the (pre-auth, spoofable) client IP. The
+  // IP bucket above is the anonymous first-line throttle; this is the
+  // canonical per-admin bucket the rate-limit contract specifies.
+  const userRl = await checkRateLimit(
+    `admin-data-delete:${user.id}`,
+    5,
+    60 * 1000,
+  );
+  if (!userRl.allowed) {
+    return NextResponse.json(
+      { data: null, error: "Rate limit exceeded" },
+      { status: 429, headers: rateLimitHeaders(userRl) },
+    );
+  }
+
   let confirm = "";
   try {
     const raw = await request.text();

@@ -52,6 +52,17 @@ vi.mock("@/lib/ai/coach/bytes-codec", () => ({
 vi.mock("@/lib/rollups/measurement-read", () => ({
   loadUserSourcePriority: vi.fn(async () => null),
 }));
+// v1.18.1 P4 — Rest Mode pause. Default: not in Rest Mode (every existing
+// gate/trigger test stays unaffected). The pause test overrides it active.
+const restModeMock = vi.hoisted(() => ({
+  resolveRestMode: vi.fn(async () => ({
+    active: false as boolean,
+    since: null as string | null,
+    episodeCount: 0,
+    episodes: [] as unknown[],
+  })),
+}));
+vi.mock("@/lib/illness/rest-mode", () => restModeMock);
 
 function dose(taken: boolean, skipped = false, autoMissed?: boolean) {
   return {
@@ -560,6 +571,12 @@ describe("runCoachNudgeTick — gates and prefs", () => {
       coach: true,
     } as Awaited<ReturnType<typeof getAssistantFlags>>);
     vi.mocked(userRowHasProviderCredential).mockReturnValue(true);
+    restModeMock.resolveRestMode.mockResolvedValue({
+      active: false,
+      since: null,
+      episodeCount: 0,
+      episodes: [],
+    });
   });
 
   it("counts a master opt-out before touching provider or cap gates", async () => {
@@ -644,6 +661,32 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     // groups find nothing in the empty fixtures.
     expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
     expect(summary.skippedNoTrigger).toBe(1);
+  });
+
+  it("pauses the cadence-nudge during an active illness episode (Rest Mode)", async () => {
+    // A user who would otherwise fire a compliance nudge (17 % adherence).
+    const dispatch = vi.fn();
+    restModeMock.resolveRestMode.mockResolvedValue({
+      active: true,
+      since: "2026-06-10T00:00:00.000Z",
+      episodeCount: 1,
+      episodes: [],
+    });
+    const prisma = prismaMock({
+      users: [userRow(null)],
+      intakeRows: failingIntakes,
+    });
+    const summary = await runCoachNudgeTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch },
+    );
+    // The nudge is paused, not penalised: no dispatch, no trigger search even
+    // ran (the Rest Mode gate sits before the trigger query).
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
+    expect(summary.skippedDuringIllness).toBe(1);
+    expect(summary.dispatched).toBe(0);
   });
 
   it("personalises the dispatched body with the decrypted Coach focus", async () => {

@@ -10,6 +10,7 @@ import {
   Pill,
   Settings,
   Stethoscope,
+  Thermometer,
   Trophy,
   Waves,
   type LucideIcon,
@@ -48,8 +49,8 @@ export interface NavDestination {
    * v1.18.0 — gate the entry on a per-user module toggle. When set, the
    * entry is dropped unless the account's resolved module map (from
    * `GET /api/auth/me`'s `modules`) has the key enabled. Core destinations
-   * (weight / BP / pulse / medications + always-on pages) carry no key and
-   * always render. `cycle` and `coach` are delegated keys (cycle → gender +
+   * (weight / BP / pulse + always-on pages) carry no key and always render.
+   * `cycle` and `coach` are delegated keys (cycle → gender +
    * opt-in, coach → operator flag + per-user opt-out); the auth/me map
    * already reflects that delegation, so reading them here is correct and
    * not a re-derivation.
@@ -82,6 +83,9 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     tKey: "nav.medications",
     icon: Pill,
     tourId: "nav-medications",
+    // v1.18.1 (D3) — medications graduated from a CORE domain to a toggleable
+    // module; the nav entry now drops when the account turns the module off.
+    requiresModule: "medications",
   },
   {
     href: "/cycle",
@@ -97,6 +101,17 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     tourId: "nav-labs",
     requiresModule: "labs",
   },
+  // v1.18.1 — the illness/condition journal sits in the clinical spine
+  // next to Labs. Born-gated: `requiresModule: "illness"` reads the
+  // opt-in `illness` key from the resolved module map, so the entry is
+  // absent until the account turns the module on from the Modules hub.
+  {
+    href: "/illness",
+    tKey: "nav.illness",
+    icon: Thermometer,
+    tourId: "nav-illness",
+    requiresModule: "illness",
+  },
   // v1.17.1 — Vorsorge (preventive-care) gets a top-level nav home in the
   // clinical spine, peer to Labs and Recovery. It is a first-class tracking
   // surface ("wann muss ich was wo machen"), not pure configuration, so it
@@ -108,6 +123,13 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     tKey: "nav.vorsorge",
     icon: Stethoscope,
     tourId: "nav-vorsorge",
+    // v1.18.1 — deliberately NOT module-gated (no `requiresModule`). Unlike
+    // labs / illness / cycle (opt-in clinical-spine verticals born off by
+    // default), preventive-care reminders are a CORE surface available to
+    // every account from birth: a reminder can target core vitals
+    // (weight / BP / pulse) that are never behind a module toggle, and a
+    // free-text "Großes Blutbild" reminder belongs to no module at all.
+    // Gating the entry would orphan reminders the user can still create.
   },
   // v1.18.0 — Workouts and Recovery both left the left-nav: each already
   // surfaces as an Insights tab-strip pill (`/insights/workouts` gated on

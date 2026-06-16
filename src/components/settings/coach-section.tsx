@@ -46,13 +46,11 @@ export function CoachSection() {
       aria-labelledby="settings-section-coach-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
+      <header>
         <h1 id="settings-section-coach-title" className="sr-only">
           {t("settings.sections.coach.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.coach.description")}
-        </p>
       </header>
 
       <DisableCoachCard isAuthenticated={authed} />

@@ -21,6 +21,7 @@ import { type Job } from "pg-boss";
 
 import { recordError } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { getWorkerPrisma } from "./shared";
 
 /** Every poll-cohort handler accepts an optional single-user payload. */
@@ -69,8 +70,14 @@ export function makePollCohortHandler({
         let measurementsImported = 0;
         for (const { userId } of targets) {
           try {
-            measurementsImported += await syncUser(userId);
+            const imported = await syncUser(userId);
+            measurementsImported += imported;
             usersSynced++;
+            // v1.18.1 — a fresh reading landed; resolve this user's Vorsorge
+            // reminders eventfully. Fire-and-forget; the cron is the net.
+            if (imported > 0) {
+              void enqueueReminderSatisfy(userId).catch(() => {});
+            }
           } catch (err) {
             evt.addWarning(`${taskName} failed for user ${userId}: ${err}`);
           }

@@ -53,9 +53,13 @@ export function CoachDrawerBody({
   return (
     <div
       data-slot="coach-drawer-body"
+      // v1.18.1 (W-COACH-UI C1/C3) — the inline history rail was a
+      // tight 260 px gutter; widen it to 300 px (lg) / 340 px (xl) so
+      // the conversation list breathes and the centre thread keeps the
+      // remaining width. Without a rail the body is a single column.
       className={
         historyRail
-          ? "grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[260px_1fr]"
+          ? "grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]"
           : "grid min-h-0 flex-1 grid-cols-1"
       }
     >
@@ -65,7 +69,13 @@ export function CoachDrawerBody({
           data-slot="coach-drawer-history"
           className="border-border/70 hidden h-full min-h-0 border-r lg:flex lg:flex-col"
         >
-          <h2 className="border-border/70 text-muted-foreground border-b p-3 text-[11px] font-medium tracking-wide uppercase">
+          {/* v1.18.1 (W-COACH-UI C4) — the rail heading and the centre
+              column's rail-tray strip share one fixed `h-14` header band
+              with identical `border-b`, so the two dividers land on the
+              same horizontal line across the columns (the asymmetry the
+              maintainer flagged: a `p-3` text heading vs a `py-2` button
+              strip put the lines at different heights). */}
+          <h2 className="border-border/70 text-muted-foreground flex h-14 shrink-0 items-center border-b px-4 text-xs font-medium tracking-wide uppercase">
             {t("insights.coach.historyTitle")}
           </h2>
           <div className="min-h-0 flex-1 overflow-y-auto">{historyRail}</div>
@@ -80,10 +90,18 @@ export function CoachDrawerBody({
         {/* v1.4.27 R3d MB2 — rail-tray triggers lifted out of the
             absolute overlay into a sub-header strip so the buttons
             sit at a 44 px tap target and never overlay the first
-            message bubble. */}
+            message bubble.
+            v1.18.1 (W-COACH-UI C4) — fixed `h-14` so the strip's
+            bottom border aligns with the history rail heading divider
+            in the adjacent column (one continuous line, no restless
+            two-height split). */}
         <div
           data-slot="coach-drawer-rail-tray-strip"
-          className="border-border/70 flex items-center justify-between gap-2 border-b px-3 py-2"
+          // v1.18.1 (W-COACH-UI C4) — match the header band's `px-3 sm:px-4`
+          // inset so the rail-tray strip, the header, and the adjacent
+          // history-rail `<h2>` (px-4) all share the same horizontal divider
+          // line at sm+ rather than stepping in/out by a pixel.
+          className="border-border/70 flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3 sm:px-4"
         >
           <Button
             type="button"

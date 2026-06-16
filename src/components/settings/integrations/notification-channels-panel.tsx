@@ -18,7 +18,6 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { NotificationStatusCard } from "@/components/settings/notification-status-card";
 import { NtfyCard } from "@/components/settings/ntfy-card";
@@ -37,7 +36,6 @@ interface GlobalServiceAvailability {
 }
 
 export function NotificationChannelsPanel() {
-  const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
 
   const { data: globalServices } = useQuery({
@@ -54,10 +52,6 @@ export function NotificationChannelsPanel() {
 
   return (
     <div className="space-y-6" data-slot="notification-channels-panel">
-      <p className="text-muted-foreground text-sm">
-        {t("settings.sections.integrations.channels.description")}
-      </p>
-
       <NotificationStatusCard />
 
       {/* v1.4.27 MB3 — `scroll-mt-28` keeps each channel card's anchor

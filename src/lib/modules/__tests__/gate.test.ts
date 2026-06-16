@@ -78,6 +78,54 @@ describe("resolveModuleEnabled — disabled allowlist (default-on)", () => {
   });
 });
 
+describe("resolveModuleEnabled — born-gated module (illness, default-off)", () => {
+  it("is OFF when no preference is recorded (opt-in, not default-on)", () => {
+    expect(resolveModuleEnabled("illness", inputs(), true, ALL_AVAILABLE)).toBe(
+      false,
+    );
+  });
+
+  it("is ON only on an explicit true", () => {
+    expect(
+      resolveModuleEnabled(
+        "illness",
+        inputs({ modulePreferences: { illness: true } }),
+        true,
+        ALL_AVAILABLE,
+      ),
+    ).toBe(true);
+  });
+
+  it("stays OFF on an explicit false", () => {
+    expect(
+      resolveModuleEnabled(
+        "illness",
+        inputs({ modulePreferences: { illness: false } }),
+        true,
+        ALL_AVAILABLE,
+      ),
+    ).toBe(false);
+  });
+
+  it("operator-off short-circuits even when the user opted in", () => {
+    expect(
+      resolveModuleEnabled(
+        "illness",
+        inputs({ modulePreferences: { illness: true } }),
+        true,
+        operator({ illness: false }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not affect sibling default-on modules", () => {
+    const i = inputs({ modulePreferences: {} });
+    expect(resolveModuleEnabled("illness", i, true, ALL_AVAILABLE)).toBe(false);
+    expect(resolveModuleEnabled("mood", i, true, ALL_AVAILABLE)).toBe(true);
+    expect(resolveModuleEnabled("labs", i, true, ALL_AVAILABLE)).toBe(true);
+  });
+});
+
 describe("resolveModuleEnabled — cycle delegation", () => {
   it("ignores the module blob and reads the cycle gate (gender-derived)", () => {
     // Even a crafted `{ cycle: false }` blob cannot override the real
@@ -270,7 +318,7 @@ describe("normalisePrefs — fail-open coercion", () => {
 });
 
 describe("registry — core domains can never be disabled", () => {
-  it("the four core domains are not toggleable module keys", () => {
+  it("the three core domains are not toggleable module keys", () => {
     for (const core of CORE_DOMAIN_KEYS) {
       expect(isModuleKey(core)).toBe(false);
       expect(isCoreDomain(core)).toBe(true);
@@ -279,10 +327,11 @@ describe("registry — core domains can never be disabled", () => {
 
   it("a crafted core-domain key is inert (never read as a module)", () => {
     // `weight: false` in the blob can't matter: weight is not a ModuleKey,
-    // so the gate never consults it. The resolver only ever runs for the
-    // 11 declared toggleable keys.
+    // so the gate never consults it. The resolver only runs for the declared
+    // toggleable keys. v1.18.1 (D3) — medications graduated to a toggleable
+    // module, so it IS a ModuleKey now (weight / bp / pulse stay core).
     expect(isModuleKey("weight")).toBe(false);
-    expect(isModuleKey("medications")).toBe(false);
+    expect(isModuleKey("medications")).toBe(true);
   });
 
   it("every toggleable key is a known module and not a core domain", () => {

@@ -42,6 +42,8 @@ import {
   computeReminderNextDueAt,
   type ReminderScheduleInput,
 } from "@/lib/measurement-reminders/scheduling";
+import { findSatisfyingEvent } from "@/lib/measurement-reminders/resolve";
+import { satisfyReminder } from "@/lib/measurement-reminders/satisfy";
 
 /**
  * v1.18.0 — map a reminder's `measurementType` to the toggleable module
@@ -84,7 +86,35 @@ export interface MeasurementReminderSummary {
   skippedModuleDisabled: number;
   skippedClientManaged: number;
   skippedNoChannel: number;
+  /** v1.18.1 — expired COACH course-window reminders soft-deleted this tick. */
+  expiredCleaned: number;
   failed: number;
+}
+
+/**
+ * v1.18.1 — soft-delete COACH course-window reminders whose finite window
+ * has elapsed. A Coach-suggested protocol (the ESH/AHA 7-day BP cadence)
+ * carries a non-NULL `endsOn`; once the recurrence engine walks past it the
+ * row's `nextDueAt` is stamped NULL (no future occurrence). Such a row can
+ * never fire again, so it would otherwise linger forever in the Vorsorge
+ * list as a dead "completed course". Tombstone it so the surface stays
+ * clean. Scoped to `origin: COACH` so a user's open-ended VORSORGE row with
+ * a one-shot `endsOn` is never touched without intent.
+ */
+async function cleanupExpiredCoachReminders(
+  prisma: PrismaClient,
+  now: Date,
+): Promise<number> {
+  const result = await prisma.measurementReminder.updateMany({
+    where: {
+      deletedAt: null,
+      origin: "COACH",
+      endsOn: { not: null, lt: now },
+      nextDueAt: null,
+    },
+    data: { deletedAt: now },
+  });
+  return result.count;
 }
 
 function resolveLocale(locale: string | null | undefined): Locale {
@@ -138,17 +168,6 @@ export function buildMeasurementReminderPayload(
 }
 
 /**
- * The canonical sentinel measurement type the cron queries for
- * auto-resolve. BP is two rows (SYS + DIA); SYS is the "a BP was measured"
- * anchor (matching both would double-count).
- */
-function autoResolveQueryType(
-  reminderType: MeasurementType | null,
-): MeasurementType | null {
-  return reminderType;
-}
-
-/**
  * Run one Vorsorge-reminder cron tick. Iterates every live, enabled
  * reminder, auto-resolves the typed ones against incoming readings,
  * and dispatches a `MEASUREMENT_REMINDER` push for any that are due
@@ -180,8 +199,14 @@ export async function runMeasurementReminderTick(
     skippedModuleDisabled: 0,
     skippedClientManaged: 0,
     skippedNoChannel: 0,
+    expiredCleaned: 0,
     failed: 0,
   };
+
+  // v1.18.1 — sweep expired COACH course-window reminders before scanning
+  // the due set, so a self-expired protocol drops out of the list and the
+  // dispatch loop never re-evaluates a row that can never fire again.
+  summary.expiredCleaned = await cleanupExpiredCoachReminders(prisma, now);
 
   // Bound the scan to reminders that could plausibly fire this tick so Postgres
   // uses `measurement_reminders_user_id_next_due_at_idx` instead of loading the
@@ -216,47 +241,27 @@ export async function runMeasurementReminderTick(
     try {
       const timezone = reminder.user.timezone || "Europe/Berlin";
 
-      // ── Auto-resolve from an incoming measurement ──────────────────
-      // Cheap guard, in the cron (not on the ingest path). Only typed
-      // reminders auto-resolve; free-text ones wait for a manual satisfy.
-      const queryType = autoResolveQueryType(reminder.measurementType);
-      if (queryType !== null) {
-        // Match readings logged AFTER the last satisfy (or, never
-        // satisfied, after the anchor). A reading inside the current due
-        // cycle means the user already measured — re-anchor + skip the
-        // nudge. `deletedAt: null` so a tombstoned reading never counts.
-        const sinceFloor =
-          reminder.lastSatisfiedAt ??
-          reminder.anchorDate ??
-          reminder.createdAt;
-        const match = await prisma.measurement.findFirst({
-          where: {
-            userId: reminder.user.id,
-            type: queryType,
-            deletedAt: null,
-            measuredAt: { gt: sinceFloor },
-          },
-          orderBy: { measuredAt: "desc" },
-          select: { measuredAt: true },
-        });
-        if (match) {
-          const scheduleInput: ReminderScheduleInput = {
-            intervalDays: reminder.intervalDays,
-            rrule: reminder.rrule,
-            anchorDate: reminder.anchorDate,
-            notifyHour: reminder.notifyHour,
-            lastSatisfiedAt: match.measuredAt,
-            createdAt: reminder.createdAt,
-          };
-          const nextDueAt = computeReminderNextDueAt(
-            scheduleInput,
-            timezone,
-            match.measuredAt,
-          );
-          await prisma.measurementReminder.update({
-            where: { id: reminder.id },
-            data: { lastSatisfiedAt: match.measuredAt, nextDueAt },
-          });
+      // ── Auto-resolve from an incoming event ────────────────────────
+      // Cheap safety-net poll, in the cron (the eventful `reminder-satisfy`
+      // worker is the fast path). A typed reminder resolves from a matching
+      // Measurement; a free-text reminder resolves from a LabResult (the
+      // Lab↔Vorsorge link). Both go through the shared `findSatisfyingEvent`
+      // + `satisfyReminder` primitives so the cron and the worker can never
+      // diverge. A reading inside the current due cycle means the user
+      // already measured — re-anchor + skip the nudge.
+      const satisfiedAt = await findSatisfyingEvent(
+        prisma,
+        reminder.user.id,
+        reminder,
+      );
+      if (satisfiedAt) {
+        const result = await satisfyReminder(
+          prisma,
+          reminder,
+          timezone,
+          satisfiedAt,
+        );
+        if (result.satisfied) {
           summary.autoResolved += 1;
           continue;
         }
@@ -353,6 +358,105 @@ export async function runMeasurementReminderTick(
       const message = err instanceof Error ? err.message : String(err);
       getEvent()?.addWarning(
         `measurement-reminder per-reminder dispatch failed for ${reminder.id}: ${message}`,
+      );
+    }
+  }
+
+  return summary;
+}
+
+export interface ReminderSatisfySummary {
+  candidatesScanned: number;
+  satisfied: number;
+  skippedModuleDisabled: number;
+  skippedNoEvent: number;
+  failed: number;
+}
+
+/**
+ * v1.18.1 — eventful satisfaction for one user. Called by the
+ * `reminder-satisfy` worker right after a measurement / lab write lands
+ * (from any ingest path: manual create, batch, or a device sync). The
+ * 15-min cron remains the idempotent safety-net behind this.
+ *
+ * Loads the user's live, enabled reminders that could auto-resolve (typed
+ * → a Measurement; free-text → a LabResult), and for each runs the SAME
+ * `findSatisfyingEvent` + `satisfyReminder` primitives the cron uses, so
+ * "I just weighed myself, stop reminding me" resolves immediately instead
+ * of waiting up to 15 minutes.
+ *
+ * Respects the module toggle: a reminder whose measurement type belongs to
+ * a disabled module produces no engine activity (the same gate the cron
+ * dispatch applies). Forward-only `satisfyReminder` makes a duplicate
+ * enqueue + the trailing cron poll converge without double-stamping.
+ */
+export async function runReminderSatisfyForUser(
+  prisma: PrismaClient,
+  userId: string,
+  now: Date,
+  options: { isModuleEnabled?: typeof isModuleEnabled } = {},
+): Promise<ReminderSatisfySummary> {
+  void now;
+  const moduleGate = options.isModuleEnabled ?? isModuleEnabled;
+
+  const summary: ReminderSatisfySummary = {
+    candidatesScanned: 0,
+    satisfied: 0,
+    skippedModuleDisabled: 0,
+    skippedNoEvent: 0,
+    failed: 0,
+  };
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { timezone: true },
+  });
+  const timezone = user?.timezone || "Europe/Berlin";
+
+  const reminders = await prisma.measurementReminder.findMany({
+    where: { userId, deletedAt: null, enabled: true },
+  });
+
+  for (const reminder of reminders) {
+    summary.candidatesScanned += 1;
+    try {
+      // Module toggle — no engine activity for a reminder whose type
+      // belongs to a disabled module. Core-vital + free-text reminders map
+      // to no module and are never gated.
+      const gatedModule = moduleForMeasurementType(reminder.measurementType);
+      if (
+        gatedModule !== null &&
+        !(await moduleGate(userId, gatedModule))
+      ) {
+        summary.skippedModuleDisabled += 1;
+        continue;
+      }
+
+      const satisfiedAt = await findSatisfyingEvent(prisma, userId, reminder);
+      if (!satisfiedAt) {
+        summary.skippedNoEvent += 1;
+        continue;
+      }
+
+      const result = await satisfyReminder(
+        prisma,
+        reminder,
+        timezone,
+        satisfiedAt,
+      );
+      if (result.satisfied) {
+        summary.satisfied += 1;
+        getEvent()?.addMeta("measurement_reminder.satisfied_eventful", reminder.id);
+      } else {
+        // Forward-only no-op — the cron or a prior enqueue already
+        // advanced this row past the event.
+        summary.skippedNoEvent += 1;
+      }
+    } catch (err: unknown) {
+      summary.failed += 1;
+      const message = err instanceof Error ? err.message : String(err);
+      getEvent()?.addWarning(
+        `reminder-satisfy per-reminder resolve failed for ${reminder.id}: ${message}`,
       );
     }
   }

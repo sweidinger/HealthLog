@@ -14,8 +14,15 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+// v1.18.1 — the queue wiring moved out of the 2143-LOC reminder-worker boot
+// file into domain registrars; the Nightscout / Polar / Oura queues live in the
+// integration-sync registrar. The dead-queue guard follows the wiring there
+// (the handler module is still concatenated for the handler-symbol assertions).
 const source =
-  readFileSync(join(__dirname, "..", "reminder-worker.ts"), "utf8") +
+  readFileSync(
+    join(__dirname, "..", "reminder", "register-integration-sync.ts"),
+    "utf8",
+  ) +
   readFileSync(join(__dirname, "..", "reminder", "nightscout-sync.ts"), "utf8");
 
 describe("reminder-worker — Nightscout sync queue", () => {

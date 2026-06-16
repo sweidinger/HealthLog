@@ -9,6 +9,7 @@ export const labKeys = {
   labResults: () => ["lab-results"] as const,
 
   labResultsList: (params: {
+    biomarkerId?: string | undefined;
     analyte: string | undefined;
     panel: string | undefined;
     from: string | undefined;
@@ -19,6 +20,7 @@ export const labKeys = {
     [
       "lab-results",
       "list",
+      params.biomarkerId ?? null,
       params.analyte ?? null,
       params.panel ?? null,
       params.from ?? null,
@@ -26,4 +28,9 @@ export const labKeys = {
       params.page,
       params.sortDir,
     ] as const,
+
+  // v1.18.1 — user-scoped Biomarker catalog. The list feeds the picker and
+  // the manager; both invalidate `biomarkers()` after a mutation.
+  biomarkers: () => ["biomarkers"] as const,
+  biomarkerDetail: (id: string) => ["biomarkers", "detail", id] as const,
 };

@@ -311,9 +311,11 @@ describe("doctor-report — module enable/disable gating", () => {
     workouts: true,
     recovery: true,
     labs: true,
+    illness: true,
     achievements: true,
     coach: true,
     insights: true,
+    medications: true,
     doctorReport: true,
   } as const;
 

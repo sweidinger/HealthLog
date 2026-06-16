@@ -105,7 +105,7 @@ export function SourcesRail({ className }: SourcesRailProps) {
       // column width: the switch rows used to push past the 280/320 px
       // container and paint a horizontal scrollbar under the rail.
       className={cn(
-        "flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-x-hidden p-3",
+        "flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-x-hidden p-3.5",
         className,
       )}
     >
@@ -113,8 +113,10 @@ export function SourcesRail({ className }: SourcesRailProps) {
         data-slot="coach-sources-rail-heading"
         // No horizontal inset — the heading sits flush with the row
         // boxes below it (headings and their content share one left
-        // edge across the Coach surfaces).
-        className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wide uppercase"
+        // edge across the Coach surfaces). v1.18.1 (W-COACH-UI C1/C4) —
+        // typography matched to the history-rail heading so the two rails
+        // read as one family.
+        className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase"
       >
         <Eye className="text-muted-foreground size-3.5" aria-hidden="true" />
         {t("insights.coach.sourcesTitle")}
@@ -126,7 +128,7 @@ export function SourcesRail({ className }: SourcesRailProps) {
       <div data-slot="coach-sources-window" className="flex flex-col gap-1">
         <label
           htmlFor="coach-sources-window-select"
-          className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase"
+          className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase"
         >
           {t("insights.coach.windowLabel")}
         </label>
@@ -139,13 +141,13 @@ export function SourcesRail({ className }: SourcesRailProps) {
             id="coach-sources-window-select"
             data-slot="coach-sources-window-trigger"
             size="default"
-            className="h-9 text-xs"
+            className="h-9 text-sm"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {WINDOW_OPTIONS.map((w) => (
-              <SelectItem key={w} value={w} className="text-xs">
+              <SelectItem key={w} value={w} className="text-sm">
                 {t(`insights.coach.window.${w}`)}
               </SelectItem>
             ))}
@@ -172,19 +174,19 @@ export function SourcesRail({ className }: SourcesRailProps) {
               data-active={checked ? "true" : "false"}
               className={cn(
                 "border-border/60 bg-muted/30 flex items-center gap-2.5",
-                "rounded-md border px-2.5",
-                "min-h-11 py-1.5",
+                "rounded-lg border px-3",
+                "min-h-11 py-2",
                 !checked && "opacity-60",
               )}
             >
               <div className="flex min-w-0 flex-1 flex-col">
                 <label
                   htmlFor={switchId}
-                  className="text-foreground cursor-pointer text-xs font-medium"
+                  className="text-foreground cursor-pointer text-sm font-medium"
                 >
                   {t(`insights.coach.cluster.${cluster}.label`)}
                 </label>
-                <span className="text-muted-foreground text-[10px] leading-snug">
+                <span className="text-muted-foreground text-[11px] leading-snug">
                   {t("insights.coach.sourcesMemberCount", {
                     count: memberCount,
                   })}

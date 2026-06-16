@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { createPortal } from "react-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -8,13 +10,30 @@ import { Button } from "@/components/ui/button";
 import { DateTimeInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, apiPost } from "@/lib/api/api-fetch";
+import { ApiError, apiGet, apiPost } from "@/lib/api/api-fetch";
+import { formatReferenceRange } from "@/lib/labs/reference-range";
+import { formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 
-import type { LabResultDto } from "./types";
+import { BiomarkerForm } from "./biomarker-form";
+import type {
+  BiomarkerDto,
+  BiomarkerListResponse,
+  LabResultDto,
+} from "./types";
 
 const NOTE_MAX_LENGTH = 2000;
+const DEFINE_NEW = "__define_new__";
 
 function defaultTakenAtValue() {
   const now = new Date();
@@ -32,59 +51,96 @@ function parseDecimal(raw: string): number | null {
 }
 
 interface LabFormProps {
+  /** When set, the biomarker is pre-selected and locked (add-from-detail). */
+  lockedBiomarkerId?: string;
   onSuccess?: (created: LabResultDto) => void;
   onCancel?: () => void;
+  /**
+   * When mounted inside a `<ResponsiveSheet>` the caller passes the sheet's
+   * footer slot element here. The Cancel / Save action row is portalled into
+   * it so the bottom-sheet branch can sticky-pin it above the keyboard; the
+   * Save button stays tied to the `<form>` via the HTML `form` attribute so
+   * submit-on-Enter and portalled-click both still submit.
+   */
+  footerSlot?: HTMLElement | null;
 }
 
 /**
- * v1.17.1 — manual lab-result entry.
+ * v1.18.1 — structured lab-result entry.
  *
- * Progressive disclosure: the four essentials (analyte, value, unit, date)
- * are always visible; the optional reference range, panel grouping, and
- * note sit below under a clearly-labelled "optional" heading so a quick
- * single-value entry stays a four-field affair.
+ * The error-prone free-text path is gone: the user PICKS a biomarker from the
+ * catalog, then enters only the value against its known unit + reference range
+ * (resolved server-side). A "+ define new" row opens the marker-definition
+ * sheet inline and returns with it selected. Panel / unit / range are NOT
+ * re-entered per reading — they live on the biomarker. Only the per-reading
+ * note stays optional here.
  */
-export function LabForm({ onSuccess, onCancel }: LabFormProps) {
+export function LabForm({
+  lockedBiomarkerId,
+  onSuccess,
+  onCancel,
+  footerSlot,
+}: LabFormProps) {
   const { t } = useTranslations();
+  const queryClient = useQueryClient();
+  const formId = useId();
 
-  const [analyte, setAnalyte] = useState("");
+  const { data: catalog, isLoading: catalogLoading } = useQuery({
+    queryKey: queryKeys.biomarkers(),
+    queryFn: () => apiGet<BiomarkerListResponse>("/api/biomarkers"),
+  });
+
+  const [biomarkerId, setBiomarkerId] = useState<string>(
+    lockedBiomarkerId ?? "",
+  );
   const [value, setValue] = useState("");
-  const [unit, setUnit] = useState("");
   const [takenAt, setTakenAt] = useState(defaultTakenAtValue);
-  const [panel, setPanel] = useState("");
-  const [refLow, setRefLow] = useState("");
-  const [refHigh, setRefHigh] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [defineOpen, setDefineOpen] = useState(false);
+  const [defineFooterEl, setDefineFooterEl] = useState<HTMLDivElement | null>(
+    null,
+  );
+
+  const markers = catalog?.biomarkers ?? [];
+  const selected = markers.find((m) => m.id === biomarkerId);
+
+  function handleSelect(next: string) {
+    if (next === DEFINE_NEW) {
+      setDefineOpen(true);
+      return;
+    }
+    setBiomarkerId(next);
+    setError(null);
+  }
+
+  function afterDefine(created: BiomarkerDto) {
+    setDefineOpen(false);
+    queryClient.invalidateQueries({ queryKey: queryKeys.biomarkers() });
+    setBiomarkerId(created.id);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     const numericValue = parseDecimal(value);
-    if (!analyte.trim() || numericValue === null || !unit.trim()) {
-      setError(t("labs.form.requiredError"));
+    if (!biomarkerId) {
+      setError(t("labs.form.pickBiomarkerError"));
       return;
     }
-
-    const low = parseDecimal(refLow);
-    const high = parseDecimal(refHigh);
-    if (low !== null && high !== null && low > high) {
-      setError(t("labs.form.rangeOrderError"));
+    if (numericValue === null) {
+      setError(t("labs.form.requiredError"));
       return;
     }
 
     setSubmitting(true);
     try {
       const created = await apiPost<LabResultDto>("/api/labs", {
-        analyte: analyte.trim(),
+        biomarkerId,
         value: numericValue,
-        unit: unit.trim(),
         takenAt: new Date(takenAt).toISOString(),
-        ...(panel.trim() ? { panel: panel.trim() } : {}),
-        ...(low !== null ? { referenceLow: low } : {}),
-        ...(high !== null ? { referenceHigh: high } : {}),
         ...(note.trim() ? { note: note.trim() } : {}),
       });
       toast.success(t("labs.form.savedToast"));
@@ -98,94 +154,108 @@ export function LabForm({ onSuccess, onCancel }: LabFormProps) {
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="lab-analyte">{t("labs.form.analyte")}</Label>
-          <Input
-            id="lab-analyte"
-            value={analyte}
-            onChange={(e) => setAnalyte(e.target.value)}
-            placeholder={t("labs.form.analytePlaceholder")}
-            maxLength={120}
-            autoFocus
-            required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="lab-value">{t("labs.form.value")}</Label>
-          <Input
-            id="lab-value"
-            inputMode="decimal"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="0.0"
-            required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="lab-unit">{t("labs.form.unit")}</Label>
-          <Input
-            id="lab-unit"
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-            placeholder={t("labs.form.unitPlaceholder")}
-            maxLength={40}
-            required
-          />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="lab-takenAt">{t("labs.form.takenAt")}</Label>
-          <DateTimeInput
-            id="lab-takenAt"
-            value={takenAt}
-            onChange={(e) => setTakenAt(e.target.value)}
-            max={defaultTakenAtValue()}
-            required
-          />
-        </div>
-      </div>
+  const referenceText = selected
+    ? formatReferenceRange(
+        selected.lowerBound,
+        selected.upperBound,
+        formatLabValue,
+      )
+    : "";
 
-      <fieldset className="space-y-4 rounded-lg border border-dashed p-4">
-        <legend className="text-muted-foreground px-1 text-xs font-medium">
-          {t("labs.form.optionalGroup")}
-        </legend>
+  const footerNode = (
+    <>
+      {onCancel ? (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          {t("common.cancel")}
+        </Button>
+      ) : null}
+      <Button type="submit" form={formId} disabled={submitting}>
+        {submitting ? (
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+        ) : null}
+        {t("labs.form.save")}
+      </Button>
+    </>
+  );
+
+  return (
+    <>
+      <form id={formId} onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
-          <Label htmlFor="lab-panel">{t("labs.form.panel")}</Label>
-          <Input
-            id="lab-panel"
-            value={panel}
-            onChange={(e) => setPanel(e.target.value)}
-            placeholder={t("labs.form.panelPlaceholder")}
-            maxLength={120}
-          />
+          <Label htmlFor="lab-biomarker">{t("labs.form.biomarker")}</Label>
+          <Select
+            value={biomarkerId || undefined}
+            onValueChange={handleSelect}
+            disabled={!!lockedBiomarkerId || catalogLoading}
+          >
+            <SelectTrigger id="lab-biomarker" className="w-full">
+              <SelectValue
+                placeholder={t("labs.form.biomarkerPlaceholder")}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {markers.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name} · {m.unit}
+                </SelectItem>
+              ))}
+              {!lockedBiomarkerId ? (
+                <SelectItem value={DEFINE_NEW}>
+                  {t("labs.form.defineNew")}
+                </SelectItem>
+              ) : null}
+            </SelectContent>
+          </Select>
+          {markers.length === 0 && !catalogLoading ? (
+            <p className="text-muted-foreground text-xs">
+              {t("labs.form.noBiomarkersHint")}
+            </p>
+          ) : null}
         </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="lab-refLow">{t("labs.form.referenceLow")}</Label>
+            <Label htmlFor="lab-value">
+              {t("labs.form.value")}
+              {selected ? (
+                <span className="text-muted-foreground font-normal">
+                  {" "}
+                  ({selected.unit})
+                </span>
+              ) : null}
+            </Label>
             <Input
-              id="lab-refLow"
+              id="lab-value"
               inputMode="decimal"
-              value={refLow}
-              onChange={(e) => setRefLow(e.target.value)}
-              placeholder={t("labs.form.referenceLowPlaceholder")}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="0.0"
+              required
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="lab-refHigh">{t("labs.form.referenceHigh")}</Label>
-            <Input
-              id="lab-refHigh"
-              inputMode="decimal"
-              value={refHigh}
-              onChange={(e) => setRefHigh(e.target.value)}
-              placeholder={t("labs.form.referenceHighPlaceholder")}
+            <Label htmlFor="lab-takenAt">{t("labs.form.takenAt")}</Label>
+            <DateTimeInput
+              id="lab-takenAt"
+              value={takenAt}
+              onChange={(e) => setTakenAt(e.target.value)}
+              max={defaultTakenAtValue()}
+              required
             />
           </div>
         </div>
-        <p className="text-muted-foreground text-xs">
-          {t("labs.form.referenceHint")}
-        </p>
+
+        {selected && referenceText ? (
+          <p className="text-muted-foreground text-xs">
+            {t("labs.referenceLabel")} {referenceText} {selected.unit}
+          </p>
+        ) : null}
+
         <div className="space-y-1.5">
           <Label htmlFor="lab-note">{t("labs.form.note")}</Label>
           <Textarea
@@ -197,32 +267,41 @@ export function LabForm({ onSuccess, onCancel }: LabFormProps) {
             rows={2}
           />
         </div>
-      </fieldset>
 
-      {error ? (
-        <p className="text-destructive text-sm" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="flex justify-end gap-2">
-        {onCancel ? (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onCancel}
-            disabled={submitting}
-          >
-            {t("common.cancel")}
-          </Button>
+        {error ? (
+          <p className="text-destructive text-sm" role="alert">
+            {error}
+          </p>
         ) : null}
-        <Button type="submit" disabled={submitting}>
-          {submitting ? (
-            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-          ) : null}
-          {t("labs.form.save")}
-        </Button>
-      </div>
-    </form>
+
+        {/* When no footer slot is supplied (rare — e.g. a non-sheet host) the
+            action row renders inline; inside a sheet it portals into the
+            sticky footer. */}
+        {footerSlot ? null : (
+          <div className="flex justify-end gap-2">{footerNode}</div>
+        )}
+      </form>
+
+      {footerSlot ? createPortal(footerNode, footerSlot) : null}
+
+      <ResponsiveSheet
+        open={defineOpen}
+        onOpenChange={setDefineOpen}
+        title={t("labs.biomarker.defineTitle")}
+        description={t("labs.biomarker.defineDescription")}
+        footer={
+          <div
+            ref={setDefineFooterEl}
+            className="flex w-full justify-end gap-2"
+          />
+        }
+      >
+        <BiomarkerForm
+          footerSlot={defineFooterEl}
+          onSuccess={afterDefine}
+          onCancel={() => setDefineOpen(false)}
+        />
+      </ResponsiveSheet>
+    </>
   );
 }

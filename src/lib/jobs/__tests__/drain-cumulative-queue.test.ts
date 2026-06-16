@@ -14,8 +14,11 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
+// v1.18.1 — the drain-cumulative wiring moved out of the 2143-LOC
+// reminder-worker boot file into the rollup registrar. The dead-queue guard
+// follows the wiring there.
+const REGISTRAR_PATH = join(__dirname, "..", "reminder", "register-rollup.ts");
+const source = readFileSync(REGISTRAR_PATH, "utf8");
 
 describe("reminder-worker — drainPerSampleCumulative nightly schedule", () => {
   it("declares the drain queue at the documented Berlin cadence", () => {

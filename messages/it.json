@@ -123,37 +123,6 @@
     "glucoseBelowTarget": "sotto obiettivo",
     "glucoseAboveTarget": "sopra obiettivo",
     "practiceLabel": "Studio",
-    "dialog": {
-      "title": "Referto medico (PDF)",
-      "description": "Imposta il periodo di analisi e (opzionale) il nome dello studio — entrambi compaiono in copertina.",
-      "startLabel": "Dal",
-      "endLabel": "Al",
-      "practiceLabel": "Studio / clinica (opzionale)",
-      "practicePlaceholder": "es. Dr. Müller — Medicina generale",
-      "preset90d": "Ultimi 90 giorni",
-      "preset180d": "Ultimi 6 mesi",
-      "preset365d": "Ultimi 12 mesi",
-      "submit": "Genera PDF",
-      "cancel": "Annulla",
-      "errorEndBeforeStart": "La data di fine non può essere antecedente a quella di inizio.",
-      "errorRangeTooLong": "Il periodo di analisi non può superare i 2 anni.",
-      "errorInvalidDate": "Scegli una data di inizio e di fine valide."
-    },
-    "sections": {
-      "title": "Seleziona contenuti",
-      "bp": "Pressione arteriosa",
-      "weight": "Peso",
-      "pulse": "Pulsazioni a riposo",
-      "bmi": "Indice di massa corporea (BMI)",
-      "mood": "Umore",
-      "moodSensitive": "Sensibile — disattivato per default.",
-      "compliance": "Aderenza ai farmaci",
-      "sleep": "Durata del sonno",
-      "cycle": "Ciclo mestruale",
-      "empty": "Nessun dato per il periodo selezionato. Il referto manterrà comunque la copertina.",
-      "unavailableHint": "Nessun dato in questo periodo",
-      "labs": "Risultati degli esami"
-    },
     "insurer": "Assicurazione sanitaria",
     "insuranceNumber": "N. assicurato",
     "summaryTitle": "Riepilogo clinico",
@@ -204,7 +173,14 @@
       "eA1c": "A1C stimata",
       "cv": "Variabilità (CV%)",
       "spotCaveat": "Sono stime da misurazioni occasionali, non un profilo da monitor continuo — vanno lette come una tendenza, non come un verdetto clinico."
-    }
+    },
+    "illnessTitle": "Condizioni e malattie",
+    "illnessOngoing": "In corso",
+    "illnessColCondition": "Condizione",
+    "illnessColType": "Tipo",
+    "illnessColLifecycle": "Decorso",
+    "illnessColOnset": "Inizio",
+    "illnessColResolved": "Risolta"
   },
   "errorBoundary": {
     "title": "Qualcosa è andato storto",
@@ -266,7 +242,8 @@
     "cycle": "Ciclo",
     "labs": "Esami",
     "recovery": "Recupero",
-    "vorsorge": "Prevenzione"
+    "vorsorge": "Prevenzione",
+    "illness": "Malattia"
   },
   "auth": {
     "login": "Accedi",
@@ -1632,17 +1609,7 @@
         "copyToken": "Copia token",
         "mintedHint": "Copia questo token ora — viene mostrato una sola volta."
       },
-      "edit": {
-        "planOption": "Modifica piano",
-        "advancedOption": "Impostazioni avanzate"
-      },
       "advanced": {
-        "title": "Impostazioni avanzate",
-        "group": {
-          "data": "Dati",
-          "lifecycle": "Ciclo di vita",
-          "externalApi": "API esterna"
-        },
         "dataPortability": {
           "import": {
             "title": "Importa assunzioni",
@@ -2188,23 +2155,6 @@
       "confidenceLow": "Confidenza bassa",
       "pendingLabel": "Commento di trend in generazione"
     },
-    "range": {
-      "label": "Periodo",
-      "noPriorData": "nessun dato nel periodo precedente",
-      "option": {
-        "7d": "7g",
-        "30d": "30g",
-        "90d": "90g",
-        "1y": "1a"
-      },
-      "priorLabel": {
-        "7d": "vs 7g precedenti",
-        "30d": "vs 30g precedenti",
-        "90d": "vs 90g precedenti",
-        "1y": "vs anno precedente"
-      },
-      "noChange": "nessuna variazione"
-    },
     "correlationRow": {
       "title": "Correlazioni",
       "disclaimer": "Le correlazioni sono osservazionali, non causali — parla con il medico se la pressione è alta.",
@@ -2546,14 +2496,6 @@
       "target": {
         "adjustLink": "Modifica l'intervallo obiettivo"
       },
-      "primary": {
-        "avg30Label": "Media a 30 giorni",
-        "inRangeLabel": "Nell'obiettivo",
-        "inRangeAria": "{pct}% dei giorni registrati nell'obiettivo"
-      },
-      "lastMeasurement": {
-        "label": "Ultima misurazione"
-      },
       "explainer": {
         "trigger": "Che cos'è {title}?",
         "bloodPressureTitle": "Pressione arteriosa",
@@ -2646,6 +2588,8 @@
         "stairDescentSpeedBody": "È la velocità con cui scendi una rampa di scale. Insieme alla velocità in salita riflette il controllo delle gambe e l'equilibrio: un ritmo stabile è un buon segno, mentre uno in calo va tenuto d'occhio.",
         "breathingDisturbancesTitle": "Disturbi respiratori nel sonno",
         "breathingDisturbancesBody": "Il tuo Apple Watch può stimare quanto spesso la respirazione si è interrotta durante il sonno. Un indice più basso è migliore; un livello che Apple segnala come elevato, soprattutto su molte notti, andrebbe segnalato a un medico.",
+        "stepsTitle": "Passi",
+        "stepsBody": "Il conteggio dei passi è il numero totale di passi che fai ogni giorno. È la misura più semplice del movimento quotidiano: un conteggio giornaliero più alto riflette di solito uno stile di vita più attivo, e un'abitudine costante conta più di un singolo giorno intenso.",
         "readinessBody": "La prontezza è una lettura giornaliera di quanto il tuo corpo sia pronto ad affrontare la giornata, combinando frequenza cardiaca a riposo, variabilità della frequenza cardiaca, sonno e regolarità delle ultime notti. Un punteggio più alto indica che il tuo organismo appare recuperato e pieno di risorse; uno più basso è un invito gentile a rallentare.",
         "sleepScoreBody": "Il tuo punteggio del sonno riassume un'intera notte in un solo numero — durata, efficienza, regolarità degli orari ed equilibrio tra sonno leggero, profondo e REM. Osserva l'andamento nell'arco delle settimane invece di rincorrere un punteggio perfetto in una singola notte.",
         "recoveryBody": "Il recupero riflette quanto bene il tuo corpo si è ripreso, basandosi su segnali notturni come la variabilità della frequenza cardiaca e la frequenza a riposo. Un punteggio alto è il via libera per spingere; uno più basso suggerisce che il tuo organismo si sta ancora ricostruendo.",
@@ -2750,6 +2694,11 @@
       "critical": "Critico"
     },
     "assessmentTitle": "Valutazione",
+    "restMode": {
+      "title": "Modalità riposo",
+      "body": "È in corso un episodio di malattia o disturbo, quindi questo riflette una fase di recupero. Il tuo punteggio non viene abbassato per questo.",
+      "bodySince": "È in corso un episodio di malattia o disturbo dal {since}, quindi questo riflette una fase di recupero. Il tuo punteggio non viene abbassato per questo."
+    },
     "assessmentShowMore": "Mostra altro",
     "assessmentShowLess": "Mostra meno",
     "bloodPressureSectionTitle": "Pressione arteriosa",
@@ -3461,7 +3410,8 @@
         "watchVital": "Fuori intervallo: {vital}. Spesso è un episodio isolato — tienilo d’occhio nei prossimi giorni.",
         "firedHeadline": "Oggi {count} dei tuoi parametri vitali sono fuori dal loro intervallo personale.",
         "factors": "Possibili fattori — mai una causa: un allenamento intenso, poco sonno, alcol, altitudine, stress o una malattia. È un avviso basato sui tuoi parametri, non una diagnosi.",
-        "building": "Stiamo costruendo i tuoi riferimenti personali — registra ancora qualche giorno e comparirà."
+        "building": "Stiamo costruendo i tuoi riferimenti personali — registra ancora qualche giorno e comparirà.",
+        "illnessExplained": "Questi scostamenti riflettono probabilmente la condizione che hai registrato."
       },
       "trajectory": {
         "cardTitle": "Proiezione a breve termine",
@@ -3633,10 +3583,14 @@
         "title": "Cuore ed energia del giorno",
         "subtitle": "Totali cardiaci ed energetici dell'intera giornata"
       },
-      "scoreLink": {
-        "title": "Punteggio di recupero",
-        "subtitle": "Vedi come si scompone il punteggio notturno",
-        "cta": "Apri"
+      "block": {
+        "ansChargeExplainer": "Quanto è carico il tuo sistema nervoso autonomo per la giornata — una lettura di ricarica ricavata dai segnali notturni di cuore e respiro.",
+        "dayStrainExplainer": "Il carico cardiovascolare della giornata sulla scala di sforzo del tuo dispositivo. Leggilo in rapporto al tuo recupero, non come obiettivo a sé.",
+        "workoutStrainExplainer": "Quanto è stato impegnativo un singolo allenamento sulla stessa scala di sforzo — il costo cardiovascolare di quella sessione.",
+        "cardioLoadExplainer": "Una stima del carico di allenamento che traccia il carico cardiovascolare accumulato. Confrontala con i tuoi giorni recenti.",
+        "averageHeartRateExplainer": "La tua frequenza cardiaca media nell'arco dell'intera giornata o ciclo, come riportata dal tuo wearable.",
+        "maxHeartRateExplainer": "La tua frequenza cardiaca massima nell'arco dell'intera giornata o ciclo, come riportata dal tuo wearable.",
+        "energyExpenditureKjExplainer": "L'energia che il tuo corpo ha consumato nella giornata, in kilojoule, come la riporta nativamente il tuo dispositivo."
       }
     },
     "bodyTempDeviation": {
@@ -3871,18 +3825,7 @@
       },
       "integrations": {
         "title": "Integrazioni",
-        "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto.",
-        "tabs": {
-          "connections": "Connessioni",
-          "channels": "Canali",
-          "sources": "Origini"
-        },
-        "connections": {
-          "description": "Collega Withings, WHOOP, Fitbit, Polar, Oura e Nightscout."
-        },
-        "channels": {
-          "description": "Telegram, ntfy, Web Push, Webhook ed e-mail: le vie attraverso cui vengono recapitate le notifiche."
-        }
+        "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto."
       },
       "notifications": {
         "title": "Notifiche",
@@ -3892,7 +3835,7 @@
         "inboxLink": "Apri la posta in arrivo"
       },
       "layout": {
-        "title": "Layout e personalizzazione",
+        "title": "Layout",
         "description": "Organizza la disposizione del cruscotto e degli approfondimenti.",
         "backToHub": "Torna a Layout e personalizzazione",
         "dashboard": {
@@ -3902,14 +3845,6 @@
         "insights": {
           "title": "Approfondimenti",
           "description": "Ordine della panoramica e delle schede di navigazione."
-        },
-        "medications": {
-          "title": "Farmaci",
-          "description": "Vista elenco e ordine dei farmaci."
-        },
-        "mood": {
-          "title": "Tag dell’umore",
-          "description": "Gruppi, tag e ordine del selettore dell’umore."
         }
       },
       "dashboard": {
@@ -3996,12 +3931,6 @@
         "description": "Scarica i tuoi dati come CSV o backup JSON completo, oppure importa da Apple Salute, JSON o CSV. Il referto medico ora si trova in Cartella sanitaria.",
         "otherOptionsHeading": "Altre opzioni di esportazione",
         "downloadFailed": "Impossibile scaricare l'esportazione. Riprova.",
-        "hero": {
-          "eyebrow": "Visita medica",
-          "valueStatement": "Un referto PDF stampabile per la visita medica — parametri vitali, BMI, classificazione della pressione, aderenza alla terapia e (facoltativamente) l'andamento dell'umore, in poche pagine.",
-          "cta": "Configura e genera il referto",
-          "formatHint": "PDF · pronto per la stampa"
-        },
         "actions": {
           "download": "Scarica"
         },
@@ -4010,10 +3939,6 @@
           "until": "Fino al"
         },
         "cards": {
-          "doctorReport": {
-            "title": "Referto medico",
-            "description": "PDF stampabile per la visita medica — parametri vitali, IMC, classificazione della pressione, aderenza ai farmaci, umore."
-          },
           "measurementsCsv": {
             "title": "Misurazioni",
             "description": "Peso, pressione, polso, glicemia e tutte le altre misurazioni in valori separati da virgola."
@@ -4146,6 +4071,10 @@
       "coach": {
         "title": "Coach",
         "description": "Attiva il Coach, tono e ambito, ricordi salvati."
+      },
+      "channels": {
+        "title": "Canali",
+        "description": "Recapito tramite Telegram, ntfy, Web Push, Webhook ed e-mail."
       }
     },
     "profile": "Profilo",
@@ -4386,14 +4315,6 @@
         "forgotError": "Impossibile dimenticare questa informazione. Riprova.",
         "clearedToast": "Dimenticate {count} informazioni memorizzate.",
         "clearError": "Impossibile cancellare le informazioni memorizzate. Riprova."
-      },
-      "disableCoach": {
-        "title": "Nascondi il Coach",
-        "description": "Nasconde il pulsante e il pannello del Coach su tutte le pagine.",
-        "toggleAria": "Nascondi il pulsante e il pannello del Coach",
-        "savedHidden": "Coach nascosto.",
-        "savedShown": "Coach visibile.",
-        "saveError": "Impossibile salvare la modifica. Riprova."
       },
       "aboutMe": {
         "title": "Su di me",
@@ -4857,7 +4778,17 @@
       "rate_limited": "Troppi tentativi di connessione. Attendi un momento e riprova.",
       "generic": "Errore sconosciuto durante la connessione. Riavvia la connessione."
     },
-    "integrationSetupGuide": "Guida alla configurazione"
+    "integrationSetupGuide": "Guida alla configurazione",
+    "coach": {
+      "activate": {
+        "title": "Attiva il Coach",
+        "description": "Mostra il pulsante e il pannello del Coach. Attivo per impostazione predefinita: disattivalo per nascondere il Coach ovunque.",
+        "toggleAria": "Attiva il pulsante e il pannello del Coach",
+        "savedOn": "Coach attivato.",
+        "savedOff": "Coach nascosto.",
+        "saveError": "Impossibile salvare la modifica. Riprova."
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5145,6 +5076,7 @@
     "deleteAllConfirm": "Eliminare davvero tutti i dati?",
     "deleteAllConfirmDescription": "Questa operazione eliminerà definitivamente tutte le misurazioni, i farmaci, gli eventi di assunzione, i token API, le connessioni Withings, le challenge di autenticazione aperte, i canali di notifica (Telegram, ntfy, Web Push), le sottoscrizioni push e le eliminazioni di messaggi Telegram in coda di tutti gli utenti. Gli account utente, il log di audit e i feedback inviati vengono conservati affinché la cancellazione resti tracciabile e le segnalazioni di bug restino gestibili.",
     "deleteButton": "Elimina tutti i dati",
+    "deleteAllPromptLabel": "Digita {token} per continuare",
     "finalDelete": "Elimina definitivamente",
     "deletedResult": "Deleted: {measurements} measurements, {medications} Farmaci,{intakeEvents} intakes, {apiTokens} API tokens, {withingsConnections} Withings connections, {authChallenges} auth challenges, {notificationChannels} notification channels, {pushSubscriptions} push subscriptions, {telegramScheduledDeletions} queued Telegram deletions. Feedback rows preserved.",
     "authRegister": "Registrazione",
@@ -5273,17 +5205,9 @@
         "title": "Integrazioni",
         "subtitle": "Configura Umami, GlitchTip, Web Push e le segnalazioni di bug."
       },
-      "ai-quality": {
-        "title": "Qualità delle analisi",
-        "subtitle": "Punteggi di utilità raggruppati per gravità e provider, dagli ultimi 30 giorni di feedback degli utenti."
-      },
-      "assistant": {
-        "title": "Superfici dell'assistente",
-        "subtitle": "Attiva o disattiva ciascuna superficie guidata dal modello senza rimuovere la configurazione del provider."
-      },
-      "coach-feedback": {
-        "title": "Feedback del Coach",
-        "subtitle": "Tasso di utilità per versione del prompt, tono e livello di dettaglio del Coach degli ultimi 30 giorni."
+      "coach": {
+        "title": "Coach",
+        "subtitle": "Superfici dell'assistente, chiave del server e le tabelle di qualità del feedback di Coach e analisi, in un unico posto."
       },
       "feedback": {
         "title": "Feedback",
@@ -5875,11 +5799,6 @@
         "sixDaysAgo": "6 giorni fa"
       }
     },
-    "relativeDay": {
-      "today": "Oggi",
-      "yesterday": "Ieri",
-      "daysAgo": "{count} giorni fa"
-    },
     "edit": {
       "openLabel": "Modifica il range obiettivo per {metric}",
       "title": "Modifica range obiettivo — {metric}",
@@ -6344,7 +6263,9 @@
       "delete": "Elimina",
       "temperatureSection": "Temperatura e ovulazione",
       "intimacySection": "Intimità e contraccezione",
-      "testsSection": "Test"
+      "testsSection": "Test",
+      "phaseDayHeader": "Giorno {day} · {phase}",
+      "bbtHint": "Misurala appena sveglia, prima di alzarti."
     },
     "settings": {
       "title": "Impostazioni del ciclo",
@@ -6420,6 +6341,24 @@
       "ovulationEstimate": "Ovulazione stim.",
       "tooltipTemp": "{temp} °C",
       "ovulationConfirmed": "Ovulazione confermata"
+    },
+    "fieldInfo": {
+      "bbt": "La tua temperatura a riposo, misurata appena sveglia prima di alzarti. Dopo l'ovulazione sale leggermente (circa 0,2–0,3 °C).",
+      "bbtLabel": "Cos'è la temperatura basale?",
+      "mucus": "Le perdite vaginali cambiano durante il ciclo — da secche o appiccicose a cremose, poi acquose e simili ad albume nei giorni più fertili.",
+      "mucusLabel": "Cos'è il muco cervicale?",
+      "ovulationTest": "Un test delle urine domestico che rileva il picco di LH — l'aumento ormonale circa 24–36 h prima dell'ovulazione. Un positivo segnala la finestra più fertile.",
+      "ovulationTestLabel": "Cos'è un test di ovulazione?",
+      "spotting": "Lieve sanguinamento al di fuori delle mestruazioni.",
+      "spottingLabel": "Cos'è lo spotting tra le mestruazioni?",
+      "pregnancyTest": "Risultato di un test di gravidanza (hCG) domestico.",
+      "pregnancyTestLabel": "Cos'è un test di gravidanza?",
+      "progesteroneTest": "Un test che conferma l'avvenuta ovulazione — il progesterone sale dopo.",
+      "progesteroneTestLabel": "Cos'è un test del progesterone?",
+      "intercourse": "Se in questo giorno ci sono stati rapporti sessuali.",
+      "intercourseLabel": "Cosa registra i rapporti?",
+      "protected": "Se durante il rapporto è stata usata la contraccezione.",
+      "protectedLabel": "Cosa significa protetto?"
     }
   },
   "cycleReminders": {
@@ -6478,7 +6417,19 @@
       "BLOOD_GLUCOSE": "Glicemia",
       "OXYGEN_SATURATION": "Saturazione di ossigeno",
       "BODY_FAT": "Grasso corporeo",
-      "BODY_TEMPERATURE": "Temperatura corporea"
+      "BODY_TEMPERATURE": "Temperatura corporea",
+      "FAT_MASS": "Massa grassa",
+      "FAT_FREE_MASS": "Massa magra totale",
+      "MUSCLE_MASS": "Massa muscolare",
+      "LEAN_BODY_MASS": "Massa magra",
+      "BONE_MASS": "Massa ossea",
+      "TOTAL_BODY_WATER": "Acqua corporea",
+      "VISCERAL_FAT": "Grasso viscerale",
+      "BODY_MASS_INDEX": "Indice di massa corporea (IMC)"
+    },
+    "typeGroups": {
+      "vitals": "Parametri vitali",
+      "bodyComposition": "Composizione corporea"
     },
     "empty": {
       "title": "Ancora nessun promemoria",
@@ -6495,22 +6446,28 @@
       "notifyHour": "Ricorda alle",
       "location": "Dove (facoltativo)",
       "locationPlaceholder": "es. Medico, Laboratorio",
-      "save": "Salva"
+      "save": "Salva",
+      "createTitle": "Nuovo promemoria",
+      "editTitle": "Modifica promemoria"
     },
     "pushTitle": "Promemoria di prevenzione",
     "pushBody": "È ora di: {label}",
-    "pushLocation": "(presso {location})"
+    "pushLocation": "(presso {location})",
+    "edit": "Modifica",
+    "originCoach": "Coach",
+    "enabledToggleAria": "Attiva o disattiva questo promemoria",
+    "until": "Fino al {date}"
   },
   "labs": {
     "title": "Risultati degli esami",
     "subtitle": "Analisi del sangue e biomarcatori",
-    "addResult": "Aggiungi",
+    "addResult": "Aggiungi valore",
     "addDescription": "Registra un biomarcatore da un referto di laboratorio.",
     "addFirst": "Aggiungi il primo risultato",
     "emptyTitle": "Ancora nessun risultato",
     "emptyDescription": "Registra esami come HbA1c, LDL o ferritina per seguirli nel tempo e condividerli con il tuo medico.",
     "referenceLabel": "Riferimento",
-    "readingsCount": "{count} valori",
+    "readingsCount": "{count} misurazioni",
     "deleteLatest": "Elimina l'ultimo valore",
     "deleteConfirmTitle": "Eliminare il risultato di laboratorio?",
     "deleteConfirmDescription": "Questo risultato di laboratorio verrà eliminato definitivamente.",
@@ -6539,12 +6496,130 @@
       "referenceHint": "Copia l'intervallo di riferimento dal referto. Ciascun limite è facoltativo.",
       "note": "Nota",
       "notePlaceholder": "Contesto facoltativo per questo risultato",
-      "requiredError": "Biomarcatore, valore e unità sono obbligatori.",
+      "requiredError": "Inserisci un valore.",
       "rangeOrderError": "Il riferimento minimo non può superare quello massimo.",
       "save": "Salva",
       "savedToast": "Risultato salvato",
-      "saveError": "Impossibile salvare il risultato"
-    }
+      "saveError": "Impossibile salvare il risultato",
+      "biomarker": "Biomarcatore",
+      "biomarkerPlaceholder": "Scegli un biomarcatore",
+      "defineNew": "+ Definisci nuovo biomarcatore",
+      "noBiomarkersHint": "Definisci prima un biomarcatore per registrare un valore.",
+      "pickBiomarkerError": "Scegli prima un biomarcatore."
+    },
+    "backToLabs": "Torna ai risultati",
+    "hasNote": "Nota",
+    "editTitle": "Modifica misurazione",
+    "editDescription": "Correggi valore, data o nota di questa misurazione.",
+    "editedToast": "Misurazione aggiornata",
+    "editError": "Impossibile aggiornare la misurazione",
+    "editTimestampError": "Inserisci una data valida.",
+    "editReading": "Modifica misurazione",
+    "deleteReading": "Elimina misurazione",
+    "restoredToast": "Misurazione ripristinata",
+    "restoreError": "Impossibile ripristinare la misurazione",
+    "detail": {
+      "history": "Cronologia",
+      "emptyTitle": "Ancora nessuna misurazione",
+      "emptyDescription": "Aggiungi un valore per seguire questo biomarcatore nel tempo."
+    },
+    "chart": {
+      "empty": "Nessuna misurazione in questo periodo.",
+      "valueLabel": "Valore",
+      "range": {
+        "30": "30 g",
+        "90": "90 g",
+        "365": "1 a",
+        "all": "Tutto"
+      }
+    },
+    "biomarker": {
+      "manage": "Biomarcatori",
+      "manageTitle": "Biomarcatori",
+      "manageSheetDescription": "Definisci i marcatori che segui. Ognuno si imposta una volta con la sua unità e l'intervallo di riferimento.",
+      "managerDescription": "Definisci un marcatore una volta — unità e intervallo valgono per ogni misurazione.",
+      "define": "Definisci",
+      "defineFirst": "Definisci il tuo primo biomarcatore",
+      "defineTitle": "Definisci biomarcatore",
+      "defineDescription": "Imposta nome, unità e intervallo una volta. Scegli il marcatore quando aggiungi un valore.",
+      "editTitle": "Modifica biomarcatore",
+      "edit": "Modifica",
+      "delete": "Elimina",
+      "deletedToast": "Biomarcatore eliminato",
+      "deleteError": "Impossibile eliminare il biomarcatore",
+      "deleteConfirmTitle": "Eliminare il biomarcatore?",
+      "deleteConfirmDescription": "La definizione viene rimossa. Le misurazioni esistenti restano ma vengono scollegate.",
+      "emptyTitle": "Ancora nessun biomarcatore",
+      "emptyDescription": "Definisci marcatori come LDL o HbA1c per registrare i valori.",
+      "loadError": "Impossibile caricare i biomarcatori",
+      "noRange": "Nessun intervallo di riferimento",
+      "form": {
+        "seedLabel": "Parti da un marcatore comune",
+        "seedPlaceholder": "Scegli un marcatore (facoltativo)",
+        "seedHint": "Sceglierne uno compila i campi — adatta l'intervallo al tuo laboratorio.",
+        "name": "Nome",
+        "namePlaceholder": "es. Colesterolo LDL",
+        "unit": "Unità",
+        "unitPlaceholder": "es. mg/dL",
+        "panel": "Panel",
+        "panelPlaceholder": "es. Lipidi",
+        "lowerBound": "Riferimento minimo",
+        "upperBound": "Riferimento massimo",
+        "lowerPlaceholder": "Limite inferiore",
+        "upperPlaceholder": "Limite superiore",
+        "context": "Contesto",
+        "contextPlaceholder": "Nota facoltativa su questo marcatore",
+        "rangeHint": "Entrambi i limiti sono facoltativi — lasciane uno vuoto per un intervallo aperto (es. LDL < 116).",
+        "requiredError": "Nome e unità sono obbligatori.",
+        "rangeOrderError": "Il limite inferiore non deve superare quello superiore.",
+        "save": "Salva biomarcatore",
+        "savedToast": "Biomarcatore salvato",
+        "updatedToast": "Biomarcatore aggiornato",
+        "saveError": "Impossibile salvare il biomarcatore"
+      }
+    },
+    "catalog": {
+      "total-cholesterol": "Colesterolo totale",
+      "ldl": "Colesterolo LDL",
+      "hdl": "Colesterolo HDL",
+      "triglycerides": "Trigliceridi",
+      "fasting-glucose": "Glicemia a digiuno",
+      "hba1c": "HbA1c",
+      "tsh": "TSH",
+      "ft3": "T3 libero",
+      "ft4": "T4 libero",
+      "ferritin": "Ferritina",
+      "transferrin-saturation": "Saturazione della transferrina",
+      "vitamin-d": "Vitamina D (25-OH)",
+      "vitamin-b12": "Vitamina B12",
+      "folate": "Folati",
+      "hs-crp": "PCR ad alta sensibilità",
+      "creatinine": "Creatinina",
+      "egfr": "eGFR",
+      "alt": "ALT",
+      "ast": "AST",
+      "ggt": "GGT",
+      "sodium": "Sodio",
+      "potassium": "Potassio",
+      "hemoglobin": "Emoglobina",
+      "hematocrit": "Ematocrito",
+      "wbc": "Leucociti",
+      "platelets": "Piastrine",
+      "panel": {
+        "lipids": "Lipidi",
+        "glucose": "Metabolismo del glucosio",
+        "thyroid": "Tiroide",
+        "iron": "Ferro",
+        "vitamins": "Vitamine",
+        "inflammation": "Infiammazione",
+        "renal": "Reni",
+        "liver": "Fegato",
+        "electrolytes": "Elettroliti",
+        "bloodCount": "Emocromo"
+      }
+    },
+    "noteLoadFailed": "Impossibile caricare la nota; resterà invariata al salvataggio.",
+    "showingLatestOf": "Visualizzazione degli ultimi {shown} risultati su {total}"
   },
   "modules": {
     "cycle": {
@@ -6584,7 +6659,7 @@
       "description": "Chat IA basata sui tuoi dati."
     },
     "insights": {
-      "label": "Analisi",
+      "label": "Insights",
       "description": "Analisi IA, briefing e correlazioni."
     },
     "doctorReport": {
@@ -6606,6 +6681,165 @@
     "medications": {
       "label": "Farmaci",
       "description": "Schemi, assunzioni e aderenza."
+    },
+    "illness": {
+      "label": "Diario delle malattie",
+      "description": "Registra episodi di malattia e disturbi con una cronologia giornaliera dei sintomi."
+    }
+  },
+  "illness": {
+    "title": "Diario delle malattie",
+    "subtitle": "Un registro retrospettivo dei tuoi episodi di malattia e disturbi.",
+    "disclaimer": "Un diario personale, non un dispositivo medico. Non diagnostica né prevede.",
+    "newEpisode": "Nuovo episodio",
+    "logDay": "Registra un giorno",
+    "markRecovered": "Segna come guarito",
+    "onsetOn": "Iniziato il {date}",
+    "recoveredOn": "guarito {date}",
+    "status": {
+      "active": "Attivo",
+      "ongoing": "In corso",
+      "recovered": "Guarito"
+    },
+    "empty": {
+      "title": "Ancora nessun episodio",
+      "body": "Avvia un episodio per tenere una cronologia giornaliera dei sintomi e rivedere come si è evoluto."
+    },
+    "type": {
+      "INFECTION": "Infezione",
+      "ALLERGY": "Allergia",
+      "INJURY": "Infortunio",
+      "MENTAL_HEALTH": "Salute mentale",
+      "AUTOIMMUNE": "Autoimmune",
+      "CHRONIC": "Cronica",
+      "OTHER": "Altro"
+    },
+    "lifecycle": {
+      "ACUTE": "Acuta",
+      "CHRONIC_ONGOING": "Cronica / in corso",
+      "RECURRING": "Ricorrente",
+      "FLARE": "Riacutizzazione"
+    },
+    "new": {
+      "title": "Nuovo episodio",
+      "description": "Registra una malattia o un disturbo. Potrai annotare i sintomi giornalieri in seguito.",
+      "label": "Nome",
+      "labelPlaceholder": "es. Raffreddore",
+      "type": "Tipo",
+      "lifecycle": "Decorso",
+      "onset": "Iniziato il",
+      "note": "Nota",
+      "notePlaceholder": "Qualcosa da ricordare (cifrato).",
+      "saveError": "Impossibile salvare l'episodio. Riprova.",
+      "parent": "Part of",
+      "parentNone": "Not linked"
+    },
+    "sheet": {
+      "title": "Registra {date}",
+      "description": "Annota i sintomi di oggi, come funzioni e l'eventuale febbre.",
+      "symptoms": "Sintomi",
+      "functionalImpact": "Come funzioni",
+      "fever": "Temperatura",
+      "note": "Nota",
+      "noteSet": "Impostata",
+      "notePlaceholder": "Com'è andata la giornata (cifrato).",
+      "severityFor": "Intensità di {symptom}",
+      "saveError": "Impossibile salvare la giornata. Riprova.",
+      "day": "Day"
+    },
+    "impact": {
+      "0": "Pienamente funzionale",
+      "1": "Leggermente limitato",
+      "2": "Per lo più a riposo",
+      "3": "A letto"
+    },
+    "symptom": {
+      "runnyNose": "Naso che cola",
+      "stuffyNose": "Naso chiuso",
+      "sneezing": "Starnuti",
+      "soreThroat": "Mal di gola",
+      "cough": "Tosse",
+      "headache": "Mal di testa",
+      "bodyAches": "Dolori muscolari",
+      "fatigue": "Affaticamento"
+    },
+    "correlation": {
+      "title": "Come si è svolto",
+      "learning": "Ancora in apprendimento: registra qualche giorno in più per vedere i pattern qui.",
+      "preOnsetTitle": "Come si è annunciato",
+      "preOnsetBody": "Segnali che si sono allontanati dalla tua base prima dell'inizio che hai segnato.",
+      "nadirTitle": "Cosa è cambiato",
+      "nadirBody": "Quanto ogni segnale registrato si è allontanato dal tuo intervallo abituale.",
+      "recoveryGapTitle": "Divario di recupero",
+      "recoveryGapLag": "I tuoi valori si sono stabilizzati {days} giorni dopo esserti sentito meglio.",
+      "recoveryGapLead": "I tuoi valori si sono stabilizzati {days} giorni prima di segnare la guarigione.",
+      "recoveryGapSame": "I tuoi valori si sono stabilizzati lo stesso giorno in cui ti sei sentito meglio.",
+      "redFlagTitle": "Da guardare più da vicino",
+      "redFlagSpo2": "La tua saturazione di ossigeno è rimasta bassa per diversi giorni. Se si ripete, rivolgiti a un medico.",
+      "redFlagFever": "Hai avuto febbre persistente. Se si ripete, rivolgiti a un medico.",
+      "direction": {
+        "above": "sopra il tuo solito",
+        "below": "sotto il tuo solito"
+      }
+    },
+    "insights": {
+      "title": "La tua storia di malattie",
+      "countOne": "Hai registrato 1 episodio in questo periodo.",
+      "countOther": "Hai registrato {count} episodi in questo periodo.",
+      "typicalGap": "Divario di recupero tipico: {days} giorni tra il sentirti meglio e la stabilizzazione dei valori.",
+      "typicalGapLearning": "Ancora qualche episodio risolto e qui apparirà un divario di recupero tipico.",
+      "byMonth": "Quando tendi a registrare episodi",
+      "none": "Nessun episodio registrato in questo periodo."
+    },
+    "loadError": "Could not load this episode.",
+    "backToList": "Back to journal",
+    "detail": {
+      "note": "Note"
+    },
+    "edit": {
+      "title": "Edit episode",
+      "description": "Update this episode's details."
+    },
+    "menu": {
+      "label": "Episode actions"
+    },
+    "deleteConfirm": {
+      "title": "Delete this episode?",
+      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+    },
+    "vital": {
+      "RESTING_HEART_RATE": "Resting heart rate",
+      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RECOVERY_SCORE": "Recovery",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_TEMPERATURE": "Body temperature",
+      "SKIN_TEMPERATURE": "Skin temperature",
+      "RESPIRATORY_RATE": "Respiratory rate",
+      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
+      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "PULSE": "Pulse",
+      "WEIGHT": "Weight"
+    }
+  },
+  "coach": {
+    "reminderSuggestion": {
+      "title": "Impostare un promemoria?",
+      "accept": "Imposta promemoria",
+      "dismiss": "Non ora",
+      "stop": "Misuro abbastanza",
+      "accepted": "Promemoria impostato",
+      "dismissed": "Va bene, non lo suggerirò più",
+      "stopped": "Capito, smetto di suggerire promemoria",
+      "failed": "Impossibile impostarlo, riprova",
+      "cadence": {
+        "weightDaily": "Pesati ogni giorno, più o meno alla stessa ora",
+        "bp722": "Misura la pressione due volte al giorno per una settimana",
+        "glucoseStructured": "Misura la glicemia con un programma giornaliero strutturato"
+      }
+    },
+    "settings": {
+      "reminderSuggestionsLabel": "Suggerimenti di cadenza",
+      "reminderSuggestionsDescription": "Lascia che il Coach proponga ogni tanto un promemoria basato sull'evidenza per misurare una metrica più regolarmente."
     }
   }
 }

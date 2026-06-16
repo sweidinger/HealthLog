@@ -123,37 +123,6 @@
     "glucoseBelowTarget": "below target",
     "glucoseAboveTarget": "above target",
     "practiceLabel": "Practice",
-    "dialog": {
-      "title": "Doctor report (PDF)",
-      "description": "Pick the reporting period and (optionally) the practice name; both are printed on the cover.",
-      "startLabel": "Start date",
-      "endLabel": "End date",
-      "practiceLabel": "Practice / clinic name (optional)",
-      "practicePlaceholder": "e.g. Dr. Müller — Family practice",
-      "preset90d": "Last 90 days",
-      "preset180d": "Last 6 months",
-      "preset365d": "Last 12 months",
-      "submit": "Generate PDF",
-      "cancel": "Cancel",
-      "errorEndBeforeStart": "End date must be on or after the start date.",
-      "errorRangeTooLong": "The reporting period cannot exceed 2 years.",
-      "errorInvalidDate": "Please select a valid start and end date."
-    },
-    "sections": {
-      "title": "Choose sections",
-      "bp": "Blood pressure",
-      "weight": "Weight",
-      "pulse": "Resting pulse",
-      "bmi": "Body Mass Index (BMI)",
-      "mood": "Mood",
-      "moodSensitive": "Sensitive — off by default.",
-      "compliance": "Medication adherence",
-      "sleep": "Sleep duration",
-      "cycle": "Menstrual cycle",
-      "empty": "No data was recorded in this date range yet. The report will still include the cover page.",
-      "unavailableHint": "No data in this period",
-      "labs": "Lab results"
-    },
     "insurer": "Health insurer",
     "insuranceNumber": "Insurance no.",
     "summaryTitle": "Clinical summary",
@@ -204,7 +173,14 @@
       "eA1c": "Estimated A1C",
       "cv": "Variability (CV%)",
       "spotCaveat": "These are spot-reading estimates from individual measurements, not a continuous-monitor profile — read them as a direction of travel rather than a clinical verdict."
-    }
+    },
+    "illnessTitle": "Conditions & illnesses",
+    "illnessOngoing": "Ongoing",
+    "illnessColCondition": "Condition",
+    "illnessColType": "Type",
+    "illnessColLifecycle": "Course",
+    "illnessColOnset": "Onset",
+    "illnessColResolved": "Resolved"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -266,7 +242,8 @@
     "cycle": "Cycle",
     "labs": "Labs",
     "recovery": "Recovery",
-    "vorsorge": "Preventive Care"
+    "vorsorge": "Preventive Care",
+    "illness": "Illness"
   },
   "auth": {
     "login": "Sign in",
@@ -1632,17 +1609,7 @@
         "copyToken": "Copy token",
         "mintedHint": "Copy this token now — it is shown only once."
       },
-      "edit": {
-        "planOption": "Edit plan",
-        "advancedOption": "Advanced settings"
-      },
       "advanced": {
-        "title": "Advanced settings",
-        "group": {
-          "data": "Data",
-          "lifecycle": "Lifecycle",
-          "externalApi": "External API"
-        },
         "dataPortability": {
           "import": {
             "title": "Import intakes",
@@ -2188,23 +2155,6 @@
       "confidenceLow": "Low confidence",
       "pendingLabel": "Generating trend commentary"
     },
-    "range": {
-      "label": "Time range",
-      "noPriorData": "no prior-period data",
-      "option": {
-        "7d": "7d",
-        "30d": "30d",
-        "90d": "90d",
-        "1y": "1y"
-      },
-      "priorLabel": {
-        "7d": "vs prior 7d",
-        "30d": "vs prior 30d",
-        "90d": "vs prior 90d",
-        "1y": "vs prior year"
-      },
-      "noChange": "no change"
-    },
     "correlationRow": {
       "title": "Relationships",
       "disclaimer": "Relationships are observational, not causal — talk to your doctor if BP runs high.",
@@ -2546,14 +2496,6 @@
       "target": {
         "adjustLink": "Adjust target range"
       },
-      "primary": {
-        "avg30Label": "30-day average",
-        "inRangeLabel": "In range",
-        "inRangeAria": "{pct}% of logged days within target"
-      },
-      "lastMeasurement": {
-        "label": "Last measurement"
-      },
       "explainer": {
         "trigger": "What is {title}?",
         "bloodPressureTitle": "Blood pressure",
@@ -2646,6 +2588,8 @@
         "stairDescentSpeedBody": "This is how fast you go down a flight of stairs. Together with ascent speed it tracks leg control and balance — a steady pace is a good sign, and a falling one is worth watching.",
         "breathingDisturbancesTitle": "Sleep breathing disturbances",
         "breathingDisturbancesBody": "Your Apple Watch can estimate how often your breathing was interrupted during sleep. A lower index is better; a level Apple flags as elevated, especially over many nights, is worth raising with a clinician.",
+        "stepsTitle": "Steps",
+        "stepsBody": "Step count is the total number of steps you take each day. It is the simplest measure of everyday movement — a higher daily count generally reflects a more active lifestyle, and a steady habit matters more than any single big day.",
         "readinessBody": "Readiness is a single daily read on how prepared your body is to take on the day, blending resting heart rate, heart-rate variability, sleep, and how steady your recent nights have been. A higher score means recovered and resourced; a lower one is a gentle cue to ease off.",
         "sleepScoreBody": "Your sleep score distils a whole night into one number — duration, efficiency, regularity, and the balance of light, deep, and REM. Watch the pattern across weeks rather than chasing a perfect score on any single night.",
         "recoveryBody": "Recovery reflects how well your body has bounced back, drawing on overnight signals like heart-rate variability and resting heart rate. A strong score is a green light to push; a softer one suggests your system is still rebuilding.",
@@ -2750,6 +2694,11 @@
       "critical": "Critical"
     },
     "assessmentTitle": "Assessment",
+    "restMode": {
+      "title": "Rest Mode",
+      "body": "An illness or condition episode is active, so this reflects a recovery window. Your score isn't lowered for it.",
+      "bodySince": "An illness or condition episode has been active since {since}, so this reflects a recovery window. Your score isn't lowered for it."
+    },
     "assessmentShowMore": "Show more",
     "assessmentShowLess": "Show less",
     "bloodPressureSectionTitle": "Blood Pressure",
@@ -3461,7 +3410,8 @@
         "watchVital": "Outside range: {vital}. Often just a one-off — worth a glance over the next few days.",
         "firedHeadline": "{count} of your vitals are outside their personal range today.",
         "factors": "Possible factors — never a cause: a hard workout, poor sleep, alcohol, altitude, stress, or illness. This is awareness from your own baselines, not a diagnosis.",
-        "building": "Building your personal baselines — track a few more days and this will appear."
+        "building": "Building your personal baselines — track a few more days and this will appear.",
+        "illnessExplained": "These shifts likely reflect the condition you logged."
       },
       "trajectory": {
         "cardTitle": "Short-horizon projection",
@@ -3633,10 +3583,14 @@
         "title": "Daily heart & energy",
         "subtitle": "Whole-day cardiac and energy totals"
       },
-      "scoreLink": {
-        "title": "Recovery score",
-        "subtitle": "See how the nightly score breaks down",
-        "cta": "View"
+      "block": {
+        "ansChargeExplainer": "How charged your autonomic nervous system is for the day ahead — a recharge reading drawn from your overnight heart and breathing signals.",
+        "dayStrainExplainer": "The day's whole-body cardiovascular load on your device's strain scale. Read it against your recovery, not as a goal on its own.",
+        "workoutStrainExplainer": "How demanding a single workout was on the same strain scale — the cardiovascular cost of that session.",
+        "cardioLoadExplainer": "A training-load proxy that tracks the acute cardiovascular load you have built up. Compare it with your own recent days.",
+        "averageHeartRateExplainer": "Your average heart rate across the whole day or cycle, as reported by your wearable.",
+        "maxHeartRateExplainer": "Your peak heart rate across the whole day or cycle, as reported by your wearable.",
+        "energyExpenditureKjExplainer": "The energy your body expended over the day, in kilojoules, as your device reports it natively."
       }
     },
     "bodyTempDeviation": {
@@ -3871,18 +3825,7 @@
       },
       "integrations": {
         "title": "Integrations",
-        "description": "Connected services, delivery channels, and source priority in one place.",
-        "tabs": {
-          "connections": "Connections",
-          "channels": "Channels",
-          "sources": "Sources"
-        },
-        "connections": {
-          "description": "Connect Withings, WHOOP, Fitbit, Polar, Oura, and Nightscout."
-        },
-        "channels": {
-          "description": "Telegram, ntfy, Web Push, Webhook, and Email — the routes notifications are delivered through."
-        }
+        "description": "Connected services, delivery channels, and source priority in one place."
       },
       "notifications": {
         "title": "Notifications",
@@ -3892,7 +3835,7 @@
         "inboxLink": "Open the inbox"
       },
       "layout": {
-        "title": "Layout & Personalization",
+        "title": "Layout",
         "description": "Arrange how the dashboard and insights are laid out.",
         "backToHub": "Back to Layout & Personalization",
         "dashboard": {
@@ -3902,14 +3845,6 @@
         "insights": {
           "title": "Insights",
           "description": "Overview sections and navigation-pill order."
-        },
-        "medications": {
-          "title": "Medications",
-          "description": "List view and medication order."
-        },
-        "mood": {
-          "title": "Mood tags",
-          "description": "Groups, tags, and order of the mood picker."
         }
       },
       "dashboard": {
@@ -3996,12 +3931,6 @@
         "description": "Download your data as CSV or a full JSON backup — or import from Apple Health, JSON, or CSV. The doctor report now lives under Health Record.",
         "otherOptionsHeading": "Other export options",
         "downloadFailed": "Couldn't download the export. Please try again.",
-        "hero": {
-          "eyebrow": "Doctor visit",
-          "valueStatement": "A printable PDF report for your doctor's appointment — vitals, BMI, blood-pressure classification, medication adherence and (optionally) mood, all on a few pages.",
-          "cta": "Configure & generate report",
-          "formatHint": "PDF · print-ready"
-        },
         "actions": {
           "download": "Download"
         },
@@ -4010,10 +3939,6 @@
           "until": "Until"
         },
         "cards": {
-          "doctorReport": {
-            "title": "Doctor Report",
-            "description": "Printable PDF for the doctor's appointment — vitals, BMI, BP classification, medication adherence, mood."
-          },
           "measurementsCsv": {
             "title": "Measurements",
             "description": "Weight, blood pressure, pulse, glucose, and every other measurement as comma-separated values."
@@ -4146,6 +4071,10 @@
       "coach": {
         "title": "Coach",
         "description": "Enable the Coach, tone and scope, stored memories."
+      },
+      "channels": {
+        "title": "Channels",
+        "description": "Telegram, ntfy, Web Push, Webhook, and Email delivery."
       }
     },
     "profile": "Profile",
@@ -4386,14 +4315,6 @@
         "forgotError": "Could not forget that fact. Please try again.",
         "clearedToast": "Forgot {count} stored facts.",
         "clearError": "Could not clear the stored facts. Please try again."
-      },
-      "disableCoach": {
-        "title": "Hide Coach",
-        "description": "Hides the Coach button and drawer everywhere.",
-        "toggleAria": "Hide the Coach button and drawer",
-        "savedHidden": "Coach hidden.",
-        "savedShown": "Coach visible.",
-        "saveError": "Could not save the change. Please try again."
       },
       "aboutMe": {
         "title": "About me",
@@ -4857,7 +4778,17 @@
       "rate_limited": "Too many connection attempts. Wait a moment and try again.",
       "generic": "Unknown error while connecting. Please start the connection again."
     },
-    "integrationSetupGuide": "Setup guide"
+    "integrationSetupGuide": "Setup guide",
+    "coach": {
+      "activate": {
+        "title": "Activate Coach",
+        "description": "Show the Coach button and drawer. On by default — turn it off to hide the Coach everywhere.",
+        "toggleAria": "Activate the Coach button and drawer",
+        "savedOn": "Coach activated.",
+        "savedOff": "Coach hidden.",
+        "saveError": "Could not save the change. Please try again."
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5145,6 +5076,7 @@
     "deleteAllConfirm": "Really delete all data?",
     "deleteAllConfirmDescription": "This will permanently delete all measurements, medications, intake events, API tokens, Withings connections, open authentication challenges, notification channels (Telegram, ntfy, Web Push), push subscriptions, and queued Telegram message deletions for all users. User accounts, the audit log, and submitted feedback are preserved so the wipe itself remains traceable and bug reports stay triageable.",
     "deleteButton": "Delete all data",
+    "deleteAllPromptLabel": "Type {token} to continue",
     "finalDelete": "Delete permanently",
     "deletedResult": "Deleted: {measurements} measurements, {medications} medications, {intakeEvents} intakes, {apiTokens} API tokens, {withingsConnections} Withings connections, {authChallenges} auth challenges, {notificationChannels} notification channels, {pushSubscriptions} push subscriptions, {telegramScheduledDeletions} queued Telegram deletions. Feedback rows preserved.",
     "authRegister": "Registration",
@@ -5273,17 +5205,9 @@
         "title": "Integrations",
         "subtitle": "Configure Umami, GlitchTip, Web Push, and bug reports."
       },
-      "ai-quality": {
-        "title": "Insights Quality",
-        "subtitle": "Helpfulness scores grouped by severity and provider, from the last 30 days of user feedback."
-      },
-      "assistant": {
-        "title": "Assistant Surfaces",
-        "subtitle": "Toggle each model-driven surface on or off without removing the provider configuration."
-      },
-      "coach-feedback": {
-        "title": "Coach Feedback",
-        "subtitle": "Helpful-rate per Coach prompt version, tone, and verbosity from the last 30 days."
+      "coach": {
+        "title": "Coach",
+        "subtitle": "Assistant surfaces, server key, and the Coach and Insights feedback-quality tables in one place."
       },
       "feedback": {
         "title": "Feedback",
@@ -5875,11 +5799,6 @@
         "sixDaysAgo": "6 days ago"
       }
     },
-    "relativeDay": {
-      "today": "today",
-      "yesterday": "yesterday",
-      "daysAgo": "{count} days ago"
-    },
     "edit": {
       "openLabel": "Edit target range for {metric}",
       "title": "Edit target range — {metric}",
@@ -6344,7 +6263,9 @@
       "clear": "None",
       "temperatureSection": "Temperature & ovulation",
       "intimacySection": "Intimacy & contraception",
-      "testsSection": "Tests"
+      "testsSection": "Tests",
+      "phaseDayHeader": "Day {day} · {phase}",
+      "bbtHint": "Take it first thing in the morning, before getting up."
     },
     "testResult": {
       "POSITIVE": "Positive",
@@ -6420,6 +6341,24 @@
       "ovulationEstimate": "Est. ovulation",
       "tooltipTemp": "{temp} °C",
       "ovulationConfirmed": "Confirmed ovulation"
+    },
+    "fieldInfo": {
+      "bbt": "Your resting temperature, taken first thing in the morning before getting up. It rises slightly (about 0.2–0.3 °C) after ovulation.",
+      "bbtLabel": "What is basal body temperature?",
+      "mucus": "Vaginal discharge changes across the cycle — from dry or sticky to creamy, then watery and egg-white-like around the most fertile days.",
+      "mucusLabel": "What is cervical mucus?",
+      "ovulationTest": "A home urine test that detects the LH surge — the hormone spike about 24–36 h before ovulation. A positive flags the most fertile window.",
+      "ovulationTestLabel": "What is an ovulation test?",
+      "spotting": "Light bleeding outside the period.",
+      "spottingLabel": "What is spotting between periods?",
+      "pregnancyTest": "Result of a home pregnancy (hCG) test.",
+      "pregnancyTestLabel": "What is a pregnancy test?",
+      "progesteroneTest": "A test confirming ovulation has occurred — progesterone rises afterward.",
+      "progesteroneTestLabel": "What is a progesterone test?",
+      "intercourse": "Whether sexual intercourse took place on this day.",
+      "intercourseLabel": "What does intercourse track?",
+      "protected": "Whether contraception was used during intercourse.",
+      "protectedLabel": "What does protected mean?"
     }
   },
   "cycleReminders": {
@@ -6478,7 +6417,19 @@
       "BLOOD_GLUCOSE": "Blood glucose",
       "OXYGEN_SATURATION": "Oxygen saturation",
       "BODY_FAT": "Body fat",
-      "BODY_TEMPERATURE": "Body temperature"
+      "BODY_TEMPERATURE": "Body temperature",
+      "FAT_MASS": "Fat mass",
+      "FAT_FREE_MASS": "Fat-free mass",
+      "MUSCLE_MASS": "Muscle mass",
+      "LEAN_BODY_MASS": "Lean body mass",
+      "BONE_MASS": "Bone mass",
+      "TOTAL_BODY_WATER": "Body water",
+      "VISCERAL_FAT": "Visceral fat",
+      "BODY_MASS_INDEX": "Body mass index (BMI)"
+    },
+    "typeGroups": {
+      "vitals": "Vitals",
+      "bodyComposition": "Body composition"
     },
     "empty": {
       "title": "No reminders yet",
@@ -6495,16 +6446,22 @@
       "notifyHour": "Remind at",
       "location": "Where (optional)",
       "locationPlaceholder": "e.g. GP, Lab",
-      "save": "Save"
+      "save": "Save",
+      "createTitle": "New reminder",
+      "editTitle": "Edit reminder"
     },
     "pushTitle": "Preventive-care reminder",
     "pushBody": "Time for: {label}",
-    "pushLocation": "(at {location})"
+    "pushLocation": "(at {location})",
+    "edit": "Edit",
+    "originCoach": "Coach",
+    "enabledToggleAria": "Enable or disable this reminder",
+    "until": "Until {date}"
   },
   "labs": {
     "title": "Lab results",
     "subtitle": "Bloodwork and biomarker readings",
-    "addResult": "Add",
+    "addResult": "Add value",
     "addDescription": "Record a biomarker reading from a lab report.",
     "addFirst": "Add your first result",
     "emptyTitle": "No lab results yet",
@@ -6539,12 +6496,130 @@
       "referenceHint": "Copy the reference range from your lab report. Either bound is optional.",
       "note": "Note",
       "notePlaceholder": "Optional context for this result",
-      "requiredError": "Biomarker, value and unit are required.",
+      "requiredError": "Enter a value.",
       "rangeOrderError": "The reference low must not exceed the reference high.",
       "save": "Save",
       "savedToast": "Result saved",
-      "saveError": "Could not save the result"
-    }
+      "saveError": "Could not save the result",
+      "biomarker": "Biomarker",
+      "biomarkerPlaceholder": "Pick a biomarker",
+      "defineNew": "+ Define new biomarker",
+      "noBiomarkersHint": "Define a biomarker first to record a value against it.",
+      "pickBiomarkerError": "Pick a biomarker first."
+    },
+    "backToLabs": "Back to lab results",
+    "hasNote": "Note",
+    "editTitle": "Edit reading",
+    "editDescription": "Correct the value, date or note of this reading.",
+    "editedToast": "Reading updated",
+    "editError": "Could not update the reading",
+    "editTimestampError": "Enter a valid date.",
+    "editReading": "Edit reading",
+    "deleteReading": "Delete reading",
+    "restoredToast": "Reading restored",
+    "restoreError": "Could not restore the reading",
+    "detail": {
+      "history": "History",
+      "emptyTitle": "No readings yet",
+      "emptyDescription": "Add a value to start tracking this biomarker over time."
+    },
+    "chart": {
+      "empty": "No readings in this period.",
+      "valueLabel": "Value",
+      "range": {
+        "30": "30d",
+        "90": "90d",
+        "365": "1y",
+        "all": "All"
+      }
+    },
+    "biomarker": {
+      "manage": "Biomarkers",
+      "manageTitle": "Biomarkers",
+      "manageSheetDescription": "Define the markers you track. Each is set up once with its unit and reference range.",
+      "managerDescription": "Define a marker once — its unit and range are reused for every reading.",
+      "define": "Define",
+      "defineFirst": "Define your first biomarker",
+      "defineTitle": "Define biomarker",
+      "defineDescription": "Set the name, unit and reference range once. You pick the marker when adding a value.",
+      "editTitle": "Edit biomarker",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deletedToast": "Biomarker deleted",
+      "deleteError": "Could not delete the biomarker",
+      "deleteConfirmTitle": "Delete biomarker?",
+      "deleteConfirmDescription": "The definition is removed. Existing readings are kept but unlinked.",
+      "emptyTitle": "No biomarkers yet",
+      "emptyDescription": "Define markers like LDL or HbA1c to record values against them.",
+      "loadError": "Could not load biomarkers",
+      "noRange": "No reference range",
+      "form": {
+        "seedLabel": "Start from a common marker",
+        "seedPlaceholder": "Choose a marker (optional)",
+        "seedHint": "Picking one fills the fields below — adjust the range to match your lab.",
+        "name": "Name",
+        "namePlaceholder": "e.g. LDL cholesterol",
+        "unit": "Unit",
+        "unitPlaceholder": "e.g. mg/dL",
+        "panel": "Panel",
+        "panelPlaceholder": "e.g. Lipids",
+        "lowerBound": "Reference low",
+        "upperBound": "Reference high",
+        "lowerPlaceholder": "Lower bound",
+        "upperPlaceholder": "Upper bound",
+        "context": "Context",
+        "contextPlaceholder": "Optional note about this marker",
+        "rangeHint": "Either bound is optional — leave one blank for an open-ended range (e.g. LDL < 116).",
+        "requiredError": "Name and unit are required.",
+        "rangeOrderError": "The lower bound must not exceed the upper bound.",
+        "save": "Save biomarker",
+        "savedToast": "Biomarker saved",
+        "updatedToast": "Biomarker updated",
+        "saveError": "Could not save the biomarker"
+      }
+    },
+    "catalog": {
+      "total-cholesterol": "Total cholesterol",
+      "ldl": "LDL cholesterol",
+      "hdl": "HDL cholesterol",
+      "triglycerides": "Triglycerides",
+      "fasting-glucose": "Fasting glucose",
+      "hba1c": "HbA1c",
+      "tsh": "TSH",
+      "ft3": "Free T3",
+      "ft4": "Free T4",
+      "ferritin": "Ferritin",
+      "transferrin-saturation": "Transferrin saturation",
+      "vitamin-d": "Vitamin D (25-OH)",
+      "vitamin-b12": "Vitamin B12",
+      "folate": "Folate",
+      "hs-crp": "hs-CRP",
+      "creatinine": "Creatinine",
+      "egfr": "eGFR",
+      "alt": "ALT",
+      "ast": "AST",
+      "ggt": "GGT",
+      "sodium": "Sodium",
+      "potassium": "Potassium",
+      "hemoglobin": "Hemoglobin",
+      "hematocrit": "Hematocrit",
+      "wbc": "White blood cells",
+      "platelets": "Platelets",
+      "panel": {
+        "lipids": "Lipids",
+        "glucose": "Glucose metabolism",
+        "thyroid": "Thyroid",
+        "iron": "Iron",
+        "vitamins": "Vitamins",
+        "inflammation": "Inflammation",
+        "renal": "Kidney",
+        "liver": "Liver",
+        "electrolytes": "Electrolytes",
+        "bloodCount": "Blood count"
+      }
+    },
+    "noteLoadFailed": "Note could not be loaded; it will be kept unchanged when you save.",
+    "showingLatestOf": "Showing the latest {shown} of {total} readings"
   },
   "modules": {
     "cycle": {
@@ -6606,6 +6681,165 @@
     "medications": {
       "label": "Medications",
       "description": "Schedules, intakes, and compliance."
+    },
+    "illness": {
+      "label": "Illness journal",
+      "description": "Track illness and condition episodes with a daily symptom timeline."
+    }
+  },
+  "illness": {
+    "title": "Illness journal",
+    "subtitle": "A retrospective log of your illness and condition episodes.",
+    "disclaimer": "A personal journal — not a medical device. It does not diagnose or predict.",
+    "newEpisode": "New episode",
+    "logDay": "Log a day",
+    "markRecovered": "Mark recovered",
+    "onsetOn": "Started {date}",
+    "recoveredOn": "recovered {date}",
+    "status": {
+      "active": "Active",
+      "ongoing": "Ongoing",
+      "recovered": "Recovered"
+    },
+    "empty": {
+      "title": "No episodes yet",
+      "body": "Start an episode to keep a daily symptom timeline and look back on how it unfolded."
+    },
+    "type": {
+      "INFECTION": "Infection",
+      "ALLERGY": "Allergy",
+      "INJURY": "Injury",
+      "MENTAL_HEALTH": "Mental health",
+      "AUTOIMMUNE": "Autoimmune",
+      "CHRONIC": "Chronic",
+      "OTHER": "Other"
+    },
+    "lifecycle": {
+      "ACUTE": "Acute",
+      "CHRONIC_ONGOING": "Chronic / ongoing",
+      "RECURRING": "Recurring",
+      "FLARE": "Flare"
+    },
+    "new": {
+      "title": "New episode",
+      "description": "Record an illness or condition. You can log daily symptoms afterwards.",
+      "label": "Name",
+      "labelPlaceholder": "e.g. Common cold",
+      "type": "Type",
+      "lifecycle": "Course",
+      "onset": "Started on",
+      "note": "Note",
+      "notePlaceholder": "Anything worth remembering (encrypted).",
+      "saveError": "Could not save the episode. Please try again.",
+      "parent": "Part of",
+      "parentNone": "Not linked"
+    },
+    "sheet": {
+      "title": "Log {date}",
+      "description": "Record today's symptoms, how you function, and any fever.",
+      "symptoms": "Symptoms",
+      "functionalImpact": "How you function",
+      "fever": "Temperature",
+      "note": "Note",
+      "noteSet": "Set",
+      "notePlaceholder": "How the day felt (encrypted).",
+      "severityFor": "Severity for {symptom}",
+      "saveError": "Could not save the day. Please try again.",
+      "day": "Day"
+    },
+    "impact": {
+      "0": "Fully functional",
+      "1": "Slightly limited",
+      "2": "Mostly resting",
+      "3": "Bedbound"
+    },
+    "symptom": {
+      "runnyNose": "Runny nose",
+      "stuffyNose": "Stuffy nose",
+      "sneezing": "Sneezing",
+      "soreThroat": "Sore throat",
+      "cough": "Cough",
+      "headache": "Headache",
+      "bodyAches": "Body aches",
+      "fatigue": "Fatigue"
+    },
+    "correlation": {
+      "title": "How it unfolded",
+      "learning": "Still learning — log a few more days to see patterns here.",
+      "preOnsetTitle": "How it announced itself",
+      "preOnsetBody": "Signals that drifted from your baseline before you marked the onset.",
+      "nadirTitle": "What changed",
+      "nadirBody": "How far each tracked signal strayed from your typical range.",
+      "recoveryGapTitle": "Recovery gap",
+      "recoveryGapLag": "Your numbers settled {days} days after you felt better.",
+      "recoveryGapLead": "Your numbers settled {days} days before you marked recovery.",
+      "recoveryGapSame": "Your numbers settled the same day you felt better.",
+      "redFlagTitle": "Worth a closer look",
+      "redFlagSpo2": "Your oxygen saturation stayed low for several days. If this recurs, seek medical care.",
+      "redFlagFever": "You ran a sustained fever. If this recurs, seek medical care.",
+      "direction": {
+        "above": "above your usual",
+        "below": "below your usual"
+      }
+    },
+    "insights": {
+      "title": "Your illness history",
+      "countOne": "You logged 1 episode in this period.",
+      "countOther": "You logged {count} episodes in this period.",
+      "typicalGap": "Typical recovery gap: {days} days between feeling better and your numbers settling.",
+      "typicalGapLearning": "A few more resolved episodes and a typical recovery gap will appear here.",
+      "byMonth": "When you tend to log episodes",
+      "none": "No episodes logged in this period."
+    },
+    "loadError": "Could not load this episode.",
+    "backToList": "Back to journal",
+    "detail": {
+      "note": "Note"
+    },
+    "edit": {
+      "title": "Edit episode",
+      "description": "Update this episode's details."
+    },
+    "menu": {
+      "label": "Episode actions"
+    },
+    "deleteConfirm": {
+      "title": "Delete this episode?",
+      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+    },
+    "vital": {
+      "RESTING_HEART_RATE": "Resting heart rate",
+      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RECOVERY_SCORE": "Recovery",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_TEMPERATURE": "Body temperature",
+      "SKIN_TEMPERATURE": "Skin temperature",
+      "RESPIRATORY_RATE": "Respiratory rate",
+      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
+      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "PULSE": "Pulse",
+      "WEIGHT": "Weight"
+    }
+  },
+  "coach": {
+    "reminderSuggestion": {
+      "title": "Set a reminder?",
+      "accept": "Set reminder",
+      "dismiss": "Not now",
+      "stop": "I measure enough",
+      "accepted": "Reminder set",
+      "dismissed": "Okay, I won't suggest this again",
+      "stopped": "Got it — I'll stop suggesting reminders",
+      "failed": "Couldn't set that up — please try again",
+      "cadence": {
+        "weightDaily": "Weigh yourself daily, around the same time",
+        "bp722": "Measure your blood pressure twice a day for a week",
+        "glucoseStructured": "Test your glucose on a structured daily schedule"
+      }
+    },
+    "settings": {
+      "reminderSuggestionsLabel": "Cadence suggestions",
+      "reminderSuggestionsDescription": "Let the Coach offer an occasional, evidence-based reminder to measure a metric more regularly."
     }
   }
 }

@@ -588,6 +588,14 @@ model User {
   // that pairs with the Vorsorge "annual blood panel" reminder so a result
   // has somewhere to land. Soft-deleted.
   labResults                  LabResult[]
+  // v1.19.0 — user-scoped biomarker catalog (canonical name/unit/range per
+  // marker); LabResult rows link to a Biomarker for the resolved range/unit.
+  biomarkers                  Biomarker[]
+  // v1.19.0 — illness / condition journal (born-gated by the module system).
+  // IllnessEpisode is the soft-deleted episode row; IllnessDayLog is the
+  // per-day timeline mirroring the CycleDayLog shape.
+  illnessEpisodes             IllnessEpisode[]
+  illnessDayLogs              IllnessDayLog[]
 
   // v1.7.0 profile — optional patient-identity fields surfaced on the
   // health-record export cover (PDF) and the FHIR `Patient` resource.
@@ -3255,6 +3263,19 @@ model MeasurementReminder {
   /// First-due anchor; the resolver falls back to `lastSatisfiedAt ?? createdAt`
   /// when NULL.
   anchorDate      DateTime?        @map("anchor_date")
+  /// Optional course-window end. NULL = open-ended cadence (the existing
+  /// behaviour). Non-NULL bounds a finite cadence: the recurrence engine
+  /// (`medication.endsOn` precedent) stops producing occurrences past this
+  /// instant, so a Coach-suggested "measure BP morning+evening for a week"
+  /// self-expires. Additive; every existing reminder keeps `NULL` and stays
+  /// open-ended.
+  endsOn          DateTime?        @map("ends_on")
+  /// Who produced this reminder. `VORSORGE` = the user created it through the
+  /// Vorsorge surface (the existing, default behaviour). `COACH` = the AI
+  /// coach minted it from an evidence-based cadence suggestion, posted to the
+  /// SAME `POST /api/measurement-reminders` endpoint — one engine, not two.
+  /// Lets the UI label provenance and lets Coach dedupe its own suggestions.
+  origin          ReminderOrigin   @default(VORSORGE)
   /// Local hour (0–23) to fire the nudge, mirroring the mood-reminder hour.
   /// DST-safe windowing is applied at the cron via the existing TZ helpers.
   notifyHour      Int              @default(9) @map("notify_hour")
@@ -3277,7 +3298,22 @@ model MeasurementReminder {
 
   @@index([userId, deletedAt])
   @@index([userId, nextDueAt])
+  // v1.18.1 — structural accept-dedup for COACH-minted reminders: at most
+  // one LIVE COACH reminder per (user, metric). Enforced as a PARTIAL unique
+  // index (`WHERE origin = 'COACH' AND deleted_at IS NULL`) created by the
+  // 0172 migration — Prisma's schema DSL cannot express a filtered unique
+  // index, so the migration owns the constraint and this is a pointer to it.
   @@map("measurement_reminders")
+}
+
+/// Provenance of a MeasurementReminder. `VORSORGE` = user-created through the
+/// Vorsorge surface (default); `COACH` = minted by the AI coach from a cadence
+/// suggestion. Both feed the same engine / endpoint / cron.
+enum ReminderOrigin {
+  VORSORGE
+  COACH
+
+  @@map("reminder_origin")
 }
 
 // ─── Lab results ─────────────────────────────────────────────
@@ -3304,6 +3340,14 @@ model LabResult {
   /// When the sample was taken (UTC instant; wall-clock anchoring is the
   /// reader's concern per the schema's UTC-only convention).
   takenAt       DateTime  @map("taken_at")
+  /// v1.19.0 — optional link to the user-scoped Biomarker catalog. NULL on
+  /// every existing row; a backfill job grouping by `lower(analyte)` will
+  /// populate it later (this migration only adds the column + relation). Once
+  /// linked, server reads resolve the canonical unit + reference bounds from
+  /// the Biomarker, ending the per-row free-text divergence ("LDL" vs "ldl"
+  /// vs "LDL-C", `mg/dL` vs `mg/dl`). The legacy `analyte` / `unit` /
+  /// `reference*` columns stay as historical truth for one release.
+  biomarkerId   String?    @map("biomarker_id")
   /// Provenance: "MANUAL" today; import paths set their own source string.
   source        String    @default("MANUAL")
   /// Optional free-text note, AES-256-GCM encrypted at rest via
@@ -3314,11 +3358,53 @@ model LabResult {
   /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
   deletedAt     DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  biomarker Biomarker? @relation(fields: [biomarkerId], references: [id], onDelete: SetNull)
 
   @@index([userId, analyte, takenAt])
   @@index([userId, deletedAt])
+  @@index([biomarkerId])
   @@map("lab_results")
+}
+
+// ─── Biomarker catalog ───────────────────────────────────────
+
+/// v1.19.0 — user-scoped catalog of blood/lab biomarkers. Defining a marker
+/// once (canonical name, unit, reference bounds, optional context note) and
+/// recording LabResult values against it ends the per-row free-text
+/// divergence the lean v1.17.1 LabResult model invites (re-typing analyte /
+/// unit / both bounds on every reading). The reference range + unit are
+/// authoritative on the catalog row, not on the entry; server reads resolve
+/// from here and the resolved values flow into the DTO (iOS renders, never
+/// recomputes). Unique per user + name so there is never two "LDL"
+/// definitions.
+model Biomarker {
+  id         String  @id @default(cuid())
+  userId     String  @map("user_id")
+  /// Canonical display name, e.g. "LDL Cholesterol".
+  name       String
+  /// Canonical unit for every reading against this marker, e.g. "mg/dL".
+  unit       String
+  /// Optional reference-range bounds. The lab/sex/age-dependent "normal"
+  /// window; the server's range verdict is computed against these.
+  lowerBound Float?  @map("lower_bound")
+  upperBound Float?  @map("upper_bound")
+  /// Optional per-marker context ("what this means"), AES-256-GCM encrypted
+  /// at rest via `src/lib/crypto.ts` (Bytes column, `*Encrypted` suffix per
+  /// convention).
+  contextEncrypted Bytes? @map("context_encrypted")
+  /// Optional panel grouping moved off the per-entry row, e.g.
+  /// "Großes Blutbild". NULL = standalone marker.
+  panel     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  results LabResult[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("biomarkers")
 }
 
 // ─── User Achievements ───────────────────────────────────────
@@ -3935,6 +4021,33 @@ enum CervixOpening {
   @@map("cervix_opening")
 }
 
+/// Broad condition class for an IllnessEpisode (v1.19.0). Widened beyond an
+/// infection log so the journal covers any condition the user keeps for
+/// themselves.
+enum IllnessType {
+  INFECTION
+  ALLERGY
+  INJURY
+  MENTAL_HEALTH
+  AUTOIMMUNE
+  CHRONIC
+  OTHER
+
+  @@map("illness_type")
+}
+
+/// Where an IllnessEpisode sits in its lifecycle (v1.19.0). `CHRONIC_ONGOING`
+/// has no "recovered" date and is excluded from the recovery-gap math;
+/// `FLARE` rows hang off a parent condition via `parentConditionId`.
+enum IllnessLifecycle {
+  ACUTE
+  CHRONIC_ONGOING
+  RECURRING
+  FLARE
+
+  @@map("illness_lifecycle")
+}
+
 /// Which method produced a cached CyclePrediction. `CALENDAR` is the
 /// median+MAD variability predictor; `SYMPTOTHERMAL` folds the
 /// sensiplan BBT + mucus confirmation; `TEMPERATURE_TREND` is the
@@ -4225,6 +4338,141 @@ model CycleSymptomLink {
   @@id([dayLogId, symptomId])
   @@index([symptomId])
   @@map("cycle_symptom_links")
+}
+
+// ─── Illness / condition journal (v1.19.0) ────────────────────
+//
+// A CONDITION journal, not a flu log: any illness/condition kept for
+// oneself, with a retrospective lens ("how did it announce itself?",
+// what dropped, recovery time). Retrospective + correlated, NEVER a
+// predictor/diagnoser. Born-gated by the module system (the gate is
+// app-layer; there is no enable flag in the schema). The daily timeline
+// mirrors the Cycle three-table shape (DayLog + Symptom catalog + Link).
+
+/// One illness/condition episode. `lifecycle` distinguishes an acute
+/// bout from an ongoing chronic condition, a recurring one, or a flare
+/// hanging off a parent condition (`parentConditionId`). CHRONIC_ONGOING
+/// has no "recovered" date and is excluded from the recovery-gap math.
+model IllnessEpisode {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  /// User-facing label for the episode, e.g. "Erkältung", "Heuschnupfen".
+  label  String
+  /// Broad condition class. Widened beyond an infection log to cover the
+  /// condition journal's scope.
+  type      IllnessType
+  /// Where this episode sits in its lifecycle. FLARE rows reference a
+  /// parent condition via `parentConditionId`.
+  lifecycle IllnessLifecycle @default(ACUTE)
+  /// When the episode began (UTC instant; wall-clock anchoring is the
+  /// reader's concern per the schema's UTC-only convention).
+  onsetAt    DateTime  @map("onset_at")
+  /// When the episode resolved. NULL = still ongoing. CHRONIC_ONGOING
+  /// episodes stay NULL by design.
+  resolvedAt DateTime? @map("resolved_at")
+  /// Self-FK for flares: a FLARE/RECURRING bout hangs off the parent
+  /// condition episode so the history threads under one condition.
+  parentConditionId String? @map("parent_condition_id")
+  /// Optional free-text note, AES-256-GCM encrypted at rest via
+  /// `src/lib/crypto.ts` (Bytes column, `*Encrypted` suffix per
+  /// convention).
+  noteEncrypted Bytes? @map("note_encrypted")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
+  deletedAt DateTime? @map("deleted_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Parent condition for a flare/recurrence (self-relation).
+  parent   IllnessEpisode?  @relation("IllnessFlares", fields: [parentConditionId], references: [id], onDelete: SetNull)
+  flares   IllnessEpisode[] @relation("IllnessFlares")
+  dayLogs  IllnessDayLog[]
+
+  @@index([userId, deletedAt])
+  @@index([userId, onsetAt])
+  @@index([parentConditionId])
+  @@map("illness_episodes")
+}
+
+/// One row per day of an illness episode (mirrors CycleDayLog): the
+/// day's free-text note (encrypted), a coarse functional-impact slider,
+/// an optional fever reading, plus the symptom links. Soft-deleted.
+model IllnessDayLog {
+  id        String @id @default(cuid())
+  userId    String @map("user_id")
+  episodeId String @map("episode_id")
+  /// YYYY-MM-DD — anchored to `tz` when non-null, else legacy
+  /// Europe/Berlin (the CycleDayLog / MoodEntry date convention).
+  date String
+  /// Coarse self-rated functional impact for the day (0 = no impact /
+  /// fully functional … 3 = bedbound). NULL = not logged. A slider, not a
+  /// symptom — kept on the day row like CycleDayLog's per-day signs.
+  functionalImpact Int? @map("functional_impact")
+  /// Optional body temperature for the day, in Celsius. Queryable
+  /// plaintext (the CycleDayLog.basalBodyTempC precedent): the fever
+  /// signal feeds the retrospective curve. NULL = not measured.
+  feverC Float? @map("fever_c")
+  /// AES-256-GCM ciphertext envelope of the day's free-text note (always
+  /// encrypted — the `*Encrypted` Bytes convention).
+  noteEncrypted Bytes? @map("note_encrypted")
+  /// Optional timezone the `date` is anchored to (the CycleDayLog
+  /// precedent).
+  tz        String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
+  deletedAt DateTime? @map("deleted_at")
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode      IllnessEpisode       @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  symptomLinks IllnessSymptomLink[]
+
+  @@unique([episodeId, date])
+  @@index([userId, date])
+  @@index([episodeId])
+  @@map("illness_day_logs")
+}
+
+/// Seeded catalog of illness symptoms (Jackson / WURSS-derived). Mirrors
+/// CycleSymptom: a global, icon-bearing, labelKey-i18n, isActive/sortOrder
+/// catalog joined per day. Severity is captured 0–3 on the link.
+model IllnessSymptom {
+  id        String  @id @default(cuid())
+  /// Stable machine key (e.g. `cough`). Unique across the catalog so the
+  /// seed migration can upsert idempotently.
+  key       String  @unique
+  /// i18n message key for the symptom label (`illness.symptom.<key>`).
+  labelKey  String  @map("label_key")
+  /// Lucide icon name for the symptom chip.
+  icon      String?
+  sortOrder Int     @default(0) @map("sort_order")
+  /// Soft-hide a symptom without deleting its historical links.
+  isActive  Boolean @default(true) @map("is_active")
+
+  links IllnessSymptomLink[]
+
+  @@index([sortOrder])
+  @@map("illness_symptoms")
+}
+
+/// Join: which symptoms an illness day-log carries, with a 0–3 severity.
+/// Composite PK keeps the pairing unique; cascade on both sides so
+/// deleting a day-log (or a catalog symptom) cleans up its links.
+model IllnessSymptomLink {
+  dayLogId  String   @map("day_log_id")
+  symptomId String   @map("symptom_id")
+  /// 0–3 severity for this symptom on this day (the Jackson/WURSS scale:
+  /// 0 = none, 1 = mild, 2 = moderate, 3 = severe). NULL = a plain
+  /// presence link.
+  severity  Int?     @map("severity")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  dayLog  IllnessDayLog  @relation(fields: [dayLogId], references: [id], onDelete: Cascade)
+  symptom IllnessSymptom @relation(fields: [symptomId], references: [id], onDelete: Cascade)
+
+  @@id([dayLogId, symptomId])
+  @@index([symptomId])
+  @@map("illness_symptom_links")
 }
 
 /// One cached forecast per user, regenerated debounced /

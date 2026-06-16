@@ -33,6 +33,7 @@ import {
   coverageResource,
   observationsFromReportData,
   cycleObservationsFromReportData,
+  conditionsFromReportData,
   medicationStatementsFromReportData,
   medicationAdministrationsFromReportData,
 } from "@/lib/fhir/resources";
@@ -84,6 +85,7 @@ export function buildFhirDocumentBundle(
   const cycleObservationRefs: FhirReference[] = [];
   const medicationRefs: FhirReference[] = [];
   const administrationRefs: FhirReference[] = [];
+  const conditionRefs: FhirReference[] = [];
 
   // --- Patient -----------------------------------------------------------
   const patient = patientResource(data, identity);
@@ -122,6 +124,20 @@ export function buildFhirDocumentBundle(
     administrationRefs.push({
       reference: `MedicationAdministration/${admin.id}`,
     });
+  }
+
+  // --- Condition + Encounter per illness/condition episode (opt-in) ------
+  // v1.18.1 — present only when the illness module is enabled AND the window
+  // held an episode (the aggregator gates `data.illnessEpisodes`). Each
+  // episode emits a patient-reported Condition (generic SNOMED root, label on
+  // `code.text`) plus a bounding Encounter that references it.
+  const { conditions, encounters } = conditionsFromReportData(data);
+  for (const condition of conditions) {
+    entries.push({ fullUrl: `urn:uuid:${condition.id}`, resource: condition });
+    conditionRefs.push({ reference: `Condition/${condition.id}` });
+  }
+  for (const encounter of encounters) {
+    entries.push({ fullUrl: `urn:uuid:${encounter.id}`, resource: encounter });
   }
 
   // --- Composition (leading "cover" resource) ----------------------------
@@ -193,6 +209,17 @@ export function buildFhirDocumentBundle(
             {
               title: "Menstrual cycle",
               entry: cycleObservationRefs,
+            },
+          ]
+        : []),
+      // v1.18.1 — opt-in illness/condition section. Only present when the
+      // illness module surfaced episodes. Lists the Condition resources (the
+      // Encounter rides each Condition's reasonReference).
+      ...(conditionRefs.length > 0
+        ? [
+            {
+              title: "Conditions",
+              entry: conditionRefs,
             },
           ]
         : []),

@@ -15,8 +15,10 @@
  *     band's anchor, larger and heavier than the verdict so the
  *     personalised line is not drowned by the content below it), the
  *     verdict sentence with its single CTA button, and the dose row;
- *   - right column: the shared `<ScoreRing>` at `sm` geometry. A null
- *     score renders the ring's provisional state at the identical
+ *   - right column: the shared `<ScoreRing>` at `sm` geometry, in its
+ *     `flat` treatment (no bloom / pulse / sheen / sweep) so the dial
+ *     sits as calmly as the surrounding chart cards. A null score
+ *     renders the ring's provisional state at the identical
  *     120 px footprint, so the column never collapses. The provisional
  *     label is honest about WHY the score is null: when the snapshot
  *     already carries score inputs (weight / BP summaries, mood
@@ -45,6 +47,7 @@ import Link from "next/link";
 import { Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScoreRing } from "@/components/insights/derived/score-ring";
+import { RestModeBanner } from "@/components/insights/rest-mode-banner";
 import {
   resolveDashboardVerdict,
   type DashboardVerdictVariant,
@@ -220,14 +223,16 @@ export function DashboardHero({
     <section
       data-slot="dashboard-hero"
       className={cn(
-        // `.hero-gradient` carries its own border tint; deliberately
-        // no glow treatment — the band sits above the tile strip and
-        // must read calmer than the /insights hero.
-        "hero-gradient relative isolate overflow-hidden rounded-xl",
-        "min-h-[8.75rem] px-4 py-5 sm:px-6 md:min-h-[9.5rem]",
+        // The band sits in the same column as the chart cards + tile
+        // strip, so it wears the same surface: plain `bg-card` with the
+        // shared border + radius + padding (mirrors `<TrendCard>`). No
+        // gradient, no glow — it reads as one of the dashboard tiles.
+        "bg-card border-border relative isolate overflow-hidden rounded-xl border",
+        "min-h-[8.75rem] p-4 md:min-h-[9.5rem] md:p-6",
       )}
     >
-      <div className="flex h-full flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex h-full flex-col gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
           {/* Greeting leads the typographic hierarchy: larger + heavier
               than the verdict so the personalised line reads first.
@@ -272,7 +277,7 @@ export function DashboardHero({
           </div>
           <div
             data-slot="dashboard-hero-doses"
-            className="bg-card/65 border-border/60 inline-flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 shadow-sm backdrop-blur-sm"
+            className="bg-muted/50 border-border/60 inline-flex max-w-full items-center gap-2 rounded-xl border px-3 py-2"
           >
             <Pill
               className="text-muted-foreground h-4 w-4 shrink-0"
@@ -302,6 +307,7 @@ export function DashboardHero({
             score={snapshot.healthScore?.score ?? null}
             band={snapshot.healthScore?.band}
             size="sm"
+            flat
             label={
               snapshot.healthScore
                 ? t("dashboard.hero.scoreLabel")
@@ -311,6 +317,12 @@ export function DashboardHero({
             }
           />
         </div>
+      </div>
+        {/* v1.18.1 — Rest Mode cue beneath the verdict/score row. Self-gating
+            (renders nothing unless an episode is active), value-free, and
+            untinted so it frames the score without alarming. Closes the
+            web↔iOS parity gap: iOS already mirrors `score.restMode`. */}
+        <RestModeBanner annotation={snapshot.healthScore?.restMode ?? null} />
       </div>
     </section>
   );

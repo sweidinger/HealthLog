@@ -32,9 +32,7 @@ export function InsightsSection() {
         <h1 id="settings-section-insights-title" className="sr-only">
           {t("settings.sections.insights.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.insights.description")}
-        </p>
+        {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
       </header>
 
       <InsightsOverviewArrangeSection id="insights-overview-arrange" />

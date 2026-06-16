@@ -16,8 +16,16 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const workerSource = readFileSync(REMINDER_WORKER_PATH, "utf8");
+// v1.18.1 — the queue wiring moved out of the 2143-LOC reminder-worker boot
+// file into domain registrars; the recovery-score queue lives in the status
+// registrar. The dead-queue guard follows the wiring there.
+const REGISTRAR_PATH = join(
+  __dirname,
+  "..",
+  "reminder",
+  "register-status.ts",
+);
+const workerSource = readFileSync(REGISTRAR_PATH, "utf8");
 
 const BATCH_ROUTE_PATH = join(
   __dirname,

@@ -19,11 +19,25 @@ vi.mock("@/lib/insights/derived/readiness", () => ({
   computeReadiness: (...args: unknown[]) => computeReadinessMock(...args),
 }));
 
+// v1.18.1 P4 — Rest Mode resolver. Default inactive; the annotation test
+// flips it active to assert the score is NOT penalised, only annotated.
+const restModeMock = vi.hoisted(() => ({
+  resolveRestMode: vi.fn(async () => ({
+    active: false as boolean,
+    since: null as string | null,
+    episodeCount: 0,
+    episodes: [] as unknown[],
+  })),
+}));
+vi.mock("@/lib/illness/rest-mode", () => restModeMock);
+
 import {
   recoveryDayKey,
   recoveryExternalId,
   recoveryMeasuredAt,
+  computeRecoveryScore,
   persistRecoveryScore,
+  loadRecoveryProfile,
   RECOVERY_SCORE_EXTERNAL_ID_PREFIX,
 } from "../recovery-score";
 
@@ -65,6 +79,12 @@ function makePrisma() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  restModeMock.resolveRestMode.mockResolvedValue({
+    active: false,
+    since: null,
+    episodeCount: 0,
+    episodes: [],
+  });
 });
 
 describe("recovery-score helpers", () => {
@@ -80,6 +100,41 @@ describe("recovery-score helpers", () => {
     expect(recoveryMeasuredAt(NOW).toISOString()).toBe(
       "2026-06-01T12:00:00.000Z",
     );
+  });
+});
+
+describe("computeRecoveryScore — Rest Mode annotation (v1.18.1 P4)", () => {
+  const profile = {} as Parameters<typeof computeRecoveryScore>[2];
+
+  it("annotates an active episode WITHOUT penalising the score", async () => {
+    // A genuinely low recovery blend (40) — the kind a low day produces.
+    computeReadinessMock.mockResolvedValue(okReadiness(40));
+    restModeMock.resolveRestMode.mockResolvedValue({
+      active: true,
+      since: "2026-05-30T00:00:00.000Z",
+      episodeCount: 1,
+      episodes: [],
+    });
+    const { prisma } = makePrisma();
+    const result = await computeRecoveryScore(prisma, "u1", profile, NOW);
+    // The raw blend is reported verbatim — Rest Mode does not adjust it.
+    expect(result.score).toBe(40);
+    // …but the context is attached so the surface can frame it.
+    expect(result.restMode.active).toBe(true);
+    expect(result.restMode.since).toBe("2026-05-30T00:00:00.000Z");
+  });
+
+  it("carries the inactive context when no episode is active", async () => {
+    computeReadinessMock.mockResolvedValue(okReadiness(80));
+    const { prisma } = makePrisma();
+    const result = await computeRecoveryScore(prisma, "u1", profile, NOW);
+    expect(result.score).toBe(80);
+    expect(result.restMode.active).toBe(false);
+  });
+
+  // Keep `loadRecoveryProfile` referenced so the named import stays exercised.
+  it("exposes loadRecoveryProfile", () => {
+    expect(typeof loadRecoveryProfile).toBe("function");
   });
 });
 

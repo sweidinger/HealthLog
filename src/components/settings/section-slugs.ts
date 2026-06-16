@@ -6,10 +6,13 @@
  * graph.
  */
 
-// v1.18.0 (S3) — `sources` is no longer a standalone slug. Source priority
-// folded into Settings → Integrations as the "Sources" sub-tab (deciding which
-// connection wins when two report the same metric is an Integrations concern).
-// `/settings/sources` 301-redirects to `/settings/integrations` (next.config.ts).
+// v1.18.0 (S3) — `sources` was folded into Settings → Integrations as the
+// "Sources" sub-tab.
+// v1.18.1 (D4) — the Integrations sub-tabs (Connections / Channels / Sources)
+// were split back into three separate left-side entries: `integrations` (the
+// Connections content, shown directly), `channels` (delivery channels), and
+// `sources` (source weighting). The `/settings/sources` redirect is gone
+// (it is a real route again); `channels` is a brand-new entry.
 // `thresholds` (Targets) keeps its own left-nav entry + route, served by the
 // dynamic `[section]` route below.
 // v1.16.10 — `medications` sits after `insights`: the customise surface
@@ -40,6 +43,10 @@ export const SETTINGS_SECTION_SLUGS = [
   // single front door for enabling/disabling secondary tracking domains.
   "modules",
   "integrations",
+  // v1.18.1 (D4) — Kanäle (delivery channels) + Quellen (source weighting)
+  // split out of the Integrations tabs into their own left-side entries.
+  "channels",
+  "sources",
   "notifications",
   "layout",
   "dashboard",

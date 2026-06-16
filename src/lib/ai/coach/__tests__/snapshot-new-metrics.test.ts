@@ -13,6 +13,7 @@ vi.mock("@/lib/db", () => ({
     medication: { findMany: vi.fn() },
     workout: { findMany: vi.fn() },
     user: { findUnique: vi.fn() },
+    illnessEpisode: { findMany: vi.fn(async () => []) },
   },
 }));
 

@@ -147,17 +147,17 @@ beforeEach(() => {
 });
 
 describe("<MoodSection> — SSR smoke", () => {
-  it("renders the section heading + description via i18n (no raw keys)", () => {
+  it("renders the section heading via i18n (no raw keys)", () => {
+    // v1.18.1 (D0) — the section blurb was dropped; the sr-only heading + the
+    // card content carry the meaning.
     const html = render();
     expect(html).toContain("settings-section-mood-title");
-    expect(html).toContain("Groups, tags, and archived tags for the mood picker.");
     expect(html).not.toContain("settings.sections.");
     expect(html).not.toContain("mood.manage.");
   });
 
   it("renders the German copy end-to-end", () => {
     const html = render("de");
-    expect(html).toContain("Gruppen, Tags und archivierte Tags der Stimmungs-Auswahl.");
     expect(html).toContain("Neue Gruppe");
     expect(html).toContain("Neuer Tag");
     expect(html).toContain("Archivierte Tags");

@@ -296,6 +296,42 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
               })}
             </ul>
           </div>
+
+          {/* v1.18.1 (Workstream C) — cadence-suggestion opt-out. The
+              Coach offers an occasional, evidence-based reminder to
+              measure a metric more regularly; this is the master switch
+              for that surface. Off ⇒ no suggestion cards ever surface. */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <Label
+                htmlFor="coach-prefs-reminder-suggestions"
+                className="cursor-pointer text-xs font-medium"
+              >
+                {t("coach.settings.reminderSuggestionsLabel")}
+              </Label>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                {t("coach.settings.reminderSuggestionsDescription")}
+              </p>
+            </div>
+            <Switch
+              id="coach-prefs-reminder-suggestions"
+              data-slot="coach-prefs-reminder-suggestions"
+              checked={draft.reminderSuggestions?.enabled ?? true}
+              onCheckedChange={(next) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  reminderSuggestions: {
+                    enabled: next,
+                    stopped: prev.reminderSuggestions?.stopped ?? false,
+                    dismissedCadences:
+                      prev.reminderSuggestions?.dismissedCadences ?? [],
+                    lastSuggestedAt:
+                      prev.reminderSuggestions?.lastSuggestedAt ?? null,
+                  },
+                }))
+              }
+            />
+          </div>
         </div>
       )}
       <div className="mt-4 flex justify-end pl-7">

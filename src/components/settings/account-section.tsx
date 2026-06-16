@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
-  Compass,
   ImageUp,
   KeyRound,
   Loader2,
@@ -46,9 +45,9 @@ import { useMounted } from "@/hooks/use-mounted";
 import { formatDate } from "@/lib/format";
 import { locales, localeLabels, type Locale } from "@/lib/i18n/config";
 import { useTranslations } from "@/lib/i18n/context";
-import { restartOnboardingTour } from "@/lib/onboarding/tour-restart";
 import { describePasskeyError } from "@/lib/passkey-errors";
 import { queryKeys } from "@/lib/query-keys";
+import { AboutMeSection } from "@/components/settings/about-me-section";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { TimeFormatSelect } from "@/components/settings/time-format-select";
@@ -161,22 +160,6 @@ export function AccountSection() {
     "success" | "error" | null
   >(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-
-  // v1.4.15 Phase B5 — onboarding-tour replay state. Settings → Account
-  // exposes a "Restart onboarding tour" button that resets the
-  // server-side flag (`users.onboarding_tour_completed = false`) and
-  // dispatches a `healthlog:tour-restart` window event so the dashboard's
-  // <TourLauncher> picks it up immediately on the user's next nav. The
-  // confirmation message goes through the same announce channel as
-  // every other settings save.
-  // v1.4.48 M6c — text + type collapsed into one discriminated state so
-  // the two values can never drift (same shape as `<AboutSection>`'s
-  // replay button so the surface stays mirrored).
-  const [tourRestarting, setTourRestarting] = useState(false);
-  const [tourFeedback, setTourFeedback] = useState<{
-    key: string;
-    type: "success" | "error";
-  } | null>(null);
 
   // Passkey registration state.
   const [passkeyLoading, setPasskeyLoading] = useState(false);
@@ -328,29 +311,6 @@ export function AccountSection() {
     }
   }
 
-  async function handleRestartTour() {
-    setTourRestarting(true);
-    setTourFeedback(null);
-    // v1.4.48 M6b — both Settings → Account and Settings → About now
-    // delegate to the shared `restartOnboardingTour()` worker so the
-    // server flip + force-launch marker + window event live in one
-    // place. Account additionally refetches the auth payload so the
-    // `onboardingTourCompleted` flag the launcher reads matches the
-    // server flip immediately — About has no auth handle to refetch
-    // and relies on the next navigation re-running `/api/auth/me`.
-    const result = await restartOnboardingTour(user?.id);
-    if (result.ok) {
-      await refetch();
-      setTourFeedback({
-        key: "onboarding.tour.restartConfirmation",
-        type: "success",
-      });
-    } else {
-      setTourFeedback({ key: result.messageKey, type: "error" });
-    }
-    setTourRestarting(false);
-  }
-
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
     setPasswordSaving(true);
@@ -412,13 +372,13 @@ export function AccountSection() {
       aria-labelledby="settings-section-account-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      {/* v1.18.1 (D0) — the explanatory section blurb was dropped so every
+          settings section starts at the same vertical height; the sr-only
+          heading stays for the accessibility tree. */}
+      <header>
         <h1 id="settings-section-account-title" className="sr-only">
           {t("settings.sections.account.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.account.description")}
-        </p>
       </header>
 
       {/* Profile card */}
@@ -636,6 +596,13 @@ export function AccountSection() {
           Medikamente settings section, where every medication-specific
           preference now lives. */}
 
+      {/* v1.18.1 (D8) — the AI "About me" context lives under Profil, placed
+          before Zyklus-Tracking. It is personal medical context (conditions,
+          allergies, what the Coach should watch) the daily briefing + Coach
+          read, so it belongs with the account profile rather than the AI
+          provider-configuration screen. */}
+      <AboutMeSection isAuthenticated={isAuthenticated} />
+
       {/* Cycle-tracking enable on-ramp — auto-on for female accounts, but this
           lets any account opt in (or opt out) before the gated /cycle page is
           reachable. */}
@@ -710,54 +677,9 @@ export function AccountSection() {
         </div>
       </div>
 
-      {/* Tour replay card. v1.4.15 Phase B5: a one-shot button that
-          resets `users.onboarding_tour_completed` on the server AND
-          dispatches a window event so a dashboard already in the
-          background reopens the spotlight tour immediately. v1.4.19
-          A6 — same stack-on-mobile / right-align-on-desktop contract
-          as the password card so both action surfaces look identical. */}
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-          <div className="flex items-start gap-2">
-            <Compass className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">
-                {t("onboarding.tour.restart")}
-              </h2>
-              <p className="text-muted-foreground text-xs">
-                {t("onboarding.tour.restartHint")}
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleRestartTour}
-            disabled={tourRestarting}
-            data-testid="settings-restart-tour"
-            className="w-full shrink-0 sm:w-auto"
-          >
-            {tourRestarting ? (
-              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-            ) : (
-              <Compass className="h-4 w-4" />
-            )}
-            {t("onboarding.tour.restart")}
-          </Button>
-        </div>
-        {tourFeedback && (
-          <p
-            role="alert"
-            className={`mt-2 text-xs ${
-              tourFeedback.type === "success"
-                ? "text-success"
-                : "text-destructive"
-            }`}
-          >
-            {t(tourFeedback.key)}
-          </p>
-        )}
-      </div>
+      {/* v1.18.1 (D1) — the "Tour neu starten" card moved to Settings →
+          Erweitert. It is a maintenance / reset action, not a profile or
+          security control, so it sits beside Research Mode + the danger zone. */}
 
       <Dialog
         open={passwordDialogOpen}

@@ -78,6 +78,13 @@ export interface ScoreRingProps {
    */
   delayMs?: number;
   /**
+   * Flat 2-D treatment: drops the drop-shadow bloom, the breathing pulse, the
+   * conic sheen, and the sweep/count-up entrance. Used on the dashboard hero so
+   * the ring sits as calmly as the surrounding chart + tile surfaces. The
+   * /insights wellness strip + anatomy view keep the full premium reveal.
+   */
+  flat?: boolean;
+  /**
    * Optional "your normal" reference (0..100). When set + finite, a faint
    * thinner ghost arc renders under the live arc so the user sees today vs
    * their baseline at a glance. Omit (null) when no trailing series exists.
@@ -102,6 +109,7 @@ export function ScoreRing({
   hue,
   delayMs = 0,
   baseline,
+  flat = false,
   className,
 }: ScoreRingProps) {
   const { t } = useTranslations();
@@ -119,7 +127,9 @@ export function ScoreRing({
   const glow = RING_GLOW[hueKey];
 
   const reduced = prefersReducedMotion();
-  const shouldAnimate = animate && hasScore && !reduced;
+  // `flat` forces the calm static treatment regardless of the `animate` prop:
+  // no sweep, no count-up, no pulse, no sheen, no bloom.
+  const shouldAnimate = animate && hasScore && !reduced && !flat;
   const dash = (clamped / 100) * C;
 
   const hasBaseline = baseline != null && Number.isFinite(baseline) && hasScore;
@@ -220,8 +230,9 @@ export function ScoreRing({
         {/* The progress arc — single-hue gradient, round cap, spring sweep, bloom. */}
         <circle
           className={cn(
-            "wellness-ring-arc",
-            shouldAnimate &&
+            flat ? "wellness-ring-arc--flat" : "wellness-ring-arc",
+            !flat &&
+              shouldAnimate &&
               resolvedBand === "green" &&
               "wellness-ring-arc--pulse",
           )}
@@ -241,8 +252,9 @@ export function ScoreRing({
           }}
         />
       </svg>
-      {/* Conic specular sheen — sweeps the arc once on the strip reveal. */}
-      <div className="wellness-ring-sheen" aria-hidden="true" />
+      {/* Conic specular sheen — sweeps the arc once on the strip reveal.
+          Omitted entirely in the flat treatment (dashboard hero). */}
+      {flat ? null : <div className="wellness-ring-sheen" aria-hidden="true" />}
       {/* Centred number as real DOM text — design tokens + tabular-nums. */}
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
         <span

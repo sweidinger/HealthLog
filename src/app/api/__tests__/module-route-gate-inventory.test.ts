@@ -74,8 +74,29 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   "src/app/api/sleep",
   "src/app/api/workouts",
   "src/app/api/labs",
+  // v1.18.1 — the user-scoped Biomarker catalog backs the Labs feature.
+  "src/app/api/biomarkers",
   "src/app/api/cycle",
+  // v1.18.1 (W-B) — the illness/condition journal. Every `/api/illness/*`
+  // route gates on the born-gated `illness` module via the thin
+  // `requireIllnessEnabled(...)` wrapper (which re-stamps the
+  // illness-specific errorCode over `requireModuleEnabled("illness")`),
+  // recognised below as a delegated gate. Walking the tree means a NEW
+  // ungated illness route fails this test BY NAME rather than leaking the
+  // surface over a Bearer token when the account never opted in.
+  "src/app/api/illness",
   "src/app/api/gamification",
+  // v1.18.1 (D3) — medications graduated from CORE to a toggleable module.
+  // It is SURFACE-gated (nav entry, dashboard widget, the dedicated
+  // Medikamente settings entry), not data-layer-gated: every `/api/medications/*`
+  // route is raw medication CRUD / intake / inventory / compliance over the
+  // user's own rows, so they are EXEMPT below under the same data-layer
+  // reasoning as mood/labs — disabling the module hides the surface, it does
+  // not wedge an importer / sync / the user's ability to clean up, and
+  // re-enabling finds the schedule + intake history intact. Walking the tree
+  // means a NEW medication route must justify itself (gate or document-exempt)
+  // rather than silently appearing.
+  "src/app/api/medications",
   // v1.18.0 B3 — the legacy `/api/doctor-report` tree (JSON + server-PDF +
   // availability probe) was orphaned dead code (no production caller) and
   // removed. The live doctor-report / FHIR surface is `/api/export/health-record`,
@@ -129,6 +150,50 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   "src/app/api/workouts/batch/route.ts",
   "src/app/api/labs/route.ts",
   "src/app/api/labs/[id]/route.ts",
+  // v1.18.1 — the lab-result delete-Undo restore endpoint and the
+  // user-scoped Biomarker catalog CRUD share the LabResult data-layer
+  // reasoning: the labs module gates the SURFACES (the Labs page), not the
+  // row store. A synced / pre-existing reading and its catalog definition
+  // must survive a disabled module so re-enabling reveals a complete history.
+  "src/app/api/labs/restore/route.ts",
+  "src/app/api/biomarkers/route.ts",
+  "src/app/api/biomarkers/[id]/route.ts",
+  // ── DATA LAYER (medications) ──────────────────────────────────────
+  // v1.18.1 (D3) — medications graduated from CORE to a toggleable module,
+  // but it is SURFACE-gated (nav / dashboard widget / settings entry), not
+  // data-layer-gated. Every `/api/medications/*` route is raw CRUD over the
+  // user's own medication / intake / inventory / compliance / side-effect
+  // rows — the same data-layer reasoning as mood/labs: the module gate
+  // governs whether medications SURFACES, not whether the row store accepts
+  // writes. An importer / sync / the user's ability to clean up entries must
+  // keep working while the module is off, and re-enabling must find the
+  // schedule + intake history intact.
+  "src/app/api/medications/route.ts",
+  "src/app/api/medications/layout/route.ts",
+  "src/app/api/medications/compliance/route.ts",
+  "src/app/api/medications/intake/route.ts",
+  "src/app/api/medications/intake/bulk/route.ts",
+  // NB: `medications/extract` is NOT exempt — it gates on
+  // `requireAssistantSurface("coach")` (the NL-extraction is an assistant
+  // surface), so the inventory already counts it as a delegated gate.
+  "src/app/api/medications/[id]/route.ts",
+  "src/app/api/medications/[id]/api-endpoint/route.ts",
+  "src/app/api/medications/[id]/cadence/route.ts",
+  "src/app/api/medications/[id]/compliance/route.ts",
+  "src/app/api/medications/[id]/dose-history/route.ts",
+  "src/app/api/medications/[id]/glp1/route.ts",
+  "src/app/api/medications/[id]/phase-config/route.ts",
+  "src/app/api/medications/[id]/intake/route.ts",
+  "src/app/api/medications/[id]/intake/[eventId]/route.ts",
+  "src/app/api/medications/[id]/intake/bulk-delete/route.ts",
+  "src/app/api/medications/[id]/intake/import/route.ts",
+  "src/app/api/medications/[id]/intake/purge/route.ts",
+  "src/app/api/medications/[id]/inventory/route.ts",
+  "src/app/api/medications/[id]/inventory/[itemId]/route.ts",
+  "src/app/api/medications/[id]/schedule-revisions/route.ts",
+  "src/app/api/medications/[id]/schedule-revisions/[revisionId]/route.ts",
+  "src/app/api/medications/[id]/side-effects/route.ts",
+  "src/app/api/medications/[id]/side-effects/[logId]/route.ts",
   // ── INFRA / UI-ONLY ───────────────────────────────────────────────
   // Static FHIR CapabilityStatement — server metadata, no user data.
   "src/app/api/fhir/metadata/route.ts",
@@ -168,6 +233,12 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
 const MODULE_GATE_NEEDLE = "requireModuleEnabled(";
 const CYCLE_GATE_NEEDLE = "requireCycleEnabled(";
 const COACH_GATE_NEEDLE = 'requireAssistantSurface("coach")';
+// v1.18.1 — the illness journal's thin gate wrapper. `requireIllnessEnabled`
+// delegates to `requireModuleEnabled(userId, "illness")` and re-stamps the
+// illness-specific errorCode, exactly mirroring how `cycle` delegates to
+// `requireCycleEnabled`. Recognised as a delegated gate so illness routes
+// are not flagged as ungated.
+const ILLNESS_GATE_NEEDLE = "requireIllnessEnabled(";
 // Builder aggregators that resolve `resolveModuleMap` once and exclude
 // disabled-module sections/resources at the build boundary.
 const BUILDER_GATE_NEEDLES: ReadonlyArray<string> = [
@@ -251,11 +322,13 @@ describe("module API route gate inventory", () => {
       "workouts",
       "recovery",
       "labs",
+      "illness",
       "achievements",
       "cycle",
       "coach",
       "doctorReport",
       "insights",
+      "medications",
     ] as const) {
       expect(known.has(key), `unknown module key in inventory: ${key}`).toBe(
         true,
@@ -276,6 +349,7 @@ describe("module API route gate inventory", () => {
       if (fileHasCall(text, MODULE_GATE_NEEDLE)) continue;
       if (fileHasCall(text, CYCLE_GATE_NEEDLE)) continue;
       if (fileHasCall(text, COACH_GATE_NEEDLE)) continue;
+      if (fileHasCall(text, ILLNESS_GATE_NEEDLE)) continue;
       if (BUILDER_GATE_NEEDLES.some((n) => fileHasCall(text, n))) continue;
 
       if (exempt.has(path)) continue;
@@ -346,6 +420,7 @@ describe("module API route gate inventory", () => {
         fileHasCall(text, MODULE_GATE_NEEDLE) ||
         fileHasCall(text, CYCLE_GATE_NEEDLE) ||
         fileHasCall(text, COACH_GATE_NEEDLE) ||
+        fileHasCall(text, ILLNESS_GATE_NEEDLE) ||
         BUILDER_GATE_NEEDLES.some((n) => fileHasCall(text, n))
       ) {
         stillGated.push(path);

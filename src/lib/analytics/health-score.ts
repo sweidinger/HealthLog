@@ -150,6 +150,27 @@ export interface HealthScoreResult {
   };
   /** Difference vs. last week's score; null when no historical input. */
   delta: number | null;
+  /**
+   * v1.18.1 P4 — Rest Mode context. When an illness/condition episode is
+   * active the route attaches this so the surface can frame the score ("you
+   * were unwell during this window") WITHOUT changing it: `computeHealthScore`
+   * stays pure and the number is never penalised. Absent / null when the
+   * account is not in Rest Mode (the pure computation never sets it).
+   */
+  restMode?: RestModeAnnotation | null;
+}
+
+/**
+ * v1.18.1 P4 — the score-payload view of Rest Mode. A compact, value-free
+ * annotation: never a decrypted note, never a score adjustment. iOS mirrors it
+ * verbatim (server-authoritative). The full context lives on
+ * `@/lib/illness/rest-mode`; this is the slice a score result carries.
+ */
+export interface RestModeAnnotation {
+  active: boolean;
+  /** ISO onset of the earliest active episode. */
+  since: string | null;
+  episodeCount: number;
 }
 
 const BASE_WEIGHTS = {

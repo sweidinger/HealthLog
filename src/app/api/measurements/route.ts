@@ -29,6 +29,7 @@ import {
 import { withIdempotency } from "@/lib/idempotency";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import {
   recomputeBucketsForMeasurement,
   collapseToTypeDayKeys,
@@ -924,6 +925,10 @@ async function postMeasurement(request: NextRequest) {
     // SWR readers don't serve the pre-write body back to the user.
     invalidateUserMeasurements(user.id, { evict: true });
 
+    // v1.18.1 — eventful Vorsorge satisfaction. Resolve the user's
+    // reminders against the just-landed readings now. Fire-and-forget.
+    void enqueueReminderSatisfy(user.id).catch(() => {});
+
     // v1.5.0 — refresh the persistent rollup table for every distinct
     // (type, day) the batch touched so the next analytics / coach read
     // hits the cache rather than falling through to live aggregation.
@@ -1036,6 +1041,10 @@ async function postMeasurement(request: NextRequest) {
   // single-entry create — hard-evict so the SWR readers don't serve the
   // pre-write body back to the user.
   invalidateUserMeasurements(user.id, { evict: true });
+
+  // v1.18.1 — eventful Vorsorge satisfaction. Resolve the user's reminders
+  // against the just-landed reading now. Fire-and-forget.
+  void enqueueReminderSatisfy(user.id).catch(() => {});
 
   // v1.5.0 — refresh the persistent rollup row for the affected
   // (type, day) tuple. Runs inline so the next read of the

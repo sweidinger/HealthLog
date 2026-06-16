@@ -9,7 +9,11 @@ import { recordError } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { runMoodReminderTick } from "@/lib/jobs/mood-reminder";
 import { runCycleReminderTick } from "@/lib/jobs/cycle-reminder";
-import { runMeasurementReminderTick } from "@/lib/jobs/measurement-reminder";
+import {
+  runMeasurementReminderTick,
+  runReminderSatisfyForUser,
+} from "@/lib/jobs/measurement-reminder";
+import type { ReminderSatisfyPayload } from "@/lib/jobs/reminder-satisfy";
 import { getWorkerPrisma } from "./shared";
 
 export interface MoodReminderPayload {
@@ -111,6 +115,48 @@ export async function handleMeasurementReminderCheck(
           skipped_client_managed: summary.skippedClientManaged,
           skipped_no_channel: summary.skippedNoChannel,
           failed: summary.failed,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+/**
+ * v1.18.1 — eventful Vorsorge satisfaction. Enqueued by every measurement
+ * / lab ingest path (manual create, batch, device syncs) so a reminder
+ * auto-resolves the moment a matching reading lands rather than waiting up
+ * to 15 minutes for the cron. Batches one job per user; the resolver loads
+ * that user's live reminders and runs the shared satisfy primitive.
+ */
+export async function handleReminderSatisfy(
+  jobs: Job<ReminderSatisfyPayload>[],
+) {
+  await withBackgroundEvent("job.reminder_satisfy", async (evt) => {
+    const prisma = getWorkerPrisma();
+    const now = new Date();
+    // Distinct users in this batch — a multi-source ingest spike can enqueue
+    // several jobs for one user; resolve each user once.
+    const userIds = Array.from(
+      new Set(jobs.map((j) => j.data?.userId).filter((id): id is string => !!id)),
+    );
+    let satisfied = 0;
+    let candidates = 0;
+    try {
+      for (const userId of userIds) {
+        const summary = await runReminderSatisfyForUser(prisma, userId, now);
+        satisfied += summary.satisfied;
+        candidates += summary.candidatesScanned;
+      }
+      evt.setBackground({
+        task_name: "job.reminder_satisfy",
+        result: {
+          users: userIds.length,
+          candidates_scanned: candidates,
+          satisfied,
         },
       });
     } catch (err) {

@@ -15,6 +15,17 @@ export interface MeasurementReminderDtoShape {
   intervalDays: number | null;
   rrule: string | null;
   anchorDate: string | null;
+  /**
+   * v1.18.1 — optional course-window end (ISO-8601). NULL ⇒ open-ended.
+   * A Coach-suggested time-boxed protocol carries a non-NULL value and
+   * self-expires.
+   */
+  endsOn: string | null;
+  /**
+   * v1.18.1 — provenance: `VORSORGE` (user-created) or `COACH` (minted from
+   * a Coach cadence suggestion). The UI labels the source.
+   */
+  origin: "VORSORGE" | "COACH";
   notifyHour: number;
   location: string | null;
   nextDueAt: string | null;
@@ -34,6 +45,8 @@ export function toMeasurementReminderDto(
     intervalDays: row.intervalDays,
     rrule: row.rrule,
     anchorDate: row.anchorDate ? row.anchorDate.toISOString() : null,
+    endsOn: row.endsOn ? row.endsOn.toISOString() : null,
+    origin: row.origin,
     notifyHour: row.notifyHour,
     location: row.location,
     nextDueAt: row.nextDueAt ? row.nextDueAt.toISOString() : null,

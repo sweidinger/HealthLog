@@ -146,6 +146,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "Looking at your data ",
           metricSource: null,
+          suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
@@ -170,6 +171,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "Drafting…",
           metricSource: null,
+          suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
@@ -187,6 +189,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
@@ -203,6 +206,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: "errorProvider",
@@ -243,6 +247,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "Looking at your data ",
           metricSource: null,
+          suggestion: null,
           inProgress: false,
           messageId: "m3-streaming",
           errorCode: null,
@@ -269,6 +274,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "Looking at your data ",
           metricSource: null,
+          suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
@@ -467,6 +473,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
@@ -570,6 +577,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: "coach.budget.exceeded",
@@ -590,6 +598,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: "coach.provider.rate_limited",
@@ -618,6 +627,7 @@ describe("<MessageThread>", () => {
         streaming={{
           content: "",
           metricSource: null,
+          suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: null,

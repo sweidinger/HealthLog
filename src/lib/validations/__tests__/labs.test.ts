@@ -75,6 +75,32 @@ describe("createLabResultSchema", () => {
     expect(r.success).toBe(true);
   });
 
+  it("accepts a structured entry (biomarkerId, no analyte/unit)", () => {
+    const r = createLabResultSchema.safeParse({
+      biomarkerId: "bm_123",
+      value: 110,
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects an entry with neither biomarkerId nor analyte", () => {
+    const r = createLabResultSchema.safeParse({
+      value: 110,
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a free-text entry missing the unit", () => {
+    const r = createLabResultSchema.safeParse({
+      analyte: "LDL",
+      value: 110,
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(false);
+  });
+
   it("normalises an empty-string panel to undefined", () => {
     const r = createLabResultSchema.safeParse({
       analyte: "TSH",

@@ -41,11 +41,46 @@ export interface ReminderScheduleInput {
   notifyHour: number;
   lastSatisfiedAt: Date | null;
   createdAt: Date;
+  /**
+   * v1.18.1 (Workstream C) — optional course-window end. NULL ⇒ open-ended
+   * (the existing behaviour). Non-NULL bounds a finite cadence: the
+   * recurrence engine stops producing occurrences past this instant, so a
+   * Coach-suggested time-boxed protocol (ESH/AHA 7-day BP) self-expires.
+   */
+  endsOn?: Date | null;
 }
 
 function hourToHhmm(hour: number): string {
   const safe = Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 9;
   return `${safe.toString().padStart(2, "0")}:00`;
+}
+
+/**
+ * v1.18.1 — pull the explicit clock hours out of an RRULE `BYHOUR` part so
+ * a multi-time-of-day protocol (the ESH/AHA "BP morning + evening" cadence,
+ * `FREQ=DAILY;BYHOUR=7,19`) fires once PER hour, not once a day.
+ *
+ * The recurrence engine expands `timesOfDay` on each occurrence day. The
+ * RRULE day-anchor walk on its own lands one slot per day; without lifting
+ * `BYHOUR` into `timesOfDay` the engine only ever fires at the single
+ * `notifyHour`, silently collapsing a twice-daily protocol to once. This
+ * keeps the label, the RRULE, and the engine output aligned.
+ *
+ * Returns the sorted, de-duplicated, in-range (0–23) `"HH:00"` strings, or
+ * `null` when the rrule carries no usable `BYHOUR` (the caller then falls
+ * back to the single `notifyHour`).
+ */
+export function byHourTimesOfDay(rrule: string | null): string[] | null {
+  if (!rrule) return null;
+  const match = /(?:^|;)BYHOUR=([0-9,]+)(?:;|$)/i.exec(rrule);
+  if (!match) return null;
+  const hours = match[1]
+    .split(",")
+    .map((part) => Number(part.trim()))
+    .filter((h) => Number.isInteger(h) && h >= 0 && h <= 23);
+  if (hours.length === 0) return null;
+  const unique = Array.from(new Set(hours)).sort((a, b) => a - b);
+  return unique.map((h) => `${h.toString().padStart(2, "0")}:00`);
 }
 
 /**
@@ -62,12 +97,17 @@ export function buildReminderRecurrence(
   timeZone: string,
 ): { schedule: CanonicalSchedule; ctx: RecurrenceContext } {
   const hhmm = hourToHhmm(reminder.notifyHour);
+  // v1.18.1 — when the RRULE pins explicit BYHOUR clock hours (e.g. the
+  // twice-daily BP protocol `FREQ=DAILY;BYHOUR=7,19`), expand them into the
+  // engine's per-day timesOfDay so every hour fires; otherwise the cadence
+  // rides the single notifyHour. Aligns label + RRULE + engine output.
+  const timesOfDay = byHourTimesOfDay(reminder.rrule) ?? [hhmm];
 
   const schedule: CanonicalSchedule = {
     id: "measurement-reminder",
     rrule: reminder.rrule,
     rollingIntervalDays: reminder.intervalDays,
-    timesOfDay: [hhmm],
+    timesOfDay,
     daysOfWeek: null,
     windowStart: hhmm,
     windowEnd: hhmm,
@@ -86,7 +126,7 @@ export function buildReminderRecurrence(
     medication: {
       id: "measurement-reminder",
       startsOn,
-      endsOn: null,
+      endsOn: reminder.endsOn ?? null,
       oneShot: false,
       createdAt: reminder.createdAt,
     },

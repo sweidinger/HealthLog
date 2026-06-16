@@ -68,16 +68,37 @@ const optionalNote = z
 const referenceLow = z.number().finite().optional();
 const referenceHigh = z.number().finite().optional();
 
+/**
+ * v1.18.1 — optional link to a user-scoped `Biomarker` (the catalog row).
+ * When set, the structured-entry path resolves the unit + reference range
+ * from the biomarker server-side, so `analyte` / `unit` may be omitted (the
+ * route fills them from the catalog row). A free-text reading without a
+ * catalog link stays valid (quick-capture / legacy path).
+ */
+const biomarkerId = z.string().trim().min(1).max(64).optional();
+
 export const createLabResultSchema = z
   .object({
+    biomarkerId,
     panel: optionalPanel,
-    analyte: requiredText(120),
+    analyte: requiredText(120).optional(),
     value: z.number().finite(),
-    unit: requiredText(40),
+    unit: requiredText(40).optional(),
     referenceLow,
     referenceHigh,
     takenAt: takenAtField,
     note: optionalNote,
+  })
+  // Either a catalog link OR a free-text analyte must be present.
+  .refine((d) => d.biomarkerId !== undefined || d.analyte !== undefined, {
+    message: "Either biomarkerId or analyte is required",
+    path: ["analyte"],
+  })
+  // Without a catalog link the unit is required (the catalog otherwise
+  // supplies it server-side).
+  .refine((d) => d.biomarkerId !== undefined || d.unit !== undefined, {
+    message: "unit is required when no biomarkerId is given",
+    path: ["unit"],
   })
   .refine(
     (d) =>
@@ -123,8 +144,38 @@ export const updateLabResultSchema = z
 
 export type UpdateLabResultInput = z.infer<typeof updateLabResultSchema>;
 
-/** List query: filter by analyte (exact) + date range, paginate. */
+/**
+ * Inverted-range merge guard for a PARTIAL bound update.
+ *
+ * The schema-level `referenceLow <= referenceHigh` refine only fires when both
+ * bounds arrive in the SAME request. A partial PUT that moves a single bound
+ * past the row's existing other bound slips through the schema. The route
+ * resolves the EFFECTIVE bounds (the parsed value when present, else the
+ * stored value) and calls this to reject a transposed window with a 422.
+ *
+ * Returns true when both effective bounds are concrete numbers and low > high.
+ */
+export function isInvertedRange(
+  effectiveLow: number | null,
+  effectiveHigh: number | null,
+): boolean {
+  return (
+    effectiveLow !== null && effectiveHigh !== null && effectiveLow > effectiveHigh
+  );
+}
+
+/** Resolve an effective bound: the parsed value when present, else the stored. */
+export function effectiveBound(
+  parsed: number | null | undefined,
+  stored: number | null,
+): number | null {
+  return parsed !== undefined ? parsed : stored;
+}
+
+/** List query: filter by biomarker / analyte (exact) + date range, paginate. */
 export const listLabResultsSchema = z.object({
+  // v1.18.1 — filter to one catalog marker's readings (the detail chart feed).
+  biomarkerId: z.string().trim().min(1).max(64).optional(),
   analyte: z.string().trim().min(1).max(120).optional(),
   panel: z.string().trim().min(1).max(120).optional(),
   from: z

@@ -13,12 +13,11 @@
  * name, charts) hide when the format is FHIR. The ePA-compat note shows
  * for the FHIR + package formats.
  *
- * v1.12 — this is the export page's hero. It carries the same
- * `hero-gradient + glow-purple` treatment as the Insights hero strip so
- * the headline "data out" path owns the primary visual weight. The
- * grouped data-section toggles live behind a collapsible disclosure,
- * collapsed by default, so the panel opens compact instead of as a long
- * always-expanded checklist.
+ * v1.18.1 (D9) — the panel renders as a normal settings card (the v1.12
+ * gradient/glow hero treatment was dropped: the gradient read too crass next
+ * to the rest of the settings surface). The grouped data-section toggles live
+ * behind a collapsible disclosure, collapsed by default, so the panel opens
+ * compact instead of as a long always-expanded checklist.
  */
 
 import { useId, useState } from "react";
@@ -196,11 +195,10 @@ export function HealthRecordExportPanel() {
       aria-labelledby="health-record-export-title"
       data-testid="health-record-export-panel"
       className={cn(
-        "hero-gradient glow-purple animate-insight-in",
-        // `isolate` traps the purple glow inside the hero so the shadow
-        // doesn't leak through the cards below — same trick the Insights
-        // `<HeroStrip>` uses.
-        "relative isolate overflow-hidden rounded-xl p-4 sm:p-5",
+        // v1.18.1 (D9) — the gradient/glow hero treatment dropped in favour
+        // of a normal card so the Gesundheitsakte reads like every other
+        // settings surface rather than shouting.
+        "bg-card border-border rounded-xl border p-4 sm:p-6",
       )}
     >
       <SettingsCardHeader

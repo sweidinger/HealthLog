@@ -90,33 +90,20 @@ export function AdminSectionRenderer({
           <IntegrationsGroupSection />
         </SectionFrame>
       );
-    case "ai-quality":
+    case "coach":
+      // v1.18.1 — the former ai-quality, assistant, and coach-feedback
+      // sections fold into one Coach area: surface toggles + operator
+      // config first, then the two feedback-quality tables.
       return (
         <SectionFrame
-          title={t("admin.section.ai-quality.title")}
-          subtitle={t("admin.section.ai-quality.subtitle")}
-        >
-          <AiQualitySection />
-        </SectionFrame>
-      );
-    case "assistant":
-      return (
-        <SectionFrame
-          title={t("admin.section.assistant.title")}
-          subtitle={t("admin.section.assistant.subtitle")}
+          title={t("admin.section.coach.title")}
+          subtitle={t("admin.section.coach.subtitle")}
         >
           <AssistantSection />
           <ModuleAvailabilitySection />
           <AiServerKeySection />
-        </SectionFrame>
-      );
-    case "coach-feedback":
-      return (
-        <SectionFrame
-          title={t("admin.section.coach-feedback.title")}
-          subtitle={t("admin.section.coach-feedback.subtitle")}
-        >
           <CoachFeedbackSection />
+          <AiQualitySection />
         </SectionFrame>
       );
     case "feedback":
@@ -207,7 +194,9 @@ export function AdminSectionRenderer({
       // v1.4.36 W4e — About section reused as-is from the settings
       // surface. The component owns its own heading + cards layout
       // so no SectionFrame wrapper.
-      return <AboutSection />;
+      // v1.18.1 E5 — hide the onboarding "Replay tour" card on the admin
+      // surface; it's a user-facing affordance with no admin-side use.
+      return <AboutSection hideTourReplay />;
     default:
       slug satisfies never;
       return null;

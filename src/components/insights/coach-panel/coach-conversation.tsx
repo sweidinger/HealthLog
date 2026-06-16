@@ -291,12 +291,23 @@ export function CoachConversation({
     >
       <header
         data-slot="coach-conversation-header"
-        className="border-border/70 flex flex-row items-center gap-2 border-b p-3 sm:gap-3 sm:p-4"
+        // v1.18.1 (W-COACH-UI C2/C4) — the header used to crowd a bare
+        // leading ghost-icon flush against the avatar (the "minimal"
+        // element the maintainer disliked). The surface-toggle now sits
+        // in its own leading cluster separated by a hairline divider, the
+        // avatar steps up to `size-9`, and the band locks to `h-14` so
+        // its bottom border shares the horizontal line with the body's
+        // rail-tray strip + history-rail heading one row below.
+        className="border-border/70 flex h-14 shrink-0 flex-row items-center gap-2.5 border-b px-3 sm:px-4"
       >
-        {leadingHeaderActions}
+        {leadingHeaderActions ? (
+          <div className="border-border/60 -ml-1 flex items-center gap-1 pr-1 sm:border-r sm:pr-2.5">
+            {leadingHeaderActions}
+          </div>
+        ) : null}
         <div
           aria-hidden="true"
-          className="from-dracula-purple to-dracula-pink flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
+          className="from-dracula-purple to-dracula-pink flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br shadow-sm"
         >
           <Sparkles className="text-background size-4" />
         </div>
@@ -352,6 +363,10 @@ export function CoachConversation({
           surface === "page" ? (
             <HistoryRail
               activeId={currentConversationId}
+              // v1.18.1 — the `<aside>` band already renders the
+              // "Conversations" <h2>; suppress the rail's own <h3> so the
+              // heading is not stacked twice on the page surface.
+              hideHeading
               onSelect={(id) => {
                 // v1.16.5 — switching conversations drops the guided
                 // session; unanswered questions stay pending.

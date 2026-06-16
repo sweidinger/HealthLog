@@ -242,10 +242,6 @@ export function ConnectionsPanel() {
 
   return (
     <div className="space-y-6" data-slot="connections-panel">
-      <p className="text-muted-foreground text-sm">
-        {t("settings.sections.integrations.connections.description")}
-      </p>
-
       <WithingsCard viewModel={withingsViewModel} />
       <WhoopCard viewModel={whoopViewModel} />
       <FitbitCard viewModel={fitbitViewModel} />

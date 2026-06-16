@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import {
+  apiError,
   apiSuccess,
   getClientIp,
   returnAllZodIssues,
@@ -11,10 +12,15 @@ import {
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { withIdempotency } from "@/lib/idempotency";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
+import { resolveOrMintBiomarker } from "@/lib/labs/biomarker-store";
+import {
+  type ResolvedBiomarker,
+  serialiseLabResult,
+} from "@/lib/labs/serialise";
 import { encryptNoteToBytes } from "@/lib/labs/store";
 import { annotate } from "@/lib/logging/context";
 import {
-  classifyReferenceRange,
   createLabResultSchema,
   listLabResultsSchema,
 } from "@/lib/validations/labs";
@@ -22,49 +28,42 @@ import {
 /**
  * v1.17.1 — structured lab-result store (`/api/labs`).
  *
- * GET lists the caller's live results with optional analyte / panel / date
- * filters. POST records a single reading. `userId` is always narrowed from
- * the session — never a body field — and the write `data` object is built
- * field-by-field (no mass assignment). The free-text note, when present, is
- * AES-256-GCM encrypted into the `noteEncrypted` Bytes column before write.
+ * Module gate: unlike `/api/illness/*` (born-gated, every route 403s when the
+ * module is off), Labs is intentionally NOT server-gated. The Labs module
+ * toggle is a UX-only nav/visibility preference — the data is always
+ * owner-scoped and safe to read/write, and the Vorsorge lab-panel reminder
+ * + doctor-report PDF read these rows regardless of the nav toggle. Gating
+ * here would 403 those legitimate cross-feature reads. Deliberate opt-out.
+ *
+ * GET lists the caller's live results with optional biomarker / analyte /
+ * panel / date filters. POST records a single reading. `userId` is always
+ * narrowed from the session — never a body field — and the write `data`
+ * object is built field-by-field (no mass assignment). The free-text note,
+ * when present, is AES-256-GCM encrypted into the `noteEncrypted` Bytes
+ * column before write.
+ *
+ * v1.18.1 — structured entry: when the body carries a `biomarkerId`, the row
+ * links the user-scoped catalog marker and the response resolves its unit +
+ * reference range FROM the biomarker (server-authoritative). A free-text body
+ * (no `biomarkerId`) resolves-or-mints a catalog marker by
+ * `(userId, lower(analyte))`, so NO row ever persists unlinked — every reading
+ * is editable + detail-navigable, and the boot-time backfill becomes a pure
+ * pre-upgrade migration. The web + iOS clients render the resolved DTO and
+ * never recompute.
  */
 
-// The serialised row never echoes the encrypted note bytes back; the badge
-// status is computed server-side so the client renders a coherent, neutral
-// in/out-of-range verdict without re-deriving the rule.
-function serialiseLabResult(row: {
-  id: string;
-  panel: string | null;
-  analyte: string;
-  value: number;
-  unit: string;
-  referenceLow: number | null;
-  referenceHigh: number | null;
-  takenAt: Date;
-  source: string;
-  noteEncrypted: Uint8Array | null;
-  createdAt: Date;
-  updatedAt: Date;
-}) {
-  return {
-    id: row.id,
-    panel: row.panel,
-    analyte: row.analyte,
-    value: row.value,
-    unit: row.unit,
-    referenceLow: row.referenceLow,
-    referenceHigh: row.referenceHigh,
-    takenAt: row.takenAt.toISOString(),
-    source: row.source,
-    hasNote: row.noteEncrypted !== null,
-    rangeStatus: classifyReferenceRange(
-      row.value,
-      row.referenceLow,
-      row.referenceHigh,
-    ),
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
+/** Map the joined biomarker (or null) into the resolver's shape. */
+function toResolved(
+  bm: {
+    id: string;
+    name: string;
+    unit: string;
+    lowerBound: number | null;
+    upperBound: number | null;
+    panel: string | null;
+  } | null,
+): ResolvedBiomarker | null {
+  return bm ?? null;
 }
 
 export const GET = apiHandler(async (request: NextRequest) => {
@@ -80,11 +79,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { analyte, panel, from, to, limit, offset, sortDir } = parsed.data;
+  const { biomarkerId, analyte, panel, from, to, limit, offset, sortDir } =
+    parsed.data;
 
   const where = {
     userId: user.id,
     deletedAt: null,
+    ...(biomarkerId && { biomarkerId }),
     ...(analyte && { analyte }),
     ...(panel && { panel }),
     ...(from || to
@@ -103,6 +104,18 @@ export const GET = apiHandler(async (request: NextRequest) => {
       orderBy: { takenAt: sortDir },
       take: limit,
       skip: offset,
+      include: {
+        biomarker: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+            lowerBound: true,
+            upperBound: true,
+            panel: true,
+          },
+        },
+      },
     }),
     prisma.labResult.count({ where }),
   ]);
@@ -113,7 +126,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
   });
 
   return apiSuccess({
-    results: rows.map(serialiseLabResult),
+    results: rows.map((row) =>
+      serialiseLabResult(row, toResolved(row.biomarker)),
+    ),
     meta: { total, limit, offset },
   });
 });
@@ -153,20 +168,66 @@ async function postLabResult(request: NextRequest) {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { panel, analyte, value, unit, referenceLow, referenceHigh, takenAt, note } =
-    parsed.data;
+  const {
+    biomarkerId,
+    panel,
+    analyte,
+    value,
+    unit,
+    referenceLow,
+    referenceHigh,
+    takenAt,
+    note,
+  } = parsed.data;
 
-  // Field-by-field assignment — never spread `parsed.data`. `source` is
-  // hardcoded "MANUAL" for this user-facing path; import paths set their own.
+  // Every row links a catalog marker — no `LabResult` ever persists unlinked
+  // (v1.18.1 High). Two paths converge on a `biomarker`:
+  //  - Structured: a `biomarkerId` is supplied; resolve + verify ownership
+  //    (a forged / foreign id is a 404).
+  //  - Free-text: no `biomarkerId`; resolve-or-mint the marker by
+  //    `(userId, lower(analyte))` so the legacy quick-capture path still
+  //    yields a linked, editable, detail-navigable reading.
+  let biomarker: ResolvedBiomarker | null = null;
+  if (biomarkerId) {
+    const found = await prisma.biomarker.findFirst({
+      where: { id: biomarkerId, userId: user.id },
+      select: {
+        id: true,
+        name: true,
+        unit: true,
+        lowerBound: true,
+        upperBound: true,
+        panel: true,
+      },
+    });
+    if (!found) {
+      return apiError("Biomarker not found", 404);
+    }
+    biomarker = found;
+  } else {
+    biomarker = await resolveOrMintBiomarker(user.id, {
+      analyte: analyte as string,
+      unit: unit as string,
+      referenceLow: referenceLow ?? null,
+      referenceHigh: referenceHigh ?? null,
+      panel: panel ?? null,
+    });
+  }
+
+  // Field-by-field assignment — never spread `parsed.data`. The row stamps the
+  // resolved name/unit/range as historical truth (so a later catalog edit does
+  // not silently rewrite a past reading) AND keeps the FK; reads resolve the
+  // CURRENT catalog values via `serialise`.
   const created = await prisma.labResult.create({
     data: {
       userId: user.id,
-      panel: panel ?? null,
-      analyte,
+      biomarkerId: biomarker.id,
+      panel: biomarker.panel,
+      analyte: biomarker.name,
       value,
-      unit,
-      referenceLow: referenceLow ?? null,
-      referenceHigh: referenceHigh ?? null,
+      unit: biomarker.unit,
+      referenceLow: biomarker.lowerBound,
+      referenceHigh: biomarker.upperBound,
       takenAt,
       source: "MANUAL",
       noteEncrypted: note ? encryptNoteToBytes(note) : null,
@@ -176,13 +237,24 @@ async function postLabResult(request: NextRequest) {
   await auditLog("labResult.create", {
     userId: user.id,
     ipAddress: getClientIp(request),
-    details: { labResultId: created.id, analyte: created.analyte },
+    details: { labResultId: created.id },
   });
 
   annotate({
     action: { name: "labs.create" },
-    meta: { labResultId: created.id },
+    meta: {
+      labResultId: created.id,
+      biomarkerId: biomarker.id,
+      // Whether the client picked a catalog marker (structured) vs the
+      // free-text path that resolved-or-minted one server-side.
+      structured: biomarkerId !== undefined,
+    },
   });
 
-  return apiSuccess(serialiseLabResult(created), 201);
+  // v1.18.1 (D2) — eventful Lab↔Vorsorge satisfaction. A lab panel just
+  // landed; resolve the user's free-text "annual blood panel" reminders
+  // now rather than waiting on the 15-min cron. Fire-and-forget.
+  void enqueueReminderSatisfy(user.id).catch(() => {});
+
+  return apiSuccess(serialiseLabResult(created, biomarker), 201);
 }

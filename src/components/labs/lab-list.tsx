@@ -1,24 +1,23 @@
 "use client";
 
 import { useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FlaskConical } from "lucide-react";
-import { toast } from "sonner";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronRight, FlaskConical } from "lucide-react";
 
-import { DeleteButton } from "@/components/data-list";
-import { formatReferenceRange } from "@/lib/labs/reference-range";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiDelete, apiGet } from "@/lib/api/api-fetch";
+import { apiGet } from "@/lib/api/api-fetch";
 import { formatDate } from "@/lib/format";
+import { formatReferenceRange } from "@/lib/labs/reference-range";
+import { formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -26,34 +25,44 @@ import { LabTrendSparkline } from "./lab-trend-sparkline";
 import { ReferenceRangeBadge } from "./reference-range-badge";
 import type { LabResultDto, LabResultListResponse } from "./types";
 
-interface AnalyteGroup {
+interface MarkerGroup {
+  /** Stable group key: the biomarker id, or `analyte:<lower>` for legacy rows. */
+  key: string;
+  /** Link target when the group is catalog-linked; null for legacy rows. */
+  biomarkerId: string | null;
   analyte: string;
   panel: string | null;
   unit: string;
-  /** All readings for this analyte, oldest → newest. */
   readings: LabResultDto[];
   latest: LabResultDto;
 }
 
-/** Reduce the flat result list into per-analyte groups (case-insensitive). */
-function groupByAnalyte(results: LabResultDto[]): AnalyteGroup[] {
+/**
+ * Group readings by their linked biomarker (or, for legacy un-linked rows,
+ * case-insensitively by analyte). A catalog-linked group deep-links to its
+ * detail chart; legacy groups render inert until the backfill links them.
+ */
+function groupReadings(results: LabResultDto[]): MarkerGroup[] {
   const byKey = new Map<string, LabResultDto[]>();
   for (const r of results) {
-    const key = r.analyte.toLowerCase();
-    const existing = byKey.get(key);
-    if (existing) existing.push(r);
+    const key = r.biomarkerId
+      ? `bm:${r.biomarkerId}`
+      : `analyte:${r.analyte.toLowerCase()}`;
+    const bucket = byKey.get(key);
+    if (bucket) bucket.push(r);
     else byKey.set(key, [r]);
   }
-  const groups: AnalyteGroup[] = [];
-  for (const readings of byKey.values()) {
-    // Ascending by takenAt so the sparkline reads left→right in time and
-    // the last element is the latest.
+
+  const groups: MarkerGroup[] = [];
+  for (const [key, readings] of byKey.entries()) {
     const ordered = [...readings].sort(
       (a, b) =>
         new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime(),
     );
     const latest = ordered[ordered.length - 1];
     groups.push({
+      key,
+      biomarkerId: latest.biomarkerId,
       analyte: latest.analyte,
       panel: latest.panel,
       unit: latest.unit,
@@ -61,7 +70,6 @@ function groupByAnalyte(results: LabResultDto[]): AnalyteGroup[] {
       latest,
     });
   }
-  // Group order: most-recently-updated analyte first.
   return groups.sort(
     (a, b) =>
       new Date(b.latest.takenAt).getTime() -
@@ -69,16 +77,11 @@ function groupByAnalyte(results: LabResultDto[]): AnalyteGroup[] {
   );
 }
 
-function formatValue(value: number): string {
-  // Trim trailing zeros for whole numbers; keep up to 2 decimals otherwise.
-  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
-}
-
 export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   const { t } = useTranslations();
-  const queryClient = useQueryClient();
 
   const listKey = queryKeys.labResultsList({
+    biomarkerId: undefined,
     analyte: undefined,
     panel: undefined,
     from: undefined,
@@ -89,27 +92,21 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: listKey,
-    queryFn: async () => {
-      const res = await apiGet<LabResultListResponse>(
-        "/api/labs?limit=500&sortDir=desc",
-      );
-      return res;
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiDelete(`/api/labs/${id}`),
-    onSuccess: () => {
-      toast.success(t("labs.deletedToast"));
-      queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
-    },
-    onError: () => toast.error(t("labs.deleteError")),
+    queryFn: () =>
+      apiGet<LabResultListResponse>("/api/labs?limit=500&sortDir=desc"),
   });
 
   const groups = useMemo(
-    () => groupByAnalyte(data?.results ?? []),
+    () => groupReadings(data?.results ?? []),
     [data?.results],
   );
+
+  // The list caps at 500 rows server-side (the `limit` ceiling). Surface a
+  // calm "showing latest N of M" hint when the cap truncates so the count is
+  // never silently wrong — proper cursor paging is a later iteration.
+  const total = data?.meta?.total ?? 0;
+  const shown = data?.results?.length ?? 0;
+  const truncated = total > shown;
 
   if (isLoading) {
     return (
@@ -154,60 +151,81 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
 
   return (
     <div className="space-y-3">
-      {groups.map((group) => (
-        <Card key={group.analyte.toLowerCase()}>
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
-              <span className="font-medium">{group.analyte}</span>
-              {group.panel ? (
-                <span className="text-muted-foreground text-xs font-normal">
-                  {group.panel}
-                </span>
-              ) : null}
-              <ReferenceRangeBadge status={group.latest.rangeStatus} />
-            </CardTitle>
-            <CardAction className="flex items-center gap-3">
-              <LabTrendSparkline values={group.readings.map((r) => r.value)} />
-              <DeleteButton
-                onConfirm={() => deleteMutation.mutate(group.latest.id)}
-                title={t("labs.deleteConfirmTitle")}
-                description={t("labs.deleteConfirmDescription")}
-                confirmLabel={t("labs.deleteLatest")}
-                className="size-9"
-                iconClassName="h-4 w-4"
-              />
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
-              <span className="text-foreground font-semibold tabular-nums">
-                {formatValue(group.latest.value)} {group.latest.unit}
-              </span>
-              {group.latest.referenceLow !== null ||
-              group.latest.referenceHigh !== null ? (
-                <span className="text-xs">
-                  {t("labs.referenceLabel")}{" "}
-                  {formatReferenceRange(
-                    group.latest.referenceLow,
-                    group.latest.referenceHigh,
-                    formatValue,
-                  )}
-                </span>
-              ) : null}
-              <span className="text-xs">
-                {formatDate(group.latest.takenAt)}
-              </span>
-              {group.readings.length > 1 ? (
-                <span className="text-xs">
-                  {t("labs.readingsCount", {
-                    count: group.readings.length,
-                  })}
-                </span>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+      {truncated ? (
+        <p className="text-muted-foreground text-xs">
+          {t("labs.showingLatestOf", { shown, total })}
+        </p>
+      ) : null}
+      {groups.map((group) => {
+        const body = (
+          <>
+            <CardHeader>
+              <CardTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+                <span className="font-medium">{group.analyte}</span>
+                {group.panel ? (
+                  <span className="text-muted-foreground text-xs font-normal">
+                    {group.panel}
+                  </span>
+                ) : null}
+                <ReferenceRangeBadge status={group.latest.rangeStatus} />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
+                  <span className="text-foreground font-semibold tabular-nums">
+                    {formatLabValue(group.latest.value)} {group.latest.unit}
+                  </span>
+                  {group.latest.referenceLow !== null ||
+                  group.latest.referenceHigh !== null ? (
+                    <span className="text-xs">
+                      {t("labs.referenceLabel")}{" "}
+                      {formatReferenceRange(
+                        group.latest.referenceLow,
+                        group.latest.referenceHigh,
+                        formatLabValue,
+                      )}
+                    </span>
+                  ) : null}
+                  <span className="text-xs">
+                    {formatDate(group.latest.takenAt)}
+                  </span>
+                  {group.readings.length > 1 ? (
+                    <span className="text-xs">
+                      {t("labs.readingsCount", {
+                        count: group.readings.length,
+                      })}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <LabTrendSparkline
+                    values={group.readings.map((r) => r.value)}
+                  />
+                  {group.biomarkerId ? (
+                    <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
+                  ) : null}
+                </div>
+              </div>
+            </CardContent>
+          </>
+        );
+
+        // Catalog-linked groups deep-link to the per-biomarker detail chart.
+        // Legacy un-linked groups render as a plain card until the backfill
+        // links them (or the user re-adds via the structured path).
+        return group.biomarkerId ? (
+          <Link
+            key={group.key}
+            href={`/labs/${group.biomarkerId}`}
+            className="block"
+          >
+            <Card className="hover:bg-muted/40 transition-colors">{body}</Card>
+          </Link>
+        ) : (
+          <Card key={group.key}>{body}</Card>
+        );
+      })}
     </div>
   );
 }

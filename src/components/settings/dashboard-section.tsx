@@ -20,9 +20,7 @@ export function DashboardSection() {
         <h1 id="settings-section-dashboard-title" className="sr-only">
           {t("settings.sections.dashboard.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.dashboard.description")}
-        </p>
+        {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
       </header>
 
       <DashboardLayoutSection id="dashboard-layout" />

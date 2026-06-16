@@ -11,11 +11,12 @@
  * core keys) and then invalidates the `authMe()` query so the nav, Insights
  * pills, and dashboard tiles re-gate live off `useAuth().user.modules`.
  *
- * The four CORE domains (weight, blood pressure, pulse, medications) render
- * as a separate read-only "always on" group — locked switches with a short
- * note — so the always-on measurement engine + meds read as deliberately
- * fixed, never disableable. Palette stays neutral throughout; this is a
- * calm configuration surface, not an alarm panel.
+ * The three CORE domains (weight, blood pressure, pulse) render as a
+ * separate read-only "always on" group — locked switches with a short note —
+ * so the always-on measurement engine reads as deliberately fixed, never
+ * disableable. Palette stays neutral throughout; this is a calm
+ * configuration surface, not an alarm panel. (v1.18.1 D3 — medications
+ * graduated to the toggleable group above.)
  *
  * State source is `useAuth().user.modules` (the resolved `/auth/me` map).
  * A module is enabled unless its key is explicitly `false` — default-on.
@@ -40,6 +41,7 @@ import {
   Smile,
   Sparkles,
   TestTube,
+  Thermometer,
   type LucideIcon,
 } from "lucide-react";
 
@@ -66,9 +68,12 @@ const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   workouts: Dumbbell,
   recovery: Activity,
   labs: TestTube,
+  illness: Thermometer,
   achievements: Award,
   coach: MessageCircleHeart,
   insights: Sparkles,
+  // v1.18.1 (D3) — medications graduated from CORE to a toggleable module.
+  medications: Pill,
   doctorReport: FileText,
 };
 
@@ -77,7 +82,6 @@ const CORE_ICONS: Record<CoreDomainKey, LucideIcon> = {
   weight: Scale,
   bloodPressure: HeartPulse,
   pulse: Activity,
-  medications: Pill,
 };
 
 export function ModulesSection() {
@@ -114,21 +118,19 @@ export function ModulesSection() {
       aria-labelledby="settings-section-modules-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
+      <header>
         <h1 id="settings-section-modules-title" className="sr-only">
           {t("settings.sections.modules.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.modules.description")}
-        </p>
       </header>
 
-      {/* Toggleable modules */}
+      {/* Toggleable modules. v1.18.1 (D2) — the explanatory line above the
+          first card dropped; the per-row labels carry the meaning. */}
       <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <SettingsCardHeader
           icon={Blocks}
           title={t("settings.sections.modules.toggleable.title")}
-          description={t("settings.sections.modules.toggleable.description")}
           className="mb-2"
         />
         <div className="divide-border divide-y pl-7">

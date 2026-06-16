@@ -51,6 +51,7 @@ import {
   upsertScoreRow,
 } from "@/lib/insights/score-row";
 import type { Derived } from "@/lib/insights/derived/types";
+import { resolveRestMode, type RestModeContext } from "@/lib/illness/rest-mode";
 
 /** The per-day idempotency-key prefix for a stored Recovery score row. */
 export const RECOVERY_SCORE_EXTERNAL_ID_PREFIX = "recovery:";
@@ -80,6 +81,14 @@ export interface RecoveryComputeResult {
   readiness: Derived<ReadinessValue>;
   /** The 0..100 score to persist, or null when the blend was insufficient. */
   score: number | null;
+  /**
+   * v1.18.1 P4 — Rest Mode context as of the scored day. ANNOTATES, never
+   * penalises: the `score` above is the raw recovery blend, unchanged when an
+   * illness episode is active. This context lets the recovery surface frame a
+   * low recovery score as "expected while you're unwell" rather than reading
+   * it as an unexplained drop. Resolved server-side; iOS mirrors it.
+   */
+  restMode: RestModeContext;
 }
 
 /**
@@ -100,7 +109,11 @@ export async function computeRecoveryScore(
   // the result is deterministic for tests.
   const readiness = await computeReadiness(userId, profile, { now });
   const score = readiness.status === "ok" ? readiness.value.score : null;
-  return { readiness, score };
+  // Rest Mode context as of the scored day — annotation only, never folded
+  // into `score`. An active episode frames a low recovery number; it does not
+  // adjust it.
+  const restMode = await resolveRestMode(userId, now, prisma);
+  return { readiness, score, restMode };
 }
 
 /**

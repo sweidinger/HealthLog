@@ -12,10 +12,11 @@
  *
  * The body schema (`modulePrefsPatchSchema`) is `strict()` over the
  * directly-owned toggleable key set, so a core-domain key (`weight`,
- * `bloodPressure`, `pulse`, `medications`), a delegated key (`cycle`,
- * `coach`), or any unknown key is a 422 — the core measurement engine +
- * meds can never be disabled here, and a value for a delegated module can
- * never land inert in `modulePreferencesJson`. The delegated modules are
+ * `bloodPressure`, `pulse`), a delegated key (`cycle`, `coach`), or any
+ * unknown key is a 422 — the core measurement engine can never be disabled
+ * here, and a value for a delegated module can never land inert in
+ * `modulePreferencesJson`. v1.18.1 (D3) — `medications` graduated to a
+ * toggleable module, so it IS accepted here now. The delegated modules are
  * managed at their real control (cycle in Account, coach in Settings →
  * Coach); the Modules hub deep-links there rather than offering a dead
  * toggle.

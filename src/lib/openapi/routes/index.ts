@@ -23,11 +23,17 @@ import type { ZodOpenApiObject } from "zod-openapi";
 
 import { adminDiagnosticPaths, adminInvitePaths } from "./admin";
 import { authPaths } from "./auth";
-import { coachFeedbackPaths, coachPaths } from "./coach";
+import {
+  coachFeedbackPaths,
+  coachPaths,
+  coachReminderSuggestionPaths,
+} from "./coach";
 import { consentPaths } from "./consent";
 import { cyclePaths } from "./cycle";
+import { biomarkerPaths } from "./biomarkers";
 import { devicePaths } from "./devices";
 import { healthRecordPaths } from "./health-record";
+import { illnessPaths } from "./illness";
 import { importPaths } from "./import";
 import { insightsPaths } from "./insights";
 import { labsPaths } from "./labs";
@@ -53,6 +59,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...medicationPaths,
   ...profilePaths,
   ...coachPaths,
+  ...coachReminderSuggestionPaths,
   ...adminInvitePaths,
   ...coachFeedbackPaths,
   ...adminDiagnosticPaths,
@@ -63,6 +70,8 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...importPaths,
   ...measurementReminderPaths,
   ...labsPaths,
+  ...biomarkerPaths,
+  ...illnessPaths,
 };
 
 export const openApiComponents: NonNullable<ZodOpenApiObject["components"]> = {

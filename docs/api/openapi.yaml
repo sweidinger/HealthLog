@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.18.0
+  version: 1.18.1
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -41,6 +41,7 @@ tags:
   - name: Cycle
   - name: MeasurementReminders
   - name: Labs
+  - name: Illness
   - name: Admin
   - name: Meta
 paths:
@@ -3041,6 +3042,28 @@ paths:
                       - medication
                       - mobility
                       - environment
+                reminderSuggestions:
+                  type: object
+                  properties:
+                    enabled:
+                      default: true
+                      type: boolean
+                    stopped:
+                      default: false
+                      type: boolean
+                    dismissedCadences:
+                      default: []
+                      maxItems: 32
+                      type: array
+                      items:
+                        type: string
+                        maxLength: 64
+                    lastSuggestedAt:
+                      default: null
+                      anyOf:
+                        - type: string
+                          maxLength: 40
+                        - type: "null"
       responses:
         "200":
           description: Saved preferences echoed back.
@@ -4364,6 +4387,59 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/coach/reminder-suggestions:
+    post:
+      tags:
+        - Insights
+      summary: Act on a Coach cadence suggestion
+      description: 'v1.18.1 — accept / dismiss / stop a Coach-proposed measurement cadence. Coach-gated
+        (`requireModuleEnabled("coach")`); a disabled surface 403s. `accept` resolves the cadence from the closed
+        server-side catalog and creates a `MeasurementReminder` with `origin: COACH` (201), or returns 200 with
+        `duplicate: true` when a live COACH reminder for that metric already exists — idempotent against a re-tapped or
+        stale card, with a partial unique index as the structural backstop. Per-user rate-limited (429 on excess). Auth
+        via cookie or Bearer; the owner is narrowed from the session.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cadenceId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                action:
+                  type: string
+                  enum:
+                    - accept
+                    - dismiss
+                    - stop
+              required:
+                - cadenceId
+                - action
+      responses:
+        "200":
+          description: "A dismiss/stop, or an accept that matched an existing reminder (`duplicate: true`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachReminderSuggestionResultOk"
+        "201":
+          description: An accept that created a new reminder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachReminderSuggestionResultCreated"
+        "401": *a1
+        "403":
+          description: Coach surface (or the cadence's module) disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
   /api/admin/invites:
     get:
       tags:
@@ -4905,6 +4981,14 @@ paths:
               - STAIR_ASCENT_SPEED
               - STAIR_DESCENT_SPEED
               - BREATHING_DISTURBANCES
+              - SLEEP_SCORE
+              - ANS_CHARGE
+              - DAY_STRAIN
+              - WORKOUT_STRAIN
+              - CARDIO_LOAD
+              - AVERAGE_HEART_RATE
+              - MAX_HEART_RATE
+              - ENERGY_EXPENDITURE_KJ
             description: "HealthKit metric id to assess (e.g. RESTING_HEART_RATE, SLEEP_DURATION). Closed enum: an unknown id 422s.
               The seven specialised metrics are served by their own routes and are not accepted here."
           required: true
@@ -5691,6 +5775,12 @@ paths:
         note itself is not echoed).
       parameters:
         - in: query
+          name: biomarkerId
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - in: query
           name: analyte
           schema:
             type: string
@@ -5759,6 +5849,10 @@ paths:
             schema:
               type: object
               properties:
+                biomarkerId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
                 panel:
                   anyOf:
                     - type: string
@@ -5791,9 +5885,7 @@ paths:
                     - type: string
                       const: ""
               required:
-                - analyte
                 - value
-                - unit
                 - takenAt
       responses:
         "201":
@@ -5922,6 +6014,636 @@ paths:
                 $ref: "#/components/schemas/DeleteLabResultResponse"
         "401": *a1
         "404": *a8
+        "422": *a3
+        "429": *a4
+  /api/labs/restore:
+    post:
+      tags:
+        - Labs
+      summary: Restore soft-deleted lab results
+      description: Un-tombstones 1..200 of the caller's soft-deleted lab results in one pass (the delete-Undo affordance). A
+        foreign / live id is a silent no-op. Audits via the wide-event ledger.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreLabResultsRequest"
+      responses:
+        "200":
+          description: Restore count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreLabResultsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/biomarkers:
+    get:
+      tags:
+        - Labs
+      summary: List the caller's biomarker catalog
+      description: Returns every biomarker the caller has defined, name-ordered. Each carries its unit, reference bounds, and
+        decrypted context.
+      responses:
+        "200":
+          description: Biomarker catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListBiomarkersEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Labs
+      summary: Define a biomarker
+      description: Creates a user-scoped biomarker. The optional context note is AES-256-GCM encrypted before write. Audits as
+        `biomarker.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                unit:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                lowerBound:
+                  type: number
+                upperBound:
+                  type: number
+                context:
+                  type: string
+                  maxLength: 2000
+                panel:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 120
+                    - type: string
+                      const: ""
+              required:
+                - name
+                - unit
+      responses:
+        "201":
+          description: Created biomarker.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateBiomarkerResponse"
+        "401": *a1
+        "409": &a10
+          description: A biomarker with this name already exists for the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/biomarkers/{id}:
+    get:
+      tags:
+        - Labs
+      summary: Fetch a single biomarker
+      description: Returns the biomarker including its decrypted `context`. Cross-user rows surface as 404.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Biomarker detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetBiomarkerResponse"
+        "401": *a1
+        "404": &a9
+          description: Biomarker not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    put:
+      tags:
+        - Labs
+      summary: Edit a biomarker
+      description: Partial edit; omitted fields are untouched, an explicit null clears `context` / `panel` / a bound. Audits
+        as `biomarker.update`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                unit:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                lowerBound:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                upperBound:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                context:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+                panel:
+                  anyOf:
+                    - anyOf:
+                        - type: string
+                          minLength: 1
+                          maxLength: 120
+                        - type: string
+                          const: ""
+                    - type: "null"
+      responses:
+        "200":
+          description: Updated biomarker.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateBiomarkerResponse"
+        "401": *a1
+        "404": *a9
+        "409": *a10
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Labs
+      summary: Delete a biomarker
+      description: "Hard-deletes the catalog definition. The `onDelete: SetNull` FK unlinks every reading (they keep their
+        legacy `analyte` / `unit`), so the history survives. Audits as `biomarker.delete`."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Deletion succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteBiomarkerResponse"
+        "401": *a1
+        "404": *a9
+        "422": *a3
+        "429": *a4
+  /api/illness/episodes:
+    get:
+      tags:
+        - Illness
+      summary: List illness episodes (v1.18.1)
+      description: Returns the caller's live (non-deleted) illness/condition episodes, newest-first by onset.
+        `includeResolved=false` hides episodes that already carry a `resolvedAt`. Born-gated.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: includeResolved
+          schema:
+            anyOf:
+              - type: string
+                const: "true"
+              - type: string
+                const: "false"
+      responses:
+        "200":
+          description: The caller's illness episodes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListIllnessEpisodesEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Illness
+      summary: Open an illness episode (v1.18.1)
+      description: Creates one episode for the caller. `onsetAt` defaults to 'now' when omitted; the optional note is
+        AES-256-GCM encrypted before write. A `parentConditionId` must reference an owned, live episode. Audits as
+        `illness.episode.create`. Born-gated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                type:
+                  type: string
+                  enum:
+                    - INFECTION
+                    - ALLERGY
+                    - INJURY
+                    - MENTAL_HEALTH
+                    - AUTOIMMUNE
+                    - CHRONIC
+                    - OTHER
+                lifecycle:
+                  default: ACUTE
+                  type: string
+                  enum:
+                    - ACUTE
+                    - CHRONIC_ONGOING
+                    - RECURRING
+                    - FLARE
+                onsetAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                resolvedAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+                parentConditionId:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 40
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              required:
+                - label
+                - type
+      responses:
+        "201":
+          description: Episode created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateIllnessEpisodeEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/illness/episodes/{id}:
+    get:
+      tags:
+        - Illness
+      summary: Read a single illness episode (v1.18.1)
+      description: Returns the episode including its decrypted `note`. Owner-scoped; a cross-user or tombstoned id 404s. Born-gated.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The episode.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetIllnessEpisodeEnvelope"
+        "401": *a1
+        "404": &a11
+          description: Illness episode not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Illness
+      summary: Edit an illness episode (v1.18.1)
+      description: Partial edit; omitted fields are left untouched. A re-parent must point at an owned, live episode (and
+        never the episode itself). Audits as `illness.episode.update`. Owner-scoped + born-gated.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                type:
+                  type: string
+                  enum:
+                    - INFECTION
+                    - ALLERGY
+                    - INJURY
+                    - MENTAL_HEALTH
+                    - AUTOIMMUNE
+                    - CHRONIC
+                    - OTHER
+                lifecycle:
+                  type: string
+                  enum:
+                    - ACUTE
+                    - CHRONIC_ONGOING
+                    - RECURRING
+                    - FLARE
+                onsetAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                resolvedAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+                parentConditionId:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 40
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              additionalProperties: false
+      responses:
+        "200":
+          description: Episode updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateIllnessEpisodeEnvelope"
+        "401": *a1
+        "404": *a11
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Illness
+      summary: Soft-delete an illness episode (v1.18.1)
+      description: "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }`
+        envelope (the cross-module DELETE shape). Audits as `illness.episode.delete`. Owner-scoped + born-gated."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteIllnessEpisodeEnvelope"
+        "401": *a1
+        "404": *a11
+        "422": *a3
+        "429": *a4
+  /api/illness/episodes/{id}/resolve:
+    patch:
+      tags:
+        - Illness
+      summary: Mark an illness episode recovered (v1.18.1)
+      description: Stamps `resolvedAt` (defaults to 'now' when the body omits it). A CHRONIC_ONGOING episode has no recovery
+        date and 422s with `errorCode:"illness.episode.chronic-no-resolve"`. Audits as `illness.episode.resolve`.
+        Owner-scoped + born-gated.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolvedAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      responses:
+        "200":
+          description: Episode resolved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolveIllnessEpisodeEnvelope"
+        "401": *a1
+        "404": *a11
+        "422": *a3
+        "429": *a4
+  /api/illness/episodes/{id}/day-logs:
+    get:
+      tags:
+        - Illness
+      summary: Read one day-log for an episode (v1.18.1)
+      description: Returns the day-log for the episode + `date`, or `null` when nothing is logged that day (lets the log-day
+        sheet pre-fill). The parent episode must be owned + live. Born-gated.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: date
+          schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          required: true
+      responses:
+        "200":
+          description: The day-log, or null.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetIllnessDayLogEnvelope"
+        "401": *a1
+        "404": *a11
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Illness
+      summary: Upsert an episode day-log (v1.18.1)
+      description: "Upserts the day's symptom / functional-impact / fever timeline row on `(episodeId, date)`: 201 on insert,
+        200 on update. The parent episode must be owned + live; the optional note is encrypted at rest. Audits as
+        `illness.day-log.upsert`. Born-gated."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  pattern: ^\d{4}-\d{2}-\d{2}$
+                functionalImpact:
+                  anyOf:
+                    - type: integer
+                      minimum: 0
+                      maximum: 3
+                    - type: "null"
+                feverC:
+                  anyOf:
+                    - type: number
+                      minimum: 30
+                      maximum: 45
+                    - type: "null"
+                symptoms:
+                  maxItems: 40
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                        minLength: 1
+                        maxLength: 80
+                      severity:
+                        type: integer
+                        minimum: 1
+                        maximum: 3
+                    required:
+                      - key
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+                loggedAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              required:
+                - date
+      responses:
+        "200":
+          description: Existing day-log updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpsertIllnessDayLogUpdatedEnvelope"
+        "201":
+          description: New day-log created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpsertIllnessDayLogCreatedEnvelope"
+        "401": *a1
+        "404": *a11
+        "422": *a3
+        "429": *a4
+  /api/illness/episodes/{id}/correlation:
+    get:
+      tags:
+        - Illness
+      summary: Per-episode retrospective correlation (v1.18.1)
+      description: "Returns the coverage-gated `Derived<T>` correlation for one episode: the pre-onset anomaly scan, the
+        nadir, per-vital physiological returns, the headline recovery-gap, and any red flags. The findings derive from
+        the user's OWN baseline (median ± MAD) over a contamination-guarded window — never a population constant.
+        `status:\"insufficient\"` carries coverage + a reason. Retrospective ONLY — never a predictor or diagnoser.
+        Owner-scoped + born-gated."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The correlation Derived DTO (ok or insufficient).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IllnessCorrelationEnvelope"
+        "401": *a1
+        "404": *a11
+        "422": *a3
+        "429": *a4
+  /api/illness/insights:
+    get:
+      tags:
+        - Illness
+      summary: Cross-episode retrospective insights (v1.18.1)
+      description: "Returns the cross-episode retrospective summary over a trailing window: 'sick N times · typical recovery
+        gap X days', a recurrence-by-month tally, and a per-type breakdown. The typical gap is withheld (null) below the
+        min-sample floor (asserts nothing thin). Retrospective ONLY — the recurrence figure is a count of the past,
+        never a forecast. Born-gated + owner-scoped."
+      parameters:
+        - in: query
+          name: windowDays
+          schema:
+            type: integer
+            minimum: 30
+            maximum: 1095
+      responses:
+        "200":
+          description: The cross-episode retrospective summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IllnessInsightsEnvelope"
+        "401": *a1
         "422": *a3
         "429": *a4
 components:
@@ -6834,9 +7556,13 @@ components:
           type: boolean
         labs:
           type: boolean
+        illness:
+          type: boolean
         achievements:
           type: boolean
         insights:
+          type: boolean
+        medications:
           type: boolean
         doctorReport:
           type: boolean
@@ -7184,10 +7910,19 @@ components:
         - PULSE
         - BLOOD_GLUCOSE
         - OXYGEN_SATURATION
-        - BODY_FAT
         - BODY_TEMPERATURE
-      description: Auto-resolve target metric. BP resolves on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured'
-        sentinel). Omit for a free-text Vorsorge that resolves only on a manual satisfy.
+        - BODY_FAT
+        - FAT_MASS
+        - FAT_FREE_MASS
+        - MUSCLE_MASS
+        - LEAN_BODY_MASS
+        - BONE_MASS
+        - TOTAL_BODY_WATER
+        - VISCERAL_FAT
+        - BODY_MASS_INDEX
+      description: Auto-resolve target metric (vitals + body-composition family). BP resolves on BLOOD_PRESSURE_SYS (the SYS
+        row is the 'a BP was measured' sentinel). Omit for a free-text Vorsorge that resolves only on a manual satisfy
+        or a matching lab result.
     MeasurementReminderUpdate:
       type: object
       properties:
@@ -7230,6 +7965,17 @@ components:
           type: boolean
       description: Partial edit of a Vorsorge reminder. Omitted fields are left untouched; nextDueAt is recomputed server-side
         after the patch applies.
+    RestoreLabResultsRequest:
+      type: object
+      properties:
+        ids:
+          minItems: 1
+          maxItems: 200
+          type: array
+          items:
+            type: string
+      required:
+        - ids
     MedicationTreatmentClass:
       type: string
       enum:
@@ -12218,6 +12964,34 @@ components:
                   - medication
                   - mobility
                   - environment
+            reminderSuggestions:
+              type: object
+              properties:
+                enabled:
+                  default: true
+                  type: boolean
+                stopped:
+                  default: false
+                  type: boolean
+                dismissedCadences:
+                  default: []
+                  maxItems: 32
+                  type: array
+                  items:
+                    type: string
+                    maxLength: 64
+                lastSuggestedAt:
+                  default: null
+                  anyOf:
+                    - type: string
+                      maxLength: 40
+                    - type: "null"
+              required:
+                - enabled
+                - stopped
+                - dismissedCadences
+                - lastSuggestedAt
+              additionalProperties: false
           required:
             - tone
             - verbosity
@@ -12302,6 +13076,34 @@ components:
                   - medication
                   - mobility
                   - environment
+            reminderSuggestions:
+              type: object
+              properties:
+                enabled:
+                  default: true
+                  type: boolean
+                stopped:
+                  default: false
+                  type: boolean
+                dismissedCadences:
+                  default: []
+                  maxItems: 32
+                  type: array
+                  items:
+                    type: string
+                    maxLength: 64
+                lastSuggestedAt:
+                  default: null
+                  anyOf:
+                    - type: string
+                      maxLength: 40
+                    - type: "null"
+              required:
+                - enabled
+                - stopped
+                - dismissedCadences
+                - lastSuggestedAt
+              additionalProperties: false
           required:
             - tone
             - verbosity
@@ -12404,6 +13206,9 @@ components:
         labs:
           type: boolean
           description: Whether the "labs" module is enabled for this account.
+        illness:
+          type: boolean
+          description: Whether the "illness" module is enabled for this account.
         achievements:
           type: boolean
           description: Whether the "achievements" module is enabled for this account.
@@ -12413,6 +13218,9 @@ components:
         insights:
           type: boolean
           description: Whether the "insights" module is enabled for this account.
+        medications:
+          type: boolean
+          description: Whether the "medications" module is enabled for this account.
         doctorReport:
           type: boolean
           description: Whether the "doctorReport" module is enabled for this account.
@@ -12424,9 +13232,11 @@ components:
         - workouts
         - recovery
         - labs
+        - illness
         - achievements
         - coach
         - insights
+        - medications
         - doctorReport
       additionalProperties: false
       description: Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means
@@ -14558,6 +15368,67 @@ components:
           required:
             - questions
           additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachReminderSuggestionResultOk:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoachReminderSuggestionResult"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachReminderSuggestionResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        action:
+          type: string
+          enum:
+            - accept
+            - dismiss
+            - stop
+        reminder:
+          description: "On `accept` of a fresh suggestion: the created MeasurementReminder DTO. Null when the action was a
+            prefs-only dismiss/stop, or when an accept hit the structural dedup (`duplicate: true`)."
+          anyOf:
+            - {}
+            - type: "null"
+        duplicate:
+          description: True when an `accept` matched an already-live COACH reminder for the same metric (idempotent no-op).
+          type: boolean
+      required:
+        - ok
+        - action
+      additionalProperties: false
+      description: "Outcome of a Coach cadence-suggestion action. `accept` returns 201 with the created reminder (or 200 +
+        `duplicate: true` when one already exists); `dismiss`/`stop` return 200."
+    CoachReminderSuggestionResultCreated:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoachReminderSuggestionResult"
         error:
           type: "null"
         meta:
@@ -16932,6 +17803,17 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
+        endsOn:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        origin:
+          type: string
+          enum:
+            - VORSORGE
+            - COACH
         notifyHour:
           type: integer
           minimum: -9007199254740991
@@ -16969,6 +17851,8 @@ components:
         - intervalDays
         - rrule
         - anchorDate
+        - endsOn
+        - origin
         - notifyHour
         - location
         - nextDueAt
@@ -16978,7 +17862,9 @@ components:
         - updatedAt
       additionalProperties: false
       description: A Vorsorge reminder. nextDueAt is server-computed (server-authoritative). A free-text reminder carries
-        measurementType=null and resolves only on a manual satisfy.
+        measurementType=null and resolves only on a manual satisfy. origin distinguishes a user-created (VORSORGE)
+        reminder from one minted by a Coach cadence suggestion (COACH); endsOn bounds a finite course window (null =
+        open-ended).
     MeasurementReminderCreatedEnvelope:
       type: object
       properties:
@@ -17117,6 +18003,10 @@ components:
       properties:
         id:
           type: string
+        biomarkerId:
+          anyOf:
+            - type: string
+            - type: "null"
         panel:
           anyOf:
             - type: string
@@ -17149,6 +18039,7 @@ components:
           type: string
       required:
         - id
+        - biomarkerId
         - panel
         - analyte
         - value
@@ -17162,8 +18053,10 @@ components:
         - createdAt
         - updatedAt
       additionalProperties: false
-      description: A stored lab result. The encrypted note is never echoed in list rows; `hasNote` flags its presence and the
-        single-resource GET returns the decrypted `note`.
+      description: A stored lab result. `biomarkerId` links the user-scoped catalog marker (null for legacy free-text rows);
+        when linked, `analyte` / `unit` / `referenceLow` / `referenceHigh` are RESOLVED server-side from the Biomarker —
+        the client renders them and never recomputes the range. The encrypted note is never echoed in list rows;
+        `hasNote` flags its presence and the single-resource GET returns the decrypted `note`.
     LabReferenceRangeStatus:
       type: string
       enum:
@@ -17213,6 +18106,10 @@ components:
       properties:
         id:
           type: string
+        biomarkerId:
+          anyOf:
+            - type: string
+            - type: "null"
         panel:
           anyOf:
             - type: string
@@ -17247,6 +18144,7 @@ components:
             - type: "null"
       required:
         - id
+        - biomarkerId
         - panel
         - analyte
         - value
@@ -17301,6 +18199,742 @@ components:
         - data
         - error
       additionalProperties: false
+    RestoreLabResultsResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            restored:
+              type: number
+          required:
+            - restored
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListBiomarkersEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ListBiomarkersResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListBiomarkersResponse:
+      type: object
+      properties:
+        biomarkers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Biomarker"
+      required:
+        - biomarkers
+      additionalProperties: false
+    Biomarker:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        unit:
+          type: string
+        lowerBound:
+          anyOf:
+            - type: number
+            - type: "null"
+        upperBound:
+          anyOf:
+            - type: number
+            - type: "null"
+        panel:
+          anyOf:
+            - type: string
+            - type: "null"
+        hasContext:
+          type: boolean
+        context:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - unit
+        - lowerBound
+        - upperBound
+        - panel
+        - hasContext
+        - context
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: A user-scoped catalog marker. `context` is the decrypted per-marker note (or null); `hasContext` flags its
+        presence. A `LabResult` linking this marker resolves its unit + reference bounds from here.
+    CreateBiomarkerResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Biomarker"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetBiomarkerResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Biomarker"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateBiomarkerResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Biomarker"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteBiomarkerResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListIllnessEpisodesEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessEpisode"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    IllnessEpisode:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum:
+            - INFECTION
+            - ALLERGY
+            - INJURY
+            - MENTAL_HEALTH
+            - AUTOIMMUNE
+            - CHRONIC
+            - OTHER
+        lifecycle:
+          type: string
+          enum:
+            - ACUTE
+            - CHRONIC_ONGOING
+            - RECURRING
+            - FLARE
+        onsetAt:
+          type: string
+        resolvedAt:
+          anyOf:
+            - type: string
+            - type: "null"
+        parentConditionId:
+          anyOf:
+            - type: string
+            - type: "null"
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - label
+        - type
+        - lifecycle
+        - onsetAt
+        - resolvedAt
+        - parentConditionId
+        - note
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: A stored illness/condition episode. `note` is the decrypted free-text (or null on a key-rotation gap —
+        fail-soft, never 500). `resolvedAt` is null while the episode is open. `parentConditionId` links a
+        FLARE/RECURRING bout to its parent condition.
+    CreateIllnessEpisodeEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessEpisode"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetIllnessEpisodeEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessEpisode"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateIllnessEpisodeEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessEpisode"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteIllnessEpisodeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ResolveIllnessEpisodeEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessEpisode"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetIllnessDayLogEnvelope:
+      type: object
+      properties:
+        data:
+          anyOf:
+            - $ref: "#/components/schemas/IllnessDayLog"
+            - type: "null"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    IllnessDayLog:
+      type: object
+      properties:
+        id:
+          type: string
+        episodeId:
+          type: string
+        date:
+          type: string
+        functionalImpact:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        feverC:
+          anyOf:
+            - type: number
+            - type: "null"
+        symptoms:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessSymptom"
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+        updatedAt:
+          type: string
+      required:
+        - id
+        - episodeId
+        - date
+        - functionalImpact
+        - feverC
+        - symptoms
+        - note
+        - updatedAt
+      additionalProperties: false
+      description: A stored day-log for an episode. `date` is the `YYYY-MM-DD` it covers. `functionalImpact` (0–3) and
+        `feverC` are plaintext; `symptoms` flattens the link rows; `note` is the decrypted free-text (or null).
+    IllnessSymptom:
+      type: object
+      properties:
+        key:
+          type: string
+        severity:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+      required:
+        - key
+        - severity
+      additionalProperties: false
+      description: "A symptom link on a day-log: the catalog `key` plus an optional 1–3 graded severity (`null` = a plain
+        presence link; the link's presence already means 'present', so 0 is not a distinct state)."
+    UpsertIllnessDayLogUpdatedEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessDayLog"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpsertIllnessDayLogCreatedEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessDayLog"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    IllnessCorrelationEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessCorrelationResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    IllnessCorrelationResponse:
+      type: object
+      properties:
+        episodeId:
+          type: string
+        status:
+          type: string
+          enum:
+            - ok
+            - insufficient
+        value:
+          anyOf:
+            - $ref: "#/components/schemas/IllnessCorrelationValue"
+            - type: "null"
+        coverage:
+          type: object
+          properties:
+            requiredInputs:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            presentInputs:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            historyDays:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            missing:
+              type: array
+              items:
+                type: string
+          required:
+            - requiredInputs
+            - presentInputs
+            - historyDays
+            - missing
+          additionalProperties: false
+        confidence:
+          anyOf:
+            - type: object
+              properties:
+                score:
+                  type: number
+                band:
+                  type: string
+              required:
+                - score
+                - band
+              additionalProperties: false
+            - type: "null"
+        provenance:
+          type: object
+          properties:
+            inputs:
+              type: array
+              items:
+                type: string
+            source:
+              type: string
+            windowDays:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            computedAt:
+              type: string
+          required:
+            - inputs
+            - source
+            - windowDays
+            - computedAt
+          additionalProperties: false
+        reason:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - episodeId
+        - status
+        - value
+        - coverage
+        - confidence
+        - provenance
+        - reason
+      additionalProperties: false
+      description: Coverage-gated `Derived<T>` wire shape for the per-episode correlation. `status:"insufficient"` carries
+        coverage + a reason and a null `value` — the surface renders 'still learning', never a fabricated number.
+        Server-authoritative; iOS pattern-matches `status`, never recomputes.
+    IllnessCorrelationValue:
+      type: object
+      properties:
+        episodeId:
+          type: string
+        preOnset:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessVitalDeviation"
+        nadir:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessVitalDeviation"
+        returns:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessVitalReturn"
+        recoveryGapDays:
+          anyOf:
+            - type: number
+            - type: "null"
+        feltBetterDay:
+          anyOf:
+            - type: string
+            - type: "null"
+        redFlags:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessRedFlag"
+      required:
+        - episodeId
+        - preOnset
+        - nadir
+        - returns
+        - recoveryGapDays
+        - feltBetterDay
+        - redFlags
+      additionalProperties: false
+      description: "The retrospective correlation findings for one episode: pre-onset anomaly scan, nadir, per-vital
+        physiological returns, the headline recovery-gap (median of per-vital gaps), and any red flags."
+    IllnessVitalDeviation:
+      type: object
+      properties:
+        type:
+          type: string
+        day:
+          type: string
+        value:
+          type: number
+        baselineCenter:
+          type: number
+        deviationSd:
+          type: number
+        direction:
+          type: string
+          enum:
+            - above
+            - below
+        adverse:
+          type: boolean
+      required:
+        - type
+        - day
+        - value
+        - baselineCenter
+        - deviationSd
+        - direction
+        - adverse
+      additionalProperties: false
+      description: "One vital's deviation finding on a day: signed deviation in robust-SD units from the user's OWN baseline
+        (median ± MAD), the direction, and whether the move is illness-adverse for that metric."
+    IllnessVitalReturn:
+      type: object
+      properties:
+        type:
+          type: string
+        returnedDay:
+          anyOf:
+            - type: string
+            - type: "null"
+        gapDays:
+          anyOf:
+            - type: number
+            - type: "null"
+      required:
+        - type
+        - returnedDay
+        - gapDays
+      additionalProperties: false
+      description: "A vital's physiological return: the first day it re-entered its band AND held, and the signed gap (days)
+        from the felt-better marker (positive = the body lagged the feeling)."
+    IllnessRedFlag:
+      type: object
+      properties:
+        type:
+          type: string
+        reason:
+          type: string
+          enum:
+            - sustained_low_spo2
+            - sustained_fever
+        worstValue:
+          type: number
+        days:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - type
+        - reason
+        - worstValue
+        - days
+      additionalProperties: false
+      description: A retrospective red-flag escalation (sustained low SpO2 or sustained fever) against absolute clinical
+        floors. Copy must escalate ('seek care if this recurs'), never reassure.
+    IllnessInsightsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessInsightsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    IllnessInsightsResponse:
+      type: object
+      properties:
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        episodeCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        resolvedCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        typicalRecoveryGapDays:
+          anyOf:
+            - type: number
+            - type: "null"
+        gapSampleSize:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        byMonth:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: integer
+            minimum: -9007199254740991
+            maximum: 9007199254740991
+        byType:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: integer
+            minimum: -9007199254740991
+            maximum: 9007199254740991
+      required:
+        - windowDays
+        - episodeCount
+        - resolvedCount
+        - typicalRecoveryGapDays
+        - gapSampleSize
+        - byMonth
+        - byType
+      additionalProperties: false
+      description: "Cross-episode retrospective summary over the trailing window: episode + resolved counts, the typical
+        (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally,
+        and a per-type breakdown. Retrospective only."
     MedicationScheduleOutput:
       type: object
       properties:

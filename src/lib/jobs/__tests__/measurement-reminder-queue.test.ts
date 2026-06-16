@@ -13,8 +13,15 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+// v1.18.1 — the reminder-dispatch wiring (measurement reminder +
+// reminder-satisfy) moved out of the 2143-LOC reminder-worker boot file into
+// the reminders registrar. The dead-queue guard follows the wiring there (the
+// handler module is still concatenated for the handler-symbol assertions).
 const source =
-  readFileSync(join(__dirname, "..", "reminder-worker.ts"), "utf8") +
+  readFileSync(
+    join(__dirname, "..", "reminder", "register-reminders.ts"),
+    "utf8",
+  ) +
   readFileSync(
     join(__dirname, "..", "reminder", "mood-cycle-checks.ts"),
     "utf8",
@@ -55,6 +62,28 @@ describe("reminder-worker — measurement-reminder wiring", () => {
     );
     expect(source).toMatch(
       /handleMeasurementReminderCheck[\s\S]{0,400}runMeasurementReminderTick/,
+    );
+  });
+});
+
+describe("reminder-worker — eventful reminder-satisfy wiring (v1.18.1)", () => {
+  it("imports the satisfy queue constants", () => {
+    expect(source).toMatch(/from\s*["']@\/lib\/jobs\/reminder-satisfy["']/);
+    expect(source).toMatch(/\bREMINDER_SATISFY_QUEUE\b/);
+  });
+
+  it("registers the satisfy queue in the allQueues loop", () => {
+    const allQueuesMatch = source.match(/const allQueues\s*=\s*\[([\s\S]*?)\];/);
+    expect(allQueuesMatch).not.toBeNull();
+    expect(allQueuesMatch![1]).toMatch(/\bREMINDER_SATISFY_QUEUE\b/);
+  });
+
+  it("binds a boss.work handler for the satisfy queue", () => {
+    expect(source).toMatch(
+      /boss\.work[\s\S]{0,200}REMINDER_SATISFY_QUEUE[\s\S]{0,200}handleReminderSatisfy/,
+    );
+    expect(source).toMatch(
+      /handleReminderSatisfy[\s\S]{0,600}runReminderSatisfyForUser/,
     );
   });
 });

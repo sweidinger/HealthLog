@@ -1,5 +1,12 @@
 /**
- * v1.4.47 W3 — Settings → AI "Hide Coach" toggle persistence contract.
+ * v1.4.47 W3 — Settings → Coach activation toggle persistence contract.
+ *
+ * v1.18.1 (D7) — the card reads "Activate Coach" (default ON). The persisted
+ * column is still `User.disableCoach`; the Switch shows the activated view
+ * (`checked = !disableCoach`). The SSR render is `mounted=false`, where the
+ * card paints the default-ON (checked) state so the default-on contract holds
+ * before the wire value resolves — both default and opted-out users render
+ * checked under `renderToStaticMarkup`.
  *
  * The card is a small client-only `<Switch>` that PATCHes
  * `/api/auth/me/disable-coach` and invalidates `queryKeys.authMe()` so
@@ -114,33 +121,33 @@ function render(): string {
 }
 
 describe("Settings — DisableCoachCard", () => {
-  it("seeds the Switch in the off state for a default user", () => {
+  it("renders the activation Switch checked at SSR (default-on contract)", () => {
     const html = render();
-    // The Switch primitive surfaces `data-state="unchecked"` when
-    // `checked={false}` is passed by the parent — pin the contract so
-    // the SSR shape matches the user's `disableCoach: false` field.
+    // v1.18.1 (D7) — the SSR render is `mounted=false`, where the card paints
+    // the default-ON (activated → checked) state regardless of the wire value,
+    // so the Switch never flashes off before /me resolves.
     expect(html).toContain('data-testid="settings-disable-coach-switch"');
-    expect(html).toContain('data-state="unchecked"');
+    expect(html).toContain('data-state="checked"');
   });
 
-  it("seeds the Switch in the on state for an opted-out user", () => {
+  it("paints the activated (checked) SSR state even for an opted-out user", () => {
     authSpy.mockImplementation(() => ({
       user: buildUser(true),
       isAuthenticated: true,
     }));
     const html = render();
     expect(html).toContain('data-testid="settings-disable-coach-switch"');
-    // The shadcn Switch surfaces `data-state="checked"` on the root
-    // when `checked={true}`. Pre-fix the card painted `unchecked` for
-    // an opted-out user; this assertion guards that regression.
+    // The activated state resolves on the first client re-render once
+    // `mounted` flips; the SSR pass stays on the default-ON shape.
     expect(html).toContain('data-state="checked"');
   });
 
-  it("Switch description string matches the QoL audit (M2) copy", () => {
+  it("renders the Coach-activation title + description", () => {
     const html = render();
-    // The project-voice contract: "Hides the Coach button and drawer
-    // everywhere." (English) — must surface verbatim because the QoL
-    // findings doc cites this exact phrasing.
-    expect(html).toContain("Hides the Coach button and drawer everywhere.");
+    // v1.18.1 (D7) — polarity flipped to activate/default-on.
+    expect(html).toContain("Activate Coach");
+    expect(html).toContain(
+      "Show the Coach button and drawer. On by default",
+    );
   });
 });

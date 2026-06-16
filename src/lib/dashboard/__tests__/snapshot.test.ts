@@ -65,7 +65,7 @@ vi.mock("@/lib/modules/gate", () => ({
   resolveModuleMap: (...a: unknown[]) => resolveModuleMap(...a),
 }));
 
-/** All eleven toggleable keys on, with optional per-key overrides. */
+/** Every toggleable key on, with optional per-key overrides. */
 function moduleMap(
   overrides: Partial<Record<ModuleKey, boolean>> = {},
 ): Record<ModuleKey, boolean> {
@@ -77,9 +77,11 @@ function moduleMap(
     workouts: true,
     recovery: true,
     labs: true,
+    illness: true,
     achievements: true,
     coach: true,
     insights: true,
+    medications: true,
     doctorReport: true,
   };
   return { ...base, ...overrides };
@@ -292,7 +294,14 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
 
     expect(snap.extras).not.toBeNull();
     expect(snap.extras!.bpInTargetPct).toBe(80);
-    expect(snap.healthScore).toEqual({ score: 71, band: "yellow", delta: 3 });
+    // v1.18.1 — `restMode` is null when no illness episode is active (the
+    // fail-soft resolver reads no active episodes off the fake prisma).
+    expect(snap.healthScore).toEqual({
+      score: 71,
+      band: "yellow",
+      delta: 3,
+      restMode: null,
+    });
     // v1.17 W1b — two runs (current + prior-week), identical to the analytics
     // route, so the ring's delta reflects BP movement.
     expect(computeBpInTargetFastPath).toHaveBeenCalledTimes(2);
@@ -424,8 +433,15 @@ describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
 
     const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
 
-    // Score + band + delta only — components never reach the wire.
-    expect(snap.healthScore).toEqual({ score: 72, band: "yellow", delta: -12 });
+    // Score + band + delta (+ the v1.18.1 value-free restMode annotation)
+    // only — components never reach the wire. `restMode` is null with no
+    // active illness episode.
+    expect(snap.healthScore).toEqual({
+      score: 72,
+      band: "yellow",
+      delta: -12,
+      restMode: null,
+    });
 
     // The fast path reuses the BP windows + coverage map already
     // computed for `extras` (no re-probe, graded score threaded).
@@ -809,6 +825,8 @@ describe("module gating maps — every toggleable-domain widget is mapped (v1.18
     "glucose",
     "achievements",
     "recentWorkouts",
+    // v1.18.1 (D3) — medications graduated from CORE to a toggleable module.
+    "medications",
     "cardioRecovery",
     "sixMinuteWalk",
     "stairAscentSpeed",

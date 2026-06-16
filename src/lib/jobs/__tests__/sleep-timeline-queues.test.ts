@@ -12,8 +12,16 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
+// v1.18.1 — the queue wiring + boot discovery moved out of the 2143-LOC
+// reminder-worker boot file into domain registrars; the sleep-timeline backfill
+// lives in the integration-sync registrar. The dead-queue guard follows it.
+const REGISTRAR_PATH = join(
+  __dirname,
+  "..",
+  "reminder",
+  "register-integration-sync.ts",
+);
+const source = readFileSync(REGISTRAR_PATH, "utf8");
 
 describe("reminder-worker — sleep-timeline backfill queue", () => {
   it("registers the queue in allQueues (v1.4.37 dead-queue guard)", () => {
