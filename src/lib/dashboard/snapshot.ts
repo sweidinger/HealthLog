@@ -77,7 +77,11 @@ import {
   type MedsTodayBlock,
 } from "@/lib/dashboard/meds-today";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
-import type { HealthScoreBand } from "@/lib/analytics/health-score";
+import type {
+  HealthScoreBand,
+  RestModeAnnotation,
+} from "@/lib/analytics/health-score";
+import { resolveRestMode } from "@/lib/illness/rest-mode";
 import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
 
 /** Briefing freshness window — mirrors the 24 h TTL on the advisor cache. */
@@ -270,6 +274,17 @@ export interface DashboardSnapshotHealthScore {
   score: number;
   band: HealthScoreBand;
   delta: number | null;
+  /**
+   * v1.18.1 — Rest Mode annotation. When an illness/condition episode is
+   * active the dashboard frames the score ("you were unwell during this
+   * window") WITHOUT changing it — the same value-free context the
+   * `/api/analytics` payload carries and iOS mirrors. Null when the account
+   * is not in Rest Mode. Resolved server-side (fail-soft) so the surface
+   * never recomputes it. Optional on the type (additive contract) so older
+   * cached snapshots + test fixtures without the field stay valid; the live
+   * builder always sets it (null when not in Rest Mode).
+   */
+  restMode?: RestModeAnnotation | null;
 }
 
 export interface DashboardSnapshot {
@@ -509,11 +524,28 @@ async function buildExtras(
       coverage,
     }),
   );
+  // v1.18.1 — resolve the value-free Rest Mode annotation alongside the score
+  // so the dashboard hero can frame (never penalise) the number, matching the
+  // `/api/analytics` payload + iOS. Fail-soft inside `resolveRestMode`, and
+  // only resolved when a score actually rendered.
+  const restMode: RestModeAnnotation | null = scoreResult
+    ? await (async () => {
+        const ctx = await resolveRestMode(user.id, now);
+        return ctx.active
+          ? {
+              active: true,
+              since: ctx.since,
+              episodeCount: ctx.episodeCount,
+            }
+          : null;
+      })()
+    : null;
   const healthScore: DashboardSnapshotHealthScore | null = scoreResult
     ? {
         score: scoreResult.score,
         band: scoreResult.band,
         delta: scoreResult.delta,
+        restMode,
       }
     : null;
 

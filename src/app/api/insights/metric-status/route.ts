@@ -49,6 +49,7 @@ export const dynamic = "force-dynamic";
 const METRIC_MODULE: Partial<Record<MetricStatusMetricId, ModuleKey>> = {
   SLEEP_DURATION: "sleep",
   BREATHING_DISTURBANCES: "sleep",
+  SLEEP_SCORE: "sleep",
   BLOOD_GLUCOSE: "glucose",
   CARDIO_RECOVERY: "recovery",
   // v1.18.1 — device-native recovery / strain signals gate on the

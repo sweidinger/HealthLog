@@ -11,10 +11,13 @@ import {
 } from "lucide-react";
 
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
+import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import { useTranslations } from "@/lib/i18n/context";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { RestModeBanner } from "@/components/insights/rest-mode-banner";
+import type { RestModeAnnotation } from "@/lib/analytics/health-score";
 import type { ChartOverlayKey } from "@/lib/dashboard-layout";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import { RecoveryMetricBlock } from "@/components/insights/recovery/recovery-metric-block";
@@ -63,6 +66,15 @@ interface BlockGroup {
 export function RecoverySection() {
   const { t } = useTranslations();
   const { data, isLoading } = useInsightsAnalytics("SLEEP_DURATION");
+  // v1.18.1 — Rest Mode parity. The annotation rides the thick analytics
+  // payload's `healthScore` block (server-authoritative; iOS mirrors it). We
+  // read it off the same `["analytics"]` cache the insights mother page
+  // primes, so navigating in is a free hit and a direct URL load pays one
+  // thick fetch. Read-only — the score itself stays untouched.
+  const analyticsQuery = useAnalyticsQuery();
+  const restMode =
+    ((analyticsQuery.data?.healthScore as { restMode?: RestModeAnnotation } | null)
+      ?.restMode ?? null) as RestModeAnnotation | null;
 
   const summaries = data?.summaries;
   const unitScore = t("insights.deviceScore.unitScore");
@@ -200,6 +212,9 @@ export function RecoverySection() {
 
   return (
     <div className="space-y-8" data-slot="recovery-section">
+      {/* v1.18.1 — calm Rest Mode cue at the head of the recovery surface.
+          Self-gating: renders nothing unless an episode is active. */}
+      <RestModeBanner annotation={restMode} />
       {groups.map((group) => {
         const present = group.blocks.filter(
           (block) => (summaries[block.type]?.count ?? 0) > 0,

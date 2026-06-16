@@ -96,6 +96,26 @@ export default function InsightsSchlafPage() {
       <SleepOverview />
 
       {/*
+        v1.8.7.1 — the duration/architecture assessment lands via the generic
+        metric-status route (`?metric=SLEEP_DURATION`). The shared
+        `<MetricStatusCard>` owns the hook + card; only the icon differs from
+        the HealthKit scaffold (Moon vs Sparkles).
+
+        v1.18.1 — moved up to sit DIRECTLY with the duration/architecture chart
+        group it describes (`<SleepOverview>`), rather than trailing the whole
+        page. The sleep-quality block below now carries its OWN assessment, so
+        each distinct chart group reads its own matching text — the canonical
+        "multiple charts ⇒ multiple texts" rule the recovery page meets. The
+        card mounts only on this data-bearing branch, so a source-less account
+        never fetches.
+      */}
+      <MetricStatusCard
+        metric="SLEEP_DURATION"
+        icon={<Moon className="h-5 w-5" />}
+        enabled={!isEmpty}
+      />
+
+      {/*
         v1.17.0 — sleep-debt headline + chronotype card. Server-authoritative
         (the same DTO iOS renders), gated on the data-bearing branch so a
         source-less account never fetches.
@@ -108,25 +128,12 @@ export default function InsightsSchlafPage() {
         disturbance count + the Oura sleep score) that were ingested but never
         rendered. Each tile is data-gated, so the block is invisible for
         non-wearable users and collapses metric-by-metric. Server-authoritative
-        — the tiles render stored values.
+        — the tiles render stored values. v1.18.1 — the block carries its own
+        `<MetricStatusCard metric="SLEEP_SCORE">` assessment internally.
       */}
       <SleepQualitySection enabled={!isEmpty} />
 
       <MetricTargetSummary slug="sleep" />
-
-      {/*
-        v1.8.7.1 — the per-section sleep assessment lands via the generic
-        metric-status route (`?metric=SLEEP_DURATION`), closing the slot
-        the v1.4.28 deferral left open. The shared `<MetricStatusCard>`
-        owns the hook + card; only the icon differs from the HealthKit
-        scaffold (Moon vs Sparkles). The card mounts only on this
-        data-bearing branch, so a source-less account never fetches.
-      */}
-      <MetricStatusCard
-        metric="SLEEP_DURATION"
-        icon={<Moon className="h-5 w-5" />}
-        enabled={!isEmpty}
-      />
     </SubPageShell>
   );
 }

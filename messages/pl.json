@@ -2654,6 +2654,8 @@
         "stairDescentSpeedBody": "To prędkość, z jaką schodzisz bieg schodów. Razem z prędkością wchodzenia odzwierciedla kontrolę nóg i równowagę — stałe tempo to dobry znak, a spadające warto obserwować.",
         "breathingDisturbancesTitle": "Zaburzenia oddychania we śnie",
         "breathingDisturbancesBody": "Twój Apple Watch potrafi oszacować, jak często Twój oddech był przerywany podczas snu. Niższy wskaźnik jest lepszy; poziom, który Apple oznacza jako podwyższony — zwłaszcza przez wiele nocy — warto omówić z lekarzem.",
+        "stepsTitle": "Kroki",
+        "stepsBody": "Liczba kroków to łączna liczba kroków wykonanych każdego dnia. To najprostsza miara codziennego ruchu — wyższa dzienna liczba zwykle odzwierciedla bardziej aktywny tryb życia, a stały nawyk liczy się bardziej niż pojedynczy intensywny dzień.",
         "readinessBody": "Gotowość to pojedynczy dzienny odczyt tego, jak przygotowane jest Twoje ciało, by zmierzyć się z dniem — łączy tętno spoczynkowe, zmienność rytmu serca, sen i regularność ostatnich nocy. Wyższy wynik oznacza, że Twój organizm wygląda na wypoczęty i pełen zasobów; niższy to delikatna wskazówka, by zwolnić tempo.",
         "sleepScoreBody": "Twój wynik snu streszcza całą noc w jednej liczbie — długość, efektywność, regularność pór oraz proporcje snu lekkiego, głębokiego i REM. Obserwuj wzorzec w ujęciu tygodni, zamiast gonić za idealnym wynikiem jednej nocy.",
         "recoveryBody": "Regeneracja odzwierciedla, jak dobrze Twoje ciało się odbudowało — opiera się na nocnych sygnałach, takich jak zmienność rytmu serca i tętno spoczynkowe. Wysoki wynik to zielone światło, by przyspieszyć; niższy sugeruje, że organizm wciąż się regeneruje.",
@@ -2758,6 +2760,11 @@
       "critical": "Krytyczny"
     },
     "assessmentTitle": "Ocena",
+    "restMode": {
+      "title": "Tryb odpoczynku",
+      "body": "Trwa epizod choroby lub dolegliwości, więc odzwierciedla to okres rekonwalescencji. Twój wynik nie jest za to obniżany.",
+      "bodySince": "Od {since} trwa epizod choroby lub dolegliwości, więc odzwierciedla to okres rekonwalescencji. Twój wynik nie jest za to obniżany."
+    },
     "assessmentShowMore": "Pokaż więcej",
     "assessmentShowLess": "Pokaż mniej",
     "bloodPressureSectionTitle": "Ciśnienie krwi",
