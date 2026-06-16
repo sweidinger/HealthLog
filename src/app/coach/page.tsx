@@ -61,7 +61,14 @@ export default function CoachPage() {
   return (
     <div
       data-slot="coach-page"
-      className="flex h-[calc(100dvh-13rem)] min-h-[28rem] flex-col overflow-hidden rounded-2xl border"
+      // v1.18.1 (W-COACH-UI C1/C3) — the card was capped at
+      // `100dvh-13rem`, leaving a band of wasted space below it on a
+      // standalone route that no longer carries the Insights tab strip.
+      // Claim the page height down to a comfortable bottom gutter so the
+      // thread + rail fill the viewport, and lift the card with a soft
+      // shadow so it reads as one contained surface rather than a thin
+      // outline.
+      className="bg-card flex h-[calc(100dvh-8rem)] min-h-[32rem] flex-col overflow-hidden rounded-2xl border shadow-sm"
     >
       <CoachConversation
         surface="page"

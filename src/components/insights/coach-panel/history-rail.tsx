@@ -67,7 +67,9 @@ export function HistoryRail({
   return (
     <div
       data-slot="coach-history-rail"
-      className={cn("flex h-full min-h-0 flex-col gap-2 p-3", className)}
+      // v1.18.1 (W-COACH-UI C1/C3) — a touch more horizontal padding so
+      // the list rows clear the rail edge and the search field breathes.
+      className={cn("flex h-full min-h-0 flex-col gap-2.5 p-3.5", className)}
     >
       {/* v1.4.33 — promote the rail label from a `<span>` to a real
           `<h3>` so the drawer carries a semantic outline on desktop
@@ -78,7 +80,7 @@ export function HistoryRail({
           (the rail still has to stand alone on desktop). */}
       <h3
         data-slot="coach-history-rail-heading"
-        className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wide uppercase"
+        className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase"
       >
         <MessagesSquare
           className="text-muted-foreground size-3.5"
@@ -97,7 +99,7 @@ export function HistoryRail({
           onChange={(e) => setFilter(e.target.value)}
           placeholder={t("insights.coach.historySearchPlaceholder")}
           data-slot="coach-history-search"
-          className="h-8 pl-7 text-xs"
+          className="h-9 pl-7 text-sm"
         />
       </div>
       <div
@@ -107,14 +109,14 @@ export function HistoryRail({
         {isLoading && conversations.length === 0 ? (
           <p
             data-slot="coach-history-loading"
-            className="text-muted-foreground px-2 py-3 text-xs"
+            className="text-muted-foreground px-2 py-3 text-sm"
           >
             {t("common.loading")}
           </p>
         ) : filtered.length === 0 ? (
           <p
             data-slot="coach-history-empty"
-            className="text-muted-foreground px-2 py-3 text-xs leading-relaxed"
+            className="text-muted-foreground px-2 py-3 text-sm leading-relaxed"
           >
             {t("insights.coach.historyEmpty")}
           </p>
@@ -128,8 +130,8 @@ export function HistoryRail({
                 data-slot="coach-history-item"
                 data-active={isActive ? "true" : undefined}
                 className={cn(
-                  "group flex items-center gap-1.5 rounded-md px-2 py-1.5",
-                  "text-xs transition-colors",
+                  "group flex items-center gap-1.5 rounded-lg px-2.5 py-2",
+                  "text-sm transition-colors",
                   isActive
                     ? "bg-dracula-purple/15 text-foreground"
                     : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
@@ -142,7 +144,7 @@ export function HistoryRail({
                   data-slot="coach-history-select"
                 >
                   <span className="block truncate font-medium">{c.title}</span>
-                  <span className="text-muted-foreground block text-[10px]">
+                  <span className="text-muted-foreground block text-[11px]">
                     {formatRelativeTime(c.updatedAt, t)}
                   </span>
                 </button>
