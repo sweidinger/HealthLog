@@ -14,6 +14,7 @@ vi.mock("@/lib/db", () => ({
       createMany: vi.fn(),
     },
     userHealthProfile: { findUnique: vi.fn() },
+    illnessEpisode: { findMany: vi.fn() },
   },
 }));
 
@@ -95,6 +96,7 @@ beforeEach(() => {
     count: 0,
   } as never);
   vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.userHealthProfile.findUnique).mockResolvedValue(
     null as never,
   );

@@ -204,7 +204,14 @@
       "eA1c": "A1C stimata",
       "cv": "Variabilità (CV%)",
       "spotCaveat": "Sono stime da misurazioni occasionali, non un profilo da monitor continuo — vanno lette come una tendenza, non come un verdetto clinico."
-    }
+    },
+    "illnessTitle": "Condizioni e malattie",
+    "illnessOngoing": "In corso",
+    "illnessColCondition": "Condizione",
+    "illnessColType": "Tipo",
+    "illnessColLifecycle": "Decorso",
+    "illnessColOnset": "Inizio",
+    "illnessColResolved": "Risolta"
   },
   "errorBoundary": {
     "title": "Qualcosa è andato storto",
@@ -3462,7 +3469,8 @@
         "watchVital": "Fuori intervallo: {vital}. Spesso è un episodio isolato — tienilo d’occhio nei prossimi giorni.",
         "firedHeadline": "Oggi {count} dei tuoi parametri vitali sono fuori dal loro intervallo personale.",
         "factors": "Possibili fattori — mai una causa: un allenamento intenso, poco sonno, alcol, altitudine, stress o una malattia. È un avviso basato sui tuoi parametri, non una diagnosi.",
-        "building": "Stiamo costruendo i tuoi riferimenti personali — registra ancora qualche giorno e comparirà."
+        "building": "Stiamo costruendo i tuoi riferimenti personali — registra ancora qualche giorno e comparirà.",
+        "illnessExplained": "Questi scostamenti riflettono probabilmente la condizione che hai registrato."
       },
       "trajectory": {
         "cardTitle": "Proiezione a breve termine",

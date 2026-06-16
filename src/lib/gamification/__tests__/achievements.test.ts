@@ -3,6 +3,7 @@ import {
   ACHIEVEMENT_DEFINITIONS,
   ACHIEVEMENT_CATEGORY_ORDER,
   applyDiscoveryFilter,
+  bridgeFrozenStreakGaps,
   calculateLongestStreak,
   evaluateAchievementsWithCompletionDates,
   getUniqueBerlinDays,
@@ -196,5 +197,45 @@ describe("applyDiscoveryFilter", () => {
     const filtered = applyDiscoveryFilter(result.achievements, ALL_EARNABLE);
     expect(filtered.length).toBe(result.achievements.length);
     expect(result.summary.unlockedCount).toBe(0);
+  });
+});
+
+// v1.18.1 P4 — Rest Mode streak-freeze. A streak that lapses ONLY across
+// illness days bridges into one continuous run rather than breaking; it is
+// never invented, and a non-illness gap still breaks the streak.
+describe("bridgeFrozenStreakGaps (Rest Mode streak-freeze)", () => {
+  it("is a no-op with no frozen days (returns the sorted input)", () => {
+    const days = ["2026-06-03", "2026-06-01", "2026-06-02"];
+    expect(bridgeFrozenStreakGaps(days, new Set())).toEqual([
+      "2026-06-01",
+      "2026-06-02",
+      "2026-06-03",
+    ]);
+  });
+
+  it("bridges a gap whose every interior day is frozen, preserving the streak", () => {
+    // Tracked 06-01, then ill 06-02..06-04, tracked again 06-05. Without the
+    // freeze the streak would break to 1; with it, the run is continuous.
+    const tracked = ["2026-06-01", "2026-06-05"];
+    const frozen = new Set(["2026-06-02", "2026-06-03", "2026-06-04"]);
+    const bridged = bridgeFrozenStreakGaps(tracked, frozen);
+    expect(calculateLongestStreak(bridged)).toBe(5);
+  });
+
+  it("does NOT bridge a gap that contains a non-frozen missed day (genuine break)", () => {
+    const tracked = ["2026-06-01", "2026-06-05"];
+    // 06-03 is NOT a frozen illness day → the gap is a real lapse.
+    const frozen = new Set(["2026-06-02", "2026-06-04"]);
+    const bridged = bridgeFrozenStreakGaps(tracked, frozen);
+    expect(calculateLongestStreak(bridged)).toBe(1);
+  });
+
+  it("never invents a streak from a lone frozen day with no surrounding run", () => {
+    const tracked = ["2026-06-10"];
+    const frozen = new Set(["2026-06-02", "2026-06-03"]);
+    const bridged = bridgeFrozenStreakGaps(tracked, frozen);
+    // A single tracked day, untouched — the frozen days bridge nothing.
+    expect(bridged).toEqual(["2026-06-10"]);
+    expect(calculateLongestStreak(bridged)).toBe(1);
   });
 });

@@ -1521,6 +1521,65 @@ export function buildDoctorReportPdfDocument(
         .finalY + 8;
   }
 
+  // v1.18.1 P4 — illness / condition episodes overlapping the window. Present
+  // only when the illness module is on AND the window held an episode (the
+  // aggregator gates `data.illnessEpisodes`). Labels + lifecycle + dates only;
+  // the encrypted note is never read. A purely retrospective, factual table —
+  // no colour, no severity tint — matching the clinical-document register.
+  if (data.illnessEpisodes && data.illnessEpisodes.length > 0) {
+    y = ensureSpace(y, 6 + 18);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text(t("doctorReport.illnessTitle"), margin, y);
+    y += 6;
+
+    const illnessRows = data.illnessEpisodes.map((ep) => [
+      ep.label,
+      t(`illness.type.${ep.type}`),
+      t(`illness.lifecycle.${ep.lifecycle}`),
+      fmtDate(ep.onsetAt),
+      ep.resolvedAt ? fmtDate(ep.resolvedAt) : t("doctorReport.illnessOngoing"),
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [
+        [
+          t("doctorReport.illnessColCondition"),
+          t("doctorReport.illnessColType"),
+          t("doctorReport.illnessColLifecycle"),
+          t("doctorReport.illnessColOnset"),
+          t("doctorReport.illnessColResolved"),
+        ],
+      ],
+      body: illnessRows,
+      theme: "grid",
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        textColor: [30, 30, 30],
+        lineColor: [200, 200, 200],
+        lineWidth: 0.3,
+      },
+      headStyles: {
+        fillColor: [245, 245, 245],
+        textColor: [30, 30, 30],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: { fillColor: [252, 252, 252] },
+      margin: {
+        left: margin,
+        right: margin,
+        top: margin,
+        bottom: tableBottomMargin,
+      },
+    });
+    y =
+      (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+        .finalY + 8;
+  }
+
   // v1.7.0 — optional AI summary. OUT of the clinical PDF by default;
   // rendered ONLY when the user explicitly opted in. Clearly labelled and
   // flagged as not clinically validated so a physician never mistakes it

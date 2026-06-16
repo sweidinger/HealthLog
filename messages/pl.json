@@ -204,7 +204,14 @@
       "eA1c": "Szacowane HbA1c",
       "cv": "Zmienność (CV%)",
       "spotCaveat": "To szacunki z pojedynczych pomiarów, nie profil z monitora ciągłego — czytaj je jako kierunek zmian, a nie kliniczny werdykt."
-    }
+    },
+    "illnessTitle": "Schorzenia i choroby",
+    "illnessOngoing": "Trwająca",
+    "illnessColCondition": "Schorzenie",
+    "illnessColType": "Typ",
+    "illnessColLifecycle": "Przebieg",
+    "illnessColOnset": "Początek",
+    "illnessColResolved": "Ustąpiła"
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",
@@ -3462,7 +3469,8 @@
         "watchVital": "Poza zakresem: {vital}. Często to jednorazowy odczyt — warto obserwować przez kilka dni.",
         "firedHeadline": "Dziś {count} Twoich parametrów życiowych jest poza osobistym zakresem.",
         "factors": "Możliwe czynniki — nigdy przyczyna: intensywny trening, słaby sen, alkohol, wysokość, stres lub choroba. To wskazówka z Twoich własnych baz, nie diagnoza.",
-        "building": "Budujemy Twoje osobiste bazy — zarejestruj jeszcze kilka dni, a to się pojawi."
+        "building": "Budujemy Twoje osobiste bazy — zarejestruj jeszcze kilka dni, a to się pojawi.",
+        "illnessExplained": "Te odchylenia prawdopodobnie wynikają z zapisanego schorzenia."
       },
       "trajectory": {
         "cardTitle": "Krótkoterminowy rzut",

@@ -78,6 +78,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
 import { getEvent } from "@/lib/logging/context";
 import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
+import { resolveRestMode } from "@/lib/illness/rest-mode";
 import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
@@ -171,6 +172,14 @@ export interface CoachNudgeSummary {
   skippedRecentNudge: number;
   skippedNoTrigger: number;
   skippedNoChannel: number;
+  /**
+   * v1.18.1 P4 — Rest Mode pause: a cadence-nudge ("weigh more often",
+   * "measure BP morning + evening") is the wrong message to a user who is
+   * actively unwell. While an illness episode is active the nudge is paused,
+   * not penalised: nothing is recorded against the user, the cadence simply
+   * resumes once the episode resolves.
+   */
+  skippedDuringIllness: number;
   failed: number;
 }
 
@@ -698,6 +707,7 @@ export async function runCoachNudgeTick(
     skippedRecentNudge: 0,
     skippedNoTrigger: 0,
     skippedNoChannel: 0,
+    skippedDuringIllness: 0,
     failed: 0,
   };
 
@@ -779,6 +789,18 @@ export async function runCoachNudgeTick(
       });
       if (recentNudge) {
         summary.skippedRecentNudge += 1;
+        continue;
+      }
+
+      // Gate 6 — Rest Mode pause (v1.18.1 P4). A user with an active
+      // illness/condition episode should not be told to measure more often;
+      // the cadence-nudge pauses for the duration of the episode. Module-gated
+      // (a non-illness account is never in Rest Mode) and only reached past
+      // every cheaper gate, so the read fires for at most a nudge-eligible
+      // user per tick.
+      const restMode = await resolveRestMode(user.id, now, prisma);
+      if (restMode.active) {
+        summary.skippedDuringIllness += 1;
         continue;
       }
 

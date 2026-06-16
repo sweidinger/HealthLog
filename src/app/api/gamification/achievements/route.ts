@@ -9,6 +9,7 @@ import {
   ACHIEVEMENT_DEFINITIONS,
   GAMIFICATION_ROLLOUT_AT,
   applyDiscoveryFilter,
+  bridgeFrozenStreakGaps,
   calculateLongestStreak,
   evaluateAchievementsWithCompletionDates,
   moduleForMetric,
@@ -88,6 +89,29 @@ type MeasurementRecord = {
 
 function maxDate(a: Date, b: Date): Date {
   return a > b ? a : b;
+}
+
+/**
+ * v1.18.1 P4 — every Berlin-local day key covered by an illness episode
+ * (onset day through the resolved day, or through `now` while ongoing),
+ * inclusive on both ends. These are the days a streak is allowed to lapse
+ * across without breaking (the Rest Mode freeze). Uses the same
+ * `toBerlinDayKey` day anchoring every other streak series uses, so the
+ * frozen days line up with the qualifying days exactly.
+ */
+function collectIllnessDayKeys(
+  episodes: Array<{ onsetAt: Date; resolvedAt: Date | null }>,
+  now: Date,
+): Set<string> {
+  const frozen = new Set<string>();
+  for (const ep of episodes) {
+    const startSerial = dayKeyToSerial(toBerlinDayKey(ep.onsetAt));
+    const endSerial = dayKeyToSerial(toBerlinDayKey(ep.resolvedAt ?? now));
+    for (let serial = startSerial; serial <= endSerial; serial++) {
+      frozen.add(serialToDayKey(serial));
+    }
+  }
+  return frozen;
 }
 
 function dayKeyToSerial(dayKey: string): number {
@@ -612,6 +636,7 @@ async function buildAchievementsResult(
     moodEntries,
     sleepMeasurements,
     healthProfile,
+    illnessEpisodes,
   ] = await Promise.all([
     prisma.measurement.findMany({
       where: {
@@ -737,7 +762,32 @@ async function buildAchievementsResult(
         updatedAt: true,
       },
     }),
+    // v1.18.1 P4 — illness episodes over the window, for the streak-freeze.
+    // Gated on the illness module so a non-illness account does no read and
+    // never freezes anything. Both ongoing and already-resolved episodes are
+    // read: a past illness should not retroactively break a historical
+    // streak, just as an active one should not break the current run.
+    moduleMap.illness !== false
+      ? prisma.illnessEpisode.findMany({
+          where: {
+            userId,
+            deletedAt: null,
+            onsetAt: { lte: now },
+            OR: [{ resolvedAt: null }, { resolvedAt: { gte: startDate } }],
+          },
+          select: { onsetAt: true, resolvedAt: true },
+        })
+      : Promise.resolve([]),
   ]);
+
+  // v1.18.1 P4 — Rest Mode streak-freeze. Build the set of Berlin-local day
+  // keys covered by an illness episode (onset → resolved, or → now while
+  // ongoing). A day-streak that lapses only across these days is bridged
+  // rather than broken (see `bridgeFrozenStreakGaps`): being unwell pauses a
+  // streak, it does not fail it.
+  const frozenIllnessDayKeys = collectIllnessDayKeys(illnessEpisodes, now);
+  const freeze = (dayKeys: string[]): string[] =>
+    bridgeFrozenStreakGaps(dayKeys, frozenIllnessDayKeys);
 
   const schedulesByMedicationId = new Map(
     medications.map((med) => [med.id, med.schedules]),
@@ -822,22 +872,25 @@ async function buildAchievementsResult(
     totalTakenIntakes: takenIntakeDates.length,
     overIntakeCount: intakeIssueMetrics.overIntakeCount,
     skippedIntakeCount: intakeIssueMetrics.skippedIntakeCount,
-    bmiGreenStreak: calculateLongestStreak(healthSeries.bmi.dayKeys),
-    bpGreenStreak: calculateLongestStreak(healthSeries.bp.dayKeys),
-    pulseGreenStreak: calculateLongestStreak(healthSeries.pulse.dayKeys),
-    onTimePerfectDayStreak: calculateLongestStreak(onTimeSeries.dayKeys),
-    compliance80DayStreak: calculateLongestStreak(complianceSeries.dayKeys),
+    // v1.18.1 P4 — every day-streak runs through `freeze(...)` so an active
+    // or past illness episode bridges (does not break) the run across the
+    // days the user was unwell.
+    bmiGreenStreak: calculateLongestStreak(freeze(healthSeries.bmi.dayKeys)),
+    bpGreenStreak: calculateLongestStreak(freeze(healthSeries.bp.dayKeys)),
+    pulseGreenStreak: calculateLongestStreak(freeze(healthSeries.pulse.dayKeys)),
+    onTimePerfectDayStreak: calculateLongestStreak(freeze(onTimeSeries.dayKeys)),
+    compliance80DayStreak: calculateLongestStreak(freeze(complianceSeries.dayKeys)),
     passkeyCreatedCount: passkeyCreatedDates.length,
     passkeyLoginCount: passkeyLoginDates.length,
     passwordLoginCount: passwordLoginDates.length,
-    loginDayStreak: calculateLongestStreak(loginDaySeries.dayKeys),
+    loginDayStreak: calculateLongestStreak(freeze(loginDaySeries.dayKeys)),
     bugReportCount: bugReportDates.length,
     ...expansionValues,
     // v1.16.1 — care-routine metrics.
-    missFreeDayStreak: calculateLongestStreak(missFreeSeries.dayKeys),
+    missFreeDayStreak: calculateLongestStreak(freeze(missFreeSeries.dayKeys)),
     measurementConsistencyWeeks: weeklyConsistency.longestRunWeeks,
     selfContextCompleteCount: selfContextComplete,
-    sleepLogDayStreak: calculateLongestStreak(sleepSeries.dayKeys),
+    sleepLogDayStreak: calculateLongestStreak(freeze(sleepSeries.dayKeys)),
   };
 
   const completionDates: Partial<Record<string, Date>> = {};

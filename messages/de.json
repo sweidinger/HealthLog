@@ -204,7 +204,14 @@
       "eA1c": "Geschätzter HbA1c",
       "cv": "Variabilität (VK%)",
       "spotCaveat": "Dies sind Schätzwerte aus Einzelmessungen, kein Profil eines kontinuierlichen Messgeräts — als Tendenz und nicht als klinisches Urteil zu lesen."
-    }
+    },
+    "illnessTitle": "Erkrankungen",
+    "illnessOngoing": "Andauernd",
+    "illnessColCondition": "Erkrankung",
+    "illnessColType": "Art",
+    "illnessColLifecycle": "Verlauf",
+    "illnessColOnset": "Beginn",
+    "illnessColResolved": "Abgeklungen"
   },
   "errorBoundary": {
     "title": "Da ist etwas schiefgelaufen",
@@ -3462,7 +3469,8 @@
         "watchVital": "Außerhalb des Bereichs: {vital}. Oft nur einmalig — behalte es in den nächsten Tagen im Blick.",
         "firedHeadline": "{count} deiner Vitalwerte liegen heute außerhalb ihres persönlichen Bereichs.",
         "factors": "Mögliche Faktoren — nie eine Ursache: ein hartes Training, schlechter Schlaf, Alkohol, Höhe, Stress oder Krankheit. Das ist ein Hinweis aus deinen eigenen Baselines, keine Diagnose.",
-        "building": "Deine persönlichen Baselines entstehen — erfasse ein paar Tage mehr, dann erscheint dies."
+        "building": "Deine persönlichen Baselines entstehen — erfasse ein paar Tage mehr, dann erscheint dies.",
+        "illnessExplained": "Diese Abweichungen hängen wahrscheinlich mit der erfassten Erkrankung zusammen."
       },
       "trajectory": {
         "cardTitle": "Kurzfrist-Projektion",
