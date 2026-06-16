@@ -523,7 +523,11 @@ export default function DashboardPage() {
   const showBodyFatTile = isTileVisible("bodyFat") && hasBodyFat;
   const showMoodTile = isTileVisible("mood") && hasMood;
   const showSleepTile = isTileVisible("sleep") && hasSleep;
-  const showStepsTile = isTileVisible("steps") && hasSteps;
+  // v1.18.0 B1 — steps are activity data tied to the workouts module
+  // surface; AND the resolved module flag (fail-open: only an explicit
+  // `false` hides it) so a disabled-workouts account drops the tile.
+  const showStepsTile =
+    isTileVisible("steps") && hasSteps && user?.modules?.workouts !== false;
   const showVo2Tile = isTileVisible("vo2Max") && hasVo2;
   const showBpInTargetTile = isTileVisible("bpInTarget") && hasBpInTarget;
 
@@ -559,7 +563,9 @@ export default function DashboardPage() {
   // no data floor, so it would otherwise flash in then retract for a user
   // who hid it.
   const showRecentWorkoutsTile =
-    layoutResolved && isChartVisible("recentWorkouts");
+    layoutResolved &&
+    isChartVisible("recentWorkouts") &&
+    user?.modules?.workouts !== false;
 
   // v1.16.0 — shared reveal gate for the chart row. Every data-backed
   // chart mounts as soon as its visibility gate flips (so the per-chart

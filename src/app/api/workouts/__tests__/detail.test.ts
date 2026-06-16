@@ -44,9 +44,19 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+vi.mock("@/lib/modules/gate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/modules/gate")>();
+  return {
+    ...actual,
+    resolveModuleMap: vi.fn(async () => ({})),
+    requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
+  };
+});
+
 import { GET } from "../[id]/route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -94,6 +104,10 @@ describe("GET /api/workouts/{id}", () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       sourcePriorityJson: null,
     } as never);
+    // clearAllMocks wipes the factory default; re-seed the gate to pass.
+    vi.mocked(requireModuleEnabled).mockResolvedValue({
+      enabled: true,
+    } as never);
   });
 
   it("returns the workout with iOS-contract field names", async () => {
@@ -121,6 +135,20 @@ describe("GET /api/workouts/{id}", () => {
     vi.mocked(getSession).mockResolvedValueOnce(null);
     const res = await GET(makeRequest(), makeParams("w-1"));
     expect(res.status).toBe(401);
+  });
+
+  it("returns 403 module.disabled when the workouts module is off", async () => {
+    vi.mocked(requireModuleEnabled).mockResolvedValueOnce({
+      enabled: false,
+      response: new Response(
+        JSON.stringify({ data: null, error: "Module disabled" }),
+        { status: 403 },
+      ),
+    } as never);
+    const res = await GET(makeRequest(), makeParams("w-1"));
+    expect(res.status).toBe(403);
+    // The detail query never runs once the gate refuses.
+    expect(prisma.workout.findUnique).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the row belongs to another user", async () => {

@@ -107,11 +107,13 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   "src/app/api/mood/tags/groups/[key]/route.ts",
   "src/app/api/mood/tags/[key]/hidden/route.ts",
   // ── DATA LAYER (workouts / labs) ──────────────────────────────────
-  // Raw Workout + LabResult CRUD + the iOS batch ingest. Same data-layer
-  // reasoning: the workouts / labs modules gate the surfaces (Insights
-  // pill, dashboard tile, doctor-report section), not the row store.
-  "src/app/api/workouts/route.ts",
-  "src/app/api/workouts/[id]/route.ts",
+  // The workout READ surfaces (`GET /api/workouts`, `GET /api/workouts/{id}`)
+  // are now module-gated — they back the hidden Insights workouts surface, so
+  // a disabled account must not read them even over a Bearer token. Only the
+  // iOS batch INGEST stays exempt: synced workouts must keep landing in the
+  // row store while the surface is hidden, so re-enabling reveals a complete
+  // history rather than a gap. LabResult CRUD follows the same data-layer
+  // reasoning (the labs module gates the surfaces, not the row store).
   "src/app/api/workouts/batch/route.ts",
   "src/app/api/labs/route.ts",
   "src/app/api/labs/[id]/route.ts",

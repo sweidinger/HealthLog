@@ -1,6 +1,9 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
+
 import { useTranslations } from "@/lib/i18n/context";
+import { useModulePageGuard } from "@/hooks/use-module-page-guard";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { RecoverySection } from "@/components/insights/recovery/recovery-section";
 
@@ -20,6 +23,16 @@ import { RecoverySection } from "@/components/insights/recovery/recovery-section
  */
 export default function InsightsRecoveryPage() {
   const { t } = useTranslations();
+  const { ready } = useModulePageGuard("recovery");
+
+  // v1.18.0 B1 — bounce a direct URL hit on a disabled-recovery account.
+  if (!ready) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
+      </div>
+    );
+  }
 
   return (
     <SubPageShell

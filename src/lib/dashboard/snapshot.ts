@@ -91,12 +91,19 @@ const BRIEFING_TTL_MS = 24 * 60 * 60 * 1000;
  * (weight / bp / pulse / bodyFat / medications / bpInTarget and the
  * vital-derived HealthKit metrics) carry NO entry and are never hidden.
  */
-const WIDGET_MODULE_BY_ID: Partial<Record<string, ModuleKey>> = {
+export const WIDGET_MODULE_BY_ID: Partial<Record<string, ModuleKey>> = {
   mood: "mood",
   sleep: "sleep",
   glucose: "glucose",
   achievements: "achievements",
   recentWorkouts: "workouts",
+  // v1.18.0 B1 — recovery-domain HealthKit widgets belong to the recovery
+  // module; the per-night breathing-disturbance widget belongs to sleep.
+  cardioRecovery: "recovery",
+  sixMinuteWalk: "recovery",
+  stairAscentSpeed: "recovery",
+  stairDescentSpeed: "recovery",
+  breathingDisturbances: "sleep",
 };
 
 /**
@@ -106,9 +113,18 @@ const WIDGET_MODULE_BY_ID: Partial<Record<string, ModuleKey>> = {
  * client data-floor gates also drop it) before the snapshot leaves the
  * server. Core vital types are absent here and always pass through.
  */
-const SUMMARY_TYPE_MODULE: Partial<Record<MeasurementType, ModuleKey>> = {
+export const SUMMARY_TYPE_MODULE: Partial<Record<MeasurementType, ModuleKey>> = {
   SLEEP_DURATION: "sleep",
   BLOOD_GLUCOSE: "glucose",
+  // v1.18.0 B1 — recovery-domain HealthKit metrics. The recovery page +
+  // its tiles are the recovery module's surface; when it is off these
+  // device-native signals must drop from the dashboard snapshot too.
+  CARDIO_RECOVERY: "recovery",
+  SIX_MINUTE_WALK_DISTANCE: "recovery",
+  STAIR_ASCENT_SPEED: "recovery",
+  STAIR_DESCENT_SPEED: "recovery",
+  // Per-night breathing-disturbance index is a sleep-page signal.
+  BREATHING_DISTURBANCES: "sleep",
 };
 
 const GLUCOSE_CONTEXTS = [

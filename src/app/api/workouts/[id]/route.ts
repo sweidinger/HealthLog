@@ -29,6 +29,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { pickCanonicalWorkoutRows } from "@/lib/measurements/pick-canonical-workout-rows";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -38,6 +39,10 @@ export const GET = apiHandler(
     const { id } = await params;
 
     annotate({ action: { name: "workouts.detail" }, meta: { workoutId: id } });
+
+    // v1.18.0 B1 — gate the detail surface behind the workouts module.
+    const gate = await requireModuleEnabled(user.id, "workouts");
+    if (!gate.enabled) return gate.response;
 
     const row = await prisma.workout.findUnique({
       where: { id },
