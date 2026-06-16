@@ -6848,6 +6848,34 @@
       "headache": "Mal di testa",
       "bodyAches": "Dolori muscolari",
       "fatigue": "Affaticamento"
+    },
+    "correlation": {
+      "title": "Come si è svolto",
+      "learning": "Ancora in apprendimento: registra qualche giorno in più per vedere i pattern qui.",
+      "preOnsetTitle": "Come si è annunciato",
+      "preOnsetBody": "Segnali che si sono allontanati dalla tua base prima dell'inizio che hai segnato.",
+      "nadirTitle": "Cosa è cambiato",
+      "nadirBody": "Quanto ogni segnale registrato si è allontanato dal tuo intervallo abituale.",
+      "recoveryGapTitle": "Divario di recupero",
+      "recoveryGapLag": "I tuoi valori si sono stabilizzati {days} giorni dopo esserti sentito meglio.",
+      "recoveryGapLead": "I tuoi valori si sono stabilizzati {days} giorni prima di segnare la guarigione.",
+      "recoveryGapSame": "I tuoi valori si sono stabilizzati lo stesso giorno in cui ti sei sentito meglio.",
+      "redFlagTitle": "Da guardare più da vicino",
+      "redFlagSpo2": "La tua saturazione di ossigeno è rimasta bassa per diversi giorni. Se si ripete, rivolgiti a un medico.",
+      "redFlagFever": "Hai avuto febbre persistente. Se si ripete, rivolgiti a un medico.",
+      "direction": {
+        "above": "sopra il tuo solito",
+        "below": "sotto il tuo solito"
+      }
+    },
+    "insights": {
+      "title": "La tua storia di malattie",
+      "countOne": "Hai registrato 1 episodio in questo periodo.",
+      "countOther": "Hai registrato {count} episodi in questo periodo.",
+      "typicalGap": "Divario di recupero tipico: {days} giorni tra il sentirti meglio e la stabilizzazione dei valori.",
+      "typicalGapLearning": "Ancora qualche episodio risolto e qui apparirà un divario di recupero tipico.",
+      "byMonth": "Quando tendi a registrare episodi",
+      "none": "Nessun episodio registrato in questo periodo."
     }
   },
   "coach": {
