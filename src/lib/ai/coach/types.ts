@@ -145,10 +145,34 @@ export const coachChatRequestSchema = z.object({
 });
 
 /**
+ * v1.18.1 (Workstream C) — a Coach cadence suggestion surfaced as a
+ * one-tap action card. The model proposes the cadence via a sentinel
+ * block; the server resolves it against the closed cadence catalog and
+ * gates it (module-toggle + opt-out + dismissal + cooldown + dedup). When
+ * it surfaces, this DTO rides an additive `suggestion` SSE frame AND is
+ * persisted onto the assistant message's provenance so the card survives a
+ * conversation reload.
+ *
+ * `cadenceId` is the catalog token; `measurementType` the auto-resolve
+ * target; `label` the localised card copy. Accepting the card POSTs to
+ * `POST /api/measurement-reminders` with `origin: COACH` + the cadence's
+ * server-resolved schedule — the client sends only `cadenceId`, the server
+ * looks up the rest, so the client can never widen a cadence.
+ */
+export interface CoachSuggestion {
+  cadenceId: string;
+  measurementType: string;
+  label: string;
+}
+
+/**
  * SSE event shapes emitted by the streaming endpoint.
  *
  * The route writes one `data: <json>\n\n` frame per event. Clients
  * dispatch on `type` and ignore unknown variants — additive evolution.
+ * The `suggestion` frame (v1.18.1) is additive: older web + iOS clients
+ * that don't know it drop it on the floor (the parser keeps only frames
+ * whose `type` it handles), so the chat stays backwards-compatible.
  */
 export type CoachStreamEvent =
   | { type: "token"; token: string }
@@ -156,6 +180,7 @@ export type CoachStreamEvent =
       type: "provenance";
       metricSource: CoachProvenance;
     }
+  | { type: "suggestion"; suggestion: CoachSuggestion }
   | { type: "done"; conversationId: string; messageId: string }
   | { type: "error"; code: string; message: string };
 
@@ -277,6 +302,12 @@ export interface CoachProvenance {
    * snapshot was empty. Hard cap 8 entries to keep the block scannable.
    */
   keyValues?: ReadonlyArray<CoachKeyValue>;
+  /**
+   * v1.18.1 (Workstream C) — a cadence suggestion attached to this turn.
+   * Persisted alongside the message so the one-tap action card re-renders
+   * on a conversation reload. Absent on turns that carry no suggestion.
+   */
+  suggestion?: CoachSuggestion;
 }
 
 /**

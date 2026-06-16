@@ -6814,5 +6814,26 @@
       "bodyAches": "Dolori muscolari",
       "fatigue": "Affaticamento"
     }
+  },
+  "coach": {
+    "reminderSuggestion": {
+      "title": "Impostare un promemoria?",
+      "accept": "Imposta promemoria",
+      "dismiss": "Non ora",
+      "stop": "Misuro abbastanza",
+      "accepted": "Promemoria impostato",
+      "dismissed": "Va bene, non lo suggerirò più",
+      "stopped": "Capito, smetto di suggerire promemoria",
+      "failed": "Impossibile impostarlo, riprova",
+      "cadence": {
+        "weightDaily": "Pesati ogni giorno, più o meno alla stessa ora",
+        "bp722": "Misura la pressione due volte al giorno per una settimana",
+        "glucoseStructured": "Misura la glicemia con un programma giornaliero strutturato"
+      }
+    },
+    "settings": {
+      "reminderSuggestionsLabel": "Suggerimenti di cadenza",
+      "reminderSuggestionsDescription": "Lascia che il Coach proponga ogni tanto un promemoria basato sull'evidenza per misurare una metrica più regolarmente."
+    }
   }
 }

@@ -169,6 +169,8 @@ export const measurementReminderDto = z
     intervalDays: z.number().int().nullable(),
     rrule: z.string().nullable(),
     anchorDate: z.iso.datetime({ offset: true }).nullable(),
+    endsOn: z.iso.datetime({ offset: true }).nullable(),
+    origin: z.enum(["VORSORGE", "COACH"]),
     notifyHour: z.number().int(),
     location: z.string().nullable(),
     nextDueAt: z.iso.datetime({ offset: true }).nullable(),
@@ -180,5 +182,5 @@ export const measurementReminderDto = z
   .meta({
     id: "MeasurementReminderDTO",
     description:
-      "A Vorsorge reminder. nextDueAt is server-computed (server-authoritative). A free-text reminder carries measurementType=null and resolves only on a manual satisfy.",
+      "A Vorsorge reminder. nextDueAt is server-computed (server-authoritative). A free-text reminder carries measurementType=null and resolves only on a manual satisfy. origin distinguishes a user-created (VORSORGE) reminder from one minted by a Coach cadence suggestion (COACH); endsOn bounds a finite course window (null = open-ended).",
   });

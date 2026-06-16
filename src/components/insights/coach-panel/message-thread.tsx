@@ -24,6 +24,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { ABOUT_ME_FIELD_MAX_CHARS } from "@/lib/validations/about-me";
 
 import { SourceChips } from "./source-chips";
+import { ReminderSuggestionCard } from "./reminder-suggestion-card";
 import type {
   CoachConversationDetailDTO,
   CoachOptimisticUserMessage,
@@ -406,6 +407,7 @@ export function MessageThread({
             role="assistant"
             content={streaming.content}
             metricSource={streaming.metricSource}
+            suggestion={streaming.suggestion}
             providerType={streaming.inProgress ? "streaming" : null}
             inProgress={streaming.inProgress}
             errorCode={streaming.errorCode}
@@ -425,6 +427,12 @@ interface ChatBubbleProps {
   role: "user" | "assistant";
   content: string;
   metricSource?: import("@/lib/ai/coach/types").CoachProvenance | null;
+  /**
+   * v1.18.1 (Workstream C) — live cadence suggestion from the streaming
+   * hook. Persisted messages carry it on `metricSource.suggestion`
+   * instead; the bubble falls back to that so the card survives reload.
+   */
+  suggestion?: import("@/lib/ai/coach/types").CoachSuggestion | null;
   providerType?: string | null;
   inProgress?: boolean;
   errorCode?: string | null;
@@ -440,6 +448,7 @@ function ChatBubble({
   role,
   content,
   metricSource,
+  suggestion,
   providerType,
   inProgress,
   errorCode,
@@ -699,6 +708,16 @@ function ChatBubble({
             </div>
           </details>
         )}
+        {/* v1.18.1 (Workstream C) — one-tap cadence-suggestion action
+            card. Live from the streaming hook, or restored from the
+            persisted message provenance on reload. Not shown on
+            in-flight or errored turns. */}
+        {!inProgress &&
+          !errorCode &&
+          (() => {
+            const sug = suggestion ?? metricSource?.suggestion ?? null;
+            return sug ? <ReminderSuggestionCard suggestion={sug} /> : null;
+          })()}
         {/* v1.4.23 H7 — per-message thumbs feedback. Only persisted
             assistant messages get the row (skipped for refusals,
             errors, in-flight stream bubbles). The aggregator buckets

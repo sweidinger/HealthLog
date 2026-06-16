@@ -6814,5 +6814,26 @@
       "bodyAches": "Courbatures",
       "fatigue": "Fatigue"
     }
+  },
+  "coach": {
+    "reminderSuggestion": {
+      "title": "Créer un rappel ?",
+      "accept": "Créer le rappel",
+      "dismiss": "Pas maintenant",
+      "stop": "Je mesure assez",
+      "accepted": "Rappel créé",
+      "dismissed": "D'accord, je ne le proposerai plus",
+      "stopped": "Compris, j'arrête de proposer des rappels",
+      "failed": "Échec de la création, veuillez réessayer",
+      "cadence": {
+        "weightDaily": "Pesez-vous chaque jour, à peu près à la même heure",
+        "bp722": "Mesurez votre tension deux fois par jour pendant une semaine",
+        "glucoseStructured": "Mesurez votre glycémie selon un horaire quotidien structuré"
+      }
+    },
+    "settings": {
+      "reminderSuggestionsLabel": "Suggestions de fréquence",
+      "reminderSuggestionsDescription": "Laissez le Coach proposer de temps en temps un rappel fondé sur des preuves pour mesurer une donnée plus régulièrement."
+    }
   }
 }

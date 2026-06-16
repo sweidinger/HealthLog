@@ -69,7 +69,13 @@ import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
 import { getSelfContextTextForUser } from "@/lib/ai/coach/about-me";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
 import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
-import { parseCoachPrefs } from "@/lib/validations/coach-prefs";
+import { parseSuggestReminder } from "@/lib/ai/coach/suggest-reminder";
+import { gateSuggestion } from "@/lib/ai/coach/suggest-gate";
+import {
+  parseCoachPrefs,
+  DEFAULT_REMINDER_SUGGESTION_PREFS,
+} from "@/lib/validations/coach-prefs";
+import type { CoachSuggestion } from "@/lib/ai/coach/types";
 import { createSseStream } from "@/lib/sse/create-stream";
 
 /**
@@ -498,11 +504,66 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     });
     return streamProviderError({ code: "coach.provider.empty" });
   }
-  const replyText = proseAfterStrip;
-  const enrichedProvenance =
-    sentinel.keyValues.length > 0
-      ? { ...snapshot.provenance, keyValues: sentinel.keyValues }
-      : snapshot.provenance;
+  // v1.18.1 (Workstream C) — strip the optional `---SUGGEST-REMINDER---`
+  // block out of the prose-after-keyvalues. The model proposes a cadence;
+  // the gate decides whether it actually surfaces (module-toggle + opt-out
+  // + dismissal memory + cooldown + dedup against a live COACH reminder).
+  // A suppressed proposal leaves the prose unchanged and emits no card.
+  const suggestParse = parseSuggestReminder(proseAfterStrip);
+  const replyText = suggestParse.prose.trim() || proseAfterStrip;
+  let surfacedSuggestion: CoachSuggestion | null = null;
+  if (suggestParse.cadence) {
+    const decision = await gateSuggestion({
+      prisma,
+      userId,
+      cadence: suggestParse.cadence,
+      prefs: coachPrefs.reminderSuggestions ?? DEFAULT_REMINDER_SUGGESTION_PREFS,
+    });
+    if (decision.surface) {
+      const cadence = suggestParse.cadence;
+      surfacedSuggestion = {
+        cadenceId: cadence.id,
+        measurementType: cadence.measurementType,
+        label: cadence.labelKey,
+      };
+      // Stamp the cooldown anchor (frequency cap) onto the prefs blob.
+      const nextSuggestionPrefs = {
+        ...(coachPrefs.reminderSuggestions ??
+          DEFAULT_REMINDER_SUGGESTION_PREFS),
+        lastSuggestedAt: new Date().toISOString(),
+      };
+      void prisma.user
+        .update({
+          where: { id: userId },
+          data: {
+            coachPrefsJson: {
+              ...coachPrefs,
+              reminderSuggestions: nextSuggestionPrefs,
+            },
+          },
+        })
+        .catch(() => {
+          // Cooldown stamp is best-effort: a write failure at worst lets a
+          // second suggestion through sooner, never breaks the chat turn.
+        });
+      annotate({
+        action: { name: "coach.reminder.suggested" },
+        meta: { cadenceId: cadence.id, metric: cadence.measurementType },
+      });
+    } else {
+      annotate({
+        action: { name: "coach.reminder.suppressed" },
+        meta: { cadenceId: suggestParse.cadence.id, reason: decision.reason },
+      });
+    }
+  }
+  const enrichedProvenance: typeof snapshot.provenance = {
+    ...snapshot.provenance,
+    ...(sentinel.keyValues.length > 0
+      ? { keyValues: sentinel.keyValues }
+      : {}),
+    ...(surfacedSuggestion ? { suggestion: surfacedSuggestion } : {}),
+  };
   if (sentinel.malformed) {
     // Graceful degrade: log so ops can spot a provider whose
     // sentinel format has drifted, but pass the prose through
@@ -585,6 +646,13 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
         metricSource: enrichedProvenance,
       }),
     );
+    // v1.18.1 (Workstream C) — additive `suggestion` frame. Older clients
+    // ignore it; newer ones render the one-tap action card.
+    if (surfacedSuggestion) {
+      controller.enqueue(
+        encodeFrame({ type: "suggestion", suggestion: surfacedSuggestion }),
+      );
+    }
     controller.enqueue(
       encodeFrame({
         type: "done",

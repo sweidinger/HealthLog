@@ -6814,5 +6814,26 @@
       "bodyAches": "Gliederschmerzen",
       "fatigue": "Erschöpfung"
     }
+  },
+  "coach": {
+    "reminderSuggestion": {
+      "title": "Erinnerung einrichten?",
+      "accept": "Erinnerung setzen",
+      "dismiss": "Jetzt nicht",
+      "stop": "Ich messe genug",
+      "accepted": "Erinnerung gesetzt",
+      "dismissed": "Okay, das schlage ich nicht noch einmal vor",
+      "stopped": "Verstanden – ich schlage keine Erinnerungen mehr vor",
+      "failed": "Hat nicht geklappt – bitte erneut versuchen",
+      "cadence": {
+        "weightDaily": "Wieg dich täglich, ungefähr zur selben Zeit",
+        "bp722": "Miss deinen Blutdruck eine Woche lang zweimal täglich",
+        "glucoseStructured": "Miss deine Glukose nach einem strukturierten Tagesplan"
+      }
+    },
+    "settings": {
+      "reminderSuggestionsLabel": "Kadenz-Vorschläge",
+      "reminderSuggestionsDescription": "Lass den Coach gelegentlich eine evidenzbasierte Erinnerung anbieten, eine Metrik regelmäßiger zu messen."
+    }
   }
 }
