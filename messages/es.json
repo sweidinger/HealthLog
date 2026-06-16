@@ -6552,11 +6552,17 @@
       "notifyHour": "Recordar a las",
       "location": "Dónde (opcional)",
       "locationPlaceholder": "p. ej. Médico, Laboratorio",
-      "save": "Guardar"
+      "save": "Guardar",
+      "createTitle": "Nuevo recordatorio",
+      "editTitle": "Editar recordatorio"
     },
     "pushTitle": "Recordatorio de prevención",
     "pushBody": "Toca: {label}",
-    "pushLocation": "(en {location})"
+    "pushLocation": "(en {location})",
+    "edit": "Editar",
+    "originCoach": "Coach",
+    "enabledToggleAria": "Activar o desactivar este recordatorio",
+    "until": "Hasta {date}"
   },
   "labs": {
     "title": "Resultados de análisis",

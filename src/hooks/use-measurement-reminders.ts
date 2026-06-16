@@ -21,6 +21,18 @@ export interface MeasurementReminder {
   intervalDays: number | null;
   rrule: string | null;
   anchorDate: string | null;
+  /**
+   * v1.18.1 — optional course-window end (ISO-8601). NULL ⇒ open-ended; a
+   * Coach-suggested time-boxed protocol carries a non-NULL value and the
+   * UI renders an "until <date>" line.
+   */
+  endsOn: string | null;
+  /**
+   * v1.18.1 — provenance: `VORSORGE` (user-created) or `COACH` (minted from
+   * a Coach cadence suggestion). The UI labels the source and translates a
+   * COACH row's `label` (which carries an i18n key, not free text).
+   */
+  origin: "VORSORGE" | "COACH";
   notifyHour: number;
   location: string | null;
   nextDueAt: string | null;

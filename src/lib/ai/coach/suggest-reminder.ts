@@ -166,7 +166,7 @@ export function parseSuggestReminder(raw: string): SuggestReminderParseResult {
     return { prose: raw, cadence: null, malformed: false };
   }
 
-  const prose = raw.slice(0, openIdx).replace(/\s+$/u, "");
+  const before = raw.slice(0, openIdx);
   const afterOpen = raw.slice(openIdx + OPEN_SENTINEL.length);
   const closeRel = afterOpen.indexOf(CLOSE_SENTINEL);
   // Cap the payload before parsing regardless of whether the close marker
@@ -177,6 +177,16 @@ export function parseSuggestReminder(raw: string): SuggestReminderParseResult {
     bodyRaw.length > SENTINEL_BYTE_CAP
       ? bodyRaw.slice(0, SENTINEL_BYTE_CAP)
       : bodyRaw;
+
+  // Reconstruct the prose as text-before-open + text-after-close so a model
+  // that writes a sentence AFTER the block (or after a malformed one) keeps
+  // it. Only the sentinel block itself is stripped; when the close marker is
+  // missing there is no trailing text to recover.
+  const after =
+    closeRel === -1
+      ? ""
+      : afterOpen.slice(closeRel + CLOSE_SENTINEL.length);
+  const prose = `${before}${after}`.replace(/^\s+|\s+$/gu, "");
 
   const cadenceId = extractCadenceId(body);
   if (cadenceId && isCadenceId(cadenceId)) {

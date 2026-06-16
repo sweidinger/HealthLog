@@ -57,6 +57,14 @@ function makePrisma(opts: {
           return { id: where.id, ...data };
         },
       ),
+      // v1.18.1 — `satisfyReminder` now writes via a conditional `updateMany`
+      // (forward-only TOCTOU close). Record the write + report a hit.
+      updateMany: vi.fn(
+        async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+          updates.push({ id: where.id, data });
+          return { count: 1 };
+        },
+      ),
     },
     measurement: { findFirst: vi.fn(async () => opts.measurement ?? null) },
     labResult: { findFirst: vi.fn(async () => opts.lab ?? null) },

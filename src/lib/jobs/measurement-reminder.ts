@@ -86,7 +86,35 @@ export interface MeasurementReminderSummary {
   skippedModuleDisabled: number;
   skippedClientManaged: number;
   skippedNoChannel: number;
+  /** v1.18.1 — expired COACH course-window reminders soft-deleted this tick. */
+  expiredCleaned: number;
   failed: number;
+}
+
+/**
+ * v1.18.1 — soft-delete COACH course-window reminders whose finite window
+ * has elapsed. A Coach-suggested protocol (the ESH/AHA 7-day BP cadence)
+ * carries a non-NULL `endsOn`; once the recurrence engine walks past it the
+ * row's `nextDueAt` is stamped NULL (no future occurrence). Such a row can
+ * never fire again, so it would otherwise linger forever in the Vorsorge
+ * list as a dead "completed course". Tombstone it so the surface stays
+ * clean. Scoped to `origin: COACH` so a user's open-ended VORSORGE row with
+ * a one-shot `endsOn` is never touched without intent.
+ */
+async function cleanupExpiredCoachReminders(
+  prisma: PrismaClient,
+  now: Date,
+): Promise<number> {
+  const result = await prisma.measurementReminder.updateMany({
+    where: {
+      deletedAt: null,
+      origin: "COACH",
+      endsOn: { not: null, lt: now },
+      nextDueAt: null,
+    },
+    data: { deletedAt: now },
+  });
+  return result.count;
 }
 
 function resolveLocale(locale: string | null | undefined): Locale {
@@ -171,8 +199,14 @@ export async function runMeasurementReminderTick(
     skippedModuleDisabled: 0,
     skippedClientManaged: 0,
     skippedNoChannel: 0,
+    expiredCleaned: 0,
     failed: 0,
   };
+
+  // v1.18.1 — sweep expired COACH course-window reminders before scanning
+  // the due set, so a self-expired protocol drops out of the list and the
+  // dispatch loop never re-evaluates a row that can never fire again.
+  summary.expiredCleaned = await cleanupExpiredCoachReminders(prisma, now);
 
   // Bound the scan to reminders that could plausibly fire this tick so Postgres
   // uses `measurement_reminders_user_id_next_due_at_idx` instead of loading the

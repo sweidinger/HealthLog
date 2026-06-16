@@ -10,20 +10,27 @@ import { satisfyReminder } from "../satisfy";
 
 const TZ = "Europe/Berlin";
 
-function makePrisma() {
-  const updates: Array<{ id: string; data: Record<string, unknown> }> = [];
+function makePrisma(updateManyCount = 1) {
+  const updates: Array<{
+    where: Record<string, unknown>;
+    data: Record<string, unknown>;
+  }> = [];
   const prisma = {
     measurementReminder: {
-      update: vi.fn(
+      // v1.18.1 — `satisfyReminder` now writes via a conditional
+      // `updateMany` so the forward-only guard re-asserts at the DB row
+      // (close the cron-vs-worker TOCTOU). `updateManyCount` simulates a
+      // racing writer having already advanced the row (count === 0).
+      updateMany: vi.fn(
         async ({
           where,
           data,
         }: {
-          where: { id: string };
+          where: Record<string, unknown>;
           data: Record<string, unknown>;
         }) => {
-          updates.push({ id: where.id, data });
-          return { id: where.id, ...data };
+          if (updateManyCount > 0) updates.push({ where, data });
+          return { count: updateManyCount };
         },
       ),
     },
@@ -66,6 +73,35 @@ describe("satisfyReminder", () => {
     );
   });
 
+  it("re-asserts the forward-only invariant in the conditional updateMany", async () => {
+    const { prisma } = makePrisma();
+    const at = new Date("2026-06-14T18:00:00Z");
+
+    await satisfyReminder(prisma as never, reminder(), TZ, at);
+
+    const call = prisma.measurementReminder.updateMany.mock
+      .calls[0][0] as unknown as {
+      where: { id: string; OR: unknown[] };
+    };
+    expect(call.where.id).toBe("r1");
+    expect(call.where.OR).toEqual([
+      { lastSatisfiedAt: null },
+      { lastSatisfiedAt: { lt: at } },
+    ]);
+  });
+
+  it("treats a racing-writer updateMany count of 0 as a forward-only no-op", async () => {
+    const { prisma } = makePrisma(0);
+    const at = new Date("2026-06-14T18:00:00Z");
+
+    const result = await satisfyReminder(prisma as never, reminder(), TZ, at);
+
+    // The in-memory guard passed (lastSatisfiedAt null) but the DB write
+    // matched no row — a concurrent satisfy already advanced it. No-op.
+    expect(result.satisfied).toBe(false);
+    expect(result.nextDueAt).toBeNull();
+  });
+
   it("advances when the event is strictly after the existing lastSatisfiedAt", async () => {
     const { prisma, updates } = makePrisma();
     const prev = new Date("2026-06-10T08:00:00Z");
@@ -96,7 +132,7 @@ describe("satisfyReminder", () => {
 
     expect(result.satisfied).toBe(false);
     expect(result.nextDueAt).toBeNull();
-    expect(prisma.measurementReminder.update).not.toHaveBeenCalled();
+    expect(prisma.measurementReminder.updateMany).not.toHaveBeenCalled();
     expect(updates).toHaveLength(0);
   });
 
@@ -112,6 +148,6 @@ describe("satisfyReminder", () => {
     );
 
     expect(result.satisfied).toBe(false);
-    expect(prisma.measurementReminder.update).not.toHaveBeenCalled();
+    expect(prisma.measurementReminder.updateMany).not.toHaveBeenCalled();
   });
 });

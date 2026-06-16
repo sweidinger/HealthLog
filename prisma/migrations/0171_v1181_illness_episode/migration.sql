@@ -1,4 +1,4 @@
--- v1.19.0 — illness / condition journal.
+-- v1.18.1 — illness / condition journal.
 --
 -- A CONDITION journal (not a flu log): any illness/condition kept for
 -- oneself, with a retrospective lens. Retrospective + correlated, NEVER a

@@ -123,6 +123,13 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     tKey: "nav.vorsorge",
     icon: Stethoscope,
     tourId: "nav-vorsorge",
+    // v1.18.1 — deliberately NOT module-gated (no `requiresModule`). Unlike
+    // labs / illness / cycle (opt-in clinical-spine verticals born off by
+    // default), preventive-care reminders are a CORE surface available to
+    // every account from birth: a reminder can target core vitals
+    // (weight / BP / pulse) that are never behind a module toggle, and a
+    // free-text "Großes Blutbild" reminder belongs to no module at all.
+    // Gating the entry would orphan reminders the user can still create.
   },
   // v1.18.0 — Workouts and Recovery both left the left-nav: each already
   // surfaces as an Insights tab-strip pill (`/insights/workouts` gated on

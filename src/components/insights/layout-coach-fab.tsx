@@ -157,13 +157,13 @@ export function LayoutCoachFab() {
           // safe-area inset on mobile; plain bottom offset once the
           // bottom-nav hides (`md:hidden` on the nav, so `md:` here —
           // not `lg:` — keeps the FAB from floating mid-air 768-1023px).
-          // v1.18.1 (W-COACH-UI C5) — the corner inset is now symmetric:
-          // the right inset equals the bottom inset at each breakpoint
-          // (`right-6`/`bottom-6` mobile-band, `md:right-8`/`md:bottom-8`
-          // desktop). The FAB was hugging the right edge (`right-6`)
-          // while the desktop bottom sat at the same `6`, but it read as
-          // off-centre against the larger mobile bottom band; pulling it
-          // a touch further left + matching both offsets evens the gap.
+          // v1.18.1 (W-COACH-UI C5) — corner inset: on desktop the right and
+          // bottom insets match (`md:right-8` / `md:bottom-8`) so the FAB
+          // sits symmetrically in the corner. On mobile the right inset is
+          // `right-6` but the bottom is deliberately larger — it clears the
+          // 64 px bottom-nav plus the home-indicator safe-area inset
+          // (`bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)]`), so the
+          // gap is asymmetric there by design, not drift.
           "fixed right-6 z-40 size-14 rounded-full shadow-lg md:right-8",
           "bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] md:bottom-8",
           // Dark glyph on the purple/pink gradient — white sat at

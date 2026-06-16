@@ -33,12 +33,21 @@ export interface HistoryRailProps {
    * default layout (currently the drawer wraps it in an `<aside>`).
    */
   className?: string;
+  /**
+   * v1.18.1 — suppress the rail's own `<h3>` "Conversations" label. The
+   * page surface wraps the rail in an `<aside>` that already renders an
+   * `<h2>` band heading with the same text, so the inline rail must not
+   * stack a second identical heading. Defaults to `false` (the mobile
+   * tray + standalone uses keep the heading).
+   */
+  hideHeading?: boolean;
 }
 
 export function HistoryRail({
   activeId,
   onSelect,
   className,
+  hideHeading = false,
 }: HistoryRailProps) {
   const { t } = useTranslations();
   const { conversations, isLoading } = useCoachConversations();
@@ -78,16 +87,18 @@ export function HistoryRail({
           `SheetTitle`, so screen-reader users hear the section twice
           when the tray is open — that's intentional Radix behaviour
           (the rail still has to stand alone on desktop). */}
-      <h3
-        data-slot="coach-history-rail-heading"
-        className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase"
-      >
-        <MessagesSquare
-          className="text-muted-foreground size-3.5"
-          aria-hidden="true"
-        />
-        {t("insights.coach.historyTitle")}
-      </h3>
+      {!hideHeading && (
+        <h3
+          data-slot="coach-history-rail-heading"
+          className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase"
+        >
+          <MessagesSquare
+            className="text-muted-foreground size-3.5"
+            aria-hidden="true"
+          />
+          {t("insights.coach.historyTitle")}
+        </h3>
+      )}
       <div className="relative">
         <Search
           aria-hidden="true"
