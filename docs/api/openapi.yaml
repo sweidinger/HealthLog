@@ -6375,8 +6375,8 @@ paths:
       tags:
         - Illness
       summary: Soft-delete an illness episode (v1.18.1)
-      description: Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns 204 No Content. Audits as
-        `illness.episode.delete`. Owner-scoped + born-gated.
+      description: "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }`
+        envelope (the cross-module DELETE shape). Audits as `illness.episode.delete`. Owner-scoped + born-gated."
       parameters:
         - in: path
           name: id
@@ -6384,8 +6384,12 @@ paths:
             type: string
           required: true
       responses:
-        "204":
-          description: Soft-deleted (no body).
+        "200":
+          description: Soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteIllnessEpisodeEnvelope"
         "401": *a1
         "404": *a11
         "422": *a3
@@ -6503,7 +6507,7 @@ paths:
                         maxLength: 80
                       severity:
                         type: integer
-                        minimum: 0
+                        minimum: 1
                         maximum: 3
                     required:
                       - key
@@ -6533,6 +6537,59 @@ paths:
                 $ref: "#/components/schemas/UpsertIllnessDayLogCreatedEnvelope"
         "401": *a1
         "404": *a11
+        "422": *a3
+        "429": *a4
+  /api/illness/episodes/{id}/correlation:
+    get:
+      tags:
+        - Illness
+      summary: Per-episode retrospective correlation (v1.18.1)
+      description: "Returns the coverage-gated `Derived<T>` correlation for one episode: the pre-onset anomaly scan, the
+        nadir, per-vital physiological returns, the headline recovery-gap, and any red flags. The findings derive from
+        the user's OWN baseline (median ± MAD) over a contamination-guarded window — never a population constant.
+        `status:\"insufficient\"` carries coverage + a reason. Retrospective ONLY — never a predictor or diagnoser.
+        Owner-scoped + born-gated."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The correlation Derived DTO (ok or insufficient).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IllnessCorrelationEnvelope"
+        "401": *a1
+        "404": *a11
+        "422": *a3
+        "429": *a4
+  /api/illness/insights:
+    get:
+      tags:
+        - Illness
+      summary: Cross-episode retrospective insights (v1.18.1)
+      description: "Returns the cross-episode retrospective summary over a trailing window: 'sick N times · typical recovery
+        gap X days', a recurrence-by-month tally, and a per-type breakdown. The typical gap is withheld (null) below the
+        min-sample floor (asserts nothing thin). Retrospective ONLY — the recurrence figure is a count of the past,
+        never a forecast. Born-gated + owner-scoped."
+      parameters:
+        - in: query
+          name: windowDays
+          schema:
+            type: integer
+            minimum: 30
+            maximum: 1095
+      responses:
+        "200":
+          description: The cross-episode retrospective summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IllnessInsightsEnvelope"
+        "401": *a1
         "422": *a3
         "429": *a4
 components:
@@ -18323,6 +18380,29 @@ components:
         - data
         - error
       additionalProperties: false
+    DeleteIllnessEpisodeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     ResolveIllnessEpisodeEnvelope:
       type: object
       properties:
@@ -18415,7 +18495,8 @@ components:
         - key
         - severity
       additionalProperties: false
-      description: "A symptom link on a day-log: the catalog `key` plus an optional 0–3 severity (`null` = a plain presence link)."
+      description: "A symptom link on a day-log: the catalog `key` plus an optional 1–3 graded severity (`null` = a plain
+        presence link; the link's presence already means 'present', so 0 is not a distinct state)."
     UpsertIllnessDayLogUpdatedEnvelope:
       type: object
       properties:
@@ -18450,6 +18531,295 @@ components:
         - data
         - error
       additionalProperties: false
+    IllnessCorrelationEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessCorrelationResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    IllnessCorrelationResponse:
+      type: object
+      properties:
+        episodeId:
+          type: string
+        status:
+          type: string
+          enum:
+            - ok
+            - insufficient
+        value:
+          anyOf:
+            - $ref: "#/components/schemas/IllnessCorrelationValue"
+            - type: "null"
+        coverage:
+          type: object
+          properties:
+            requiredInputs:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            presentInputs:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            historyDays:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            missing:
+              type: array
+              items:
+                type: string
+          required:
+            - requiredInputs
+            - presentInputs
+            - historyDays
+            - missing
+          additionalProperties: false
+        confidence:
+          anyOf:
+            - type: object
+              properties:
+                score:
+                  type: number
+                band:
+                  type: string
+              required:
+                - score
+                - band
+              additionalProperties: false
+            - type: "null"
+        provenance:
+          type: object
+          properties:
+            inputs:
+              type: array
+              items:
+                type: string
+            source:
+              type: string
+            windowDays:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            computedAt:
+              type: string
+          required:
+            - inputs
+            - source
+            - windowDays
+            - computedAt
+          additionalProperties: false
+        reason:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - episodeId
+        - status
+        - value
+        - coverage
+        - confidence
+        - provenance
+        - reason
+      additionalProperties: false
+      description: Coverage-gated `Derived<T>` wire shape for the per-episode correlation. `status:"insufficient"` carries
+        coverage + a reason and a null `value` — the surface renders 'still learning', never a fabricated number.
+        Server-authoritative; iOS pattern-matches `status`, never recomputes.
+    IllnessCorrelationValue:
+      type: object
+      properties:
+        episodeId:
+          type: string
+        preOnset:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessVitalDeviation"
+        nadir:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessVitalDeviation"
+        returns:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessVitalReturn"
+        recoveryGapDays:
+          anyOf:
+            - type: number
+            - type: "null"
+        feltBetterDay:
+          anyOf:
+            - type: string
+            - type: "null"
+        redFlags:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessRedFlag"
+      required:
+        - episodeId
+        - preOnset
+        - nadir
+        - returns
+        - recoveryGapDays
+        - feltBetterDay
+        - redFlags
+      additionalProperties: false
+      description: "The retrospective correlation findings for one episode: pre-onset anomaly scan, nadir, per-vital
+        physiological returns, the headline recovery-gap (median of per-vital gaps), and any red flags."
+    IllnessVitalDeviation:
+      type: object
+      properties:
+        type:
+          type: string
+        day:
+          type: string
+        value:
+          type: number
+        baselineCenter:
+          type: number
+        deviationSd:
+          type: number
+        direction:
+          type: string
+          enum:
+            - above
+            - below
+        adverse:
+          type: boolean
+      required:
+        - type
+        - day
+        - value
+        - baselineCenter
+        - deviationSd
+        - direction
+        - adverse
+      additionalProperties: false
+      description: "One vital's deviation finding on a day: signed deviation in robust-SD units from the user's OWN baseline
+        (median ± MAD), the direction, and whether the move is illness-adverse for that metric."
+    IllnessVitalReturn:
+      type: object
+      properties:
+        type:
+          type: string
+        returnedDay:
+          anyOf:
+            - type: string
+            - type: "null"
+        gapDays:
+          anyOf:
+            - type: number
+            - type: "null"
+      required:
+        - type
+        - returnedDay
+        - gapDays
+      additionalProperties: false
+      description: "A vital's physiological return: the first day it re-entered its band AND held, and the signed gap (days)
+        from the felt-better marker (positive = the body lagged the feeling)."
+    IllnessRedFlag:
+      type: object
+      properties:
+        type:
+          type: string
+        reason:
+          type: string
+          enum:
+            - sustained_low_spo2
+            - sustained_fever
+        worstValue:
+          type: number
+        days:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - type
+        - reason
+        - worstValue
+        - days
+      additionalProperties: false
+      description: A retrospective red-flag escalation (sustained low SpO2 or sustained fever) against absolute clinical
+        floors. Copy must escalate ('seek care if this recurs'), never reassure.
+    IllnessInsightsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessInsightsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    IllnessInsightsResponse:
+      type: object
+      properties:
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        episodeCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        resolvedCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        typicalRecoveryGapDays:
+          anyOf:
+            - type: number
+            - type: "null"
+        gapSampleSize:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        byMonth:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: integer
+            minimum: -9007199254740991
+            maximum: 9007199254740991
+        byType:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: integer
+            minimum: -9007199254740991
+            maximum: 9007199254740991
+      required:
+        - windowDays
+        - episodeCount
+        - resolvedCount
+        - typicalRecoveryGapDays
+        - gapSampleSize
+        - byMonth
+        - byType
+      additionalProperties: false
+      description: "Cross-episode retrospective summary over the trailing window: episode + resolved counts, the typical
+        (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally,
+        and a per-type breakdown. Retrospective only."
     MedicationScheduleOutput:
       type: object
       properties:

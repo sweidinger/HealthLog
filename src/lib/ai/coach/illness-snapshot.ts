@@ -19,6 +19,27 @@ import { isIllnessEnabled } from "@/lib/illness/gate";
 /** How many recently-resolved episodes to include as history context. */
 const RESOLVED_HISTORY_LIMIT = 6;
 
+/** Max characters of the user free-text label that may enter the prompt. */
+const MAX_LABEL_CHARS = 80;
+
+/**
+ * Cap + strip the user-supplied free-text episode label before it enters the
+ * Coach LLM prompt. The label is the one user-controlled string in this block,
+ * so it is a (self-scoped) prompt-injection surface: collapse control chars +
+ * newlines to spaces so an embedded "ignore previous instructions\n..." can't
+ * reshape the prompt structure, and bound the length.
+ */
+export function sanitizeLabel(label: string): string {
+  // Replace every C0/C1 control char (incl. newlines) with a space, collapse
+  // runs of whitespace, trim, then bound the length.
+  let out = "";
+  for (const ch of label) {
+    const code = ch.codePointAt(0) ?? 0;
+    out += code < 0x20 || (code >= 0x7f && code <= 0x9f) ? " " : ch;
+  }
+  return out.replace(/\s+/g, " ").trim().slice(0, MAX_LABEL_CHARS);
+}
+
 export interface CoachIllnessBlock {
   /** True when ≥ 1 episode is active right now (the Rest Mode flag). */
   restMode: boolean;
@@ -68,13 +89,13 @@ export async function buildIllnessSnapshotBlock(
   return {
     restMode: activeRows.length > 0,
     active: activeRows.map((e) => ({
-      label: e.label,
+      label: sanitizeLabel(e.label),
       type: e.type,
       lifecycle: e.lifecycle,
       onsetAt: e.onsetAt.toISOString(),
     })),
     recentResolved: resolvedRows.map((e) => ({
-      label: e.label,
+      label: sanitizeLabel(e.label),
       type: e.type,
       onsetAt: e.onsetAt.toISOString(),
       // `resolvedAt` is non-null by the query filter above.
