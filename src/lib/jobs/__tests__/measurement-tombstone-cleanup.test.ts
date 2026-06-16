@@ -48,8 +48,10 @@ describe("cleanupExpiredMeasurementTombstones", () => {
 });
 
 describe("reminder-worker — measurement-tombstone-cleanup schedule", () => {
+  // v1.18.1 — the cleanup wiring moved out of the 2143-LOC reminder-worker
+  // boot file into the maintenance registrar. The dead-queue guard follows it.
   const source = readFileSync(
-    join(__dirname, "..", "reminder-worker.ts"),
+    join(__dirname, "..", "reminder", "register-maintenance.ts"),
     "utf8",
   );
 

@@ -14,16 +14,37 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
+// v1.18.1 — the queue wiring moved out of the 2143-LOC reminder-worker boot
+// file into domain registrars. Stress + Strain live in the status registrar;
+// the dense intra-day retention queue (and the nightly fold onto the
+// drain-cumulative tick) lives in the rollup registrar. Concatenate both so the
+// dead-queue guard follows the wiring into each.
+const STATUS_REGISTRAR_PATH = join(
+  __dirname,
+  "..",
+  "reminder",
+  "register-status.ts",
+);
+const ROLLUP_REGISTRAR_PATH = join(
+  __dirname,
+  "..",
+  "reminder",
+  "register-rollup.ts",
+);
+const source =
+  readFileSync(STATUS_REGISTRAR_PATH, "utf8") +
+  readFileSync(ROLLUP_REGISTRAR_PATH, "utf8");
 
 const DENSE_RETENTION_PATH = join(__dirname, "..", "dense-intraday-retention.ts");
 const denseRetentionSource = readFileSync(DENSE_RETENTION_PATH, "utf8");
 
 function allQueuesBlock(): string {
-  const m = source.match(/const allQueues\s*=\s*\[([\s\S]*?)\];/);
-  expect(m).not.toBeNull();
-  return m![1];
+  // Each registrar owns its own `const allQueues = [...]`; union every block so
+  // a queue registered in either the status or rollup registrar satisfies the
+  // membership assertion.
+  const blocks = [...source.matchAll(/const allQueues\s*=\s*\[([\s\S]*?)\];/g)];
+  expect(blocks.length).toBeGreaterThan(0);
+  return blocks.map((m) => m[1]).join("\n");
 }
 
 describe("reminder-worker — stress-score wiring", () => {

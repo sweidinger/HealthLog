@@ -13,8 +13,16 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
+// v1.18.1 — the intake-slot-dedup wiring + boot discovery moved out of the
+// 2143-LOC reminder-worker boot file into the maintenance registrar. The
+// dead-queue guard follows the wiring there.
+const REGISTRAR_PATH = join(
+  __dirname,
+  "..",
+  "reminder",
+  "register-maintenance.ts",
+);
+const source = readFileSync(REGISTRAR_PATH, "utf8");
 
 describe("reminder-worker — intake-slot-dedup wiring", () => {
   it("imports the queue symbols from the intake-slot-dedup module", () => {
@@ -65,8 +73,11 @@ describe("reminder-worker — intake-slot-dedup wiring", () => {
     // v1.15.20 — the schedules tuple grew an optional send-options slot
     // (retry policy for the insight queues); match on the assignment, not
     // the exact tuple type.
+    // v1.18.1 — `schedules` is now a module-level const in the registrar, so it
+    // closes at column 0 (`\n];`) rather than the monolith's function-body
+    // two-space indent.
     const schedulesMatch = source.match(
-      /const schedules:[^=]*=\s*\[([\s\S]*?)\n  \];/,
+      /const schedules:[^=]*=\s*\[([\s\S]*?)\n\];/,
     );
     expect(schedulesMatch).not.toBeNull();
     expect(schedulesMatch![1]).toMatch(

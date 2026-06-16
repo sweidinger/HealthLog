@@ -12,9 +12,18 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
+// v1.18.1 — the TLS-pin-monitor wiring moved out of the 2143-LOC
+// reminder-worker boot file into the maintenance registrar. The dead-queue
+// guard follows the wiring there (the ops-handlers module is still concatenated
+// for the handler-body `runTlsPinMonitor` assertion).
+const REGISTRAR_PATH = join(
+  __dirname,
+  "..",
+  "reminder",
+  "register-maintenance.ts",
+);
 const workerSource =
-  readFileSync(REMINDER_WORKER_PATH, "utf8") +
+  readFileSync(REGISTRAR_PATH, "utf8") +
   readFileSync(join(__dirname, "..", "reminder", "ops-handlers.ts"), "utf8");
 
 describe("reminder-worker — tls-pin-monitor wiring", () => {

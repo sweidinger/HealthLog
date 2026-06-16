@@ -13,8 +13,11 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
+// v1.18.1 — the coach-memory-refresh wiring moved out of the 2143-LOC
+// reminder-worker boot file into the status registrar. The dead-queue guard
+// follows the wiring there.
+const REGISTRAR_PATH = join(__dirname, "..", "reminder", "register-status.ts");
+const source = readFileSync(REGISTRAR_PATH, "utf8");
 
 function allQueuesBlock(): string {
   const m = source.match(/const allQueues\s*=\s*\[([\s\S]*?)\];/);
