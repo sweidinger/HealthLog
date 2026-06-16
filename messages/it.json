@@ -123,37 +123,6 @@
     "glucoseBelowTarget": "sotto obiettivo",
     "glucoseAboveTarget": "sopra obiettivo",
     "practiceLabel": "Studio",
-    "dialog": {
-      "title": "Referto medico (PDF)",
-      "description": "Imposta il periodo di analisi e (opzionale) il nome dello studio — entrambi compaiono in copertina.",
-      "startLabel": "Dal",
-      "endLabel": "Al",
-      "practiceLabel": "Studio / clinica (opzionale)",
-      "practicePlaceholder": "es. Dr. Müller — Medicina generale",
-      "preset90d": "Ultimi 90 giorni",
-      "preset180d": "Ultimi 6 mesi",
-      "preset365d": "Ultimi 12 mesi",
-      "submit": "Genera PDF",
-      "cancel": "Annulla",
-      "errorEndBeforeStart": "La data di fine non può essere antecedente a quella di inizio.",
-      "errorRangeTooLong": "Il periodo di analisi non può superare i 2 anni.",
-      "errorInvalidDate": "Scegli una data di inizio e di fine valide."
-    },
-    "sections": {
-      "title": "Seleziona contenuti",
-      "bp": "Pressione arteriosa",
-      "weight": "Peso",
-      "pulse": "Pulsazioni a riposo",
-      "bmi": "Indice di massa corporea (BMI)",
-      "mood": "Umore",
-      "moodSensitive": "Sensibile — disattivato per default.",
-      "compliance": "Aderenza ai farmaci",
-      "sleep": "Durata del sonno",
-      "cycle": "Ciclo mestruale",
-      "empty": "Nessun dato per il periodo selezionato. Il referto manterrà comunque la copertina.",
-      "unavailableHint": "Nessun dato in questo periodo",
-      "labs": "Risultati degli esami"
-    },
     "insurer": "Assicurazione sanitaria",
     "insuranceNumber": "N. assicurato",
     "summaryTitle": "Riepilogo clinico",
@@ -1640,17 +1609,7 @@
         "copyToken": "Copia token",
         "mintedHint": "Copia questo token ora — viene mostrato una sola volta."
       },
-      "edit": {
-        "planOption": "Modifica piano",
-        "advancedOption": "Impostazioni avanzate"
-      },
       "advanced": {
-        "title": "Impostazioni avanzate",
-        "group": {
-          "data": "Dati",
-          "lifecycle": "Ciclo di vita",
-          "externalApi": "API esterna"
-        },
         "dataPortability": {
           "import": {
             "title": "Importa assunzioni",
@@ -2196,23 +2155,6 @@
       "confidenceLow": "Confidenza bassa",
       "pendingLabel": "Commento di trend in generazione"
     },
-    "range": {
-      "label": "Periodo",
-      "noPriorData": "nessun dato nel periodo precedente",
-      "option": {
-        "7d": "7g",
-        "30d": "30g",
-        "90d": "90g",
-        "1y": "1a"
-      },
-      "priorLabel": {
-        "7d": "vs 7g precedenti",
-        "30d": "vs 30g precedenti",
-        "90d": "vs 90g precedenti",
-        "1y": "vs anno precedente"
-      },
-      "noChange": "nessuna variazione"
-    },
     "correlationRow": {
       "title": "Correlazioni",
       "disclaimer": "Le correlazioni sono osservazionali, non causali — parla con il medico se la pressione è alta.",
@@ -2553,14 +2495,6 @@
       "bmiDescription": "BMI derivato dal tuo peso e dalla tua altezza, con valutazione.",
       "target": {
         "adjustLink": "Modifica l'intervallo obiettivo"
-      },
-      "primary": {
-        "avg30Label": "Media a 30 giorni",
-        "inRangeLabel": "Nell'obiettivo",
-        "inRangeAria": "{pct}% dei giorni registrati nell'obiettivo"
-      },
-      "lastMeasurement": {
-        "label": "Ultima misurazione"
       },
       "explainer": {
         "trigger": "Che cos'è {title}?",
@@ -3649,11 +3583,6 @@
         "title": "Cuore ed energia del giorno",
         "subtitle": "Totali cardiaci ed energetici dell'intera giornata"
       },
-      "scoreLink": {
-        "title": "Punteggio di recupero",
-        "subtitle": "Vedi come si scompone il punteggio notturno",
-        "cta": "Apri"
-      },
       "block": {
         "ansChargeExplainer": "Quanto è carico il tuo sistema nervoso autonomo per la giornata — una lettura di ricarica ricavata dai segnali notturni di cuore e respiro.",
         "dayStrainExplainer": "Il carico cardiovascolare della giornata sulla scala di sforzo del tuo dispositivo. Leggilo in rapporto al tuo recupero, non come obiettivo a sé.",
@@ -3896,18 +3825,7 @@
       },
       "integrations": {
         "title": "Integrazioni",
-        "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto.",
-        "tabs": {
-          "connections": "Connessioni",
-          "channels": "Canali",
-          "sources": "Origini"
-        },
-        "connections": {
-          "description": "Collega Withings, WHOOP, Fitbit, Polar, Oura e Nightscout."
-        },
-        "channels": {
-          "description": "Telegram, ntfy, Web Push, Webhook ed e-mail: le vie attraverso cui vengono recapitate le notifiche."
-        }
+        "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto."
       },
       "notifications": {
         "title": "Notifiche",
@@ -3927,14 +3845,6 @@
         "insights": {
           "title": "Approfondimenti",
           "description": "Ordine della panoramica e delle schede di navigazione."
-        },
-        "medications": {
-          "title": "Farmaci",
-          "description": "Vista elenco e ordine dei farmaci."
-        },
-        "mood": {
-          "title": "Tag dell’umore",
-          "description": "Gruppi, tag e ordine del selettore dell’umore."
         }
       },
       "dashboard": {
@@ -4021,12 +3931,6 @@
         "description": "Scarica i tuoi dati come CSV o backup JSON completo, oppure importa da Apple Salute, JSON o CSV. Il referto medico ora si trova in Cartella sanitaria.",
         "otherOptionsHeading": "Altre opzioni di esportazione",
         "downloadFailed": "Impossibile scaricare l'esportazione. Riprova.",
-        "hero": {
-          "eyebrow": "Visita medica",
-          "valueStatement": "Un referto PDF stampabile per la visita medica — parametri vitali, BMI, classificazione della pressione, aderenza alla terapia e (facoltativamente) l'andamento dell'umore, in poche pagine.",
-          "cta": "Configura e genera il referto",
-          "formatHint": "PDF · pronto per la stampa"
-        },
         "actions": {
           "download": "Scarica"
         },
@@ -4035,10 +3939,6 @@
           "until": "Fino al"
         },
         "cards": {
-          "doctorReport": {
-            "title": "Referto medico",
-            "description": "PDF stampabile per la visita medica — parametri vitali, IMC, classificazione della pressione, aderenza ai farmaci, umore."
-          },
           "measurementsCsv": {
             "title": "Misurazioni",
             "description": "Peso, pressione, polso, glicemia e tutte le altre misurazioni in valori separati da virgola."
@@ -4415,14 +4315,6 @@
         "forgotError": "Impossibile dimenticare questa informazione. Riprova.",
         "clearedToast": "Dimenticate {count} informazioni memorizzate.",
         "clearError": "Impossibile cancellare le informazioni memorizzate. Riprova."
-      },
-      "disableCoach": {
-        "title": "Nascondi il Coach",
-        "description": "Nasconde il pulsante e il pannello del Coach su tutte le pagine.",
-        "toggleAria": "Nascondi il pulsante e il pannello del Coach",
-        "savedHidden": "Coach nascosto.",
-        "savedShown": "Coach visibile.",
-        "saveError": "Impossibile salvare la modifica. Riprova."
       },
       "aboutMe": {
         "title": "Su di me",
@@ -5906,11 +5798,6 @@
         "fiveDaysAgo": "5 giorni fa",
         "sixDaysAgo": "6 giorni fa"
       }
-    },
-    "relativeDay": {
-      "today": "Oggi",
-      "yesterday": "Ieri",
-      "daysAgo": "{count} giorni fa"
     },
     "edit": {
       "openLabel": "Modifica il range obiettivo per {metric}",
