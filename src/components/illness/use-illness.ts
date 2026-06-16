@@ -14,10 +14,13 @@ import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
 
 import type {
+  IllnessCorrelationResponse,
   IllnessDayLogDTO,
   IllnessDayLogInput,
   IllnessEpisodeCreateInput,
   IllnessEpisodeDTO,
+  IllnessEpisodeUpdateInput,
+  IllnessInsightsResponse,
 } from "./types";
 
 /** Newest-first episode list. */
@@ -27,6 +30,43 @@ export function useIllnessEpisodes(includeResolved = true) {
     queryFn: () =>
       apiGet<IllnessEpisodeDTO[]>(
         `/api/illness/episodes?includeResolved=${includeResolved}`,
+      ),
+  });
+}
+
+/** One episode by id. */
+export function useIllnessEpisode(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.illnessEpisode(id ?? "none"),
+    enabled: id !== null,
+    queryFn: () => apiGet<IllnessEpisodeDTO>(`/api/illness/episodes/${id}`),
+  });
+}
+
+/**
+ * The per-episode retrospective correlation (recovery-gap / red-flag /
+ * pre-onset / nadir). Server-authoritative + coverage-gated — the surface
+ * pattern-matches `status` ("insufficient" → "still learning"), never
+ * recomputes.
+ */
+export function useIllnessCorrelation(episodeId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.illnessCorrelation(episodeId ?? "none"),
+    enabled: episodeId !== null,
+    queryFn: () =>
+      apiGet<IllnessCorrelationResponse>(
+        `/api/illness/episodes/${episodeId}/correlation`,
+      ),
+  });
+}
+
+/** The cross-episode retrospective summary over a trailing window in days. */
+export function useIllnessInsights(windowDays = 365) {
+  return useQuery({
+    queryKey: queryKeys.illnessInsights(windowDays),
+    queryFn: () =>
+      apiGet<IllnessInsightsResponse>(
+        `/api/illness/insights?windowDays=${windowDays}`,
       ),
   });
 }
@@ -54,6 +94,16 @@ export function useCreateEpisode() {
   return useMutation({
     mutationFn: (input: IllnessEpisodeCreateInput) =>
       apiPost<IllnessEpisodeDTO>("/api/illness/episodes", input),
+    onSuccess: invalidate,
+  });
+}
+
+/** Edit an episode (partial). */
+export function useUpdateEpisode() {
+  const invalidate = useInvalidateIllness();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: IllnessEpisodeUpdateInput }) =>
+      apiPatch<IllnessEpisodeDTO>(`/api/illness/episodes/${id}`, input),
     onSuccess: invalidate,
   });
 }

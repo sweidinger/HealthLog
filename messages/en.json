@@ -6836,7 +6836,9 @@
       "onset": "Started on",
       "note": "Note",
       "notePlaceholder": "Anything worth remembering (encrypted).",
-      "saveError": "Could not save the episode. Please try again."
+      "saveError": "Could not save the episode. Please try again.",
+      "parent": "Part of",
+      "parentNone": "Not linked"
     },
     "sheet": {
       "title": "Log {date}",
@@ -6848,7 +6850,8 @@
       "noteSet": "Set",
       "notePlaceholder": "How the day felt (encrypted).",
       "severityFor": "Severity for {symptom}",
-      "saveError": "Could not save the day. Please try again."
+      "saveError": "Could not save the day. Please try again.",
+      "day": "Day"
     },
     "impact": {
       "0": "Fully functional",
@@ -6893,6 +6896,35 @@
       "typicalGapLearning": "A few more resolved episodes and a typical recovery gap will appear here.",
       "byMonth": "When you tend to log episodes",
       "none": "No episodes logged in this period."
+    },
+    "loadError": "Could not load this episode.",
+    "backToList": "Back to journal",
+    "detail": {
+      "note": "Note"
+    },
+    "edit": {
+      "title": "Edit episode",
+      "description": "Update this episode's details."
+    },
+    "menu": {
+      "label": "Episode actions"
+    },
+    "deleteConfirm": {
+      "title": "Delete this episode?",
+      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+    },
+    "vital": {
+      "RESTING_HEART_RATE": "Resting heart rate",
+      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RECOVERY_SCORE": "Recovery",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_TEMPERATURE": "Body temperature",
+      "SKIN_TEMPERATURE": "Skin temperature",
+      "RESPIRATORY_RATE": "Respiratory rate",
+      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
+      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "PULSE": "Pulse",
+      "WEIGHT": "Weight"
     }
   },
   "coach": {

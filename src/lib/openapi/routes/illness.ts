@@ -23,6 +23,7 @@ import {
   illnessEpisodeListQuerySchema,
   illnessDayLogInputSchema,
   illnessDayLogQuerySchema,
+  illnessInsightsQuerySchema,
   illnessTypeEnum,
   illnessLifecycleEnum,
 } from "@/lib/validations/illness";
@@ -65,6 +66,12 @@ illnessDayLogQuerySchema.meta({
     "Single-day read query: `date` is a `YYYY-MM-DD` day. Returns the matching day-log or `null` when nothing is logged for that day.",
 });
 
+illnessInsightsQuerySchema.meta({
+  id: "IllnessInsightsQuery",
+  description:
+    "Cross-episode retrospective window query: optional `windowDays` (30–1095, default 365). Retrospective only — the engine summarises past episodes, never forecasts.",
+});
+
 const illnessSymptom = z
   .object({
     key: z.string(),
@@ -73,7 +80,7 @@ const illnessSymptom = z
   .meta({
     id: "IllnessSymptom",
     description:
-      "A symptom link on a day-log: the catalog `key` plus an optional 0–3 severity (`null` = a plain presence link).",
+      "A symptom link on a day-log: the catalog `key` plus an optional 1–3 graded severity (`null` = a plain presence link; the link's presence already means 'present', so 0 is not a distinct state).",
   });
 
 const illnessEpisode = z
@@ -110,6 +117,109 @@ const illnessDayLog = z
     id: "IllnessDayLog",
     description:
       "A stored day-log for an episode. `date` is the `YYYY-MM-DD` it covers. `functionalImpact` (0–3) and `feverC` are plaintext; `symptoms` flattens the link rows; `note` is the decrypted free-text (or null).",
+  });
+
+/* ── P3 retrospective correlation + cross-episode insights DTOs ───────── */
+
+const illnessVitalDeviation = z
+  .object({
+    type: z.string(),
+    day: z.string(),
+    value: z.number(),
+    baselineCenter: z.number(),
+    deviationSd: z.number(),
+    direction: z.enum(["above", "below"]),
+    adverse: z.boolean(),
+  })
+  .meta({
+    id: "IllnessVitalDeviation",
+    description:
+      "One vital's deviation finding on a day: signed deviation in robust-SD units from the user's OWN baseline (median ± MAD), the direction, and whether the move is illness-adverse for that metric.",
+  });
+
+const illnessVitalReturn = z
+  .object({
+    type: z.string(),
+    returnedDay: z.string().nullable(),
+    gapDays: z.number().nullable(),
+  })
+  .meta({
+    id: "IllnessVitalReturn",
+    description:
+      "A vital's physiological return: the first day it re-entered its band AND held, and the signed gap (days) from the felt-better marker (positive = the body lagged the feeling).",
+  });
+
+const illnessRedFlag = z
+  .object({
+    type: z.string(),
+    reason: z.enum(["sustained_low_spo2", "sustained_fever"]),
+    worstValue: z.number(),
+    days: z.number().int(),
+  })
+  .meta({
+    id: "IllnessRedFlag",
+    description:
+      "A retrospective red-flag escalation (sustained low SpO2 or sustained fever) against absolute clinical floors. Copy must escalate ('seek care if this recurs'), never reassure.",
+  });
+
+const illnessCorrelationValue = z
+  .object({
+    episodeId: z.string(),
+    preOnset: z.array(illnessVitalDeviation),
+    nadir: z.array(illnessVitalDeviation),
+    returns: z.array(illnessVitalReturn),
+    recoveryGapDays: z.number().nullable(),
+    feltBetterDay: z.string().nullable(),
+    redFlags: z.array(illnessRedFlag),
+  })
+  .meta({
+    id: "IllnessCorrelationValue",
+    description:
+      "The retrospective correlation findings for one episode: pre-onset anomaly scan, nadir, per-vital physiological returns, the headline recovery-gap (median of per-vital gaps), and any red flags.",
+  });
+
+const illnessCorrelationResponse = z
+  .object({
+    episodeId: z.string(),
+    status: z.enum(["ok", "insufficient"]),
+    value: illnessCorrelationValue.nullable(),
+    coverage: z.object({
+      requiredInputs: z.number().int(),
+      presentInputs: z.number().int(),
+      historyDays: z.number().int(),
+      missing: z.array(z.string()),
+    }),
+    confidence: z
+      .object({ score: z.number(), band: z.string() })
+      .nullable(),
+    provenance: z.object({
+      inputs: z.array(z.string()),
+      source: z.string(),
+      windowDays: z.number().int(),
+      computedAt: z.string(),
+    }),
+    reason: z.string().nullable(),
+  })
+  .meta({
+    id: "IllnessCorrelationResponse",
+    description:
+      "Coverage-gated `Derived<T>` wire shape for the per-episode correlation. `status:\"insufficient\"` carries coverage + a reason and a null `value` — the surface renders 'still learning', never a fabricated number. Server-authoritative; iOS pattern-matches `status`, never recomputes.",
+  });
+
+const illnessInsightsResponse = z
+  .object({
+    windowDays: z.number().int(),
+    episodeCount: z.number().int(),
+    resolvedCount: z.number().int(),
+    typicalRecoveryGapDays: z.number().nullable(),
+    gapSampleSize: z.number().int(),
+    byMonth: z.record(z.string(), z.number().int()),
+    byType: z.record(z.string(), z.number().int()),
+  })
+  .meta({
+    id: "IllnessInsightsResponse",
+    description:
+      "Cross-episode retrospective summary over the trailing window: episode + resolved counts, the typical (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally, and a per-type breakdown. Retrospective only.",
   });
 
 const episodeNotFound = {
@@ -221,10 +331,20 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Illness"],
       summary: "Soft-delete an illness episode (v1.18.1)",
       description:
-        "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns 204 No Content. Audits as `illness.episode.delete`. Owner-scoped + born-gated.",
+        "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }` envelope (the cross-module DELETE shape). Audits as `illness.episode.delete`. Owner-scoped + born-gated.",
       requestParams: { path: z.object({ id: z.string() }) },
       responses: {
-        "204": { description: "Soft-deleted (no body)." },
+        "200": {
+          description: "Soft-deleted.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ deleted: z.boolean() }),
+                "DeleteIllnessEpisodeEnvelope",
+              ),
+            },
+          },
+        },
         ...episodeNotFound,
         ...stdResponses,
       },
@@ -322,6 +442,53 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           },
         },
         ...episodeNotFound,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/illness/episodes/{id}/correlation": {
+    get: {
+      tags: ["Illness"],
+      summary: "Per-episode retrospective correlation (v1.18.1)",
+      description:
+        "Returns the coverage-gated `Derived<T>` correlation for one episode: the pre-onset anomaly scan, the nadir, per-vital physiological returns, the headline recovery-gap, and any red flags. The findings derive from the user's OWN baseline (median ± MAD) over a contamination-guarded window — never a population constant. `status:\"insufficient\"` carries coverage + a reason. Retrospective ONLY — never a predictor or diagnoser. Owner-scoped + born-gated.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      responses: {
+        "200": {
+          description: "The correlation Derived DTO (ok or insufficient).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                illnessCorrelationResponse,
+                "IllnessCorrelationEnvelope",
+              ),
+            },
+          },
+        },
+        ...episodeNotFound,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/illness/insights": {
+    get: {
+      tags: ["Illness"],
+      summary: "Cross-episode retrospective insights (v1.18.1)",
+      description:
+        "Returns the cross-episode retrospective summary over a trailing window: 'sick N times · typical recovery gap X days', a recurrence-by-month tally, and a per-type breakdown. The typical gap is withheld (null) below the min-sample floor (asserts nothing thin). Retrospective ONLY — the recurrence figure is a count of the past, never a forecast. Born-gated + owner-scoped.",
+      requestParams: { query: illnessInsightsQuerySchema },
+      responses: {
+        "200": {
+          description: "The cross-episode retrospective summary.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                illnessInsightsResponse,
+                "IllnessInsightsEnvelope",
+              ),
+            },
+          },
+        },
         ...stdResponses,
       },
     },

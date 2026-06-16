@@ -22,8 +22,12 @@ import {
 } from "@/components/ui/select";
 import { useTranslations } from "@/lib/i18n/context";
 
-import { useCreateEpisode } from "./use-illness";
-import type { IllnessLifecycle, IllnessType } from "./types";
+import { useCreateEpisode, useIllnessEpisodes, useUpdateEpisode } from "./use-illness";
+import type {
+  IllnessEpisodeDTO,
+  IllnessLifecycle,
+  IllnessType,
+} from "./types";
 
 const TYPES: IllnessType[] = [
   "INFECTION",
@@ -39,55 +43,95 @@ const LIFECYCLES: IllnessLifecycle[] = [
   "ACUTE",
   "CHRONIC_ONGOING",
   "RECURRING",
+  "FLARE",
 ];
+
+/** Lifecycles that may hang off a parent condition. */
+const PARENTABLE: IllnessLifecycle[] = ["FLARE", "RECURRING"];
+
+const NONE = "__none__";
 
 interface NewEpisodeSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   today: string;
+  /** When set, the sheet edits this episode instead of creating a new one. */
+  editEpisode?: IllnessEpisodeDTO;
 }
 
 export function NewEpisodeSheet({
   open,
   onOpenChange,
   today,
+  editEpisode,
 }: NewEpisodeSheetProps) {
   const { t } = useTranslations();
   const create = useCreateEpisode();
+  const update = useUpdateEpisode();
+  const isEdit = editEpisode !== undefined;
+  const pending = create.isPending || update.isPending;
+  const isError = create.isError || update.isError;
+
+  // Candidate parents: live episodes other than the one being edited.
+  const { data: allEpisodes } = useIllnessEpisodes(true);
+  const parentCandidates = (allEpisodes ?? []).filter(
+    (e) => e.id !== editEpisode?.id,
+  );
 
   const [label, setLabel] = useState("");
   const [type, setType] = useState<IllnessType>("INFECTION");
   const [lifecycle, setLifecycle] = useState<IllnessLifecycle>("ACUTE");
   const [onset, setOnset] = useState(today);
+  const [parentId, setParentId] = useState<string>(NONE);
   const [note, setNote] = useState("");
 
-  // Reset the form each time the sheet opens — adjusted during render keyed
-  // on the open transition (React's recommended alternative to a
+  // Reset / hydrate the form each time the sheet opens — adjusted during
+  // render keyed on the open transition (React's recommended alternative to a
   // setState-in-effect).
   const [wasOpen, setWasOpen] = useState(false);
   if (open && !wasOpen) {
     setWasOpen(true);
-    setLabel("");
-    setType("INFECTION");
-    setLifecycle("ACUTE");
-    setOnset(today);
-    setNote("");
+    setLabel(editEpisode?.label ?? "");
+    setType(editEpisode?.type ?? "INFECTION");
+    setLifecycle(editEpisode?.lifecycle ?? "ACUTE");
+    setOnset(editEpisode ? editEpisode.onsetAt.slice(0, 10) : today);
+    setParentId(editEpisode?.parentConditionId ?? NONE);
+    setNote(editEpisode?.note ?? "");
   } else if (!open && wasOpen) {
     setWasOpen(false);
   }
 
+  const showParent = PARENTABLE.includes(lifecycle);
+
   async function handleSave() {
     if (label.trim() === "") return;
+    const onsetAt = new Date(`${onset}T12:00:00`).toISOString();
+    const parentConditionId = showParent && parentId !== NONE ? parentId : null;
     try {
-      await create.mutateAsync({
-        label: label.trim(),
-        type,
-        lifecycle,
-        // Anchor the date string to local noon so the UTC instant lands on
-        // the intended calendar day regardless of the viewer's offset.
-        onsetAt: new Date(`${onset}T12:00:00`).toISOString(),
-        note: note.trim() === "" ? null : note,
-      });
+      if (isEdit && editEpisode) {
+        await update.mutateAsync({
+          id: editEpisode.id,
+          input: {
+            label: label.trim(),
+            type,
+            lifecycle,
+            onsetAt,
+            parentConditionId,
+            note: note.trim() === "" ? null : note,
+          },
+        });
+      } else {
+        await create.mutateAsync({
+          label: label.trim(),
+          type,
+          lifecycle,
+          // Anchor to local noon so the UTC instant lands on the intended
+          // calendar day regardless of the viewer's offset.
+          onsetAt,
+          parentConditionId,
+          note: note.trim() === "" ? null : note,
+        });
+      }
       onOpenChange(false);
     } catch {
       // Keep the sheet open; the error strip reports it.
@@ -98,17 +142,16 @@ export function NewEpisodeSheet({
     <ResponsiveSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={t("illness.new.title")}
-      description={t("illness.new.description")}
+      title={isEdit ? t("illness.edit.title") : t("illness.new.title")}
+      description={
+        isEdit ? t("illness.edit.description") : t("illness.new.description")
+      }
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             {t("common.cancel")}
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={create.isPending || label.trim() === ""}
-          >
+          <Button onClick={handleSave} disabled={pending || label.trim() === ""}>
             {t("common.save")}
           </Button>
         </>
@@ -161,6 +204,25 @@ export function NewEpisodeSheet({
           </Select>
         </div>
 
+        {showParent ? (
+          <div className="space-y-1.5">
+            <Label>{t("illness.new.parent")}</Label>
+            <Select value={parentId} onValueChange={setParentId}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("illness.new.parentNone")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>{t("illness.new.parentNone")}</SelectItem>
+                {parentCandidates.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
         <div className="space-y-1.5">
           <Label htmlFor="illness-onset">{t("illness.new.onset")}</Label>
           <Input
@@ -185,7 +247,7 @@ export function NewEpisodeSheet({
           />
         </div>
 
-        {create.isError ? (
+        {isError ? (
           <p className="text-destructive text-sm" role="alert">
             {t("illness.new.saveError")}
           </p>

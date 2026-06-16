@@ -6836,7 +6836,9 @@
       "onset": "Begonnen am",
       "note": "Notiz",
       "notePlaceholder": "Was erwähnenswert ist (verschlüsselt).",
-      "saveError": "Die Episode konnte nicht gespeichert werden. Bitte erneut versuchen."
+      "saveError": "Die Episode konnte nicht gespeichert werden. Bitte erneut versuchen.",
+      "parent": "Part of",
+      "parentNone": "Not linked"
     },
     "sheet": {
       "title": "{date} erfassen",
@@ -6848,7 +6850,8 @@
       "noteSet": "Gesetzt",
       "notePlaceholder": "Wie sich der Tag anfühlte (verschlüsselt).",
       "severityFor": "Stärke für {symptom}",
-      "saveError": "Der Tag konnte nicht gespeichert werden. Bitte erneut versuchen."
+      "saveError": "Der Tag konnte nicht gespeichert werden. Bitte erneut versuchen.",
+      "day": "Day"
     },
     "impact": {
       "0": "Voll belastbar",
@@ -6893,6 +6896,35 @@
       "typicalGapLearning": "Noch ein paar abgeschlossene Episoden und hier erscheint eine typische Erholungslücke.",
       "byMonth": "Wann du Episoden erfasst",
       "none": "In diesem Zeitraum keine Episoden erfasst."
+    },
+    "loadError": "Could not load this episode.",
+    "backToList": "Back to journal",
+    "detail": {
+      "note": "Note"
+    },
+    "edit": {
+      "title": "Edit episode",
+      "description": "Update this episode's details."
+    },
+    "menu": {
+      "label": "Episode actions"
+    },
+    "deleteConfirm": {
+      "title": "Delete this episode?",
+      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+    },
+    "vital": {
+      "RESTING_HEART_RATE": "Resting heart rate",
+      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RECOVERY_SCORE": "Recovery",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_TEMPERATURE": "Body temperature",
+      "SKIN_TEMPERATURE": "Skin temperature",
+      "RESPIRATORY_RATE": "Respiratory rate",
+      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
+      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "PULSE": "Pulse",
+      "WEIGHT": "Weight"
     }
   },
   "coach": {

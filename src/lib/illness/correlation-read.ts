@@ -17,13 +17,16 @@
  *
  * Reads are DAY-native (the spread invariant forbids composing a band from a
  * coarser tier's `sd`): the rollup DAY tier when covered, a bounded per-type
- * live-SQL fallback on a coverage miss. The `readDayMeanSeries` helper the
- * baseline engine already exports does exactly this and is reused verbatim, so
- * the rollup-vs-live parity the baseline tests pin carries over for free.
+ * live-SQL fallback on a coverage miss. EVERY per-day key is the USER'S local
+ * day (`dayKeyForUserTz`), never a raw UTC slice — the onset/feltBetter markers
+ * are already keyed in the user's tz, so the vital series must match or a
+ * non-UTC user gets an off-by-one (a 03:00Z reading is local D−1 but UTC D).
+ * Rollup DAY buckets are minted at the UTC midnight of the user-tz day, so
+ * keying their `bucketStart` through `dayKeyForUserTz` is exact.
  */
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { readDayMeanSeries } from "@/lib/insights/derived/baseline";
+import { readBestGranularityRollups } from "@/lib/rollups/measurement-read-wmy";
 import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
 import { dayKeyForUserTz } from "@/lib/measurements/consolidation-tz";
 import { resolveUserTimezone } from "@/lib/measurements/consolidation-base";
@@ -33,6 +36,7 @@ import {
   ILLNESS_SCAN_TYPES,
   PRE_ONSET_LOOKBACK_DAYS,
   computeIllnessCorrelation,
+  type DayLogFeverPoint,
   type IllnessCorrelationValue,
   type VitalSeries,
 } from "./correlation";
@@ -45,6 +49,12 @@ export interface EpisodeForCorrelation {
   onsetAt: Date;
   resolvedAt: Date | null;
   lifecycle: string;
+}
+
+/** A windowed per-day read: mean + max per local day, with provenance. */
+interface WindowRead {
+  points: { day: string; mean: number; max: number }[];
+  source: "DAY" | "live" | "none";
 }
 
 /**
@@ -82,13 +92,12 @@ export async function computeEpisodeCorrelation(
   let anyLive = false;
   let anyDay = false;
 
-  // We attempt every scan type. The read helper reuses the baseline engine's
-  // rollup-first path (live fallback on a coverage miss); an untracked vital
-  // returns empty points and is dropped below. Each read is a single windowed
-  // query, so attempting all types is bounded.
+  // We attempt every scan type. An untracked vital returns empty points and
+  // is dropped below. Each read is a single windowed query, so attempting all
+  // types is bounded.
   for (const type of ILLNESS_SCAN_TYPES) {
-    const baseline = await readWindowMeans(userId, type, baselineStart, baselineEnd, coverage, now);
-    const episodeWin = await readWindowMeans(userId, type, preOnsetStart, end, coverage, now);
+    const baseline = await readWindowMeans(userId, type, baselineStart, baselineEnd, coverage, tz, now);
+    const episodeWin = await readWindowMeans(userId, type, preOnsetStart, end, coverage, tz, now);
     if (baseline.points.length === 0 && episodeWin.points.length === 0) continue;
     if (baseline.source === "live" || episodeWin.source === "live") anyLive = true;
     if (baseline.source === "DAY" || episodeWin.source === "DAY") anyDay = true;
@@ -96,8 +105,16 @@ export async function computeEpisodeCorrelation(
       type,
       baselineDays: baseline.points.map((p) => ({ day: p.day, mean: p.mean })),
       episodeDays: episodeWin.points.map((p) => ({ day: p.day, mean: p.mean })),
+      // Per-day max over the episode window — the fever red-flag prefers it so
+      // an evening spike averaged toward normal in the daily mean is not masked.
+      episodeDayMax: episodeWin.points.map((p) => ({ day: p.day, mean: p.max })),
     });
   }
+
+  // Union the canonical journaling-fever path: the illness day-log `feverC`
+  // series over the episode window. A user logging 39.2 °C for days with no
+  // HealthKit thermometer must still escalate. Per-day MAX.
+  const dayLogFever = await readDayLogFever(episode.id, preOnsetStart, end, tz);
 
   const source: "DAY" | "live" | "none" = anyDay
     ? "DAY"
@@ -109,18 +126,18 @@ export async function computeEpisodeCorrelation(
     episodeId: episode.id,
     window: { onsetDay, feltBetterDay, lifecycle: episode.lifecycle },
     series,
+    dayLogFever,
     source,
     now,
   });
 }
 
 /**
- * Per-day means for `(userId, type)` over an explicit [from, to) window.
- * Reuses the baseline engine's `readDayMeanSeries` (DAY-native rollup with a
- * live fallback) for the whole-window read, then trims to the window so the
- * baseline and episode windows can share the one cached read path while
- * keeping their seams exact. The trim is on the local day key so the
- * contamination guard holds in the user's timezone.
+ * Per-day mean + max for `(userId, type)` over an explicit [from, to) window,
+ * keyed by the USER'S local day. The DAY rollup serves the trailing
+ * (`to ≈ now`) case; otherwise a bounded raw read groups per local day. The
+ * tz-keying is what keeps the contamination-guard seam and the onset/felt-
+ * better markers in the same calendar for a non-UTC user.
  */
 async function readWindowMeans(
   userId: string,
@@ -128,41 +145,89 @@ async function readWindowMeans(
   from: Date,
   to: Date,
   coverage: Awaited<ReturnType<typeof probeRollupCoverage>>,
+  tz: string,
   now: Date,
-): Promise<{ points: { day: string; mean: number }[]; source: "DAY" | "live" | "none" }> {
-  // The baseline helper reads a trailing window ending at `now`. We need an
-  // arbitrary [from, to) window, so read directly here: DAY rollup first via
-  // the helper for the trailing case, else a bounded raw read. To keep the
-  // seam exact we always do the bounded raw per-day grouping for the bounded
-  // window (a single indexed query), and only use the helper's rollup path
-  // when `to` is effectively `now` (the common active-episode case).
+): Promise<WindowRead> {
   const toIsNow = Math.abs(to.getTime() - now.getTime()) < MS_PER_DAY;
-  if (toIsNow) {
-    const windowDays = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / MS_PER_DAY));
-    const resolved = await readDayMeanSeries(userId, type, windowDays, now, coverage);
-    const fromKey = from.toISOString().slice(0, 10);
-    return {
-      points: resolved.points.filter((p) => p.day >= fromKey),
-      source: resolved.source === "DAY" ? "DAY" : resolved.source === "none" ? "none" : "live",
-    };
+
+  if (toIsNow && coverage.get(type) === true) {
+    const windowDays = Math.max(
+      1,
+      Math.ceil((to.getTime() - from.getTime()) / MS_PER_DAY),
+    );
+    const resolved = await readBestGranularityRollups(userId, type, windowDays);
+    if (resolved && resolved.granularity === "DAY" && resolved.rows.length > 0) {
+      const fromKey = dayKeyForUserTz(from, tz);
+      // DAY buckets are minted at the UTC midnight of the user-tz day, so
+      // keying `bucketStart` through the user tz is exact.
+      const points = resolved.rows
+        .map((row) => ({
+          day: dayKeyForUserTz(row.bucketStart, tz),
+          mean: row.mean,
+          max: row.maxValue ?? row.mean,
+        }))
+        .filter((p) => p.day >= fromKey)
+        .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+      if (points.length > 0) return { points, source: "DAY" };
+    }
+    // Coverage said "has buckets" but the window resolved coarser / empty →
+    // fall through to the live read so the series stays DAY-native.
   }
 
+  // Bounded raw fallback — group per the USER'S local day (never a UTC slice).
+  // A trailing window (`to ≈ now`) reads open-ended (gte only) so it stays a
+  // "trailing" read; a bounded window pins `lt` so it can never reach past its
+  // seam (the contamination guard for the baseline window).
+  const measuredAt = toIsNow ? { gte: from } : { gte: from, lt: to };
   const rows = await prisma.measurement.findMany({
-    where: { userId, type, deletedAt: null, measuredAt: { gte: from, lt: to } },
+    where: { userId, type, deletedAt: null, measuredAt },
     orderBy: { measuredAt: "asc" },
     select: { value: true, measuredAt: true },
   });
   if (rows.length === 0) return { points: [], source: "none" };
-  const byDay = new Map<string, { sum: number; count: number }>();
+  const byDay = new Map<string, { sum: number; count: number; max: number }>();
   for (const row of rows) {
-    const day = row.measuredAt.toISOString().slice(0, 10);
-    const acc = byDay.get(day) ?? { sum: 0, count: 0 };
+    const day = dayKeyForUserTz(row.measuredAt, tz);
+    const acc = byDay.get(day) ?? { sum: 0, count: 0, max: -Infinity };
     acc.sum += row.value;
     acc.count += 1;
+    acc.max = Math.max(acc.max, row.value);
     byDay.set(day, acc);
   }
   const points = [...byDay.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([day, acc]) => ({ day, mean: acc.sum / acc.count }));
+    .map(([day, acc]) => ({ day, mean: acc.sum / acc.count, max: acc.max }));
   return { points, source: "live" };
+}
+
+/**
+ * Read the illness day-log `feverC` series over [from, to) as per-day MAX
+ * fever points (keyed by the stored `date`, which is already the user-tz day
+ * string the day-log was logged under). Drops null fevers.
+ */
+async function readDayLogFever(
+  episodeId: string,
+  from: Date,
+  to: Date,
+  tz: string,
+): Promise<DayLogFeverPoint[]> {
+  const fromKey = dayKeyForUserTz(from, tz);
+  const toKey = dayKeyForUserTz(to, tz);
+  const rows = await prisma.illnessDayLog.findMany({
+    where: {
+      episodeId,
+      deletedAt: null,
+      feverC: { not: null },
+      date: { gte: fromKey, lte: toKey },
+    },
+    select: { date: true, feverC: true },
+  });
+  const byDay = new Map<string, number>();
+  for (const row of rows) {
+    if (row.feverC == null) continue;
+    byDay.set(row.date, Math.max(byDay.get(row.date) ?? -Infinity, row.feverC));
+  }
+  return [...byDay.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([day, feverC]) => ({ day, feverC }));
 }

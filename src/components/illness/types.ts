@@ -52,6 +52,7 @@ export interface IllnessEpisodeCreateInput {
   type: IllnessType;
   lifecycle?: IllnessLifecycle;
   onsetAt?: string;
+  parentConditionId?: string | null;
   note?: string | null;
 }
 
@@ -61,4 +62,80 @@ export interface IllnessDayLogInput {
   feverC?: number | null;
   symptoms?: IllnessSymptomSelection[];
   note?: string | null;
+}
+
+export interface IllnessEpisodeUpdateInput {
+  label?: string;
+  type?: IllnessType;
+  lifecycle?: IllnessLifecycle;
+  onsetAt?: string;
+  resolvedAt?: string | null;
+  parentConditionId?: string | null;
+  note?: string | null;
+}
+
+/* ── P3 correlation + retrospective DTOs (server-authoritative) ───────── */
+
+export interface IllnessVitalDeviation {
+  type: string;
+  day: string;
+  value: number;
+  baselineCenter: number;
+  deviationSd: number;
+  direction: "above" | "below";
+  adverse: boolean;
+}
+
+export interface IllnessVitalReturn {
+  type: string;
+  returnedDay: string | null;
+  gapDays: number | null;
+}
+
+export interface IllnessRedFlag {
+  type: string;
+  reason: "sustained_low_spo2" | "sustained_fever";
+  worstValue: number;
+  days: number;
+}
+
+export interface IllnessCorrelationValue {
+  episodeId: string;
+  preOnset: IllnessVitalDeviation[];
+  nadir: IllnessVitalDeviation[];
+  returns: IllnessVitalReturn[];
+  recoveryGapDays: number | null;
+  feltBetterDay: string | null;
+  redFlags: IllnessRedFlag[];
+}
+
+/** The flat `Derived<T>` wire shape the correlation route returns. */
+export interface IllnessCorrelationResponse {
+  episodeId: string;
+  status: "ok" | "insufficient";
+  value: IllnessCorrelationValue | null;
+  coverage: {
+    requiredInputs: number;
+    presentInputs: number;
+    historyDays: number;
+    missing: string[];
+  };
+  confidence: { score: number; band: string } | null;
+  provenance: {
+    inputs: string[];
+    source: string;
+    windowDays: number;
+    computedAt: string;
+  };
+  reason: string | null;
+}
+
+export interface IllnessInsightsResponse {
+  windowDays: number;
+  episodeCount: number;
+  resolvedCount: number;
+  typicalRecoveryGapDays: number | null;
+  gapSampleSize: number;
+  byMonth: Record<string, number>;
+  byType: Record<string, number>;
 }

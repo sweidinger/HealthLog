@@ -6836,7 +6836,9 @@
       "onset": "Początek",
       "note": "Notatka",
       "notePlaceholder": "Cokolwiek wartego zapamiętania (zaszyfrowane).",
-      "saveError": "Nie udało się zapisać epizodu. Spróbuj ponownie."
+      "saveError": "Nie udało się zapisać epizodu. Spróbuj ponownie.",
+      "parent": "Part of",
+      "parentNone": "Not linked"
     },
     "sheet": {
       "title": "Zapisz {date}",
@@ -6848,7 +6850,8 @@
       "noteSet": "Ustawiona",
       "notePlaceholder": "Jak minął dzień (zaszyfrowane).",
       "severityFor": "Nasilenie: {symptom}",
-      "saveError": "Nie udało się zapisać dnia. Spróbuj ponownie."
+      "saveError": "Nie udało się zapisać dnia. Spróbuj ponownie.",
+      "day": "Day"
     },
     "impact": {
       "0": "Pełna sprawność",
@@ -6893,6 +6896,35 @@
       "typicalGapLearning": "Jeszcze kilka zakończonych epizodów i pojawi się tu typowa luka rekonwalescencji.",
       "byMonth": "Kiedy zwykle zapisujesz epizody",
       "none": "Brak epizodów zapisanych w tym okresie."
+    },
+    "loadError": "Could not load this episode.",
+    "backToList": "Back to journal",
+    "detail": {
+      "note": "Note"
+    },
+    "edit": {
+      "title": "Edit episode",
+      "description": "Update this episode's details."
+    },
+    "menu": {
+      "label": "Episode actions"
+    },
+    "deleteConfirm": {
+      "title": "Delete this episode?",
+      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+    },
+    "vital": {
+      "RESTING_HEART_RATE": "Resting heart rate",
+      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RECOVERY_SCORE": "Recovery",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_TEMPERATURE": "Body temperature",
+      "SKIN_TEMPERATURE": "Skin temperature",
+      "RESPIRATORY_RATE": "Respiratory rate",
+      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
+      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "PULSE": "Pulse",
+      "WEIGHT": "Weight"
     }
   },
   "coach": {

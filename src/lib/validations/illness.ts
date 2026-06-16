@@ -57,15 +57,28 @@ export const illnessLifecycleEnum = z.enum([
  * at rest. `parentConditionId` threads a FLARE/RECURRING bout under a
  * parent condition. `onsetAt` defaults to "now" server-side when omitted.
  */
-export const illnessEpisodeCreateSchema = z.object({
-  label: z.string().min(1).max(120),
-  type: illnessTypeEnum,
-  lifecycle: illnessLifecycleEnum.optional().default("ACUTE"),
-  onsetAt: boundedInstant.optional(),
-  resolvedAt: boundedInstant.nullable().optional(),
-  parentConditionId: z.string().min(1).max(40).nullable().optional(),
-  note: z.string().max(2000).nullable().optional(),
-});
+export const illnessEpisodeCreateSchema = z
+  .object({
+    label: z.string().min(1).max(120),
+    type: illnessTypeEnum,
+    lifecycle: illnessLifecycleEnum.optional().default("ACUTE"),
+    onsetAt: boundedInstant.optional(),
+    resolvedAt: boundedInstant.nullable().optional(),
+    parentConditionId: z.string().min(1).max(40).nullable().optional(),
+    note: z.string().max(2000).nullable().optional(),
+  })
+  // An episode can never resolve before it began. `onsetAt` defaults to "now"
+  // server-side when omitted, so the invariant only bites when BOTH instants
+  // are supplied (the inverted-window case).
+  .superRefine((v, ctx) => {
+    if (v.resolvedAt && v.onsetAt && v.resolvedAt < v.onsetAt) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["resolvedAt"],
+        message: "resolvedAt must be on or after onsetAt",
+      });
+    }
+  });
 
 export type IllnessEpisodeCreate = z.infer<typeof illnessEpisodeCreateSchema>;
 
@@ -83,7 +96,19 @@ export const illnessEpisodeUpdateSchema = z
     parentConditionId: z.string().min(1).max(40).nullable().optional(),
     note: z.string().max(2000).nullable().optional(),
   })
-  .strict();
+  .strict()
+  // When BOTH instants are in the same edit body, enforce the window order at
+  // parse time. A partial edit touching only one is validated against the
+  // stored value in the route (it must load the row anyway).
+  .superRefine((v, ctx) => {
+    if (v.resolvedAt && v.onsetAt && v.resolvedAt < v.onsetAt) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["resolvedAt"],
+        message: "resolvedAt must be on or after onsetAt",
+      });
+    }
+  });
 
 export type IllnessEpisodeUpdate = z.infer<typeof illnessEpisodeUpdateSchema>;
 
@@ -120,7 +145,10 @@ export const illnessDayLogInputSchema = z.object({
     .array(
       z.object({
         key: z.string().min(1).max(80),
-        severity: z.number().int().min(0).max(3).optional(),
+        // 1–3 graded intensity (Jackson/WURSS). A link's mere PRESENCE already
+        // means "present"; `null`/omitted = a plain presence link, so 0 is not
+        // a distinct state and the selector offers 1–3 to match this contract.
+        severity: z.number().int().min(1).max(3).optional(),
       }),
     )
     .max(40)

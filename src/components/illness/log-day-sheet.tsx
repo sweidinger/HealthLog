@@ -14,7 +14,7 @@
  * generalised).
  */
 import { useMemo, useState } from "react";
-import { Activity, NotebookPen, Thermometer } from "lucide-react";
+import { Activity, CalendarDays, NotebookPen, Thermometer } from "lucide-react";
 
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
@@ -36,7 +36,14 @@ interface LogDaySheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   episodeId: string;
+  /** The day to seed the picker with (usually today). */
   date: string;
+  /**
+   * Episode onset day (`YYYY-MM-DD`) — the earliest day the picker allows, so
+   * a retrospective journal can backdate a day within the episode window
+   * (a user ill Sat–Sun who opens Monday can still record either day).
+   */
+  onsetDate?: string;
 }
 
 /** Mini toggle chip — the shared selection vocabulary. */
@@ -132,9 +139,23 @@ export function LogDaySheet({
   onOpenChange,
   episodeId,
   date,
+  onsetDate,
 }: LogDaySheetProps) {
   const { t } = useTranslations();
-  const dayLog = useIllnessDayLog(open ? episodeId : null, date);
+
+  // The day being logged — seeded from `date` (today), but the picker lets the
+  // user backdate within [onset, today] for the retrospective journal.
+  const [selectedDate, setSelectedDate] = useState(date);
+  // Re-seed the picker each time the sheet opens (the open transition).
+  const [pickerWasOpen, setPickerWasOpen] = useState(false);
+  if (open && !pickerWasOpen) {
+    setPickerWasOpen(true);
+    setSelectedDate(date);
+  } else if (!open && pickerWasOpen) {
+    setPickerWasOpen(false);
+  }
+
+  const dayLog = useIllnessDayLog(open ? episodeId : null, selectedDate);
   const upsert = useUpsertDayLog(episodeId);
 
   const [symptoms, setSymptoms] = useState<Map<string, number | null>>(
@@ -150,7 +171,7 @@ export function LogDaySheet({
   // `dto === null` (nothing logged) resets to blank.
   const dto = open ? (dayLog.data ?? null) : undefined;
   const formKey = open
-    ? `${episodeId}:${date}:${dayLog.isSuccess ? "loaded" : "loading"}`
+    ? `${episodeId}:${selectedDate}:${dayLog.isSuccess ? "loaded" : "loading"}`
     : null;
   const [lastFormKey, setLastFormKey] = useState<string | null>(null);
   if (open && formKey !== lastFormKey && !dayLog.isLoading) {
@@ -192,7 +213,7 @@ export function LogDaySheet({
 
   async function handleSave() {
     const input: IllnessDayLogInput = {
-      date,
+      date: selectedDate,
       functionalImpact,
       feverC: feverValue,
       symptoms: Array.from(symptoms.entries()).map(([key, severity]) => ({
@@ -220,7 +241,7 @@ export function LogDaySheet({
     <ResponsiveSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={t("illness.sheet.title", { date })}
+      title={t("illness.sheet.title", { date: selectedDate })}
       description={t("illness.sheet.description")}
       footer={
         <>
@@ -234,6 +255,32 @@ export function LogDaySheet({
       }
     >
       <div className="space-y-4">
+        <SheetSection
+          title={t("illness.sheet.day")}
+          icon={<CalendarDays className="h-4 w-4" />}
+          summary={
+            <span className="text-muted-foreground text-xs">{selectedDate}</span>
+          }
+          defaultOpen
+        >
+          <div className="pt-2">
+            <Label htmlFor="illness-log-date" className="sr-only">
+              {t("illness.sheet.day")}
+            </Label>
+            <Input
+              id="illness-log-date"
+              type="date"
+              value={selectedDate}
+              min={onsetDate}
+              max={date}
+              onChange={(e) => {
+                if (e.target.value) setSelectedDate(e.target.value);
+              }}
+              className="max-w-44"
+            />
+          </div>
+        </SheetSection>
+
         <SheetSection
           title={t("illness.sheet.symptoms")}
           icon={<Activity className="h-4 w-4" />}

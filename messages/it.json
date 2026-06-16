@@ -6836,7 +6836,9 @@
       "onset": "Iniziato il",
       "note": "Nota",
       "notePlaceholder": "Qualcosa da ricordare (cifrato).",
-      "saveError": "Impossibile salvare l'episodio. Riprova."
+      "saveError": "Impossibile salvare l'episodio. Riprova.",
+      "parent": "Part of",
+      "parentNone": "Not linked"
     },
     "sheet": {
       "title": "Registra {date}",
@@ -6848,7 +6850,8 @@
       "noteSet": "Impostata",
       "notePlaceholder": "Com'è andata la giornata (cifrato).",
       "severityFor": "Intensità di {symptom}",
-      "saveError": "Impossibile salvare la giornata. Riprova."
+      "saveError": "Impossibile salvare la giornata. Riprova.",
+      "day": "Day"
     },
     "impact": {
       "0": "Pienamente funzionale",
@@ -6893,6 +6896,35 @@
       "typicalGapLearning": "Ancora qualche episodio risolto e qui apparirà un divario di recupero tipico.",
       "byMonth": "Quando tendi a registrare episodi",
       "none": "Nessun episodio registrato in questo periodo."
+    },
+    "loadError": "Could not load this episode.",
+    "backToList": "Back to journal",
+    "detail": {
+      "note": "Note"
+    },
+    "edit": {
+      "title": "Edit episode",
+      "description": "Update this episode's details."
+    },
+    "menu": {
+      "label": "Episode actions"
+    },
+    "deleteConfirm": {
+      "title": "Delete this episode?",
+      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+    },
+    "vital": {
+      "RESTING_HEART_RATE": "Resting heart rate",
+      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RECOVERY_SCORE": "Recovery",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_TEMPERATURE": "Body temperature",
+      "SKIN_TEMPERATURE": "Skin temperature",
+      "RESPIRATORY_RATE": "Respiratory rate",
+      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
+      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "PULSE": "Pulse",
+      "WEIGHT": "Weight"
     }
   },
   "coach": {

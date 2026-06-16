@@ -36,7 +36,13 @@ export const PATCH = apiHandler(
     const { id } = await params;
     const existing = await prisma.illnessEpisode.findUnique({
       where: { id },
-      select: { id: true, userId: true, deletedAt: true, lifecycle: true },
+      select: {
+        id: true,
+        userId: true,
+        deletedAt: true,
+        lifecycle: true,
+        onsetAt: true,
+      },
     });
     if (!existing || existing.userId !== user.id || existing.deletedAt !== null) {
       return apiError("Episode not found", 404);
@@ -62,6 +68,14 @@ export const PATCH = apiHandler(
     const resolvedAt = parsed.data.resolvedAt
       ? new Date(parsed.data.resolvedAt)
       : new Date();
+
+    // An episode can never resolve before it began (the inverted-window guard,
+    // checked against the stored onset since the body only carries resolvedAt).
+    if (resolvedAt < existing.onsetAt) {
+      return apiError("resolvedAt must be on or after onsetAt", 422, {
+        errorCode: "illness.episode.invalid-window",
+      });
+    }
 
     const updated = await prisma.illnessEpisode.update({
       where: { id },

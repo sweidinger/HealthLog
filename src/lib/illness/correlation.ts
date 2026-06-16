@@ -130,6 +130,26 @@ export interface VitalSeries {
   baselineDays: VitalDayPoint[];
   /** Per-day means from `onset − lookback` through `resolvedAt` (or today). */
   episodeDays: VitalDayPoint[];
+  /**
+   * Per-day MAX readings over the episode window, used by the fever red-flag
+   * so an evening spike averaged toward normal in `episodeDays` (which carries
+   * means) is not masked. Optional — when omitted the flag falls back to the
+   * mean series. SpO2 stays mean/min-based (its `worst` is `min`).
+   */
+  episodeDayMax?: VitalDayPoint[];
+}
+
+/**
+ * A user-logged fever reading from the illness day-log (`feverC`), keyed by
+ * the same local day key as the vital series. The fever red-flag unions this
+ * with any passive BODY_TEMPERATURE series so a user logging 39.2 °C for days
+ * with no HealthKit thermometer still escalates. Per-day MAX semantics.
+ */
+export interface DayLogFeverPoint {
+  /** Local day key, `YYYY-MM-DD`. */
+  day: string;
+  /** Logged fever in °C (the day's max when several were logged). */
+  feverC: number;
 }
 
 /** The dates the engine reasons over, all `YYYY-MM-DD` local day keys. */
@@ -147,6 +167,12 @@ export interface IllnessCorrelationInput {
   window: EpisodeWindow;
   /** One entry per vital the user tracks (others omitted by the caller). */
   series: VitalSeries[];
+  /**
+   * Per-day fever readings from the illness day-log (`feverC`). Unioned into
+   * the fever red-flag so the canonical journaling-fever path is visible to
+   * escalation even with no passive BODY_TEMPERATURE rows. Optional.
+   */
+  dayLogFever?: DayLogFeverPoint[];
   /** Provenance source the dominant read resolved against. */
   source: "DAY" | "live" | "none";
   /** Compute time (injected for deterministic tests). */
@@ -330,7 +356,6 @@ export function computeIllnessCorrelation(
   const preOnset: VitalDeviationFinding[] = [];
   const nadir: VitalDeviationFinding[] = [];
   const returns: VitalReturnFinding[] = [];
-  const redFlags: IllnessRedFlag[] = [];
 
   for (const { series, band } of banded) {
     const { type } = series;
@@ -355,38 +380,51 @@ export function computeIllnessCorrelation(
     // 2) Nadir: worst deviation across the active span (onset → end).
     const active = episode.filter((p) => p.day >= window.onsetDay);
     let worstActive: VitalDeviationFinding | null = null;
-    for (const p of active) {
+    // The chronological index of the FIRST notably-deviated active day — the
+    // anchor the recovery search must start AFTER (an early in-band run before
+    // the vital ever deviated is not a "return", it is the run-up).
+    let firstDeviationIndex = -1;
+    active.forEach((p, i) => {
       const f = finding(type, p.day, p.mean, center, spread);
-      if (
-        Math.abs(f.deviationSd) >= NOTABLE_SD &&
-        (worstActive === null ||
-          Math.abs(f.deviationSd) > Math.abs(worstActive.deviationSd))
-      ) {
-        worstActive = f;
+      if (Math.abs(f.deviationSd) >= NOTABLE_SD) {
+        if (firstDeviationIndex === -1) firstDeviationIndex = i;
+        if (
+          worstActive === null ||
+          Math.abs(f.deviationSd) > Math.abs(worstActive.deviationSd)
+        ) {
+          worstActive = f;
+        }
       }
-    }
+    });
     if (worstActive) nadir.push(worstActive);
 
-    // 3) Physiological return: first active day this vital deviated
-    //    notably-adverse, then later re-entered the band and STAYED in for
-    //    RETURN_STABILITY_DAYS. Only meaningful if it actually deviated.
-    const deviatedActive = active.some((p) => {
-      const f = finding(type, p.day, p.mean, center, spread);
-      return Math.abs(f.deviationSd) >= NOTABLE_SD;
-    });
-    if (deviatedActive && window.lifecycle !== "CHRONIC_ONGOING") {
-      const returnedDay = firstStableReturn(active, center, spread);
+    // 3) Physiological return: only meaningful once the vital has actually
+    //    deviated. Anchor the search AFTER the first notable deviation so an
+    //    early in-band run can never be reported as a return BEFORE the
+    //    deviation (which yielded a spurious negative gap). Excluded for
+    //    CHRONIC_ONGOING (no recovered date by design).
+    if (firstDeviationIndex >= 0 && window.lifecycle !== "CHRONIC_ONGOING") {
+      const returnedDay = firstStableReturn(
+        active,
+        center,
+        spread,
+        firstDeviationIndex,
+      );
       const gapDays =
         returnedDay && window.feltBetterDay
           ? dayDiff(window.feltBetterDay, returnedDay)
           : null;
       returns.push({ type, returnedDay, gapDays });
     }
-
-    // Red-flag escalation (clinical floors, retrospective).
-    const flag = detectRedFlag(type, active);
-    if (flag) redFlags.push(flag);
   }
+
+  // Red-flag escalation runs DECOUPLED from the banded loop: it scans the raw
+  // episode days for SpO2 + temperature against ABSOLUTE clinical floors, so a
+  // rock-steady (MAD=0) vital that drops the band filter still escalates — the
+  // safety-critical output must fire for exactly the low-variance population it
+  // matters for. The fever path additionally unions the day-log `feverC`
+  // series so a user journaling fever with no thermometer is still seen.
+  const redFlags = detectRedFlags(input);
 
   // Headline gap = median of the per-vital signed gaps (robust to one vital
   // recovering oddly). Null for CHRONIC_ONGOING / still active / no returns.
@@ -423,20 +461,23 @@ export function computeIllnessCorrelation(
 }
 
 /**
- * First day in `active` (chronological) where the vital is in-band AND stays
- * in-band for the next `RETURN_STABILITY_DAYS` observed days. Null when it
- * never settles. "In-band" = |deviation| < NOTABLE_SD.
+ * First day in `active` (chronological), starting at `fromIndex`, where the
+ * vital is in-band AND stays in-band for the next `RETURN_STABILITY_DAYS`
+ * observed days. Null when it never settles. "In-band" = |deviation| <
+ * NOTABLE_SD. `fromIndex` pins the search to AFTER the first deviation so an
+ * early in-band run (the run-up to the illness) is never mistaken for a return.
  */
 function firstStableReturn(
   active: VitalDayPoint[],
   center: number,
   spread: number,
+  fromIndex: number,
 ): string | null {
   const inBand = active.map((p) => ({
     day: p.day,
     in: Math.abs(deviationSd(p.mean, center, spread)) < NOTABLE_SD,
   }));
-  for (let i = 0; i < inBand.length; i++) {
+  for (let i = Math.max(0, fromIndex); i < inBand.length; i++) {
     if (!inBand[i].in) continue;
     let run = 0;
     for (let j = i; j < inBand.length && inBand[j].in; j++) run++;
@@ -446,22 +487,62 @@ function firstStableReturn(
 }
 
 /**
- * Detect a retrospective red flag: a sustained adverse SpO2 drop or a
- * sustained fever during the active span. Conservative clinical floors;
- * escalation copy lives in the i18n layer.
+ * Detect the retrospective red flags — DECOUPLED from the banded loop and the
+ * own-baseline band entirely. SpO2 and temperature escalate against ABSOLUTE
+ * clinical floors over the RAW episode days (active span), so a rock-steady
+ * (MAD=0) vital whose band was dropped still escalates. The fever path unions
+ * the passive BODY_TEMPERATURE series (per-day max when available) with the
+ * day-log `feverC` series so the canonical journaling-fever path is visible.
+ * Conservative; escalation copy lives in the i18n layer.
  */
-function detectRedFlag(
-  type: MeasurementType,
-  active: VitalDayPoint[],
-): IllnessRedFlag | null {
-  const sorted = [...active].sort(byDay);
-  if (type === "OXYGEN_SATURATION") {
-    return runFlag(sorted, (v) => v <= SPO2_RED_FLAG, "sustained_low_spo2", type, "min");
+function detectRedFlags(input: IllnessCorrelationInput): IllnessRedFlag[] {
+  const { window } = input;
+  const flags: IllnessRedFlag[] = [];
+  const inActive = (p: { day: string }) => p.day >= window.onsetDay;
+
+  // SpO2 — sustained low. Mean series is the floor; use per-day-max only when
+  // it would HELP (SpO2's worst is the min, so means are conservative enough).
+  const spo2 = input.series.find((s) => s.type === "OXYGEN_SATURATION");
+  if (spo2) {
+    const flag = runFlag(
+      spo2.episodeDays.filter(inActive),
+      (v) => v <= SPO2_RED_FLAG,
+      "sustained_low_spo2",
+      "OXYGEN_SATURATION",
+      "min",
+    );
+    if (flag) flags.push(flag);
   }
-  if (type === "BODY_TEMPERATURE") {
-    return runFlag(sorted, (v) => v >= FEVER_RED_FLAG, "sustained_fever", type, "max");
+
+  // Fever — union the passive temperature series (per-day MAX preferred so an
+  // evening spike is not masked by a daily mean) with the day-log feverC.
+  const temp = input.series.find((s) => s.type === "BODY_TEMPERATURE");
+  const tempPoints = temp
+    ? (temp.episodeDayMax ?? temp.episodeDays).filter(inActive)
+    : [];
+  const feverByDay = new Map<string, number>();
+  for (const p of tempPoints) {
+    feverByDay.set(p.day, Math.max(feverByDay.get(p.day) ?? -Infinity, p.mean));
   }
-  return null;
+  for (const p of input.dayLogFever ?? []) {
+    if (!inActive(p)) continue;
+    feverByDay.set(p.day, Math.max(feverByDay.get(p.day) ?? -Infinity, p.feverC));
+  }
+  if (feverByDay.size > 0) {
+    const fevPoints: VitalDayPoint[] = [...feverByDay.entries()].map(
+      ([day, mean]) => ({ day, mean }),
+    );
+    const flag = runFlag(
+      fevPoints,
+      (v) => v >= FEVER_RED_FLAG,
+      "sustained_fever",
+      "BODY_TEMPERATURE",
+      "max",
+    );
+    if (flag) flags.push(flag);
+  }
+
+  return flags;
 }
 
 /** Longest consecutive run matching `predicate`; flag when ≥ RED_FLAG_RUN_DAYS. */
