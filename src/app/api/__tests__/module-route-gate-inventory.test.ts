@@ -74,6 +74,8 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   "src/app/api/sleep",
   "src/app/api/workouts",
   "src/app/api/labs",
+  // v1.18.1 — the user-scoped Biomarker catalog backs the Labs feature.
+  "src/app/api/biomarkers",
   "src/app/api/cycle",
   "src/app/api/gamification",
   // v1.18.0 B3 — the legacy `/api/doctor-report` tree (JSON + server-PDF +
@@ -129,6 +131,14 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   "src/app/api/workouts/batch/route.ts",
   "src/app/api/labs/route.ts",
   "src/app/api/labs/[id]/route.ts",
+  // v1.18.1 — the lab-result delete-Undo restore endpoint and the
+  // user-scoped Biomarker catalog CRUD share the LabResult data-layer
+  // reasoning: the labs module gates the SURFACES (the Labs page), not the
+  // row store. A synced / pre-existing reading and its catalog definition
+  // must survive a disabled module so re-enabling reveals a complete history.
+  "src/app/api/labs/restore/route.ts",
+  "src/app/api/biomarkers/route.ts",
+  "src/app/api/biomarkers/[id]/route.ts",
   // ── INFRA / UI-ONLY ───────────────────────────────────────────────
   // Static FHIR CapabilityStatement — server metadata, no user data.
   "src/app/api/fhir/metadata/route.ts",

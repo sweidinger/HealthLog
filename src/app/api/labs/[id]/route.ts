@@ -11,12 +11,14 @@ import {
 } from "@/lib/api-response";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
+import {
+  type ResolvedBiomarker,
+  serialiseLabResult,
+  serialiseLabResultDetail,
+} from "@/lib/labs/serialise";
 import { decryptNoteFromBytes, encryptNoteToBytes } from "@/lib/labs/store";
 import { annotate } from "@/lib/logging/context";
-import {
-  classifyReferenceRange,
-  updateLabResultSchema,
-} from "@/lib/validations/labs";
+import { updateLabResultSchema } from "@/lib/validations/labs";
 
 /**
  * v1.17.1 — single lab-result resource (`/api/labs/{id}`).
@@ -26,9 +28,35 @@ import {
  * (`data` built field-by-field; an explicit `null` clears `panel` / `note` /
  * a reference bound, an omitted key leaves it untouched). DELETE soft-deletes
  * by stamping `deletedAt`. Cross-user rows surface as 404 (existence sealed).
+ *
+ * v1.18.1 — when the row links a `Biomarker`, the response resolves the
+ * canonical name / unit / range from the catalog (server-authoritative). The
+ * legacy per-row free-text fields stay editable for an unlinked row.
  */
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+const biomarkerSelect = {
+  id: true,
+  name: true,
+  unit: true,
+  lowerBound: true,
+  upperBound: true,
+  panel: true,
+} as const;
+
+function toResolved(
+  bm: {
+    id: string;
+    name: string;
+    unit: string;
+    lowerBound: number | null;
+    upperBound: number | null;
+    panel: string | null;
+  } | null,
+): ResolvedBiomarker | null {
+  return bm ?? null;
+}
 
 export const GET = apiHandler(
   async (_request: NextRequest, { params }: RouteParams) => {
@@ -37,6 +65,7 @@ export const GET = apiHandler(
 
     const row = await prisma.labResult.findFirst({
       where: { id, deletedAt: null },
+      include: { biomarker: { select: biomarkerSelect } },
     });
     if (!row || row.userId !== user.id) {
       return apiError("Lab result not found", 404);
@@ -44,27 +73,13 @@ export const GET = apiHandler(
 
     annotate({ action: { name: "labs.get" }, meta: { labResultId: id } });
 
-    return apiSuccess({
-      id: row.id,
-      panel: row.panel,
-      analyte: row.analyte,
-      value: row.value,
-      unit: row.unit,
-      referenceLow: row.referenceLow,
-      referenceHigh: row.referenceHigh,
-      takenAt: row.takenAt.toISOString(),
-      source: row.source,
-      note: row.noteEncrypted
-        ? decryptNoteFromBytes(row.noteEncrypted)
-        : null,
-      rangeStatus: classifyReferenceRange(
-        row.value,
-        row.referenceLow,
-        row.referenceHigh,
+    return apiSuccess(
+      serialiseLabResultDetail(
+        row,
+        toResolved(row.biomarker),
+        row.noteEncrypted ? decryptNoteFromBytes(row.noteEncrypted) : null,
       ),
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    });
+    );
   },
 );
 
@@ -112,6 +127,8 @@ export const PUT = apiHandler(
 
     // Build `data` field-by-field. `undefined` → leave the column untouched;
     // an explicit `null` on `panel` / `note` / a reference bound clears it.
+    // A reading linked to a catalog marker is edited via VALUE / takenAt /
+    // note here; its name / unit / range stay resolved from the biomarker.
     const data: Record<string, unknown> = {};
     if (d.panel !== undefined) data.panel = d.panel;
     if (d.analyte !== undefined) data.analyte = d.analyte;
@@ -124,7 +141,11 @@ export const PUT = apiHandler(
       data.noteEncrypted = d.note ? encryptNoteToBytes(d.note) : null;
     }
 
-    const updated = await prisma.labResult.update({ where: { id }, data });
+    const updated = await prisma.labResult.update({
+      where: { id },
+      data,
+      include: { biomarker: { select: biomarkerSelect } },
+    });
 
     await auditLog("labResult.update", {
       userId: user.id,
@@ -134,25 +155,9 @@ export const PUT = apiHandler(
 
     annotate({ action: { name: "labs.update" }, meta: { labResultId: id } });
 
-    return apiSuccess({
-      id: updated.id,
-      panel: updated.panel,
-      analyte: updated.analyte,
-      value: updated.value,
-      unit: updated.unit,
-      referenceLow: updated.referenceLow,
-      referenceHigh: updated.referenceHigh,
-      takenAt: updated.takenAt.toISOString(),
-      source: updated.source,
-      hasNote: updated.noteEncrypted !== null,
-      rangeStatus: classifyReferenceRange(
-        updated.value,
-        updated.referenceLow,
-        updated.referenceHigh,
-      ),
-      createdAt: updated.createdAt.toISOString(),
-      updatedAt: updated.updatedAt.toISOString(),
-    });
+    return apiSuccess(
+      serialiseLabResult(updated, toResolved(updated.biomarker)),
+    );
   },
 );
 
@@ -178,7 +183,7 @@ export const DELETE = apiHandler(
     await auditLog("labResult.delete", {
       userId: user.id,
       ipAddress: getClientIp(request),
-      details: { labResultId: id, analyte: existing.analyte },
+      details: { labResultId: id },
     });
 
     annotate({ action: { name: "labs.delete" }, meta: { labResultId: id } });

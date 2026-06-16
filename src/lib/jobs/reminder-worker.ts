@@ -28,6 +28,13 @@ import {
   enqueueBootTimeSleepTimelineBackfill,
   type SleepTimelineBackfillPayload,
 } from "@/lib/jobs/sleep-timeline-backfill";
+import {
+  LAB_BIOMARKER_BACKFILL_QUEUE,
+  LAB_BIOMARKER_BACKFILL_CONCURRENCY,
+  runLabBiomarkerBackfillForUser,
+  enqueueBootTimeLabBiomarkerBackfill,
+  type LabBiomarkerBackfillPayload,
+} from "@/lib/jobs/lab-biomarker-backfill";
 import { reportWorkerError } from "@/lib/jobs/report-worker-error";
 import { markWorkerStarted, recordError } from "@/lib/jobs/worker-status";
 import { setGlobalBoss } from "@/lib/jobs/boss-instance";
@@ -662,6 +669,11 @@ export async function startReminderWorker() {
     // pg-boss never provisions it and the boot enqueue silently never drains
     // (the v1.4.37 dead-queue class).
     SLEEP_TIMELINE_BACKFILL_QUEUE,
+    // v1.18.1 — one-shot backfill that links legacy free-text lab readings to
+    // a user-scoped Biomarker catalog entry (group by `lower(analyte)`). The
+    // queue MUST be registered here or pg-boss never provisions it and the
+    // boot enqueue silently never drains (the v1.4.37 dead-queue class).
+    LAB_BIOMARKER_BACKFILL_QUEUE,
     // v1.17.0 — Nightscout CGM poll sync. Poll-only (no webhook, no OAuth, no
     // backfill queue — the hourly window walks the recent SGV set). The queue
     // MUST be registered here or pg-boss never provisions it and the schedule
@@ -1121,6 +1133,25 @@ export async function startReminderWorker() {
         workerLog(
           "info",
           `[sleep-timeline-backfill] user=${userId} provider=${provider} deleted=${deleted} imported=${imported}`,
+        );
+      }
+    },
+  );
+  // v1.18.1 — one-shot lab-biomarker backfill. The boot enqueue below sends
+  // one job per user holding un-linked free-text lab readings; this handler
+  // groups them by `lower(analyte)`, mints/reuses a Biomarker per group, and
+  // links the rows. Idempotent — a re-run links only what is still un-linked.
+  await boss.work<LabBiomarkerBackfillPayload>(
+    LAB_BIOMARKER_BACKFILL_QUEUE,
+    { localConcurrency: LAB_BIOMARKER_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const { markers, linked } =
+          await runLabBiomarkerBackfillForUser(userId);
+        workerLog(
+          "info",
+          `[lab-biomarker-backfill] user=${userId} markers=${markers} linked=${linked}`,
         );
       }
     },
@@ -1992,6 +2023,33 @@ export async function startReminderWorker() {
     workerLog(
       "error",
       "[sleep-timeline-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.18.1 — fire-and-forget boot discovery for the one-shot lab-biomarker
+  // backfill. Finds every user holding an un-linked live lab reading and
+  // enqueues one job each. Idempotent across reboots: a completed pass links
+  // every reading, dropping the user from the discovery set. Errors come back
+  // through the helper's result value — worker boot never fails on a miss.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeLabBiomarkerBackfill();
+    if (error) {
+      workerLog(
+        "error",
+        `[lab-biomarker-backfill] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[lab-biomarker-backfill] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[lab-biomarker-backfill] boot discovery threw an unexpected error",
       err,
     );
   }

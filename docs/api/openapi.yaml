@@ -5691,6 +5691,12 @@ paths:
         note itself is not echoed).
       parameters:
         - in: query
+          name: biomarkerId
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - in: query
           name: analyte
           schema:
             type: string
@@ -5759,6 +5765,10 @@ paths:
             schema:
               type: object
               properties:
+                biomarkerId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
                 panel:
                   anyOf:
                     - type: string
@@ -5791,9 +5801,7 @@ paths:
                     - type: string
                       const: ""
               required:
-                - analyte
                 - value
-                - unit
                 - takenAt
       responses:
         "201":
@@ -5922,6 +5930,212 @@ paths:
                 $ref: "#/components/schemas/DeleteLabResultResponse"
         "401": *a1
         "404": *a8
+        "422": *a3
+        "429": *a4
+  /api/labs/restore:
+    post:
+      tags:
+        - Labs
+      summary: Restore soft-deleted lab results
+      description: Un-tombstones 1..200 of the caller's soft-deleted lab results in one pass (the delete-Undo affordance). A
+        foreign / live id is a silent no-op. Audits via the wide-event ledger.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreLabResultsRequest"
+      responses:
+        "200":
+          description: Restore count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreLabResultsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/biomarkers:
+    get:
+      tags:
+        - Labs
+      summary: List the caller's biomarker catalog
+      description: Returns every biomarker the caller has defined, name-ordered. Each carries its unit, reference bounds, and
+        decrypted context.
+      responses:
+        "200":
+          description: Biomarker catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListBiomarkersEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Labs
+      summary: Define a biomarker
+      description: Creates a user-scoped biomarker. The optional context note is AES-256-GCM encrypted before write. Audits as
+        `biomarker.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                unit:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                lowerBound:
+                  type: number
+                upperBound:
+                  type: number
+                context:
+                  type: string
+                  maxLength: 2000
+                panel:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 120
+                    - type: string
+                      const: ""
+              required:
+                - name
+                - unit
+      responses:
+        "201":
+          description: Created biomarker.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateBiomarkerResponse"
+        "401": *a1
+        "409": &a10
+          description: A biomarker with this name already exists for the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/biomarkers/{id}:
+    get:
+      tags:
+        - Labs
+      summary: Fetch a single biomarker
+      description: Returns the biomarker including its decrypted `context`. Cross-user rows surface as 404.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Biomarker detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetBiomarkerResponse"
+        "401": *a1
+        "404": &a9
+          description: Biomarker not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    put:
+      tags:
+        - Labs
+      summary: Edit a biomarker
+      description: Partial edit; omitted fields are untouched, an explicit null clears `context` / `panel` / a bound. Audits
+        as `biomarker.update`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                unit:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                lowerBound:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                upperBound:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                context:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+                panel:
+                  anyOf:
+                    - anyOf:
+                        - type: string
+                          minLength: 1
+                          maxLength: 120
+                        - type: string
+                          const: ""
+                    - type: "null"
+      responses:
+        "200":
+          description: Updated biomarker.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateBiomarkerResponse"
+        "401": *a1
+        "404": *a9
+        "409": *a10
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Labs
+      summary: Delete a biomarker
+      description: "Hard-deletes the catalog definition. The `onDelete: SetNull` FK unlinks every reading (they keep their
+        legacy `analyte` / `unit`), so the history survives. Audits as `biomarker.delete`."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Deletion succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteBiomarkerResponse"
+        "401": *a1
+        "404": *a9
         "422": *a3
         "429": *a4
 components:
@@ -7239,6 +7453,17 @@ components:
           type: boolean
       description: Partial edit of a Vorsorge reminder. Omitted fields are left untouched; nextDueAt is recomputed server-side
         after the patch applies.
+    RestoreLabResultsRequest:
+      type: object
+      properties:
+        ids:
+          minItems: 1
+          maxItems: 200
+          type: array
+          items:
+            type: string
+      required:
+        - ids
     MedicationTreatmentClass:
       type: string
       enum:
@@ -17126,6 +17351,10 @@ components:
       properties:
         id:
           type: string
+        biomarkerId:
+          anyOf:
+            - type: string
+            - type: "null"
         panel:
           anyOf:
             - type: string
@@ -17158,6 +17387,7 @@ components:
           type: string
       required:
         - id
+        - biomarkerId
         - panel
         - analyte
         - value
@@ -17171,8 +17401,10 @@ components:
         - createdAt
         - updatedAt
       additionalProperties: false
-      description: A stored lab result. The encrypted note is never echoed in list rows; `hasNote` flags its presence and the
-        single-resource GET returns the decrypted `note`.
+      description: A stored lab result. `biomarkerId` links the user-scoped catalog marker (null for legacy free-text rows);
+        when linked, `analyte` / `unit` / `referenceLow` / `referenceHigh` are RESOLVED server-side from the Biomarker —
+        the client renders them and never recomputes the range. The encrypted note is never echoed in list rows;
+        `hasNote` flags its presence and the single-resource GET returns the decrypted `note`.
     LabReferenceRangeStatus:
       type: string
       enum:
@@ -17222,6 +17454,10 @@ components:
       properties:
         id:
           type: string
+        biomarkerId:
+          anyOf:
+            - type: string
+            - type: "null"
         panel:
           anyOf:
             - type: string
@@ -17256,6 +17492,7 @@ components:
             - type: "null"
       required:
         - id
+        - biomarkerId
         - panel
         - analyte
         - value
@@ -17288,6 +17525,175 @@ components:
         - error
       additionalProperties: false
     DeleteLabResultResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    RestoreLabResultsResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            restored:
+              type: number
+          required:
+            - restored
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListBiomarkersEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ListBiomarkersResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListBiomarkersResponse:
+      type: object
+      properties:
+        biomarkers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Biomarker"
+      required:
+        - biomarkers
+      additionalProperties: false
+    Biomarker:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        unit:
+          type: string
+        lowerBound:
+          anyOf:
+            - type: number
+            - type: "null"
+        upperBound:
+          anyOf:
+            - type: number
+            - type: "null"
+        panel:
+          anyOf:
+            - type: string
+            - type: "null"
+        hasContext:
+          type: boolean
+        context:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - unit
+        - lowerBound
+        - upperBound
+        - panel
+        - hasContext
+        - context
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: A user-scoped catalog marker. `context` is the decrypted per-marker note (or null); `hasContext` flags its
+        presence. A `LabResult` linking this marker resolves its unit + reference bounds from here.
+    CreateBiomarkerResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Biomarker"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetBiomarkerResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Biomarker"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateBiomarkerResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Biomarker"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteBiomarkerResponse:
       type: object
       properties:
         data:
