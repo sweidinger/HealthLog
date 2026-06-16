@@ -3856,7 +3856,7 @@
       },
       "integrations": {
         "title": "Integracje",
-        "description": "Withings, moodLog i inne połączone usługi.",
+        "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
         "tabs": {
           "connections": "Połączenia",
           "channels": "Kanały",
@@ -3878,7 +3878,7 @@
       },
       "layout": {
         "title": "Układ i personalizacja",
-        "description": "Ustal, jak rozłożona jest Twoja aplikacja — jedno miejsce dla pulpitu, analiz, leków i nastroju.",
+        "description": "Ustal, jak rozłożone są pulpit i analizy.",
         "backToHub": "Powrót do Układ i personalizacja",
         "dashboard": {
           "title": "Pulpit",
@@ -3966,7 +3966,7 @@
       },
       "ai": {
         "title": "Analizy AI",
-        "description": "Dostawca, model, klucz."
+        "description": "Dostawca, model i klucz API do analiz, a także Twój kontekst „o mnie”."
       },
       "api": {
         "title": "API & Tokens",
@@ -3978,7 +3978,7 @@
       },
       "export": {
         "title": "Eksport i import",
-        "description": "Pobierz swoje dane zdrowotne jako PDF, CSV lub pełną kopię zapasową JSON albo zaimportuj dane z Apple Health lub pliku JSON.",
+        "description": "Pobierz swoje dane jako CSV lub pełną kopię zapasową JSON albo zaimportuj z Apple Health, JSON lub CSV. Raport dla lekarza znajdziesz teraz w Dokumentacji zdrowotnej.",
         "otherOptionsHeading": "Inne opcje eksportu",
         "downloadFailed": "Nie udało się pobrać eksportu. Spróbuj ponownie.",
         "hero": {
@@ -4101,11 +4101,11 @@
       },
       "medications": {
         "title": "Leki",
-        "description": "Widok listy i kolejność leków."
+        "description": "Widok listy, kolejność i miejsca wstrzyknięć Twoich leków."
       },
       "mood": {
         "title": "Tagi nastroju",
-        "description": "Grupy, tagi i kolejność w wyborze nastroju."
+        "description": "Grupy, tagi i zarchiwizowane tagi w wyborze nastroju."
       },
       "modules": {
         "title": "Moduły",

@@ -3856,7 +3856,7 @@
       },
       "integrations": {
         "title": "Integrationen",
-        "description": "Withings, moodLog und weitere verbundene Dienste.",
+        "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort.",
         "tabs": {
           "connections": "Verbindungen",
           "channels": "Kanäle",
@@ -3878,7 +3878,7 @@
       },
       "layout": {
         "title": "Layout & Personalisierung",
-        "description": "Lege fest, wie deine App aufgebaut ist — ein Ort für Dashboard, Insights, Medikamente und Stimmung.",
+        "description": "Lege fest, wie Dashboard und Insights aufgebaut und angeordnet sind.",
         "backToHub": "Zurück zu Layout & Personalisierung",
         "dashboard": {
           "title": "Dashboard",
@@ -3966,7 +3966,7 @@
       },
       "ai": {
         "title": "KI-Auswertungen",
-        "description": "Provider, Modell, API-Key."
+        "description": "Provider, Modell und API-Key für die Auswertungen — dazu dein „Über mich“-Kontext."
       },
       "api": {
         "title": "API & Tokens",
@@ -3978,7 +3978,7 @@
       },
       "export": {
         "title": "Export & Import",
-        "description": "Lade deine Gesundheitsdaten als PDF, CSV oder vollständiges JSON-Backup herunter — oder importiere Daten aus Apple Health oder einer JSON-Datei.",
+        "description": "Lade deine Daten als CSV oder vollständiges JSON-Backup herunter — oder importiere aus Apple Health, JSON oder CSV. Den Arztbericht findest du jetzt unter Gesundheitsakte.",
         "otherOptionsHeading": "Weitere Export-Optionen",
         "downloadFailed": "Der Export konnte nicht heruntergeladen werden. Bitte versuche es erneut.",
         "hero": {
@@ -4101,11 +4101,11 @@
       },
       "medications": {
         "title": "Medikamente",
-        "description": "Listenansicht und Reihenfolge der Medikamente."
+        "description": "Listenansicht, Reihenfolge und Injektionsstellen deiner Medikamente."
       },
       "mood": {
         "title": "Stimmungs-Tags",
-        "description": "Gruppen, Tags und Reihenfolge der Tag-Auswahl."
+        "description": "Gruppen, Tags und archivierte Tags der Stimmungs-Auswahl."
       },
       "modules": {
         "title": "Module",

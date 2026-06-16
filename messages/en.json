@@ -3856,7 +3856,7 @@
       },
       "integrations": {
         "title": "Integrations",
-        "description": "Withings, moodLog, and other connected services.",
+        "description": "Connected services, delivery channels, and source priority in one place.",
         "tabs": {
           "connections": "Connections",
           "channels": "Channels",
@@ -3878,7 +3878,7 @@
       },
       "layout": {
         "title": "Layout & Personalization",
-        "description": "Arrange how your app is laid out — one home for the dashboard, insights, medications, and mood.",
+        "description": "Arrange how the dashboard and insights are laid out.",
         "backToHub": "Back to Layout & Personalization",
         "dashboard": {
           "title": "Dashboard",
@@ -3966,7 +3966,7 @@
       },
       "ai": {
         "title": "AI Insights",
-        "description": "Provider, model, key."
+        "description": "Provider, model, and API key for the insights — plus your “about me” context."
       },
       "api": {
         "title": "API & Tokens",
@@ -3978,7 +3978,7 @@
       },
       "export": {
         "title": "Export & Import",
-        "description": "Download your health data as PDF, CSV, or a full JSON backup — or bring data in from Apple Health or a JSON file.",
+        "description": "Download your data as CSV or a full JSON backup — or import from Apple Health, JSON, or CSV. The doctor report now lives under Health Record.",
         "otherOptionsHeading": "Other export options",
         "downloadFailed": "Couldn't download the export. Please try again.",
         "hero": {
@@ -4101,11 +4101,11 @@
       },
       "medications": {
         "title": "Medications",
-        "description": "List view and medication order."
+        "description": "List view, order, and injection sites for your medications."
       },
       "mood": {
         "title": "Mood tags",
-        "description": "Groups, tags, and order of the mood picker."
+        "description": "Groups, tags, and archived tags for the mood picker."
       },
       "modules": {
         "title": "Modules",

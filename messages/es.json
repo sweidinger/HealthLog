@@ -3856,7 +3856,7 @@
       },
       "integrations": {
         "title": "Integraciones",
-        "description": "Withings, moodLog y otros servicios conectados.",
+        "description": "Servicios conectados, canales de entrega y prioridad de fuentes en un solo lugar.",
         "tabs": {
           "connections": "Conexiones",
           "channels": "Canales",
@@ -3878,7 +3878,7 @@
       },
       "layout": {
         "title": "Diseño y personalización",
-        "description": "Organiza cómo está dispuesta tu app — un único lugar para el panel, los análisis, los medicamentos y el ánimo.",
+        "description": "Organiza cómo están dispuestos el panel y los análisis.",
         "backToHub": "Volver a Diseño y personalización",
         "dashboard": {
           "title": "Panel",
@@ -3966,7 +3966,7 @@
       },
       "ai": {
         "title": "Análisis con IA",
-        "description": "Proveedor, modelo, clave."
+        "description": "Proveedor, modelo y clave API para los análisis, además de tu contexto «sobre mí»."
       },
       "api": {
         "title": "API & Tokens",
@@ -3978,7 +3978,7 @@
       },
       "export": {
         "title": "Exportar e importar",
-        "description": "Descarga tus datos de salud como PDF, CSV o una copia de seguridad JSON completa, o importa datos desde Apple Health o un archivo JSON.",
+        "description": "Descarga tus datos como CSV o una copia de seguridad JSON completa, o importa desde Apple Health, JSON o CSV. El informe médico ahora está en Historia de salud.",
         "otherOptionsHeading": "Otras opciones de exportación",
         "downloadFailed": "No se pudo descargar la exportación. Inténtalo de nuevo.",
         "hero": {
@@ -4101,11 +4101,11 @@
       },
       "medications": {
         "title": "Medicamentos",
-        "description": "Vista de lista y orden de los medicamentos."
+        "description": "Vista de lista, orden y zonas de inyección de tus medicamentos."
       },
       "mood": {
         "title": "Etiquetas de ánimo",
-        "description": "Grupos, etiquetas y orden del selector de ánimo."
+        "description": "Grupos, etiquetas y etiquetas archivadas del selector de ánimo."
       },
       "modules": {
         "title": "Módulos",

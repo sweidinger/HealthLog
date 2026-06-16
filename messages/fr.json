@@ -3856,7 +3856,7 @@
       },
       "integrations": {
         "title": "Intégrations",
-        "description": "Withings, moodLog et autres services connectés.",
+        "description": "Services connectés, canaux de diffusion et priorité des sources au même endroit.",
         "tabs": {
           "connections": "Connexions",
           "channels": "Canaux",
@@ -3878,7 +3878,7 @@
       },
       "layout": {
         "title": "Disposition et personnalisation",
-        "description": "Organisez la disposition de votre application — un seul endroit pour le tableau de bord, les analyses, les médicaments et l’humeur.",
+        "description": "Organisez la disposition du tableau de bord et des analyses.",
         "backToHub": "Retour à Disposition et personnalisation",
         "dashboard": {
           "title": "Tableau de bord",
@@ -3966,7 +3966,7 @@
       },
       "ai": {
         "title": "Analyses IA",
-        "description": "Fournisseur, modèle, clé."
+        "description": "Fournisseur, modèle et clé API pour les analyses, ainsi que votre contexte « à propos de moi »."
       },
       "api": {
         "title": "API & Tokens",
@@ -3978,7 +3978,7 @@
       },
       "export": {
         "title": "Export et import",
-        "description": "Téléchargez vos données de santé en PDF, CSV ou sauvegarde JSON complète, ou importez des données depuis Apple Santé ou un fichier JSON.",
+        "description": "Téléchargez vos données en CSV ou en sauvegarde JSON complète, ou importez depuis Apple Santé, JSON ou CSV. Le compte rendu médical se trouve désormais dans Dossier de santé.",
         "otherOptionsHeading": "Autres options d'export",
         "downloadFailed": "Échec du téléchargement de l'export. Veuillez réessayer.",
         "hero": {
@@ -4101,11 +4101,11 @@
       },
       "medications": {
         "title": "Médicaments",
-        "description": "Vue de la liste et ordre des médicaments."
+        "description": "Vue liste, ordre et sites d’injection de vos médicaments."
       },
       "mood": {
         "title": "Étiquettes d’humeur",
-        "description": "Groupes, étiquettes et ordre du sélecteur d’humeur."
+        "description": "Groupes, étiquettes et étiquettes archivées du sélecteur d’humeur."
       },
       "modules": {
         "title": "Modules",
