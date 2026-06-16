@@ -157,11 +157,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
   // v1.18.0 (S5) — the full health record (PDF + FHIR R4 + zip package)
-  // earns its own home, lifted out of Export & Import. Always available.
+  // earns its own home, lifted out of Export & Import. Gated on the
+  // `doctorReport` module: when the user turns the doctor-report surface off,
+  // the entry hides (the server-side `/api/export/health-record` gate is the
+  // hard enforcement; this hides the entry-point to match).
   {
     slug: "gesundheitsakte",
     titleKey: "settings.sections.gesundheitsakte.title",
     icon: FileHeart,
+    moduleGate: "doctorReport",
   },
   {
     slug: "export",

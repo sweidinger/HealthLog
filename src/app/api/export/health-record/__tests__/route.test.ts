@@ -132,6 +132,21 @@ describe("POST /api/export/health-record — validation", () => {
     expect(res.status).toBe(422);
   });
 
+  it("returns 403 when the doctorReport module is disabled (B3 gate)", async () => {
+    const { apiError } = await import("@/lib/api-response");
+    vi.mocked(requireModuleEnabled).mockResolvedValue({
+      enabled: false,
+      response: apiError('Module "doctorReport" is not enabled', 403, {
+        errorCode: "module.disabled",
+        module: "doctorReport",
+      }),
+    } as never);
+    const { POST } = await import("../route");
+    const res = await POST(mkReq({ format: "fhir" }));
+    expect(res.status).toBe(403);
+    expect(requireModuleEnabled).toHaveBeenCalledWith("user-1", "doctorReport");
+  });
+
   it("returns 429 when the export rate limit is exhausted", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue({
       allowed: false,

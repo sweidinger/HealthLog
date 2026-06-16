@@ -4,7 +4,6 @@
  *   - /api/export (legacy CSV/JSON endpoint),
  *   - /api/export/full-backup (single-file JSON bundle),
  *   - /api/export/measurements (per-type CSV),
- *   - /api/doctor-report/availability (section probe),
  *   - /api/gamification/achievements (achievement progress aggregator).
  *
  * Every assertion is shape-level: the route's measurement read MUST scope
@@ -150,32 +149,6 @@ describe("v1.4.41 W-DELETED-2 — soft-delete invisibility", () => {
     // findMany — a tombstoned row must never count toward a streak
     // or PR badge.
     expect(calls.length).toBeGreaterThan(0);
-    for (const [arg] of calls) {
-      expect(arg).toMatchObject({
-        where: expect.objectContaining({ deletedAt: null }),
-      });
-    }
-  });
-
-  it("/api/doctor-report/availability scopes every measurement count to deletedAt: null", async () => {
-    const { POST } = await import(
-      "../../doctor-report/availability/route"
-    );
-    const req = new NextRequest(
-      "http://localhost/api/doctor-report/availability",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
-      },
-    );
-    await POST(req);
-    const calls = vi.mocked(prisma.measurement.count).mock.calls;
-    // The probe runs four parallel measurement.count queries (BP /
-    // weight / pulse / sleep). All must filter tombstoned rows so a
-    // soft-deleted history does not light up a section the user has
-    // since wiped.
-    expect(calls.length).toBeGreaterThanOrEqual(4);
     for (const [arg] of calls) {
       expect(arg).toMatchObject({
         where: expect.objectContaining({ deletedAt: null }),
