@@ -7,6 +7,16 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+// v1.18.0 — the route now resolves the `insights` module gate after
+// `requireAuth()`. Mock it default-enabled so the existing assertions
+// ride through; the off → 403 coverage lives in the route-gate inventory
+// test.
+vi.mock("@/lib/modules/gate", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/modules/gate")>()),
+  requireModuleEnabled: vi.fn().mockResolvedValue({ enabled: true }),
+  resolveModuleMap: vi.fn().mockResolvedValue({}),
+}));
+
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 
 vi.mock("@/lib/auth/audit", () => ({
@@ -42,6 +52,7 @@ vi.mock("@/lib/insights/blood-pressure-status", () => ({
 import { GET } from "../route";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -58,6 +69,7 @@ function makeReq(): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.appSettings.findUnique).mockResolvedValue(null as never);
+  vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true });
 });
 
 describe("GET /api/insights/blood-pressure-status — assistant-flag gate", () => {

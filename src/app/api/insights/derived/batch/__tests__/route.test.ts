@@ -66,11 +66,19 @@ vi.mock("@/lib/insights/derived", async (importOriginal) => {
 // every module enabled) and the profile-read count isn't perturbed.
 vi.mock("@/lib/modules/gate", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/modules/gate")>();
-  return { ...actual, resolveModuleMap: vi.fn() };
+  return {
+    ...actual,
+    resolveModuleMap: vi.fn(),
+    // v1.18.0 — the route gates on the `insights` module after
+    // `requireAuth()`. Default-enabled so the existing per-metric
+    // resolveModuleMap assertions ride through; the off → 403 coverage
+    // lives in the route-gate inventory test.
+    requireModuleEnabled: vi.fn().mockResolvedValue({ enabled: true }),
+  };
 });
 
 import { GET } from "../route";
-import { resolveModuleMap } from "@/lib/modules/gate";
+import { resolveModuleMap, requireModuleEnabled } from "@/lib/modules/gate";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
@@ -106,6 +114,7 @@ beforeEach(() => {
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
   vi.mocked(prisma.appSettings.findUnique).mockResolvedValue(null as never);
   vi.mocked(resolveModuleMap).mockResolvedValue({} as never);
+  vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true });
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     dateOfBirth: new Date("1986-01-01"),
     gender: "MALE",

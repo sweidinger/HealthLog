@@ -15,6 +15,9 @@ export const dynamic = "force-dynamic";
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
+
   // Per-domain gate: the mood module must be enabled for this account
   // before the mood AI-status surface is served (mirrors the cycle gate).
   const gate = await requireModuleEnabled(user.id, "mood");

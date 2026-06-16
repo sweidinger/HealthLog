@@ -71,6 +71,9 @@ const derivedQuerySchema = z.object({
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
+
   // v1.15.20 — shared analytics-read budget (generous; caps runaway loops).
   const rl = await checkAnalyticsReadRateLimit(user.id);
   if (!rl.allowed) {
