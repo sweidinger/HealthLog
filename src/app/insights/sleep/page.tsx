@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Moon } from "lucide-react";
+import { Loader2, Moon } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { useModulePageGuard } from "@/hooks/use-module-page-guard";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
@@ -35,8 +36,19 @@ import { SubPageShell } from "@/components/insights/sub-page-shell";
 export default function InsightsSchlafPage() {
   const { t } = useTranslations();
   const { user } = useAuth();
+  const { ready } = useModulePageGuard("sleep");
 
   const { isEmpty } = useInsightsAnalytics("SLEEP_DURATION");
+
+  // v1.18.0 B1 — bounce a direct URL hit on a disabled-sleep account to
+  // /insights instead of half-rendering the sleep surface.
+  if (!ready) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
+      </div>
+    );
+  }
 
   if (isEmpty) {
     return (
