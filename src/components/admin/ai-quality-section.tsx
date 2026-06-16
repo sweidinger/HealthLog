@@ -65,64 +65,56 @@ export function AiQualitySection() {
     },
   });
 
-  if (query.isLoading) {
-    return (
-      <div className="bg-card border-border flex items-center gap-2 rounded-xl border p-4 sm:p-6">
-        <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-        <span className="text-muted-foreground text-sm">
-          {t("admin.aiQuality.loading")}
-        </span>
-      </div>
-    );
-  }
+  const summary = query.data ?? null;
+  const buckets = summary?.buckets ?? [];
+  const hasData = !!summary && buckets.length > 0;
 
-  if (query.isError) {
-    return (
-      <div
-        role="alert"
-        className="text-destructive bg-destructive/10 border-destructive/30 rounded-xl border p-4 text-sm"
-      >
-        {t("admin.aiQuality.loadError")}
-      </div>
-    );
-  }
-
-  const summary = query.data;
-
-  if (!summary || summary.buckets.length === 0) {
-    return (
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
-        <SettingsCardHeader
-          icon={Sparkles}
-          title={t("admin.aiQuality.title")}
-        />
-        <p className="text-muted-foreground mt-3 pl-7 text-sm">
-          {t("admin.aiQuality.empty")}
-        </p>
-      </div>
-    );
-  }
-
+  // v1.18.1 — keep the outer card + header rendered across every query
+  // state (loading / error / empty / data) so the heading baseline stays at
+  // a constant Y-offset and the section never snaps downward when the data
+  // resolves. Mirrors <CoachFeedbackSection> (header outside the
+  // fetch-state branch).
   return (
     <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={Sparkles}
         title={t("admin.aiQuality.title")}
         status={
-          <p className="text-muted-foreground text-xs">
-            {t("admin.aiQuality.windowLabel", {
-              days: String(summary.windowDays),
-            })}
-            {" · "}
-            {t("admin.aiQuality.generatedAtLabel")}{" "}
-            {fmt.dateTime(summary.generatedAt)}
-          </p>
+          hasData && summary ? (
+            <p className="text-muted-foreground text-xs">
+              {t("admin.aiQuality.windowLabel", {
+                days: String(summary.windowDays),
+              })}
+              {" · "}
+              {t("admin.aiQuality.generatedAtLabel")}{" "}
+              {fmt.dateTime(summary.generatedAt)}
+            </p>
+          ) : null
         }
       />
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm" data-slot="ai-quality-table">
-          <thead>
+      {query.isLoading ? (
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+          <span className="text-muted-foreground text-sm">
+            {t("admin.aiQuality.loading")}
+          </span>
+        </div>
+      ) : query.isError ? (
+        <div
+          role="alert"
+          className="text-destructive bg-destructive/10 border-destructive/30 rounded-md border p-3 text-sm"
+        >
+          {t("admin.aiQuality.loadError")}
+        </div>
+      ) : !hasData ? (
+        <p className="text-muted-foreground text-sm">
+          {t("admin.aiQuality.empty")}
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" data-slot="ai-quality-table">
+            <thead>
             <tr className="text-muted-foreground border-border border-b text-left text-xs tracking-wider uppercase">
               <th className="py-2 pr-3 font-medium">
                 {t("admin.aiQuality.colSeverity")}
@@ -148,7 +140,7 @@ export function AiQualitySection() {
             </tr>
           </thead>
           <tbody>
-            {summary.buckets.map((bucket, idx) => {
+            {buckets.map((bucket, idx) => {
               const ratePct = Math.round(bucket.helpfulRate * 100);
               return (
                 <tr
@@ -184,7 +176,8 @@ export function AiQualitySection() {
             })}
           </tbody>
         </table>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

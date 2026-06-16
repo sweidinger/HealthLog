@@ -17,9 +17,9 @@ import { MoodReminderCard } from "@/components/settings/mood-reminder-card";
  *
  * Each reminder-type card is shown ONLY when its module is enabled, read from
  * the resolved `useAuth().user.modules` map (the same `/auth/me` map nav and
- * Insights pills gate off). Mood → `mood`, Coach nudge → `coach`. Low-stock
- * runway maps to medications, which fails open (a missing key reads as
- * enabled) so a stale `/me` payload never blanks a card.
+ * Insights pills gate off). Mood → `mood`, Coach nudge → `coach`, low-stock
+ * runway → `medications` (a toggleable fail-open module since D3, so a missing
+ * key reads as enabled and a stale `/me` payload never blanks a card).
  *
  * v1.18.1 (D5) — the page is intentionally lean: the section blurb, the
  * channels / inbox cross-links, and the embedded Vorsorge (preventive-care)
@@ -35,6 +35,7 @@ export function NotificationsSection() {
   // so a stale `/me` payload without the module map keeps every card visible.
   const moodEnabled = user?.modules?.mood !== false;
   const coachEnabled = user?.modules?.coach !== false;
+  const medsEnabled = user?.modules?.medications !== false;
 
   return (
     <section
@@ -61,11 +62,13 @@ export function NotificationsSection() {
         </div>
       ) : null}
 
-      {/* Medication low-stock runway — medications is a CORE domain, so this
-          is always shown. */}
-      <div id="low-stock" className="scroll-mt-28">
-        <LowStockCard isAuthenticated={isAuthenticated} />
-      </div>
+      {/* Medication low-stock runway — only when the medications module is
+          enabled (toggleable, fail-open, since D3). */}
+      {medsEnabled ? (
+        <div id="low-stock" className="scroll-mt-28">
+          <LowStockCard isAuthenticated={isAuthenticated} />
+        </div>
+      ) : null}
 
       {/* Proactive Coach nudge — only when the coach module is enabled. */}
       {coachEnabled ? (

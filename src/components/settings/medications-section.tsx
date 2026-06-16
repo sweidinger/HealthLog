@@ -19,9 +19,11 @@ import { useMedicationListLayout } from "@/lib/queries/use-medication-list-layou
 
 /**
  * v1.16.10 — the "Medikamente" settings section. v1.18.0 (S5) promoted it
- * from a Layout-hub child to its own standalone nav entry (always shown —
- * medications is a CORE domain) and gathered the medication-specific
- * preferences here. Hosts three blocks:
+ * from a Layout-hub child to its own standalone nav entry and gathered the
+ * medication-specific preferences here. v1.18.1 (D3) made medications a
+ * toggleable fail-open module, so this nav entry hides when the account
+ * turns the module off (the medication data routes stay live). Hosts three
+ * blocks:
  *   1. The list VIEW preference — cards vs table, written optimistically
  *      through the same `PUT /api/medications/layout` the page header
  *      toggle uses (the toggle component is shared).

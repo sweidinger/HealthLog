@@ -3,6 +3,10 @@
 /**
  * v1.4.47 W3 — Coach activation toggle card.
  *
+ * v1.18.0 (S5) — moved out of Settings → AI into the dedicated Coach
+ * section; its `<section>` id namespace is `settings-coach-activate-*`
+ * accordingly. (The file path stays under `ai/` as pre-existing drift.)
+ *
  * v1.18.1 (D7) — polarity flip. The card now reads "Activate Coach" with the
  * Switch ON by default (the Coach is on for everyone unless the user opts
  * out). The persisted state is still the single `User.disableCoach` field —
@@ -137,14 +141,14 @@ export function DisableCoachCard({
 
   return (
     <section
-      aria-labelledby="settings-ai-disable-coach-title"
+      aria-labelledby="settings-coach-activate-title"
       data-testid="settings-disable-coach-card"
       className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={MessageCircleHeart}
         title={t("settings.coach.activate.title")}
-        titleId="settings-ai-disable-coach-title"
+        titleId="settings-coach-activate-title"
         description={t("settings.coach.activate.description")}
         status={
           <Switch

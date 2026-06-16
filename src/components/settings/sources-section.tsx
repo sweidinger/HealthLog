@@ -111,31 +111,16 @@ const DEVICE_TYPE_LABEL_KEYS: Record<DeviceType, string> = {
   unknown: "settings.sections.sources.deviceLabels.unknown",
 };
 
-export interface SourcesSectionProps {
-  /**
-   * `"standalone"` (the default) renders the full page header + the
-   * cross-link back to Integrations — the shape used while Sources had its
-   * own `/settings/sources` route. `"subtab"` (v1.18.0 S3) suppresses both:
-   * Sources now renders inside the Integrations → Sources sub-tab, so the
-   * page header is the parent section's and a cross-link back to the page
-   * that already contains it would be circular.
-   */
-  variant?: "standalone" | "subtab";
-}
-
 /**
  * `<SourcesSection>` — the per-metric source-priority + device-type ladders.
  *
  * v1.18.1 (D4) — Sources is a standalone `/settings/sources` left-side entry
- * again (split back out of the Integrations sub-tabs). The default
- * `variant="standalone"` renders the section header + the cross-link back to
- * Integrationen; `variant="subtab"` is retained for any embedded use and
- * suppresses the header.
+ * again (split back out of the Integrations sub-tabs). It renders its own
+ * section header + the cross-link back to Integrationen.
  */
-export function SourcesSection({ variant = "standalone" }: SourcesSectionProps = {}) {
+export function SourcesSection() {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
-  const isSubtab = variant === "subtab";
 
   const { data: remote, isLoading } = useQuery({
     queryKey: queryKeys.sourcePriority(),
@@ -298,27 +283,25 @@ export function SourcesSection({ variant = "standalone" }: SourcesSectionProps =
       aria-labelledby="settings-section-sources-title"
       className="space-y-6"
     >
-      {isSubtab ? null : (
-        // v1.18.1 (D0/D4) — standalone left-side entry again. The section
-        // blurb is dropped for consistent top alignment; the cross-link back
-        // to Integrationen (where the sources this ladder ranks are added /
-        // removed) stays as a quiet pointer.
-        <header>
-          <h1 id="settings-section-sources-title" className="sr-only">
-            {t("settings.sections.sources.title")}
-          </h1>
-          <p className="text-muted-foreground text-xs">
-            {t("settings.sections.sources.integrationsHint")}{" "}
-            <Link
-              href="/settings/integrations"
-              className="text-primary underline underline-offset-2"
-              data-slot="sources-integrations-cross-link"
-            >
-              {t("settings.sections.sources.integrationsHintLink")}
-            </Link>
-          </p>
-        </header>
-      )}
+      {/* v1.18.1 (D0/D4) — standalone left-side entry again. The section
+          blurb is dropped for consistent top alignment; the cross-link back
+          to Integrationen (where the sources this ladder ranks are added /
+          removed) stays as a quiet pointer. */}
+      <header>
+        <h1 id="settings-section-sources-title" className="sr-only">
+          {t("settings.sections.sources.title")}
+        </h1>
+        <p className="text-muted-foreground text-xs">
+          {t("settings.sections.sources.integrationsHint")}{" "}
+          <Link
+            href="/settings/integrations"
+            className="text-primary underline underline-offset-2"
+            data-slot="sources-integrations-cross-link"
+          >
+            {t("settings.sections.sources.integrationsHintLink")}
+          </Link>
+        </p>
+      </header>
 
       <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
         <SettingsCardHeader
