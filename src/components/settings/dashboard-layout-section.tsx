@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/select";
 import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
 import { useAuth } from "@/hooks/use-auth";
-import { WIDGET_MODULE_BY_ID } from "@/lib/dashboard/snapshot";
+import { WIDGET_MODULE_BY_ID } from "@/lib/dashboard/widget-modules";
 
 /**
  * v1.4.47 W4 — pure reorder helper shared by the arrow buttons and the
