@@ -6716,7 +6716,9 @@
         "electrolytes": "Électrolytes",
         "bloodCount": "Numération sanguine"
       }
-    }
+    },
+    "noteLoadFailed": "La note n’a pas pu être chargée ; elle restera inchangée à l’enregistrement.",
+    "showingLatestOf": "Affichage des {shown} derniers résultats sur {total}"
   },
   "modules": {
     "cycle": {

@@ -83,5 +83,3 @@ export const BIOMARKER_PANELS = [
   "electrolytes",
   "bloodCount",
 ] as const;
-
-export type BiomarkerPanelKey = (typeof BIOMARKER_PANELS)[number];

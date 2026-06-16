@@ -3,12 +3,19 @@
 /**
  * v1.17.1 — minimal inline trend sparkline for an analyte's readings.
  *
- * A dependency-free SVG polyline (the project defers Recharts for tiny
- * inline trends; this matches the doctor-report PDF's vector-polyline
- * approach). Rendered only when an analyte has ≥ 2 readings. Stroke uses
- * the neutral `currentColor` so it inherits the calm muted-foreground tone
- * of its row — no status colour, in keeping with the no-alarming-colour
- * ethos.
+ * A dependency-free 72×20 SVG polyline. This is DELIBERATELY a different
+ * implementation from the detail page's Recharts `<LabBiomarkerChart>`: a
+ * list row renders one tiny, axis-less, tooltip-less, interaction-less trend
+ * per group (dozens on screen at once), where mounting a Recharts
+ * `ResponsiveContainer` each would be heavy and visually noisy. The full
+ * interactive chart — axes, reference band, range tabs, rich tooltip — lives
+ * only on the single-biomarker detail surface. The same split (inline
+ * polyline vs Recharts) is used by the doctor-report PDF. The two are not
+ * drift; do not unify them.
+ *
+ * Rendered only when an analyte has ≥ 2 readings. Stroke uses the neutral
+ * `currentColor` so it inherits the calm muted-foreground tone of its row —
+ * no status colour, in keeping with the no-alarming-colour ethos.
  *
  * `values` are passed oldest → newest.
  */

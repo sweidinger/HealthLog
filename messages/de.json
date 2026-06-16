@@ -6716,7 +6716,9 @@
         "electrolytes": "Elektrolyte",
         "bloodCount": "Blutbild"
       }
-    }
+    },
+    "noteLoadFailed": "Notiz konnte nicht geladen werden; sie bleibt beim Speichern unverändert.",
+    "showingLatestOf": "Die neuesten {shown} von {total} Messwerten werden angezeigt"
   },
   "modules": {
     "cycle": {
