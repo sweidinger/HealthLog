@@ -47,6 +47,7 @@ const rangeStatusEnum = z
 const labResultRow = z
   .object({
     id: z.string(),
+    biomarkerId: z.string().nullable(),
     panel: z.string().nullable(),
     analyte: z.string(),
     value: z.number(),
@@ -63,7 +64,7 @@ const labResultRow = z
   .meta({
     id: "LabResult",
     description:
-      "A stored lab result. The encrypted note is never echoed in list rows; `hasNote` flags its presence and the single-resource GET returns the decrypted `note`.",
+      "A stored lab result. `biomarkerId` links the user-scoped catalog marker (null for legacy free-text rows); when linked, `analyte` / `unit` / `referenceLow` / `referenceHigh` are RESOLVED server-side from the Biomarker — the client renders them and never recomputes the range. The encrypted note is never echoed in list rows; `hasNote` flags its presence and the single-resource GET returns the decrypted `note`.",
   });
 
 const labResultDetail = labResultRow
@@ -197,6 +198,38 @@ export const labsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           },
         },
         ...notFound,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/labs/restore": {
+    post: {
+      tags: ["Labs"],
+      summary: "Restore soft-deleted lab results",
+      description:
+        "Un-tombstones 1..200 of the caller's soft-deleted lab results in one pass (the delete-Undo affordance). A foreign / live id is a silent no-op. Audits via the wide-event ledger.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: z
+              .object({ ids: z.array(z.string()).min(1).max(200) })
+              .meta({ id: "RestoreLabResultsRequest" }),
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Restore count.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ restored: z.number() }),
+                "RestoreLabResultsResponse",
+              ),
+            },
+          },
+        },
         ...stdResponses,
       },
     },
