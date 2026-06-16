@@ -1,0 +1,190 @@
+import { NextRequest } from "next/server";
+
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import {
+  apiError,
+  apiSuccess,
+  getClientIp,
+  returnAllZodIssues,
+  safeJson,
+  sanitiseZodIssues,
+} from "@/lib/api-response";
+import { auditLog } from "@/lib/auth/audit";
+import { prisma } from "@/lib/db";
+import {
+  decryptContextFromBytes,
+  encryptContextToBytes,
+} from "@/lib/labs/biomarker-store";
+import { annotate } from "@/lib/logging/context";
+import { updateBiomarkerSchema } from "@/lib/validations/biomarkers";
+
+/**
+ * v1.18.1 — single Biomarker resource (`/api/biomarkers/{id}`).
+ *
+ * PUT applies a partial edit (`data` built field-by-field; an explicit `null`
+ * clears `context` / `panel` / a bound, an omitted key leaves it untouched).
+ * DELETE hard-deletes the catalog definition — the `onDelete: SetNull` FK on
+ * `LabResult.biomarkerId` unlinks every reading without losing it (the row
+ * keeps its legacy `analyte` / `unit` historical fields). Cross-user rows
+ * surface as 404 (existence sealed).
+ */
+
+type RouteParams = { params: Promise<{ id: string }> };
+
+function serialiseBiomarker(row: {
+  id: string;
+  name: string;
+  unit: string;
+  lowerBound: number | null;
+  upperBound: number | null;
+  panel: string | null;
+  contextEncrypted: Uint8Array | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: row.id,
+    name: row.name,
+    unit: row.unit,
+    lowerBound: row.lowerBound,
+    upperBound: row.upperBound,
+    panel: row.panel,
+    hasContext: row.contextEncrypted !== null,
+    context: row.contextEncrypted
+      ? decryptContextFromBytes(row.contextEncrypted)
+      : null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export const GET = apiHandler(
+  async (_request: NextRequest, { params }: RouteParams) => {
+    const { user } = await requireAuth();
+    const { id } = await params;
+
+    const row = await prisma.biomarker.findFirst({ where: { id } });
+    if (!row || row.userId !== user.id) {
+      return apiError("Biomarker not found", 404);
+    }
+
+    annotate({
+      action: { name: "labs.biomarker.get" },
+      meta: { biomarkerId: id },
+    });
+
+    return apiSuccess(serialiseBiomarker(row));
+  },
+);
+
+export const PUT = apiHandler(
+  async (request: NextRequest, { params }: RouteParams) => {
+    const { user } = await requireAuth();
+    const { id } = await params;
+
+    const existing = await prisma.biomarker.findFirst({ where: { id } });
+    if (!existing || existing.userId !== user.id) {
+      return apiError("Biomarker not found", 404);
+    }
+
+    const { data: body, error: jsonError } = await safeJson(request, {
+      maxBytes: 16 * 1024,
+    });
+    if (jsonError) return jsonError;
+
+    const parsed = updateBiomarkerSchema.safeParse(body);
+    if (!parsed.success) {
+      annotate({
+        action: { name: "labs.biomarker.update.validation-failed" },
+        meta: { issue_count: parsed.error.issues.length, biomarkerId: id },
+      });
+      const auditIssues = sanitiseZodIssues(parsed.error.issues, {
+        stripValuesFromMessage: true,
+      });
+      prisma.auditLog
+        .create({
+          data: {
+            userId: user.id,
+            action: "labs.biomarker.update.validation-failed",
+            details: JSON.stringify({ issues: auditIssues, biomarkerId: id }),
+          },
+        })
+        .catch(() => {
+          /* swallow — the 422 response is the contract */
+        });
+      return returnAllZodIssues(parsed.error, 422);
+    }
+
+    const d = parsed.data;
+
+    // A rename must not collide with another of the caller's markers.
+    if (d.name !== undefined && d.name !== existing.name) {
+      const clash = await prisma.biomarker.findFirst({
+        where: { userId: user.id, name: d.name },
+        select: { id: true },
+      });
+      if (clash) {
+        return apiError("A biomarker with this name already exists", 409);
+      }
+    }
+
+    // Build `data` field-by-field. `undefined` → leave the column untouched;
+    // an explicit `null` on `context` / `panel` / a bound clears it.
+    const data: Record<string, unknown> = {};
+    if (d.name !== undefined) data.name = d.name;
+    if (d.unit !== undefined) data.unit = d.unit;
+    if (d.lowerBound !== undefined) data.lowerBound = d.lowerBound;
+    if (d.upperBound !== undefined) data.upperBound = d.upperBound;
+    if (d.panel !== undefined) data.panel = d.panel;
+    if (d.context !== undefined) {
+      data.contextEncrypted = d.context
+        ? encryptContextToBytes(d.context)
+        : null;
+    }
+
+    const updated = await prisma.biomarker.update({ where: { id }, data });
+
+    await auditLog("biomarker.update", {
+      userId: user.id,
+      ipAddress: getClientIp(request),
+      details: { biomarkerId: id },
+    });
+
+    annotate({
+      action: { name: "labs.biomarker.update" },
+      meta: { biomarkerId: id },
+    });
+
+    return apiSuccess(serialiseBiomarker(updated));
+  },
+);
+
+export const DELETE = apiHandler(
+  async (request: NextRequest, { params }: RouteParams) => {
+    const { user } = await requireAuth();
+    const { id } = await params;
+
+    const existing = await prisma.biomarker.findFirst({ where: { id } });
+    if (!existing || existing.userId !== user.id) {
+      return apiError("Biomarker not found", 404);
+    }
+
+    // Hard delete — the `onDelete: SetNull` FK unlinks every reading rather
+    // than cascading it away. The readings keep their legacy `analyte` /
+    // `unit` so the history survives the catalog edit.
+    await prisma.biomarker.delete({ where: { id } });
+
+    await auditLog("biomarker.delete", {
+      userId: user.id,
+      ipAddress: getClientIp(request),
+      details: { biomarkerId: id },
+    });
+
+    annotate({
+      action: { name: "labs.biomarker.delete" },
+      meta: { biomarkerId: id },
+    });
+
+    return apiSuccess({ deleted: true });
+  },
+);
