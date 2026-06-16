@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.18.1] — 2026-06-16 — dependency security bumps
+
+A maintenance patch that clears two freshly-disclosed transitive advisories. Neither reaches the running app — both live in build and development tooling — but the audit is now clean. No functional changes.
+
+### Security
+
+- Pin `hono` to `≥ 4.12.25` through an override, clearing the CORS-middleware advisory (GHSA-88fw-hqm2-52qc). The package is pulled in only by Prisma's and the shadcn CLI's tooling; the app is Next.js and sets no CORS headers anywhere, so the issue was never reachable at runtime.
+- Pin `picomatch` to `≥ 4.0.4` through an override, clearing the ReDoS advisory (CVE-2026-33671). The package is a transitive build dependency.
+
 ## [1.18.0] — 2026-06-16 — turn off what you don't track, and a settings menu that finally reads as one app
 
 This release makes the app yours to shape. Every optional area — cycle, mood, sleep, glucose, workouts, recovery, labs, achievements, the coach, AI insights and the doctor-report — can be turned off, and when it is, it disappears everywhere at once: out of the navigation, off the dashboard, gone from insights, the coach, your reminders, achievements and the exported report. Your data is kept; turn the area back on and it returns. The settings menu was redesigned alongside it, so notification channels, integrations, sources and per-area pages each sit where you'd look for them instead of spread across overlapping hubs. The core vitals — weight, blood pressure, pulse and medications — are always on. No breaking changes.
