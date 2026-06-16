@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiDelete } from "@/lib/api/api-fetch";
 
@@ -59,24 +60,25 @@ export function DangerZoneSection() {
   });
 
   return (
+    // v1.18.1 E4 — adopt the shared card shape (rounded-xl border + the
+    // `SettingsCardHeader` icon/title/description/status layout) so the
+    // Danger Zone reads like every other admin section. The destructive
+    // tint + AlertTriangle icon keep it visually flagged as dangerous;
+    // the delete affordance now sits in the header status slot, properly
+    // aligned beside its label rather than floating below a lone icon.
     <div className="bg-destructive/5 border-destructive/30 rounded-xl border p-4 sm:p-6">
-      {/* v1.4.19 A8 / F-08: page header `admin.section.danger-zone.*`
-          already names the section, so the card-level title was a
-          duplicate of the page title. The destructive icon stays so
-          the card still flags itself as dangerous at a glance. */}
-      <AlertTriangle className="text-destructive h-5 w-5" aria-hidden="true" />
-      <div className="mt-4">
-        <p className="text-sm font-medium">{t("admin.deleteAllData")}</p>
-        <p className="text-muted-foreground text-xs">
-          {t("admin.deleteAllDescription")}
-        </p>
-        <div className="mt-3">
+      <SettingsCardHeader
+        icon={AlertTriangle}
+        title={t("admin.deleteAllData")}
+        description={t("admin.deleteAllDescription")}
+        status={
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
                 variant="destructive"
                 size="sm"
                 disabled={wipeAllData.isPending}
+                className="min-h-11"
               >
                 {wipeAllData.isPending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -111,17 +113,17 @@ export function DangerZoneSection() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
-        {wipeMsg && (
-          <p
-            className={`mt-2 text-sm ${
-              wipeAllData.isError ? "text-destructive" : "text-dracula-green"
-            }`}
-          >
-            {wipeMsg}
-          </p>
-        )}
-      </div>
+        }
+      />
+      {wipeMsg && (
+        <p
+          className={`mt-3 pl-7 text-sm ${
+            wipeAllData.isError ? "text-destructive" : "text-dracula-green"
+          }`}
+        >
+          {wipeMsg}
+        </p>
+      )}
     </div>
   );
 }

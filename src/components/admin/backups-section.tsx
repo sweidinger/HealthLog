@@ -333,6 +333,13 @@ export function BackupsSection() {
 
   return (
     <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      {/* v1.18.1 E3 — the snapshot count leads (numbers first), the
+          "Run now" button follows, and the explainer + docs link move
+          into the header's description slot. Previously the description
+          sat in a separate `mt-1 pl-7` paragraph that crowded the button
+          directly above it; routing it through the header's `space-y-1`
+          stack restores breathing room and left-aligns it under the
+          title. */}
       <SettingsCardHeader
         icon={Database}
         title={t("admin.section.backups.title")}
@@ -358,22 +365,23 @@ export function BackupsSection() {
             {t("admin.section.backups.runNow")}
           </Button>
         }
+        description={
+          <p>
+            {t("admin.section.backups.description")}{" "}
+            {/* External docs link — `noopener noreferrer` because this
+                leaves the admin shell. */}
+            <a
+              href="https://docs.healthlog.dev/admin/backups"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary inline-flex items-center gap-1 underline-offset-2 hover:underline"
+            >
+              <BookOpen className="h-3 w-3" aria-hidden="true" />
+              {t("admin.section.backups.docsLink")}
+            </a>
+          </p>
+        }
       />
-      <p className="text-muted-foreground mt-1 pl-7 text-xs">
-        {t("admin.section.backups.description")}{" "}
-        {/* External docs link — Phase E will publish the matching page on
-            the docs site. `noopener noreferrer` because this leaves the
-            admin shell. */}
-        <a
-          href="https://docs.healthlog.dev/admin/backups"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary inline-flex items-center gap-1 underline-offset-2 hover:underline"
-        >
-          <BookOpen className="h-3 w-3" aria-hidden="true" />
-          {t("admin.section.backups.docsLink")}
-        </a>
-      </p>
 
       {/* Upload card — separate from the table so admins can ingest a
           backup file independently of any existing rows. The visible

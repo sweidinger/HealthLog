@@ -5283,17 +5283,9 @@
         "title": "Integracje",
         "subtitle": "Skonfiguruj Umami, GlitchTip, Web Push i zgłoszenia błędów."
       },
-      "ai-quality": {
-        "title": "Jakość analiz",
-        "subtitle": "Oceny przydatności pogrupowane według ważności i dostawcy, z ostatnich 30 dni opinii użytkowników."
-      },
-      "assistant": {
-        "title": "Powierzchnie asystenta",
-        "subtitle": "Włącz lub wyłącz każdą powierzchnię opartą na modelu bez usuwania konfiguracji dostawcy."
-      },
-      "coach-feedback": {
-        "title": "Opinie o Coachu",
-        "subtitle": "Wskaźnik przydatności według wersji promptu, tonu i szczegółowości Coacha z ostatnich 30 dni."
+      "coach": {
+        "title": "Coach",
+        "subtitle": "Powierzchnie asystenta, klucz serwera oraz tabele jakości opinii Coacha i analiz w jednym miejscu."
       },
       "feedback": {
         "title": "Opinie",

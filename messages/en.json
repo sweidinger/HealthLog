@@ -5283,17 +5283,9 @@
         "title": "Integrations",
         "subtitle": "Configure Umami, GlitchTip, Web Push, and bug reports."
       },
-      "ai-quality": {
-        "title": "Insights Quality",
-        "subtitle": "Helpfulness scores grouped by severity and provider, from the last 30 days of user feedback."
-      },
-      "assistant": {
-        "title": "Assistant Surfaces",
-        "subtitle": "Toggle each model-driven surface on or off without removing the provider configuration."
-      },
-      "coach-feedback": {
-        "title": "Coach Feedback",
-        "subtitle": "Helpful-rate per Coach prompt version, tone, and verbosity from the last 30 days."
+      "coach": {
+        "title": "Coach",
+        "subtitle": "Assistant surfaces, server key, and the Coach and Insights feedback-quality tables in one place."
       },
       "feedback": {
         "title": "Feedback",

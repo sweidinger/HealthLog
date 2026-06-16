@@ -23,14 +23,12 @@ import {
   Info,
   KeyRound,
   Inbox,
-  MessageSquare,
   Plug,
   Radio,
   ScrollText,
   Server,
   Settings,
   ShieldAlert,
-  SlidersHorizontal,
   Sparkles,
   Ticket,
   Users,
@@ -76,20 +74,13 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     titleKey: "admin.section.integrations.title",
     icon: Plug,
   },
+  // v1.18.1 — single "Coach" entry replacing the former ai-quality,
+  // assistant, and coach-feedback trio. The section body stacks all
+  // three surfaces so the coach-quality picture lives in one place.
   {
-    slug: "ai-quality",
-    titleKey: "admin.section.ai-quality.title",
+    slug: "coach",
+    titleKey: "admin.section.coach.title",
     icon: Sparkles,
-  },
-  {
-    slug: "assistant",
-    titleKey: "admin.section.assistant.title",
-    icon: SlidersHorizontal,
-  },
-  {
-    slug: "coach-feedback",
-    titleKey: "admin.section.coach-feedback.title",
-    icon: MessageSquare,
   },
   {
     slug: "feedback",

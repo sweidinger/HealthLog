@@ -118,7 +118,18 @@ export function UpdateBadge({
   );
 }
 
-export function AboutSection() {
+export interface AboutSectionProps {
+  /**
+   * v1.18.1 E5 — suppress the "Replay tour" card. The admin → Über
+   * surface reuses this component but the onboarding tour is a
+   * user-facing affordance with no place in the admin console, so the
+   * admin renderer passes `hideTourReplay`. The Settings → About surface
+   * leaves it on.
+   */
+  hideTourReplay?: boolean;
+}
+
+export function AboutSection({ hideTourReplay = false }: AboutSectionProps = {}) {
   const { t } = useTranslations();
   const fmt = useFormatters();
   // Pull the auth user — only needed so the "Replay the tour" button
@@ -364,49 +375,55 @@ export function AboutSection() {
           settings shell), so the button lives here next to version +
           links. Mirrors the stack-on-mobile / right-align-on-desktop
           contract used by the Account section's "Restart onboarding
-          tour" card so the two surfaces feel consistent. */}
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-          <div className="flex items-start gap-2">
-            <Compass className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">
-                {t("settings.about.tourReplay")}
-              </h2>
-              <p className="text-muted-foreground text-xs">
-                {t("settings.about.tourReplayHint")}
-              </p>
+          tour" card so the two surfaces feel consistent.
+
+          v1.18.1 E5 — hidden on the admin → Über surface (`hideTourReplay`):
+          the onboarding tour is a user-facing affordance with no place in
+          the admin console. */}
+      {!hideTourReplay && (
+        <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+            <div className="flex items-start gap-2">
+              <Compass className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">
+                  {t("settings.about.tourReplay")}
+                </h2>
+                <p className="text-muted-foreground text-xs">
+                  {t("settings.about.tourReplayHint")}
+                </p>
+              </div>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleReplayTour}
+              disabled={replayingTour}
+              data-testid="about-replay-tour"
+              className="w-full shrink-0 sm:w-auto"
+            >
+              {replayingTour ? (
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Compass className="h-4 w-4" />
+              )}
+              {t("settings.about.tourReplay")}
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleReplayTour}
-            disabled={replayingTour}
-            data-testid="about-replay-tour"
-            className="w-full shrink-0 sm:w-auto"
-          >
-            {replayingTour ? (
-              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-            ) : (
-              <Compass className="h-4 w-4" />
-            )}
-            {t("settings.about.tourReplay")}
-          </Button>
+          {tourFeedback && (
+            <p
+              role="alert"
+              className={`mt-2 pl-7 text-xs ${
+                tourFeedback.type === "success"
+                  ? "text-success"
+                  : "text-destructive"
+              }`}
+            >
+              {tourFeedback.text}
+            </p>
+          )}
         </div>
-        {tourFeedback && (
-          <p
-            role="alert"
-            className={`mt-2 pl-7 text-xs ${
-              tourFeedback.type === "success"
-                ? "text-success"
-                : "text-destructive"
-            }`}
-          >
-            {tourFeedback.text}
-          </p>
-        )}
-      </div>
+      )}
 
       {/* v1.4.36 W4f — the dedicated "Updates" card with the
           manual "Check for updates" button is gone. The 24 h auto-

@@ -5283,17 +5283,9 @@
         "title": "Integrazioni",
         "subtitle": "Configura Umami, GlitchTip, Web Push e le segnalazioni di bug."
       },
-      "ai-quality": {
-        "title": "Qualità delle analisi",
-        "subtitle": "Punteggi di utilità raggruppati per gravità e provider, dagli ultimi 30 giorni di feedback degli utenti."
-      },
-      "assistant": {
-        "title": "Superfici dell'assistente",
-        "subtitle": "Attiva o disattiva ciascuna superficie guidata dal modello senza rimuovere la configurazione del provider."
-      },
-      "coach-feedback": {
-        "title": "Feedback del Coach",
-        "subtitle": "Tasso di utilità per versione del prompt, tono e livello di dettaglio del Coach degli ultimi 30 giorni."
+      "coach": {
+        "title": "Coach",
+        "subtitle": "Superfici dell'assistente, chiave del server e le tabelle di qualità del feedback di Coach e analisi, in un unico posto."
       },
       "feedback": {
         "title": "Feedback",
