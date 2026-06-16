@@ -65,7 +65,21 @@ function relativeDueKey(
   return { key: "nextDue.inDays", days: deltaDays };
 }
 
-export function VorsorgeSection({ enabled = true }: { enabled?: boolean }) {
+export function VorsorgeSection({
+  enabled = true,
+  variant = "settings",
+}: {
+  enabled?: boolean;
+  /**
+   * `"settings"` renders the compact `SettingsCardHeader` for the embedded
+   * settings card; `"page"` renders the canonical feature-page header
+   * (`<h1>` + subtitle + primary add button) so the standalone `/vorsorge`
+   * surface matches its peers (labs, mood, medications, cycle). The
+   * add-entry affordance is identical in both — a primary button with a
+   * `Plus` glyph that toggles the inline create form.
+   */
+  variant?: "settings" | "page";
+}) {
   const { t } = useTranslations();
   const { data: reminders, isLoading } = useMeasurementReminders(enabled);
   const { create, remove, satisfy } = useMeasurementReminderMutations();
@@ -116,28 +130,49 @@ export function VorsorgeSection({ enabled = true }: { enabled?: boolean }) {
     );
   }
 
+  // The shared primary add-entry affordance — identical in both variants so
+  // the control reads the same on the standalone page and the settings card.
+  const addButton = (
+    <Button
+      type="button"
+      variant={showForm ? "outline" : "default"}
+      className="min-h-11 shrink-0 sm:min-h-9"
+      onClick={() => setShowForm((v) => !v)}
+    >
+      <Plus className="h-4 w-4" />
+      {t("measurementReminders.addButton")}
+    </Button>
+  );
+
   return (
     <section
       aria-labelledby="vorsorge-section-title"
       className="space-y-4"
     >
-      <SettingsCardHeader
-        icon={CalendarClock}
-        titleId="vorsorge-section-title"
-        title={t("measurementReminders.sectionTitle")}
-        description={t("measurementReminders.sectionDescription")}
-        status={
-          <Button
-            type="button"
-            variant={showForm ? "outline" : "default"}
-            className="min-h-11 shrink-0 sm:min-h-9"
-            onClick={() => setShowForm((v) => !v)}
-          >
-            <Plus className="h-4 w-4" />
-            {t("measurementReminders.addButton")}
-          </Button>
-        }
-      />
+      {variant === "page" ? (
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1
+              id="vorsorge-section-title"
+              className="text-2xl font-bold tracking-tight"
+            >
+              {t("measurementReminders.sectionTitle")}
+            </h1>
+            <p className="text-muted-foreground text-xs sm:text-sm">
+              {t("measurementReminders.sectionDescription")}
+            </p>
+          </div>
+          {addButton}
+        </div>
+      ) : (
+        <SettingsCardHeader
+          icon={CalendarClock}
+          titleId="vorsorge-section-title"
+          title={t("measurementReminders.sectionTitle")}
+          description={t("measurementReminders.sectionDescription")}
+          status={addButton}
+        />
+      )}
 
       {showForm && (
         <Card>
