@@ -124,3 +124,19 @@ export const consentRequiredResponse = {
     content: { "application/json": { schema: errorEnvelope } },
   },
 };
+
+// ── Module-disabled gate (v1.18.0) ───────────────────────────────────
+// Every module-scoped route runs `requireModuleEnabled(userId, key)`,
+// which returns a 403 when the account has the module turned off — even
+// with a valid Bearer token. The envelope carries
+// `meta.errorCode = "module.disabled"` and `meta.module` (the disabled
+// module key) so the iOS retry classifier branches on it and the client
+// can drop the whole surface. The errorEnvelope shape already declares
+// `meta.errorCode`; `meta.module` is documented here in prose.
+export const moduleDisabledResponse = {
+  "403": {
+    description:
+      'Module disabled for this account: the user (or operator) has the module turned off. `meta.errorCode` = `module.disabled` and `meta.module` carries the disabled module key (e.g. "sleep"). Returned even for a valid Bearer token. Clients hide the whole module surface end-to-end rather than retry.',
+    content: { "application/json": { schema: errorEnvelope } },
+  },
+};

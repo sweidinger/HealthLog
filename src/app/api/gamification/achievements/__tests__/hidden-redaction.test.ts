@@ -19,6 +19,19 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 
+// v1.18.0 — this suite predates the achievements module gate and only
+// mocks the aggregation Prisma models. Pin the gate to "enabled" so it
+// stays focused on the hidden-Easter-egg redaction contract; the gate's
+// own enable/disable behaviour is covered in module-gate.test.ts.
+vi.mock("@/lib/modules/gate", () => ({
+  // Plain async fn (not a `vi.fn`) so `vi.resetAllMocks()` in beforeEach
+  // can't blank it out and flip the gate to a falsy decision.
+  requireModuleEnabled: async () => ({ enabled: true }),
+  // v1.18.0 B5 — all modules on so the per-module badge filter is inert.
+  resolveModuleMap: async () => ({}),
+  MODULE_DISABLED_ERROR_CODE: "module.disabled",
+}));
+
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 
 vi.mock("@/lib/db-compat", () => ({

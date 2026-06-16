@@ -4,7 +4,6 @@
  *   - /api/export (legacy CSV/JSON endpoint),
  *   - /api/export/full-backup (single-file JSON bundle),
  *   - /api/export/measurements (per-type CSV),
- *   - /api/doctor-report/availability (section probe),
  *   - /api/gamification/achievements (achievement progress aggregator).
  *
  * Every assertion is shape-level: the route's measurement read MUST scope
@@ -51,9 +50,27 @@ vi.mock("@/lib/tz/resolver", () => ({
   resolveUserTimezone: vi.fn().mockResolvedValue("Europe/Berlin"),
 }));
 
+// v1.18.0 — the achievements route gates on `requireModuleEnabled`. Stub
+// the gate to "all modules enabled" (an empty map ⇒ default-on) so this
+// pre-existing soft-delete test doesn't stand up the real gate's DB reads.
+vi.mock("@/lib/modules/gate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/modules/gate")>();
+  return {
+    ...actual,
+    resolveModuleMap: vi.fn(),
+    isModuleEnabled: vi.fn(),
+    requireModuleEnabled: vi.fn(),
+  };
+});
+
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  resolveModuleMap,
+  isModuleEnabled,
+  requireModuleEnabled,
+} from "@/lib/modules/gate";
 
 const SESSION_OK = {
   user: {
@@ -69,6 +86,9 @@ function mkReq(url: string): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(resolveModuleMap).mockResolvedValue({} as never);
+  vi.mocked(isModuleEnabled).mockResolvedValue(true);
+  vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true } as never);
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
@@ -129,32 +149,6 @@ describe("v1.4.41 W-DELETED-2 — soft-delete invisibility", () => {
     // findMany — a tombstoned row must never count toward a streak
     // or PR badge.
     expect(calls.length).toBeGreaterThan(0);
-    for (const [arg] of calls) {
-      expect(arg).toMatchObject({
-        where: expect.objectContaining({ deletedAt: null }),
-      });
-    }
-  });
-
-  it("/api/doctor-report/availability scopes every measurement count to deletedAt: null", async () => {
-    const { POST } = await import(
-      "../../doctor-report/availability/route"
-    );
-    const req = new NextRequest(
-      "http://localhost/api/doctor-report/availability",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
-      },
-    );
-    await POST(req);
-    const calls = vi.mocked(prisma.measurement.count).mock.calls;
-    // The probe runs four parallel measurement.count queries (BP /
-    // weight / pulse / sleep). All must filter tombstoned rows so a
-    // soft-deleted history does not light up a section the user has
-    // since wiped.
-    expect(calls.length).toBeGreaterThanOrEqual(4);
     for (const [arg] of calls) {
       expect(arg).toMatchObject({
         where: expect.objectContaining({ deletedAt: null }),

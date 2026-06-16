@@ -221,9 +221,12 @@ export function MedicationCard({
   const rate7 = display?.short.rate ?? compliance?.compliance7?.rate ?? 0;
   const rate30 = display?.long.rate ?? compliance?.compliance30?.rate ?? 0;
   const streak = display?.short.streak ?? compliance?.compliance7?.streak ?? 0;
-  // v1.15.9 — the open dose's server-derived status drives the card's green
-  // take-window highlight + the overdue / heavily-overdue top line. Defaults
-  // to "upcoming" (calm) when the display block is absent (older mocks).
+  // v1.15.9 — the open dose's server-derived status drives a discreet status
+  // line/glyph (text + icon only) and the overdue / heavily-overdue top line.
+  // Per the neutral med-card rule there is NO green take-window highlight and
+  // no grade-tinted card chrome — status is conveyed by a calm line, never a
+  // background/border tint. Defaults to "upcoming" (calm) when the display
+  // block is absent (older mocks).
   const doseStatus = display?.currentDose.status ?? "upcoming";
   const categoryLabel = getMedicationCategoryLabel(medication.category, t);
   const sortedSchedules = [...medication.schedules].sort(

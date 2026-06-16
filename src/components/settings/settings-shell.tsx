@@ -18,16 +18,19 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  AlarmClock,
   Bell,
+  Blocks,
+  Bot,
   Download,
+  FileHeart,
   Info,
   KeyRound,
-  Layers,
   LayoutDashboard,
   Link2,
+  Pill,
   Settings2,
   SlidersHorizontal,
+  Smile,
   Sparkles,
   User,
   type LucideIcon,
@@ -35,7 +38,9 @@ import {
 
 import { cn } from "@/lib/utils";
 import { scrollBehaviorForUser } from "@/lib/motion";
+import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import type { ModuleKey } from "@/lib/modules/registry";
 import {
   SETTINGS_SECTION_SLUGS,
   isSettingsSectionSlug,
@@ -60,6 +65,14 @@ interface SettingsSection {
   /** i18n key under `settings.sections.<slug>.title`. */
   titleKey: string;
   icon: LucideIcon;
+  /**
+   * v1.18.0 (S5) — per-submodule entries are listed only when their module
+   * is enabled. When set, the nav entry hides if the resolved
+   * `useAuth().user.modules` map has the key explicitly `false`. The gate
+   * fails OPEN (a missing key reads as enabled) so a stale `/me` payload
+   * never blanks an entry. Omitted = always shown (global / CORE entries).
+   */
+  moduleGate?: ModuleKey;
 }
 
 /**
@@ -73,31 +86,32 @@ interface SettingsSection {
  * settings navigation. It is now both a regular (last) shell entry and
  * a user-card dropdown item ("Über HealthLog" / "About HealthLog").
  *
- * v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are two
- * separate sidebar entries again (merged into a single "Targets &
- * Sources" page in v1.4.34 IW-D, split back here). Both are served by
- * the dynamic `[section]` route.
+ * v1.18.0 (S3) — `sources` is no longer a sidebar entry: source priority
+ * folded into Settings → Integrations as the "Sources" sub-tab.
+ * `thresholds` (Targets) keeps its own entry, served by the dynamic
+ * `[section]` route.
  */
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { slug: "account", titleKey: "settings.sections.account.title", icon: User },
+  // v1.18.0 — the "Was du trackst" hub. Sits right below Account: the one
+  // place to enable/disable the secondary tracking domains.
+  {
+    slug: "modules",
+    titleKey: "settings.sections.modules.title",
+    icon: Blocks,
+  },
   {
     slug: "integrations",
     titleKey: "settings.sections.integrations.title",
     icon: Link2,
   },
+  // v1.18.0 (S4) — "Benachrichtigungen" is now the single module-gated
+  // reminder-types home. The separate "Erinnerungen" hub (a link-only page)
+  // is gone; reminder TYPES live here, each row gated on its module.
   {
     slug: "notifications",
     titleKey: "settings.sections.notifications.title",
     icon: Bell,
-  },
-  // v1.17.1 — the one "Reminders & Notifications" home. Gathers the
-  // scattered reminder categories (medication / mood / Vorsorge / low-stock
-  // / coach nudge) and links to the notification channels. The canonical
-  // editors keep their own routes; this nav entry is the single front door.
-  {
-    slug: "reminders",
-    titleKey: "settings.sections.reminders.title",
-    icon: AlarmClock,
   },
   // v1.17.1 (F-2) — one "Layout & Personalization" nav entry replaces the
   // four scattered Dashboard / Insights / Medications / Mood "arrange"
@@ -109,18 +123,50 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.layout.title",
     icon: LayoutDashboard,
   },
+  // v1.18.0 (S5) — Medikamente: medication-specific settings (list view +
+  // order + injection sites). Medications is a CORE domain, so the entry is
+  // always shown. Was a hidden child of the Layout hub.
+  {
+    slug: "medications",
+    titleKey: "settings.sections.medications.title",
+    icon: Pill,
+  },
+  // v1.18.0 (S5) — Stimmung: the mood-tag management surface gets its own
+  // nav entry, shown only when the mood module is enabled. Was a hidden
+  // child of the Layout hub.
+  {
+    slug: "mood",
+    titleKey: "settings.sections.mood.title",
+    icon: Smile,
+    moduleGate: "mood",
+  },
   {
     slug: "thresholds",
     titleKey: "settings.sections.thresholds.title",
     icon: SlidersHorizontal,
   },
-  {
-    slug: "sources",
-    titleKey: "settings.sections.sources.title",
-    icon: Layers,
-  },
   { slug: "ai", titleKey: "settings.sections.ai.title", icon: Sparkles },
+  // v1.18.0 (S5) — Coach: the Coach preference cards get their own entry,
+  // shown only when the coach module is enabled. The AI entry above keeps
+  // provider / model / BYOK configuration.
+  {
+    slug: "coach",
+    titleKey: "settings.sections.coach.title",
+    icon: Bot,
+    moduleGate: "coach",
+  },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
+  // v1.18.0 (S5) — the full health record (PDF + FHIR R4 + zip package)
+  // earns its own home, lifted out of Export & Import. Gated on the
+  // `doctorReport` module: when the user turns the doctor-report surface off,
+  // the entry hides (the server-side `/api/export/health-record` gate is the
+  // hard enforcement; this hides the entry-point to match).
+  {
+    slug: "gesundheitsakte",
+    titleKey: "settings.sections.gesundheitsakte.title",
+    icon: FileHeart,
+    moduleGate: "doctorReport",
+  },
   {
     slug: "export",
     titleKey: "settings.sections.export.title",
@@ -148,15 +194,17 @@ export interface SettingsShellProps {
   children: React.ReactNode;
 }
 
-// v1.17.1 (F-2) — the four personalization editors live under the Layout
+// v1.17.1 (F-2) — the personalization editors live under the Layout
 // hub. They keep their own routes but are NOT standalone nav entries, so
 // when the user is on one of them the Layout nav entry is the one that
 // reads active.
+//
+// v1.18.0 (S5) — `mood` (Stimmung) and `medications` (Medikamente)
+// graduated to their own nav entries, so they are no longer Layout-hub
+// children for highlighting purposes.
 const LAYOUT_CHILD_SLUGS: ReadonlySet<string> = new Set([
   "dashboard",
   "insights",
-  "medications",
-  "mood",
 ]);
 
 /** Map a Layout child editor onto the Layout hub for nav highlighting. */
@@ -181,7 +229,20 @@ function deriveActiveSlug(
 export function SettingsShell({ active, children }: SettingsShellProps) {
   const pathname = usePathname();
   const { t } = useTranslations();
+  const { user } = useAuth();
   const activeSlug = deriveActiveSlug(pathname, active);
+
+  // v1.18.0 (S5) — per-submodule entries are listed only when their module
+  // is enabled. Read from the resolved `useAuth().user.modules` map (the
+  // same map the Module hub, nav, and Insights pills gate off). Fail OPEN
+  // (`!== false`): a missing key, or a not-yet-resolved `/me` payload,
+  // reads as enabled so an entry never silently disappears. Entries with
+  // no `moduleGate` (global / CORE) are always shown.
+  const modules = user?.modules;
+  const visibleSections = SETTINGS_SECTIONS.filter(
+    (section) =>
+      !section.moduleGate || modules?.[section.moduleGate] !== false,
+  );
 
   // v1.4.33 IW4 — keep the active chip in view inside the horizontal
   // mobile strip. On a 393 CSS px viewport the strip is wider than the
@@ -244,7 +305,7 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
         className="no-scrollbar -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
-          {SETTINGS_SECTIONS.map((section) => {
+          {visibleSections.map((section) => {
             const isActive = section.slug === activeSlug;
             const Icon = section.icon;
             return (
@@ -279,7 +340,7 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
         >
           <div className="sticky top-20">
             <ul className="space-y-1">
-              {SETTINGS_SECTIONS.map((section) => {
+              {visibleSections.map((section) => {
                 const isActive = section.slug === activeSlug;
                 const Icon = section.icon;
                 return (

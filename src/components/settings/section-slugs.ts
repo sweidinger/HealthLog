@@ -6,13 +6,12 @@
  * graph.
  */
 
-// v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are again two
-// separate settings pages, each its own left-nav entry and route. They were
-// merged into one "Targets & Sources" page in v1.4.34 IW-D, but the two
-// editors drive distinct mutation flows (`/api/user/thresholds` vs
-// `/api/auth/me/source-priority`) and reading them as one page made the
-// surface long; splitting them back keeps each concern self-contained.
-// Both slugs are served by the dynamic `[section]` route below.
+// v1.18.0 (S3) — `sources` is no longer a standalone slug. Source priority
+// folded into Settings → Integrations as the "Sources" sub-tab (deciding which
+// connection wins when two report the same metric is an Integrations concern).
+// `/settings/sources` 301-redirects to `/settings/integrations` (next.config.ts).
+// `thresholds` (Targets) keeps its own left-nav entry + route, served by the
+// dynamic `[section]` route below.
 // v1.16.10 — `medications` sits after `insights`: the customise surface
 // for the /medications list (view preference + manual order), following
 // the dashboard / insights pattern of a dedicated settings section
@@ -27,25 +26,34 @@
 // `layout` entry instead of four scattered "arrange" entries, so the
 // concept reads as one place. The four editor slugs stay in this list so
 // their routes still resolve; they are simply not listed in the shell nav.
-// v1.17.1 — `reminders` sits right after `notifications`: the one
-// "Reminders & Notifications" home that gathers the scattered reminder
-// categories (medication, mood, Vorsorge, low-stock, coach nudge) and links
-// to the notification channels. The canonical editors keep their own routes;
-// the hub is consolidation by linking.
+// v1.18.0 (S4) — the standalone `reminders` hub is gone. It was a
+// link-only page ("doppelt gemoppelt") that merely deep-linked into the
+// canonical editors; reminder TYPES now live centrally in `notifications`,
+// each row gated on its module. `/settings/reminders` 301-redirects to
+// `/settings/notifications` (next.config.ts).
+// v1.18.0 (S5) — per-submodule settings split. `gesundheitsakte` (the full
+// health-record export, always available) lifts out of Export & Import into
+// its own top-level entry.
 export const SETTINGS_SECTION_SLUGS = [
   "account",
+  // v1.18.0 — `modules` ("Was du trackst") sits right after account: the
+  // single front door for enabling/disabling secondary tracking domains.
+  "modules",
   "integrations",
   "notifications",
-  "reminders",
   "layout",
   "dashboard",
   "insights",
   "medications",
   "mood",
   "thresholds",
-  "sources",
   "ai",
+  // v1.18.0 (S5) — `coach` gathers the Coach preference cards (disable
+  // toggle, preferences, memory) out of the AI section, module-gated on
+  // the coach module. The `ai` entry keeps provider / model / BYOK only.
+  "coach",
   "api",
+  "gesundheitsakte",
   "export",
   "advanced",
   "about",

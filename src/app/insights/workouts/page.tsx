@@ -1,9 +1,10 @@
 "use client";
 
-import { Activity } from "lucide-react";
+import { Activity, Loader2 } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { useWorkouts } from "@/hooks/use-workouts";
+import { useModulePageGuard } from "@/hooks/use-module-page-guard";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { WorkoutList } from "@/components/insights/workout-list";
@@ -28,7 +29,17 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function InsightsWorkoutsPage() {
   const { t } = useTranslations();
+  const { ready } = useModulePageGuard("workouts");
   const { data, isLoading, isEmpty } = useWorkouts({ limit: 100 });
+
+  // v1.18.0 B1 — bounce a direct URL hit on a disabled-workouts account.
+  if (!ready) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
+      </div>
+    );
+  }
 
   return (
     <SubPageShell

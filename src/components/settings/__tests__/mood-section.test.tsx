@@ -150,14 +150,14 @@ describe("<MoodSection> — SSR smoke", () => {
   it("renders the section heading + description via i18n (no raw keys)", () => {
     const html = render();
     expect(html).toContain("settings-section-mood-title");
-    expect(html).toContain("Groups, tags, and order of the mood picker.");
+    expect(html).toContain("Groups, tags, and archived tags for the mood picker.");
     expect(html).not.toContain("settings.sections.");
     expect(html).not.toContain("mood.manage.");
   });
 
   it("renders the German copy end-to-end", () => {
     const html = render("de");
-    expect(html).toContain("Gruppen, Tags und Reihenfolge der Tag-Auswahl.");
+    expect(html).toContain("Gruppen, Tags und archivierte Tags der Stimmungs-Auswahl.");
     expect(html).toContain("Neue Gruppe");
     expect(html).toContain("Neuer Tag");
     expect(html).toContain("Archivierte Tags");

@@ -1,0 +1,38 @@
+-- v1.18.0 — module enable/disable foundation.
+--
+-- A single nullable JSONB blob on `users` carrying a DISABLED allowlist
+-- for the optional ("secondary") domains (mood, sleep, glucose, workouts,
+-- recovery, labs, achievements, insights, doctor-report, …). The contract
+-- is default-on:
+--
+--   * NULL column            → every module enabled
+--   * empty object `{}`       → every module enabled
+--   * key absent              → that module enabled
+--   * key present & `false`   → that module DISABLED
+--   * key present & `true`    → enabled (redundant-but-allowed)
+--
+-- No backfill — every existing user keeps every module on. The
+-- application resolver (`src/lib/modules/gate.ts`) tolerates a missing
+-- column / null row and reads all-on, so a partial deploy where the
+-- schema lands ahead of (or behind) the app code keeps working.
+--
+-- CORE domains (weight, blood pressure, pulse, medications) are never
+-- written here and the write endpoint refuses to disable them, so the
+-- measurement engine + meds can never be turned off via this column.
+-- `cycle` and `coach` keep their existing source of truth
+-- (`CycleProfile.cycle_tracking_enabled` / `users.disable_coach` +
+-- the operator assistant master flag) — this column does not own them.
+--
+-- No additional index — reads are per-user (`WHERE id = $1`), matching
+-- the convention set by `coach_prefs_json`, `source_priority_json`,
+-- `doctor_report_prefs_json`, and `notification_prefs` on the same table
+-- (no GIN index on any of them).
+--
+-- Idempotent guard (`IF NOT EXISTS`) so reruns are safe on prod.
+--
+-- Reversibility: down migration is
+--   ALTER TABLE "users" DROP COLUMN IF EXISTS "module_preferences_json";
+-- A roll-back loses per-user module opt-outs (every user falls back to
+-- all-on), which is the safe default — no data is destroyed.
+ALTER TABLE "users"
+    ADD COLUMN IF NOT EXISTS "module_preferences_json" JSONB;

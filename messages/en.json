@@ -189,7 +189,22 @@
     "labsColValue": "Value",
     "labsColReference": "Reference",
     "labsColStatus": "Status",
-    "labsColDate": "Date"
+    "labsColDate": "Date",
+    "glucoseClinical": {
+      "title": "Glucose overview (clinical)",
+      "colMetric": "Metric",
+      "colValue": "Value",
+      "tirInRange": "Time in range (70–180 mg/dL)",
+      "tirLow": "Low (< 70 mg/dL)",
+      "tirVeryLow": "Very low (< 54 mg/dL)",
+      "tirHigh": "High (> 180 mg/dL)",
+      "tirVeryHigh": "Very high (> 250 mg/dL)",
+      "mean": "Average glucose",
+      "gmi": "Glucose Management Indicator (GMI)",
+      "eA1c": "Estimated A1C",
+      "cv": "Variability (CV%)",
+      "spotCaveat": "These are spot-reading estimates from individual measurements, not a continuous-monitor profile — read them as a direction of travel rather than a clinical verdict."
+    }
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -2784,6 +2799,7 @@
       }
     },
     "navWorkouts": "Workouts",
+    "navRecovery": "Recovery",
     "workouts": {
       "title": "Workouts",
       "description": "Recent runs, rides, walks and strength sessions, deduped across Apple Watch and Withings sources.",
@@ -3686,7 +3702,7 @@
         },
         "integrations": {
           "title": "Connect your devices",
-          "body": "Open Settings to link Withings (auto-sync weight, BP and pulse), moodLog, or your Insights provider. Everything stays optional and encrypted."
+          "body": "Open Settings to link Withings (auto-sync weight, BP and pulse), moodLog, or your Insights provider. Everything stays optional and encrypted — and under Settings → Modules you can turn whole areas like sleep, mood or achievements on or off to keep HealthLog focused on what you track."
         },
         "achievements": {
           "title": "Earn streaks and badges",
@@ -3855,15 +3871,29 @@
       },
       "integrations": {
         "title": "Integrations",
-        "description": "Withings, moodLog, and other connected services."
+        "description": "Connected services, delivery channels, and source priority in one place.",
+        "tabs": {
+          "connections": "Connections",
+          "channels": "Channels",
+          "sources": "Sources"
+        },
+        "connections": {
+          "description": "Connect Withings, WHOOP, Fitbit, Polar, Oura, and Nightscout."
+        },
+        "channels": {
+          "description": "Telegram, ntfy, Web Push, Webhook, and Email — the routes notifications are delivered through."
+        }
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Live overview of every configured channel."
+        "description": "Every reminder in one place — what gets reminded and when. The delivery channels live under Integrations.",
+        "channelsHint": "Telegram, ntfy, Web Push, Webhook, and Email are now set up under",
+        "channelsHintLink": "Integrations → Channels",
+        "inboxLink": "Open the inbox"
       },
       "layout": {
         "title": "Layout & Personalization",
-        "description": "Arrange how your app is laid out — one home for the dashboard, insights, medications, and mood.",
+        "description": "Arrange how the dashboard and insights are laid out.",
         "backToHub": "Back to Layout & Personalization",
         "dashboard": {
           "title": "Dashboard",
@@ -3951,7 +3981,7 @@
       },
       "ai": {
         "title": "AI Insights",
-        "description": "Provider, model, key."
+        "description": "Provider, model, and API key for the insights — plus your “about me” context."
       },
       "api": {
         "title": "API & Tokens",
@@ -3963,7 +3993,7 @@
       },
       "export": {
         "title": "Export & Import",
-        "description": "Download your health data as PDF, CSV, or a full JSON backup — or bring data in from Apple Health or a JSON file.",
+        "description": "Download your data as CSV or a full JSON backup — or import from Apple Health, JSON, or CSV. The doctor report now lives under Health Record.",
         "otherOptionsHeading": "Other export options",
         "downloadFailed": "Couldn't download the export. Please try again.",
         "hero": {
@@ -4086,41 +4116,36 @@
       },
       "medications": {
         "title": "Medications",
-        "description": "List view and medication order."
+        "description": "List view, order, and injection sites for your medications."
       },
       "mood": {
         "title": "Mood tags",
-        "description": "Groups, tags, and order of the mood picker."
+        "description": "Groups, tags, and archived tags for the mood picker."
       },
-      "reminders": {
-        "title": "Reminders & Notifications",
-        "description": "One home for every reminder — what gets reminded and when — plus the channels that deliver them.",
-        "categoriesGroup": "Reminders",
-        "channelsGroup": "Delivery channels",
-        "medication": {
-          "title": "Medication reminders",
-          "description": "Dose times and windows, configured on each medication."
+      "modules": {
+        "title": "Modules",
+        "saved": "Saved.",
+        "error": "Couldn't save. Please try again.",
+        "toggleable": {
+          "title": "What you track",
+          "description": "Optional areas. Disabled modules drop out of the navigation, tiles, and insights — your data stays untouched."
         },
-        "vorsorge": {
-          "title": "Preventive care",
-          "description": "Recurring check-ups and measurements, with where to go."
+        "core": {
+          "title": "Always on",
+          "description": "HealthLog's foundations. These areas can't be turned off.",
+          "note": "Core area — always on"
         },
-        "mood": {
-          "title": "Mood check-in",
-          "description": "A daily nudge to log how you feel."
-        },
-        "lowStock": {
-          "title": "Low-stock runway",
-          "description": "Get warned before a medication runs out."
-        },
-        "coach": {
-          "title": "Coach nudge",
-          "description": "Proactive prompts from the AI coach."
-        },
-        "channels": {
-          "title": "Notification channels",
-          "description": "APNs, Telegram, ntfy, Web Push, Webhook, and Email."
-        }
+        "description": "Choose what HealthLog tracks for you. Turn individual areas on or off — the navigation, tiles, and insights adapt right away.",
+        "manageIn": "Manage in {section}",
+        "operatorDisabled": "Disabled server-wide"
+      },
+      "gesundheitsakte": {
+        "title": "Health record",
+        "description": "Export your full health record as PDF, FHIR R4, or a combined ZIP package."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Enable the Coach, tone and scope, stored memories."
       }
     },
     "profile": "Profile",
@@ -4996,6 +5021,12 @@
         "title": "Health-Score explainer",
         "description": "The ? glyph next to the Health-Score delta line. The delta digit stays visible regardless."
       }
+    },
+    "modules": {
+      "title": "Module availability",
+      "description": "Turn a module off for the whole server. A module disabled here is off for every account regardless of personal preference. Core domains (weight, blood pressure, pulse, medications) are always on and cannot be disabled.",
+      "disabledHint": "Disabled server-wide",
+      "saveError": "Could not update module availability."
     },
     "bugReportRepo": "Repository",
     "bugReportRepoPlaceholder": "owner/repo",
@@ -6423,6 +6454,8 @@
     "addButton": "Add reminder",
     "markDone": "Done",
     "delete": "Delete",
+    "deleteConfirmTitle": "Delete reminder?",
+    "deleteConfirmDescription": "This preventive-care reminder will be permanently deleted.",
     "disabledBadge": "Off",
     "nextDue": {
       "none": "Not scheduled",
@@ -6479,6 +6512,8 @@
     "referenceLabel": "Reference",
     "readingsCount": "{count} readings",
     "deleteLatest": "Delete latest reading",
+    "deleteConfirmTitle": "Delete lab result?",
+    "deleteConfirmDescription": "This lab result will be permanently deleted.",
     "deletedToast": "Result deleted",
     "deleteError": "Could not delete the result",
     "loadError": "Could not load lab results",
@@ -6509,6 +6544,68 @@
       "save": "Save",
       "savedToast": "Result saved",
       "saveError": "Could not save the result"
+    }
+  },
+  "modules": {
+    "cycle": {
+      "label": "Cycle",
+      "description": "Track period, phases, and predictions."
+    },
+    "mood": {
+      "label": "Mood",
+      "description": "Log daily mood and tags."
+    },
+    "sleep": {
+      "label": "Sleep",
+      "description": "Sleep duration, stages, and timeline."
+    },
+    "glucose": {
+      "label": "Glucose",
+      "description": "Blood-glucose readings and trends."
+    },
+    "workouts": {
+      "label": "Workouts",
+      "description": "Training sessions and activity."
+    },
+    "recovery": {
+      "label": "Recovery",
+      "description": "Recovery and strain metrics from your devices."
+    },
+    "labs": {
+      "label": "Lab results",
+      "description": "Capture lab results and keep their history."
+    },
+    "achievements": {
+      "label": "Achievements",
+      "description": "Badges and streaks for your routine."
+    },
+    "coach": {
+      "label": "Coach",
+      "description": "AI chat grounded in your own data."
+    },
+    "insights": {
+      "label": "Insights",
+      "description": "AI analysis, briefing, and correlations."
+    },
+    "doctorReport": {
+      "label": "Doctor report",
+      "description": "PDF and FHIR export for your practice."
+    },
+    "weight": {
+      "label": "Weight",
+      "description": "Weight and body composition."
+    },
+    "bloodPressure": {
+      "label": "Blood pressure",
+      "description": "Systolic and diastolic."
+    },
+    "pulse": {
+      "label": "Pulse",
+      "description": "Resting pulse and heart rate."
+    },
+    "medications": {
+      "label": "Medications",
+      "description": "Schedules, intakes, and compliance."
     }
   }
 }

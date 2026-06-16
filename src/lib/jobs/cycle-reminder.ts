@@ -43,7 +43,7 @@ import { defaultLocale, locales } from "@/lib/i18n/config";
 import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { dayDiff } from "@/lib/cycle/day-math";
-import { isCycleEnabled } from "@/lib/cycle/gate";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
 import type { EventType } from "@/lib/notifications/types";
 import { isCycleReminderClientManaged } from "@/lib/validations/notification-prefs";
@@ -92,6 +92,7 @@ export interface CycleReminderSummary {
   skippedNoChannel: number;
   skippedOutsideWindow: number;
   skippedPredictionDisabled: number;
+  skippedModuleDisabled: number;
   skippedAlreadyLogged: number;
   failed: number;
 }
@@ -129,6 +130,7 @@ function emptySummary(): CycleReminderSummary {
     skippedNoChannel: 0,
     skippedOutsideWindow: 0,
     skippedPredictionDisabled: 0,
+    skippedModuleDisabled: 0,
     skippedAlreadyLogged: 0,
     failed: 0,
   };
@@ -290,9 +292,18 @@ export async function runCycleReminderTick(
   now: Date,
   options: {
     dispatch?: typeof dispatchNotification;
+    /**
+     * v1.18.0 module gate — injectable so the unit tests pin the
+     * operator/user disabled-module skip without booting the gate's DB
+     * reads. Defaults to the real `isModuleEnabled` resolver. The `cycle`
+     * ModuleKey resolves the per-user toggle AND the operator server-wide
+     * kill-switch, mirroring the mood / measurement reminder crons.
+     */
+    isModuleEnabled?: typeof isModuleEnabled;
   } = {},
 ): Promise<CycleReminderSummary> {
   const dispatchImpl = options.dispatch ?? dispatchNotification;
+  const moduleGate = options.isModuleEnabled ?? isModuleEnabled;
   const summary = emptySummary();
 
   // Push the gating into the query so the per-tick cost scales with the
@@ -362,10 +373,18 @@ export async function runCycleReminderTick(
     try {
       const profile = user.cycleProfile;
 
-      // Gate ENTIRELY on cycle tracking being enabled (gender-derived or
-      // explicit opt-in) — a disabled account never receives a cycle push.
-      if (!isCycleEnabled(user.gender, profile)) {
-        summary.skippedOutsideWindow += 1;
+      // Gate on the FULLY-resolved cycle module — the per-user toggle
+      // (gender-derived or explicit opt-in) AND the operator server-wide
+      // kill-switch. v1.18.0: the `cycle` ModuleKey resolves through
+      // `isModuleEnabled`, so an operator who disables the Cycle module
+      // (`AppSettings.moduleAvailabilityJson.cycle = false`) suppresses
+      // every CYCLE_PERIOD push for every account — the same two-layer gate
+      // the routes and the coach cycle block read. A per-user-disabled
+      // account is likewise skipped. The `profile` row read below still
+      // applies the `predictionEnabled` opt-out.
+      if (!(await moduleGate(user.id, "cycle"))) {
+        summary.skippedModuleDisabled += 1;
+        getEvent()?.addMeta("cycle_reminder.skipped_module_disabled", user.id);
         continue;
       }
 

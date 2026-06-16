@@ -6,6 +6,7 @@ import {
   fetchMoodAggregates,
   type MoodAggregates,
 } from "@/lib/insights/mood-aggregates";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,12 @@ export const dynamic = "force-dynamic";
  */
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
+
+  // Per-domain gate: the mood-insights aggregate surface only serves the
+  // mood module's analysis page, so it must be gated on the mood module
+  // (mirrors `/api/insights/mood-status`). Disabled ⇒ 403 module.disabled.
+  const gate = await requireModuleEnabled(user.id, "mood");
+  if (!gate.enabled) return gate.response;
 
   const result = await cachedSwr(
     caches.moodInsights as ServerCache<MoodAggregates>,

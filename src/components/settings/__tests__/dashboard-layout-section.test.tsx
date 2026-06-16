@@ -57,6 +57,17 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// v1.18.0 — mutable module map so the widget-toggle gating tests can flip a
+// module off without re-mocking. Defaults to `undefined` (no map → fail-open,
+// every web-renderable row shown), preserving the pre-existing row counts.
+const authState: {
+  modules: Partial<Record<string, boolean>> | undefined;
+} = { modules: undefined };
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: { modules: authState.modules } }),
+}));
+
 import { I18nProvider } from "@/lib/i18n/context";
 import {
   DashboardLayoutSection,
@@ -71,6 +82,7 @@ function render(node: React.ReactElement, locale: "en" | "de" = "en") {
 
 beforeEach(() => {
   queryState.layout = DEFAULT_DASHBOARD_LAYOUT;
+  authState.modules = undefined;
 });
 
 describe("<DashboardLayoutSection> — tile + chart split", () => {
@@ -380,5 +392,49 @@ describe("<DashboardLayoutSection> — iOS-pin-only ids hidden from web (v1.11.2
       // rendered the localised label would show up in the markup.
       expect(html).not.toContain(`${pinOnlyLabels[id]} — `);
     }
+  });
+});
+
+/**
+ * v1.18.0 — a dashboard widget toggle whose owning module is disabled is a
+ * dead control: the snapshot gates the tile/chart out server-side no matter
+ * what the switch says. The Settings list must hide those rows. Core widgets
+ * (no module entry in `WIDGET_MODULE_BY_ID`) always show; the gate fails open
+ * when the module map is absent or the key is unset.
+ */
+describe("<DashboardLayoutSection> — disabled-module widget toggles", () => {
+  // The achievements widget label drives its switch aria-label; it is the
+  // canonical disabled-module probe (label resolves to "Achievements").
+  const ACHIEVEMENTS_ARIA = "Achievements — ";
+  // Mood is a module-owned widget too; weight is a core widget with NO module
+  // entry, so it must survive any module-off state.
+  const MOOD_ARIA = "Mood — ";
+  const WEIGHT_ARIA = "Weight — ";
+
+  it("hides a widget toggle whose owning module is disabled", () => {
+    authState.modules = { achievements: false };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    // The achievements row (and its switches) are gone…
+    expect(html).not.toContain(ACHIEVEMENTS_ARIA);
+    // …and exactly one fewer web-renderable row renders.
+    const tileSwitches = html.match(/data-slot="widget-tile-switch"/g) ?? [];
+    expect(tileSwitches).toHaveLength(WEB_RENDERABLE_ROW_COUNT - 1);
+  });
+
+  it("keeps an enabled-module widget and core (no-module) widgets shown", () => {
+    authState.modules = { achievements: false };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    // Enabled module (mood) still renders…
+    expect(html).toContain(MOOD_ARIA);
+    // …and a core widget with no module entry (weight) always shows.
+    expect(html).toContain(WEIGHT_ARIA);
+  });
+
+  it("shows every row when the module map is absent (fail-open)", () => {
+    authState.modules = undefined;
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    const tileSwitches = html.match(/data-slot="widget-tile-switch"/g) ?? [];
+    expect(tileSwitches).toHaveLength(WEB_RENDERABLE_ROW_COUNT);
+    expect(html).toContain(ACHIEVEMENTS_ARIA);
   });
 });

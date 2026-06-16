@@ -20,6 +20,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 import { prisma } from "@/lib/db";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import type { MeasurementType } from "@/generated/prisma/client";
@@ -72,6 +73,9 @@ export const GET = apiHandler(async () => {
   if (!rl.allowed) {
     return apiError("Too many analytics requests. Please retry later.", 429);
   }
+
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
 
   // Operator can hide the correlation surface entirely.
   await requireAssistantSurface("correlations");

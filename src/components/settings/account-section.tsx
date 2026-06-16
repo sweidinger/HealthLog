@@ -53,7 +53,6 @@ import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { TimeFormatSelect } from "@/components/settings/time-format-select";
 import { UnitPreferenceSelect } from "@/components/settings/unit-preference-select";
-import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
 import { CycleTrackingCard } from "@/components/settings/cycle-tracking-card";
 import { detectBrowserTimezone, DEFAULT_TIMEZONE } from "@/lib/tz/format";
 import { apiDelete, apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
@@ -633,11 +632,9 @@ export function AccountSection() {
         </form>
       </div>
 
-      {/* Global injection-site exclusions live with the account
-          profile — a personal preference that applies app-wide. The
-          unit system moved into the profile form above, beside the
-          timezone dropdown. */}
-      <InjectionSitesCard isAuthenticated={isAuthenticated} />
+      {/* v1.18.0 (S5) — injection-site exclusions moved to the dedicated
+          Medikamente settings section, where every medication-specific
+          preference now lives. */}
 
       {/* Cycle-tracking enable on-ramp — auto-on for female accounts, but this
           lets any account opt in (or opt out) before the gated /cycle page is

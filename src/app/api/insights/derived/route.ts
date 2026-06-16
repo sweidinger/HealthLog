@@ -25,6 +25,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled, type ModuleKey } from "@/lib/modules/gate";
 import { prisma } from "@/lib/db";
 import {
   computeDerivedMetric,
@@ -36,6 +37,24 @@ import { resolveDerivedAssessment } from "@/lib/insights/derived/derived-assessm
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Derived scores that are NATIVE to a toggleable module rather than a core
+ * vital. SLEEP_SCORE is the sleep module's; the strain / recovery / stress
+ * trio belongs to the WHOOP/Polar recovery module. READINESS equals the
+ * computed recovery score (same number, recovery-native), so it is gated on
+ * the recovery module too. The remaining composite baselines
+ * (VITALS_BASELINE, HRV_BALANCE, …) read off core vitals and stay open — a
+ * metric absent from this map carries no module gate. Exported so the batch
+ * route gates on the SAME map and the two routes cannot drift.
+ */
+export const DERIVED_MODULE: Partial<Record<DerivedMetricId, ModuleKey>> = {
+  SLEEP_SCORE: "sleep",
+  RECOVERY_SCORE: "recovery",
+  STRAIN_SCORE: "recovery",
+  STRESS_SCORE: "recovery",
+  READINESS: "recovery",
+};
 
 // Closed enum derived from the registry so the route + registry cannot
 // drift — an id added to the registry is accepted automatically, an
@@ -51,6 +70,9 @@ const derivedQuerySchema = z.object({
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
 
   // v1.15.20 — shared analytics-read budget (generous; caps runaway loops).
   const rl = await checkAnalyticsReadRateLimit(user.id);
@@ -72,6 +94,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
   const metric = parsed.data.metric as DerivedMetricId;
+
+  // Per-domain gate: a derived score owned by a toggleable module
+  // (sleep / recovery) is refused with a 403 module.disabled envelope when
+  // the account has that module turned off. Core-vital composites stay open.
+  const moduleKey = DERIVED_MODULE[metric];
+  if (moduleKey) {
+    const gate = await requireModuleEnabled(user.id, moduleKey);
+    if (!gate.enabled) return gate.response;
+  }
 
   // Profile read once via the shared loader (the same one the batch route
   // and the nightly score jobs use), passed into the pure compute function

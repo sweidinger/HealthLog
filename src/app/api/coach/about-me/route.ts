@@ -43,6 +43,7 @@ import {
   setPendingQuestionsForUser,
 } from "@/lib/ai/coach/about-me";
 import { deriveClarifyingQuestions } from "@/lib/ai/coach/self-context-questions";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 import {
   ABOUT_ME_FIELD_MAX_CHARS,
   ABOUT_ME_MAX_CHARS,
@@ -54,6 +55,9 @@ const PUT_WINDOW_MS = 60_000;
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
+  // v1.18.0 — Coach module gate (operator availability + disableCoach).
+  const gate = await requireModuleEnabled(user.id, "coach");
+  if (!gate.enabled) return gate.response;
 
   const [ctx, pendingQuestions, row] = await Promise.all([
     getSelfContextForUser(user.id),
@@ -89,6 +93,9 @@ export const GET = apiHandler(async () => {
 
 export const PUT = apiHandler(async (req: Request) => {
   const { user } = await requireAuth();
+  // v1.18.0 — Coach module gate (operator availability + disableCoach).
+  const gate = await requireModuleEnabled(user.id, "coach");
+  if (!gate.enabled) return gate.response;
 
   const rl = await checkRateLimit(
     `coach-about-me:put:${user.id}`,

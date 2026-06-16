@@ -21,7 +21,7 @@
  */
 import { prisma } from "@/lib/db";
 import { upsertCycleDayLog } from "@/lib/cycle/day-log-write";
-import { isCycleEnabled } from "@/lib/cycle/gate";
+import { isCycleAvailableForUser } from "@/lib/cycle/gate";
 import { auditLog } from "@/lib/auth/audit";
 import {
   mapHkCycleSample,
@@ -154,25 +154,19 @@ export class CycleImportAccumulator {
   }
 
   /**
-   * Resolve whether cycle tracking is enabled for the user (gender-derived
-   * or the explicit toggle). Cached for the parse lifetime. The importer
+   * Resolve whether the cycle module is enabled for the user — the
+   * fully-resolved two-layer gate (per-user toggle AND the operator
+   * server-wide kill-switch). Cached for the parse lifetime. The importer
    * skips the whole cycle fold when this is false so a non-cycle account's
-   * Apple Health export never silently provisions cycle rows.
+   * (or an operator-disabled instance's) Apple Health export never silently
+   * provisions cycle rows.
    */
   async isEnabled(): Promise<boolean> {
     if (this.gated !== null) return this.gated;
-    const [user, profile] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: this.userId },
-        select: { gender: true },
-      }),
-      prisma.cycleProfile.findUnique({
-        where: { userId: this.userId },
-        select: { cycleTrackingEnabled: true },
-      }),
-    ]);
-    // The single source-of-truth gate (no profile auto-create on import).
-    this.gated = isCycleEnabled(user?.gender, profile);
+    // v1.18.0 — the FULLY-resolved cycle module: the per-user toggle AND the
+    // operator server-wide kill-switch. An operator-disabled instance never
+    // accumulates / writes cycle rows from an import. No profile auto-create.
+    this.gated = await isCycleAvailableForUser(this.userId);
     return this.gated;
   }
 

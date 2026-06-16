@@ -260,21 +260,38 @@ function AchievementCard({ achievement, t }: AchievementCardProps) {
 }
 
 export default function AchievementsPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useTranslations();
+
+  // v1.18.0 — the achievements module gate. When the account has the
+  // module turned off the whole page disappears: an empty state stands in
+  // for the badge grid and the data query never fires (the API would 403
+  // anyway). Default-on: an absent key reads as enabled, so the page only
+  // hides on an explicit `false`.
+  const achievementsEnabled = user?.modules?.achievements !== false;
 
   // v1.4.34 IW-F-Perf — mother page rides the shared cache slot
   // alongside `<RecentAchievementsCard>` and
   // `<AchievementUnlockNotifier>` so the three consumers never trigger
   // more than one network call on a cold dashboard mount.
-  const { data, isLoading } = useAchievementsQuery();
+  const { data, isLoading } = useAchievementsQuery({
+    enabled: isAuthenticated && achievementsEnabled,
+  });
 
-  if (authLoading || isLoading) {
+  if (authLoading || (achievementsEnabled && isLoading)) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
       </div>
     );
+  }
+
+  // v1.18.0 — module off ⇒ the surface disappears entirely. The nav entry
+  // is hidden by the same gate, so a direct hit on /achievements renders
+  // nothing rather than an orphaned shell. No new i18n string is minted
+  // (the disabled state has no copy of its own).
+  if (isAuthenticated && !achievementsEnabled) {
+    return null;
   }
 
   if (!isAuthenticated) {

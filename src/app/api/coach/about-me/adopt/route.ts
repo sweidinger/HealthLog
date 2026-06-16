@@ -41,6 +41,7 @@ import { prisma } from "@/lib/db";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import { getSelfContextForUser } from "@/lib/ai/coach/about-me";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 import {
   ABOUT_ME_FIELD_MAX_CHARS,
   ABOUT_ME_MAX_CHARS,
@@ -93,6 +94,9 @@ function normalise(s: string): string {
 
 export const POST = apiHandler(async (req: Request) => {
   const { user } = await requireAuth();
+  // v1.18.0 — Coach module gate (operator availability + disableCoach).
+  const gate = await requireModuleEnabled(user.id, "coach");
+  if (!gate.enabled) return gate.response;
 
   const rl = await checkRateLimit(
     `coach-about-me:adopt:${user.id}`,

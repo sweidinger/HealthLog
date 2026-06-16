@@ -193,3 +193,8 @@ The native SwiftUI client lives in a separate repository and rides public beta v
 | iOS coordination notes | `.planning/ios-coord/` |
 | Maintainer working notes | `.planning/PROJECT.md`, `.planning/ROADMAP.md`, `.planning/STATE.md` (gitignored release scratch lives alongside; the patterns are in `.gitignore`) |
 | Personal preferences + collaboration memory | `~/.claude/projects/-Users-marc-Projects-HealthLog/memory/MEMORY.md` (local to the maintainer's working copy; not in the repo) |
+
+## Agent context hygiene (ECONNRESET / oversized-request prevention)
+- **NEVER read `src/generated/**`** — Prisma-generated client (~9 MB, 83 files incl. a 224 KB+ inline schema). Reading/grepping it explodes the request context → 10-min "cogitations" + `ECONNRESET` on large turns. Regenerate via `pnpm prisma generate` if needed; never open it. (Enforced via `.claude/settings.local.json` Read-deny.)
+- Avoid bulk-reading other large artifacts: `pnpm-lock.yaml`, `CHANGELOG.md`, `messages/*.json`, `docs/api/openapi.yaml` — grep narrowly instead of full reads.
+- For very large multi-agent actions: cap concurrent sub-agents (many simultaneous streaming requests + big context is the worst combo for connection resets). When on a VPN (Tailscale MTU 1280 / iCloud Private Relay), large requests can hit MTU black-holes — disable the tunnel for heavy sessions.

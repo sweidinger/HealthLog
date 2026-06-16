@@ -98,19 +98,49 @@ const nextConfig: NextConfig = {
       ["stimmung", "mood"],
       ["medikamente", "medications"],
     ];
-    return insightsSlugRenames.flatMap(([from, to]) => [
+    return [
+      ...insightsSlugRenames.flatMap(([from, to]) => [
+        {
+          source: `/insights/${from}`,
+          destination: `/insights/${to}`,
+          permanent: true,
+        },
+        // Preserve any nested path (e.g. a future `/insights/sleep/2026-05-31`).
+        {
+          source: `/insights/${from}/:path*`,
+          destination: `/insights/${to}/:path*`,
+          permanent: true,
+        },
+      ]),
+      // v1.18.0 — the Coach moved out of the Insights surface to a
+      // standalone top-level page. The legacy `/insights/coach` URL
+      // 301-redirects to `/coach` so bookmarks, the PWA's cached
+      // navigation, and any pre-update push deep-link keep resolving.
       {
-        source: `/insights/${from}`,
-        destination: `/insights/${to}`,
+        source: "/insights/coach",
+        destination: "/coach",
         permanent: true,
       },
-      // Preserve any nested path (e.g. a future `/insights/sleep/2026-05-31`).
+      // v1.18.0 (S3) — Sources folded into Settings → Integrations as the
+      // "Sources" sub-tab; the standalone `/settings/sources` page is gone.
+      // 301-redirect so bookmarks, the PWA's cached navigation, and the old
+      // cross-links keep resolving.
       {
-        source: `/insights/${from}/:path*`,
-        destination: `/insights/${to}/:path*`,
+        source: "/settings/sources",
+        destination: "/settings/integrations",
         permanent: true,
       },
-    ]);
+      // v1.18.0 (S4) — the standalone "Erinnerungen" hub at
+      // `/settings/reminders` was a link-only page that duplicated the
+      // canonical editors. Reminder TYPES now live in Notifications, each
+      // gated on its module. 301-redirect so bookmarks, the PWA's cached
+      // navigation, and the old cross-links keep resolving.
+      {
+        source: "/settings/reminders",
+        destination: "/settings/notifications",
+        permanent: true,
+      },
+    ];
   },
   async headers() {
     return [

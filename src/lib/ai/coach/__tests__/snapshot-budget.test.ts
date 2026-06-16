@@ -22,6 +22,32 @@ vi.mock("@/lib/insights/features", () => ({
   extractFeatures: vi.fn(),
 }));
 
+// v1.18.0 — the snapshot now resolves the per-user module map; stub it so the
+// default fixture is "all modules on" (legacy behaviour) without the real gate.
+import { MODULE_KEYS, type ModuleKey } from "@/lib/modules/registry";
+vi.mock("@/lib/modules/gate", () => ({
+  resolveModuleMap: vi.fn(),
+  // v1.18.0 — the coach cycle block gates through
+  // `isCycleAvailableForUser` → `isModuleEnabled(userId, "cycle")`. Back it
+  // with the same resolved map the tests drive via `resolveModuleMap`.
+  isModuleEnabled: vi.fn(async (...args: [string, ModuleKey]) => {
+    const key = args[1];
+    const map = await (resolveModuleMap as unknown as () => Promise<
+      Record<ModuleKey, boolean>
+    >)();
+    return map[key] !== false;
+  }),
+}));
+import { resolveModuleMap } from "@/lib/modules/gate";
+const resolveModuleMapMock = resolveModuleMap as unknown as ReturnType<
+  typeof vi.fn
+>;
+const allModulesEnabled = (): Record<ModuleKey, boolean> =>
+  Object.fromEntries(MODULE_KEYS.map((k) => [k, true])) as Record<
+    ModuleKey,
+    boolean
+  >;
+
 // Capture annotate calls so the budgeting assertions can prove the new
 // observability events fire.
 const annotateCalls: Array<{
@@ -148,6 +174,7 @@ describe("buildCoachSnapshot — budgeting + progressive degradation", () => {
     vi.clearAllMocks();
     annotateCalls.length = 0;
     __resetCoachSnapshotCacheForTests();
+    resolveModuleMapMock.mockResolvedValue(allModulesEnabled());
     const measurementRows = denseMeasurementRows();
     prismaMock.measurement.findMany.mockImplementation(
       (args: { where?: { type?: { in?: string[] } | string } }) => {

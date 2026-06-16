@@ -39,6 +39,8 @@ import {
 } from "@/lib/insights/derived";
 import { resolveDeterministicAssessment } from "@/lib/insights/derived/derived-assessment";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { requireModuleEnabled, resolveModuleMap } from "@/lib/modules/gate";
+import { DERIVED_MODULE } from "../route";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +115,8 @@ function parseBatchItems(csv: string): {
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
   await requireAssistantSurface("insightStatus");
 
   // Per-user limiter, same posture as the compliance routes: the cold
@@ -201,17 +205,35 @@ export const GET = apiHandler(async (request: NextRequest) => {
     annotate,
   );
 
+  // v1.18.0 — module gate. A derived score native to a toggleable module
+  // (sleep / recovery, per DERIVED_MODULE — the SAME map the single route
+  // uses, so the two cannot drift) must not reach the client when that
+  // module is disabled for the user. Resolved per request (NOT folded into
+  // the SWR key) and applied to a NEW object so the cached map is never
+  // mutated; a module toggle takes effect on the next read.
+  const moduleMap = await resolveModuleMap(user.id);
+  const gatedMetrics = Object.fromEntries(
+    Object.entries(map).filter(([key]) => {
+      const metric = key.includes(":") ? key.slice(0, key.indexOf(":")) : key;
+      const mod = DERIVED_MODULE[metric as DerivedMetricId];
+      return !(mod && moduleMap[mod] === false);
+    }),
+  );
+
   annotate({
     action: { name: "insights.derived.batch" },
     meta: {
       requested: items.length,
-      ok: Object.values(map).filter((entry) => entry.status === "ok").length,
+      ok: Object.values(gatedMetrics).filter((entry) => entry.status === "ok")
+        .length,
+      moduleGated: Object.keys(map).length - Object.keys(gatedMetrics).length,
     },
   });
 
   // `metrics` is a map keyed by the per-request token so the client reads
-  // back exactly what it asked for (`VITALS_BASELINE:WEIGHT`, `READINESS`).
-  return apiSuccess({ metrics: map });
+  // back exactly what it asked for (`VITALS_BASELINE:WEIGHT`, `READINESS`),
+  // minus any metric whose owning module the user disabled.
+  return apiSuccess({ metrics: gatedMetrics });
 });
 
 /**

@@ -19,6 +19,18 @@ vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
 
+// v1.18.0 — the GET alias resolves the module map. Stub it so these
+// tests assert the projection wiring without standing up the gate's
+// own DB round-trips (operator availability + assistant flags + cycle).
+vi.mock("@/lib/modules/gate", () => ({
+  resolveModuleMap: vi.fn().mockResolvedValue({
+    sleep: true,
+    glucose: true,
+    cycle: false,
+    coach: true,
+  }),
+}));
+
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
   cookies: vi.fn(async () => ({
@@ -31,6 +43,14 @@ vi.mock("next/headers", () => ({
 import { GET, PATCH } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { resolveModuleMap } from "@/lib/modules/gate";
+
+const MODULE_MAP = {
+  sleep: true,
+  glucose: true,
+  cycle: false,
+  coach: true,
+} as const;
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -39,6 +59,7 @@ const SESSION_OK = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(resolveModuleMap).mockResolvedValue(MODULE_MAP as never);
 });
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;
@@ -107,6 +128,36 @@ describe("GET /api/user/profile", () => {
     };
     expect(body.data.insurerIkNumber).toBe("101234567");
     expect(body.data.insurerName).toBe("Example Insurer");
+  });
+
+  // v1.18.0 — the alias the iOS app reads must carry the resolved module
+  // map, matching the /api/auth/me projection so the client gets module
+  // flags from the endpoint it actually fetches.
+  it("includes the resolved module map", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      username: "testuser",
+      displayName: null,
+      email: null,
+      dateOfBirth: null,
+      gender: null,
+      heightCm: null,
+      locale: null,
+      timezone: "Europe/Berlin",
+      moodReminderEnabled: false,
+      fullName: null,
+      insurerName: null,
+      insurerIkNumber: null,
+      insuranceNumberEncrypted: null,
+    } as never);
+
+    const res = await callGet(makeGetReq());
+    expect(res.status).toBe(200);
+    expect(resolveModuleMap).toHaveBeenCalledWith("user-1");
+    const body = (await res.json()) as {
+      data: { modules: Record<string, boolean> };
+    };
+    expect(body.data.modules).toEqual(MODULE_MAP);
   });
 });
 

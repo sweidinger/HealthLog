@@ -4,7 +4,7 @@
  * One daily cron tick (05:15 Europe/Berlin, after the nightly score
  * passes have settled) evaluates a small set of DETERMINISTIC triggers
  * per user and — when one fires — dispatches a single `COACH_NUDGE`
- * notification deep-linking to `/insights/coach`. No AI call happens
+ * notification deep-linking to `/coach`. No AI call happens
  * here: the triggers are plain arithmetic over already-persisted rows;
  * the Coach conversation the nudge invites the user into is where the
  * model gets involved.
@@ -78,6 +78,9 @@ import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
 import { getEvent } from "@/lib/logging/context";
 import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
+import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 // Trend thresholds shared with the dashboard hero's verdict resolver
 // live in a client-safe leaf module; re-exported below so server-side
 // imports keep their path.
@@ -551,9 +554,19 @@ export async function findTriggerForUser(
       }
     }
 
-    // 5) Sleep-deficit series: per-night hours over the last 7 days,
-    //    longest record per calendar night (multi-source rows collapse
-    //    to the fullest one).
+    // 5) Sleep-deficit series: per-night asleep HOURS over the last 7
+    //    days, reconstructed through the canonical sleep engine.
+    //
+    //    `SLEEP_DURATION` is stored one row per STAGE per night, in
+    //    MINUTES. The trigger compares against
+    //    `effectiveRange("SLEEP_DURATION").greenMin`, which is in HOURS
+    //    (7). The prior inline model kept each night's MAX single stage
+    //    row (a fragment, not the night) AND fed minutes straight into
+    //    the hours comparison — so a real ~360-480 minute night never
+    //    cleared `< 6.5` and the nudge could never fire. Reusing
+    //    `reconstructSleepNights` gives the proper asleep total
+    //    (CORE+DEEP+REM, multi-source de-duped, user-tz wake-day keyed);
+    //    dividing by 60 converts to the hours the trigger expects.
     const sleepRows = await prisma.measurement.findMany({
       where: {
         userId: user.id,
@@ -561,20 +574,25 @@ export async function findTriggerForUser(
         deletedAt: null,
         measuredAt: { gte: sevenDaysAgo, lte: now },
       },
-      select: { value: true, measuredAt: true },
+      select: {
+        value: true,
+        measuredAt: true,
+        sleepStage: true,
+        source: true,
+        deviceType: true,
+      },
     });
     if (sleepRows.length > 0) {
-      const byNight = new Map<string, number>();
-      for (const row of sleepRows) {
-        const night = row.measuredAt.toISOString().slice(0, 10);
-        const prev = byNight.get(night);
-        if (prev === undefined || row.value > prev) {
-          byNight.set(night, row.value);
-        }
-      }
+      const sourcePriority = await loadUserSourcePriority(user.id);
+      const nights = reconstructSleepNights(
+        sleepRows,
+        user.timezone ?? DEFAULT_TIMEZONE,
+        sourcePriority,
+      );
+      const nightlyHours = nights.map((n) => n.asleepMinutes / 60);
       if (
         evaluateSleepDebtTrigger(
-          [...byNight.values()],
+          nightlyHours,
           effectiveRange("SLEEP_DURATION")?.greenMin ?? null,
         )
       ) {
@@ -809,7 +827,7 @@ export async function runCoachNudgeTick(
           trigger,
           // Deep link — the web-push sender threads this into the
           // service-worker payload's click target.
-          url: "/insights/coach",
+          url: "/coach",
         },
       });
 

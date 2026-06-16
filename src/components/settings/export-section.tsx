@@ -9,18 +9,14 @@
  * per export type, each with its own filter inputs and a clear
  * "Download" / "Generate" button.
  *
- *   1. Health Record export        — hero panel at the top of the page
- *                                   (PDF + FHIR R4 + zip package, see
- *                                   `<HealthRecordExportPanel>`)
- *   2. Measurements CSV           — optional `since`/`until`
- *   3. Medications CSV            — optional intake-history toggle
- *   4. Mood CSV                   — optional `since`/`until`
- *   5. Full JSON Backup           — single-file user-scoped dump
+ *   1. Measurements CSV           — optional `since`/`until`
+ *   2. Medications CSV            — optional intake-history toggle
+ *   3. Mood CSV                   — optional `since`/`until`
+ *   4. Full JSON Backup           — single-file user-scoped dump
  *
- * v1.12 — the health-record export is the headline "data out" path; it
- * takes the page hero. The doctor-report PDF lives under the
- * health-record export now and is no longer offered as a separate card
- * here (it used to be a small secondary card at the bottom).
+ * v1.18.0 (S5) — the full health-record export (PDF + FHIR R4 + zip
+ * package) moved out to its own top-level "Gesundheitsakte" section. This
+ * page now keeps only the generic data export/import paths.
  *
  * Mobile-first: cards stack on `<md`, two-column grid on `>=md`.
  */
@@ -36,13 +32,14 @@ import {
   Loader2,
   Pill,
   Waves,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { HealthRecordExportPanel } from "@/components/settings/health-record-export-panel";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { ImportPanel } from "@/components/settings/import-panel";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
@@ -87,15 +84,9 @@ export function ExportSection() {
         </p>
       </header>
 
-      {/* v1.12 — full health-record export is now the page hero. PDF +
-          FHIR R4 + a combined zip package, with grouped data-section
-          toggles (collapsed by default) and a format switch. This is the
-          headline "data out" path; it carries the primary visual weight. */}
-      <HealthRecordExportPanel />
-
-      {/* v1.12 — secondary export options. The four CSV/JSON
-          destinations live under a dedicated sub-heading.
-          Mobile: single column. Desktop (md+): 2-column grid. */}
+      {/* v1.18.0 (S5) — the full health-record export moved to its own
+          top-level "Gesundheitsakte" section. This page keeps the generic
+          CSV/JSON data-out paths and the import surface. */}
       <section
         aria-labelledby="settings-section-export-other-title"
         className="space-y-3"
@@ -131,7 +122,7 @@ export function ExportSection() {
 
 interface ExportCardShellProps {
   testId: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   title: string;
   description: string;
   format: ExportFormat;
@@ -157,16 +148,16 @@ function ExportCardShell({
       data-testid={testId}
       className={`bg-card border-border flex h-full flex-col rounded-xl border p-4 sm:p-6${outerClassName ? ` ${outerClassName}` : ""}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Icon className="text-muted-foreground h-5 w-5 shrink-0" />
-          <h2 className="text-base font-semibold">{title}</h2>
-        </div>
-        <span className="border-border text-muted-foreground rounded-full border px-2 py-0.5 text-[11px] font-medium tracking-wide uppercase">
-          {format}
-        </span>
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">{description}</p>
+      <SettingsCardHeader
+        icon={Icon}
+        title={title}
+        description={description}
+        status={
+          <span className="border-border text-muted-foreground rounded-full border px-2 py-0.5 text-[11px] font-medium tracking-wide uppercase">
+            {format}
+          </span>
+        }
+      />
       {children && <div className="mt-3 space-y-3">{children}</div>}
       <div className="mt-4 flex flex-wrap items-center gap-3">{footer}</div>
     </div>
@@ -231,7 +222,7 @@ function buildQueryString(base: Record<string, string | undefined>): string {
 interface CsvCardProps {
   testId: string;
   actionTestId: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   titleKey: string;
   descriptionKey: string;
   endpoint: string;

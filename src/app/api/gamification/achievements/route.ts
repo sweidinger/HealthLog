@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { requireModuleEnabled, resolveModuleMap } from "@/lib/modules/gate";
+import type { ModuleKey } from "@/lib/modules/gate";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
@@ -9,6 +11,7 @@ import {
   applyDiscoveryFilter,
   calculateLongestStreak,
   evaluateAchievementsWithCompletionDates,
+  moduleForMetric,
   toBerlinDayKey,
   type AchievementMetrics,
   type AchievementProgress,
@@ -40,6 +43,15 @@ interface IosAchievement {
   unlocked: boolean;
   unlockedAt: string | null;
   progress: number;
+  // v1.18.0 B5 — parity fields the web payload already carries; the iOS
+  // client needs them to group badges by category, render the points
+  // tally, show absolute progress (current / target) and the opaque
+  // hidden-card placeholder in lock-step with the web surface.
+  category: string;
+  points: number;
+  target: number;
+  current: number;
+  isHidden: boolean;
 }
 
 export const dynamic = "force-dynamic";
@@ -469,6 +481,21 @@ function getCompliance80DaySeries(
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  // v1.18.0 — when the account has the achievements module turned off the
+  // whole gamification surface disappears: no badge evaluation, no unlock
+  // persistence, no payload. Returns the 403 `module.disabled` envelope
+  // verbatim so the client (web + iOS) hides the page / dashboard tile /
+  // unlock toast in lock-step with this refusal.
+  const gate = await requireModuleEnabled(user.id, "achievements");
+  if (!gate.enabled) {
+    annotate({
+      action: { name: "gamification.achievements" },
+      meta: { moduleDisabled: true },
+    });
+    return gate.response;
+  }
+
   const formatParam = request.nextUrl.searchParams.get("format");
   const isIosFormat = formatParam === "ios";
   annotate({
@@ -480,15 +507,49 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // iOS-format branch runs the locale-aware transform after the cache
   // read so the cache stays format-agnostic and the achievement-progress
   // dashboard duplicate (seen twice per dashboard mount in the v1.4.33
-  // HAR) coalesces into one builder call. Newly-unlocked achievements
-  // get persisted inside the builder so the second concurrent mount
-  // observes the up-to-date `persisted` state.
+  // HAR) coalesces into one builder call. v1.18.0 B5 — unlock persistence
+  // now happens in the handler after the cache read (idempotent), not as
+  // a side effect inside the cached factory.
+  // v1.18.0 B5 — resolve the per-user module map once and pass it into the
+  // builder so badge categories whose owning module is disabled (sleep
+  // badges when sleep is off, mood badges when mood is off) are skipped
+  // from evaluation AND unlock-persistence. Resolved outside the cache so
+  // a toggle change is reflected on the next read.
+  const moduleMap = await resolveModuleMap(user.id);
+
   const result = await cached(
     caches.achievements as ServerCache<AchievementsResult>,
     user.id,
-    () => buildAchievementsResult(user),
+    () => buildAchievementsResult(user, moduleMap),
     annotate,
   );
+
+  // v1.18.0 B5 — persist newly unlocked achievements OUTSIDE the cached
+  // factory. `createMany({ skipDuplicates: true })` is idempotent on the
+  // `(userId, achievementId)` unique, so re-running it on a cache hit is
+  // a no-op rather than a duplicate, and the write is never skipped just
+  // because the read was served from cache.
+  if (result.pendingUnlocks.length > 0) {
+    await prisma.userAchievement.createMany({
+      data: result.pendingUnlocks.map((u) => ({
+        userId: user.id,
+        achievementId: u.achievementId,
+        unlockedAt: new Date(u.unlockedAt),
+      })),
+      skipDuplicates: true,
+    });
+    annotate({
+      action: { name: "gamification.achievements" },
+      meta: { newUnlocks: result.pendingUnlocks.length },
+    });
+  }
+
+  // Strip the internal `pendingUnlocks` carrier; it never goes on the wire.
+  const payload = {
+    summary: result.summary,
+    achievements: result.achievements,
+    metrics: result.metrics,
+  };
 
   if (isIosFormat) {
     const locale = await resolveServerLocale({
@@ -496,7 +557,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       userLocale: user.locale,
     });
     const t = getServerTranslator(locale);
-    const ios: IosAchievement[] = result.achievements.map((a) => ({
+    const ios: IosAchievement[] = payload.achievements.map((a) => ({
       id: a.id,
       key: a.id,
       title: t.t(a.titleKey),
@@ -505,11 +566,16 @@ export const GET = apiHandler(async (request: NextRequest) => {
       unlocked: a.unlocked,
       unlockedAt: a.completedAt,
       progress: Math.max(0, Math.min(1, a.progressPercent / 100)),
+      category: a.category,
+      points: a.points,
+      target: a.target,
+      current: a.current,
+      isHidden: a.isHidden,
     }));
     return apiSuccess(ios);
   }
 
-  return apiSuccess(result);
+  return apiSuccess(payload);
 });
 
 type AuthedUser = Awaited<ReturnType<typeof requireAuth>>["user"];
@@ -521,13 +587,18 @@ type AchievementsResult = Awaited<ReturnType<typeof buildAchievementsResult>>;
  * the heavy aggregation. Returns the locale-agnostic web payload; the
  * iOS-format transform runs in the handler after the cache read.
  *
- * `prisma.userAchievement.createMany` inside the builder is kept here
- * (rather than moved to the cache hit path) because new unlocks are
- * a side effect of the same aggregate computation. A duplicate concurrent
- * read coalesces through the cache's single-flight `pending` map so the
- * createMany only fires once.
+ * v1.18.0 B5 — this builder NO LONGER writes. It computes the not-yet-
+ * persisted unlocks and returns them as `pendingUnlocks`; the handler
+ * performs the idempotent `createMany({ skipDuplicates: true })` on every
+ * request after the cache read. That keeps the persistence off the cached
+ * path (a cache hit can't silently skip it, a concurrent miss can't
+ * duplicate it) while the unique `(userId, achievementId)` makes a repeat
+ * write a no-op.
  */
-async function buildAchievementsResult(user: AuthedUser) {
+async function buildAchievementsResult(
+  user: AuthedUser,
+  moduleMap: Record<ModuleKey, boolean>,
+) {
   const now = new Date();
   const userId = user.id;
   const startDate = maxDate(user.createdAt, GAMIFICATION_ROLLOUT_AT);
@@ -959,23 +1030,32 @@ async function buildAchievementsResult(user: AuthedUser) {
     mergedDates,
   );
 
-  // Persist newly unlocked achievements
-  const newUnlocks = fullResult.achievements.filter(
-    (a) =>
-      a.unlocked &&
-      a.completedAt &&
-      !persisted.some((p) => p.achievementId === a.id),
-  );
-  if (newUnlocks.length > 0) {
-    await prisma.userAchievement.createMany({
-      data: newUnlocks.map((a) => ({
-        userId,
-        achievementId: a.id,
-        unlockedAt: new Date(a.completedAt!),
-      })),
-      skipDuplicates: true,
-    });
-  }
+  // v1.18.0 B5 — drop badges whose owning module is disabled BEFORE both
+  // unlock-persistence and serialisation. A sleep badge must never unlock
+  // (or render) while the sleep module is off; same for mood badges when
+  // mood is off, etc. Core-domain and account-wide badges return a null
+  // owner from `moduleForMetric` and always pass through.
+  const moduleEnabledAchievements = fullResult.achievements.filter((a) => {
+    const owner = moduleForMetric(a.metric);
+    if (owner === null) return true;
+    return moduleMap[owner as ModuleKey] !== false;
+  });
+
+  // v1.18.0 B5 — compute the newly unlocked rows here but DON'T write them
+  // inside the cached factory: a write must not be a side effect of a
+  // cached GET (a cache hit would silently skip it, a concurrent miss
+  // could duplicate it). The handler performs the idempotent
+  // `createMany({ skipDuplicates: true })` on every request after the
+  // cache read, so the persistence runs regardless of cache outcome and
+  // is safe to repeat.
+  const pendingUnlocks: PendingUnlock[] = moduleEnabledAchievements
+    .filter(
+      (a) =>
+        a.unlocked &&
+        a.completedAt &&
+        !persisted.some((p) => p.achievementId === a.id),
+    )
+    .map((a) => ({ achievementId: a.id, unlockedAt: a.completedAt! }));
 
   // v1.4.18 — apply the discovery filter so locked badges that the
   // user has *no path* to earn (e.g. mood badges for someone who has
@@ -983,7 +1063,7 @@ async function buildAchievementsResult(user: AuthedUser) {
   // eggs always pass through. Already-unlocked badges always pass
   // through (regression guard).
   const visibleAchievements = applyDiscoveryFilter(
-    fullResult.achievements,
+    moduleEnabledAchievements,
     earnability,
   );
 
@@ -1035,9 +1115,19 @@ async function buildAchievementsResult(user: AuthedUser) {
     },
     achievements: redactedAchievements,
     metrics: redactedMetrics,
+    // v1.18.0 B5 — carried out of the cached factory so the handler can
+    // persist them on every read (idempotent), not as a write side effect
+    // that a cache hit would skip. NOT part of the serialised payload.
+    pendingUnlocks,
   };
 
   return result;
+}
+
+/** v1.18.0 B5 — a not-yet-persisted unlock the handler writes after the cache read. */
+interface PendingUnlock {
+  achievementId: string;
+  unlockedAt: string;
 }
 
 /**

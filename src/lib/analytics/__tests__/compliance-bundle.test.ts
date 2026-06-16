@@ -17,6 +17,7 @@ import {
   buildMedicationComplianceBundle,
   buildComplianceDisplay,
   calculateCompliance,
+  dailyComplianceRatesFromLedger,
   lastNonSkippedTakenAt,
   tallyComplianceFromLedger,
   tallyLedgerRows,
@@ -36,6 +37,21 @@ function dailySchedule(): ComplianceSchedule {
     timesOfDay: ["08:00"],
     daysOfWeek: null,
     rrule: null,
+    rollingIntervalDays: null,
+    reminderGraceMinutes: null,
+    scheduleType: "SCHEDULED",
+    cyclicOnWeeks: null,
+    cyclicOffWeeks: null,
+  };
+}
+
+function weeklyMondaySchedule(): ComplianceSchedule {
+  return {
+    windowStart: "08:00",
+    windowEnd: "09:00",
+    timesOfDay: ["08:00"],
+    daysOfWeek: null,
+    rrule: "FREQ=WEEKLY;BYDAY=MO",
     rollingIntervalDays: null,
     reminderGraceMinutes: null,
     scheduleType: "SCHEDULED",
@@ -202,6 +218,104 @@ describe("buildMedicationComplianceBundle — parity with the per-window composi
       buildComplianceDisplay([], [], ctx, { now: NOW }),
     );
     expect(bundle.ledgerRows).toEqual([]);
+  });
+});
+
+describe("dailyComplianceRatesFromLedger — cadence-aware per-day series", () => {
+  it("weekly Monday-only med: per-day series agrees with compliance30 and never marks non-due days", () => {
+    // NOW (2026-06-01) is a Monday; build five trailing Mondays and take
+    // every one on time. A weekly-cadence med expects a dose ONLY on Mondays.
+    const createdAt = new Date(NOW.getTime() - 60 * DAY_MS);
+    const schedules = [weeklyMondaySchedule()];
+    const ctx = buildComplianceMedicationContext(
+      { startsOn: null, endsOn: null, oneShot: false, createdAt },
+      null,
+      TZ,
+    );
+
+    const events: FixtureEvent[] = [];
+    for (let week = 0; week < 5; week++) {
+      const daysAgo = week * 7; // every Monday back from NOW
+      events.push({
+        takenAt: slotAt(daysAgo, "08:05"),
+        skipped: false,
+        scheduledFor: slotAt(daysAgo, "08:00"),
+      });
+    }
+    ctx.lastIntakeAt = lastNonSkippedTakenAt(events);
+
+    const bundle = buildMedicationComplianceBundle(events, schedules, ctx, NOW);
+
+    // Took every expected Monday → 100% over 30 days.
+    expect(bundle.compliance30.rate).toBe(100);
+
+    // The per-day series carves the same 30-day window out of the shared
+    // ledger and must agree with compliance30 — no off-cadence weekday is
+    // counted as a miss.
+    const from = new Date(NOW.getTime() - 30 * DAY_MS);
+    const windowRows = bundle.ledgerRows.filter(
+      (r) => r.at.getTime() >= from.getTime() && r.at.getTime() <= NOW.getTime(),
+    );
+    const series = dailyComplianceRatesFromLedger(windowRows);
+
+    // Only the Mondays in the window produce a point — Tuesday…Sunday emit
+    // nothing, so a 7×-denser daily denominator can never drag the rate down.
+    // NOW is itself a Monday, so the 30-day window holds five Mondays.
+    expect(series.length).toBe(5);
+    for (const day of series) {
+      expect(day.rate).toBe(100);
+      expect(day.missed).toBe(0);
+    }
+
+    // The series' mean rate equals the canonical compliance30 rate: the two
+    // are computed from the SAME ledger and cannot contradict each other.
+    const meanRate =
+      series.reduce((sum, d) => sum + d.rate, 0) / series.length;
+    expect(Math.round(meanRate)).toBe(bundle.compliance30.rate);
+  });
+
+  it("weekly med with one missed Monday: the missed day reads 0%, due days only", () => {
+    const createdAt = new Date(NOW.getTime() - 60 * DAY_MS);
+    const schedules = [weeklyMondaySchedule()];
+    const ctx = buildComplianceMedicationContext(
+      { startsOn: null, endsOn: null, oneShot: false, createdAt },
+      null,
+      TZ,
+    );
+
+    // Four Mondays in the 30-day window; skip the take on the 2-weeks-ago one.
+    const events: FixtureEvent[] = [];
+    for (let week = 0; week < 5; week++) {
+      const daysAgo = week * 7;
+      if (week === 2) continue; // forgotten dose → an expected slot reads missed
+      events.push({
+        takenAt: slotAt(daysAgo, "08:05"),
+        skipped: false,
+        scheduledFor: slotAt(daysAgo, "08:00"),
+      });
+    }
+    ctx.lastIntakeAt = lastNonSkippedTakenAt(events);
+
+    const bundle = buildMedicationComplianceBundle(events, schedules, ctx, NOW);
+
+    const from = new Date(NOW.getTime() - 30 * DAY_MS);
+    const windowRows = bundle.ledgerRows.filter(
+      (r) => r.at.getTime() >= from.getTime() && r.at.getTime() <= NOW.getTime(),
+    );
+    const series = dailyComplianceRatesFromLedger(windowRows);
+
+    // Still one point per due Monday — never a point on a non-due weekday.
+    // Five Mondays in the window; the skipped take leaves one as a miss.
+    expect(series.length).toBe(5);
+    const zeroDays = series.filter((d) => d.rate === 0);
+    expect(zeroDays.length).toBe(1);
+    expect(zeroDays[0].missed).toBe(1);
+
+    // Aggregate taken / (taken + missed) across due days equals compliance30.
+    const taken = series.reduce((sum, d) => sum + d.taken, 0);
+    const missed = series.reduce((sum, d) => sum + d.missed, 0);
+    const aggregateRate = Math.round((taken / (taken + missed)) * 100);
+    expect(aggregateRate).toBe(bundle.compliance30.rate);
   });
 });
 

@@ -189,7 +189,22 @@
     "labsColValue": "Wartość",
     "labsColReference": "Norma",
     "labsColStatus": "Status",
-    "labsColDate": "Data"
+    "labsColDate": "Data",
+    "glucoseClinical": {
+      "title": "Przegląd glukozy (kliniczny)",
+      "colMetric": "Wskaźnik",
+      "colValue": "Wartość",
+      "tirInRange": "Czas w zakresie (70–180 mg/dl)",
+      "tirLow": "Niski (< 70 mg/dl)",
+      "tirVeryLow": "Bardzo niski (< 54 mg/dl)",
+      "tirHigh": "Wysoki (> 180 mg/dl)",
+      "tirVeryHigh": "Bardzo wysoki (> 250 mg/dl)",
+      "mean": "Średnia glukoza",
+      "gmi": "Wskaźnik zarządzania glukozą (GMI)",
+      "eA1c": "Szacowane HbA1c",
+      "cv": "Zmienność (CV%)",
+      "spotCaveat": "To szacunki z pojedynczych pomiarów, nie profil z monitora ciągłego — czytaj je jako kierunek zmian, a nie kliniczny werdykt."
+    }
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",
@@ -2784,6 +2799,7 @@
       }
     },
     "navWorkouts": "Treningi",
+    "navRecovery": "Regeneracja",
     "workouts": {
       "title": "Treningi",
       "description": "Ostatnie biegi, jazdy, marsze i treningi siłowe — zdeduplikowane między Apple Watch a Withings.",
@@ -3855,15 +3871,29 @@
       },
       "integrations": {
         "title": "Integracje",
-        "description": "Withings, moodLog i inne połączone usługi."
+        "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
+        "tabs": {
+          "connections": "Połączenia",
+          "channels": "Kanały",
+          "sources": "Źródła"
+        },
+        "connections": {
+          "description": "Połącz Withings, WHOOP, Fitbit, Polar, Oura i Nightscout."
+        },
+        "channels": {
+          "description": "Telegram, ntfy, Web Push, Webhook i e-mail — drogi dostarczania powiadomień."
+        }
       },
       "notifications": {
         "title": "Powiadomienia",
-        "description": "Podgląd na żywo każdego skonfigurowanego kanału."
+        "description": "Wszystkie przypomnienia w jednym miejscu — co i kiedy. Kanały dostarczania znajdują się w Integracjach.",
+        "channelsHint": "Telegram, ntfy, Web Push, Webhook i e-mail konfigurujesz teraz w",
+        "channelsHintLink": "Integracje → Kanały",
+        "inboxLink": "Otwórz skrzynkę odbiorczą"
       },
       "layout": {
         "title": "Układ i personalizacja",
-        "description": "Ustal, jak rozłożona jest Twoja aplikacja — jedno miejsce dla pulpitu, analiz, leków i nastroju.",
+        "description": "Ustal, jak rozłożone są pulpit i analizy.",
         "backToHub": "Powrót do Układ i personalizacja",
         "dashboard": {
           "title": "Pulpit",
@@ -3951,7 +3981,7 @@
       },
       "ai": {
         "title": "Analizy AI",
-        "description": "Dostawca, model, klucz."
+        "description": "Dostawca, model i klucz API do analiz, a także Twój kontekst „o mnie”."
       },
       "api": {
         "title": "API & Tokens",
@@ -3963,7 +3993,7 @@
       },
       "export": {
         "title": "Eksport i import",
-        "description": "Pobierz swoje dane zdrowotne jako PDF, CSV lub pełną kopię zapasową JSON albo zaimportuj dane z Apple Health lub pliku JSON.",
+        "description": "Pobierz swoje dane jako CSV lub pełną kopię zapasową JSON albo zaimportuj z Apple Health, JSON lub CSV. Raport dla lekarza znajdziesz teraz w Dokumentacji zdrowotnej.",
         "otherOptionsHeading": "Inne opcje eksportu",
         "downloadFailed": "Nie udało się pobrać eksportu. Spróbuj ponownie.",
         "hero": {
@@ -4086,41 +4116,36 @@
       },
       "medications": {
         "title": "Leki",
-        "description": "Widok listy i kolejność leków."
+        "description": "Widok listy, kolejność i miejsca wstrzyknięć Twoich leków."
       },
       "mood": {
         "title": "Tagi nastroju",
-        "description": "Grupy, tagi i kolejność w wyborze nastroju."
+        "description": "Grupy, tagi i zarchiwizowane tagi w wyborze nastroju."
       },
-      "reminders": {
-        "title": "Przypomnienia i powiadomienia",
-        "description": "Jedno miejsce dla każdego przypomnienia — o czym i kiedy — oraz kanały, które je dostarczają.",
-        "categoriesGroup": "Przypomnienia",
-        "channelsGroup": "Kanały dostarczania",
-        "medication": {
-          "title": "Przypomnienia o lekach",
-          "description": "Godziny i okna dawek, ustawiane przy każdym leku."
+      "modules": {
+        "title": "Moduły",
+        "saved": "Zapisano.",
+        "error": "Nie udało się zapisać. Spróbuj ponownie.",
+        "toggleable": {
+          "title": "Co śledzisz",
+          "description": "Obszary opcjonalne. Wyłączone moduły znikają z nawigacji, kafelków i analiz — Twoje dane pozostają nienaruszone."
         },
-        "vorsorge": {
-          "title": "Profilaktyka",
-          "description": "Cykliczne badania i pomiary wraz z miejscem, gdzie się udać."
+        "core": {
+          "title": "Zawsze aktywne",
+          "description": "Podstawy HealthLog. Tych obszarów nie można wyłączyć.",
+          "note": "Obszar podstawowy — zawsze aktywny"
         },
-        "mood": {
-          "title": "Zapis nastroju",
-          "description": "Codzienne przypomnienie, by zapisać samopoczucie."
-        },
-        "lowStock": {
-          "title": "Zapas na wyczerpaniu",
-          "description": "Otrzymaj ostrzeżenie, zanim lek się skończy."
-        },
-        "coach": {
-          "title": "Podpowiedź trenera",
-          "description": "Proaktywne wskazówki od trenera AI."
-        },
-        "channels": {
-          "title": "Kanały powiadomień",
-          "description": "APNs, Telegram, ntfy, Web Push, Webhook i e-mail."
-        }
+        "description": "Wybierz, co HealthLog ma dla Ciebie śledzić. Włączaj i wyłączaj poszczególne obszary — nawigacja, kafelki i analizy dostosują się od razu.",
+        "manageIn": "Zarządzaj w {section}",
+        "operatorDisabled": "Wyłączone na całym serwerze"
+      },
+      "gesundheitsakte": {
+        "title": "Dokumentacja zdrowotna",
+        "description": "Wyeksportuj pełną dokumentację zdrowotną jako PDF, FHIR R4 lub łączony pakiet ZIP."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Włącz Coacha, ton i zakres, zapisane wspomnienia."
       }
     },
     "profile": "Profil",
@@ -4996,6 +5021,12 @@
         "title": "Objaśnienie Health-Score",
         "description": "Ikona ? obok linii delty Health-Score. Cyfra delty pozostaje widoczna niezależnie."
       }
+    },
+    "modules": {
+      "title": "Dostępność modułów",
+      "description": "Wyłącz moduł dla całego serwera. Moduł wyłączony tutaj jest nieaktywny dla każdego konta, niezależnie od preferencji użytkownika. Domeny podstawowe (waga, ciśnienie, tętno, leki) są zawsze włączone i nie można ich wyłączyć.",
+      "disabledHint": "Wyłączone na całym serwerze",
+      "saveError": "Nie udało się zaktualizować dostępności modułów."
     },
     "bugReportRepo": "Repozytorium",
     "bugReportRepoPlaceholder": "owner/repo",
@@ -6423,6 +6454,8 @@
     "addButton": "Dodaj przypomnienie",
     "markDone": "Gotowe",
     "delete": "Usuń",
+    "deleteConfirmTitle": "Usunąć przypomnienie?",
+    "deleteConfirmDescription": "To przypomnienie profilaktyczne zostanie trwale usunięte.",
     "disabledBadge": "Wył.",
     "nextDue": {
       "none": "Niezaplanowane",
@@ -6479,6 +6512,8 @@
     "referenceLabel": "Norma",
     "readingsCount": "{count} wyników",
     "deleteLatest": "Usuń ostatni wynik",
+    "deleteConfirmTitle": "Usunąć wynik laboratoryjny?",
+    "deleteConfirmDescription": "Ten wynik laboratoryjny zostanie trwale usunięty.",
     "deletedToast": "Wynik usunięty",
     "deleteError": "Nie udało się usunąć wyniku",
     "loadError": "Nie udało się wczytać wyników",
@@ -6509,6 +6544,68 @@
       "save": "Zapisz",
       "savedToast": "Wynik zapisany",
       "saveError": "Nie udało się zapisać wyniku"
+    }
+  },
+  "modules": {
+    "cycle": {
+      "label": "Cykl",
+      "description": "Śledź miesiączkę, fazy i prognozy."
+    },
+    "mood": {
+      "label": "Nastrój",
+      "description": "Zapisuj codzienny nastrój i tagi."
+    },
+    "sleep": {
+      "label": "Sen",
+      "description": "Długość, fazy i oś czasu snu."
+    },
+    "glucose": {
+      "label": "Glukoza",
+      "description": "Odczyty glukozy i trendy."
+    },
+    "workouts": {
+      "label": "Treningi",
+      "description": "Sesje treningowe i aktywność."
+    },
+    "recovery": {
+      "label": "Regeneracja",
+      "description": "Wskaźniki regeneracji i obciążenia z Twoich urządzeń."
+    },
+    "labs": {
+      "label": "Wyniki badań",
+      "description": "Zapisuj wyniki badań laboratoryjnych i ich historię."
+    },
+    "achievements": {
+      "label": "Osiągnięcia",
+      "description": "Odznaki i serie dla Twojej rutyny."
+    },
+    "coach": {
+      "label": "Coach",
+      "description": "Czat AI oparty na Twoich danych."
+    },
+    "insights": {
+      "label": "Analizy",
+      "description": "Analizy AI, briefing i korelacje."
+    },
+    "doctorReport": {
+      "label": "Raport dla lekarza",
+      "description": "Eksport PDF i FHIR dla Twojej przychodni."
+    },
+    "weight": {
+      "label": "Waga",
+      "description": "Waga i skład ciała."
+    },
+    "bloodPressure": {
+      "label": "Ciśnienie krwi",
+      "description": "Skurczowe i rozkurczowe."
+    },
+    "pulse": {
+      "label": "Tętno",
+      "description": "Tętno spoczynkowe i rytm serca."
+    },
+    "medications": {
+      "label": "Leki",
+      "description": "Schematy, przyjęcia i zgodność."
     }
   }
 }

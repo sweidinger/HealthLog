@@ -58,6 +58,7 @@
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
+  --color-tab-inactive: var(--tab-inactive);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
@@ -171,6 +172,11 @@
   --secondary-foreground: #f8f8f2;
   --muted: #44475a;
   --muted-foreground: #9aa3b3;
+  /* Inactive tab-trigger text. `--muted-foreground` (#9aa3b3) on the
+   * muted (#44475a) tab-strip reads 3.6:1 — below WCAG AA. This brighter
+   * tone clears 4.5:1 on the muted strip while staying within the Dracula
+   * palette; the active trigger keeps `--foreground`. */
+  --tab-inactive: #b3bccd;
   /* NativeSelect chevron — a data-URI background-image cannot resolve
    * `currentColor` (it falls back to black per the SVG spec), so the
    * muted-foreground value is baked into the stroke per theme. Keep in
@@ -275,6 +281,9 @@
   --secondary-foreground: #1f1f1f;
   --muted: #dcdeef;
   --muted-foreground: #5b6273;
+  /* Inactive tab-trigger text — the light muted-foreground already clears
+   * AA (4.58:1) on the light muted strip, so the token mirrors it. */
+  --tab-inactive: #5b6273;
   /* Light-theme counterpart of the NativeSelect chevron (see dark block). */
   --native-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6273' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --accent: #dcdeef;

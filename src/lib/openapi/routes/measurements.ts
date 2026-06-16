@@ -14,7 +14,7 @@ import {
   measurementSourceEnum,
 } from "@/lib/validations/measurement";
 import { deviceTypeEnum } from "@/lib/validations/source-priority";
-import { dataEnvelope, stdResponses } from "./shared";
+import { dataEnvelope, moduleDisabledResponse, stdResponses } from "./shared";
 
 const batchEntrySchema = z
   .object({
@@ -600,6 +600,7 @@ export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
           },
         },
+        ...moduleDisabledResponse,
         ...stdResponses,
       },
     },
@@ -619,6 +620,7 @@ export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
           },
         },
+        ...moduleDisabledResponse,
         ...stdResponses,
       },
     },

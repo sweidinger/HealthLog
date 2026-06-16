@@ -189,7 +189,22 @@
     "labsColValue": "Wert",
     "labsColReference": "Referenz",
     "labsColStatus": "Status",
-    "labsColDate": "Datum"
+    "labsColDate": "Datum",
+    "glucoseClinical": {
+      "title": "Glukose-Übersicht (klinisch)",
+      "colMetric": "Kennzahl",
+      "colValue": "Wert",
+      "tirInRange": "Zeit im Zielbereich (70–180 mg/dl)",
+      "tirLow": "Niedrig (< 70 mg/dl)",
+      "tirVeryLow": "Sehr niedrig (< 54 mg/dl)",
+      "tirHigh": "Hoch (> 180 mg/dl)",
+      "tirVeryHigh": "Sehr hoch (> 250 mg/dl)",
+      "mean": "Durchschnittliche Glukose",
+      "gmi": "Glukose-Management-Indikator (GMI)",
+      "eA1c": "Geschätzter HbA1c",
+      "cv": "Variabilität (VK%)",
+      "spotCaveat": "Dies sind Schätzwerte aus Einzelmessungen, kein Profil eines kontinuierlichen Messgeräts — als Tendenz und nicht als klinisches Urteil zu lesen."
+    }
   },
   "errorBoundary": {
     "title": "Da ist etwas schiefgelaufen",
@@ -2784,6 +2799,7 @@
       }
     },
     "navWorkouts": "Workouts",
+    "navRecovery": "Erholung",
     "workouts": {
       "title": "Workouts",
       "description": "Letzte Läufe, Touren, Spaziergänge und Krafteinheiten — quellenübergreifend entdoppelt zwischen Apple Watch und Withings.",
@@ -3855,15 +3871,29 @@
       },
       "integrations": {
         "title": "Integrationen",
-        "description": "Withings, moodLog und weitere verbundene Dienste."
+        "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort.",
+        "tabs": {
+          "connections": "Verbindungen",
+          "channels": "Kanäle",
+          "sources": "Quellen"
+        },
+        "connections": {
+          "description": "Withings, WHOOP, Fitbit, Polar, Oura und Nightscout verbinden."
+        },
+        "channels": {
+          "description": "Telegram, ntfy, Web-Push, Webhook und E-Mail – die Wege, über die Benachrichtigungen zugestellt werden."
+        }
       },
       "notifications": {
         "title": "Benachrichtigungen",
-        "description": "Live-Übersicht aller konfigurierten Kanäle."
+        "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird. Die Zustellkanäle liegen unter Integrationen.",
+        "channelsHint": "Telegram, ntfy, Web-Push, Webhook und E-Mail richtest du jetzt unter",
+        "channelsHintLink": "Integrationen → Kanäle",
+        "inboxLink": "Posteingang öffnen"
       },
       "layout": {
         "title": "Layout & Personalisierung",
-        "description": "Lege fest, wie deine App aufgebaut ist — ein Ort für Dashboard, Insights, Medikamente und Stimmung.",
+        "description": "Lege fest, wie Dashboard und Insights aufgebaut und angeordnet sind.",
         "backToHub": "Zurück zu Layout & Personalisierung",
         "dashboard": {
           "title": "Dashboard",
@@ -3951,7 +3981,7 @@
       },
       "ai": {
         "title": "KI-Auswertungen",
-        "description": "Provider, Modell, API-Key."
+        "description": "Provider, Modell und API-Key für die Auswertungen — dazu dein „Über mich“-Kontext."
       },
       "api": {
         "title": "API & Tokens",
@@ -3963,7 +3993,7 @@
       },
       "export": {
         "title": "Export & Import",
-        "description": "Lade deine Gesundheitsdaten als PDF, CSV oder vollständiges JSON-Backup herunter — oder importiere Daten aus Apple Health oder einer JSON-Datei.",
+        "description": "Lade deine Daten als CSV oder vollständiges JSON-Backup herunter — oder importiere aus Apple Health, JSON oder CSV. Den Arztbericht findest du jetzt unter Gesundheitsakte.",
         "otherOptionsHeading": "Weitere Export-Optionen",
         "downloadFailed": "Der Export konnte nicht heruntergeladen werden. Bitte versuche es erneut.",
         "hero": {
@@ -4086,41 +4116,36 @@
       },
       "medications": {
         "title": "Medikamente",
-        "description": "Listenansicht und Reihenfolge der Medikamente."
+        "description": "Listenansicht, Reihenfolge und Injektionsstellen deiner Medikamente."
       },
       "mood": {
         "title": "Stimmungs-Tags",
-        "description": "Gruppen, Tags und Reihenfolge der Tag-Auswahl."
+        "description": "Gruppen, Tags und archivierte Tags der Stimmungs-Auswahl."
       },
-      "reminders": {
-        "title": "Erinnerungen & Benachrichtigungen",
-        "description": "Ein Ort für jede Erinnerung — woran und wann erinnert wird — und die Kanäle, die sie zustellen.",
-        "categoriesGroup": "Erinnerungen",
-        "channelsGroup": "Zustellkanäle",
-        "medication": {
-          "title": "Medikamenten-Erinnerungen",
-          "description": "Einnahmezeiten und Zeitfenster, je Medikament eingestellt."
+      "modules": {
+        "title": "Module",
+        "saved": "Gespeichert.",
+        "error": "Konnte nicht gespeichert werden. Bitte erneut versuchen.",
+        "toggleable": {
+          "title": "Was du trackst",
+          "description": "Optionale Bereiche. Deaktivierte Module verschwinden aus Navigation, Kacheln und Auswertungen — deine Daten bleiben erhalten."
         },
-        "vorsorge": {
-          "title": "Vorsorge",
-          "description": "Wiederkehrende Untersuchungen und Messungen, inklusive Ort."
+        "core": {
+          "title": "Immer aktiv",
+          "description": "Die Grundlagen von HealthLog. Diese Bereiche lassen sich nicht abschalten.",
+          "note": "Kernbereich — immer aktiv"
         },
-        "mood": {
-          "title": "Stimmungs-Check-in",
-          "description": "Eine tägliche Erinnerung, dein Befinden zu erfassen."
-        },
-        "lowStock": {
-          "title": "Reichweite bei Restbestand",
-          "description": "Werde gewarnt, bevor ein Medikament zur Neige geht."
-        },
-        "coach": {
-          "title": "Coach-Hinweis",
-          "description": "Proaktive Impulse vom KI-Coach."
-        },
-        "channels": {
-          "title": "Benachrichtigungskanäle",
-          "description": "APNs, Telegram, ntfy, Web Push, Webhook und E-Mail."
-        }
+        "description": "Lege fest, was HealthLog für dich erfasst. Schalte einzelne Bereiche ein oder aus — die Navigation, Kacheln und Auswertungen passen sich sofort an.",
+        "manageIn": "In {section} verwalten",
+        "operatorDisabled": "Serverweit deaktiviert"
+      },
+      "gesundheitsakte": {
+        "title": "Gesundheitsakte",
+        "description": "Vollständige Gesundheitsakte als PDF, FHIR R4 oder kombiniertes ZIP-Paket exportieren."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Coach aktivieren, Ton und Umfang, gespeicherte Erinnerungen."
       }
     },
     "profile": "Profil",
@@ -4996,6 +5021,12 @@
         "title": "Health-Score-Erklärer",
         "description": "Das ?-Symbol neben der Health-Score-Differenz. Die Zahl bleibt unabhängig davon sichtbar."
       }
+    },
+    "modules": {
+      "title": "Modulverfügbarkeit",
+      "description": "Schalte ein Modul für den gesamten Server ab. Ein hier deaktiviertes Modul ist für jedes Konto aus – unabhängig von den persönlichen Einstellungen. Kerndaten (Gewicht, Blutdruck, Puls, Medikamente) sind immer aktiv und lassen sich nicht abschalten.",
+      "disabledHint": "Serverweit deaktiviert",
+      "saveError": "Modulverfügbarkeit konnte nicht aktualisiert werden."
     },
     "bugReportRepo": "Repository",
     "bugReportRepoPlaceholder": "owner/repo",
@@ -6423,6 +6454,8 @@
     "addButton": "Erinnerung hinzufügen",
     "markDone": "Erledigt",
     "delete": "Löschen",
+    "deleteConfirmTitle": "Erinnerung löschen?",
+    "deleteConfirmDescription": "Diese Vorsorge-Erinnerung wird dauerhaft gelöscht.",
     "disabledBadge": "Aus",
     "nextDue": {
       "none": "Nicht geplant",
@@ -6479,6 +6512,8 @@
     "referenceLabel": "Referenz",
     "readingsCount": "{count} Werte",
     "deleteLatest": "Letzten Wert löschen",
+    "deleteConfirmTitle": "Laborwert löschen?",
+    "deleteConfirmDescription": "Dieser Laborwert wird dauerhaft gelöscht.",
     "deletedToast": "Wert gelöscht",
     "deleteError": "Wert konnte nicht gelöscht werden",
     "loadError": "Laborwerte konnten nicht geladen werden",
@@ -6509,6 +6544,68 @@
       "save": "Speichern",
       "savedToast": "Wert gespeichert",
       "saveError": "Wert konnte nicht gespeichert werden"
+    }
+  },
+  "modules": {
+    "cycle": {
+      "label": "Zyklus",
+      "description": "Periode, Phasen und Vorhersagen verfolgen."
+    },
+    "mood": {
+      "label": "Stimmung",
+      "description": "Tägliche Stimmung und Tags erfassen."
+    },
+    "sleep": {
+      "label": "Schlaf",
+      "description": "Schlafdauer, Phasen und Schlaf-Timeline."
+    },
+    "glucose": {
+      "label": "Glukose",
+      "description": "Blutzuckerwerte und Verläufe."
+    },
+    "workouts": {
+      "label": "Workouts",
+      "description": "Trainingseinheiten und Aktivität."
+    },
+    "recovery": {
+      "label": "Erholung",
+      "description": "Erholungs- und Belastungswerte deiner Geräte."
+    },
+    "labs": {
+      "label": "Laborwerte",
+      "description": "Laborergebnisse erfassen und im Verlauf ablegen."
+    },
+    "achievements": {
+      "label": "Erfolge",
+      "description": "Abzeichen und Serien für deine Routine."
+    },
+    "coach": {
+      "label": "Coach",
+      "description": "KI-Chat mit Bezug zu deinen Daten."
+    },
+    "insights": {
+      "label": "Auswertungen",
+      "description": "KI-Analysen, Briefing und Korrelationen."
+    },
+    "doctorReport": {
+      "label": "Arztbericht",
+      "description": "PDF- und FHIR-Export für deine Praxis."
+    },
+    "weight": {
+      "label": "Gewicht",
+      "description": "Gewicht und Körperzusammensetzung."
+    },
+    "bloodPressure": {
+      "label": "Blutdruck",
+      "description": "Systolisch und diastolisch."
+    },
+    "pulse": {
+      "label": "Puls",
+      "description": "Ruhepuls und Herzfrequenz."
+    },
+    "medications": {
+      "label": "Medikamente",
+      "description": "Pläne, Einnahmen und Compliance."
     }
   }
 }

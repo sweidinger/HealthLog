@@ -19,7 +19,10 @@ const mockUserRef = {
     email: "user@example.com",
     role: "USER" as "USER" | "ADMIN",
     avatarUrl: null,
-    cycleTrackingEnabled: false,
+    // v1.18.0 — nav gating reads the resolved per-user module map; cycle is
+    // the delegated `cycle` key on it (no bespoke boolean). An absent key
+    // fails open (entry shows), matching the gate's default-on contract.
+    modules: {} as Record<string, boolean>,
   },
 };
 vi.mock("@/hooks/use-auth", () => ({
@@ -57,16 +60,16 @@ function render({
   pathname = "/",
   bugReportEnabled = true,
   role = "USER" as "USER" | "ADMIN",
-  cycleTrackingEnabled = false,
+  modules = {} as Record<string, boolean>,
 }: {
   pathname?: string;
   bugReportEnabled?: boolean;
   role?: "USER" | "ADMIN";
-  cycleTrackingEnabled?: boolean;
+  modules?: Record<string, boolean>;
 } = {}) {
   mockPathnameRef.value = pathname;
   mockSettingsRef.value = { bugReportEnabled };
-  mockUserRef.value = { ...mockUserRef.value, role, cycleTrackingEnabled };
+  mockUserRef.value = { ...mockUserRef.value, role, modules };
   return renderToStaticMarkup(
     // The nav reads `useQueryClient()` for the medications intent
     // prefetch (v1.16.7); a fresh client per render keeps the SSR
@@ -94,20 +97,20 @@ describe("<SidebarNav> bug-report toggle", () => {
   });
 });
 
-describe("<SidebarNav> cycle entry gate (v1.15.0)", () => {
-  it("renders the Cycle entry when cycle tracking is enabled", () => {
-    const html = render({ cycleTrackingEnabled: true });
+describe("<SidebarNav> cycle entry gate (v1.15.0 / v1.18.0 module map)", () => {
+  it("renders the Cycle entry when the cycle module is enabled", () => {
+    const html = render({ modules: { cycle: true } });
     expect(html).toContain('href="/cycle"');
     expect(html).toContain("Cycle");
   });
 
-  it("hides the Cycle entry when cycle tracking is disabled", () => {
-    const html = render({ cycleTrackingEnabled: false });
+  it("hides the Cycle entry when the cycle module is disabled", () => {
+    const html = render({ modules: { cycle: false } });
     expect(html).not.toContain('href="/cycle"');
   });
 
   it("places the Cycle entry between Medications and Insights when enabled", () => {
-    const html = render({ cycleTrackingEnabled: true });
+    const html = render({ modules: { cycle: true } });
     const med = html.indexOf('href="/medications"');
     const cycle = html.indexOf('href="/cycle"');
     const insights = html.indexOf('href="/insights"');
@@ -117,6 +120,52 @@ describe("<SidebarNav> cycle entry gate (v1.15.0)", () => {
     // Cycle sits after Medications and before Insights in document order.
     expect(med).toBeLessThan(cycle);
     expect(cycle).toBeLessThan(insights);
+  });
+});
+
+describe("<SidebarNav> module gating (v1.18.0)", () => {
+  it("hides a disabled module's nav entry (mood / labs / coach / achievements)", () => {
+    const html = render({
+      modules: {
+        mood: false,
+        labs: false,
+        coach: false,
+        achievements: false,
+      },
+    });
+    expect(html).not.toContain('href="/mood"');
+    expect(html).not.toContain('href="/labs"');
+    expect(html).not.toContain('href="/coach"');
+    expect(html).not.toContain('href="/achievements"');
+    // Core destinations stay regardless of the module map.
+    expect(html).toContain('href="/measurements"');
+    expect(html).toContain('href="/medications"');
+    expect(html).toContain('href="/insights"');
+    expect(html).toContain('href="/vorsorge"');
+  });
+
+  it("renders a module's nav entry when its module is enabled", () => {
+    const html = render({
+      modules: {
+        mood: true,
+        labs: true,
+        coach: true,
+        achievements: true,
+      },
+    });
+    expect(html).toContain('href="/mood"');
+    expect(html).toContain('href="/labs"');
+    expect(html).toContain('href="/coach"');
+    expect(html).toContain('href="/achievements"');
+  });
+
+  it("fails open: an empty module map keeps every gated entry visible", () => {
+    const html = render({ modules: {} });
+    expect(html).toContain('href="/mood"');
+    expect(html).toContain('href="/cycle"');
+    expect(html).toContain('href="/labs"');
+    expect(html).toContain('href="/coach"');
+    expect(html).toContain('href="/achievements"');
   });
 });
 
@@ -133,22 +182,22 @@ describe("<SidebarNav> targets deprecation (v1.8.6)", () => {
 });
 
 describe("<SidebarNav> unified destination model (v1.17.1 F-1 / F-3)", () => {
-  it("surfaces Workouts and the Coach as first-class sidebar destinations", () => {
-    // Pre-unify the sidebar hid Workouts entirely and had no Coach home,
-    // while the mobile bar promoted Workouts and still missed Coach. Both
-    // now render the one shared model, so both carry both destinations.
+  it("surfaces the Coach as a first-class sidebar destination", () => {
+    // Pre-unify the sidebar had no Coach home while the mobile bar missed
+    // it too; both now render the one shared model so both carry it.
+    // (v1.18.0 — Workouts left the left nav for its Insights pill, so it is
+    // no longer a sidebar destination.)
     const html = render();
-    expect(html).toContain('href="/insights/workouts"');
-    expect(html).toContain('href="/insights/coach"');
-    expect(html).toContain("Workouts");
+    expect(html).toContain('href="/coach"');
     expect(html).toContain("Coach");
+    expect(html).not.toContain('href="/insights/workouts"');
   });
 
   it("marks Coach active without also marking Insights active", () => {
-    const html = render({ pathname: "/insights/coach" });
-    // The Coach link carries aria-current="page"; the Insights link, its
-    // less-specific sibling, must not (most-specific resolution).
-    const coach = html.match(/<a[^>]*href="\/insights\/coach"[^>]*>/);
+    const html = render({ pathname: "/coach" });
+    // The Coach link carries aria-current="page"; the standalone /coach
+    // route is not a sibling of /insights, so the Insights link must not.
+    const coach = html.match(/<a[^>]*href="\/coach"[^>]*>/);
     const insights = html.match(/<a[^>]*href="\/insights"[^>]*>/);
     expect(coach?.[0]).toMatch(/aria-current="page"/);
     expect(insights?.[0]).not.toMatch(/aria-current="page"/);

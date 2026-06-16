@@ -47,7 +47,8 @@ import { buildDerivedSnapshotBlock } from "./derived-snapshot";
 import { buildCoachMemoryBlock } from "./memory-snapshot";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import { buildCycleSnapshotBlock } from "./cycle-snapshot";
-import { isCycleEnabled } from "@/lib/cycle/gate";
+import { isCycleAvailableForUser } from "@/lib/cycle/gate";
+import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
 import {
   buildComplianceLedgerRows,
   buildComplianceMedicationContext,
@@ -149,6 +150,46 @@ const CORE_CLUSTERS: ReadonlySet<CoachDataCluster> = new Set<CoachDataCluster>([
   "cardio",
   "glucose",
 ]);
+
+/**
+ * v1.18.0 — module enable/disable → coach-snapshot domain map.
+ *
+ * When a toggleable data-domain module is disabled for the account, the
+ * domains it owns must never enter the coach context. We reuse the
+ * existing `excludeMetrics` filtering path (the `excluded` set narrows
+ * `sources` before any row is read) by folding the disabled modules into
+ * a SYSTEM-side exclusion that unions with the user's `excludeMetrics`.
+ *
+ * Each toggleable data domain maps to the `CoachScopeSource` token(s)
+ * its snapshot block(s) gate on:
+ *   - `mood`      → the mood block (`mood` source).
+ *   - `sleep`     → the per-night sleep block + the sleep-rhythm block
+ *                   (both gate on the `sleep` source).
+ *   - `glucose`   → the glucose per-context + clinical block.
+ *   - `workouts`  → the workouts block.
+ *   - `recovery`  → the recovery / strain composites. These are the
+ *                   derived block (READINESS / RECOVERY_SCORE / STRAIN_SCORE
+ *                   / …), the WHOOP-native dayStrain block, and the
+ *                   trajectory block — all gated on `derivedActive`, which
+ *                   reads HRV / resting-HR / VO₂max. Dropping those source
+ *                   tokens drops the raw additive timelines too; the
+ *                   composites are additionally gated below so they never
+ *                   build off the sleep signal alone.
+ *
+ * `cycle` is intentionally absent: its block already resolves through the
+ * fully two-layer cycle gate (`isCycleAvailableForUser` — the per-user
+ * toggle AND the operator server-wide kill-switch) below, exactly as the
+ * W1 foundation prescribes. `coach` is the surface being narrated, not
+ * a data domain. `labs` / `achievements` / `insights` / `doctorReport`
+ * own no coach-snapshot data domain.
+ */
+const MODULE_EXCLUDED_SOURCES: Partial<Record<ModuleKey, CoachScopeSource[]>> = {
+  mood: ["mood"],
+  sleep: ["sleep"],
+  glucose: ["glucose"],
+  workouts: ["workouts"],
+  recovery: ["hrv", "resting_hr", "vo2_max"],
+};
 
 const WEEKDAY_KEYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
@@ -501,6 +542,13 @@ async function buildCoachSnapshotImpl(
   // the request omits an explicit `scope.sources`, the resolved scope
   // expands the user's saved `dataClusters` (legacy default when the
   // key is absent). So the prefs read must precede `resolveScope`.
+  // v1.18.0 — resolve the per-user module map once at build start so a
+  // disabled data-domain module's data never enters the coach context.
+  // The map read is memoised per-request by the gate, and runs alongside
+  // the prefs read (both only need `userId`), so the cold path pays a
+  // single extra round-trip at most. Disabled modules fold into the same
+  // SYSTEM-side exclusion the user's `excludeMetrics` flow already drives.
+  const moduleMapPromise = resolveModuleMap(userId);
   const prefsRow = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -533,7 +581,26 @@ async function buildCoachSnapshotImpl(
   );
   const userTz = prefsRow?.timezone ?? DEFAULT_TIMEZONE;
   const glucoseUnit = resolveGlucoseUnit(prefsRow?.glucoseUnit ?? null);
+  // v1.18.0 — fold disabled data-domain modules into the system exclusion.
+  // `moduleMap[key] === false` means the user turned that module off; the
+  // gate has already resolved every delegation (cycle/coach) so this map
+  // is authoritative. We union the disabled modules' owned sources into
+  // `excluded` so the existing source-narrowing path below removes them
+  // before any row is read — the model never sees a disabled domain.
+  const moduleMap = await moduleMapPromise;
+  const recoveryDisabled = moduleMap.recovery === false;
   const excluded = new Set<CoachExcludeMetric>(prefs.excludeMetrics);
+  for (const [key, srcs] of Object.entries(MODULE_EXCLUDED_SOURCES)) {
+    if (moduleMap[key as ModuleKey] === false) {
+      for (const src of srcs ?? []) {
+        // Every entry in MODULE_EXCLUDED_SOURCES is a CoachScopeSource that
+        // also exists in the CoachExcludeMetric enum overlap the
+        // source-narrowing loop checks against; the cast mirrors the one the
+        // loop already uses below.
+        excluded.add(src as unknown as CoachExcludeMetric);
+      }
+    }
+  }
   // v1.4.36 W3 T2 — `medications` and `anthropometrics` are
   // exclude-only toggles (not in `CoachScopeSource`); they gate the
   // GLP-1 weeklyContext / compliance branch and the anthropometrics
@@ -789,7 +856,13 @@ async function buildCoachSnapshotImpl(
         : null,
     heightCm: derivedCtx?.heightCm ?? null,
   };
-  const derivedActive = derivedSources.some((s) => sources.has(s));
+  // v1.18.0 — the derived block + WHOOP-native dayStrain + trajectory are
+  // the `recovery` module's domain (READINESS / RECOVERY_SCORE / STRAIN /
+  // …). They are gated on `derivedActive`, which still reads the `sleep`
+  // signal — so when `recovery` is disabled but `sleep` stays on, gate them
+  // off explicitly here, not just by dropping the recovery source tokens.
+  const derivedActive =
+    !recoveryDisabled && derivedSources.some((s) => sources.has(s));
 
   const moodRowsPromise =
     wantsMood && features.mood
@@ -965,15 +1038,16 @@ async function buildCoachSnapshotImpl(
     now,
     coachLocale,
   );
-  // v1.15 — cycle/phase block, gated on the resolved cycle toggle so a
+  // v1.15 — cycle/phase block, gated on the resolved cycle module so a
   // non-cycle account issues no query (the helper short-circuits to null
   // before any read for a disabled account). The block is descriptive only —
   // current phase + day-of-cycle, the next predicted event (period range,
   // fertile window goal-gated), and the headline phase-correlation finding.
-  const cycleEnabled = isCycleEnabled(
-    prefsRow?.gender,
-    prefsRow?.cycleProfile ?? null,
-  );
+  // v1.18.0 — the gate is the FULLY-resolved cycle module
+  // (`isCycleAvailableForUser` → the per-user toggle AND the operator
+  // server-wide kill-switch), so an operator-off instance never injects the
+  // cycle block into the coach prompt.
+  const cycleEnabled = await isCycleAvailableForUser(userId);
   const cycleBlockPromise = cycleEnabled
     ? buildCycleSnapshotBlock(userId, prefsRow?.gender, now, userTz)
     : null;

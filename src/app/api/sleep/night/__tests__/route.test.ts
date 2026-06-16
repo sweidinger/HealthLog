@@ -21,6 +21,13 @@ vi.mock("@/lib/rollups/measurement-read", () => ({
   loadUserSourcePriority: vi.fn(async () => null),
 }));
 
+// v1.18.0 — pin the sleep module gate to "enabled" so this suite stays
+// focused on the hypnogram read; the gate itself is covered by the module
+// gate + route-gate-inventory suites.
+vi.mock("@/lib/modules/gate", () => ({
+  requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
+}));
+
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));

@@ -3,9 +3,7 @@ import {
   Bell,
   Bug,
   Droplets,
-  Dumbbell,
   FlaskConical,
-  HeartPulse,
   Home,
   Lightbulb,
   MessagesSquare,
@@ -16,6 +14,8 @@ import {
   Waves,
   type LucideIcon,
 } from "lucide-react";
+
+import type { ModuleKey } from "@/lib/modules/registry";
 
 /**
  * v1.17.1 — the single navigation information-model.
@@ -44,8 +44,17 @@ export interface NavDestination {
    * spotlight tour — renaming silently breaks the cutout for that step.
    */
   tourId?: string;
-  /** Gate the entry on the account's `cycleTrackingEnabled` flag. */
-  requiresCycle?: boolean;
+  /**
+   * v1.18.0 — gate the entry on a per-user module toggle. When set, the
+   * entry is dropped unless the account's resolved module map (from
+   * `GET /api/auth/me`'s `modules`) has the key enabled. Core destinations
+   * (weight / BP / pulse / medications + always-on pages) carry no key and
+   * always render. `cycle` and `coach` are delegated keys (cycle → gender +
+   * opt-in, coach → operator flag + per-user opt-out); the auth/me map
+   * already reflects that delegation, so reading them here is correct and
+   * not a re-derivation.
+   */
+  requiresModule?: ModuleKey;
 }
 
 /**
@@ -61,7 +70,13 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     icon: Activity,
     tourId: "nav-measurements",
   },
-  { href: "/mood", tKey: "nav.mood", icon: Waves, tourId: "nav-mood" },
+  {
+    href: "/mood",
+    tKey: "nav.mood",
+    icon: Waves,
+    tourId: "nav-mood",
+    requiresModule: "mood",
+  },
   {
     href: "/medications",
     tKey: "nav.medications",
@@ -73,13 +88,14 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     tKey: "nav.cycle",
     icon: Droplets,
     tourId: "nav-cycle",
-    requiresCycle: true,
+    requiresModule: "cycle",
   },
   {
     href: "/labs",
     tKey: "nav.labs",
     icon: FlaskConical,
     tourId: "nav-labs",
+    requiresModule: "labs",
   },
   // v1.17.1 — Vorsorge (preventive-care) gets a top-level nav home in the
   // clinical spine, peer to Labs and Recovery. It is a first-class tracking
@@ -93,44 +109,34 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     icon: Stethoscope,
     tourId: "nav-vorsorge",
   },
-  {
-    href: "/insights/workouts",
-    tKey: "nav.workouts",
-    icon: Dumbbell,
-    tourId: "nav-workouts",
-  },
-  // v1.17.1 — the Recovery surface gets a nav home alongside Workouts. It
-  // hosts the WHOOP / Polar device-native recovery + strain scores that were
-  // stored end-to-end but had no page. Like Workouts it is shown to every
-  // account (the page itself data-gates each block, so a non-wearable user
-  // lands on a calm empty note rather than a broken surface).
-  {
-    href: "/insights/recovery",
-    tKey: "nav.recovery",
-    icon: HeartPulse,
-    tourId: "nav-recovery",
-  },
+  // v1.18.0 — Workouts and Recovery both left the left-nav: each already
+  // surfaces as an Insights tab-strip pill (`/insights/workouts` gated on
+  // a workout row, `/insights/recovery` always present), so neither is a
+  // top-level `NAV_DESTINATIONS` entry any more.
   {
     href: "/insights",
     tKey: "nav.insights",
     icon: Lightbulb,
     tourId: "nav-insights",
+    requiresModule: "insights",
   },
   // v1.17.1 (F-3) — the Coach finally gets a single labeled nav home. It
   // was reachable from seven scattered entry points (FAB, hero CTA, empty
   // states, per-metric icons …) but nowhere in the nav, so a new user
   // could miss the differentiator entirely. The other entry points stay.
   {
-    href: "/insights/coach",
+    href: "/coach",
     tKey: "nav.coach",
     icon: MessagesSquare,
     tourId: "nav-coach",
+    requiresModule: "coach",
   },
   {
     href: "/achievements",
     tKey: "nav.achievements",
     icon: Trophy,
     tourId: "nav-achievements",
+    requiresModule: "achievements",
   },
 ];
 
@@ -183,15 +189,39 @@ export function visibleUtilityDestinations(
 }
 
 /**
- * The ordered destinations visible to this account — drops cycle-gated
- * entries when the flag is off. Both bars start from this.
+ * A partial map of `ModuleKey → enabled`. This is the `modules` field
+ * `GET /api/auth/me` returns (resolved server-side, with cycle + coach
+ * already delegated). A `false` value hides the gated entry; a missing
+ * key, an `undefined` map (auth not yet loaded), or `true` keeps it —
+ * fail-open, mirroring the gate's default-on contract so a stale /me
+ * payload never blanks the nav.
+ */
+export type ModuleVisibilityMap = Partial<Record<ModuleKey, boolean>>;
+
+/**
+ * Whether a destination is visible under the given module map. Core
+ * destinations (no `requiresModule`) always pass; a gated entry passes
+ * unless its module resolves to an explicit `false`.
+ */
+function isNavDestinationVisible(
+  d: NavDestination,
+  modules: ModuleVisibilityMap | undefined,
+): boolean {
+  if (!d.requiresModule) return true;
+  return modules?.[d.requiresModule] !== false;
+}
+
+/**
+ * The ordered destinations visible to this account — drops a module-gated
+ * entry (mood, cycle, labs, coach, achievements …) when its module is
+ * disabled in the account's resolved module map. Both bars start from this.
+ * v1.18.0 — cycle is no longer a bespoke boolean: it is `requiresModule:
+ * "cycle"` and reads the delegated `cycle` key from the same map.
  */
 export function visibleNavDestinations(
-  cycleTrackingEnabled: boolean | undefined,
+  modules: ModuleVisibilityMap | undefined,
 ): NavDestination[] {
-  return NAV_DESTINATIONS.filter(
-    (d) => !d.requiresCycle || cycleTrackingEnabled === true,
-  );
+  return NAV_DESTINATIONS.filter((d) => isNavDestinationVisible(d, modules));
 }
 
 /**
@@ -222,10 +252,10 @@ export interface MobileMoreHubEntry {
  * drift into two hand-curated lists.
  */
 export function mobileMoreHubDestinations(opts: {
-  cycleTrackingEnabled: boolean | undefined;
+  modules: ModuleVisibilityMap | undefined;
   bugReportEnabled: boolean | undefined;
 }): MobileMoreHubEntry[] {
-  const features = visibleNavDestinations(opts.cycleTrackingEnabled)
+  const features = visibleNavDestinations(opts.modules)
     .filter((d) => !BOTTOM_NAV_PRIMARY_SLOT_HREFS.includes(d.href))
     .map((d) => ({ href: d.href, tKey: d.tKey, icon: d.icon }));
   const tail = visibleUtilityDestinations(opts.bugReportEnabled).map((d) => ({
@@ -240,8 +270,8 @@ export function mobileMoreHubDestinations(opts: {
  * Whether `href` is the active nav destination for the current `pathname`,
  * resolved against the full destination set so the most-specific entry
  * wins. Without this, a plain `startsWith("/insights")` would light up
- * Insights while the user is on its siblings `/insights/workouts` or
- * `/insights/coach` — both of which are now their own top-level nav homes.
+ * Insights while the user is on its sibling `/insights/workouts`, which
+ * is its own nav home (Coach lives at the top-level `/coach`).
  * The dashboard (`/`) only matches an exact path.
  */
 export function isNavDestinationActive(
@@ -254,7 +284,7 @@ export function isNavDestinationActive(
     pathname === candidate || pathname.startsWith(`${candidate}/`);
   if (!matches(href)) return false;
   // A longer sibling that also matches is the more specific home — defer
-  // to it (e.g. on `/insights/coach`, `/insights` must NOT read active).
+  // to it (e.g. on `/insights/workouts`, `/insights` must NOT read active).
   const moreSpecific = destinations.some(
     (d) => d.href !== href && d.href.startsWith(`${href}/`) && matches(d.href),
   );

@@ -8,7 +8,9 @@ import {
   type ReorderMedication,
 } from "@/components/medications/medication-order-editor";
 import { MedicationViewToggle } from "@/components/medications/medication-view-toggle";
-import { SettingsHubBackLink } from "@/components/settings/settings-hub-back-link";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
+import { useAuth } from "@/hooks/use-auth";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { applyMedicationOrder } from "@/lib/medications/medication-order";
@@ -16,17 +18,21 @@ import { queryKeys } from "@/lib/query-keys";
 import { useMedicationListLayout } from "@/lib/queries/use-medication-list-layout";
 
 /**
- * v1.16.10 — the "Medikamente" settings section (analogous to the
- * Dashboard and Insights sections). Hosts two blocks:
+ * v1.16.10 — the "Medikamente" settings section. v1.18.0 (S5) promoted it
+ * from a Layout-hub child to its own standalone nav entry (always shown —
+ * medications is a CORE domain) and gathered the medication-specific
+ * preferences here. Hosts three blocks:
  *   1. The list VIEW preference — cards vs table, written optimistically
  *      through the same `PUT /api/medications/layout` the page header
  *      toggle uses (the toggle component is shared).
  *   2. The manual ORDER editor — two grouped lists (Aktiv / Inaktiv)
  *      with drag + arrow reordering, flushed by an explicit Save,
  *      persisted as active-ids-then-inactive-ids on the same layout row.
+ *   3. Injection-site exclusions — moved here from the account profile so
+ *      every medication-specific preference lives on one screen.
  *
- * Both write through the same `/api/medications/layout` contract the
- * /medications page reads, so a save here repaints both list views.
+ * The list view + order both write through the same `/api/medications/layout`
+ * contract the /medications page reads, so a save here repaints both views.
  */
 
 /** The slice of the medications list the order editor needs. */
@@ -39,6 +45,7 @@ interface MedicationListEntry {
 
 export function MedicationsSection() {
   const { t } = useTranslations();
+  const { isAuthenticated } = useAuth();
   const { layout, isLayoutLoading, setView } = useMedicationListLayout();
 
   const { data: medications, isLoading } = useQuery({
@@ -69,11 +76,7 @@ export function MedicationsSection() {
       aria-labelledby="settings-section-medications-title"
       className="space-y-6"
     >
-      <header className="space-y-2">
-        <SettingsHubBackLink
-          href="/settings/layout"
-          labelKey="settings.sections.layout.backToHub"
-        />
+      <header className="space-y-1">
         <h1 id="settings-section-medications-title" className="sr-only">
           {t("settings.sections.medications.title")}
         </h1>
@@ -88,12 +91,10 @@ export function MedicationsSection() {
         id="medications-view"
         className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2">
-          <LayoutGrid className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("medications.viewToggleLabel")}
-          </h2>
-        </div>
+        <SettingsCardHeader
+          icon={LayoutGrid}
+          title={t("medications.viewToggleLabel")}
+        />
         <div className="border-border bg-background/30 flex min-h-12 items-center justify-between gap-3 rounded-md border px-3 py-2">
           <p className="text-muted-foreground min-w-0 text-xs">
             {t("medications.viewToggleHint")}
@@ -111,15 +112,11 @@ export function MedicationsSection() {
         id="medications-order"
         className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
       >
-        <div className="flex items-center gap-2">
-          <Pill className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("medications.reorderTitle")}
-          </h2>
-        </div>
-        <p className="text-muted-foreground text-xs">
-          {t("medications.reorderDescription")}
-        </p>
+        <SettingsCardHeader
+          icon={Pill}
+          title={t("medications.reorderTitle")}
+          description={t("medications.reorderDescription")}
+        />
         {isLoading || isLayoutLoading ? (
           <div className="text-muted-foreground flex items-center gap-2 text-sm">
             <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
@@ -129,6 +126,11 @@ export function MedicationsSection() {
           <MedicationOrderEditor medications={ordered} />
         )}
       </div>
+
+      {/* v1.18.0 (S5) — injection-site exclusions are a medication setting;
+          they moved here from the account profile so all medication-specific
+          preferences live in one place. */}
+      <InjectionSitesCard isAuthenticated={isAuthenticated} />
     </section>
   );
 }

@@ -32,9 +32,28 @@ vi.mock("@/lib/tz/resolver", () => ({
   resolveUserTimezone: vi.fn().mockResolvedValue("Europe/Berlin"),
 }));
 
+// v1.18.0 — the health-record aggregator resolves the per-user module map
+// so a disabled data-domain module never reaches the export. Stub the gate
+// to "all modules enabled" (an empty map ⇒ default-on) so these pre-existing
+// route tests don't stand up the real gate's DB reads.
+vi.mock("@/lib/modules/gate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/modules/gate")>();
+  return {
+    ...actual,
+    resolveModuleMap: vi.fn(),
+    isModuleEnabled: vi.fn(),
+    requireModuleEnabled: vi.fn(),
+  };
+});
+
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  resolveModuleMap,
+  isModuleEnabled,
+  requireModuleEnabled,
+} from "@/lib/modules/gate";
 
 const SESSION_OK = {
   user: { id: "user-1", email: "test@example.com", role: "USER" },
@@ -63,6 +82,9 @@ async function pdfText(res: Response): Promise<string> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(resolveModuleMap).mockResolvedValue({} as never);
+  vi.mocked(isModuleEnabled).mockResolvedValue(true);
+  vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true } as never);
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
@@ -108,6 +130,21 @@ describe("POST /api/export/health-record — validation", () => {
     const { POST } = await import("../route");
     const res = await POST(mkReq({ format: "pdf", userId: "user-2" }));
     expect(res.status).toBe(422);
+  });
+
+  it("returns 403 when the doctorReport module is disabled (B3 gate)", async () => {
+    const { apiError } = await import("@/lib/api-response");
+    vi.mocked(requireModuleEnabled).mockResolvedValue({
+      enabled: false,
+      response: apiError('Module "doctorReport" is not enabled', 403, {
+        errorCode: "module.disabled",
+        module: "doctorReport",
+      }),
+    } as never);
+    const { POST } = await import("../route");
+    const res = await POST(mkReq({ format: "fhir" }));
+    expect(res.status).toBe(403);
+    expect(requireModuleEnabled).toHaveBeenCalledWith("user-1", "doctorReport");
   });
 
   it("returns 429 when the export rate limit is exhausted", async () => {

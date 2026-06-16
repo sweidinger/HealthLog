@@ -324,7 +324,7 @@ export function AboutMeSection({
           </ul>
           <p className="mt-3 text-xs">
             <Link
-              href="/insights/coach"
+              href="/coach"
               className="text-dracula-purple underline-offset-4 hover:underline"
             >
               {t("settings.ai.aboutMe.questionsOpenCoach")}

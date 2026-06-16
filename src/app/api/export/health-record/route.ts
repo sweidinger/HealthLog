@@ -31,6 +31,7 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
 import {
@@ -55,6 +56,13 @@ import { resolveUserTimezone } from "@/lib/tz/resolver";
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "export.health-record.build" } });
+
+  // v1.18.0 B3 — the whole doctor-report / health-record surface is the
+  // `doctorReport` module. Refuse with a 403 `module.disabled` envelope when
+  // the account turned it off — even with a valid Bearer token. The settings
+  // entry-point already hides client-side; this is the hard enforcement.
+  const gate = await requireModuleEnabled(user.id, "doctorReport");
+  if (!gate.enabled) return gate.response;
 
   const rl = await checkRateLimit(`export:${user.id}`, 10, 60 * 60 * 1000);
   if (!rl.allowed) {

@@ -92,23 +92,28 @@ export function CycleRingTile({ className }: { className?: string }) {
   const hue = PHASE_HUE[wheel.phase];
 
   return (
-    <Link
-      href="/cycle"
-      data-slot="wellness-cycle-tile"
-      data-metric="CYCLE"
-      data-phase={wheel.phase}
-      data-revealed={play ? "true" : undefined}
-      // Match the score `RingTile` chrome: the phase's `--tile-hue` low-opacity
-      // mix over `--card` + the faint film grain (the `.wellness-tile` family),
-      // with a calm once-per-session rise. The per-phase hue arc inside the
-      // ring is the only saturated thing on the tile.
-      style={{ "--tile-hue": hue } as React.CSSProperties}
-      className={cn(
-        "wellness-tile focus-visible:ring-ring flex flex-col gap-4 rounded-xl p-5 focus-visible:ring-2 focus-visible:outline-none",
-        play && "wellness-tile-rise",
-        className,
-      )}
-    >
+    // `data-revealed` must sit on an ANCESTOR of `.wellness-tile-rise` — the
+    // keyframe selector is `[data-revealed="true"] .wellness-tile-rise`
+    // (descendant combinator). Both on the same node never matched, leaving the
+    // tile stuck at the rise rule's `opacity: 0`. The `contents` wrapper carries
+    // the flag without adding a layout box.
+    <div data-revealed={play ? "true" : undefined} className="contents">
+      <Link
+        href="/cycle"
+        data-slot="wellness-cycle-tile"
+        data-metric="CYCLE"
+        data-phase={wheel.phase}
+        // Match the score `RingTile` chrome: the phase's `--tile-hue`
+        // low-opacity mix over `--card` + the faint film grain (the
+        // `.wellness-tile` family), with a calm once-per-session rise. The
+        // per-phase hue arc inside the ring is the only saturated thing.
+        style={{ "--tile-hue": hue } as React.CSSProperties}
+        className={cn(
+          "wellness-tile focus-visible:ring-ring flex flex-col gap-4 rounded-xl p-5 focus-visible:ring-2 focus-visible:outline-none",
+          play && "wellness-tile-rise",
+          className,
+        )}
+      >
       <div className="text-foreground flex items-center gap-2">
         <Droplets className="h-5 w-5 shrink-0" aria-hidden="true" />
         <span className="truncate text-base leading-none font-semibold">
@@ -131,6 +136,7 @@ export function CycleRingTile({ className }: { className?: string }) {
           {t(`cycle.phase.${wheel.phase}`)}
         </span>
       </div>
-    </Link>
+      </Link>
+    </div>
   );
 }

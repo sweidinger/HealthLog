@@ -11,6 +11,22 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockPathnameRef.value,
 }));
 
+// v1.18.0 (S5) — the shell module-gates per-submodule nav entries off
+// `useAuth().user.modules`. The mock returns a user whose modules map is
+// mutated per-test via `mockModulesRef`. `undefined` (the default) means
+// every gate fails open, so all entries render.
+const mockModulesRef: { value: Record<string, boolean> | undefined } = {
+  value: undefined,
+};
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { id: "u1", role: "USER", modules: mockModulesRef.value },
+    isAuthenticated: true,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
+
 import { I18nProvider } from "@/lib/i18n/context";
 import {
   SETTINGS_SECTION_SLUGS,
@@ -23,8 +39,10 @@ function renderShell(props: {
   active?: (typeof SETTINGS_SECTION_SLUGS)[number];
   pathname?: string;
   locale?: "en" | "de";
+  modules?: Record<string, boolean>;
 }) {
   mockPathnameRef.value = props.pathname ?? "/settings/account";
+  mockModulesRef.value = props.modules;
   return renderToStaticMarkup(
     <I18nProvider initialLocale={props.locale ?? "en"}>
       <SettingsShell active={props.active}>
@@ -45,9 +63,10 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // `api` and `advanced` so every "give me my data out" path lives in
     // one place.
     // v1.4.25 W5e added `sources` between `thresholds` and `ai`; v1.4.34
-    // IW-D merged it into `thresholds`.
-    // v1.8.7.1 — `sources` (Sources) is its own slug again, sitting
-    // between `thresholds` (Targets) and `ai`.
+    // IW-D merged it into `thresholds`; v1.8.7.1 split it back out.
+    // v1.18.0 (S3) — `sources` is no longer a standalone slug: source
+    // priority folded into Settings → Integrations as the "Sources"
+    // sub-tab. `/settings/sources` 301-redirects to `/settings/integrations`.
     // v1.15.18 — `insights` sits between `dashboard` and `thresholds`: the
     // overview-arrange + pill-sort customise surface for `/insights`.
     // v1.16.10 — `medications` sits between `insights` and `thresholds`:
@@ -61,22 +80,30 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // slugs (`dashboard`, `insights`, `medications`, `mood`) keep their
     // routes so deep links resolve, but they are reached through the
     // Layout hub instead of four standalone nav entries.
-    // v1.17.1 — `reminders` is the one "Reminders & Notifications" home and
-    // sits right after `notifications`.
+    // v1.18.0 (S4) — the standalone `reminders` hub is gone; reminder TYPES
+    // live in `notifications`, each gated on its module. `/settings/reminders`
+    // 301-redirects to `/settings/notifications`.
+    // v1.18.0 — `modules` ("Was du trackst") sits right after `account` as
+    // the single front door for enabling/disabling secondary domains.
+    // v1.18.0 (S5) — `gesundheitsakte` (the full health-record export) lifts
+    // out of Export & Import into its own top-level entry, before `export`;
+    // `coach` gathers the Coach preference cards out of the AI section and
+    // sits right after `ai`.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
+      "modules",
       "integrations",
       "notifications",
-      "reminders",
       "layout",
       "dashboard",
       "insights",
       "medications",
       "mood",
       "thresholds",
-      "sources",
       "ai",
+      "coach",
       "api",
+      "gesundheitsakte",
       "export",
       "advanced",
       "about",
@@ -153,12 +180,7 @@ describe("<SettingsShell>", () => {
     // On `/settings/dashboard` (a Layout child reached through the hub) the
     // Layout nav entry must read active even though Dashboard has no nav
     // entry of its own. Both layouts emit the active link → two matches.
-    for (const child of [
-      "/settings/dashboard",
-      "/settings/insights",
-      "/settings/medications",
-      "/settings/mood",
-    ]) {
+    for (const child of ["/settings/dashboard", "/settings/insights"]) {
       const html = renderShell({ pathname: child });
       const layoutActive =
         /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/layout"|<a\b[^>]*\bhref="\/settings\/layout"[^>]*\baria-current="page"/g;
@@ -169,10 +191,61 @@ describe("<SettingsShell>", () => {
   it("highlights the Layout hub when the active prop is a Layout child", () => {
     // The page passes `active={section}` explicitly; a child slug must
     // still resolve onto the Layout hub for nav highlighting.
-    const html = renderShell({ active: "mood", pathname: "/settings/mood" });
+    const html = renderShell({
+      active: "dashboard",
+      pathname: "/settings/dashboard",
+    });
     const layoutActive =
       /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/layout"|<a\b[^>]*\bhref="\/settings\/layout"[^>]*\baria-current="page"/g;
     expect(html.match(layoutActive)?.length ?? 0).toBe(2);
+  });
+
+  it("module-gates the Stimmung entry off `user.modules.mood` (v1.18.0 S5)", () => {
+    // Fail-open default: mood undefined → entry shown.
+    expect(renderShell({ active: "account" })).toContain(
+      'href="/settings/mood"',
+    );
+    // Explicitly disabled → entry hidden.
+    const disabled = renderShell({
+      active: "account",
+      modules: { mood: false },
+    });
+    expect(disabled).not.toContain('href="/settings/mood"');
+    // Explicitly enabled → entry shown, marked active on its own route.
+    const enabled = renderShell({
+      active: "mood",
+      pathname: "/settings/mood",
+      modules: { mood: true },
+    });
+    const moodActive =
+      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/mood"|<a\b[^>]*\bhref="\/settings\/mood"[^>]*\baria-current="page"/g;
+    expect(enabled.match(moodActive)?.length ?? 0).toBe(2);
+  });
+
+  it("module-gates the Coach entry off `user.modules.coach` (v1.18.0 S5)", () => {
+    // Fail-open default: coach undefined → entry shown.
+    expect(renderShell({ active: "account" })).toContain(
+      'href="/settings/coach"',
+    );
+    // Explicitly disabled → entry hidden.
+    const disabled = renderShell({
+      active: "account",
+      modules: { coach: false },
+    });
+    expect(disabled).not.toContain('href="/settings/coach"');
+  });
+
+  it("module-gates the Health-record entry off `user.modules.doctorReport` (B3)", () => {
+    // Fail-open default: doctorReport undefined → entry shown.
+    expect(renderShell({ active: "account" })).toContain(
+      'href="/settings/gesundheitsakte"',
+    );
+    // Explicitly disabled → entry hidden.
+    const disabled = renderShell({
+      active: "account",
+      modules: { doctorReport: false },
+    });
+    expect(disabled).not.toContain('href="/settings/gesundheitsakte"');
   });
 
   it("falls back to `account` when the pathname doesn't match a known slug", () => {
@@ -190,17 +263,21 @@ describe("<SettingsShell>", () => {
     // (single-line; the longer "Notification channels" wrapped). The
     // `/notifications` inbox now shares the "Notifications" label.
     expect(html).toContain("Notifications");
-    // v1.17.1 (F-2) — the four personalization editors (Dashboard,
-    // Insights, Medications, Mood) are reached through one Layout hub
-    // entry; the hub itself is the single nav entry for the concept.
+    // v1.17.1 (F-2) — the dashboard + insights arrangement editors are
+    // reached through one Layout hub entry.
     expect(html).toContain('href="/settings/layout"');
     expect(html).toContain("Layout &amp; Personalization");
-    // The four editors are no longer standalone nav entries.
-    expect(html).not.toContain('href="/settings/medications"');
-    expect(html).not.toContain('href="/settings/mood"');
+    // v1.18.0 (S5) — Medications (Medikamente, always shown — a CORE
+    // domain) and Mood (Stimmung, gated; fail-open mock shows it) are their
+    // own nav entries now.
+    expect(html).toContain('href="/settings/medications"');
+    expect(html).toContain('href="/settings/mood"');
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
     // form so we don't accidentally match a parser that double-escapes.
     expect(html).toContain("API &amp; Tokens");
+    // v1.18.0 (S5) — the health record is its own top-level entry.
+    expect(html).toContain('href="/settings/gesundheitsakte"');
+    expect(html).toContain("Health record");
     // v1.4.16 phase B7: the consolidated Export section is a top-level
     // entry in the sidebar; the link must be present in both locales.
     expect(html).toContain('href="/settings/export"');
@@ -208,13 +285,11 @@ describe("<SettingsShell>", () => {
     // About is back in the settings nav as the last entry (it also
     // stays linked from the sidebar user-card dropdown).
     expect(html).toContain('href="/settings/about"');
-    // v1.8.7.1 — Targets and Sources are two separate nav entries again.
+    // v1.18.0 (S3) — Targets keeps its own nav entry; Sources folded into
+    // Integrations as a sub-tab, so it is no longer a standalone nav entry.
     expect(html).toContain('href="/settings/thresholds"');
-    expect(html).toContain('href="/settings/sources"');
+    expect(html).not.toContain('href="/settings/sources"');
     expect(html).toContain("Targets");
-    // v1.12.0 — the source-priority entry adopts the canonical
-    // "Source priority" / "Quellen-Priorität" label (handover §5).
-    expect(html).toContain("Source priority");
   });
 
   it("resolves every section title via the i18n provider — German", () => {
@@ -225,17 +300,16 @@ describe("<SettingsShell>", () => {
     // compound "Benachrichtigungs-Kanäle" wrapped). The `/notifications`
     // inbox now shares the "Benachrichtigungen" label.
     expect(html).toContain("Benachrichtigungen");
-    // v1.17.1 (F-2) — the four personalization editors are reached through
-    // one Layout hub entry ("Layout & Personalisierung"); they are no
-    // longer standalone German nav entries.
+    // v1.17.1 (F-2) — the arrangement editors are reached through one
+    // Layout hub entry ("Layout & Personalisierung").
     expect(html).toContain('href="/settings/layout"');
     expect(html).toContain("Layout &amp; Personalisierung");
-    expect(html).not.toContain('href="/settings/medications"');
-    expect(html).not.toContain('href="/settings/mood"');
-    // v1.8.7.1 — Targets and Sources are two separate German nav
-    // entries again: "Zielwerte" and "Quellen".
+    // v1.18.0 (S5) — Medications + Mood are their own nav entries now.
+    expect(html).toContain('href="/settings/medications"');
+    expect(html).toContain('href="/settings/mood"');
+    // v1.18.0 (S3) — Targets keeps its German nav entry ("Zielwerte");
+    // Sources folded into Integrations as a sub-tab.
     expect(html).toContain("Zielwerte");
-    expect(html).toContain("Quellen");
     // v1.8.7.1 — the AI Insights section is named "KI-Auswertungen" in
     // German (the "KI" prefix makes the AI nature explicit).
     expect(html).toContain("KI-Auswertungen");
@@ -245,8 +319,8 @@ describe("<SettingsShell>", () => {
     // "Über diese App" (About) is back as the last in-shell nav entry
     // (the sidebar user-card dropdown keeps its own link too).
     expect(html).toContain('href="/settings/about"');
-    // v1.8.7.1 — both Targets and Sources nav entries are present.
-    expect(html).toContain('href="/settings/sources"');
+    // v1.18.0 (S3) — Sources is no longer a standalone nav entry.
+    expect(html).not.toContain('href="/settings/sources"');
   });
 
   it("does NOT surface the raw key when a translation resolves — guards against missing JSON entries", () => {

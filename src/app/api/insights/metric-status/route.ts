@@ -27,6 +27,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled, type ModuleKey } from "@/lib/modules/gate";
 import {
   generateMetricStatus,
   resolveMetricStatusLocale,
@@ -38,6 +39,20 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The handful of generic metrics whose assessment belongs to a toggleable
+ * module rather than a core vital. Everything else this route serves
+ * (resting heart rate, body composition, gait, environmental exposure, …)
+ * is a core/always-on signal and stays ungated. A metric absent from this
+ * map is core by construction.
+ */
+const METRIC_MODULE: Partial<Record<MetricStatusMetricId, ModuleKey>> = {
+  SLEEP_DURATION: "sleep",
+  BREATHING_DISTURBANCES: "sleep",
+  BLOOD_GLUCOSE: "glucose",
+  CARDIO_RECOVERY: "recovery",
+};
+
 // Closed enum derived from the registry so the route + registry cannot
 // drift — an id added to the registry is accepted automatically, and an
 // unknown id 422s rather than silently resolving to no card.
@@ -47,6 +62,8 @@ const metricQuerySchema = z.object({
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
   await requireAssistantSurface("insightStatus");
 
   const parsed = metricQuerySchema.safeParse({
@@ -60,6 +77,17 @@ export const GET = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
   const metric = parsed.data.metric as MetricStatusMetricId;
+
+  // Per-domain gate: a metric that belongs to a toggleable module
+  // (sleep / glucose / recovery) is refused with a 403 module.disabled
+  // envelope when the account has that module turned off. Core vitals,
+  // body composition, gait and environmental signals carry no module and
+  // stay open.
+  const moduleKey = METRIC_MODULE[metric];
+  if (moduleKey) {
+    const gate = await requireModuleEnabled(user.id, moduleKey);
+    if (!gate.enabled) return gate.response;
+  }
 
   const localeParam = request.nextUrl.searchParams.get("locale");
   const resolved = await resolveServerLocale({

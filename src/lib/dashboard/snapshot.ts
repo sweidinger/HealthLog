@@ -78,9 +78,26 @@ import {
 } from "@/lib/dashboard/meds-today";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
 import type { HealthScoreBand } from "@/lib/analytics/health-score";
+import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
 
 /** Briefing freshness window — mirrors the 24 h TTL on the advisor cache. */
 const BRIEFING_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * v1.18.0 — the two dashboard module maps live in a client-safe module
+ * (`@/lib/dashboard/widget-modules`) so the settings client component can
+ * import them without pulling the server snapshot builder (and its
+ * `pg` / `dns` chain) into the browser bundle. Re-exported here for the
+ * server call sites and the existing tests.
+ */
+export {
+  WIDGET_MODULE_BY_ID,
+  SUMMARY_TYPE_MODULE,
+} from "@/lib/dashboard/widget-modules";
+import {
+  WIDGET_MODULE_BY_ID,
+  SUMMARY_TYPE_MODULE,
+} from "@/lib/dashboard/widget-modules";
 
 const GLUCOSE_CONTEXTS = [
   "FASTING",
@@ -746,6 +763,59 @@ function isThickPhaseWarm(coverage: RollupCoverageMap): boolean {
 }
 
 /**
+ * v1.18.0 — force every widget whose module is disabled to invisible on
+ * the resolved layout (both `visible` and `tileVisible`). Order is
+ * preserved so a re-enable restores the user's saved position. Pure
+ * projection — the persisted `dashboardWidgetsJson` is untouched; only
+ * what the snapshot publishes is gated.
+ */
+function gateLayoutByModules(
+  layout: DashboardLayout,
+  modules: Record<ModuleKey, boolean>,
+): DashboardLayout {
+  return {
+    ...layout,
+    widgets: layout.widgets.map((w) => {
+      const moduleKey = WIDGET_MODULE_BY_ID[w.id];
+      if (moduleKey && modules[moduleKey] === false) {
+        return { ...w, visible: false, tileVisible: false };
+      }
+      return w;
+    }),
+  };
+}
+
+/**
+ * v1.18.0 — strip disabled-module measurement types from the slim slice
+ * so neither `tiles.summaries` / `tiles.lastSeenByType` nor the derived
+ * `metricStates` carry data for a module the user turned off. Returns a
+ * shallow copy; the inputs are not mutated.
+ */
+function gateSummariesByModules(
+  summaries: Record<string, DataSummary>,
+  lastSeenByType: Record<string, { lastSeenAt: string } | null>,
+  modules: Record<ModuleKey, boolean>,
+): {
+  summaries: Record<string, DataSummary>;
+  lastSeenByType: Record<string, { lastSeenAt: string } | null>;
+} {
+  const dropped = new Set<string>();
+  for (const [type, moduleKey] of Object.entries(SUMMARY_TYPE_MODULE)) {
+    if (moduleKey && modules[moduleKey] === false) dropped.add(type);
+  }
+  if (dropped.size === 0) return { summaries, lastSeenByType };
+  const outSummaries: Record<string, DataSummary> = {};
+  for (const [type, summary] of Object.entries(summaries)) {
+    if (!dropped.has(type)) outSummaries[type] = summary;
+  }
+  const outLastSeen: Record<string, { lastSeenAt: string } | null> = {};
+  for (const [type, slot] of Object.entries(lastSeenByType)) {
+    if (!dropped.has(type)) outLastSeen[type] = slot;
+  }
+  return { summaries: outSummaries, lastSeenByType: outLastSeen };
+}
+
+/**
  * Assemble the full snapshot in ONE `Promise.all`. Every sub-read is
  * timed via the optional `time` wrapper so a regression is attributable
  * through `meta.snapshot.sub_*_ms` without re-instrumenting the route.
@@ -762,6 +832,14 @@ export async function buildDashboardSnapshot(
      * `@/lib/ai/provider` (no decrypt, no network).
      */
     hasProvider?: () => Promise<boolean>;
+    /**
+     * v1.18.0 — resolved per-user module map. Injectable for tests;
+     * defaults to `resolveModuleMap(user.id)` (memoised per request).
+     * Disabled toggleable modules have their dashboard tiles / data
+     * stripped from the snapshot at the build layer so nothing leaks to
+     * the client.
+     */
+    modules?: () => Promise<Record<ModuleKey, boolean>>;
   } = {},
 ): Promise<DashboardSnapshot> {
   const userTz = user.timezone ?? DEFAULT_TIMEZONE;
@@ -780,25 +858,64 @@ export async function buildDashboardSnapshot(
   const coverage = await time("coverage", () => probeRollupCoverage(user.id));
   const warm = isThickPhaseWarm(coverage);
 
-  const [slim, mood, extrasResult, flags, medsToday] = await Promise.all([
-    // A5 — reuse the coverage map already probed above so the slice
-    // doesn't re-run the identical `probeRollupCoverage` query.
-    time("summaries", () => computeSummariesSlice(user.id, coverage)),
-    time("mood", () => buildMoodBlock(prisma, user.id)),
-    warm
-      ? time("extras", () =>
-          buildExtras(prisma, user, userTz, coverage, now, time),
-        )
-      : Promise.resolve(null),
-    time("flags", () => getAssistantFlags()),
-    // Fast phase — projection-backed today tally + earliest next-due.
-    time("medsToday", () => buildMedsTodayBlock(prisma, user.id, userTz, now)),
-  ]);
+  const [slimRaw, moodRaw, extrasResult, flags, medsToday, modules] =
+    await Promise.all([
+      // A5 — reuse the coverage map already probed above so the slice
+      // doesn't re-run the identical `probeRollupCoverage` query.
+      time("summaries", () => computeSummariesSlice(user.id, coverage)),
+      time("mood", () => buildMoodBlock(prisma, user.id)),
+      warm
+        ? time("extras", () =>
+            buildExtras(prisma, user, userTz, coverage, now, time),
+          )
+        : Promise.resolve(null),
+      time("flags", () => getAssistantFlags()),
+      // Fast phase — projection-backed today tally + earliest next-due.
+      time("medsToday", () =>
+        buildMedsTodayBlock(prisma, user.id, userTz, now),
+      ),
+      // v1.18.0 — resolved module map (memoised per request); gates the
+      // toggleable tiles below at the build layer.
+      time("modules", () =>
+        (options.modules ?? (() => resolveModuleMap(user.id)))(),
+      ),
+    ]);
 
-  const layout = resolveDashboardLayout(user.dashboardWidgetsJson);
+  // v1.18.0 — strip disabled-module data before it leaves the server.
+  // Mood is blanked when the mood module is off; sleep / glucose summary
+  // types are dropped from the slim slice; the glucose clinical panel +
+  // per-context block are cleared when glucose is off; the layout +
+  // catalogue hide every disabled-module widget.
+  const slim = gateSummariesByModules(
+    slimRaw.summaries,
+    slimRaw.lastSeenByType,
+    modules,
+  );
+  const mood =
+    modules.mood === false
+      ? { summary: null, entries: [] as DashboardSnapshotMoodEntry[] }
+      : moodRaw;
+  if (extrasResult && modules.glucose === false) {
+    extrasResult.extras.glucoseByContext = {};
+    extrasResult.extras.glucoseClinical = computeGlucoseClinicalMetrics([], {
+      windowDays: GLUCOSE_PANEL_WINDOW_DAYS,
+      now,
+    });
+  }
+
+  const layout = gateLayoutByModules(
+    resolveDashboardLayout(user.dashboardWidgetsJson),
+    modules,
+  );
+  // v1.18.0 — the Daily Briefing is the dashboard's AI-narrative surface,
+  // so the `insights` module gates it alongside the operator briefing
+  // flag + per-user coach opt-out. Disabling `insights` yields the same
+  // `briefingState: "disabled"` empty surface the existing flags produce
+  // (the raw weight/BP/pulse data stays untouched — `insights` is the
+  // narrative layer, not the data layer).
   const briefing = await liftBriefing(
     user,
-    flags.briefing,
+    flags.briefing && modules.insights !== false,
     options.hasProvider ?? (() => hasAnyConfiguredProvider(user.id)),
   );
 

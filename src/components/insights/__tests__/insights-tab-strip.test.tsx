@@ -94,6 +94,25 @@ describe("<InsightsTabStrip> — availability gating (v1.4.27 F19)", () => {
     expect(html).toContain(">Overview<");
   });
 
+  it("always renders the Recovery pill (composite wearable surface, self-gated page)", () => {
+    // v1.18.0 — Recovery left the left-nav for an Insights pill. It is a
+    // composite WHOOP / Polar / Oura surface, not a single MeasurementType,
+    // so it has no `summaries[METRIC].count` to gate on; the page itself
+    // data-gates each block and falls back to a calm empty note, so the
+    // pill is always present (like Overview) regardless of availability.
+    const noAvailability = render(<InsightsTabStrip />);
+    expect(noAvailability).toContain(">Recovery<");
+    expect(noAvailability).toContain('href="/insights/recovery"');
+
+    const emptyAvailability: InsightInputs = {
+      summaries: {},
+      hasMood: false,
+      hasMedication: false,
+    };
+    const html = render(<InsightsTabStrip availability={emptyAvailability} />);
+    expect(html).toContain(">Recovery<");
+  });
+
   it("lights up Mood when hasMood flips to true", () => {
     const availability: InsightInputs = {
       summaries: {},
@@ -386,6 +405,100 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
     expect(html).toContain(">Hearing<");
     expect(html).toContain('data-group="environment"');
     expect(html).toContain(">Environment<");
+  });
+});
+
+describe("<InsightsTabStrip> — module enable/disable gate (v1.18.0)", () => {
+  // A pill belonging to a toggleable module (mood / sleep / glucose /
+  // workouts) is hidden when that module is disabled in the account's
+  // resolved module map — on TOP of the data + layout gates. Core metric
+  // pills (BP, pulse, weight, BMI …) carry no module key and ignore it.
+  const moduleAvailability: InsightInputs = {
+    summaries: {
+      PULSE: fakeSummary(5),
+      WEIGHT: fakeSummary(3),
+      SLEEP_DURATION: fakeSummary(8),
+      BLOOD_GLUCOSE: fakeSummary(6),
+    },
+    hasMood: true,
+    hasMedication: false,
+    hasWorkouts: true,
+  };
+
+  it("hides the Mood / Sleep / Workouts pills + the glucose (Metabolic) group when their modules are disabled", () => {
+    // `blood-glucose` is the sole metabolic metric with data here, so its
+    // module gate collapses the whole "Metabolic" group parent pill —
+    // mood / sleep / workouts are flat pills that drop directly.
+    const html = render(
+      <InsightsTabStrip
+        availability={moduleAvailability}
+        modules={{
+          mood: false,
+          sleep: false,
+          glucose: false,
+          workouts: false,
+        }}
+      />,
+    );
+    expect(html).not.toContain(">Mood<");
+    expect(html).not.toContain(">Sleep<");
+    expect(html).not.toContain(">Workouts<");
+    expect(html).not.toContain('data-group="metabolic"');
+    // Core metric pills are unaffected by the module map.
+    expect(html).toContain(">Pulse<");
+    expect(html).toContain(">Weight<");
+    expect(html).toContain(">BMI<");
+    expect(html).toContain(">Overview<");
+  });
+
+  it("shows the module pills + the glucose (Metabolic) group when their modules are enabled", () => {
+    const html = render(
+      <InsightsTabStrip
+        availability={moduleAvailability}
+        modules={{
+          mood: true,
+          sleep: true,
+          glucose: true,
+          workouts: true,
+        }}
+      />,
+    );
+    expect(html).toContain(">Mood<");
+    expect(html).toContain(">Sleep<");
+    expect(html).toContain(">Workouts<");
+    expect(html).toContain('data-group="metabolic"');
+  });
+
+  it("hides the Recovery pill when the recovery module is disabled, keeps it when enabled", () => {
+    const disabled = render(
+      <InsightsTabStrip modules={{ recovery: false }} />,
+    );
+    expect(disabled).not.toContain(">Recovery<");
+    expect(disabled).not.toContain('href="/insights/recovery"');
+    // Overview still anchors the strip.
+    expect(disabled).toContain(">Overview<");
+
+    const enabled = render(<InsightsTabStrip modules={{ recovery: true }} />);
+    expect(enabled).toContain(">Recovery<");
+    expect(enabled).toContain('href="/insights/recovery"');
+  });
+
+  it("fails open: an empty / omitted module map keeps every module pill", () => {
+    // Default-on contract — a stale /me payload (no module map) must not
+    // blank the strip. An empty map and an omitted prop both keep pills.
+    for (const modules of [{}, undefined]) {
+      const html = render(
+        <InsightsTabStrip
+          availability={moduleAvailability}
+          modules={modules}
+        />,
+      );
+      expect(html).toContain(">Mood<");
+      expect(html).toContain(">Sleep<");
+      expect(html).toContain(">Workouts<");
+      expect(html).toContain('data-group="metabolic"');
+      expect(html).toContain(">Recovery<");
+    }
   });
 });
 

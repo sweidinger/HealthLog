@@ -189,7 +189,22 @@
     "labsColValue": "Valor",
     "labsColReference": "Referencia",
     "labsColStatus": "Estado",
-    "labsColDate": "Fecha"
+    "labsColDate": "Fecha",
+    "glucoseClinical": {
+      "title": "Resumen de glucosa (clínico)",
+      "colMetric": "Métrica",
+      "colValue": "Valor",
+      "tirInRange": "Tiempo en rango (70–180 mg/dl)",
+      "tirLow": "Bajo (< 70 mg/dl)",
+      "tirVeryLow": "Muy bajo (< 54 mg/dl)",
+      "tirHigh": "Alto (> 180 mg/dl)",
+      "tirVeryHigh": "Muy alto (> 250 mg/dl)",
+      "mean": "Glucosa media",
+      "gmi": "Indicador de gestión de la glucosa (GMI)",
+      "eA1c": "A1C estimada",
+      "cv": "Variabilidad (CV%)",
+      "spotCaveat": "Son estimaciones a partir de mediciones puntuales, no un perfil de monitor continuo — léelas como una tendencia, no como un veredicto clínico."
+    }
   },
   "errorBoundary": {
     "title": "Algo ha salido mal",
@@ -2784,6 +2799,7 @@
       }
     },
     "navWorkouts": "Entrenamientos",
+    "navRecovery": "Recuperación",
     "workouts": {
       "title": "Entrenamientos",
       "description": "Carreras, salidas en bici, paseos y sesiones de fuerza recientes, deduplicados entre Apple Watch y Withings.",
@@ -3855,15 +3871,29 @@
       },
       "integrations": {
         "title": "Integraciones",
-        "description": "Withings, moodLog y otros servicios conectados."
+        "description": "Servicios conectados, canales de entrega y prioridad de fuentes en un solo lugar.",
+        "tabs": {
+          "connections": "Conexiones",
+          "channels": "Canales",
+          "sources": "Fuentes"
+        },
+        "connections": {
+          "description": "Conecta Withings, WHOOP, Fitbit, Polar, Oura y Nightscout."
+        },
+        "channels": {
+          "description": "Telegram, ntfy, Web Push, Webhook y correo: las vías por las que se entregan las notificaciones."
+        }
       },
       "notifications": {
         "title": "Notificaciones",
-        "description": "Vista en vivo de cada canal configurado."
+        "description": "Todos los recordatorios en un solo lugar: qué se recuerda y cuándo. Los canales de entrega están en Integraciones.",
+        "channelsHint": "Telegram, ntfy, Web Push, Webhook y correo se configuran ahora en",
+        "channelsHintLink": "Integraciones → Canales",
+        "inboxLink": "Abrir la bandeja de entrada"
       },
       "layout": {
         "title": "Diseño y personalización",
-        "description": "Organiza cómo está dispuesta tu app — un único lugar para el panel, los análisis, los medicamentos y el ánimo.",
+        "description": "Organiza cómo están dispuestos el panel y los análisis.",
         "backToHub": "Volver a Diseño y personalización",
         "dashboard": {
           "title": "Panel",
@@ -3951,7 +3981,7 @@
       },
       "ai": {
         "title": "Análisis con IA",
-        "description": "Proveedor, modelo, clave."
+        "description": "Proveedor, modelo y clave API para los análisis, además de tu contexto «sobre mí»."
       },
       "api": {
         "title": "API & Tokens",
@@ -3963,7 +3993,7 @@
       },
       "export": {
         "title": "Exportar e importar",
-        "description": "Descarga tus datos de salud como PDF, CSV o una copia de seguridad JSON completa, o importa datos desde Apple Health o un archivo JSON.",
+        "description": "Descarga tus datos como CSV o una copia de seguridad JSON completa, o importa desde Apple Health, JSON o CSV. El informe médico ahora está en Historia de salud.",
         "otherOptionsHeading": "Otras opciones de exportación",
         "downloadFailed": "No se pudo descargar la exportación. Inténtalo de nuevo.",
         "hero": {
@@ -4086,41 +4116,36 @@
       },
       "medications": {
         "title": "Medicamentos",
-        "description": "Vista de lista y orden de los medicamentos."
+        "description": "Vista de lista, orden y zonas de inyección de tus medicamentos."
       },
       "mood": {
         "title": "Etiquetas de ánimo",
-        "description": "Grupos, etiquetas y orden del selector de ánimo."
+        "description": "Grupos, etiquetas y etiquetas archivadas del selector de ánimo."
       },
-      "reminders": {
-        "title": "Recordatorios y notificaciones",
-        "description": "Un único lugar para cada recordatorio — qué se recuerda y cuándo — y los canales que lo entregan.",
-        "categoriesGroup": "Recordatorios",
-        "channelsGroup": "Canales de entrega",
-        "medication": {
-          "title": "Recordatorios de medicación",
-          "description": "Horas y ventanas de dosis, configuradas en cada medicamento."
+      "modules": {
+        "title": "Módulos",
+        "saved": "Guardado.",
+        "error": "No se pudo guardar. Inténtalo de nuevo.",
+        "toggleable": {
+          "title": "Qué registras",
+          "description": "Áreas opcionales. Los módulos desactivados desaparecen de la navegación, los paneles y los análisis; tus datos se conservan."
         },
-        "vorsorge": {
-          "title": "Cuidado preventivo",
-          "description": "Revisiones y mediciones periódicas, con el lugar al que acudir."
+        "core": {
+          "title": "Siempre activos",
+          "description": "Los pilares de HealthLog. Estas áreas no se pueden desactivar.",
+          "note": "Área esencial — siempre activa"
         },
-        "mood": {
-          "title": "Registro de ánimo",
-          "description": "Un aviso diario para registrar cómo te sientes."
-        },
-        "lowStock": {
-          "title": "Margen por bajo stock",
-          "description": "Recibe un aviso antes de que se acabe un medicamento."
-        },
-        "coach": {
-          "title": "Sugerencia del coach",
-          "description": "Indicaciones proactivas del coach de IA."
-        },
-        "channels": {
-          "title": "Canales de notificación",
-          "description": "APNs, Telegram, ntfy, Web Push, Webhook y correo."
-        }
+        "description": "Elige qué registra HealthLog por ti. Activa o desactiva áreas concretas: la navegación, los paneles y los análisis se adaptan al instante.",
+        "manageIn": "Gestionar en {section}",
+        "operatorDisabled": "Desactivado en todo el servidor"
+      },
+      "gesundheitsakte": {
+        "title": "Historial médico",
+        "description": "Exporta tu historial médico completo como PDF, FHIR R4 o un paquete ZIP combinado."
+      },
+      "coach": {
+        "title": "Coach",
+        "description": "Activa el Coach, tono y alcance, recuerdos guardados."
       }
     },
     "profile": "Perfil",
@@ -4996,6 +5021,12 @@
         "title": "Explicador de Health-Score",
         "description": "El icono ? junto a la línea de delta del Health-Score. El dígito del delta permanece visible siempre."
       }
+    },
+    "modules": {
+      "title": "Disponibilidad de módulos",
+      "description": "Desactiva un módulo para todo el servidor. Un módulo desactivado aquí queda apagado para todas las cuentas, sin importar la preferencia personal. Los dominios principales (peso, presión arterial, pulso, medicación) están siempre activos y no se pueden desactivar.",
+      "disabledHint": "Desactivado en todo el servidor",
+      "saveError": "No se pudo actualizar la disponibilidad de módulos."
     },
     "bugReportRepo": "Repositorio",
     "bugReportRepoPlaceholder": "owner/repo",
@@ -6423,6 +6454,8 @@
     "addButton": "Añadir recordatorio",
     "markDone": "Hecho",
     "delete": "Eliminar",
+    "deleteConfirmTitle": "¿Eliminar recordatorio?",
+    "deleteConfirmDescription": "Este recordatorio de prevención se eliminará de forma permanente.",
     "disabledBadge": "Apagado",
     "nextDue": {
       "none": "Sin programar",
@@ -6479,6 +6512,8 @@
     "referenceLabel": "Referencia",
     "readingsCount": "{count} valores",
     "deleteLatest": "Eliminar el último valor",
+    "deleteConfirmTitle": "¿Eliminar resultado de laboratorio?",
+    "deleteConfirmDescription": "Este resultado de laboratorio se eliminará de forma permanente.",
     "deletedToast": "Resultado eliminado",
     "deleteError": "No se pudo eliminar el resultado",
     "loadError": "No se pudieron cargar los resultados",
@@ -6509,6 +6544,68 @@
       "save": "Guardar",
       "savedToast": "Resultado guardado",
       "saveError": "No se pudo guardar el resultado"
+    }
+  },
+  "modules": {
+    "cycle": {
+      "label": "Ciclo",
+      "description": "Registra periodo, fases y predicciones."
+    },
+    "mood": {
+      "label": "Estado de ánimo",
+      "description": "Registra el ánimo diario y etiquetas."
+    },
+    "sleep": {
+      "label": "Sueño",
+      "description": "Duración, fases y cronología del sueño."
+    },
+    "glucose": {
+      "label": "Glucosa",
+      "description": "Lecturas de glucosa y tendencias."
+    },
+    "workouts": {
+      "label": "Entrenamientos",
+      "description": "Sesiones de entrenamiento y actividad."
+    },
+    "recovery": {
+      "label": "Recuperación",
+      "description": "Métricas de recuperación y carga de tus dispositivos."
+    },
+    "labs": {
+      "label": "Resultados de laboratorio",
+      "description": "Registra resultados de laboratorio y su historial."
+    },
+    "achievements": {
+      "label": "Logros",
+      "description": "Insignias y rachas para tu rutina."
+    },
+    "coach": {
+      "label": "Coach",
+      "description": "Chat de IA basado en tus propios datos."
+    },
+    "insights": {
+      "label": "Análisis",
+      "description": "Análisis de IA, resumen y correlaciones."
+    },
+    "doctorReport": {
+      "label": "Informe médico",
+      "description": "Exportación PDF y FHIR para tu consulta."
+    },
+    "weight": {
+      "label": "Peso",
+      "description": "Peso y composición corporal."
+    },
+    "bloodPressure": {
+      "label": "Presión arterial",
+      "description": "Sistólica y diastólica."
+    },
+    "pulse": {
+      "label": "Pulso",
+      "description": "Pulso en reposo y frecuencia cardiaca."
+    },
+    "medications": {
+      "label": "Medicamentos",
+      "description": "Pautas, tomas y cumplimiento."
     }
   }
 }

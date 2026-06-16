@@ -182,12 +182,24 @@ describe("settings sections — SSR smoke", () => {
     expect(html).toContain("Withings");
   });
 
-  it("<NotificationsSection> renders heading", () => {
+  it("<NotificationsSection> renders the single reminder-types home", () => {
     const html = render(<NotificationsSection />);
-    // v1.4.33 IW7 — section renamed from "Notifications" to
-    // "Notification channels" so it doesn't collide with the inbox at
-    // `/notifications` ("Notifications").
-    expect(html).toContain("Notification channels");
+    // v1.18.0 (S4) — one clean heading (sr-only h1 + visible description),
+    // no stacked breadcrumb. The screen is the single module-gated home for
+    // reminder TYPES.
+    expect(html).toContain("settings-section-notifications-title");
+    // The old stacked breadcrumb middle crumb is gone.
+    expect(html).not.toContain("Notification channels");
+    // A single concise pointer to the channels (now under Integrations).
+    expect(html).toContain('href="/settings/integrations"');
+    expect(html).toContain('data-slot="notifications-channels-cross-link"');
+    // The mood + coach cards fail OPEN (mock user carries no module map),
+    // so both reminder-type cards render.
+    expect(html).toContain('id="mood-reminder"');
+    expect(html).toContain('id="coach-nudge"');
+    expect(html).toContain('id="low-stock"');
+    // No raw i18n key leaks past the provider.
+    expect(html).not.toContain("settings.sections.notifications.");
   });
 
   it("<DashboardSection> renders heading and embeds the layout customizer", () => {

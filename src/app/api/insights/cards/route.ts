@@ -8,6 +8,7 @@
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 import { apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
@@ -57,6 +58,8 @@ export const dynamic = "force-dynamic";
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
   // v1.4.31 — the iOS cards adapter feeds the same per-metric
   // insight surfaces the web `<InsightStatusCard>` mounts on each
   // /insights/<metric> sub-page. Both share the operator gate.

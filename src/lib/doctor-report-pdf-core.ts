@@ -14,7 +14,14 @@ import autoTable from "jspdf-autotable";
 import { makeFormatters } from "./format-locale";
 import type { Locale } from "./i18n/config";
 import { convertGlucose, resolveGlucoseUnit } from "./glucose";
-import type { DoctorReportData } from "./doctor-report-data";
+import {
+  classifyReferenceRange,
+  formatReferenceRange,
+} from "./labs/reference-range";
+import {
+  adherenceRatePercent,
+  type DoctorReportData,
+} from "./doctor-report-data";
 
 type T = (key: string, params?: Record<string, string | number>) => string;
 
@@ -329,10 +336,11 @@ function buildClinicalSummaryLines(
   const compEntries = Object.values(data.compliance);
   const totalDoses = compEntries.reduce((s, c) => s + c.total, 0);
   const totalTaken = compEntries.reduce((s, c) => s + c.taken, 0);
-  if (totalDoses > 0) {
+  const headlineRate = adherenceRatePercent(totalTaken, totalDoses);
+  if (headlineRate !== null) {
     lines.push(
       t("doctorReport.summaryAdherence", {
-        rate: num((totalTaken / totalDoses) * 100, 1),
+        rate: num(headlineRate, 0),
       }),
     );
   }
@@ -742,6 +750,108 @@ export function buildDoctorReportPdfDocument(
         .finalY + 8;
   }
 
+  // v1.18.0 — clinical glucose panel (TIR / GMI / eA1C / mean / CV%). The
+  // server already computes this (`data.glucoseClinical`) by the one
+  // literature-locked engine the insights panel + coach consume, and zeroes it
+  // when the glucose module is off (readingCount === 0). Render it whenever the
+  // window carries glucose readings so the PDF surfaces the same numbers the
+  // app shows. A `pct` helper turns the engine's 0–1 fractions into percent.
+  const clinical = data.glucoseClinical;
+  if (clinical && clinical.readingCount > 0 && clinical.distribution) {
+    const pct = (fraction: number) => `${num(fraction * 100)} %`;
+    const clinicalRows: string[][] = [];
+    const dist = clinical.distribution;
+    clinicalRows.push([t("doctorReport.glucoseClinical.tirInRange"), pct(dist.tir)]);
+    clinicalRows.push([t("doctorReport.glucoseClinical.tirLow"), pct(dist.tbrLevel1)]);
+    clinicalRows.push([t("doctorReport.glucoseClinical.tirVeryLow"), pct(dist.tbrLevel2)]);
+    clinicalRows.push([t("doctorReport.glucoseClinical.tirHigh"), pct(dist.tarLevel1)]);
+    clinicalRows.push([
+      t("doctorReport.glucoseClinical.tirVeryHigh"),
+      pct(dist.tarLevel2),
+    ]);
+    if (clinical.meanMgdl !== null) {
+      clinicalRows.push([
+        t("doctorReport.glucoseClinical.mean"),
+        `${num(convertGlucose(clinical.meanMgdl, glucoseUnit))} ${glucoseUnit}`.trim(),
+      ]);
+    }
+    if (clinical.gmi !== null) {
+      clinicalRows.push([t("doctorReport.glucoseClinical.gmi"), `${num(clinical.gmi)} %`]);
+    }
+    if (clinical.estimatedA1c !== null) {
+      clinicalRows.push([
+        t("doctorReport.glucoseClinical.eA1c"),
+        `${num(clinical.estimatedA1c)} %`,
+      ]);
+    }
+    if (clinical.variability !== null) {
+      clinicalRows.push([
+        t("doctorReport.glucoseClinical.cv"),
+        `${num(clinical.variability.cv)} %`,
+      ]);
+    }
+
+    // Keep the heading with the start of its table.
+    y = ensureSpace(y, 6 + 14);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text(t("doctorReport.glucoseClinical.title"), margin, y);
+    y += 6;
+
+    autoTable(doc, {
+      startY: y,
+      head: [
+        [
+          t("doctorReport.glucoseClinical.colMetric"),
+          t("doctorReport.glucoseClinical.colValue"),
+        ],
+      ],
+      body: clinicalRows,
+      theme: "grid",
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        textColor: [30, 30, 30],
+        lineColor: [200, 200, 200],
+        lineWidth: 0.3,
+      },
+      headStyles: {
+        fillColor: [245, 245, 245],
+        textColor: [30, 30, 30],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: { fillColor: [252, 252, 252] },
+      margin: {
+        left: margin,
+        right: margin,
+        top: margin,
+        bottom: tableBottomMargin,
+      },
+    });
+    y =
+      (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+        .finalY + 4;
+
+    // Spot-reading caveat when the engine flags the readings as sparse, so the
+    // clinician reads the panel as a direction-of-travel, not a CGM AGP.
+    if (clinical.isSpotEstimate) {
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(110, 110, 110);
+      const caveat = doc.splitTextToSize(
+        t("doctorReport.glucoseClinical.spotCaveat"),
+        pageWidth - 2 * margin,
+      );
+      for (const line of caveat) {
+        y = ensureSpace(y, 4);
+        doc.text(line, margin, y);
+        y += 4;
+      }
+    }
+    y += 4;
+  }
+
   // v1.7.0 — jsPDF-native trend sparklines per primary vital. Vector
   // polylines drawn with `doc.lines()` — zero new dependency, no native
   // canvas module, isomorphic. Selection-gated via `includeCharts`.
@@ -880,7 +990,9 @@ export function buildDoctorReportPdfDocument(
       // detail-page adherence %. The column is labelled "Expected" rather
       // than "Total" so the row stays internally coherent: Taken + Missed =
       // Expected, with Skipped shown alongside as informational.
-      const rate = c.total > 0 ? `${num((c.taken / c.total) * 100, 1)}%` : "—";
+      // Integer percent via the canonical rounding — matches the in-app card.
+      const ratePct = adherenceRatePercent(c.taken, c.total);
+      const rate = ratePct !== null ? `${num(ratePct, 0)}%` : "—";
       return [
         name,
         String(c.taken),
@@ -984,13 +1096,16 @@ export function buildDoctorReportPdfDocument(
         );
         y += 5;
       }
-      if (med.compliance.total > 0) {
-        const rate = (med.compliance.taken / med.compliance.total) * 100;
+      const glp1Rate = adherenceRatePercent(
+        med.compliance.taken,
+        med.compliance.total,
+      );
+      if (glp1Rate !== null) {
         doc.text(
           t("doctorReport.glp1Compliance", {
             taken: med.compliance.taken,
             total: med.compliance.total,
-            rate: num(rate, 1),
+            rate: num(glp1Rate, 0),
           }),
           margin,
           y,
@@ -1338,15 +1453,8 @@ export function buildDoctorReportPdfDocument(
     doc.text(t("doctorReport.labsTitle"), margin, y);
     y += 6;
 
-    const rangeText = (
-      low: number | null,
-      high: number | null,
-    ): string => {
-      if (low !== null && high !== null) return `${num(low)}–${num(high)}`;
-      if (high !== null) return `≤ ${num(high)}`;
-      if (low !== null) return `≥ ${num(low)}`;
-      return "—";
-    };
+    const rangeText = (low: number | null, high: number | null): string =>
+      formatReferenceRange(low, high, num, { emptyText: "—" });
     // Quiet, non-colour status glyph. In-range reads as a neutral dash so
     // the table is not a field of warning marks; out-of-range reads as a
     // direction arrow the clinician can scan, with no alarm tint.
@@ -1355,10 +1463,16 @@ export function buildDoctorReportPdfDocument(
       low: number | null,
       high: number | null,
     ): string => {
-      if (low === null && high === null) return "";
-      if (low !== null && value < low) return "↓";
-      if (high !== null && value > high) return "↑";
-      return "—";
+      switch (classifyReferenceRange(value, low, high)) {
+        case "unknown":
+          return "";
+        case "below":
+          return "↓";
+        case "above":
+          return "↑";
+        default:
+          return "—";
+      }
     };
 
     const labRows = data.labResults.map((lr) => [

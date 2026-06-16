@@ -101,6 +101,19 @@ export function shouldAutoLaunchTour(args: {
   return args.nowMs - completedMs >= TOUR_AUTOLAUNCH_DELAY_MS;
 }
 
+/**
+ * v1.18.0 B5 — whether the achievements tour stop should be included.
+ * Reads the per-user module map with the standard client default-on
+ * convention (`modules?.achievements !== false`): only an explicit
+ * `false` drops the stop. Pure + exported so the rule is unit-pinned
+ * without rendering the launcher.
+ */
+export function tourIncludesAchievements(
+  modules: Partial<Record<string, boolean>> | undefined,
+): boolean {
+  return modules?.achievements !== false;
+}
+
 // v1.4.15 H4 — sessionStorage keys are now scoped by user id so an
 // admin impersonating a second user does not inherit the first user's
 // "tour dismissed for this session" state. The previous global keys
@@ -348,8 +361,15 @@ export function TourLauncher({ ready }: TourLauncherProps) {
 
   if (showTour !== true) return null;
 
+  // v1.18.0 B5 — drop the achievements tour stop when the account has the
+  // achievements module turned off. Reads the per-user module map the same
+  // way every other client gate does (`modules?.<key> !== false`,
+  // default-on).
+  const includeAchievements = tourIncludesAchievements(user?.modules);
+
   return (
     <OnboardingTour
+      includeAchievements={includeAchievements}
       onClose={async (outcome) => {
         // Optimistic: hide the overlay immediately, persist in the
         // background. The flag is idempotent so re-fires are safe;

@@ -3,16 +3,17 @@ import { expect, test } from "@playwright/test";
 import { STORAGE_STATE_PATH } from "./setup/global-setup";
 
 /**
- * Settings → Export & Import consolidated UI smoke.
+ * Settings → Export & Import + Gesundheitsakte UI smoke.
  *
  * Validates that:
- *   1. The export surfaces are all rendered with their stable testids:
- *      the health-record export hero, the four CSV/JSON tiles, and the
- *      demoted doctor-report card (v1.12).
+ *   1. The Export & Import surfaces (`/settings/export`) render with their
+ *      stable testids: the four CSV/JSON tiles and the import cards.
  *   2. The import surfaces (v1.15.7, issue #281) render: the Apple Health
  *      and generic-JSON cards.
- *   3. The health-record "included data" checklist is a disclosure,
- *      collapsed by default, and expands on demand.
+ *   3. The full health-record export panel lives on its own top-level
+ *      `/settings/gesundheitsakte` section (v1.18.0 S5) — including the
+ *      "included data" checklist, a disclosure collapsed by default that
+ *      expands on demand.
  *   4. Clicking the Measurements CSV download button fires a real
  *      browser download — proving the `/api/export/measurements`
  *      endpoint is reachable from the browser end-to-end.
@@ -26,12 +27,10 @@ test.describe("Settings → Export & Import", () => {
 
   test("renders all export surfaces with stable testids", async ({ page }) => {
     await page.goto("/settings/export", { waitUntil: "domcontentloaded" });
-    // The health-record export is the page hero; the four CSV/backup
-    // tiles keep the `export-card-*` shape. The doctor report lives
-    // under the health-record export, so it is no longer a separate
-    // surface here.
+    // v1.18.0 (S5) — the full health-record export moved to its own
+    // `/settings/gesundheitsakte` section. The Export & Import page keeps
+    // the four CSV/backup tiles with the `export-card-*` shape.
     for (const id of [
-      "health-record-export-panel",
       "export-card-measurements-csv",
       "export-card-medications-csv",
       "export-card-mood-csv",
@@ -39,6 +38,19 @@ test.describe("Settings → Export & Import", () => {
     ]) {
       await expect(page.getByTestId(id)).toBeVisible({ timeout: 10_000 });
     }
+  });
+
+  test("renders the health-record export panel on its own section", async ({
+    page,
+  }) => {
+    // v1.18.0 (S5) — the health-record export is the hero of the
+    // dedicated, module-gated Gesundheitsakte section.
+    await page.goto("/settings/gesundheitsakte", {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page.getByTestId("health-record-export-panel")).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("renders the import surfaces with stable testids", async ({ page }) => {
@@ -73,7 +85,11 @@ test.describe("Settings → Export & Import", () => {
   test("included-data checklist is collapsed by default and expands on demand", async ({
     page,
   }) => {
-    await page.goto("/settings/export", { waitUntil: "domcontentloaded" });
+    // v1.18.0 (S5) — the panel (and its disclosure) live on the
+    // dedicated Gesundheitsakte section now.
+    await page.goto("/settings/gesundheitsakte", {
+      waitUntil: "domcontentloaded",
+    });
     const toggle = page.getByTestId("health-record-included-data-toggle");
     await expect(toggle).toBeVisible({ timeout: 10_000 });
     // Collapsed on first render — the checklist panel is absent.

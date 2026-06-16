@@ -101,6 +101,7 @@ function buildUser(disableCoach: boolean): AuthUser {
     insurerIkNumber: null,
     insuranceNumber: null,
     cycleTrackingEnabled: false,
+    modules: {},
   };
 }
 
@@ -295,7 +296,8 @@ describe("Coach per-user disableCoach invariant", () => {
     // v1.12.0 — the full-page Coach route mirrors the launch-button /
     // FAB gate: operator master flag OR per-user opt-out redirects the
     // page back to `/insights` instead of painting a dead chat shell.
-    "src/app/insights/coach/page.tsx",
+    // v1.18.0 — moved to the standalone top-level `/coach` route.
+    "src/app/coach/page.tsx",
     // The hook itself + its `useAuth`-backed reader.
     "src/hooks/use-disable-coach.ts",
     // Cross-cut gates owned by sibling invariants / route tests.
@@ -305,10 +307,12 @@ describe("Coach per-user disableCoach invariant", () => {
     //   writes the flag does NOT read `user.disableCoach` (it reads
     //   `body.disableCoach`) and is intentionally not listed here.
     "src/app/api/auth/me/route.ts",
-    // - Settings → KI section: the toggle card reads + writes the
+    // - Settings → Coach section: the toggle card reads + writes the
     //   flag; the section shell reads it to gate the Coach sub-cards.
+    //   v1.18.0 — moved out of the AI/Assistent section into its own
+    //   dedicated Coach settings entry.
     "src/components/settings/ai/disable-coach-card.tsx",
-    "src/components/settings/ai-section.tsx",
+    "src/components/settings/coach-section.tsx",
     // v1.7.0 W6 — the unified dashboard snapshot builder reads
     // `user.disableCoach` to gate the embedded daily briefing to
     // `briefingState: "disabled"`. Covered by the briefingState matrix
@@ -317,6 +321,12 @@ describe("Coach per-user disableCoach invariant", () => {
     // builder.
     "src/lib/dashboard/snapshot.ts",
     "src/app/api/dashboard/snapshot/route.ts",
+    // v1.18.0 — the module enable/disable gate delegates the `coach`
+    // module to the SAME two-layer source of truth (`user.disableCoach`
+    // AND the operator assistant master flag) rather than owning a
+    // second copy in `modulePreferencesJson`. Covered by the coach-
+    // delegation cases in `src/lib/modules/__tests__/gate.test.ts`.
+    "src/lib/modules/gate.ts",
   ];
 
   /**

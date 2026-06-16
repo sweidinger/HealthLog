@@ -4,8 +4,6 @@ import Link from "next/link";
 import {
   ChevronRight,
   LayoutDashboard,
-  Pill,
-  Smile,
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
@@ -16,13 +14,15 @@ import { useTranslations } from "@/lib/i18n/context";
 /**
  * v1.17.1 (F-2) — the one "Layout & Personalization" home.
  *
- * Before this section, "how my app is laid out" was scattered across four
- * unrelated settings sections — Dashboard, Insights, Medications, Mood —
- * with no shared framing, so the same concept (arrange / reorder / show-
- * hide) read as four disconnected places. This section is the single
- * front door: it presents the four personalization surfaces as one
- * consistent set of cards and links to each editor, which all keep their
- * own routes and mutation flows intact. One concept, one home.
+ * Before this section, "how my app is laid out" was scattered across
+ * several unrelated settings sections with no shared framing. This
+ * section is the single front door for the arrangement editors: it
+ * presents them as one consistent set of cards and links to each editor,
+ * which keep their own routes and mutation flows intact.
+ *
+ * v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung) graduated
+ * to their own top-level nav entries, so the hub now hosts only the
+ * dashboard + insights arrangement editors.
  */
 interface LayoutLink {
   href: string;
@@ -44,18 +44,10 @@ const LAYOUT_LINKS: ReadonlyArray<LayoutLink> = [
     titleKey: "settings.sections.layout.insights.title",
     descriptionKey: "settings.sections.layout.insights.description",
   },
-  {
-    href: "/settings/medications",
-    icon: Pill,
-    titleKey: "settings.sections.layout.medications.title",
-    descriptionKey: "settings.sections.layout.medications.description",
-  },
-  {
-    href: "/settings/mood",
-    icon: Smile,
-    titleKey: "settings.sections.layout.mood.title",
-    descriptionKey: "settings.sections.layout.mood.description",
-  },
+  // v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung) graduated
+  // to their own top-level nav entries, so they are no longer linked from
+  // the Layout hub. Only the dashboard + insights arrangement editors
+  // remain here.
 ];
 
 export function LayoutSection() {

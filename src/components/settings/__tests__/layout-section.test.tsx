@@ -20,29 +20,26 @@ function render(locale: "en" | "de" = "en") {
 }
 
 describe("<LayoutSection>", () => {
-  it("links to all four personalization editors", () => {
+  it("links to the arrangement editors it still hosts", () => {
     const html = render();
-    for (const href of [
-      "/settings/dashboard",
-      "/settings/insights",
-      "/settings/medications",
-      "/settings/mood",
-    ]) {
+    for (const href of ["/settings/dashboard", "/settings/insights"]) {
       expect(html).toContain(`href="${href}"`);
     }
+    // v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung)
+    // graduated to their own nav entries and are no longer linked here.
+    expect(html).not.toContain('href="/settings/medications"');
+    expect(html).not.toContain('href="/settings/mood"');
   });
 
   it("renders the hub heading and a card per editor", () => {
     const html = render();
     expect(html).toContain("Dashboard");
     expect(html).toContain("Insights");
-    expect(html).toContain("Medications");
-    expect(html).toContain("Mood tags");
   });
 
   it("resolves its copy in German too", () => {
     const html = render("de");
-    expect(html).toContain("Medikamente");
-    expect(html).toContain("Stimmungs-Tags");
+    expect(html).toContain("Layout");
+    expect(html).not.toContain("settings.sections.layout.");
   });
 });

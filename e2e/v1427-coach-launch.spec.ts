@@ -24,7 +24,7 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  *      page underneath stays) and the dot clears.
  *
  *   4. The drawer's "Conversations" button no longer opens an in-panel
- *      tray; it hands off to the full-page route `/insights/coach`.
+ *      tray; it hands off to the full-page route `/coach`.
  *
  * The three sub-pages covered (blutdruck, gewicht, schlaf) span the
  * empty-state branch (no data → CTA + Coach launch) and the populated
@@ -258,7 +258,7 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     await fab.click();
 
     // v1.16.11 — the FAB opens the side drawer in place instead of
-    // navigating to `/insights/coach`; the page underneath stays.
+    // navigating to `/coach`; the page underneath stays.
     const drawer = page.locator('[data-slot="coach-drawer"]');
     await expect(drawer).toBeVisible({ timeout: 10_000 });
     await expect(drawer).toHaveAttribute(
@@ -267,7 +267,7 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
         ? "bottom-sheet"
         : "side-sheet",
     );
-    expect(new URL(page.url()).pathname).not.toContain("/insights/coach");
+    expect(new URL(page.url()).pathname).not.toContain("/coach");
 
     // Opening the Coach counts as reading the nudge on this device —
     // the dot clears and the unread flag drops off the FAB.
@@ -281,7 +281,7 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     page,
   }, testInfo) => {
     // The in-panel history tray is gone from the drawer; the button
-    // navigates to `/insights/coach` where the conversation list
+    // navigates to `/coach` where the conversation list
     // renders inline on lg+.
     test.skip(
       testInfo.project.name !== "chromium-desktop",
@@ -314,7 +314,7 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     await historyButton.click();
 
     // No in-panel tray opens — the click navigates to the full view.
-    await page.waitForURL("**/insights/coach", { timeout: 10_000 });
+    await page.waitForURL("**/coach", { timeout: 10_000 });
     await expect(
       page.locator('[data-slot="coach-page"]'),
     ).toBeVisible({ timeout: 10_000 });

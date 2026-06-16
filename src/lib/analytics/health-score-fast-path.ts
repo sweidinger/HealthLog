@@ -136,6 +136,19 @@ export interface HealthScoreFastPathInput {
    * the probe cost stays flat in the fan-out.
    */
   coverage?: RollupCoverageMap;
+  /**
+   * v1.18.0 R4 — module-aware mood pillar. When the caller resolves the
+   * `mood` module as disabled it threads `moodEnabled: false` and the
+   * helper drops the 0.20 mood-stability pillar entirely: the mood read
+   * is skipped and the series stays empty, so `moodStability` returns
+   * `null` and the existing proportional null-redistribution re-scales
+   * the surviving pillars to sum to 100. Without this a disabled-mood
+   * account is silently penalised (or rewarded) by a pillar it can no
+   * longer see anywhere else in the product. Omit (or pass `true`) to
+   * keep the pre-v1.18.0 always-weighted behaviour — the field is
+   * additive so legacy callers are unchanged.
+   */
+  moodEnabled?: boolean;
 }
 
 /**
@@ -150,6 +163,10 @@ export async function computeUserHealthScoreFastPath(
 ): Promise<HealthScoreResult | null> {
   const DAY_MS = 24 * 60 * 60 * 1000;
   const { userId, bpInTargetPct, heightCm, now } = input;
+  // v1.18.0 R4 — default-on so omitting the flag preserves the
+  // pre-v1.18.0 always-weighted mood pillar. Only an explicit `false`
+  // (the caller resolved `mood` as a disabled module) drops the pillar.
+  const moodEnabled = input.moodEnabled !== false;
   // v1.4.38 — prior-week BP fallback. When the caller omits the field
   // we pin to the current value (pre-v1.4.38 behaviour) so the helper
   // stays a drop-in replacement for legacy callers; when the caller
@@ -294,16 +311,25 @@ export async function computeUserHealthScoreFastPath(
       select: { measuredAt: true, source: true },
       orderBy: { measuredAt: "asc" },
     }),
-    prisma.moodEntry.findMany({
-      where: {
-        userId,
-        // v1.7.0 sync — exclude tombstoned rows.
-        deletedAt: null,
-        moodLoggedAt: { gte: prevSince30d, lte: now },
-      },
-      select: { score: true, moodLoggedAt: true },
-      orderBy: { moodLoggedAt: "asc" },
-    }),
+    // v1.18.0 R4 — skip the read entirely when the mood module is off.
+    // An empty series feeds `moodStability` → null → the 0.20 pillar
+    // weight redistributes across the surviving pillars. Skipping the
+    // query (rather than reading-then-discarding) keeps the disabled
+    // module off the round-trip budget too.
+    moodEnabled
+      ? prisma.moodEntry.findMany({
+          where: {
+            userId,
+            // v1.7.0 sync — exclude tombstoned rows.
+            deletedAt: null,
+            moodLoggedAt: { gte: prevSince30d, lte: now },
+          },
+          select: { score: true, moodLoggedAt: true },
+          orderBy: { moodLoggedAt: "asc" },
+        })
+      : Promise.resolve(
+          [] as Array<{ score: number; moodLoggedAt: Date }>,
+        ),
     prisma.medication.findMany({
       // v1.16.11 — as-needed (PRN) medications carry no expected doses
       // and are excluded from every compliance rate: they must

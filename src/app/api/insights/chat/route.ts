@@ -35,6 +35,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import {
@@ -151,6 +152,10 @@ function buildHistoryWindow(
 
 async function handleChatRequest(request: NextRequest): Promise<Response> {
   const auth = await requireAuth();
+  // v1.18.0 — two-layer module gate (operator availability + per-user
+  // disableCoach) on top of the legacy assistant flag. 403 module.disabled.
+  const gate = await requireModuleEnabled(auth.user.id, "coach");
+  if (!gate.enabled) return gate.response;
   // v1.4.31 — operator can disable the Coach surface app-wide.
   // Throws AssistantDisabledError → apiHandler returns 403 +
   // `errorCode: "assistant.disabled.coach"` per the iOS contract.
@@ -687,6 +692,9 @@ export const POST = apiHandler(handleChatRequest);
  */
 export const GET = apiHandler(async (request: NextRequest) => {
   const auth = await requireAuth();
+  // v1.18.0 — same two-layer module gate as the SSE POST.
+  const gate = await requireModuleEnabled(auth.user.id, "coach");
+  if (!gate.enabled) return gate.response;
   // v1.4.31 — same gate as the SSE POST. Hiding the rail when
   // the operator has disabled Coach matches the FAB suppression
   // on the client.

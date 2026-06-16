@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.18.0] — 2026-06-16 — turn off what you don't track, and a settings menu that finally reads as one app
+
+This release makes the app yours to shape. Every optional area — cycle, mood, sleep, glucose, workouts, recovery, labs, achievements, the coach, AI insights and the doctor-report — can be turned off, and when it is, it disappears everywhere at once: out of the navigation, off the dashboard, gone from insights, the coach, your reminders, achievements and the exported report. Your data is kept; turn the area back on and it returns. The settings menu was redesigned alongside it, so notification channels, integrations, sources and per-area pages each sit where you'd look for them instead of spread across overlapping hubs. The core vitals — weight, blood pressure, pulse and medications — are always on. No breaking changes.
+
+### Added
+
+- **Turn modules on and off.** A "What you track" settings hub lets you switch off any area you don't use. The switch is honoured by one server-side gate, so a disabled area is hidden from the navigation and the dashboard and is also refused at its API — the surface and the route vanish together, with no window where one leaks without the other. Re-enabling restores everything; nothing is deleted.
+- **Operator-level module availability.** A self-hoster can make an area unavailable for the whole instance from the admin settings; an operator "off" wins over any personal preference. Both layers project onto the same module map the web app and the companion app already read, so neither client needs special handling.
+
+### Changed
+
+- **The settings menu reads as one app.** Notification channels moved under Integrations alongside the connection and source panels; the duplicated "Reminders" hub collapsed into Notifications; mood, medications and the health-record export each became a clear top-level entry; and every section now carries one consistent heading. Old deep links (`/settings/reminders`, `/settings/sources`, the standalone coach page) redirect to their new homes.
+- **One add-entry pattern across every feature page.** The cycle, labs, mood, medication and preventive-care pages now share the same header and primary "add" affordance, so a page built later doesn't read differently from one built earlier.
+
+### Operator note
+
+- Migrations 0167 (per-user module preferences) and 0168 (operator-level module availability) are additive — a single nullable JSON column each, no backfill. Both default to "all on": an area is disabled only by an explicit choice. No deploy-time action is required.
+
 ## [1.17.1] — 2026-06-15 — preventive care, lab results, and more of the data you already have
 
 This release closes the loop from tracking to acting. Preventive-care reminders tell you when to measure or check what, structured lab results give your bloodwork a home, and a new recovery view surfaces signals that were already being collected but never shown. Sleep timelines now read in real clock times, marking a dose on one device clears its reminder on the others within seconds, and self-hosters gain a generic webhook channel, email, one-tap Web Push setup and a proper notifications guide. Every new number is computed once on the server and read the same way on the dashboard, the coach, the doctor-report and the companion app. No breaking changes.

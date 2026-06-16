@@ -107,18 +107,23 @@ export function PhaseEducationCard({
   const phaseName = phase ? t(`cycle.phase.${phase}`) : null;
 
   return (
-    <section
-      data-slot="cycle-phase-education"
-      data-revealed={animate ? "true" : undefined}
-      data-phase={phase ?? "none"}
-      aria-label={t("cycle.phaseEducation.title")}
-      style={{ "--tile-hue": hue } as React.CSSProperties}
-      className={cn(
-        "wellness-tile rounded-xl px-5 py-5",
-        animate && "wellness-tile-rise",
-        className,
-      )}
-    >
+    // `data-revealed` must sit on an ANCESTOR of `.wellness-tile-rise` — the
+    // keyframe selector is `[data-revealed="true"] .wellness-tile-rise`
+    // (descendant combinator). Both on the same node never matched, leaving the
+    // tile stuck at the rise rule's `opacity: 0`. The `contents` wrapper carries
+    // the flag without adding a layout box.
+    <div data-revealed={animate ? "true" : undefined} className="contents">
+      <section
+        data-slot="cycle-phase-education"
+        data-phase={phase ?? "none"}
+        aria-label={t("cycle.phaseEducation.title")}
+        style={{ "--tile-hue": hue } as React.CSSProperties}
+        className={cn(
+          "wellness-tile rounded-xl px-5 py-5",
+          animate && "wellness-tile-rise",
+          className,
+        )}
+      >
       {/* Zone 1 — eyebrow + phase name with a hue dot (never colour-only). */}
       <div className="flex items-center gap-2">
         <Sparkles
@@ -196,6 +201,7 @@ export function PhaseEducationCard({
           ) : null}
         </>
       )}
-    </section>
+      </section>
+    </div>
   );
 }

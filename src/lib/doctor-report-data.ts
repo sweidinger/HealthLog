@@ -25,7 +25,11 @@ import {
 import type {
   GlucoseContext,
   MeasurementSource,
+  MeasurementType,
 } from "@/generated/prisma/client";
+import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
+import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
+import { userDayKey } from "@/lib/tz/resolver";
 import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
 import {
   reconstructSleepNights,
@@ -36,6 +40,7 @@ import {
   type DoctorReportPrefs,
 } from "@/lib/validations/doctor-report-prefs";
 import { buildCycleExportSummary } from "@/lib/cycle/export-data";
+import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
 import {
   buildComplianceMedicationContext,
   lastNonSkippedTakenAt,
@@ -58,6 +63,29 @@ export interface DoctorReportCompliance {
   taken: number;
   skipped: number;
   missed: number;
+}
+
+/**
+ * Canonical adherence-rate rounding for the doctor-report export surfaces.
+ *
+ * The PDF table, the PDF clinical-summary headline, the FHIR adherence
+ * Observation, and the GLP-1 block all derive the rate from the SAME ledger
+ * denominator (`taken / total`, `total = taken + missed`). They MUST round it
+ * the same way the app does so a clinician comparing the export to the in-app
+ * card never sees a presentational divergence (87 % on the card, 87.3 % on the
+ * PDF). The app convention is `round(100 · taken / denominator)` capped at 100
+ * (see `dose-history-ledger-compute.ts` + `tallyComplianceFromLedger`) — an
+ * integer percent. This is the one source of truth for every export surface.
+ *
+ * Returns `null` when `total <= 0` so callers render the "no expected dose"
+ * placeholder instead of a misleading `0` or `100`.
+ */
+export function adherenceRatePercent(
+  taken: number,
+  total: number,
+): number | null {
+  if (total <= 0) return null;
+  return Math.min(100, Math.round((taken / total) * 100));
 }
 
 export interface DoctorReportMood {
@@ -287,6 +315,70 @@ interface RecoveryMeasurementRow {
   source: MeasurementSource;
 }
 
+/** Minimal Measurement shape the canonical-source collapse consults. */
+export interface CanonicalCollapseRow {
+  type: string;
+  value: number;
+  measuredAt: Date;
+  source: MeasurementSource;
+  deviceType?: string | null;
+}
+
+/**
+ * Collapse a window's raw Measurement rows to one canonical source per metric
+ * before the doctor report computes per-type avg/min/max. Without this the PDF
+ * + FHIR stats blend every source (a WHOOP + Apple-Watch resting-heart-rate
+ * day would average two readings), while the dashboard / insights aggregator
+ * already collapse to the ladder-canonical source per day. This routes the rows
+ * through the SAME picker (`pickCanonicalSourceRows`, keyed by
+ * `metricKeyForType` + the user's day key + source-priority ladder), so the two
+ * surfaces report identical numbers.
+ *
+ * SLEEP_DURATION is passed through untouched: it carries per-stage rows that
+ * `reconstructSleepNights` resolves with its own source de-dup downstream, so a
+ * pre-collapse here would drop stages the night reconstruction needs. A type
+ * with no ladder, or a day with a single source, passes through unchanged via
+ * the picker's documented fallback. Exported for unit tests.
+ */
+export function collapseMeasurementsToCanonical<T extends CanonicalCollapseRow>(
+  measurements: readonly T[],
+  timezone: string,
+  sourcePriorityJson: unknown,
+): T[] {
+  const dayKey = (d: Date) => userDayKey(d, timezone);
+  const byType = new Map<string, T[]>();
+  for (const m of measurements) {
+    const slot = byType.get(m.type);
+    if (slot) slot.push(m);
+    else byType.set(m.type, [m]);
+  }
+  const out: T[] = [];
+  for (const [type, rows] of byType) {
+    const metricKey =
+      type === "SLEEP_DURATION"
+        ? null
+        : metricKeyForType(type as MeasurementType);
+    if (!metricKey) {
+      out.push(...rows);
+      continue;
+    }
+    const { canonicalRows } = pickCanonicalSourceRows(
+      rows.map((m) => ({
+        ...m,
+        type: m.type as MeasurementType,
+      })),
+      metricKey,
+      sourcePriorityJson,
+      dayKey,
+    );
+    // `pickCanonicalSourceRows` returns the spread copies; re-key back to the
+    // original rows by reference identity is unnecessary because the spread
+    // preserves every field the caller reads (value / measuredAt / type).
+    out.push(...(canonicalRows as unknown as T[]));
+  }
+  return out;
+}
+
 /**
  * Summarise RECOVERY_SCORE over the window from the CANONICAL row per day:
  * a WHOOP-native row wins over the COMPUTED proxy for the same day, so the
@@ -483,6 +575,18 @@ export interface CollectDoctorReportOptions {
    * don't accidentally print a section the user opted out of.
    */
   sections?: Partial<DoctorReportPrefs>;
+  /**
+   * v1.18.0 — resolved per-user module enable/disable map. When omitted the
+   * aggregator resolves it itself via `resolveModuleMap(userId)`. A disabled
+   * module forces its report section / FHIR resources out of the payload,
+   * regardless of the user's per-report `sections` toggles: a user who turned
+   * off the Sleep module exports no sleep series, mood Observations, glucose
+   * panel, recovery/strain scores, cycle summary, or lab results for the
+   * modules they no longer keep. Core clinical sections (weight / BP / pulse /
+   * medications) carry no module key and are always included. Injectable for
+   * tests so the module ↔ section mapping can be asserted without a DB.
+   */
+  moduleMap?: Record<ModuleKey, boolean>;
 }
 
 /**
@@ -602,10 +706,33 @@ export async function collectDoctorReportData(
   // either way (the queries are cheap on indexed columns) and stripped
   // from the returned payload below — keeping a single source of
   // truth for the data shape regardless of toggle state.
+  // v1.18.0 — resolve the per-user module map up-front (once per build). A
+  // disabled module's section/resources are excluded from the export so the
+  // PDF + FHIR bundle reflect only the modules the user keeps. The map is
+  // ANDed over the user's per-report `sections` toggles: a disabled module
+  // forces its section off even if the report toggle says on (you can't share
+  // data for a module you turned off), while leaving the others untouched.
+  // Core clinical sections (weight / BP / pulse / medications) have no module
+  // key and stay unconditional. Injectable for tests.
+  const moduleMap =
+    options.moduleMap ?? (await resolveModuleMap(userId));
+
   const sections: DoctorReportPrefs = {
     ...DEFAULT_DOCTOR_REPORT_PREFS,
     ...(options.sections ?? {}),
   };
+  // Module gate: a disabled module wins over the report toggle. Each report
+  // section maps to its owning module key; core sections (bp/weight/pulse/
+  // bmi/compliance) carry no key and are never gated here.
+  if (moduleMap.mood === false) sections.mood = false;
+  if (moduleMap.sleep === false) sections.sleep = false;
+  if (moduleMap.cycle === false) sections.cycle = false;
+  if (moduleMap.labs === false) sections.labs = false;
+  // Module gates with no `sections` key — applied directly to the data slices
+  // below (glucose panel, recovery/strain wellness scores, workout series).
+  const glucoseEnabled = moduleMap.glucose !== false;
+  const recoveryEnabled = moduleMap.recovery !== false;
+  const workoutsEnabled = moduleMap.workouts !== false;
 
   const [measurements, medications, intakeEvents, moodEntries, userProfile] =
     await Promise.all([
@@ -703,17 +830,34 @@ export async function collectDoctorReportData(
       }),
     ]);
 
-  // Group measurements by type.
+  const reportTz = userProfile?.timezone ?? "Europe/Berlin";
+
+  // v1.18.0 — collapse each multi-source metric to its CANONICAL source before
+  // grouping, so the report's per-type avg/min/max match the dashboard rather
+  // than blending overlapping sources (e.g. WHOOP + Apple Watch resting-heart-
+  // rate summed into one inflated mean). See `collapseMeasurementsToCanonical`.
+  const canonicalMeasurements = collapseMeasurementsToCanonical(
+    measurements,
+    reportTz,
+    userProfile?.sourcePriorityJson ?? null,
+  );
+
+  // Group measurements by type (canonical-source-collapsed).
   const byType: Record<
     string,
     Array<{ value: number; measuredAt: string }>
   > = {};
-  for (const m of measurements) {
+  for (const m of canonicalMeasurements) {
     if (!byType[m.type]) byType[m.type] = [];
     byType[m.type].push({
       value: m.value,
       measuredAt: m.measuredAt.toISOString(),
     });
+  }
+  // measuredAt-ascending within each type so `latest` (last element) is the
+  // most recent reading after the canonical collapse reorders by bucket.
+  for (const entries of Object.values(byType)) {
+    entries.sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
   }
 
   // v1.17.1 parity — SLEEP_DURATION enters `byType` as RAW per-stage rows (a
@@ -723,7 +867,6 @@ export async function collectDoctorReportData(
   // and the v1.17.1 stamping fixes rewrite exactly those raw stage rows. Route
   // the report's sleep value through the same engine — one number, one surface
   // — exactly as RECOVERY_SCORE routes through `summariseCanonicalRecovery`.
-  const reportTz = userProfile?.timezone ?? "Europe/Berlin";
   const sleepRows = measurements.filter(
     (m) => m.type === "SLEEP_DURATION",
   ) as unknown as SleepStageRow[];
@@ -916,7 +1059,12 @@ export async function collectDoctorReportData(
   // Per-context glucose stats + effective ranges (canonical mg/dL).
   const glucoseStats: Record<string, DoctorReportStats> = {};
   const glucoseRanges: Record<string, { min: number; max: number }> = {};
-  const glucoseRows = measurements.filter((m) => m.type === "BLOOD_GLUCOSE");
+  // v1.18.0 — when the glucose module is disabled, no glucose row enters the
+  // panel: stats, ranges, and the clinical metrics all collapse to empty so the
+  // PDF + FHIR Observations carry no glucose for this user.
+  const glucoseRows = glucoseEnabled
+    ? measurements.filter((m) => m.type === "BLOOD_GLUCOSE")
+    : [];
   const overrides = (userProfile?.thresholdsJson ??
     null) as ThresholdOverridesJson | null;
   const profileForRange = {
@@ -966,8 +1114,8 @@ export async function collectDoctorReportData(
   // `stats`, and `compliance` lets the PDF renderer treat "section
   // disabled" identically to "section had no rows" — both paths skip
   // the table. Mood is already null when disabled (we never queried).
-  const filteredByType = filterMeasurementKeys(byType, sections);
-  const filteredStats = filterMeasurementKeys(stats, sections);
+  const filteredByType = filterMeasurementKeys(byType, sections, moduleMap);
+  const filteredStats = filterMeasurementKeys(stats, sections, moduleMap);
   const filteredCompliance = sections.compliance ? compliance : {};
   const filteredBmi = sections.bmi ? bmi : null;
 
@@ -1085,6 +1233,19 @@ export async function collectDoctorReportData(
   // series. Resolve to the canonical row per day (WHOOP wins) so the PDF reads
   // the SAME value the tile + iOS feed show — one number, one engine.
   const wellnessScoreSummaries = WELLNESS_SCORE_REPORT_TYPES.flatMap((type) => {
+    // v1.18.0 — module gate per score type. Recovery + stress are the
+    // recovery/readiness signals (recovery module); strain is the
+    // training-load signal derived from the workouts table (workouts module).
+    // A disabled owning module drops the score from the wellness summary and,
+    // since the FHIR exporter sources these Observations from
+    // `data.wellnessScores`, from the bundle too.
+    if (type === "STRAIN_SCORE" && !workoutsEnabled) return [];
+    if (
+      (type === "RECOVERY_SCORE" || type === "STRESS_SCORE") &&
+      !recoveryEnabled
+    ) {
+      return [];
+    }
     if (type === "RECOVERY_SCORE") {
       const summary = summariseCanonicalRecovery(measurements, reportTz);
       return summary ? [summary] : [];
@@ -1234,14 +1395,52 @@ const MEASUREMENT_TYPE_SECTION: Record<string, keyof DoctorReportPrefs> = {
   SLEEP_DURATION: "sleep",
 };
 
+/**
+ * v1.18.0 — per-measurement-type → owning module mapping for the types that
+ * carry no `sections` toggle but DO belong to a toggleable module. When the
+ * module is disabled, the type is stripped from `measurements` + `stats` so the
+ * series never reaches the PDF tables or a FHIR Observation.
+ *
+ *   - `workouts` owns the activity / movement series (steps, active energy,
+ *     distance, flights, the walking-gait + stair metrics) and the
+ *     training-load `STRAIN_SCORE`.
+ *   - `recovery` owns the readiness signals `RECOVERY_SCORE` + `STRESS_SCORE`.
+ *   - `glucose` owns the raw `BLOOD_GLUCOSE` series (the glucose panel itself is
+ *     gated where it is assembled; this strips the raw rows too).
+ *
+ * Core clinical types (BP / weight / pulse / body-composition / vitals) carry
+ * no module and are never gated here. `sleep` / `mood` / `cycle` / `labs` ride
+ * the `sections` mechanism instead.
+ */
+const MEASUREMENT_TYPE_MODULE: Record<string, ModuleKey> = {
+  ACTIVITY_STEPS: "workouts",
+  ACTIVE_ENERGY_BURNED: "workouts",
+  FLIGHTS_CLIMBED: "workouts",
+  WALKING_RUNNING_DISTANCE: "workouts",
+  WALKING_SPEED: "workouts",
+  WALKING_ASYMMETRY: "workouts",
+  WALKING_STEP_LENGTH: "workouts",
+  WALKING_DOUBLE_SUPPORT: "workouts",
+  SIX_MINUTE_WALK_DISTANCE: "workouts",
+  STAIR_ASCENT_SPEED: "workouts",
+  STAIR_DESCENT_SPEED: "workouts",
+  STRAIN_SCORE: "workouts",
+  RECOVERY_SCORE: "recovery",
+  STRESS_SCORE: "recovery",
+  BLOOD_GLUCOSE: "glucose",
+};
+
 function filterMeasurementKeys<T>(
   map: Record<string, T>,
   sections: DoctorReportPrefs,
+  moduleMap: Record<ModuleKey, boolean>,
 ): Record<string, T> {
   const out: Record<string, T> = {};
   for (const [type, value] of Object.entries(map)) {
     const sectionKey = MEASUREMENT_TYPE_SECTION[type];
     if (sectionKey && sections[sectionKey] === false) continue;
+    const moduleKey = MEASUREMENT_TYPE_MODULE[type];
+    if (moduleKey && moduleMap[moduleKey] === false) continue;
     out[type] = value;
   }
   return out;

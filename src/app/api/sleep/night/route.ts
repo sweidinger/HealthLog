@@ -38,6 +38,7 @@ import {
 } from "@/lib/analytics/sleep-night";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 
 /** Sleep is read row-per-stage, so the window is bounded to one year. */
 const SLEEP_NIGHT_MAX_DAYS = 365;
@@ -92,6 +93,11 @@ function serializeSession(s: SleepSession) {
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  // Per-domain gate: the hypnogram read serves only the sleep module's
+  // view surfaces, so it gates on the sleep module. Disabled ⇒ 403.
+  const gate = await requireModuleEnabled(user.id, "sleep");
+  if (!gate.enabled) return gate.response;
 
   const parsed = querySchema.safeParse(
     Object.fromEntries(request.nextUrl.searchParams),

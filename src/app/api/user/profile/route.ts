@@ -18,6 +18,7 @@ import { annotate } from "@/lib/logging/context";
 import { applyProfileUpdate } from "@/lib/auth/profile-update";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
+import { resolveModuleMap } from "@/lib/modules/gate";
 
 export const dynamic = "force-dynamic";
 
@@ -25,25 +26,35 @@ export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "user.profile.get" } });
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: {
-      username: true,
-      displayName: true,
-      email: true,
-      dateOfBirth: true,
-      gender: true,
-      heightCm: true,
-      locale: true,
-      timezone: true,
-      timeFormat: true,
-      moodReminderEnabled: true,
-      fullName: true,
-      insurerName: true,
-      insurerIkNumber: true,
-      insuranceNumberEncrypted: true,
-    },
-  });
+  // Overlap the profile-row read with the module-map resolve (a separate
+  // memoised Postgres round-trip) — both feed the same response and have
+  // no ordering dependency.
+  const [dbUser, modules] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        username: true,
+        displayName: true,
+        email: true,
+        dateOfBirth: true,
+        gender: true,
+        heightCm: true,
+        locale: true,
+        timezone: true,
+        timeFormat: true,
+        moodReminderEnabled: true,
+        fullName: true,
+        insurerName: true,
+        insurerIkNumber: true,
+        insuranceNumberEncrypted: true,
+      },
+    }),
+    // v1.18.0 — resolved module enable/disable map, identical to the
+    // projection `GET /api/auth/me` returns. The iOS app reads this alias
+    // endpoint, so it must carry the same server-authoritative flags; a
+    // `false` key means the module surface disappears end-to-end.
+    resolveModuleMap(user.id),
+  ]);
 
   // v1.7.0 — decrypt the KVNR fail-soft so a key-rotation gap never 500s
   // the profile fetch.
@@ -71,6 +82,10 @@ export const GET = apiHandler(async () => {
     insurerName: dbUser?.insurerName ?? null,
     insurerIkNumber: dbUser?.insurerIkNumber ?? null,
     insuranceNumber,
+    // v1.18.0 — module enable/disable map, matching the /api/auth/me
+    // projection exactly so the native client gets module flags from the
+    // endpoint it actually reads.
+    modules,
   });
 });
 

@@ -12,12 +12,13 @@
  */
 
 import {
-  AlarmClock,
   Bell,
+  Blocks,
+  Bot,
   Download,
+  FileHeart,
   Info,
   KeyRound,
-  Layers,
   LayoutDashboard,
   Link2,
   Pill,
@@ -36,18 +37,19 @@ import type { SettingsSectionSlug } from "./section-slugs";
 
 const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   account: User,
+  modules: Blocks,
   integrations: Link2,
   notifications: Bell,
-  reminders: AlarmClock,
   layout: LayoutDashboard,
   dashboard: LayoutDashboard,
   insights: TrendingUp,
   medications: Pill,
   mood: Smile,
   thresholds: SlidersHorizontal,
-  sources: Layers,
   ai: Sparkles,
+  coach: Bot,
   api: KeyRound,
+  gesundheitsakte: FileHeart,
   export: Download,
   advanced: Settings2,
   about: Info,

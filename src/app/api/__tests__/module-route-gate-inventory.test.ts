@@ -1,0 +1,363 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { MODULE_KEYS, type ModuleKey } from "@/lib/modules/registry";
+
+/**
+ * v1.18.0 — module API route gate inventory.
+ *
+ * The v1.18.0 module retrofit can hide a toggleable module across the
+ * nav, dashboard tiles, Insights pills, reminder jobs, doctor-report
+ * sections, and the AI surfaces. The ONE server-side enforcement point
+ * is `@/lib/modules/gate` — `requireModuleEnabled(userId, key)` in API
+ * routes, `isModuleEnabled` / `resolveModuleMap` in builders + jobs +
+ * components. Without a discovery test, a future contributor who lands a
+ * new per-domain route for a toggleable module (a new mood-analysis read,
+ * a new sleep view, a new glucose panel) would have to remember the gate
+ * by hand. A silent miss leaks the surface over a Bearer token even when
+ * the account — or the operator — turned the module off.
+ *
+ * This test walks every per-domain route tree that serves a TOGGLEABLE
+ * module and pins each `route.ts` into exactly one of these buckets:
+ *
+ *   1. MODULE-GATED — the file calls `requireModuleEnabled(...)` for the
+ *      right key (mood / sleep / glucose / workouts / recovery / labs /
+ *      achievements). This is the direct gate.
+ *
+ *   2. DELEGATED — the module's enabled-state is owned elsewhere and the
+ *      route gates on that single source of truth instead of re-deriving
+ *      it (no double source of truth, mirroring the registry's
+ *      `delegatesTo`):
+ *        - cycle  → `requireCycleEnabled(...)` (the cycle gate the
+ *                   `cycle` ModuleKey delegates to).
+ *        - coach  → `requireAssistantSurface("coach")` (the assistant
+ *                   master flag + per-user opt-out the `coach` ModuleKey
+ *                   delegates to). Covered in depth by the sibling
+ *                   `coach-route-gate-inventory.test.ts`; listed here so
+ *                   coach-bearing routes are not flagged as ungated.
+ *
+ *   3. BUILDER-GATED — the route delegates its whole payload to an
+ *      aggregator that resolves `resolveModuleMap(userId)` once and
+ *      excludes disabled-module sections/resources from the build
+ *      (`collectDoctorReportData`, `loadFhirContext`). The exclusion is
+ *      structural at the builder, so the route carries no per-key call.
+ *
+ *   4. EXEMPT — an explicit, COMMENTED allowlist of routes that serve a
+ *      toggleable domain but are deliberately NOT gated, each with the
+ *      reason at the entry. The two reasons in play:
+ *        - DATA LAYER: raw CRUD over the domain's own rows. Writing or
+ *          reading a disabled module's data is harmless — the module gate
+ *          governs whether the domain SURFACES (nav, tiles, analysis,
+ *          reports), not whether the row store accepts writes. Disabling
+ *          a module must not wedge an importer / sync / the user's ability
+ *          to clean up data, and re-enabling must find the data intact.
+ *        - INFRA / UI-ONLY: settings, availability probes, and the static
+ *          FHIR CapabilityStatement carry no module data.
+ *
+ * Anything that doesn't fit one of the four buckets is an orphan and
+ * fails the test BY NAME so the fix is one search-and-add: gate the route
+ * or move it onto the EXEMPT allowlist with a documented reason.
+ */
+
+/**
+ * The per-domain route trees that serve a toggleable module. Each entry
+ * is a directory under `src/app/api`; every `route.ts` beneath it is
+ * enumerated and classified. A domain that is owned entirely by one
+ * builder (doctor-report / FHIR) or one delegated gate (cycle) is still
+ * walked so a NEW route in the tree must justify itself.
+ */
+const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
+  "src/app/api/mood",
+  "src/app/api/mood-entries",
+  "src/app/api/sleep",
+  "src/app/api/workouts",
+  "src/app/api/labs",
+  "src/app/api/cycle",
+  "src/app/api/gamification",
+  // v1.18.0 B3 — the legacy `/api/doctor-report` tree (JSON + server-PDF +
+  // availability probe) was orphaned dead code (no production caller) and
+  // removed. The live doctor-report / FHIR surface is `/api/export/health-record`,
+  // which gates on the `doctorReport` module directly AND through the
+  // `collectDoctorReportData` builder.
+  "src/app/api/fhir",
+  // v1.18.0 (B2) — the AI-narrative insights tree. Every status / cards /
+  // correlations / derived / narrative / pregenerate / rhythm-events route
+  // gates on the `insights` module; the Coach sub-tree delegates to the
+  // coach assistant surface; the AI-settings / tile-layout / therapy-timeline
+  // infra-and-config routes are EXEMPT below. Walking the tree means a NEW
+  // ungated insights AI route fails this test BY NAME rather than leaking the
+  // surface over a Bearer token when the account turned insights off.
+  "src/app/api/insights",
+];
+
+/**
+ * EXEMPT — routes that serve a toggleable domain but are deliberately
+ * ungated. Each carries its reason inline per the bucket-4 contract.
+ */
+const EXEMPT_ROUTES: ReadonlyArray<string> = [
+  // ── DATA LAYER (mood) ─────────────────────────────────────────────
+  // Raw MoodEntry CRUD. The module gate governs whether mood SURFACES
+  // (nav, dashboard tile, analysis, doctor report), not whether the row
+  // store accepts writes. An importer / the moodLog sync / the user's
+  // ability to delete or restore entries must keep working while the
+  // module is off, and re-enabling must find the rows intact.
+  "src/app/api/mood-entries/route.ts",
+  "src/app/api/mood-entries/[id]/route.ts",
+  "src/app/api/mood-entries/bulk/route.ts",
+  "src/app/api/mood-entries/bulk-delete/route.ts",
+  "src/app/api/mood-entries/restore/route.ts",
+  // Mood tag taxonomy CRUD — the user's tag library + per-tag layout.
+  // Pure configuration over the mood vocabulary, not analysis prose;
+  // editing the taxonomy while the module is off must not break.
+  "src/app/api/mood/tags/route.ts",
+  "src/app/api/mood/tags/layout/route.ts",
+  "src/app/api/mood/tags/custom/route.ts",
+  "src/app/api/mood/tags/custom/[key]/route.ts",
+  "src/app/api/mood/tags/groups/route.ts",
+  "src/app/api/mood/tags/groups/[key]/route.ts",
+  "src/app/api/mood/tags/[key]/hidden/route.ts",
+  // ── DATA LAYER (workouts / labs) ──────────────────────────────────
+  // The workout READ surfaces (`GET /api/workouts`, `GET /api/workouts/{id}`)
+  // are now module-gated — they back the hidden Insights workouts surface, so
+  // a disabled account must not read them even over a Bearer token. Only the
+  // iOS batch INGEST stays exempt: synced workouts must keep landing in the
+  // row store while the surface is hidden, so re-enabling reveals a complete
+  // history rather than a gap. LabResult CRUD follows the same data-layer
+  // reasoning (the labs module gates the surfaces, not the row store).
+  "src/app/api/workouts/batch/route.ts",
+  "src/app/api/labs/route.ts",
+  "src/app/api/labs/[id]/route.ts",
+  // ── INFRA / UI-ONLY ───────────────────────────────────────────────
+  // Static FHIR CapabilityStatement — server metadata, no user data.
+  "src/app/api/fhir/metadata/route.ts",
+  // ── INFRA / CONFIG (insights) ─────────────────────────────────────
+  // v1.18.0 (B2) — the insights tree's non-narrative routes. The
+  // `insights` module gates the AI-narrative SURFACES (status cards,
+  // correlations, derived scores, period narrative, the rhythm-event
+  // timeline); these six carry no narrative payload, so gating them would
+  // only break configuration / settings reads while the module is off.
+  //
+  // AI provider + privacy settings and the read-only chain summary — pure
+  // configuration of the assistant, surfaced under Settings → AI, not an
+  // insights surface. Editing the AI config while insights is off must work
+  // (e.g. to set up a provider before re-enabling the module).
+  "src/app/api/insights/settings/route.ts",
+  "src/app/api/insights/provider-chain/route.ts",
+  // Insights tile-order + visibility layout (GET/PUT/DELETE) — the user's
+  // own persisted preference blob, the insights peer of
+  // `/api/dashboard/widgets`. Pure UI configuration, no module data; the
+  // /insights page itself is nav-gated on the module.
+  "src/app/api/insights/layout/route.ts",
+  // Insight feedback write (👍/👎 on a generated card) — a feedback row,
+  // not an insights READ. Harmless while the module is off and never
+  // surfaces module data.
+  "src/app/api/insights/feedback/route.ts",
+  // Target-range reference values (BMI / BP / sleep / steps classifiers +
+  // compliance context) — deterministic threshold config consumed across
+  // surfaces, not an AI-narrative insights read.
+  "src/app/api/insights/targets/route.ts",
+  // GLP-1 therapy-timeline aggregator backing the /insights/medications
+  // component — a MEDICATIONS-domain data merge (dose / injection /
+  // inventory / side-effect events), and medications is a core, always-on
+  // domain with no module gate. It is not an insights-module surface.
+  "src/app/api/insights/glp1-timeline/route.ts",
+];
+
+const MODULE_GATE_NEEDLE = "requireModuleEnabled(";
+const CYCLE_GATE_NEEDLE = "requireCycleEnabled(";
+const COACH_GATE_NEEDLE = 'requireAssistantSurface("coach")';
+// Builder aggregators that resolve `resolveModuleMap` once and exclude
+// disabled-module sections/resources at the build boundary.
+const BUILDER_GATE_NEEDLES: ReadonlyArray<string> = [
+  "collectDoctorReportData",
+  "loadFhirContext",
+];
+
+/**
+ * True when the file contains the needle on a line that is NOT a pure
+ * comment. A docstring that merely MENTIONS the gate must not satisfy the
+ * presence check — otherwise deleting the real call but leaving the
+ * comment would slip through.
+ */
+function fileHasCall(text: string, needle: string): boolean {
+  return text.split("\n").some((line) => {
+    if (!line.includes(needle)) return false;
+    const trimmed = line.trim();
+    if (trimmed.startsWith("//")) return false;
+    if (trimmed.startsWith("*")) return false;
+    return true;
+  });
+}
+
+/**
+ * Extract the module key from a `requireModuleEnabled(user.id, "<key>")`
+ * call. Returns the literal key, or null when the key is computed (the
+ * parameterised insights routes resolve it from a metric map — those gate
+ * dynamically and are accepted as gated without a literal-key assertion).
+ */
+function extractModuleKeys(text: string): { hasLiteral: boolean; keys: Set<string> } {
+  const keys = new Set<string>();
+  let hasLiteral = false;
+  const re = /requireModuleEnabled\([^,]+,\s*"([a-zA-Z]+)"\s*\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    hasLiteral = true;
+    keys.add(m[1]);
+  }
+  return { hasLiteral, keys };
+}
+
+const repoRoot = resolve(__dirname, "..", "..", "..", "..");
+
+/** Walk one route tree, returning POSIX paths relative to the repo root. */
+function findRouteFiles(treeRel: string): string[] {
+  const root = resolve(repoRoot, treeRel);
+  const hits: string[] = [];
+
+  function walk(dir: string): void {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      const stat = statSync(full);
+      if (stat.isDirectory()) {
+        if (entry === "__tests__" || entry === "node_modules") continue;
+        walk(full);
+        continue;
+      }
+      if (entry !== "route.ts") continue;
+      hits.push(relative(repoRoot, full).split(/[\\/]/).join("/"));
+    }
+  }
+
+  walk(root);
+  return hits;
+}
+
+function findAllModuleRouteFiles(): string[] {
+  return MODULE_ROUTE_TREES.flatMap(findRouteFiles).sort();
+}
+
+describe("module API route gate inventory", () => {
+  it("the module registry covers the keys this inventory reasons about", () => {
+    // Guard against a registry key being added without the inventory
+    // gaining an opinion about its routes. Every gated/delegated key the
+    // test pins must be a real ModuleKey.
+    const known = new Set<ModuleKey>(MODULE_KEYS);
+    for (const key of [
+      "mood",
+      "sleep",
+      "glucose",
+      "workouts",
+      "recovery",
+      "labs",
+      "achievements",
+      "cycle",
+      "coach",
+      "doctorReport",
+      "insights",
+    ] as const) {
+      expect(known.has(key), `unknown module key in inventory: ${key}`).toBe(
+        true,
+      );
+    }
+  });
+
+  it("every toggleable-module route is gated, delegated, builder-gated, or explicitly exempt", () => {
+    const routes = findAllModuleRouteFiles();
+    expect(routes.length).toBeGreaterThan(0);
+
+    const exempt = new Set(EXEMPT_ROUTES);
+    const orphans: Array<{ path: string; reason: string }> = [];
+
+    for (const path of routes) {
+      const text = readFileSync(resolve(repoRoot, path), "utf8");
+
+      if (fileHasCall(text, MODULE_GATE_NEEDLE)) continue;
+      if (fileHasCall(text, CYCLE_GATE_NEEDLE)) continue;
+      if (fileHasCall(text, COACH_GATE_NEEDLE)) continue;
+      if (BUILDER_GATE_NEEDLES.some((n) => fileHasCall(text, n))) continue;
+
+      if (exempt.has(path)) continue;
+
+      orphans.push({
+        path,
+        reason:
+          'no module gate found — add requireModuleEnabled("<key>"), a delegated gate, ' +
+          "a module-aware builder, or move the route onto EXEMPT_ROUTES with a documented reason",
+      });
+    }
+
+    expect(
+      orphans,
+      [
+        "Module API route gate inventory found unaccounted-for handler(s):",
+        ...orphans.map((o) => `  - ${o.path}: ${o.reason}`),
+      ].join("\n"),
+    ).toEqual([]);
+  });
+
+  it("directly module-gated routes pin a real module key", () => {
+    const routes = findAllModuleRouteFiles();
+    const known = new Set<string>(MODULE_KEYS);
+    const bad: Array<{ path: string; key: string }> = [];
+
+    for (const path of routes) {
+      const text = readFileSync(resolve(repoRoot, path), "utf8");
+      if (!fileHasCall(text, MODULE_GATE_NEEDLE)) continue;
+      const { keys } = extractModuleKeys(text);
+      // Parameterised routes (computed key) carry no literal — accepted.
+      for (const key of keys) {
+        if (!known.has(key)) bad.push({ path, key });
+      }
+    }
+
+    expect(
+      bad,
+      [
+        "requireModuleEnabled() called with an unknown module key:",
+        ...bad.map((b) => `  - ${b.path}: "${b.key}"`),
+      ].join("\n"),
+    ).toEqual([]);
+  });
+
+  it("EXEMPT_ROUTES does not reference deleted route files", () => {
+    const known = new Set(findAllModuleRouteFiles());
+    const stale = EXEMPT_ROUTES.filter((p) => !known.has(p));
+
+    expect(
+      stale,
+      [
+        "EXEMPT_ROUTES points to files that no longer exist —",
+        "delete the stale entries from",
+        "`src/app/api/__tests__/module-route-gate-inventory.test.ts`:",
+        ...stale.map((p) => `  - ${p}`),
+      ].join("\n"),
+    ).toEqual([]);
+  });
+
+  it("EXEMPT_ROUTES does not hide a route that actually carries a gate", () => {
+    // A route that gained a real gate should be removed from the exempt
+    // list so the list stays an honest record of the ungated surfaces.
+    const stillGated: string[] = [];
+    for (const path of EXEMPT_ROUTES) {
+      const text = readFileSync(resolve(repoRoot, path), "utf8");
+      if (
+        fileHasCall(text, MODULE_GATE_NEEDLE) ||
+        fileHasCall(text, CYCLE_GATE_NEEDLE) ||
+        fileHasCall(text, COACH_GATE_NEEDLE) ||
+        BUILDER_GATE_NEEDLES.some((n) => fileHasCall(text, n))
+      ) {
+        stillGated.push(path);
+      }
+    }
+
+    expect(
+      stillGated,
+      [
+        "These EXEMPT_ROUTES now carry a gate — drop them from the exempt list:",
+        ...stillGated.map((p) => `  - ${p}`),
+      ].join("\n"),
+    ).toEqual([]);
+  });
+});

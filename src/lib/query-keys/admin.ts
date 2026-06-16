@@ -23,6 +23,9 @@ export const adminKeys = {
     range: string | undefined,
   ) => ["admin", "app-logs", traceId, action, level, range] as const,
   adminAssistantFlags: () => ["admin", "settings", "assistant-flags"] as const,
+  /** v1.18.0 — operator-level server-wide module availability matrix. */
+  adminModuleAvailability: () =>
+    ["admin", "settings", "module-availability"] as const,
   adminBackups: () => ["admin", "backups"] as const,
   adminCoachFeedback: () => ["admin", "coach-feedback"] as const,
   adminFeedback: (status: string) => ["admin", "feedback", status] as const,

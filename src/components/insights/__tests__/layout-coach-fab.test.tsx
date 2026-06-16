@@ -113,7 +113,7 @@ describe("<LayoutCoachFab>", () => {
   });
 
   it("hides itself on the Coach page", () => {
-    mockPathname = "/insights/coach";
+    mockPathname = "/coach";
     const html = render(
       <CoachLaunchProvider>
         <LayoutCoachFab />
