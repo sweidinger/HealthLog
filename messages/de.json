@@ -6346,7 +6346,9 @@
       "delete": "Löschen",
       "temperatureSection": "Temperatur & Eisprung",
       "intimacySection": "Intimität & Verhütung",
-      "testsSection": "Tests"
+      "testsSection": "Tests",
+      "phaseDayHeader": "Tag {day} · {phase}",
+      "bbtHint": "Miss sie morgens als Erstes, noch vor dem Aufstehen."
     },
     "settings": {
       "title": "Zyklus-Einstellungen",
@@ -6422,6 +6424,24 @@
       "ovulationEstimate": "Gesch. Eisprung",
       "tooltipTemp": "{temp} °C",
       "ovulationConfirmed": "Bestätigter Eisprung"
+    },
+    "fieldInfo": {
+      "bbt": "Deine Ruhetemperatur, morgens als Erstes vor dem Aufstehen gemessen. Nach dem Eisprung steigt sie leicht an (etwa 0,2–0,3 °C).",
+      "bbtLabel": "Was ist die Basaltemperatur?",
+      "mucus": "Der Ausfluss verändert sich im Zyklus – von trocken oder klebrig zu cremig, dann wässrig und spinnbar rund um die fruchtbarsten Tage.",
+      "mucusLabel": "Was ist Zervixschleim?",
+      "ovulationTest": "Ein Urintest für zu Hause, der den LH-Anstieg erkennt – den Hormonschub etwa 24–36 h vor dem Eisprung. Ein positives Ergebnis markiert die fruchtbarste Phase.",
+      "ovulationTestLabel": "Was ist ein Ovulationstest?",
+      "spotting": "Leichte Blutung außerhalb der Periode.",
+      "spottingLabel": "Was ist Schmierblutung zwischen den Perioden?",
+      "pregnancyTest": "Ergebnis eines Schwangerschaftstests (hCG) für zu Hause.",
+      "pregnancyTestLabel": "Was ist ein Schwangerschaftstest?",
+      "progesteroneTest": "Ein Test, der bestätigt, dass der Eisprung stattgefunden hat – das Progesteron steigt danach an.",
+      "progesteroneTestLabel": "Was ist ein Progesterontest?",
+      "intercourse": "Ob an diesem Tag Geschlechtsverkehr stattgefunden hat.",
+      "intercourseLabel": "Was erfasst Geschlechtsverkehr?",
+      "protected": "Ob beim Verkehr verhütet wurde.",
+      "protectedLabel": "Was bedeutet geschützt?"
     }
   },
   "cycleReminders": {

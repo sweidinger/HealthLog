@@ -6346,7 +6346,9 @@
       "delete": "Eliminar",
       "temperatureSection": "Temperatura y ovulación",
       "intimacySection": "Intimidad y anticoncepción",
-      "testsSection": "Pruebas"
+      "testsSection": "Pruebas",
+      "phaseDayHeader": "Día {day} · {phase}",
+      "bbtHint": "Mídela a primera hora de la mañana, antes de levantarte."
     },
     "settings": {
       "title": "Ajustes del ciclo",
@@ -6422,6 +6424,24 @@
       "ovulationEstimate": "Ovulación est.",
       "tooltipTemp": "{temp} °C",
       "ovulationConfirmed": "Ovulación confirmada"
+    },
+    "fieldInfo": {
+      "bbt": "Tu temperatura en reposo, medida a primera hora de la mañana antes de levantarte. Sube ligeramente (unos 0,2–0,3 °C) tras la ovulación.",
+      "bbtLabel": "¿Qué es la temperatura basal?",
+      "mucus": "El flujo vaginal cambia a lo largo del ciclo: de seco o pegajoso a cremoso, y luego acuoso y como clara de huevo en los días más fértiles.",
+      "mucusLabel": "¿Qué es el moco cervical?",
+      "ovulationTest": "Una prueba de orina casera que detecta el pico de LH, el aumento hormonal unas 24–36 h antes de la ovulación. Un positivo señala la ventana más fértil.",
+      "ovulationTestLabel": "¿Qué es una prueba de ovulación?",
+      "spotting": "Sangrado leve fuera de la menstruación.",
+      "spottingLabel": "¿Qué es el manchado entre periodos?",
+      "pregnancyTest": "Resultado de una prueba de embarazo casera (hCG).",
+      "pregnancyTestLabel": "¿Qué es una prueba de embarazo?",
+      "progesteroneTest": "Una prueba que confirma que ha ocurrido la ovulación: la progesterona sube después.",
+      "progesteroneTestLabel": "¿Qué es una prueba de progesterona?",
+      "intercourse": "Si hubo relaciones sexuales este día.",
+      "intercourseLabel": "¿Qué registra relaciones?",
+      "protected": "Si se usó anticoncepción durante las relaciones.",
+      "protectedLabel": "¿Qué significa protegido?"
     }
   },
   "cycleReminders": {

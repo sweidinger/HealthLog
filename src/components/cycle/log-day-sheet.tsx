@@ -48,8 +48,10 @@ import {
 } from "@/components/ui/sheet-section";
 import { useTranslations } from "@/lib/i18n/context";
 import { CUSTOM_SYMPTOM_ICON_ALLOWLIST } from "@/lib/cycle/custom-symptoms-shared";
+import { FieldInfo } from "./field-info";
 import { CYCLE_SYMPTOM_CATALOG } from "./symptom-catalog";
-import { FLOW_HUE } from "./phase-tokens";
+import { FLOW_HUE, PHASE_HUE } from "./phase-tokens";
+import type { CyclePhase, CycleGoal } from "./types";
 import {
   useCreateCustomSymptom,
   useCustomSymptoms,
@@ -309,6 +311,11 @@ export function noteCount(s: DayLogFormState): number {
   return s.note.trim() ? 1 : 0;
 }
 
+/** The MIN_CYCLES gate the phase-education card uses — mirrored here so the
+ * sheet's phase-context header makes the same honesty claim (no phase label
+ * until prediction is on, not raw-chart, and at least three cycles seen). */
+const MIN_CYCLES_FOR_PHASE = 3;
+
 export interface LogDaySheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -322,6 +329,86 @@ export interface LogDaySheetProps {
    * progress (QA M2).
    */
   activePeriod?: boolean;
+  /**
+   * The active cycle phase from the calendar read (or null). Drives the
+   * hue-tinted phase-context header so the sheet visually belongs to the ring.
+   */
+  phase?: CyclePhase | null;
+  /** Day-of-cycle for the header ("Day 14 · Ovulatory"); null when no cycle. */
+  dayOfCycle?: number | null;
+  /**
+   * The user's cycle goal — fertility goals (TTC / avoid-pregnancy) auto-open
+   * the symptothermal (Temperature & ovulation) section, mirroring Apple's
+   * "show the categories that matter to you".
+   */
+  goal?: CycleGoal;
+  /** Honesty-gate inputs for the phase-context header (mirror the education card). */
+  predictionEnabled?: boolean;
+  rawChartMode?: boolean;
+  cyclesObserved?: number;
+}
+
+/**
+ * v1.18.1 — the hue-tinted phase-context strip atop the sheet, echoing the
+ * ring ("Day 14 · Ovulatory" + a phase hue dot). It anchors the capture
+ * surface to the wheel + education card so they read as one family. Honesty
+ * gate: when the phase label isn't trustworthy (prediction off / raw-chart /
+ * fewer than three cycles, or no resolved phase) it shows a neutral header
+ * with no phase claim — never a confident phase word the data can't back.
+ */
+export function PhaseDayHeader({
+  phase,
+  dayOfCycle,
+  predictionEnabled,
+  rawChartMode,
+  cyclesObserved,
+}: {
+  phase: CyclePhase | null;
+  dayOfCycle: number | null;
+  predictionEnabled: boolean;
+  rawChartMode: boolean;
+  cyclesObserved: number;
+}) {
+  const { t } = useTranslations();
+  const stillLearning =
+    !phase ||
+    !predictionEnabled ||
+    rawChartMode ||
+    cyclesObserved < MIN_CYCLES_FOR_PHASE;
+
+  // Nothing trustworthy to anchor to (no phase + no day count) → render no
+  // strip at all rather than an empty tile.
+  if (stillLearning && dayOfCycle == null) return null;
+
+  const hue = phase ? PHASE_HUE[phase] : PHASE_HUE.LUTEAL;
+  const showPhase = !stillLearning && phase != null;
+
+  return (
+    <div
+      data-slot="cycle-log-phase-header"
+      data-phase={showPhase ? phase : "none"}
+      style={{ "--tile-hue": hue } as React.CSSProperties}
+      className="wellness-tile flex items-center gap-2.5 rounded-xl px-4 py-3"
+    >
+      {showPhase ? (
+        <span
+          aria-hidden="true"
+          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: hue }}
+        />
+      ) : null}
+      <p className="text-foreground text-sm font-medium">
+        {showPhase && dayOfCycle != null
+          ? t("cycle.sheet.phaseDayHeader", {
+              day: dayOfCycle,
+              phase: t(`cycle.phase.${phase}`),
+            })
+          : dayOfCycle != null
+            ? t("cycle.ring.dayOfCycle", { day: dayOfCycle })
+            : t("cycle.phaseEducation.stillLearning")}
+      </p>
+    </div>
+  );
 }
 
 function Chip({
@@ -383,6 +470,12 @@ export function LogDaySheet({
   onOpenChange,
   date,
   activePeriod = false,
+  phase = null,
+  dayOfCycle = null,
+  goal,
+  predictionEnabled = false,
+  rawChartMode = false,
+  cyclesObserved = 0,
 }: LogDaySheetProps) {
   const { t } = useTranslations();
   const logDay = useLogDay();
@@ -429,6 +522,12 @@ export function LogDaySheet({
   );
   const [note, setNote] = useState("");
   const [rowId, setRowId] = useState<string | null>(null);
+  // Goal-aware disclosure for the symptothermal (Temperature & ovulation)
+  // section. Re-evaluated once per (open, date, fetched-row) in the hydration
+  // block below: open it when the goal is fertility-oriented (Apple's
+  // "show the categories that matter to you") OR when an edited day already
+  // holds one of its signs (so a pre-filled value is never hidden — §3.4).
+  const [fertilityOpen, setFertilityOpen] = useState(false);
 
   // Hydrate the form from the fetched DTO once per (open, date, fetched-row)
   // tuple. Tracked as an "adjust state when a prop changes" during render
@@ -459,6 +558,22 @@ export function LogDaySheet({
     setProgesteroneTest(dto?.progesteroneTest ?? null);
     setContraceptive(dto?.contraceptive ?? null);
     setNote(dto?.note ?? "");
+    // Open the symptothermal section when the goal makes it primary, or when
+    // the edited day already carries any of its signs (BBT / OPK / mucus /
+    // cervix) — so a pre-filled fertility value is never hidden on edit.
+    const fertilityFilled =
+      dto?.basalBodyTempC != null ||
+      dto?.ovulationTest != null ||
+      (showCervix
+        ? dto?.cervixPosition != null ||
+          dto?.cervixFirmness != null ||
+          dto?.cervixOpening != null
+        : dto?.cervicalMucus != null);
+    setFertilityOpen(
+      goal === "TRYING_TO_CONCEIVE" ||
+        goal === "AVOID_PREGNANCY" ||
+        fertilityFilled,
+    );
   } else if (!open && lastFormKey !== null) {
     setLastFormKey(null);
   }
@@ -569,6 +684,7 @@ export function LogDaySheet({
       onOpenChange={onOpenChange}
       title={t("cycle.sheet.title")}
       description={t("cycle.sheet.description")}
+      contentWidth="lg"
       footer={
         <>
           {rowId ? (
@@ -603,6 +719,17 @@ export function LogDaySheet({
         </>
       }
     >
+      {/* Phase-context strip — echoes the ring (day-of-cycle + phase + hue)
+          so the capture surface belongs to the wheel. Honesty-gated: no phase
+          claim until prediction is trustworthy. */}
+      <PhaseDayHeader
+        phase={phase}
+        dayOfCycle={dayOfCycle}
+        predictionEnabled={predictionEnabled}
+        rawChartMode={rawChartMode}
+        cyclesObserved={cyclesObserved}
+      />
+
       {/* One-tap period boundaries — available on any selected date so a
           forgotten day-1 can be corrected retroactively (M3). "End period"
           shows only while a period is actually open (M2). */}
@@ -651,10 +778,19 @@ export function LogDaySheet({
             </Chip>
           ))}
         </div>
-        <div className="mt-2 flex items-center justify-between">
-          <Label htmlFor="cycle-intermenstrual" className="text-sm font-normal">
-            {t("cycle.sheet.intermenstrualBleeding")}
-          </Label>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <Label
+              htmlFor="cycle-intermenstrual"
+              className="text-sm font-normal"
+            >
+              {t("cycle.sheet.intermenstrualBleeding")}
+            </Label>
+            <FieldInfo
+              label={t("cycle.fieldInfo.spottingLabel")}
+              detail={t("cycle.fieldInfo.spotting")}
+            />
+          </div>
           <Switch
             id="cycle-intermenstrual"
             checked={intermenstrual}
@@ -727,16 +863,28 @@ export function LogDaySheet({
       </SheetSection>
 
       {/* Temperature & ovulation — BBT, OPK, and the symptothermal secondary
-          sign (mucus or cervix) grouped under one disclosure. */}
+          sign (mucus or cervix) grouped under one disclosure. Goal-aware
+          default: open for fertility goals or when an edited day already
+          carries a fertility sign. */}
       <SheetSection
         title={t("cycle.sheet.temperatureSection")}
+        open={fertilityOpen}
+        onOpenChange={setFertilityOpen}
         summary={
           <SheetSectionCount count={temperatureCount(formState, showCervix)} />
         }
       >
         {/* BBT */}
-        <Field label={t("cycle.sheet.temperature")}>
-        <input
+        <Field
+          label={t("cycle.sheet.temperature")}
+          info={
+            <FieldInfo
+              label={t("cycle.fieldInfo.bbtLabel")}
+              detail={t("cycle.fieldInfo.bbt")}
+            />
+          }
+        >
+        <Input
           type="number"
           inputMode="decimal"
           step="0.01"
@@ -745,9 +893,12 @@ export function LogDaySheet({
           value={bbt}
           onChange={(e) => setBbt(e.target.value)}
           placeholder={t("cycle.sheet.temperaturePlaceholder")}
-          className="border-input bg-background focus-visible:ring-ring/50 w-32 rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="w-32"
           aria-label={t("cycle.sheet.temperature")}
         />
+        <p className="text-muted-foreground text-xs">
+          {t("cycle.sheet.bbtHint")}
+        </p>
         {resolveBbt(bbt) != null && (
           <div className="mt-3 flex items-start justify-between gap-3">
             <div className="flex flex-col">
@@ -768,7 +919,15 @@ export function LogDaySheet({
       </Field>
 
       {/* Ovulation test */}
-      <Field label={t("cycle.sheet.ovulationTest")}>
+      <Field
+        label={t("cycle.sheet.ovulationTest")}
+        info={
+          <FieldInfo
+            label={t("cycle.fieldInfo.ovulationTestLabel")}
+            detail={t("cycle.fieldInfo.ovulationTest")}
+          />
+        }
+      >
         <div className="flex flex-wrap gap-2">
           {OPK_VALUES.map((v) => (
             <Chip
@@ -818,7 +977,15 @@ export function LogDaySheet({
           </div>
         </Field>
       ) : (
-        <Field label={t("cycle.sheet.mucus")}>
+        <Field
+          label={t("cycle.sheet.mucus")}
+          info={
+            <FieldInfo
+              label={t("cycle.fieldInfo.mucusLabel")}
+              detail={t("cycle.fieldInfo.mucus")}
+            />
+          }
+        >
           <div className="flex flex-wrap gap-2">
             {MUCUS_VALUES.map((v) => (
               <Chip
@@ -842,10 +1009,19 @@ export function LogDaySheet({
         {/* Intercourse + protection */}
         <Field label={t("cycle.sheet.intercourse")}>
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="cycle-intercourse" className="text-sm font-normal">
-              {t("cycle.sheet.intercourse")}
-            </Label>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <Label
+                htmlFor="cycle-intercourse"
+                className="text-sm font-normal"
+              >
+                {t("cycle.sheet.intercourse")}
+              </Label>
+              <FieldInfo
+                label={t("cycle.fieldInfo.intercourseLabel")}
+                detail={t("cycle.fieldInfo.intercourse")}
+              />
+            </div>
             <Switch
               id="cycle-intercourse"
               checked={intercourse}
@@ -853,13 +1029,19 @@ export function LogDaySheet({
             />
           </div>
           {intercourse ? (
-            <div className="flex items-center justify-between">
-              <Label
-                htmlFor="cycle-protected"
-                className="text-muted-foreground text-sm font-normal"
-              >
-                {t("cycle.sheet.protected")}
-              </Label>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <Label
+                  htmlFor="cycle-protected"
+                  className="text-muted-foreground text-sm font-normal"
+                >
+                  {t("cycle.sheet.protected")}
+                </Label>
+                <FieldInfo
+                  label={t("cycle.fieldInfo.protectedLabel")}
+                  detail={t("cycle.fieldInfo.protected")}
+                />
+              </div>
               <Switch
                 id="cycle-protected"
                 checked={protectedSex}
@@ -894,7 +1076,15 @@ export function LogDaySheet({
         summary={<SheetSectionCount count={testsCount(formState)} />}
       >
         {/* Pregnancy test */}
-        <Field label={t("cycle.sheet.pregnancyTest")}>
+        <Field
+          label={t("cycle.sheet.pregnancyTest")}
+          info={
+            <FieldInfo
+              label={t("cycle.fieldInfo.pregnancyTestLabel")}
+              detail={t("cycle.fieldInfo.pregnancyTest")}
+            />
+          }
+        >
           <div className="flex flex-wrap gap-2">
             {TEST_RESULTS.map((v) => (
               <Chip
@@ -911,7 +1101,15 @@ export function LogDaySheet({
         </Field>
 
         {/* Progesterone test */}
-        <Field label={t("cycle.sheet.progesteroneTest")}>
+        <Field
+          label={t("cycle.sheet.progesteroneTest")}
+          info={
+            <FieldInfo
+              label={t("cycle.fieldInfo.progesteroneTestLabel")}
+              detail={t("cycle.fieldInfo.progesteroneTest")}
+            />
+          }
+        >
           <div className="flex flex-wrap gap-2">
             {TEST_RESULTS.map((v) => (
               <Chip
@@ -954,14 +1152,20 @@ export function LogDaySheet({
 
 function Field({
   label,
+  info,
   children,
 }: {
   label: string;
+  /** Optional inline "?" explainer rendered next to the label (FieldInfo). */
+  info?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium">{label}</p>
+      <div className="flex items-center gap-1.5">
+        <p className="text-sm font-medium">{label}</p>
+        {info}
+      </div>
       {children}
     </div>
   );

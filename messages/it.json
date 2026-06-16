@@ -6346,7 +6346,9 @@
       "delete": "Elimina",
       "temperatureSection": "Temperatura e ovulazione",
       "intimacySection": "Intimità e contraccezione",
-      "testsSection": "Test"
+      "testsSection": "Test",
+      "phaseDayHeader": "Giorno {day} · {phase}",
+      "bbtHint": "Misurala appena sveglia, prima di alzarti."
     },
     "settings": {
       "title": "Impostazioni del ciclo",
@@ -6422,6 +6424,24 @@
       "ovulationEstimate": "Ovulazione stim.",
       "tooltipTemp": "{temp} °C",
       "ovulationConfirmed": "Ovulazione confermata"
+    },
+    "fieldInfo": {
+      "bbt": "La tua temperatura a riposo, misurata appena sveglia prima di alzarti. Dopo l'ovulazione sale leggermente (circa 0,2–0,3 °C).",
+      "bbtLabel": "Cos'è la temperatura basale?",
+      "mucus": "Le perdite vaginali cambiano durante il ciclo — da secche o appiccicose a cremose, poi acquose e simili ad albume nei giorni più fertili.",
+      "mucusLabel": "Cos'è il muco cervicale?",
+      "ovulationTest": "Un test delle urine domestico che rileva il picco di LH — l'aumento ormonale circa 24–36 h prima dell'ovulazione. Un positivo segnala la finestra più fertile.",
+      "ovulationTestLabel": "Cos'è un test di ovulazione?",
+      "spotting": "Lieve sanguinamento al di fuori delle mestruazioni.",
+      "spottingLabel": "Cos'è lo spotting tra le mestruazioni?",
+      "pregnancyTest": "Risultato di un test di gravidanza (hCG) domestico.",
+      "pregnancyTestLabel": "Cos'è un test di gravidanza?",
+      "progesteroneTest": "Un test che conferma l'avvenuta ovulazione — il progesterone sale dopo.",
+      "progesteroneTestLabel": "Cos'è un test del progesterone?",
+      "intercourse": "Se in questo giorno ci sono stati rapporti sessuali.",
+      "intercourseLabel": "Cosa registra i rapporti?",
+      "protected": "Se durante il rapporto è stata usata la contraccezione.",
+      "protectedLabel": "Cosa significa protetto?"
     }
   },
   "cycleReminders": {

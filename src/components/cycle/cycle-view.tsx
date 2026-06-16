@@ -403,6 +403,12 @@ export function CycleView() {
         date={selectedDate}
         today={today}
         activePeriod={wheel.phase === "MENSTRUAL"}
+        phase={wheel.phase}
+        dayOfCycle={wheel.dayOfCycle}
+        goal={goal}
+        predictionEnabled={calProfile?.predictionEnabled ?? false}
+        rawChartMode={calProfile?.rawChartMode ?? false}
+        cyclesObserved={calProfile?.cyclesObserved ?? 0}
       />
     </div>
   );
