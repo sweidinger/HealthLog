@@ -6827,7 +6827,9 @@
       "onset": "Comenzó el",
       "note": "Nota",
       "notePlaceholder": "Algo que valga la pena recordar (cifrado).",
-      "saveError": "No se pudo guardar el episodio. Inténtalo de nuevo."
+      "saveError": "No se pudo guardar el episodio. Inténtalo de nuevo.",
+      "parent": "Part of",
+      "parentNone": "Not linked"
     },
     "sheet": {
       "title": "Registrar {date}",
@@ -6839,7 +6841,8 @@
       "noteSet": "Definida",
       "notePlaceholder": "Cómo te sentiste hoy (cifrado).",
       "severityFor": "Gravedad de {symptom}",
-      "saveError": "No se pudo guardar el día. Inténtalo de nuevo."
+      "saveError": "No se pudo guardar el día. Inténtalo de nuevo.",
+      "day": "Day"
     },
     "impact": {
       "0": "Plenamente funcional",
@@ -6884,6 +6887,35 @@
       "typicalGapLearning": "Con unos pocos episodios resueltos más aparecerá aquí una brecha de recuperación típica.",
       "byMonth": "Cuándo sueles registrar episodios",
       "none": "Sin episodios registrados en este período."
+    },
+    "loadError": "Could not load this episode.",
+    "backToList": "Back to journal",
+    "detail": {
+      "note": "Note"
+    },
+    "edit": {
+      "title": "Edit episode",
+      "description": "Update this episode's details."
+    },
+    "menu": {
+      "label": "Episode actions"
+    },
+    "deleteConfirm": {
+      "title": "Delete this episode?",
+      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+    },
+    "vital": {
+      "RESTING_HEART_RATE": "Resting heart rate",
+      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RECOVERY_SCORE": "Recovery",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_TEMPERATURE": "Body temperature",
+      "SKIN_TEMPERATURE": "Skin temperature",
+      "RESPIRATORY_RATE": "Respiratory rate",
+      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
+      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "PULSE": "Pulse",
+      "WEIGHT": "Weight"
     }
   },
   "coach": {

@@ -1,0 +1,142 @@
+"use client";
+
+/**
+ * v1.18.1 — per-episode detail surface (`/illness/[id]`), mirroring
+ * `/labs/[biomarkerId]`. Carries the heading + neutral status, a "log a day"
+ * entry, the stored note, an Edit affordance (the same capture sheet
+ * pre-filled), and the retrospective correlation card (recovery-gap /
+ * red-flag / pre-onset / nadir). Calm + retrospective — no prediction UI, no
+ * alarming colour.
+ */
+import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+
+import { IllnessCorrelationCard } from "./illness-correlation-card";
+import { LogDaySheet } from "./log-day-sheet";
+import { NewEpisodeSheet } from "./new-episode-sheet";
+import { EpisodeMenu } from "./episode-menu";
+import { useIllnessEpisode, useResolveEpisode } from "./use-illness";
+
+/** Today as YYYY-MM-DD in the viewer's local calendar. */
+function todayLocal(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
+  const { t } = useTranslations();
+  const fmt = useFormatters();
+  const { data: episode, isLoading, isError } = useIllnessEpisode(episodeId);
+  const resolve = useResolveEpisode();
+
+  const [logOpen, setLogOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const today = todayLocal();
+
+  if (isError) {
+    return (
+      <p className="text-destructive py-8 text-center text-sm">
+        {t("illness.loadError")}
+      </p>
+    );
+  }
+
+  const active = episode ? episode.resolvedAt === null : false;
+  const isChronic = episode?.lifecycle === "CHRONIC_ONGOING";
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold tracking-tight">
+            {episode?.label ?? <Skeleton className="h-7 w-40" />}
+          </h1>
+          {episode ? (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">
+                {t(`illness.type.${episode.type}`)}
+              </Badge>
+              <Badge variant="outline">
+                {active
+                  ? isChronic
+                    ? t("illness.status.ongoing")
+                    : t("illness.status.active")
+                  : t("illness.status.recovered")}
+              </Badge>
+              <span className="text-muted-foreground text-xs">
+                {t("illness.onsetOn", {
+                  date: fmt.dateShort(new Date(episode.onsetAt)),
+                })}
+                {episode.resolvedAt
+                  ? ` · ${t("illness.recoveredOn", {
+                      date: fmt.dateShort(new Date(episode.resolvedAt)),
+                    })}`
+                  : ""}
+              </span>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button onClick={() => setLogOpen(true)} className="min-h-11 sm:min-h-9">
+            {t("illness.logDay")}
+          </Button>
+          {episode ? (
+            <EpisodeMenu
+              episode={episode}
+              onEdit={() => setEditOpen(true)}
+              onResolve={
+                active && !isChronic ? () => resolve.mutate(episode.id) : undefined
+              }
+              resolving={resolve.isPending}
+            />
+          ) : null}
+        </div>
+      </div>
+
+      {episode?.note ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+              {t("illness.detail.note")}
+            </p>
+            <p className="text-foreground mt-1 text-sm whitespace-pre-wrap">
+              {episode.note}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isLoading ? (
+        <Skeleton className="h-40 w-full" />
+      ) : (
+        <IllnessCorrelationCard episodeId={episodeId} />
+      )}
+
+      {episode ? (
+        <>
+          <LogDaySheet
+            open={logOpen}
+            onOpenChange={setLogOpen}
+            episodeId={episode.id}
+            date={today}
+            onsetDate={episode.onsetAt.slice(0, 10)}
+          />
+          <NewEpisodeSheet
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            today={today}
+            editEpisode={episode}
+          />
+        </>
+      ) : null}
+    </div>
+  );
+}

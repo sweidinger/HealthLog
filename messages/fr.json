@@ -6827,7 +6827,9 @@
       "onset": "Débuté le",
       "note": "Note",
       "notePlaceholder": "Ce qui mérite d'être noté (chiffré).",
-      "saveError": "Impossible d'enregistrer l'épisode. Veuillez réessayer."
+      "saveError": "Impossible d'enregistrer l'épisode. Veuillez réessayer.",
+      "parent": "Part of",
+      "parentNone": "Not linked"
     },
     "sheet": {
       "title": "Enregistrer {date}",
@@ -6839,7 +6841,8 @@
       "noteSet": "Définie",
       "notePlaceholder": "Comment s'est passée la journée (chiffré).",
       "severityFor": "Intensité de {symptom}",
-      "saveError": "Impossible d'enregistrer la journée. Veuillez réessayer."
+      "saveError": "Impossible d'enregistrer la journée. Veuillez réessayer.",
+      "day": "Day"
     },
     "impact": {
       "0": "Pleinement fonctionnel",
@@ -6884,6 +6887,35 @@
       "typicalGapLearning": "Encore quelques épisodes résolus et un écart de récupération typique apparaîtra ici.",
       "byMonth": "Quand tu enregistres des épisodes",
       "none": "Aucun épisode enregistré sur cette période."
+    },
+    "loadError": "Could not load this episode.",
+    "backToList": "Back to journal",
+    "detail": {
+      "note": "Note"
+    },
+    "edit": {
+      "title": "Edit episode",
+      "description": "Update this episode's details."
+    },
+    "menu": {
+      "label": "Episode actions"
+    },
+    "deleteConfirm": {
+      "title": "Delete this episode?",
+      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+    },
+    "vital": {
+      "RESTING_HEART_RATE": "Resting heart rate",
+      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RECOVERY_SCORE": "Recovery",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_TEMPERATURE": "Body temperature",
+      "SKIN_TEMPERATURE": "Skin temperature",
+      "RESPIRATORY_RATE": "Respiratory rate",
+      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
+      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "PULSE": "Pulse",
+      "WEIGHT": "Weight"
     }
   },
   "coach": {
