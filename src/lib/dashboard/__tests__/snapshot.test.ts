@@ -65,7 +65,7 @@ vi.mock("@/lib/modules/gate", () => ({
   resolveModuleMap: (...a: unknown[]) => resolveModuleMap(...a),
 }));
 
-/** All eleven toggleable keys on, with optional per-key overrides. */
+/** Every toggleable key on, with optional per-key overrides. */
 function moduleMap(
   overrides: Partial<Record<ModuleKey, boolean>> = {},
 ): Record<ModuleKey, boolean> {
@@ -81,6 +81,7 @@ function moduleMap(
     achievements: true,
     coach: true,
     insights: true,
+    medications: true,
     doctorReport: true,
   };
   return { ...base, ...overrides };
@@ -810,6 +811,8 @@ describe("module gating maps — every toggleable-domain widget is mapped (v1.18
     "glucose",
     "achievements",
     "recentWorkouts",
+    // v1.18.1 (D3) — medications graduated from CORE to a toggleable module.
+    "medications",
     "cardioRecovery",
     "sixMinuteWalk",
     "stairAscentSpeed",

@@ -7076,6 +7076,8 @@ components:
           type: boolean
         insights:
           type: boolean
+        medications:
+          type: boolean
         doctorReport:
           type: boolean
       additionalProperties: false
@@ -12730,6 +12732,9 @@ components:
         insights:
           type: boolean
           description: Whether the "insights" module is enabled for this account.
+        medications:
+          type: boolean
+          description: Whether the "medications" module is enabled for this account.
         doctorReport:
           type: boolean
           description: Whether the "doctorReport" module is enabled for this account.
@@ -12745,6 +12750,7 @@ components:
         - achievements
         - coach
         - insights
+        - medications
         - doctorReport
       additionalProperties: false
       description: Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means

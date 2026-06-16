@@ -11,11 +11,12 @@
  * core keys) and then invalidates the `authMe()` query so the nav, Insights
  * pills, and dashboard tiles re-gate live off `useAuth().user.modules`.
  *
- * The four CORE domains (weight, blood pressure, pulse, medications) render
- * as a separate read-only "always on" group — locked switches with a short
- * note — so the always-on measurement engine + meds read as deliberately
- * fixed, never disableable. Palette stays neutral throughout; this is a
- * calm configuration surface, not an alarm panel.
+ * The three CORE domains (weight, blood pressure, pulse) render as a
+ * separate read-only "always on" group — locked switches with a short note —
+ * so the always-on measurement engine reads as deliberately fixed, never
+ * disableable. Palette stays neutral throughout; this is a calm
+ * configuration surface, not an alarm panel. (v1.18.1 D3 — medications
+ * graduated to the toggleable group above.)
  *
  * State source is `useAuth().user.modules` (the resolved `/auth/me` map).
  * A module is enabled unless its key is explicitly `false` — default-on.
@@ -71,6 +72,8 @@ const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   achievements: Award,
   coach: MessageCircleHeart,
   insights: Sparkles,
+  // v1.18.1 (D3) — medications graduated from CORE to a toggleable module.
+  medications: Pill,
   doctorReport: FileText,
 };
 
@@ -79,7 +82,6 @@ const CORE_ICONS: Record<CoreDomainKey, LucideIcon> = {
   weight: Scale,
   bloodPressure: HeartPulse,
   pulse: Activity,
-  medications: Pill,
 };
 
 export function ModulesSection() {

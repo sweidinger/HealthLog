@@ -115,7 +115,7 @@ describe("visibleNavDestinations module gate", () => {
     expect(on.indexOf("/cycle")).toBeLessThan(on.indexOf("/insights"));
   });
 
-  it("drops a module-gated entry (mood / labs / coach / achievements / insights) when its module is disabled", () => {
+  it("drops a module-gated entry (mood / labs / coach / achievements / insights / medications) when its module is disabled", () => {
     const disabled = visibleNavDestinations({
       mood: false,
       labs: false,
@@ -124,12 +124,15 @@ describe("visibleNavDestinations module gate", () => {
       // v1.18.0 — Insights is now `requiresModule: "insights"`, so the
       // top-level /insights entry drops when the module is off.
       insights: false,
+      // v1.18.1 (D3) — medications graduated to a toggleable module.
+      medications: false,
     }).map((d) => d.href);
     expect(disabled).not.toContain("/mood");
     expect(disabled).not.toContain("/labs");
     expect(disabled).not.toContain("/coach");
     expect(disabled).not.toContain("/achievements");
     expect(disabled).not.toContain("/insights");
+    expect(disabled).not.toContain("/medications");
   });
 
   it("keeps every module-gated entry when its module is enabled", () => {
@@ -139,12 +142,14 @@ describe("visibleNavDestinations module gate", () => {
       coach: true,
       achievements: true,
       insights: true,
+      medications: true,
     }).map((d) => d.href);
     expect(enabled).toContain("/mood");
     expect(enabled).toContain("/labs");
     expect(enabled).toContain("/coach");
     expect(enabled).toContain("/achievements");
     expect(enabled).toContain("/insights");
+    expect(enabled).toContain("/medications");
   });
 
   it("fails open: a missing key or an undefined map keeps the gated entry", () => {
@@ -159,7 +164,8 @@ describe("visibleNavDestinations module gate", () => {
       expect(hrefs).toContain("/coach");
       expect(hrefs).toContain("/achievements");
     }
-    // Core destinations always render regardless of the map.
+    // Core / fail-open destinations render regardless of the map. Medications
+    // is module-gated (v1.18.1 D3) but fails open on a missing key.
     expect(emptyMap).toContain("/measurements");
     expect(emptyMap).toContain("/medications");
     expect(emptyMap).toContain("/insights");

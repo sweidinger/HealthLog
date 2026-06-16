@@ -103,6 +103,15 @@ export const MODULE_KEYS = [
   "achievements",
   "coach",
   "insights",
+  // v1.18.1 (D3) — medications graduated from the always-on CORE set to a
+  // toggleable module. Weight / blood pressure / pulse stay CORE (the
+  // measurement engine is never disableable); medications is now an opt-out
+  // domain so an account that does not track meds can hide the surface.
+  // SURFACE-gated (nav entry, dashboard medication widget, the dedicated
+  // Medikamente settings entry) — the medication data-layer routes stay
+  // exempt like mood/labs so an importer / sync / cleanup keeps working and
+  // re-enabling finds the rows intact.
+  "medications",
   "doctorReport",
 ] as const;
 
@@ -119,7 +128,6 @@ export const CORE_DOMAIN_KEYS = [
   "weight",
   "bloodPressure",
   "pulse",
-  "medications",
 ] as const;
 
 export type CoreDomainKey = (typeof CORE_DOMAIN_KEYS)[number];
@@ -231,6 +239,12 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       labelKey: "modules.insights.label",
       descriptionKey: "modules.insights.description",
       category: "intelligence",
+    },
+    medications: {
+      key: "medications",
+      labelKey: "modules.medications.label",
+      descriptionKey: "modules.medications.description",
+      category: "tracking",
     },
     doctorReport: {
       key: "doctorReport",

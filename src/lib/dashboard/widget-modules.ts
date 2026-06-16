@@ -21,8 +21,11 @@ import type { ModuleKey } from "@/lib/modules/registry";
  * module, the matching widget is forced invisible on both the web `layout`
  * and the iOS `layoutCatalogue`, so the tile/chart never paints. Only the
  * toggleable surfaces appear here; CORE widgets (weight / bp / pulse /
- * bodyFat / medications / bpInTarget and the vital-derived HealthKit
- * metrics) carry NO entry and are never hidden.
+ * bodyFat / bpInTarget and the vital-derived HealthKit metrics) carry NO
+ * entry and are never hidden.
+ *
+ * v1.18.1 (D3) — `medications` graduated from CORE to a toggleable module,
+ * so the medication tile now gates off it like the other toggleable widgets.
  */
 export const WIDGET_MODULE_BY_ID: Partial<Record<string, ModuleKey>> = {
   mood: "mood",
@@ -30,6 +33,7 @@ export const WIDGET_MODULE_BY_ID: Partial<Record<string, ModuleKey>> = {
   glucose: "glucose",
   achievements: "achievements",
   recentWorkouts: "workouts",
+  medications: "medications",
   // v1.18.0 B1 — recovery-domain HealthKit widgets belong to the recovery
   // module; the per-night breathing-disturbance widget belongs to sleep.
   cardioRecovery: "recovery",

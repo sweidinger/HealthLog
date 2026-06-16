@@ -124,12 +124,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     icon: LayoutDashboard,
   },
   // v1.18.0 (S5) — Medikamente: medication-specific settings (list view +
-  // order + injection sites). Medications is a CORE domain, so the entry is
-  // always shown. Was a hidden child of the Layout hub.
+  // order + injection sites). Was a hidden child of the Layout hub.
+  // v1.18.1 (D3) — medications graduated from a CORE domain to a toggleable
+  // module, so this entry now hides when the account turns the module off
+  // (the medication data routes stay live; this only hides the surface).
   {
     slug: "medications",
     titleKey: "settings.sections.medications.title",
     icon: Pill,
+    moduleGate: "medications",
   },
   // v1.18.0 (S5) — Stimmung: the mood-tag management surface gets its own
   // nav entry, shown only when the mood module is enabled. Was a hidden
