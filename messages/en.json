@@ -2654,6 +2654,8 @@
         "stairDescentSpeedBody": "This is how fast you go down a flight of stairs. Together with ascent speed it tracks leg control and balance — a steady pace is a good sign, and a falling one is worth watching.",
         "breathingDisturbancesTitle": "Sleep breathing disturbances",
         "breathingDisturbancesBody": "Your Apple Watch can estimate how often your breathing was interrupted during sleep. A lower index is better; a level Apple flags as elevated, especially over many nights, is worth raising with a clinician.",
+        "stepsTitle": "Steps",
+        "stepsBody": "Step count is the total number of steps you take each day. It is the simplest measure of everyday movement — a higher daily count generally reflects a more active lifestyle, and a steady habit matters more than any single big day.",
         "readinessBody": "Readiness is a single daily read on how prepared your body is to take on the day, blending resting heart rate, heart-rate variability, sleep, and how steady your recent nights have been. A higher score means recovered and resourced; a lower one is a gentle cue to ease off.",
         "sleepScoreBody": "Your sleep score distils a whole night into one number — duration, efficiency, regularity, and the balance of light, deep, and REM. Watch the pattern across weeks rather than chasing a perfect score on any single night.",
         "recoveryBody": "Recovery reflects how well your body has bounced back, drawing on overnight signals like heart-rate variability and resting heart rate. A strong score is a green light to push; a softer one suggests your system is still rebuilding.",
@@ -2758,6 +2760,11 @@
       "critical": "Critical"
     },
     "assessmentTitle": "Assessment",
+    "restMode": {
+      "title": "Rest Mode",
+      "body": "An illness or condition episode is active, so this reflects a recovery window. Your score isn't lowered for it.",
+      "bodySince": "An illness or condition episode has been active since {since}, so this reflects a recovery window. Your score isn't lowered for it."
+    },
     "assessmentShowMore": "Show more",
     "assessmentShowLess": "Show less",
     "bloodPressureSectionTitle": "Blood Pressure",

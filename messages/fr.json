@@ -2654,6 +2654,8 @@
         "stairDescentSpeedBody": "C'est la vitesse à laquelle vous descendez une volée de marches. Avec la vitesse de montée, elle reflète le contrôle des jambes et l'équilibre : un rythme stable est bon signe, un rythme en baisse mérite attention.",
         "breathingDisturbancesTitle": "Troubles respiratoires du sommeil",
         "breathingDisturbancesBody": "Votre Apple Watch peut estimer à quelle fréquence votre respiration a été interrompue pendant le sommeil. Un indice plus bas est préférable ; un niveau qu'Apple signale comme élevé, surtout sur plusieurs nuits, mérite d'être évoqué avec un professionnel.",
+        "stepsTitle": "Pas",
+        "stepsBody": "Le nombre de pas correspond au total de pas que vous faites chaque jour. C'est la mesure la plus simple de l'activité quotidienne : un total journalier plus élevé reflète généralement un mode de vie plus actif, et une habitude régulière compte plus qu'une seule grosse journée.",
         "readinessBody": "La forme du jour est une lecture quotidienne unique de la disposition de votre corps à affronter la journée, mêlant fréquence cardiaque au repos, variabilité de la fréquence cardiaque, sommeil et régularité de vos dernières nuits. Un score élevé signifie que votre organisme paraît récupéré et disponible ; un score plus bas est une invitation douce à lever le pied.",
         "sleepScoreBody": "Votre score de sommeil résume toute une nuit en un seul chiffre — durée, efficacité, régularité des horaires et équilibre entre sommeil léger, profond et paradoxal. Observez la tendance sur plusieurs semaines plutôt que de courir après un score parfait sur une seule nuit.",
         "recoveryBody": "La récupération reflète la qualité du rétablissement de votre corps, à partir de signaux nocturnes comme la variabilité de la fréquence cardiaque et la fréquence au repos. Un score élevé est un feu vert pour pousser ; un score plus bas suggère que votre organisme se reconstruit encore.",
@@ -2758,6 +2760,11 @@
       "critical": "Critique"
     },
     "assessmentTitle": "Évaluation",
+    "restMode": {
+      "title": "Mode repos",
+      "body": "Un épisode de maladie ou d'affection est en cours, ceci reflète donc une période de récupération. Votre score n'en est pas pénalisé.",
+      "bodySince": "Un épisode de maladie ou d'affection est en cours depuis le {since}, ceci reflète donc une période de récupération. Votre score n'en est pas pénalisé."
+    },
     "assessmentShowMore": "Afficher plus",
     "assessmentShowLess": "Afficher moins",
     "bloodPressureSectionTitle": "Tension artérielle",

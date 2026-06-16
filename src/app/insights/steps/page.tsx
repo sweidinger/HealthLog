@@ -24,6 +24,7 @@ export default function InsightsStepsPage() {
       insightMetric="ACTIVITY_STEPS"
       chartKey="steps"
       i18nPrefix="insights.steps"
+      explainerMetric="steps"
       statIcon={Footprints}
       color="#50fa7b"
       unit="steps"

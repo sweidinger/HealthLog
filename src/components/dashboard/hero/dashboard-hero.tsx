@@ -47,6 +47,7 @@ import Link from "next/link";
 import { Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScoreRing } from "@/components/insights/derived/score-ring";
+import { RestModeBanner } from "@/components/insights/rest-mode-banner";
 import {
   resolveDashboardVerdict,
   type DashboardVerdictVariant,
@@ -230,7 +231,8 @@ export function DashboardHero({
         "min-h-[8.75rem] p-4 md:min-h-[9.5rem] md:p-6",
       )}
     >
-      <div className="flex h-full flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex h-full flex-col gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
           {/* Greeting leads the typographic hierarchy: larger + heavier
               than the verdict so the personalised line reads first.
@@ -315,6 +317,12 @@ export function DashboardHero({
             }
           />
         </div>
+      </div>
+        {/* v1.18.1 — Rest Mode cue beneath the verdict/score row. Self-gating
+            (renders nothing unless an episode is active), value-free, and
+            untinted so it frames the score without alarming. Closes the
+            web↔iOS parity gap: iOS already mirrors `score.restMode`. */}
+        <RestModeBanner annotation={snapshot.healthScore?.restMode ?? null} />
       </div>
     </section>
   );

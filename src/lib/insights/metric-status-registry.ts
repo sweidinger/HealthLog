@@ -118,6 +118,11 @@ export type MetricStatusMetricId =
   | "STAIR_ASCENT_SPEED"
   | "STAIR_DESCENT_SPEED"
   | "BREATHING_DISTURBANCES"
+  // v1.18.1 — nightly sleep-quality headline (WHOOP / Oura sleep score).
+  // Carries a generic assessment so the Sleep page reads one matching text
+  // per distinct chart group (duration/architecture AND quality), meeting
+  // the canonical "multiple charts ⇒ multiple texts" rule recovery meets.
+  | "SLEEP_SCORE"
   // v1.18.1 — device-native recovery / strain signals (WHOOP / Polar /
   // Oura). Each carries a generic assessment so the rebuilt
   // `/insights/recovery` page reads one matching text per chart.
@@ -503,6 +508,20 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     displayName: "Sleep breathing disturbances",
     unit: "count",
     direction: "lower-better",
+    archetype: "sleep",
+  },
+  // Sleep score — the nightly headline sleep-quality score (WHOOP sleep
+  // performance lineage / Oura sleep score), 0–100. Higher is the better
+  // night. No fixed clinical band: the scales differ by device and the
+  // user's own baseline carries the read; the assessment frames the trend.
+  // Sits on the dedicated sleep template so its prose matches the duration
+  // assessment's tone.
+  SLEEP_SCORE: {
+    id: "SLEEP_SCORE",
+    measurementType: "SLEEP_SCORE",
+    displayName: "Sleep score",
+    unit: "score",
+    direction: "higher-better",
     archetype: "sleep",
   },
   // ── v1.18.1 device-native recovery / strain signals ──

@@ -7,6 +7,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { DeviceScoreTile } from "@/components/insights/device-score-tile";
 import { DeviceScoreGridSkeleton } from "@/components/insights/device-score-tile-skeleton";
+import { MetricStatusCard } from "@/components/insights/metric-status-card";
 
 /**
  * v1.17.1 — "Sleep quality" block on `/insights/sleep`.
@@ -100,6 +101,13 @@ export function SleepQualitySection({ enabled }: { enabled: boolean }) {
   );
   if (present.length === 0) return null;
 
+  // v1.18.1 — the quality block is a distinct chart group, so it carries its
+  // OWN assessment (matching the canonical "multiple charts ⇒ multiple texts"
+  // rule the recovery page meets). Gated on the nightly headline sleep score
+  // having data so the generic assessment route only fires when there is a
+  // quality series to read.
+  const hasSleepScore = (summaries.SLEEP_SCORE?.count ?? 0) > 0;
+
   return (
     <section data-slot="sleep-quality-section" className="space-y-3">
       <SectionHeading
@@ -124,6 +132,11 @@ export function SleepQualitySection({ enabled }: { enabled: boolean }) {
           />
         ))}
       </div>
+      <MetricStatusCard
+        metric="SLEEP_SCORE"
+        icon={<Moon className="h-5 w-5" />}
+        enabled={hasSleepScore}
+      />
     </section>
   );
 }

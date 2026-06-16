@@ -2654,6 +2654,8 @@
         "stairDescentSpeedBody": "Dies gibt an, wie schnell du eine Treppe hinabgehst. Zusammen mit dem Steig-Tempo zeigt es Beinkontrolle und Gleichgewicht — ein gleichmäßiges Tempo ist gut, ein sinkendes solltest du im Blick behalten.",
         "breathingDisturbancesTitle": "Atemaussetzer im Schlaf",
         "breathingDisturbancesBody": "Deine Apple Watch kann schätzen, wie oft deine Atmung im Schlaf unterbrochen war. Ein niedriger Index ist besser; ein von Apple als erhöht eingestufter Wert — vor allem über viele Nächte — sollte mit einer Ärztin oder einem Arzt besprochen werden.",
+        "stepsTitle": "Schritte",
+        "stepsBody": "Die Schrittzahl ist die Gesamtzahl der Schritte, die du täglich gehst. Sie ist das einfachste Maß für Alltagsbewegung — eine höhere Tageszahl spiegelt meist einen aktiveren Lebensstil wider, und eine stetige Gewohnheit zählt mehr als ein einzelner großer Tag.",
         "readinessBody": "Die Tagesform ist ein einzelner Tageswert dafür, wie bereit dein Körper für den Tag ist — er verbindet Ruhepuls, Herzfrequenzvariabilität, Schlaf und die Beständigkeit deiner letzten Nächte. Ein höherer Wert heißt erholt und belastbar; ein niedrigerer ist ein sanfter Hinweis, einen Gang zurückzuschalten.",
         "sleepScoreBody": "Dein Schlafscore fasst eine ganze Nacht in einer Zahl zusammen — aus Dauer, Effizienz, Regelmäßigkeit und der Verteilung von Leicht-, Tief- und REM-Schlaf. Achte eher auf das Muster über Wochen als auf einen perfekten Wert in einer einzelnen Nacht.",
         "recoveryBody": "Die Erholung zeigt, wie gut sich dein Körper regeneriert hat — gestützt auf nächtliche Signale wie Herzfrequenzvariabilität und Ruhepuls. Ein hoher Wert ist grünes Licht, mehr zu geben; ein niedrigerer deutet an, dass dein System noch aufbaut.",
@@ -2758,6 +2760,11 @@
       "critical": "Kritisch"
     },
     "assessmentTitle": "Einschätzung",
+    "restMode": {
+      "title": "Ruhemodus",
+      "body": "Eine Krankheits- oder Beschwerdephase ist aktiv, daher spiegelt dies eine Erholungsphase wider. Dein Score wird dafür nicht gesenkt.",
+      "bodySince": "Seit {since} ist eine Krankheits- oder Beschwerdephase aktiv, daher spiegelt dies eine Erholungsphase wider. Dein Score wird dafür nicht gesenkt."
+    },
     "assessmentShowMore": "Mehr anzeigen",
     "assessmentShowLess": "Weniger anzeigen",
     "bloodPressureSectionTitle": "Blutdruck",

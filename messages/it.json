@@ -2654,6 +2654,8 @@
         "stairDescentSpeedBody": "È la velocità con cui scendi una rampa di scale. Insieme alla velocità in salita riflette il controllo delle gambe e l'equilibrio: un ritmo stabile è un buon segno, mentre uno in calo va tenuto d'occhio.",
         "breathingDisturbancesTitle": "Disturbi respiratori nel sonno",
         "breathingDisturbancesBody": "Il tuo Apple Watch può stimare quanto spesso la respirazione si è interrotta durante il sonno. Un indice più basso è migliore; un livello che Apple segnala come elevato, soprattutto su molte notti, andrebbe segnalato a un medico.",
+        "stepsTitle": "Passi",
+        "stepsBody": "Il conteggio dei passi è il numero totale di passi che fai ogni giorno. È la misura più semplice del movimento quotidiano: un conteggio giornaliero più alto riflette di solito uno stile di vita più attivo, e un'abitudine costante conta più di un singolo giorno intenso.",
         "readinessBody": "La prontezza è una lettura giornaliera di quanto il tuo corpo sia pronto ad affrontare la giornata, combinando frequenza cardiaca a riposo, variabilità della frequenza cardiaca, sonno e regolarità delle ultime notti. Un punteggio più alto indica che il tuo organismo appare recuperato e pieno di risorse; uno più basso è un invito gentile a rallentare.",
         "sleepScoreBody": "Il tuo punteggio del sonno riassume un'intera notte in un solo numero — durata, efficienza, regolarità degli orari ed equilibrio tra sonno leggero, profondo e REM. Osserva l'andamento nell'arco delle settimane invece di rincorrere un punteggio perfetto in una singola notte.",
         "recoveryBody": "Il recupero riflette quanto bene il tuo corpo si è ripreso, basandosi su segnali notturni come la variabilità della frequenza cardiaca e la frequenza a riposo. Un punteggio alto è il via libera per spingere; uno più basso suggerisce che il tuo organismo si sta ancora ricostruendo.",
@@ -2758,6 +2760,11 @@
       "critical": "Critico"
     },
     "assessmentTitle": "Valutazione",
+    "restMode": {
+      "title": "Modalità riposo",
+      "body": "È in corso un episodio di malattia o disturbo, quindi questo riflette una fase di recupero. Il tuo punteggio non viene abbassato per questo.",
+      "bodySince": "È in corso un episodio di malattia o disturbo dal {since}, quindi questo riflette una fase di recupero. Il tuo punteggio non viene abbassato per questo."
+    },
     "assessmentShowMore": "Mostra altro",
     "assessmentShowLess": "Mostra meno",
     "bloodPressureSectionTitle": "Pressione arteriosa",

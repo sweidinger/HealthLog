@@ -4981,6 +4981,7 @@ paths:
               - STAIR_ASCENT_SPEED
               - STAIR_DESCENT_SPEED
               - BREATHING_DISTURBANCES
+              - SLEEP_SCORE
               - ANS_CHARGE
               - DAY_STRAIN
               - WORKOUT_STRAIN
