@@ -76,9 +76,15 @@ describe("<NotificationsSection> module-gated reminder types", () => {
     expect(html).not.toContain('id="coach-nudge"');
   });
 
-  it("shows the channels pointer (delivery channels live under Integrations)", () => {
+  it("drops the channels / inbox cross-links and the Vorsorge block (D5)", () => {
+    // v1.18.1 (D5) — the page is lean: no section blurb, no channels/inbox
+    // cross-links, and no embedded Vorsorge editor (it has its own page).
     const html = render({});
-    expect(html).toContain('data-slot="notifications-channels-cross-link"');
-    expect(html).toContain('href="/settings/integrations"');
+    expect(html).not.toContain('data-slot="notifications-channels-cross-link"');
+    expect(html).not.toContain('data-slot="notifications-inbox-cross-link"');
+    // The three reminder-type cards remain.
+    expect(html).toContain('id="mood-reminder"');
+    expect(html).toContain('id="low-stock"');
+    expect(html).toContain('id="coach-nudge"');
   });
 });

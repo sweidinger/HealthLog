@@ -318,7 +318,7 @@ describe("normalisePrefs — fail-open coercion", () => {
 });
 
 describe("registry — core domains can never be disabled", () => {
-  it("the four core domains are not toggleable module keys", () => {
+  it("the three core domains are not toggleable module keys", () => {
     for (const core of CORE_DOMAIN_KEYS) {
       expect(isModuleKey(core)).toBe(false);
       expect(isCoreDomain(core)).toBe(true);
@@ -327,10 +327,11 @@ describe("registry — core domains can never be disabled", () => {
 
   it("a crafted core-domain key is inert (never read as a module)", () => {
     // `weight: false` in the blob can't matter: weight is not a ModuleKey,
-    // so the gate never consults it. The resolver only ever runs for the
-    // 11 declared toggleable keys.
+    // so the gate never consults it. The resolver only runs for the declared
+    // toggleable keys. v1.18.1 (D3) — medications graduated to a toggleable
+    // module, so it IS a ModuleKey now (weight / bp / pulse stay core).
     expect(isModuleKey("weight")).toBe(false);
-    expect(isModuleKey("medications")).toBe(false);
+    expect(isModuleKey("medications")).toBe(true);
   });
 
   it("every toggleable key is a known module and not a core domain", () => {

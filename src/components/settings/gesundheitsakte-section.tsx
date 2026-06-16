@@ -27,16 +27,14 @@ export function GesundheitsakteSection() {
       aria-labelledby="settings-section-gesundheitsakte-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
+      <header>
         <h1
           id="settings-section-gesundheitsakte-title"
           className="sr-only"
         >
           {t("settings.sections.gesundheitsakte.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.gesundheitsakte.description")}
-        </p>
       </header>
 
       <HealthRecordExportPanel />

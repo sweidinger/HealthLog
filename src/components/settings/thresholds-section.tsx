@@ -38,13 +38,10 @@ export function ThresholdsSection() {
       aria-labelledby="settings-section-thresholds-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      <header>
         <h1 id="settings-section-thresholds-title" className="sr-only">
           {t("settings.sections.thresholds.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.thresholds.description")}
-        </p>
       </header>
 
       {/* Per-metric threshold ranges. */}

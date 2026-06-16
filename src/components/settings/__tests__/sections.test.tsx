@@ -119,15 +119,19 @@ describe("settings sections — SSR smoke", () => {
     expect(html).not.toContain("settings.sections.");
   });
 
-  it("<AccountSection> exposes a Restart-tour button for B5 replay", () => {
-    const html = render(<AccountSection />);
-    // v1.4.15 phase B5 acceptance criterion 4: Settings → Account
-    // exposes a "Restart onboarding tour" button that resets the
-    // server-side flag. Rendered as a card next to Password reset.
+  it("<AdvancedSection> exposes the Restart-tour button (moved from Account)", () => {
+    // v1.18.1 (D1) — the "Restart onboarding tour" card moved from Settings →
+    // Account into Settings → Advanced (a maintenance/reset action).
+    const html = render(<AdvancedSection />);
     expect(html).toContain('data-testid="settings-restart-tour"');
     expect(html).toContain("Restart onboarding tour");
     // No raw i18n key leaks.
     expect(html).not.toContain("onboarding.tour.");
+  });
+
+  it("<AccountSection> no longer carries the Restart-tour button", () => {
+    const html = render(<AccountSection />);
+    expect(html).not.toContain('data-testid="settings-restart-tour"');
   });
 
   it("<AboutSection> renders version + license + sources/docs cards (no Updates panel)", () => {
@@ -184,17 +188,14 @@ describe("settings sections — SSR smoke", () => {
 
   it("<NotificationsSection> renders the single reminder-types home", () => {
     const html = render(<NotificationsSection />);
-    // v1.18.0 (S4) — one clean heading (sr-only h1 + visible description),
-    // no stacked breadcrumb. The screen is the single module-gated home for
-    // reminder TYPES.
+    // v1.18.1 (D0/D5) — the screen is lean: sr-only h1 only, no section blurb,
+    // no channels/inbox cross-links, and no embedded Vorsorge editor.
     expect(html).toContain("settings-section-notifications-title");
-    // The old stacked breadcrumb middle crumb is gone.
     expect(html).not.toContain("Notification channels");
-    // A single concise pointer to the channels (now under Integrations).
-    expect(html).toContain('href="/settings/integrations"');
-    expect(html).toContain('data-slot="notifications-channels-cross-link"');
+    expect(html).not.toContain('data-slot="notifications-channels-cross-link"');
+    expect(html).not.toContain('data-slot="notifications-inbox-cross-link"');
     // The mood + coach cards fail OPEN (mock user carries no module map),
-    // so both reminder-type cards render.
+    // so all three reminder-type cards render.
     expect(html).toContain('id="mood-reminder"');
     expect(html).toContain('id="coach-nudge"');
     expect(html).toContain('id="low-stock"');

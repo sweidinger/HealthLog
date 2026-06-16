@@ -126,11 +126,11 @@ export interface SourcesSectionProps {
 /**
  * `<SourcesSection>` — the per-metric source-priority + device-type ladders.
  *
- * v1.18.0 (S3) — Sources folded into Settings → Integrations as the "Sources"
- * sub-tab (`variant="subtab"`), since deciding which connection wins when two
- * report the same metric is an Integrations concern. The standalone
- * `/settings/sources` route is gone; `/settings/sources` 301-redirects to
- * `/settings/integrations` (see `next.config.ts`).
+ * v1.18.1 (D4) — Sources is a standalone `/settings/sources` left-side entry
+ * again (split back out of the Integrations sub-tabs). The default
+ * `variant="standalone"` renders the section header + the cross-link back to
+ * Integrationen; `variant="subtab"` is retained for any embedded use and
+ * suppresses the header.
  */
 export function SourcesSection({ variant = "standalone" }: SourcesSectionProps = {}) {
   const { t } = useTranslations();
@@ -298,23 +298,15 @@ export function SourcesSection({ variant = "standalone" }: SourcesSectionProps =
       aria-labelledby="settings-section-sources-title"
       className="space-y-6"
     >
-      {isSubtab ? (
-        // Sub-tab mode: the Integrations section owns the page header, and a
-        // cross-link back to the page that already contains this tab would be
-        // circular. Surface only the one-line description.
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.sources.description")}
-        </p>
-      ) : (
-        <header className="space-y-1">
+      {isSubtab ? null : (
+        // v1.18.1 (D0/D4) — standalone left-side entry again. The section
+        // blurb is dropped for consistent top alignment; the cross-link back
+        // to Integrationen (where the sources this ladder ranks are added /
+        // removed) stays as a quiet pointer.
+        <header>
           <h1 id="settings-section-sources-title" className="sr-only">
             {t("settings.sections.sources.title")}
           </h1>
-          <p className="text-muted-foreground text-sm">
-            {t("settings.sections.sources.description")}
-          </p>
-          {/* Cross-link back to Settings → Integrations — the page that
-              actually adds / removes the sources this ladder ranks. */}
           <p className="text-muted-foreground text-xs">
             {t("settings.sections.sources.integrationsHint")}{" "}
             <Link

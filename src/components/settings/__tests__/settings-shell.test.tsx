@@ -89,10 +89,14 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // out of Export & Import into its own top-level entry, before `export`;
     // `coach` gathers the Coach preference cards out of the AI section and
     // sits right after `ai`.
+    // v1.18.1 (D4) — `channels` + `sources` split out of the Integrations
+    // sub-tabs into their own left-side entries, right after `integrations`.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "modules",
       "integrations",
+      "channels",
+      "sources",
       "notifications",
       "layout",
       "dashboard",
@@ -264,12 +268,14 @@ describe("<SettingsShell>", () => {
     // `/notifications` inbox now shares the "Notifications" label.
     expect(html).toContain("Notifications");
     // v1.17.1 (F-2) — the dashboard + insights arrangement editors are
-    // reached through one Layout hub entry.
+    // reached through one Layout hub entry. v1.18.1 (D6) — renamed to "Layout".
     expect(html).toContain('href="/settings/layout"');
-    expect(html).toContain("Layout &amp; Personalization");
-    // v1.18.0 (S5) — Medications (Medikamente, always shown — a CORE
-    // domain) and Mood (Stimmung, gated; fail-open mock shows it) are their
-    // own nav entries now.
+    expect(html).toContain(">Layout</a>");
+    // v1.18.1 (D4) — Channels + Sources are their own left-side entries.
+    expect(html).toContain('href="/settings/channels"');
+    expect(html).toContain('href="/settings/sources"');
+    // v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung, gated;
+    // fail-open mock shows both) are their own nav entries now.
     expect(html).toContain('href="/settings/medications"');
     expect(html).toContain('href="/settings/mood"');
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
@@ -285,10 +291,10 @@ describe("<SettingsShell>", () => {
     // About is back in the settings nav as the last entry (it also
     // stays linked from the sidebar user-card dropdown).
     expect(html).toContain('href="/settings/about"');
-    // v1.18.0 (S3) — Targets keeps its own nav entry; Sources folded into
-    // Integrations as a sub-tab, so it is no longer a standalone nav entry.
+    // v1.18.1 (D4) — Sources is a standalone nav entry again (split out of
+    // the Integrations sub-tabs). Targets keeps its own entry.
     expect(html).toContain('href="/settings/thresholds"');
-    expect(html).not.toContain('href="/settings/sources"');
+    expect(html).toContain('href="/settings/sources"');
     expect(html).toContain("Targets");
   });
 
@@ -301,14 +307,17 @@ describe("<SettingsShell>", () => {
     // inbox now shares the "Benachrichtigungen" label.
     expect(html).toContain("Benachrichtigungen");
     // v1.17.1 (F-2) — the arrangement editors are reached through one
-    // Layout hub entry ("Layout & Personalisierung").
+    // Layout hub entry. v1.18.1 (D6) — renamed to "Layout" in every locale.
     expect(html).toContain('href="/settings/layout"');
-    expect(html).toContain("Layout &amp; Personalisierung");
+    expect(html).toContain(">Layout</a>");
+    // v1.18.1 (D4) — Channels ("Kanäle") + Sources ("Quellen-Priorität")
+    // are their own left-side entries.
+    expect(html).toContain('href="/settings/channels"');
+    expect(html).toContain("Kanäle");
     // v1.18.0 (S5) — Medications + Mood are their own nav entries now.
     expect(html).toContain('href="/settings/medications"');
     expect(html).toContain('href="/settings/mood"');
-    // v1.18.0 (S3) — Targets keeps its German nav entry ("Zielwerte");
-    // Sources folded into Integrations as a sub-tab.
+    // Targets keeps its German nav entry ("Zielwerte").
     expect(html).toContain("Zielwerte");
     // v1.8.7.1 — the AI Insights section is named "KI-Auswertungen" in
     // German (the "KI" prefix makes the AI nature explicit).
@@ -319,8 +328,8 @@ describe("<SettingsShell>", () => {
     // "Über diese App" (About) is back as the last in-shell nav entry
     // (the sidebar user-card dropdown keeps its own link too).
     expect(html).toContain('href="/settings/about"');
-    // v1.18.0 (S3) — Sources is no longer a standalone nav entry.
-    expect(html).not.toContain('href="/settings/sources"');
+    // v1.18.1 (D4) — Sources is a standalone nav entry again.
+    expect(html).toContain('href="/settings/sources"');
   });
 
   it("does NOT surface the raw key when a translation resolves — guards against missing JSON entries", () => {

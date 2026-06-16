@@ -86,6 +86,17 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   // surface over a Bearer token when the account never opted in.
   "src/app/api/illness",
   "src/app/api/gamification",
+  // v1.18.1 (D3) — medications graduated from CORE to a toggleable module.
+  // It is SURFACE-gated (nav entry, dashboard widget, the dedicated
+  // Medikamente settings entry), not data-layer-gated: every `/api/medications/*`
+  // route is raw medication CRUD / intake / inventory / compliance over the
+  // user's own rows, so they are EXEMPT below under the same data-layer
+  // reasoning as mood/labs — disabling the module hides the surface, it does
+  // not wedge an importer / sync / the user's ability to clean up, and
+  // re-enabling finds the schedule + intake history intact. Walking the tree
+  // means a NEW medication route must justify itself (gate or document-exempt)
+  // rather than silently appearing.
+  "src/app/api/medications",
   // v1.18.0 B3 — the legacy `/api/doctor-report` tree (JSON + server-PDF +
   // availability probe) was orphaned dead code (no production caller) and
   // removed. The live doctor-report / FHIR surface is `/api/export/health-record`,
@@ -147,6 +158,42 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   "src/app/api/labs/restore/route.ts",
   "src/app/api/biomarkers/route.ts",
   "src/app/api/biomarkers/[id]/route.ts",
+  // ── DATA LAYER (medications) ──────────────────────────────────────
+  // v1.18.1 (D3) — medications graduated from CORE to a toggleable module,
+  // but it is SURFACE-gated (nav / dashboard widget / settings entry), not
+  // data-layer-gated. Every `/api/medications/*` route is raw CRUD over the
+  // user's own medication / intake / inventory / compliance / side-effect
+  // rows — the same data-layer reasoning as mood/labs: the module gate
+  // governs whether medications SURFACES, not whether the row store accepts
+  // writes. An importer / sync / the user's ability to clean up entries must
+  // keep working while the module is off, and re-enabling must find the
+  // schedule + intake history intact.
+  "src/app/api/medications/route.ts",
+  "src/app/api/medications/layout/route.ts",
+  "src/app/api/medications/compliance/route.ts",
+  "src/app/api/medications/intake/route.ts",
+  "src/app/api/medications/intake/bulk/route.ts",
+  // NB: `medications/extract` is NOT exempt — it gates on
+  // `requireAssistantSurface("coach")` (the NL-extraction is an assistant
+  // surface), so the inventory already counts it as a delegated gate.
+  "src/app/api/medications/[id]/route.ts",
+  "src/app/api/medications/[id]/api-endpoint/route.ts",
+  "src/app/api/medications/[id]/cadence/route.ts",
+  "src/app/api/medications/[id]/compliance/route.ts",
+  "src/app/api/medications/[id]/dose-history/route.ts",
+  "src/app/api/medications/[id]/glp1/route.ts",
+  "src/app/api/medications/[id]/phase-config/route.ts",
+  "src/app/api/medications/[id]/intake/route.ts",
+  "src/app/api/medications/[id]/intake/[eventId]/route.ts",
+  "src/app/api/medications/[id]/intake/bulk-delete/route.ts",
+  "src/app/api/medications/[id]/intake/import/route.ts",
+  "src/app/api/medications/[id]/intake/purge/route.ts",
+  "src/app/api/medications/[id]/inventory/route.ts",
+  "src/app/api/medications/[id]/inventory/[itemId]/route.ts",
+  "src/app/api/medications/[id]/schedule-revisions/route.ts",
+  "src/app/api/medications/[id]/schedule-revisions/[revisionId]/route.ts",
+  "src/app/api/medications/[id]/side-effects/route.ts",
+  "src/app/api/medications/[id]/side-effects/[logId]/route.ts",
   // ── INFRA / UI-ONLY ───────────────────────────────────────────────
   // Static FHIR CapabilityStatement — server metadata, no user data.
   "src/app/api/fhir/metadata/route.ts",
@@ -281,6 +328,7 @@ describe("module API route gate inventory", () => {
       "coach",
       "doctorReport",
       "insights",
+      "medications",
     ] as const) {
       expect(known.has(key), `unknown module key in inventory: ${key}`).toBe(
         true,

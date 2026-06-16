@@ -244,13 +244,10 @@ export function AboutSection({ hideTourReplay = false }: AboutSectionProps = {})
       aria-labelledby="settings-section-about-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      <header>
         <h1 id="settings-section-about-title" className="sr-only">
           {t("settings.sections.about.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.about.description")}
-        </p>
       </header>
 
       {/* Identity card — version + license inline. The v1.4.2 layout

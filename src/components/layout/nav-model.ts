@@ -49,8 +49,8 @@ export interface NavDestination {
    * v1.18.0 — gate the entry on a per-user module toggle. When set, the
    * entry is dropped unless the account's resolved module map (from
    * `GET /api/auth/me`'s `modules`) has the key enabled. Core destinations
-   * (weight / BP / pulse / medications + always-on pages) carry no key and
-   * always render. `cycle` and `coach` are delegated keys (cycle → gender +
+   * (weight / BP / pulse + always-on pages) carry no key and always render.
+   * `cycle` and `coach` are delegated keys (cycle → gender +
    * opt-in, coach → operator flag + per-user opt-out); the auth/me map
    * already reflects that delegation, so reading them here is correct and
    * not a re-derivation.
@@ -83,6 +83,9 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     tKey: "nav.medications",
     icon: Pill,
     tourId: "nav-medications",
+    // v1.18.1 (D3) — medications graduated from a CORE domain to a toggleable
+    // module; the nav entry now drops when the account turns the module off.
+    requiresModule: "medications",
   },
   {
     href: "/cycle",

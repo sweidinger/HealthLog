@@ -1,26 +1,32 @@
 "use client";
 
 /**
- * v1.4.47 W3 — "Hide Coach" toggle card.
+ * v1.4.47 W3 — Coach activation toggle card.
  *
- * Persists via `PATCH /api/auth/me/disable-coach`; the response
- * invalidates `queryKeys.authMe()` so every Coach mount point on the
- * client (`<LayoutCoachFab>`, `<LayoutCoachMount>`, the inline
- * `<CoachLaunchButton>` pill, the `/targets` page CTAs) re-renders
- * with the new `user.disableCoach` value on the next React Query
- * refetch tick — no full reload required.
+ * v1.18.1 (D7) — polarity flip. The card now reads "Activate Coach" with the
+ * Switch ON by default (the Coach is on for everyone unless the user opts
+ * out). The persisted state is still the single `User.disableCoach` field —
+ * one source of truth — so the Switch's `checked` is `!disableCoach` and a
+ * flip writes `disableCoach: !next`. Presenting it as activate/default-on is
+ * a pure UI inversion over the same column.
  *
- * The optimistic-update pattern mirrors `<MoodReminderCard>`: the
- * Switch flips immediately, the mutation rolls back on error.
+ * Persists via `PATCH /api/auth/me/disable-coach`; the response invalidates
+ * `queryKeys.authMe()` so every Coach mount point on the client
+ * (`<LayoutCoachFab>`, `<LayoutCoachMount>`, the inline `<CoachLaunchButton>`
+ * pill, the `/targets` page CTAs) re-renders with the new `user.disableCoach`
+ * value on the next React Query refetch tick — no full reload required.
  *
- * v1.16.4 — header follows the shared `SettingsCardHeader` contract
- * (icon column + title + switch in the status slot) so the card reads
- * like its siblings instead of carrying its own bespoke header row.
+ * The optimistic-update pattern mirrors `<MoodReminderCard>`: the Switch
+ * flips immediately, the mutation rolls back on error.
+ *
+ * v1.16.4 — header follows the shared `SettingsCardHeader` contract (icon
+ * column + title + switch in the status slot) so the card reads like its
+ * siblings instead of carrying its own bespoke header row.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { MessageCircleOff } from "lucide-react";
+import { MessageCircleHeart } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
@@ -75,23 +81,28 @@ export function DisableCoachCard({
     }, 3000);
   }
 
-  // `mounted`-gated: `user` comes from the auth query, which can
-  // resolve before this boundary hydrates — the Switch state must
-  // match the unchecked SSR HTML during hydration (React #418) and
-  // pick up the wire value on the first client re-render.
+  // `mounted`-gated: `user` comes from the auth query, which can resolve
+  // before this boundary hydrates — the Switch state must match the SSR HTML
+  // during hydration (React #418) and pick up the wire value on the first
+  // client re-render. v1.18.1 (D7) — the toggle now reads "Coach aktivieren"
+  // (default ON), so the Switch is checked when the Coach is ACTIVE. The
+  // persisted column is still `disableCoach`; `optimistic` and `checked` are
+  // the activated-state view of it. The SSR default is ON (checked) so the
+  // default-on contract holds before the wire value resolves.
   const mounted = useMounted();
-  const checked = mounted ? (optimistic ?? user?.disableCoach ?? false) : false;
+  const activated = mounted ? (optimistic ?? !(user?.disableCoach ?? false)) : true;
 
   const mutation = useMutation({
+    // `next` is the desired ACTIVATED state; the column stores the inverse.
     mutationFn: async (next: boolean) => {
-      await apiPatch("/api/auth/me/disable-coach", { disableCoach: next });
+      await apiPatch("/api/auth/me/disable-coach", { disableCoach: !next });
       return next;
     },
     onSuccess: (next) => {
       setMsg(
         next
-          ? t("settings.ai.disableCoach.savedHidden")
-          : t("settings.ai.disableCoach.savedShown"),
+          ? t("settings.coach.activate.savedOn")
+          : t("settings.coach.activate.savedOff"),
       );
       setMsgType("success");
       // Surface the new value to every Coach gate via the shared
@@ -106,7 +117,7 @@ export function DisableCoachCard({
       setMsg(
         err instanceof Error
           ? err.message
-          : t("settings.ai.disableCoach.saveError"),
+          : t("settings.coach.activate.saveError"),
       );
       setMsgType("error");
       scheduleClear();
@@ -131,17 +142,17 @@ export function DisableCoachCard({
       className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
-        icon={MessageCircleOff}
-        title={t("settings.ai.disableCoach.title")}
+        icon={MessageCircleHeart}
+        title={t("settings.coach.activate.title")}
         titleId="settings-ai-disable-coach-title"
-        description={t("settings.ai.disableCoach.description")}
+        description={t("settings.coach.activate.description")}
         status={
           <Switch
             data-testid="settings-disable-coach-switch"
-            checked={checked}
+            checked={activated}
             onCheckedChange={handleToggle}
             disabled={!isAuthenticated || mutation.isPending}
-            aria-label={t("settings.ai.disableCoach.toggleAria")}
+            aria-label={t("settings.coach.activate.toggleAria")}
           />
         }
       />

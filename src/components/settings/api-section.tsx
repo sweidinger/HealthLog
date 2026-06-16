@@ -41,13 +41,10 @@ export function ApiSection() {
 
   return (
     <section aria-labelledby="settings-section-api-title" className="space-y-6">
-      <header className="space-y-1">
+      <header>
         <h1 id="settings-section-api-title" className="sr-only">
           {t("settings.sections.api.title")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("settings.sections.api.description")}
-        </p>
       </header>
 
       <ApiEndpointsCard />

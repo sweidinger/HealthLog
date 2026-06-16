@@ -26,8 +26,10 @@ import {
   Info,
   KeyRound,
   LayoutDashboard,
+  Layers,
   Link2,
   Pill,
+  Radio,
   Settings2,
   SlidersHorizontal,
   Smile,
@@ -105,6 +107,20 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.integrations.title",
     icon: Link2,
   },
+  // v1.18.1 (D4) — Kanäle (delivery channels) split out of the Integrations
+  // sub-tabs into its own entry. A channel is a delivery provider.
+  {
+    slug: "channels",
+    titleKey: "settings.sections.channels.title",
+    icon: Radio,
+  },
+  // v1.18.1 (D4) — Quellen (source weighting) split out into its own entry:
+  // which connection wins when two report the same metric.
+  {
+    slug: "sources",
+    titleKey: "settings.sections.sources.title",
+    icon: Layers,
+  },
   // v1.18.0 (S4) — "Benachrichtigungen" is now the single module-gated
   // reminder-types home. The separate "Erinnerungen" hub (a link-only page)
   // is gone; reminder TYPES live here, each row gated on its module.
@@ -124,12 +140,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     icon: LayoutDashboard,
   },
   // v1.18.0 (S5) — Medikamente: medication-specific settings (list view +
-  // order + injection sites). Medications is a CORE domain, so the entry is
-  // always shown. Was a hidden child of the Layout hub.
+  // order + injection sites). Was a hidden child of the Layout hub.
+  // v1.18.1 (D3) — medications graduated from a CORE domain to a toggleable
+  // module, so this entry now hides when the account turns the module off
+  // (the medication data routes stay live; this only hides the surface).
   {
     slug: "medications",
     titleKey: "settings.sections.medications.title",
     icon: Pill,
+    moduleGate: "medications",
   },
   // v1.18.0 (S5) — Stimmung: the mood-tag management surface gets its own
   // nav entry, shown only when the mood module is enabled. Was a hidden

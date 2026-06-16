@@ -80,12 +80,11 @@ beforeEach(() => {
 });
 
 describe("<MedicationsSection> — SSR smoke", () => {
-  it("renders the section heading + description via i18n (no raw keys)", () => {
+  it("renders the section heading via i18n (no raw keys)", () => {
+    // v1.18.1 (D0) — the section blurb was dropped; the sr-only heading + the
+    // card content carry the meaning.
     const html = render();
     expect(html).toContain("settings-section-medications-title");
-    expect(html).toContain(
-      "List view, order, and injection sites for your medications.",
-    );
     expect(html).not.toContain("settings.sections.");
     expect(html).not.toContain("medications.view");
     expect(html).not.toContain("medications.reorder");
@@ -93,9 +92,6 @@ describe("<MedicationsSection> — SSR smoke", () => {
 
   it("renders the German copy end-to-end", () => {
     const html = render("de");
-    expect(html).toContain(
-      "Listenansicht, Reihenfolge und Injektionsstellen deiner Medikamente.",
-    );
     expect(html).toContain("Reihenfolge anpassen");
     expect(html).toContain(
       "Wähle, ob deine Medikamente als Karten oder als Tabelle angezeigt werden.",

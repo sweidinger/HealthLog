@@ -3902,7 +3902,7 @@
         "inboxLink": "Posteingang öffnen"
       },
       "layout": {
-        "title": "Layout & Personalisierung",
+        "title": "Layout",
         "description": "Lege fest, wie Dashboard und Insights aufgebaut und angeordnet sind.",
         "backToHub": "Zurück zu Layout & Personalisierung",
         "dashboard": {
@@ -4156,6 +4156,10 @@
       "coach": {
         "title": "Coach",
         "description": "Coach aktivieren, Ton und Umfang, gespeicherte Erinnerungen."
+      },
+      "channels": {
+        "title": "Kanäle",
+        "description": "Zustellung über Telegram, ntfy, Web-Push, Webhook und E-Mail."
       }
     },
     "profile": "Profil",
@@ -4867,7 +4871,17 @@
       "rate_limited": "Zu viele Verbindungsversuche. Warte einen Moment und versuche es erneut.",
       "generic": "Unbekannter Fehler bei der Verbindung. Bitte starte die Verbindung erneut."
     },
-    "integrationSetupGuide": "Einrichtungsanleitung"
+    "integrationSetupGuide": "Einrichtungsanleitung",
+    "coach": {
+      "activate": {
+        "title": "Coach aktivieren",
+        "description": "Zeigt den Coach-Button und das Coach-Panel. Standardmäßig an — ausschalten, um den Coach überall auszublenden.",
+        "toggleAria": "Coach-Button und Coach-Panel aktivieren",
+        "savedOn": "Coach ist aktiviert.",
+        "savedOff": "Coach ist ausgeblendet.",
+        "saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen."
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -6734,7 +6748,7 @@
       "description": "KI-Chat mit Bezug zu deinen Daten."
     },
     "insights": {
-      "label": "Auswertungen",
+      "label": "Insights",
       "description": "KI-Analysen, Briefing und Korrelationen."
     },
     "doctorReport": {

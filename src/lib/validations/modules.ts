@@ -3,10 +3,11 @@
  *
  * The PATCH body is a partial map of TOGGLEABLE module keys → boolean.
  * Only keys in the canonical registry (`MODULE_KEYS`) are accepted; a
- * core-domain key (`weight`, `bloodPressure`, `pulse`, `medications`) or
- * any unknown key is a 422 — so the core measurement engine + meds can
- * never be disabled through this surface (defence-in-depth on top of the
- * gate, which has no key to flip for core domains anyway).
+ * core-domain key (`weight`, `bloodPressure`, `pulse`) or any unknown key
+ * is a 422 — so the core measurement engine can never be disabled through
+ * this surface (defence-in-depth on top of the gate, which has no key to
+ * flip for core domains anyway). v1.18.1 (D3) — `medications` graduated to
+ * a toggleable module, so it IS writable here now.
  *
  * `strict()` rejects unknown keys outright rather than silently dropping
  * them, so a client gets a clear error instead of a no-op.
