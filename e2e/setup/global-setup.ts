@@ -141,6 +141,26 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
       ],
     );
 
+    // Opt the seed account into cycle tracking. The user is seeded as
+    // `MALE`, and v1.18.0 resolves the `cycle` module through
+    // `isCycleEnabled(gender, CycleProfile)` — NULL `cycleTrackingEnabled`
+    // derives from gender, so a male account with no profile reads as
+    // cycle-OFF and `/cycle` redirects home. An explicit `true` opts the
+    // account in regardless of gender, which is what the cycle spec needs.
+    // Keyed by the username subquery so we never depend on the cuid above
+    // (the user upsert may have hit the ON CONFLICT path on a re-run).
+    await pool.query(
+      `INSERT INTO cycle_profiles
+        (id, user_id, cycle_tracking_enabled, created_at, updated_at)
+       SELECT $1, u.id, true, $2, $2
+       FROM users u
+       WHERE u.username = $3
+       ON CONFLICT (user_id) DO UPDATE SET
+         cycle_tracking_enabled = true,
+         updated_at = EXCLUDED.updated_at`,
+      [cuid(), now, E2E_USER.username],
+    );
+
     // Console (instead of structured logging) is intentional here —
     // global-setup runs outside the app's logging context, and the
     // line is useful when debugging a CI failure where the seed didn't
