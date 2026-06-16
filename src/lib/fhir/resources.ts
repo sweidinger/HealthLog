@@ -17,7 +17,10 @@
  * convention. All text is escaped plain text; never user-supplied HTML
  * (no markdown library, no `dangerouslySetInnerHTML`).
  */
-import type { DoctorReportData } from "@/lib/doctor-report-data";
+import {
+  adherenceRatePercent,
+  type DoctorReportData,
+} from "@/lib/doctor-report-data";
 import { resolveGlucoseUnit, convertGlucose } from "@/lib/glucose";
 import {
   LOINC_SYSTEM,
@@ -660,7 +663,9 @@ export function observationsFromReportData(
   for (const [name, comp] of Object.entries(data.compliance)) {
     if (comp.total <= 0) continue;
     obsSeq += 1;
-    const rate = Math.round((comp.taken / comp.total) * 1000) / 10;
+    // Integer percent — the one canonical rounding the app card + PDF use, so
+    // a clinician sees the same adherence figure on every surface.
+    const rate = adherenceRatePercent(comp.taken, comp.total) ?? 0;
     push({
       resourceType: "Observation",
       id: `obs-${obsSeq}`,

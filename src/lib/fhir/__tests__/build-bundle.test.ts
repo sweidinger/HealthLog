@@ -412,8 +412,9 @@ describe("buildFhirDocumentBundle", () => {
     const adherence = observations.find((o) =>
       o.code.coding?.some((c) => c.code === "71799-1"),
     );
-    // PDF renders taken/total = 85/90 = 94.4%.
-    expect(adherence?.valueQuantity?.value).toBeCloseTo(94.4, 1);
+    // taken/total = 85/90 = 94.4% → rounded to the app's integer convention
+    // (PDF + FHIR now share one rounding source of truth).
+    expect(adherence?.valueQuantity?.value).toBe(94);
   });
 
   it("emits one MedicationStatement per active medication", () => {

@@ -65,6 +65,29 @@ export interface DoctorReportCompliance {
   missed: number;
 }
 
+/**
+ * Canonical adherence-rate rounding for the doctor-report export surfaces.
+ *
+ * The PDF table, the PDF clinical-summary headline, the FHIR adherence
+ * Observation, and the GLP-1 block all derive the rate from the SAME ledger
+ * denominator (`taken / total`, `total = taken + missed`). They MUST round it
+ * the same way the app does so a clinician comparing the export to the in-app
+ * card never sees a presentational divergence (87 % on the card, 87.3 % on the
+ * PDF). The app convention is `round(100 · taken / denominator)` capped at 100
+ * (see `dose-history-ledger-compute.ts` + `tallyComplianceFromLedger`) — an
+ * integer percent. This is the one source of truth for every export surface.
+ *
+ * Returns `null` when `total <= 0` so callers render the "no expected dose"
+ * placeholder instead of a misleading `0` or `100`.
+ */
+export function adherenceRatePercent(
+  taken: number,
+  total: number,
+): number | null {
+  if (total <= 0) return null;
+  return Math.min(100, Math.round((taken / total) * 100));
+}
+
 export interface DoctorReportMood {
   avg: number;
   min: number;
