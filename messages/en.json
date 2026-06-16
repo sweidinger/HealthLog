@@ -3687,7 +3687,7 @@
         },
         "integrations": {
           "title": "Connect your devices",
-          "body": "Open Settings to link Withings (auto-sync weight, BP and pulse), moodLog, or your Insights provider. Everything stays optional and encrypted."
+          "body": "Open Settings to link Withings (auto-sync weight, BP and pulse), moodLog, or your Insights provider. Everything stays optional and encrypted — and under Settings → Modules you can turn whole areas like sleep, mood or achievements on or off to keep HealthLog focused on what you track."
         },
         "achievements": {
           "title": "Earn streaks and badges",

@@ -26,6 +26,9 @@ vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 // in module-gate.test.ts.
 vi.mock("@/lib/modules/gate", () => ({
   requireModuleEnabled: async () => ({ enabled: true }),
+  // v1.18.0 B5 — all modules enabled by default so the badge filter is
+  // a no-op here; the skip behaviour is asserted in module-gate.test.ts.
+  resolveModuleMap: async () => ({}),
   MODULE_DISABLED_ERROR_CODE: "module.disabled",
 }));
 
@@ -112,6 +115,11 @@ describe("GET /api/gamification/achievements?format=ios", () => {
         unlocked: boolean;
         unlockedAt: string | null;
         progress: number;
+        category: string;
+        points: number;
+        target: number;
+        current: number;
+        isHidden: boolean;
       }>;
     };
     expect(Array.isArray(body.data)).toBe(true);
@@ -123,6 +131,12 @@ describe("GET /api/gamification/achievements?format=ios", () => {
     expect(first.iconName).toEqual(expect.any(String));
     expect(first.progress).toBeGreaterThanOrEqual(0);
     expect(first.progress).toBeLessThanOrEqual(1);
+    // v1.18.0 B5 — parity fields the iOS DTO previously dropped.
+    expect(first.category).toEqual(expect.any(String));
+    expect(first.points).toEqual(expect.any(Number));
+    expect(first.target).toEqual(expect.any(Number));
+    expect(first.current).toEqual(expect.any(Number));
+    expect(first.isHidden).toEqual(expect.any(Boolean));
   });
 
   it("falls back to the legacy wrapped shape when no format is given", async () => {

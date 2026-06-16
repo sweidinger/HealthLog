@@ -49,13 +49,14 @@ vi.mock("next/headers", () => ({
 // their own unit coverage in src/lib/modules/__tests__/gate.test.ts).
 vi.mock("@/lib/modules/gate", () => ({
   requireModuleEnabled: vi.fn(),
+  resolveModuleMap: vi.fn(),
   MODULE_DISABLED_ERROR_CODE: "module.disabled",
 }));
 
 import { GET } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
-import { requireModuleEnabled } from "@/lib/modules/gate";
+import { requireModuleEnabled, resolveModuleMap } from "@/lib/modules/gate";
 import { apiError } from "@/lib/api-response";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
 
@@ -89,6 +90,9 @@ beforeEach(() => {
   vi.mocked(prisma.userHealthProfile.findUnique).mockResolvedValue(
     null as never,
   );
+  // v1.18.0 B5 — default to "every module on" so individual cases only
+  // flip the one key under test.
+  vi.mocked(resolveModuleMap).mockResolvedValue({} as never);
 });
 
 describe("GET /api/gamification/achievements — achievements module gate", () => {
@@ -149,5 +153,72 @@ describe("GET /api/gamification/achievements — achievements module gate", () =
     expect(res.status).toBe(401);
     // Auth is the outer guard — the module gate is never consulted.
     expect(requireModuleEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/gamification/achievements — per-module badge skipping", () => {
+  // Three mood entries make the mood badges earnable (hasMood = true) so
+  // they survive the discovery filter when the mood module is ON — which
+  // means a later disappearance can only be the B5 module filter.
+  const MOOD_ENTRIES = [
+    {
+      date: "2026-03-02",
+      score: 4,
+      moodLoggedAt: new Date("2026-03-02T08:00:00.000Z"),
+    },
+    {
+      date: "2026-03-03",
+      score: 5,
+      moodLoggedAt: new Date("2026-03-03T08:00:00.000Z"),
+    },
+    {
+      date: "2026-03-04",
+      score: 5,
+      moodLoggedAt: new Date("2026-03-04T08:00:00.000Z"),
+    },
+  ];
+
+  type Badge = { id: string; category: string; metric: string };
+
+  async function badgesFor(
+    moduleMap: Record<string, boolean>,
+  ): Promise<Badge[]> {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true });
+    vi.mocked(resolveModuleMap).mockResolvedValue(moduleMap as never);
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue(
+      MOOD_ENTRIES as never,
+    );
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/gamification/achievements"),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { achievements: Badge[] } };
+    return body.data.achievements;
+  }
+
+  it("includes mood badges when the mood module is enabled", async () => {
+    const badges = await badgesFor({ mood: true });
+    expect(badges.some((b) => b.category === "mood")).toBe(true);
+  });
+
+  it("drops every mood badge when the mood module is disabled", async () => {
+    const badges = await badgesFor({ mood: false });
+    expect(badges.some((b) => b.category === "mood")).toBe(false);
+    // Non-mood badges still render — the filter is surgical, not global.
+    expect(badges.length).toBeGreaterThan(0);
+  });
+
+  it("never persists an unlock for a disabled-module badge", async () => {
+    // A mood badge would unlock at >=1 entry; with mood OFF the createMany
+    // must carry no mood achievement row.
+    await badgesFor({ mood: false });
+    const createCalls = vi.mocked(prisma.userAchievement.createMany).mock
+      .calls;
+    for (const [arg] of createCalls) {
+      const rows = (arg as { data: Array<{ achievementId: string }> }).data;
+      expect(rows.some((r) => r.achievementId.includes("mood"))).toBe(false);
+    }
   });
 });
