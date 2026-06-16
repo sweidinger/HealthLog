@@ -117,7 +117,17 @@ export type MetricStatusMetricId =
   | "SIX_MINUTE_WALK_DISTANCE"
   | "STAIR_ASCENT_SPEED"
   | "STAIR_DESCENT_SPEED"
-  | "BREATHING_DISTURBANCES";
+  | "BREATHING_DISTURBANCES"
+  // v1.18.1 — device-native recovery / strain signals (WHOOP / Polar /
+  // Oura). Each carries a generic assessment so the rebuilt
+  // `/insights/recovery` page reads one matching text per chart.
+  | "ANS_CHARGE"
+  | "DAY_STRAIN"
+  | "WORKOUT_STRAIN"
+  | "CARDIO_LOAD"
+  | "AVERAGE_HEART_RATE"
+  | "MAX_HEART_RATE"
+  | "ENERGY_EXPENDITURE_KJ";
 
 /**
  * The registry. Keyed by the HealthKit metric id. Each entry's
@@ -494,6 +504,79 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     unit: "count",
     direction: "lower-better",
     archetype: "sleep",
+  },
+  // ── v1.18.1 device-native recovery / strain signals ──
+  // ANS charge — autonomic-nervous-system recharge (Polar Nightly
+  // Recharge / ring readiness lineage). Higher = better recovered. No
+  // fixed band: the device scales differ, so the user's own baseline
+  // leads (target-band defers wholly to it).
+  ANS_CHARGE: {
+    id: "ANS_CHARGE",
+    measurementType: "ANS_CHARGE",
+    displayName: "ANS charge",
+    unit: "score",
+    direction: "higher-better",
+    archetype: "physiological-vital",
+  },
+  // Day strain — WHOOP's 0–21 cardiovascular-load scale. Neither extreme
+  // is a goal on its own (high strain with poor recovery is the risk);
+  // the read is descriptive against the user's own pattern.
+  DAY_STRAIN: {
+    id: "DAY_STRAIN",
+    measurementType: "DAY_STRAIN",
+    displayName: "Day strain",
+    unit: "score",
+    direction: "target-band",
+    archetype: "activity-fitness",
+  },
+  // Workout strain — per-workout strain on the same 0–21 scale.
+  WORKOUT_STRAIN: {
+    id: "WORKOUT_STRAIN",
+    measurementType: "WORKOUT_STRAIN",
+    displayName: "Workout strain",
+    unit: "score",
+    direction: "target-band",
+    archetype: "activity-fitness",
+  },
+  // Cardio load — training-load proxy (acute cardiovascular load).
+  // Descriptive against the personal baseline.
+  CARDIO_LOAD: {
+    id: "CARDIO_LOAD",
+    measurementType: "CARDIO_LOAD",
+    displayName: "Cardio load",
+    unit: "score",
+    direction: "target-band",
+    archetype: "activity-fitness",
+  },
+  // Whole-day average heart rate (WHOOP cycle average). Lower at rest is
+  // the fitter signal, but this is a whole-cycle figure, so it is read as
+  // a target-band against the user's own days rather than a flat lower.
+  AVERAGE_HEART_RATE: {
+    id: "AVERAGE_HEART_RATE",
+    measurementType: "AVERAGE_HEART_RATE",
+    displayName: "Average heart rate",
+    unit: "bpm",
+    direction: "target-band",
+    archetype: "physiological-vital",
+  },
+  // Whole-day peak heart rate (WHOOP cycle max).
+  MAX_HEART_RATE: {
+    id: "MAX_HEART_RATE",
+    measurementType: "MAX_HEART_RATE",
+    displayName: "Max heart rate",
+    unit: "bpm",
+    direction: "target-band",
+    archetype: "physiological-vital",
+  },
+  // Day energy expenditure in kilojoules (WHOOP reports kJ natively).
+  // Higher reflects a more active day; no fixed band.
+  ENERGY_EXPENDITURE_KJ: {
+    id: "ENERGY_EXPENDITURE_KJ",
+    measurementType: "ENERGY_EXPENDITURE_KJ",
+    displayName: "Energy expenditure",
+    unit: "kJ",
+    direction: "higher-better",
+    archetype: "activity-fitness",
   },
 };
 

@@ -3638,6 +3638,15 @@
         "title": "Punteggio di recupero",
         "subtitle": "Vedi come si scompone il punteggio notturno",
         "cta": "Apri"
+      },
+      "block": {
+        "ansChargeExplainer": "Quanto è carico il tuo sistema nervoso autonomo per la giornata — una lettura di ricarica ricavata dai segnali notturni di cuore e respiro.",
+        "dayStrainExplainer": "Il carico cardiovascolare della giornata sulla scala di sforzo del tuo dispositivo. Leggilo in rapporto al tuo recupero, non come obiettivo a sé.",
+        "workoutStrainExplainer": "Quanto è stato impegnativo un singolo allenamento sulla stessa scala di sforzo — il costo cardiovascolare di quella sessione.",
+        "cardioLoadExplainer": "Una stima del carico di allenamento che traccia il carico cardiovascolare accumulato. Confrontala con i tuoi giorni recenti.",
+        "averageHeartRateExplainer": "La tua frequenza cardiaca media nell'arco dell'intera giornata o ciclo, come riportata dal tuo wearable.",
+        "maxHeartRateExplainer": "La tua frequenza cardiaca massima nell'arco dell'intera giornata o ciclo, come riportata dal tuo wearable.",
+        "energyExpenditureKjExplainer": "L'energia che il tuo corpo ha consumato nella giornata, in kilojoule, come la riporta nativamente il tuo dispositivo."
       }
     },
     "bodyTempDeviation": {

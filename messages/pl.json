@@ -3638,6 +3638,15 @@
         "title": "Wynik regeneracji",
         "subtitle": "Zobacz, jak rozkłada się nocny wynik",
         "cta": "Zobacz"
+      },
+      "block": {
+        "ansChargeExplainer": "Jak naładowany jest Twój autonomiczny układ nerwowy na dany dzień — odczyt regeneracji oparty na nocnych sygnałach serca i oddechu.",
+        "dayStrainExplainer": "Dzienne obciążenie sercowo-naczyniowe na skali wysiłku Twojego urządzenia. Odczytuj je w odniesieniu do regeneracji, nie jako cel sam w sobie.",
+        "workoutStrainExplainer": "Jak wymagający był pojedynczy trening na tej samej skali wysiłku — koszt sercowo-naczyniowy tej sesji.",
+        "cardioLoadExplainer": "Przybliżenie obciążenia treningowego, które śledzi nagromadzone obciążenie sercowo-naczyniowe. Porównuj je z własnymi ostatnimi dniami.",
+        "averageHeartRateExplainer": "Twoje średnie tętno w ciągu całego dnia lub cyklu, zgodnie z odczytem Twojego urządzenia.",
+        "maxHeartRateExplainer": "Twoje maksymalne tętno w ciągu całego dnia lub cyklu, zgodnie z odczytem Twojego urządzenia.",
+        "energyExpenditureKjExplainer": "Energia, którą Twój organizm wydatkował w ciągu dnia, w kilodżulach, zgodnie z natywnym odczytem urządzenia."
       }
     },
     "bodyTempDeviation": {

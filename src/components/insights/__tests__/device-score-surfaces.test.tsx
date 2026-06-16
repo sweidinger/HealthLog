@@ -154,12 +154,13 @@ describe("device-score loading skeletons", () => {
     expect(html).not.toContain('data-slot="device-score-tile"');
   });
 
-  it("paints the shared Skeleton grid for recovery while loading", () => {
+  it("paints a chart skeleton for recovery while loading", () => {
     analyticsMock.mockReturnValue(analyticsLoading());
     const html = render(<RecoverySection />);
     expect(html).toContain('data-slot="recovery-loading"');
-    expect(html).toContain('data-slot="device-score-grid-skeleton"');
-    expect(html).toContain('data-slot="skeleton"');
+    // v1.18.1 — the rebuilt page leads with canonical chart blocks, so the
+    // loading shell reserves a chart skeleton (not the old tile grid).
+    expect(html).toContain('data-slot="chart-skeleton"');
     expect(html).not.toContain('data-slot="recovery-empty"');
   });
 });
@@ -208,7 +209,7 @@ describe("<RecoverySection> data-gating", () => {
     expect(html).not.toContain('data-slot="recovery-group-strain"');
   });
 
-  it("renders the strain group and cross-links the recovery score when present", () => {
+  it("renders a canonical chart block for the present signal", () => {
     analyticsMock.mockReturnValue(
       analyticsWith({
         DAY_STRAIN: summary({ count: 14, latest: 12, mean: 11 }),
@@ -218,8 +219,10 @@ describe("<RecoverySection> data-gating", () => {
     );
     const html = render(<RecoverySection />);
     expect(html).toContain('data-slot="recovery-group-strain"');
-    expect(html).toContain('data-metric="DAY_STRAIN"');
-    expect(html).toContain('data-slot="recovery-score-link"');
+    expect(html).toContain('data-slot="recovery-block-DAY_STRAIN"');
+    // B3 — the redundant "Recovery score" cross-link block is gone; this
+    // surface is reached from the overview already.
+    expect(html).not.toContain('data-slot="recovery-score-link"');
     // The recharge group (ANS charge only) has no data → hidden.
     expect(html).not.toContain('data-slot="recovery-group-recharge"');
     // Empty note must not show when at least one signal is present.
