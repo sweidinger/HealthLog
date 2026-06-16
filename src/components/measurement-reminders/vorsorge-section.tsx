@@ -38,14 +38,37 @@ import {
   type MeasurementReminder,
 } from "@/hooks/use-measurement-reminders";
 
-const TYPE_OPTIONS = [
-  "WEIGHT",
-  "BLOOD_PRESSURE_SYS",
-  "PULSE",
-  "BLOOD_GLUCOSE",
-  "OXYGEN_SATURATION",
-  "BODY_FAT",
-  "BODY_TEMPERATURE",
+// v1.18.1 (V3) — the active-measurement set, grouped so the dropdown
+// doesn't read as a flat 15-item list. Mirrors the Zod allow-list in
+// `validations/measurement-reminders.ts`; the labels resolve through
+// `measurementReminders.types.*`, the group headers through
+// `measurementReminders.typeGroups.*`.
+const TYPE_GROUPS = [
+  {
+    group: "vitals",
+    types: [
+      "WEIGHT",
+      "BLOOD_PRESSURE_SYS",
+      "PULSE",
+      "BLOOD_GLUCOSE",
+      "OXYGEN_SATURATION",
+      "BODY_TEMPERATURE",
+    ],
+  },
+  {
+    group: "bodyComposition",
+    types: [
+      "BODY_FAT",
+      "FAT_MASS",
+      "FAT_FREE_MASS",
+      "MUSCLE_MASS",
+      "LEAN_BODY_MASS",
+      "BONE_MASS",
+      "TOTAL_BODY_WATER",
+      "VISCERAL_FAT",
+      "BODY_MASS_INDEX",
+    ],
+  },
 ] as const;
 
 const INTERVAL_PRESETS = [7, 14, 30, 90, 180, 365] as const;
@@ -220,10 +243,17 @@ export function VorsorgeSection({
                   value={measurementType}
                   onChange={(e) => setMeasurementType(e.target.value)}
                 >
-                  {TYPE_OPTIONS.map((type) => (
-                    <option key={type} value={type}>
-                      {t(`measurementReminders.types.${type}`)}
-                    </option>
+                  {TYPE_GROUPS.map(({ group, types }) => (
+                    <optgroup
+                      key={group}
+                      label={t(`measurementReminders.typeGroups.${group}`)}
+                    >
+                      {types.map((type) => (
+                        <option key={type} value={type}>
+                          {t(`measurementReminders.types.${type}`)}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </NativeSelect>
               </div>

@@ -6478,7 +6478,19 @@
       "BLOOD_GLUCOSE": "Glukoza we krwi",
       "OXYGEN_SATURATION": "Saturacja tlenem",
       "BODY_FAT": "Tkanka tłuszczowa",
-      "BODY_TEMPERATURE": "Temperatura ciała"
+      "BODY_TEMPERATURE": "Temperatura ciała",
+      "FAT_MASS": "Masa tłuszczowa",
+      "FAT_FREE_MASS": "Masa beztłuszczowa",
+      "MUSCLE_MASS": "Masa mięśniowa",
+      "LEAN_BODY_MASS": "Masa szczupła",
+      "BONE_MASS": "Masa kostna",
+      "TOTAL_BODY_WATER": "Woda w organizmie",
+      "VISCERAL_FAT": "Tłuszcz trzewny",
+      "BODY_MASS_INDEX": "Wskaźnik masy ciała (BMI)"
+    },
+    "typeGroups": {
+      "vitals": "Parametry życiowe",
+      "bodyComposition": "Skład ciała"
     },
     "empty": {
       "title": "Brak przypomnień",

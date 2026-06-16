@@ -6478,7 +6478,19 @@
       "BLOOD_GLUCOSE": "Blutzucker",
       "OXYGEN_SATURATION": "Sauerstoffsättigung",
       "BODY_FAT": "Körperfett",
-      "BODY_TEMPERATURE": "Körpertemperatur"
+      "BODY_TEMPERATURE": "Körpertemperatur",
+      "FAT_MASS": "Fettmasse",
+      "FAT_FREE_MASS": "Fettfreie Masse",
+      "MUSCLE_MASS": "Muskelmasse",
+      "LEAN_BODY_MASS": "Magermasse",
+      "BONE_MASS": "Knochenmasse",
+      "TOTAL_BODY_WATER": "Körperwasser",
+      "VISCERAL_FAT": "Viszeralfett",
+      "BODY_MASS_INDEX": "Body-Mass-Index (BMI)"
+    },
+    "typeGroups": {
+      "vitals": "Vitalwerte",
+      "bodyComposition": "Körperzusammensetzung"
     },
     "empty": {
       "title": "Noch keine Erinnerungen",

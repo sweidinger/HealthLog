@@ -6478,7 +6478,19 @@
       "BLOOD_GLUCOSE": "Glicemia",
       "OXYGEN_SATURATION": "Saturazione di ossigeno",
       "BODY_FAT": "Grasso corporeo",
-      "BODY_TEMPERATURE": "Temperatura corporea"
+      "BODY_TEMPERATURE": "Temperatura corporea",
+      "FAT_MASS": "Massa grassa",
+      "FAT_FREE_MASS": "Massa magra totale",
+      "MUSCLE_MASS": "Massa muscolare",
+      "LEAN_BODY_MASS": "Massa magra",
+      "BONE_MASS": "Massa ossea",
+      "TOTAL_BODY_WATER": "Acqua corporea",
+      "VISCERAL_FAT": "Grasso viscerale",
+      "BODY_MASS_INDEX": "Indice di massa corporea (IMC)"
+    },
+    "typeGroups": {
+      "vitals": "Parametri vitali",
+      "bodyComposition": "Composizione corporea"
     },
     "empty": {
       "title": "Ancora nessun promemoria",
