@@ -39,7 +39,7 @@ import {
 } from "@/lib/insights/derived";
 import { resolveDeterministicAssessment } from "@/lib/insights/derived/derived-assessment";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
-import { resolveModuleMap } from "@/lib/modules/gate";
+import { requireModuleEnabled, resolveModuleMap } from "@/lib/modules/gate";
 import { DERIVED_MODULE } from "../route";
 
 export const dynamic = "force-dynamic";
@@ -115,6 +115,8 @@ function parseBatchItems(csv: string): {
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
   await requireAssistantSurface("insightStatus");
 
   // Per-user limiter, same posture as the compliance routes: the cold

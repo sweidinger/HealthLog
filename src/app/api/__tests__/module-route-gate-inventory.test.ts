@@ -82,6 +82,14 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   // which gates on the `doctorReport` module directly AND through the
   // `collectDoctorReportData` builder.
   "src/app/api/fhir",
+  // v1.18.0 (B2) — the AI-narrative insights tree. Every status / cards /
+  // correlations / derived / narrative / pregenerate / rhythm-events route
+  // gates on the `insights` module; the Coach sub-tree delegates to the
+  // coach assistant surface; the AI-settings / tile-layout / therapy-timeline
+  // infra-and-config routes are EXEMPT below. Walking the tree means a NEW
+  // ungated insights AI route fails this test BY NAME rather than leaking the
+  // surface over a Bearer token when the account turned insights off.
+  "src/app/api/insights",
 ];
 
 /**
@@ -124,6 +132,37 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   // ── INFRA / UI-ONLY ───────────────────────────────────────────────
   // Static FHIR CapabilityStatement — server metadata, no user data.
   "src/app/api/fhir/metadata/route.ts",
+  // ── INFRA / CONFIG (insights) ─────────────────────────────────────
+  // v1.18.0 (B2) — the insights tree's non-narrative routes. The
+  // `insights` module gates the AI-narrative SURFACES (status cards,
+  // correlations, derived scores, period narrative, the rhythm-event
+  // timeline); these six carry no narrative payload, so gating them would
+  // only break configuration / settings reads while the module is off.
+  //
+  // AI provider + privacy settings and the read-only chain summary — pure
+  // configuration of the assistant, surfaced under Settings → AI, not an
+  // insights surface. Editing the AI config while insights is off must work
+  // (e.g. to set up a provider before re-enabling the module).
+  "src/app/api/insights/settings/route.ts",
+  "src/app/api/insights/provider-chain/route.ts",
+  // Insights tile-order + visibility layout (GET/PUT/DELETE) — the user's
+  // own persisted preference blob, the insights peer of
+  // `/api/dashboard/widgets`. Pure UI configuration, no module data; the
+  // /insights page itself is nav-gated on the module.
+  "src/app/api/insights/layout/route.ts",
+  // Insight feedback write (👍/👎 on a generated card) — a feedback row,
+  // not an insights READ. Harmless while the module is off and never
+  // surfaces module data.
+  "src/app/api/insights/feedback/route.ts",
+  // Target-range reference values (BMI / BP / sleep / steps classifiers +
+  // compliance context) — deterministic threshold config consumed across
+  // surfaces, not an AI-narrative insights read.
+  "src/app/api/insights/targets/route.ts",
+  // GLP-1 therapy-timeline aggregator backing the /insights/medications
+  // component — a MEDICATIONS-domain data merge (dose / injection /
+  // inventory / side-effect events), and medications is a core, always-on
+  // domain with no module gate. It is not an insights-module surface.
+  "src/app/api/insights/glp1-timeline/route.ts",
 ];
 
 const MODULE_GATE_NEEDLE = "requireModuleEnabled(";

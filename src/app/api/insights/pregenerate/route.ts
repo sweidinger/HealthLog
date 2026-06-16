@@ -26,6 +26,7 @@ import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
@@ -38,6 +39,8 @@ const WARM_WINDOW_MS = 3 * 60 * 1000;
 
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
   // Gate on the same surface as the read-only status routes: this warms
   // the assessment cards (the `insightStatus` surface), not the Coach.
   // A user with assessments enabled but Coach disabled can still warm.

@@ -18,6 +18,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 import { readPeriodNarrative } from "@/lib/insights/narrative/period-narrative-generate";
 import { PERIOD_DAYS, type NarrativePeriod } from "@/lib/insights/narrative/period-narrative";
 import { enqueueNarrativeWarm } from "@/lib/jobs/period-narrative-shared";
@@ -39,6 +40,8 @@ function narrowLocale(locale: string): "de" | "en" {
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
   await requireAssistantSurface("insightStatus");
 
   const parsed = narrativeQuerySchema.safeParse({

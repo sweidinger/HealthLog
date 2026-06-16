@@ -62,6 +62,8 @@ const metricQuerySchema = z.object({
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
   await requireAssistantSurface("insightStatus");
 
   const parsed = metricQuerySchema.safeParse({

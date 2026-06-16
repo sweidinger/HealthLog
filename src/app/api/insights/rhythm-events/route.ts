@@ -28,6 +28,7 @@ import { apiSuccess } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { requireModuleEnabled } from "@/lib/modules/gate";
 import { prisma } from "@/lib/db";
 import { EVENT_MEASUREMENT_TYPES } from "@/lib/validations/measurement";
 import type { MeasurementType } from "@/generated/prisma/client";
@@ -42,6 +43,8 @@ const EVENT_TYPE_LIST = Array.from(EVENT_MEASUREMENT_TYPES) as MeasurementType[]
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
+  const m = await requireModuleEnabled(user.id, "insights");
+  if (!m.enabled) return m.response;
   await requireAssistantSurface("insightStatus");
 
   const rows = await prisma.measurement.findMany({
