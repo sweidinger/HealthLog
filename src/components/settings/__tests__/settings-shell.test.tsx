@@ -235,6 +235,19 @@ describe("<SettingsShell>", () => {
     expect(disabled).not.toContain('href="/settings/coach"');
   });
 
+  it("module-gates the Health-record entry off `user.modules.doctorReport` (B3)", () => {
+    // Fail-open default: doctorReport undefined → entry shown.
+    expect(renderShell({ active: "account" })).toContain(
+      'href="/settings/gesundheitsakte"',
+    );
+    // Explicitly disabled → entry hidden.
+    const disabled = renderShell({
+      active: "account",
+      modules: { doctorReport: false },
+    });
+    expect(disabled).not.toContain('href="/settings/gesundheitsakte"');
+  });
+
   it("falls back to `account` when the pathname doesn't match a known slug", () => {
     const html = renderShell({ pathname: "/settings/totally-bogus" });
     const activeLinkRegex =
