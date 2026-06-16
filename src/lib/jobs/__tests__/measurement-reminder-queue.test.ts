@@ -13,8 +13,15 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+// v1.18.1 — the reminder-dispatch wiring (measurement reminder +
+// reminder-satisfy) moved out of the 2143-LOC reminder-worker boot file into
+// the reminders registrar. The dead-queue guard follows the wiring there (the
+// handler module is still concatenated for the handler-symbol assertions).
 const source =
-  readFileSync(join(__dirname, "..", "reminder-worker.ts"), "utf8") +
+  readFileSync(
+    join(__dirname, "..", "reminder", "register-reminders.ts"),
+    "utf8",
+  ) +
   readFileSync(
     join(__dirname, "..", "reminder", "mood-cycle-checks.ts"),
     "utf8",

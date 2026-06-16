@@ -14,10 +14,19 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
+// v1.18.1 — the queue wiring moved out of the 2143-LOC reminder-worker boot
+// file into domain registrars; the Withings queues live in the integration-sync
+// registrar. The dead-queue guard follows the wiring there (the handler module
+// is still concatenated for the import-routine assertions below).
+const REGISTRAR_PATH = join(
+  __dirname,
+  "..",
+  "reminder",
+  "register-integration-sync.ts",
+);
 
 const source =
-  readFileSync(REMINDER_WORKER_PATH, "utf8") +
+  readFileSync(REGISTRAR_PATH, "utf8") +
   readFileSync(join(__dirname, "..", "reminder", "withings-sync.ts"), "utf8");
 
 describe("reminder-worker — Withings activity + sleep v2 queues", () => {

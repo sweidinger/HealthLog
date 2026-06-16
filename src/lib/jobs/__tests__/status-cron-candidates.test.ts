@@ -175,8 +175,11 @@ describe("findStatusCronCandidates — gates", () => {
 });
 
 describe("mood-status queue registration (dead-queue guard)", () => {
+  // v1.18.1 — the nightly status-ladder wiring moved out of the 2143-LOC
+  // reminder-worker boot file into the status registrar. The dead-queue guard
+  // follows the wiring there.
   const workerSrc = fs.readFileSync(
-    path.resolve(__dirname, "../reminder-worker.ts"),
+    path.resolve(__dirname, "../reminder/register-status.ts"),
     "utf8",
   );
 

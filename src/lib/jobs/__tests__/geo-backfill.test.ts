@@ -242,8 +242,10 @@ describe("geo-backfill scheduling contract (v1.4.37)", () => {
     // shape end-to-end.
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
+    // v1.18.1 — the geo-backfill wiring moved out of the 2143-LOC
+    // reminder-worker boot file into the maintenance registrar.
     const workerSrc = await fs.readFile(
-      path.resolve(__dirname, "..", "reminder-worker.ts"),
+      path.resolve(__dirname, "..", "reminder", "register-maintenance.ts"),
       "utf-8",
     );
     const handlerSrc = await fs.readFile(
