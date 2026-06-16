@@ -49,6 +49,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
+import { useAuth } from "@/hooks/use-auth";
+import { WIDGET_MODULE_BY_ID } from "@/lib/dashboard/snapshot";
 
 /**
  * v1.4.47 W4 — pure reorder helper shared by the arrow buttons and the
@@ -149,6 +151,14 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
 export function DashboardLayoutSection({ id }: { id: string }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  // v1.18.0 — a widget toggle whose owning module is disabled is a dead
+  // control (the snapshot gates the tile/chart out server-side regardless
+  // of the switch). Read the resolved module map and hide those rows.
+  // Fail-open: a missing map / absent key (stale /me payload, core widget)
+  // reads as enabled, so the row always shows unless the module is
+  // explicitly `false`.
+  const { user } = useAuth();
+  const modules = user?.modules;
   // v1.4.47 W4 — stable id namespace for the drag-handle `aria-describedby`
   // tooltip. One hint paragraph is rendered once at the bottom of the list
   // and referenced by every drag handle in this section.
@@ -471,6 +481,14 @@ export function DashboardLayoutSection({ id }: { id: string }) {
               .filter((w): w is typeof w & { id: DashboardWidgetId } =>
                 webWidgetIds.has(w.id),
               )
+              // v1.18.0 — hide a widget toggle whose owning module is
+              // disabled. Map the widget id → ModuleKey FIRST (undefined =
+              // core widget = always shown), THEN check the module map.
+              // Fail-open: only an explicit `false` hides the row.
+              .filter((w) => {
+                const moduleKey = WIDGET_MODULE_BY_ID[w.id];
+                return !moduleKey || modules?.[moduleKey] !== false;
+              })
               .sort((a, b) => a.order - b.order);
             const sortedIds = sortedWidgets.map((w) => w.id);
             return (
