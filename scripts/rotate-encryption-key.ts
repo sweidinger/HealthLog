@@ -5,6 +5,15 @@
  * active key (`ENCRYPTION_ACTIVE_KEY_ID`). Idempotent: rows whose ciphertext
  * already carries the active key id prefix are skipped.
  *
+ * The set of columns this script rotates is the canonical registry in
+ * `src/lib/crypto/encrypted-columns.ts`. The guard test
+ * `src/lib/crypto/__tests__/encrypted-columns.test.ts` fails CI if any
+ * encrypted column in `prisma/schema.prisma` is missing from the registry,
+ * or if any registry column is not referenced here — so a new `*Encrypted`
+ * column can never silently skip rotation (which would make those rows
+ * permanently undecryptable once the legacy key is dropped, since decrypt is
+ * fail-closed).
+ *
  * Usage:
  *   ENCRYPTION_KEYS='{"v1":"<old>","v2":"<new>"}' \
  *   ENCRYPTION_ACTIVE_KEY_ID=v2 \
@@ -50,13 +59,25 @@ function shouldRotate(value: string | null): boolean {
   return id !== getActiveKeyId();
 }
 
-async function rotateField<T extends { id: string }>(
+/**
+ * Rotate one `String` ciphertext column on a Prisma model. `delegate` is the
+ * `prisma.<model>` accessor; `field` is the column. Reads only `id` + the
+ * column, re-encrypts every row not already on the active key.
+ */
+async function rotateStringColumn(
   table: string,
   field: string,
-  rows: T[],
-  fieldGetter: (row: T) => string | null,
-  updater: (id: string, ciphertext: string) => Promise<void>,
+  delegate: {
+    findMany: (args: {
+      select: Record<string, true>;
+    }) => Promise<Array<Record<string, unknown>>>;
+    update: (args: {
+      where: { id: string };
+      data: Record<string, string>;
+    }) => Promise<unknown>;
+  },
 ): Promise<RotationResult> {
+  const rows = await delegate.findMany({ select: { id: true, [field]: true } });
   const result: RotationResult = {
     table,
     field,
@@ -65,17 +86,63 @@ async function rotateField<T extends { id: string }>(
     errors: 0,
   };
   for (const row of rows) {
-    const v = fieldGetter(row);
+    const v = row[field] as string | null;
     if (!shouldRotate(v)) continue;
+    const id = row.id as string;
     try {
       const re = encrypt(decrypt(v as string));
-      await updater(row.id, re);
+      await delegate.update({ where: { id }, data: { [field]: re } });
       result.rotated++;
     } catch (err) {
       result.errors++;
-      console.error(
-        `[${table}.${field}] row ${row.id}: ${(err as Error).message}`,
-      );
+      console.error(`[${table}.${field}] row ${id}: ${(err as Error).message}`);
+    }
+  }
+  return result;
+}
+
+/**
+ * Rotate one `Bytes` ciphertext column. The encrypt/decrypt helpers operate
+ * on strings, so we go through a UTF-8 Buffer round-trip identical to the
+ * persistence layer (`src/lib/ai/coach/persistence.ts:60-71`).
+ */
+async function rotateBytesColumn(
+  table: string,
+  field: string,
+  delegate: {
+    findMany: (args: {
+      select: Record<string, true>;
+    }) => Promise<Array<Record<string, unknown>>>;
+    update: (args: {
+      where: { id: string };
+      data: Record<string, Uint8Array>;
+    }) => Promise<unknown>;
+  },
+): Promise<RotationResult> {
+  const rows = await delegate.findMany({ select: { id: true, [field]: true } });
+  const result: RotationResult = {
+    table,
+    field,
+    scanned: rows.length,
+    rotated: 0,
+    errors: 0,
+  };
+  for (const row of rows) {
+    const buf = row[field] as Uint8Array | null;
+    if (!buf || buf.byteLength === 0) continue;
+    const asString = Buffer.from(buf).toString("utf8");
+    if (!shouldRotate(asString)) continue;
+    const id = row.id as string;
+    try {
+      const rotated = encrypt(decrypt(asString));
+      const encoded = Buffer.from(rotated, "utf8");
+      const next = new Uint8Array(new ArrayBuffer(encoded.byteLength));
+      next.set(encoded);
+      await delegate.update({ where: { id }, data: { [field]: next } });
+      result.rotated++;
+    } catch (err) {
+      result.errors++;
+      console.error(`[${table}.${field}] row ${id}: ${(err as Error).message}`);
     }
   }
   return result;
@@ -85,36 +152,24 @@ async function main() {
   console.log(`Rotating encrypted rows to active key id: ${targetKeyId}`);
   const results: RotationResult[] = [];
 
-  // ───── User table ─────
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      codexAccessTokenEncrypted: true,
-      codexRefreshTokenEncrypted: true,
-      aiAnthropicKeyEncrypted: true,
-      aiLocalKeyEncrypted: true,
-      aiOpenaiKeyEncrypted: true,
-      moodLogWebhookSecret: true,
-      telegramBotToken: true,
-      moodLogUrlEncrypted: true,
-      moodLogApiKeyEncrypted: true,
-      withingsClientIdEncrypted: true,
-      withingsClientSecretEncrypted: true,
-      whoopClientIdEncrypted: true,
-      whoopClientSecretEncrypted: true,
-      fitbitClientIdEncrypted: true,
-      fitbitClientSecretEncrypted: true,
-    },
-  });
-
-  const userFields: Array<keyof (typeof users)[number]> = [
+  // ───── User — integration credentials + AI keys + KVNR (String) ─────
+  // Columns: "codexAccessTokenEncrypted" "codexRefreshTokenEncrypted"
+  // "telegramBotToken" "moodLogWebhookSecret" "moodLogUrlEncrypted"
+  // "moodLogApiKeyEncrypted" "withingsClientIdEncrypted"
+  // "withingsClientSecretEncrypted" "whoopClientIdEncrypted"
+  // "whoopClientSecretEncrypted" "fitbitClientIdEncrypted"
+  // "fitbitClientSecretEncrypted" "nightscoutUrlEncrypted"
+  // "nightscoutTokenEncrypted" "polarAccessTokenEncrypted"
+  // "polarUserIdEncrypted" "polarClientIdEncrypted"
+  // "polarClientSecretEncrypted" "ouraAccessTokenEncrypted"
+  // "ouraRefreshTokenEncrypted" "ouraClientIdEncrypted"
+  // "ouraClientSecretEncrypted" "aiAnthropicKeyEncrypted"
+  // "aiLocalKeyEncrypted" "aiOpenaiKeyEncrypted" "insuranceNumberEncrypted"
+  const userFields = [
     "codexAccessTokenEncrypted",
     "codexRefreshTokenEncrypted",
-    "aiAnthropicKeyEncrypted",
-    "aiLocalKeyEncrypted",
-    "aiOpenaiKeyEncrypted",
-    "moodLogWebhookSecret",
     "telegramBotToken",
+    "moodLogWebhookSecret",
     "moodLogUrlEncrypted",
     "moodLogApiKeyEncrypted",
     "withingsClientIdEncrypted",
@@ -123,338 +178,197 @@ async function main() {
     "whoopClientSecretEncrypted",
     "fitbitClientIdEncrypted",
     "fitbitClientSecretEncrypted",
+    "nightscoutUrlEncrypted",
+    "nightscoutTokenEncrypted",
+    "polarAccessTokenEncrypted",
+    "polarUserIdEncrypted",
+    "polarClientIdEncrypted",
+    "polarClientSecretEncrypted",
+    "ouraAccessTokenEncrypted",
+    "ouraRefreshTokenEncrypted",
+    "ouraClientIdEncrypted",
+    "ouraClientSecretEncrypted",
+    "aiAnthropicKeyEncrypted",
+    "aiLocalKeyEncrypted",
+    "aiOpenaiKeyEncrypted",
+    "insuranceNumberEncrypted",
   ];
   for (const field of userFields) {
-    const r = await rotateField(
-      "User",
-      field as string,
-      users,
-      (u) => (u as Record<string, unknown>)[field as string] as string | null,
-      async (id, ciphertext) => {
-        await prisma.user.update({
-          where: { id },
-          data: { [field]: ciphertext } as Record<string, string>,
-        });
-      },
-    );
-    results.push(r);
+    results.push(await rotateStringColumn("User", field, prisma.user));
   }
 
-  // ───── WithingsConnection table (accessToken / refreshToken) ─────
-  const withings = await prisma.withingsConnection.findMany({
-    select: { id: true, accessToken: true, refreshToken: true },
-  });
-  for (const field of ["accessToken", "refreshToken"] as const) {
-    const r = await rotateField(
-      "WithingsConnection",
-      field,
-      withings,
-      (w) => w[field],
-      async (id, ciphertext) => {
-        await prisma.withingsConnection.update({
-          where: { id },
-          data: { [field]: ciphertext } as Record<string, string>,
-        });
-      },
-    );
-    results.push(r);
-  }
-
-  // ───── WhoopConnection table (accessToken / refreshToken) ─────
-  const whoop = await prisma.whoopConnection.findMany({
-    select: { id: true, accessToken: true, refreshToken: true },
-  });
-  for (const field of ["accessToken", "refreshToken"] as const) {
-    const r = await rotateField(
-      "WhoopConnection",
-      field,
-      whoop,
-      (w) => w[field],
-      async (id, ciphertext) => {
-        await prisma.whoopConnection.update({
-          where: { id },
-          data: { [field]: ciphertext } as Record<string, string>,
-        });
-      },
-    );
-    results.push(r);
-  }
-
-  // ───── FitbitConnection table (accessToken / refreshToken) ─────
-  const fitbit = await prisma.fitbitConnection.findMany({
-    select: { id: true, accessToken: true, refreshToken: true },
-  });
-  for (const field of ["accessToken", "refreshToken"] as const) {
-    const r = await rotateField(
-      "FitbitConnection",
-      field,
-      fitbit,
-      (f) => f[field],
-      async (id, ciphertext) => {
-        await prisma.fitbitConnection.update({
-          where: { id },
-          data: { [field]: ciphertext } as Record<string, string>,
-        });
-      },
-    );
-    results.push(r);
-  }
-
-  // ───── AppSettings table (singleton typically) ─────
-  const settings = await prisma.appSettings.findMany({
-    select: {
-      id: true,
-      adminAiKeyEncrypted: true,
-      webPushVapidPrivateKeyEncrypted: true,
-      githubIssueTokenEncrypted: true,
-    },
-  });
-  const appFields = [
-    "adminAiKeyEncrypted",
-    "webPushVapidPrivateKeyEncrypted",
-    "githubIssueTokenEncrypted",
-  ] as const;
-  for (const field of appFields) {
-    const r = await rotateField(
-      "AppSettings",
-      field,
-      settings,
-      (s) => s[field],
-      async (id, ciphertext) => {
-        await prisma.appSettings.update({
-          where: { id },
-          data: { [field]: ciphertext } as Record<string, string>,
-        });
-      },
-    );
-    results.push(r);
-  }
-
-  // ───── MoodTag.labelEncrypted ─────
-  // v1.13.0 — AES-256-GCM ciphertext of a custom mood tag's free-text
-  // label (catalogue rows carry NULL and are skipped by `shouldRotate`).
-  const moodTags = await prisma.moodTag.findMany({
-    where: { labelEncrypted: { not: null } },
-    select: { id: true, labelEncrypted: true },
-  });
-  results.push(
-    await rotateField(
-      "MoodTag",
-      "labelEncrypted",
-      moodTags,
-      (t) => t.labelEncrypted,
-      async (id, ciphertext) => {
-        await prisma.moodTag.update({
-          where: { id },
-          data: { labelEncrypted: ciphertext },
-        });
-      },
-    ),
-  );
-
-  // ───── MoodTagCategory.labelEncrypted ─────
-  // v1.17.0 — AES-256-GCM ciphertext of a custom mood-tag group's
-  // free-text label (seeded rows carry NULL and are skipped).
-  const moodTagCategories = await prisma.moodTagCategory.findMany({
-    where: { labelEncrypted: { not: null } },
-    select: { id: true, labelEncrypted: true },
-  });
-  results.push(
-    await rotateField(
-      "MoodTagCategory",
-      "labelEncrypted",
-      moodTagCategories,
-      (c) => c.labelEncrypted,
-      async (id, ciphertext) => {
-        await prisma.moodTagCategory.update({
-          where: { id },
-          data: { labelEncrypted: ciphertext },
-        });
-      },
-    ),
-  );
-
-  // ───── NotificationChannel.config ─────
-  // Channel config (Telegram chat id, ntfy topic, etc.) is encrypted JSON.
-  // Skipping these on rotation would leave channels permanently undecryptable
-  // once the operator drops `v1` from the key map.
-  const channels = await prisma.notificationChannel.findMany({
-    select: { id: true, config: true },
-  });
-  results.push(
-    await rotateField(
-      "NotificationChannel",
-      "config",
-      channels,
-      (c) => c.config,
-      async (id, ciphertext) => {
-        await prisma.notificationChannel.update({
-          where: { id },
-          data: { config: ciphertext },
-        });
-      },
-    ),
-  );
-
-  // ───── PushSubscription.{p256dh, auth} ─────
-  // Web-push routing secrets — without these, the push endpoint is reachable
-  // but the browser ignores the message (auth tag mismatch).
-  const subs = await prisma.pushSubscription.findMany({
-    select: { id: true, p256dh: true, auth: true },
-  });
-  for (const field of ["p256dh", "auth"] as const) {
+  // ───── OAuth token tables (String "accessToken" / "refreshToken") ─────
+  for (const field of ["accessToken", "refreshToken"]) {
     results.push(
-      await rotateField(
-        "PushSubscription",
+      await rotateStringColumn(
+        "WithingsConnection",
         field,
-        subs,
-        (s) => s[field],
-        async (id, ciphertext) => {
-          await prisma.pushSubscription.update({
-            where: { id },
-            data: { [field]: ciphertext } as Record<string, string>,
-          });
-        },
+        prisma.withingsConnection,
+      ),
+    );
+    results.push(
+      await rotateStringColumn("WhoopConnection", field, prisma.whoopConnection),
+    );
+    results.push(
+      await rotateStringColumn(
+        "FitbitConnection",
+        field,
+        prisma.fitbitConnection,
       ),
     );
   }
 
-  // ───── IntegrationStatus.lastError ─────
-  // Per `prisma/schema.prisma:1441` — AES-256-GCM ciphertext of an
-  // upstream error payload. Skipped historically; drop the legacy
-  // key while a row still lives here and the admin status view 500s.
-  const statuses = await prisma.integrationStatus.findMany({
-    select: { id: true, lastError: true },
-  });
+  // ───── AppSettings — operator credentials (String) ─────
+  // Columns: "adminAiKeyEncrypted" "webPushVapidPrivateKeyEncrypted"
+  // "githubIssueTokenEncrypted"
+  for (const field of [
+    "adminAiKeyEncrypted",
+    "webPushVapidPrivateKeyEncrypted",
+    "githubIssueTokenEncrypted",
+  ]) {
+    results.push(
+      await rotateStringColumn("AppSettings", field, prisma.appSettings),
+    );
+  }
+
+  // ───── Custom labels — mood + cycle (String "labelEncrypted") ─────
+  // Catalogue rows carry NULL and are skipped by `shouldRotate`.
   results.push(
-    await rotateField(
-      "IntegrationStatus",
-      "lastError",
-      statuses,
-      (s) => s.lastError,
-      async (id, ciphertext) => {
-        await prisma.integrationStatus.update({
-          where: { id },
-          data: { lastError: ciphertext },
-        });
-      },
+    await rotateStringColumn("MoodTag", "labelEncrypted", prisma.moodTag),
+  );
+  results.push(
+    await rotateStringColumn(
+      "MoodTagCategory",
+      "labelEncrypted",
+      prisma.moodTagCategory,
+    ),
+  );
+  results.push(
+    await rotateStringColumn(
+      "CycleSymptom",
+      "labelEncrypted",
+      prisma.cycleSymptom,
     ),
   );
 
-  // ───── CoachMessage.encryptedContent ─────
-  // Per `prisma/schema.prisma:1983` — `Bytes` column carrying the
-  // UTF-8 ciphertext of every persisted Coach message. The encrypt /
-  // decrypt helpers operate on strings, so we go through a Buffer
-  // round-trip identical to `src/lib/ai/coach/persistence.ts:60-71`.
-  const coachMessages = await prisma.coachMessage.findMany({
-    select: { id: true, encryptedContent: true },
-  });
-  const coachResult: RotationResult = {
-    table: "CoachMessage",
-    field: "encryptedContent",
-    scanned: coachMessages.length,
-    rotated: 0,
-    errors: 0,
-  };
-  for (const row of coachMessages) {
-    const buf = row.encryptedContent;
-    if (!buf || buf.byteLength === 0) continue;
-    const asString = Buffer.from(buf).toString("utf8");
-    if (!shouldRotate(asString)) continue;
-    try {
-      const rotated = encrypt(decrypt(asString));
-      const encoded = Buffer.from(rotated, "utf8");
-      const next = new Uint8Array(new ArrayBuffer(encoded.byteLength));
-      next.set(encoded);
-      await prisma.coachMessage.update({
-        where: { id: row.id },
-        data: { encryptedContent: next },
-      });
-      coachResult.rotated++;
-    } catch (err) {
-      coachResult.errors++;
-      console.error(
-        `[CoachMessage.encryptedContent] row ${row.id}: ${(err as Error).message}`,
-      );
-    }
-  }
-  results.push(coachResult);
+  // ───── NotificationChannel."config" (encrypted JSON) ─────
+  // Channel config (Telegram chat id, ntfy topic, etc.). Skipping these on
+  // rotation would leave channels permanently undecryptable once the
+  // operator drops `v1` from the key map.
+  results.push(
+    await rotateStringColumn(
+      "NotificationChannel",
+      "config",
+      prisma.notificationChannel,
+    ),
+  );
 
-  // ───── CoachConversation.summaryEncrypted ─────
-  // v1.11.1 — `Bytes` column carrying the UTF-8 ciphertext of the rolling
-  // conversation summary. Same Buffer round-trip as CoachMessage; nullable, so
-  // skip empty/absent rows.
-  const coachConversations = await prisma.coachConversation.findMany({
-    where: { summaryEncrypted: { not: null } },
-    select: { id: true, summaryEncrypted: true },
-  });
-  const summaryResult: RotationResult = {
-    table: "CoachConversation",
-    field: "summaryEncrypted",
-    scanned: coachConversations.length,
-    rotated: 0,
-    errors: 0,
-  };
-  for (const row of coachConversations) {
-    const buf = row.summaryEncrypted;
-    if (!buf || buf.byteLength === 0) continue;
-    const asString = Buffer.from(buf).toString("utf8");
-    if (!shouldRotate(asString)) continue;
-    try {
-      const rotated = encrypt(decrypt(asString));
-      const encoded = Buffer.from(rotated, "utf8");
-      const next = new Uint8Array(new ArrayBuffer(encoded.byteLength));
-      next.set(encoded);
-      await prisma.coachConversation.update({
-        where: { id: row.id },
-        data: { summaryEncrypted: next },
-      });
-      summaryResult.rotated++;
-    } catch (err) {
-      summaryResult.errors++;
-      console.error(
-        `[CoachConversation.summaryEncrypted] row ${row.id}: ${(err as Error).message}`,
-      );
-    }
+  // ───── PushSubscription."p256dh" / "auth" ─────
+  // Web-push routing secrets — without these, the push endpoint is reachable
+  // but the browser ignores the message (auth tag mismatch).
+  for (const field of ["p256dh", "auth"]) {
+    results.push(
+      await rotateStringColumn(
+        "PushSubscription",
+        field,
+        prisma.pushSubscription,
+      ),
+    );
   }
-  results.push(summaryResult);
 
-  // ───── CoachFact.factEncrypted ─────
-  // v1.11.1 — `Bytes` column carrying the UTF-8 ciphertext of each durable
-  // personal fact. Same Buffer round-trip as CoachMessage.
-  const coachFacts = await prisma.coachFact.findMany({
-    select: { id: true, factEncrypted: true },
-  });
-  const factResult: RotationResult = {
-    table: "CoachFact",
-    field: "factEncrypted",
-    scanned: coachFacts.length,
-    rotated: 0,
-    errors: 0,
-  };
-  for (const row of coachFacts) {
-    const buf = row.factEncrypted;
-    if (!buf || buf.byteLength === 0) continue;
-    const asString = Buffer.from(buf).toString("utf8");
-    if (!shouldRotate(asString)) continue;
-    try {
-      const rotated = encrypt(decrypt(asString));
-      const encoded = Buffer.from(rotated, "utf8");
-      const next = new Uint8Array(new ArrayBuffer(encoded.byteLength));
-      next.set(encoded);
-      await prisma.coachFact.update({
-        where: { id: row.id },
-        data: { factEncrypted: next },
-      });
-      factResult.rotated++;
-    } catch (err) {
-      factResult.errors++;
-      console.error(
-        `[CoachFact.factEncrypted] row ${row.id}: ${(err as Error).message}`,
-      );
-    }
+  // ───── IntegrationStatus."lastError" ─────
+  // AES-256-GCM ciphertext of an upstream error payload. Drop the legacy key
+  // while a row still lives here and the admin status view 500s.
+  results.push(
+    await rotateStringColumn(
+      "IntegrationStatus",
+      "lastError",
+      prisma.integrationStatus,
+    ),
+  );
+
+  // ───── CycleDayLog — "sensitiveEncrypted" / "notesEncrypted" (String) ─────
+  for (const field of ["sensitiveEncrypted", "notesEncrypted"]) {
+    results.push(
+      await rotateStringColumn("CycleDayLog", field, prisma.cycleDayLog),
+    );
   }
-  results.push(factResult);
+
+  // ───── Coach (Bytes columns) ─────
+  // "encryptedContent" "summaryEncrypted" "factEncrypted"
+  results.push(
+    await rotateBytesColumn(
+      "CoachMessage",
+      "encryptedContent",
+      prisma.coachMessage,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "CoachConversation",
+      "summaryEncrypted",
+      prisma.coachConversation,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn("CoachFact", "factEncrypted", prisma.coachFact),
+  );
+
+  // ───── UserHealthProfile (Bytes columns) ─────
+  // "aboutMeEncrypted" "conditionsEncrypted" "allergiesEncrypted"
+  // "coachFocusEncrypted" "pendingQuestionsEncrypted"
+  for (const field of [
+    "aboutMeEncrypted",
+    "conditionsEncrypted",
+    "allergiesEncrypted",
+    "coachFocusEncrypted",
+    "pendingQuestionsEncrypted",
+  ]) {
+    results.push(
+      await rotateBytesColumn(
+        "UserHealthProfile",
+        field,
+        prisma.userHealthProfile,
+      ),
+    );
+  }
+
+  // ───── InsightNarrative."encryptedContent" (Bytes) ─────
+  results.push(
+    await rotateBytesColumn(
+      "InsightNarrative",
+      "encryptedContent",
+      prisma.insightNarrative,
+    ),
+  );
+
+  // ───── v1.18.1 clinical-spine notes (Bytes columns) ─────
+  // "noteEncrypted" (LabResult / IllnessEpisode / IllnessDayLog) +
+  // "contextEncrypted" (Biomarker). Mirror the CoachFact.factEncrypted block.
+  results.push(
+    await rotateBytesColumn("LabResult", "noteEncrypted", prisma.labResult),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "Biomarker",
+      "contextEncrypted",
+      prisma.biomarker,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "IllnessEpisode",
+      "noteEncrypted",
+      prisma.illnessEpisode,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "IllnessDayLog",
+      "noteEncrypted",
+      prisma.illnessDayLog,
+    ),
+  );
 
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
