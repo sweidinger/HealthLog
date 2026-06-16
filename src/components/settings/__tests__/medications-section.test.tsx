@@ -83,7 +83,9 @@ describe("<MedicationsSection> — SSR smoke", () => {
   it("renders the section heading + description via i18n (no raw keys)", () => {
     const html = render();
     expect(html).toContain("settings-section-medications-title");
-    expect(html).toContain("List view and medication order.");
+    expect(html).toContain(
+      "List view, order, and injection sites for your medications.",
+    );
     expect(html).not.toContain("settings.sections.");
     expect(html).not.toContain("medications.view");
     expect(html).not.toContain("medications.reorder");
@@ -91,7 +93,9 @@ describe("<MedicationsSection> — SSR smoke", () => {
 
   it("renders the German copy end-to-end", () => {
     const html = render("de");
-    expect(html).toContain("Listenansicht und Reihenfolge der Medikamente.");
+    expect(html).toContain(
+      "Listenansicht, Reihenfolge und Injektionsstellen deiner Medikamente.",
+    );
     expect(html).toContain("Reihenfolge anpassen");
     expect(html).toContain(
       "Wähle, ob deine Medikamente als Karten oder als Tabelle angezeigt werden.",
