@@ -3638,6 +3638,15 @@
         "title": "Puntuación de recuperación",
         "subtitle": "Mira cómo se descompone la puntuación nocturna",
         "cta": "Ver"
+      },
+      "block": {
+        "ansChargeExplainer": "Cuán cargado está tu sistema nervioso autónomo para el día — una lectura de recarga obtenida de tus señales nocturnas de corazón y respiración.",
+        "dayStrainExplainer": "La carga cardiovascular del día en la escala de esfuerzo de tu dispositivo. Léela en relación con tu recuperación, no como una meta en sí.",
+        "workoutStrainExplainer": "Cuán exigente fue un entrenamiento en la misma escala de esfuerzo — el coste cardiovascular de esa sesión.",
+        "cardioLoadExplainer": "Una aproximación de la carga de entrenamiento que sigue la carga cardiovascular acumulada. Compárala con tus propios días recientes.",
+        "averageHeartRateExplainer": "Tu frecuencia cardíaca media a lo largo de todo el día o ciclo, según informa tu wearable.",
+        "maxHeartRateExplainer": "Tu frecuencia cardíaca máxima a lo largo de todo el día o ciclo, según informa tu wearable.",
+        "energyExpenditureKjExplainer": "La energía que tu cuerpo gastó durante el día, en kilojulios, tal como tu dispositivo la informa de forma nativa."
       }
     },
     "bodyTempDeviation": {

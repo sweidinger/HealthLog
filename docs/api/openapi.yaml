@@ -4927,6 +4927,13 @@ paths:
               - STAIR_ASCENT_SPEED
               - STAIR_DESCENT_SPEED
               - BREATHING_DISTURBANCES
+              - ANS_CHARGE
+              - DAY_STRAIN
+              - WORKOUT_STRAIN
+              - CARDIO_LOAD
+              - AVERAGE_HEART_RATE
+              - MAX_HEART_RATE
+              - ENERGY_EXPENDITURE_KJ
             description: "HealthKit metric id to assess (e.g. RESTING_HEART_RATE, SLEEP_DURATION). Closed enum: an unknown id 422s.
               The seven specialised metrics are served by their own routes and are not accepted here."
           required: true

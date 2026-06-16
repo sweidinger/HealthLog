@@ -51,6 +51,15 @@ const METRIC_MODULE: Partial<Record<MetricStatusMetricId, ModuleKey>> = {
   BREATHING_DISTURBANCES: "sleep",
   BLOOD_GLUCOSE: "glucose",
   CARDIO_RECOVERY: "recovery",
+  // v1.18.1 — device-native recovery / strain signals gate on the
+  // recovery module like CARDIO_RECOVERY.
+  ANS_CHARGE: "recovery",
+  DAY_STRAIN: "recovery",
+  WORKOUT_STRAIN: "recovery",
+  CARDIO_LOAD: "recovery",
+  AVERAGE_HEART_RATE: "recovery",
+  MAX_HEART_RATE: "recovery",
+  ENERGY_EXPENDITURE_KJ: "recovery",
 };
 
 // Closed enum derived from the registry so the route + registry cannot

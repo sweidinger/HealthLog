@@ -14,11 +14,16 @@ import { RecoverySection } from "@/components/insights/recovery/recovery-section
  * that were stored end-to-end but had no page: day strain, workout strain, ANS
  * charge, cardio load, and the day's whole-cycle average / max heart rate and
  * kilojoule energy expenditure. The composite RECOVERY_SCORE keeps its anatomy
- * detail at `/insights/scores/recovery`; this page cross-links to it and
- * surrounds it with the raw signals it never surfaced.
+ * detail at `/insights/scores/recovery`.
+ *
+ * v1.18.1 (B1–B3) — the page now follows the canonical per-metric structure:
+ * each present signal renders a block carrying a short explainer, the
+ * max / median / mean stat strip, the same chart with the 7 / 30 / 90 / All
+ * toggle, and a per-chart assessment. The redundant top "Recovery score"
+ * cross-link is removed (reached from the overview already).
  *
  * Every block is data-gated inside `<RecoverySection>`, so an account without a
- * strap / ring sees only the calm empty note. Server-authoritative: the tiles
+ * strap / ring sees only the calm empty note. Server-authoritative: the charts
  * render stored values, never a recompute.
  */
 export default function InsightsRecoveryPage() {

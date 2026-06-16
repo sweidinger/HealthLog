@@ -266,6 +266,15 @@ export const CHART_OVERLAY_KEYS = [
   "stairAscentSpeed",
   "stairDescentSpeed",
   "breathingDisturbances",
+  // v1.18.1 — chart-overlay slots for the rebuilt `/insights/recovery`
+  // page's device-native signal charts. One per chart surface.
+  "ansCharge",
+  "dayStrain",
+  "workoutStrain",
+  "cardioLoad",
+  "averageHeartRate",
+  "maxHeartRate",
+  "energyExpenditureKj",
 ] as const;
 export type ChartOverlayKey = (typeof CHART_OVERLAY_KEYS)[number];
 

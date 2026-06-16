@@ -3638,6 +3638,15 @@
         "title": "Recovery score",
         "subtitle": "See how the nightly score breaks down",
         "cta": "View"
+      },
+      "block": {
+        "ansChargeExplainer": "How charged your autonomic nervous system is for the day ahead — a recharge reading drawn from your overnight heart and breathing signals.",
+        "dayStrainExplainer": "The day's whole-body cardiovascular load on your device's strain scale. Read it against your recovery, not as a goal on its own.",
+        "workoutStrainExplainer": "How demanding a single workout was on the same strain scale — the cardiovascular cost of that session.",
+        "cardioLoadExplainer": "A training-load proxy that tracks the acute cardiovascular load you have built up. Compare it with your own recent days.",
+        "averageHeartRateExplainer": "Your average heart rate across the whole day or cycle, as reported by your wearable.",
+        "maxHeartRateExplainer": "Your peak heart rate across the whole day or cycle, as reported by your wearable.",
+        "energyExpenditureKjExplainer": "The energy your body expended over the day, in kilojoules, as your device reports it natively."
       }
     },
     "bodyTempDeviation": {

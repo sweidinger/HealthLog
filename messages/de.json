@@ -3638,6 +3638,15 @@
         "title": "Erholungs-Score",
         "subtitle": "Sieh dir an, wie sich der nächtliche Score zusammensetzt",
         "cta": "Ansehen"
+      },
+      "block": {
+        "ansChargeExplainer": "Wie aufgeladen dein autonomes Nervensystem in den Tag startet – ein Recharge-Wert aus deinen nächtlichen Herz- und Atemsignalen.",
+        "dayStrainExplainer": "Die kardiovaskuläre Tagesbelastung auf der Belastungsskala deines Geräts. Lies sie im Verhältnis zu deiner Erholung, nicht als Ziel für sich.",
+        "workoutStrainExplainer": "Wie fordernd ein einzelnes Training auf derselben Belastungsskala war – die kardiovaskuläre Last dieser Einheit.",
+        "cardioLoadExplainer": "Ein Trainingslast-Näherungswert, der die akut aufgebaute kardiovaskuläre Belastung abbildet. Vergleiche ihn mit deinen eigenen letzten Tagen.",
+        "averageHeartRateExplainer": "Deine durchschnittliche Herzfrequenz über den ganzen Tag bzw. Zyklus, wie dein Wearable sie meldet.",
+        "maxHeartRateExplainer": "Deine höchste Herzfrequenz über den ganzen Tag bzw. Zyklus, wie dein Wearable sie meldet.",
+        "energyExpenditureKjExplainer": "Die Energie, die dein Körper über den Tag verbraucht hat, in Kilojoule, wie dein Gerät sie nativ meldet."
       }
     },
     "bodyTempDeviation": {
