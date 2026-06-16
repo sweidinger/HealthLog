@@ -159,20 +159,29 @@ export function CycleView() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
         {/* Wheel + compact phase card — grouped so they stick together. */}
         <div className="flex flex-col gap-4 lg:sticky lg:top-6">
-          {/* Wheel — the signature ring on the premium wellness-tile surface. */}
+          {/* Wheel — the signature ring on the premium wellness-tile surface.
+              `data-revealed` must sit on an ANCESTOR of `.wellness-tile-rise`
+              — the keyframe selector is `[data-revealed="true"]
+              .wellness-tile-rise` (descendant combinator). Both on the same
+              node never matched, leaving the tile stuck at the rise rule's
+              `opacity: 0` (invisible but still boxed). The `contents` wrapper
+              carries the flag without adding a layout box. */}
           <div
-            data-slot="cycle-wheel-tile"
             data-revealed={play ? "true" : undefined}
-            style={
-              tileHue
-                ? ({ "--tile-hue": tileHue } as React.CSSProperties)
-                : undefined
-            }
-            className={cn(
-              "wellness-tile flex flex-col items-center gap-3 rounded-xl px-6 py-6",
-              play && "wellness-tile-rise",
-            )}
+            className="contents"
           >
+            <div
+              data-slot="cycle-wheel-tile"
+              style={
+                tileHue
+                  ? ({ "--tile-hue": tileHue } as React.CSSProperties)
+                  : undefined
+              }
+              className={cn(
+                "wellness-tile flex flex-col items-center gap-3 rounded-xl px-6 py-6",
+                play && "wellness-tile-rise",
+              )}
+            >
             {loading ? (
               <div className="flex h-[220px] items-center justify-center">
                 <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
@@ -216,6 +225,7 @@ export function CycleView() {
                 {t("cycle.ring.firstPeriodCta")}
               </Button>
             ) : null}
+            </div>
           </div>
 
           {/* Phase-education card beneath the wheel — the single instance,
