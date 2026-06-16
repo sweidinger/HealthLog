@@ -278,7 +278,13 @@ export function CoincidentDeviationCard({
         className="text-muted-foreground text-xs leading-snug"
         data-slot="coincident-factors"
       >
-        {t("insights.derived.coincident.factors")}
+        {/* v1.18.1 P4 — Rest Mode reframe. When an illness episode is active
+            the deviations have a known explanation, so the card states it
+            plainly instead of leaving "possible factors" open. Neutral copy,
+            no extra colour. */}
+        {v.illnessExplained
+          ? t("insights.derived.coincident.illnessExplained")
+          : t("insights.derived.coincident.factors")}
       </p>
     </CardShell>
   );

@@ -41,13 +41,16 @@ function deviation(
 }
 
 function ok(
-  value: CoincidentDeviationValue,
+  value: Omit<CoincidentDeviationValue, "illnessExplained"> &
+    Partial<Pick<CoincidentDeviationValue, "illnessExplained">>,
   band: "high" | "medium" | "low" | "draft" = "high",
 ): Resp {
   return {
     metric: "COINCIDENT_DEVIATION",
     status: "ok",
-    value,
+    // v1.18.1 P4 — default the Rest Mode reframe flag off so the existing
+    // fixtures stay valid; the reframe test passes `illnessExplained: true`.
+    value: { illnessExplained: false, ...value },
     coverage: {
       requiredInputs: 5,
       presentInputs: 5,
@@ -200,6 +203,32 @@ describe("<CoincidentDeviationCard>", () => {
     // The state change is announced politely to SR users (not assertively).
     expect(html).toContain('role="status"');
     expect(html).not.toContain('role="alert"');
+  });
+
+  it("reframes a fired flag as illness-explained during Rest Mode (no extra alarm)", () => {
+    mock(
+      ok({
+        fired: true,
+        day: "2026-06-03",
+        illnessExplained: true,
+        vitals: [
+          deviation("RESTING_HEART_RATE", true),
+          deviation("RESPIRATORY_RATE", true),
+        ],
+        contributing: [
+          deviation("RESTING_HEART_RATE", true),
+          deviation("RESPIRATORY_RATE", true),
+        ],
+      }),
+    );
+    const html = render(<CoincidentDeviationCard />);
+    expect(html).toContain('data-state="fired"');
+    // The reframe line replaces the open-ended "possible factors" copy.
+    expect(html).toContain("the condition you logged");
+    expect(html).not.toContain("Possible factors — never a cause");
+    // Annotate, don't escalate: no new destructive colour beyond the amber the
+    // fired state already carries.
+    expect(html).not.toContain("text-destructive");
   });
 
   it("softens a fired flag to the watch tone when history is thin", () => {

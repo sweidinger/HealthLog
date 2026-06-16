@@ -15,6 +15,8 @@ vi.mock("@/lib/db", () => ({
     medicationIntakeEvent: { findMany: vi.fn() },
     medication: { findMany: vi.fn() },
     user: { findUnique: vi.fn() },
+    // v1.18.1 P4 — the illness context block reads active + recent episodes.
+    illnessEpisode: { findMany: vi.fn(async () => []) },
   },
 }));
 

@@ -206,6 +206,45 @@ export interface FhirComposition {
   section?: FhirCompositionSection[];
 }
 
+/**
+ * v1.18.1 P4 — R4 `Condition`. Carries the illness/condition episode the
+ * journal records: a `code` (SNOMED 64572001 "Disease" as the safe non-
+ * diagnostic root + a `.text` label), the clinical + verification status, an
+ * onset, and (when resolved) an `abatementDateTime`. HealthLog does NOT assert
+ * a specific ICD/SNOMED diagnosis code — the journal is patient-recorded and
+ * not a diagnosing device — so the coding stays the generic root and the
+ * user's label rides `code.text`.
+ */
+export interface FhirCondition {
+  resourceType: "Condition";
+  id: string;
+  clinicalStatus?: FhirCodeableConcept;
+  verificationStatus?: FhirCodeableConcept;
+  category?: FhirCodeableConcept[];
+  code: FhirCodeableConcept;
+  subject: FhirReference;
+  onsetDateTime?: string;
+  abatementDateTime?: string;
+  recordedDate?: string;
+  note?: FhirAnnotation[];
+}
+
+/**
+ * v1.18.1 P4 — R4 `Encounter`. Emitted alongside a resolved episode to bound
+ * the period of care (onset → resolution) so a clinician sees the episode as a
+ * time-boxed event. `status` is `finished` for a resolved episode and
+ * `in-progress` for an ongoing one; `class` is the ambulatory code.
+ */
+export interface FhirEncounter {
+  resourceType: "Encounter";
+  id: string;
+  status: "in-progress" | "finished";
+  class: FhirCoding;
+  subject: FhirReference;
+  period?: FhirPeriod;
+  reasonReference?: FhirReference[];
+}
+
 export type FhirResource =
   | FhirComposition
   | FhirPatient
@@ -213,6 +252,8 @@ export type FhirResource =
   | FhirObservation
   | FhirMedicationStatement
   | FhirMedicationAdministration
+  | FhirCondition
+  | FhirEncounter
   | FhirDiagnosticReport;
 
 export interface FhirBundleEntry {

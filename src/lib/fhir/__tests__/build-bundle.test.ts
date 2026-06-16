@@ -1172,3 +1172,105 @@ describe("buildFhirDocumentBundle", () => {
     expect(titles).not.toContain("Observations");
   });
 });
+
+describe("buildFhirDocumentBundle — illness episodes (v1.18.1 P4)", () => {
+  function conditionsOf(bundle: ReturnType<typeof buildFhirDocumentBundle>) {
+    return bundle.entry
+      .map((e) => e.resource)
+      .filter((r) => r.resourceType === "Condition");
+  }
+  function encountersOf(bundle: ReturnType<typeof buildFhirDocumentBundle>) {
+    return bundle.entry
+      .map((e) => e.resource)
+      .filter((r) => r.resourceType === "Encounter");
+  }
+
+  it("emits no Condition / Encounter when there are no episodes", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({ illnessEpisodes: null }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    expect(conditionsOf(bundle)).toHaveLength(0);
+    expect(encountersOf(bundle)).toHaveLength(0);
+    const composition = bundle.entry[0].resource;
+    const titles =
+      composition.resourceType === "Composition"
+        ? (composition.section ?? []).map((s) => s.title)
+        : [];
+    expect(titles).not.toContain("Conditions");
+  });
+
+  it("maps a resolved episode to a Condition (resolved) + finished Encounter", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        illnessEpisodes: [
+          {
+            label: "Erkältung",
+            type: "INFECTION",
+            lifecycle: "ACUTE",
+            onsetAt: "2026-04-01T00:00:00.000Z",
+            resolvedAt: "2026-04-10T00:00:00.000Z",
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const conditions = conditionsOf(bundle);
+    expect(conditions).toHaveLength(1);
+    const c = conditions[0];
+    if (c.resourceType !== "Condition") throw new Error("not a Condition");
+    // The user's label rides code.text; the code is the generic disease root
+    // (never a fabricated diagnosis).
+    expect(c.code.text).toBe("Erkältung");
+    expect(c.code.coding?.[0].code).toBe("64572001");
+    expect(c.onsetDateTime).toBe("2026-04-01T00:00:00.000Z");
+    expect(c.abatementDateTime).toBe("2026-04-10T00:00:00.000Z");
+    expect(c.clinicalStatus?.coding?.[0].code).toBe("resolved");
+    // Patient-reported, not clinician-confirmed.
+    expect(c.verificationStatus?.coding?.[0].code).toBe("unconfirmed");
+
+    const encounters = encountersOf(bundle);
+    expect(encounters).toHaveLength(1);
+    const enc = encounters[0];
+    if (enc.resourceType !== "Encounter") throw new Error("not an Encounter");
+    expect(enc.status).toBe("finished");
+    expect(enc.period?.start).toBe("2026-04-01T00:00:00.000Z");
+    expect(enc.period?.end).toBe("2026-04-10T00:00:00.000Z");
+    expect(enc.reasonReference?.[0].reference).toBe(`Condition/${c.id}`);
+
+    const composition = bundle.entry[0].resource;
+    const titles =
+      composition.resourceType === "Composition"
+        ? (composition.section ?? []).map((s) => s.title)
+        : [];
+    expect(titles).toContain("Conditions");
+  });
+
+  it("maps an ongoing episode to active Condition + in-progress Encounter (no abatement)", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        illnessEpisodes: [
+          {
+            label: "Long-COVID",
+            type: "CHRONIC",
+            lifecycle: "CHRONIC_ONGOING",
+            onsetAt: "2026-03-01T00:00:00.000Z",
+            resolvedAt: null,
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const c = conditionsOf(bundle)[0];
+    if (c.resourceType !== "Condition") throw new Error("not a Condition");
+    expect(c.clinicalStatus?.coding?.[0].code).toBe("active");
+    expect(c.abatementDateTime).toBeUndefined();
+    const enc = encountersOf(bundle)[0];
+    if (enc.resourceType !== "Encounter") throw new Error("not an Encounter");
+    expect(enc.status).toBe("in-progress");
+    expect(enc.period?.end).toBeUndefined();
+  });
+});

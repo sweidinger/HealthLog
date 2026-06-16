@@ -791,6 +791,68 @@ export function calculateLongestStreak(dayKeys: string[]): number {
   return maxStreak;
 }
 
+/**
+ * v1.18.1 P4 — freeze (don't break) a day-streak across illness days.
+ *
+ * Rest Mode principle: a streak that lapses ONLY because the user was unwell
+ * should not be broken — being ill is not a failure to track. This pure
+ * helper bridges any calendar gap between two qualifying days when EVERY
+ * missing day in the gap is a frozen (active-illness) day. The bridged days
+ * are folded into the series so `calculateLongestStreak` sees one continuous
+ * run across the episode.
+ *
+ * It never INVENTS a streak: a frozen day with no surrounding qualifying days
+ * on either side adds nothing (there is no run to preserve), and a gap that
+ * contains even one non-frozen missed day stays a genuine break. The user is
+ * neither penalised for being ill nor rewarded for it — the streak simply
+ * pauses and resumes.
+ *
+ * Both inputs are `YYYY-MM-DD` keys. Returns a fresh ascending, de-duplicated
+ * day-key array; the original is not mutated. A no-op (returns the sorted
+ * input) when `frozenDayKeys` is empty.
+ */
+export function bridgeFrozenStreakGaps(
+  dayKeys: string[],
+  frozenDayKeys: ReadonlySet<string>,
+): string[] {
+  const unique = Array.from(new Set(dayKeys)).sort();
+  if (frozenDayKeys.size === 0 || unique.length < 2) return unique;
+
+  const frozenSerials = new Set<number>();
+  for (const key of frozenDayKeys) frozenSerials.add(dayKeyToNumber(key));
+
+  const bridged = new Set(unique);
+  for (let i = 1; i < unique.length; i++) {
+    const prev = dayKeyToNumber(unique[i - 1]);
+    const current = dayKeyToNumber(unique[i]);
+    if (current - prev <= 1) continue;
+    // A gap. Bridge it only when every interior day is a frozen illness day.
+    let allFrozen = true;
+    for (let serial = prev + 1; serial < current; serial++) {
+      if (!frozenSerials.has(serial)) {
+        allFrozen = false;
+        break;
+      }
+    }
+    if (allFrozen) {
+      for (let serial = prev + 1; serial < current; serial++) {
+        bridged.add(serialToDayKey(serial));
+      }
+    }
+  }
+
+  return Array.from(bridged).sort();
+}
+
+/** Inverse of `dayKeyToNumber` — a UTC day serial back to a `YYYY-MM-DD` key. */
+function serialToDayKey(serial: number): string {
+  const d = new Date(serial * 86_400_000);
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function calculateProgress(current: number, target: number): number {
   if (target <= 0) return 100;
   return Math.max(0, Math.min(100, Math.round((current / target) * 100)));

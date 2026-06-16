@@ -39,6 +39,7 @@ import {
 import { computeVitalsBaseline, type BaselineProfile } from "./baseline";
 import { VITALS_BASELINE_TYPES } from "./registry";
 import type { Derived, DerivedProvenanceSource } from "./types";
+import { resolveRestMode } from "@/lib/illness/rest-mode";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
@@ -78,6 +79,16 @@ export interface CoincidentDeviationValue {
   contributing: VitalDeviation[];
   /** The day the flag was evaluated (YYYY-MM-DD). */
   day: string;
+  /**
+   * v1.18.1 P4 — Rest Mode reframe. True when the flag fired AND an
+   * illness/condition episode is active: the deviations have a known
+   * explanation (the user is unwell), so the surface frames them as
+   * illness-explained — "your vitals are off because you're ill" — instead of
+   * presenting them as an unexplained anomaly. The vital numbers themselves
+   * are unchanged; only the framing differs. Resolved server-side; iOS
+   * mirrors it.
+   */
+  illnessExplained: boolean;
 }
 
 // ── pure classifier (exported for tests) ───────────────────────────────
@@ -216,6 +227,13 @@ export async function computeCoincidentDeviation(
   const contributing = vitals.filter((v) => v.outside);
   const fired = contributing.length >= COINCIDENT_FIRE_THRESHOLD;
 
+  // v1.18.1 P4 — when the flag fired, reframe it as illness-explained if an
+  // episode is active. Only resolved when the flag fired (no read on the
+  // common quiet day). Annotation only — the vital deviations are unchanged.
+  const illnessExplained = fired
+    ? (await resolveRestMode(userId, now)).active
+    : false;
+
   const { coverage: cov, confidence } = deriveCoverage({
     // The coverage axis is "how many vitals could have coincided".
     requiredInputs: vitals.length,
@@ -236,6 +254,7 @@ export async function computeCoincidentDeviation(
       vitals,
       contributing,
       day: latestDay,
+      illnessExplained,
     },
     coverage: cov,
     confidence,

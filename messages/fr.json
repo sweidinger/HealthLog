@@ -204,7 +204,14 @@
       "eA1c": "HbA1c estimée",
       "cv": "Variabilité (CV%)",
       "spotCaveat": "Ce sont des estimations issues de mesures ponctuelles, et non un profil de capteur continu — à lire comme une tendance, pas comme un verdict clinique."
-    }
+    },
+    "illnessTitle": "Affections et maladies",
+    "illnessOngoing": "En cours",
+    "illnessColCondition": "Affection",
+    "illnessColType": "Type",
+    "illnessColLifecycle": "Évolution",
+    "illnessColOnset": "Début",
+    "illnessColResolved": "Résolue"
   },
   "errorBoundary": {
     "title": "Une erreur est survenue",
@@ -3462,7 +3469,8 @@
         "watchVital": "Hors plage : {vital}. Souvent ponctuel — à surveiller ces prochains jours.",
         "firedHeadline": "Aujourd’hui, {count} de vos constantes sont hors de leur plage personnelle.",
         "factors": "Facteurs possibles — jamais une cause : un entraînement intense, un mauvais sommeil, l’alcool, l’altitude, le stress ou une maladie. C’est un repère issu de vos propres références, pas un diagnostic.",
-        "building": "Construction de vos références personnelles — enregistrez quelques jours de plus et cela apparaîtra."
+        "building": "Construction de vos références personnelles — enregistrez quelques jours de plus et cela apparaîtra.",
+        "illnessExplained": "Ces écarts reflètent probablement l’affection que vous avez consignée."
       },
       "trajectory": {
         "cardTitle": "Projection à court terme",

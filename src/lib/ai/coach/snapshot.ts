@@ -47,6 +47,7 @@ import { buildDerivedSnapshotBlock } from "./derived-snapshot";
 import { buildCoachMemoryBlock } from "./memory-snapshot";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import { buildCycleSnapshotBlock } from "./cycle-snapshot";
+import { buildIllnessSnapshotBlock } from "./illness-snapshot";
 import { isCycleAvailableForUser } from "@/lib/cycle/gate";
 import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
 import {
@@ -1052,6 +1053,13 @@ async function buildCoachSnapshotImpl(
     ? buildCycleSnapshotBlock(userId, prefsRow?.gender, now, userTz)
     : null;
 
+  // v1.18.1 P4 — illness/condition context. Always attempted (the helper is
+  // module-gated internally and short-circuits to null for a non-illness
+  // account). It is CONTEXT, not a scope-gated metric: appended like
+  // anthropometrics/scope below without a `registerBlock` so the budget
+  // degrader never sheds it — the Coach needs to know about Rest Mode.
+  const illnessBlockPromise = buildIllnessSnapshotBlock(userId, now);
+
   const [
     moodRows,
     complianceMeds,
@@ -1065,6 +1073,7 @@ async function buildCoachSnapshotImpl(
     trajectoryBlock,
     memoryBlock,
     cycleBlock,
+    illnessBlock,
   ] = await Promise.all([
     moodRowsPromise,
     complianceMedsPromise,
@@ -1078,6 +1087,7 @@ async function buildCoachSnapshotImpl(
     trajectoryBlockPromise,
     memoryBlockPromise,
     cycleBlockPromise,
+    illnessBlockPromise,
   ]);
 
   const byType = (t: string) =>
@@ -1848,6 +1858,14 @@ async function buildCoachSnapshotImpl(
   if (cycleBlock) {
     snapshot.cycle = cycleBlock;
     registerBlock("cycle", "skin_temp");
+  }
+
+  // v1.18.1 P4 — illness/condition context. Small + load-bearing, so it is
+  // attached WITHOUT a cluster registration (like scope/anthropometrics): the
+  // budget degrader never sheds it, the Coach always knows whether the user is
+  // in Rest Mode. Labels + lifecycle + dates only — no decrypted note.
+  if (illnessBlock) {
+    snapshot.illness = illnessBlock;
   }
 
   if (Object.keys(snapshot).length === 0) {

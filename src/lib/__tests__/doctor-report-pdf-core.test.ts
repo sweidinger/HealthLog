@@ -488,3 +488,62 @@ describe("doctor-report clinical glucose panel", () => {
     expect(text).not.toContain("Glucose overview (clinical)");
   });
 });
+
+// v1.18.1 P4 — illness / condition episodes section. Retrospective + factual:
+// label, type, course, onset, resolved. Present only when the aggregator
+// populated `illnessEpisodes` (module on + episode in window).
+describe("doctor-report illness section", () => {
+  it("prints the conditions table with label, type, and dates", async () => {
+    const data = makeData({
+      illnessEpisodes: [
+        {
+          label: "Erkältung",
+          type: "INFECTION",
+          lifecycle: "ACUTE",
+          onsetAt: "2026-04-01T00:00:00.000Z",
+          resolvedAt: "2026-04-10T00:00:00.000Z",
+        },
+      ],
+    });
+    const bytes = renderDoctorReportPdfBytes(data, {
+      t: getServerTranslator("en").t,
+      locale: "en",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    expect(text).toContain("Conditions & illnesses");
+    expect(text).toContain("Erkältung");
+  });
+
+  it("marks an ongoing (unresolved) episode rather than a blank cell", async () => {
+    const data = makeData({
+      illnessEpisodes: [
+        {
+          label: "Heuschnupfen",
+          type: "ALLERGY",
+          lifecycle: "RECURRING",
+          onsetAt: "2026-04-01T00:00:00.000Z",
+          resolvedAt: null,
+        },
+      ],
+    });
+    const bytes = renderDoctorReportPdfBytes(data, {
+      t: getServerTranslator("en").t,
+      locale: "en",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    expect(text).toContain("Heuschnupfen");
+    expect(text).toContain("Ongoing");
+  });
+
+  it("omits the section entirely when there are no episodes", async () => {
+    const bytes = renderDoctorReportPdfBytes(makeData(), {
+      t: getServerTranslator("en").t,
+      locale: "en",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    expect(text).not.toContain("Conditions & illnesses");
+  });
+});

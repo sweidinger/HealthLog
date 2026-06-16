@@ -204,7 +204,14 @@
       "eA1c": "Estimated A1C",
       "cv": "Variability (CV%)",
       "spotCaveat": "These are spot-reading estimates from individual measurements, not a continuous-monitor profile — read them as a direction of travel rather than a clinical verdict."
-    }
+    },
+    "illnessTitle": "Conditions & illnesses",
+    "illnessOngoing": "Ongoing",
+    "illnessColCondition": "Condition",
+    "illnessColType": "Type",
+    "illnessColLifecycle": "Course",
+    "illnessColOnset": "Onset",
+    "illnessColResolved": "Resolved"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -3462,7 +3469,8 @@
         "watchVital": "Outside range: {vital}. Often just a one-off — worth a glance over the next few days.",
         "firedHeadline": "{count} of your vitals are outside their personal range today.",
         "factors": "Possible factors — never a cause: a hard workout, poor sleep, alcohol, altitude, stress, or illness. This is awareness from your own baselines, not a diagnosis.",
-        "building": "Building your personal baselines — track a few more days and this will appear."
+        "building": "Building your personal baselines — track a few more days and this will appear.",
+        "illnessExplained": "These shifts likely reflect the condition you logged."
       },
       "trajectory": {
         "cardTitle": "Short-horizon projection",

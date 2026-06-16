@@ -287,6 +287,29 @@ export interface DoctorReportData {
     /** Count of readings for this analyte in the window (≥ 1). */
     count: number;
   }> | null;
+  /**
+   * v1.18.1 P4 — illness / condition episodes overlapping the report window.
+   * Populated ONLY when the `illness` module is enabled (born-gated opt-in);
+   * the user turned the journal on and is sharing it deliberately, so the
+   * privacy stance matches labs (ON when the module is on), not mood / cycle.
+   * Statistics + labels only — the free-text note is NEVER read here, so no
+   * encrypted plaintext can leak into the report. Each entry feeds a FHIR
+   * `Condition` (+ `Encounter`) and a PDF table row. Null/absent when the
+   * module is off or no episode overlaps the window; both builders then skip
+   * the section. Optional so pre-v1.18.1 fixtures still typecheck.
+   */
+  illnessEpisodes?: Array<{
+    /** User-facing condition label (e.g. "Erkältung"). */
+    label: string;
+    /** Broad condition class (INFECTION / ALLERGY / INJURY / …). */
+    type: string;
+    /** Lifecycle (ACUTE / CHRONIC_ONGOING / RECURRING / FLARE). */
+    lifecycle: string;
+    /** ISO onset instant. */
+    onsetAt: string;
+    /** ISO resolution instant, or null while ongoing. */
+    resolvedAt: string | null;
+  }> | null;
 }
 
 /** The three persisted score types surfaced in the wellness summary. */
@@ -1324,6 +1347,40 @@ export async function collectDoctorReportData(
     labResults = collapsed.length > 0 ? collapsed : null;
   }
 
+  // v1.18.1 P4 — illness / condition episodes overlapping the window. Gated
+  // on the illness module (born-gated opt-in): when off, no read, no section.
+  // An episode overlaps when it began on or before the window end AND is
+  // either still ongoing or resolved on or after the window start. Labels +
+  // lifecycle + dates only — the encrypted note is never selected, so no
+  // free-text leaks into the clinical export.
+  let illnessEpisodes: DoctorReportData["illnessEpisodes"] = null;
+  if (moduleMap.illness !== false) {
+    const episodeRows = await prisma.illnessEpisode.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        onsetAt: { lte: end },
+        OR: [{ resolvedAt: null }, { resolvedAt: { gte: start } }],
+      },
+      orderBy: { onsetAt: "asc" },
+      select: {
+        label: true,
+        type: true,
+        lifecycle: true,
+        onsetAt: true,
+        resolvedAt: true,
+      },
+    });
+    const mapped = episodeRows.map((e) => ({
+      label: e.label,
+      type: e.type,
+      lifecycle: e.lifecycle,
+      onsetAt: e.onsetAt.toISOString(),
+      resolvedAt: e.resolvedAt ? e.resolvedAt.toISOString() : null,
+    }));
+    illnessEpisodes = mapped.length > 0 ? mapped : null;
+  }
+
   return {
     period: {
       days,
@@ -1377,6 +1434,7 @@ export async function collectDoctorReportData(
     wellnessScores,
     cycle,
     labResults,
+    illnessEpisodes,
   };
 }
 

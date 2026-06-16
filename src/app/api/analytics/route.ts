@@ -18,6 +18,7 @@ import {
 } from "@/lib/analytics/bp-in-target-fast-path";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
 import { isModuleEnabled } from "@/lib/modules/gate";
+import { resolveRestMode } from "@/lib/illness/rest-mode";
 import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
 import { deriveBpWindow90 } from "@/lib/analytics/window-confidence";
 import { computeCorrelationHypothesesFastPath } from "@/lib/analytics/correlations-fast-path";
@@ -443,6 +444,21 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     coverage,
     moodEnabled,
   });
+
+  // v1.18.1 P4 — Rest Mode annotation. When an illness/condition episode is
+  // active we frame the score (not penalise it): the number above is left
+  // exactly as computed and we attach a value-free "you were unwell" context.
+  // Resolved server-side so iOS mirrors the same fact, never recomputing it.
+  if (healthScore) {
+    const restMode = await resolveRestMode(user.id);
+    healthScore.restMode = restMode.active
+      ? {
+          active: true,
+          since: restMode.since,
+          episodeCount: restMode.episodeCount,
+        }
+      : null;
+  }
 
   return {
     summaries: results,

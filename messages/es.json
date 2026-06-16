@@ -204,7 +204,14 @@
       "eA1c": "A1C estimada",
       "cv": "Variabilidad (CV%)",
       "spotCaveat": "Son estimaciones a partir de mediciones puntuales, no un perfil de monitor continuo — léelas como una tendencia, no como un veredicto clínico."
-    }
+    },
+    "illnessTitle": "Afecciones y enfermedades",
+    "illnessOngoing": "En curso",
+    "illnessColCondition": "Afección",
+    "illnessColType": "Tipo",
+    "illnessColLifecycle": "Curso",
+    "illnessColOnset": "Inicio",
+    "illnessColResolved": "Resuelta"
   },
   "errorBoundary": {
     "title": "Algo ha salido mal",
@@ -3462,7 +3469,8 @@
         "watchVital": "Fuera de rango: {vital}. A menudo es algo puntual; conviene vigilarlo los próximos días.",
         "firedHeadline": "Hoy, {count} de tus constantes están fuera de su rango personal.",
         "factors": "Posibles factores, nunca una causa: un entrenamiento intenso, dormir mal, alcohol, altitud, estrés o una enfermedad. Es un aviso a partir de tus propias bases, no un diagnóstico.",
-        "building": "Construyendo tus bases personales: registra unos días más y esto aparecerá."
+        "building": "Construyendo tus bases personales: registra unos días más y esto aparecerá.",
+        "illnessExplained": "Es probable que estas variaciones reflejen la afección que registraste."
       },
       "trajectory": {
         "cardTitle": "Proyección a corto plazo",
