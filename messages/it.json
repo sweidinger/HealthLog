@@ -266,7 +266,8 @@
     "cycle": "Ciclo",
     "labs": "Esami",
     "recovery": "Recupero",
-    "vorsorge": "Prevenzione"
+    "vorsorge": "Prevenzione",
+    "illness": "Malattia"
   },
   "auth": {
     "login": "Accedi",
@@ -6606,6 +6607,84 @@
     "medications": {
       "label": "Farmaci",
       "description": "Schemi, assunzioni e aderenza."
+    },
+    "illness": {
+      "label": "Diario delle malattie",
+      "description": "Registra episodi di malattia e disturbi con una cronologia giornaliera dei sintomi."
+    }
+  },
+  "illness": {
+    "title": "Diario delle malattie",
+    "subtitle": "Un registro retrospettivo dei tuoi episodi di malattia e disturbi.",
+    "disclaimer": "Un diario personale, non un dispositivo medico. Non diagnostica né prevede.",
+    "newEpisode": "Nuovo episodio",
+    "logDay": "Registra un giorno",
+    "markRecovered": "Segna come guarito",
+    "onsetOn": "Iniziato il {date}",
+    "recoveredOn": "guarito {date}",
+    "status": {
+      "active": "Attivo",
+      "ongoing": "In corso",
+      "recovered": "Guarito"
+    },
+    "empty": {
+      "title": "Ancora nessun episodio",
+      "body": "Avvia un episodio per tenere una cronologia giornaliera dei sintomi e rivedere come si è evoluto."
+    },
+    "type": {
+      "INFECTION": "Infezione",
+      "ALLERGY": "Allergia",
+      "INJURY": "Infortunio",
+      "MENTAL_HEALTH": "Salute mentale",
+      "AUTOIMMUNE": "Autoimmune",
+      "CHRONIC": "Cronica",
+      "OTHER": "Altro"
+    },
+    "lifecycle": {
+      "ACUTE": "Acuta",
+      "CHRONIC_ONGOING": "Cronica / in corso",
+      "RECURRING": "Ricorrente",
+      "FLARE": "Riacutizzazione"
+    },
+    "new": {
+      "title": "Nuovo episodio",
+      "description": "Registra una malattia o un disturbo. Potrai annotare i sintomi giornalieri in seguito.",
+      "label": "Nome",
+      "labelPlaceholder": "es. Raffreddore",
+      "type": "Tipo",
+      "lifecycle": "Decorso",
+      "onset": "Iniziato il",
+      "note": "Nota",
+      "notePlaceholder": "Qualcosa da ricordare (cifrato).",
+      "saveError": "Impossibile salvare l'episodio. Riprova."
+    },
+    "sheet": {
+      "title": "Registra {date}",
+      "description": "Annota i sintomi di oggi, come funzioni e l'eventuale febbre.",
+      "symptoms": "Sintomi",
+      "functionalImpact": "Come funzioni",
+      "fever": "Temperatura",
+      "note": "Nota",
+      "noteSet": "Impostata",
+      "notePlaceholder": "Com'è andata la giornata (cifrato).",
+      "severityFor": "Intensità di {symptom}",
+      "saveError": "Impossibile salvare la giornata. Riprova."
+    },
+    "impact": {
+      "0": "Pienamente funzionale",
+      "1": "Leggermente limitato",
+      "2": "Per lo più a riposo",
+      "3": "A letto"
+    },
+    "symptom": {
+      "runnyNose": "Naso che cola",
+      "stuffyNose": "Naso chiuso",
+      "sneezing": "Starnuti",
+      "soreThroat": "Mal di gola",
+      "cough": "Tosse",
+      "headache": "Mal di testa",
+      "bodyAches": "Dolori muscolari",
+      "fatigue": "Affaticamento"
     }
   }
 }

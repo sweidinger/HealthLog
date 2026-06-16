@@ -40,6 +40,7 @@ import {
   Smile,
   Sparkles,
   TestTube,
+  Thermometer,
   type LucideIcon,
 } from "lucide-react";
 
@@ -66,6 +67,7 @@ const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   workouts: Dumbbell,
   recovery: Activity,
   labs: TestTube,
+  illness: Thermometer,
   achievements: Award,
   coach: MessageCircleHeart,
   insights: Sparkles,

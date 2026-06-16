@@ -266,7 +266,8 @@
     "cycle": "Zyklus",
     "labs": "Laborwerte",
     "recovery": "Erholung",
-    "vorsorge": "Vorsorge"
+    "vorsorge": "Vorsorge",
+    "illness": "Krankheit"
   },
   "auth": {
     "login": "Anmelden",
@@ -6606,6 +6607,84 @@
     "medications": {
       "label": "Medikamente",
       "description": "Pläne, Einnahmen und Compliance."
+    },
+    "illness": {
+      "label": "Krankheitstagebuch",
+      "description": "Krankheits- und Beschwerde-Episoden mit täglichem Symptomverlauf festhalten."
+    }
+  },
+  "illness": {
+    "title": "Krankheitstagebuch",
+    "subtitle": "Ein rückblickendes Protokoll deiner Krankheits- und Beschwerde-Episoden.",
+    "disclaimer": "Ein persönliches Tagebuch — kein Medizinprodukt. Es stellt keine Diagnose und keine Prognose.",
+    "newEpisode": "Neue Episode",
+    "logDay": "Tag erfassen",
+    "markRecovered": "Als genesen markieren",
+    "onsetOn": "Begonnen am {date}",
+    "recoveredOn": "genesen {date}",
+    "status": {
+      "active": "Aktiv",
+      "ongoing": "Andauernd",
+      "recovered": "Genesen"
+    },
+    "empty": {
+      "title": "Noch keine Episoden",
+      "body": "Beginne eine Episode, um einen täglichen Symptomverlauf zu führen und nachzusehen, wie sie verlief."
+    },
+    "type": {
+      "INFECTION": "Infektion",
+      "ALLERGY": "Allergie",
+      "INJURY": "Verletzung",
+      "MENTAL_HEALTH": "Psychische Gesundheit",
+      "AUTOIMMUNE": "Autoimmun",
+      "CHRONIC": "Chronisch",
+      "OTHER": "Sonstiges"
+    },
+    "lifecycle": {
+      "ACUTE": "Akut",
+      "CHRONIC_ONGOING": "Chronisch / andauernd",
+      "RECURRING": "Wiederkehrend",
+      "FLARE": "Schub"
+    },
+    "new": {
+      "title": "Neue Episode",
+      "description": "Erfasse eine Krankheit oder Beschwerde. Tägliche Symptome kannst du danach festhalten.",
+      "label": "Bezeichnung",
+      "labelPlaceholder": "z. B. Erkältung",
+      "type": "Art",
+      "lifecycle": "Verlauf",
+      "onset": "Begonnen am",
+      "note": "Notiz",
+      "notePlaceholder": "Was erwähnenswert ist (verschlüsselt).",
+      "saveError": "Die Episode konnte nicht gespeichert werden. Bitte erneut versuchen."
+    },
+    "sheet": {
+      "title": "{date} erfassen",
+      "description": "Halte die heutigen Symptome, deine Belastbarkeit und ggf. Fieber fest.",
+      "symptoms": "Symptome",
+      "functionalImpact": "Belastbarkeit",
+      "fever": "Temperatur",
+      "note": "Notiz",
+      "noteSet": "Gesetzt",
+      "notePlaceholder": "Wie sich der Tag anfühlte (verschlüsselt).",
+      "severityFor": "Stärke für {symptom}",
+      "saveError": "Der Tag konnte nicht gespeichert werden. Bitte erneut versuchen."
+    },
+    "impact": {
+      "0": "Voll belastbar",
+      "1": "Leicht eingeschränkt",
+      "2": "Überwiegend ruhend",
+      "3": "Bettlägerig"
+    },
+    "symptom": {
+      "runnyNose": "Laufende Nase",
+      "stuffyNose": "Verstopfte Nase",
+      "sneezing": "Niesen",
+      "soreThroat": "Halsschmerzen",
+      "cough": "Husten",
+      "headache": "Kopfschmerzen",
+      "bodyAches": "Gliederschmerzen",
+      "fatigue": "Erschöpfung"
     }
   }
 }

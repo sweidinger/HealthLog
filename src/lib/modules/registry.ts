@@ -72,6 +72,17 @@ export interface ModuleDefinition {
    * link; `labelKey` names the destination ("Account", "Coach settings").
    */
   managedAt?: { href: string; labelKey: string };
+  /**
+   * v1.18.1 — BORN-GATED (opt-in / default-off). A born-gated module is
+   * the inverse of the standard disabled-allowlist: it stays OFF until the
+   * account explicitly enables it (`modulePreferencesJson[key] === true`).
+   * Used for new optional verticals (the illness/condition journal) that
+   * ship dark and only appear once the user opts in from the Modules hub.
+   * The gate's `false`-disables contract still holds — an explicit `false`
+   * (or simply the absent default) keeps it off — but here ONLY an explicit
+   * `true` turns it on, so the surface never appears unbidden.
+   */
+  bornGated?: boolean;
 }
 
 /**
@@ -88,6 +99,7 @@ export const MODULE_KEYS = [
   "workouts",
   "recovery",
   "labs",
+  "illness",
   "achievements",
   "coach",
   "insights",
@@ -169,6 +181,15 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       descriptionKey: "modules.labs.description",
       category: "tracking",
     },
+    illness: {
+      key: "illness",
+      labelKey: "modules.illness.label",
+      descriptionKey: "modules.illness.description",
+      category: "tracking",
+      // Ships dark — only appears once the account opts in from the
+      // Modules hub. Default-off, no nag, retrospective-only.
+      bornGated: true,
+    },
     sleep: {
       key: "sleep",
       labelKey: "modules.sleep.label",
@@ -229,4 +250,13 @@ export function isModuleKey(key: string): key is ModuleKey {
 /** The two delegated keys, resolved by their existing source of truth. */
 export function moduleDelegatesTo(key: ModuleKey): ModuleDelegation | undefined {
   return MODULE_REGISTRY[key].delegatesTo;
+}
+
+/**
+ * v1.18.1 — true for a born-gated (opt-in / default-off) module. The gate
+ * flips its default from on to off for these keys: they require an explicit
+ * `modulePreferencesJson[key] === true` to enable.
+ */
+export function isBornGatedModule(key: ModuleKey): boolean {
+  return MODULE_REGISTRY[key].bornGated === true;
 }

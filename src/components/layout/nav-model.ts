@@ -10,6 +10,7 @@ import {
   Pill,
   Settings,
   Stethoscope,
+  Thermometer,
   Trophy,
   Waves,
   type LucideIcon,
@@ -96,6 +97,17 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     icon: FlaskConical,
     tourId: "nav-labs",
     requiresModule: "labs",
+  },
+  // v1.18.1 — the illness/condition journal sits in the clinical spine
+  // next to Labs. Born-gated: `requiresModule: "illness"` reads the
+  // opt-in `illness` key from the resolved module map, so the entry is
+  // absent until the account turns the module on from the Modules hub.
+  {
+    href: "/illness",
+    tKey: "nav.illness",
+    icon: Thermometer,
+    tourId: "nav-illness",
+    requiresModule: "illness",
   },
   // v1.17.1 — Vorsorge (preventive-care) gets a top-level nav home in the
   // clinical spine, peer to Labs and Recovery. It is a first-class tracking

@@ -1,0 +1,87 @@
+/**
+ * `PATCH /api/illness/episodes/{id}/resolve` — mark an episode recovered.
+ *
+ * Sets `resolvedAt` (defaults to "now" when the body omits it). A
+ * dedicated verb so the history surface's one-tap "mark recovered" never
+ * has to send the full edit body. Born-gated + owner-scoped. A
+ * CHRONIC_ONGOING episode has no "recovered" date by design — resolving
+ * one is refused.
+ */
+import { NextRequest } from "next/server";
+
+import { prisma } from "@/lib/db";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
+import { requireIllnessEnabled } from "@/lib/illness/gate";
+import { illnessEpisodeResolveSchema } from "@/lib/validations/illness";
+import { toIllnessEpisodeDTO } from "@/lib/illness/dto";
+
+type RouteParams = { params: Promise<{ id: string }> };
+
+export const PATCH = apiHandler(
+  async (request: NextRequest, { params }: RouteParams) => {
+    const { user } = await requireAuth();
+
+    const gate = await requireIllnessEnabled(user.id);
+    if (!gate.enabled) return gate.response;
+
+    const { id } = await params;
+    const existing = await prisma.illnessEpisode.findUnique({
+      where: { id },
+      select: { id: true, userId: true, deletedAt: true, lifecycle: true },
+    });
+    if (!existing || existing.userId !== user.id || existing.deletedAt !== null) {
+      return apiError("Episode not found", 404);
+    }
+    if (existing.lifecycle === "CHRONIC_ONGOING") {
+      return apiError("A chronic-ongoing condition has no recovery date", 422, {
+        errorCode: "illness.episode.chronic-no-resolve",
+      });
+    }
+
+    const { data: rawBody, error: jsonError } = await safeJson(request, {
+      maxBytes: 4 * 1024,
+    });
+    if (jsonError) return jsonError;
+
+    const parsed = illnessEpisodeResolveSchema.safeParse(rawBody ?? {});
+    if (!parsed.success) {
+      return returnAllZodIssues(parsed.error, 422, {
+        errorCode: "illness.episode.invalid",
+      });
+    }
+
+    const resolvedAt = parsed.data.resolvedAt
+      ? new Date(parsed.data.resolvedAt)
+      : new Date();
+
+    const updated = await prisma.illnessEpisode.update({
+      where: { id },
+      data: { resolvedAt },
+    });
+
+    await auditLog("illness.episode.resolve", {
+      userId: user.id,
+      ipAddress: getClientIp(request),
+      details: { episodeId: id },
+    });
+
+    annotate({
+      action: {
+        name: "illness.episode.resolve",
+        entity_type: "illness_episode",
+        entity_id: id,
+      },
+    });
+
+    return apiSuccess(toIllnessEpisodeDTO(updated));
+  },
+);

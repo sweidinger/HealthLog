@@ -78,6 +78,54 @@ describe("resolveModuleEnabled — disabled allowlist (default-on)", () => {
   });
 });
 
+describe("resolveModuleEnabled — born-gated module (illness, default-off)", () => {
+  it("is OFF when no preference is recorded (opt-in, not default-on)", () => {
+    expect(resolveModuleEnabled("illness", inputs(), true, ALL_AVAILABLE)).toBe(
+      false,
+    );
+  });
+
+  it("is ON only on an explicit true", () => {
+    expect(
+      resolveModuleEnabled(
+        "illness",
+        inputs({ modulePreferences: { illness: true } }),
+        true,
+        ALL_AVAILABLE,
+      ),
+    ).toBe(true);
+  });
+
+  it("stays OFF on an explicit false", () => {
+    expect(
+      resolveModuleEnabled(
+        "illness",
+        inputs({ modulePreferences: { illness: false } }),
+        true,
+        ALL_AVAILABLE,
+      ),
+    ).toBe(false);
+  });
+
+  it("operator-off short-circuits even when the user opted in", () => {
+    expect(
+      resolveModuleEnabled(
+        "illness",
+        inputs({ modulePreferences: { illness: true } }),
+        true,
+        operator({ illness: false }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not affect sibling default-on modules", () => {
+    const i = inputs({ modulePreferences: {} });
+    expect(resolveModuleEnabled("illness", i, true, ALL_AVAILABLE)).toBe(false);
+    expect(resolveModuleEnabled("mood", i, true, ALL_AVAILABLE)).toBe(true);
+    expect(resolveModuleEnabled("labs", i, true, ALL_AVAILABLE)).toBe(true);
+  });
+});
+
 describe("resolveModuleEnabled — cycle delegation", () => {
   it("ignores the module blob and reads the cycle gate (gender-derived)", () => {
     // Even a crafted `{ cycle: false }` blob cannot override the real

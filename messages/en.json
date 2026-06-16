@@ -266,7 +266,8 @@
     "cycle": "Cycle",
     "labs": "Labs",
     "recovery": "Recovery",
-    "vorsorge": "Preventive Care"
+    "vorsorge": "Preventive Care",
+    "illness": "Illness"
   },
   "auth": {
     "login": "Sign in",
@@ -6606,6 +6607,84 @@
     "medications": {
       "label": "Medications",
       "description": "Schedules, intakes, and compliance."
+    },
+    "illness": {
+      "label": "Illness journal",
+      "description": "Track illness and condition episodes with a daily symptom timeline."
+    }
+  },
+  "illness": {
+    "title": "Illness journal",
+    "subtitle": "A retrospective log of your illness and condition episodes.",
+    "disclaimer": "A personal journal — not a medical device. It does not diagnose or predict.",
+    "newEpisode": "New episode",
+    "logDay": "Log a day",
+    "markRecovered": "Mark recovered",
+    "onsetOn": "Started {date}",
+    "recoveredOn": "recovered {date}",
+    "status": {
+      "active": "Active",
+      "ongoing": "Ongoing",
+      "recovered": "Recovered"
+    },
+    "empty": {
+      "title": "No episodes yet",
+      "body": "Start an episode to keep a daily symptom timeline and look back on how it unfolded."
+    },
+    "type": {
+      "INFECTION": "Infection",
+      "ALLERGY": "Allergy",
+      "INJURY": "Injury",
+      "MENTAL_HEALTH": "Mental health",
+      "AUTOIMMUNE": "Autoimmune",
+      "CHRONIC": "Chronic",
+      "OTHER": "Other"
+    },
+    "lifecycle": {
+      "ACUTE": "Acute",
+      "CHRONIC_ONGOING": "Chronic / ongoing",
+      "RECURRING": "Recurring",
+      "FLARE": "Flare"
+    },
+    "new": {
+      "title": "New episode",
+      "description": "Record an illness or condition. You can log daily symptoms afterwards.",
+      "label": "Name",
+      "labelPlaceholder": "e.g. Common cold",
+      "type": "Type",
+      "lifecycle": "Course",
+      "onset": "Started on",
+      "note": "Note",
+      "notePlaceholder": "Anything worth remembering (encrypted).",
+      "saveError": "Could not save the episode. Please try again."
+    },
+    "sheet": {
+      "title": "Log {date}",
+      "description": "Record today's symptoms, how you function, and any fever.",
+      "symptoms": "Symptoms",
+      "functionalImpact": "How you function",
+      "fever": "Temperature",
+      "note": "Note",
+      "noteSet": "Set",
+      "notePlaceholder": "How the day felt (encrypted).",
+      "severityFor": "Severity for {symptom}",
+      "saveError": "Could not save the day. Please try again."
+    },
+    "impact": {
+      "0": "Fully functional",
+      "1": "Slightly limited",
+      "2": "Mostly resting",
+      "3": "Bedbound"
+    },
+    "symptom": {
+      "runnyNose": "Runny nose",
+      "stuffyNose": "Stuffy nose",
+      "sneezing": "Sneezing",
+      "soreThroat": "Sore throat",
+      "cough": "Cough",
+      "headache": "Headache",
+      "bodyAches": "Body aches",
+      "fatigue": "Fatigue"
     }
   }
 }
