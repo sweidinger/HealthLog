@@ -124,7 +124,6 @@ import {
   APPLE_HEALTH_IMPORT_QUEUE,
   APPLE_HEALTH_IMPORT_CONCURRENCY,
   handleAppleHealthImport,
-  reconcileOrphanImportJobs,
   type AppleHealthImportPayload,
 } from "@/lib/jobs/apple-health-import-worker";
 import {
@@ -183,8 +182,6 @@ import {
   enqueueBootTimeIntakeSlotDedup,
   type IntakeSlotDedupPayload,
 } from "@/lib/medications/intake-slot-dedup";
-import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
-import { probeIntegrationStatusNullBuckets } from "@/lib/jobs/integration-status-null-probe";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { assertSubsystemEnabled } from "@/lib/process-type";
 import {
@@ -193,6 +190,12 @@ import {
   RESTORE_DRILL_QUEUE,
 } from "@/lib/jobs/restore-drill";
 import { DATABASE_URL, getWorkerPrisma, workerLog } from "./reminder/shared";
+import {
+  registerShutdownHandlers,
+  rotateLegacyMoodLogSecretsAtBoot,
+  reconcileImportJobsAtBoot,
+  probeIntegrationStatusAtBoot,
+} from "./reminder/worker-lifecycle";
 import {
   ReminderCheckPayload,
   handleReminderCheck,
@@ -563,56 +566,12 @@ export async function startReminderWorker() {
   setGlobalBoss(boss);
   markWorkerStarted();
 
-  // V3 audit STILL-V2-C-2: encrypt-at-rest one-shot migration. Rotates
-  // any rows that still hold a plaintext mood_log_webhook_secret to the
-  // AES-256-GCM envelope. Idempotent — encrypted rows are skipped.
-  try {
-    const p = getWorkerPrisma();
-    const rotated = await rotateLegacyMoodLogSecrets({
-      findLegacy: () =>
-        p.user.findMany({
-          where: { moodLogWebhookSecret: { not: null } },
-          select: { id: true, moodLogWebhookSecret: true },
-        }),
-      rotate: async (id, encryptedSecret) => {
-        await p.user.update({
-          where: { id },
-          data: { moodLogWebhookSecret: encryptedSecret },
-        });
-      },
-    });
-    if (rotated > 0) {
-      workerLog(
-        "error",
-        `moodlog-secret-migration: rotated ${rotated} legacy plaintext secret(s)`,
-      );
-    }
-  } catch (err) {
-    workerLog("error", `moodlog-secret-migration failed: ${err}`);
-  }
+  // V3 audit STILL-V2-C-2: encrypt-at-rest one-shot migration for any
+  // plaintext mood_log_webhook_secret rows. Idempotent.
+  await rotateLegacyMoodLogSecretsAtBoot();
 
-  // Graceful shutdown: drain in-flight jobs on SIGTERM/SIGINT (sent by
-  // Docker Compose `docker stop`, Kubernetes pod termination, Coolify
-  // redeploys). Without this, pending handlers were force-killed and could
-  // either be lost or replayed on next start. We only register the listeners
-  // once — re-entering startReminderWorker (e.g. on hot-reload in dev) is
-  // a no-op for the handlers because they capture `boss` by closure and the
-  // first signal stops everything.
-  let shutdownInProgress = false;
-  const onSignal = async (signal: "SIGTERM" | "SIGINT") => {
-    if (shutdownInProgress) return;
-    shutdownInProgress = true;
-    workerLog("error", `received ${signal}, draining boss`);
-    try {
-      // graceful=true waits for active handlers to finish, then closes the
-      // pg connection pool. timeout cap so a stuck handler can't block deploys.
-      await boss.stop({ graceful: true, timeout: 30_000 });
-    } catch (err) {
-      workerLog("error", "boss.stop failed during shutdown", err);
-    }
-  };
-  process.once("SIGTERM", () => void onSignal("SIGTERM"));
-  process.once("SIGINT", () => void onSignal("SIGINT"));
+  // Graceful shutdown: drain in-flight jobs on SIGTERM/SIGINT.
+  registerShutdownHandlers(boss);
 
   // pg-boss v12 requires explicit queue creation before scheduling
   const allQueues = [
@@ -834,32 +793,13 @@ export async function startReminderWorker() {
     await boss.createQueue(q);
   }
 
-  // v1.4.34 — reconcile any `ImportJob` rows that were mid-parse when
-  // the worker last shut down. Flips orphaned rows to `failed` so the
-  // operator can re-upload without leaving the polling endpoint
-  // stuck on `parsing` / `upserting`.
-  try {
-    await reconcileOrphanImportJobs();
-  } catch (err) {
-    workerLog("error", "Failed to reconcile orphan ImportJob rows", err);
-  }
+  // v1.4.34 — reconcile any `ImportJob` rows that were mid-parse when the
+  // worker last shut down, flipping orphaned rows to `failed`.
+  await reconcileImportJobsAtBoot();
 
-  // v1.4.48 M1 — boot probe for legacy `integration_statuses` rows
-  // that still carry `consecutive_failures_by_kind = NULL`. After
-  // v1.4.47 dropped the single-column fallback, such rows alert two
-  // strikes later than they did pre-upgrade. The probe is a single
-  // count query + Wide-Event warning if any survive; fire-and-forget
-  // so a probe failure never blocks worker boot.
-  try {
-    await withBackgroundEvent(
-      "worker.boot.integration_status_null_probe",
-      async () => {
-        await probeIntegrationStatusNullBuckets(getWorkerPrisma());
-      },
-    );
-  } catch (err) {
-    workerLog("error", "integration-status-null-probe failed", err);
-  }
+  // v1.4.48 M1 — boot probe for legacy `integration_statuses` rows that still
+  // carry `consecutive_failures_by_kind = NULL`.
+  await probeIntegrationStatusAtBoot();
 
   // v1.15.20 — retry policy for the LLM-bound insight queues. A transient
   // failure (provider hiccup, pool exhaustion) used to fail the nightly tick
