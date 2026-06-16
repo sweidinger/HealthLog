@@ -17,6 +17,7 @@ import {
 } from "@/lib/labs/biomarker-store";
 import { annotate } from "@/lib/logging/context";
 import { updateBiomarkerSchema } from "@/lib/validations/biomarkers";
+import { effectiveBound, isInvertedRange } from "@/lib/validations/labs";
 
 /**
  * v1.18.1 — single Biomarker resource (`/api/biomarkers/{id}`).
@@ -136,6 +137,20 @@ export const PUT = apiHandler(
     if (d.lowerBound !== undefined) data.lowerBound = d.lowerBound;
     if (d.upperBound !== undefined) data.upperBound = d.upperBound;
     if (d.panel !== undefined) data.panel = d.panel;
+
+    // Inverted-range guard for a PARTIAL bound update. The schema refine only
+    // fires when both bounds arrive together; moving a single bound past the
+    // row's existing other bound would otherwise persist an inverted window.
+    // Merge effective bounds (parsed when present, else stored) and 422 when
+    // both resolve to concrete numbers with low > high.
+    if (
+      isInvertedRange(
+        effectiveBound(d.lowerBound, existing.lowerBound),
+        effectiveBound(d.upperBound, existing.upperBound),
+      )
+    ) {
+      return apiError("lowerBound must not exceed upperBound", 422);
+    }
     if (d.context !== undefined) {
       data.contextEncrypted = d.context
         ? encryptContextToBytes(d.context)

@@ -144,6 +144,34 @@ export const updateLabResultSchema = z
 
 export type UpdateLabResultInput = z.infer<typeof updateLabResultSchema>;
 
+/**
+ * Inverted-range merge guard for a PARTIAL bound update.
+ *
+ * The schema-level `referenceLow <= referenceHigh` refine only fires when both
+ * bounds arrive in the SAME request. A partial PUT that moves a single bound
+ * past the row's existing other bound slips through the schema. The route
+ * resolves the EFFECTIVE bounds (the parsed value when present, else the
+ * stored value) and calls this to reject a transposed window with a 422.
+ *
+ * Returns true when both effective bounds are concrete numbers and low > high.
+ */
+export function isInvertedRange(
+  effectiveLow: number | null,
+  effectiveHigh: number | null,
+): boolean {
+  return (
+    effectiveLow !== null && effectiveHigh !== null && effectiveLow > effectiveHigh
+  );
+}
+
+/** Resolve an effective bound: the parsed value when present, else the stored. */
+export function effectiveBound(
+  parsed: number | null | undefined,
+  stored: number | null,
+): number | null {
+  return parsed !== undefined ? parsed : stored;
+}
+
 /** List query: filter by biomarker / analyte (exact) + date range, paginate. */
 export const listLabResultsSchema = z.object({
   // v1.18.1 — filter to one catalog marker's readings (the detail chart feed).
