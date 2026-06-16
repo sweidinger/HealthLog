@@ -6345,7 +6345,9 @@
       "delete": "Supprimer",
       "temperatureSection": "Température et ovulation",
       "intimacySection": "Intimité et contraception",
-      "testsSection": "Tests"
+      "testsSection": "Tests",
+      "phaseDayHeader": "Jour {day} · {phase}",
+      "bbtHint": "Prends-la dès le matin, avant de te lever."
     },
     "settings": {
       "title": "Réglages du cycle",
@@ -6421,6 +6423,24 @@
       "ovulationEstimate": "Ovulation est.",
       "tooltipTemp": "{temp} °C",
       "ovulationConfirmed": "Ovulation confirmée"
+    },
+    "fieldInfo": {
+      "bbt": "Ta température au repos, prise dès le matin avant de te lever. Elle augmente légèrement (environ 0,2–0,3 °C) après l'ovulation.",
+      "bbtLabel": "Qu'est-ce que la température basale ?",
+      "mucus": "Les pertes vaginales évoluent au fil du cycle — de sèches ou collantes à crémeuses, puis aqueuses et comme du blanc d'œuf autour des jours les plus fertiles.",
+      "mucusLabel": "Qu'est-ce que la glaire cervicale ?",
+      "ovulationTest": "Un test urinaire à domicile qui détecte le pic de LH — la montée hormonale environ 24–36 h avant l'ovulation. Un test positif signale la période la plus fertile.",
+      "ovulationTestLabel": "Qu'est-ce qu'un test d'ovulation ?",
+      "spotting": "Léger saignement en dehors des règles.",
+      "spottingLabel": "Qu'est-ce que le spotting entre les règles ?",
+      "pregnancyTest": "Résultat d'un test de grossesse (hCG) à domicile.",
+      "pregnancyTestLabel": "Qu'est-ce qu'un test de grossesse ?",
+      "progesteroneTest": "Un test confirmant que l'ovulation a eu lieu — la progestérone augmente ensuite.",
+      "progesteroneTestLabel": "Qu'est-ce qu'un test de progestérone ?",
+      "intercourse": "Si un rapport sexuel a eu lieu ce jour-là.",
+      "intercourseLabel": "Que suit le rapport ?",
+      "protected": "Si une contraception a été utilisée pendant le rapport.",
+      "protectedLabel": "Que signifie protégé ?"
     }
   },
   "cycleReminders": {

@@ -6345,7 +6345,9 @@
       "delete": "Usuń",
       "temperatureSection": "Temperatura i owulacja",
       "intimacySection": "Intymność i antykoncepcja",
-      "testsSection": "Testy"
+      "testsSection": "Testy",
+      "phaseDayHeader": "Dzień {day} · {phase}",
+      "bbtHint": "Zmierz ją rano zaraz po przebudzeniu, przed wstaniem."
     },
     "settings": {
       "title": "Ustawienia cyklu",
@@ -6421,6 +6423,24 @@
       "ovulationEstimate": "Szac. owulacja",
       "tooltipTemp": "{temp} °C",
       "ovulationConfirmed": "Potwierdzona owulacja"
+    },
+    "fieldInfo": {
+      "bbt": "Twoja temperatura spoczynkowa, mierzona rano zaraz po przebudzeniu, przed wstaniem. Po owulacji nieznacznie rośnie (o około 0,2–0,3 °C).",
+      "bbtLabel": "Czym jest temperatura podstawowa?",
+      "mucus": "Wydzielina z pochwy zmienia się w cyklu — od suchej lub lepkiej do kremowej, a następnie wodnistej i przypominającej białko jaja w najbardziej płodnych dniach.",
+      "mucusLabel": "Czym jest śluz szyjkowy?",
+      "ovulationTest": "Domowy test moczu wykrywający skok LH — wyrzut hormonu około 24–36 h przed owulacją. Wynik dodatni wskazuje najbardziej płodne okno.",
+      "ovulationTestLabel": "Czym jest test owulacyjny?",
+      "spotting": "Lekkie krwawienie poza okresem.",
+      "spottingLabel": "Czym jest plamienie między okresami?",
+      "pregnancyTest": "Wynik domowego testu ciążowego (hCG).",
+      "pregnancyTestLabel": "Czym jest test ciążowy?",
+      "progesteroneTest": "Test potwierdzający, że doszło do owulacji — progesteron rośnie po niej.",
+      "progesteroneTestLabel": "Czym jest test progesteronu?",
+      "intercourse": "Czy tego dnia doszło do stosunku.",
+      "intercourseLabel": "Co śledzi stosunek?",
+      "protected": "Czy podczas stosunku zastosowano antykoncepcję.",
+      "protectedLabel": "Co oznacza zabezpieczony?"
     }
   },
   "cycleReminders": {

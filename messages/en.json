@@ -6345,7 +6345,9 @@
       "clear": "None",
       "temperatureSection": "Temperature & ovulation",
       "intimacySection": "Intimacy & contraception",
-      "testsSection": "Tests"
+      "testsSection": "Tests",
+      "phaseDayHeader": "Day {day} · {phase}",
+      "bbtHint": "Take it first thing in the morning, before getting up."
     },
     "testResult": {
       "POSITIVE": "Positive",
@@ -6421,6 +6423,24 @@
       "ovulationEstimate": "Est. ovulation",
       "tooltipTemp": "{temp} °C",
       "ovulationConfirmed": "Confirmed ovulation"
+    },
+    "fieldInfo": {
+      "bbt": "Your resting temperature, taken first thing in the morning before getting up. It rises slightly (about 0.2–0.3 °C) after ovulation.",
+      "bbtLabel": "What is basal body temperature?",
+      "mucus": "Vaginal discharge changes across the cycle — from dry or sticky to creamy, then watery and egg-white-like around the most fertile days.",
+      "mucusLabel": "What is cervical mucus?",
+      "ovulationTest": "A home urine test that detects the LH surge — the hormone spike about 24–36 h before ovulation. A positive flags the most fertile window.",
+      "ovulationTestLabel": "What is an ovulation test?",
+      "spotting": "Light bleeding outside the period.",
+      "spottingLabel": "What is spotting between periods?",
+      "pregnancyTest": "Result of a home pregnancy (hCG) test.",
+      "pregnancyTestLabel": "What is a pregnancy test?",
+      "progesteroneTest": "A test confirming ovulation has occurred — progesterone rises afterward.",
+      "progesteroneTestLabel": "What is a progesterone test?",
+      "intercourse": "Whether sexual intercourse took place on this day.",
+      "intercourseLabel": "What does intercourse track?",
+      "protected": "Whether contraception was used during intercourse.",
+      "protectedLabel": "What does protected mean?"
     }
   },
   "cycleReminders": {
