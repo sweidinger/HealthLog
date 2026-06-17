@@ -6791,6 +6791,24 @@
       "byMonth": "When you tend to log episodes",
       "none": "No episodes logged in this period."
     },
+    "section": {
+      "active": "Active",
+      "resolved": "Resolved"
+    },
+    "flares": {
+      "countOne": "1 flare",
+      "countOther": "{count} flares"
+    },
+    "timeline": {
+      "title": "Day timeline",
+      "error": "Could not load today's entry.",
+      "emptyToday": "Nothing logged today yet.",
+      "today": "Today · {date}",
+      "severity": "Severity {severity}",
+      "noSymptoms": "No symptoms logged.",
+      "impact": "How you functioned: {impact}",
+      "fever": "Temperature: {value} °C"
+    },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",
     "detail": {

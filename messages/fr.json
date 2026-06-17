@@ -6791,6 +6791,24 @@
       "byMonth": "Quand tu enregistres des épisodes",
       "none": "Aucun épisode enregistré sur cette période."
     },
+    "section": {
+      "active": "Actifs",
+      "resolved": "Résolus"
+    },
+    "flares": {
+      "countOne": "1 poussée",
+      "countOther": "{count} poussées"
+    },
+    "timeline": {
+      "title": "Chronologie du jour",
+      "error": "Impossible de charger l'entrée du jour.",
+      "emptyToday": "Rien d'enregistré aujourd'hui pour l'instant.",
+      "today": "Aujourd'hui · {date}",
+      "severity": "Intensité {severity}",
+      "noSymptoms": "Aucun symptôme enregistré.",
+      "impact": "Votre forme : {impact}",
+      "fever": "Température : {value} °C"
+    },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",
     "detail": {
