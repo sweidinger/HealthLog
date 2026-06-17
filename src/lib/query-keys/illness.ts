@@ -19,6 +19,14 @@ export const illnessKeys = {
   illnessDayLog: (episodeId: string, date: string) =>
     ["illness", "day-log", episodeId, date] as const,
   /**
+   * v1.18.3 — the date-less day-log LIST for an episode (full historical
+   * scroll on the detail timeline + iOS healthlog-iOS#30). Distinct slot from
+   * the single-day read above; an illness write evicts the whole `["illness"]`
+   * prefix so both repaint together.
+   */
+  illnessDayLogList: (episodeId: string, sortDir: string) =>
+    ["illness", "day-log-list", episodeId, sortDir] as const,
+  /**
    * v1.18.1 P3 — the per-episode retrospective correlation findings
    * (pre-onset scan, nadir, recovery-gap). Server-authoritative; the read
    * is gated, so the surface pattern-matches `status` rather than recomputing.

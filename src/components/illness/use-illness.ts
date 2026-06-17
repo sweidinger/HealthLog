@@ -17,6 +17,7 @@ import type {
   IllnessCorrelationResponse,
   IllnessDayLogDTO,
   IllnessDayLogInput,
+  IllnessDayLogListResponse,
   IllnessEpisodeCreateInput,
   IllnessEpisodeDTO,
   IllnessEpisodeUpdateInput,
@@ -79,6 +80,25 @@ export function useIllnessDayLog(episodeId: string | null, date: string) {
     queryFn: () =>
       apiGet<IllnessDayLogDTO | null>(
         `/api/illness/episodes/${episodeId}/day-logs?date=${date}`,
+      ),
+  });
+}
+
+/**
+ * v1.18.3 — the episode's full day-log history, newest-first (date-less list).
+ * Powers the detail timeline's historical scroll instead of anchoring on
+ * today. Server-authoritative; the response carries `meta.total` for paging.
+ */
+export function useIllnessDayLogList(
+  episodeId: string | null,
+  sortDir: "asc" | "desc" = "desc",
+) {
+  return useQuery({
+    queryKey: queryKeys.illnessDayLogList(episodeId ?? "none", sortDir),
+    enabled: episodeId !== null,
+    queryFn: () =>
+      apiGet<IllnessDayLogListResponse>(
+        `/api/illness/episodes/${episodeId}/day-logs?sortDir=${sortDir}`,
       ),
   });
 }

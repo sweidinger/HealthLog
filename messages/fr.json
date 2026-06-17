@@ -6823,13 +6823,12 @@
     },
     "timeline": {
       "title": "Chronologie du jour",
-      "error": "Impossible de charger l'entrée du jour.",
-      "emptyToday": "Rien d'enregistré aujourd'hui pour l'instant.",
-      "today": "Aujourd'hui · {date}",
+      "error": "Impossible de charger la chronologie.",
       "severity": "Intensité {severity}",
       "noSymptoms": "Aucun symptôme enregistré.",
       "impact": "Votre forme : {impact}",
-      "fever": "Température : {value} °C"
+      "fever": "Température : {value} °C",
+      "empty": "Aucun jour enregistré pour l’instant."
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",
