@@ -121,7 +121,6 @@ export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
       {episode ? (
         <IllnessDayTimeline
           episodeId={episode.id}
-          date={today}
           onLogDay={() => setLogOpen(true)}
         />
       ) : null}

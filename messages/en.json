@@ -6823,13 +6823,12 @@
     },
     "timeline": {
       "title": "Day timeline",
-      "error": "Could not load today's entry.",
-      "emptyToday": "Nothing logged today yet.",
-      "today": "Today · {date}",
+      "error": "Could not load the timeline.",
       "severity": "Severity {severity}",
       "noSymptoms": "No symptoms logged.",
       "impact": "How you functioned: {impact}",
-      "fever": "Temperature: {value} °C"
+      "fever": "Temperature: {value} °C",
+      "empty": "No days logged yet."
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

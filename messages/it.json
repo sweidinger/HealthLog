@@ -6823,13 +6823,12 @@
     },
     "timeline": {
       "title": "Cronologia del giorno",
-      "error": "Impossibile caricare il diario di oggi.",
-      "emptyToday": "Oggi non hai ancora registrato nulla.",
-      "today": "Oggi · {date}",
+      "error": "Impossibile caricare la cronologia.",
       "severity": "Intensità {severity}",
       "noSymptoms": "Nessun sintomo registrato.",
       "impact": "Come ti sei sentito: {impact}",
-      "fever": "Temperatura: {value} °C"
+      "fever": "Temperatura: {value} °C",
+      "empty": "Nessun giorno registrato finora."
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

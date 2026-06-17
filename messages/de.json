@@ -6823,13 +6823,12 @@
     },
     "timeline": {
       "title": "Tagesverlauf",
-      "error": "Der heutige Eintrag konnte nicht geladen werden.",
-      "emptyToday": "Heute noch nichts erfasst.",
-      "today": "Heute · {date}",
+      "error": "Der Verlauf konnte nicht geladen werden.",
       "severity": "Stärke {severity}",
       "noSymptoms": "Keine Symptome erfasst.",
       "impact": "Befinden: {impact}",
-      "fever": "Temperatur: {value} °C"
+      "fever": "Temperatur: {value} °C",
+      "empty": "Noch keine Tage erfasst."
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

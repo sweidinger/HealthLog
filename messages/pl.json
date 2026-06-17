@@ -6823,13 +6823,12 @@
     },
     "timeline": {
       "title": "Oś dnia",
-      "error": "Nie udało się wczytać dzisiejszego wpisu.",
-      "emptyToday": "Dziś nic jeszcze nie zapisano.",
-      "today": "Dziś · {date}",
+      "error": "Nie udało się wczytać osi.",
       "severity": "Nasilenie {severity}",
       "noSymptoms": "Nie zapisano objawów.",
       "impact": "Jak funkcjonowałeś: {impact}",
-      "fever": "Temperatura: {value} °C"
+      "fever": "Temperatura: {value} °C",
+      "empty": "Nie zapisano jeszcze żadnych dni."
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

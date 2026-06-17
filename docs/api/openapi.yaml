@@ -6488,9 +6488,11 @@ paths:
     get:
       tags:
         - Illness
-      summary: Read one day-log for an episode (v1.18.1)
-      description: Returns the day-log for the episode + `date`, or `null` when nothing is logged that day (lets the log-day
-        sheet pre-fill). The parent episode must be owned + live. Born-gated.
+      summary: Read an episode's day-log(s) (v1.18.1, list v1.18.3)
+      description: "Two modes on one path, picked by the `date` param. With `date=YYYY-MM-DD`: the single day-log for that
+        day, or `null` when nothing is logged (lets the log-day sheet pre-fill). Without `date`: the date-less LIST —
+        the episode's day-logs newest-first (override with `sortDir`), paged via `limit`/`offset` with `meta.total`. The
+        parent episode must be owned + live. Born-gated."
       parameters:
         - in: path
           name: id
@@ -6502,10 +6504,28 @@ paths:
           schema:
             type: string
             pattern: ^\d{4}-\d{2}-\d{2}$
-          required: true
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 9007199254740991
+        - in: query
+          name: sortDir
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
       responses:
         "200":
-          description: The day-log, or null.
+          description: "With `date`: the day-log or null. Without `date`: the paged day-log list."
           content:
             application/json:
               schema:
@@ -18540,8 +18560,10 @@ components:
       properties:
         data:
           anyOf:
-            - $ref: "#/components/schemas/IllnessDayLog"
-            - type: "null"
+            - anyOf:
+                - $ref: "#/components/schemas/IllnessDayLog"
+                - type: "null"
+            - $ref: "#/components/schemas/IllnessDayLogList"
         error:
           type: "null"
         meta:
@@ -18612,6 +18634,34 @@ components:
       additionalProperties: false
       description: "A symptom link on a day-log: the catalog `key` plus an optional 1–3 graded severity (`null` = a plain
         presence link; the link's presence already means 'present', so 0 is not a distinct state)."
+    IllnessDayLogList:
+      type: object
+      properties:
+        dayLogs:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllnessDayLog"
+        meta:
+          type: object
+          properties:
+            total:
+              type: number
+            limit:
+              type: number
+            offset:
+              type: number
+          required:
+            - total
+            - limit
+            - offset
+          additionalProperties: false
+      required:
+        - dayLogs
+        - meta
+      additionalProperties: false
+      description: "The date-less day-log LIST (v1.18.3): the episode's day-logs newest-first (or oldest-first under
+        `sortDir:'asc'`), with `meta.total` for paging the full history. Powers the detail timeline scroll + iOS
+        healthlog-iOS#30."
     UpsertIllnessDayLogUpdatedEnvelope:
       type: object
       properties:

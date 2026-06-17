@@ -2,6 +2,10 @@
  * `GET  /api/illness/episodes/{id}/day-logs?date=YYYY-MM-DD` — the one
  *        day-log for the episode + day, or `null` when nothing is logged
  *        (lets the log-day sheet pre-fill).
+ * `GET  /api/illness/episodes/{id}/day-logs` (no `date`) — the date-less
+ *        LIST: the episode's day-logs newest-first, paginated
+ *        (`limit`/`offset`/`sortDir` + `meta.total`). Powers the detail
+ *        timeline's full historical scroll + iOS (healthlog-iOS#30).
  * `POST /api/illness/episodes/{id}/day-logs` — upsert the day's symptom /
  *        functional-impact / fever timeline row. Upserts on
  *        `(episodeId, date)`: 201 on insert, 200 on update.
@@ -25,6 +29,7 @@ import {
 import { requireIllnessEnabled } from "@/lib/illness/gate";
 import {
   illnessDayLogInputSchema,
+  illnessDayLogListQuerySchema,
   illnessDayLogQuerySchema,
 } from "@/lib/validations/illness";
 import { upsertIllnessDayLog } from "@/lib/illness/day-log-write";
@@ -59,8 +64,54 @@ export const GET = apiHandler(
     const owned = await loadOwnedEpisode(id, user.id);
     if (!owned.ok) return owned.response;
 
+    const searchParams = new URL(request.url).searchParams;
+
+    // No `date` → the date-less LIST: the episode's day-logs newest-first,
+    // paginated, with `meta.total`. A `date` keeps the single-day read intact
+    // (back-compat). The two modes are mutually exclusive by the param's
+    // presence, so a list caller never trips the single-day Zod gate.
+    if (!searchParams.has("date")) {
+      const parsedList = illnessDayLogListQuerySchema.safeParse({
+        limit: searchParams.get("limit") ?? undefined,
+        offset: searchParams.get("offset") ?? undefined,
+        sortDir: searchParams.get("sortDir") ?? undefined,
+      });
+      if (!parsedList.success) {
+        return returnAllZodIssues(parsedList.error, 422, {
+          errorCode: "illness.day-log.invalid",
+        });
+      }
+
+      const { limit, offset, sortDir } = parsedList.data;
+      const where = { episodeId: id, deletedAt: null };
+
+      const [rows, total] = await Promise.all([
+        prisma.illnessDayLog.findMany({
+          where,
+          orderBy: { date: sortDir },
+          take: limit,
+          skip: offset,
+          include: dayLogSymptomInclude,
+        }),
+        prisma.illnessDayLog.count({ where }),
+      ]);
+
+      annotate({
+        action: {
+          name: "illness.day-log.list",
+          entity_type: "illness_day_log",
+        },
+        meta: { total, limit, offset },
+      });
+
+      return apiSuccess({
+        dayLogs: rows.map(toIllnessDayLogDTO),
+        meta: { total, limit, offset },
+      });
+    }
+
     const parsed = illnessDayLogQuerySchema.safeParse({
-      date: new URL(request.url).searchParams.get("date"),
+      date: searchParams.get("date"),
     });
     if (!parsed.success) {
       return returnAllZodIssues(parsed.error, 422, {

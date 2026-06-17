@@ -47,6 +47,16 @@ export interface IllnessDayLogDTO {
   updatedAt: string;
 }
 
+/**
+ * v1.18.3 — the date-less day-log LIST response (`GET .../day-logs` with no
+ * `date`). Server-authoritative; iOS (healthlog-iOS#30) renders the rows +
+ * pages on `meta.total`. Mirrors the Labs list envelope shape.
+ */
+export interface IllnessDayLogListResponse {
+  dayLogs: IllnessDayLogDTO[];
+  meta: { total: number; limit: number; offset: number };
+}
+
 export interface IllnessEpisodeCreateInput {
   label: string;
   type: IllnessType;
