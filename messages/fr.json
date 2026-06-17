@@ -6405,7 +6405,9 @@
     "overdueByDays": "En retard de {days} jours",
     "cadence": {
       "everyNDays": "Tous les {days} jours",
-      "custom": "Planning personnalisé"
+      "custom": "Planning personnalisé",
+      "customInterval": "Personnalisé (tous les N jours)",
+      "rruleOption": "Règle personnalisée (RRULE)"
     },
     "location": {
       "prefix": "Chez : {location}"
@@ -6448,7 +6450,11 @@
       "locationPlaceholder": "ex. Médecin, Laboratoire",
       "save": "Enregistrer",
       "createTitle": "Nouveau rappel",
-      "editTitle": "Modifier le rappel"
+      "editTitle": "Modifier le rappel",
+      "customInterval": "Répéter tous les (jours)",
+      "rrule": "Règle de récurrence (RRULE)",
+      "rruleHint": "RFC-5545, p. ex. FREQ=YEARLY pour un contrôle annuel.",
+      "firstDue": "Première échéance (facultatif)"
     },
     "pushTitle": "Rappel de prévention",
     "pushBody": "C'est l'heure : {label}",
@@ -6456,7 +6462,23 @@
     "edit": "Modifier",
     "originCoach": "Coach",
     "enabledToggleAria": "Activer ou désactiver ce rappel",
-    "until": "Jusqu'au {date}"
+    "until": "Jusqu'au {date}",
+    "selfPlanned": "Auto-planifié",
+    "captureValue": "Enregistrer la valeur",
+    "capture": {
+      "title": "Enregistrer une mesure",
+      "description": "Saisissez la valeur ; le rappel est marqué comme fait."
+    },
+    "manage": {
+      "menuItem": "Personnaliser",
+      "title": "Personnaliser les rappels",
+      "description": "Activer ou désactiver des rappels individuels.",
+      "empty": "Aucun rappel à personnaliser pour l'instant."
+    },
+    "dashboard": {
+      "empty": "Aucun rappel de prévention à venir.",
+      "openLink": "Ouvrir la prévention"
+    }
   },
   "labs": {
     "title": "Résultats d'analyses",
@@ -6790,6 +6812,24 @@
       "typicalGapLearning": "Encore quelques épisodes résolus et un écart de récupération typique apparaîtra ici.",
       "byMonth": "Quand tu enregistres des épisodes",
       "none": "Aucun épisode enregistré sur cette période."
+    },
+    "section": {
+      "active": "Actifs",
+      "resolved": "Résolus"
+    },
+    "flares": {
+      "countOne": "1 poussée",
+      "countOther": "{count} poussées"
+    },
+    "timeline": {
+      "title": "Chronologie du jour",
+      "error": "Impossible de charger l'entrée du jour.",
+      "emptyToday": "Rien d'enregistré aujourd'hui pour l'instant.",
+      "today": "Aujourd'hui · {date}",
+      "severity": "Intensité {severity}",
+      "noSymptoms": "Aucun symptôme enregistré.",
+      "impact": "Votre forme : {impact}",
+      "fever": "Température : {value} °C"
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.18.2] — 2026-06-17 — preventive care, the same as your medications
+
+This release brings preventive care into line with how medications already work, and clears up the condition journal. Each preventive-care item is now its own card in the same style as a medication, and marking one done behaves the way you'd expect: a check-up you plan for yourself is a simple "done", while a reminder tied to a measurement opens the actual entry form — completing a blood-pressure reminder records the reading rather than just ticking a box. Items take a first-due date and a custom interval, the page gained a settings control like the labs and condition pages, and preventive care can now sit on the dashboard as its own tile. The condition journal was reorganised so it reads at a glance. No breaking changes; no migration.
+
+### Changed
+
+- **Preventive care looks and works like your medications.** Every reminder is its own card with one clear action. A self-planned check-up is marked done in a tap; a reminder linked to a measurement opens the matching entry form, so finishing it captures the value and clears the reminder in one step. Reminders take a first-due date and a custom interval, can be edited from the card, and the page carries a settings control to manage them. Preventive care can be placed on the dashboard like any other area.
+- **The condition journal reads at a glance.** Conditions are grouped into active and resolved, flares sit under the condition they belong to, each row carries a single clear action with the rest behind a menu, and a condition's daily timeline now lives on its own page. The retrospective summary sits up top where you'll see it.
+
+### Operator note
+
+- UI-only release — no schema change and no migration. Preventive care ships on the dashboard switched off by default; enable it from the dashboard layout settings.
+
 ## [1.18.1] — 2026-06-16 — labs that hold a catalog, a condition journal, and reminders that only nudge when you forget
 
 A large release that turns two thin features into proper ones and adds two more, all in the existing visual language. Lab results gain a biomarker catalog: define a marker once with its unit and reference range, then log a value by picking it — with a full dashboard-style chart, edit and undo. A new condition journal records an illness from onset to recovery and, once it has enough of your own history, reflects back how it announced itself and how long recovery took — retrospective only, never a diagnosis. Preventive-care reminders now fire only when a measurement is actually overdue and clear themselves the moment a reading arrives from any source, and the coach can suggest an evidence-based measurement cadence you accept with one tap — both feeding one shared reminder engine. The settings menu, the dashboard header, the recovery page and the coach view were tightened so every module reads as one app. Medications can now be switched off like any other module; the core vitals — weight, blood pressure, pulse — stay always on. No breaking changes.

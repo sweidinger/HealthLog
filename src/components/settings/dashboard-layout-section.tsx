@@ -146,6 +146,8 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   wristTemperature: "measurements.typeWristTemperature",
   falls: "measurements.typeFallCount",
   walkingSteadiness: "measurements.typeWalkingSteadiness",
+  // v1.18.2 — Vorsorge preventive-care summary card.
+  vorsorge: "measurementReminders.sectionTitle",
 };
 
 export function DashboardLayoutSection({ id }: { id: string }) {

@@ -55,6 +55,7 @@ import { GettingStartedChecklist } from "@/components/onboarding/getting-started
 import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
 import { RecentWorkoutsTile } from "@/components/dashboard/recent-workouts-tile";
+import { VorsorgeDashboardCard } from "@/components/measurement-reminders/vorsorge-dashboard-card";
 
 // v1.4.40 W-RSC — module-scope so the option object is stable across
 // renders (audit-M2). Pre-fix the same literal was declared inside the
@@ -201,6 +202,8 @@ const CHART_CAPABLE_WIDGET_IDS = new Set<string>([
   "sleep",
   "steps",
   "medications",
+  // v1.18.2 — Vorsorge preventive-care summary card (chart-row only).
+  "vorsorge",
 ]);
 
 /**
@@ -540,6 +543,9 @@ export default function DashboardPage() {
   const showSleepChart = isChartVisible("sleep") && hasSleep;
   const showStepsChart = isChartVisible("steps") && hasSteps;
   const showMedicationsCard = isChartVisible("medications");
+  // v1.18.2 — Vorsorge summary card on the chart row (opt-in). Always-on
+  // data surface, so it gates on the layout toggle alone.
+  const showVorsorgeCard = isChartVisible("vorsorge");
   // `layoutData` is undefined until the real layout (snapshot or legacy
   // widgets) resolves; `resolveDashboardLayout(undefined)` falls back to
   // DEFAULT_DASHBOARD_LAYOUT, where `achievements` is visible by default.
@@ -1402,6 +1408,17 @@ export default function DashboardPage() {
                 userTimezone={user?.timezone}
               />
             ),
+          });
+        }
+        if (showVorsorgeCard) {
+          // v1.18.2 — Vorsorge preventive-care summary card. Slotted via
+          // the layout `order` like medications; self-fetches its reminder
+          // list and self-skeletons, so it stays out of the reveal gate
+          // (no chart-shaped data-ready signal).
+          charts.push({
+            id: "vorsorge",
+            order: widgetOrder("vorsorge"),
+            node: <VorsorgeDashboardCard key="vorsorge" />,
           });
         }
         if (showAchievementsCard) {

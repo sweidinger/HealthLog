@@ -6405,7 +6405,9 @@
     "overdueByDays": "In ritardo di {days} giorni",
     "cadence": {
       "everyNDays": "Ogni {days} giorni",
-      "custom": "Pianificazione personalizzata"
+      "custom": "Pianificazione personalizzata",
+      "customInterval": "Personalizzato (ogni N giorni)",
+      "rruleOption": "Regola personalizzata (RRULE)"
     },
     "location": {
       "prefix": "Presso: {location}"
@@ -6448,7 +6450,11 @@
       "locationPlaceholder": "es. Medico, Laboratorio",
       "save": "Salva",
       "createTitle": "Nuovo promemoria",
-      "editTitle": "Modifica promemoria"
+      "editTitle": "Modifica promemoria",
+      "customInterval": "Ripeti ogni (giorni)",
+      "rrule": "Regola di ricorrenza (RRULE)",
+      "rruleHint": "RFC-5545, es. FREQ=YEARLY per un controllo annuale.",
+      "firstDue": "Prima scadenza (facoltativo)"
     },
     "pushTitle": "Promemoria di prevenzione",
     "pushBody": "È ora di: {label}",
@@ -6456,7 +6462,23 @@
     "edit": "Modifica",
     "originCoach": "Coach",
     "enabledToggleAria": "Attiva o disattiva questo promemoria",
-    "until": "Fino al {date}"
+    "until": "Fino al {date}",
+    "selfPlanned": "Autopianificato",
+    "captureValue": "Registra valore",
+    "capture": {
+      "title": "Registra misurazione",
+      "description": "Inserisci il valore; il promemoria viene segnato come fatto."
+    },
+    "manage": {
+      "menuItem": "Personalizza",
+      "title": "Personalizza promemoria",
+      "description": "Attiva o disattiva singoli promemoria.",
+      "empty": "Nessun promemoria da personalizzare."
+    },
+    "dashboard": {
+      "empty": "Nessun promemoria di prevenzione in arrivo.",
+      "openLink": "Apri prevenzione"
+    }
   },
   "labs": {
     "title": "Risultati degli esami",
@@ -6790,6 +6812,24 @@
       "typicalGapLearning": "Ancora qualche episodio risolto e qui apparirà un divario di recupero tipico.",
       "byMonth": "Quando tendi a registrare episodi",
       "none": "Nessun episodio registrato in questo periodo."
+    },
+    "section": {
+      "active": "Attivi",
+      "resolved": "Risolti"
+    },
+    "flares": {
+      "countOne": "1 riacutizzazione",
+      "countOther": "{count} riacutizzazioni"
+    },
+    "timeline": {
+      "title": "Cronologia del giorno",
+      "error": "Impossibile caricare il diario di oggi.",
+      "emptyToday": "Oggi non hai ancora registrato nulla.",
+      "today": "Oggi · {date}",
+      "severity": "Intensità {severity}",
+      "noSymptoms": "Nessun sintomo registrato.",
+      "impact": "Come ti sei sentito: {impact}",
+      "fever": "Temperatura: {value} °C"
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

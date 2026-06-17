@@ -6405,7 +6405,9 @@
     "overdueByDays": "Überfällig seit {days} Tagen",
     "cadence": {
       "everyNDays": "Alle {days} Tage",
-      "custom": "Eigener Zeitplan"
+      "custom": "Eigener Zeitplan",
+      "customInterval": "Individuell (alle N Tage)",
+      "rruleOption": "Eigene Regel (RRULE)"
     },
     "location": {
       "prefix": "Bei: {location}"
@@ -6448,7 +6450,11 @@
       "locationPlaceholder": "z. B. Hausarzt, Labor",
       "save": "Speichern",
       "createTitle": "Neue Erinnerung",
-      "editTitle": "Erinnerung bearbeiten"
+      "editTitle": "Erinnerung bearbeiten",
+      "customInterval": "Wiederholen alle (Tage)",
+      "rrule": "Wiederholungsregel (RRULE)",
+      "rruleHint": "RFC-5545, z. B. FREQ=YEARLY für eine jährliche Untersuchung.",
+      "firstDue": "Erste Fälligkeit (optional)"
     },
     "pushTitle": "Vorsorge-Erinnerung",
     "pushBody": "Fällig: {label}",
@@ -6456,7 +6462,23 @@
     "edit": "Bearbeiten",
     "originCoach": "Coach",
     "enabledToggleAria": "Diese Erinnerung aktivieren oder deaktivieren",
-    "until": "Bis {date}"
+    "until": "Bis {date}",
+    "selfPlanned": "Selbstgeplant",
+    "captureValue": "Wert erfassen",
+    "capture": {
+      "title": "Messwert erfassen",
+      "description": "Wert eintragen; die Erinnerung wird als erledigt markiert."
+    },
+    "manage": {
+      "menuItem": "Anpassen",
+      "title": "Erinnerungen anpassen",
+      "description": "Einzelne Erinnerungen aktivieren oder deaktivieren.",
+      "empty": "Noch keine Erinnerungen zum Anpassen."
+    },
+    "dashboard": {
+      "empty": "Keine anstehenden Vorsorge-Erinnerungen.",
+      "openLink": "Vorsorge öffnen"
+    }
   },
   "labs": {
     "title": "Laborwerte",
@@ -6790,6 +6812,24 @@
       "typicalGapLearning": "Noch ein paar abgeschlossene Episoden und hier erscheint eine typische Erholungslücke.",
       "byMonth": "Wann du Episoden erfasst",
       "none": "In diesem Zeitraum keine Episoden erfasst."
+    },
+    "section": {
+      "active": "Aktiv",
+      "resolved": "Abgeschlossen"
+    },
+    "flares": {
+      "countOne": "1 Schub",
+      "countOther": "{count} Schübe"
+    },
+    "timeline": {
+      "title": "Tagesverlauf",
+      "error": "Der heutige Eintrag konnte nicht geladen werden.",
+      "emptyToday": "Heute noch nichts erfasst.",
+      "today": "Heute · {date}",
+      "severity": "Stärke {severity}",
+      "noSymptoms": "Keine Symptome erfasst.",
+      "impact": "Befinden: {impact}",
+      "fever": "Temperatur: {value} °C"
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

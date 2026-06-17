@@ -54,6 +54,12 @@ export const DASHBOARD_WIDGET_IDS = [
   "wristTemperature",
   "falls",
   "walkingSteadiness",
+  // v1.18.2 — Vorsorge (preventive-care reminders) becomes a first-class
+  // dashboard widget, exactly like `medications`: a chart-row summary card
+  // (no strip tile). Default-off so existing dashboards are unchanged; the
+  // user opts in via Settings → Dashboard. Always-on data surface (no
+  // toggleable module gate), so it behaves as a core opt-in tile.
+  "vorsorge",
 ] as const;
 
 export type DashboardWidgetId = (typeof DASHBOARD_WIDGET_IDS)[number];
@@ -402,6 +408,9 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     { id: "wristTemperature", visible: false, tileVisible: false, order: 21 },
     { id: "falls", visible: false, tileVisible: false, order: 22 },
     { id: "walkingSteadiness", visible: false, tileVisible: false, order: 23 },
+    // v1.18.2 — Vorsorge summary card. Chart-row only (no strip tile), so
+    // `tileVisible` is forced false; default-invisible until opt-in.
+    { id: "vorsorge", visible: false, tileVisible: false, order: 24 },
   ],
 };
 

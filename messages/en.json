@@ -6405,7 +6405,9 @@
     "overdueByDays": "Overdue by {days} days",
     "cadence": {
       "everyNDays": "Every {days} days",
-      "custom": "Custom schedule"
+      "custom": "Custom schedule",
+      "customInterval": "Custom (every N days)",
+      "rruleOption": "Custom rule (RRULE)"
     },
     "location": {
       "prefix": "At: {location}"
@@ -6448,7 +6450,11 @@
       "locationPlaceholder": "e.g. GP, Lab",
       "save": "Save",
       "createTitle": "New reminder",
-      "editTitle": "Edit reminder"
+      "editTitle": "Edit reminder",
+      "customInterval": "Repeat every (days)",
+      "rrule": "Recurrence rule (RRULE)",
+      "rruleHint": "RFC-5545, e.g. FREQ=YEARLY for an annual check.",
+      "firstDue": "First due (optional)"
     },
     "pushTitle": "Preventive-care reminder",
     "pushBody": "Time for: {label}",
@@ -6456,7 +6462,23 @@
     "edit": "Edit",
     "originCoach": "Coach",
     "enabledToggleAria": "Enable or disable this reminder",
-    "until": "Until {date}"
+    "until": "Until {date}",
+    "selfPlanned": "Self-planned",
+    "captureValue": "Log value",
+    "capture": {
+      "title": "Log measurement",
+      "description": "Enter the reading; the reminder is marked done."
+    },
+    "manage": {
+      "menuItem": "Customize",
+      "title": "Customize reminders",
+      "description": "Enable or disable individual reminders.",
+      "empty": "No reminders to customize yet."
+    },
+    "dashboard": {
+      "empty": "No upcoming preventive-care reminders.",
+      "openLink": "Open preventive care"
+    }
   },
   "labs": {
     "title": "Lab results",
@@ -6790,6 +6812,24 @@
       "typicalGapLearning": "A few more resolved episodes and a typical recovery gap will appear here.",
       "byMonth": "When you tend to log episodes",
       "none": "No episodes logged in this period."
+    },
+    "section": {
+      "active": "Active",
+      "resolved": "Resolved"
+    },
+    "flares": {
+      "countOne": "1 flare",
+      "countOther": "{count} flares"
+    },
+    "timeline": {
+      "title": "Day timeline",
+      "error": "Could not load today's entry.",
+      "emptyToday": "Nothing logged today yet.",
+      "today": "Today · {date}",
+      "severity": "Severity {severity}",
+      "noSymptoms": "No symptoms logged.",
+      "impact": "How you functioned: {impact}",
+      "fever": "Temperature: {value} °C"
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",
