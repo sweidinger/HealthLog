@@ -6716,6 +6716,8 @@
     "newEpisode": "Nuovo episodio",
     "logDay": "Registra un giorno",
     "markRecovered": "Segna come guarito",
+    "deletedToast": "Episodio eliminato",
+    "restoreError": "Impossibile ripristinare l'episodio",
     "onsetOn": "Iniziato il {date}",
     "recoveredOn": "guarito {date}",
     "status": {

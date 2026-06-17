@@ -9,6 +9,7 @@
  */
 import { useState } from "react";
 import { MoreVertical, Pencil, CheckCircle2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useTranslations } from "@/lib/i18n/context";
 
-import { useDeleteEpisode } from "./use-illness";
+import { useDeleteEpisode, useRestoreEpisode } from "./use-illness";
 import type { IllnessEpisodeDTO } from "./types";
 
 export interface EpisodeMenuProps {
@@ -52,6 +53,7 @@ export function EpisodeMenu({
 }: EpisodeMenuProps) {
   const { t } = useTranslations();
   const del = useDeleteEpisode();
+  const restore = useRestoreEpisode();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   async function handleConfirmDelete() {
@@ -59,6 +61,19 @@ export function EpisodeMenu({
       await del.mutateAsync(episode.id);
       setConfirmOpen(false);
       onDeleted?.();
+      // Soft-delete keeps the episode + its day-logs intact, so the delete is
+      // reversible. Surface an Undo toast wired to the restore route (the labs
+      // delete+undo UX).
+      toast.success(t("illness.deletedToast"), {
+        action: {
+          label: t("common.undo"),
+          onClick: () => {
+            restore.mutate(episode.id, {
+              onError: () => toast.error(t("illness.restoreError")),
+            });
+          },
+        },
+      });
     } catch {
       // Keep the dialog open; the list will surface any error on next read.
     }

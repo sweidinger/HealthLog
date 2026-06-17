@@ -6716,6 +6716,8 @@
     "newEpisode": "Nouvel épisode",
     "logDay": "Enregistrer un jour",
     "markRecovered": "Marquer comme rétabli",
+    "deletedToast": "Épisode supprimé",
+    "restoreError": "Impossible de restaurer l'épisode",
     "onsetOn": "Débuté le {date}",
     "recoveredOn": "rétabli {date}",
     "status": {

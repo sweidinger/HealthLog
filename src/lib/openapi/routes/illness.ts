@@ -389,6 +389,30 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       },
     },
   },
+  "/api/illness/episodes/{id}/restore": {
+    post: {
+      tags: ["Illness"],
+      summary: "Restore a soft-deleted illness episode (v1.18.3)",
+      description:
+        "Clears `deletedAt`, bringing the episode and its preserved day-logs + encrypted note back into every read. A soft-delete keeps the row and children intact, so restore is a pure flag flip — nothing is re-created (the delete-Undo affordance). Idempotent — restoring a live episode is a no-op. Audits as `illness.episode.restore`. Owner-scoped + born-gated.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      responses: {
+        "200": {
+          description: "Episode restored.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                illnessEpisode,
+                "RestoreIllnessEpisodeEnvelope",
+              ),
+            },
+          },
+        },
+        ...episodeNotFound,
+        ...stdResponses,
+      },
+    },
+  },
   "/api/illness/episodes/{id}/resolve": {
     patch: {
       tags: ["Illness"],

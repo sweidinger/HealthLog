@@ -148,6 +148,20 @@ export function useDeleteEpisode() {
   });
 }
 
+/**
+ * Restore a soft-deleted episode (the delete-Undo affordance). Clears
+ * `deletedAt` server-side, bringing the episode and its preserved day-logs
+ * back. Idempotent + owner-scoped.
+ */
+export function useRestoreEpisode() {
+  const invalidate = useInvalidateIllness();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiPost<IllnessEpisodeDTO>(`/api/illness/episodes/${id}/restore`, {}),
+    onSuccess: invalidate,
+  });
+}
+
 /** Upsert one day-log on an episode. */
 export function useUpsertDayLog(episodeId: string) {
   const invalidate = useInvalidateIllness();
