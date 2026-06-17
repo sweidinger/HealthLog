@@ -17,6 +17,7 @@ import type {
   IllnessCorrelationResponse,
   IllnessDayLogDTO,
   IllnessDayLogInput,
+  IllnessDayLogListResponse,
   IllnessEpisodeCreateInput,
   IllnessEpisodeDTO,
   IllnessEpisodeUpdateInput,
@@ -83,6 +84,25 @@ export function useIllnessDayLog(episodeId: string | null, date: string) {
   });
 }
 
+/**
+ * v1.18.3 — the episode's full day-log history, newest-first (date-less list).
+ * Powers the detail timeline's historical scroll instead of anchoring on
+ * today. Server-authoritative; the response carries `meta.total` for paging.
+ */
+export function useIllnessDayLogList(
+  episodeId: string | null,
+  sortDir: "asc" | "desc" = "desc",
+) {
+  return useQuery({
+    queryKey: queryKeys.illnessDayLogList(episodeId ?? "none", sortDir),
+    enabled: episodeId !== null,
+    queryFn: () =>
+      apiGet<IllnessDayLogListResponse>(
+        `/api/illness/episodes/${episodeId}/day-logs?sortDir=${sortDir}`,
+      ),
+  });
+}
+
 function useInvalidateIllness() {
   const qc = useQueryClient();
   return () => qc.invalidateQueries({ queryKey: queryKeys.illness() });
@@ -124,6 +144,20 @@ export function useDeleteEpisode() {
   return useMutation({
     mutationFn: (id: string) =>
       apiDelete<void>(`/api/illness/episodes/${id}`),
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * Restore a soft-deleted episode (the delete-Undo affordance). Clears
+ * `deletedAt` server-side, bringing the episode and its preserved day-logs
+ * back. Idempotent + owner-scoped.
+ */
+export function useRestoreEpisode() {
+  const invalidate = useInvalidateIllness();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiPost<IllnessEpisodeDTO>(`/api/illness/episodes/${id}/restore`, {}),
     onSuccess: invalidate,
   });
 }

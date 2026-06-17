@@ -1667,6 +1667,7 @@
         "summary": "{remaining} doses restantes sur {total}",
         "itemsTitle": "Boîtes et contenants",
         "doses": "{remaining} / {total} doses",
+        "unknown": "Inconnu",
         "state": {
           "ACTIVE": "Non ouvert",
           "IN_USE": "En cours",
@@ -6716,6 +6717,8 @@
     "newEpisode": "Nouvel épisode",
     "logDay": "Enregistrer un jour",
     "markRecovered": "Marquer comme rétabli",
+    "deletedToast": "Épisode supprimé",
+    "restoreError": "Impossible de restaurer l'épisode",
     "onsetOn": "Débuté le {date}",
     "recoveredOn": "rétabli {date}",
     "status": {
@@ -6823,13 +6826,12 @@
     },
     "timeline": {
       "title": "Chronologie du jour",
-      "error": "Impossible de charger l'entrée du jour.",
-      "emptyToday": "Rien d'enregistré aujourd'hui pour l'instant.",
-      "today": "Aujourd'hui · {date}",
+      "error": "Impossible de charger la chronologie.",
       "severity": "Intensité {severity}",
       "noSymptoms": "Aucun symptôme enregistré.",
       "impact": "Votre forme : {impact}",
-      "fever": "Température : {value} °C"
+      "fever": "Température : {value} °C",
+      "empty": "Aucun jour enregistré pour l’instant."
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

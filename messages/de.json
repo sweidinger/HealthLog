@@ -1667,6 +1667,7 @@
         "summary": "{remaining} von {total} Dosen übrig",
         "itemsTitle": "Packungen & Behälter",
         "doses": "{remaining} / {total} Dosen",
+        "unknown": "Unbekannt",
         "state": {
           "ACTIVE": "Ungeöffnet",
           "IN_USE": "In Gebrauch",
@@ -6716,6 +6717,8 @@
     "newEpisode": "Neue Episode",
     "logDay": "Tag erfassen",
     "markRecovered": "Als genesen markieren",
+    "deletedToast": "Eintrag gelöscht",
+    "restoreError": "Eintrag konnte nicht wiederhergestellt werden",
     "onsetOn": "Begonnen am {date}",
     "recoveredOn": "genesen {date}",
     "status": {
@@ -6823,13 +6826,12 @@
     },
     "timeline": {
       "title": "Tagesverlauf",
-      "error": "Der heutige Eintrag konnte nicht geladen werden.",
-      "emptyToday": "Heute noch nichts erfasst.",
-      "today": "Heute · {date}",
+      "error": "Der Verlauf konnte nicht geladen werden.",
       "severity": "Stärke {severity}",
       "noSymptoms": "Keine Symptome erfasst.",
       "impact": "Befinden: {impact}",
-      "fever": "Temperatur: {value} °C"
+      "fever": "Temperatur: {value} °C",
+      "empty": "Noch keine Tage erfasst."
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

@@ -78,14 +78,14 @@ describe("resolveModuleEnabled — disabled allowlist (default-on)", () => {
   });
 });
 
-describe("resolveModuleEnabled — born-gated module (illness, default-off)", () => {
-  it("is OFF when no preference is recorded (opt-in, not default-on)", () => {
+describe("resolveModuleEnabled — illness module (default-on, opt-out)", () => {
+  it("is ON when no preference is recorded (default-on like its siblings)", () => {
     expect(resolveModuleEnabled("illness", inputs(), true, ALL_AVAILABLE)).toBe(
-      false,
+      true,
     );
   });
 
-  it("is ON only on an explicit true", () => {
+  it("stays ON on an explicit true", () => {
     expect(
       resolveModuleEnabled(
         "illness",
@@ -96,7 +96,7 @@ describe("resolveModuleEnabled — born-gated module (illness, default-off)", ()
     ).toBe(true);
   });
 
-  it("stays OFF on an explicit false", () => {
+  it("is OFF only on an explicit false (opt-out)", () => {
     expect(
       resolveModuleEnabled(
         "illness",
@@ -107,7 +107,7 @@ describe("resolveModuleEnabled — born-gated module (illness, default-off)", ()
     ).toBe(false);
   });
 
-  it("operator-off short-circuits even when the user opted in", () => {
+  it("operator-off short-circuits even when the user enabled it", () => {
     expect(
       resolveModuleEnabled(
         "illness",
@@ -118,9 +118,9 @@ describe("resolveModuleEnabled — born-gated module (illness, default-off)", ()
     ).toBe(false);
   });
 
-  it("does not affect sibling default-on modules", () => {
+  it("matches its sibling default-on modules", () => {
     const i = inputs({ modulePreferences: {} });
-    expect(resolveModuleEnabled("illness", i, true, ALL_AVAILABLE)).toBe(false);
+    expect(resolveModuleEnabled("illness", i, true, ALL_AVAILABLE)).toBe(true);
     expect(resolveModuleEnabled("mood", i, true, ALL_AVAILABLE)).toBe(true);
     expect(resolveModuleEnabled("labs", i, true, ALL_AVAILABLE)).toBe(true);
   });

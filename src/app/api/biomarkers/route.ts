@@ -26,7 +26,7 @@ import { createBiomarkerSchema } from "@/lib/validations/biomarkers";
  * The Labs module toggle is a UX-only nav preference; the data is owner-scoped
  * and read by cross-feature surfaces (Vorsorge reminder resolution, the
  * doctor-report PDF) regardless of the toggle. Deliberate opt-out, in contrast
- * to the born-gated `/api/illness/*` routes.
+ * to the gated `/api/illness/*` routes.
  *
  * The catalog is the Labs feature's primary object: a marker is defined ONCE
  * (name, unit, reference bounds, optional context) and every later reading

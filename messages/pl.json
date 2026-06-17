@@ -1667,6 +1667,7 @@
         "summary": "Pozostało {remaining} z {total} dawek",
         "itemsTitle": "Opakowania i pojemniki",
         "doses": "{remaining} / {total} dawek",
+        "unknown": "Nieznane",
         "state": {
           "ACTIVE": "Nieotwarte",
           "IN_USE": "W użyciu",
@@ -6716,6 +6717,8 @@
     "newEpisode": "Nowy epizod",
     "logDay": "Zapisz dzień",
     "markRecovered": "Oznacz jako wyleczone",
+    "deletedToast": "Wpis usunięty",
+    "restoreError": "Nie udało się przywrócić wpisu",
     "onsetOn": "Początek {date}",
     "recoveredOn": "wyleczono {date}",
     "status": {
@@ -6823,13 +6826,12 @@
     },
     "timeline": {
       "title": "Oś dnia",
-      "error": "Nie udało się wczytać dzisiejszego wpisu.",
-      "emptyToday": "Dziś nic jeszcze nie zapisano.",
-      "today": "Dziś · {date}",
+      "error": "Nie udało się wczytać osi.",
       "severity": "Nasilenie {severity}",
       "noSymptoms": "Nie zapisano objawów.",
       "impact": "Jak funkcjonowałeś: {impact}",
-      "fever": "Temperatura: {value} °C"
+      "fever": "Temperatura: {value} °C",
+      "empty": "Nie zapisano jeszcze żadnych dni."
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

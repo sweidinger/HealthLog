@@ -9,9 +9,9 @@
  * carry; iOS renders the DTO, it never recomputes it).
  *
  * The journal is a CONDITION journal, retrospective-only — never a
- * predictor/diagnoser. Every route is born-gated: a non-opted-in account (or
- * an operator-disabled instance) 403s with `errorCode:"illness.disabled"`
- * even with a valid Bearer token.
+ * predictor/diagnoser. Every route is module-gated: an account that turned
+ * the module off (or an operator-disabled instance) 403s with
+ * `errorCode:"illness.disabled"` even with a valid Bearer token.
  */
 import type { ZodOpenApiObject } from "zod-openapi";
 import { z } from "zod/v4";
@@ -23,6 +23,7 @@ import {
   illnessEpisodeListQuerySchema,
   illnessDayLogInputSchema,
   illnessDayLogQuerySchema,
+  illnessDayLogListQuerySchema,
   illnessInsightsQuerySchema,
   illnessTypeEnum,
   illnessLifecycleEnum,
@@ -65,6 +66,29 @@ illnessDayLogQuerySchema.meta({
   description:
     "Single-day read query: `date` is a `YYYY-MM-DD` day. Returns the matching day-log or `null` when nothing is logged for that day.",
 });
+
+illnessDayLogListQuerySchema.meta({
+  id: "ListIllnessDayLogsQuery",
+  description:
+    "Date-less LIST query (v1.18.3): omit `date` to page the episode's whole day-log history. `limit` (1–200, default 60) + `offset` (default 0) + `sortDir` ('asc' | 'desc', default 'desc') with `meta.total`. Mutually exclusive with the single-day `date` read — presence of `date` selects the single-day mode.",
+});
+
+/**
+ * The documented query for `GET .../day-logs`: a `date` (single-day read) OR
+ * the list pagination params (date-less list). Both are optional on the wire;
+ * the route picks the mode by whether `date` is present.
+ */
+const illnessDayLogGetQuery = z
+  .object({
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    offset: z.coerce.number().int().min(0).optional(),
+    sortDir: z.enum(["asc", "desc"]).optional(),
+  })
+  .meta({ id: "GetIllnessDayLogsQuery" });
 
 illnessInsightsQuerySchema.meta({
   id: "IllnessInsightsQuery",
@@ -117,6 +141,21 @@ const illnessDayLog = z
     id: "IllnessDayLog",
     description:
       "A stored day-log for an episode. `date` is the `YYYY-MM-DD` it covers. `functionalImpact` (0–3) and `feverC` are plaintext; `symptoms` flattens the link rows; `note` is the decrypted free-text (or null).",
+  });
+
+const illnessDayLogList = z
+  .object({
+    dayLogs: z.array(illnessDayLog),
+    meta: z.object({
+      total: z.number(),
+      limit: z.number(),
+      offset: z.number(),
+    }),
+  })
+  .meta({
+    id: "IllnessDayLogList",
+    description:
+      "The date-less day-log LIST (v1.18.3): the episode's day-logs newest-first (or oldest-first under `sortDir:'asc'`), with `meta.total` for paging the full history. Powers the detail timeline scroll + iOS healthlog-iOS#30.",
   });
 
 /* ── P3 retrospective correlation + cross-episode insights DTOs ───────── */
@@ -303,7 +342,7 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Illness"],
       summary: "Edit an illness episode (v1.18.1)",
       description:
-        "Partial edit; omitted fields are left untouched. A re-parent must point at an owned, live episode (and never the episode itself). Audits as `illness.episode.update`. Owner-scoped + born-gated.",
+        "Partial edit; omitted fields are left untouched. A re-parent must point at an owned, live episode (and never the episode itself). Audits as `illness.episode.update`. Owner-scoped + module-gated.",
       requestParams: { path: z.object({ id: z.string() }) },
       requestBody: {
         required: true,
@@ -331,7 +370,7 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Illness"],
       summary: "Soft-delete an illness episode (v1.18.1)",
       description:
-        "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }` envelope (the cross-module DELETE shape). Audits as `illness.episode.delete`. Owner-scoped + born-gated.",
+        "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }` envelope (the cross-module DELETE shape). Audits as `illness.episode.delete`. Owner-scoped + module-gated.",
       requestParams: { path: z.object({ id: z.string() }) },
       responses: {
         "200": {
@@ -350,12 +389,36 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       },
     },
   },
+  "/api/illness/episodes/{id}/restore": {
+    post: {
+      tags: ["Illness"],
+      summary: "Restore a soft-deleted illness episode (v1.18.3)",
+      description:
+        "Clears `deletedAt`, bringing the episode and its preserved day-logs + encrypted note back into every read. A soft-delete keeps the row and children intact, so restore is a pure flag flip — nothing is re-created (the delete-Undo affordance). Idempotent — restoring a live episode is a no-op. Audits as `illness.episode.restore`. Owner-scoped + born-gated.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      responses: {
+        "200": {
+          description: "Episode restored.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                illnessEpisode,
+                "RestoreIllnessEpisodeEnvelope",
+              ),
+            },
+          },
+        },
+        ...episodeNotFound,
+        ...stdResponses,
+      },
+    },
+  },
   "/api/illness/episodes/{id}/resolve": {
     patch: {
       tags: ["Illness"],
       summary: "Mark an illness episode recovered (v1.18.1)",
       description:
-        "Stamps `resolvedAt` (defaults to 'now' when the body omits it). A CHRONIC_ONGOING episode has no recovery date and 422s with `errorCode:\"illness.episode.chronic-no-resolve\"`. Audits as `illness.episode.resolve`. Owner-scoped + born-gated.",
+        "Stamps `resolvedAt` (defaults to 'now' when the body omits it). A CHRONIC_ONGOING episode has no recovery date and 422s with `errorCode:\"illness.episode.chronic-no-resolve\"`. Audits as `illness.episode.resolve`. Owner-scoped + module-gated.",
       requestParams: { path: z.object({ id: z.string() }) },
       requestBody: {
         required: false,
@@ -383,20 +446,21 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/illness/episodes/{id}/day-logs": {
     get: {
       tags: ["Illness"],
-      summary: "Read one day-log for an episode (v1.18.1)",
+      summary: "Read an episode's day-log(s) (v1.18.1, list v1.18.3)",
       description:
-        "Returns the day-log for the episode + `date`, or `null` when nothing is logged that day (lets the log-day sheet pre-fill). The parent episode must be owned + live. Born-gated.",
+        "Two modes on one path, picked by the `date` param. With `date=YYYY-MM-DD`: the single day-log for that day, or `null` when nothing is logged (lets the log-day sheet pre-fill). Without `date`: the date-less LIST — the episode's day-logs newest-first (override with `sortDir`), paged via `limit`/`offset` with `meta.total`. The parent episode must be owned + live. Born-gated.",
       requestParams: {
         path: z.object({ id: z.string() }),
-        query: illnessDayLogQuerySchema,
+        query: illnessDayLogGetQuery,
       },
       responses: {
         "200": {
-          description: "The day-log, or null.",
+          description:
+            "With `date`: the day-log or null. Without `date`: the paged day-log list.",
           content: {
             "application/json": {
               schema: dataEnvelope(
-                illnessDayLog.nullable(),
+                z.union([illnessDayLog.nullable(), illnessDayLogList]),
                 "GetIllnessDayLogEnvelope",
               ),
             },
@@ -451,7 +515,7 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Illness"],
       summary: "Per-episode retrospective correlation (v1.18.1)",
       description:
-        "Returns the coverage-gated `Derived<T>` correlation for one episode: the pre-onset anomaly scan, the nadir, per-vital physiological returns, the headline recovery-gap, and any red flags. The findings derive from the user's OWN baseline (median ± MAD) over a contamination-guarded window — never a population constant. `status:\"insufficient\"` carries coverage + a reason. Retrospective ONLY — never a predictor or diagnoser. Owner-scoped + born-gated.",
+        "Returns the coverage-gated `Derived<T>` correlation for one episode: the pre-onset anomaly scan, the nadir, per-vital physiological returns, the headline recovery-gap, and any red flags. The findings derive from the user's OWN baseline (median ± MAD) over a contamination-guarded window — never a population constant. `status:\"insufficient\"` carries coverage + a reason. Retrospective ONLY — never a predictor or diagnoser. Owner-scoped + module-gated.",
       requestParams: { path: z.object({ id: z.string() }) },
       responses: {
         "200": {

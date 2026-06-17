@@ -56,19 +56,36 @@ export async function expireStaleInUseItems(input: {
  * `unitsTotal` / `unitsRemaining` as numbers. Convert at every response
  * boundary that returns an item, so a fractional remainder (29.5 after a
  * half-tablet dose) lands as a JSON number, never `"29.5"`.
+ *
+ * v1.18.3 (iOS#31) — serialise a genuinely-unknown unit count as `null`,
+ * not `0`. A well-formed row always carries both Decimals, but a corrupt
+ * or legacy row could hold null / NaN / Infinity; `Number(null) === 0`
+ * (and `Number("x") === NaN`) would otherwise fabricate a misleading `0`
+ * that the client decrements into negatives. `null` lets the client
+ * render "unbekannt" instead. A real tracked `0` stays `0`.
  */
+function toFiniteUnit(value: unknown): number | null {
+  // `Number(null) === 0` and `Number("") === 0`, so reject the empty /
+  // nullish cases up front — a genuinely-absent count must read as null,
+  // not a fabricated 0. Anything else goes through the finiteness gate
+  // (NaN / Infinity from a corrupt string also fall to null).
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function serializeInventoryItem<
   T extends { unitsTotal: unknown; unitsRemaining: unknown },
 >(
   item: T,
 ): Omit<T, "unitsTotal" | "unitsRemaining"> & {
-  unitsTotal: number;
-  unitsRemaining: number;
+  unitsTotal: number | null;
+  unitsRemaining: number | null;
 } {
   return {
     ...item,
-    unitsTotal: Number(item.unitsTotal),
-    unitsRemaining: Number(item.unitsRemaining),
+    unitsTotal: toFiniteUnit(item.unitsTotal),
+    unitsRemaining: toFiniteUnit(item.unitsRemaining),
   };
 }
 

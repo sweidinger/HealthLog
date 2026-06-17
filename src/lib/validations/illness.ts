@@ -162,6 +162,24 @@ export type IllnessDayLogInput = z.infer<typeof illnessDayLogInputSchema>;
 /** The single-day read query: `GET .../day-logs?date=YYYY-MM-DD`. */
 export const illnessDayLogQuerySchema = z.object({ date: dateString });
 
+/**
+ * The date-less LIST query: `GET .../day-logs` with NO `date` param returns
+ * the episode's day-logs newest-first, paginated. Mirrors the Labs
+ * limit/offset/sortDir + `meta.total` pattern so iOS (healthlog-iOS#30) can
+ * page a full history without anchoring on today. `date` and the list params
+ * are mutually exclusive at the route: a `date` triggers the single-day read,
+ * its absence triggers the list.
+ */
+export const illnessDayLogListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(60),
+  offset: z.coerce.number().int().min(0).default(0),
+  sortDir: z.enum(["asc", "desc"]).default("desc"),
+});
+
+export type IllnessDayLogListQuery = z.infer<
+  typeof illnessDayLogListQuerySchema
+>;
+
 /* ── P3 retrospective insight window ─────────────────────────────────── */
 
 /**

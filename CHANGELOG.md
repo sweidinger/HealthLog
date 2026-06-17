@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.18.3] — 2026-06-17 — the condition journal you can scroll back through, and a clearer view of what's tracked
+
+A small follow-up that finishes a few rough edges from the previous releases. The condition journal's day-by-day timeline now scrolls through the whole illness, not just today; deleting a condition can be undone; the condition journal is on by default like every other area; and medication inventory that was never set now reads as "unknown" instead of a misleading zero. No breaking changes; no migration.
+
+### Added
+
+- **Restore a deleted condition.** Deleting a condition now offers an Undo — its day-by-day log and note come back exactly as they were, nothing is re-created from scratch.
+- **The full condition timeline.** A condition's detail page now lists every day you logged, newest first, instead of only today.
+
+### Changed
+
+- **The condition journal is on by default.** It now behaves like every other optional area — present unless you switch it off under "What you track" — rather than starting hidden. Self-hosters can still make it unavailable instance-wide.
+- **Unknown medication stock reads as "unknown".** A medication whose inventory was never set now shows "unknown" rather than 0, so it can't be counted down into a confusing negative. A genuine zero still shows as zero, and low-stock reminders ignore the unknown case.
+
+### Operator note
+
+- UI- and API-only; no schema change and no migration. The companion-app contract gains a date-less day-log list endpoint, a condition restore route, and nullable medication-inventory fields (`null` = unknown) — all additive.
+
 ## [1.18.2] — 2026-06-17 — preventive care, the same as your medications
 
 This release brings preventive care into line with how medications already work, and clears up the condition journal. Each preventive-care item is now its own card in the same style as a medication, and marking one done behaves the way you'd expect: a check-up you plan for yourself is a simple "done", while a reminder tied to a measurement opens the actual entry form — completing a blood-pressure reminder records the reading rather than just ticking a box. Items take a first-due date and a custom interval, the page gained a settings control like the labs and condition pages, and preventive care can now sit on the dashboard as its own tile. The condition journal was reorganised so it reads at a glance. No breaking changes; no migration.

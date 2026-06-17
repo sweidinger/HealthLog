@@ -1667,6 +1667,7 @@
         "summary": "{remaining} of {total} doses remaining",
         "itemsTitle": "Packs & containers",
         "doses": "{remaining} / {total} doses",
+        "unknown": "Unknown",
         "state": {
           "ACTIVE": "Unopened",
           "IN_USE": "In use",
@@ -6716,6 +6717,8 @@
     "newEpisode": "New episode",
     "logDay": "Log a day",
     "markRecovered": "Mark recovered",
+    "deletedToast": "Episode deleted",
+    "restoreError": "Could not restore the episode",
     "onsetOn": "Started {date}",
     "recoveredOn": "recovered {date}",
     "status": {
@@ -6823,13 +6826,12 @@
     },
     "timeline": {
       "title": "Day timeline",
-      "error": "Could not load today's entry.",
-      "emptyToday": "Nothing logged today yet.",
-      "today": "Today · {date}",
+      "error": "Could not load the timeline.",
       "severity": "Severity {severity}",
       "noSymptoms": "No symptoms logged.",
       "impact": "How you functioned: {impact}",
-      "fever": "Temperature: {value} °C"
+      "fever": "Temperature: {value} °C",
+      "empty": "No days logged yet."
     },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",

@@ -53,12 +53,7 @@ import {
   getOperatorModuleAvailability,
   type OperatorModuleAvailability,
 } from "./operator-availability";
-import {
-  MODULE_KEYS,
-  isBornGatedModule,
-  moduleDelegatesTo,
-  type ModuleKey,
-} from "./registry";
+import { MODULE_KEYS, moduleDelegatesTo, type ModuleKey } from "./registry";
 
 export {
   getOperatorModuleAvailability,
@@ -145,13 +140,6 @@ export function resolveModuleEnabled(
   if (delegate === "coach") {
     // Two-layer model: assistant master flag AND per-user opt-out.
     return assistantCoach && !inputs.disableCoach;
-  }
-
-  if (isBornGatedModule(key)) {
-    // BORN-GATED (opt-in / default-off): inverse of the disabled allowlist.
-    // The module stays OFF until the account explicitly enables it — only a
-    // literal `true` turns it on, so the surface never appears unbidden.
-    return inputs.modulePreferences[key] === true;
   }
 
   // Disabled allowlist: only an explicit `false` turns the module off.
