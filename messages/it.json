@@ -1667,6 +1667,7 @@
         "summary": "{remaining} dosi rimanenti su {total}",
         "itemsTitle": "Confezioni e contenitori",
         "doses": "{remaining} / {total} dosi",
+        "unknown": "Sconosciuto",
         "state": {
           "ACTIVE": "Non aperto",
           "IN_USE": "In uso",

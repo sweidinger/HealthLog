@@ -1667,6 +1667,7 @@
         "summary": "Pozostało {remaining} z {total} dawek",
         "itemsTitle": "Opakowania i pojemniki",
         "doses": "{remaining} / {total} dawek",
+        "unknown": "Nieznane",
         "state": {
           "ACTIVE": "Nieotwarte",
           "IN_USE": "W użyciu",

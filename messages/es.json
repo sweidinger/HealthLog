@@ -1667,6 +1667,7 @@
         "summary": "{remaining} de {total} dosis restantes",
         "itemsTitle": "Envases y recipientes",
         "doses": "{remaining} / {total} dosis",
+        "unknown": "Desconocido",
         "state": {
           "ACTIVE": "Sin abrir",
           "IN_USE": "En uso",
