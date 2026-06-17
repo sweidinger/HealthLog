@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db";
 import {
   buildCreateInventoryInput,
   expireStaleInUseItems,
+  serializeInventoryItem,
 } from "../service";
 
 const NOW = new Date("2026-05-14T12:00:00Z");
@@ -102,5 +103,57 @@ describe("buildCreateInventoryInput", () => {
       notes: null,
     });
     expect(input.expiresAt).toBeNull();
+  });
+});
+
+describe("serializeInventoryItem (iOS#31)", () => {
+  it("serialises a Decimal-as-string unit count to a JSON number", () => {
+    const out = serializeInventoryItem({
+      id: "i1",
+      unitsTotal: "30",
+      unitsRemaining: "29.5",
+    });
+    expect(out.unitsTotal).toBe(30);
+    expect(out.unitsRemaining).toBe(29.5);
+  });
+
+  it("keeps a genuine tracked zero as 0, not null", () => {
+    const out = serializeInventoryItem({
+      id: "i2",
+      unitsTotal: 4,
+      unitsRemaining: 0,
+    });
+    expect(out.unitsRemaining).toBe(0);
+    expect(out.unitsTotal).toBe(4);
+  });
+
+  it("serialises an unknown (null) unit count as null, not a fabricated 0", () => {
+    const out = serializeInventoryItem({
+      id: "i3",
+      unitsTotal: null,
+      unitsRemaining: null,
+    });
+    expect(out.unitsTotal).toBeNull();
+    expect(out.unitsRemaining).toBeNull();
+  });
+
+  it("rejects non-finite corrupt values (NaN / Infinity) to null", () => {
+    const out = serializeInventoryItem({
+      id: "i4",
+      unitsTotal: "not-a-number",
+      unitsRemaining: Infinity,
+    });
+    expect(out.unitsTotal).toBeNull();
+    expect(out.unitsRemaining).toBeNull();
+  });
+
+  it("preserves every other field unchanged", () => {
+    const out = serializeInventoryItem({
+      id: "i5",
+      state: "ACTIVE",
+      unitsTotal: "10",
+      unitsRemaining: "10",
+    });
+    expect(out).toMatchObject({ id: "i5", state: "ACTIVE" });
   });
 });

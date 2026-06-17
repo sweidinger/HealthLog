@@ -108,7 +108,10 @@ describe("supply surfaces — both detail-page readouts ride the shared helper (
       "src/components/medications/sections/inventory-section.tsx",
     );
     expect(src).toContain('from "@/lib/medications/inventory/summary"');
-    expect(src).toMatch(/summariseSupply\(items, perDose\)/);
+    // v1.18.3 (iOS#31) — the items are mapped through a nullable→0 coalesce
+    // (an unknown-units row contributes nothing to the available headline)
+    // before the shared helper, but the summary still rides summariseSupply.
+    expect(src).toMatch(/summariseSupply\(\s*items\.map\(/);
     expect(src).not.toContain('state !== "USED_UP"');
     expect(src).toContain("medications.detail.bestand.expiredSuffix");
   });

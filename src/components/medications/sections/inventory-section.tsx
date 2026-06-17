@@ -90,8 +90,10 @@ interface InventoryItem {
   id: string;
   state: InventoryState;
   containerType: ContainerType;
-  unitsTotal: number;
-  unitsRemaining: number;
+  // v1.18.3 (iOS#31) — null = unknown unit count (corrupt / legacy row);
+  // the UI renders "—" instead of a fabricated 0.
+  unitsTotal: number | null;
+  unitsRemaining: number | null;
 }
 
 interface InventoryResponse {
@@ -203,13 +205,23 @@ export function InventorySection({
   // payload and the GLP-1 endpoint on one predicate. Expired stock is
   // never available; it renders as a separate muted suffix.
   // Dose-derived headline (floor — a partial dose is not a dose).
+  // v1.18.3 (iOS#31) — an unknown-units row (null) contributes nothing to
+  // the available-supply math; it shows "—" in its own row but cannot pad
+  // the pooled headline. Coalesce null → 0 only for the summary inputs.
   const {
     unitsRemaining: remainingUnits,
     unitsTotal: totalUnits,
     dosesRemaining: remaining,
     dosesTotal: total,
     expiredUnits,
-  } = summariseSupply(items, perDose);
+  } = summariseSupply(
+    items.map((item) => ({
+      state: item.state,
+      unitsTotal: item.unitsTotal ?? 0,
+      unitsRemaining: item.unitsRemaining ?? 0,
+    })),
+    perDose,
+  );
 
   const dialogs = (
     <>
@@ -370,19 +382,25 @@ export function InventorySection({
                   inline at meta-text size — read-only, never a control. */}
               <span className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
                 <span>
-                  {t("medications.detail.bestand.doses", {
-                    remaining: Math.floor(item.unitsRemaining / perDose),
-                    total: Math.floor(item.unitsTotal / perDose),
-                  })}
-                  {perDose !== 1 && (
-                    <>
-                      {" · "}
-                      {t("medications.detail.bestand.unitsDetail", {
-                        remaining: formatUnitCount(item.unitsRemaining),
-                        total: formatUnitCount(item.unitsTotal),
+                  {/* v1.18.3 (iOS#31) — an unknown unit count (null) renders
+                      "—" rather than a fabricated 0-dose figure. */}
+                  {item.unitsRemaining == null || item.unitsTotal == null
+                    ? t("medications.detail.bestand.unknown")
+                    : t("medications.detail.bestand.doses", {
+                        remaining: Math.floor(item.unitsRemaining / perDose),
+                        total: Math.floor(item.unitsTotal / perDose),
                       })}
-                    </>
-                  )}
+                  {perDose !== 1 &&
+                    item.unitsRemaining != null &&
+                    item.unitsTotal != null && (
+                      <>
+                        {" · "}
+                        {t("medications.detail.bestand.unitsDetail", {
+                          remaining: formatUnitCount(item.unitsRemaining),
+                          total: formatUnitCount(item.unitsTotal),
+                        })}
+                      </>
+                    )}
                 </span>
                 <Badge
                   variant={STATE_BADGE[item.state]}
@@ -651,13 +669,21 @@ function AdjustInventoryDialog({
 }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
-  const [value, setValue] = useState(String(item.unitsRemaining));
+  // v1.18.3 (iOS#31) — an unknown remaining count (null) pre-fills empty,
+  // not the literal "null"; the operator types the corrected figure.
+  const [value, setValue] = useState(
+    item.unitsRemaining == null ? "" : String(item.unitsRemaining),
+  );
   const [busy, setBusy] = useState(false);
 
   const parsed = Number(value);
   // v1.16.12 — fractional remaining allowed (a ½-tablet dose leaves 29.5).
+  // v1.18.3 — when capacity is unknown (null) the only ceiling is finiteness.
   const valid =
-    Number.isFinite(parsed) && parsed >= 0 && parsed <= item.unitsTotal;
+    value.trim() !== "" &&
+    Number.isFinite(parsed) &&
+    parsed >= 0 &&
+    (item.unitsTotal == null || parsed <= item.unitsTotal);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -704,7 +730,7 @@ function AdjustInventoryDialog({
               type="number"
               inputMode="decimal"
               min={0}
-              max={item.unitsTotal}
+              max={item.unitsTotal ?? undefined}
               step="any"
               required
               autoComplete="off"
@@ -717,7 +743,9 @@ function AdjustInventoryDialog({
               className="text-muted-foreground text-xs"
             >
               {t("medications.detail.bestand.adjustHelper", {
-                total: item.unitsTotal,
+                total:
+                  item.unitsTotal ??
+                  t("medications.detail.bestand.unknown"),
               })}
             </p>
           </div>

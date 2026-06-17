@@ -1667,6 +1667,7 @@
         "summary": "{remaining} von {total} Dosen übrig",
         "itemsTitle": "Packungen & Behälter",
         "doses": "{remaining} / {total} Dosen",
+        "unknown": "Unbekannt",
         "state": {
           "ACTIVE": "Ungeöffnet",
           "IN_USE": "In Gebrauch",

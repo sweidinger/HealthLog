@@ -1667,6 +1667,7 @@
         "summary": "{remaining} of {total} doses remaining",
         "itemsTitle": "Packs & containers",
         "doses": "{remaining} / {total} doses",
+        "unknown": "Unknown",
         "state": {
           "ACTIVE": "Unopened",
           "IN_USE": "In use",
