@@ -1,12 +1,12 @@
 /**
  * Illness / condition-journal feature gate (v1.18.1).
  *
- * The illness journal is BORN-GATED (opt-in / default-off) and resolves
- * its enabled-state through the module foundation — there is no per-domain
- * profile row and no second source of truth. `isIllnessEnabled` and the
- * `requireIllnessEnabled` 403 guard both delegate to the module gate's
- * `isModuleEnabled(userId, "illness")`, which (for a born-gated key) reads
- * an explicit `modulePreferencesJson.illness === true` AND the operator
+ * The illness journal is a standard optional module (default-on, opt-out)
+ * and resolves its enabled-state through the module foundation — there is
+ * no per-domain profile row and no second source of truth. `isIllnessEnabled`
+ * and the `requireIllnessEnabled` 403 guard both delegate to the module
+ * gate's `isModuleEnabled(userId, "illness")`, which reads the disabled
+ * allowlist (`modulePreferencesJson.illness !== false`) AND the operator
  * server-wide availability. This mirrors `src/lib/cycle/gate.ts` so every
  * `/api/illness/*` route gates identically.
  */
@@ -17,7 +17,7 @@ import { isModuleEnabled, requireModuleEnabled } from "@/lib/modules/gate";
 export const ILLNESS_DISABLED_ERROR_CODE = "illness.disabled";
 
 /**
- * Fully-resolved illness availability for an account: the born-gated opt-in
+ * Fully-resolved illness availability for an account: the per-user opt-out
  * AND the operator server-wide kill-switch, via the module foundation.
  */
 export function isIllnessEnabled(userId: string): Promise<boolean> {
@@ -34,8 +34,8 @@ export type IllnessGateResult =
 
 /**
  * Enforce the gate for an `/api/illness/*` route. Returns a 403
- * `illness.disabled` envelope when the account has not opted in (or the
- * operator turned the module off server-wide) — even with a valid Bearer
+ * `illness.disabled` envelope when the account has turned the module off
+ * (or the operator turned it off server-wide) — even with a valid Bearer
  * token. Delegates to `requireModuleEnabled` but re-stamps the
  * illness-specific `errorCode` so the iOS classifier branches cleanly.
  */

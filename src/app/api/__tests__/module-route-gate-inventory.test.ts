@@ -78,12 +78,12 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   "src/app/api/biomarkers",
   "src/app/api/cycle",
   // v1.18.1 (W-B) — the illness/condition journal. Every `/api/illness/*`
-  // route gates on the born-gated `illness` module via the thin
+  // route gates on the `illness` module via the thin
   // `requireIllnessEnabled(...)` wrapper (which re-stamps the
   // illness-specific errorCode over `requireModuleEnabled("illness")`),
   // recognised below as a delegated gate. Walking the tree means a NEW
   // ungated illness route fails this test BY NAME rather than leaking the
-  // surface over a Bearer token when the account never opted in.
+  // surface over a Bearer token when the account turned the module off.
   "src/app/api/illness",
   "src/app/api/gamification",
   // v1.18.1 (D3) — medications graduated from CORE to a toggleable module.
