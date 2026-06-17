@@ -28,7 +28,7 @@ import {
 /**
  * v1.17.1 — structured lab-result store (`/api/labs`).
  *
- * Module gate: unlike `/api/illness/*` (born-gated, every route 403s when the
+ * Module gate: unlike `/api/illness/*` (gated, every route 403s when the
  * module is off), Labs is intentionally NOT server-gated. The Labs module
  * toggle is a UX-only nav/visibility preference — the data is always
  * owner-scoped and safe to read/write, and the Vorsorge lab-panel reminder

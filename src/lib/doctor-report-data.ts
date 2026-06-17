@@ -289,9 +289,9 @@ export interface DoctorReportData {
   }> | null;
   /**
    * v1.18.1 P4 — illness / condition episodes overlapping the report window.
-   * Populated ONLY when the `illness` module is enabled (born-gated opt-in);
-   * the user turned the journal on and is sharing it deliberately, so the
-   * privacy stance matches labs (ON when the module is on), not mood / cycle.
+   * Populated ONLY when the `illness` module is enabled (default-on, opt-out);
+   * the journal is on and shared deliberately, so the privacy stance matches
+   * labs (ON when the module is on), not mood / cycle.
    * Statistics + labels only — the free-text note is NEVER read here, so no
    * encrypted plaintext can leak into the report. Each entry feeds a FHIR
    * `Condition` (+ `Encounter`) and a PDF table row. Null/absent when the
@@ -1348,7 +1348,7 @@ export async function collectDoctorReportData(
   }
 
   // v1.18.1 P4 — illness / condition episodes overlapping the window. Gated
-  // on the illness module (born-gated opt-in): when off, no read, no section.
+  // on the illness module (default-on, opt-out): when off, no read, no section.
   // An episode overlaps when it began on or before the window end AND is
   // either still ongoing or resolved on or after the window start. Labels +
   // lifecycle + dates only — the encrypted note is never selected, so no

@@ -9,9 +9,9 @@
  * carry; iOS renders the DTO, it never recomputes it).
  *
  * The journal is a CONDITION journal, retrospective-only — never a
- * predictor/diagnoser. Every route is born-gated: a non-opted-in account (or
- * an operator-disabled instance) 403s with `errorCode:"illness.disabled"`
- * even with a valid Bearer token.
+ * predictor/diagnoser. Every route is module-gated: an account that turned
+ * the module off (or an operator-disabled instance) 403s with
+ * `errorCode:"illness.disabled"` even with a valid Bearer token.
  */
 import type { ZodOpenApiObject } from "zod-openapi";
 import { z } from "zod/v4";
@@ -342,7 +342,7 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Illness"],
       summary: "Edit an illness episode (v1.18.1)",
       description:
-        "Partial edit; omitted fields are left untouched. A re-parent must point at an owned, live episode (and never the episode itself). Audits as `illness.episode.update`. Owner-scoped + born-gated.",
+        "Partial edit; omitted fields are left untouched. A re-parent must point at an owned, live episode (and never the episode itself). Audits as `illness.episode.update`. Owner-scoped + module-gated.",
       requestParams: { path: z.object({ id: z.string() }) },
       requestBody: {
         required: true,
@@ -370,7 +370,7 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Illness"],
       summary: "Soft-delete an illness episode (v1.18.1)",
       description:
-        "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }` envelope (the cross-module DELETE shape). Audits as `illness.episode.delete`. Owner-scoped + born-gated.",
+        "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }` envelope (the cross-module DELETE shape). Audits as `illness.episode.delete`. Owner-scoped + module-gated.",
       requestParams: { path: z.object({ id: z.string() }) },
       responses: {
         "200": {
@@ -394,7 +394,7 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Illness"],
       summary: "Mark an illness episode recovered (v1.18.1)",
       description:
-        "Stamps `resolvedAt` (defaults to 'now' when the body omits it). A CHRONIC_ONGOING episode has no recovery date and 422s with `errorCode:\"illness.episode.chronic-no-resolve\"`. Audits as `illness.episode.resolve`. Owner-scoped + born-gated.",
+        "Stamps `resolvedAt` (defaults to 'now' when the body omits it). A CHRONIC_ONGOING episode has no recovery date and 422s with `errorCode:\"illness.episode.chronic-no-resolve\"`. Audits as `illness.episode.resolve`. Owner-scoped + module-gated.",
       requestParams: { path: z.object({ id: z.string() }) },
       requestBody: {
         required: false,
@@ -491,7 +491,7 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Illness"],
       summary: "Per-episode retrospective correlation (v1.18.1)",
       description:
-        "Returns the coverage-gated `Derived<T>` correlation for one episode: the pre-onset anomaly scan, the nadir, per-vital physiological returns, the headline recovery-gap, and any red flags. The findings derive from the user's OWN baseline (median ± MAD) over a contamination-guarded window — never a population constant. `status:\"insufficient\"` carries coverage + a reason. Retrospective ONLY — never a predictor or diagnoser. Owner-scoped + born-gated.",
+        "Returns the coverage-gated `Derived<T>` correlation for one episode: the pre-onset anomaly scan, the nadir, per-vital physiological returns, the headline recovery-gap, and any red flags. The findings derive from the user's OWN baseline (median ± MAD) over a contamination-guarded window — never a population constant. `status:\"insufficient\"` carries coverage + a reason. Retrospective ONLY — never a predictor or diagnoser. Owner-scoped + module-gated.",
       requestParams: { path: z.object({ id: z.string() }) },
       responses: {
         "200": {
