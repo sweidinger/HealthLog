@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 
 import { IllnessCorrelationCard } from "./illness-correlation-card";
+import { IllnessDayTimeline } from "./illness-day-timeline";
 import { LogDaySheet } from "./log-day-sheet";
 import { NewEpisodeSheet } from "./new-episode-sheet";
 import { EpisodeMenu } from "./episode-menu";
@@ -112,6 +113,17 @@ export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
             </p>
           </CardContent>
         </Card>
+      ) : null}
+
+      {/* The per-day timeline lives only on the detail surface — the list
+          rows stay clean summaries, so navigating here reveals genuinely new
+          content (today's logged symptoms / impact / fever). */}
+      {episode ? (
+        <IllnessDayTimeline
+          episodeId={episode.id}
+          date={today}
+          onLogDay={() => setLogOpen(true)}
+        />
       ) : null}
 
       {isLoading ? (

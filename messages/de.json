@@ -6791,6 +6791,24 @@
       "byMonth": "Wann du Episoden erfasst",
       "none": "In diesem Zeitraum keine Episoden erfasst."
     },
+    "section": {
+      "active": "Aktiv",
+      "resolved": "Abgeschlossen"
+    },
+    "flares": {
+      "countOne": "1 Schub",
+      "countOther": "{count} Schübe"
+    },
+    "timeline": {
+      "title": "Tagesverlauf",
+      "error": "Der heutige Eintrag konnte nicht geladen werden.",
+      "emptyToday": "Heute noch nichts erfasst.",
+      "today": "Heute · {date}",
+      "severity": "Stärke {severity}",
+      "noSymptoms": "Keine Symptome erfasst.",
+      "impact": "Befinden: {impact}",
+      "fever": "Temperatur: {value} °C"
+    },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",
     "detail": {

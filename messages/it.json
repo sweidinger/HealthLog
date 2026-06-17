@@ -6791,6 +6791,24 @@
       "byMonth": "Quando tendi a registrare episodi",
       "none": "Nessun episodio registrato in questo periodo."
     },
+    "section": {
+      "active": "Attivi",
+      "resolved": "Risolti"
+    },
+    "flares": {
+      "countOne": "1 riacutizzazione",
+      "countOther": "{count} riacutizzazioni"
+    },
+    "timeline": {
+      "title": "Cronologia del giorno",
+      "error": "Impossibile caricare il diario di oggi.",
+      "emptyToday": "Oggi non hai ancora registrato nulla.",
+      "today": "Oggi · {date}",
+      "severity": "Intensità {severity}",
+      "noSymptoms": "Nessun sintomo registrato.",
+      "impact": "Come ti sei sentito: {impact}",
+      "fever": "Temperatura: {value} °C"
+    },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",
     "detail": {

@@ -6791,6 +6791,24 @@
       "byMonth": "Kiedy zwykle zapisujesz epizody",
       "none": "Brak epizodów zapisanych w tym okresie."
     },
+    "section": {
+      "active": "Aktywne",
+      "resolved": "Zakończone"
+    },
+    "flares": {
+      "countOne": "1 zaostrzenie",
+      "countOther": "Zaostrzenia: {count}"
+    },
+    "timeline": {
+      "title": "Oś dnia",
+      "error": "Nie udało się wczytać dzisiejszego wpisu.",
+      "emptyToday": "Dziś nic jeszcze nie zapisano.",
+      "today": "Dziś · {date}",
+      "severity": "Nasilenie {severity}",
+      "noSymptoms": "Nie zapisano objawów.",
+      "impact": "Jak funkcjonowałeś: {impact}",
+      "fever": "Temperatura: {value} °C"
+    },
     "loadError": "Could not load this episode.",
     "backToList": "Back to journal",
     "detail": {
