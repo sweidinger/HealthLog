@@ -6717,6 +6717,8 @@
     "newEpisode": "New episode",
     "logDay": "Log a day",
     "markRecovered": "Mark recovered",
+    "deletedToast": "Episode deleted",
+    "restoreError": "Could not restore the episode",
     "onsetOn": "Started {date}",
     "recoveredOn": "recovered {date}",
     "status": {

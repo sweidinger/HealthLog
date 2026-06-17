@@ -6717,6 +6717,8 @@
     "newEpisode": "Nowy epizod",
     "logDay": "Zapisz dzień",
     "markRecovered": "Oznacz jako wyleczone",
+    "deletedToast": "Wpis usunięty",
+    "restoreError": "Nie udało się przywrócić wpisu",
     "onsetOn": "Początek {date}",
     "recoveredOn": "wyleczono {date}",
     "status": {

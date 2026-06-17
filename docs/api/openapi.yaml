@@ -6448,6 +6448,32 @@ paths:
         "404": *a11
         "422": *a3
         "429": *a4
+  /api/illness/episodes/{id}/restore:
+    post:
+      tags:
+        - Illness
+      summary: Restore a soft-deleted illness episode (v1.18.3)
+      description: Clears `deletedAt`, bringing the episode and its preserved day-logs + encrypted note back into every read.
+        A soft-delete keeps the row and children intact, so restore is a pure flag flip — nothing is re-created (the
+        delete-Undo affordance). Idempotent — restoring a live episode is a no-op. Audits as `illness.episode.restore`.
+        Owner-scoped + born-gated.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Episode restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreIllnessEpisodeEnvelope"
+        "401": *a1
+        "404": *a11
+        "422": *a3
+        "429": *a4
   /api/illness/episodes/{id}/resolve:
     patch:
       tags:
@@ -18533,6 +18559,23 @@ components:
           required:
             - deleted
           additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    RestoreIllnessEpisodeEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/IllnessEpisode"
         error:
           type: "null"
         meta:
