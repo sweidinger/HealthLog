@@ -73,6 +73,59 @@ describe("<VorsorgeSection> loading + empty", () => {
     expect(html).not.toContain('data-slot="vorsorge-loading"');
   });
 
+  it("renders a 'Log value' action for a measurement-linked reminder", () => {
+    // v1.18.2 — a typed reminder's primary action opens the value-entry
+    // form, surfaced as a "Log value" button (not a silent checkmark).
+    const reminder: MeasurementReminder = {
+      id: "linked",
+      label: "Measure blood pressure",
+      measurementType: "BLOOD_PRESSURE_SYS",
+      intervalDays: 7,
+      rrule: null,
+      anchorDate: null,
+      endsOn: null,
+      origin: "VORSORGE",
+      nextDueAt: null,
+      notifyHour: 9,
+      location: null,
+      lastSatisfiedAt: null,
+      enabled: true,
+      createdAt: "2030-01-01T00:00:00.000Z",
+      updatedAt: "2030-01-01T00:00:00.000Z",
+    } as MeasurementReminder;
+    remindersMock.mockReturnValue({ data: [reminder], isLoading: false });
+    const html = render(<VorsorgeSection />);
+    expect(html).toContain("Log value");
+    expect(html).not.toContain(">Done<");
+  });
+
+  it("renders a 'Done' action for a free-text / self-planned reminder", () => {
+    // v1.18.2 — a free-text reminder keeps the silent satisfy, surfaced as
+    // a "Done" button + the "Self-planned" category badge.
+    const reminder: MeasurementReminder = {
+      id: "planned",
+      label: "Annual physical",
+      measurementType: null,
+      intervalDays: 365,
+      rrule: null,
+      anchorDate: null,
+      endsOn: null,
+      origin: "VORSORGE",
+      nextDueAt: null,
+      notifyHour: 9,
+      location: null,
+      lastSatisfiedAt: null,
+      enabled: true,
+      createdAt: "2030-01-01T00:00:00.000Z",
+      updatedAt: "2030-01-01T00:00:00.000Z",
+    } as MeasurementReminder;
+    remindersMock.mockReturnValue({ data: [reminder], isLoading: false });
+    const html = render(<VorsorgeSection />);
+    expect(html).toContain("Done");
+    expect(html).toContain("Self-planned");
+    expect(html).not.toContain("Log value");
+  });
+
   it("translates a COACH-origin label i18n key and shows the neutral badge", () => {
     const reminder: MeasurementReminder = {
       id: "c1",

@@ -3,44 +3,67 @@
 /**
  * v1.17.1 — Vorsorge (preventive-care / measurement) reminder surface.
  *
- * Answers "wann muss ich was wo machen": a list of upcoming reminders
- * sorted by server-computed next-due, each card showing the label, the
- * cadence, the location, and a relative next-due badge. Per the project
+ * Answers "wann muss ich was wo machen": a grid of upcoming reminders
+ * sorted by server-computed next-due, each rendered as its OWN card that
+ * mirrors the medication card grammar (neutral surface, header + kebab,
+ * a next/last block, and a single bottom-pinned action). Per the project
  * rule the card stays NEUTRAL regardless of due state — no alarming
  * red/green tint; status reads through a discreet badge only.
  *
  * The server is authoritative for `nextDueAt`; this component renders it
  * relative to "now" but never recomputes the cadence.
  *
- * v1.18.1 — the create/edit form moved into a ResponsiveSheet with a
- * pinned Cancel/Save footer (matching Labs / Illness / Medications), an
- * Edit affordance wires the existing PATCH support, an enable/disable
- * toggle drives the `enabled` flag, and a COACH-origin reminder renders a
- * neutral provenance badge + an "until <date>" course-window line while
- * translating its i18n-key label.
+ * v1.18.2 — rebuilt to mirror the MEDICATION module:
+ *   - each reminder is its own med-styled card (`VorsorgeCard`) reusing
+ *     `MedicationCardHeader` / `MedicationNextLastSlot` and the
+ *     `MedicationIntakeActions` bottom-pinned action treatment;
+ *   - the mark-done action branches on `measurementType`: a free-text /
+ *     self-planned exam keeps the silent satisfy ("Erledigt"); a
+ *     measurement-linked reminder opens the real `MeasurementForm`
+ *     ("Wert erfassen") so completing a BP reminder lands an actual
+ *     reading, then satisfies the reminder in the same user action;
+ *   - the create/edit form gains a first-due date (`anchorDate`) and a
+ *     custom cadence (free "every N days" + an RFC-5545 RRULE option);
+ *   - a wrench/customize affordance sits beside the page-variant Add,
+ *     hosting the per-reminder enable/disable toggles (moved off the
+ *     card so the card carries a single med-style kebab).
  */
 import { useState } from "react";
-import { CalendarClock, CheckCircle2, Pencil, Plus } from "lucide-react";
+import { CalendarClock, CheckCircle2, Plus, Settings2 } from "lucide-react";
 
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
-import { DeleteButton } from "@/components/data-list";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { MeasurementForm } from "@/components/measurements/measurement-form";
+import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
+import { MedicationNextLastSlot } from "@/components/medications/card-parts/medication-next-last-slot";
 import {
   useMeasurementReminders,
   useMeasurementReminderMutations,
@@ -81,6 +104,10 @@ const TYPE_GROUPS = [
 ] as const;
 
 const INTERVAL_PRESETS = [7, 14, 30, 90, 180, 365] as const;
+// v1.18.2 — the sentinel the cadence picker writes when the user wants a
+// free interval or an RFC-5545 RRULE instead of a fixed preset.
+const CADENCE_CUSTOM = "custom";
+const CADENCE_RRULE = "rrule";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function relativeDueKey(
@@ -115,11 +142,34 @@ function resolveReminderLabel(
   return reminder.label;
 }
 
+/** ISO instant → the `<input type="date">` value (YYYY-MM-DD), local. */
+function toDateInputValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const offset = d.getTimezoneOffset();
+  return new Date(d.getTime() - offset * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** `<input type="date">` value → an ISO instant at local midnight, or null. */
+function fromDateInputValue(value: string): string | null {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 interface FormState {
   label: string;
   kind: "type" | "freeText";
   measurementType: string;
-  intervalDays: number;
+  /** A preset number-as-string, or the CADENCE_CUSTOM / CADENCE_RRULE sentinel. */
+  cadenceChoice: string;
+  /** Free "every N days" value, used when cadenceChoice === CADENCE_CUSTOM. */
+  customIntervalDays: number;
+  /** Raw RRULE, used when cadenceChoice === CADENCE_RRULE. */
+  rrule: string;
+  /** First-due date (YYYY-MM-DD), optional. Maps to `anchorDate`. */
+  anchorDate: string;
   notifyHour: number;
   location: string;
 }
@@ -128,7 +178,10 @@ const EMPTY_FORM: FormState = {
   label: "",
   kind: "type",
   measurementType: "BLOOD_PRESSURE_SYS",
-  intervalDays: 7,
+  cadenceChoice: "7",
+  customIntervalDays: 30,
+  rrule: "FREQ=YEARLY",
+  anchorDate: "",
   notifyHour: 9,
   location: "",
 };
@@ -141,10 +194,8 @@ export function VorsorgeSection({
   /**
    * `"settings"` renders the compact `SettingsCardHeader` for the embedded
    * settings card; `"page"` renders the canonical feature-page header
-   * (`<h1>` + subtitle + primary add button) so the standalone `/vorsorge`
-   * surface matches its peers (labs, mood, medications, cycle). The
-   * add-entry affordance is identical in both — a primary button with a
-   * `Plus` glyph that opens the create sheet.
+   * (`<h1>` + subtitle + primary add button + wrench) so the standalone
+   * `/vorsorge` surface matches its peers (labs, mood, medications, cycle).
    */
   variant?: "settings" | "page";
 }) {
@@ -158,11 +209,18 @@ export function VorsorgeSection({
     null,
   );
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  // The customize ("wrench") sheet — re-homes the per-reminder enable
+  // toggles that no longer live on the card itself.
+  const [manageOpen, setManageOpen] = useState(false);
+  // The value-capture sheet: holds the reminder whose measurement we are
+  // entering. Non-null ⇒ the MeasurementForm sheet is open for that row.
+  const [capturing, setCapturing] = useState<MeasurementReminder | null>(null);
+  const [captureFooterEl, setCaptureFooterEl] =
+    useState<HTMLDivElement | null>(null);
 
   // Wall-clock anchor for the relative-due labels, captured once at mount
   // via a lazy state initializer so the impure Date.now() stays out of
-  // render (the repo's purity + set-state-in-effect rules both reject the
-  // alternatives). The relative labels are coarse (day granularity), so a
+  // render. The relative labels are coarse (day granularity), so a
   // mount-time snapshot is plenty fresh.
   const [now] = useState(() => Date.now());
 
@@ -175,11 +233,26 @@ export function VorsorgeSection({
   }
 
   function openEdit(reminder: MeasurementReminder) {
+    // Resolve the stored cadence back onto the picker: a preset value if it
+    // matches one, otherwise the custom-interval or RRULE branch.
+    const interval = reminder.intervalDays;
+    const cadenceChoice = reminder.rrule
+      ? CADENCE_RRULE
+      : interval != null &&
+          (INTERVAL_PRESETS as readonly number[]).includes(interval)
+        ? String(interval)
+        : interval != null
+          ? CADENCE_CUSTOM
+          : "7";
     setForm({
       label: resolveReminderLabel(reminder, t),
       kind: reminder.measurementType ? "type" : "freeText",
       measurementType: reminder.measurementType ?? "BLOOD_PRESSURE_SYS",
-      intervalDays: reminder.intervalDays ?? 7,
+      cadenceChoice,
+      customIntervalDays:
+        cadenceChoice === CADENCE_CUSTOM && interval != null ? interval : 30,
+      rrule: reminder.rrule ?? "FREQ=YEARLY",
+      anchorDate: toDateInputValue(reminder.anchorDate),
       notifyHour: reminder.notifyHour,
       location: reminder.location ?? "",
     });
@@ -191,13 +264,32 @@ export function VorsorgeSection({
     setForm(EMPTY_FORM);
   }
 
+  // Resolve the picker state to the mutually-exclusive cadence pair the
+  // schema expects (exactly one of intervalDays / rrule).
+  function resolveCadence(): {
+    intervalDays: number | null;
+    rrule: string | null;
+  } {
+    if (form.cadenceChoice === CADENCE_RRULE) {
+      const trimmed = form.rrule.trim();
+      return { intervalDays: null, rrule: trimmed || null };
+    }
+    if (form.cadenceChoice === CADENCE_CUSTOM) {
+      return { intervalDays: form.customIntervalDays, rrule: null };
+    }
+    return { intervalDays: Number(form.cadenceChoice), rrule: null };
+  }
+
   function submit() {
     const trimmed = form.label.trim();
     if (!trimmed) return;
+    const { intervalDays, rrule } = resolveCadence();
     const body = {
       label: trimmed,
       measurementType: form.kind === "type" ? form.measurementType : null,
-      intervalDays: form.intervalDays,
+      intervalDays,
+      rrule,
+      anchorDate: fromDateInputValue(form.anchorDate),
       notifyHour: form.notifyHour,
       location: form.location.trim() || null,
     };
@@ -211,10 +303,31 @@ export function VorsorgeSection({
     }
   }
 
-  const saving = create.isPending || update.isPending;
+  // The mark-done action. A free-text / self-planned exam satisfies
+  // silently; a measurement-linked reminder opens the real value-entry
+  // form so the user logs an actual reading.
+  function onPrimaryAction(reminder: MeasurementReminder) {
+    if (reminder.measurementType) {
+      setCapturing(reminder);
+    } else {
+      satisfy.mutate(reminder.id);
+    }
+  }
 
-  // The shared primary add-entry affordance — identical in both variants so
-  // the control reads the same on the standalone page and the settings card.
+  // On a successful measurement write, satisfy the reminder in the same
+  // user action (forward-only guard makes the later cron a no-op) and
+  // close the sheet.
+  function onCaptureSuccess() {
+    const reminder = capturing;
+    setCapturing(null);
+    if (reminder) satisfy.mutate(reminder.id);
+  }
+
+  const saving = create.isPending || update.isPending;
+  const cadenceCustom = form.cadenceChoice === CADENCE_CUSTOM;
+  const cadenceRrule = form.cadenceChoice === CADENCE_RRULE;
+
+  // The shared primary add-entry affordance — identical in both variants.
   const addButton = (
     <Button
       type="button"
@@ -224,6 +337,30 @@ export function VorsorgeSection({
       <Plus className="h-4 w-4" />
       {t("measurementReminders.addButton")}
     </Button>
+  );
+
+  // v1.18.2 — wrench/customize affordance, mirroring the labs page: a
+  // ghost icon button beside Add opening the manage sheet.
+  const wrenchButton = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+          aria-label={t("common.moreOptions")}
+        >
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem onClick={() => setManageOpen(true)}>
+          <Settings2 className="mr-2 h-4 w-4" />
+          {t("measurementReminders.manage.menuItem")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 
   return (
@@ -241,7 +378,10 @@ export function VorsorgeSection({
               {t("measurementReminders.sectionDescription")}
             </p>
           </div>
-          {addButton}
+          <div className="flex shrink-0 items-center gap-2">
+            {addButton}
+            {wrenchButton}
+          </div>
         </div>
       ) : (
         <SettingsCardHeader
@@ -281,10 +421,9 @@ export function VorsorgeSection({
       >
         {/* v1.18.1 — the cadence/type/hour pickers use NativeSelect (not the
             Radix Select labs/illness use) deliberately: these are long,
-            grouped, scalar option lists (24 hours, a 15-type grouped metric
-            list) where the OS-native picker is faster on touch and avoids a
-            tall scrolling Radix popover inside the bottom-sheet. The form
-            fields below stay NativeSelect by design, not drift. */}
+            grouped, scalar option lists where the OS-native picker is faster
+            on touch and avoids a tall scrolling Radix popover inside the
+            bottom-sheet. The form fields stay NativeSelect by design. */}
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="vorsorge-label">
@@ -359,19 +498,22 @@ export function VorsorgeSection({
               </Label>
               <NativeSelect
                 id="vorsorge-interval"
-                value={String(form.intervalDays)}
+                value={form.cadenceChoice}
                 onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    intervalDays: Number(e.target.value),
-                  }))
+                  setForm((f) => ({ ...f, cadenceChoice: e.target.value }))
                 }
               >
                 {INTERVAL_PRESETS.map((days) => (
-                  <option key={days} value={days}>
+                  <option key={days} value={String(days)}>
                     {t("measurementReminders.cadence.everyNDays", { days })}
                   </option>
                 ))}
+                <option value={CADENCE_CUSTOM}>
+                  {t("measurementReminders.cadence.customInterval")}
+                </option>
+                <option value={CADENCE_RRULE}>
+                  {t("measurementReminders.cadence.rruleOption")}
+                </option>
               </NativeSelect>
             </div>
             <div className="space-y-2">
@@ -394,6 +536,61 @@ export function VorsorgeSection({
             </div>
           </div>
 
+          {cadenceCustom && (
+            <div className="space-y-2">
+              <Label htmlFor="vorsorge-custom-interval">
+                {t("measurementReminders.form.customInterval")}
+              </Label>
+              <Input
+                id="vorsorge-custom-interval"
+                type="number"
+                min={1}
+                max={3650}
+                value={form.customIntervalDays}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    customIntervalDays: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+          )}
+
+          {cadenceRrule && (
+            <div className="space-y-2">
+              <Label htmlFor="vorsorge-rrule">
+                {t("measurementReminders.form.rrule")}
+              </Label>
+              <Input
+                id="vorsorge-rrule"
+                value={form.rrule}
+                maxLength={512}
+                placeholder="FREQ=YEARLY"
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, rrule: e.target.value }))
+                }
+              />
+              <p className="text-muted-foreground text-xs">
+                {t("measurementReminders.form.rruleHint")}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="vorsorge-anchor">
+              {t("measurementReminders.form.firstDue")}
+            </Label>
+            <Input
+              id="vorsorge-anchor"
+              type="date"
+              value={form.anchorDate}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, anchorDate: e.target.value }))
+              }
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="vorsorge-location">
               {t("measurementReminders.form.location")}
@@ -411,16 +608,76 @@ export function VorsorgeSection({
         </div>
       </ResponsiveSheet>
 
+      {/* v1.18.2 — value-capture sheet: a measurement-linked reminder opens
+          the real MeasurementForm pre-filled with its type, so completing a
+          BP reminder logs an actual reading. On success the reminder is
+          satisfied in the same action. */}
+      <ResponsiveSheet
+        open={capturing !== null}
+        onOpenChange={(open) => {
+          if (!open) setCapturing(null);
+        }}
+        title={t("measurementReminders.capture.title")}
+        description={t("measurementReminders.capture.description")}
+        footer={<div ref={setCaptureFooterEl} className="flex w-full" />}
+      >
+        {capturing && (
+          <MeasurementForm
+            defaultType={capturing.measurementType ?? undefined}
+            onSuccess={onCaptureSuccess}
+            onCancel={() => setCapturing(null)}
+            footerSlot={captureFooterEl}
+          />
+        )}
+      </ResponsiveSheet>
+
+      {/* v1.18.2 — customize sheet: re-homes the per-reminder enable/disable
+          toggles (moved off the card so it carries a single med-style kebab). */}
+      <ResponsiveSheet
+        open={manageOpen}
+        onOpenChange={setManageOpen}
+        title={t("measurementReminders.manage.title")}
+        description={t("measurementReminders.manage.description")}
+      >
+        {(reminders?.length ?? 0) === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            {t("measurementReminders.manage.empty")}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {reminders?.map((reminder) => (
+              <li
+                key={reminder.id}
+                className="flex items-center justify-between gap-3 rounded-md border p-3"
+              >
+                <span className="min-w-0 truncate text-sm">
+                  {resolveReminderLabel(reminder, t)}
+                </span>
+                <Switch
+                  checked={reminder.enabled}
+                  onCheckedChange={(next) =>
+                    update.mutate({ id: reminder.id, body: { enabled: next } })
+                  }
+                  disabled={update.isPending}
+                  aria-label={t("measurementReminders.enabledToggleAria")}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </ResponsiveSheet>
+
       {isLoading && (
-        <div className="space-y-3" data-slot="vorsorge-loading">
-          {Array.from({ length: 3 }, (_, i) => (
-            <Card key={i} aria-hidden="true">
-              <CardContent className="flex items-start justify-between gap-3">
-                <div className="min-w-0 space-y-2">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3 w-28" />
-                </div>
-                <Skeleton className="h-8 w-24 shrink-0" />
+        <div
+          className="grid gap-4 sm:grid-cols-2"
+          data-slot="vorsorge-loading"
+        >
+          {Array.from({ length: 4 }, (_, i) => (
+            <Card key={i} aria-hidden="true" className="h-full gap-3">
+              <CardContent className="space-y-3">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-11 w-full" />
               </CardContent>
             </Card>
           ))}
@@ -440,22 +697,24 @@ export function VorsorgeSection({
         />
       )}
 
-      <ul className="space-y-3">
-        {reminders?.map((reminder) => (
-          <VorsorgeCard
-            key={reminder.id}
-            reminder={reminder}
-            now={now}
-            onSatisfy={() => satisfy.mutate(reminder.id)}
-            onRemove={() => remove.mutate(reminder.id)}
-            onEdit={() => openEdit(reminder)}
-            onToggleEnabled={(next) =>
-              update.mutate({ id: reminder.id, body: { enabled: next } })
-            }
-            busy={satisfy.isPending || remove.isPending || update.isPending}
-          />
-        ))}
-      </ul>
+      {!isLoading && (reminders?.length ?? 0) > 0 && (
+        <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">
+          {reminders?.map((reminder) => (
+            <li key={reminder.id} className="contents">
+              <VorsorgeCard
+                reminder={reminder}
+                now={now}
+                onPrimaryAction={() => onPrimaryAction(reminder)}
+                onRemove={() => remove.mutate(reminder.id)}
+                onEdit={() => openEdit(reminder)}
+                busy={
+                  satisfy.isPending || remove.isPending || update.isPending
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -463,22 +722,21 @@ export function VorsorgeSection({
 function VorsorgeCard({
   reminder,
   now,
-  onSatisfy,
+  onPrimaryAction,
   onRemove,
   onEdit,
-  onToggleEnabled,
   busy,
 }: {
   reminder: MeasurementReminder;
   now: number;
-  onSatisfy: () => void;
+  onPrimaryAction: () => void;
   onRemove: () => void;
   onEdit: () => void;
-  onToggleEnabled: (next: boolean) => void;
   busy: boolean;
 }) {
   const { t } = useTranslations();
   const fmt = useFormatters();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const due = relativeDueKey(reminder.nextDueAt, now);
   const cadence =
     reminder.intervalDays != null
@@ -489,91 +747,151 @@ function VorsorgeCard({
         ? t("measurementReminders.cadence.custom")
         : "";
   const isCoach = reminder.origin === "COACH";
+  const isLinked = reminder.measurementType != null;
+
+  // Category-style header badge: the measurement label, or "self-planned"
+  // for a free-text exam — mirroring the medication card's class badge.
+  const categoryLabel = isLinked
+    ? t(`measurementReminders.types.${reminder.measurementType}`)
+    : t("measurementReminders.selfPlanned");
+
+  const stateBadges =
+    isCoach || !reminder.enabled ? (
+      <>
+        {isCoach && (
+          <Badge variant="outline">
+            {t("measurementReminders.originCoach")}
+          </Badge>
+        )}
+        {!reminder.enabled && (
+          <Badge variant="outline">
+            {t("measurementReminders.disabledBadge")}
+          </Badge>
+        )}
+      </>
+    ) : null;
+
+  // Single med-style kebab: Edit + Delete. The Delete item is the shared
+  // confirm-on-delete control rendered as a full-width menu row.
+  const headerActions = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="min-h-11 min-w-11"
+          aria-label={t("common.moreOptions")}
+        >
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem onClick={onEdit} disabled={busy}>
+          <Pencil className="mr-2 h-4 w-4" />
+          {t("measurementReminders.edit")}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={busy}
+          onSelect={() => setConfirmDelete(true)}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          {t("measurementReminders.delete")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  // Next/last block in the med-card grammar. The "next" value carries the
+  // discreet neutral due badge + cadence; the "last" value is the last
+  // satisfied date.
+  const nextValue = (
+    <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
+      <Badge variant="secondary">
+        {t(`measurementReminders.${due.key}`, { days: due.days })}
+      </Badge>
+      {cadence && <span className="text-muted-foreground">{cadence}</span>}
+    </span>
+  );
+  const lastValue = reminder.lastSatisfiedAt
+    ? fmt.date(new Date(reminder.lastSatisfiedAt))
+    : null;
 
   return (
-    <li>
-      {/* NEUTRAL card — no status-driven colour. The due state reads only
-          through the discreet badge below. */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
-            <span className="truncate font-medium">
-              {resolveReminderLabel(reminder, t)}
-            </span>
-            {isCoach && (
-              // Neutral provenance badge — no status colour per the rule.
-              <Badge variant="outline">
-                {t("measurementReminders.originCoach")}
-              </Badge>
-            )}
-            {!reminder.enabled && (
-              <Badge variant="outline">
-                {t("measurementReminders.disabledBadge")}
-              </Badge>
-            )}
-          </CardTitle>
-          <CardAction className="flex items-center gap-1">
-            <Switch
-              checked={reminder.enabled}
-              onCheckedChange={onToggleEnabled}
-              disabled={busy}
-              aria-label={t("measurementReminders.enabledToggleAria")}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={onSatisfy}
-              disabled={busy}
-              aria-label={t("measurementReminders.markDone")}
-            >
-              <CheckCircle2 className="mr-1 h-4 w-4" />
-              {t("measurementReminders.markDone")}
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              onClick={onEdit}
-              disabled={busy}
-              className="size-9"
-              aria-label={t("measurementReminders.edit")}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <DeleteButton
-              onConfirm={onRemove}
-              title={t("measurementReminders.deleteConfirmTitle")}
-              description={t("measurementReminders.deleteConfirmDescription")}
-              confirmLabel={t("measurementReminders.delete")}
-              className="size-9"
-              iconClassName="h-4 w-4"
-            />
-          </CardAction>
-        </CardHeader>
-        <CardContent className="space-y-1">
+    <>
+    {/* NEUTRAL card — no status-driven colour. Due state reads only through
+        the discreet badge below. Shares the medication card shell + tokens. */}
+    <Card className="h-full gap-3 md:gap-3">
+      <MedicationCardHeader
+        name={resolveReminderLabel(reminder, t)}
+        dose=""
+        categoryLabel={categoryLabel}
+        stateBadges={stateBadges}
+        actions={headerActions}
+      />
+      <CardContent className="flex h-full flex-col space-y-3.5">
+        <MedicationNextLastSlot next={nextValue} last={lastValue} />
+
+        {reminder.endsOn && (
           <p className="text-muted-foreground text-sm">
-            <Badge variant="secondary" className="mr-2">
-              {t(`measurementReminders.${due.key}`, { days: due.days })}
-            </Badge>
-            {cadence}
+            {t("measurementReminders.until", {
+              date: fmt.date(new Date(reminder.endsOn)),
+            })}
           </p>
-          {reminder.endsOn && (
-            <p className="text-muted-foreground text-sm">
-              {t("measurementReminders.until", {
-                date: fmt.date(new Date(reminder.endsOn)),
-              })}
-            </p>
-          )}
-          {reminder.location && (
-            <p className="text-muted-foreground text-sm">
-              {t("measurementReminders.location.prefix", {
-                location: reminder.location,
-              })}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    </li>
+        )}
+        {reminder.location && (
+          <p className="text-muted-foreground text-sm">
+            {t("measurementReminders.location.prefix", {
+              location: reminder.location,
+            })}
+          </p>
+        )}
+
+        {/* Bottom-pinned single primary action — branches on the link state:
+            a self-planned exam marks done; a measurement-linked reminder
+            opens the value-entry form. */}
+        <div className="mt-auto pt-0">
+          <Button
+            type="button"
+            className="min-h-11 w-full"
+            onClick={onPrimaryAction}
+            disabled={busy}
+          >
+            {isLinked ? (
+              <>
+                <Plus className="h-4 w-4" />
+                {t("measurementReminders.captureValue")}
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                {t("measurementReminders.markDone")}
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("measurementReminders.deleteConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("measurementReminders.deleteConfirmDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={onRemove}>
+              {t("measurementReminders.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -6405,7 +6405,9 @@
     "overdueByDays": "Vencido hace {days} días",
     "cadence": {
       "everyNDays": "Cada {days} días",
-      "custom": "Programación personalizada"
+      "custom": "Programación personalizada",
+      "customInterval": "Personalizado (cada N días)",
+      "rruleOption": "Regla propia (RRULE)"
     },
     "location": {
       "prefix": "En: {location}"
@@ -6448,7 +6450,11 @@
       "locationPlaceholder": "p. ej. Médico, Laboratorio",
       "save": "Guardar",
       "createTitle": "Nuevo recordatorio",
-      "editTitle": "Editar recordatorio"
+      "editTitle": "Editar recordatorio",
+      "customInterval": "Repetir cada (días)",
+      "rrule": "Regla de recurrencia (RRULE)",
+      "rruleHint": "RFC-5545, p. ej. FREQ=YEARLY para una revisión anual.",
+      "firstDue": "Primer vencimiento (opcional)"
     },
     "pushTitle": "Recordatorio de prevención",
     "pushBody": "Toca: {label}",
@@ -6456,7 +6462,23 @@
     "edit": "Editar",
     "originCoach": "Coach",
     "enabledToggleAria": "Activar o desactivar este recordatorio",
-    "until": "Hasta {date}"
+    "until": "Hasta {date}",
+    "selfPlanned": "Autoplanificado",
+    "captureValue": "Registrar valor",
+    "capture": {
+      "title": "Registrar medición",
+      "description": "Introduce el valor; el recordatorio se marca como hecho."
+    },
+    "manage": {
+      "menuItem": "Personalizar",
+      "title": "Personalizar recordatorios",
+      "description": "Activa o desactiva recordatorios individuales.",
+      "empty": "Aún no hay recordatorios para personalizar."
+    },
+    "dashboard": {
+      "empty": "No hay recordatorios de prevención próximos.",
+      "openLink": "Abrir prevención"
+    }
   },
   "labs": {
     "title": "Resultados de análisis",

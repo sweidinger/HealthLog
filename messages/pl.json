@@ -6405,7 +6405,9 @@
     "overdueByDays": "Zaległe od {days} dni",
     "cadence": {
       "everyNDays": "Co {days} dni",
-      "custom": "Własny harmonogram"
+      "custom": "Własny harmonogram",
+      "customInterval": "Niestandardowe (co N dni)",
+      "rruleOption": "Własna reguła (RRULE)"
     },
     "location": {
       "prefix": "U: {location}"
@@ -6448,7 +6450,11 @@
       "locationPlaceholder": "np. Lekarz, Laboratorium",
       "save": "Zapisz",
       "createTitle": "Nowe przypomnienie",
-      "editTitle": "Edytuj przypomnienie"
+      "editTitle": "Edytuj przypomnienie",
+      "customInterval": "Powtarzaj co (dni)",
+      "rrule": "Reguła powtarzania (RRULE)",
+      "rruleHint": "RFC-5545, np. FREQ=YEARLY dla corocznego badania.",
+      "firstDue": "Pierwszy termin (opcjonalnie)"
     },
     "pushTitle": "Przypomnienie profilaktyczne",
     "pushBody": "Czas na: {label}",
@@ -6456,7 +6462,23 @@
     "edit": "Edytuj",
     "originCoach": "Coach",
     "enabledToggleAria": "Włącz lub wyłącz to przypomnienie",
-    "until": "Do {date}"
+    "until": "Do {date}",
+    "selfPlanned": "Zaplanowane samodzielnie",
+    "captureValue": "Zapisz wartość",
+    "capture": {
+      "title": "Zapisz pomiar",
+      "description": "Wpisz wartość; przypomnienie zostanie oznaczone jako wykonane."
+    },
+    "manage": {
+      "menuItem": "Dostosuj",
+      "title": "Dostosuj przypomnienia",
+      "description": "Włącz lub wyłącz poszczególne przypomnienia.",
+      "empty": "Brak przypomnień do dostosowania."
+    },
+    "dashboard": {
+      "empty": "Brak nadchodzących przypomnień profilaktycznych.",
+      "openLink": "Otwórz profilaktykę"
+    }
   },
   "labs": {
     "title": "Wyniki badań",
