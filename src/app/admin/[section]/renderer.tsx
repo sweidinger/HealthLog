@@ -194,9 +194,9 @@ export function AdminSectionRenderer({
       // v1.4.36 W4e — About section reused as-is from the settings
       // surface. The component owns its own heading + cards layout
       // so no SectionFrame wrapper.
-      // v1.18.1 E5 — hide the onboarding "Replay tour" card on the admin
-      // surface; it's a user-facing affordance with no admin-side use.
-      return <AboutSection hideTourReplay />;
+      // v1.18.6 — the About surface no longer carries the tour-replay card
+      // (consolidated onto Settings → Advanced), so there's nothing to hide.
+      return <AboutSection />;
     default:
       slug satisfies never;
       return null;

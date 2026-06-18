@@ -22,6 +22,7 @@ import { useMounted } from "@/hooks/use-mounted";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 export default function LabsPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -63,7 +64,10 @@ export default function LabsPage() {
       <PullToRefreshIndicator {...pull} />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1
+            data-tour-id="labs-hero"
+            className="text-2xl font-bold tracking-tight"
+          >
             {t("labs.title")}
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm">
@@ -71,6 +75,7 @@ export default function LabsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <ModuleTourTrigger stopId="labs" />
           <Button
             onClick={() => setDialogOpen(true)}
             className="min-h-11 sm:min-h-9"

@@ -189,7 +189,7 @@ const ALL_STOPS: readonly TourStop[] = [
     id: "export",
     targetId: "export-hero",
     placement: "bottom",
-    route: "/settings/advanced",
+    route: "/settings/gesundheitsakte",
     titleKey: "onboarding.tour.steps.export.title",
     bodyKey: "onboarding.tour.steps.export.body",
   },

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "@/lib/i18n/context";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { cn } from "@/lib/utils";
 import { CycleRing } from "./cycle-ring";
 import { BbtChart } from "./bbt-chart";
@@ -139,20 +140,26 @@ export function CycleView() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1
+            data-tour-id="cycle-hero"
+            className="text-2xl font-bold tracking-tight"
+          >
             {t("cycle.title")}
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm">
             {t("cycle.subtitle")}
           </p>
         </div>
-        <Button
-          onClick={() => openSheet(today)}
-          className="min-h-11 shrink-0 sm:min-h-9"
-        >
-          <Plus className="h-4 w-4" />
-          {t("cycle.logToday")}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <ModuleTourTrigger stopId="cycle" />
+          <Button
+            onClick={() => openSheet(today)}
+            className="min-h-11 sm:min-h-9"
+          >
+            <Plus className="h-4 w-4" />
+            {t("cycle.logToday")}
+          </Button>
+        </div>
       </div>
 
       {/* Desktop: ring (left) + tabs (right). Single column below lg. */}

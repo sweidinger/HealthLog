@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { formatDate } from "@/lib/format";
 import { useAchievementsQuery } from "@/lib/queries/use-achievements-query";
 import {
@@ -317,13 +318,21 @@ export default function AchievementsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t("achievements.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("achievements.subtitle")}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1
+            data-tour-id="achievements-hero"
+            className="text-2xl font-bold tracking-tight"
+          >
+            {t("achievements.title")}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {t("achievements.subtitle")}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <ModuleTourTrigger stopId="achievements" />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

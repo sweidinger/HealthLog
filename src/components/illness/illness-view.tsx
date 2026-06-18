@@ -32,6 +32,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 import { LogDaySheet } from "./log-day-sheet";
 import { NewEpisodeSheet } from "./new-episode-sheet";
@@ -256,20 +257,26 @@ export function IllnessView() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1
+            data-tour-id="illness-hero"
+            className="text-2xl font-bold tracking-tight"
+          >
             {t("illness.title")}
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm">
             {t("illness.subtitle")}
           </p>
         </div>
-        <Button
-          onClick={() => setNewOpen(true)}
-          className="min-h-11 shrink-0 sm:min-h-9"
-        >
-          <Plus className="h-4 w-4" />
-          {t("illness.newEpisode")}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <ModuleTourTrigger stopId="illness" />
+          <Button
+            onClick={() => setNewOpen(true)}
+            className="min-h-11 sm:min-h-9"
+          >
+            <Plus className="h-4 w-4" />
+            {t("illness.newEpisode")}
+          </Button>
+        </div>
       </div>
 
       <p className="text-muted-foreground text-xs">{t("illness.disclaimer")}</p>

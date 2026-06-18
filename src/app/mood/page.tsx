@@ -15,6 +15,7 @@ import { Plus, Loader2, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useTranslations } from "@/lib/i18n/context";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 export default function MoodPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -65,7 +66,10 @@ export default function MoodPage() {
       <PullToRefreshIndicator {...pull} />
       <div className="flex items-center justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1
+            data-tour-id="mood-hero"
+            className="text-2xl font-bold tracking-tight"
+          >
             {t("mood.title")}
           </h1>
           {/* v1.4.34 IW-G — subtitle stays visible on mobile so the
@@ -75,6 +79,7 @@ export default function MoodPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <ModuleTourTrigger stopId="mood" />
           {/* v1.17 — the wrench is the one customize entry point: it
               links to /settings/mood, which owns the tag groups, custom
               tags, visibility, and picker order. Same glyph, slot (left

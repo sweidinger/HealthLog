@@ -4621,9 +4621,7 @@
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources et documentation",
-      "newerAvailable": "Nouvelle version : {tag}",
-      "tourReplay": "Revoir la visite",
-      "tourReplayHint": "Voir la visite guidée du tableau de bord — pratique si tu l'as sautée à la première visite."
+      "newerAvailable": "Nouvelle version : {tag}"
     },
     "testConnection": {
       "test": "Tester la connexion",
