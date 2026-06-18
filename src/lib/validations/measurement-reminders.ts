@@ -184,3 +184,26 @@ export const measurementReminderDto = z
     description:
       "A Vorsorge reminder. nextDueAt is server-computed (server-authoritative). A free-text reminder carries measurementType=null and resolves only on a manual satisfy. origin distinguishes a user-created (VORSORGE) reminder from one minted by a Coach cadence suggestion (COACH); endsOn bounds a finite course window (null = open-ended).",
   });
+
+/**
+ * v1.18.6 — explicit-completion result. The `complete` route is the
+ * user-action equivalent of the cron auto-satisfy: it stamps
+ * `lastSatisfiedAt` and re-anchors `nextDueAt` through the SAME shared
+ * primitive, so it fires no notification of its own and is idempotent.
+ *
+ * `completed` reports whether THIS call advanced the reminder (true) or was
+ * a forward-only no-op because a prior satisfy / matching reading already
+ * fulfilled the current cycle (false). Either way the response is a 200 so
+ * a client that completes an already-completed reminder need not special-case
+ * the second tap. `reminder` carries the canonical post-completion DTO.
+ */
+export const measurementReminderCompletionDto = z
+  .object({
+    completed: z.boolean(),
+    reminder: measurementReminderDto,
+  })
+  .meta({
+    id: "MeasurementReminderCompletion",
+    description:
+      "Result of an explicit reminder completion. completed=true when this call advanced lastSatisfiedAt; completed=false when an earlier satisfy or a matching reading had already fulfilled the current cycle (idempotent no-op). reminder is the canonical post-completion DTO.",
+  });
