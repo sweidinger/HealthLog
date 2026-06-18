@@ -46,12 +46,10 @@ import type {
   MeasurementType,
   GlucoseContext,
 } from "@/generated/prisma/client";
-import {
-  getEffectiveRange,
-  type ThresholdOverridesJson,
-} from "@/lib/analytics/effective-range";
+import type { ThresholdOverridesJson } from "@/lib/analytics/effective-range";
 import { getBodyFatTargetRange } from "@/lib/analytics/value-bands";
-import { thresholdMetricForContext, resolveGlucoseUnit } from "@/lib/glucose";
+import { resolveGlucoseUnit } from "@/lib/glucose";
+import { resolveGlucoseTarget } from "@/lib/targets/glucose-targets";
 import {
   ensureUserMoodRollupsFresh,
   readMoodDayRollups,
@@ -219,6 +217,9 @@ export async function buildTargetsResponse(user: AuthedUser) {
           dateOfBirth: true,
           gender: true,
           glucoseUnit: true,
+          // v1.18.6 — diabetes opt-in selects the tighter ADA glycemic goal
+          // band for glucose targets (resolved below via resolveGlucoseTarget).
+          hasDiabetes: true,
           thresholdsJson: true,
           // v1.11.5 — needed to collapse a dual-source sleep night to one
           // canonical source before reconstructing per-night asleep totals.
@@ -1456,20 +1457,28 @@ export async function buildTargetsResponse(user: AuthedUser) {
           ) / 10
         : null;
 
-    const metric = thresholdMetricForContext(ctx);
-    const eff = getEffectiveRange(metric, profileForRange, overrides);
-    const range = eff.range
-      ? { min: eff.range.greenMin, max: eff.range.greenMax }
+    // v1.18.6 — diabetes-aware target band. When the user has declared
+    // diabetes (and has NOT pinned a custom override) the tighter ADA glycemic
+    // GOAL band wins; otherwise the general non-diabetic band (or the override)
+    // is used exactly as before. The flag is never inferred from a value.
+    const resolved = resolveGlucoseTarget({
+      context: ctx,
+      hasDiabetes: dbUser?.hasDiabetes ?? false,
+      profile: profileForRange,
+      overrides,
+    });
+    const effRange = resolved.range;
+    const range = effRange
+      ? { min: effRange.greenMin, max: effRange.greenMax }
       : null;
 
     let classification: { category: string; color: string } | null = null;
-    if (range) {
+    if (range && effRange) {
       if (latest >= range.min && latest <= range.max) {
         classification = { category: "Optimal", color: "#50fa7b" };
       } else if (
-        eff.range &&
-        latest >= eff.range.orangeMin &&
-        latest <= eff.range.orangeMax
+        latest >= effRange.orangeMin &&
+        latest <= effRange.orangeMax
       ) {
         classification = { category: "Elevated", color: "#f1fa8c" };
       } else {
@@ -1481,8 +1490,8 @@ export async function buildTargetsResponse(user: AuthedUser) {
       recent.map((r) => ({ measuredAt: r.measuredAt, value: r.value })),
       makeRangeClassifier(
         range,
-        eff.range
-          ? { orangeMin: eff.range.orangeMin, orangeMax: eff.range.orangeMax }
+        effRange
+          ? { orangeMin: effRange.orangeMin, orangeMax: effRange.orangeMax }
           : undefined,
       ),
     );
@@ -1495,7 +1504,12 @@ export async function buildTargetsResponse(user: AuthedUser) {
       unit: glucoseUnit,
       range,
       classification,
-      source: eff.isOverride ? "Custom" : "ADA 2024 / DDG",
+      source:
+        resolved.source === "custom"
+          ? "Custom"
+          : resolved.source === "ADA goal (diabetes)"
+            ? "ADA goal (diabetes)"
+            : "ADA 2024 / DDG",
       ...consistency,
     });
   }

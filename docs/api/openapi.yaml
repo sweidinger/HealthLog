@@ -1837,6 +1837,8 @@ paths:
                       minLength: 1
                       maxLength: 32
                     - type: "null"
+                symptomsPresent:
+                  type: boolean
               required:
                 - type
                 - value
@@ -3167,6 +3169,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PatchDisableCoachResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/diabetes:
+    get:
+      tags:
+        - Auth
+      summary: Read per-user diabetes opt-in flag
+      description: Returns the user's per-account diabetes opt-in flag. Default `false`. When `true`, the glucose target
+        resolver applies the tighter ADA glycemic GOAL bands (fasting 80–130, postprandial < 180) instead of the general
+        non-diabetic bands. Powers the Settings "I have diabetes / clinician glucose targets" toggle. Never inferred
+        from a reading; asserts no diagnosis.
+      responses:
+        "200":
+          description: Resolved flag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetDiabetesResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Auth
+      summary: Toggle per-user diabetes opt-in flag
+      description: Sets the per-account diabetes opt-in flag. Idempotent — the DB write fires even when the value matches so
+        the audit-log row mirrors the API call. Always returns the resolved next-state. `userId` is never accepted from
+        the body. Rate-limit 60/min per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiabetesFlag"
+      responses:
+        "200":
+          description: Resolved next-state echoed back for optimistic-update consumers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatchDiabetesResponse"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -7668,6 +7712,16 @@ components:
       required:
         - disableCoach
       description: Per-account Coach opt-out toggle (v1.4.47 W3). `true` hides the Coach FAB and short-circuits its API gates.
+    DiabetesFlag:
+      type: object
+      properties:
+        hasDiabetes:
+          type: boolean
+      required:
+        - hasDiabetes
+      description: Per-account diabetes opt-in (v1.18.6). `true` selects the ADA glycemic GOAL bands (fasting 80–130,
+        postprandial < 180) for glucose targets instead of the general non-diabetic bands. A user-declared preference
+        only — never inferred from a value, never a diagnosis.
     ModulePrefsPatchRequest:
       type: object
       properties:
@@ -13599,6 +13653,40 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/DisableCoachFlagOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetDiabetesResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DiabetesFlagOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    PatchDiabetesResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DiabetesFlagOutput"
         error:
           type: "null"
         meta:
@@ -19607,6 +19695,17 @@ components:
         - disableCoach
       additionalProperties: false
       description: Per-account Coach opt-out toggle (v1.4.47 W3). `true` hides the Coach FAB and short-circuits its API gates.
+    DiabetesFlagOutput:
+      type: object
+      properties:
+        hasDiabetes:
+          type: boolean
+      required:
+        - hasDiabetes
+      additionalProperties: false
+      description: Per-account diabetes opt-in (v1.18.6). `true` selects the ADA glycemic GOAL bands (fasting 80–130,
+        postprandial < 180) for glucose targets instead of the general non-diabetic bands. A user-declared preference
+        only — never inferred from a value, never a diagnosis.
     InsightsLayoutBodyOutput:
       type: object
       properties:

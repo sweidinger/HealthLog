@@ -4743,7 +4743,10 @@
         "savedOff": "Coach nascosto.",
         "saveError": "Impossibile salvare la modifica. Riprova."
       }
-    }
+    },
+    "diabetes": "Ho il diabete",
+    "diabetesDescription": "Usa obiettivi glicemici clinici (a digiuno 80–130, dopo i pasti sotto 180 mg/dL) invece delle bande generali. Questo cambia solo l'obiettivo con cui ti confronti — non è mai una diagnosi.",
+    "diabetesSaved": "Preferenza dell'obiettivo glicemico salvata"
   },
   "admin": {
     "title": "Administration",
@@ -6777,6 +6780,25 @@
     "settings": {
       "reminderSuggestionsLabel": "Suggerimenti di cadenza",
       "reminderSuggestionsDescription": "Lascia che il Coach proponga ogni tanto un promemoria basato sull'evidenza per misurare una metrica più regolarmente."
+    }
+  },
+  "safety": {
+    "floor": {
+      "bpHighTitle": "Pressione molto alta",
+      "bpHighDoctor": "Due misurazioni recenti erano di {systolic}/{diastolic} mmHg o superiori. Riposa, rimisura tra qualche minuto e contatta il medico al più presto se resta così alta.",
+      "bpHighEmergency": "Due misurazioni recenti erano di {systolic}/{diastolic} mmHg o superiori e hai segnalato sintomi. In caso di dolore al petto, affanno, debolezza o disturbi della vista o del linguaggio, chiama subito i soccorsi.",
+      "bpLowTitle": "Pressione bassa",
+      "bpLowDoctor": "Due misurazioni recenti avevano una sistolica sotto {systolic} mmHg. Se ti senti stordito o debole, siediti o sdraiati e contatta il medico se continua.",
+      "bpLowEmergency": "Due misurazioni recenti avevano una sistolica sotto {systolic} mmHg e hai segnalato sintomi. Se senti che stai per svenire, sei confuso o hai la pelle fredda e sudata, chiama subito i soccorsi.",
+      "glucoseLowTitle": "Glicemia bassa",
+      "glucoseLowDoctor": "Due misurazioni recenti erano sotto 70 mg/dL ({value} mg/dL). Assumi carboidrati ad azione rapida, rimisura tra 15 minuti e contatta il medico se i cali continuano.",
+      "glucoseLowEmergency": "Due misurazioni recenti erano sotto 70 mg/dL ({value} mg/dL) e hai segnalato sintomi. Tratta subito con zucchero rapido; se non puoi o ti senti molto male, chiama i soccorsi.",
+      "glucoseLowSevereTitle": "Glicemia molto bassa",
+      "glucoseLowSevereDoctor": "Due misurazioni recenti erano sotto 54 mg/dL ({value} mg/dL). Tratta subito con carboidrati ad azione rapida, rimisura tra 15 minuti e contatta il medico.",
+      "glucoseLowSevereEmergency": "Due misurazioni recenti erano sotto 54 mg/dL ({value} mg/dL) e hai segnalato sintomi. Tratta subito; se non trattieni il cibo o ti senti molto male, chiama i soccorsi.",
+      "glucoseHighTitle": "Glicemia molto alta",
+      "glucoseHighDoctor": "Due misurazioni recenti erano di {value} mg/dL o superiori. Rimisura, idratati e contatta il medico al più presto se resta così alta.",
+      "glucoseHighEmergency": "Due misurazioni recenti erano di {value} mg/dL o superiori e hai segnalato sintomi. In caso di vomito, respiro affannoso o confusione, chiama subito i soccorsi."
     }
   }
 }

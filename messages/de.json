@@ -4743,7 +4743,10 @@
         "savedOff": "Coach ist ausgeblendet.",
         "saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen."
       }
-    }
+    },
+    "diabetes": "Ich habe Diabetes",
+    "diabetesDescription": "Nutze ärztliche Glukose-Zielwerte (nüchtern 80–130, nach dem Essen unter 180 mg/dL) statt der allgemeinen Bänder. Das ändert nur den Zielbereich, an dem du gemessen wirst — es ist keine Diagnose.",
+    "diabetesSaved": "Glukose-Zielwert-Einstellung gespeichert"
   },
   "admin": {
     "title": "Administration",
@@ -6777,6 +6780,25 @@
     "settings": {
       "reminderSuggestionsLabel": "Kadenz-Vorschläge",
       "reminderSuggestionsDescription": "Lass den Coach gelegentlich eine evidenzbasierte Erinnerung anbieten, eine Metrik regelmäßiger zu messen."
+    }
+  },
+  "safety": {
+    "floor": {
+      "bpHighTitle": "Sehr hoher Blutdruck",
+      "bpHighDoctor": "Zwei aktuelle Messungen lagen bei {systolic}/{diastolic} mmHg oder höher. Ruhe dich aus, miss in einigen Minuten erneut und kontaktiere möglichst bald deine Ärztin oder deinen Arzt, wenn es so hoch bleibt.",
+      "bpHighEmergency": "Zwei aktuelle Messungen lagen bei {systolic}/{diastolic} mmHg oder höher und du hast Beschwerden angegeben. Bei Brustschmerz, Atemnot, Schwäche oder Seh- oder Sprachstörungen sofort den Notruf wählen.",
+      "bpLowTitle": "Niedriger Blutdruck",
+      "bpLowDoctor": "Zwei aktuelle Messungen hatten einen systolischen Wert unter {systolic} mmHg. Wenn dir schwindelig oder schummrig ist, setz oder leg dich hin und kontaktiere deine Ärztin oder deinen Arzt, wenn es anhält.",
+      "bpLowEmergency": "Zwei aktuelle Messungen hatten einen systolischen Wert unter {systolic} mmHg und du hast Beschwerden angegeben. Bei Ohnmachtsgefühl, Verwirrtheit oder kalter, feuchter Haut sofort den Notruf wählen.",
+      "glucoseLowTitle": "Niedriger Blutzucker",
+      "glucoseLowDoctor": "Zwei aktuelle Messungen lagen unter 70 mg/dL ({value} mg/dL). Nimm schnell wirkende Kohlenhydrate, miss in 15 Minuten erneut und kontaktiere deine Ärztin oder deinen Arzt, wenn die Tiefs anhalten.",
+      "glucoseLowEmergency": "Zwei aktuelle Messungen lagen unter 70 mg/dL ({value} mg/dL) und du hast Beschwerden angegeben. Behandle jetzt mit schnellem Zucker; wenn das nicht geht oder dir sehr unwohl ist, wähle den Notruf.",
+      "glucoseLowSevereTitle": "Sehr niedriger Blutzucker",
+      "glucoseLowSevereDoctor": "Zwei aktuelle Messungen lagen unter 54 mg/dL ({value} mg/dL). Behandle sofort mit schnell wirkenden Kohlenhydraten, miss in 15 Minuten erneut und kontaktiere deine Ärztin oder deinen Arzt.",
+      "glucoseLowSevereEmergency": "Zwei aktuelle Messungen lagen unter 54 mg/dL ({value} mg/dL) und du hast Beschwerden angegeben. Behandle jetzt; wenn du nichts bei dir behalten kannst oder dir sehr unwohl ist, wähle den Notruf.",
+      "glucoseHighTitle": "Sehr hoher Blutzucker",
+      "glucoseHighDoctor": "Zwei aktuelle Messungen lagen bei {value} mg/dL oder höher. Miss erneut, trink ausreichend und kontaktiere möglichst bald deine Ärztin oder deinen Arzt, wenn es so hoch bleibt.",
+      "glucoseHighEmergency": "Zwei aktuelle Messungen lagen bei {value} mg/dL oder höher und du hast Beschwerden angegeben. Bei Erbrechen, schneller Atmung oder Verwirrtheit sofort den Notruf wählen."
     }
   }
 }
