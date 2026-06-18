@@ -2492,7 +2492,25 @@
         "strainBody": "El esfuerzo capta cuánta carga cardiovascular y física le has impuesto a tu cuerpo, desde los entrenamientos hasta un día activo de pie. Cuando ya hay suficiente historial, se valora frente a tu propio esfuerzo habitual, no frente a un estándar ajeno.",
         "stressBody": "El estrés aquí es una estimación de la carga fisiológica sobre tu sistema nervioso, leída sobre todo a partir de patrones de variabilidad de la frecuencia cardíaca y no de cómo te sientes conscientemente. Una puntuación más baja apunta a un estado calmado y bien regulado; una más alta es una invitación a incorporar recuperación.",
         "recoveryPageTitle": "Recuperación",
-        "recoveryPageBody": "La recuperación reúne las señales nocturnas que registra tu wearable —recarga, esfuerzo, carga y los totales de frecuencia cardiaca y energía del día— para mostrar cómo se ha recuperado tu cuerpo. Fíjate en el patrón a lo largo de los días más que en un solo número; un valor más bajo es una invitación a bajar el ritmo, no una alarma."
+        "recoveryPageBody": "La recuperación reúne las señales nocturnas que registra tu wearable —recarga, esfuerzo, carga y los totales de frecuencia cardiaca y energía del día— para mostrar cómo se ha recuperado tu cuerpo. Fíjate en el patrón a lo largo de los días más que en un solo número; un valor más bajo es una invitación a bajar el ritmo, no una alarma.",
+        "pulsePressureTitle": "Presión de pulso",
+        "pulsePressureBody": "La presión de pulso es la diferencia entre tu valor sistólico y diastólico (sistólico menos diastólico). Como orientación general, unos 40 mmHg es lo típico en reposo; una diferencia amplia por encima de unos 60 mmHg en la mediana edad puede reflejar arterias más rígidas, mientras que una diferencia estrecha por debajo de unos 25 mmHg puede acompañar a un bajo volumen sistólico (StatPearls/NIH 2023). Es un motivo de conversación, no un diagnóstico.",
+        "meanArterialPressureTitle": "Presión arterial media",
+        "meanArterialPressureBody": "La presión arterial media es la presión promedio que ven tus órganos a lo largo de un latido, aproximadamente la diastólica más un tercio de la diferencia con la sistólica. Como orientación general, un valor en reposo ronda los 70–100 mmHg (StatPearls/NIH 2023). El umbral de ~60 mmHg que se suele citar es un concepto de cuidados agudos, no una alarma para el autocontrol.",
+        "cycleEducationBody": "Tu ciclo atraviesa cuatro fases impulsadas por hormonas, y su duración y regularidad son una ventana accesible a la salud general. Como orientación general, los ciclos en personas adultas suelen durar 21–35 días (las referencias clínicas citan 24–38), con un sangrado de unos cinco días (ACOG 2015). La fase lútea es el ancla estable, así que la ovulación se estima mejor contando hacia atrás desde tu próxima regla prevista, nunca con un «día 14» fijo. Una ventana fértil predicha es una estimación que necesita varios ciclos registrados y sigue siendo aproximada, y la temperatura basal confirma la ovulación a posteriori en lugar de predecirla. No es un método anticonceptivo.",
+        "sleepHygieneBody": "Algunos hábitos con respaldo de evidencia favorecen el sueño: mantener horarios constantes de acostarse y levantarse incluso los fines de semana, recibir luz brillante por la mañana y atenuar las noches, una habitación fresca, oscura y silenciosa, y evitar la cafeína por la tarde, el alcohol tardío y las comidas copiosas a última hora (CDC 2024). La regularidad predice la salud al menos tanto como la duración, y el tiempo total de sueño de un wearable es mucho más fiable que su reparto entre sueño profundo, ligero y REM.",
+        "referenceGuidance": "Orientación general, no consejo médico. Los rangos de referencia son valores poblacionales que cambian con tu edad, sexo y condiciones de salud; tu propia tendencia a lo largo del tiempo guía la lectura.",
+        "referenceState": {
+          "within": "Tu valor reciente se sitúa dentro del rango de referencia general.",
+          "slightlyOutside": "Tu valor reciente queda justo fuera del rango habitual; conviene vigilar la tendencia.",
+          "outside": "Tu valor reciente queda fuera del rango habitual. Es una ayuda de ubicación, no un diagnóstico; comenta un patrón sostenido con un profesional sanitario.",
+          "insufficient": "Aún no hay datos suficientes, o esta señal no tiene un rango poblacional fijo; tu propia base guía la lectura."
+        }
+      },
+      "bpDerived": {
+        "pulsePressure": "La presión de pulso (la diferencia entre tus valores) es de unos {value} mmHg; alrededor de 40 es lo típico en reposo.",
+        "meanArterialPressure": "La presión arterial media (el promedio que ven tus órganos) es de unos {value} mmHg, normalmente entre 70 y 100.",
+        "caveat": "Estos valores se derivan de tu última lectura como orientación general, no como diagnóstico."
       },
       "stats": {
         "label": "Estadísticas resumidas",
