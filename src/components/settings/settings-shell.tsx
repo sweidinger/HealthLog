@@ -48,7 +48,7 @@ import {
   isSettingsSectionSlug,
   type SettingsSectionSlug,
 } from "./section-slugs";
-import { SectionNavHeadingSpacer } from "./section-nav-heading-spacer";
+import { SettingsHubBackLink } from "./settings-hub-back-link";
 
 // Re-export so existing call-sites importing from this module keep working.
 // New server-side call-sites (e.g. `generateStaticParams()`) should import
@@ -211,6 +211,28 @@ export interface SettingsShellProps {
    * pass an explicit value so they don't need to mock the router.
    */
   active?: SettingsSectionSlug;
+  /**
+   * v1.18.6.1 — the page heading + subtitle now live in the shell, not in
+   * the section body. The shell places them in their own grid row that
+   * spans ONLY the content column, so the left nav's first item lines up
+   * with the top of the first card by construction — no fixed-height
+   * spacer to drift across locales or subtitle line-wraps.
+   *
+   * Title comes from `settings.sections.<active>.title` when omitted; pass
+   * an explicit value for the per-module pages (Vorsorge / Illness / Labs)
+   * that stay out of the slug registry. `headingId` keeps the historic
+   * `settings-section-<slug>-title` anchor for `aria-labelledby` and the
+   * spotlight tour.
+   */
+  heading?: {
+    title: string;
+    subtitle: string;
+    headingId: string;
+    /** Rendered above the heading (e.g. a "← back to hub" link). */
+    topSlot?: React.ReactNode;
+    /** Rendered inline at the top-right of the heading row. */
+    headingAccessory?: React.ReactNode;
+  };
   children: React.ReactNode;
 }
 
@@ -246,7 +268,11 @@ function deriveActiveSlug(
   return isSettingsSectionSlug(candidate) ? candidate : "account";
 }
 
-export function SettingsShell({ active, children }: SettingsShellProps) {
+export function SettingsShell({
+  active,
+  heading,
+  children,
+}: SettingsShellProps) {
   const pathname = usePathname();
   const { t } = useTranslations();
   const { user } = useAuth();
@@ -300,6 +326,53 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
     });
   }, [activeSlug]);
 
+  // v1.18.6.1 — resolve the heading once. Pages pass an explicit `heading`
+  // (the canonical path); the slug fallback keeps the shell renderable on
+  // its own (and in tests that mount it without a heading) by deriving the
+  // title from the active section. The heading lives in the shell so it can
+  // occupy its own grid row spanning only the content column — see the grid
+  // below.
+  const resolvedHeading =
+    heading ??
+    (activeSection
+      ? {
+          title: t(activeSection.titleKey),
+          subtitle: t(`settings.sections.${activeSection.slug}.subtitle`),
+          headingId: `settings-section-${activeSection.slug}-title`,
+          topSlot: LAYOUT_CHILD_SLUGS.has(activeSection.slug) ? (
+            <SettingsHubBackLink
+              href="/settings/layout"
+              labelKey="settings.sections.layout.backToHub"
+            />
+          ) : undefined,
+          headingAccessory: undefined,
+        }
+      : null);
+
+  const headingBlock = resolvedHeading ? (
+    <div className="space-y-6">
+      {resolvedHeading.topSlot ? <div>{resolvedHeading.topSlot}</div> : null}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h1
+            id={resolvedHeading.headingId}
+            className="text-2xl font-bold tracking-tight"
+          >
+            {resolvedHeading.title}
+          </h1>
+          {resolvedHeading.subtitle ? (
+            <p className="text-muted-foreground text-sm">
+              {resolvedHeading.subtitle}
+            </p>
+          ) : null}
+        </div>
+        {resolvedHeading.headingAccessory ? (
+          <div className="shrink-0">{resolvedHeading.headingAccessory}</div>
+        ) : null}
+      </div>
+    </div>
+  ) : null;
+
   // v1.4.25 W8 — AuthShell wraps the page in `px-4 py-6 md:px-6`
   // already, so this inner shell only carries the wider max-width.
   // Previously the duplicate `px-4 py-6 md:px-6 md:py-8` here was
@@ -307,6 +380,11 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
   // pages than on Dashboard/Insights/Measurements.
   return (
     <div className="mx-auto w-full max-w-screen-xl">
+      {/* v1.18.6.1 — on mobile the heading sits above the chip strip; on
+          desktop it is rendered inside the grid (row 1 / content column) so
+          it does not paint twice. */}
+      {headingBlock ? <div className="mb-4 md:hidden">{headingBlock}</div> : null}
+
       {/* Mobile section strip — horizontal scroll, hidden on md+.
           `no-scrollbar` (defined in `globals.css`) suppresses the
           painted scrollbar; the horizontal swipe + keyboard arrow
@@ -354,22 +432,28 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
         </ul>
       </nav>
 
-      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-        {/* Desktop sticky sidebar */}
+      {/* v1.18.6.1 — two-row grid on desktop:
+            row 1 / col 2 = heading (content column only)
+            row 2 / col 1 = nav     row 2 / col 2 = cards
+          The nav's first item lines up with the top of the first card BY
+          CONSTRUCTION — both start the grid's second row — so the alignment
+          holds across locales and however the title or subtitle wraps. No
+          fixed-height spacer to guess. The `gap-6` between rows reproduces
+          the `space-y-6` the heading-to-first-card gap used to carry. */}
+      <div className="grid gap-6 md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]">
+        {/* Heading — desktop only here (mobile renders it above the strip). */}
+        {headingBlock ? (
+          <div className="hidden md:col-start-2 md:row-start-1 md:block">
+            {headingBlock}
+          </div>
+        ) : null}
+
+        {/* Desktop sticky sidebar — starts at the cards row (row 2). */}
         <aside
           aria-label={t("settings.shell.sectionsNav")}
-          className="hidden md:block"
+          className="hidden md:col-start-1 md:row-start-2 md:block"
         >
           <div className="sticky top-20">
-            {/* v1.18.6 (W9) — push the first nav item down to the top of the
-                first card (level with the page heading's following gap), so
-                the menu reads symmetric with the content column. Feed the
-                active title so the spacer's h1 wraps the same way (L11). */}
-            <SectionNavHeadingSpacer
-              title={
-                activeSection ? t(activeSection.titleKey) : undefined
-              }
-            />
             <ul className="space-y-1">
               {visibleSections.map((section) => {
                 const isActive = section.slug === activeSlug;
@@ -412,7 +496,7 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
             v1.16.4 — a `<div>`, not `<main>`: the surrounding AuthShell
             already provides the page's single `<main>` landmark and a
             nested second one is an a11y violation. */}
-        <div className="min-h-[calc(100dvh-12rem)] min-w-0 pb-24 md:pb-0">
+        <div className="min-h-[calc(100dvh-12rem)] min-w-0 pb-24 md:col-start-2 md:row-start-2 md:pb-0">
           {children}
         </div>
       </div>

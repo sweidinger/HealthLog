@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import type { JSX, ReactNode } from "react";
+import type { JSX } from "react";
 
 import { AccountSection } from "@/components/settings/account-section";
 import { AboutSection } from "@/components/settings/about-section";
@@ -29,9 +29,6 @@ import {
   type SettingsSectionSlug,
 } from "@/components/settings/section-slugs";
 import { SettingsShell } from "@/components/settings/settings-shell";
-import { SettingsSectionFrame } from "@/components/settings/settings-section-frame";
-import { SettingsHubBackLink } from "@/components/settings/settings-hub-back-link";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 /**
  * Dynamic settings section route. Each of the `SETTINGS_SECTION_SLUGS`
@@ -74,50 +71,6 @@ const SECTION_COMPONENTS: Record<
   advanced: AdvancedSection,
 };
 
-// v1.18.6 (W9) — the two Layout-hub child editors render a "← back to hub"
-// link above their heading. The shared `<SettingsSectionFrame>` exposes a
-// `topSlot` for exactly this; the link lives here so the section bodies stay
-// pure card content.
-const HUB_CHILD_SLUGS: ReadonlySet<SettingsSectionSlug> = new Set([
-  "dashboard",
-  "insights",
-]);
-
-/** Optional content rendered above the canonical heading, per slug. */
-function frameTopSlot(slug: SettingsSectionSlug): ReactNode {
-  if (HUB_CHILD_SLUGS.has(slug)) {
-    return (
-      <SettingsHubBackLink
-        href="/settings/layout"
-        labelKey="settings.sections.layout.backToHub"
-      />
-    );
-  }
-  return undefined;
-}
-
-/** Optional inline content rendered at the top-right of the heading row. */
-function frameHeadingAccessory(slug: SettingsSectionSlug): ReactNode {
-  // v1.18.6 (W9) — the module guided-tour re-entry triggers used to live in
-  // a `justify-end` header inside the section body; they move to the frame's
-  // heading row so the heading itself is the spotlight anchor.
-  if (slug === "gesundheitsakte") {
-    return (
-      <span data-tour-id="export-hero">
-        <ModuleTourTrigger stopId="export" />
-      </span>
-    );
-  }
-  if (slug === "integrations") {
-    return (
-      <span data-tour-id="integrations-hero">
-        <ModuleTourTrigger stopId="integrations" />
-      </span>
-    );
-  }
-  return undefined;
-}
-
 interface PageProps {
   // Next.js 16 made route `params` an async Promise. We `await` it before use.
   params: Promise<{ section: string }>;
@@ -138,17 +91,19 @@ export default async function SettingsSectionPage({ params }: PageProps) {
   // guards the slug, but a future slug added to `SETTINGS_SECTION_SLUGS`
   // without a wired component would otherwise crash silently — placeholder
   // surfaces the gap visually instead.
-  // v1.18.6 (W9) — every section now renders inside the shared
-  // `<SettingsSectionFrame>`, which emits the one visible heading + subtitle
-  // each page must show (the section bodies no longer carry their own).
+  // v1.18.6.1 — the heading + subtitle (and the Layout-hub "← back" link)
+  // now live in `<SettingsShell>`, which places them in their own grid row
+  // spanning only the content column so the left nav's first item lines up
+  // with the top of the first card. The page body is pure card content,
+  // wrapped in the labelled `<section>` so the historic
+  // `settings-section-<slug>-title` `aria-labelledby` linkage still resolves.
   const body = SectionComponent ? (
-    <SettingsSectionFrame
-      slug={section}
-      topSlot={frameTopSlot(section)}
-      headingAccessory={frameHeadingAccessory(section)}
+    <section
+      aria-labelledby={`settings-section-${section}-title`}
+      className="space-y-6"
     >
       <SectionComponent />
-    </SettingsSectionFrame>
+    </section>
   ) : (
     <SectionPlaceholder slug={section} />
   );
