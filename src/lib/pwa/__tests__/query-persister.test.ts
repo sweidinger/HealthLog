@@ -8,11 +8,33 @@ import {
   startPersistingQueryCache,
 } from "@/lib/pwa/query-persister";
 
-describe("isPersistableKey — what survives to disk", () => {
-  it("persists health-data query families", () => {
+describe("isPersistableKey — strict dashboard-offline allowlist", () => {
+  it("persists ONLY the dashboard snapshot + measurement daily-series families", () => {
+    // Dashboard snapshot — the unified first-paint read.
     expect(isPersistableKey(["dashboard", "snapshot"])).toBe(true);
-    expect(isPersistableKey(["measurements", "list"])).toBe(true);
-    expect(isPersistableKey(["medications"])).toBe(true);
+    // Per-chart daily series + the batched dashboard series.
+    expect(isPersistableKey(["chart-data", "WEIGHT"])).toBe(true);
+    expect(isPersistableKey(["chart-data", "series-batch", "WEIGHT"])).toBe(
+      true,
+    );
+    // The resolved widget layout the snapshot seeds — matched as an exact
+    // tuple under the overloaded `["user", …]` head.
+    expect(isPersistableKey(["user", "dashboardWidgets"])).toBe(true);
+  });
+
+  it("never persists clinical / narrative health families", () => {
+    // The denylist regression: each of these used to be dehydrated to disk
+    // in plaintext. They are health/clinical/narrative and must stay
+    // in-memory only.
+    expect(isPersistableKey(["coach", "conversations"])).toBe(false);
+    expect(isPersistableKey(["insights"])).toBe(false);
+    expect(isPersistableKey(["illness"])).toBe(false);
+    expect(isPersistableKey(["labs"])).toBe(false);
+    expect(isPersistableKey(["mood-entries"])).toBe(false);
+    expect(isPersistableKey(["medications"])).toBe(false);
+    expect(isPersistableKey(["cycle"])).toBe(false);
+    expect(isPersistableKey(["measurements", "list"])).toBe(false);
+    expect(isPersistableKey(["analytics"])).toBe(false);
   });
 
   it("never persists auth / session / admin / token families", () => {
@@ -21,6 +43,13 @@ describe("isPersistableKey — what survives to disk", () => {
     expect(isPersistableKey(["admin", "users"])).toBe(false);
     expect(isPersistableKey(["tokens"])).toBe(false);
     expect(isPersistableKey(["apiTokens"])).toBe(false);
+  });
+
+  it("never persists the rest of the overloaded user head", () => {
+    expect(isPersistableKey(["user", "profile"])).toBe(false);
+    expect(isPersistableKey(["user", "ai-provider"])).toBe(false);
+    expect(isPersistableKey(["user", "insightsLayout"])).toBe(false);
+    expect(isPersistableKey(["user", "thresholds"])).toBe(false);
   });
 });
 
@@ -120,9 +149,10 @@ describe("persister round-trips through a fake IndexedDB", () => {
     const source = new QueryClient();
     source.setQueryData(["dashboard", "snapshot"], { weightKg: 81 });
     const stop = startPersistingQueryCache(source, "v1.18.6");
-    // Force a flush by advancing past the 1s debounce.
+    // Force a flush by advancing past the 1s debounce. The trigger write uses
+    // an allowlisted family so the flush captures real persistable data.
     vi.useFakeTimers();
-    source.setQueryData(["measurements", "list"], [{ id: "a" }]);
+    source.setQueryData(["chart-data", "WEIGHT"], [{ d: "2026-06-18", v: 81 }]);
     vi.advanceTimersByTime(1100);
     vi.useRealTimers();
     await new Promise((r) => setTimeout(r, 0));
@@ -198,26 +228,98 @@ describe("persister round-trips through a fake IndexedDB", () => {
       },
     };
 
-    // Persist a STALE (empty) measurements list.
+    // Persist a STALE (empty) chart series under an allowlisted family.
     const source = new QueryClient();
-    source.setQueryData(["measurements", "list"], []);
+    source.setQueryData(["chart-data", "WEIGHT"], []);
     const stop = startPersistingQueryCache(source, "v1.18.6");
     vi.useFakeTimers();
-    source.setQueryData(["measurements", "list"], []);
+    source.setQueryData(["chart-data", "WEIGHT"], []);
     vi.advanceTimersByTime(1100);
     vi.useRealTimers();
     await new Promise((r) => setTimeout(r, 0));
     stop();
 
-    // The live client already fetched the FRESH (post-mutation) row.
+    // The live client already fetched the FRESH (post-mutation) series.
     const live = new QueryClient();
-    live.setQueryData(["measurements", "list"], [{ id: "fresh-row" }]);
+    live.setQueryData(["chart-data", "WEIGHT"], [{ id: "fresh-row" }]);
 
     await restorePersistedQueryCache(live, "v1.18.6");
 
     // The fresh row survived — the empty persisted snapshot did not win.
-    expect(live.getQueryData(["measurements", "list"])).toEqual([
+    expect(live.getQueryData(["chart-data", "WEIGHT"])).toEqual([
       { id: "fresh-row" },
     ]);
+  });
+
+  it("discards a snapshot stamped with a different account id", async () => {
+    const store = new Map<string, unknown>();
+    const makeReq = (run: () => void) => {
+      const req: Record<string, unknown> = {};
+      queueMicrotask(() => {
+        run();
+        (req.onsuccess as (() => void) | undefined)?.();
+      });
+      return req;
+    };
+    const fakeDb = {
+      close() {},
+      transaction() {
+        return {
+          objectStore() {
+            return {
+              put(value: unknown, key: string) {
+                store.set(key, value);
+                return makeReq(() => {});
+              },
+              get(key: string) {
+                const req = makeReq(() => {});
+                (req as { result?: unknown }).result = store.get(key);
+                return req;
+              },
+              delete(key: string) {
+                store.delete(key);
+                return makeReq(() => {});
+              },
+            };
+          },
+          set oncomplete(fn: () => void) {
+            queueMicrotask(fn);
+          },
+          set onerror(_fn: () => void) {},
+        };
+      },
+    };
+    (globalThis as { indexedDB?: unknown }).indexedDB = {
+      open() {
+        const req: Record<string, unknown> = { result: fakeDb };
+        queueMicrotask(() => (req.onsuccess as () => void)?.());
+        return req;
+      },
+    };
+
+    // Account "user-a" persists a dashboard snapshot. The persister stamps
+    // the payload with the id read from the live `["auth","me"]` cache entry.
+    const source = new QueryClient();
+    source.setQueryData(["auth", "me"], { id: "user-a" });
+    source.setQueryData(["dashboard", "snapshot"], { weightKg: 81 });
+    const stop = startPersistingQueryCache(source, "v1.18.6");
+    vi.useFakeTimers();
+    source.setQueryData(["chart-data", "WEIGHT"], [{ v: 81 }]);
+    vi.advanceTimersByTime(1100);
+    vi.useRealTimers();
+    await new Promise((r) => setTimeout(r, 0));
+    stop();
+
+    // A DIFFERENT account ("user-b") restores on the same browser profile:
+    // the stamped owner mismatches the live account, so the snapshot is
+    // discarded rather than hydrating user-a's dashboard into user-b's cache.
+    const other = new QueryClient();
+    other.setQueryData(["auth", "me"], { id: "user-b" });
+    await restorePersistedQueryCache(other, "v1.18.6");
+    expect(other.getQueryData(["dashboard", "snapshot"])).toBeUndefined();
+
+    // ...and the foreign snapshot is wiped from disk, so a later same-account
+    // restore can't resurrect it either.
+    expect(store.get("react-query")).toBeUndefined();
   });
 });

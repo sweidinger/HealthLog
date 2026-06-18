@@ -61,13 +61,17 @@ const MAX_DATA_ENTRIES = 60;
 // (mirrors the idempotency cache's `hlk_`/`hlr_`/`sk-` refusal) so a future
 // endpoint that slipped onto the list can still never persist a secret.
 // Matched by exact path or `<path>/` / `<path>?` prefix.
+// v1.18.6 — AI/clinical narrative surfaces (`/api/insights`, `/api/analytics`)
+// are deliberately NOT cached: `/api/insights` prefix-matched the Coach chat
+// endpoint into the disk cache, and neither belongs on a self-hosted health
+// PWA's durable storage. Only the dashboard snapshot, the widget layout, the
+// measurement reads (incl. the batched daily series), the medication reads,
+// and the version probe are eligible.
 const API_READ_ALLOWLIST = [
   "/api/dashboard/snapshot",
   "/api/dashboard/widgets",
   "/api/measurements",
   "/api/medications",
-  "/api/insights",
-  "/api/analytics",
   "/api/version",
 ];
 

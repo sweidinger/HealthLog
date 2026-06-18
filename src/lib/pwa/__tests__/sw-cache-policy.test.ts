@@ -22,9 +22,19 @@ describe("isAllowlistedApiRead — offline read boundary", () => {
       isAllowlistedApiRead("/api/measurements/series-batch?types=WEIGHT"),
     ).toBe(true);
     expect(isAllowlistedApiRead("/api/medications")).toBe(true);
-    expect(isAllowlistedApiRead("/api/insights")).toBe(true);
-    expect(isAllowlistedApiRead("/api/analytics")).toBe(true);
     expect(isAllowlistedApiRead("/api/version")).toBe(true);
+  });
+
+  // v1.18.6 — AI/clinical narrative surfaces are never disk-cached. `/api/insights`
+  // previously prefix-matched the Coach chat list (`/api/insights/chat`, which
+  // returns decrypted conversation content) into the data cache; `/api/analytics`
+  // carries clinical aggregates. Both are off the allowlist.
+  it("never caches the AI / clinical narrative surfaces", () => {
+    expect(isAllowlistedApiRead("/api/insights")).toBe(false);
+    expect(isAllowlistedApiRead("/api/insights/chat")).toBe(false);
+    expect(isAllowlistedApiRead("/api/insights/generate")).toBe(false);
+    expect(isAllowlistedApiRead("/api/analytics")).toBe(false);
+    expect(isAllowlistedApiRead("/api/analytics/range")).toBe(false);
   });
 
   it("never caches auth / session / token / login surfaces", () => {
@@ -38,7 +48,7 @@ describe("isAllowlistedApiRead — offline read boundary", () => {
 
   it("refuses an auth/token segment nested under an allowlisted prefix", () => {
     expect(isAllowlistedApiRead("/api/medications/tokens")).toBe(false);
-    expect(isAllowlistedApiRead("/api/insights/auth")).toBe(false);
+    expect(isAllowlistedApiRead("/api/measurements/auth")).toBe(false);
   });
 
   it("does not cache endpoints outside the allowlist", () => {

@@ -14,14 +14,21 @@
  * allowlisted by mistake — mirroring the idempotency cache's refusal.
  */
 
-/** Path prefixes whose safe GET reads are eligible for the offline data cache. */
+/**
+ * Path prefixes whose safe GET reads are eligible for the offline data cache.
+ *
+ * v1.18.6 — AI/clinical narrative surfaces (`/api/insights`, `/api/analytics`)
+ * are excluded: `/api/insights` prefix-matched the Coach chat endpoint
+ * (`/api/insights/chat`) into the disk cache, and neither belongs on durable
+ * storage. Only the dashboard snapshot, the widget layout, the measurement
+ * reads (incl. the batched daily series), the medication reads, and the
+ * version probe are cached.
+ */
 export const API_READ_ALLOWLIST = [
   "/api/dashboard/snapshot",
   "/api/dashboard/widgets",
   "/api/measurements",
   "/api/medications",
-  "/api/insights",
-  "/api/analytics",
   "/api/version",
 ] as const;
 

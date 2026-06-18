@@ -8,10 +8,19 @@
  *
  * Safety:
  *  - Only successful (`status: "success"`) query results are persisted.
- *  - A small denylist keeps obviously sensitive query families out of disk
- *    (auth/session/admin/tokens), defence-in-depth alongside the SW boundary.
- *  - `clearPersistedQueryCache()` is called on logout so a shared device never
- *    leaks one account's cached health data to the next.
+ *  - A strict ALLOWLIST keeps everything except the low-sensitivity
+ *    dashboard-offline families off disk. This is the privacy floor: a
+ *    denylist would persist every family it didn't name (cycle, mood, illness,
+ *    labs, coach, insights, medications, …) in plaintext. Only the dashboard
+ *    snapshot, its resolved widget layout, and the measurement daily-series —
+ *    the data the dashboard needs to paint last-known values offline — are
+ *    eligible. Clinical / narrative families are never written to disk.
+ *  - `clearPersistedQueryCache()` is called on every session END (logout AND
+ *    the 401 / session-expiry redirect), so a shared device never leaks one
+ *    account's cached data to the next once the session is gone.
+ *  - The payload is stamped with the current user id; a restore whose stored
+ *    marker doesn't match the live account discards + clears the cache rather
+ *    than hydrating a foreign account's data.
  *  - Respects the centralised queryKey factory: it reads existing query keys,
  *    it never invents new ones.
  */
@@ -29,20 +38,31 @@ const KEY = "react-query";
 const VERSION_KEY = "react-query-version";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // discard anything older than a day
 
-/** Query-key families never written to disk (defence in depth). */
-const PERSIST_DENYLIST = [
-  "auth",
-  "session",
-  "sessions",
-  "admin",
-  "tokens",
-  "apiTokens",
-];
+/**
+ * Strict allowlist of the only query families written to disk — the
+ * low-sensitivity reads the dashboard needs to paint last-known values when
+ * opened offline. Everything else (coach, insights, illness, labs, mood,
+ * medications, cycle, auth, admin, tokens, …) stays in memory only.
+ *
+ *  - `["dashboard", …]`  — the unified first-paint snapshot
+ *    (`queryKeys.dashboardSnapshot()` → `["dashboard","snapshot"]`).
+ *  - `["chart-data", …]` — the per-chart daily series + the batched dashboard
+ *    series (`queryKeys.chartData(…)` / `queryKeys.chartSeriesBatch(…)`), the
+ *    aggregated values the dashboard charts render.
+ *  - `["user","dashboardWidgets"]` — the resolved widget layout the snapshot
+ *    seeds, matched as an exact tuple so the rest of the overloaded `["user", …]`
+ *    head (profile, AI provider, insights layout, thresholds) stays off disk.
+ */
+const PERSIST_ALLOWLIST_HEADS = ["dashboard", "chart-data"] as const;
 
 export function isPersistableKey(queryKey: readonly unknown[]): boolean {
   const head = queryKey[0];
-  if (typeof head !== "string") return true;
-  return !PERSIST_DENYLIST.includes(head);
+  if (typeof head !== "string") return false;
+  if ((PERSIST_ALLOWLIST_HEADS as readonly string[]).includes(head)) {
+    return true;
+  }
+  // Only the dashboard widget layout under the overloaded `["user", …]` head.
+  return head === "user" && queryKey[1] === "dashboardWidgets";
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -82,7 +102,21 @@ async function idbGet<T>(): Promise<T | undefined> {
 interface PersistedPayload {
   buildVersion: string;
   savedAt: number;
+  /**
+   * Per-account binding. The id of the account whose reads produced this
+   * snapshot, read from the live `["auth","me"]` cache entry at flush time
+   * (`null` when unknown). A restore whose live account differs discards the
+   * snapshot rather than hydrating a foreign account's dashboard data — a
+   * belt-and-suspenders guard alongside the session-end wipe.
+   */
+  userId: string | null;
   state: DehydratedState;
+}
+
+/** Read the current account id from the live `["auth","me"]` cache entry. */
+function currentUserId(queryClient: QueryClient): string | null {
+  const me = queryClient.getQueryData<{ id?: string } | null>(["auth", "me"]);
+  return me?.id ?? null;
 }
 
 /**
@@ -103,6 +137,17 @@ export async function restorePersistedQueryCache(
       return;
     }
     if (Date.now() - payload.savedAt > MAX_AGE_MS) {
+      await clearPersistedQueryCache();
+      return;
+    }
+    // Per-account binding: if the live account is known and differs from the
+    // snapshot's stored owner, this is a different user on the same browser
+    // profile — discard + clear rather than hydrate a foreign account's data.
+    // When the live id is not yet known (auth/me not resolved at restore time)
+    // we don't gate on it; the session-end wipe is the primary guarantee and
+    // the build-version + 24 h age gates still apply.
+    const liveUserId = currentUserId(queryClient);
+    if (liveUserId !== null && payload.userId !== liveUserId) {
       await clearPersistedQueryCache();
       return;
     }
@@ -163,6 +208,7 @@ export function startPersistingQueryCache(
     const payload: PersistedPayload = {
       buildVersion,
       savedAt: Date.now(),
+      userId: currentUserId(queryClient),
       state,
     };
     void idbSet(payload).catch(() => {
@@ -181,7 +227,11 @@ export function startPersistingQueryCache(
   };
 }
 
-/** Wipe the persisted cache. Call on logout (shared-device data hygiene). */
+/**
+ * Wipe the persisted query cache. Call on every session END — logout AND the
+ * 401 / session-expiry redirect — so a shared device never leaks one account's
+ * cached data to the next.
+ */
 export async function clearPersistedQueryCache(): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
@@ -196,5 +246,52 @@ export async function clearPersistedQueryCache(): Promise<void> {
     db.close();
   } catch {
     /* best effort */
+  }
+}
+
+/**
+ * Drop the service-worker offline read-data cache (`healthlog-data-*`). It
+ * holds the last-synced dashboard JSON and must never survive a session end on
+ * a shared device. Scoped to the data cache only — the static cache (hashed
+ * chunks, icons) carries no PII and dropping it would force a needless
+ * re-download. Best-effort; never throws.
+ */
+export async function clearServiceWorkerDataCache(): Promise<void> {
+  if (typeof caches === "undefined") return;
+  try {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter((k) => k.startsWith("healthlog-data-"))
+        .map((k) => caches.delete(k)),
+    );
+  } catch {
+    /* best effort */
+  }
+}
+
+/**
+ * Wipe every client-side cache that can hold one account's health data: the
+ * IndexedDB query snapshot, the SW offline read-data cache, and the SW page
+ * cache (cached navigation HTML). The single call for a session END (logout or
+ * 401 / expiry redirect). Best-effort across the board.
+ */
+export async function clearOfflineCachesForSessionEnd(): Promise<void> {
+  await clearPersistedQueryCache();
+  if (typeof caches !== "undefined") {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter(
+            (k) =>
+              k.startsWith("healthlog-data-") ||
+              k.startsWith("healthlog-pages-"),
+          )
+          .map((k) => caches.delete(k)),
+      );
+    } catch {
+      /* best effort */
+    }
   }
 }

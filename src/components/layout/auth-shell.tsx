@@ -8,6 +8,7 @@ import { MaintainershipBanner } from "@/components/i18n/maintainership-banner";
 import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
 import { LayoutCoachMount } from "@/components/insights/layout-coach-mount";
 import { useAuth } from "@/hooks/use-auth";
+import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
 import { useTranslations } from "@/lib/i18n/context";
 import { CoachLaunchProvider } from "@/lib/insights/coach-launch-context";
 import { BottomNav } from "./bottom-nav";
@@ -91,6 +92,13 @@ export function AuthShell({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isPublicPage) {
+      // Session END (expired / invalidated cookie → `/api/auth/me` 401). Wipe
+      // every client-side cache that can hold the previous account's health
+      // data before bouncing to login, so it never leaks to the next account
+      // on a shared device. Logout does the same from `useLogout`; this covers
+      // the expiry path that logout never runs through. Best-effort; the
+      // redirect proceeds regardless.
+      void clearOfflineCachesForSessionEnd();
       router.replace("/auth/login");
     }
   }, [isLoading, isAuthenticated, isPublicPage, router]);

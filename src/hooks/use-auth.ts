@@ -10,7 +10,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import type { TimeFormatPreference } from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
 import type { ModuleKey } from "@/lib/modules/registry";
-import { clearPersistedQueryCache } from "@/lib/pwa/query-persister";
+import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
 
 export interface AuthUser {
   id: string;
@@ -195,28 +195,14 @@ export function useLogout() {
     onSuccess: () => {
       queryClient.setQueryData(queryKeys.authMe(), null);
       queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
-      // Defense-in-depth at the session boundary: wipe the service-worker
-      // page cache so no cached navigation HTML survives a logout on a
-      // shared device. Scoped to `healthlog-pages-*` only — the static
-      // cache (hashed chunks, icons) carries no PII and dropping it would
-      // force a needless re-download on the next login. Best-effort; never
-      // blocks the redirect.
-      if (typeof caches !== "undefined") {
-        void caches.keys().then((keys) => {
-          for (const key of keys) {
-            // v1.18.6 — also drop the offline read-data cache; it holds the
-            // last-synced health JSON and must never survive a logout.
-            if (
-              key.startsWith("healthlog-pages-") ||
-              key.startsWith("healthlog-data-")
-            ) {
-              void caches.delete(key);
-            }
-          }
-        });
-      }
-      // Wipe the persisted IndexedDB query cache for the same reason.
-      void clearPersistedQueryCache();
+      // Defense-in-depth at the session boundary: wipe every client-side cache
+      // that can hold this account's health data — the IndexedDB query
+      // snapshot, the SW offline read-data cache (`healthlog-data-*`), and the
+      // SW page cache (`healthlog-pages-*`, cached navigation HTML) — so
+      // nothing survives a logout on a shared device. The static cache (hashed
+      // chunks, icons) carries no PII and is left intact to avoid a needless
+      // re-download. Best-effort; never blocks the redirect.
+      void clearOfflineCachesForSessionEnd();
       router.push("/auth/login");
     },
     // v1.16.4 — a network-failed logout used to do nothing at all (the
