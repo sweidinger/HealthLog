@@ -1,0 +1,195 @@
+/**
+ * v1.18.4 — PWA-only dose lifecycle over Web Push.
+ *
+ * Verifies the three pieces a self-hoster without an Apple Developer account
+ * relies on:
+ *  1. The dose-due reminder push carries a STABLE per-slot tag + badge count.
+ *  2. The clear-on-taken push reuses the SAME tag (so the SW closes the
+ *     pending reminder — the equivalent of ending a Live Activity) and
+ *     refreshes the badge.
+ *  3. A Web Push channel still delivers when APNs is absent.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { sendNotificationMock, findManyMock, deleteManyMock } = vi.hoisted(
+  () => ({
+    sendNotificationMock: vi.fn(),
+    findManyMock: vi.fn(),
+    deleteManyMock: vi.fn(),
+  }),
+);
+
+vi.mock("@/lib/logging/context", () => ({
+  getEvent: () => ({
+    addWarning: vi.fn(),
+    addExternalCall: vi.fn(),
+    setError: vi.fn(),
+    addMeta: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/notifications/senders/push-attempt-record", () => ({
+  recordPushAttempt: vi.fn(),
+}));
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    pushSubscription: {
+      findMany: findManyMock,
+      deleteMany: deleteManyMock,
+    },
+  },
+}));
+
+vi.mock("@/lib/crypto", () => ({
+  decrypt: (v: string) => v,
+  encrypt: (v: string) => v,
+}));
+
+vi.mock("@/lib/notifications/vapid-config", () => ({
+  getVapidConfig: () =>
+    Promise.resolve({
+      subject: "mailto:a@b.c",
+      publicKey: "pub",
+      privateKey: "priv",
+    }),
+}));
+
+vi.mock("@/lib/validations/notifications", () => ({
+  isPublicUrl: () => true,
+}));
+
+vi.mock("web-push", () => ({
+  setVapidDetails: vi.fn(),
+  sendNotification: (...args: unknown[]) => sendNotificationMock(...args),
+}));
+
+import { sendViaWebPush } from "../senders/web-push";
+import { dispatchMedicationIntakeWebClear } from "../web-push-clear";
+import { medicationDoseTag } from "../dose-tag";
+
+const SUB = {
+  id: "s1",
+  endpoint: "https://push.example.com/x",
+  p256dh: "a",
+  auth: "b",
+};
+
+beforeEach(() => {
+  sendNotificationMock.mockReset();
+  findManyMock.mockReset();
+  deleteManyMock.mockReset();
+  deleteManyMock.mockResolvedValue({ count: 0 });
+});
+
+afterEach(() => vi.clearAllMocks());
+
+describe("medicationDoseTag", () => {
+  it("is stable across ISO instants that differ only in milliseconds", () => {
+    const a = medicationDoseTag("med-1", "2026-06-18T07:00:00.000Z");
+    const b = medicationDoseTag("med-1", "2026-06-18T07:00:00Z");
+    expect(a).toBe(b);
+    expect(a).toBe("med:med-1:2026-06-18T07:00:00.000Z");
+  });
+});
+
+describe("web-push reminder push — stable tag + badge", () => {
+  it("uses metadata.webPushTag as the notification tag and carries the badge", async () => {
+    findManyMock.mockResolvedValue([SUB]);
+    sendNotificationMock.mockResolvedValue(undefined);
+
+    const tag = medicationDoseTag("med-1", "2026-06-18T07:00:00.000Z");
+    const res = await sendViaWebPush("user-1", {
+      eventType: "MEDICATION_REMINDER",
+      userId: "user-1",
+      title: "Time for your dose",
+      message: "Ramipril 5mg",
+      metadata: { webPushTag: tag, badgeCount: 2, url: "/medications/med-1" },
+    });
+
+    expect(res.ok).toBe(true);
+    const body = JSON.parse(sendNotificationMock.mock.calls[0][1] as string);
+    expect(body.tag).toBe(tag);
+    expect(body.badge).toBe(2);
+    expect(body.url).toBe("/medications/med-1");
+  });
+
+  it("discreet mode still wins over a stable tag (no event name leak)", async () => {
+    findManyMock.mockResolvedValue([SUB]);
+    sendNotificationMock.mockResolvedValue(undefined);
+
+    await sendViaWebPush("user-1", {
+      eventType: "CYCLE_PERIOD_SOON",
+      userId: "user-1",
+      title: "HealthLog reminder",
+      message: "HealthLog reminder",
+      discreet: true,
+      metadata: { webPushTag: "med:should-not-leak" },
+    });
+
+    const body = JSON.parse(sendNotificationMock.mock.calls[0][1] as string);
+    expect(body.tag).toBe("REMINDER");
+  });
+});
+
+describe("clear-on-taken push", () => {
+  it("emits type:clear with the SAME slot tag as the reminder + badge", async () => {
+    findManyMock.mockResolvedValue([SUB]);
+    sendNotificationMock.mockResolvedValue(undefined);
+
+    await dispatchMedicationIntakeWebClear({
+      userId: "user-1",
+      medicationId: "med-1",
+      scheduledFor: "2026-06-18T07:00:00.000Z",
+      badgeCount: 1,
+    });
+
+    expect(sendNotificationMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(sendNotificationMock.mock.calls[0][1] as string);
+    expect(body.type).toBe("clear");
+    expect(body.tag).toBe(medicationDoseTag("med-1", "2026-06-18T07:00:00.000Z"));
+    expect(body.badge).toBe(1);
+  });
+
+  it("a count of 0 clears the badge (badge:0 on the wire)", async () => {
+    findManyMock.mockResolvedValue([SUB]);
+    sendNotificationMock.mockResolvedValue(undefined);
+
+    await dispatchMedicationIntakeWebClear({
+      userId: "user-1",
+      medicationId: "med-1",
+      scheduledFor: "2026-06-18T07:00:00.000Z",
+      badgeCount: 0,
+    });
+
+    const body = JSON.parse(sendNotificationMock.mock.calls[0][1] as string);
+    expect(body.badge).toBe(0);
+  });
+
+  it("no subscriptions → no-op, no throw", async () => {
+    findManyMock.mockResolvedValue([]);
+    await expect(
+      dispatchMedicationIntakeWebClear({
+        userId: "user-1",
+        medicationId: "med-1",
+        scheduledFor: "2026-06-18T07:00:00.000Z",
+      }),
+    ).resolves.toBeUndefined();
+    expect(sendNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("reaps expired (410) subscriptions", async () => {
+    findManyMock.mockResolvedValue([SUB]);
+    sendNotificationMock.mockRejectedValue({ statusCode: 410 });
+
+    await dispatchMedicationIntakeWebClear({
+      userId: "user-1",
+      medicationId: "med-1",
+      scheduledFor: "2026-06-18T07:00:00.000Z",
+    });
+
+    expect(deleteManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["s1"] } },
+    });
+  });
+});

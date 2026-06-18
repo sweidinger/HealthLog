@@ -69,6 +69,8 @@ import {
 } from "@/lib/validations/medication";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 import { dispatchMedicationIntakeSyncBulk } from "@/lib/notifications/medication-intake-sync";
+import { dispatchMedicationIntakeWebClearBulk } from "@/lib/notifications/web-push-clear";
+import { countOutstandingDosesToday } from "@/lib/medications/outstanding-doses";
 
 const MAX_ENTRIES_PER_BATCH = 500;
 const BATCH_RATE_LIMIT_MAX = 60;
@@ -711,6 +713,23 @@ async function postBulk(request: NextRequest): Promise<Response> {
       slots: Array.from(syncSlots.values()),
       originDeviceToken: request.headers.get("x-device-id"),
     });
+
+    // v1.18.4 — PWA-only counterpart: close the still-pending dose-due
+    // reminders for every affected slot over Web Push and refresh the app
+    // badge once with the post-batch outstanding-dose count. Best-effort,
+    // fire-and-forget — a clear miss never affects the batch response.
+    const affectedSlots = Array.from(syncSlots.values());
+    void (async () => {
+      const badgeCount = await countOutstandingDosesToday(
+        user.id,
+        user.timezone,
+      );
+      await dispatchMedicationIntakeWebClearBulk({
+        userId: user.id,
+        slots: affectedSlots,
+        badgeCount,
+      });
+    })();
   }
 
   return apiSuccess({
