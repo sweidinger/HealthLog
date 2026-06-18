@@ -63,7 +63,7 @@ export function GlucoseAdvancedDisclosure({
         aria-expanded={open}
         aria-controls={regionId}
         data-slot="glucose-advanced-toggle"
-        className="text-muted-foreground hover:text-foreground flex min-h-11 w-full items-center justify-between gap-2 text-sm font-medium transition-colors"
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 w-full items-center justify-between gap-2 rounded-sm text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
       >
         <span>{t("insights.bloodGlucose.clinical.advanced.toggle")}</span>
         <ChevronDown

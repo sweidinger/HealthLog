@@ -85,14 +85,14 @@ export function SuggestedPrompts({
           type="button"
           onClick={() => onPick(prompt)}
           data-slot="insights-suggested-prompts-chip"
-          // v1.8.5 W4a — denser chips. The tap target stays comfortable
-          // (`min-h-9` ≈ 36 px, the WCAG/iOS floor) but the horizontal
-          // padding + type size drop a notch so the two prompts pack into
-          // fewer rows and the left column stops towering over the
-          // Health-Score card.
+          // v1.8.5 W4a — denser chips. The horizontal padding + type size
+          // drop a notch so the two prompts pack into fewer rows and the
+          // left column stops towering over the Health-Score card. The tap
+          // target clears the 44 px iOS/WCAG floor on phones (`min-h-11`)
+          // and relaxes to the denser 36 px from `sm` up.
           className={cn(
             "border-dracula-purple/18 hover:border-dracula-purple/40 hover:text-foreground",
-            "text-muted-foreground inline-flex min-h-9 items-center gap-1.5",
+            "text-muted-foreground inline-flex min-h-11 items-center gap-1.5 sm:min-h-9",
             "rounded-full border bg-transparent px-3 py-1.5 text-xs",
             "transition-colors focus-visible:ring-2 focus-visible:outline-none",
             "focus-visible:ring-dracula-purple/50",
