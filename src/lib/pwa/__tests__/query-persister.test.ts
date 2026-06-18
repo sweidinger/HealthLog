@@ -323,3 +323,125 @@ describe("persister round-trips through a fake IndexedDB", () => {
     expect(store.get("react-query")).toBeUndefined();
   });
 });
+
+describe("persister is bounded and surfaces quota failures", () => {
+  const original = (globalThis as { indexedDB?: unknown }).indexedDB;
+
+  afterEach(() => {
+    if (original !== undefined) {
+      (globalThis as { indexedDB?: unknown }).indexedDB = original;
+    } else {
+      delete (globalThis as { indexedDB?: unknown }).indexedDB;
+    }
+    vi.restoreAllMocks();
+  });
+
+  const makeReq = (run: () => void) => {
+    const req: Record<string, unknown> = {};
+    queueMicrotask(() => {
+      run();
+      (req.onsuccess as (() => void) | undefined)?.();
+    });
+    return req;
+  };
+
+  function installFakeIdb(opts: {
+    onPut: (value: unknown, key: string) => void;
+    store: Map<string, unknown>;
+  }) {
+    const fakeDb = {
+      close() {},
+      transaction() {
+        return {
+          objectStore() {
+            return {
+              put(value: unknown, key: string) {
+                opts.onPut(value, key);
+                return makeReq(() => {});
+              },
+              get(key: string) {
+                const req = makeReq(() => {});
+                (req as { result?: unknown }).result = opts.store.get(key);
+                return req;
+              },
+              delete(key: string) {
+                opts.store.delete(key);
+                return makeReq(() => {});
+              },
+            };
+          },
+          set oncomplete(fn: () => void) {
+            queueMicrotask(fn);
+          },
+          set onerror(_fn: () => void) {},
+        };
+      },
+    };
+    (globalThis as { indexedDB?: unknown }).indexedDB = {
+      open() {
+        const req: Record<string, unknown> = { result: fakeDb };
+        queueMicrotask(() => (req.onsuccess as () => void)?.());
+        return req;
+      },
+    };
+  }
+
+  it("skips a snapshot that exceeds the size cap, leaving the last write intact", async () => {
+    const store = new Map<string, unknown>();
+    let putCount = 0;
+    installFakeIdb({ store, onPut: () => (putCount += 1) });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const source = new QueryClient();
+    // A persistable family with a payload well over the 2 MB ceiling.
+    const huge = "x".repeat(3 * 1024 * 1024);
+    source.setQueryData(["chart-data", "WEIGHT"], [{ blob: huge }]);
+    const stop = startPersistingQueryCache(source, "v1.18.6");
+    vi.useFakeTimers();
+    source.setQueryData(["chart-data", "WEIGHT"], [{ blob: huge }]);
+    vi.advanceTimersByTime(1100);
+    vi.useRealTimers();
+    await new Promise((r) => setTimeout(r, 0));
+    stop();
+
+    // The oversized snapshot was never written, and the skip was logged
+    // rather than silently dropped.
+    expect(putCount).toBe(0);
+    expect(store.get("react-query")).toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("clears the cache and warns on an IndexedDB quota error instead of swallowing it", async () => {
+    const store = new Map<string, unknown>();
+    let firstPut = true;
+    installFakeIdb({
+      store,
+      onPut: (value, key) => {
+        if (firstPut) {
+          firstPut = false;
+          // First write hits the storage quota.
+          throw new DOMException("quota", "QuotaExceededError");
+        }
+        store.set(key, value);
+      },
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const source = new QueryClient();
+    source.setQueryData(["dashboard", "snapshot"], { weightKg: 81 });
+    const stop = startPersistingQueryCache(source, "v1.18.6");
+    vi.useFakeTimers();
+    source.setQueryData(["chart-data", "WEIGHT"], [{ v: 81 }]);
+    vi.advanceTimersByTime(1100);
+    vi.useRealTimers();
+    await new Promise((r) => setTimeout(r, 0));
+    // Let the clear-on-quota microtasks settle.
+    await new Promise((r) => setTimeout(r, 0));
+    stop();
+
+    // The quota failure was surfaced, not swallowed, and the cache key was
+    // cleared so the next flush has room.
+    expect(warn).toHaveBeenCalled();
+    expect(store.get("react-query")).toBeUndefined();
+  });
+});

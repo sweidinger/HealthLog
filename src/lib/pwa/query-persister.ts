@@ -39,6 +39,17 @@ const VERSION_KEY = "react-query-version";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // discard anything older than a day
 
 /**
+ * Upper bound on the serialized snapshot. The allowlist already caps WHAT is
+ * persisted (dashboard snapshot + widget layout + daily series), but a tenant
+ * with a long chart history can still grow a single series past what's worth
+ * keeping on disk — and an oversized write is the most likely trigger for an
+ * IndexedDB `QuotaExceededError`. A snapshot above this ceiling is skipped
+ * rather than written: the offline read value of a multi-megabyte blob is
+ * marginal, and skipping keeps the last good (smaller) snapshot in place.
+ */
+const MAX_PERSIST_BYTES = 2 * 1024 * 1024; // 2 MB
+
+/**
  * Strict allowlist of the only query families written to disk — the
  * low-sensitivity reads the dashboard needs to paint last-known values when
  * opened offline. Everything else (coach, insights, illness, labs, mood,
@@ -78,13 +89,30 @@ function openDb(): Promise<IDBDatabase> {
 
 async function idbSet(value: unknown): Promise<void> {
   const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put(value, KEY);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).put(value, KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+/** True for the storage-quota error class across browsers. */
+function isQuotaError(err: unknown): boolean {
+  if (err instanceof DOMException) {
+    // Chromium/WebKit throw `QuotaExceededError`; Firefox historically
+    // throws `NS_ERROR_DOM_QUOTA_REACHED` (code 22).
+    return (
+      err.name === "QuotaExceededError" ||
+      err.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+      err.code === 22
+    );
+  }
+  return false;
 }
 
 async function idbGet<T>(): Promise<T | undefined> {
@@ -211,8 +239,32 @@ export function startPersistingQueryCache(
       userId: currentUserId(queryClient),
       state,
     };
-    void idbSet(payload).catch(() => {
-      /* best effort */
+
+    // Size-cap before touching disk: a snapshot past the ceiling is the
+    // likeliest quota trigger and its marginal offline value isn't worth
+    // evicting the last good (smaller) snapshot. Skip the write, keep what's
+    // there.
+    const serialized = JSON.stringify(payload);
+    if (serialized.length > MAX_PERSIST_BYTES) {
+      console.warn(
+        `[query-persister] skipping persist: snapshot ${serialized.length}B exceeds ${MAX_PERSIST_BYTES}B cap`,
+      );
+      return;
+    }
+
+    void idbSet(payload).catch((err) => {
+      // Don't silently swallow a full-disk failure: a quota error means the
+      // offline cache stopped updating, and a clear signal beats a stale
+      // snapshot the user can't explain. Drop the persisted blob so the next
+      // flush has room rather than failing again against a full store.
+      if (isQuotaError(err)) {
+        console.warn(
+          "[query-persister] IndexedDB quota exceeded; dropping persisted cache",
+        );
+        void clearPersistedQueryCache();
+        return;
+      }
+      console.warn("[query-persister] persist failed", err);
     });
   };
 
