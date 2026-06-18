@@ -33,8 +33,7 @@ import * as React from "react";
 import { useTranslations } from "@/lib/i18n/context";
 import type { SettingsSectionSlug } from "./section-slugs";
 
-export interface SettingsSectionFrameProps {
-  slug: SettingsSectionSlug;
+interface SettingsSectionFrameBaseProps {
   /** Optional content rendered above the heading (e.g. a back-to-hub link). */
   topSlot?: React.ReactNode;
   /** Optional content rendered inline at the top-right of the heading row
@@ -43,14 +42,57 @@ export interface SettingsSectionFrameProps {
   children: React.ReactNode;
 }
 
-export function SettingsSectionFrame({
-  slug,
-  topSlot,
-  headingAccessory,
-  children,
-}: SettingsSectionFrameProps) {
+/**
+ * Slug mode (the 19 shell sections): title + subtitle come from
+ * `settings.sections.<slug>.{title,subtitle}` and the `<h1>` keeps the
+ * historic `settings-section-<slug>-title` id for `aria-labelledby` and
+ * spotlight-tour anchors.
+ */
+interface SettingsSectionFrameSlugProps extends SettingsSectionFrameBaseProps {
+  slug: SettingsSectionSlug;
+}
+
+/**
+ * Explicit mode (the per-module settings pages — Vorsorge / Illness / Labs —
+ * which deliberately stay out of the slug registry because their static
+ * routes win over `/settings/[section]`): caller passes resolved strings and
+ * an optional heading id. This lets `ModuleSettingsFrame` delegate here so
+ * every settings page shares one heading frame.
+ */
+interface SettingsSectionFrameExplicitProps
+  extends SettingsSectionFrameBaseProps {
+  title: string;
+  subtitle: string;
+  /** Heading element id (defaults to a stable slug-less id). */
+  titleId?: string;
+}
+
+export type SettingsSectionFrameProps =
+  | SettingsSectionFrameSlugProps
+  | SettingsSectionFrameExplicitProps;
+
+function isSlugProps(
+  props: SettingsSectionFrameProps,
+): props is SettingsSectionFrameSlugProps {
+  return "slug" in props;
+}
+
+export function SettingsSectionFrame(props: SettingsSectionFrameProps) {
   const { t } = useTranslations();
-  const titleId = `settings-section-${slug}-title`;
+  const { topSlot, headingAccessory, children } = props;
+
+  let title: string;
+  let subtitle: string;
+  let titleId: string;
+  if (isSlugProps(props)) {
+    titleId = `settings-section-${props.slug}-title`;
+    title = t(`settings.sections.${props.slug}.title`);
+    subtitle = t(`settings.sections.${props.slug}.subtitle`);
+  } else {
+    titleId = props.titleId ?? "settings-section-title";
+    title = props.title;
+    subtitle = props.subtitle;
+  }
 
   return (
     <section aria-labelledby={titleId} className="space-y-6">
@@ -58,11 +100,9 @@ export function SettingsSectionFrame({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h1 id={titleId} className="text-2xl font-bold tracking-tight">
-            {t(`settings.sections.${slug}.title`)}
+            {title}
           </h1>
-          <p className="text-muted-foreground text-sm">
-            {t(`settings.sections.${slug}.subtitle`)}
-          </p>
+          <p className="text-muted-foreground text-sm">{subtitle}</p>
         </div>
         {headingAccessory ? (
           <div className="shrink-0">{headingAccessory}</div>
