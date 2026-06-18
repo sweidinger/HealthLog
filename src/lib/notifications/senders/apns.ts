@@ -525,6 +525,7 @@ export async function sendViaApns(
     eventType: string;
     metadata?: Record<string, unknown>;
     discreet?: boolean;
+    urgent?: boolean;
   },
 ): Promise<SendOutcome> {
   const config = loadApnsConfig();
@@ -595,13 +596,28 @@ export async function sendViaApns(
         ? (["production", "sandbox"] as const)
         : (["sandbox", "production"] as const);
 
-    // SB-5 v1.4.40 — only MEDICATION_REMINDER opts in to Focus-bypass.
-    // The user explicitly asked the server to nudge them about a dose;
-    // a missed dose is the textbook "time-sensitive" use case Apple
+    // SB-5 v1.4.40 — only MEDICATION_REMINDER opts in to Focus-bypass by
+    // default. The user explicitly asked the server to nudge them about a
+    // dose; a missed dose is the textbook "time-sensitive" use case Apple
     // sanctions. Every other event-type (mood nudges, anomaly alerts,
-    // PRs, system messages) must stay on the default `active` level so
-    // Focus modes — including Sleep — silence them as the user expects.
-    const isTimeSensitive = payload.eventType === "MEDICATION_REMINDER";
+    // PRs, system messages) stays on the default `active` level so Focus
+    // modes — including Sleep — silence them as the user expects.
+    //
+    // v1.18.4 — an explicitly urgent payload (e.g. an illness red-flag
+    // "seek care" escalation) ALSO opts in to time-sensitive: it is the
+    // strongest level the APNs sender can reach without an Apple-approved
+    // entitlement, and the channel-agnostic urgency model wants every
+    // channel at its highest tier for an urgent event.
+    const isTimeSensitive =
+      payload.eventType === "MEDICATION_REMINDER" || payload.urgent === true;
+    // The `critical` interruption-level ignores DND/Focus completely but
+    // is gated behind an Apple-approved entitlement (`com.apple.developer.
+    // usernotifications.critical-alerts`). Only emit it when the operator
+    // has confirmed the build carries the entitlement — otherwise APNs
+    // rejects the push. Default off; time-sensitive is the safe floor.
+    const useCritical =
+      payload.urgent === true &&
+      process.env.APNS_CRITICAL_ENTITLEMENT === "true";
 
     let result: Awaited<ReturnType<typeof sendApnsPush>> | null = null;
     // Discreet mode (cycle privacy): the lock-screen-visible routing
@@ -645,7 +661,9 @@ export async function sendViaApns(
           mutableContent: true,
           ...(isTimeSensitive
             ? {
-                interruptionLevel: "time-sensitive" as const,
+                interruptionLevel: useCritical
+                  ? ("critical" as const)
+                  : ("time-sensitive" as const),
                 priority: 10 as const,
               }
             : {}),

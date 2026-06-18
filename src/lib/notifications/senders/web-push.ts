@@ -99,7 +99,18 @@ export async function sendViaWebPush(
         payload.metadata.url.startsWith("/")
           ? payload.metadata.url
           : "/",
+      // v1.18.4 — urgent events ask the service worker to keep the
+      // notification on screen until the user acts on it (where the
+      // browser honours `requireInteraction`).
+      requireInteraction: payload.urgent === true,
     });
+
+    // v1.18.4 — the Web Push `Urgency` header (RFC 8030) tells the push
+    // service to deliver immediately rather than batching for power. An
+    // urgent event uses `high`; everything else keeps the library default.
+    const sendOptions = payload.urgent === true
+      ? ({ urgency: "high" as const } as const)
+      : undefined;
 
     let anySuccess = false;
     const expiredIds: string[] = [];
@@ -128,6 +139,7 @@ export async function sendViaWebPush(
             keys: { p256dh, auth },
           },
           pushPayload,
+          sendOptions,
         );
         anySuccess = true;
         allPermanentReject = false;

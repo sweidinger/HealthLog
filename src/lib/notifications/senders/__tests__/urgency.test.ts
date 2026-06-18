@@ -1,0 +1,203 @@
+/**
+ * v1.18.4 — per-channel urgency mapping.
+ *
+ * An urgent payload must reach EACH configured channel at its highest level,
+ * with NO dependency on APNs (most self-hosters have no Apple Developer
+ * account). These tests pin the mapping per sender and confirm an APNs-less
+ * instance degrades gracefully (ntfy / Web Push / webhook still escalate).
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const {
+  safeFetchMock,
+  recordPushAttemptMock,
+  sendNotificationMock,
+  findManyMock,
+} = vi.hoisted(() => ({
+  safeFetchMock: vi.fn(),
+  recordPushAttemptMock: vi.fn(),
+  sendNotificationMock: vi.fn(),
+  findManyMock: vi.fn(),
+}));
+
+vi.mock("@/lib/safe-fetch", () => ({
+  safeFetch: (...args: unknown[]) => safeFetchMock(...args),
+  SafeFetchError: class SafeFetchError extends Error {},
+}));
+
+vi.mock("@/lib/logging/context", () => ({
+  getEvent: () => ({
+    addWarning: vi.fn(),
+    addExternalCall: vi.fn(),
+    setError: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/notifications/senders/push-attempt-record", () => ({
+  recordPushAttempt: (...args: unknown[]) => recordPushAttemptMock(...args),
+}));
+
+vi.mock("@/lib/db", () => ({
+  prisma: { pushSubscription: { findMany: findManyMock, deleteMany: vi.fn() } },
+}));
+
+vi.mock("@/lib/crypto", () => ({
+  decrypt: (v: string) => v,
+  encrypt: (v: string) => v,
+}));
+
+vi.mock("@/lib/notifications/vapid-config", () => ({
+  getVapidConfig: () =>
+    Promise.resolve({
+      subject: "mailto:a@b.c",
+      publicKey: "pub",
+      privateKey: "priv",
+    }),
+}));
+
+vi.mock("@/lib/validations/notifications", () => ({
+  isPublicUrl: () => true,
+}));
+
+vi.mock("web-push", () => ({
+  setVapidDetails: vi.fn(),
+  sendNotification: (...args: unknown[]) => sendNotificationMock(...args),
+}));
+
+import { sendViaNtfy } from "../ntfy";
+import { sendViaWebhook } from "../webhook";
+import { sendViaWebPush } from "../web-push";
+
+function payload(over?: Record<string, unknown>) {
+  return {
+    eventType: "SYSTEM_ALERT" as const,
+    userId: "user-1",
+    title: "Seek care",
+    message: "Sustained fever",
+    ...over,
+  };
+}
+
+beforeEach(() => {
+  safeFetchMock.mockReset();
+  recordPushAttemptMock.mockReset();
+  sendNotificationMock.mockReset();
+  findManyMock.mockReset();
+});
+
+afterEach(() => vi.clearAllMocks());
+
+describe("ntfy urgent mapping", () => {
+  it("urgent → Priority 5 (max) + warning tag", async () => {
+    safeFetchMock.mockResolvedValue({ ok: true, status: 200 });
+    await sendViaNtfy(
+      { serverUrl: "https://ntfy.example.com", topic: "t" },
+      payload({ urgent: true }),
+    );
+    const [, init] = safeFetchMock.mock.calls[0];
+    const headers = (init as { headers: Record<string, string> }).headers;
+    expect(headers.Priority).toBe("5");
+    expect(headers.Tags).toContain("warning");
+  });
+
+  it("non-urgent SYSTEM_ALERT → default priority, no warning tag", async () => {
+    safeFetchMock.mockResolvedValue({ ok: true, status: 200 });
+    await sendViaNtfy(
+      { serverUrl: "https://ntfy.example.com", topic: "t" },
+      payload(),
+    );
+    const headers = (safeFetchMock.mock.calls[0][1] as {
+      headers: Record<string, string>;
+    }).headers;
+    expect(headers.Priority).toBe("default");
+    expect(headers.Tags).not.toContain("warning");
+  });
+
+  it("discreet urgent keeps the generic tag (no warning leak)", async () => {
+    safeFetchMock.mockResolvedValue({ ok: true, status: 200 });
+    await sendViaNtfy(
+      { serverUrl: "https://ntfy.example.com", topic: "t" },
+      payload({ urgent: true, discreet: true }),
+    );
+    const headers = (safeFetchMock.mock.calls[0][1] as {
+      headers: Record<string, string>;
+    }).headers;
+    expect(headers.Priority).toBe("5");
+    expect(headers.Tags).toBe("reminder");
+  });
+});
+
+describe("webhook urgent mapping", () => {
+  it("urgent → priority 'urgent' in the JSON body", async () => {
+    safeFetchMock.mockResolvedValue({ ok: true, status: 200 });
+    await sendViaWebhook(
+      { url: "https://relay.example.com" },
+      payload({ urgent: true }),
+    );
+    const body = JSON.parse(
+      (safeFetchMock.mock.calls[0][1] as { body: string }).body,
+    );
+    expect(body.priority).toBe("urgent");
+  });
+
+  it("non-urgent → priority 'default'", async () => {
+    safeFetchMock.mockResolvedValue({ ok: true, status: 200 });
+    await sendViaWebhook({ url: "https://relay.example.com" }, payload());
+    const body = JSON.parse(
+      (safeFetchMock.mock.calls[0][1] as { body: string }).body,
+    );
+    expect(body.priority).toBe("default");
+  });
+});
+
+describe("web-push urgent mapping", () => {
+  it("urgent → Urgency:high option + requireInteraction in payload", async () => {
+    findManyMock.mockResolvedValue([
+      { id: "s1", endpoint: "https://push.example.com/x", p256dh: "a", auth: "b" },
+    ]);
+    sendNotificationMock.mockResolvedValue(undefined);
+    await sendViaWebPush("user-1", payload({ urgent: true }));
+    const [, body, options] = sendNotificationMock.mock.calls[0];
+    expect((options as { urgency?: string }).urgency).toBe("high");
+    expect(JSON.parse(body as string).requireInteraction).toBe(true);
+  });
+
+  it("non-urgent → no urgency option, requireInteraction false", async () => {
+    findManyMock.mockResolvedValue([
+      { id: "s1", endpoint: "https://push.example.com/x", p256dh: "a", auth: "b" },
+    ]);
+    sendNotificationMock.mockResolvedValue(undefined);
+    await sendViaWebPush("user-1", payload());
+    const [, body, options] = sendNotificationMock.mock.calls[0];
+    expect(options).toBeUndefined();
+    expect(JSON.parse(body as string).requireInteraction).toBe(false);
+  });
+});
+
+describe("APNs-less instance degrades gracefully", () => {
+  it("an urgent event still escalates ntfy + Web Push with no APNs configured", async () => {
+    // No APNs env, no APNs channel — the urgent event reaches the channels
+    // that ARE present at their top tier.
+    safeFetchMock.mockResolvedValue({ ok: true, status: 200 });
+    findManyMock.mockResolvedValue([
+      { id: "s1", endpoint: "https://push.example.com/x", p256dh: "a", auth: "b" },
+    ]);
+    sendNotificationMock.mockResolvedValue(undefined);
+
+    const ntfy = await sendViaNtfy(
+      { serverUrl: "https://ntfy.example.com", topic: "t" },
+      payload({ urgent: true }),
+    );
+    const web = await sendViaWebPush("user-1", payload({ urgent: true }));
+
+    expect(ntfy.ok).toBe(true);
+    expect(web.ok).toBe(true);
+    expect(
+      (safeFetchMock.mock.calls[0][1] as { headers: Record<string, string> })
+        .headers.Priority,
+    ).toBe("5");
+    expect(
+      (sendNotificationMock.mock.calls[0][2] as { urgency?: string }).urgency,
+    ).toBe("high");
+  });
+});

@@ -53,8 +53,15 @@ export async function sendViaWebhook(
         payload.eventType,
       ),
       eventType: payload.discreet ? "reminder" : payload.eventType,
+      // v1.18.4 — an explicitly urgent event maps to `urgent` so a relay
+      // rule (Gotify priority, Discord mention, Home Assistant automation)
+      // can escalate; MEDICATION_REMINDER keeps `high`; the rest `default`.
       priority:
-        payload.eventType === "MEDICATION_REMINDER" ? "high" : "default",
+        payload.urgent === true
+          ? "urgent"
+          : payload.eventType === "MEDICATION_REMINDER"
+            ? "high"
+            : "default",
     });
 
     const res = await safeFetch(

@@ -1,0 +1,119 @@
+/**
+ * v1.18.4 — illness red-flag escalation push.
+ *
+ * Pins: empty red-flags is a no-op; a fresh red flag dispatches an URGENT
+ * localised SYSTEM_ALERT; a recent ledger row de-dupes (no re-fire); the
+ * fever reason is preferred for the body; failures never throw.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const findFirstMock = vi.fn();
+const createMock = vi.fn();
+const dispatchMock = vi.fn();
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    pushAttempt: {
+      findFirst: (...a: unknown[]) => findFirstMock(...a),
+      create: (...a: unknown[]) => createMock(...a),
+    },
+  },
+}));
+
+vi.mock("@/lib/logging/context", () => ({
+  getEvent: () => ({ addMeta: vi.fn(), addWarning: vi.fn() }),
+}));
+
+vi.mock("@/lib/notifications/dispatch-localised", () => ({
+  dispatchLocalisedNotification: (...a: unknown[]) => dispatchMock(...a),
+}));
+
+import { notifyIllnessRedFlag } from "../red-flag-notify";
+import type { IllnessRedFlag } from "../correlation";
+
+const spo2Flag: IllnessRedFlag = {
+  type: "SPO2" as never,
+  reason: "sustained_low_spo2",
+  worstValue: 89,
+  days: 3,
+};
+const feverFlag: IllnessRedFlag = {
+  type: "BODY_TEMPERATURE" as never,
+  reason: "sustained_fever",
+  worstValue: 39.1,
+  days: 3,
+};
+
+beforeEach(() => {
+  findFirstMock.mockReset().mockResolvedValue(null);
+  createMock.mockReset().mockResolvedValue({});
+  dispatchMock.mockReset().mockResolvedValue(undefined);
+});
+
+afterEach(() => vi.clearAllMocks());
+
+describe("notifyIllnessRedFlag", () => {
+  it("no-op when there are no red flags", async () => {
+    await notifyIllnessRedFlag({ userId: "u1", episodeId: "e1", redFlags: [] });
+    expect(dispatchMock).not.toHaveBeenCalled();
+    expect(findFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("dispatches an URGENT SYSTEM_ALERT for a fresh red flag", async () => {
+    await notifyIllnessRedFlag({
+      userId: "u1",
+      episodeId: "e1",
+      redFlags: [spo2Flag],
+    });
+    expect(dispatchMock).toHaveBeenCalledTimes(1);
+    const opts = dispatchMock.mock.calls[0][0];
+    expect(opts.urgent).toBe(true);
+    expect(opts.eventType).toBe("SYSTEM_ALERT");
+    expect(opts.userId).toBe("u1");
+    expect(opts.titleKey).toBe("illness.correlation.redFlagTitle");
+    expect(opts.messageKey).toBe("illness.correlation.redFlagSpo2");
+  });
+
+  it("prefers the fever reason for the body when both flags fire", async () => {
+    await notifyIllnessRedFlag({
+      userId: "u1",
+      episodeId: "e1",
+      redFlags: [spo2Flag, feverFlag],
+    });
+    expect(dispatchMock.mock.calls[0][0].messageKey).toBe(
+      "illness.correlation.redFlagFever",
+    );
+  });
+
+  it("de-dupes when a recent ledger row exists for the episode", async () => {
+    findFirstMock.mockResolvedValueOnce({ id: "prior" });
+    await notifyIllnessRedFlag({
+      userId: "u1",
+      episodeId: "e1",
+      redFlags: [feverFlag],
+    });
+    expect(dispatchMock).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("stamps the ledger anchor before dispatching", async () => {
+    await notifyIllnessRedFlag({
+      userId: "u1",
+      episodeId: "e9",
+      redFlags: [feverFlag],
+    });
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0][0].data.reason).toContain("e9");
+  });
+
+  it("never throws when dispatch fails", async () => {
+    dispatchMock.mockRejectedValueOnce(new Error("boom"));
+    await expect(
+      notifyIllnessRedFlag({
+        userId: "u1",
+        episodeId: "e1",
+        redFlags: [feverFlag],
+      }),
+    ).resolves.toBeUndefined();
+  });
+});

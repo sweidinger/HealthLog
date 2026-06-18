@@ -21,6 +21,7 @@ import { annotate } from "@/lib/logging/context";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { requireIllnessEnabled } from "@/lib/illness/gate";
 import { computeEpisodeCorrelation } from "@/lib/illness/correlation-read";
+import { notifyIllnessRedFlag } from "@/lib/illness/red-flag-notify";
 import { DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -73,6 +74,18 @@ export const GET = apiHandler(
         red_flags: derived.status === "ok" ? derived.value.redFlags.length : 0,
       },
     });
+
+    // v1.18.4 — bridge the red-flag escalation to an urgent push. Owner-scoped
+    // (the episode is already confirmed to belong to `user.id`) + module-gated
+    // (the illness gate above). Awaited but internally de-duped + no-throw, so a
+    // re-read never re-fires and a notification hiccup can't fail the read.
+    if (derived.status === "ok" && derived.value.redFlags.length > 0) {
+      await notifyIllnessRedFlag({
+        userId: user.id,
+        episodeId: id,
+        redFlags: derived.value.redFlags,
+      });
+    }
 
     return apiSuccess({
       episodeId: id,
