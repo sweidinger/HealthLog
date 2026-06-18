@@ -194,8 +194,6 @@ export interface RecordProactiveNudgeParams {
   title: string;
   /** The nudge body, persisted as the initial ASSISTANT message. */
   body: string;
-  /** Trigger tag for the wide-event annotation on the caller side. */
-  providerType?: string | null;
 }
 
 /**
@@ -228,7 +226,9 @@ export async function recordProactiveNudge(
         role: "assistant",
         encryptedContent: encryptToBytes(params.body),
         metricSourceJson: null,
-        providerType: params.providerType ?? "nudge",
+        // Tags the message as a proactive nudge — the cron's frequency gate
+        // reads this back to cap rail conversations for no-push-channel users.
+        providerType: "nudge",
         promptVersion: null,
       },
     });

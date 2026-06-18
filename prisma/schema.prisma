@@ -3632,6 +3632,12 @@ model CoachMessage {
   feedback     RecommendationFeedback[]
 
   @@index([conversationId, createdAt])
+  // v1.18.6 (L1) — the FAB nudge-status poll and the cron's persisted-nudge
+  // frequency gate both scan a user's assistant messages newest-first
+  // (optionally filtered to provider_type = 'nudge'). This index lets the
+  // planner do an index-backed per-conversation merge instead of gathering +
+  // sorting every assistant row in the user's threads on each global poll.
+  @@index([conversationId, role, createdAt(sort: Desc)])
   @@map("coach_messages")
 }
 

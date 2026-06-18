@@ -782,10 +782,15 @@ export async function runCoachNudgeTick(
       }
 
       // Gate 5 — one nudge per rolling window (7 d default, 14 d when
-      // the user picked "biweekly"), anchored on the push-attempts
-      // ledger. A delivered nudge writes an `ok` row per succeeding
-      // channel; a fully failed dispatch leaves the slot free so
-      // tomorrow's tick can retry.
+      // the user picked "biweekly"). Anchored on BOTH the push-attempts
+      // ledger (a delivered nudge writes an `ok` row per succeeding
+      // channel) AND the persisted nudge conversation (v1.18.6 CCH-02
+      // writes one regardless of push outcome). A user with no push
+      // channel never gets an `ok` row, so without the persisted-side
+      // check the cap would be inert for them and every tick would mint a
+      // fresh rail conversation. A fully failed dispatch on a push-capable
+      // user still leaves the ledger slot free, but the persisted nudge
+      // already pins the window — exactly the once-per-window contract.
       const capCutoff = new Date(
         now.getTime() - nudgePrefs.minIntervalDays * MS_PER_DAY,
       );
@@ -799,6 +804,19 @@ export async function runCoachNudgeTick(
         select: { id: true },
       });
       if (recentNudge) {
+        summary.skippedRecentNudge += 1;
+        continue;
+      }
+      const recentPersistedNudge = await prisma.coachMessage.findFirst({
+        where: {
+          providerType: "nudge",
+          role: "assistant",
+          conversation: { userId: user.id },
+          createdAt: { gte: capCutoff },
+        },
+        select: { id: true },
+      });
+      if (recentPersistedNudge) {
         summary.skippedRecentNudge += 1;
         continue;
       }

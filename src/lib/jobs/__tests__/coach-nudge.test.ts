@@ -524,6 +524,7 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     users?: unknown[];
     intakeRows?: unknown[];
     recentNudge?: unknown;
+    recentPersistedNudge?: unknown;
     coachFocusEncrypted?: Uint8Array | null;
   }) {
     return {
@@ -537,6 +538,12 @@ describe("runCoachNudgeTick — gates and prefs", () => {
         findFirst: vi.fn(async (args?: unknown) => {
           void args;
           return overrides.recentNudge ?? null;
+        }),
+      },
+      coachMessage: {
+        findFirst: vi.fn(async (args?: unknown) => {
+          void args;
+          return overrides.recentPersistedNudge ?? null;
         }),
       },
       medicationIntakeEvent: {
@@ -640,6 +647,42 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     } | undefined;
     expect(arg?.where.createdAt.gte.getTime()).toBe(
       now.getTime() - 14 * MS_PER_DAY,
+    );
+  });
+
+  it("caps on a recently persisted nudge conversation even with no push-success row (M1)", async () => {
+    // A no-push-channel user never writes an `ok` push-attempt row, so the
+    // ledger side of gate 5 stays empty. The persisted nudge conversation
+    // from a prior tick must still pin the window so the rail does not get a
+    // brand-new nudge conversation every cron run.
+    const dispatch = vi.fn();
+    const recordNudge = vi.fn();
+    const prisma = prismaMock({
+      users: [userRow(null)],
+      intakeRows: failingIntakes,
+      recentNudge: null,
+      recentPersistedNudge: { id: "msg_recent" },
+    });
+    const summary = await runCoachNudgeTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch: dispatch as never, recordNudge: recordNudge as never },
+    );
+    expect(summary.skippedRecentNudge).toBe(1);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(recordNudge).not.toHaveBeenCalled();
+    // The persisted-nudge query honours the same rolling cutoff as the ledger.
+    const arg = vi.mocked(prisma.coachMessage.findFirst).mock.calls[0]?.[0] as {
+      where: {
+        providerType: string;
+        role: string;
+        createdAt: { gte: Date };
+      };
+    } | undefined;
+    expect(arg?.where.providerType).toBe("nudge");
+    expect(arg?.where.role).toBe("assistant");
+    expect(arg?.where.createdAt.gte.getTime()).toBe(
+      now.getTime() - 7 * MS_PER_DAY,
     );
   });
 
