@@ -897,3 +897,96 @@ describe("Coach snapshot — free-text fields wrap through sanitizeForPrompt (L-
     expect(hit).toBe(true);
   });
 });
+
+// v1.18.6 (W7) — the citation-aware reference-range grounding rides through
+// buildCoachSnapshot for the metrics present, gated on the W6 diabetes opt-in.
+describe("buildCoachSnapshot — reference grounding (W7)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetCoachSnapshotCacheForTests();
+    prismaMock.measurement.findMany.mockResolvedValue([]);
+    prismaMock.moodEntry.findMany.mockResolvedValue([]);
+    prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
+    prismaMock.medication.findMany.mockResolvedValue([]);
+    prismaMock.user.findUnique.mockResolvedValue({ coachPrefsJson: null });
+    resolveModuleMapMock.mockResolvedValue(allModulesEnabled());
+    featuresMock.mockResolvedValue({});
+  });
+
+  it("attaches an ESH-2023-cited grounding block when blood pressure is present", async () => {
+    featuresMock.mockResolvedValue({
+      bloodPressure: { avgSys30: 138, avgDia30: 85, coverage: { count: 4 } },
+    });
+    prismaMock.measurement.findMany.mockResolvedValue([
+      daysAgo(2, 138, "BLOOD_PRESSURE_SYS"),
+      daysAgo(2, 85, "BLOOD_PRESSURE_DIA"),
+    ]);
+
+    const out = await buildCoachSnapshot("user-1", { sources: ["bp"] });
+    expect(out.referenceGrounding).not.toBeNull();
+    expect(out.referenceGrounding).toContain("REFERENCE GROUNDING");
+    expect(out.referenceGrounding).toContain("ESH 2023");
+    // 138 sits in the high-normal band (130–139), two tiers past optimal →
+    // the four-state contract reads that as "outside".
+    expect(out.referenceGrounding).toContain(
+      "sits outside the general reference band",
+    );
+    expect(out.referenceGrounding).toContain("not a diagnosis");
+  });
+
+  it("returns null grounding when no present metric is covered", async () => {
+    const out = await buildCoachSnapshot("user-1");
+    // Empty snapshot — no reference-covered scalar collected.
+    expect(out.referenceGrounding).toBeNull();
+  });
+
+  it("uses the general non-diabetic glucose band when hasDiabetes is unset", async () => {
+    featuresMock.mockResolvedValue({});
+    prismaMock.measurement.findMany.mockResolvedValue([
+      { ...daysAgo(2, 95, "BLOOD_GLUCOSE"), glucoseContext: "FASTING" },
+    ]);
+    prismaMock.user.findUnique.mockResolvedValue({
+      coachPrefsJson: null,
+      hasDiabetes: false,
+    });
+
+    const out = await buildCoachSnapshot("user-1", { sources: ["glucose"] });
+    expect(out.referenceGrounding).toContain("general non-diabetic normal");
+    expect(out.referenceGrounding).not.toContain("management goal");
+  });
+
+  it("uses the tighter ADA goal band when hasDiabetes is opted in", async () => {
+    featuresMock.mockResolvedValue({});
+    prismaMock.measurement.findMany.mockResolvedValue([
+      { ...daysAgo(2, 150, "BLOOD_GLUCOSE"), glucoseContext: "FASTING" },
+    ]);
+    prismaMock.user.findUnique.mockResolvedValue({
+      coachPrefsJson: null,
+      hasDiabetes: true,
+    });
+
+    const out = await buildCoachSnapshot("user-1", { sources: ["glucose"] });
+    expect(out.referenceGrounding).toContain("80–130 mg/dL");
+    expect(out.referenceGrounding).toContain("management goal");
+    // 150 fasting is outside the diabetic goal band.
+    expect(out.referenceGrounding).toContain(
+      "outside the typical diabetes management goal",
+    );
+  });
+
+  it("never emits a commercial brand token in the grounding block", async () => {
+    featuresMock.mockResolvedValue({
+      bloodPressure: { avgSys30: 120, coverage: { count: 4 } },
+    });
+    prismaMock.measurement.findMany.mockResolvedValue([
+      daysAgo(2, 120, "BLOOD_PRESSURE_SYS"),
+      daysAgo(2, 78, "BLOOD_PRESSURE_DIA"),
+    ]);
+    const out = await buildCoachSnapshot("user-1", { sources: ["bp"] });
+    for (const brand of ["Mounjaro", "Withings", "WHOOP", "Oura", "Dexcom"]) {
+      expect(out.referenceGrounding!.toLowerCase()).not.toContain(
+        brand.toLowerCase(),
+      );
+    }
+  });
+});
