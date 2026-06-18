@@ -5,17 +5,17 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 /**
  * Coach launch surfaces on `/insights/{slug}` sub-pages.
  *
- * Contracts under test (v1.16.8):
+ * Contracts under test (v1.18.6, CCH-04):
  *
- *   1. The floating Coach FAB (`data-slot="coach-fab"`) is a permanent
- *      launcher on every authenticated page. An unread Coach-initiated
+ *   1. The floating Coach FAB (`data-slot="coach-fab"`) is the single
+ *      Coach launcher on every authenticated page. The per-metric inline
+ *      launch icon the sub-page header used to mount was retired in
+ *      CCH-04 — the FAB is now the only entry. An unread Coach-initiated
  *      nudge (`GET /api/insights/coach/nudge-status`) paints an unread
  *      dot (`data-slot="coach-fab-unread"`) on its corner; with nothing
- *      unread the FAB renders without the dot. The inline launch the
- *      sub-page shell mounts in the header
- *      (`data-slot="coach-launch-icon"`) stays the contextual entry.
+ *      unread the FAB renders without the dot.
  *
- *   2. Clicking the inline launch opens the Coach drawer — as a
+ *   2. Clicking the FAB opens the Coach drawer in place — as a
  *      bottom-sheet (`data-variant="bottom-sheet"`) on `<sm`, as a
  *      right-side sheet (`data-variant="side-sheet"`) on `>=sm`.
  *
@@ -27,16 +27,16 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  *      tray; it hands off to the full-page route `/coach`.
  *
  * The three sub-pages covered (blutdruck, gewicht, schlaf) span the
- * empty-state branch (no data → CTA + Coach launch) and the populated
- * branch (with data → full chart + Coach launch in the header).
+ * empty-state branch (no data → CTA) and the populated branch (with
+ * data → full chart). The FAB launcher is present on both.
  */
 test.describe("Coach launch surfaces on insights sub-pages", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
   test.beforeEach(async ({ page }) => {
     // Populated analytics so each sub-page paints the data branch
-    // (`hasMetricData` true) — the inline Coach launch is mounted in
-    // the sub-page header by the shell.
+    // (`hasMetricData` true). The Coach FAB is the launcher on every
+    // authenticated page regardless of the data branch.
     // Regex form matches the slim slice the dashboard split fires
     // alongside the thick request.
     await page.route(/\/api\/analytics(\?|$)/, (route) =>
@@ -126,21 +126,23 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
   });
 
   for (const slug of ["blutdruck", "gewicht", "schlaf"] as const) {
-    test(`/insights/${slug} mounts the inline Coach launch and the dot-free FAB on Pixel 5`, async ({
+    test(`/insights/${slug} mounts the dot-free Coach FAB on Pixel 5`, async ({
       page,
     }, testInfo) => {
       test.skip(
         testInfo.project.name !== "chromium-mobile",
-        "mobile inline-launch branch",
+        "mobile FAB-launcher branch",
       );
 
       await page.goto(`/insights/${slug}`, { waitUntil: "domcontentloaded" });
 
-      // The header launch icon stays the contextual entry point.
-      const icon = page.locator('[data-slot="coach-launch-icon"]').first();
-      await expect(icon).toBeVisible({ timeout: 10_000 });
+      // CCH-04 — the per-metric inline launch icon is retired; no header
+      // launcher renders on the sub-page.
+      await expect(
+        page.locator('[data-slot="coach-launch-icon"]'),
+      ).toHaveCount(0);
 
-      // The FAB is a permanent launcher; with no unread nudge it
+      // The FAB is the permanent launcher; with no unread nudge it
       // renders without the unread dot.
       const fab = page.locator('[data-slot="coach-fab"]');
       await expect(fab).toBeVisible({ timeout: 10_000 });
@@ -149,18 +151,19 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
       ).toHaveCount(0);
     });
 
-    test(`/insights/${slug} mounts the inline Coach launch and the dot-free FAB on Desktop Chrome`, async ({
+    test(`/insights/${slug} mounts the dot-free Coach FAB on Desktop Chrome`, async ({
       page,
     }, testInfo) => {
       test.skip(
         testInfo.project.name !== "chromium-desktop",
-        "desktop inline-launch branch",
+        "desktop FAB-launcher branch",
       );
 
       await page.goto(`/insights/${slug}`, { waitUntil: "domcontentloaded" });
 
-      const icon = page.locator('[data-slot="coach-launch-icon"]').first();
-      await expect(icon).toBeVisible({ timeout: 10_000 });
+      await expect(
+        page.locator('[data-slot="coach-launch-icon"]'),
+      ).toHaveCount(0);
 
       const fab = page.locator('[data-slot="coach-fab"]');
       await expect(fab).toBeVisible({ timeout: 10_000 });
@@ -170,7 +173,7 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     });
   }
 
-  test("clicking the inline Coach launch opens the drawer as a bottom-sheet on Pixel 5", async ({
+  test("clicking the Coach FAB opens the drawer as a bottom-sheet on Pixel 5", async ({
     page,
   }, testInfo) => {
     test.skip(
@@ -178,26 +181,26 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
       "drawer bottom-sheet branch is mobile-only",
     );
 
-    // Hydration gate — the status query is fired by the sub-page
-    // boundary itself, so its response proves React has hydrated the
-    // page and attached the launch icon's click handler. Clicking the
-    // SSR-painted icon any earlier is silently lost (CI flake).
-    const pageHydrated = page.waitForResponse(
-      /\/api\/insights\/blood-pressure-status/,
+    // Hydration gate — the nudge-status query is fired by the FAB
+    // component itself, so its response proves the FAB's click handler
+    // is attached. Clicking the SSR-painted FAB any earlier is silently
+    // lost (CI flake).
+    const fabHydrated = page.waitForResponse(
+      /\/api\/insights\/coach\/nudge-status/,
     );
     await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
-    await pageHydrated;
+    await fabHydrated;
 
-    const icon = page.locator('[data-slot="coach-launch-icon"]').first();
-    await expect(icon).toBeVisible({ timeout: 10_000 });
-    await icon.click();
+    const fab = page.locator('[data-slot="coach-fab"]');
+    await expect(fab).toBeVisible({ timeout: 10_000 });
+    await fab.click();
 
     const drawer = page.locator('[data-slot="coach-drawer"]');
     await expect(drawer).toBeVisible({ timeout: 10_000 });
     await expect(drawer).toHaveAttribute("data-variant", "bottom-sheet");
   });
 
-  test("clicking the inline Coach launch opens the drawer as a side-sheet on Desktop Chrome", async ({
+  test("clicking the Coach FAB opens the drawer as a side-sheet on Desktop Chrome", async ({
     page,
   }, testInfo) => {
     test.skip(
@@ -206,15 +209,15 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     );
 
     // Hydration gate — see the bottom-sheet branch above.
-    const pageHydrated = page.waitForResponse(
-      /\/api\/insights\/blood-pressure-status/,
+    const fabHydrated = page.waitForResponse(
+      /\/api\/insights\/coach\/nudge-status/,
     );
     await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
-    await pageHydrated;
+    await fabHydrated;
 
-    const icon = page.locator('[data-slot="coach-launch-icon"]').first();
-    await expect(icon).toBeVisible({ timeout: 10_000 });
-    await icon.click();
+    const fab = page.locator('[data-slot="coach-fab"]');
+    await expect(fab).toBeVisible({ timeout: 10_000 });
+    await fab.click();
 
     const drawer = page.locator('[data-slot="coach-drawer"]');
     await expect(drawer).toBeVisible({ timeout: 10_000 });
@@ -289,15 +292,15 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     );
 
     // Hydration gate — see the bottom-sheet test above.
-    const pageHydrated = page.waitForResponse(
-      /\/api\/insights\/blood-pressure-status/,
+    const fabHydrated = page.waitForResponse(
+      /\/api\/insights\/coach\/nudge-status/,
     );
     await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
-    await pageHydrated;
+    await fabHydrated;
 
-    const icon = page.locator('[data-slot="coach-launch-icon"]').first();
-    await expect(icon).toBeVisible({ timeout: 10_000 });
-    await icon.click();
+    const fab = page.locator('[data-slot="coach-fab"]');
+    await expect(fab).toBeVisible({ timeout: 10_000 });
+    await fab.click();
 
     const drawer = page.locator('[data-slot="coach-drawer"]');
     await expect(drawer).toBeVisible({ timeout: 10_000 });
