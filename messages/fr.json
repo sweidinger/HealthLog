@@ -1276,6 +1276,13 @@
       "noCurrentDose": "Aucune dose enregistrée pour l'instant.",
       "empty": "Aucun historique de titration. Enregistrez un changement de dose pour voir la courbe de dose."
     },
+    "titration": {
+      "title": "Plan de titration",
+      "empty": "Aucune étape d'escalade de dose enregistrée pour le moment. Ajoutez des changements de dose datés pour tracer le plan.",
+      "youAreHere": "Vous êtes ici",
+      "doseStep": "{dose} {unit}",
+      "plannedFor": "Prévu · {date}"
+    },
     "injectionSiteBodyOutlineAriaLabel": "Silhouette du corps",
     "injectionSitePickerAriaLabel": "Sélecteur de site d'injection",
     "injectionSiteRecommendedAriaLabel": "{site} — prochain site recommandé",

@@ -1276,6 +1276,13 @@
       "noCurrentDose": "Noch keine Dosis erfasst.",
       "empty": "Noch keine Titrations-Historie. Erfasse eine Dosisänderung, um die Stärkekurve zu sehen."
     },
+    "titration": {
+      "title": "Titrationsplan",
+      "empty": "Noch keine Dosis-Steigerungsschritte erfasst. Datierte Dosisänderungen hinzufügen, um den Plan abzubilden.",
+      "youAreHere": "Du bist hier",
+      "doseStep": "{dose} {unit}",
+      "plannedFor": "Geplant · {date}"
+    },
     "injectionSiteBodyOutlineAriaLabel": "Körperumriss",
     "injectionSitePickerAriaLabel": "Injektionsstelle auswählen",
     "injectionSiteRecommendedAriaLabel": "{site} – empfohlene nächste Stelle",
