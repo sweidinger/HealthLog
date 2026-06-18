@@ -306,6 +306,7 @@ export async function registerStatusQueues(
           result: {
             candidates_scanned: summary.candidatesScanned,
             dispatched: summary.dispatched,
+            persisted: summary.persisted,
             skipped_opted_out: summary.skippedOptedOut,
             skipped_no_provider: summary.skippedNoProvider,
             skipped_recent_nudge: summary.skippedRecentNudge,

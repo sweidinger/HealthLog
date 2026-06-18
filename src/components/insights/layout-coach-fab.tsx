@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,18 +13,26 @@ import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useDisableCoach } from "@/hooks/use-disable-coach";
 import { queryKeys } from "@/lib/query-keys";
 
-import { apiGet } from "@/lib/api/api-fetch";
+import { apiGet, apiPost } from "@/lib/api/api-fetch";
 
 /**
  * v1.16.8 — the Coach FAB is a permanent launcher again, now on EVERY
  * authenticated page (mounted once in `<AuthShell>`, no longer scoped
  * to `/insights/**`). The v1.16.1 nudge-only bubble folded into it: the
- * FAB always renders, and an unseen proactive `COACH_NUDGE` (surfaced
+ * FAB always renders, and an unread proactive Coach message (surfaced
  * by `/api/insights/coach/nudge-status`) paints a small unread dot on
- * its corner instead of toggling the whole button. The dot clears once
- * the nudge counts as read — the user sent a Coach message after the
- * nudge (server-derived), or opened the Coach on this device (local
- * seen stamp keyed by the nudge timestamp).
+ * its corner instead of toggling the whole button.
+ *
+ * v1.18.6 (CCH-02/CCH-03) — the proactive nudge now lands as a real
+ * ASSISTANT message in the conversation rail, not a notification-only
+ * dispatch, so the unread signal moved onto the server-authoritative
+ * `User.coachLastSeenAt` stamp: `status.unread` is true while a Coach
+ * message is newer than the last time the user opened the Coach. Opening
+ * the Coach (this FAB, or the `/coach` page) fires
+ * `POST /api/insights/coach/seen`, which stamps the server and clears
+ * the dot everywhere (web + iOS). A local "seen" stamp is kept only as
+ * an instant-paint optimisation so the dot disappears the moment the
+ * user taps, before the mutation round-trips.
  *
  * The FAB hides inside the Coach view itself (`/coach`) — a
  * launcher pointing at the page the user is already on is noise.
@@ -44,9 +52,12 @@ export interface CoachNudgeStatus {
 }
 
 /**
- * Pure unread derivation — server signal AND-ed with the local
- * seen-stamp. Exported so the unit test pins the contract without a
- * QueryClient round-trip.
+ * Pure unread derivation — the server signal is authoritative
+ * (`status.unread` already compares the newest Coach message against the
+ * persisted `coachLastSeenAt`). The local seen-stamp only suppresses the
+ * dot for an instant after the user taps, before the mark-seen mutation
+ * + status refetch land. Exported so the unit test pins the contract
+ * without a QueryClient round-trip.
  */
 export function isNudgeUnread(
   status: CoachNudgeStatus | undefined,
@@ -77,6 +88,7 @@ export function LayoutCoachFab() {
 
   const coachAvailable = !!launch && flags.coach && !disableCoach;
   const onCoachPage = pathname?.startsWith("/coach") ?? false;
+  const queryClient = useQueryClient();
 
   const { data: status } = useQuery({
     queryKey: queryKeys.coachNudgeStatus(),
@@ -85,6 +97,22 @@ export function LayoutCoachFab() {
     },
     enabled: coachAvailable && !onCoachPage,
     staleTime: 5 * 60 * 1000,
+  });
+
+  // v1.18.6 (CCH-03) — stamp `coachLastSeenAt` server-side when the user
+  // opens the Coach so the dot clears across every device. Fire-and-
+  // forget from the UI's perspective (the local seen-stamp already
+  // suppressed the dot); on success the status query refetches so the
+  // server-authoritative `unread` re-resolves to false.
+  const markSeen = useMutation({
+    mutationKey: queryKeys.coachMarkSeen(),
+    mutationFn: async () =>
+      apiPost<{ seenAt: string }>("/api/insights/coach/seen", {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.coachNudgeStatus(),
+      });
+    },
   });
 
   const nudgedAt = status?.nudgedAt ?? null;
@@ -107,16 +135,30 @@ export function LayoutCoachFab() {
     prevUnreadRef.current = unread;
   }, [unread, t]);
 
-  // Visiting the Coach page itself counts as reading the nudge on this
-  // device — persist the stamp so the dot stays gone after leaving.
+  // Visiting the Coach page itself counts as reading the nudge — persist
+  // the local instant-paint stamp AND stamp the server so the dot stays
+  // gone after leaving, on every device. Fired once per page entry: the
+  // ref guards against the effect re-running on unrelated re-renders.
+  const seenStampedRef = useRef(false);
   useEffect(() => {
-    if (!onCoachPage || nudgedAt === null) return;
-    try {
-      window.localStorage.setItem(NUDGE_SEEN_STORAGE_KEY, nudgedAt);
-    } catch {
-      // Storage unavailable (private mode) — the server-side read
-      // signal still clears the dot once the user sends a message.
+    if (!onCoachPage) {
+      seenStampedRef.current = false;
+      return;
     }
+    if (seenStampedRef.current) return;
+    seenStampedRef.current = true;
+    if (nudgedAt !== null) {
+      try {
+        window.localStorage.setItem(NUDGE_SEEN_STORAGE_KEY, nudgedAt);
+      } catch {
+        // Storage unavailable (private mode) — the server stamp below
+        // still clears the dot once it round-trips.
+      }
+    }
+    markSeen.mutate();
+    // `markSeen` is a stable mutation object; excluding it keeps the
+    // effect from re-firing on its internal state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCoachPage, nudgedAt]);
 
   if (!coachAvailable) return null;
@@ -136,6 +178,10 @@ export function LayoutCoachFab() {
         // Best effort — see above.
       }
     }
+    // v1.18.6 (CCH-03) — stamp the server so the dot clears on every
+    // device, not just this one. The local stamp above already hid the
+    // dot for an instant paint; the mutation makes it durable.
+    if (unread) markSeen.mutate();
     // v1.16.11 — open the side drawer in place (the launch context the
     // layout mount consumes) instead of navigating to the chat page;
     // the conversation arrives without losing the page underneath.
@@ -194,10 +240,15 @@ export function LayoutCoachFab() {
       >
         <Sparkles className="size-6" aria-hidden="true" />
         {unread ? (
+          // v1.18.6 (CCH-03) — discreet "the Coach said something" dot.
+          // Deliberately NOT an alarming red (the medication-card rule:
+          // status via calm signal, never an alarm tint): a small cyan
+          // dot ringed against the FAB background reads as informative,
+          // not urgent.
           <span
             data-slot="coach-fab-unread"
             aria-hidden="true"
-            className="border-background bg-dracula-red absolute top-0.5 right-0.5 size-3 rounded-full border-2"
+            className="border-background bg-dracula-cyan absolute top-0.5 right-0.5 size-3 rounded-full border-2"
           />
         ) : null}
       </Button>

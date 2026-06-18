@@ -13,7 +13,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { TargetAdjustButton } from "@/components/insights/target-adjust-button";
 import { TargetAdjustProvider } from "@/lib/insights/target-adjust-context";
 import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
@@ -108,13 +107,12 @@ export interface SubPageShellProps {
   /**
    * v1.8.6 — opt-in Coach launch in the page header.
    *
-   * When true, the shell mounts an icon-only `<CoachLaunchButton>` at
-   * the top-right of the header, vertically aligned with the heading, so
-   * "Coach fragen" reads as a header action rather than a foot-of-page
-   * button. Every routed category page passes it; the mother page and
-   * empty-state branches omit it. The button self-gates on the Coach
-   * feature flag + per-user opt-out, so a disabled-Coach tenant shows
-   * nothing.
+   * v1.18.6 (CCH-04) — RETIRED as a rendered control. With the Coach FAB
+   * anchored bottom-right on every authenticated page, the per-metric
+   * Coach icon was a redundant second entry point, so the shell no longer
+   * paints anything for it. The prop stays on the signature (every routed
+   * category page still passes it) to avoid a churny rename across ~14
+   * call sites; it is intentionally inert.
    */
   coachLaunch?: boolean;
   /**
@@ -139,7 +137,10 @@ export function SubPageShell({
   focusOnMount = false,
   statStrip,
   diversityNudge,
-  coachLaunch = false,
+  // v1.18.6 (CCH-04) — `coachLaunch` is intentionally not destructured:
+  // the prop is still accepted on the type (call sites pass it) but the
+  // shell no longer renders a Coach control. The FAB is the single Coach
+  // entry point app-wide.
   showAllValuesType,
   children,
 }: SubPageShellProps) {
@@ -270,7 +271,12 @@ export function SubPageShell({
                 </Button>
               ) : null}
               <TargetAdjustButton />
-              {coachLaunch ? <CoachLaunchButton variant="icon" /> : null}
+              {/* v1.18.6 (CCH-04) — the per-metric Coach launch icon is
+                gone. With the Coach FAB anchored bottom-right on every
+                authenticated page, a second Coach affordance in each
+                metric header was redundant. The `coachLaunch` prop is
+                still accepted (every metric page passes it) but no longer
+                paints a control — the FAB is the single Coach entry. */}
               {/* v1.16.8 — the v1.16.4 customise cog is gone: the sticky
                 tab strip above already carries the same control on every
                 insights surface, so the header copy was a duplicate. */}
