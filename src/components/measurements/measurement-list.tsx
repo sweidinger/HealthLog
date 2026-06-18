@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import {
   FilterBar,
   FilterBarDateRange,
+  FilterBarNumberRange,
   FilterBarSelect,
 } from "@/components/ui/filter-bar";
 import {
@@ -275,6 +276,10 @@ export function MeasurementList({
   const [sourceFilter, setSourceFilterRaw] = useState<string>("ALL");
   const [fromDay, setFromDayRaw] = useState<string>("");
   const [toDay, setToDayRaw] = useState<string>("");
+  // v1.18.5 — value-range filter (backlog G). Raw input strings; empty
+  // means the bound is unset (open-ended on that side).
+  const [valueMinInput, setValueMinInputRaw] = useState<string>("");
+  const [valueMaxInput, setValueMaxInputRaw] = useState<string>("");
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<string>("measuredAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -345,6 +350,18 @@ export function MeasurementList({
     clearSelection();
   };
 
+  const setValueMinInput = (value: string) => {
+    setValueMinInputRaw(value);
+    setPage(1);
+    clearSelection();
+  };
+
+  const setValueMaxInput = (value: string) => {
+    setValueMaxInputRaw(value);
+    setPage(1);
+    clearSelection();
+  };
+
   const goToPage = (updater: (p: number) => number) => {
     setPage(updater);
     clearSelection();
@@ -382,6 +399,19 @@ export function MeasurementList({
   const fromIso = dayBoundaryIso(fromDay, "start");
   const toIso = dayBoundaryIso(toDay, "end");
   const sourceEq = sourceFilter === "ALL" ? undefined : sourceFilter;
+  // v1.18.5 — value-range bounds. Empty / non-numeric input clears the
+  // bound. Only threaded on the raw per-sample list; the day-grouped and
+  // sleep-night modes synthesise rows server-side (a SUM / per-night
+  // TIME-ASLEEP), where filtering on a raw `value` column carries no
+  // meaning, so the range pill is hidden for those types.
+  const valueMin =
+    valueMinInput.trim() !== "" && Number.isFinite(Number(valueMinInput))
+      ? Number(valueMinInput)
+      : undefined;
+  const valueMax =
+    valueMaxInput.trim() !== "" && Number.isFinite(Number(valueMaxInput))
+      ? Number(valueMaxInput)
+      : undefined;
   const listMode: "raw" | "groupBy=day" | "sleep-night" = isSleepFilter
     ? "sleep-night"
     : isCumulativeFilter
@@ -394,6 +424,9 @@ export function MeasurementList({
       sourceEq,
       from: fromIso,
       to: toIso,
+      // Value range applies only to the raw per-sample list.
+      valueMin: isDayGroupedFilter ? undefined : valueMin,
+      valueMax: isDayGroupedFilter ? undefined : valueMax,
       page,
       sortBy,
       sortDir,
@@ -405,6 +438,11 @@ export function MeasurementList({
       if (sourceEq) params.set("sourceEq", sourceEq);
       if (fromIso) params.set("from", fromIso);
       if (toIso) params.set("to", toIso);
+      // v1.18.5 — value range only on the raw per-sample list.
+      if (!isDayGroupedFilter && valueMin != null)
+        params.set("valueMin", String(valueMin));
+      if (!isDayGroupedFilter && valueMax != null)
+        params.set("valueMax", String(valueMax));
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String((page - 1) * PAGE_SIZE));
       params.set("sortBy", sortBy);
@@ -678,13 +716,17 @@ export function MeasurementList({
               typeFilter !== "ALL" ||
               sourceFilter !== "ALL" ||
               fromDay !== "" ||
-              toDay !== ""
+              toDay !== "" ||
+              (!isDayGroupedFilter &&
+                (valueMinInput !== "" || valueMaxInput !== ""))
             }
             onReset={() => {
               setTypeFilter("ALL");
               setSourceFilter("ALL");
               setFromDay("");
               setToDay("");
+              setValueMinInput("");
+              setValueMaxInput("");
             }}
             count={
               data?.meta?.total !== undefined
@@ -721,6 +763,21 @@ export function MeasurementList({
                 label: formatMeasurementSource(src, t),
               }))}
             />
+            {/* v1.18.5 — value-range pill. Hidden for the day-grouped /
+                sleep-night types where the painted `value` is a synthesised
+                SUM / per-night total rather than a raw reading. */}
+            {!isDayGroupedFilter && (
+              <FilterBarNumberRange
+                label={t("dataList.valueRange")}
+                min={valueMinInput}
+                max={valueMaxInput}
+                onMinChange={setValueMinInput}
+                onMaxChange={setValueMaxInput}
+                idPrefix="measurements-value"
+                fromLabel={t("dataList.valueMin")}
+                toLabel={t("dataList.valueMax")}
+              />
+            )}
           </FilterBar>
         )}
 

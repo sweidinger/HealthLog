@@ -331,6 +331,68 @@ describe("measurement validation", () => {
     });
   });
 
+  describe("listMeasurementsSchema — v1.18.5 value-range filter", () => {
+    it("coerces valueMin / valueMax from query strings", () => {
+      const parsed = listMeasurementsSchema.safeParse({
+        valueMin: "80",
+        valueMax: "120",
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.valueMin).toBe(80);
+        expect(parsed.data.valueMax).toBe(120);
+      }
+    });
+
+    it("accepts an open-ended min-only range", () => {
+      const parsed = listMeasurementsSchema.safeParse({ valueMin: "100" });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.valueMin).toBe(100);
+        expect(parsed.data.valueMax).toBeUndefined();
+      }
+    });
+
+    it("accepts an open-ended max-only range", () => {
+      const parsed = listMeasurementsSchema.safeParse({ valueMax: "90" });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.valueMax).toBe(90);
+        expect(parsed.data.valueMin).toBeUndefined();
+      }
+    });
+
+    it("accepts valueMin == valueMax (exact-value band)", () => {
+      const parsed = listMeasurementsSchema.safeParse({
+        valueMin: "72",
+        valueMax: "72",
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it("rejects an inverted range (valueMin > valueMax) with a 422-shaped issue", () => {
+      const parsed = listMeasurementsSchema.safeParse({
+        valueMin: "120",
+        valueMax: "80",
+      });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        expect(parsed.error.issues.some((i) => i.path[0] === "valueMin")).toBe(
+          true,
+        );
+      }
+    });
+
+    it("leaves both bounds undefined when omitted", () => {
+      const parsed = listMeasurementsSchema.safeParse({});
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.valueMin).toBeUndefined();
+        expect(parsed.data.valueMax).toBeUndefined();
+      }
+    });
+  });
+
   // v1.4.38 — the per-day drill-down branch always returns at most
   // 1000 rows (one pathological phone-only stepCount day). Push the
   // cap into the validator so a caller asking for more sees a 422

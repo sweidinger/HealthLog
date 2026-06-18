@@ -1649,6 +1649,14 @@ paths:
               - POLAR
               - OURA
         - in: query
+          name: valueMin
+          schema:
+            type: number
+        - in: query
+          name: valueMax
+          schema:
+            type: number
+        - in: query
           name: groupBy
           schema:
             type: string

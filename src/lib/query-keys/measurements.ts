@@ -20,6 +20,8 @@ export const measurementKeys = {
     sourceEq: string | undefined;
     from: string | undefined;
     to: string | undefined;
+    valueMin: number | undefined;
+    valueMax: number | undefined;
     page: number;
     sortBy: string;
     sortDir: string;
@@ -32,6 +34,8 @@ export const measurementKeys = {
       params.sourceEq ?? null,
       params.from ?? null,
       params.to ?? null,
+      params.valueMin ?? null,
+      params.valueMax ?? null,
       params.page,
       params.sortBy,
       params.sortDir,
