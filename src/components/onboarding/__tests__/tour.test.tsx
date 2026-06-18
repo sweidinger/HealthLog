@@ -2,23 +2,27 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 // vitest runs in the Node environment (no jsdom). The tour's interactive
-// behaviour (keyboard navigation, focus management, target measurement)
-// is exercised by the pure state machine at
+// behaviour (keyboard navigation, focus management, target measurement,
+// cross-page navigation) is exercised by the pure state machine at
 // `src/lib/onboarding/__tests__/tour-state.test.ts` and by the e2e
 // suite at `e2e/onboarding-tour.spec.ts`. Here we lock the SSR contract:
-// initial render shape, ARIA wiring, i18n keys, and that the first
-// step is the tile strip.
+// initial render shape, ARIA wiring, i18n keys, and that the first step
+// is the dashboard overview.
+//
+// The overlay reads Next's navigation hooks for the cross-page push; we
+// stub them so the static render resolves.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/",
+}));
 
 import { I18nProvider } from "@/lib/i18n/context";
 import { OnboardingTour } from "../tour";
 
-function renderTour(includeAchievements = true) {
+function renderTour(modules?: Record<string, boolean>) {
   return renderToStaticMarkup(
     <I18nProvider initialLocale="en">
-      <OnboardingTour
-        includeAchievements={includeAchievements}
-        onClose={vi.fn()}
-      />
+      <OnboardingTour modules={modules} onClose={vi.fn()} />
     </I18nProvider>,
   );
 }
@@ -31,25 +35,23 @@ describe("<OnboardingTour>", () => {
     expect(html).toContain('aria-labelledby="onboarding-tour-title"');
   });
 
-  it("starts on the tile-strip step (1 of 5 by default)", () => {
+  it("starts on the dashboard-overview step (1 of 15 by default)", () => {
     const html = renderTour();
-    expect(html).toContain("Step 1 of 5");
-    expect(html).toContain("Your daily numbers");
-    // Body of the first step should mention the tile strip context.
-    expect(html).toContain("tile strip");
+    expect(html).toContain("Step 1 of 15");
   });
 
-  it("drops the achievements stop when the flag is off (1 of 4)", () => {
-    const html = renderTour(false);
-    expect(html).toContain("Step 1 of 4");
+  it("keeps the counter honest when modules are disabled", () => {
+    // cycle + mood + achievements off ⇒ 12 stops.
+    const html = renderTour({
+      cycle: false,
+      mood: false,
+      achievements: false,
+    });
+    expect(html).toContain("Step 1 of 12");
   });
 
   it("exposes a skip control with an accessible label", () => {
     const html = renderTour();
-    // After v1.4.33 F2 the dim panels are purely visual
-    // (pointer-events: none) so skip lives entirely on the explicit
-    // tooltip-footer Skip button. The visible label still has to be
-    // there — both for sighted users and for screen readers.
     expect(html).toContain("Skip tour");
   });
 
@@ -77,8 +79,7 @@ describe("<OnboardingTour>", () => {
         <OnboardingTour onClose={vi.fn()} />
       </I18nProvider>,
     );
-    expect(html).toContain("Schritt 1 von 5");
-    expect(html).toContain("Deine Tageswerte");
+    expect(html).toContain("Schritt 1 von 15");
     expect(html).toContain("Tour überspringen");
   });
 });

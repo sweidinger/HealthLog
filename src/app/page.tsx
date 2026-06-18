@@ -52,7 +52,6 @@ import { TrendCardSkeleton } from "@/components/charts/trend-card-skeleton";
 import { TrendHint } from "@/components/charts/trend-hint";
 import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
-import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
 import { RecentWorkoutsTile } from "@/components/dashboard/recent-workouts-tile";
 import { VorsorgeDashboardCard } from "@/components/measurement-reminders/vorsorge-dashboard-card";
@@ -753,15 +752,10 @@ export default function DashboardPage() {
           />
         ))}
 
-      {/* v1.4.15 Phase B5 — spotlight tour for first-time users.
-       * Self-gates on `user.onboardingTourCompleted` (DB flag) plus
-       * a session-storage dismiss guard. We pass `ready=true` only
-       * after analytics has resolved — the tour anchors to the tile
-       * strip and we don't want the cutout snapping to a 0×0
-       * placeholder before tiles render. The launcher mounts a no-op
-       * `null` when the user has already seen the tour, so this
-       * line is free for established users. */}
-      <TourLauncher ready={data !== undefined} />
+      {/* v1.18.6 — the spotlight tour launcher moved to the app-shell
+       * (`AuthShell`) so its overlay survives the cross-page
+       * `router.push`es the module tour makes. The dashboard no longer
+       * mounts it. */}
 
       {/* Quick Entry Sheets — bottom-sheet on `<md`, centred Dialog on `md+`. */}
       <QuickEntrySheets

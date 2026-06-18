@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { CheckCircle2, FileUp, PlusCircle, Plug } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { setTourReferrer } from "@/components/onboarding/tour-launcher";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
@@ -18,10 +21,21 @@ import { useTranslations } from "@/lib/i18n/context";
  * through `next/link` so the regular client-side navigation kicks in
  * (the proxy redirect was cleared with the same step-API write that
  * landed the user here).
+ *
+ * v1.18.6 — on mount we write the per-user wizard-return marker so the
+ * shell-level `<TourLauncher>` auto-opens the module tour immediately
+ * on the next dashboard arrival (sequenced after the post-wizard
+ * grace), instead of waiting out the 24 h fallback. Whichever exit the
+ * user picks from this screen, the next `/` mount finds the marker.
  */
 
 export function DoneScreen() {
   const { t } = useTranslations();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user?.id) setTourReferrer(user.id);
+  }, [user?.id]);
 
   return (
     <section

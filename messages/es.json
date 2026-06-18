@@ -3647,31 +3647,72 @@
       "back": "Atrás",
       "skip": "Saltar tour",
       "done": "Entendido",
-      "restart": "Reiniciar tour",
-      "restartHint": "Vuelve a mostrar el tour del panel la próxima vez.",
-      "restartConfirmation": "El tour se reiniciará en tu próxima visita al panel.",
+      "restart": "Reiniciar la visita de módulos",
+      "restartHint": "Vuelve a reproducir la visita guiada de módulos desde el principio en tu próxima visita al panel.",
+      "restartConfirmation": "La visita de módulos se reiniciará desde el principio en tu próxima visita al panel.",
       "steps": {
-        "tileStrip": {
-          "title": "Tus valores del día",
-          "body": "La fila de tarjetas muestra el último valor y la tendencia de 7 días de cada métrica — peso, tensión arterial, pulso, ánimo. Oculta lo que no necesites en Ajustes → Panel."
+        "dashboardOverview": {
+          "title": "Tu panel",
+          "body": "El panel reúne todos los módulos de un vistazo. Mantén pulsada una tarjeta para reordenarla u ocultarla (Ajustes → Diseño del panel). Cada tarjeta vale tanto como los datos que tiene detrás: los módulos siguientes los rellenan."
         },
         "quickAdd": {
-          "title": "Registrado en dos toques",
-          "body": "Con el botón Añadir puedes registrar mediciones o entradas de ánimo sin salir del panel. El formulario recuerda tu último contexto y etiquetas."
+          "title": "Registrado en segundos",
+          "body": "Con «+ Añadir» registras cualquier medición en segundos: peso, tensión, pulso, glucosa. Fuerza oculta: fechar valores olvidados. Todo lo que registras aquí alimenta las tendencias, la puntuación de salud y las ideas de IA."
+        },
+        "measurements": {
+          "title": "Mediciones y rangos objetivo",
+          "body": "Mediciones muestra el historial y el rango objetivo de cada métrica. Joya oculta: define un rango por valor para que las desviaciones resalten en color. Estas series son la base de las correlaciones del Coach y del informe médico."
+        },
+        "medications": {
+          "title": "Medicación y tomas",
+          "body": "Medicación gestiona horarios, tomas, existencias y titulación. Oculto: planes recurrentes (RRULE/rotativos) y avisos de poco stock. Tu tasa de tomas alimenta el pilar de cumplimiento del panel y el contexto de la IA."
+        },
+        "labs": {
+          "title": "Valores de laboratorio",
+          "body": "Laboratorio recoge biomarcadores con rangos de referencia: hemograma, colesterol, HbA1c. Fuerza: importación y exportación FHIR. Los valores fuera de rango reaparecen como pruebas en las ideas y en el informe médico."
+        },
+        "illness": {
+          "title": "Diario de enfermedades",
+          "body": "El diario de enfermedades registra episodios agudos y diagnósticos crónicos con sus brotes. Oculto: correlacionar un episodio con tus mediciones y el Modo descanso que pausa los recordatorios. Así el Coach entiende por qué los valores varían un tiempo."
+        },
+        "vorsorge": {
+          "title": "Prevención",
+          "body": "Prevención te recuerda revisiones y vacunas con su propio intervalo. Consejo: «Hecho» puede crear directamente una medición o un resultado de laboratorio. Lo pendiente aparece como recordatorio y en el informe médico."
+        },
+        "cycle": {
+          "title": "Ciclo",
+          "body": "El seguimiento del ciclo registra fases y síntomas. Oculto: comparar síntomas con el ánimo y el sueño. El ciclo aporta contexto a variaciones que de otro modo parecerían inexplicables."
+        },
+        "mood": {
+          "title": "Ánimo",
+          "body": "Ánimo capta cómo te sientes y etiquetas en dos segundos. Fuerza: tus propias etiquetas. Las tendencias de ánimo se correlacionan con el sueño, la medicación y el ciclo: el Coach detecta los patrones."
         },
         "insights": {
-          "title": "Insights automáticos",
-          "body": "Insights convierte tus valores en un resumen claro de salud, con interpretación de tensión arterial, peso y ánimo. Clave propia o por defecto — tú eliges."
+          "title": "Ideas",
+          "body": "Ideas es el corazón: análisis dinámico y basado en pruebas en lugar de consejos genéricos; cada afirmación apunta a tus datos reales. Oculto: el diseño es personalizable. Ideas reúne todo lo que aportan los módulos anteriores."
+        },
+        "coach": {
+          "title": "Coach",
+          "body": "El Coach responde preguntas sobre tus datos en diálogo, usando tu historial, medicación y valores de laboratorio como contexto. Tú eliges el proveedor de IA (tu propia clave o local). No recalcula nada: lee las mismas cifras que el panel."
         },
         "integrations": {
-          "title": "Conectar dispositivos",
-          "body": "En Ajustes conectas Withings (sincronización automática de peso, tensión y pulso), moodLog o tu proveedor de análisis. Todo es opcional y queda cifrado."
+          "title": "Integraciones",
+          "body": "Las integraciones sincronizan Withings, WHOOP, Polar, Oura y Apple Health automáticamente. Peso, sueño y recuperación se rellenan sin teclear, y a su vez alimentan las ideas y el Coach."
+        },
+        "export": {
+          "title": "Informe médico",
+          "body": "El informe médico reúne mediciones, medicación, valores de laboratorio y prevención en PDF o FHIR para la cita. Aquí convergen todos los módulos: un informe completo solo sale de datos bien cuidados."
         },
         "achievements": {
-          "title": "Acumula rachas e insignias",
-          "body": "La página de Logros lleva la cuenta de rachas de registro diario, hitos de tensión arterial e insignias de constancia. Un pequeño empujón para no abandonar."
+          "title": "Logros",
+          "body": "Los logros premian la constancia: rachas e hitos. Un pequeño bucle de motivación que facilita seguir adelante."
+        },
+        "wrapUp": {
+          "title": "Esto es la visita",
+          "body": "Puedes volver a ver cualquier módulo por separado cuando quieras («Mostrar esta visita» en cada página) o reiniciar la visita completa en Ajustes → Avanzado."
         }
-      }
+      },
+      "moduleTrigger": "Mostrar esta visita"
     },
     "shell": {
       "back": "Atrás",

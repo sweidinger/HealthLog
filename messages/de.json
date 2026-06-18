@@ -3647,31 +3647,72 @@
       "back": "Zurück",
       "skip": "Tour überspringen",
       "done": "Verstanden",
-      "restart": "Tour neu starten",
-      "restartHint": "Zeige die Dashboard-Tour beim nächsten Aufruf erneut.",
-      "restartConfirmation": "Die Tour startet bei deinem nächsten Dashboard-Besuch erneut.",
+      "restart": "Modul-Tour neu starten",
+      "restartHint": "Zeigt die geführte Modul-Tour beim nächsten Dashboard-Besuch von vorne.",
+      "restartConfirmation": "Die Modul-Tour startet bei deinem nächsten Dashboard-Besuch von vorne.",
       "steps": {
-        "tileStrip": {
-          "title": "Deine Tageswerte",
-          "body": "Die Kachel-Leiste zeigt den letzten Wert und den 7-Tage-Trend für jede Metrik — Gewicht, Blutdruck, Puls, Stimmung. Was du nicht brauchst, blendest du in Einstellungen → Dashboard aus."
+        "dashboardOverview": {
+          "title": "Dein Dashboard",
+          "body": "Das Dashboard bündelt alle Module auf einen Blick. Halte eine Kachel lange gedrückt, um sie neu anzuordnen oder auszublenden (Einstellungen → Dashboard-Layout). Jede Kachel ist nur so aussagekräftig wie die Daten dahinter — die folgenden Module füllen sie."
         },
         "quickAdd": {
-          "title": "In zwei Taps erfasst",
-          "body": "Über den Hinzufügen-Button kannst du Messungen oder Stimmungseinträge anlegen, ohne das Dashboard zu verlassen. Das Formular merkt sich deinen letzten Kontext und Tags."
+          "title": "In Sekunden erfasst",
+          "body": "Über „+ Hinzufügen“ trägst du jeden Messwert in Sekunden ein — Gewicht, Blutdruck, Puls, Glukose. Versteckte Stärke: Werte lassen sich nachträglich datieren. Alles, was du hier einträgst, fließt in Trends, Health-Score und die KI-Insights."
+        },
+        "measurements": {
+          "title": "Messwerte & Zielbereiche",
+          "body": "Messwerte zeigt Verlauf und Zielbereiche pro Metrik. Hidden Gem: Zielbereiche pro Wert definieren, damit Abweichungen farblich auffallen. Diese Reihen sind die Grundlage für Korrelationen im Coach und den Arztbericht."
+        },
+        "medications": {
+          "title": "Medikamente & Einnahmen",
+          "body": "Medikamente verwaltet Zeitpläne, Einnahmen, Bestand und Titration. Versteckt: wiederkehrende Pläne (RRULE/rollierend) und Bestandswarnungen. Deine Einnahmequote speist die Compliance-Säule im Dashboard und den Kontext der KI."
+        },
+        "labs": {
+          "title": "Laborwerte",
+          "body": "Labore erfasst Biomarker mit Referenzbereichen — Blutbild, Cholesterin, HbA1c. Stärke: Import und FHIR-Export. Auffällige Laborwerte tauchen als Belege in den Insights und im Arztbericht wieder auf."
+        },
+        "illness": {
+          "title": "Krankheits-Journal",
+          "body": "Das Krankheits-Journal dokumentiert akute Episoden und chronische Diagnosen samt Schüben. Versteckt: die Korrelation einer Episode mit deinen Messwerten und der Ruhemodus, der Reminder pausiert. So versteht der Coach, warum Werte zeitweise abweichen."
+        },
+        "vorsorge": {
+          "title": "Vorsorge",
+          "body": "Vorsorge erinnert an Untersuchungen und Impfungen mit eigenem Intervall. Tipp: „Erledigt“ kann direkt eine Messung oder ein Laborergebnis anlegen. Fällige Vorsorgen erscheinen als Reminder und im Arztbericht."
+        },
+        "cycle": {
+          "title": "Zyklus",
+          "body": "Die Zyklus-Verfolgung protokolliert Phasen und Symptome. Versteckt: Symptome lassen sich Stimmung und Schlaf gegenüberstellen. Der Zyklus liefert Kontext für Schwankungen, die sonst unerklärlich wären."
+        },
+        "mood": {
+          "title": "Stimmung",
+          "body": "Stimmung erfasst dein Befinden und Tags in zwei Sekunden. Stärke: eigene Tags. Stimmungsverläufe korrelieren mit Schlaf, Medikamenten und Zyklus — der Coach erkennt Muster."
         },
         "insights": {
-          "title": "Automatische Einblicke",
-          "body": "Insights verwandelt deine Werte in eine klare Gesundheits-Zusammenfassung, mit Einordnung von Blutdruck, Gewicht und Stimmung. Eigener Provider-Key oder Standard — du entscheidest."
+          "title": "Insights",
+          "body": "Insights ist das Herzstück: belegbasierte, dynamische Auswertungen statt generischer Tipps — jede Aussage verweist auf deine echten Daten. Versteckt: das Layout ist anpassbar. Insights zieht alles zusammen, was die Module oben liefern."
+        },
+        "coach": {
+          "title": "Coach",
+          "body": "Der Coach beantwortet Fragen zu deinen Daten im Dialog und nutzt Anamnese, Medikamente und Laborwerte als Kontext. Den KI-Anbieter wählst du selbst (eigener Schlüssel oder lokal). Er rechnet nichts neu — er liest dieselben Zahlen wie das Dashboard."
         },
         "integrations": {
-          "title": "Geräte verbinden",
-          "body": "In den Einstellungen verbindest du Withings (Auto-Sync für Gewicht, Blutdruck, Puls), moodLog oder deinen Auswertungs-Provider. Alles bleibt optional und verschlüsselt."
+          "title": "Integrationen",
+          "body": "Integrationen synchronisieren Withings, WHOOP, Polar, Oura und Apple Health automatisch. So füllen sich Gewicht, Schlaf und Erholung ohne manuelles Tippen — und nähren wiederum Insights und Coach."
+        },
+        "export": {
+          "title": "Arztbericht",
+          "body": "Der Arztbericht bündelt Messwerte, Medikamente, Laborwerte und Vorsorge als PDF oder FHIR für den Termin. Hier laufen alle Module zusammen — ein vollständiger Bericht entsteht nur bei gepflegten Daten."
         },
         "achievements": {
-          "title": "Streaks und Badges sammeln",
-          "body": "Die Achievements-Seite trackt tägliche Logging-Streaks, Blutdruck-Meilensteine und Konsistenz-Abzeichen. Ein kleiner Anreiz, dranzubleiben."
+          "title": "Erfolge",
+          "body": "Erfolge belohnen Konsistenz — Streaks und Meilensteine. Ein kleiner Motivations-Loop, der das Dranbleiben leichter macht."
+        },
+        "wrapUp": {
+          "title": "Das war die Tour",
+          "body": "Du kannst jedes Modul jederzeit einzeln erneut ansehen („Diese Tour zeigen“ auf jeder Seite) oder die komplette Tour unter Einstellungen → Erweitert neu starten."
         }
-      }
+      },
+      "moduleTrigger": "Diese Tour zeigen"
     },
     "shell": {
       "back": "Zurück",

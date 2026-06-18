@@ -3647,31 +3647,72 @@
       "back": "Back",
       "skip": "Skip tour",
       "done": "Got it",
-      "restart": "Restart onboarding tour",
-      "restartHint": "Replay the dashboard walkthrough from the start.",
-      "restartConfirmation": "Tour will restart on your next dashboard visit.",
+      "restart": "Restart module tour",
+      "restartHint": "Replays the guided module tour from the start on your next dashboard visit.",
+      "restartConfirmation": "The module tour will restart from the beginning on your next dashboard visit.",
       "steps": {
-        "tileStrip": {
-          "title": "Your daily numbers",
-          "body": "The tile strip shows the latest reading and a 7-day trend for every metric you log — weight, blood pressure, pulse, mood. Hide what you don't need from Settings → Dashboard."
+        "dashboardOverview": {
+          "title": "Your dashboard",
+          "body": "The dashboard pulls every module together at a glance. Long-press a tile to reorder or hide it (Settings → Dashboard layout). Each tile is only as telling as the data behind it — the modules ahead fill them."
         },
         "quickAdd": {
-          "title": "Log anything in two taps",
-          "body": "Use the Add button to drop a measurement or mood entry without leaving the dashboard. The form remembers your last context and tags."
+          "title": "Logged in seconds",
+          "body": "Use “+ Add” to log any reading in seconds — weight, blood pressure, pulse, glucose. Hidden strength: backdate readings you forgot to enter. Everything you log here feeds trends, the health score, and the AI insights."
+        },
+        "measurements": {
+          "title": "Readings & target ranges",
+          "body": "Measurements shows the history and target range for each metric. Hidden gem: set a target range per value so deviations stand out in colour. These series are the basis for the Coach’s correlations and the doctor report."
+        },
+        "medications": {
+          "title": "Medications & intakes",
+          "body": "Medications manages schedules, intakes, stock, and titration. Hidden: recurring plans (RRULE/rolling) and low-stock warnings. Your intake rate feeds the compliance pillar on the dashboard and the AI’s context."
+        },
+        "labs": {
+          "title": "Lab values",
+          "body": "Labs captures biomarkers with reference ranges — blood count, cholesterol, HbA1c. Strength: import and FHIR export. Out-of-range lab values resurface as evidence in the insights and the doctor report."
+        },
+        "illness": {
+          "title": "Illness journal",
+          "body": "The illness journal records acute episodes and chronic diagnoses with their flares. Hidden: correlate an episode with your readings, and Rest Mode that pauses reminders. That’s how the Coach understands why values drift for a while."
+        },
+        "vorsorge": {
+          "title": "Preventive care",
+          "body": "Preventive care reminds you of check-ups and vaccinations on their own interval. Tip: “Done” can create a reading or a lab result directly. Due items appear as reminders and in the doctor report."
+        },
+        "cycle": {
+          "title": "Cycle",
+          "body": "Cycle tracking logs phases and symptoms. Hidden: compare symptoms against mood and sleep. The cycle gives context for swings that would otherwise look unexplained."
+        },
+        "mood": {
+          "title": "Mood",
+          "body": "Mood captures how you feel plus tags in two seconds. Strength: your own tags. Mood trends correlate with sleep, medications, and cycle — the Coach spots the patterns."
         },
         "insights": {
-          "title": "Automatic insights",
-          "body": "Insights turns your readings into a plain-English health summary, with classifications for blood pressure, weight trend and mood. Bring your own provider key or use the built-in default."
+          "title": "Insights",
+          "body": "Insights is the heart of it: evidence-based, dynamic analysis instead of generic tips — every statement points at your real data. Hidden: the layout is customizable. Insights pulls together everything the modules above provide."
+        },
+        "coach": {
+          "title": "Coach",
+          "body": "The Coach answers questions about your data in a dialogue, using your history, medications, and lab values as context. Pick your AI provider yourself (your own key or local). It recomputes nothing — it reads the same numbers as the dashboard."
         },
         "integrations": {
-          "title": "Connect your devices",
-          "body": "Open Settings to link Withings (auto-sync weight, BP and pulse), moodLog, or your Insights provider. Everything stays optional and encrypted — and under Settings → Modules you can turn whole areas like sleep, mood or achievements on or off to keep HealthLog focused on what you track."
+          "title": "Integrations",
+          "body": "Integrations sync Withings, WHOOP, Polar, Oura, and Apple Health automatically. Weight, sleep, and recovery fill in without manual typing — and feed the insights and Coach in turn."
+        },
+        "export": {
+          "title": "Doctor report",
+          "body": "The doctor report bundles readings, medications, lab values, and preventive care as PDF or FHIR for the appointment. This is where every module converges — a complete report only comes from well-kept data."
         },
         "achievements": {
-          "title": "Earn streaks and badges",
-          "body": "The Achievements page tracks daily logging streaks, blood-pressure milestones and consistency badges. A small nudge to keep going."
+          "title": "Achievements",
+          "body": "Achievements reward consistency — streaks and milestones. A small motivation loop that makes sticking with it easier."
+        },
+        "wrapUp": {
+          "title": "That’s the tour",
+          "body": "You can revisit any module on its own at any time (“Show this tour” on every page) or restart the whole tour under Settings → Advanced."
         }
-      }
+      },
+      "moduleTrigger": "Show this tour"
     },
     "shell": {
       "back": "Back",

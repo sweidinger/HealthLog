@@ -47,11 +47,13 @@
  * manual replay always works.
  */
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { apiPost } from "@/lib/api/api-fetch";
+import type { TourStopId } from "@/lib/onboarding/tour-state";
 import { OnboardingTour } from "./tour";
 
 const POST_WIZARD_GRACE_MS = 1500;
@@ -90,6 +92,16 @@ export function shouldAutoLaunchTour(args: {
   onboardingTourCompleted: boolean;
   onboardingCompletedAt: string | null;
   nowMs: number;
+  /**
+   * v1.18.6 — true when the user has just returned from the wizard's
+   * DoneScreen this session (the `tourReferrerKey` marker). A fresh
+   * user finishing anamnesis should get the module tour IMMEDIATELY —
+   * the post-wizard grace below still sequences it after the toast.
+   * The old 24 h delay over-corrected and removed first-run capability
+   * education entirely; it now only applies to a user who SKIPPED the
+   * wizard (no referrer marker, completion ≥ 24 h ago).
+   */
+  justFromWizard?: boolean;
 }): boolean {
   if (args.onboardingTourCompleted) return false;
   if (args.onboardingCompletedAt == null) return false;
@@ -98,6 +110,9 @@ export function shouldAutoLaunchTour(args: {
   // unparseable case as "no completion yet" so a malformed payload
   // never auto-launches the tour into an unsuspecting brand-new user.
   if (Number.isNaN(completedMs)) return false;
+  // Fresh-from-anamnesis: launch now (sequenced after the post-wizard
+  // grace by the launcher), no 24 h wait.
+  if (args.justFromWizard) return true;
   return args.nowMs - completedMs >= TOUR_AUTOLAUNCH_DELAY_MS;
 }
 
@@ -189,6 +204,22 @@ function readAndClearForceLaunch(userId: string): boolean {
  * does not consult sessionStorage at all (the gating effect waits
  * for `inputsReady` first).
  */
+/**
+ * v1.18.6 — write the wizard-return marker. Called from the wizard's
+ * `DoneScreen` on mount so the launcher knows the user JUST finished
+ * anamnesis and should get the module tour immediately (sequenced after
+ * the post-wizard grace) rather than after the 24 h fallback delay.
+ * Per-user keyed so a shared browser keeps each identity's state apart.
+ */
+export function setTourReferrer(userId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(tourReferrerKey(userId), "1");
+  } catch {
+    /* ignore — sandboxed iframes etc. */
+  }
+}
+
 function readAndClearJustFromWizard(userId: string): boolean {
   if (typeof window === "undefined") return false;
   try {
@@ -233,24 +264,30 @@ function clearSessionDismissed(userId: string) {
 
 interface TourLauncherProps {
   /**
-   * The dashboard passes a sentinel — true once analytics has
-   * resolved at least once. Without this gate the spotlight would
-   * try to anchor to tiles that haven't rendered yet, and Recharts
-   * widgets defer mounting too. This is a simple, race-free signal
-   * the dashboard already computes.
+   * v1.18.6 — optional readiness sentinel. The dashboard used to pass
+   * `true` once analytics resolved so the spotlight didn't anchor to a
+   * 0×0 tile. The overlay now polls for its anchor (bounded retry), so
+   * the gate is no longer load-bearing; it defaults to `true` for the
+   * shell-level mount. The launcher still only auto-opens on the
+   * dashboard route, where the first stop's anchor lives.
    */
-  ready: boolean;
+  ready?: boolean;
 }
 
-export function TourLauncher({ ready }: TourLauncherProps) {
+export function TourLauncher({ ready = true }: TourLauncherProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
+  const pathname = usePathname();
 
   // `null` = decision not yet made; `true` = render the tour;
   // `false` = don't render. We only flip null→true ONCE per mount;
   // closing the tour transitions true→false and we never re-open
   // unless the restart event fires.
   const [showTour, setShowTour] = useState<boolean | null>(null);
+  // v1.18.6 — when the tour opens for a single-module re-entry
+  // ("Diese Tour zeigen" on a module page) this carries the stop id so
+  // the overlay renders just that card. `null` = the full tour.
+  const [singleStop, setSingleStop] = useState<TourStopId | null>(null);
   // Track post-wizard deferral as a boolean so the render path stays
   // pure (no Date.now() comparisons). The effect below reads / clears it.
   const [deferredFromWizard, setDeferredFromWizard] = useState(false);
@@ -275,7 +312,14 @@ export function TourLauncher({ ready }: TourLauncherProps) {
   // tour on their next page-load — acceptable for a one-shot welcome).
   const [mountedAtMs] = useState(() => Date.now());
 
-  const inputsReady = !isLoading && isAuthenticated && !!user && ready;
+  // v1.18.6 — the launcher now mounts at the app-shell level so the
+  // overlay survives the cross-page `router.push`es the tour makes. It
+  // must only AUTO-open on the dashboard, where the first stop's anchor
+  // lives. A manual re-entry / restart can fire from any route (handled
+  // by the event listeners below, which don't consult this gate).
+  const onDashboard = pathname === "/";
+  const inputsReady =
+    !isLoading && isAuthenticated && !!user && ready && onDashboard;
   // The set-state-in-render pattern (mirrors `account-section.tsx`'s
   // `seededUserId` — React-recommended for "compute initial state
   // from props once they arrive"). Pure: branches on prop values
@@ -289,6 +333,10 @@ export function TourLauncher({ ready }: TourLauncherProps) {
       decidedFor.flag !== user.onboardingTourCompleted)
   ) {
     setDecidedFor({ userId: user.id, flag: user.onboardingTourCompleted });
+    // v1.18.6 — consume the wizard-return marker once so the
+    // fresh-from-anamnesis path launches immediately (sequenced after
+    // the post-wizard grace) instead of waiting 24 h.
+    const justFromWizard = readAndClearJustFromWizard(user.id);
     // sessionStorage reads happen via per-user keyed helpers, so a
     // browser shared by two HealthLog users (admin impersonation,
     // family laptop, etc.) keeps each user's tour state independent.
@@ -309,17 +357,21 @@ export function TourLauncher({ ready }: TourLauncherProps) {
     // user expectation ("I clicked replay, now show me the tour").
     if (readAndClearForceLaunch(user.id)) {
       setShowTour(true);
-    } else if (!shouldAutoLaunchTour({
-      onboardingTourCompleted: user.onboardingTourCompleted,
-      onboardingCompletedAt: user.onboardingCompletedAt,
-      nowMs: mountedAtMs,
-    })) {
+    } else if (
+      !shouldAutoLaunchTour({
+        onboardingTourCompleted: user.onboardingTourCompleted,
+        onboardingCompletedAt: user.onboardingCompletedAt,
+        nowMs: mountedAtMs,
+        justFromWizard,
+      })
+    ) {
       setShowTour(false);
     } else if (readSessionDismissed(user.id)) {
       setShowTour(false);
-    } else if (readAndClearJustFromWizard(user.id)) {
-      // Mark "deferred"; the effect below schedules a fixed-duration
-      // timer + flips `showTour` from inside the timeout callback
+    } else if (justFromWizard) {
+      // Fresh from anamnesis — defer past the post-wizard grace so the
+      // green-tick toast doesn't double-overlay, then open. The effect
+      // below schedules the timer and flips `showTour` in its callback
       // (which the set-state-in-effect rule allows).
       setShowTour(false);
       setDeferredFromWizard(true);
@@ -344,13 +396,15 @@ export function TourLauncher({ ready }: TourLauncherProps) {
     return () => window.clearTimeout(id);
   }, [deferredFromWizard, user?.id]);
 
-  // Listen for explicit restart events from Settings → Account.
+  // Listen for explicit restart events from Settings → Advanced. A
+  // restart opens the FULL tour from the top (singleStop cleared).
   // setState inside a window-event listener is fine under the
   // set-state-in-effect rule.
   const userIdForRestart = user?.id;
   useEffect(() => {
     function onRestart() {
       if (userIdForRestart) clearSessionDismissed(userIdForRestart);
+      setSingleStop(null);
       setShowTour(true);
     }
     window.addEventListener("healthlog:tour-restart", onRestart);
@@ -359,17 +413,48 @@ export function TourLauncher({ ready }: TourLauncherProps) {
     };
   }, [userIdForRestart]);
 
+  // v1.18.6 — per-module "Diese Tour zeigen" re-entry. A module page
+  // dispatches `healthlog:module-tour` with `{ stopId }`; the launcher
+  // opens the overlay narrowed to that single card on the current page
+  // (no cross-page navigation, no completion flip).
+  useEffect(() => {
+    function onModuleTour(e: Event) {
+      const detail = (e as CustomEvent<{ stopId?: string }>).detail;
+      if (!detail?.stopId) return;
+      setSingleStop(detail.stopId as TourStopId);
+      setShowTour(true);
+    }
+    window.addEventListener("healthlog:module-tour", onModuleTour);
+    return () => {
+      window.removeEventListener("healthlog:module-tour", onModuleTour);
+    };
+  }, []);
+
   if (showTour !== true) return null;
 
-  // v1.18.0 B5 — drop the achievements tour stop when the account has the
-  // achievements module turned off. Reads the per-user module map the same
-  // way every other client gate does (`modules?.<key> !== false`,
-  // default-on).
-  const includeAchievements = tourIncludesAchievements(user?.modules);
+  // The resolved module map gates which stops appear (default-on) and
+  // keeps the "Schritt n/total" counter honest.
+  const modules = user?.modules;
+  // v1.18.6 — resume the full tour from the persisted checkpoint. The
+  // single-stop re-entry ignores the resume point (it opens its card).
+  const resumeFromStopId = singleStop
+    ? null
+    : (user?.onboardingTourProgress?.lastStopId ?? null);
 
   return (
     <OnboardingTour
-      includeAchievements={includeAchievements}
+      modules={modules}
+      resumeFromStopId={resumeFromStopId}
+      filterToStop={singleStop ?? undefined}
+      onProgress={(progress) => {
+        // Fire-and-forget checkpoint so a mid-tour reload resumes at the
+        // right module. Skipped implicitly by the overlay for the
+        // single-stop re-entry. A failed write is non-fatal — the resume
+        // point is a convenience, not a correctness invariant.
+        void apiPost("/api/onboarding/tour", {
+          progress: { ...progress, updatedAt: new Date().toISOString() },
+        }).catch(() => {});
+      }}
       onClose={async (outcome) => {
         // Optimistic: hide the overlay immediately, persist in the
         // background. The flag is idempotent so re-fires are safe;
@@ -378,7 +463,13 @@ export function TourLauncher({ ready }: TourLauncherProps) {
         // for the rest of the session, and the next refetch of
         // `/api/auth/me` (which the user gets on any nav) will
         // surface any divergence.
+        const wasSingleStop = singleStop !== null;
         setShowTour(false);
+        setSingleStop(null);
+        // A single-stop re-entry must NOT flip the global completion
+        // flag or write the session-dismiss guard — it's one card, not
+        // "the tour". Just close.
+        if (wasSingleStop) return;
         if (user?.id) writeSessionDismissed(user.id);
         try {
           await apiPost("/api/onboarding/tour", { completed: true, outcome });
