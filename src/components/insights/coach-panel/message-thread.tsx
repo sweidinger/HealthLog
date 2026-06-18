@@ -363,6 +363,13 @@ export function MessageThread({
       data-slot="coach-message-thread"
       className={cn(
         "flex h-full flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-6",
+        // v1.18.6 (CCH-01) — on the now full-width page surface a thread
+        // stretched edge-to-edge sprawled the prose to an unreadable
+        // measure. Centre the content on a comfortable max width (Claude-
+        // like) via an `mx-auto` inner gutter; the scrollbar still rides
+        // the surface edge. The drawer surface is already narrow, so the
+        // cap only bites on the wide page surface.
+        "[&>*]:mx-auto [&>*]:w-full [&>*]:max-w-3xl",
         "scroll-smooth",
       )}
     >

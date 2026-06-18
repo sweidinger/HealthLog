@@ -78,7 +78,18 @@ export function CoachDrawerBody({
           <h2 className="border-border/70 text-muted-foreground flex h-14 shrink-0 items-center border-b px-4 text-xs font-medium tracking-wide uppercase">
             {t("insights.coach.historyTitle")}
           </h2>
-          <div className="min-h-0 flex-1 overflow-y-auto">{historyRail}</div>
+          {/* v1.18.6 (CCH-01) — the wrapping `overflow-y-auto` div here
+              was the broken left scrollbar: `<HistoryRail>` is itself a
+              `flex h-full flex-col` with its OWN `overflow-y-auto` list,
+              so this nested it inside a second scroll container. The
+              outer container scrolled the whole rail (search field
+              included) against an `h-full` child whose height resolved to
+              its content, leaving the inner list's `flex-1 min-h-0`
+              without a bounded track — the scrollbar rendered against an
+              indeterminate height and read as half-broken. Drop the outer
+              scroll: the rail keeps a fixed search header and its single
+              internal list-scroll is the only scroll region. */}
+          <div className="flex min-h-0 flex-1 flex-col">{historyRail}</div>
         </aside>
       )}
 

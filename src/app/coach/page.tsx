@@ -63,15 +63,35 @@ export default function CoachPage() {
     <div
       data-slot="coach-page"
       data-tour-id="coach-hero"
-      // v1.18.1 (W-COACH-UI C1/C3) — the card was capped at
-      // `100dvh-13rem`, leaving a band of wasted space below it on a
-      // standalone route that no longer carries the Insights tab strip.
-      // Claim the page height down to a comfortable bottom gutter so the
-      // thread + rail fill the viewport, and lift the card with a soft
-      // shadow so it reads as one contained surface rather than a thin
-      // outline.
-      className="bg-card flex h-[calc(100dvh-8rem)] min-h-[32rem] flex-col overflow-hidden rounded-2xl border shadow-sm"
+      // v1.18.6 (CCH-01) — Marc: the Coach read "cut off" vs other pages
+      // and wanted more width / a focused Claude-like surface. The page
+      // sits inside `<AuthShell>`'s shared `mx-auto max-w-screen-xl px-4
+      // pt-6 pb-20 md:px-6` content frame, which boxed the chat into the
+      // same narrow column every dashboard card uses and left a tall dead
+      // band below the card (the `pb-20` FAB gutter, pointless here since
+      // the FAB hides on `/coach`). Break out of that frame: negative
+      // margins cancel the container's horizontal + top/bottom padding so
+      // the chat claims the full content width and the viewport height,
+      // then a light inner padding keeps it off the window edge. The card
+      // itself drops its rounded border on small screens (edge-to-edge,
+      // app-like) and keeps the contained card look from `sm+`.
+      //
+      // v1.18.1 (W-COACH-UI C1/C3) — the card formerly capped at
+      // `100dvh-13rem`, leaving wasted space below it; we now fill the
+      // reclaimed height.
+      className={
+        // Cancel the AuthShell container's padding (`-mt-6` top,
+        // `-mb-20` bottom, `-mx-4 md:-mx-6` sides) so the surface is
+        // full-bleed, then re-pad lightly. The height is the full
+        // viewport minus the top bar (`4rem`) and the small gutters.
+        "-mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-4rem)] min-h-[32rem] flex-col md:-mx-6 " +
+        "px-2 pt-2 pb-3 sm:px-4 sm:pt-4 sm:pb-4"
+      }
     >
+      <div
+        data-slot="coach-page-card"
+        className="bg-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-y shadow-sm sm:rounded-2xl sm:border"
+      >
       <CoachConversation
         surface="page"
         autoFocusComposer
@@ -95,7 +115,8 @@ export default function CoachPage() {
             </Button>
           </>
         }
-      />
+        />
+      </div>
     </div>
   );
 }
