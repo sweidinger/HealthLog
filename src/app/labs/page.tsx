@@ -16,7 +16,6 @@ import { useMounted } from "@/hooks/use-mounted";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 export default function LabsPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -68,7 +67,6 @@ export default function LabsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ModuleTourTrigger stopId="labs" />
           {/* v1.18.6 (MOD-01) — the wrench is the module's customize entry
               point, left of the primary Add and linking to the Labs settings
               page (view, sort order, biomarker CRUD + reorder). Mirrors the

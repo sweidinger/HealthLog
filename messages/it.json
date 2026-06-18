@@ -3552,9 +3552,6 @@
       "back": "Indietro",
       "skip": "Salta tour",
       "done": "Ho capito",
-      "restart": "Riavvia la visita ai moduli",
-      "restartHint": "Riproduce la visita guidata ai moduli dall’inizio al tuo prossimo accesso alla dashboard.",
-      "restartConfirmation": "La visita ai moduli ripartirà dall’inizio al tuo prossimo accesso alla dashboard.",
       "steps": {
         "dashboardOverview": {
           "title": "La tua dashboard",
@@ -3616,8 +3613,7 @@
           "title": "Questa è la visita guidata",
           "body": "Puoi rivedere ogni modulo singolarmente in qualsiasi momento («Mostra questa visita» su ogni pagina) o riavviare l’intera visita da Impostazioni → Avanzate."
         }
-      },
-      "moduleTrigger": "Mostra questa visita"
+      }
     },
     "shell": {
       "back": "Indietro",

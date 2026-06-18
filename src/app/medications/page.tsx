@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
@@ -342,7 +341,6 @@ export default function MedicationsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ModuleTourTrigger stopId="medications" />
           {/* v1.16.11 (#316) — "Alle fälligen einnehmen". Contextual, not a
               permanent fixture: it renders only while at least TWO
               medications are currently due (a single due dose is the

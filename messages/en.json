@@ -3552,9 +3552,6 @@
       "back": "Back",
       "skip": "Skip tour",
       "done": "Got it",
-      "restart": "Restart module tour",
-      "restartHint": "Replays the guided module tour from the start on your next dashboard visit.",
-      "restartConfirmation": "The module tour will restart from the beginning on your next dashboard visit.",
       "steps": {
         "dashboardOverview": {
           "title": "Your dashboard",
@@ -3616,8 +3613,7 @@
           "title": "That’s the tour",
           "body": "You can revisit any module on its own at any time (“Show this tour” on every page) or restart the whole tour under Settings → Advanced."
         }
-      },
-      "moduleTrigger": "Show this tour"
+      }
     },
     "shell": {
       "back": "Back",
