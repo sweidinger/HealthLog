@@ -3,11 +3,14 @@
 import { Activity, Gauge, Moon, Repeat, Target, Waves } from "lucide-react";
 
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
+import { useInsightMetricStatus } from "@/hooks/use-insight-status";
 import { useTranslations } from "@/lib/i18n/context";
+import type { DataSummary } from "@/lib/analytics/trends";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { DeviceScoreTile } from "@/components/insights/device-score-tile";
 import { DeviceScoreGridSkeleton } from "@/components/insights/device-score-tile-skeleton";
 import { MetricStatusCard } from "@/components/insights/metric-status-card";
+import { SleepQualityGroundedNote } from "@/components/insights/sleep/sleep-quality-grounded-note";
 
 /**
  * v1.17.1 — "Sleep quality" block on `/insights/sleep`.
@@ -101,13 +104,6 @@ export function SleepQualitySection({ enabled }: { enabled: boolean }) {
   );
   if (present.length === 0) return null;
 
-  // v1.18.1 — the quality block is a distinct chart group, so it carries its
-  // OWN assessment (matching the canonical "multiple charts ⇒ multiple texts"
-  // rule the recovery page meets). Gated on the nightly headline sleep score
-  // having data so the generic assessment route only fires when there is a
-  // quality series to read.
-  const hasSleepScore = (summaries.SLEEP_SCORE?.count ?? 0) > 0;
-
   return (
     <section data-slot="sleep-quality-section" className="space-y-3">
       <SectionHeading
@@ -132,11 +128,58 @@ export function SleepQualitySection({ enabled }: { enabled: boolean }) {
           />
         ))}
       </div>
+      <SleepQualityAssessmentBlock summaries={summaries} />
+    </section>
+  );
+}
+
+/**
+ * The quality block's "Einschätzung". The richer AI narrative wins when it
+ * exists; until then (or forever, on an account with no AI provider) a
+ * deterministic note grounded in the user's own quality averages fills the
+ * slot, so the assessment is never the bare "no analysis yet" line.
+ *
+ * Both reads are gated on the headline sleep score having data — the same gate
+ * the AI route used — so the assessment only surfaces with a quality series to
+ * describe. The grounded note reads the SLEEP_SCORE status query (already
+ * warmed by `<MetricStatusCard>`) to know whether the AI text is absent, so it
+ * adds no second round-trip and the two never stack.
+ */
+function SleepQualityAssessmentBlock({
+  summaries,
+}: {
+  summaries: Record<string, DataSummary | undefined>;
+}) {
+  const hasSleepScore = (summaries.SLEEP_SCORE?.count ?? 0) > 0;
+  const { data: status, isLoading: statusLoading } = useInsightMetricStatus(
+    "SLEEP_SCORE",
+    hasSleepScore,
+  );
+
+  // The AI narrative is "present" when there is text OR the worker is actively
+  // assembling one (preparing / revalidating). In those cases the AI card owns
+  // the slot. The grounded note only steps in once the status query has SETTLED
+  // with no narrative — so it never flashes ahead of a warm AI assessment.
+  const aiAbsent =
+    !statusLoading &&
+    !status?.text &&
+    status?.preparing !== true &&
+    status?.revalidating !== true;
+
+  return (
+    <>
       <MetricStatusCard
         metric="SLEEP_SCORE"
         icon={<Moon className="h-5 w-5" />}
-        enabled={hasSleepScore}
+        // Suppress the AI card's static "no analysis yet" / "no provider"
+        // empty states — the grounded note covers that ground with real
+        // content. The AI card still renders its text / preparing states.
+        enabled={hasSleepScore && !aiAbsent}
       />
-    </section>
+      <SleepQualityGroundedNote
+        summaries={summaries}
+        showWhenAiAbsent={hasSleepScore && aiAbsent}
+      />
+    </>
   );
 }
