@@ -24,6 +24,7 @@
  * Rollup DAY buckets are minted at the UTC midnight of the user-tz day, so
  * keying their `bucketStart` through `dayKeyForUserTz` is exact.
  */
+import pLimit from "p-limit";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { readBestGranularityRollups } from "@/lib/rollups/measurement-read-wmy";
@@ -42,6 +43,13 @@ import {
 } from "./correlation";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Bound the per-vital fan-out so a single episode's scan can't pin the
+ * shared Prisma pool. Mirrors the W-POOL `p-limit(4)` discipline the
+ * analytics summaries slice applies.
+ */
+const VITAL_SCAN_CONCURRENCY = 4;
 
 /** The episode shape the read layer needs (a subset of the Prisma row). */
 export interface EpisodeForCorrelation {
@@ -88,16 +96,30 @@ export async function computeEpisodeCorrelation(
   // mitigation — the same pattern the derived route uses).
   const coverage = await probeRollupCoverage(userId);
 
+  // Attempt every scan type under a bounded concurrency cap. The two
+  // windows per type (baseline + episode) are independent reads, so they
+  // run paired rather than serially (halving the per-type round-trips).
+  // The day-log fever read shares the same fan-out budget.
+  const limit = pLimit(VITAL_SCAN_CONCURRENCY);
+  const [perType, dayLogFever] = await Promise.all([
+    Promise.all(
+      ILLNESS_SCAN_TYPES.map((type) =>
+        limit(async () => {
+          const [baseline, episodeWin] = await Promise.all([
+            readWindowMeans(userId, type, baselineStart, baselineEnd, coverage, tz, now),
+            readWindowMeans(userId, type, preOnsetStart, end, coverage, tz, now),
+          ]);
+          return { type, baseline, episodeWin };
+        }),
+      ),
+    ),
+    limit(() => readDayLogFever(episode.id, preOnsetStart, end, tz)),
+  ]);
+
   const series: VitalSeries[] = [];
   let anyLive = false;
   let anyDay = false;
-
-  // We attempt every scan type. An untracked vital returns empty points and
-  // is dropped below. Each read is a single windowed query, so attempting all
-  // types is bounded.
-  for (const type of ILLNESS_SCAN_TYPES) {
-    const baseline = await readWindowMeans(userId, type, baselineStart, baselineEnd, coverage, tz, now);
-    const episodeWin = await readWindowMeans(userId, type, preOnsetStart, end, coverage, tz, now);
+  for (const { type, baseline, episodeWin } of perType) {
     if (baseline.points.length === 0 && episodeWin.points.length === 0) continue;
     if (baseline.source === "live" || episodeWin.source === "live") anyLive = true;
     if (baseline.source === "DAY" || episodeWin.source === "DAY") anyDay = true;
@@ -110,11 +132,6 @@ export async function computeEpisodeCorrelation(
       episodeDayMax: episodeWin.points.map((p) => ({ day: p.day, mean: p.max })),
     });
   }
-
-  // Union the canonical journaling-fever path: the illness day-log `feverC`
-  // series over the episode window. A user logging 39.2 °C for days with no
-  // HealthKit thermometer must still escalate. Per-day MAX.
-  const dayLogFever = await readDayLogFever(episode.id, preOnsetStart, end, tz);
 
   const source: "DAY" | "live" | "none" = anyDay
     ? "DAY"
