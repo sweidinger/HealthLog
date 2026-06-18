@@ -2029,7 +2029,8 @@
         "distance": "Walking and running distance over the last 30 days.",
         "vo2_max": "VO₂ max over the last 30 days.",
         "body_temp": "Body temperature over the last 30 days."
-      }
+      },
+      "viewDetail": "View {metric} details"
     },
     "vo2Max": {
       "statLatest": "Latest",

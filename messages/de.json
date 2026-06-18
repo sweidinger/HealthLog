@@ -2029,7 +2029,8 @@
         "distance": "Geh- und Laufstrecke der letzten 30 Tage.",
         "vo2_max": "VO₂max der letzten 30 Tage.",
         "body_temp": "Körpertemperatur der letzten 30 Tage."
-      }
+      },
+      "viewDetail": "{metric} im Detail"
     },
     "vo2Max": {
       "statLatest": "Aktuell",
