@@ -71,6 +71,10 @@ export const GET = apiHandler(async () => {
     timezone: user.timezone,
     onboardingCompletedAt: user.onboardingCompletedAt,
     onboardingTourCompleted: user.onboardingTourCompleted,
+    // v1.18.6 (DISC-02) — one-time medical-disclaimer acknowledgment. Null
+    // when never acknowledged; the onboarding welcome gate reads this to
+    // decide whether to require the acknowledgment before "Get started".
+    disclaimerAcknowledgedAt: user.disclaimerAcknowledgedAt,
     // v1.18.6 — resumable module-tour progress. Null when the user has
     // not started the tour; otherwise the resume point the launcher
     // seeds its index from. Fail-soft parse: a corrupt blob degrades to

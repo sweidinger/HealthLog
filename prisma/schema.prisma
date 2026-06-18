@@ -279,6 +279,17 @@ model User {
   // null on a Settings replay so the tour genuinely restarts.
   onboardingTourProgressJson Json? @map("onboarding_tour_progress_json")
 
+  // v1.18.6 (DISC-02) — one-time medical-disclaimer acknowledgment. Shown
+  // once at the start of onboarding: HealthLog is a private tracking tool,
+  // not a clinical assessment or diagnosis; if worried, talk to a doctor.
+  // Mirrors the `researchModeAcknowledged*` pair — the version pins exactly
+  // which copy the user read, so a future material wording change can ask
+  // again. Null = never acknowledged (legacy accounts read as never-asked;
+  // the prompt only gates fresh onboarding, so they are not re-walled). The
+  // acknowledged legal text stays reachable on the public privacy page.
+  disclaimerAcknowledgedAt      DateTime? @map("disclaimer_acknowledged_at")
+  disclaimerAcknowledgedVersion String?   @map("disclaimer_acknowledged_version")
+
   // HealthKit (iOS) integration config — list of per-metric direction toggles.
   // Shape: { entries: [{ id, kind, direction, enabled }], lastSyncedAt }
   healthKitConfigJson   Json?     @map("healthkit_config_json")
