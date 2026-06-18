@@ -896,13 +896,24 @@
  * for reduced motion. The per-component blocks above stay — they carry
  * tailored static fallbacks (static dots, full-height bars). This is the
  * floor, not a replacement. Near-zero (not 0) keeps JS animation-end /
- * transition-end listeners firing so state machines don't stall. */
+ * transition-end listeners firing so state machines don't stall.
+ *
+ * `animation-fill-mode: forwards` + `animation-delay: 0ms` are load-bearing:
+ * several entrance animations rest at `opacity: 0` and only become visible
+ * through their reveal keyframe. Without holding the end state (and without
+ * zeroing the stagger delay) the near-zero animation completes and the
+ * element snaps back to its hidden base style — leaving charts and list
+ * rows permanently invisible under reduced motion. Forwards pins the final
+ * (revealed) frame; zero delay reveals immediately. Per-component blocks
+ * above that set `animation: none` are unaffected (no animation to fill). */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-fill-mode: forwards !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
