@@ -4,7 +4,7 @@ Working notes for anyone (human or otherwise) editing this repository. Skim befo
 
 ## What HealthLog is
 
-Self-hosted personal-health-tracking PWA: weight, blood pressure, pulse, body composition, glucose, sleep, mood, medication compliance. Withings + Apple Health sync, multi-provider AI Insights (BYOK or local), doctor-report PDF, native iOS client in public beta. Single `docker compose up`, Postgres-backed, AES-256-GCM at rest. PolyForm Noncommercial 1.0.0 (AGPL-3.0 through v1.15.18). Current line: v1.12.x.
+Self-hosted personal-health-tracking PWA: weight, blood pressure, pulse, body composition, glucose, sleep, mood, medication compliance. Withings + Apple Health sync, multi-provider AI Insights (BYOK or local), doctor-report PDF, native iOS client in public beta. Single `docker compose up`, Postgres-backed, AES-256-GCM at rest. PolyForm Noncommercial 1.0.0 (AGPL-3.0 through v1.15.18). Current line: v1.18.x.
 
 ## Voice and privacy
 
@@ -37,8 +37,8 @@ Prefer patch bumps. A release dominated by bug fixes plus additive features with
 | Runtime | Node 22 (Alpine) + pnpm 10.31 | Node version fixed only by the Dockerfile base image; no `.nvmrc` or `engines`. |
 | Framework | Next.js 16.2.6 — App Router, `output: "standalone"` | SWC strips `console.*` in prod except `error/warn`. |
 | Language | TypeScript 6, `strict: true`, `moduleResolution: "bundler"` | Path alias `@/*` → `./src/*`. `scripts/` excluded from typecheck. |
-| UI | React 19.2.5 (exact), Tailwind 4, shadcn/ui (new-york style, zinc base), Radix, Lucide | Recharts 3 for charts — stays; replacement requires explicit approval. |
-| Persistence | PostgreSQL 16 + Prisma 7.8 — 61 models | Generated client at `src/generated/prisma`. Production image ships a separate `/opt/prisma-cli` install + `/opt/pg-boss` runtime install (see `Dockerfile:74-83`). |
+| UI | React 19 (exact pin), Tailwind 4, shadcn/ui (new-york style, zinc base), Radix, Lucide | Recharts 3 for charts — stays; replacement requires explicit approval. |
+| Persistence | PostgreSQL 16 + Prisma 7.8 — 80 models | Generated client at `src/generated/prisma`. Production image ships a separate `/opt/prisma-cli` install + `/opt/pg-boss` runtime install (see `Dockerfile:93-100`). |
 | Queue | pg-boss 12.18 | Cron + retry semantics live in Postgres tables; workers under `src/lib/jobs/`. |
 | Auth | `@simplewebauthn/server` 13, `@node-rs/argon2` 2 | Passkey + Argon2id password, server-side sessions in Postgres. |
 | Notifications | `@parse/node-apn` 8 (APNs), `web-push` 3 (VAPID), raw fetch for Telegram + ntfy | Per-channel `recordPushAttempt` row, hard-reject classification. |
@@ -71,8 +71,9 @@ handler body                         Zod parse (`safeParse` + `returnAllZodIssue
   │                                  business logic, `annotate({ action, meta })`,
   │                                  `auditLog()` for sensitive ops.
   ▼
-src/lib/api-response.ts              `apiSuccess(data, meta?)` / `apiError(msg, status,
-  │                                  meta?)` — every response is `{ data, error, meta? }`.
+src/lib/api-response.ts              `apiSuccess(data, status?)` → `{ data, error: null }`;
+  │                                  `apiError(msg, status, meta?)` threads `meta` on the
+  │                                  error path only — `{ data: null, error, meta? }`.
   ▼
 src/proxy.ts                         security headers attach, request-id echoes.
   ▼
@@ -87,9 +88,9 @@ The architecture map in `.planning/codebase/arch.md` walks each layer with file:
 - **Every API route wraps in `apiHandler`.** Verified — zero exceptions in the current tree. Every body-accepting route runs Zod `safeParse` and returns 422 via `returnAllZodIssues` (multi-issue envelope sanitised against echoed input through `sanitiseZodIssues`).
 - **`userId` is always narrowed from session or Bearer.** No route accepts `userId` as a body field — it comes from `requireAuth()` and feeds the Prisma `where`. The batch endpoints (`/api/measurements/batch`, `/api/mood-entries/bulk`, `/api/medications/intake/bulk`, `/api/workouts/batch`) don't even declare a `userId` field in their Zod schemas.
 - **No mass assignment.** Every `prisma.X.{create,update}({ data: ... })` builds its `data` object field-by-field from `parsed.data`, never by spreading the parsed object whole. `tokens.create` hardcodes the narrow scope so the user-facing endpoint can never mint a wildcard token.
-- **`requireAdmin()` is cookie-only.** Bearer tokens — even with `["*"]` scope — cannot reach admin endpoints. This is a structural boundary at `src/lib/api-handler.ts:414-431`, not a runtime check that future code can soften.
-- **Raw SQL is parameter-bound or whitelist-spliced.** Every `$queryRaw` uses tagged-template parameters. Every `$queryRawUnsafe` / `$executeRawUnsafe` either passes positional `$N` placeholders with an argument array OR splices a value already asserted against a closed enum + regex (see `src/lib/rollups/measurement-rollups.ts:330-343`). Inline comments document the whitelist at the splice point.
-- **TanStack Query keys live in the centralised factory.** `src/lib/query-keys.ts` is the only legal source of `queryKey` / `mutationKey` arrays. The in-repo ESLint rule `healthlog/queryKey-factory` (set to `error`) flags any bare array. Same-key + different `queryFn` shape silently poisons the cache; the factory prevents it. Every read unwraps `(await res.json()).data` from the envelope.
+- **`requireAdmin()` is cookie-only.** Bearer tokens — even with `["*"]` scope — cannot reach admin endpoints. This is a structural boundary in `requireAdmin()` (`src/lib/api-handler.ts`), not a runtime check that future code can soften.
+- **Raw SQL is parameter-bound or whitelist-spliced.** Every `$queryRaw` uses tagged-template parameters. Every `$queryRawUnsafe` / `$executeRawUnsafe` either passes positional `$N` placeholders with an argument array OR splices a value already asserted against a closed enum + regex (see the whitelist-splice block in `src/lib/rollups/measurement-rollups.ts`, around the `$queryRawUnsafe` calls). Inline comments document the whitelist at the splice point.
+- **TanStack Query keys live in the centralised factory.** `src/lib/query-keys/` (16 modules, `index.ts` barrel) is the only legal source of `queryKey` / `mutationKey` arrays. The in-repo ESLint rule `healthlog/queryKey-factory` (set to `error`) flags any bare array. Same-key + different `queryFn` shape silently poisons the cache; the factory prevents it. Every read unwraps `(await res.json()).data` from the envelope.
 - **`annotate()` on every interesting code path.** Wide-event observability. Action names follow `<surface>.<noun>.<verb>` (`coach.budget.exceeded`, `measurement.batch.ingest`). Don't free-text in `meta` — pin the shape so dashboards stay stable.
 - **i18n keys exist for every `t()` call.** `i18n-call-site-coverage.test.ts` walks every `.ts(x)` under `src/`, extracts every `t("ns.key")` literal, and asserts each key resolves in `messages/en.json`. `i18n-locale-integrity.test.ts` propagates the EN guarantee across `de / en / es / fr / it / pl`. If a guard fails, fix the bundle, don't suppress the test.
 - **OpenAPI registry stays in sync.** Zod schemas carry `.meta()` annotations under `src/lib/openapi/`; `pnpm openapi:generate` emits `docs/api/openapi.yaml`. CI fails on drift. Re-run the generator after touching a request / response schema and commit the YAML alongside the Zod change.
@@ -112,7 +113,7 @@ The architecture map in `.planning/codebase/arch.md` walks each layer with file:
 | Concern | File | What it owns |
 |---|---|---|
 | HTTP edge | `src/proxy.ts` | Public-path allowlist, demo-mode block, onboarding redirect, request-id + CSP nonce, every security header, worker-only refusal. |
-| API kit | `src/lib/api-handler.ts` (490 LOC) | `apiHandler` wrapper, `requireAuth` / `requireAdmin`, idempotency plumbing, GlitchTip forwarder. |
+| API kit | `src/lib/api-handler.ts` | `apiHandler` wrapper, `requireAuth` / `requireAdmin`, idempotency plumbing, GlitchTip forwarder. |
 | Response envelope | `src/lib/api-response.ts` | `apiSuccess` / `apiError`, `safeJson` (now with opt-in `maxBytes`), trusted-proxy IP resolver, `returnAllZodIssues` + `sanitiseZodIssues`. |
 | Crypto at rest | `src/lib/crypto.ts` | AES-256-GCM with versioned key ids, `extractKeyId`, fail-closed loader, rotation primitives. Rotation CLI: `scripts/rotate-encryption-key.ts`. |
 | Session | `src/lib/auth/session.ts` + `src/lib/auth/secure-cookie.ts` | Postgres-backed sessions, sliding 30-day expiry, `shouldEmitSecureCookie()` the one source of truth for the `Secure` flag (every cookie setter routes through it). |
@@ -120,11 +121,11 @@ The architecture map in `.planning/codebase/arch.md` walks each layer with file:
 | Bearer tokens | `src/lib/auth/hmac.ts` + `src/lib/auth/issue-token.ts` | HMAC-SHA256 hashing under `API_TOKEN_HMAC_KEY`; no plaintext path; `lastUsedAt` updated fire-and-forget. |
 | Rollup tier | `src/lib/rollups/` | DAY / WEEK / MONTH / YEAR pre-aggregations. Read-swap pattern: try the rollup, fall back to live SQL only on coverage miss. Boot-time `rollup-full-backfill` queue handles new accounts. |
 | Compliance | `src/lib/analytics/compliance.ts` | Cadence-aware medication compliance — daysOfWeek + intervalWeeks honoured across the eight call sites that surface a rate (Coach prompt, BP-status gate, dashboard pillar, …). |
-| AI providers | `src/lib/ai/provider-chain.ts` + `src/lib/ai/{openai,anthropic,local,codex,mock}-client.ts` | Five providers, hand-rolled fetch over the documented wire (no vendor SDKs). Mock is not registered in `resolveProvider()` — production cannot reach it. |
+| AI providers | `src/lib/ai/provider.ts` (`resolveProvider`) + `src/lib/ai/provider-chain.ts` (`PROVIDER_CHAIN_TYPES`) + `src/lib/ai/{openai,anthropic,local,codex,mock}-client.ts` | Five providers, hand-rolled fetch over the documented wire (no vendor SDKs). Mock is excluded structurally by the `PROVIDER_CHAIN_TYPES` allowlist — production cannot reach it. |
 | Notification dispatcher | `src/lib/notifications/dispatcher.ts` + `src/lib/notifications/senders/` | APNs → Telegram → ntfy → Web Push cascade, hard-reject classification, `push_attempts` ledger with 90-day retention. |
 | Coach | `src/app/api/insights/chat/route.ts` + `src/lib/ai/coach/` | SSE stream, budget gate + per-user rate gate, refusal detector, snapshot builder, message persistence with `encryptedContent` Bytes column. |
-| OpenAPI | `src/lib/openapi/registry.ts` + `src/lib/openapi/routes.ts` | Source of truth for `docs/api/openapi.yaml`. |
-| Schema | `prisma/schema.prisma` (61 models) | `cuid()` PKs, `snake_case` columns via `@map`, encrypted columns mostly under `*Encrypted` (search the file). |
+| OpenAPI | `src/lib/openapi/registry.ts` + `src/lib/openapi/routes/` (23 modules, `index.ts` barrel) | Source of truth for `docs/api/openapi.yaml`. |
+| Schema | `prisma/schema.prisma` (80 models) | `cuid()` PKs, `snake_case` columns via `@map`, encrypted columns mostly under `*Encrypted` (search the file). |
 | Compose | `docker-compose.yml` | `app` + `db`. Env-var whitelist under `environment:` — vars not listed never reach the container. `pull_policy: always` is load-bearing. |
 
 `.planning/codebase/arch.md` carries the full annotated walk for every section.
@@ -134,7 +135,7 @@ The architecture map in `.planning/codebase/arch.md` walks each layer with file:
 The v1.5.2 audit produced `.planning/security-audit-v1.5.2.md` and a stack of per-domain findings under `.planning/security-audit-findings/`. The patterns worth preserving on future churn:
 
 - **Encryption: fail closed everywhere.** Missing keys, malformed JSON, unknown key ids — every path throws rather than silently writing plaintext. Operators rotating keys must keep the legacy entry in `ENCRYPTION_KEYS` until the rotation script reports zero remaining legacy rows. The script covers every `*Encrypted` column + `CoachMessage.encryptedContent` (Bytes) + `IntegrationStatus.lastError`.
-- **SSRF: input-time `isPublicUrl` is the floor.** The helper in `src/lib/validations/notifications.ts:64` catches every IPv4 / IPv6 alt-notation class (octal / hex / decimal IPv4, IPv4-mapped IPv6, IPv6 ULA, CGNAT, link-local, loopback, metadata). Use it for every outbound URL that comes from a user / admin input. DNS rebinding and the redirect-follow gap remain as architectural follow-ups (issues #217 + #218). Until those land, every NEW outbound `fetch()` that touches a user-controlled host must pin `redirect: "manual"` and an `AbortSignal.timeout`.
+- **SSRF: input-time `isPublicUrl` is the floor.** The helper `isPublicUrl()` in `src/lib/validations/notifications.ts` catches every IPv4 / IPv6 alt-notation class (octal / hex / decimal IPv4, IPv4-mapped IPv6, IPv6 ULA, CGNAT, link-local, loopback, metadata). Use it for every outbound URL that comes from a user / admin input. DNS rebinding and the redirect-follow gap remain as architectural follow-ups (issues #217 + #218). Until those land, every NEW outbound `fetch()` that touches a user-controlled host must pin `redirect: "manual"` and an `AbortSignal.timeout`.
 - **Outbound egress goes through `safeFetch`.** `src/lib/safe-fetch.ts` is the one documented egress entry (`redirect: "manual"` + `AbortSignal.timeout(15_000)` defaults; opt into the connect-time DNS-rebinding pin with `requirePublicHost: true` for any operator- or user-supplied host). The in-repo ESLint rule `healthlog/safe-fetch-required` (set to `error`) bans raw `fetch(` under `src/lib/` + `src/app/` outside the wrapper internals and test files; same-origin relative-path (`/api/…`) client fetches are exempt by construction.
 - **Rate limits live in Postgres.** `src/lib/rate-limit.ts` uses a single atomic SQL upsert returning `{count, reset_at}`. Multi-instance correctness is structural. Bucket-key convention: `<surface>:${identifier}` where identifier is `userId` for authenticated routes and the trusted-proxy IP for anonymous. Anonymous auth surfaces use `checkAuthSurfaceRateLimit(...)` so a trust-violation collapses every anonymous caller into a single tight bucket rather than a free-for-all under the unknown-IP bucket.
 - **Webhooks: shared-secret + `timingSafeEqual` + per-source rate limit BEFORE secret verification.** Withings, Telegram, moodLog, the Coolify deploy webhook, and the CSP report endpoint all follow this exact pattern. The Withings path-segment secret is scrubbed from `http.path` / `http.route` by `redactSecrets()` via the `PATH_SECRET_PATHS` registry in `src/lib/logging/redact.ts:40`.

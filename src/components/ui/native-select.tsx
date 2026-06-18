@@ -59,13 +59,14 @@ const NATIVE_SELECT_CLASS =
 
 export type NativeSelectProps = React.SelectHTMLAttributes<HTMLSelectElement>;
 
-export const NativeSelect = React.forwardRef<
-  HTMLSelectElement,
-  NativeSelectProps
->(function NativeSelect({ className, children, style, ...props }, ref) {
+export function NativeSelect({
+  className,
+  children,
+  style,
+  ...props
+}: NativeSelectProps) {
   return (
     <select
-      ref={ref}
       data-slot="native-select"
       className={cn(NATIVE_SELECT_CLASS, className)}
       style={style}
@@ -74,4 +75,4 @@ export const NativeSelect = React.forwardRef<
       {children}
     </select>
   );
-});
+}

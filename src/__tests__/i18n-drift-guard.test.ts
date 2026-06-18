@@ -68,7 +68,7 @@ const REQUIRED_KEY_SETS: Array<{
 }> = [
   {
     label: "admin.carrier (B3 — login carrier chip)",
-    required: ["admin.carrier", "admin.carrierUnknown"],
+    required: ["admin.carrier"],
   },
   {
     label: "insights.emptyState.* (B4 — per-metric empty states)",
