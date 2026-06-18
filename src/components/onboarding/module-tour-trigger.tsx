@@ -9,7 +9,7 @@
  * opens the spotlight narrowed to that single module card on the
  * current page (no cross-page navigation, no completion flip).
  *
- * Anchors to the page's `data-tour="<…>-hero"` element via the launcher
+ * Anchors to the page's `data-tour-id="<…>-hero"` element via the launcher
  * → overlay path. The button itself carries no anchor — it only fires
  * the event.
  */

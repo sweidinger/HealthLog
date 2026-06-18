@@ -262,6 +262,9 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
   const visibleSections = SETTINGS_SECTIONS.filter(
     (section) => !section.moduleGate || modules?.[section.moduleGate] !== false,
   );
+  const activeSection = visibleSections.find(
+    (section) => section.slug === activeSlug,
+  );
 
   // v1.4.33 IW4 — keep the active chip in view inside the horizontal
   // mobile strip. On a 393 CSS px viewport the strip is wider than the
@@ -360,8 +363,13 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
           <div className="sticky top-20">
             {/* v1.18.6 (W9) — push the first nav item down to the top of the
                 first card (level with the page heading's following gap), so
-                the menu reads symmetric with the content column. */}
-            <SectionNavHeadingSpacer />
+                the menu reads symmetric with the content column. Feed the
+                active title so the spacer's h1 wraps the same way (L11). */}
+            <SectionNavHeadingSpacer
+              title={
+                activeSection ? t(activeSection.titleKey) : undefined
+              }
+            />
             <ul className="space-y-1">
               {visibleSections.map((section) => {
                 const isActive = section.slug === activeSlug;

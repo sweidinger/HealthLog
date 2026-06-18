@@ -14,11 +14,18 @@
  *
  * It is only rendered on `md+` (the desktop sticky sidebar); the mobile chip
  * strip has no heading-to-align-with.
+ *
+ * v1.18.6 (L11) — pass the active section's resolved `title` so the h1 line
+ * wraps identically when a locale's title runs to two lines, rather than
+ * reserving a single `&nbsp;` line. The subtitle copy lives per-page in the
+ * section frame and is not threaded up here, so the spacer reserves one
+ * subtitle line; a subtitle that wraps to two lines in a given locale is the
+ * residual known limitation the original comment called out.
  */
-export function SectionNavHeadingSpacer() {
+export function SectionNavHeadingSpacer({ title }: { title?: string }) {
   return (
     <div aria-hidden="true" className="invisible mb-6 select-none">
-      <h1 className="text-2xl font-bold tracking-tight">&nbsp;</h1>
+      <h1 className="text-2xl font-bold tracking-tight">{title || " "}</h1>
       <p className="text-muted-foreground text-sm">&nbsp;</p>
     </div>
   );
