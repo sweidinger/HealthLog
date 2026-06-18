@@ -4385,6 +4385,47 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/insights/coach/nudge-status:
+    get:
+      tags:
+        - Insights
+      summary: Whether an unopened Coach message is waiting
+      description: v1.18.6 (CCH-03) — server-authoritative unread signal for the Coach FAB. `unread` is true when the caller's
+        newest Coach ASSISTANT message (a proactive nudge or any reply) is newer than `User.coachLastSeenAt`; a user who
+        has never opened the Coach reads an existing nudge as unread exactly once. `nudgedAt` carries that newest
+        assistant-message timestamp (null when none exists) so the client can key a local seen-mirror on a stable value.
+        Coach-gated (`requireAssistantSurface("coach")`); a disabled surface 403s. Auth via cookie or Bearer; the owner
+        is narrowed from the session.
+      responses:
+        "200":
+          description: The current unread state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachNudgeStatus"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/insights/coach/seen:
+    post:
+      tags:
+        - Insights
+      summary: Mark the Coach as opened (clear the unread dot)
+      description: v1.18.6 (CCH-03) — opening the Coach (drawer or full page) stamps `User.coachLastSeenAt = now()`, so `GET
+        /api/insights/coach/nudge-status` then reports no assistant message newer than the stamp and the FAB drops the
+        unread dot. Server-authoritative, so the cleared state follows the caller across web + iOS rather than just the
+        opening device. No request body — the timestamp is server-minted, so a client can never backdate the stamp to
+        suppress a future nudge. Coach-gated; a disabled surface 403s. Auth via cookie or Bearer.
+      responses:
+        "200":
+          description: The Coach was marked opened; the stamp is echoed back.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachSeenResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/coach/about-me:
     get:
       tags:
@@ -15764,6 +15805,64 @@ components:
                 id (idempotent no-op).
           required:
             - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachNudgeStatus:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            nudgedAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                - type: "null"
+              description: Timestamp of the newest Coach assistant message; null when none exists.
+            unread:
+              type: boolean
+              description: True when that message is newer than the last time the caller opened the Coach.
+          required:
+            - nudgedAt
+            - unread
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachSeenResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            seenAt:
+              type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              description: The server-minted open timestamp.
+          required:
+            - seenAt
           additionalProperties: false
         error:
           type: "null"

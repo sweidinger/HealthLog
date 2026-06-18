@@ -645,6 +645,66 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       },
     },
   },
+  "/api/insights/coach/nudge-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Whether an unopened Coach message is waiting",
+      description:
+        "v1.18.6 (CCH-03) — server-authoritative unread signal for the Coach FAB. `unread` is true when the caller's newest Coach ASSISTANT message (a proactive nudge or any reply) is newer than `User.coachLastSeenAt`; a user who has never opened the Coach reads an existing nudge as unread exactly once. `nudgedAt` carries that newest assistant-message timestamp (null when none exists) so the client can key a local seen-mirror on a stable value. Coach-gated (`requireAssistantSurface(\"coach\")`); a disabled surface 403s. Auth via cookie or Bearer; the owner is narrowed from the session.",
+      responses: {
+        "200": {
+          description: "The current unread state.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  nudgedAt: z
+                    .iso.datetime({ offset: true })
+                    .nullable()
+                    .describe(
+                      "Timestamp of the newest Coach assistant message; null when none exists.",
+                    ),
+                  unread: z
+                    .boolean()
+                    .describe(
+                      "True when that message is newer than the last time the caller opened the Coach.",
+                    ),
+                }),
+                "CoachNudgeStatus",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/coach/seen": {
+    post: {
+      tags: ["Insights"],
+      summary: "Mark the Coach as opened (clear the unread dot)",
+      description:
+        "v1.18.6 (CCH-03) — opening the Coach (drawer or full page) stamps `User.coachLastSeenAt = now()`, so `GET /api/insights/coach/nudge-status` then reports no assistant message newer than the stamp and the FAB drops the unread dot. Server-authoritative, so the cleared state follows the caller across web + iOS rather than just the opening device. No request body — the timestamp is server-minted, so a client can never backdate the stamp to suppress a future nudge. Coach-gated; a disabled surface 403s. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description: "The Coach was marked opened; the stamp is echoed back.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  seenAt: z
+                    .iso.datetime({ offset: true })
+                    .describe("The server-minted open timestamp."),
+                }),
+                "CoachSeenResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/coach/about-me": {
     get: {
       tags: ["Insights"],
