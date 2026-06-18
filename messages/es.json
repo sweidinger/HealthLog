@@ -3626,7 +3626,10 @@
       "learning": "Algunas conclusiones —glucosa, ritmo de sueño, tendencias de presión arterial, ciclo— se afinan durante la primera semana o dos a medida que se acumulan tus datos. Las casillas vacías ahora solo significan que aún estamos aprendiendo tu línea base.",
       "connectCta": "Conectar un dispositivo",
       "logCta": "Registra tu primera medición",
-      "importCta": "Importar historial existente"
+      "importCta": "Importar historial existente",
+      "aiTitle": "Activar Insights con IA (opcional)",
+      "aiBody": "El coach, el briefing diario y las valoraciones convierten tus lecturas en lenguaje claro. Para ello conectas tu propia clave de IA (OpenAI, Anthropic) o un modelo local: tus datos siguen siendo tuyos.",
+      "aiCta": "Conectar un proveedor de IA"
     },
     "welcomeBack": {
       "title": "Bienvenido de nuevo",

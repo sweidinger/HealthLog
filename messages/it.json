@@ -3626,7 +3626,10 @@
       "learning": "Alcune analisi — glicemia, ritmo del sonno, tendenze della pressione, ciclo — si affinano nella prima settimana o due man mano che i tuoi dati si accumulano. Le caselle vuote ora indicano solo che stiamo ancora imparando il tuo riferimento.",
       "connectCta": "Collega un dispositivo",
       "logCta": "Registra la tua prima misurazione",
-      "importCta": "Importa la cronologia esistente"
+      "importCta": "Importa la cronologia esistente",
+      "aiTitle": "Attiva gli Insight IA (facoltativo)",
+      "aiBody": "Il coach, il briefing giornaliero e le valutazioni trasformano le tue misurazioni in linguaggio chiaro. Per farlo colleghi la tua chiave IA (OpenAI, Anthropic) o un modello locale: i tuoi dati restano tuoi.",
+      "aiCta": "Collega un provider IA"
     },
     "welcomeBack": {
       "title": "Bentornato",

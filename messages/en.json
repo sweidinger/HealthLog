@@ -3626,7 +3626,10 @@
       "learning": "Some insights — glucose, sleep rhythm, blood-pressure trends, cycle — sharpen over the first week or two as your data builds up. Empty tiles now just mean we're still learning your baseline.",
       "connectCta": "Connect a device",
       "logCta": "Log your first measurement",
-      "importCta": "Import existing history"
+      "importCta": "Import existing history",
+      "aiTitle": "Turn on AI Insights (optional)",
+      "aiBody": "Coach, the daily briefing and assessments turn your readings into plain language. For that you connect your own AI key (OpenAI, Anthropic) or a local model — your data stays with you.",
+      "aiCta": "Connect an AI provider"
     },
     "welcomeBack": {
       "title": "Welcome back",

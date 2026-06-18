@@ -3626,7 +3626,10 @@
       "learning": "Certaines analyses — glycémie, rythme de sommeil, tendances de tension, cycle — s'affinent au cours de la première semaine ou deux à mesure que vos données s'accumulent. Des tuiles vides signifient simplement que nous apprenons encore votre référence.",
       "connectCta": "Connecter un appareil",
       "logCta": "Enregistrez votre première mesure",
-      "importCta": "Importer un historique existant"
+      "importCta": "Importer un historique existant",
+      "aiTitle": "Activer les Insights IA (facultatif)",
+      "aiBody": "Le coach, le briefing quotidien et les évaluations traduisent tes mesures en langage clair. Pour cela, connecte ta propre clé IA (OpenAI, Anthropic) ou un modèle local — tes données restent chez toi.",
+      "aiCta": "Connecter un fournisseur d'IA"
     },
     "welcomeBack": {
       "title": "Bon retour",

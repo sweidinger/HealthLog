@@ -3626,7 +3626,10 @@
       "learning": "Niektóre wnioski — glukoza, rytm snu, trendy ciśnienia, cykl — wyostrzają się w ciągu pierwszego tygodnia lub dwóch, w miarę gromadzenia danych. Puste kafelki oznaczają teraz tylko, że wciąż poznajemy Twój punkt odniesienia.",
       "connectCta": "Połącz urządzenie",
       "logCta": "Zapisz pierwszy pomiar",
-      "importCta": "Importuj istniejącą historię"
+      "importCta": "Importuj istniejącą historię",
+      "aiTitle": "Włącz Insighty AI (opcjonalnie)",
+      "aiBody": "Coach, codzienny briefing i oceny zamieniają Twoje pomiary w prosty język. W tym celu łączysz własny klucz AI (OpenAI, Anthropic) lub model lokalny — Twoje dane pozostają u Ciebie.",
+      "aiCta": "Połącz dostawcę AI"
     },
     "welcomeBack": {
       "title": "Witaj ponownie",
