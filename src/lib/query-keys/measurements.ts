@@ -85,17 +85,36 @@ export const measurementKeys = {
     // (scaled) series doesn't bleed across charts that share the
     // underlying raw window.
     valueScale: number = 1,
+    // v1.18.6 — read-mode discriminator ("preloaded" vs "fetch"). The
+    // dashboard's batched-slice render and a self-fetch must not share a
+    // cache entry, otherwise a range-tab change (which drops batched
+    // coverage) could read a batched slice. Defaults to "" and is only
+    // appended when set, so every pre-v1.18.6 caller packs a
+    // byte-identical tuple and the existing cache layout is unchanged.
+    readMode: string = "",
   ) =>
-    [
-      "chart-data",
-      types,
-      valueMode,
-      bmiDivisor,
-      timezone,
-      fromIso,
-      toIso,
-      valueScale,
-    ] as const,
+    (readMode
+      ? ([
+          "chart-data",
+          types,
+          valueMode,
+          bmiDivisor,
+          timezone,
+          fromIso,
+          toIso,
+          valueScale,
+          readMode,
+        ] as const)
+      : ([
+          "chart-data",
+          types,
+          valueMode,
+          bmiDivisor,
+          timezone,
+          fromIso,
+          toIso,
+          valueScale,
+        ] as const)),
 
   /**
    * v1.8.5 — bounded recent-timestamp read powering the
@@ -106,4 +125,15 @@ export const measurementKeys = {
    */
   measurementDiversity: (type: string) =>
     ["measurement-diversity", type] as const,
+
+  /**
+   * v1.18.6 — batched dashboard daily series
+   * (`GET /api/measurements/series-batch`). Shares the `chart-data`
+   * prefix so a fresh measurement evicts it alongside the per-chart
+   * caches (it lands in `measurementDependentKeys`). Keyed by the
+   * comma-joined type list + the ISO window so a changed visible-chart
+   * set or window re-fetches cleanly.
+   */
+  chartSeriesBatch: (types: string, fromIso: string, toIso: string) =>
+    ["chart-data", "series-batch", types, fromIso, toIso] as const,
 };

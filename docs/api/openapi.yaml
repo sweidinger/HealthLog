@@ -1443,6 +1443,55 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/measurements/series-batch:
+    get:
+      tags:
+        - Measurements
+      summary: Batched daily series (dashboard fetch coalescing)
+      description: Returns the rollup-backed daily series for every requested MeasurementType in ONE response, so the
+        dashboard chart row does a single round-trip instead of one self-fetch per chart. Each per-type series is
+        byte-identical with `GET /api/measurements?aggregate=daily&source=rollup` for the same window. SLEEP_DURATION is
+        not served here (it rides the per-night reconstruction at `/api/measurements/series?kind=sleep`). Auth via
+        cookie or Bearer.
+      parameters:
+        - in: query
+          name: types
+          schema:
+            description: Comma-separated list of MeasurementType values (1..16). Each is read as a daily series through the rollup
+              tier.
+            type: string
+            minLength: 1
+          required: true
+          description: Comma-separated list of MeasurementType values (1..16). Each is read as a daily series through the rollup
+            tier.
+        - in: query
+          name: from
+          schema:
+            description: Window start (ISO-8601 instant).
+            type: string
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          required: true
+          description: Window start (ISO-8601 instant).
+        - in: query
+          name: to
+          schema:
+            description: Window end (ISO-8601 instant).
+            type: string
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          required: true
+          description: Window end (ISO-8601 instant).
+      responses:
+        "200":
+          description: Per-type daily series.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMeasurementsSeriesBatchResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/measurements/series:
     get:
       tags:
@@ -10175,6 +10224,277 @@ components:
         - updatedAt
       additionalProperties: false
       description: A soft-deleted medication intake, keyed on server `id`. Apply before upserts within the domain page.
+    GetMeasurementsSeriesBatchResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementsSeriesBatchResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementsSeriesBatchResponse:
+      type: object
+      properties:
+        series:
+          type: object
+          propertyNames:
+            type: string
+            enum:
+              - WEIGHT
+              - BLOOD_PRESSURE_SYS
+              - BLOOD_PRESSURE_DIA
+              - PULSE
+              - BODY_FAT
+              - SLEEP_DURATION
+              - ACTIVITY_STEPS
+              - BLOOD_GLUCOSE
+              - TOTAL_BODY_WATER
+              - BONE_MASS
+              - OXYGEN_SATURATION
+              - HEART_RATE_VARIABILITY
+              - RESTING_HEART_RATE
+              - ACTIVE_ENERGY_BURNED
+              - FLIGHTS_CLIMBED
+              - WALKING_RUNNING_DISTANCE
+              - VO2_MAX
+              - BODY_TEMPERATURE
+              - FAT_FREE_MASS
+              - FAT_MASS
+              - MUSCLE_MASS
+              - SKIN_TEMPERATURE
+              - PULSE_WAVE_VELOCITY
+              - VASCULAR_AGE
+              - VISCERAL_FAT
+              - AUDIO_EXPOSURE_ENV
+              - AUDIO_EXPOSURE_HEADPHONE
+              - TIME_IN_DAYLIGHT
+              - WALKING_STEADINESS
+              - AUDIO_EXPOSURE_EVENT
+              - RESPIRATORY_RATE
+              - BODY_MASS_INDEX
+              - LEAN_BODY_MASS
+              - WALKING_HEART_RATE_AVERAGE
+              - WALKING_ASYMMETRY
+              - WALKING_DOUBLE_SUPPORT
+              - WALKING_STEP_LENGTH
+              - WALKING_SPEED
+              - CARDIO_RECOVERY
+              - WRIST_TEMPERATURE
+              - FALL_COUNT
+              - SIX_MINUTE_WALK_DISTANCE
+              - STAIR_ASCENT_SPEED
+              - STAIR_DESCENT_SPEED
+              - BREATHING_DISTURBANCES
+              - IRREGULAR_RHYTHM_NOTIFICATION
+              - HIGH_HEART_RATE_EVENT
+              - LOW_HEART_RATE_EVENT
+              - WALKING_STEADINESS_EVENT
+              - BREATHING_DISTURBANCE_EVENT
+              - RECOVERY_SCORE
+              - STRESS_SCORE
+              - STRAIN_SCORE
+              - HRV_RMSSD
+              - DAY_STRAIN
+              - WORKOUT_STRAIN
+              - SLEEP_PERFORMANCE
+              - SLEEP_EFFICIENCY
+              - SLEEP_CONSISTENCY
+              - SLEEP_NEED
+              - ENERGY_EXPENDITURE_KJ
+              - AVERAGE_HEART_RATE
+              - MAX_HEART_RATE
+              - SLEEP_DISTURBANCE_COUNT
+              - ANS_CHARGE
+              - CARDIO_LOAD
+              - SLEEP_SCORE
+              - BODY_TEMPERATURE_DEVIATION
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - WEIGHT
+                    - BLOOD_PRESSURE_SYS
+                    - BLOOD_PRESSURE_DIA
+                    - PULSE
+                    - BODY_FAT
+                    - SLEEP_DURATION
+                    - ACTIVITY_STEPS
+                    - BLOOD_GLUCOSE
+                    - TOTAL_BODY_WATER
+                    - BONE_MASS
+                    - OXYGEN_SATURATION
+                    - HEART_RATE_VARIABILITY
+                    - RESTING_HEART_RATE
+                    - ACTIVE_ENERGY_BURNED
+                    - FLIGHTS_CLIMBED
+                    - WALKING_RUNNING_DISTANCE
+                    - VO2_MAX
+                    - BODY_TEMPERATURE
+                    - FAT_FREE_MASS
+                    - FAT_MASS
+                    - MUSCLE_MASS
+                    - SKIN_TEMPERATURE
+                    - PULSE_WAVE_VELOCITY
+                    - VASCULAR_AGE
+                    - VISCERAL_FAT
+                    - AUDIO_EXPOSURE_ENV
+                    - AUDIO_EXPOSURE_HEADPHONE
+                    - TIME_IN_DAYLIGHT
+                    - WALKING_STEADINESS
+                    - AUDIO_EXPOSURE_EVENT
+                    - RESPIRATORY_RATE
+                    - BODY_MASS_INDEX
+                    - LEAN_BODY_MASS
+                    - WALKING_HEART_RATE_AVERAGE
+                    - WALKING_ASYMMETRY
+                    - WALKING_DOUBLE_SUPPORT
+                    - WALKING_STEP_LENGTH
+                    - WALKING_SPEED
+                    - CARDIO_RECOVERY
+                    - WRIST_TEMPERATURE
+                    - FALL_COUNT
+                    - SIX_MINUTE_WALK_DISTANCE
+                    - STAIR_ASCENT_SPEED
+                    - STAIR_DESCENT_SPEED
+                    - BREATHING_DISTURBANCES
+                    - IRREGULAR_RHYTHM_NOTIFICATION
+                    - HIGH_HEART_RATE_EVENT
+                    - LOW_HEART_RATE_EVENT
+                    - WALKING_STEADINESS_EVENT
+                    - BREATHING_DISTURBANCE_EVENT
+                    - RECOVERY_SCORE
+                    - STRESS_SCORE
+                    - STRAIN_SCORE
+                    - HRV_RMSSD
+                    - DAY_STRAIN
+                    - WORKOUT_STRAIN
+                    - SLEEP_PERFORMANCE
+                    - SLEEP_EFFICIENCY
+                    - SLEEP_CONSISTENCY
+                    - SLEEP_NEED
+                    - ENERGY_EXPENDITURE_KJ
+                    - AVERAGE_HEART_RATE
+                    - MAX_HEART_RATE
+                    - SLEEP_DISTURBANCE_COUNT
+                    - ANS_CHARGE
+                    - CARDIO_LOAD
+                    - SLEEP_SCORE
+                    - BODY_TEMPERATURE_DEVIATION
+                value:
+                  type: number
+                  description: Daily mean (spot metrics) or SUM (cumulative).
+                measuredAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                  description: Day-bucket start (ISO-8601).
+                count:
+                  description: Underlying raw-row count for the bucket.
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                minValue:
+                  description: Per-day minimum (spot metrics only; absent for cumulative).
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                maxValue:
+                  description: Per-day maximum (spot metrics only; absent for cumulative).
+                  anyOf:
+                    - type: number
+                    - type: "null"
+              required:
+                - type
+                - value
+                - measuredAt
+              additionalProperties: false
+          required:
+            - WEIGHT
+            - BLOOD_PRESSURE_SYS
+            - BLOOD_PRESSURE_DIA
+            - PULSE
+            - BODY_FAT
+            - SLEEP_DURATION
+            - ACTIVITY_STEPS
+            - BLOOD_GLUCOSE
+            - TOTAL_BODY_WATER
+            - BONE_MASS
+            - OXYGEN_SATURATION
+            - HEART_RATE_VARIABILITY
+            - RESTING_HEART_RATE
+            - ACTIVE_ENERGY_BURNED
+            - FLIGHTS_CLIMBED
+            - WALKING_RUNNING_DISTANCE
+            - VO2_MAX
+            - BODY_TEMPERATURE
+            - FAT_FREE_MASS
+            - FAT_MASS
+            - MUSCLE_MASS
+            - SKIN_TEMPERATURE
+            - PULSE_WAVE_VELOCITY
+            - VASCULAR_AGE
+            - VISCERAL_FAT
+            - AUDIO_EXPOSURE_ENV
+            - AUDIO_EXPOSURE_HEADPHONE
+            - TIME_IN_DAYLIGHT
+            - WALKING_STEADINESS
+            - AUDIO_EXPOSURE_EVENT
+            - RESPIRATORY_RATE
+            - BODY_MASS_INDEX
+            - LEAN_BODY_MASS
+            - WALKING_HEART_RATE_AVERAGE
+            - WALKING_ASYMMETRY
+            - WALKING_DOUBLE_SUPPORT
+            - WALKING_STEP_LENGTH
+            - WALKING_SPEED
+            - CARDIO_RECOVERY
+            - WRIST_TEMPERATURE
+            - FALL_COUNT
+            - SIX_MINUTE_WALK_DISTANCE
+            - STAIR_ASCENT_SPEED
+            - STAIR_DESCENT_SPEED
+            - BREATHING_DISTURBANCES
+            - IRREGULAR_RHYTHM_NOTIFICATION
+            - HIGH_HEART_RATE_EVENT
+            - LOW_HEART_RATE_EVENT
+            - WALKING_STEADINESS_EVENT
+            - BREATHING_DISTURBANCE_EVENT
+            - RECOVERY_SCORE
+            - STRESS_SCORE
+            - STRAIN_SCORE
+            - HRV_RMSSD
+            - DAY_STRAIN
+            - WORKOUT_STRAIN
+            - SLEEP_PERFORMANCE
+            - SLEEP_EFFICIENCY
+            - SLEEP_CONSISTENCY
+            - SLEEP_NEED
+            - ENERGY_EXPENDITURE_KJ
+            - AVERAGE_HEART_RATE
+            - MAX_HEART_RATE
+            - SLEEP_DISTURBANCE_COUNT
+            - ANS_CHARGE
+            - CARDIO_LOAD
+            - SLEEP_SCORE
+            - BODY_TEMPERATURE_DEVIATION
+          description: Per-type daily series, keyed by MeasurementType.
+      required:
+        - series
+      additionalProperties: false
+      description: Batched daily series — one rollup-backed series per requested type.
     GetMeasurementsSeriesResponse:
       type: object
       properties:

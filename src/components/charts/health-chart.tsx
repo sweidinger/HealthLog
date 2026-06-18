@@ -233,6 +233,23 @@ interface HealthChartProps {
    * idempotent; non-dashboard mounts simply omit it.
    */
   onDataReady?: () => void;
+  /**
+   * v1.18.6 — pre-fetched daily series, keyed by `MeasurementType`. When
+   * the dashboard batches every visible chart's series into ONE
+   * `/api/measurements/series-batch` round-trip (audit finding #2), it
+   * passes each chart its slice here. When supplied, the chart's queryFn
+   * consumes these rows for the covered types instead of issuing its own
+   * per-type `/api/measurements` fetch. Omitted on non-dashboard mounts
+   * (insights sub-pages, mini cards) which keep self-fetching.
+   * SLEEP_DURATION is never pre-fetched (it rides the per-night `/series`
+   * adapter), so a sleep chart self-fetches that branch regardless.
+   *
+   * The rows must already be scoped to the chart's active fetch window;
+   * the prop is keyed into the query cache so a range-tab change (wider
+   * window) re-fetches cleanly rather than blending a batched slice with
+   * a self-fetched one.
+   */
+  preloadedSeries?: Record<string, MeasurementApiRow[]>;
 }
 
 interface ChartDataPoint {
@@ -251,8 +268,13 @@ interface MeasurementApiRow {
   // path (non-cumulative metrics only). Drive the Apple-Health-style
   // range band shaded around the mean line. Absent on the raw-row path
   // (windows ≤ 7 days) and on cumulative metrics.
-  minValue?: number;
-  maxValue?: number;
+  // v1.18.6 — `null` accepted alongside `undefined` so the batched
+  // series endpoint's row shape (which carries `number | null`) feeds
+  // `preloadedSeries` directly. The bucketing loop already guards each
+  // with a `typeof … === "number"` check, so a null is ignored exactly
+  // like an absent value.
+  minValue?: number | null;
+  maxValue?: number | null;
   // v1.4.43 W2-CHART-GATE — the rollup / daily-aggregate paths return
   // the underlying raw-row count per bucket. Used downstream to gate
   // the "more days needed" empty-state copy on the actual measurement
@@ -537,6 +559,7 @@ export function HealthChart({
   onVisibleStats,
   titleIcon,
   onDataReady,
+  preloadedSeries,
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
   const { t, locale } = useTranslations();
@@ -620,6 +643,20 @@ export function HealthChart({
     };
   }, [rangePoints, effectiveCompareBaseline]);
 
+  // v1.18.6 — honour the dashboard's batched slice ONLY for the
+  // daily-aggregate window (`windowDays > 7`, the rollup path) and ONLY
+  // when EVERY non-sleep type the chart renders is present in the slice.
+  // SLEEP_DURATION is never batched (per-night `/series`), so a chart
+  // that includes it always self-fetches. A range-tab change to a ≤7-day
+  // window (raw rows) drops batched coverage and self-fetches.
+  const usePreloaded = useMemo(() => {
+    if (!preloadedSeries) return false;
+    if (fetchWindow.windowDays <= 7) return false;
+    return types.every(
+      (type) => type === "SLEEP_DURATION" || preloadedSeries[type] != null,
+    );
+  }, [preloadedSeries, fetchWindow.windowDays, types]);
+
   const { data, isLoading, isError, refetch } = useQuery({
     // v1.4.40 W-RSC — route the chart-data key through `queryKeys.chartData`
     // so the `["chart-data"]` prefix lands in `measurementDependentKeys`
@@ -649,6 +686,14 @@ export function HealthChart({
       // v1.7.0 — re-key when the display scale changes so a km/h chart
       // never reads a m/s-scaled sibling out of the cache.
       valueScale,
+      // v1.18.6 — discriminate a batched-slice render from a self-fetch
+      // ONLY on the dashboard mounts that pass `preloadedSeries`. When the
+      // prop is absent (insights sub-pages, mini cards) the empty string
+      // keeps the factory tuple byte-identical with the pre-v1.18.6
+      // 8-element key, so those callers' cache layout is unchanged. On a
+      // dashboard mount the discriminator flips "preloaded" → "fetch" when
+      // a range-tab change drops batched coverage, re-fetching cleanly.
+      preloadedSeries ? (usePreloaded ? "preloaded" : "fetch") : "",
     ),
     // v1.4.28 FB-D2 — cache the bounded window for a minute so tab
     // navigation between insights sub-pages does not re-fire every
@@ -760,16 +805,30 @@ export function HealthChart({
           typeParams.set("source", "rollup");
         }
 
-        // v1.16.8 — a failed per-type fetch rejects the whole query
-        // instead of silently dropping the series: the swallowed-catch
-        // variant cached the partial/empty result as fresh success, so
-        // an outage painted the empty state (or a half chart) with no
-        // retry path. Rejecting lets TanStack's retry semantics and the
-        // in-card error state below do their jobs.
-        const data = await apiGet<{ measurements?: MeasurementApiRow[] }>(
-          `/api/measurements?${typeParams}`,
-        );
-        const page = data?.measurements ?? [];
+        // v1.18.6 — when the dashboard handed this chart a batched slice
+        // for the type, fold those rows instead of a per-type fetch. The
+        // rows came from `/api/measurements/series-batch`, which reads
+        // through the SAME rollup path the per-type daily fetch hits, so
+        // the bucketed result is byte-identical. `usePreloaded` already
+        // gated the window (`> 7`) + per-type coverage above; default to
+        // an empty slice (paints the no-data card) rather than fetching,
+        // so a covered chart never issues a network request.
+        const page =
+          usePreloaded && preloadedSeries
+            ? (preloadedSeries[type] ?? [])
+            : await (async () => {
+                // v1.16.8 — a failed per-type fetch rejects the whole
+                // query instead of silently dropping the series: the
+                // swallowed-catch variant cached the partial/empty result
+                // as fresh success, so an outage painted the empty state
+                // (or a half chart) with no retry path. Rejecting lets
+                // TanStack's retry semantics and the in-card error state
+                // below do their jobs.
+                const data = await apiGet<{
+                  measurements?: MeasurementApiRow[];
+                }>(`/api/measurements?${typeParams}`);
+                return data?.measurements ?? [];
+              })();
 
         for (const measurement of page) {
           // v1.7.0 — fold the display-time scale into the raw value at
