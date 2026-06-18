@@ -39,13 +39,13 @@ import { cn } from "@/lib/utils";
  * Composition is via `cn(…)` so callers can override anything — the
  * primitive defaults are the strict pass, not the only pass.
  */
-const Textarea = React.forwardRef<
-  HTMLTextAreaElement,
-  React.ComponentProps<"textarea">
->(function Textarea(
-  { className, autoComplete, autoCapitalize, spellCheck, ...props },
-  ref,
-) {
+function Textarea({
+  className,
+  autoComplete,
+  autoCapitalize,
+  spellCheck,
+  ...props
+}: React.ComponentProps<"textarea">) {
   const resolvedAutoComplete = autoComplete ?? "off";
   const resolvedAutoCapitalize = autoCapitalize ?? "sentences";
   const resolvedSpellCheck = spellCheck ?? true;
@@ -53,7 +53,6 @@ const Textarea = React.forwardRef<
 
   return (
     <textarea
-      ref={ref}
       data-slot="textarea"
       autoComplete={resolvedAutoComplete}
       autoCapitalize={resolvedAutoCapitalize}
@@ -71,6 +70,6 @@ const Textarea = React.forwardRef<
       {...props}
     />
   );
-});
+}
 
 export { Textarea };
