@@ -39,6 +39,16 @@ export interface ReferenceBand {
   readonly high?: number;
   /** The body + year that publishes this band. */
   readonly citation: CitationId;
+  /**
+   * Marks THE population-normal / target band — the placement
+   * `classifyReference` treats as "within" and `headlineBandText` renders
+   * as the headline. Exactly one band per metric (with at least one band)
+   * carries this. Bands are NOT assumed normal by index: a metric whose
+   * first band is abnormal (BMI → Underweight first; pulse pressure →
+   * Narrow first) marks the correct interior band instead. A test asserts
+   * the one-marker-per-banded-metric invariant.
+   */
+  readonly normal?: boolean;
 }
 
 /**
@@ -55,7 +65,12 @@ export interface ReferenceConflict {
 export interface ReferenceRange {
   /** Canonical display unit (matches the metric tile + registry). */
   readonly unit: string;
-  /** Ordered population bands; the first is the "good"/normal placement. */
+  /**
+   * Ordered population bands. The "good"/normal placement is the band
+   * flagged `normal: true` — NOT necessarily the first entry. Some metrics
+   * (BMI, pulse pressure) author an abnormal band first, so consumers must
+   * resolve the normal band by the marker, never by index.
+   */
   readonly bands: readonly ReferenceBand[];
   /** The body the headline band is sourced to (drives the cited sentence). */
   readonly referenceId: CitationId;
@@ -95,7 +110,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
     unit: "mmHg",
     bands: [
       // ESH grade bands (office, mmHg, systolic anchors shown).
-      { label: "Optimal", high: 120, citation: "ESH_2023_HYPERTENSION" },
+      { label: "Optimal", high: 120, citation: "ESH_2023_HYPERTENSION", normal: true },
       { label: "Normal", low: 120, high: 129, citation: "ESH_2023_HYPERTENSION" },
       { label: "High-normal", low: 130, high: 139, citation: "ESH_2023_HYPERTENSION" },
       { label: "Hypertension", low: 140, citation: "ESH_2023_HYPERTENSION" },
@@ -120,7 +135,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
     unit: "mmHg",
     bands: [
       { label: "Narrow", high: 25, citation: "STATPEARLS_PULSE_PRESSURE" },
-      { label: "Typical at rest", low: 25, high: 60, citation: "STATPEARLS_PULSE_PRESSURE" },
+      { label: "Typical at rest", low: 25, high: 60, citation: "STATPEARLS_PULSE_PRESSURE", normal: true },
       { label: "Wide", low: 60, citation: "STATPEARLS_PULSE_PRESSURE" },
     ],
     referenceId: "STATPEARLS_PULSE_PRESSURE",
@@ -132,7 +147,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   MEAN_ARTERIAL_PRESSURE: {
     unit: "mmHg",
     bands: [
-      { label: "Resting band", low: 70, high: 100, citation: "STATPEARLS_MAP" },
+      { label: "Resting band", low: 70, high: 100, citation: "STATPEARLS_MAP", normal: true },
     ],
     referenceId: "STATPEARLS_MAP",
     guidanceCaveat:
@@ -142,7 +157,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   PULSE_WAVE_VELOCITY: {
     unit: "m/s",
     bands: [
-      { label: "Reference", high: 10, citation: "ESC_ESH_2018_PWV" },
+      { label: "Reference", high: 10, citation: "ESC_ESH_2018_PWV", normal: true },
       { label: "Elevated stiffness", low: 10, citation: "ESC_ESH_2018_PWV" },
     ],
     referenceId: "ESC_ESH_2018_PWV",
@@ -151,14 +166,14 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   },
 
   // ── Resting heart rate — uses RESTING_HEART_RATE, never workout pulse. ──
-  // Bands are authored normal-first so `classifyReference` treats the
-  // population-normal band as the "within" placement. The athletic band
+  // The 60–100 band carries `normal: true`, so `classifyReference` treats it
+  // as the "within" placement regardless of band order. The athletic band
   // (40–60) is benign for a trained heart but sits below the standard
   // normal range — the caveat copy carries that nuance.
   RESTING_HEART_RATE: {
     unit: "bpm",
     bands: [
-      { label: "Normal adult resting", low: 60, high: 100, citation: "AHA_2024_RHR" },
+      { label: "Normal adult resting", low: 60, high: 100, citation: "AHA_2024_RHR", normal: true },
       { label: "Athletic (benign)", low: 40, high: 60, citation: "AHA_2024_RHR" },
     ],
     referenceId: "AHA_2024_RHR",
@@ -178,7 +193,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   OXYGEN_SATURATION: {
     unit: "%",
     bands: [
-      { label: "Healthy room air", low: 95, high: 100, citation: "STATPEARLS_PULSE_OX" },
+      { label: "Healthy room air", low: 95, high: 100, citation: "STATPEARLS_PULSE_OX", normal: true },
       { label: "Mild hypoxaemia", low: 91, high: 94, citation: "STATPEARLS_PULSE_OX" },
     ],
     referenceId: "STATPEARLS_PULSE_OX",
@@ -189,7 +204,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   RESPIRATORY_RATE: {
     unit: "breaths/min",
     bands: [
-      { label: "Normal resting adult", low: 12, high: 20, citation: "ALA_RESPIRATORY_RATE" },
+      { label: "Normal resting adult", low: 12, high: 20, citation: "ALA_RESPIRATORY_RATE", normal: true },
       { label: "Worth attention", low: 22, citation: "RCP_2017_NEWS2" },
     ],
     referenceId: "ALA_RESPIRATORY_RATE",
@@ -201,7 +216,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   BODY_TEMPERATURE: {
     unit: "°C",
     bands: [
-      { label: "Normal oral range", low: 35.7, high: 37.4, citation: "JGIM_2019_TEMPERATURE" },
+      { label: "Normal oral range", low: 35.7, high: 37.4, citation: "JGIM_2019_TEMPERATURE", normal: true },
       { label: "Fever", low: 38.0, citation: "JGIM_2019_TEMPERATURE" },
     ],
     referenceId: "JGIM_2019_TEMPERATURE",
@@ -213,7 +228,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   BLOOD_GLUCOSE: {
     unit: "mg/dL",
     bands: [
-      { label: "Normal fasting", high: 100, citation: "ADA_2024_GLYCEMIC" },
+      { label: "Normal fasting", high: 100, citation: "ADA_2024_GLYCEMIC", normal: true },
       { label: "Prediabetes (fasting)", low: 100, high: 125, citation: "ADA_2024_GLYCEMIC" },
       { label: "Diabetes range (fasting)", low: 126, citation: "ADA_2024_GLYCEMIC" },
     ],
@@ -231,7 +246,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   HBA1C: {
     unit: "%",
     bands: [
-      { label: "Normal", high: 5.7, citation: "ADA_2024_GLYCEMIC" },
+      { label: "Normal", high: 5.7, citation: "ADA_2024_GLYCEMIC", normal: true },
       { label: "Prediabetes", low: 5.7, high: 6.4, citation: "ADA_2024_GLYCEMIC" },
       { label: "Diabetes", low: 6.5, citation: "ADA_2024_GLYCEMIC" },
     ],
@@ -244,7 +259,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
     unit: "kg/m²",
     bands: [
       { label: "Underweight", high: 18.5, citation: "WHO_2020_PA" },
-      { label: "Normal", low: 18.5, high: 24.9, citation: "WHO_2020_PA" },
+      { label: "Normal", low: 18.5, high: 24.9, citation: "WHO_2020_PA", normal: true },
       { label: "Overweight", low: 25.0, high: 29.9, citation: "WHO_2020_PA" },
       { label: "Obesity", low: 30.0, citation: "WHO_2020_PA" },
     ],
@@ -257,7 +272,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   STEPS: {
     unit: "steps/day",
     bands: [
-      { label: "Higher mortality benefit", low: 8000, citation: "STEPS_SAINT_MAURICE_2020" },
+      { label: "Higher mortality benefit", low: 8000, citation: "STEPS_SAINT_MAURICE_2020", normal: true },
     ],
     referenceId: "STEPS_SAINT_MAURICE_2020",
     guidanceCaveat:
@@ -267,7 +282,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   VISCERAL_FAT: {
     unit: "rating",
     bands: [
-      { label: "Healthy rating", low: 1, high: 12, citation: "VAT_IMAGING_THRESHOLD" },
+      { label: "Healthy rating", low: 1, high: 12, citation: "VAT_IMAGING_THRESHOLD", normal: true },
       { label: "Elevated rating", low: 13, citation: "VAT_IMAGING_THRESHOLD" },
     ],
     referenceId: "VAT_IMAGING_THRESHOLD",
@@ -279,7 +294,7 @@ export const REFERENCE_RANGES: Record<ReferenceMetric, ReferenceRange> = {
   SLEEP_DURATION: {
     unit: "h",
     bands: [
-      { label: "Adult 18–64", low: 7, high: 9, citation: "AASM_2015_SLEEP" },
+      { label: "Adult 18–64", low: 7, high: 9, citation: "AASM_2015_SLEEP", normal: true },
       { label: "Older adult 65+", low: 7, high: 8, citation: "AASM_2015_SLEEP" },
     ],
     referenceId: "AASM_2015_SLEEP",
@@ -337,6 +352,20 @@ export type ReferencePlacement =
  * baseline). Pure + side-effect free; the user's own baseline still leads
  * the read — this is only a coarse placement aid.
  */
+/**
+ * Resolve the index of a metric's population-normal band — the band the
+ * placement contract treats as "within". Returns the index of the band
+ * flagged `normal: true`; falls back to band 0 only for the legacy
+ * (untagged) shape so an unmarked metric degrades to the old normal-first
+ * assumption rather than throwing. A metric with no bands returns -1.
+ */
+export function normalBandIndex(metric: ReferenceMetric): number {
+  const bands = REFERENCE_RANGES[metric].bands;
+  if (bands.length === 0) return -1;
+  const marked = bands.findIndex((b) => b.normal === true);
+  return marked === -1 ? 0 : marked;
+}
+
 export function classifyReference(
   metric: ReferenceMetric,
   value: number | null | undefined,
@@ -345,26 +374,26 @@ export function classifyReference(
   if (value == null || !Number.isFinite(value) || range.bands.length === 0) {
     return "insufficient";
   }
-  // Find the first band whose half-open interval contains the value.
-  // Bands are authored in ascending order; the FIRST band is the
-  // normal/good placement, so its membership maps to `within`.
+  const normalIdx = normalBandIndex(metric);
+  // Find the band whose half-open interval contains the value. Bands are
+  // authored in ascending order; the placement is the band's DISTANCE from
+  // the normal band (resolved by the `normal` marker, NOT by index 0 —
+  // some metrics author an abnormal band first, e.g. BMI Underweight,
+  // pulse-pressure Narrow). One step from normal = watch tier; two or more
+  // = attention tier.
   for (let i = 0; i < range.bands.length; i++) {
     const band = range.bands[i];
     const aboveLow = band.low == null || value >= band.low;
     const belowHigh = band.high == null || value <= band.high;
     if (aboveLow && belowHigh) {
-      if (i === 0) return "within";
-      // The band immediately adjacent to normal is the watch tier; any
-      // band beyond it is the attention tier.
-      return i === 1 ? "slightly-outside" : "outside";
+      const distance = Math.abs(i - normalIdx);
+      if (distance === 0) return "within";
+      return distance === 1 ? "slightly-outside" : "outside";
     }
   }
-  // Value sits beyond every authored band (e.g. below an open-low normal,
-  // or above the top band's open-high). Treat an under-shoot of the first
-  // band's low as within when the first band is open-low; otherwise the
-  // value is outside the covered range → attention.
-  const first = range.bands[0];
-  if (first.low != null && value < first.low) return "outside";
+  // Value sits beyond every authored band (below an open-low first band, or
+  // above an open-high last band). Either way it is outside the covered
+  // bands → attention.
   return "outside";
 }
 
