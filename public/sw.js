@@ -40,8 +40,16 @@ const CACHE_VERSION =
 const STATIC_CACHE = `healthlog-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `healthlog-pages-${CACHE_VERSION}`;
 // v1.18.6 — read-only data cache for a curated allowlist of safe GET `/api/*`
-// reads. Stale-while-revalidate: an installed PWA opened offline now renders
-// the LAST cached dashboard/series instead of empty skeletons forever.
+// reads. Network-first: online callers always get the fresh server response
+// (and the cache is refreshed behind it), so a read-after-write never serves a
+// stale pre-mutation list. Offline (the network fetch throws) the LAST cached
+// dashboard/series is served instead of empty skeletons forever.
+//
+// v1.18.6.x — reverted from stale-while-revalidate, which served the cached
+// pre-mutation copy first and only revalidated in the background, so a list
+// read straight after a create/update showed the old (or empty) data until the
+// next paint. Network-first restores read-after-write freshness while keeping
+// the offline fallback.
 const DATA_CACHE = `healthlog-data-${CACHE_VERSION}`;
 const MAX_STATIC_ENTRIES = 150;
 const MAX_PAGE_ENTRIES = 30;
@@ -139,12 +147,13 @@ self.addEventListener("fetch", (event) => {
   // Only handle same-origin GET requests
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // API calls. Allowlisted safe GET reads use stale-while-revalidate so the
-  // installed PWA renders last-synced data offline; everything else (auth,
+  // API calls. Allowlisted safe GET reads use network-first so the installed
+  // PWA always renders fresh server data online (and falls back to the last
+  // cached copy only when the network fails); everything else (auth,
   // mutations, anything not on the list) stays network-only.
   if (url.pathname.startsWith("/api/")) {
     if (isAllowlistedApiRead(url.pathname)) {
-      event.respondWith(staleWhileRevalidateApi(request));
+      event.respondWith(networkFirstApi(request));
     }
     return;
   }
@@ -186,59 +195,54 @@ async function cacheFirst(request, cacheName) {
 }
 
 /**
- * Stale-while-revalidate for allowlisted safe GET `/api/*` reads.
+ * Network-first for allowlisted safe GET `/api/*` reads.
  *
- * Serves the cached copy immediately (instant offline value) while a
- * background fetch refreshes it. With no cache yet it awaits the network and,
- * if that fails offline, returns a JSON 503 so the client's TanStack Query
- * cache / IndexedDB persister (also added in v1.18.6) supplies the data.
+ * Always tries the network first so an online caller gets the fresh server
+ * response — critical for read-after-write: a list fetched straight after a
+ * create/update must reflect the mutation, not a stale pre-mutation copy. On a
+ * cacheable response the data cache is refreshed behind it. Only when the
+ * network fails (offline) is the last cached copy served; with neither, a JSON
+ * 503 lets the client's TanStack Query cache / IndexedDB persister supply data.
  *
  * Caching is gated twice: `isAllowlistedApiRead` already filtered the path,
  * and `isCacheableApiResponse` inspects the actual body so a `no-store` or
  * secret-shaped (`hlk_`/`hlr_`/`sk-`) response is never persisted — the same
  * refusal discipline the idempotency cache uses.
  */
-async function staleWhileRevalidateApi(request) {
+async function networkFirstApi(request) {
   const cache = await caches.open(DATA_CACHE);
-  const cached = await cache.match(request);
 
-  const network = fetch(request)
-    .then(async (response) => {
-      // Read the body once to body-screen it, then reconstruct a fresh
-      // Response so both the cache.put and the return value have an
-      // unconsumed body.
-      const bodyText = await response
-        .clone()
-        .text()
-        .catch(() => undefined);
-      if (isCacheableApiResponse(response, bodyText)) {
-        const toStore = new Response(bodyText, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-        });
-        await cache.put(request, toStore);
-        trimCache(DATA_CACHE, MAX_DATA_ENTRIES);
-      }
-      return response;
-    })
-    .catch(() => null);
+  try {
+    const response = await fetch(request);
+    // Read the body once to body-screen it, then reconstruct a fresh Response
+    // so both the cache.put and the return value have an unconsumed body.
+    const bodyText = await response
+      .clone()
+      .text()
+      .catch(() => undefined);
+    if (isCacheableApiResponse(response, bodyText)) {
+      const toStore = new Response(bodyText, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+      await cache.put(request, toStore);
+      trimCache(DATA_CACHE, MAX_DATA_ENTRIES);
+    }
+    return response;
+  } catch {
+    // Network failed (offline) — serve the last cached copy if we have one.
+    const cached = await cache.match(request);
+    if (cached) return cached;
 
-  if (cached) {
-    // Refresh in the background; don't block the cached response on it.
-    return cached;
+    return new Response(
+      JSON.stringify({ data: null, error: "offline", meta: { offline: true } }),
+      {
+        status: 503,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      },
+    );
   }
-
-  const fresh = await network;
-  if (fresh) return fresh;
-
-  return new Response(
-    JSON.stringify({ data: null, error: "offline", meta: { offline: true } }),
-    {
-      status: 503,
-      headers: { "Content-Type": "application/json; charset=utf-8" },
-    },
-  );
 }
 
 /**
