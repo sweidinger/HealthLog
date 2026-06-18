@@ -753,9 +753,9 @@ function VorsorgeCard({
         : "";
   const isCoach = reminder.origin === "COACH";
   const isLinked = reminder.measurementType != null;
-  // Due now / overdue ⇒ the action button takes the green "do it now" tone,
-  // analogous to the medication card's due affordance. The CARD stays neutral
-  // (no tint) per the project rule — only the action button goes green.
+  // Due now / overdue ⇒ the action button takes the green "do it now" tone.
+  // The CARD stays neutral (no tint) per the project rule — only the action
+  // button goes green; the surface follows the medication-card grammar.
   const isDue =
     due.key === "nextDue.today" || due.key === "overdueByDays";
   const progress = intervalProgress(reminder, now);
@@ -817,13 +817,15 @@ function VorsorgeCard({
 
   // v1.18.6 (MOD-06) — the green "Jetzt messen" / mark-done action. Green only
   // on the action button (never the card surface). When not due it stays the
-  // calm default tone so the green reads as "now is the time".
+  // calm default tone so the green reads as "now is the time". `bg-success`
+  // pairs with the theme-aware `text-success-foreground` (dark glyph in dark,
+  // white in light) so the label clears WCAG AA in both themes.
   const primaryButton = (
     <Button
       type="button"
       className={cn(
         "min-h-11 w-full",
-        isDue && "bg-success text-white hover:bg-success/90",
+        isDue && "bg-success text-success-foreground hover:bg-success/90",
       )}
       onClick={onPrimaryAction}
       disabled={busy}
@@ -889,7 +891,7 @@ function VorsorgeCard({
                 size="sm"
                 className={cn(
                   "min-h-9",
-                  isDue && "bg-success text-white hover:bg-success/90",
+                  isDue && "bg-success text-success-foreground hover:bg-success/90",
                 )}
                 onClick={onPrimaryAction}
                 disabled={busy}
