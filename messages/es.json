@@ -1892,7 +1892,8 @@
     "bmiEmptyTitle": "Añade tu altura para calcular el IMC",
     "bmiEmptyDescription": "El IMC necesita tu altura. Guárdala en Ajustes → Cuenta.",
     "bmiEmptyAction": "Abrir ajustes de cuenta",
-    "noProviderConfigured": "Valoración no disponible.",
+    "noProviderConfigured": "Conecta un proveedor de IA para ver aquí una valoración de tus lecturas.",
+    "noProviderAction": "Abrir ajustes de IA",
     "startAnalysis": "Iniciar valoración",
     "refreshAnalysis": "Actualizar valoración",
     "keyTakeaway": "Lo más importante",
@@ -2007,7 +2008,7 @@
       "emptyAction": "Generar resumen",
       "loadingLabel": "Preparando el resumen",
       "noProviderTitle": "Ningún proveedor de IA conectado",
-      "noProviderDescription": "Conecta un proveedor de IA en los ajustes para recibir resúmenes diarios.",
+      "noProviderDescription": "El briefing diario resume tus lecturas en lenguaje claro. HealthLog necesita un proveedor de IA para ello: usa tu propia clave (OpenAI, Anthropic) o un modelo local. Tus datos siguen siendo tuyos.",
       "noProviderAction": "Abrir ajustes de IA"
     },
     "trendsRow": {
@@ -2072,6 +2073,8 @@
       "refusalInjection": "Tu mensaje contiene instrucciones que pretenden sobrescribir mis indicaciones. Soy el coach de HealthLog y solo resumo tus propios datos de salud — reformula tu pregunta dentro de ese marco.",
       "errorBudget": "Has alcanzado el límite diario del coach. El cupo se reinicia a medianoche (UTC).",
       "errorProvider": "El coach no ha podido contactar con un proveedor de análisis ahora mismo. Inténtalo en un momento.",
+      "errorNoProvider": "El coach lee tus datos de salud registrados y responde preguntas sobre ellos (no es consejo médico). HealthLog necesita un proveedor de IA para ello: conecta tu propia clave o un modelo local.",
+      "errorNoProviderAction": "Conectar un proveedor de IA",
       "errorNetwork": "Sin conexión a Internet — inténtalo de nuevo cuando vuelvas a estar en línea.",
       "prefsSaveError": "No se pudieron guardar tus preferencias del Coach. Inténtalo de nuevo.",
       "errorCredentialExpired": "Tu conexión con el proveedor de IA ha caducado. Vuelve a conectarla en Ajustes para que el Coach siga funcionando.",

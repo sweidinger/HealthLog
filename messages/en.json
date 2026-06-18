@@ -1892,7 +1892,8 @@
     "bmiEmptyTitle": "Set your height to see BMI",
     "bmiEmptyDescription": "BMI needs your height. Add it under Settings → Account.",
     "bmiEmptyAction": "Open account settings",
-    "noProviderConfigured": "Assessment unavailable.",
+    "noProviderConfigured": "Connect an AI provider to see an assessment of your readings here.",
+    "noProviderAction": "Open AI settings",
     "startAnalysis": "Start assessment",
     "refreshAnalysis": "Refresh assessment",
     "keyTakeaway": "Key Takeaway",
@@ -2007,7 +2008,7 @@
       "emptyAction": "Generate briefing",
       "loadingLabel": "Synthesising today's briefing",
       "noProviderTitle": "No AI provider connected",
-      "noProviderDescription": "Connect an AI provider in settings to receive daily briefings.",
+      "noProviderDescription": "The daily briefing turns your readings into plain-language summary. HealthLog needs an AI provider for that — use your own key (OpenAI, Anthropic) or a local model. Your data stays with you.",
       "noProviderAction": "Open AI settings"
     },
     "trendsRow": {
@@ -2072,6 +2073,8 @@
       "refusalInjection": "I noticed wording that tries to override my instructions. I am the HealthLog Coach and only summarise your own health data — please rephrase your question in those terms.",
       "errorBudget": "You've reached today's Coach usage limit. The budget refreshes at midnight UTC.",
       "errorProvider": "The Coach could not reach an Insights provider just now. Please try again in a moment.",
+      "errorNoProvider": "The Coach reads your logged health data and answers questions about it (not medical advice). HealthLog needs an AI provider for that — connect your own key or a local model.",
+      "errorNoProviderAction": "Connect an AI provider",
       "errorNetwork": "No internet connection — try again once you're back online.",
       "prefsSaveError": "Couldn't save your Coach preferences. Please try again.",
       "errorCredentialExpired": "Your AI provider connection has expired. Reconnect it in Settings to keep the Coach running.",

@@ -1892,7 +1892,8 @@
     "bmiEmptyTitle": "Dodaj wzrost, aby obliczyć BMI",
     "bmiEmptyDescription": "BMI wymaga twojego wzrostu. Zapisz go w Ustawieniach → Konto.",
     "bmiEmptyAction": "Otwórz ustawienia konta",
-    "noProviderConfigured": "Ocena niedostępna.",
+    "noProviderConfigured": "Połącz dostawcę AI, aby zobaczyć tutaj ocenę swoich pomiarów.",
+    "noProviderAction": "Otwórz ustawienia AI",
     "startAnalysis": "Uruchom ocenę",
     "refreshAnalysis": "Odśwież ocenę",
     "keyTakeaway": "Najważniejsze",
@@ -2007,7 +2008,7 @@
       "emptyAction": "Wygeneruj briefing",
       "loadingLabel": "Przygotowanie briefingu",
       "noProviderTitle": "Brak połączonego dostawcy AI",
-      "noProviderDescription": "Połącz dostawcę AI w ustawieniach, aby otrzymywać codzienne briefingi.",
+      "noProviderDescription": "Codzienny briefing podsumowuje Twoje pomiary prostym językiem. HealthLog potrzebuje do tego dostawcy AI — użyj własnego klucza (OpenAI, Anthropic) lub modelu lokalnego. Twoje dane pozostają u Ciebie.",
       "noProviderAction": "Otwórz ustawienia AI"
     },
     "trendsRow": {
@@ -2072,6 +2073,8 @@
       "refusalInjection": "Twoja wiadomość zawiera instrukcje, które próbują nadpisać moje wytyczne. Jestem coachem HealthLog i podsumowuję wyłącznie twoje własne dane zdrowotne — przeformułuj pytanie w tych ramach.",
       "errorBudget": "Osiągnięto dzienny limit coacha. Limit resetuje się o północy (UTC).",
       "errorProvider": "Coach nie mógł teraz skontaktować się z dostawcą analizy. Spróbuj za chwilę.",
+      "errorNoProvider": "Coach czyta Twoje zapisane dane zdrowotne i odpowiada na pytania o nie (to nie porada medyczna). HealthLog potrzebuje do tego dostawcy AI — połącz własny klucz lub model lokalny.",
+      "errorNoProviderAction": "Połącz dostawcę AI",
       "errorNetwork": "Brak połączenia z Internetem — spróbuj ponownie, gdy wrócisz online.",
       "prefsSaveError": "Nie udało się zapisać ustawień Coacha. Spróbuj ponownie.",
       "errorCredentialExpired": "Połączenie z dostawcą AI wygasło. Połącz je ponownie w Ustawieniach, aby Coach działał dalej.",

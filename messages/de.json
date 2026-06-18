@@ -1892,7 +1892,8 @@
     "bmiEmptyAction": "Account-Einstellungen öffnen",
     "noAnalysisYet": "Noch keine Einschätzung vorhanden.",
     "assessmentPreparing": "Einschätzung wird vorbereitet…",
-    "noProviderConfigured": "Einschätzung nicht verfügbar.",
+    "noProviderConfigured": "Verbinde einen KI-Anbieter, um hier eine Einschätzung zu deinen Werten zu sehen.",
+    "noProviderAction": "Zu den KI-Einstellungen",
     "startAnalysis": "Einschätzung starten",
     "refreshAnalysis": "Einschätzung aktualisieren",
     "keyTakeaway": "Das Wichtigste",
@@ -2007,7 +2008,7 @@
       "emptyAction": "Briefing erstellen",
       "loadingLabel": "Briefing wird zusammengestellt",
       "noProviderTitle": "Kein KI-Anbieter verbunden",
-      "noProviderDescription": "Verbinde einen KI-Anbieter in den Einstellungen, um tägliche Briefings zu erhalten.",
+      "noProviderDescription": "Das Tagesbriefing fasst deine Werte in Klartext zusammen. Dafür braucht HealthLog einen KI-Anbieter — nutze deinen eigenen Schlüssel (OpenAI, Anthropic) oder ein lokales Modell. Deine Daten bleiben dabei bei dir.",
       "noProviderAction": "Zu den KI-Einstellungen"
     },
     "trendsRow": {
@@ -2072,6 +2073,8 @@
       "refusalInjection": "In deiner Nachricht stehen Anweisungen, die meine Vorgaben überschreiben sollen. Ich bin der HealthLog-Coach und fasse ausschließlich deine eigenen Gesundheitsdaten zusammen — formuliere deine Frage bitte in diesem Rahmen neu.",
       "errorBudget": "Du hast das heutige Coach-Limit erreicht. Das Budget setzt sich um Mitternacht (UTC) zurück.",
       "errorProvider": "Der Coach konnte gerade keinen Auswertungs-Anbieter erreichen. Bitte versuche es in einem Moment erneut.",
+      "errorNoProvider": "Der Coach liest deine erfassten Gesundheitsdaten und beantwortet Fragen dazu (keine medizinische Beratung). Dafür braucht HealthLog einen KI-Anbieter — verbinde deinen eigenen Schlüssel oder ein lokales Modell.",
+      "errorNoProviderAction": "KI-Anbieter verbinden",
       "errorNetwork": "Keine Internetverbindung — versuche es erneut, sobald du online bist.",
       "prefsSaveError": "Coach-Einstellungen konnten nicht gespeichert werden. Bitte versuche es erneut.",
       "errorCredentialExpired": "Deine Verbindung zum KI-Anbieter ist abgelaufen. Stelle sie in den Einstellungen wieder her, damit der Coach weiterläuft.",
