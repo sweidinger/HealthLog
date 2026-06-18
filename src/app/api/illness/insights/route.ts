@@ -11,6 +11,7 @@
  * contributes no gap rather than a wrong one. Born-gated + owner-scoped.
  */
 import { NextRequest } from "next/server";
+import pLimit from "p-limit";
 
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
@@ -29,6 +30,9 @@ import { resolveUserTimezone } from "@/lib/measurements/consolidation-base";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** Cap the per-episode gap computations so a heavy history can't fan out. */
 const MAX_GAP_COMPUTATIONS = 24;
+/** Run the per-episode correlations under a bounded concurrency budget so
+ *  the up-to-24 candidates don't serialise into ~500 round-trips. */
+const EPISODE_GAP_CONCURRENCY = 4;
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
@@ -69,19 +73,24 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const gapCandidates = rows
     .filter((r) => r.resolvedAt !== null && r.lifecycle !== "CHRONIC_ONGOING")
     .slice(0, MAX_GAP_COMPUTATIONS);
-  const gapById = new Map<string, number | null>();
-  for (const r of gapCandidates) {
-    const derived = await computeEpisodeCorrelation(
-      user.id,
-      { id: r.id, onsetAt: r.onsetAt, resolvedAt: r.resolvedAt, lifecycle: r.lifecycle },
-      tz,
-      now,
-    );
-    gapById.set(
-      r.id,
-      derived.status === "ok" ? derived.value.recoveryGapDays : null,
-    );
-  }
+  const limit = pLimit(EPISODE_GAP_CONCURRENCY);
+  const gapEntries = await Promise.all(
+    gapCandidates.map((r) =>
+      limit(async (): Promise<[string, number | null]> => {
+        const derived = await computeEpisodeCorrelation(
+          user.id,
+          { id: r.id, onsetAt: r.onsetAt, resolvedAt: r.resolvedAt, lifecycle: r.lifecycle },
+          tz,
+          now,
+        );
+        return [
+          r.id,
+          derived.status === "ok" ? derived.value.recoveryGapDays : null,
+        ];
+      }),
+    ),
+  );
+  const gapById = new Map<string, number | null>(gapEntries);
 
   const episodes: RetrospectiveEpisode[] = rows.map((r) => ({
     id: r.id,

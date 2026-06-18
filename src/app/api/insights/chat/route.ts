@@ -393,9 +393,18 @@ The user's message answers this clarifying question from their self-context ques
 React briefly and personally to the answer; do not repeat the question and do not ask it again.
 `
     : "";
+  // v1.18.6 (W7) — citation-aware reference-range grounding for the metrics
+  // present in this snapshot. Deterministic + brand-free; framed as general
+  // guidance, never a diagnosis. Appended after the SNAPSHOT so it is fully
+  // inspectable and the model reads the published population bands + the
+  // user's placement. Omitted entirely when no present metric is covered by
+  // the reference backbone (the builder returns null).
+  const groundingBlock = snapshot.referenceGrounding
+    ? `\n${snapshot.referenceGrounding}\n`
+    : "";
   const userPrompt = `SNAPSHOT
 ${snapshot.snapshotJson || "(no metric data in this user's log yet)"}
-${guidedBlock}
+${groundingBlock}${guidedBlock}
 CONVERSATION
 ${transcript}
 

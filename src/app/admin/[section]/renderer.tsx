@@ -94,16 +94,30 @@ export function AdminSectionRenderer({
       // v1.18.1 — the former ai-quality, assistant, and coach-feedback
       // sections fold into one Coach area: surface toggles + operator
       // config first, then the two feedback-quality tables.
+      // v1.18.6 (W9) — server-wide module availability moved out to its own
+      // `module-availability` section: it gates EVERY module, not just the
+      // coach, so it no longer belongs stacked under Coach.
       return (
         <SectionFrame
           title={t("admin.section.coach.title")}
           subtitle={t("admin.section.coach.subtitle")}
         >
           <AssistantSection />
-          <ModuleAvailabilitySection />
           <AiServerKeySection />
           <CoachFeedbackSection />
           <AiQualitySection />
+        </SectionFrame>
+      );
+    case "module-availability":
+      // v1.18.6 (W9) — operator-side server-wide module on/off, its own
+      // admin section (was stacked under Coach). Reconciled name: the
+      // user-facing "Module" settings pick from what is available here.
+      return (
+        <SectionFrame
+          title={t("admin.section.module-availability.title")}
+          subtitle={t("admin.section.module-availability.subtitle")}
+        >
+          <ModuleAvailabilitySection />
         </SectionFrame>
       );
     case "feedback":
@@ -191,12 +205,18 @@ export function AdminSectionRenderer({
         </SectionFrame>
       );
     case "about":
-      // v1.4.36 W4e — About section reused as-is from the settings
-      // surface. The component owns its own heading + cards layout
-      // so no SectionFrame wrapper.
-      // v1.18.1 E5 — hide the onboarding "Replay tour" card on the admin
-      // surface; it's a user-facing affordance with no admin-side use.
-      return <AboutSection hideTourReplay />;
+      // v1.4.36 W4e — About section reused as-is from the settings surface.
+      // v1.18.6 (W9) — route it through `SectionFrame` like every other admin
+      // section so it gets the same visible heading + subtitle (the one admin
+      // page that was bypassing the frame and showing no heading).
+      return (
+        <SectionFrame
+          title={t("admin.section.about.title")}
+          subtitle={t("admin.section.about.subtitle")}
+        >
+          <AboutSection />
+        </SectionFrame>
+      );
     default:
       slug satisfies never;
       return null;

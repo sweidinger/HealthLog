@@ -18,6 +18,7 @@
 import { describe, it, expect } from "vitest";
 
 import { resolveDashboardVerdict } from "../verdict";
+import { buildTargetBands } from "../snapshot";
 import type { DashboardSnapshot } from "../snapshot";
 import type { MedsTodayBlock } from "../meds-today";
 import type { DataSummary } from "@/lib/analytics/trends";
@@ -73,6 +74,11 @@ function baseSnapshot(
     layout: { version: 1, widgets: [] },
     layoutCatalogue: [],
     metricStates: {},
+    targetBands: buildTargetBands({
+      dateOfBirth: null,
+      gender: null,
+      heightCm: null,
+    }),
     tiles: {
       summaries: {},
       lastSeenByType: {},

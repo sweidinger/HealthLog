@@ -1,29 +1,12 @@
 "use client";
 
 import { DashboardLayoutSection } from "@/components/settings/dashboard-layout-section";
-import { SettingsHubBackLink } from "@/components/settings/settings-hub-back-link";
-import { useTranslations } from "@/lib/i18n/context";
 
+/**
+ * v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+ * `<SettingsSectionFrame>`, and the "← back to hub" link rides the frame's
+ * `topSlot`. The body is the layout customizer only.
+ */
 export function DashboardSection() {
-  const { t } = useTranslations();
-
-  return (
-    <section
-      aria-labelledby="settings-section-dashboard-title"
-      className="space-y-6"
-    >
-      <header className="space-y-2">
-        <SettingsHubBackLink
-          href="/settings/layout"
-          labelKey="settings.sections.layout.backToHub"
-        />
-        <h1 id="settings-section-dashboard-title" className="sr-only">
-          {t("settings.sections.dashboard.title")}
-        </h1>
-        {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
-      </header>
-
-      <DashboardLayoutSection id="dashboard-layout" />
-    </section>
-  );
+  return <DashboardLayoutSection id="dashboard-layout" />;
 }

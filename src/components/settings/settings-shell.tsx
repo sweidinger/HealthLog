@@ -48,6 +48,7 @@ import {
   isSettingsSectionSlug,
   type SettingsSectionSlug,
 } from "./section-slugs";
+import { SectionNavHeadingSpacer } from "./section-nav-heading-spacer";
 
 // Re-export so existing call-sites importing from this module keep working.
 // New server-side call-sites (e.g. `generateStaticParams()`) should import
@@ -259,8 +260,10 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
   // no `moduleGate` (global / CORE) are always shown.
   const modules = user?.modules;
   const visibleSections = SETTINGS_SECTIONS.filter(
-    (section) =>
-      !section.moduleGate || modules?.[section.moduleGate] !== false,
+    (section) => !section.moduleGate || modules?.[section.moduleGate] !== false,
+  );
+  const activeSection = visibleSections.find(
+    (section) => section.slug === activeSlug,
   );
 
   // v1.4.33 IW4 — keep the active chip in view inside the horizontal
@@ -358,6 +361,15 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
           className="hidden md:block"
         >
           <div className="sticky top-20">
+            {/* v1.18.6 (W9) — push the first nav item down to the top of the
+                first card (level with the page heading's following gap), so
+                the menu reads symmetric with the content column. Feed the
+                active title so the spacer's h1 wraps the same way (L11). */}
+            <SectionNavHeadingSpacer
+              title={
+                activeSection ? t(activeSection.titleKey) : undefined
+              }
+            />
             <ul className="space-y-1">
               {visibleSections.map((section) => {
                 const isActive = section.slug === activeSlug;

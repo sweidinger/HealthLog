@@ -20,6 +20,7 @@ import { formatReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
 
 import { LabTrendSparkline } from "./lab-trend-sparkline";
 import { ReferenceRangeBadge } from "./reference-range-badge";
@@ -79,6 +80,7 @@ function groupReadings(results: LabResultDto[]): MarkerGroup[] {
 
 export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   const { t } = useTranslations();
+  const { prefs } = useModuleListPrefs("labs");
 
   const listKey = queryKeys.labResultsList({
     biomarkerId: undefined,
@@ -96,10 +98,18 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
       apiGet<LabResultListResponse>("/api/labs?limit=500&sortDir=desc"),
   });
 
-  const groups = useMemo(
-    () => groupReadings(data?.results ?? []),
-    [data?.results],
-  );
+  const groups = useMemo(() => {
+    const base = groupReadings(data?.results ?? []);
+    // v1.18.6 (MOD-04) — honour the user's Labs sort choice. `groupReadings`
+    // already returns most-recent-first; `recentAsc` reverses, and `manual`
+    // applies the persisted biomarker order (legacy un-linked groups, which
+    // carry no biomarkerId, sort after the ordered block).
+    if (prefs.sortDir === "recentAsc") return [...base].reverse();
+    if (prefs.sortDir === "manual") {
+      return applyOrder(base, prefs.order, (g) => g.biomarkerId ?? g.key);
+    }
+    return base;
+  }, [data?.results, prefs.sortDir, prefs.order]);
 
   // The list caps at 500 rows server-side (the `limit` ceiling). Surface a
   // calm "showing latest N of M" hint when the cap truncates so the count is
@@ -146,6 +156,65 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
           ) : undefined
         }
       />
+    );
+  }
+
+  // v1.18.6 (MOD-03) — compact list view: one bordered card holding tight
+  // divided rows instead of a card per biomarker. The card view stays the
+  // default; this is the denser alternative the settings toggle selects.
+  if (prefs.view === "list") {
+    return (
+      <div className="space-y-3">
+        {truncated ? (
+          <p className="text-muted-foreground text-xs">
+            {t("labs.showingLatestOf", { shown, total })}
+          </p>
+        ) : null}
+        <Card>
+          <CardContent className="divide-border divide-y p-0">
+            {groups.map((group) => {
+              const row = (
+                <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                      <span className="truncate font-medium">
+                        {group.analyte}
+                      </span>
+                      <ReferenceRangeBadge status={group.latest.rangeStatus} />
+                    </div>
+                    <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+                      <span className="text-foreground font-semibold tabular-nums">
+                        {formatLabValue(group.latest.value)}{" "}
+                        {group.latest.unit}
+                      </span>
+                      <span>{formatDate(group.latest.takenAt)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <LabTrendSparkline
+                      values={group.readings.map((r) => r.value)}
+                    />
+                    {group.biomarkerId ? (
+                      <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
+                    ) : null}
+                  </div>
+                </div>
+              );
+              return group.biomarkerId ? (
+                <Link
+                  key={group.key}
+                  href={`/labs/${group.biomarkerId}`}
+                  className="hover:bg-muted/40 block transition-colors"
+                >
+                  {row}
+                </Link>
+              ) : (
+                <div key={group.key}>{row}</div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 

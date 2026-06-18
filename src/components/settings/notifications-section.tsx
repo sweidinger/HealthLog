@@ -1,8 +1,6 @@
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useTranslations } from "@/lib/i18n/context";
-import { CoachNudgeCard } from "@/components/settings/coach-nudge-card";
 import { LowStockCard } from "@/components/settings/low-stock-card";
 import { MoodReminderCard } from "@/components/settings/mood-reminder-card";
 
@@ -17,44 +15,31 @@ import { MoodReminderCard } from "@/components/settings/mood-reminder-card";
  *
  * Each reminder-type card is shown ONLY when its module is enabled, read from
  * the resolved `useAuth().user.modules` map (the same `/auth/me` map nav and
- * Insights pills gate off). Mood → `mood`, Coach nudge → `coach`, low-stock
- * runway → `medications` (a toggleable fail-open module since D3, so a missing
- * key reads as enabled and a stale `/me` payload never blanks a card).
+ * Insights pills gate off). Mood → `mood`, low-stock runway → `medications`
+ * (a toggleable fail-open module since D3, so a missing key reads as enabled
+ * and a stale `/me` payload never blanks a card).
  *
  * v1.18.1 (D5) — the page is intentionally lean: the section blurb, the
  * channels / inbox cross-links, and the embedded Vorsorge (preventive-care)
  * editor were all removed. Vorsorge has its own `/vorsorge` page, so embedding
  * it here was a duplicate. Delivery CHANNELS (Telegram / ntfy / Web Push /
  * Webhook / Email) live under Settings → Integrations → Channels.
+ *
+ * v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+ * `<SettingsSectionFrame>`. The proactive-Coach nudge card moved to Settings →
+ * Coach (it is a Coach setting, not a generic notification), so this screen
+ * carries the mood + low-stock reminder cards only.
  */
 export function NotificationsSection() {
-  const { t } = useTranslations();
   const { isAuthenticated, user } = useAuth();
 
   // v1.18.0 (S4) — module-gated per-type visibility. Fail OPEN (`!== false`)
   // so a stale `/me` payload without the module map keeps every card visible.
   const moodEnabled = user?.modules?.mood !== false;
-  const coachEnabled = user?.modules?.coach !== false;
   const medsEnabled = user?.modules?.medications !== false;
 
   return (
-    <section
-      aria-labelledby="settings-section-notifications-title"
-      className="space-y-6"
-    >
-      {/* v1.18.1 (D0/D5) — the section blurb and the channels / inbox cross-
-          links were dropped: the header now starts at the same height as every
-          other section and the page carries only the reminder-type cards. */}
-      <header>
-        <h1 id="settings-section-notifications-title" className="sr-only">
-          {t("settings.sections.notifications.title")}
-        </h1>
-      </header>
-
-      {/* v1.18.1 (D5) — the Vorsorge (preventive-care) block was removed; it
-          has its own /vorsorge page, so embedding the editor here was a
-          duplicate. This screen keeps the three reminder-type cards below. */}
-
+    <div className="space-y-6">
       {/* Mood check-in reminder — only when the mood module is enabled. */}
       {moodEnabled ? (
         <div id="mood-reminder" className="scroll-mt-28">
@@ -69,13 +54,6 @@ export function NotificationsSection() {
           <LowStockCard isAuthenticated={isAuthenticated} />
         </div>
       ) : null}
-
-      {/* Proactive Coach nudge — only when the coach module is enabled. */}
-      {coachEnabled ? (
-        <div id="coach-nudge" className="scroll-mt-28">
-          <CoachNudgeCard isAuthenticated={isAuthenticated} />
-        </div>
-      ) : null}
-    </section>
+    </div>
   );
 }

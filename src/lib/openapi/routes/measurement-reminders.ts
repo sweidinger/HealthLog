@@ -12,6 +12,7 @@ import {
   createMeasurementReminderSchema,
   updateMeasurementReminderSchema,
   measurementReminderDto,
+  measurementReminderCompletionDto,
 } from "@/lib/validations/measurement-reminders";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 
@@ -160,6 +161,31 @@ export const measurementReminderPaths: NonNullable<
               schema: dataEnvelope(
                 measurementReminderDto,
                 "MeasurementReminderSatisfyEnvelope",
+              ),
+            },
+          },
+        },
+        ...reminderNotFound,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/measurement-reminders/{id}/complete": {
+    post: {
+      tags: ["MeasurementReminders"],
+      summary: "Complete a Vorsorge reminder (v1.18.6)",
+      description:
+        "Explicit user-action completion (iOS #23): the app marks a reminder done server-side instead of only dismissing it locally. Routes through the same satisfaction primitive as the cron auto-resolve — stamps lastSatisfiedAt = now, re-anchors nextDueAt, fires no notification. Idempotent: completing an already-completed / auto-satisfied reminder returns 200 with completed=false. Owner-scoped.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      responses: {
+        "200": {
+          description:
+            "Completion applied (completed=true) or already-satisfied no-op (completed=false); reminder carries the canonical post-completion DTO.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                measurementReminderCompletionDto,
+                "MeasurementReminderCompleteEnvelope",
               ),
             },
           },

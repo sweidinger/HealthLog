@@ -188,6 +188,60 @@ export async function appendMessage(
   };
 }
 
+export interface RecordProactiveNudgeParams {
+  userId: string;
+  /** Conversation title (the nudge headline) — summarised to ≤80 chars. */
+  title: string;
+  /** The nudge body, persisted as the initial ASSISTANT message. */
+  body: string;
+}
+
+/**
+ * v1.18.6 (CCH-02) — record a proactive Coach nudge as a real
+ * conversation so it shows up in the conversation rail regardless of
+ * which push channel (if any) the user configured. The proactive cron
+ * used to dispatch a notification ONLY; with no push channel the nudge
+ * was entirely invisible.
+ *
+ * Creates a fresh conversation and writes the nudge as the initial
+ * ASSISTANT message in one transaction so a partial write never leaves
+ * an empty thread in the rail. The body crosses the same
+ * `encryptToBytes` boundary as every other Coach message, so the nudge
+ * text is encrypted at rest like a normal reply. Returns the new
+ * conversation + message ids for the caller's annotation.
+ */
+export async function recordProactiveNudge(
+  params: RecordProactiveNudgeParams,
+): Promise<{ conversationId: string; messageId: string; createdAt: Date }> {
+  return prisma.$transaction(async (tx) => {
+    const conversation = await tx.coachConversation.create({
+      data: {
+        userId: params.userId,
+        title: summariseTitle(params.title),
+      },
+    });
+    const message = await tx.coachMessage.create({
+      data: {
+        conversationId: conversation.id,
+        role: "assistant",
+        encryptedContent: encryptToBytes(params.body),
+        metricSourceJson: null,
+        // Tags the message as a proactive nudge — the cron's frequency gate
+        // reads this back to cap rail conversations for no-push-channel users.
+        providerType: "nudge",
+        promptVersion: null,
+      },
+    });
+    // The conversation's `createdAt` == `updatedAt` on creation, so the
+    // rail already orders it to the top; no extra `update` needed.
+    return {
+      conversationId: conversation.id,
+      messageId: message.id,
+      createdAt: message.createdAt,
+    };
+  });
+}
+
 /**
  * Fetch one conversation + every message, decrypting each body on
  * read. Returns null when the conversation does not exist OR when the

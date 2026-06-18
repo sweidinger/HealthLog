@@ -23,6 +23,12 @@ import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import { prefetchDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 import { prefetchMedicationsList } from "@/lib/queries/prefetch-medications";
+import {
+  restorePersistedQueryCache,
+  startPersistingQueryCache,
+} from "@/lib/pwa/query-persister";
+
+const SHELL_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "";
 
 // ── Theme Context ────────────────────────────────────
 
@@ -147,6 +153,31 @@ function DashboardSnapshotPreloader() {
   return null;
 }
 
+// ── Offline query persistence ────────────────────────
+//
+// v1.18.6 — hydrate the last-synced query cache from IndexedDB before the
+// first authenticated paint, then debounce-persist successful reads back.
+// Combined with the service worker's allowlisted stale-while-revalidate API
+// branch, an installed PWA opened offline renders last-known data instead of
+// empty skeletons. Build-version + age gated; cleared on logout.
+function QueryPersistenceBridge() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    void restorePersistedQueryCache(queryClient, SHELL_VERSION).finally(() => {
+      if (!cancelled) {
+        stop = startPersistingQueryCache(queryClient, SHELL_VERSION);
+      }
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [queryClient]);
+  return null;
+}
+
 // ── Root Providers ───────────────────────────────────
 
 export function Providers({
@@ -181,6 +212,7 @@ export function Providers({
           initialMessages={initialMessages}
         >
           <AppSettingsProvider>
+            <QueryPersistenceBridge />
             <DashboardSnapshotPreloader />
             {children}
             <Toaster position="bottom-right" richColors />

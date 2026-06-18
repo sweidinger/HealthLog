@@ -23,6 +23,7 @@ import {
   type CoachDataCluster,
 } from "@/lib/validations/coach-prefs";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import { userDayKey } from "@/lib/tz/format";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import {
   computeGlucoseClinicalMetrics,
@@ -48,6 +49,11 @@ import { buildCoachMemoryBlock } from "./memory-snapshot";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import { buildCycleSnapshotBlock } from "./cycle-snapshot";
 import { buildIllnessSnapshotBlock } from "./illness-snapshot";
+import {
+  buildReferenceGroundingBlock,
+  type GroundingMetricInput,
+} from "./reference-grounding";
+import type { ReferenceMetric } from "@/lib/reference-ranges";
 import { isCycleAvailableForUser } from "@/lib/cycle/gate";
 import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
 import {
@@ -80,6 +86,15 @@ export interface CoachSnapshotResult {
    * the model could see.
    */
   provenance: CoachProvenance;
+  /**
+   * v1.18.6 (W7) — citation-aware reference-range grounding for the
+   * metrics present in this snapshot, or null when none is covered by the
+   * reference backbone. The Coach route appends it verbatim after the
+   * SNAPSHOT so the model reads published population bands + the user's
+   * placement (general guidance, never a diagnosis). Built deterministically
+   * from `src/lib/reference-ranges.ts`; carries no commercial brand name.
+   */
+  referenceGrounding: string | null;
 }
 
 /**
@@ -223,15 +238,11 @@ function windowToDays(window: CoachScopeWindow): number {
  * "last night" answer has to use the user's clock, not UTC. Up to
  * v1.4.24 the day-key was UTC, so a 23:50 Pacific/Auckland reading
  * landed in the next UTC day's bucket and the Coach couldn't pair it
- * with the user's mental model.
+ * with the user's mental model. Delegates to the canonical
+ * `userDayKey` so every day-bucket surface stays byte-aligned.
  */
 function tzDayKey(date: Date, tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  return userDayKey(date, tz);
 }
 
 /**
@@ -568,6 +579,11 @@ async function buildCoachSnapshotImpl(
       // display unit so the Coach reads the same number every other surface
       // shows. Read it on this existing prefs hop (no extra round-trip).
       glucoseUnit: true,
+      // v1.18.6 (W7) — the explicit, user-declared diabetes opt-in. Selects
+      // the tighter ADA glycemic GOAL band for the glucose reference-grounding
+      // line only; never inferred from a reading, never a diagnosis. Read on
+      // this existing prefs hop (no extra round-trip).
+      hasDiabetes: true,
     },
   });
   const prefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
@@ -654,6 +670,37 @@ async function buildCoachSnapshotImpl(
   }
   const metrics = new Set<CoachProvenance["metrics"][number]>();
   const counts: NonNullable<CoachProvenance["counts"]> = {};
+
+  // v1.18.6 (W7) — representative scalar per reference-covered metric, in the
+  // metric's reference unit, collected as the blocks below build. Feeds the
+  // citation-aware grounding block (population band + the user's placement).
+  // Each entry reads the SAME number the snapshot already surfaces — no
+  // independent recompute — so the grounding can never cite a value the
+  // snapshot doesn't carry. A metric with a block but no clean scalar is left
+  // unset (the grounding line still cites its band with an insufficient
+  // placement only if it is added with a null value; we omit such metrics).
+  const groundingValues = new Map<ReferenceMetric, number>();
+  // Additive `MeasurementType` → reference metric, for the value-block loop.
+  const TYPE_TO_REFERENCE_METRIC: Record<string, ReferenceMetric> = {
+    RESTING_HEART_RATE: "RESTING_HEART_RATE",
+    OXYGEN_SATURATION: "OXYGEN_SATURATION",
+    RESPIRATORY_RATE: "RESPIRATORY_RATE",
+    PULSE_WAVE_VELOCITY: "PULSE_WAVE_VELOCITY",
+    BODY_TEMPERATURE: "BODY_TEMPERATURE",
+    BODY_MASS_INDEX: "BMI",
+    VISCERAL_FAT: "VISCERAL_FAT",
+    ACTIVITY_STEPS: "STEPS",
+  };
+  /** Mean of the most recent N daily-value rows (already user-tz day means). */
+  const recentRowsMean = (
+    rows: DailyValueRow[],
+    take = DAILY_TIMELINE_DAYS,
+  ): number | null => {
+    if (rows.length === 0) return null;
+    const slice = rows.slice(-take);
+    const sum = slice.reduce((s, r) => s + r.value, 0);
+    return sum / slice.length;
+  };
 
   // v1.7.0 — block registry. Maps each emitted snapshot top-level key
   // to the cluster it belongs to so the soft-cap degradation pass
@@ -1122,6 +1169,10 @@ async function buildCoachSnapshotImpl(
     windows.add("last90days");
     counts.bp = features.bloodPressure.coverage?.count ?? undefined;
     registerBlock("bloodPressure", "bp");
+    // W7 grounding: systolic 30-day mean against the ESH 2023 office bands.
+    const sys30 =
+      features.bloodPressure.avgSys30 ?? features.bloodPressure.allTimeAvgSys;
+    if (sys30 != null) groundingValues.set("BLOOD_PRESSURE", sys30);
   }
   if (wantsWeight && features.weight) {
     const rows = byType("WEIGHT");
@@ -1140,6 +1191,13 @@ async function buildCoachSnapshotImpl(
     windows.add("last30days");
     counts.weight = features.weight.coverage?.count ?? undefined;
     registerBlock("weight", "weight");
+    // W7 grounding: weight has no population band, but the derived BMI does.
+    // Use the features-computed BMI (same value the weight tile shows) so the
+    // grounding reads the WHO band. A dedicated BODY_MASS_INDEX block (below)
+    // wins if the user also syncs a measured BMI series.
+    if (features.weight.bmi != null) {
+      groundingValues.set("BMI", features.weight.bmi);
+    }
   }
   if (wantsPulse && features.pulse) {
     const rows = byType("PULSE");
@@ -1415,6 +1473,14 @@ async function buildCoachSnapshotImpl(
     metrics.add(block.metric);
     counts[block.metric] = rows.length;
     registerBlock(block.snapshotKey, block.source);
+    // W7 grounding: when this additive series maps to a reference metric,
+    // record the recent daily mean (same per-day means the timeline shows).
+    const refMetric = TYPE_TO_REFERENCE_METRIC[block.type];
+    if (refMetric) {
+      const recentRows = buildDailyValueRows(rows, recentCutoff, userTz);
+      const mean = recentRowsMean(recentRows);
+      if (mean != null) groundingValues.set(refMetric, mean);
+    }
   }
 
   // ── v1.7.0 sleep block (with optional per-stage enrichment) ───────
@@ -1483,6 +1549,19 @@ async function buildCoachSnapshotImpl(
       metrics.add("sleep");
       counts.sleep = sleepRows.length;
       registerBlock("sleep", "sleep");
+      // W7 grounding: recent nightly asleep duration in HOURS against the
+      // AASM 7–9 h band (the reference unit is hours; the snapshot stores
+      // minutes). Mean over the recent nights the block already reconstructed.
+      if (recentNights.length > 0) {
+        const meanMin =
+          recentNights.reduce(
+            (s, n) => s + (typeof n.minutes === "number" ? n.minutes : 0),
+            0,
+          ) / recentNights.length;
+        if (meanMin > 0) {
+          groundingValues.set("SLEEP_DURATION", meanMin / 60);
+        }
+      }
     }
   }
 
@@ -1656,6 +1735,22 @@ async function buildCoachSnapshotImpl(
       metrics.add("glucose");
       counts.glucose = glucoseRows.length;
       registerBlock("glucose", "glucose");
+      // W7 grounding: fasting glucose mean in RAW mg/dL (the reference band's
+      // unit), independent of the user's mmol/L display preference. The
+      // grounding line's band selection respects the W6 `hasDiabetes` opt-in;
+      // here we only feed the representative fasting value. Fall back to the
+      // overall mean when no row is tagged FASTING so the band is still cited.
+      const fastingRows = glucoseRows.filter(
+        (r) => String(r.glucoseContext).toUpperCase() === "FASTING",
+      );
+      const glucoseScalarRows =
+        fastingRows.length > 0 ? fastingRows : glucoseRows;
+      const glucoseMeanMgdl =
+        glucoseScalarRows.reduce((s, r) => s + r.value, 0) /
+        glucoseScalarRows.length;
+      if (Number.isFinite(glucoseMeanMgdl)) {
+        groundingValues.set("BLOOD_GLUCOSE", glucoseMeanMgdl);
+      }
     }
   }
 
@@ -1897,6 +1992,29 @@ async function buildCoachSnapshotImpl(
   // `coach.snapshot.truncated` annotation when it sheds anything.
   degradeToBudget(compactSnapshot, blockClusters);
 
+  // v1.18.6 (W7) — build the citation-aware reference-grounding block from the
+  // representative scalars collected above. Deterministic + pure; the route
+  // appends it verbatim after the SNAPSHOT. Null when no present metric is
+  // covered by the reference backbone. Insertion order follows the block-build
+  // order (BP first), giving a stable, inspectable block for the
+  // hallucination-QA pass.
+  const groundingMetrics: GroundingMetricInput[] = Array.from(
+    groundingValues.entries(),
+  ).map(([metric, value]) => ({ metric, value }));
+  const referenceGrounding = buildReferenceGroundingBlock({
+    metrics: groundingMetrics,
+    hasDiabetes: prefsRow?.hasDiabetes ?? false,
+  });
+  if (referenceGrounding) {
+    annotate({
+      action: { name: "coach.grounding.attached" },
+      meta: {
+        metrics: groundingMetrics.map((m) => m.metric).sort(),
+        hasDiabetes: prefsRow?.hasDiabetes ?? false,
+      },
+    });
+  }
+
   return {
     snapshotJson: JSON.stringify(compactSnapshot, null, 2),
     provenance: {
@@ -1904,6 +2022,7 @@ async function buildCoachSnapshotImpl(
       metrics: Array.from(metrics),
       counts: Object.keys(counts).length > 0 ? counts : undefined,
     },
+    referenceGrounding,
   };
 }
 

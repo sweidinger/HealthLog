@@ -193,6 +193,13 @@ model User {
   moodTagLayoutJson       Json?   @map("mood_tag_layout_json")
   // Blood-glucose display unit preference. Canonical storage is mg/dL.
   glucoseUnit             String? @map("glucose_unit") // "mg/dL" | "mmol/L" | null = default "mg/dL"
+  // v1.18.6 — explicit "I have diabetes / clinician glucose targets" opt-in.
+  // When `true`, the glucose target resolver applies the tighter ADA glycemic
+  // GOAL bands (fasting 80–130, postprandial < 180) instead of the general
+  // non-diabetic normal bands. NEVER auto-inferred from values, NEVER a
+  // diagnosis — purely a user-declared preference that selects which target
+  // band the user is judged against. Default `false`.
+  hasDiabetes             Boolean @default(false) @map("has_diabetes")
   // v1.7.0 unit pref — global metric/imperial display preference.
   // Canonical storage stays SI; this only selects the display-time
   // transform branch (km/h vs mph, km vs mi). Null = default "metric".
@@ -255,6 +262,33 @@ model User {
   // on tour completion or dismiss; users can replay the tour from
   // Settings → Account.
   onboardingTourCompleted Boolean   @default(false) @map("onboarding_tour_completed")
+
+  // v1.18.6 — resumable module-tour progress. The coarse boolean above
+  // stays as the "did the user ever finish/dismiss" flag the launcher
+  // gates on; this column carries the fine-grained resume point so a
+  // mid-tour reload reopens at the right module. Follows the per-user
+  // JSON-column convention (`dashboardWidgetsJson` / `insightsLayoutJson`
+  // / `coachPrefsJson`). Shape (validated by
+  // `src/lib/onboarding/tour-progress.ts`):
+  //   { lastStopId: string | null,
+  //     completedStopIds: string[],
+  //     status: "in_progress" | "completed" | "skipped",
+  //     updatedAt: string (ISO) }
+  // Null = the user has not started the module tour (fresh account or a
+  // legacy account that only carries the boolean flag). Cleared back to
+  // null on a Settings replay so the tour genuinely restarts.
+  onboardingTourProgressJson Json? @map("onboarding_tour_progress_json")
+
+  // v1.18.6 (DISC-02) — one-time medical-disclaimer acknowledgment. Shown
+  // once at the start of onboarding: HealthLog is a private tracking tool,
+  // not a clinical assessment or diagnosis; if worried, talk to a doctor.
+  // Mirrors the `researchModeAcknowledged*` pair — the version pins exactly
+  // which copy the user read, so a future material wording change can ask
+  // again. Null = never acknowledged (legacy accounts read as never-asked;
+  // the prompt only gates fresh onboarding, so they are not re-walled). The
+  // acknowledged legal text stays reachable on the public privacy page.
+  disclaimerAcknowledgedAt      DateTime? @map("disclaimer_acknowledged_at")
+  disclaimerAcknowledgedVersion String?   @map("disclaimer_acknowledged_version")
 
   // HealthKit (iOS) integration config — list of per-metric direction toggles.
   // Shape: { entries: [{ id, kind, direction, enabled }], lastSyncedAt }
@@ -429,6 +463,18 @@ model User {
   // merge semantics (no mass assignment); surfaced resolved on
   // `GET /api/auth/me` as a `modules: { <key>: boolean }` map.
   modulePreferencesJson Json? @map("module_preferences_json")
+
+  // v1.18.6 (CCH-03) — "Coach last seen" stamp powering the unread dot
+  // on the Coach FAB. The proactive nudge now lands as an ASSISTANT
+  // message in the conversation rail (CCH-02); the FAB shows a discreet
+  // unread dot when the newest Coach message is newer than this stamp,
+  // and clears it when the user opens the Coach (drawer or page, which
+  // writes the current time here via `POST /api/insights/coach/seen`).
+  // Null = never opened the Coach, so any existing message reads as
+  // unread once. Server-authoritative so the signal is consistent across
+  // web + iOS; the FAB keeps a local mirror only as an instant-paint
+  // optimisation.
+  coachLastSeenAt DateTime? @map("coach_last_seen_at")
 
   // v1.5.5 — self-hosted avatar storage.
   //
@@ -3586,6 +3632,12 @@ model CoachMessage {
   feedback     RecommendationFeedback[]
 
   @@index([conversationId, createdAt])
+  // v1.18.6 (L1) — the FAB nudge-status poll and the cron's persisted-nudge
+  // frequency gate both scan a user's assistant messages newest-first
+  // (optionally filtered to provider_type = 'nudge'). This index lets the
+  // planner do an index-backed per-conversation merge instead of gathering +
+  // sorting every assistant row in the user's threads on each global poll.
+  @@index([conversationId, role, createdAt(sort: Desc)])
   @@map("coach_messages")
 }
 

@@ -47,6 +47,7 @@ import {
 } from "@/lib/medications/scheduling/recurrence";
 import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
+import { startOfLocalDayInTz } from "@/lib/tz/local-day";
 
 /**
  * v1.13.x compliance — opt-in retrospective-rolling expansion.
@@ -336,8 +337,7 @@ function hhmmToMinutes(hhmm: string): number | null {
 
 /** Snap a Date down to the user-local midnight. */
 export function startOfLocalDay(d: Date, tz: string | undefined): Date {
-  const parts = wallClockInTz(d, tz);
-  return instantInTz(parts.year, parts.month, parts.day, 0, 0, tz);
+  return startOfLocalDayInTz(d, tz);
 }
 
 /** Snap a Date down to the Sunday-rooted user-local week. */

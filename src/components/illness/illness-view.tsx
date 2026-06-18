@@ -15,9 +15,9 @@
  * per-day timeline and correlation card live. Retrospective-only copy — a
  * journal, not a medical device, and it does not diagnose.
  */
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Stethoscope } from "lucide-react";
+import { ChevronDown, Plus, Stethoscope, Wrench } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 import { LogDaySheet } from "./log-day-sheet";
 import { NewEpisodeSheet } from "./new-episode-sheet";
@@ -57,6 +59,7 @@ interface EpisodeCardProps {
   onEdit: (episode: IllnessEpisodeDTO) => void;
   onResolve: (id: string) => void;
   resolving: boolean;
+  view: "cards" | "list";
 }
 
 function EpisodeCard({
@@ -66,12 +69,65 @@ function EpisodeCard({
   onEdit,
   onResolve,
   resolving,
+  view,
 }: EpisodeCardProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const active = episode.resolvedAt === null;
   const isChronic = episode.lifecycle === "CHRONIC_ONGOING";
   const flareCount = flares?.length ?? 0;
+
+  // v1.18.6 (MOD-03) — compact list row: a single divided line per episode
+  // (label + status chips + onset; tap navigates to the detail surface).
+  if (view === "list") {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-between gap-3 px-4 py-2.5">
+          <div className="min-w-0 space-y-0.5">
+            <Link
+              href={`/illness/${episode.id}`}
+              className="block truncate text-sm font-medium hover:underline focus-visible:underline"
+            >
+              {episode.label}
+            </Link>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              <Badge variant="secondary">
+                {t(`illness.type.${episode.type}`)}
+              </Badge>
+              <Badge variant="outline">
+                {active
+                  ? isChronic
+                    ? t("illness.status.ongoing")
+                    : t("illness.status.active")
+                  : t("illness.status.recovered")}
+              </Badge>
+              <span className="text-muted-foreground">
+                {fmt.dateShort(new Date(episode.onsetAt))}
+              </span>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-9"
+              onClick={() => onLogDay(episode.id)}
+            >
+              {t("illness.logDay")}
+            </Button>
+            <EpisodeMenu
+              episode={episode}
+              onEdit={() => onEdit(episode)}
+              onResolve={
+                active && !isChronic ? () => onResolve(episode.id) : undefined
+              }
+              resolving={resolving}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="h-full gap-3 md:gap-3">
@@ -169,6 +225,8 @@ function EpisodeGroup({
   onEdit,
   onResolve,
   resolving,
+  view,
+  collapsible = false,
 }: {
   title: string;
   parents: IllnessEpisodeDTO[];
@@ -177,26 +235,74 @@ function EpisodeGroup({
   onEdit: (episode: IllnessEpisodeDTO) => void;
   onResolve: (id: string) => void;
   resolving: boolean;
+  view: "cards" | "list";
+  /**
+   * v1.18.6 (MOD-05) — the resolved group collapses by default behind a
+   * disclosure trigger so a long recovered history never pushes the active
+   * conditions below the fold.
+   */
+  collapsible?: boolean;
 }) {
+  // Hooks must run unconditionally; bail on the empty render afterwards.
+  const [open, setOpen] = useState(false);
+  const gridId = useId();
   if (parents.length === 0) return null;
+
+  const grid = (
+    <div
+      id={gridId}
+      className={cn(
+        view === "list" ? "space-y-2" : "grid gap-4 sm:grid-cols-2",
+      )}
+    >
+      {parents.map((episode) => (
+        <EpisodeCard
+          key={episode.id}
+          episode={episode}
+          flares={childrenByParent.get(episode.id)}
+          resolving={resolving}
+          onLogDay={onLogDay}
+          onEdit={onEdit}
+          onResolve={onResolve}
+          view={view}
+        />
+      ))}
+    </div>
+  );
+
+  if (collapsible) {
+    return (
+      <section className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={gridId}
+          className="text-muted-foreground hover:text-foreground -mx-1 flex w-fit items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium uppercase tracking-wide transition-colors"
+        >
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 transition-transform motion-reduce:transition-none",
+              open ? "rotate-0" : "-rotate-90",
+            )}
+            aria-hidden="true"
+          />
+          {title}
+          <span className="text-muted-foreground/70 normal-case">
+            ({parents.length})
+          </span>
+        </button>
+        {open ? grid : null}
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-3">
       <h2 className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
         {title}
       </h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {parents.map((episode) => (
-          <EpisodeCard
-            key={episode.id}
-            episode={episode}
-            flares={childrenByParent.get(episode.id)}
-            resolving={resolving}
-            onLogDay={onLogDay}
-            onEdit={onEdit}
-            onResolve={onResolve}
-          />
-        ))}
-      </div>
+      {grid}
     </section>
   );
 }
@@ -205,6 +311,7 @@ export function IllnessView() {
   const { t } = useTranslations();
   const { data: episodes, isLoading } = useIllnessEpisodes(true);
   const resolve = useResolveEpisode();
+  const { prefs } = useModuleListPrefs("illness");
 
   const today = todayLocal();
   const [newOpen, setNewOpen] = useState(false);
@@ -247,8 +354,14 @@ export function IllnessView() {
       }
     }
 
-    return { activeParents, resolvedParents, childrenByParent };
-  }, [episodes]);
+    return {
+      // v1.18.6 (MOD-03) — honour the user's persisted manual order within
+      // each status group (ids absent from the order sort after the block).
+      activeParents: applyOrder(activeParents, prefs.order, (e) => e.id),
+      resolvedParents: applyOrder(resolvedParents, prefs.order, (e) => e.id),
+      childrenByParent,
+    };
+  }, [episodes, prefs.order]);
 
   const hasEpisodes = (episodes?.length ?? 0) > 0;
 
@@ -256,23 +369,49 @@ export function IllnessView() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1
+            data-tour-id="illness-hero"
+            className="text-2xl font-bold tracking-tight"
+          >
             {t("illness.title")}
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm">
             {t("illness.subtitle")}
           </p>
         </div>
-        <Button
-          onClick={() => setNewOpen(true)}
-          className="min-h-11 shrink-0 sm:min-h-9"
-        >
-          <Plus className="h-4 w-4" />
-          {t("illness.newEpisode")}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <ModuleTourTrigger stopId="illness" />
+          {/* v1.18.6 (MOD-01) — wrench left of the primary Add, linking to the
+              Illness settings page (view + reorder). */}
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+          >
+            <Link
+              href="/settings/illness"
+              aria-label={t("illness.customize")}
+              title={t("illness.customize")}
+            >
+              <Wrench className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+          {/* v1.18.6 (MOD-02) — the add button reads "hinzufügen" like every
+              other module, not the bespoke "neue Episode". */}
+          <Button
+            onClick={() => setNewOpen(true)}
+            className="min-h-11 sm:min-h-9"
+          >
+            <Plus className="h-4 w-4" />
+            {t("common.add")}
+          </Button>
+        </div>
       </div>
 
-      <p className="text-muted-foreground text-xs">{t("illness.disclaimer")}</p>
+      {/* v1.18.6 (DISC-01) — the per-page medical disclaimer line is removed;
+          the one-time acknowledgment now lives at onboarding and the legal
+          text stays reachable on the public privacy page. */}
 
       {isLoading ? (
         <div className={cn("grid gap-4 sm:grid-cols-2")}>
@@ -290,6 +429,7 @@ export function IllnessView() {
             parents={grouped.activeParents}
             childrenByParent={grouped.childrenByParent}
             resolving={resolve.isPending}
+            view={prefs.view}
             onLogDay={(id) => setLogEpisodeId(id)}
             onEdit={(e) => setEditEpisode(e)}
             onResolve={(id) => resolve.mutate(id)}
@@ -299,6 +439,8 @@ export function IllnessView() {
             parents={grouped.resolvedParents}
             childrenByParent={grouped.childrenByParent}
             resolving={resolve.isPending}
+            view={prefs.view}
+            collapsible
             onLogDay={(id) => setLogEpisodeId(id)}
             onEdit={(e) => setEditEpisode(e)}
             onResolve={(id) => resolve.mutate(id)}

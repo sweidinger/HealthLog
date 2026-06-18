@@ -10,6 +10,14 @@ import { useTranslations } from "@/lib/i18n/context";
 import type { TimeFormatPreference } from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
 import type { ModuleKey } from "@/lib/modules/registry";
+import type { TourProgress } from "@/lib/onboarding/tour-progress";
+import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
+
+/**
+ * v1.18.6 — resume point for the module tour as the client sees it on
+ * `/api/auth/me`. Mirrors the server-side `TourProgress` shape.
+ */
+export type AuthTourProgress = TourProgress;
 
 export interface AuthUser {
   id: string;
@@ -28,6 +36,22 @@ export interface AuthUser {
    * `<TourLauncher>` component for the gating logic.
    */
   onboardingTourCompleted: boolean;
+  /**
+   * v1.18.6 — resumable module-tour progress, or null when the user
+   * has not started the tour. The `<TourLauncher>` seeds its resume
+   * index from `lastStopId`. Distinct from the coarse
+   * `onboardingTourCompleted` boolean, which stays the auto-launch gate.
+   */
+  onboardingTourProgress: AuthTourProgress | null;
+  /**
+   * v1.18.6 (DISC-02) — ISO timestamp of the one-time medical-disclaimer
+   * acknowledgment, or null when never acknowledged. The onboarding welcome
+   * step gates "Get started" on a non-null value for a fresh account.
+   * Optional in the type so a stale /me payload (older server image without
+   * the field) and existing test fixtures coerce to "never acknowledged"
+   * rather than failing the shape.
+   */
+  disclaimerAcknowledgedAt?: string | null;
   /**
    * v1.5.5 — relative URL of the user's self-hosted avatar, served
    * from `/api/user/avatar/{id}?v={updatedAtMs}`. Replaces the
@@ -136,6 +160,9 @@ async function fetchMe(): Promise<AuthUser> {
   return {
     ...(data as AuthUser),
     disableCoach: data.disableCoach ?? false,
+    // v1.18.6 — coerce against a stale /me payload (older server image
+    // without the field) to null so the tour starts from the top.
+    onboardingTourProgress: data.onboardingTourProgress ?? null,
     // v1.7.0 — coerce against a stale /me payload (older server image
     // without the field) so the display defaults to metric.
     unitPreference: data.unitPreference === "imperial" ? "imperial" : "metric",
@@ -194,19 +221,14 @@ export function useLogout() {
     onSuccess: () => {
       queryClient.setQueryData(queryKeys.authMe(), null);
       queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
-      // Defense-in-depth at the session boundary: wipe the service-worker
-      // page cache so no cached navigation HTML survives a logout on a
-      // shared device. Scoped to `healthlog-pages-*` only — the static
-      // cache (hashed chunks, icons) carries no PII and dropping it would
-      // force a needless re-download on the next login. Best-effort; never
-      // blocks the redirect.
-      if (typeof caches !== "undefined") {
-        void caches.keys().then((keys) => {
-          for (const key of keys) {
-            if (key.startsWith("healthlog-pages-")) void caches.delete(key);
-          }
-        });
-      }
+      // Defense-in-depth at the session boundary: wipe every client-side cache
+      // that can hold this account's health data — the IndexedDB query
+      // snapshot, the SW offline read-data cache (`healthlog-data-*`), and the
+      // SW page cache (`healthlog-pages-*`, cached navigation HTML) — so
+      // nothing survives a logout on a shared device. The static cache (hashed
+      // chunks, icons) carries no PII and is left intact to avoid a needless
+      // re-download. Best-effort; never blocks the redirect.
+      void clearOfflineCachesForSessionEnd();
       router.push("/auth/login");
     },
     // v1.16.4 — a network-failed logout used to do nothing at all (the

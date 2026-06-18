@@ -151,4 +151,17 @@ describe("selectTrendCharts", () => {
       }
     }
   });
+
+  it("every chart-bearing sourceMetric carries a routed detailHref", () => {
+    // v1.18.6 — the overview Trends row drills into the metric's detail page.
+    // Each chartable slot must resolve to a `/insights/<slug>` target so the
+    // cross-link never lands on a non-route — steps in particular.
+    for (const [metric, config] of Object.entries(TREND_CHART_CONFIG)) {
+      if (!config) continue;
+      expect(config.detailHref, `${metric} detailHref`).toMatch(
+        /^\/insights\//,
+      );
+    }
+    expect(TREND_CHART_CONFIG.steps?.detailHref).toBe("/insights/steps");
+  });
 });

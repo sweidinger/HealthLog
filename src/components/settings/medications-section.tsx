@@ -73,17 +73,10 @@ export function MedicationsSection() {
     ),
   ].map((m) => ({ id: m.id, name: m.name, dose: m.dose, active: m.active }));
 
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+  // `<SettingsSectionFrame>` in the route; this body is the medication cards.
   return (
-    <section
-      aria-labelledby="settings-section-medications-title"
-      className="space-y-6"
-    >
-      <header>
-        <h1 id="settings-section-medications-title" className="sr-only">
-          {t("settings.sections.medications.title")}
-        </h1>
-      </header>
-
+    <div className="space-y-6">
       {/* View preference — cards vs table. The shared header toggle
           writes optimistically, so there is no Save button here. */}
       <div
@@ -130,6 +123,6 @@ export function MedicationsSection() {
           they moved here from the account profile so all medication-specific
           preferences live in one place. */}
       <InjectionSitesCard isAuthenticated={isAuthenticated} />
-    </section>
+    </div>
   );
 }

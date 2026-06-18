@@ -1,6 +1,7 @@
 "use client";
 
-import { Activity, Droplet, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { Activity, Droplet, FlaskConical, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,6 +114,9 @@ export function GlucoseClinicalPanel() {
             }
             caveat={t("insights.bloodGlucose.clinical.spotCaveat")}
           />
+          <div className="mt-4">
+            <LabsCrossLink />
+          </div>
         </CardContent>
       </Card>
     );
@@ -225,8 +229,31 @@ export function GlucoseClinicalPanel() {
             byContext={byContext}
           />
         ) : null}
+
+        <LabsCrossLink />
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * v1.18.6 — signpost the measurement-vs-lab mental model. This panel
+ * estimates A1c / GMI from spot or CGM readings over time; a lab-ordered
+ * HbA1c or fasting-glucose result is a dated panel value that lives under
+ * Labs. The cross-link keeps the two surfaces referencing each other so a
+ * user knows which door to use rather than treating them as rivals.
+ */
+function LabsCrossLink() {
+  const { t } = useTranslations();
+  return (
+    <Link
+      href="/labs"
+      data-slot="glucose-labs-link"
+      className="text-muted-foreground hover:text-foreground border-border/60 flex items-start gap-1.5 border-t pt-3 text-xs leading-relaxed underline-offset-4 hover:underline"
+    >
+      <FlaskConical className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+      <span>{t("insights.bloodGlucose.clinical.labsLink")}</span>
+    </Link>
   );
 }
 

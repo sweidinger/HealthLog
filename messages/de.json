@@ -18,7 +18,6 @@
     "optional": "Optional",
     "active": "Aktiv",
     "inactive": "Inaktiv",
-    "enabled": "Aktiviert",
     "disabled": "Deaktiviert",
     "networkError": "Netzwerkfehler",
     "unknownError": "Unbekannter Fehler",
@@ -74,7 +73,6 @@
     "colTaken": "Eingenommen",
     "colSkipped": "Übersprungen",
     "colMissed": "Verpasst",
-    "colTotal": "Gesamt",
     "colExpected": "Erwartet",
     "colComplianceRate": "Therapietreue",
     "moodTitle": "Stimmungsverlauf",
@@ -191,7 +189,8 @@
     "backToDashboard": "Zurück zum Dashboard"
   },
   "offlineBanner": {
-    "message": "Keine Verbindung — Änderungen werden gespeichert, sobald du wieder online bist."
+    "message": "Keine Verbindung — Änderungen werden gespeichert, sobald du wieder online bist.",
+    "showingCached": "Zeigt deine zuletzt synchronisierten Daten."
   },
   "demoBanner": {
     "message": "Demo-Modus — Änderungen werden nicht gespeichert."
@@ -201,14 +200,12 @@
     "measurements": "Messungen",
     "medications": "Medikamente",
     "insights": "Insights",
-    "targets": "Zielwerte",
     "achievements": "Erfolge",
     "settings": "Einstellungen",
     "bugreport": "Bugreport",
     "admin": "Admin-Konsole",
     "logout": "Abmelden",
     "login": "Anmelden",
-    "about": "Über HealthLog",
     "notifications": "Benachrichtigungen",
     "theme": "Darstellung",
     "themeSystem": "System",
@@ -218,13 +215,11 @@
     "userMenu": "Benutzermenü",
     "accountSettings": "Kontoeinstellungen",
     "mood": "Stimmung",
-    "workouts": "Workouts",
     "coach": "Coach",
     "skipToContent": "Zum Inhalt springen",
     "sidebar": "Sidebar",
     "mainNavigation": "Hauptnavigation",
     "mobileNavigation": "Mobile Navigation",
-    "breadcrumb": "Brotkrumen-Navigation",
     "loadingScreen": "Laden…",
     "more": "Mehr",
     "moreSheetTitle": "Mehr",
@@ -241,7 +236,6 @@
     },
     "cycle": "Zyklus",
     "labs": "Laborwerte",
-    "recovery": "Erholung",
     "vorsorge": "Vorsorge",
     "illness": "Krankheit"
   },
@@ -329,7 +323,6 @@
     "sleepShort": "Schlaf",
     "stepsShort": "Schritte",
     "vo2MaxShort": "VO₂ max",
-    "bpInTargetShort": "BD-Ziel",
     "bpInTargetWindow90": "BD-Ziel · 90 T",
     "bpInTargetWindowDynamic": "BD-Ziel · {days} T",
     "bpInTargetCollecting": "sammelt noch Daten",
@@ -383,7 +376,6 @@
     "staleHintWeeksOther": "Letzter Wert vor {count} Wochen",
     "staleHintMonthsOne": "Letzter Wert vor 1 Monat",
     "staleHintMonthsOther": "Letzter Wert vor {count} Monaten",
-    "coachCta": "Frag den Coach",
     "recentWorkouts": {
       "title": "Letzte Workouts",
       "viewAll": "Alle anzeigen",
@@ -422,7 +414,7 @@
   },
   "measurements": {
     "title": "Messungen",
-    "subtitle": "Gewicht, Blutdruck, Puls und mehr",
+    "subtitle": "Werte erfassen und die vollständige Historie einsehen. Trends und Auswertungen findest du unter Auswertungen.",
     "addMeasurement": "Hinzufügen",
     "editMeasurement": "Messwert bearbeiten",
     "type": "Typ",
@@ -498,7 +490,6 @@
     "invalidTimestamp": "Bitte einen gültigen Zeitpunkt wählen.",
     "loginRequired": "Bitte anmelden, um Messwerte zu sehen.",
     "allTypes": "Alle Typen",
-    "filterByType": "Nach Typ filtern",
     "measurementCount": "{count} Messwerte",
     "emptyTitle": "Noch keine Messwerte",
     "emptyDescription": "Erfasse Gewicht, Blutdruck, Puls oder andere Werte, um Trends zu erkennen.",
@@ -549,7 +540,6 @@
     "typeCardioLoad": "Kardio-Belastung",
     "typeSleepScore": "Schlafscore",
     "typeBodyTemperatureDeviation": "Körpertemperaturabweichung",
-    "filterBySource": "Nach Quelle filtern",
     "sourceComputed": "Berechnet",
     "sourceWhoop": "WHOOP",
     "sourceFitbit": "Fitbit",
@@ -669,7 +659,6 @@
       "factorSadness": "Traurigkeit",
       "praise": "Lob"
     },
-    "filterBySource": "Nach Quelle filtern",
     "sourceManual": "Manuell",
     "sourceWeb": "Web",
     "sourceTelegram": "Telegram",
@@ -740,8 +729,6 @@
     "subtitle": "Medikation, Zeitpläne & Einnahmen",
     "loginRequired": "Bitte anmelden, um Medikamente zu verwalten.",
     "addMedication": "Hinzufügen",
-    "editMedication": "Medikament bearbeiten",
-    "newMedication": "Neues Medikament",
     "firstMedication": "Erstes Medikament anlegen",
     "addChoice": {
       "logIntake": "Einnahme erfassen",
@@ -777,16 +764,9 @@
     "loadFailed": "Medikamente konnten nicht geladen werden",
     "retryLoad": "Erneut laden",
     "name": "Name",
-    "dose": "Dosis",
-    "scheduleFrom": "Von",
-    "scheduleTo": "Bis",
-    "scheduleLabel": "Bezeichnung",
-    "scheduleDays": "Tage",
-    "scheduleDaily": "Täglich",
     "inactive": "Pausiert",
     "intakeHistory": "Einnahme-Verlauf",
     "openDetailPage": "Medikament-Detailseite öffnen",
-    "deleteConfirm": "Medikament löschen?",
     "compliance": "Therapietreue",
     "importIntakes": "Einnahmen importieren",
     "importDescription": "JSON-Array mit Einnahme-Daten einfügen. Erwartetes Format:",
@@ -801,19 +781,7 @@
     "importInvalidSkipped": "{count} ungültige Einträge übersprungen",
     "importFailed": "Import fehlgeschlagen",
     "importInvalidFormat": "Ungültiges JSON-Format",
-    "apiEndpointTitle": "API-Endpoint: {name}",
-    "apiEndpointDescription": "Nutze diesen Endpoint, um Einnahmen per API zu erfassen (z.B. via iPhone-Kurzbefehl oder cron-Job).",
-    "apiEndpointActive": "API-Endpoint aktiv",
-    "apiEndpointActivated": "API-Endpoint aktiviert",
-    "apiEndpointDeactivated": "API-Endpoint deaktiviert",
-    "apiTokenCount": "Aktiv ({count} Token)",
-    "apiToken": "API-Token",
-    "apiTokenActiveHint": "Endpoint ist aktiv. Vorhandene Tokens bleiben gültig, können aber nicht erneut im Klartext angezeigt werden.",
-    "apiTokenActivateHint": "Aktiviere den Endpoint, um einen neuen Token zu erstellen.",
-    "apiTokenOnceHint": "Der Token wird nur bei der Erstellung einmal im Klartext angezeigt.",
     "requestExample": "Request-Beispiel",
-    "statusLoadFailed": "Status konnte nicht geladen werden",
-    "changeFailed": "Ändern fehlgeschlagen",
     "categoryBloodPressure": "Blutdrucksenker",
     "categoryVitamin": "Vitamine",
     "categoryThyroid": "Schilddrüse",
@@ -846,21 +814,15 @@
     "lastDoseDaysAgo": "Letzte Dosis vor {count} Tagen",
     "overdue": "Überfällig",
     "veryOverdue": "Stark überfällig",
-    "compliance7d": "Therapietreue (7 Tage)",
-    "compliance30d": "Therapietreue (30 Tage)",
     "complianceWindow": "Therapietreue ({days} Tage)",
     "complianceUnavailable": "Therapietreue konnte nicht geladen werden",
     "complianceInfo": "Anteil der erfassten an den erwarteten Dosen. Wöchentliche Pläne zählen wochenweise.",
     "complianceInfoLabel": "Was bedeutet Therapietreue?",
-    "complianceDoses": "{count} Dosen",
     "lastIntake": "Letzte Einnahme:",
     "nextIntake": "Nächste Einnahme:",
     "nextIntakeOverdue": "Überfällig · {time} — noch nachholbar",
     "dayStreak": "Tage Serie",
     "dayStreakOne": "Tag Serie",
-    "cycleNextDoseToday": "Nächste Dosis heute",
-    "cycleNextDoseTomorrow": "Nächste Dosis morgen",
-    "cycleNextDoseInDays": "Nächste Dosis in {days} Tagen",
     "cycleDueToday": "Heute fällig",
     "cycleOverdue": "Überfällig",
     "cycleNoClosedCycles": "Noch keine abgeschlossenen Dosiszyklen",
@@ -872,40 +834,10 @@
     "intakeUndo": "Rückgängig",
     "intakeUndone": "Eintrag zurückgenommen",
     "intakeUndoFailed": "Rückgängig fehlgeschlagen – im Verlauf korrigieren",
-    "weekdaySunday": "Sonntag",
-    "weekdayMonday": "Montag",
-    "weekdayTuesday": "Dienstag",
-    "weekdayWednesday": "Mittwoch",
-    "weekdayThursday": "Donnerstag",
-    "weekdayFriday": "Freitag",
-    "weekdaySaturday": "Samstag",
-    "weekdaySundayPlural": "Sonntags",
-    "weekdayMondayPlural": "Montags",
-    "weekdayTuesdayPlural": "Dienstags",
-    "weekdayWednesdayPlural": "Mittwochs",
-    "weekdayThursdayPlural": "Donnerstags",
-    "weekdayFridayPlural": "Freitags",
-    "weekdaySaturdayPlural": "Samstags",
-    "formType": "Typ",
-    "formDose": "Dosis",
-    "formUnit": "Einheit",
-    "formSchedule": "Zeitfenster",
-    "formTreatmentClass": "Behandlungsklasse",
-    "formTreatmentClassHelp": "Wähle „GLP-1-Injektion“ für wöchentliche Spritzen wie Mounjaro, Ozempic, Wegovy, Zepbound. Schaltet die Körperkarte und das GLP-1-Logbuch frei.",
-    "treatmentClassGeneric": "Standard-Medikament",
-    "treatmentClassGlp1": "GLP-1-Injektion",
-    "glp1WeeklyPresetTitle": "Einmal wöchentlich am …",
-    "glp1WeeklyPresetHelp": "Die meisten GLP-1-Rezeptoragonisten werden einmal pro Woche injiziert. Tippe einen Tag, um den Rhythmus zu setzen.",
-    "glp1WeeklyPresetSuggest": "Letzten gewählten Wochentag übernehmen",
-    "glp1DosesPerUnit": "Dosen pro Pen / Ampulle",
-    "glp1DosesPerUnitPlaceholder": "z. B. 4 für einen Mounjaro KwikPen",
-    "glp1DosesPerUnitHelp": "Optional — Mounjaro KwikPen = 4, Ozempic 0,25/0,5 mg = 4, Wegovy Einmal-Pen = 1. Leer lassen, wenn keine Dosis-pro-Pen-Verfolgung gewünscht ist.",
     "glp1LastInjection": "{label}",
-    "glp1LastInjectionWithSite": "{label} · {site}",
     "glp1NextInjectionDays": "{label} (in {days} Tagen)",
     "glp1NextInjectionToday": "heute",
     "glp1NextInjectionTomorrow": "morgen",
-    "glp1RotationLast": "Letzte Stelle: {site}",
     "glp1RotationSuggested": "Empfohlen: {site}",
     "glp1LogSideEffect": "Nebenwirkung loggen",
     "sideEffects": {
@@ -1260,8 +1192,7 @@
           "add": "Weiteren Zeitplan hinzufügen",
           "edit": "Bearbeiten",
           "remove": "Entfernen",
-          "removeDisabled": "Mindestens ein Zeitplan ist erforderlich.",
-          "empty": "Noch kein Zeitplan."
+          "removeDisabled": "Mindestens ein Zeitplan ist erforderlich."
         }
       },
       "errors": {
@@ -1305,38 +1236,6 @@
     "sideEffectTagAppetiteLoss": "Appetitlosigkeit",
     "sideEffectTagHeartburn": "Sodbrennen",
     "sideEffectTagHeadache": "Kopfschmerzen",
-    "newSchedule": "Neues Zeitfenster",
-    "removeSchedule": "Zeitfenster entfernen",
-    "advancedEditing": "Erweiterte Bearbeitung",
-    "advancedEditingHide": "Erweiterte Bearbeitung ausblenden",
-    "scheduleInterval": "Intervall",
-    "scheduleEveryWeek": "jede Woche",
-    "scheduleEveryNWeeks": "alle {n} Wochen",
-    "scheduleIntervalPrefix": "Intervall:",
-    "nextSchedulePrefix": "Nächstes Zeitfenster:",
-    "nextScheduleDaily": "täglich",
-    "importIntakesAction": "Einnahmen importieren",
-    "apiEndpointAction": "API-Endpunkt",
-    "pause": "Pausieren",
-    "activate": "Aktivieren",
-    "disableNotifications": "Benachrichtigungen deaktivieren",
-    "enableNotifications": "Benachrichtigungen aktivieren",
-    "purgeRecords": "Alle Aufzeichnungen löschen",
-    "formReset": "Formular zurücksetzen",
-    "createMedication": "Medikament anlegen",
-    "deleteConfirmDescription": "Das Medikament und die gesamte Einnahme-Historie werden unwiderruflich gelöscht.",
-    "purgeConfirmTitle": "Alle Aufzeichnungen löschen?",
-    "purgeConfirmDescription": "Alle Einnahme-Aufzeichnungen für dieses Medikament werden unwiderruflich gelöscht. Das Medikament selbst bleibt bestehen und startet ohne Verlaufsdaten.",
-    "saveError": "Fehler beim Speichern",
-    "deleteError": "Fehler beim Löschen",
-    "purgeError": "Fehler beim Löschen der Aufzeichnungen",
-    "invalidTimestamp": "Bitte einen gültigen Zeitpunkt wählen.",
-    "noIntakesYet": "Noch keine Einnahmen vorhanden",
-    "actions": "Aktionen",
-    "pageInfo": "Seite {page} von {total}",
-    "previousPage": "Vorherige Seite",
-    "nextPage": "Nächste Seite",
-    "loginRequiredIntakes": "Bitte anmelden, um Einnahmen zu sehen.",
     "phaseConfig": "Erinnerungsphasen",
     "phaseConfigDescription": "Konfiguriere die Zeitpunkte für Erinnerungen.",
     "phaseGreen": "Grün",
@@ -1345,11 +1244,8 @@
     "phaseRed": "Rot",
     "phaseMinutes": "Min",
     "phasePercent": "%",
-    "phaseBeforeEnd": "vor Ende",
-    "phaseAfterEnd": "nach Ende",
     "phaseResetDefaults": "Auf Defaults zurücksetzen",
     "phaseSaved": "Erinnerungsphasen gespeichert",
-    "phaseReset": "Auf Defaults zurückgesetzt",
     "sourceWeb": "Web",
     "sourceApi": "iOS-App",
     "sourceReminder": "Erinnerung",
@@ -1369,16 +1265,6 @@
     "intakeHistoryPageInfo": "Seite {page} von {total} · {count} Einträge",
     "intakeHistoryPrev": "Zurück",
     "intakeHistoryNext": "Weiter",
-    "unitDrops": "Tropfen",
-    "unitTablets": "Tablette(n)",
-    "unitCapsules": "Kapsel(n)",
-    "unitPieces": "Stück",
-    "namePlaceholder": "z.B. Ibuprofen",
-    "dosePlaceholder": "z.B. 400",
-    "labelPlaceholder": "z.B. Morgens",
-    "defaultDose": "Standard",
-    "dayDeactivate": "{day} deaktivieren",
-    "dayActivate": "{day} aktivieren",
     "glp1": {
       "drug": {
         "tirzepatide": {
@@ -1635,8 +1521,6 @@
         "historyLabel": "Einnahmeverlauf ansehen"
       },
       "history": {
-        "back": "Zurück zum Medikament",
-        "subtitle": "Vollständiger Einnahmeverlauf",
         "plannedSuffix": "geplant"
       },
       "tabs": {
@@ -2008,7 +1892,8 @@
     "bmiEmptyAction": "Account-Einstellungen öffnen",
     "noAnalysisYet": "Noch keine Einschätzung vorhanden.",
     "assessmentPreparing": "Einschätzung wird vorbereitet…",
-    "noProviderConfigured": "Einschätzung nicht verfügbar.",
+    "noProviderConfigured": "Verbinde einen KI-Anbieter, um hier eine Einschätzung zu deinen Werten zu sehen.",
+    "noProviderAction": "Zu den KI-Einstellungen",
     "startAnalysis": "Einschätzung starten",
     "refreshAnalysis": "Einschätzung aktualisieren",
     "keyTakeaway": "Das Wichtigste",
@@ -2081,11 +1966,11 @@
       "progressAria": "Gesundheitsscore-Fortschritt",
       "deltaVsLastWeek": "{delta} im Vergleich zur Vorwoche",
       "deltaUnavailable": "Noch keine Historie — schau nächste Woche wieder vorbei.",
+      "restModePaused": "Während einer Krankheitsphase pausiert — dein Score wird heute nicht bewertet.",
       "componentBp": "Blutdruck",
       "componentWeight": "Gewicht",
       "componentMood": "Stimmung",
       "componentCompliance": "Therapietreue",
-      "disclaimer": "Orientierungshilfe — keine ärztliche Bewertung.",
       "deltaExplainer": {
         "trigger": "Was bedeutet diese Veränderung?",
         "title": "So wird die Veränderung berechnet",
@@ -2123,7 +2008,7 @@
       "emptyAction": "Briefing erstellen",
       "loadingLabel": "Briefing wird zusammengestellt",
       "noProviderTitle": "Kein KI-Anbieter verbunden",
-      "noProviderDescription": "Verbinde einen KI-Anbieter in den Einstellungen, um tägliche Briefings zu erhalten.",
+      "noProviderDescription": "Das Tagesbriefing fasst deine Werte in Klartext zusammen. Dafür braucht HealthLog einen KI-Anbieter — nutze deinen eigenen Schlüssel (OpenAI, Anthropic) oder ein lokales Modell. Deine Daten bleiben dabei bei dir.",
       "noProviderAction": "Zu den KI-Einstellungen"
     },
     "trendsRow": {
@@ -2143,7 +2028,8 @@
         "distance": "Geh- und Laufstrecke der letzten 30 Tage.",
         "vo2_max": "VO₂max der letzten 30 Tage.",
         "body_temp": "Körpertemperatur der letzten 30 Tage."
-      }
+      },
+      "viewDetail": "{metric} im Detail"
     },
     "vo2Max": {
       "statLatest": "Aktuell",
@@ -2165,7 +2051,6 @@
     },
     "correlationRow": {
       "title": "Zusammenhänge",
-      "disclaimer": "Zusammenhänge sind beobachtend, nicht kausal — sprich mit deinem Arzt, wenn der Blutdruck hoch ist.",
       "experimentCta": "7-Tage-Experiment starten",
       "experimentTooltip": "Bald verfügbar",
       "emptyTitle": "Mehr Daten nötig, um diesen Zusammenhang zu zeigen",
@@ -2188,6 +2073,8 @@
       "refusalInjection": "In deiner Nachricht stehen Anweisungen, die meine Vorgaben überschreiben sollen. Ich bin der HealthLog-Coach und fasse ausschließlich deine eigenen Gesundheitsdaten zusammen — formuliere deine Frage bitte in diesem Rahmen neu.",
       "errorBudget": "Du hast das heutige Coach-Limit erreicht. Das Budget setzt sich um Mitternacht (UTC) zurück.",
       "errorProvider": "Der Coach konnte gerade keinen Auswertungs-Anbieter erreichen. Bitte versuche es in einem Moment erneut.",
+      "errorNoProvider": "Der Coach liest deine erfassten Gesundheitsdaten und beantwortet Fragen dazu (keine medizinische Beratung). Dafür braucht HealthLog einen KI-Anbieter — verbinde deinen eigenen Schlüssel oder ein lokales Modell.",
+      "errorNoProviderAction": "KI-Anbieter verbinden",
       "errorNetwork": "Keine Internetverbindung — versuche es erneut, sobald du online bist.",
       "prefsSaveError": "Coach-Einstellungen konnten nicht gespeichert werden. Bitte versuche es erneut.",
       "errorCredentialExpired": "Deine Verbindung zum KI-Anbieter ist abgelaufen. Stelle sie in den Einstellungen wieder her, damit der Coach weiterläuft.",
@@ -2507,7 +2394,7 @@
       "explainer": {
         "trigger": "Was ist {title}?",
         "bloodPressureTitle": "Blutdruck",
-        "bloodPressureBody": "Der Blutdruck ist die Kraft, die das Blut auf die Gefäßwände ausübt, angegeben als systolisch zu diastolisch (Spitzenwert beim Herzschlag über dem Ruhewert dazwischen). Dauerhaft hohe Werte belasten Herz und Gefäße auf Dauer.",
+        "bloodPressureBody": "Der Blutdruck ist die Kraft, die das Blut auf die Gefäßwände ausübt, angegeben als systolisch zu diastolisch (Spitzenwert beim Herzschlag über dem Ruhewert dazwischen). Dauerhaft hohe Werte belasten Herz und Gefäße auf Dauer. Als allgemeine Orientierung gilt nach europäischer Leitlinie (ESH 2023) unter 120/80 als optimal und ab 140/90 als Bluthochdruck; die US-Leitlinie (ACC/AHA 2017) setzt mit 130–139/80–89 (Stadium 1) eine strengere Grenze. Einordnung immer aus einer ruhigen, sitzenden Messung, nie aus einem einzelnen Wert.",
         "pulseTitle": "Puls",
         "pulseBody": "Der Puls gibt an, wie oft das Herz pro Minute schlägt. Eine Einzelmessung spiegelt den Moment wider – in Ruhe liegt er meist bei 60–100 Schlägen pro Minute und steigt natürlicherweise bei Bewegung, Stress oder Koffein.",
         "weightTitle": "Gewicht",
@@ -2525,7 +2412,7 @@
         "hrvTitle": "Herzfrequenzvariabilität (HRV)",
         "hrvBody": "Die HRV ist die kleine Schwankung der Zeit zwischen aufeinanderfolgenden Herzschlägen. Eine höhere Variabilität spiegelt meist ein gut erholtes, anpassungsfähiges Nervensystem wider, ein anhaltender Rückgang kann auf Erschöpfung, Stress oder mangelnde Erholung hinweisen.",
         "oxygenSaturationTitle": "Sauerstoffsättigung (SpO₂)",
-        "oxygenSaturationBody": "Die SpO₂ ist der Prozentsatz der roten Blutkörperchen, die Sauerstoff transportieren. Werte von 95–100 % sind in Ruhe normal; Werte, die dauerhaft unter 90 % liegen, verdienen Aufmerksamkeit, kurze nächtliche Abfälle sind jedoch häufig.",
+        "oxygenSaturationBody": "Die SpO₂ ist der Prozentsatz der roten Blutkörperchen, die Sauerstoff transportieren. Als allgemeine Orientierung sind Werte von 95–100 % in Ruhe normal (StatPearls/NIH 2023); Werte dauerhaft unter 90 % verdienen Aufmerksamkeit, kurze nächtliche Abfälle sind häufig und über ~98 % bringt nichts. Optische Sensoren können die wahre Sättigung bei dunklerer Haut überschätzen (US FDA 2024) — ein einzelner normnaher Wert ist daher keine Entwarnung; bei Sorge warm und ruhig erneut messen.",
         "bodyTemperatureTitle": "Körpertemperatur",
         "bodyTemperatureBody": "Die Körpertemperatur spiegelt deinen Kernwärmezustand wider, normalerweise um 37 °C mit kleinen Tagesschwankungen. Ein anhaltender Anstieg kann auf eine Infektion hindeuten; nächtliche Messungen am Handgelenk erfassen vor allem relative Änderungen, keinen klinischen Wert.",
         "activeEnergyTitle": "Aktive Energie",
@@ -2597,14 +2484,26 @@
         "breathingDisturbancesTitle": "Atemaussetzer im Schlaf",
         "breathingDisturbancesBody": "Deine Apple Watch kann schätzen, wie oft deine Atmung im Schlaf unterbrochen war. Ein niedriger Index ist besser; ein von Apple als erhöht eingestufter Wert — vor allem über viele Nächte — sollte mit einer Ärztin oder einem Arzt besprochen werden.",
         "stepsTitle": "Schritte",
-        "stepsBody": "Die Schrittzahl ist die Gesamtzahl der Schritte, die du täglich gehst. Sie ist das einfachste Maß für Alltagsbewegung — eine höhere Tageszahl spiegelt meist einen aktiveren Lebensstil wider, und eine stetige Gewohnheit zählt mehr als ein einzelner großer Tag.",
-        "readinessBody": "Die Tagesform ist ein einzelner Tageswert dafür, wie bereit dein Körper für den Tag ist — er verbindet Ruhepuls, Herzfrequenzvariabilität, Schlaf und die Beständigkeit deiner letzten Nächte. Ein höherer Wert heißt erholt und belastbar; ein niedrigerer ist ein sanfter Hinweis, einen Gang zurückzuschalten.",
+        "stepsBody": "Die Schrittzahl ist die Gesamtzahl der Schritte, die du täglich gehst. Sie ist das einfachste Maß für Alltagsbewegung, und eine stetige Gewohnheit zählt mehr als ein einzelner großer Tag. Als allgemeine Orientierung fällt das Sterblichkeitsrisiko deutlich Richtung etwa 8.000 Schritte pro Tag, mit weiterem Nutzen bis rund 12.000 (Saint-Maurice JAMA 2020); bei älteren Menschen liegt der optimale Wert niedriger. Die „10.000“ ist ein Werbeslogan, keine Forschung.",
+        "readinessBody": "Die Tagesform ist ein einzelner Tageswert dafür, wie bereit dein Körper für den Tag ist — er verbindet Ruhepuls, Herzfrequenzvariabilität, Schlaf und die Beständigkeit deiner letzten Nächte. Es ist ein Geräte-Näherungswert, der an deinem eigenen Ausgangswert gemessen wird, keine klinische Messung, und zwischen Geräten nicht vergleichbar. Ein höherer Wert heißt erholt und belastbar; ein niedrigerer ist ein sanfter Hinweis, einen Gang zurückzuschalten.",
         "sleepScoreBody": "Dein Schlafscore fasst eine ganze Nacht in einer Zahl zusammen — aus Dauer, Effizienz, Regelmäßigkeit und der Verteilung von Leicht-, Tief- und REM-Schlaf. Achte eher auf das Muster über Wochen als auf einen perfekten Wert in einer einzelnen Nacht.",
-        "recoveryBody": "Die Erholung zeigt, wie gut sich dein Körper regeneriert hat — gestützt auf nächtliche Signale wie Herzfrequenzvariabilität und Ruhepuls. Ein hoher Wert ist grünes Licht, mehr zu geben; ein niedrigerer deutet an, dass dein System noch aufbaut.",
-        "strainBody": "Die Belastung erfasst, wie viel kardiovaskuläre und körperliche Last du deinem Körper zugemutet hast — von Workouts bis zu einem aktiven Tag auf den Beinen. Sobald genügend Verlauf vorliegt, wird sie an deinem eigenen üblichen Aufwand gemessen, nicht an einem fremden Maßstab.",
-        "stressBody": "Stress ist hier eine Schätzung der körperlichen Last auf deinem Nervensystem, vor allem aus Mustern der Herzfrequenzvariabilität abgelesen — nicht daraus, wie du dich bewusst fühlst. Ein niedrigerer Wert deutet auf einen ruhigen, gut regulierten Zustand hin; ein höherer ist eine Einladung, Erholung einzuplanen.",
+        "recoveryBody": "Die Erholung zeigt, wie gut sich dein Körper regeneriert hat — gestützt auf nächtliche Signale wie Herzfrequenzvariabilität und Ruhepuls. Es ist ein geräteabgeleiteter Näherungswert an deinem eigenen Ausgangswert, keine klinische Messung, und zwischen Geräten nicht vergleichbar. Ein hoher Wert ist grünes Licht, mehr zu geben; ein niedrigerer deutet an, dass dein System noch aufbaut.",
+        "strainBody": "Die Belastung erfasst, wie viel kardiovaskuläre und körperliche Last du deinem Körper zugemutet hast — von Workouts bis zu einem aktiven Tag auf den Beinen. Es ist ein geräteabgeleiteter Index, gemessen an deinem eigenen üblichen Aufwand, keine klinische Messung, und der Kennwert ist zwischen Geräten nicht vergleichbar.",
+        "stressBody": "Stress ist hier eine Geräte-Heuristik aus Mustern der Herzfrequenzvariabilität — keine Cortisol-Messung und nicht, wie du dich bewusst fühlst, und auch kein klinischer Stress-Score. Lies ihn an deinem eigenen Ausgangswert; zwischen Geräten ist er nicht vergleichbar. Ein niedrigerer Wert deutet auf einen ruhigen, gut regulierten Zustand hin; ein höherer ist eine Einladung, Erholung einzuplanen.",
         "recoveryPageTitle": "Erholung",
-        "recoveryPageBody": "Die Erholung fasst die nächtlichen Signale deines Wearables zusammen – Recharge, Belastung, Load sowie deine Herzfrequenz- und Energiewerte des Tages – und zeigt, wie gut sich dein Körper erholt hat. Achte eher auf das Muster über mehrere Tage als auf einen einzelnen Wert; ein schwächerer Wert ist eine Einladung, kürzerzutreten, kein Alarm."
+        "recoveryPageBody": "Die Erholung fasst die nächtlichen Signale deines Wearables zusammen – Recharge, Belastung, Load sowie deine Herzfrequenz- und Energiewerte des Tages – und zeigt, wie gut sich dein Körper erholt hat. Achte eher auf das Muster über mehrere Tage als auf einen einzelnen Wert; ein schwächerer Wert ist eine Einladung, kürzerzutreten, kein Alarm.",
+        "pulsePressureTitle": "Pulsdruck",
+        "pulsePressureBody": "Der Pulsdruck ist die Differenz zwischen deinem systolischen und diastolischen Wert (systolisch minus diastolisch). Als allgemeine Orientierung sind etwa 40 mmHg in Ruhe typisch; eine große Differenz über rund 60 mmHg im mittleren Alter kann auf versteifte Arterien hinweisen, eine kleine Differenz unter etwa 25 mmHg kann mit niedrigem Schlagvolumen einhergehen (StatPearls/NIH 2023). Ein Gesprächsanlass, keine Diagnose.",
+        "meanArterialPressureTitle": "Mittlerer arterieller Druck",
+        "meanArterialPressureBody": "Der mittlere arterielle Druck ist der durchschnittliche Druck, den deine Organe über einen Herzschlag sehen – grob der diastolische Wert plus ein Drittel der Differenz zum systolischen. Als allgemeine Orientierung liegt ein Ruhewert bei etwa 70–100 mmHg (StatPearls/NIH 2023). Die oft genannte Grenze von ~60 mmHg ist ein Konzept der Akutmedizin, kein Alarm für die Selbstmessung.",
+        "cycleEducationBody": "Dein Zyklus durchläuft vier hormongesteuerte Phasen, und seine Länge und Regelmäßigkeit sind ein gut zugängliches Fenster auf die allgemeine Gesundheit. Als allgemeine Orientierung dauern Zyklen bei Erwachsenen typischerweise 21–35 Tage (klinische Referenzen nennen 24–38), mit einer Blutung von rund fünf Tagen (ACOG 2015). Die Lutealphase ist der stabile Anker, daher schätzt man den Eisprung am besten durch Rückrechnen von der nächsten erwarteten Periode – nie über einen festen „Tag 14“. Ein vorhergesagtes fruchtbares Fenster ist eine Schätzung, die mehrere erfasste Zyklen braucht und ungefähr bleibt, und die Basaltemperatur bestätigt den Eisprung im Nachhinein, statt ihn vorherzusagen. Dies ist keine Verhütungsmethode.",
+        "sleepHygieneBody": "Einige evidenzbasierte Gewohnheiten unterstützen den Schlaf: gleichbleibende Zubett- und Aufstehzeiten auch am Wochenende, helles Morgenlicht und gedämpfte Abende, ein kühles, dunkles und ruhiges Zimmer sowie der Verzicht auf Koffein am Nachmittag, späten Alkohol und große späte Mahlzeiten (CDC 2024). Regelmäßigkeit sagt die Gesundheit mindestens so stark voraus wie die Dauer, und die Gesamtschlafzeit eines Wearables ist weit verlässlicher als seine Aufteilung in Tief-, Leicht- und REM-Schlaf.",
+        "referenceGuidance": "Allgemeine Orientierung, keine medizinische Beratung. Referenzbereiche sind Populationswerte, die sich mit Alter, Geschlecht und Erkrankungen verschieben – dein eigener Verlauf über die Zeit führt die Einordnung."
+      },
+      "bpDerived": {
+        "pulsePressure": "Der Pulsdruck (die Differenz zwischen deinen Werten) beträgt etwa {value} mmHg – rund 40 ist in Ruhe typisch.",
+        "meanArterialPressure": "Der mittlere arterielle Druck (der Durchschnitt, den deine Organe sehen) liegt bei etwa {value} mmHg, normalerweise um 70–100.",
+        "caveat": "Diese Werte werden als allgemeine Orientierung aus deiner letzten Messung abgeleitet, nicht als Diagnose."
       },
       "stats": {
         "label": "Zusammenfassende Statistik",
@@ -2641,7 +2540,8 @@
         "asleepTotal": "Geschlafen {value}",
         "inBedTotal": "Im Bett {value}",
         "awakenings": "{count} Wachphasen",
-        "source": "Quelle: {source}"
+        "source": "Quelle: {source}",
+        "estimateNote": "Die Phasen-Zeiten sind geschätzt — diese Quelle liefert Summen je Phase, keinen gemessenen Verlauf."
       },
       "stages": {
         "deep": "Tief",
@@ -2668,7 +2568,7 @@
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Dein Rhythmus wird noch erfasst — {counted} von {total} freien Nächten. Ein Chronotyp braucht ein paar weckerfreie Morgen, um aussagekräftig zu sein.",
-        "midSleepCaption": "Schlafmitte an freien Tagen gegen {clock}",
+        "midSleepCaption": "Deine natürliche Schlafmitte an freien Tagen liegt etwa um {clock}.",
         "advancedToggle": "Mehr Details",
         "socialJetlagValue": "{hours} Std. {minutes} Min. sozialer Jetlag",
         "socialJetlagCaption": "Der Unterschied zwischen deinem Schlaf an Arbeits- und freien Tagen — wie eine kleine wöchentliche Zeitzonenverschiebung.",
@@ -2681,7 +2581,8 @@
           "intermediate": "Mischtyp",
           "late": "Abendtyp",
           "extreme_late": "Ausgeprägter Abendtyp"
-        }
+        },
+        "cornerLabel": "Chronotyp"
       },
       "rhythm": {
         "loadError": "Dein Schlafrhythmus konnte gerade nicht geladen werden. Er erscheint wieder, sobald die Verbindung steht."
@@ -2825,6 +2726,7 @@
         "title": "Glukose-Überblick",
         "subtitle": "Ein Blick auf deine letzten {days} Tage, aus {count} Messungen.",
         "spotCaveat": "Das sind Schätzungen aus einzelnen Stichproben-Messungen, kein Profil eines kontinuierlichen Sensors – lies sie als Richtung, nicht als klinisches Urteil.",
+        "labsLink": "Laborergebnisse? HbA1c und Nüchternglukose aus einer Blutabnahme trägst du unter Labor ein.",
         "learningTitle": "Lerne deine Glukose noch kennen",
         "learningBody": "Bisher sind das {count} über {days}. Mit etwas mehr Verlauf wird das Bild klarer – mess weiter oder lass es ein verbundenes Gerät ergänzen.",
         "learningBodyEmpty": "Sobald ein paar Messungen vorliegen – von dir erfasst oder von einem Gerät synchronisiert – nehmen Zeit-im-Zielbereich, Durchschnitt und Schwankung hier Gestalt an.",
@@ -3542,9 +3444,6 @@
     "target": {
       "heading": "Ziel"
     },
-    "disclaimer": {
-      "footer": "HealthLog beschreibt deine eigenen erfassten Daten — es ist keine klinische Bewertung und keine Diagnose. Sprich mit deiner Ärztin oder deinem Arzt über alles, was dich beunruhigt."
-    },
     "settings": {
       "overviewTitle": "Übersicht anordnen",
       "overviewDescription": "Abschnitte ein- oder ausblenden und ihre Reihenfolge auf der Insights-Übersicht festlegen."
@@ -3572,25 +3471,34 @@
     },
     "sleepQuality": {
       "title": "Schlafqualität",
-      "subtitle": "Nächtliche Werte deines Wearables"
+      "subtitle": "Nächtliche Werte deines Wearables",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "dein Gesamt-Schlafscore",
+          "SLEEP_EFFICIENCY": "die Schlafeffizienz",
+          "SLEEP_PERFORMANCE": "die Schlafleistung",
+          "SLEEP_CONSISTENCY": "die Schlafkonstanz"
+        },
+        "grade": {
+          "excellent": "ausgezeichnet",
+          "good": "solide",
+          "fair": "durchschnittlich",
+          "low": "eher niedrig"
+        },
+        "clause": "Über die letzten 30 Nächte ist {metric} mit {value} {grade}.",
+        "closing": {
+          "excellent": "Behalte die Routine bei, die dich hierher bringt.",
+          "good": "Konstantere Zubett- und Aufstehzeiten sind meist der nächste Gewinn.",
+          "fair": "Ein konstantes Schlaffenster hebt diesen Wert erfahrungsgemäß am stärksten.",
+          "low": "Ein festes Herunterfahren am Abend und eine feste Aufstehzeit sind die ersten Hebel."
+        }
+      }
     },
     "recovery": {
       "title": "Erholung",
       "description": "Wie gut sich dein Körper erholt hat – die Erholungs-, Belastungs- und Load-Signale, die dein Wearable über Nacht aufzeichnet.",
       "emptyTitle": "Noch keine Erholungsdaten",
       "empty": "Noch keine Erholungsdaten. Verbinde ein WHOOP-, Polar- oder Oura-Konto, dann füllen sich diese Werte, sobald dein Gerät synchronisiert.",
-      "recharge": {
-        "title": "Recharge",
-        "subtitle": "Ladung des autonomen Nervensystems"
-      },
-      "strain": {
-        "title": "Belastung & Load",
-        "subtitle": "Tägliche kardiovaskuläre Belastung"
-      },
-      "cardio": {
-        "title": "Herz & Energie pro Tag",
-        "subtitle": "Herz- und Energiewerte des ganzen Tages"
-      },
       "block": {
         "ansChargeExplainer": "Wie aufgeladen dein autonomes Nervensystem in den Tag startet – ein Recharge-Wert aus deinen nächtlichen Herz- und Atemsignalen.",
         "dayStrainExplainer": "Die kardiovaskuläre Tagesbelastung auf der Belastungsskala deines Geräts. Lies sie im Verhältnis zu deiner Erholung, nicht als Ziel für sich.",
@@ -3608,8 +3516,6 @@
   },
   "thresholds": {
     "defaultLabel": "Default",
-    "autoModeLabel": "Auto",
-    "overrideModeLabel": "Überschrieben",
     "overrideToggleLabel": "Eigene Werte",
     "resetAction": "Auf Default zurücksetzen",
     "resetAllAction": "Alle auf Default zurücksetzen",
@@ -3646,31 +3552,72 @@
       "back": "Zurück",
       "skip": "Tour überspringen",
       "done": "Verstanden",
-      "restart": "Tour neu starten",
-      "restartHint": "Zeige die Dashboard-Tour beim nächsten Aufruf erneut.",
-      "restartConfirmation": "Die Tour startet bei deinem nächsten Dashboard-Besuch erneut.",
+      "restart": "Modul-Tour neu starten",
+      "restartHint": "Zeigt die geführte Modul-Tour beim nächsten Dashboard-Besuch von vorne.",
+      "restartConfirmation": "Die Modul-Tour startet bei deinem nächsten Dashboard-Besuch von vorne.",
       "steps": {
-        "tileStrip": {
-          "title": "Deine Tageswerte",
-          "body": "Die Kachel-Leiste zeigt den letzten Wert und den 7-Tage-Trend für jede Metrik — Gewicht, Blutdruck, Puls, Stimmung. Was du nicht brauchst, blendest du in Einstellungen → Dashboard aus."
+        "dashboardOverview": {
+          "title": "Dein Dashboard",
+          "body": "Das Dashboard bündelt alle Module auf einen Blick. Halte eine Kachel lange gedrückt, um sie neu anzuordnen oder auszublenden (Einstellungen → Dashboard-Layout). Jede Kachel ist nur so aussagekräftig wie die Daten dahinter — die folgenden Module füllen sie."
         },
         "quickAdd": {
-          "title": "In zwei Taps erfasst",
-          "body": "Über den Hinzufügen-Button kannst du Messungen oder Stimmungseinträge anlegen, ohne das Dashboard zu verlassen. Das Formular merkt sich deinen letzten Kontext und Tags."
+          "title": "In Sekunden erfasst",
+          "body": "Über „+ Hinzufügen“ trägst du jeden Messwert in Sekunden ein — Gewicht, Blutdruck, Puls, Glukose. Versteckte Stärke: Werte lassen sich nachträglich datieren. Alles, was du hier einträgst, fließt in Trends, Health-Score und die KI-Insights."
+        },
+        "measurements": {
+          "title": "Messwerte & Zielbereiche",
+          "body": "Messwerte zeigt Verlauf und Zielbereiche pro Metrik. Hidden Gem: Zielbereiche pro Wert definieren, damit Abweichungen farblich auffallen. Diese Reihen sind die Grundlage für Korrelationen im Coach und den Arztbericht."
+        },
+        "medications": {
+          "title": "Medikamente & Einnahmen",
+          "body": "Medikamente verwaltet Zeitpläne, Einnahmen, Bestand und Titration. Versteckt: wiederkehrende Pläne (RRULE/rollierend) und Bestandswarnungen. Deine Einnahmequote speist die Compliance-Säule im Dashboard und den Kontext der KI."
+        },
+        "labs": {
+          "title": "Laborwerte",
+          "body": "Labore erfasst Biomarker mit Referenzbereichen — Blutbild, Cholesterin, HbA1c. Stärke: Import und FHIR-Export. Auffällige Laborwerte tauchen als Belege in den Insights und im Arztbericht wieder auf."
+        },
+        "illness": {
+          "title": "Krankheits-Journal",
+          "body": "Das Krankheits-Journal dokumentiert akute Episoden und chronische Diagnosen samt Schüben. Versteckt: die Korrelation einer Episode mit deinen Messwerten und der Ruhemodus, der Reminder pausiert. So versteht der Coach, warum Werte zeitweise abweichen."
+        },
+        "vorsorge": {
+          "title": "Vorsorge",
+          "body": "Vorsorge erinnert an Untersuchungen und Impfungen mit eigenem Intervall. Tipp: „Erledigt“ kann direkt eine Messung oder ein Laborergebnis anlegen. Fällige Vorsorgen erscheinen als Reminder und im Arztbericht."
+        },
+        "cycle": {
+          "title": "Zyklus",
+          "body": "Die Zyklus-Verfolgung protokolliert Phasen und Symptome. Versteckt: Symptome lassen sich Stimmung und Schlaf gegenüberstellen. Der Zyklus liefert Kontext für Schwankungen, die sonst unerklärlich wären."
+        },
+        "mood": {
+          "title": "Stimmung",
+          "body": "Stimmung erfasst dein Befinden und Tags in zwei Sekunden. Stärke: eigene Tags. Stimmungsverläufe korrelieren mit Schlaf, Medikamenten und Zyklus — der Coach erkennt Muster."
         },
         "insights": {
-          "title": "Automatische Einblicke",
-          "body": "Insights verwandelt deine Werte in eine klare Gesundheits-Zusammenfassung, mit Einordnung von Blutdruck, Gewicht und Stimmung. Eigener Provider-Key oder Standard — du entscheidest."
+          "title": "Insights",
+          "body": "Insights ist das Herzstück: belegbasierte, dynamische Auswertungen statt generischer Tipps — jede Aussage verweist auf deine echten Daten. Versteckt: das Layout ist anpassbar. Insights zieht alles zusammen, was die Module oben liefern."
+        },
+        "coach": {
+          "title": "Coach",
+          "body": "Der Coach beantwortet Fragen zu deinen Daten im Dialog und nutzt Anamnese, Medikamente und Laborwerte als Kontext. Den KI-Anbieter wählst du selbst (eigener Schlüssel oder lokal). Er rechnet nichts neu — er liest dieselben Zahlen wie das Dashboard."
         },
         "integrations": {
-          "title": "Geräte verbinden",
-          "body": "In den Einstellungen verbindest du Withings (Auto-Sync für Gewicht, Blutdruck, Puls), moodLog oder deinen Auswertungs-Provider. Alles bleibt optional und verschlüsselt."
+          "title": "Integrationen",
+          "body": "Integrationen synchronisieren Withings, WHOOP, Polar, Oura und Apple Health automatisch. So füllen sich Gewicht, Schlaf und Erholung ohne manuelles Tippen — und nähren wiederum Insights und Coach."
+        },
+        "export": {
+          "title": "Arztbericht",
+          "body": "Der Arztbericht bündelt Messwerte, Medikamente, Laborwerte und Vorsorge als PDF oder FHIR für den Termin. Hier laufen alle Module zusammen — ein vollständiger Bericht entsteht nur bei gepflegten Daten."
         },
         "achievements": {
-          "title": "Streaks und Badges sammeln",
-          "body": "Die Achievements-Seite trackt tägliche Logging-Streaks, Blutdruck-Meilensteine und Konsistenz-Abzeichen. Ein kleiner Anreiz, dranzubleiben."
+          "title": "Erfolge",
+          "body": "Erfolge belohnen Konsistenz — Streaks und Meilensteine. Ein kleiner Motivations-Loop, der das Dranbleiben leichter macht."
+        },
+        "wrapUp": {
+          "title": "Das war die Tour",
+          "body": "Du kannst jedes Modul jederzeit einzeln erneut ansehen („Diese Tour zeigen“ auf jeder Seite) oder die komplette Tour unter Einstellungen → Erweitert neu starten."
         }
-      }
+      },
+      "moduleTrigger": "Diese Tour zeigen"
     },
     "shell": {
       "back": "Zurück",
@@ -3741,12 +3688,19 @@
       "learning": "Manche Einblicke – Glukose, Schlafrhythmus, Blutdrucktrends, Zyklus – schärfen sich in den ersten ein bis zwei Wochen, sobald sich deine Daten ansammeln. Leere Kacheln heißen jetzt nur, dass wir deine Basislinie noch lernen.",
       "connectCta": "Gerät verbinden",
       "logCta": "Ersten Wert eintragen",
-      "importCta": "Bestehende Daten importieren"
+      "importCta": "Bestehende Daten importieren",
+      "aiTitle": "KI-Einblicke aktivieren (optional)",
+      "aiBody": "Coach, Tagesbriefing und Einschätzungen fassen deine Werte in Klartext zusammen. Dafür verbindest du deinen eigenen KI-Schlüssel (OpenAI, Anthropic) oder ein lokales Modell — deine Daten bleiben bei dir.",
+      "aiCta": "KI-Anbieter verbinden"
     },
     "welcomeBack": {
       "title": "Willkommen zurück",
       "body": "Das Onboarding hast du bereits abgeschlossen. Möchtest du etwas anpassen, findest du alles in den Einstellungen.",
       "cta": "Zum Dashboard"
+    },
+    "disclaimer": {
+      "acknowledge": "Mir ist klar: HealthLog ist ein privates Tracking-Tool, keine klinische Bewertung und keine Diagnose. Bei Sorgen wende ich mich an meine Ärztin oder meinen Arzt, nicht an diese App.",
+      "learnMore": "Mehr erfahren"
     },
     "welcome": {
       "title": "Willkommen bei HealthLog",
@@ -3829,18 +3783,21 @@
     "sections": {
       "account": {
         "title": "Konto",
-        "description": "Profil, Passwort, Passkeys und deine Onboarding-Tour."
+        "description": "Profil, Passwort, Passkeys und deine Onboarding-Tour.",
+        "subtitle": "Dein Profil, deine Identität und deine Anmeldedaten."
       },
       "integrations": {
         "title": "Integrationen",
-        "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort."
+        "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort.",
+        "subtitle": "Datenquellen und Geräte verbinden und verwalten."
       },
       "notifications": {
         "title": "Benachrichtigungen",
         "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird. Die Zustellkanäle liegen unter Integrationen.",
         "channelsHint": "Telegram, ntfy, Web-Push, Webhook und E-Mail richtest du jetzt unter",
         "channelsHintLink": "Integrationen → Kanäle",
-        "inboxLink": "Posteingang öffnen"
+        "inboxLink": "Posteingang öffnen",
+        "subtitle": "Wähle, welche Erinnerungen du erhältst."
       },
       "layout": {
         "title": "Layout",
@@ -3853,15 +3810,18 @@
         "insights": {
           "title": "Insights",
           "description": "Reihenfolge der Übersicht und der Navigations-Pills."
-        }
+        },
+        "subtitle": "Passe an, wie Dashboard und Insights angeordnet sind."
       },
       "dashboard": {
         "title": "Dashboard",
-        "description": "Kachel-Layout und Reihenfolge."
+        "description": "Kachel-Layout und Reihenfolge.",
+        "subtitle": "Ordne die Kacheln auf deinem Dashboard an."
       },
       "thresholds": {
         "title": "Zielwerte",
-        "description": "Pro Metrik dein eigener Zielbereich für gesunde Werte."
+        "description": "Pro Metrik dein eigener Zielbereich für gesunde Werte.",
+        "subtitle": "Lege deine persönlichen Zielbereiche je Messgröße fest."
       },
       "sources": {
         "title": "Quellen-Priorität",
@@ -3920,19 +3880,23 @@
           "scale": "Waage",
           "other": "Sonstige",
           "unknown": "Unbekannt"
-        }
+        },
+        "subtitle": "Lege fest, welche Quelle gewinnt, wenn zwei dieselbe Messgröße liefern."
       },
       "ai": {
-        "title": "KI-Auswertungen",
-        "description": "Provider, Modell und API-Key für die Auswertungen — dazu dein „Über mich“-Kontext."
+        "title": "KI-Anbieter",
+        "description": "Provider, Modell und API-Key für die Auswertungen — dazu dein „Über mich“-Kontext.",
+        "subtitle": "Wähle deinen KI-Anbieter und hinterlege deinen eigenen Schlüssel."
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Bearer-Tokens für eigene Skripte und Apps — erfasse Messwerte oder Einnahmen von überall."
+        "description": "Bearer-Tokens für eigene Skripte und Apps — erfasse Messwerte oder Einnahmen von überall.",
+        "subtitle": "API-Endpunkte und Zugriffstoken verwalten."
       },
       "advanced": {
         "title": "Erweitert",
-        "description": "Opt-in-Schalter für den Forschungsmodus sowie der Notausgang zum unwiderruflichen Löschen aller Gesundheitsdaten."
+        "description": "Opt-in-Schalter für den Forschungsmodus sowie der Notausgang zum unwiderruflichen Löschen aller Gesundheitsdaten.",
+        "subtitle": "Research-Modus, Daten zurücksetzen und Konto löschen."
       },
       "export": {
         "title": "Export & Import",
@@ -4033,27 +3997,33 @@
             "resultSummary": "{inserted} neu importiert und {updated} aktualisiert, {skipped} übersprungen.",
             "rowError": "Zeile {line}: {reason}"
           }
-        }
+        },
+        "subtitle": "Exportiere deine Daten oder importiere aus einer Sicherung."
       },
       "about": {
         "title": "Über diese App",
-        "description": "Version, Lizenz, Links."
+        "description": "Version, Lizenz, Links.",
+        "subtitle": "Version, Lizenz und Projektlinks."
       },
       "sharing": {
         "title": "Freigabe",
-        "description": "Erstelle einen schreibgeschützten Link, um deine Gesundheitsakte mit einer Ärztin oder einem Arzt zu teilen."
+        "description": "Erstelle einen schreibgeschützten Link, um deine Gesundheitsakte mit einer Ärztin oder einem Arzt zu teilen.",
+        "subtitle": "Teile schreibgeschützten Zugriff auf deine Daten."
       },
       "insights": {
         "title": "Insights",
-        "description": "Reihenfolge der Übersicht und der Navigations-Pills."
+        "description": "Reihenfolge der Übersicht und der Navigations-Pills.",
+        "subtitle": "Ordne die Übersichts-Bereiche und die Reihenfolge der Pills an."
       },
       "medications": {
         "title": "Medikamente",
-        "description": "Listenansicht, Reihenfolge und Injektionsstellen deiner Medikamente."
+        "description": "Listenansicht, Reihenfolge und Injektionsstellen deiner Medikamente.",
+        "subtitle": "Verwalte Ansicht und Reihenfolge deiner Medikamentenliste."
       },
       "mood": {
         "title": "Stimmungs-Tags",
-        "description": "Gruppen, Tags und archivierte Tags der Stimmungs-Auswahl."
+        "description": "Gruppen, Tags und archivierte Tags der Stimmungs-Auswahl.",
+        "subtitle": "Organisiere deine Stimmungs-Tags, Gruppen und Auswahlreihenfolge."
       },
       "modules": {
         "title": "Module",
@@ -4063,26 +4033,24 @@
           "title": "Was du trackst",
           "description": "Optionale Bereiche. Deaktivierte Module verschwinden aus Navigation, Kacheln und Auswertungen — deine Daten bleiben erhalten."
         },
-        "core": {
-          "title": "Immer aktiv",
-          "description": "Die Grundlagen von HealthLog. Diese Bereiche lassen sich nicht abschalten.",
-          "note": "Kernbereich — immer aktiv"
-        },
-        "description": "Lege fest, was HealthLog für dich erfasst. Schalte einzelne Bereiche ein oder aus — die Navigation, Kacheln und Auswertungen passen sich sofort an.",
         "manageIn": "In {section} verwalten",
-        "operatorDisabled": "Serverweit deaktiviert"
+        "operatorDisabled": "Serverweit deaktiviert",
+        "subtitle": "Lege fest, welche Tracking-Bereiche HealthLog überall anzeigt."
       },
       "gesundheitsakte": {
         "title": "Gesundheitsakte",
-        "description": "Vollständige Gesundheitsakte als PDF, FHIR R4 oder kombiniertes ZIP-Paket exportieren."
+        "description": "Vollständige Gesundheitsakte als PDF, FHIR R4 oder kombiniertes ZIP-Paket exportieren.",
+        "subtitle": "Exportiere eine vollständige, arzttaugliche Gesundheitsakte."
       },
       "coach": {
         "title": "Coach",
-        "description": "Coach aktivieren, Ton und Umfang, gespeicherte Erinnerungen."
+        "description": "Coach aktivieren, Ton und Umfang, gespeicherte Erinnerungen.",
+        "subtitle": "Stelle den Coach, seine proaktiven Hinweise und sein Gedächtnis ein."
       },
       "channels": {
         "title": "Kanäle",
-        "description": "Zustellung über Telegram, ntfy, Web-Push, Webhook und E-Mail."
+        "description": "Zustellung über Telegram, ntfy, Web-Push, Webhook und E-Mail.",
+        "subtitle": "Wohin Erinnerungen und Hinweise zugestellt werden."
       }
     },
     "profile": "Profil",
@@ -4579,9 +4547,7 @@
       "changelog": "Changelog",
       "docs": "Dokumentation",
       "linksHeading": "Quellen & Dokumentation",
-      "newerAvailable": "Neue Version: {tag}",
-      "tourReplay": "Tour ansehen",
-      "tourReplayHint": "Zeige die Dashboard-Tour — praktisch, falls du sie beim ersten Besuch übersprungen hast."
+      "newerAvailable": "Neue Version: {tag}"
     },
     "testConnection": {
       "test": "Verbindung testen",
@@ -4964,7 +4930,6 @@
     "modules": {
       "title": "Modulverfügbarkeit",
       "description": "Schalte ein Modul für den gesamten Server ab. Ein hier deaktiviertes Modul ist für jedes Konto aus – unabhängig von den persönlichen Einstellungen. Kerndaten (Gewicht, Blutdruck, Puls, Medikamente) sind immer aktiv und lassen sich nicht abschalten.",
-      "disabledHint": "Serverweit deaktiviert",
       "saveError": "Modulverfügbarkeit konnte nicht aktualisiert werden."
     },
     "bugReportRepo": "Repository",
@@ -5343,11 +5308,14 @@
       },
       "about": {
         "title": "Über",
-        "subtitle": "Version, Lizenz, Quellcode und Update-Prüfung."
+        "subtitle": "Version, Lizenz und Update-Status."
+      },
+      "module-availability": {
+        "title": "Modulverfügbarkeit",
+        "subtitle": "Module für jedes Konto auf diesem Server aktivieren oder deaktivieren."
       }
     },
     "carrier": "Anbieter",
-    "carrierUnknown": "Unbekannter Anbieter",
     "carrierUnavailableGeoFallback": "{location} — Anbieter nicht verfügbar"
   },
   "achievements": {
@@ -5679,7 +5647,6 @@
     "title": "Benachrichtigungen",
     "breadcrumbInbox": "Benachrichtigungen",
     "breadcrumbChannels": "Benachrichtigungs-Kanäle",
-    "breadcrumbSettings": "Einstellungen",
     "eventColumn": "Ereignis",
     "subtitle": "Wähle aus, welche Benachrichtigungen du über welchen Kanal erhalten möchtest.",
     "loadError": "Benachrichtigungseinstellungen konnten nicht geladen werden.",
@@ -5796,7 +5763,6 @@
       "dotNearRange": "nahe am Bereich",
       "dotOutOfRange": "außerhalb",
       "dotNotLogged": "nicht erfasst",
-      "insufficientData": "Noch zu wenige Daten — bitte weiter erfassen.",
       "relativeDay": {
         "today": "heute",
         "yesterday": "gestern",
@@ -5808,7 +5774,6 @@
       }
     },
     "edit": {
-      "openLabel": "Zielbereich für {metric} bearbeiten",
       "title": "Zielbereich bearbeiten — {metric}",
       "description": "Passt den Zielbereich an, der in Charts, Insights und im Arztbericht verwendet wird. Werte in {unit}.",
       "derivedHint": "Diese Karte wird aus anderen Metriken abgeleitet. Bearbeite stattdessen die zugrundeliegenden Ziele (z. B. Blutdruck oder Gewicht).",
@@ -5823,13 +5788,6 @@
       "saveSuccess": "Zielbereich aktualisiert",
       "saveError": "Zielbereich konnte nicht gespeichert werden",
       "resetSuccess": "Zielbereich auf Standard zurückgesetzt"
-    },
-    "mood": {
-      "stability": {
-        "stable": "stabil",
-        "variable": "schwankend",
-        "highlyVariable": "sehr schwankend"
-      }
     },
     "currentValue": "Aktuell: {value} {unit}",
     "targetRangeValue": "Zielbereich: {min}–{max} {unit}",
@@ -5936,7 +5894,6 @@
   },
   "lowStockReminders": {
     "title": "Vorrat niedrig: {medName}",
-    "body": "Dein Vorrat an {medName} reicht noch etwa {days} Tage ({units} Einheiten übrig).",
     "bodyToday": "Dein Vorrat an {medName} reicht keinen ganzen Tag mehr ({units} Einheiten übrig).",
     "bodyReorder": "Dein Vorrat an {medName} ({units} Einheiten) ist um den {runsOutOn} aufgebraucht — bestelle bis zum {reorderBy} nach.",
     "bodyLastDose": "Dein Vorrat an {medName} ({units} Einheiten) reicht noch etwa für die letzte Dosis. Aufgebraucht um den {runsOutOn}."
@@ -6044,7 +6001,6 @@
         "description": "Wie sich jeder Messwert zwischen deiner Luteal- und Follikelphase vergleicht – auf deinen eigenen Daten.",
         "pairLabel": "{metric} · Luteal vs. Follikel",
         "detail": "Luteal {lutealAvg} {unit} ({lutealDays} Tage) vs. Follikel {follicularAvg} {unit} ({follicularDays} Tage).",
-        "footer": "Das sind Zusammenhänge in deinen eigenen Daten, keine Ursachen. Nur Muster, die einen Signifikanztest bestehen, werden gezeigt.",
         "metricRestingHeartRate": "Ruhepuls",
         "metricHrv": "Herzfrequenzvariabilität",
         "metricSleepDuration": "Schlafdauer",
@@ -6068,10 +6024,6 @@
         "confidenceHigh": "Hohe Sicherheit"
       },
       "title": "Zyklus-Erkenntnisse",
-      "empty": "Phasen-Erkenntnisse erscheinen hier, sobald du genug Zyklen erfasst hast. Sie vergleichen deine Werte über die Zyklusphasen hinweg, mit offen gezeigter Statistik.",
-      "sampleSize": "n = {n}",
-      "effectSize": "Effektstärke {value}",
-      "qValue": "q = {value}",
       "symptomPatternsTitle": "Symptommuster nach Phase",
       "symptomPatternsEmpty": "Erfasse Symptome über einen Zyklus, um zu sehen, in welcher Phase sie sich häufen.",
       "symptomMostlyIn": "Meist in {phase} ({count}/{total} Tage)"
@@ -6091,7 +6043,6 @@
         "LUTEAL": "Das Progesteron führt durch die zweite Zyklushälfte, und die Basaltemperatur liegt meist etwas höher als zuvor im Zyklus. Manche bemerken im Lauf der Tage Veränderungen bei Schlaf, Appetit, Stimmung oder Energie, während andere durchgehend ausgeglichen bleiben. Das Muster ist persönlich und sieht von Monat zu Monat oft anders aus."
       },
       "commonHere": "Das bemerkst du hier oft",
-      "trackNudge": "Heute eintragen",
       "stillLearning": "Lerne deinen Zyklus noch kennen. Trage weiter ein, dann füllt sich das mit Mustern aus deinen eigenen Tagen."
     },
     "insightsSummary": {
@@ -6184,10 +6135,7 @@
       "prevMonth": "Vorheriger Monat",
       "nextMonth": "Nächster Monat",
       "loading": "Kalender wird geladen…",
-      "empty": "Erfasse Daten, damit sich dein Kalender füllt.",
       "learning": "Wir lernen deinen Zyklus – erfasse mindestens drei volle Zyklen, dann füllen sich fruchtbares Fenster, Eisprung und Phasen. Bis dahin zeigt der Kalender nur, was du erfasst hast.",
-      "today": "Heute",
-      "dayAria": "{date}",
       "legendSymptom": "Symptome",
       "legendOvulationConfirmed": "Bestätigter Eisprung",
       "flowSpotting": "Schmierblutung",
@@ -6198,11 +6146,9 @@
     "predictions": {
       "title": "Was als Nächstes kommt",
       "nextPeriod": "Nächste Periode",
-      "nextPeriodRange": "Etwa am {date}",
       "nextPeriodWindow": "{low} – {high}",
       "fertileWindow": "Fruchtbares Fenster",
       "ovulation": "Geschätzter Eisprung",
-      "confidence": "Sicherheit",
       "confidenceHigh": "Hoch",
       "confidenceMedium": "Mittel",
       "confidenceLow": "Niedrig",
@@ -6238,7 +6184,6 @@
     "sheet": {
       "title": "Tag erfassen",
       "description": "Erfasse Stärke, Symptome und Notizen von heute.",
-      "date": "Datum",
       "flow": "Stärke",
       "symptoms": "Symptome",
       "temperature": "Basaltemperatur",
@@ -6258,10 +6203,7 @@
       "save": "Speichern",
       "saving": "Speichern…",
       "cancel": "Abbrechen",
-      "saved": "Tag gespeichert",
       "saveError": "Konnte nicht gespeichert werden. Versuch es erneut.",
-      "periodStarted": "Periodenbeginn erfasst",
-      "clear": "Keine",
       "intermenstrualBleeding": "Schmierblutung zwischen Perioden",
       "pregnancyTest": "Schwangerschaftstest",
       "progesteroneTest": "Progesterontest",
@@ -6277,8 +6219,6 @@
     },
     "settings": {
       "title": "Zyklus-Einstellungen",
-      "enable": "Zyklus-Tracking",
-      "enableDescription": "Schalte den Zyklus-Tab für dein Konto ein oder aus.",
       "typicalCycleLength": "Typische Zykluslänge (Tage)",
       "typicalPeriodLength": "Typische Periodenlänge (Tage)",
       "lutealPhaseLength": "Länge der Lutealphase (Tage)",
@@ -6297,30 +6237,14 @@
       "encryptionDescription": "Verschlüssele absichtsverratende Felder (Schwangerschaftstests, Verhütung, Geschlechtsverkehr) ruhend, zusätzlich zu den stets verschlüsselten Notizen.",
       "discreet": "Diskrete Benachrichtigungen",
       "discreetDescription": "Verbirg Zyklusdetails im Benachrichtigungstext auf deinem Sperrbildschirm.",
-      "dataTitle": "Deine Daten",
-      "dataDescription": "Deine Zyklusdaten liegen nur auf diesem Server. Exportiere sie jederzeit oder lösche sie endgültig.",
-      "export": "Meine Zyklusdaten exportieren",
-      "deleteData": "Meine Zyklusdaten löschen",
       "saved": "Einstellungen gespeichert",
       "saveError": "Konnte nicht gespeichert werden. Versuch es erneut.",
       "save": "Speichern",
-      "purgeTitle": "Alle Zyklusdaten löschen",
-      "purgeDescription": "Entfernt dauerhaft jeden erfassten Tag, Zyklus, jede Vorhersage und jeden Erinnerungseintrag. Kann nicht rückgängig gemacht werden.",
-      "purgeButton": "Alle Zyklusdaten löschen",
-      "purgeConfirmTitle": "Alle Zyklusdaten löschen?",
-      "purgeConfirmBody": "Dies löscht dauerhaft jede Periode, jeden Tageseintrag, jedes Symptom und jede Vorhersage. Dies kann nicht rückgängig gemacht werden.",
-      "purgeConfirm": "Alle Zyklusdaten dauerhaft löschen?",
-      "purgeCancel": "Abbrechen",
-      "purgeSuccess": "Alle Zyklusdaten gelöscht.",
-      "purgeError": "Zyklusdaten konnten nicht gelöscht werden.",
       "reminders": "Erinnerungen",
       "remindersDescription": "Perioden-Erinnerungen pro Kanal in den Benachrichtigungseinstellungen aktivieren.",
       "remindersLink": "Benachrichtigungseinstellungen",
       "fertileReminder": "Erinnerung an das fruchtbare Fenster",
-      "fertileReminderDescription": "Erhalte einige Tage vor deinem geschätzten fruchtbaren Fenster einen Hinweis. Standardmäßig aus – aktiviere sie pro Kanal in den Benachrichtigungseinstellungen.",
-      "purgeData": "Zyklusdaten löschen",
-      "purgeConfirmAction": "Ja, alles löschen",
-      "purgeDone": "Zyklusdaten gelöscht."
+      "fertileReminderDescription": "Erhalte einige Tage vor deinem geschätzten fruchtbaren Fenster einen Hinweis. Standardmäßig aus – aktiviere sie pro Kanal in den Benachrichtigungseinstellungen."
     },
     "testResult": {
       "POSITIVE": "Positiv",
@@ -6472,23 +6396,46 @@
     "pushLocation": "(bei {location})",
     "edit": "Bearbeiten",
     "originCoach": "Coach",
-    "enabledToggleAria": "Diese Erinnerung aktivieren oder deaktivieren",
     "until": "Bis {date}",
     "selfPlanned": "Selbstgeplant",
     "captureValue": "Wert erfassen",
+    "measureNow": "Jetzt messen",
+    "nextDueLabel": "Nächste Fälligkeit:",
+    "lastDoneLabel": "Zuletzt erledigt:",
+    "customize": "Vorsorge anpassen",
+    "adherence": {
+      "label": "Im Intervall",
+      "onTrack": "Im Plan",
+      "due": "Jetzt fällig"
+    },
+    "settings": {
+      "title": "Vorsorge anpassen",
+      "description": "Ansicht, Reihenfolge und einzelne Erinnerungen verwalten.",
+      "back": "Zurück zur Vorsorge"
+    },
     "capture": {
       "title": "Messwert erfassen",
       "description": "Wert eintragen; die Erinnerung wird als erledigt markiert."
     },
     "manage": {
-      "menuItem": "Anpassen",
-      "title": "Erinnerungen anpassen",
+      "title": "Erinnerungen verwalten",
       "description": "Einzelne Erinnerungen aktivieren oder deaktivieren.",
       "empty": "Noch keine Erinnerungen zum Anpassen."
     },
     "dashboard": {
       "empty": "Keine anstehenden Vorsorge-Erinnerungen.",
       "openLink": "Vorsorge öffnen"
+    }
+  },
+  "moduleList": {
+    "viewToggleLabel": "Ansicht",
+    "viewCards": "Kartenansicht",
+    "viewList": "Listenansicht",
+    "viewHeading": "Ansicht",
+    "viewDescription": "Lege fest, ob die Einträge als Karten oder als kompakte Liste angezeigt werden.",
+    "reorder": {
+      "heading": "Reihenfolge",
+      "empty": "Noch keine Einträge zum Sortieren."
     }
   },
   "labs": {
@@ -6501,36 +6448,36 @@
     "emptyDescription": "Erfasse Blutwerte wie HbA1c, LDL oder Ferritin, um sie über die Zeit zu verfolgen und mit deiner Ärztin oder deinem Arzt zu teilen.",
     "referenceLabel": "Referenz",
     "readingsCount": "{count} Messungen",
-    "deleteLatest": "Letzten Wert löschen",
     "deleteConfirmTitle": "Laborwert löschen?",
     "deleteConfirmDescription": "Dieser Laborwert wird dauerhaft gelöscht.",
     "deletedToast": "Wert gelöscht",
     "deleteError": "Wert konnte nicht gelöscht werden",
     "loadError": "Laborwerte konnten nicht geladen werden",
+    "customize": "Laborwerte anpassen",
+    "settings": {
+      "title": "Laborwerte anpassen",
+      "description": "Ansicht, Sortierung und Biomarker verwalten.",
+      "back": "Zurück zu den Laborwerten"
+    },
+    "sort": {
+      "heading": "Sortierung",
+      "label": "Reihenfolge der Werte",
+      "recentDesc": "Neueste Messung zuerst",
+      "recentAsc": "Älteste Messung zuerst",
+      "manual": "Manuell sortieren",
+      "hint": "Bei manueller Sortierung kannst du die Biomarker unten in deine eigene Reihenfolge bringen."
+    },
     "range": {
       "inRange": "Im Bereich",
       "below": "Unter Bereich",
       "above": "Über Bereich"
     },
     "form": {
-      "analyte": "Biomarker",
-      "analytePlaceholder": "z. B. HbA1c, LDL, Ferritin",
       "value": "Wert",
-      "unit": "Einheit",
-      "unitPlaceholder": "z. B. mg/dl, %, ng/ml",
       "takenAt": "Probendatum",
-      "optionalGroup": "Optional",
-      "panel": "Panel",
-      "panelPlaceholder": "z. B. Großes Blutbild",
-      "referenceLow": "Referenz unten",
-      "referenceHigh": "Referenz oben",
-      "referenceLowPlaceholder": "Untere Grenze",
-      "referenceHighPlaceholder": "Obere Grenze",
-      "referenceHint": "Übernimm den Referenzbereich aus deinem Laborbefund. Beide Grenzen sind optional.",
       "note": "Notiz",
       "notePlaceholder": "Optionaler Kontext zu diesem Wert",
       "requiredError": "Bitte einen Wert eingeben.",
-      "rangeOrderError": "Die untere Referenz darf nicht über der oberen liegen.",
       "save": "Speichern",
       "savedToast": "Wert gespeichert",
       "saveError": "Wert konnte nicht gespeichert werden",
@@ -6567,9 +6514,7 @@
       }
     },
     "biomarker": {
-      "manage": "Biomarker",
       "manageTitle": "Biomarker",
-      "manageSheetDescription": "Lege die Marker an, die du verfolgst. Jeder wird einmal mit Einheit und Referenzbereich eingerichtet.",
       "managerDescription": "Marker einmal definieren — Einheit und Bereich gelten für jede Messung.",
       "define": "Anlegen",
       "defineFirst": "Ersten Biomarker anlegen",
@@ -6699,18 +6644,6 @@
       "label": "Arztbericht",
       "description": "PDF- und FHIR-Export für deine Praxis."
     },
-    "weight": {
-      "label": "Gewicht",
-      "description": "Gewicht und Körperzusammensetzung."
-    },
-    "bloodPressure": {
-      "label": "Blutdruck",
-      "description": "Systolisch und diastolisch."
-    },
-    "pulse": {
-      "label": "Puls",
-      "description": "Ruhepuls und Herzfrequenz."
-    },
     "medications": {
       "label": "Medikamente",
       "description": "Pläne, Einnahmen und Compliance."
@@ -6723,7 +6656,12 @@
   "illness": {
     "title": "Krankheitstagebuch",
     "subtitle": "Ein rückblickendes Protokoll deiner Krankheits- und Beschwerde-Episoden.",
-    "disclaimer": "Ein persönliches Tagebuch — kein Medizinprodukt. Es stellt keine Diagnose und keine Prognose.",
+    "customize": "Krankheitstagebuch anpassen",
+    "settings": {
+      "title": "Krankheitstagebuch anpassen",
+      "description": "Ansicht und Reihenfolge der Episoden verwalten.",
+      "back": "Zurück zum Krankheitstagebuch"
+    },
     "newEpisode": "Neue Episode",
     "logDay": "Tag erfassen",
     "markRecovered": "Als genesen markieren",
@@ -6823,7 +6761,6 @@
       "countOther": "Du hast in diesem Zeitraum {count} Episoden erfasst.",
       "typicalGap": "Typische Erholungslücke: {days} Tage zwischen Besserung und normalisierten Werten.",
       "typicalGapLearning": "Noch ein paar abgeschlossene Episoden und hier erscheint eine typische Erholungslücke.",
-      "byMonth": "Wann du Episoden erfasst",
       "none": "In diesem Zeitraum keine Episoden erfasst."
     },
     "section": {
@@ -6892,6 +6829,25 @@
     "settings": {
       "reminderSuggestionsLabel": "Kadenz-Vorschläge",
       "reminderSuggestionsDescription": "Lass den Coach gelegentlich eine evidenzbasierte Erinnerung anbieten, eine Metrik regelmäßiger zu messen."
+    }
+  },
+  "safety": {
+    "floor": {
+      "bpHighTitle": "Sehr hoher Blutdruck",
+      "bpHighDoctor": "Zwei aktuelle Messungen lagen bei {systolic}/{diastolic} mmHg oder höher. Ruhe dich aus, miss in einigen Minuten erneut und kontaktiere möglichst bald deine Ärztin oder deinen Arzt, wenn es so hoch bleibt.",
+      "bpHighEmergency": "Zwei aktuelle Messungen lagen bei {systolic}/{diastolic} mmHg oder höher und du hast Beschwerden angegeben. Bei Brustschmerz, Atemnot, Schwäche oder Seh- oder Sprachstörungen sofort den Notruf wählen.",
+      "bpLowTitle": "Niedriger Blutdruck",
+      "bpLowDoctor": "Zwei aktuelle Messungen hatten einen systolischen Wert unter {systolic} mmHg. Wenn dir schwindelig oder schummrig ist, setz oder leg dich hin und kontaktiere deine Ärztin oder deinen Arzt, wenn es anhält.",
+      "bpLowEmergency": "Zwei aktuelle Messungen hatten einen systolischen Wert unter {systolic} mmHg und du hast Beschwerden angegeben. Bei Ohnmachtsgefühl, Verwirrtheit oder kalter, feuchter Haut sofort den Notruf wählen.",
+      "glucoseLowTitle": "Niedriger Blutzucker",
+      "glucoseLowDoctor": "Zwei aktuelle Messungen lagen unter 70 mg/dL ({value} mg/dL). Nimm schnell wirkende Kohlenhydrate, miss in 15 Minuten erneut und kontaktiere deine Ärztin oder deinen Arzt, wenn die Tiefs anhalten.",
+      "glucoseLowEmergency": "Zwei aktuelle Messungen lagen unter 70 mg/dL ({value} mg/dL) und du hast Beschwerden angegeben. Behandle jetzt mit schnellem Zucker; wenn das nicht geht oder dir sehr unwohl ist, wähle den Notruf.",
+      "glucoseLowSevereTitle": "Sehr niedriger Blutzucker",
+      "glucoseLowSevereDoctor": "Zwei aktuelle Messungen lagen unter 54 mg/dL ({value} mg/dL). Behandle sofort mit schnell wirkenden Kohlenhydraten, miss in 15 Minuten erneut und kontaktiere deine Ärztin oder deinen Arzt.",
+      "glucoseLowSevereEmergency": "Zwei aktuelle Messungen lagen unter 54 mg/dL ({value} mg/dL) und du hast Beschwerden angegeben. Behandle jetzt; wenn du nichts bei dir behalten kannst oder dir sehr unwohl ist, wähle den Notruf.",
+      "glucoseHighTitle": "Sehr hoher Blutzucker",
+      "glucoseHighDoctor": "Zwei aktuelle Messungen lagen bei {value} mg/dL oder höher. Miss erneut, trink ausreichend und kontaktiere möglichst bald deine Ärztin oder deinen Arzt, wenn es so hoch bleibt.",
+      "glucoseHighEmergency": "Zwei aktuelle Messungen lagen bei {value} mg/dL oder höher und du hast Beschwerden angegeben. Bei Erbrechen, schneller Atmung oder Verwirrtheit sofort den Notruf wählen."
     }
   }
 }

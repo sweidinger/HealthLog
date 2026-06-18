@@ -34,6 +34,7 @@
  */
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { toJson } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
 import {
   computeExpiresAt,
@@ -263,7 +264,7 @@ export async function consumeForIntake(input: {
       // registered later when a sync replay revisits the row.
       await tx.medicationIntakeEvent.update({
         where: { id: eventId },
-        data: { inventoryConsumption: stamp as unknown as Prisma.InputJsonValue },
+        data: { inventoryConsumption: toJson(stamp) },
       });
 
       annotate({

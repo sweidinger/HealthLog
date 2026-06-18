@@ -278,31 +278,13 @@ export function SourcesSection() {
     return Object.keys(priority.deviceTypePriority).length;
   }, [priority]);
 
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+  // `<SettingsSectionFrame>` (the off-style muted intro folded into the
+  // standard subtitle). The quiet cross-link back to Integrationen — where
+  // the sources this ladder ranks are added / removed — stays inside the
+  // card, below the ladder.
   return (
-    <section
-      aria-labelledby="settings-section-sources-title"
-      className="space-y-6"
-    >
-      {/* v1.18.1 (D0/D4) — standalone left-side entry again. The section
-          blurb is dropped for consistent top alignment; the cross-link back
-          to Integrationen (where the sources this ladder ranks are added /
-          removed) stays as a quiet pointer. */}
-      <header>
-        <h1 id="settings-section-sources-title" className="sr-only">
-          {t("settings.sections.sources.title")}
-        </h1>
-        <p className="text-muted-foreground text-xs">
-          {t("settings.sections.sources.integrationsHint")}{" "}
-          <Link
-            href="/settings/integrations"
-            className="text-primary underline underline-offset-2"
-            data-slot="sources-integrations-cross-link"
-          >
-            {t("settings.sections.sources.integrationsHintLink")}
-          </Link>
-        </p>
-      </header>
-
+    <div className="space-y-6">
       <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
         <SettingsCardHeader
           icon={Layers}
@@ -578,8 +560,22 @@ export function SourcesSection() {
             </Button>
           </div>
         )}
+
+        {/* v1.18.6 (W9) — quiet pointer back to Integrationen, where the
+            sources this ladder ranks are connected / removed. Folded into
+            the card so the page top stays the standard heading + subtitle. */}
+        <p className="text-muted-foreground border-border border-t pt-3 text-xs">
+          {t("settings.sections.sources.integrationsHint")}{" "}
+          <Link
+            href="/settings/integrations"
+            className="text-primary underline underline-offset-2"
+            data-slot="sources-integrations-cross-link"
+          >
+            {t("settings.sections.sources.integrationsHintLink")}
+          </Link>
+        </p>
       </div>
-    </section>
+    </div>
   );
 }
 

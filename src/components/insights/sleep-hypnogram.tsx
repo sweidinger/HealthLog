@@ -58,6 +58,17 @@ export interface SleepHypnogramSession {
   awakenings: number;
   stages: Record<string, number>;
   segments: SleepHypnogramSegment[];
+  /**
+   * `true` when the winning source has no measured per-stage onset
+   * timestamps and the server synthesised a contiguous timeline in a fixed
+   * physiological order (WHOOP / Polar). The "timeline" of such a night is
+   * not a real hypnogram — it would read as one long Core block followed by
+   * one Deep block, never the phase-to-phase progression a measured night
+   * shows — so we never draw the misleading stepped bar for it and fall back
+   * to the per-stage breakdown alone. A real-series source (Apple Health,
+   * Withings, Fitbit) is `false` and keeps the timeline.
+   */
+  reconstructed?: boolean;
 }
 
 export interface SleepHypnogramProps {
@@ -216,10 +227,16 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
   // breakdown footer. (Gating on the END instant instead hid the bar for an
   // ordinary multi-stage night whose segments happened to share a right
   // edge — the regression this restores.)
+  // A SYNTHESISED night (WHOOP / Polar) has no measured stage onsets — the
+  // server laid its segments out in a fixed physiological order, so drawing
+  // the stepped bar would invent a phase progression that was never recorded
+  // (the "Core block then Deep block, no real breakdown" the bar reads as).
+  // For those we keep the per-stage breakdown + totals, which ARE real, and
+  // drop the misleading timeline entirely. Real-series sources keep the bar.
   const hasTrack =
+    session.reconstructed !== true &&
     spans.length > 0 &&
-    (spans.length === 1 ||
-      new Set(spans.map((s) => s.x1)).size > 1);
+    (spans.length === 1 || new Set(spans.map((s) => s.x1)).size > 1);
   const hasBreakdown = breakdown.length > 0;
 
   return (
@@ -249,6 +266,18 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
               {t("insights.sleep.hypnogram.source", {
                 source: session.source,
               })}
+            </span>
+          ) : null}
+          {/* When the source reports stage TOTALS but no measured onsets
+              (WHOOP / Polar) the stepped timeline is suppressed — drawing one
+              would invent a phase order that was never recorded. Surface a calm
+              note so the breakdown below doesn't read as a missing chart. */}
+          {session.reconstructed === true && hasBreakdown ? (
+            <span
+              data-slot="sleep-hypnogram-estimate-note"
+              className="text-muted-foreground/70 text-xs"
+            >
+              {t("insights.sleep.hypnogram.estimateNote")}
             </span>
           ) : null}
         </div>

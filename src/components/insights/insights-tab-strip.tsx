@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useTranslations } from "@/lib/i18n/context";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import {
@@ -656,6 +657,7 @@ function InsightsTabStripImpl({
   return (
     <nav
       data-slot="insights-tab-strip"
+      data-tour-id="insights-hero"
       aria-label={t("insights.navAriaLabel")}
       // v1.4.28 FB-D3 — `touch-action: pan-y` lets vertical swipes that
       // begin on the sticky strip scroll the page through it. The
@@ -858,6 +860,10 @@ function InsightsTabStripImpl({
             "from-background/95 pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l to-transparent sm:hidden",
           )}
         />
+        {/* v1.18.6 — per-module tour re-entry, travelling with the
+            top-right control cluster. Anchors to this strip's
+            `insights-hero` and opens the Insights tour card on the spot. */}
+        <ModuleTourTrigger stopId="insights" />
         {/* v1.15.18 — customise cog. Sits immediately LEFT of the
             regenerate button and links to the Insights settings section
             (overview arrange + pill sort), matching the Dashboard cog

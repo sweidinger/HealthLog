@@ -96,6 +96,7 @@
    *   - info    → dracula-cyan    (neutral informational note)
    */
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-info: var(--info);
 
@@ -155,6 +156,17 @@
   --warning: var(--dracula-orange);
   --info: var(--dracula-cyan);
 
+  /*
+   * Foreground for glyphs/labels painted on a solid `bg-success` fill. The
+   * raw Dracula green (`#50fa7b`) is a bright tone, so white-on-green reads
+   * ~1.37:1 in dark mode — well under AA. The dark theme below pairs it with
+   * the near-black Dracula background (`#282a36`, ~10.4:1); the light theme
+   * keeps white on the darker light-mode green (`#14720a`, ~6.1:1). Mirrors
+   * the `--primary-foreground` pattern. Default here keeps the dark-theme
+   * value so an un-themed root never falls back to an unreadable pairing.
+   */
+  --success-foreground: #282a36;
+
   --radius: 0.625rem;
 }
 
@@ -211,6 +223,9 @@
   --status-pill-in: #50fa7b;
   --status-pill-near: #ffb86c;
   --status-pill-out: #ff8a8a;
+
+  /* Dark glyph on the bright Dracula-green fill — ~10.4:1 on `#50fa7b`. */
+  --success-foreground: #282a36;
 
   /*
    * Dose accent in dark mode — the exact Tailwind `text-purple-400`
@@ -297,6 +312,8 @@
   --success: #14720a;
   --warning: #a34d14;
   --info: #036a96;
+  /* White glyph on the darker light-mode green — ~6.1:1 on `#14720a`. */
+  --success-foreground: #ffffff;
   --border: #cfcfde;
   --input: #cfcfde;
   --ring: #644ac9;
@@ -887,5 +904,34 @@
   [data-animate="true"] .cycle-history-bar {
     transform: none;
     animation: none;
+  }
+}
+
+/* ── Global reduced-motion backstop ──────────────────────────────────
+ * Defensive catch-all so any animation/transition we forget to gate
+ * per-component still collapses to near-instant when the user has asked
+ * for reduced motion. The per-component blocks above stay — they carry
+ * tailored static fallbacks (static dots, full-height bars). This is the
+ * floor, not a replacement. Near-zero (not 0) keeps JS animation-end /
+ * transition-end listeners firing so state machines don't stall.
+ *
+ * `animation-fill-mode: forwards` + `animation-delay: 0ms` are load-bearing:
+ * several entrance animations rest at `opacity: 0` and only become visible
+ * through their reveal keyframe. Without holding the end state (and without
+ * zeroing the stagger delay) the near-zero animation completes and the
+ * element snaps back to its hidden base style — leaving charts and list
+ * rows permanently invisible under reduced motion. Forwards pins the final
+ * (revealed) frame; zero delay reveals immediately. Per-component blocks
+ * above that set `animation: none` are unaffected (no animation to fill). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-fill-mode: forwards !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

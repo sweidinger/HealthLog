@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -168,9 +169,14 @@ export function errorCodeToI18nKey(code: string): string {
       // (auth-class failure). The next action is "reconnect", not "try
       // again later", so it carries its own copy pointing at Settings.
       return "insights.coach.errorCredentialExpired";
+    case "coach.provider.none":
+      // v1.18.6 — no AI provider is configured anywhere, so "try again
+      // in a moment" is the wrong instruction (it will 422 forever). Send
+      // the user to guided setup with a one-line explainer + a Settings
+      // link rendered alongside the bubble copy.
+      return "insights.coach.errorNoProvider";
     case "coach.provider.unavailable":
     case "coach.provider.empty":
-    case "coach.provider.none":
     case "coach.stream":
       return "insights.coach.errorProvider";
     default:
@@ -357,6 +363,13 @@ export function MessageThread({
       data-slot="coach-message-thread"
       className={cn(
         "flex h-full flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-6",
+        // v1.18.6 (CCH-01) — on the now full-width page surface a thread
+        // stretched edge-to-edge sprawled the prose to an unreadable
+        // measure. Centre the content on a comfortable max width (Claude-
+        // like) via an `mx-auto` inner gutter; the scrollbar still rides
+        // the surface edge. The drawer surface is already narrow, so the
+        // cap only bites on the wide page surface.
+        "[&>*]:mx-auto [&>*]:w-full [&>*]:max-w-3xl",
         "scroll-smooth",
       )}
     >
@@ -612,6 +625,19 @@ function ChatBubble({
         </div>
         {safeError && content && (
           <p className="text-warning/90 text-xs">{safeError}</p>
+        )}
+        {/* v1.18.6 — a "no provider configured anywhere" turn is a
+            setup gap, not a transient failure: surface a direct link to
+            Settings → AI so the Coach guides the user into BYOK / local
+            setup instead of inviting an endless retry. */}
+        {errorCode === "coach.provider.none" && (
+          <Link
+            href="/settings/ai"
+            data-slot="coach-no-provider-cta"
+            className="text-primary text-xs font-medium underline-offset-4 hover:underline"
+          >
+            {t("insights.coach.errorNoProviderAction")}
+          </Link>
         )}
         {/* v1.12.0 — collapse the whole provenance block ("what was
             included") behind one disclosure, collapsed by default. The

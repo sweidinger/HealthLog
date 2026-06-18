@@ -73,6 +73,7 @@ import {
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
 import { resolveCoachNudgePrefs } from "@/lib/validations/notification-prefs";
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
+import { recordProactiveNudge } from "@/lib/ai/coach/persistence";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
@@ -167,6 +168,13 @@ export const COACH_NUDGE_TRIGGER_GROUPS: Record<
 export interface CoachNudgeSummary {
   candidatesScanned: number;
   dispatched: number;
+  /**
+   * v1.18.6 (CCH-02) — nudges written into the conversation rail as an
+   * initial ASSISTANT message. Counted independently of `dispatched`:
+   * the conversation lands even when no push channel is configured, so
+   * `persisted` can exceed `dispatched`.
+   */
+  persisted: number;
   skippedOptedOut: number;
   skippedNoProvider: number;
   skippedRecentNudge: number;
@@ -695,13 +703,16 @@ export async function runCoachNudgeTick(
   now: Date,
   options: {
     dispatch?: typeof dispatchNotification;
+    recordNudge?: typeof recordProactiveNudge;
   } = {},
 ): Promise<CoachNudgeSummary> {
   const dispatchImpl = options.dispatch ?? dispatchNotification;
+  const recordNudgeImpl = options.recordNudge ?? recordProactiveNudge;
 
   const summary: CoachNudgeSummary = {
     candidatesScanned: 0,
     dispatched: 0,
+    persisted: 0,
     skippedOptedOut: 0,
     skippedNoProvider: 0,
     skippedRecentNudge: 0,
@@ -771,10 +782,15 @@ export async function runCoachNudgeTick(
       }
 
       // Gate 5 — one nudge per rolling window (7 d default, 14 d when
-      // the user picked "biweekly"), anchored on the push-attempts
-      // ledger. A delivered nudge writes an `ok` row per succeeding
-      // channel; a fully failed dispatch leaves the slot free so
-      // tomorrow's tick can retry.
+      // the user picked "biweekly"). Anchored on BOTH the push-attempts
+      // ledger (a delivered nudge writes an `ok` row per succeeding
+      // channel) AND the persisted nudge conversation (v1.18.6 CCH-02
+      // writes one regardless of push outcome). A user with no push
+      // channel never gets an `ok` row, so without the persisted-side
+      // check the cap would be inert for them and every tick would mint a
+      // fresh rail conversation. A fully failed dispatch on a push-capable
+      // user still leaves the ledger slot free, but the persisted nudge
+      // already pins the window — exactly the once-per-window contract.
       const capCutoff = new Date(
         now.getTime() - nudgePrefs.minIntervalDays * MS_PER_DAY,
       );
@@ -788,6 +804,19 @@ export async function runCoachNudgeTick(
         select: { id: true },
       });
       if (recentNudge) {
+        summary.skippedRecentNudge += 1;
+        continue;
+      }
+      const recentPersistedNudge = await prisma.coachMessage.findFirst({
+        where: {
+          providerType: "nudge",
+          role: "assistant",
+          conversation: { userId: user.id },
+          createdAt: { gte: capCutoff },
+        },
+        select: { id: true },
+      });
+      if (recentPersistedNudge) {
         summary.skippedRecentNudge += 1;
         continue;
       }
@@ -839,6 +868,30 @@ export async function runCoachNudgeTick(
         user.locale,
         coachFocus,
       );
+
+      // v1.18.6 (CCH-02) — persist the nudge as a real conversation
+      // BEFORE dispatching the notification. The proactive nudge used to
+      // be notification-only, so a user with no push channel never saw
+      // it anywhere; writing it as the initial ASSISTANT message means it
+      // always lands in the conversation rail (and clears the FAB unread
+      // dot once the user opens the Coach). A persistence failure must
+      // not swallow the notification, so it is caught locally and the
+      // dispatch still fires.
+      try {
+        await recordNudgeImpl({
+          userId: user.id,
+          title,
+          body,
+        });
+        summary.persisted += 1;
+      } catch (persistErr: unknown) {
+        const message =
+          persistErr instanceof Error ? persistErr.message : String(persistErr);
+        getEvent()?.addWarning(
+          `coach-nudge conversation persist failed for ${user.id}: ${message}`,
+        );
+      }
+
       const outcome = await dispatchImpl({
         eventType: "COACH_NUDGE",
         userId: user.id,

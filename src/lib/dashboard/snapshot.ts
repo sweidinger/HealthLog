@@ -77,6 +77,10 @@ import {
   type MedsTodayBlock,
 } from "@/lib/dashboard/meds-today";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
+import {
+  buildDashboardBands as buildTargetBands,
+  type DashboardTargetBands,
+} from "@/lib/dashboard/bands";
 import type {
   HealthScoreBand,
   RestModeAnnotation,
@@ -196,6 +200,25 @@ export interface DashboardSnapshotUser {
   greetingHour: number;
 }
 
+/**
+ * v1.18.6 — server-computed band / target math (audit finding #3).
+ *
+ * The dashboard used to derive every chart band + tile range CLIENT-side
+ * in `page.tsx` from `user.dateOfBirth` / `gender` / `heightCm`. This
+ * block resolves the same numbers server-side from the EXISTING band
+ * helpers (`getBpTargets`, `getPersonalizedPulseTarget`,
+ * `getBodyFatTargetRange`, `buildWeight*FromHeight`,
+ * `buildTrafficLightBands`, `buildTrafficRange`) so the client reads them
+ * instead of recomputing. Only the NUMERIC structures live here — the
+ * `bpTargetZones` array carries `t()`-localised labels, so the client
+ * assembles THAT from `bpTargets` (numbers) at render time. Every field
+ * is `null` when the driving profile fact is missing (no DOB → BP/pulse
+ * personalisation, no height → weight band), matching the client's
+ * previous null-guards exactly.
+ */
+export { buildTargetBands };
+export type { DashboardTargetBands };
+
 export interface DashboardSnapshotMoodEntry {
   date: string;
   score: number;
@@ -301,6 +324,12 @@ export interface DashboardSnapshot {
    * `MetricKind` raw value. Additive; the web page does not read it.
    */
   metricStates: Record<string, DashboardMetricState>;
+  /**
+   * v1.18.6 — server-computed band / target math (audit finding #3). The
+   * web dashboard reads these instead of recomputing from the profile;
+   * additive for iOS.
+   */
+  targetBands: DashboardTargetBands;
   /** Fast phase — always present. */
   tiles: {
     summaries: Record<string, DataSummary>;
@@ -968,6 +997,11 @@ export async function buildDashboardSnapshot(
     layout,
     layoutCatalogue: buildLayoutCatalogue(layout),
     metricStates: buildMetricStates(slim.summaries, slim.lastSeenByType),
+    targetBands: buildTargetBands({
+      dateOfBirth: user.dateOfBirth,
+      gender,
+      heightCm: user.heightCm ?? null,
+    }),
     tiles: {
       summaries: slim.summaries,
       lastSeenByType: enrichLastSeen(slim.lastSeenByType, nowMs),

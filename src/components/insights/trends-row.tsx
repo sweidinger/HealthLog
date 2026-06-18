@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, TrendingUp } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
@@ -301,6 +302,22 @@ export function TrendsRow({
                   text={t(config.captionKey)}
                 />
               )}
+              {/* v1.18.6 — drill-in link to the metric's detail page. The
+                  overview charted these metrics but never offered a way INTO
+                  their detail pages — notably the steps page, which exists and
+                  is used but was unreachable from Insights. The link sits below
+                  the caption so the chart keeps its own interactions. */}
+              {config.detailHref ? (
+                <Link
+                  href={config.detailHref}
+                  data-slot="trends-row-detail-link"
+                  data-metric={config.metric}
+                  className="text-muted-foreground hover:text-foreground mt-auto inline-flex items-center gap-1 self-start text-xs font-medium transition-colors"
+                >
+                  {t("insights.trendsRow.viewDetail", { metric: title })}
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+              ) : null}
             </div>
           );
         })}

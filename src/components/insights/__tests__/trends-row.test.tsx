@@ -284,4 +284,22 @@ describe("<TrendsRow>", () => {
     expect(html).toContain("Moderate confidence");
     expect(html).toContain("Low confidence");
   });
+
+  // ── v1.18.6 — detail-page cross-links (the Insights→steps gap) ──────
+  it("links each metric card to its detail page", () => {
+    const html = render(<TrendsRow />);
+    // The default BP / weight / mood triple each link to their sub-page.
+    expect(html).toContain('data-slot="trends-row-detail-link"');
+    expect(html).toContain('href="/insights/blood-pressure"');
+    expect(html).toContain('href="/insights/weight"');
+    expect(html).toContain('href="/insights/mood"');
+  });
+
+  it("offers the steps detail link when the briefing flags steps", () => {
+    // Steps has a routed sub-page but the overview never linked to it; a
+    // briefing finding on steps now charts it AND drills into /insights/steps.
+    const html = render(<TrendsRow briefing={briefing(["steps"])} />);
+    expect(html).toMatch(/data-metric="steps"/);
+    expect(html).toContain('href="/insights/steps"');
+  });
 });

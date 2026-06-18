@@ -18,7 +18,6 @@
     "optional": "Optional",
     "active": "Active",
     "inactive": "Inactive",
-    "enabled": "Enabled",
     "disabled": "Disabled",
     "networkError": "Network error",
     "unknownError": "Unknown error",
@@ -74,7 +73,6 @@
     "colTaken": "Taken",
     "colSkipped": "Skipped",
     "colMissed": "Missed",
-    "colTotal": "Total",
     "colExpected": "Expected",
     "colComplianceRate": "Adherence rate",
     "moodTitle": "Mood trajectory",
@@ -191,7 +189,8 @@
     "backToDashboard": "Back to dashboard"
   },
   "offlineBanner": {
-    "message": "No connection — your changes will save once you're back online."
+    "message": "No connection — your changes will save once you're back online.",
+    "showingCached": "Showing your last synced data."
   },
   "demoBanner": {
     "message": "Demo mode — changes are not saved."
@@ -201,14 +200,12 @@
     "measurements": "Measurements",
     "medications": "Medications",
     "insights": "Insights",
-    "targets": "Targets",
     "achievements": "Achievements",
     "settings": "Settings",
     "bugreport": "Bug Report",
     "admin": "Admin Console",
     "logout": "Sign out",
     "login": "Sign in",
-    "about": "About HealthLog",
     "notifications": "Notifications",
     "theme": "Appearance",
     "themeSystem": "System",
@@ -218,13 +215,11 @@
     "userMenu": "User menu",
     "accountSettings": "Account settings",
     "mood": "Mood",
-    "workouts": "Workouts",
     "coach": "Coach",
     "skipToContent": "Skip to content",
     "sidebar": "Sidebar",
     "mainNavigation": "Main navigation",
     "mobileNavigation": "Mobile navigation",
-    "breadcrumb": "Breadcrumb navigation",
     "loadingScreen": "Loading…",
     "more": "More",
     "moreSheetTitle": "More",
@@ -241,7 +236,6 @@
     },
     "cycle": "Cycle",
     "labs": "Labs",
-    "recovery": "Recovery",
     "vorsorge": "Preventive Care",
     "illness": "Illness"
   },
@@ -329,7 +323,6 @@
     "sleepShort": "Sleep",
     "stepsShort": "Steps",
     "vo2MaxShort": "VO₂ max",
-    "bpInTargetShort": "BP in Target",
     "bpInTargetWindow90": "BP in Target · 90d",
     "bpInTargetWindowDynamic": "BP in Target · {days}d",
     "bpInTargetCollecting": "collecting data",
@@ -383,7 +376,6 @@
     "staleHintWeeksOther": "Last reading {count} weeks ago",
     "staleHintMonthsOne": "Last reading 1 month ago",
     "staleHintMonthsOther": "Last reading {count} months ago",
-    "coachCta": "Ask the coach",
     "recentWorkouts": {
       "title": "Recent workouts",
       "viewAll": "View all",
@@ -422,7 +414,7 @@
   },
   "measurements": {
     "title": "Measurements",
-    "subtitle": "Weight, blood pressure, pulse and more",
+    "subtitle": "Log readings and browse the full history. Trends and analysis live under Insights.",
     "addMeasurement": "Add",
     "editMeasurement": "Edit measurement",
     "type": "Type",
@@ -498,7 +490,6 @@
     "invalidTimestamp": "Please select a valid time.",
     "loginRequired": "Please sign in to view measurements.",
     "allTypes": "All types",
-    "filterByType": "Filter by type",
     "measurementCount": "{count} measurements",
     "emptyTitle": "No measurements yet",
     "emptyDescription": "Log your weight, blood pressure, pulse, or other vitals to start tracking trends.",
@@ -549,7 +540,6 @@
     "typeCardioLoad": "Cardio load",
     "typeSleepScore": "Sleep score",
     "typeBodyTemperatureDeviation": "Body temperature deviation",
-    "filterBySource": "Filter by source",
     "sourceComputed": "Computed",
     "sourceWhoop": "WHOOP",
     "sourceFitbit": "Fitbit",
@@ -669,7 +659,6 @@
       "factorSadness": "sadness",
       "praise": "praise"
     },
-    "filterBySource": "Filter by source",
     "sourceManual": "Manual",
     "sourceWeb": "Web",
     "sourceTelegram": "Telegram",
@@ -740,8 +729,6 @@
     "subtitle": "Medications, schedules & intake",
     "loginRequired": "Please sign in to manage medications.",
     "addMedication": "Add",
-    "editMedication": "Edit medication",
-    "newMedication": "New medication",
     "firstMedication": "Add first medication",
     "addChoice": {
       "logIntake": "Log an intake",
@@ -777,16 +764,9 @@
     "loadFailed": "Could not load medications",
     "retryLoad": "Retry",
     "name": "Name",
-    "dose": "Dose",
-    "scheduleFrom": "From",
-    "scheduleTo": "To",
-    "scheduleLabel": "Label",
-    "scheduleDays": "Days",
-    "scheduleDaily": "Daily",
     "inactive": "Paused",
     "intakeHistory": "Intake history",
     "openDetailPage": "Open medication detail page",
-    "deleteConfirm": "Delete medication?",
     "compliance": "Adherence",
     "importIntakes": "Import intakes",
     "importDescription": "Paste a JSON array with intake data. Expected format:",
@@ -801,19 +781,7 @@
     "importInvalidSkipped": "{count} invalid entries skipped",
     "importFailed": "Import failed",
     "importInvalidFormat": "Invalid JSON format",
-    "apiEndpointTitle": "API Endpoint: {name}",
-    "apiEndpointDescription": "Use this endpoint to record intakes via API (e.g., iPhone Shortcut or cron job).",
-    "apiEndpointActive": "API endpoint active",
-    "apiEndpointActivated": "API endpoint activated",
-    "apiEndpointDeactivated": "API endpoint deactivated",
-    "apiTokenCount": "Active ({count} tokens)",
-    "apiToken": "API Token",
-    "apiTokenActiveHint": "Endpoint is active. Existing tokens remain valid but cannot be shown in plain text again.",
-    "apiTokenActivateHint": "Activate the endpoint to create a new token.",
-    "apiTokenOnceHint": "The token is only shown in plain text once at creation.",
     "requestExample": "Request example",
-    "statusLoadFailed": "Could not load status",
-    "changeFailed": "Change failed",
     "categoryBloodPressure": "Blood Pressure",
     "categoryVitamin": "Vitamins",
     "categoryThyroid": "Thyroid",
@@ -846,21 +814,15 @@
     "lastDoseDaysAgo": "Last dose {count} days ago",
     "overdue": "Overdue",
     "veryOverdue": "Very overdue",
-    "compliance7d": "Adherence (7 days)",
-    "compliance30d": "Adherence (30 days)",
     "complianceWindow": "Adherence ({days} days)",
     "complianceUnavailable": "Adherence could not be loaded",
     "complianceInfo": "Share of expected doses you logged. Weekly schedules count week by week.",
     "complianceInfoLabel": "What does adherence mean?",
-    "complianceDoses": "{count} doses",
     "lastIntake": "Last intake:",
     "nextIntake": "Next intake:",
     "nextIntakeOverdue": "Overdue · {time} — can still be taken",
     "dayStreak": "day streak",
     "dayStreakOne": "day streak",
-    "cycleNextDoseToday": "Next dose today",
-    "cycleNextDoseTomorrow": "Next dose tomorrow",
-    "cycleNextDoseInDays": "Next dose in {days} days",
     "cycleDueToday": "Due today",
     "cycleOverdue": "Overdue",
     "cycleNoClosedCycles": "No closed dose cycles yet",
@@ -872,40 +834,10 @@
     "intakeUndo": "Undo",
     "intakeUndone": "Entry reverted",
     "intakeUndoFailed": "Could not undo — open the history to fix it",
-    "weekdaySunday": "Sunday",
-    "weekdayMonday": "Monday",
-    "weekdayTuesday": "Tuesday",
-    "weekdayWednesday": "Wednesday",
-    "weekdayThursday": "Thursday",
-    "weekdayFriday": "Friday",
-    "weekdaySaturday": "Saturday",
-    "weekdaySundayPlural": "Sundays",
-    "weekdayMondayPlural": "Mondays",
-    "weekdayTuesdayPlural": "Tuesdays",
-    "weekdayWednesdayPlural": "Wednesdays",
-    "weekdayThursdayPlural": "Thursdays",
-    "weekdayFridayPlural": "Fridays",
-    "weekdaySaturdayPlural": "Saturdays",
-    "formType": "Type",
-    "formDose": "Dose",
-    "formUnit": "Unit",
-    "formSchedule": "Schedule",
-    "formTreatmentClass": "Treatment class",
-    "formTreatmentClassHelp": "Pick \"GLP-1 injection\" for weekly injectables like Mounjaro, Ozempic, Wegovy, Zepbound. Unlocks the body-map picker and the GLP-1 logbook below.",
-    "treatmentClassGeneric": "Standard medication",
-    "treatmentClassGlp1": "GLP-1 injection",
-    "glp1WeeklyPresetTitle": "Once weekly on …",
-    "glp1WeeklyPresetHelp": "Most GLP-1 receptor agonists are once-weekly. Tap a day to set the cadence.",
-    "glp1WeeklyPresetSuggest": "Use my last weekday choice",
-    "glp1DosesPerUnit": "Doses per pen / vial",
-    "glp1DosesPerUnitPlaceholder": "e.g. 4 for a Mounjaro KwikPen",
-    "glp1DosesPerUnitHelp": "Optional — Mounjaro KwikPen = 4, Ozempic 0.25/0.5 mg = 4, Wegovy single-dose pen = 1. Leave blank if you don't track per-pen dosing.",
     "glp1LastInjection": "{label}",
-    "glp1LastInjectionWithSite": "{label} · {site}",
     "glp1NextInjectionDays": "{label} (in {days} days)",
     "glp1NextInjectionToday": "today",
     "glp1NextInjectionTomorrow": "tomorrow",
-    "glp1RotationLast": "Last site: {site}",
     "glp1RotationSuggested": "Recommended next: {site}",
     "glp1LogSideEffect": "Log side effect",
     "sideEffects": {
@@ -1260,8 +1192,7 @@
           "add": "Add another schedule",
           "edit": "Edit",
           "remove": "Remove",
-          "removeDisabled": "At least one schedule is required.",
-          "empty": "No schedule yet."
+          "removeDisabled": "At least one schedule is required."
         }
       },
       "errors": {
@@ -1305,38 +1236,6 @@
     "sideEffectTagAppetiteLoss": "appetite-loss",
     "sideEffectTagHeartburn": "heartburn",
     "sideEffectTagHeadache": "headache",
-    "newSchedule": "New schedule",
-    "removeSchedule": "Remove schedule",
-    "advancedEditing": "Advanced editing",
-    "advancedEditingHide": "Hide advanced editing",
-    "scheduleInterval": "Interval",
-    "scheduleEveryWeek": "every week",
-    "scheduleEveryNWeeks": "every {n} weeks",
-    "scheduleIntervalPrefix": "Interval:",
-    "nextSchedulePrefix": "Next schedule:",
-    "nextScheduleDaily": "daily",
-    "importIntakesAction": "Import intakes",
-    "apiEndpointAction": "API endpoint",
-    "pause": "Pause",
-    "activate": "Activate",
-    "disableNotifications": "Disable notifications",
-    "enableNotifications": "Enable notifications",
-    "purgeRecords": "Delete all records",
-    "formReset": "Reset form",
-    "createMedication": "Create medication",
-    "deleteConfirmDescription": "The medication and all intake history will be permanently deleted.",
-    "purgeConfirmTitle": "Delete all records?",
-    "purgeConfirmDescription": "All intake records for this medication will be permanently deleted. The medication itself will remain and start without history data.",
-    "saveError": "Error saving",
-    "deleteError": "Error deleting",
-    "purgeError": "Error deleting records",
-    "invalidTimestamp": "Please select a valid time.",
-    "noIntakesYet": "No intakes recorded yet",
-    "actions": "Actions",
-    "pageInfo": "Page {page} of {total}",
-    "previousPage": "Previous page",
-    "nextPage": "Next page",
-    "loginRequiredIntakes": "Please sign in to view intakes.",
     "phaseConfig": "Reminder phases",
     "phaseConfigDescription": "Configure timing for reminders.",
     "phaseGreen": "Green",
@@ -1345,11 +1244,8 @@
     "phaseRed": "Red",
     "phaseMinutes": "Min",
     "phasePercent": "%",
-    "phaseBeforeEnd": "before end",
-    "phaseAfterEnd": "after end",
     "phaseResetDefaults": "Reset to defaults",
     "phaseSaved": "Reminder phases saved",
-    "phaseReset": "Reset to defaults",
     "sourceWeb": "Web",
     "sourceApi": "iOS App",
     "sourceReminder": "Reminder",
@@ -1369,16 +1265,6 @@
     "intakeHistoryPageInfo": "Page {page} of {total} · {count} entries",
     "intakeHistoryPrev": "Previous",
     "intakeHistoryNext": "Next",
-    "unitDrops": "Drops",
-    "unitTablets": "Tablet(s)",
-    "unitCapsules": "Capsule(s)",
-    "unitPieces": "Piece(s)",
-    "namePlaceholder": "e.g. Ibuprofen",
-    "dosePlaceholder": "e.g. 400",
-    "labelPlaceholder": "e.g. Morning",
-    "defaultDose": "Default",
-    "dayDeactivate": "Deactivate {day}",
-    "dayActivate": "Activate {day}",
     "glp1": {
       "drug": {
         "tirzepatide": {
@@ -1635,8 +1521,6 @@
         "historyLabel": "View intake history"
       },
       "history": {
-        "back": "Back to medication",
-        "subtitle": "Full intake history",
         "plannedSuffix": "planned"
       },
       "tabs": {
@@ -2008,7 +1892,8 @@
     "bmiEmptyTitle": "Set your height to see BMI",
     "bmiEmptyDescription": "BMI needs your height. Add it under Settings → Account.",
     "bmiEmptyAction": "Open account settings",
-    "noProviderConfigured": "Assessment unavailable.",
+    "noProviderConfigured": "Connect an AI provider to see an assessment of your readings here.",
+    "noProviderAction": "Open AI settings",
     "startAnalysis": "Start assessment",
     "refreshAnalysis": "Refresh assessment",
     "keyTakeaway": "Key Takeaway",
@@ -2081,11 +1966,11 @@
       "progressAria": "Health Score progress",
       "deltaVsLastWeek": "{delta} vs last week",
       "deltaUnavailable": "No history yet — check back next week.",
+      "restModePaused": "Paused during illness — your score isn't being judged today.",
       "componentBp": "BP",
       "componentWeight": "Weight",
       "componentMood": "Mood",
       "componentCompliance": "Adherence",
-      "disclaimer": "Indicative — not a clinical assessment.",
       "deltaExplainer": {
         "trigger": "What does this delta mean?",
         "title": "How the delta is computed",
@@ -2123,7 +2008,7 @@
       "emptyAction": "Generate briefing",
       "loadingLabel": "Synthesising today's briefing",
       "noProviderTitle": "No AI provider connected",
-      "noProviderDescription": "Connect an AI provider in settings to receive daily briefings.",
+      "noProviderDescription": "The daily briefing turns your readings into plain-language summary. HealthLog needs an AI provider for that — use your own key (OpenAI, Anthropic) or a local model. Your data stays with you.",
       "noProviderAction": "Open AI settings"
     },
     "trendsRow": {
@@ -2143,7 +2028,8 @@
         "distance": "Walking and running distance over the last 30 days.",
         "vo2_max": "VO₂ max over the last 30 days.",
         "body_temp": "Body temperature over the last 30 days."
-      }
+      },
+      "viewDetail": "View {metric} details"
     },
     "vo2Max": {
       "statLatest": "Latest",
@@ -2165,7 +2051,6 @@
     },
     "correlationRow": {
       "title": "Relationships",
-      "disclaimer": "Relationships are observational, not causal — talk to your doctor if BP runs high.",
       "experimentCta": "Try a 7-day experiment",
       "experimentTooltip": "Coming soon",
       "emptyTitle": "Need more data to see this relationship",
@@ -2188,6 +2073,8 @@
       "refusalInjection": "I noticed wording that tries to override my instructions. I am the HealthLog Coach and only summarise your own health data — please rephrase your question in those terms.",
       "errorBudget": "You've reached today's Coach usage limit. The budget refreshes at midnight UTC.",
       "errorProvider": "The Coach could not reach an Insights provider just now. Please try again in a moment.",
+      "errorNoProvider": "The Coach reads your logged health data and answers questions about it (not medical advice). HealthLog needs an AI provider for that — connect your own key or a local model.",
+      "errorNoProviderAction": "Connect an AI provider",
       "errorNetwork": "No internet connection — try again once you're back online.",
       "prefsSaveError": "Couldn't save your Coach preferences. Please try again.",
       "errorCredentialExpired": "Your AI provider connection has expired. Reconnect it in Settings to keep the Coach running.",
@@ -2507,7 +2394,7 @@
       "explainer": {
         "trigger": "What is {title}?",
         "bloodPressureTitle": "Blood pressure",
-        "bloodPressureBody": "Blood pressure is the force your blood exerts on the artery walls, written as systolic over diastolic (the peak during a heartbeat over the resting value between beats). Consistently high readings strain the heart and blood vessels over time.",
+        "bloodPressureBody": "Blood pressure is the force your blood exerts on the artery walls, written as systolic over diastolic (the peak during a heartbeat over the resting value between beats). Consistently high readings strain the heart and blood vessels over time. As general guidance, European guidance (ESH 2023) calls under 120/80 optimal and 140/90 or above hypertension; US guidance (ACC/AHA 2017) sets a stricter line, labelling 130–139/80–89 as Stage 1. Categorise from a calm seated reading, never a single number.",
         "pulseTitle": "Pulse",
         "pulseBody": "Your pulse is how many times your heart beats per minute. A spot reading reflects what you were doing in the moment — at rest it is typically 60–100 beats per minute, and it rises naturally with movement, stress, or caffeine.",
         "weightTitle": "Weight",
@@ -2521,19 +2408,19 @@
         "medicationsTitle": "Medication adherence",
         "medicationsBody": "Adherence is how reliably you take your medication as prescribed, shown here as the share of expected doses you actually logged. Steady intake is often what makes a treatment work as intended.",
         "restingHrTitle": "Resting heart rate",
-        "restingHrBody": "Resting heart rate is your heart rate when you are completely at rest, usually measured overnight. A lower resting rate generally points to better cardiovascular fitness, and a rising trend can be an early sign of stress or illness.",
+        "restingHrBody": "Resting heart rate is your heart rate when you are completely at rest, usually measured overnight — distinct from your pulse during activity. A lower resting rate generally points to better cardiovascular fitness, and a rising trend can be an early sign of stress or illness. As general guidance, a normal adult resting rate is 60–100 beats per minute (AHA 2024); a trained heart can sit benignly at 40–60.",
         "hrvTitle": "Heart rate variability (HRV)",
         "hrvBody": "HRV is the tiny variation in time between consecutive heartbeats. Higher variability usually reflects a well-recovered, adaptable nervous system, while a sustained drop can signal fatigue, stress, or insufficient recovery.",
         "oxygenSaturationTitle": "Oxygen saturation (SpO₂)",
-        "oxygenSaturationBody": "SpO₂ is the percentage of your red blood cells carrying oxygen. Readings of 95–100% are normal at rest; values that stay below 90% warrant attention, though brief nightly dips are common.",
+        "oxygenSaturationBody": "SpO₂ is the percentage of your red blood cells carrying oxygen. As general guidance, readings of 95–100% are normal at rest (StatPearls/NIH 2023); values that stay below 90% warrant attention, though brief nightly dips are common and above ~98% adds no benefit. Optical readers can over-read true saturation in people with darker skin (US FDA 2024), so a single near-normal reading is not a clearance — retake when warm and still if concerned.",
         "bodyTemperatureTitle": "Body temperature",
-        "bodyTemperatureBody": "Body temperature reflects your core thermal state, normally around 37 °C with small daily swings. A sustained rise can indicate infection, while overnight wrist readings mainly track relative changes rather than a clinical value.",
+        "bodyTemperatureBody": "Body temperature reflects your core thermal state. As general guidance, the population mean is about 36.6 °C — not 37.0 °C — with a normal oral range of roughly 35.7–37.4 °C and a fever from 38.0 °C (J Gen Intern Med 2019). It swings about 0.5 °C across the day, and sites differ by up to ~1 °C, so tag where you measured. Overnight wrist readings track relative change, not a clinical fever value.",
         "activeEnergyTitle": "Active energy",
         "activeEnergyBody": "Active energy is the calories you burn through movement, on top of the baseline your body uses at rest. It is a direct measure of how physically active your day was.",
         "workoutsTitle": "Workouts",
         "workoutsBody": "Workouts are the structured exercise sessions your devices record, with type, duration, and energy. Tracking them shows how regular training accumulates over weeks and how it relates to your other health signals.",
         "respiratoryRateTitle": "Respiratory rate",
-        "respiratoryRateBody": "Respiratory rate is the number of breaths you take per minute. At rest most adults breathe roughly twelve to twenty times a minute; a sustained rise can accompany illness, exertion, or stress.",
+        "respiratoryRateBody": "Respiratory rate is the number of breaths you take per minute. As general guidance, at rest most adults breathe 12–20 times a minute (American Lung Association); it is meaningful only truly at rest or asleep. A sustained rise of about +3 above your own nightly baseline can be an early illness signal — clinical escalation cutoffs are hospital tools, not self-alarms.",
         "bodyWaterTitle": "Total body water",
         "bodyWaterBody": "Total body water is the share of your body weight made up of fluid, inside and around your cells. It shifts with hydration, food, and activity, so the trend over weeks tells you more than any single reading.",
         "boneMassTitle": "Bone mass",
@@ -2545,7 +2432,7 @@
         "muscleMassTitle": "Muscle mass",
         "muscleMassBody": "Muscle mass is the estimated weight of the muscle in your body. More muscle supports strength, metabolism, and mobility, and it tends to need active effort to preserve as you age.",
         "visceralFatTitle": "Visceral fat",
-        "visceralFatBody": "Visceral fat is the fat stored deep in the abdomen around your organs. Unlike fat under the skin, a high level is closely linked to heart disease and type 2 diabetes, so lower is generally better.",
+        "visceralFatBody": "Visceral fat is the fat stored deep in the abdomen around your organs. Unlike fat under the skin, a high level is closely linked to heart disease and type 2 diabetes, so lower is generally better. The scale shows a unitless rating (about 1–12 is the healthy range, 13 and up elevated); this is a separate scale from the imaging cm² thresholds clinicians use and is not interchangeable with them.",
         "leanBodyMassTitle": "Lean body mass",
         "leanBodyMassBody": "Lean body mass is your total weight minus body fat — muscle, bone, organs, and water combined. Tracking it alongside weight shows whether changes come from muscle or from fat.",
         "flightsClimbedTitle": "Flights climbed",
@@ -2565,7 +2452,7 @@
         "walkingSpeedTitle": "Walking speed",
         "walkingSpeedBody": "Walking speed is how fast you move on a level walk. It is a well-studied marker of overall health and mobility, and a steady or rising pace is a good sign.",
         "pulseWaveVelocityTitle": "Pulse wave velocity",
-        "pulseWaveVelocityBody": "Pulse wave velocity measures how fast the pressure wave from each heartbeat travels along your arteries. A faster wave indicates stiffer arteries, which is linked to higher cardiovascular risk.",
+        "pulseWaveVelocityBody": "Pulse wave velocity measures how fast the pressure wave from each heartbeat travels along your arteries. A faster wave indicates stiffer arteries, which is linked to higher cardiovascular risk. As general guidance, European clinical reference flags carotid-femoral velocity above 10 m/s (ESC/ESH 2018) — but a consumer estimate is a proxy, not interchangeable with that clinical measurement.",
         "vascularAgeTitle": "Vascular age",
         "vascularAgeBody": "Vascular age estimates how old your arteries behave compared with your actual age, based on arterial stiffness. A vascular age below your real age suggests healthier blood vessels.",
         "environmentalAudioTitle": "Environmental sound levels",
@@ -2577,7 +2464,7 @@
         "daylightTitle": "Time in daylight",
         "daylightBody": "Time in daylight is how long you spend in outdoor light each day. Regular daylight supports a healthy sleep-wake rhythm and mood, and time outdoors is linked to eye health.",
         "bloodGlucoseTitle": "Blood glucose",
-        "bloodGlucoseBody": "Blood glucose is the amount of sugar in your blood, the body's main energy source. It rises after eating and settles between meals; readings that stay high over time can signal diabetes or prediabetes.",
+        "bloodGlucoseBody": "Blood glucose is the amount of sugar in your blood, the body's main energy source. It rises after eating and settles between meals. As general guidance for adults without diabetes, a fasting reading under 100 mg/dL is normal, 100–125 is prediabetes, and 126 or above falls in the diabetes range (ADA 2024). A single high reading does not diagnose — a clinician confirms with a repeat test, and people managing diabetes use different, clinician-set targets.",
         "skinTemperatureTitle": "Skin temperature",
         "skinTemperatureBody": "Skin temperature here is the small nightly change in your wrist temperature from your own baseline, not an absolute fever reading. Shifts can track sleep, environment, illness, or menstrual-cycle phase.",
         "cardioFitnessTitle": "Cardio fitness (VO₂ max)",
@@ -2597,14 +2484,26 @@
         "breathingDisturbancesTitle": "Sleep breathing disturbances",
         "breathingDisturbancesBody": "Your Apple Watch can estimate how often your breathing was interrupted during sleep. A lower index is better; a level Apple flags as elevated, especially over many nights, is worth raising with a clinician.",
         "stepsTitle": "Steps",
-        "stepsBody": "Step count is the total number of steps you take each day. It is the simplest measure of everyday movement — a higher daily count generally reflects a more active lifestyle, and a steady habit matters more than any single big day.",
-        "readinessBody": "Readiness is a single daily read on how prepared your body is to take on the day, blending resting heart rate, heart-rate variability, sleep, and how steady your recent nights have been. A higher score means recovered and resourced; a lower one is a gentle cue to ease off.",
+        "stepsBody": "Step count is the total number of steps you take each day. It is the simplest measure of everyday movement, and a steady habit matters more than any single big day. As general guidance, mortality risk falls steeply toward about 8,000 steps a day with continued benefit through roughly 12,000 (Saint-Maurice JAMA 2020); the optimal count is lower for older adults. The '10,000' figure is a marketing slogan, not research.",
+        "readinessBody": "Readiness is a single daily read on how prepared your body is to take on the day, blending resting heart rate, heart-rate variability, sleep, and how steady your recent nights have been. It is a device proxy benchmarked against your own baseline, not a clinical measure, and scores are not comparable across devices. A higher score means recovered and resourced; a lower one is a gentle cue to ease off.",
         "sleepScoreBody": "Your sleep score distils a whole night into one number — duration, efficiency, regularity, and the balance of light, deep, and REM. Watch the pattern across weeks rather than chasing a perfect score on any single night.",
-        "recoveryBody": "Recovery reflects how well your body has bounced back, drawing on overnight signals like heart-rate variability and resting heart rate. A strong score is a green light to push; a softer one suggests your system is still rebuilding.",
-        "strainBody": "Strain captures how much cardiovascular and physical load you have put on your body, from workouts to an active day on your feet. Once you have enough history it is judged against your own typical effort, not someone else's baseline.",
-        "stressBody": "Stress here is an estimate of physiological load on your nervous system, read mainly from heart-rate-variability patterns rather than how you consciously feel. A lower score points to a calm, well-regulated state; a higher one is an invitation to build in recovery.",
+        "recoveryBody": "Recovery reflects how well your body has bounced back, drawing on overnight signals like heart-rate variability and resting heart rate. It is a device-derived proxy read against your own baseline, not a clinical measure, and is not comparable across devices. A strong score is a green light to push; a softer one suggests your system is still rebuilding.",
+        "strainBody": "Strain captures how much cardiovascular and physical load you have put on your body, from workouts to an active day on your feet. It is a device-derived index judged against your own typical effort, not a clinical measure, and the headline number is not comparable across devices.",
+        "stressBody": "Stress here is a device heuristic derived from heart-rate-variability patterns, not a cortisol measurement or how you consciously feel — and not a clinical stress score. Read it against your own baseline; it is not comparable across devices. A lower score points to a calm, well-regulated state; a higher one is an invitation to build in recovery.",
         "recoveryPageTitle": "Recovery",
-        "recoveryPageBody": "Recovery brings together the overnight signals your wearable records — recharge, strain, load and your day's heart-rate and energy totals — to show how well your body has bounced back. Read the pattern across days rather than any single number; a softer reading is an invitation to ease off, not an alarm."
+        "recoveryPageBody": "Recovery brings together the overnight signals your wearable records — recharge, strain, load and your day's heart-rate and energy totals — to show how well your body has bounced back. Read the pattern across days rather than any single number; a softer reading is an invitation to ease off, not an alarm.",
+        "pulsePressureTitle": "Pulse pressure",
+        "pulsePressureBody": "Pulse pressure is the gap between your systolic and diastolic readings (systolic minus diastolic). As general guidance, about 40 mmHg is typical at rest; a wide gap above roughly 60 mmHg in middle age can reflect stiffening arteries, while a narrow gap under about 25 mmHg can accompany low stroke volume (StatPearls/NIH 2023). It is a discussion prompt, not a diagnosis.",
+        "meanArterialPressureTitle": "Mean arterial pressure",
+        "meanArterialPressureBody": "Mean arterial pressure is the average pressure your organs see across a heartbeat, roughly the diastolic plus a third of the gap to systolic. As general guidance, a resting value sits around 70–100 mmHg (StatPearls/NIH 2023). The often-cited ~60 mmHg floor is an acute-care concept, not a consumer self-alarm.",
+        "cycleEducationBody": "Your cycle runs through four phases driven by shifting hormones, and its length and regularity are an accessible window on overall health. As general guidance, adult cycles typically run 21–35 days (clinical references cite 24–38), with bleeding around five days (ACOG 2015). The luteal phase is the steady anchor, so ovulation is best estimated by counting back from your next expected period — never a fixed 'day 14'. A predicted fertile window is an estimate that needs several recorded cycles and stays approximate, and basal body temperature confirms ovulation after the fact rather than predicting it. This is not a contraceptive method.",
+        "sleepHygieneBody": "A few evidence-based habits support sleep: keep consistent bed and wake times including weekends, get bright morning daylight and dim your evenings, keep the room cool, dark and quiet, and avoid afternoon caffeine, late alcohol and large late meals (CDC 2024). Regularity predicts health at least as strongly as duration, and a wearable's total sleep time is far more trustworthy than its deep, light and REM split.",
+        "referenceGuidance": "General guidance, not medical advice. Reference ranges are population anchors that shift with your age, sex and health conditions — your own trend over time leads the read."
+      },
+      "bpDerived": {
+        "pulsePressure": "Pulse pressure (the gap between your readings) is about {value} mmHg — roughly 40 is typical at rest.",
+        "meanArterialPressure": "Mean arterial pressure (the average your organs see) is about {value} mmHg, normally around 70–100.",
+        "caveat": "These are derived from your latest reading as general guidance, not a diagnosis."
       },
       "stats": {
         "label": "Summary statistics",
@@ -2641,7 +2540,8 @@
         "asleepTotal": "Asleep {value}",
         "inBedTotal": "In bed {value}",
         "awakenings": "{count} awakenings",
-        "source": "Source: {source}"
+        "source": "Source: {source}",
+        "estimateNote": "Stage timing is estimated — this source reports totals per stage, not a measured timeline."
       },
       "stages": {
         "deep": "Deep",
@@ -2668,7 +2568,7 @@
       "chronotype": {
         "title": "Chronotype",
         "learning": "Still learning your rhythm — {counted} of {total} free nights. A chronotype needs a few alarm-free mornings before it means anything.",
-        "midSleepCaption": "Mid-sleep on free days around {clock}",
+        "midSleepCaption": "Your natural sleep midpoint on free days lands around {clock}.",
         "advancedToggle": "Advanced",
         "socialJetlagValue": "{hours}h {minutes}m social jetlag",
         "socialJetlagCaption": "The gap between your work-day and free-day sleep timing — like a small weekly time-zone shift.",
@@ -2681,7 +2581,8 @@
           "intermediate": "Intermediate type",
           "late": "Evening type",
           "extreme_late": "Strong evening type"
-        }
+        },
+        "cornerLabel": "Chronotype"
       },
       "rhythm": {
         "loadError": "Your sleep rhythm couldn't load just now. It'll reappear once the connection settles."
@@ -2825,6 +2726,7 @@
         "title": "Glucose overview",
         "subtitle": "A read on your last {days} days, from {count} readings.",
         "spotCaveat": "These are spot-reading estimates from individual measurements, not a continuous-monitor profile — read them as a direction of travel rather than a clinical verdict.",
+        "labsLink": "Lab results? Log a blood-draw HbA1c or fasting glucose under Labs.",
         "learningTitle": "Still learning your glucose",
         "learningBody": "So far that's {count} over {days}. A little more history and a fuller picture comes into focus — keep logging, or let a connected device fill it in.",
         "learningBodyEmpty": "Once a handful of readings come in — logged by you or synced from a device — your time-in-range, average, and variability take shape here.",
@@ -3542,9 +3444,6 @@
     "target": {
       "heading": "Target"
     },
-    "disclaimer": {
-      "footer": "HealthLog describes your own tracked data — it is not a clinical assessment or diagnosis. Talk to your doctor about anything that concerns you."
-    },
     "settings": {
       "overviewTitle": "Arrange the overview",
       "overviewDescription": "Show or hide sections and set their order on the Insights overview."
@@ -3572,25 +3471,34 @@
     },
     "sleepQuality": {
       "title": "Sleep quality",
-      "subtitle": "Nightly scores from your wearable"
+      "subtitle": "Nightly scores from your wearable",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "your overall sleep score",
+          "SLEEP_EFFICIENCY": "sleep efficiency",
+          "SLEEP_PERFORMANCE": "sleep performance",
+          "SLEEP_CONSISTENCY": "sleep consistency"
+        },
+        "grade": {
+          "excellent": "excellent",
+          "good": "solid",
+          "fair": "fair",
+          "low": "on the low side"
+        },
+        "clause": "Over the last 30 nights {metric} is {grade} at {value}.",
+        "closing": {
+          "excellent": "Keep the routine that is getting you here.",
+          "good": "A steadier bed and wake time is the usual next gain.",
+          "fair": "Protecting a consistent sleep window tends to lift this most.",
+          "low": "A regular wind-down and a fixed wake time are the first levers to pull."
+        }
+      }
     },
     "recovery": {
       "title": "Recovery",
       "description": "How well your body has bounced back — the recovery, strain and load signals your wearable records overnight.",
       "emptyTitle": "No recovery data yet",
       "empty": "No recovery data yet. Connect a WHOOP, Polar or Oura account and these scores fill in once your device syncs.",
-      "recharge": {
-        "title": "Recharge",
-        "subtitle": "Autonomic-nervous-system charge"
-      },
-      "strain": {
-        "title": "Strain & load",
-        "subtitle": "Daily cardiovascular load"
-      },
-      "cardio": {
-        "title": "Daily heart & energy",
-        "subtitle": "Whole-day cardiac and energy totals"
-      },
       "block": {
         "ansChargeExplainer": "How charged your autonomic nervous system is for the day ahead — a recharge reading drawn from your overnight heart and breathing signals.",
         "dayStrainExplainer": "The day's whole-body cardiovascular load on your device's strain scale. Read it against your recovery, not as a goal on its own.",
@@ -3608,8 +3516,6 @@
   },
   "thresholds": {
     "defaultLabel": "Default",
-    "autoModeLabel": "Auto",
-    "overrideModeLabel": "Override",
     "overrideToggleLabel": "Custom range",
     "resetAction": "Reset to default",
     "resetAllAction": "Reset all to default",
@@ -3646,31 +3552,72 @@
       "back": "Back",
       "skip": "Skip tour",
       "done": "Got it",
-      "restart": "Restart onboarding tour",
-      "restartHint": "Replay the dashboard walkthrough from the start.",
-      "restartConfirmation": "Tour will restart on your next dashboard visit.",
+      "restart": "Restart module tour",
+      "restartHint": "Replays the guided module tour from the start on your next dashboard visit.",
+      "restartConfirmation": "The module tour will restart from the beginning on your next dashboard visit.",
       "steps": {
-        "tileStrip": {
-          "title": "Your daily numbers",
-          "body": "The tile strip shows the latest reading and a 7-day trend for every metric you log — weight, blood pressure, pulse, mood. Hide what you don't need from Settings → Dashboard."
+        "dashboardOverview": {
+          "title": "Your dashboard",
+          "body": "The dashboard pulls every module together at a glance. Long-press a tile to reorder or hide it (Settings → Dashboard layout). Each tile is only as telling as the data behind it — the modules ahead fill them."
         },
         "quickAdd": {
-          "title": "Log anything in two taps",
-          "body": "Use the Add button to drop a measurement or mood entry without leaving the dashboard. The form remembers your last context and tags."
+          "title": "Logged in seconds",
+          "body": "Use “+ Add” to log any reading in seconds — weight, blood pressure, pulse, glucose. Hidden strength: backdate readings you forgot to enter. Everything you log here feeds trends, the health score, and the AI insights."
+        },
+        "measurements": {
+          "title": "Readings & target ranges",
+          "body": "Measurements shows the history and target range for each metric. Hidden gem: set a target range per value so deviations stand out in colour. These series are the basis for the Coach’s correlations and the doctor report."
+        },
+        "medications": {
+          "title": "Medications & intakes",
+          "body": "Medications manages schedules, intakes, stock, and titration. Hidden: recurring plans (RRULE/rolling) and low-stock warnings. Your intake rate feeds the compliance pillar on the dashboard and the AI’s context."
+        },
+        "labs": {
+          "title": "Lab values",
+          "body": "Labs captures biomarkers with reference ranges — blood count, cholesterol, HbA1c. Strength: import and FHIR export. Out-of-range lab values resurface as evidence in the insights and the doctor report."
+        },
+        "illness": {
+          "title": "Illness journal",
+          "body": "The illness journal records acute episodes and chronic diagnoses with their flares. Hidden: correlate an episode with your readings, and Rest Mode that pauses reminders. That’s how the Coach understands why values drift for a while."
+        },
+        "vorsorge": {
+          "title": "Preventive care",
+          "body": "Preventive care reminds you of check-ups and vaccinations on their own interval. Tip: “Done” can create a reading or a lab result directly. Due items appear as reminders and in the doctor report."
+        },
+        "cycle": {
+          "title": "Cycle",
+          "body": "Cycle tracking logs phases and symptoms. Hidden: compare symptoms against mood and sleep. The cycle gives context for swings that would otherwise look unexplained."
+        },
+        "mood": {
+          "title": "Mood",
+          "body": "Mood captures how you feel plus tags in two seconds. Strength: your own tags. Mood trends correlate with sleep, medications, and cycle — the Coach spots the patterns."
         },
         "insights": {
-          "title": "Automatic insights",
-          "body": "Insights turns your readings into a plain-English health summary, with classifications for blood pressure, weight trend and mood. Bring your own provider key or use the built-in default."
+          "title": "Insights",
+          "body": "Insights is the heart of it: evidence-based, dynamic analysis instead of generic tips — every statement points at your real data. Hidden: the layout is customizable. Insights pulls together everything the modules above provide."
+        },
+        "coach": {
+          "title": "Coach",
+          "body": "The Coach answers questions about your data in a dialogue, using your history, medications, and lab values as context. Pick your AI provider yourself (your own key or local). It recomputes nothing — it reads the same numbers as the dashboard."
         },
         "integrations": {
-          "title": "Connect your devices",
-          "body": "Open Settings to link Withings (auto-sync weight, BP and pulse), moodLog, or your Insights provider. Everything stays optional and encrypted — and under Settings → Modules you can turn whole areas like sleep, mood or achievements on or off to keep HealthLog focused on what you track."
+          "title": "Integrations",
+          "body": "Integrations sync Withings, WHOOP, Polar, Oura, and Apple Health automatically. Weight, sleep, and recovery fill in without manual typing — and feed the insights and Coach in turn."
+        },
+        "export": {
+          "title": "Doctor report",
+          "body": "The doctor report bundles readings, medications, lab values, and preventive care as PDF or FHIR for the appointment. This is where every module converges — a complete report only comes from well-kept data."
         },
         "achievements": {
-          "title": "Earn streaks and badges",
-          "body": "The Achievements page tracks daily logging streaks, blood-pressure milestones and consistency badges. A small nudge to keep going."
+          "title": "Achievements",
+          "body": "Achievements reward consistency — streaks and milestones. A small motivation loop that makes sticking with it easier."
+        },
+        "wrapUp": {
+          "title": "That’s the tour",
+          "body": "You can revisit any module on its own at any time (“Show this tour” on every page) or restart the whole tour under Settings → Advanced."
         }
-      }
+      },
+      "moduleTrigger": "Show this tour"
     },
     "shell": {
       "back": "Back",
@@ -3741,12 +3688,19 @@
       "learning": "Some insights — glucose, sleep rhythm, blood-pressure trends, cycle — sharpen over the first week or two as your data builds up. Empty tiles now just mean we're still learning your baseline.",
       "connectCta": "Connect a device",
       "logCta": "Log your first measurement",
-      "importCta": "Import existing history"
+      "importCta": "Import existing history",
+      "aiTitle": "Turn on AI Insights (optional)",
+      "aiBody": "Coach, the daily briefing and assessments turn your readings into plain language. For that you connect your own AI key (OpenAI, Anthropic) or a local model — your data stays with you.",
+      "aiCta": "Connect an AI provider"
     },
     "welcomeBack": {
       "title": "Welcome back",
       "body": "You've already finished onboarding. To adjust anything, head to Settings — everything you set up is editable from there.",
       "cta": "Open dashboard"
+    },
+    "disclaimer": {
+      "acknowledge": "I understand: HealthLog is a private tracking tool, not a clinical assessment or diagnosis. If I'm worried I'll talk to my doctor, not this app.",
+      "learnMore": "Learn more"
     },
     "welcome": {
       "title": "Welcome to HealthLog",
@@ -3829,18 +3783,21 @@
     "sections": {
       "account": {
         "title": "Account",
-        "description": "Profile, password, passkeys, and your onboarding tour."
+        "description": "Profile, password, passkeys, and your onboarding tour.",
+        "subtitle": "Your profile, identity, and sign-in details."
       },
       "integrations": {
         "title": "Integrations",
-        "description": "Connected services, delivery channels, and source priority in one place."
+        "description": "Connected services, delivery channels, and source priority in one place.",
+        "subtitle": "Connect and manage your data sources and devices."
       },
       "notifications": {
         "title": "Notifications",
         "description": "Every reminder in one place — what gets reminded and when. The delivery channels live under Integrations.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook, and Email are now set up under",
         "channelsHintLink": "Integrations → Channels",
-        "inboxLink": "Open the inbox"
+        "inboxLink": "Open the inbox",
+        "subtitle": "Choose which reminders you receive."
       },
       "layout": {
         "title": "Layout",
@@ -3853,15 +3810,18 @@
         "insights": {
           "title": "Insights",
           "description": "Overview sections and navigation-pill order."
-        }
+        },
+        "subtitle": "Personalize how your dashboard and insights are arranged."
       },
       "dashboard": {
         "title": "Dashboard",
-        "description": "Tile layout and order."
+        "description": "Tile layout and order.",
+        "subtitle": "Arrange the tiles on your dashboard."
       },
       "thresholds": {
         "title": "Targets",
-        "description": "Per metric: your own target range for healthy values."
+        "description": "Per metric: your own target range for healthy values.",
+        "subtitle": "Set your personal target ranges per metric."
       },
       "sources": {
         "title": "Source priority",
@@ -3920,19 +3880,23 @@
           "scale": "Scale",
           "other": "Other",
           "unknown": "Unknown"
-        }
+        },
+        "subtitle": "Decide which source wins when two report the same metric."
       },
       "ai": {
-        "title": "AI Insights",
-        "description": "Provider, model, and API key for the insights — plus your “about me” context."
+        "title": "AI provider",
+        "description": "Provider, model, and API key for the insights — plus your “about me” context.",
+        "subtitle": "Choose your AI provider and bring your own key."
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Bearer tokens for your own scripts and apps — log measurements or medication intake from anywhere."
+        "description": "Bearer tokens for your own scripts and apps — log measurements or medication intake from anywhere.",
+        "subtitle": "Manage API endpoints and access tokens."
       },
       "advanced": {
         "title": "Advanced",
-        "description": "Opt-in Research Mode toggle plus the account-wide danger zone for wiping every health record."
+        "description": "Opt-in Research Mode toggle plus the account-wide danger zone for wiping every health record.",
+        "subtitle": "Research mode, data reset, and account deletion."
       },
       "export": {
         "title": "Export & Import",
@@ -4033,27 +3997,33 @@
             "resultSummary": "Imported {inserted} new and updated {updated}, {skipped} skipped.",
             "rowError": "Line {line}: {reason}"
           }
-        }
+        },
+        "subtitle": "Export your data or import from a backup."
       },
       "about": {
         "title": "About this app",
-        "description": "Version, license, links."
+        "description": "Version, license, links.",
+        "subtitle": "Version, license, and project links."
       },
       "sharing": {
         "title": "Sharing",
-        "description": "Create a read-only link to share your health record with a clinician."
+        "description": "Create a read-only link to share your health record with a clinician.",
+        "subtitle": "Share read-only access to your data."
       },
       "insights": {
         "title": "Insights",
-        "description": "Overview and navigation-pill order."
+        "description": "Overview and navigation-pill order.",
+        "subtitle": "Arrange your overview sections and pill order."
       },
       "medications": {
         "title": "Medications",
-        "description": "List view, order, and injection sites for your medications."
+        "description": "List view, order, and injection sites for your medications.",
+        "subtitle": "Manage your medication list view and order."
       },
       "mood": {
         "title": "Mood tags",
-        "description": "Groups, tags, and archived tags for the mood picker."
+        "description": "Groups, tags, and archived tags for the mood picker.",
+        "subtitle": "Organize your mood tags, groups, and picker order."
       },
       "modules": {
         "title": "Modules",
@@ -4063,26 +4033,24 @@
           "title": "What you track",
           "description": "Optional areas. Disabled modules drop out of the navigation, tiles, and insights — your data stays untouched."
         },
-        "core": {
-          "title": "Always on",
-          "description": "HealthLog's foundations. These areas can't be turned off.",
-          "note": "Core area — always on"
-        },
-        "description": "Choose what HealthLog tracks for you. Turn individual areas on or off — the navigation, tiles, and insights adapt right away.",
         "manageIn": "Manage in {section}",
-        "operatorDisabled": "Disabled server-wide"
+        "operatorDisabled": "Disabled server-wide",
+        "subtitle": "Choose which tracking areas HealthLog shows across the app."
       },
       "gesundheitsakte": {
         "title": "Health record",
-        "description": "Export your full health record as PDF, FHIR R4, or a combined ZIP package."
+        "description": "Export your full health record as PDF, FHIR R4, or a combined ZIP package.",
+        "subtitle": "Export a complete, clinician-ready health record."
       },
       "coach": {
         "title": "Coach",
-        "description": "Enable the Coach, tone and scope, stored memories."
+        "description": "Enable the Coach, tone and scope, stored memories.",
+        "subtitle": "Tune the Coach, its proactive nudges, and its memory."
       },
       "channels": {
         "title": "Channels",
-        "description": "Telegram, ntfy, Web Push, Webhook, and Email delivery."
+        "description": "Telegram, ntfy, Web Push, Webhook, and Email delivery.",
+        "subtitle": "Where reminders and alerts are delivered."
       }
     },
     "profile": "Profile",
@@ -4579,9 +4547,7 @@
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources & docs",
-      "newerAvailable": "Newer version: {tag}",
-      "tourReplay": "Replay the tour",
-      "tourReplayHint": "Watch the dashboard walkthrough — handy if you skipped it on first visit."
+      "newerAvailable": "Newer version: {tag}"
     },
     "testConnection": {
       "test": "Test connection",
@@ -4964,7 +4930,6 @@
     "modules": {
       "title": "Module availability",
       "description": "Turn a module off for the whole server. A module disabled here is off for every account regardless of personal preference. Core domains (weight, blood pressure, pulse, medications) are always on and cannot be disabled.",
-      "disabledHint": "Disabled server-wide",
       "saveError": "Could not update module availability."
     },
     "bugReportRepo": "Repository",
@@ -5343,11 +5308,14 @@
       },
       "about": {
         "title": "About",
-        "subtitle": "Version, license, source, and update check."
+        "subtitle": "Version, license, and update status."
+      },
+      "module-availability": {
+        "title": "Module availability",
+        "subtitle": "Turn modules on or off for every account on this server."
       }
     },
     "carrier": "Carrier",
-    "carrierUnknown": "Unknown carrier",
     "carrierUnavailableGeoFallback": "{location} — carrier unavailable"
   },
   "achievements": {
@@ -5679,7 +5647,6 @@
     "title": "Notifications",
     "breadcrumbInbox": "Notifications",
     "breadcrumbChannels": "Notification channels",
-    "breadcrumbSettings": "Settings",
     "eventColumn": "Event",
     "subtitle": "Choose which notifications you want to receive through which channel.",
     "loadError": "Notification preferences could not be loaded.",
@@ -5796,7 +5763,6 @@
       "dotNearRange": "near range",
       "dotOutOfRange": "out of range",
       "dotNotLogged": "not logged",
-      "insufficientData": "Not enough data yet — keep logging.",
       "relativeDay": {
         "today": "today",
         "yesterday": "yesterday",
@@ -5808,7 +5774,6 @@
       }
     },
     "edit": {
-      "openLabel": "Edit target range for {metric}",
       "title": "Edit target range — {metric}",
       "description": "Adjust the in-range band used across charts, insights and the doctor report. Values are in {unit}.",
       "derivedHint": "This card is derived from other metrics. Edit the underlying targets (e.g. blood pressure or weight) instead.",
@@ -5823,13 +5788,6 @@
       "saveSuccess": "Target range updated",
       "saveError": "Could not save the target range",
       "resetSuccess": "Target range reset to default"
-    },
-    "mood": {
-      "stability": {
-        "stable": "stable",
-        "variable": "variable",
-        "highlyVariable": "highly variable"
-      }
     },
     "currentValue": "Current: {value} {unit}",
     "targetRangeValue": "Target: {min}–{max} {unit}",
@@ -5936,7 +5894,6 @@
   },
   "lowStockReminders": {
     "title": "Low supply: {medName}",
-    "body": "{medName}: {units} units left — enough for about {days} more days.",
     "bodyToday": "{medName}: {units} units left — less than one day of supply.",
     "bodyReorder": "{medName}: {units} units left. Supply runs out around {runsOutOn} — reorder by {reorderBy}.",
     "bodyLastDose": "{medName}: {units} units left — about your final dose. Supply runs out around {runsOutOn}."
@@ -6044,7 +6001,6 @@
         "description": "How each measurement compares between your luteal and follicular phases, on your own data.",
         "pairLabel": "{metric} · luteal vs follicular",
         "detail": "Luteal {lutealAvg} {unit} ({lutealDays} days) vs follicular {follicularAvg} {unit} ({follicularDays} days).",
-        "footer": "These are associations in your own data, not causes. Only patterns that clear a significance check are shown.",
         "metricRestingHeartRate": "Resting heart rate",
         "metricHrv": "Heart-rate variability",
         "metricSleepDuration": "Sleep duration",
@@ -6068,10 +6024,6 @@
         "confidenceHigh": "High confidence"
       },
       "title": "Cycle insights",
-      "empty": "Phase insights appear here once you have enough logged cycles. They compare your metrics across cycle phases, with the statistics shown openly.",
-      "sampleSize": "n = {n}",
-      "effectSize": "Effect size {value}",
-      "qValue": "q = {value}",
       "symptomPatternsTitle": "Symptom patterns by phase",
       "symptomPatternsEmpty": "Log symptoms across a cycle to see which phase they cluster in.",
       "symptomMostlyIn": "Mostly in {phase} ({count}/{total} days)"
@@ -6091,7 +6043,6 @@
         "LUTEAL": "Progesterone leads the second half and basal body temperature usually settles a little higher than earlier in the cycle. Some people notice shifts in sleep, appetite, mood or energy as the days go on, while others feel steady throughout. The pattern is personal, and it often looks different from one month to the next."
       },
       "commonHere": "You often notice this here",
-      "trackNudge": "Log today",
       "stillLearning": "Still learning your cycle. Keep logging and this fills in with patterns from your own days."
     },
     "insightsSummary": {
@@ -6184,10 +6135,7 @@
       "prevMonth": "Previous month",
       "nextMonth": "Next month",
       "loading": "Loading your calendar…",
-      "empty": "Start logging to see your calendar fill in.",
       "learning": "Learning your cycle — log at least three full cycles and the fertile window, ovulation and phases fill in. Until then the calendar shows only what you've logged.",
-      "today": "Today",
-      "dayAria": "{date}",
       "legendSymptom": "Symptoms",
       "legendOvulationConfirmed": "Confirmed ovulation",
       "flowSpotting": "spotting",
@@ -6198,11 +6146,9 @@
     "predictions": {
       "title": "What comes next",
       "nextPeriod": "Next period",
-      "nextPeriodRange": "Around {date}",
       "nextPeriodWindow": "{low} – {high}",
       "fertileWindow": "Fertile window",
       "ovulation": "Estimated ovulation",
-      "confidence": "Confidence",
       "confidenceHigh": "High",
       "confidenceMedium": "Medium",
       "confidenceLow": "Low",
@@ -6238,7 +6184,6 @@
     "sheet": {
       "title": "Log your day",
       "description": "Capture today's flow, symptoms, and notes.",
-      "date": "Date",
       "flow": "Flow",
       "symptoms": "Symptoms",
       "temperature": "Basal body temperature",
@@ -6265,10 +6210,7 @@
       "save": "Save",
       "saving": "Saving…",
       "cancel": "Cancel",
-      "saved": "Day saved",
       "saveError": "Could not save. Try again.",
-      "periodStarted": "Period start logged",
-      "clear": "None",
       "temperatureSection": "Temperature & ovulation",
       "intimacySection": "Intimacy & contraception",
       "testsSection": "Tests",
@@ -6282,8 +6224,6 @@
     },
     "settings": {
       "title": "Cycle settings",
-      "enable": "Cycle tracking",
-      "enableDescription": "Turn the cycle tab on or off for your account.",
       "typicalCycleLength": "Typical cycle length (days)",
       "typicalPeriodLength": "Typical period length (days)",
       "lutealPhaseLength": "Luteal phase length (days)",
@@ -6302,30 +6242,14 @@
       "encryptionDescription": "Encrypt intent-revealing fields (pregnancy tests, contraception, intercourse) at rest, on top of the always-encrypted notes.",
       "discreet": "Discreet notifications",
       "discreetDescription": "Hide cycle details from notification text on your lock screen.",
-      "dataTitle": "Your data",
-      "dataDescription": "Your cycle data lives only on this server. Export it any time, or delete it for good.",
-      "export": "Export my cycle data",
-      "deleteData": "Delete my cycle data",
       "saved": "Settings saved",
       "saveError": "Could not save. Try again.",
       "save": "Save",
-      "purgeTitle": "Delete all cycle data",
-      "purgeDescription": "Permanently removes every logged day, cycle, prediction, and reminder record. This cannot be undone.",
-      "purgeButton": "Delete all cycle data",
-      "purgeConfirmTitle": "Delete all cycle data?",
-      "purgeConfirmBody": "This permanently deletes every period, day-log, symptom, and prediction. This cannot be undone.",
-      "purgeConfirm": "Delete all cycle data permanently?",
-      "purgeCancel": "Cancel",
-      "purgeSuccess": "All cycle data deleted.",
-      "purgeError": "Couldn't delete cycle data.",
       "reminders": "Reminders",
       "remindersDescription": "Turn period reminders on per channel in notification settings.",
       "remindersLink": "Notification settings",
       "fertileReminder": "Fertile-window reminder",
-      "fertileReminderDescription": "Get a heads-up a few days before your estimated fertile window. Off by default — turn it on per channel in notification settings.",
-      "purgeData": "Delete cycle data",
-      "purgeConfirmAction": "Yes, delete everything",
-      "purgeDone": "Cycle data deleted."
+      "fertileReminderDescription": "Get a heads-up a few days before your estimated fertile window. Off by default — turn it on per channel in notification settings."
     },
     "contraceptive": {
       "NONE": "None",
@@ -6472,23 +6396,46 @@
     "pushLocation": "(at {location})",
     "edit": "Edit",
     "originCoach": "Coach",
-    "enabledToggleAria": "Enable or disable this reminder",
     "until": "Until {date}",
     "selfPlanned": "Self-planned",
     "captureValue": "Log value",
+    "measureNow": "Measure now",
+    "nextDueLabel": "Next due:",
+    "lastDoneLabel": "Last done:",
+    "customize": "Customize preventive care",
+    "adherence": {
+      "label": "Within interval",
+      "onTrack": "On track",
+      "due": "Due now"
+    },
+    "settings": {
+      "title": "Customize preventive care",
+      "description": "Manage the view, order, and individual reminders.",
+      "back": "Back to preventive care"
+    },
     "capture": {
       "title": "Log measurement",
       "description": "Enter the reading; the reminder is marked done."
     },
     "manage": {
-      "menuItem": "Customize",
-      "title": "Customize reminders",
+      "title": "Manage reminders",
       "description": "Enable or disable individual reminders.",
       "empty": "No reminders to customize yet."
     },
     "dashboard": {
       "empty": "No upcoming preventive-care reminders.",
       "openLink": "Open preventive care"
+    }
+  },
+  "moduleList": {
+    "viewToggleLabel": "View",
+    "viewCards": "Card view",
+    "viewList": "List view",
+    "viewHeading": "View",
+    "viewDescription": "Choose whether entries show as cards or as a compact list.",
+    "reorder": {
+      "heading": "Order",
+      "empty": "No entries to reorder yet."
     }
   },
   "labs": {
@@ -6501,36 +6448,36 @@
     "emptyDescription": "Record bloodwork like HbA1c, LDL or ferritin to track it over time and share it with your doctor.",
     "referenceLabel": "Reference",
     "readingsCount": "{count} readings",
-    "deleteLatest": "Delete latest reading",
     "deleteConfirmTitle": "Delete lab result?",
     "deleteConfirmDescription": "This lab result will be permanently deleted.",
     "deletedToast": "Result deleted",
     "deleteError": "Could not delete the result",
     "loadError": "Could not load lab results",
+    "customize": "Customize labs",
+    "settings": {
+      "title": "Customize labs",
+      "description": "Manage the view, sort order, and biomarkers.",
+      "back": "Back to labs"
+    },
+    "sort": {
+      "heading": "Sort order",
+      "label": "Order of values",
+      "recentDesc": "Most recent reading first",
+      "recentAsc": "Oldest reading first",
+      "manual": "Sort manually",
+      "hint": "With manual sorting you can drag the biomarkers below into your own order."
+    },
     "range": {
       "inRange": "In range",
       "below": "Below range",
       "above": "Above range"
     },
     "form": {
-      "analyte": "Biomarker",
-      "analytePlaceholder": "e.g. HbA1c, LDL, Ferritin",
       "value": "Value",
-      "unit": "Unit",
-      "unitPlaceholder": "e.g. mg/dL, %, ng/mL",
       "takenAt": "Sample date",
-      "optionalGroup": "Optional",
-      "panel": "Panel",
-      "panelPlaceholder": "e.g. Complete blood count",
-      "referenceLow": "Reference low",
-      "referenceHigh": "Reference high",
-      "referenceLowPlaceholder": "Lower bound",
-      "referenceHighPlaceholder": "Upper bound",
-      "referenceHint": "Copy the reference range from your lab report. Either bound is optional.",
       "note": "Note",
       "notePlaceholder": "Optional context for this result",
       "requiredError": "Enter a value.",
-      "rangeOrderError": "The reference low must not exceed the reference high.",
       "save": "Save",
       "savedToast": "Result saved",
       "saveError": "Could not save the result",
@@ -6567,9 +6514,7 @@
       }
     },
     "biomarker": {
-      "manage": "Biomarkers",
       "manageTitle": "Biomarkers",
-      "manageSheetDescription": "Define the markers you track. Each is set up once with its unit and reference range.",
       "managerDescription": "Define a marker once — its unit and range are reused for every reading.",
       "define": "Define",
       "defineFirst": "Define your first biomarker",
@@ -6699,18 +6644,6 @@
       "label": "Doctor report",
       "description": "PDF and FHIR export for your practice."
     },
-    "weight": {
-      "label": "Weight",
-      "description": "Weight and body composition."
-    },
-    "bloodPressure": {
-      "label": "Blood pressure",
-      "description": "Systolic and diastolic."
-    },
-    "pulse": {
-      "label": "Pulse",
-      "description": "Resting pulse and heart rate."
-    },
     "medications": {
       "label": "Medications",
       "description": "Schedules, intakes, and compliance."
@@ -6723,7 +6656,12 @@
   "illness": {
     "title": "Illness journal",
     "subtitle": "A retrospective log of your illness and condition episodes.",
-    "disclaimer": "A personal journal — not a medical device. It does not diagnose or predict.",
+    "customize": "Customize illness journal",
+    "settings": {
+      "title": "Customize illness journal",
+      "description": "Manage the view and order of episodes.",
+      "back": "Back to the illness journal"
+    },
     "newEpisode": "New episode",
     "logDay": "Log a day",
     "markRecovered": "Mark recovered",
@@ -6823,7 +6761,6 @@
       "countOther": "You logged {count} episodes in this period.",
       "typicalGap": "Typical recovery gap: {days} days between feeling better and your numbers settling.",
       "typicalGapLearning": "A few more resolved episodes and a typical recovery gap will appear here.",
-      "byMonth": "When you tend to log episodes",
       "none": "No episodes logged in this period."
     },
     "section": {
@@ -6892,6 +6829,25 @@
     "settings": {
       "reminderSuggestionsLabel": "Cadence suggestions",
       "reminderSuggestionsDescription": "Let the Coach offer an occasional, evidence-based reminder to measure a metric more regularly."
+    }
+  },
+  "safety": {
+    "floor": {
+      "bpHighTitle": "Very high blood pressure",
+      "bpHighDoctor": "Two recent readings were {systolic}/{diastolic} mmHg or higher. Rest, re-check in a few minutes, and contact your doctor as soon as possible if it stays this high.",
+      "bpHighEmergency": "Two recent readings were {systolic}/{diastolic} mmHg or higher and you noted symptoms. If you have chest pain, breathlessness, weakness, or vision or speech changes, call emergency services now.",
+      "bpLowTitle": "Low blood pressure",
+      "bpLowDoctor": "Two recent readings had a systolic below {systolic} mmHg. If you feel dizzy or faint, sit or lie down, and contact your doctor if it continues.",
+      "bpLowEmergency": "Two recent readings had a systolic below {systolic} mmHg and you noted symptoms. If you feel faint, confused, or have cold clammy skin, call emergency services now.",
+      "glucoseLowTitle": "Low blood sugar",
+      "glucoseLowDoctor": "Two recent readings were below 70 mg/dL ({value} mg/dL). Take fast-acting carbohydrate, re-check in 15 minutes, and contact your doctor if lows continue.",
+      "glucoseLowEmergency": "Two recent readings were below 70 mg/dL ({value} mg/dL) and you noted symptoms. Treat now with fast-acting sugar; if you cannot, or you feel very unwell, call emergency services.",
+      "glucoseLowSevereTitle": "Very low blood sugar",
+      "glucoseLowSevereDoctor": "Two recent readings were below 54 mg/dL ({value} mg/dL). Treat immediately with fast-acting carbohydrate, re-check in 15 minutes, and contact your doctor.",
+      "glucoseLowSevereEmergency": "Two recent readings were below 54 mg/dL ({value} mg/dL) and you noted symptoms. Treat now; if you cannot keep food down or feel very unwell, call emergency services.",
+      "glucoseHighTitle": "Very high blood sugar",
+      "glucoseHighDoctor": "Two recent readings were {value} mg/dL or higher. Re-check, hydrate, and contact your doctor as soon as possible if it stays this high.",
+      "glucoseHighEmergency": "Two recent readings were {value} mg/dL or higher and you noted symptoms. If you have vomiting, fast breathing, or confusion, call emergency services now."
     }
   }
 }

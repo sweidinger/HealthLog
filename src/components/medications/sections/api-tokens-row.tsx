@@ -223,7 +223,7 @@ export function ApiTokensRow({
           onClick={() =>
             void copy(endpoint, t("medications.detail.api.urlCopied"))
           }
-          className="h-7 w-7 shrink-0"
+          className="relative h-7 w-7 shrink-0 before:absolute before:inset-[-8px] before:content-['']"
           aria-label={t("medications.detail.api.copyUrl")}
           data-slot="api-tokens-copy-url"
         >
@@ -328,7 +328,7 @@ export function ApiTokensRow({
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-1 right-1 h-7 w-7"
+                className="absolute top-1 right-1 h-7 w-7 before:absolute before:inset-[-8px] before:content-['']"
                 onClick={() =>
                   void copy(selectedExample.value, t("common.copied"))
                 }

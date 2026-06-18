@@ -16,11 +16,15 @@ export const ADMIN_SECTION_SLUGS = [
   "integrations",
   // v1.18.1 — the former `ai-quality`, `assistant`, and `coach-feedback`
   // sections collapse into one "Coach" area. It holds the assistant
-  // surface toggles, the server-key + module-availability operator
-  // config, and both feedback-quality tables (Coach + Insights). Three
-  // navigation entries for one coherent coach-quality concern read as
-  // clutter; one card opens the full picture.
+  // surface toggles, the server-key operator config, and both
+  // feedback-quality tables (Coach + Insights). Three navigation entries
+  // for one coherent coach-quality concern read as clutter; one card opens
+  // the full picture.
   "coach",
+  // v1.18.6 (W9) — server-wide module availability is its own section now
+  // (was stacked under Coach). It gates every module, not just the coach,
+  // so it reads better next to Coach than buried inside it.
+  "module-availability",
   "feedback",
   "reminders",
   "users",

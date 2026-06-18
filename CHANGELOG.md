@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+## [1.18.6] — 2026-06-18 — offline reads, grounded guidance, and one consistent app
+
+A large release that makes the app genuinely useful offline, gives every metric cited reference context, grounds the AI Coach and Daily Briefing in that same context, adds responsible safety alerts for clinically urgent readings, and brings the newer modules (preventive care, illness, labs) and the whole settings area in line with the established patterns. A guided tour now explains what each module does and how they connect. No breaking changes; all schema changes are additive.
+
+### Added
+
+- **A module-by-module guided tour.** After onboarding, a short tour walks each module — what it does, one capability you might miss, and how it feeds the others — so the whole app makes sense on day one. Replayable any time from Settings, or per module from its page.
+- **Cited reference ranges everywhere.** Metrics now carry plain-language explainers and the general reference range they sit in (blood pressure, resting heart rate, glucose, blood oxygen, temperature, and more), framed as general guidance and sourced from recognised guidelines — never a diagnosis. Blood pressure follows the ESH range. The blood-pressure detail now also shows pulse pressure and mean arterial pressure, derived from your readings.
+- **A Coach that knows the ranges.** The AI Coach and Daily Briefing are now grounded in those cited ranges, so a comment about a value reflects where it sits in the general range — still general guidance, never a diagnosis, with no third-party attribution.
+- **Proactive Coach check-ins you can actually see.** A proactive nudge now appears as a message in your Coach conversation (not only as a push), with a discreet unread dot on the Coach button that clears when you open it — so it works even without notifications set up.
+- **Responsible safety alerts.** A confirmed, re-measured reading in a clinically urgent range (very high or low blood pressure, low or high glucose) now raises an alert that says to re-check or contact your doctor — never a diagnosis, and only for the modules you use.
+- **A diabetes setting.** An explicit opt-in switches glucose targets to the tighter clinical goal range; it is never inferred from your readings.
+- **Per-module settings for preventive care, illness and labs.** Each gets its own settings page to reorder items and switch between card and list view; labs additionally lets you manage biomarkers and choose the sort order.
+- **Mark a reminder done.** A measurement reminder can be completed server-side (for the apps), instead of only being dismissed locally.
+- **Real offline reads.** Opened without a connection, the installed app shows your last synced dashboard and recent data with a "showing your last synced data" note, rather than blank placeholders. Changes you make offline still save when you reconnect.
+
+### Changed
+
+- **Preventive-care cards match the medication cards.** A clear "measure now" action, the interval as a chip, and progress toward the next due date — with measurement-appropriate wording (no more "intake" for a blood-pressure check) and the same calm, neutral card.
+- **One consistent "add" and a settings wrench** across preventive care, illness and labs; the illness journal's resolved entries are collapsed by default.
+- **Every Settings and Admin page now has a clear heading and description**, in one shared frame, with the side menu lined up to the content — so the whole area reads as one piece. The AI section is now labelled "AI provider", and module availability has its own admin page.
+- **No more AI dead-end.** When no AI provider is connected, onboarding and the Coach/Insights/Briefing screens explain what the feature does and how to set it up, instead of a bare error.
+- **Clearer sleep, recovery and insights.** The estimated sleep-stage timeline is shown only when it reflects measured stages (with an honest note otherwise); the chronotype reads as labelled text; the sleep-quality assessment is more useful; the recovery page is de-cluttered; and insight cards link through to their detail pages, including steps.
+- **A faster dashboard.** All charts load in one batched request instead of one per chart, with target ranges computed on the server.
+- **Fewer disclaimers, one clear acknowledgment.** The repeated "not medical advice" banners are gone in favour of a single acknowledgment at onboarding (reachable any time in Settings).
+- **Mobile polish.** Small tap targets were brought up to a comfortable size, and a global reduced-motion safeguard quiets animation when your device asks for it.
+
+### Fixed
+
+- **Reduced motion no longer hides content.** Charts and list rows that animate in now stay visible when the device requests reduced motion, instead of disappearing.
+- **Read-after-write.** A reading or medication you just added now reliably appears in its list.
+- **A timezone bug** that anchored the local day at UTC midnight for one intake path.
+- **Contrast.** The preventive-care action button now meets AA contrast in dark mode.
+
+### Security
+
+- **The offline cache is hardened.** It stores only a safe, read-only allowlist (never anything tied to sign-in or sensitive AI conversations), is bound to the signed-in account, and is wiped when the session ends — not only on explicit sign-out.
+- The container scan ignores a known `picomatch` advisory (CVE-2026-33671) that exists only in the npm CLI bundled inside the base image, not in the app's own dependencies (pinned to the fixed version).
+
+### Operator note
+
+- Additive migrations only (`0173`–`0177`: tour progress, diabetes opt-in, disclaimer acknowledgment, Coach last-seen, a Coach-message index). The optional `APNS_CRITICAL_ENTITLEMENT` env var (introduced in 1.18.4) gates native critical alerts; urgent alerts ship as time-sensitive without it. The service-worker cache version bumps with the release, so clients refresh their offline cache automatically on update.
+
 ## [1.18.5] — 2026-06-18 — filter by value, a tidier advanced panel, and a titration timeline for injectables
 
 A small polish release. You can now filter your readings by value, the advanced medication settings collapse into sections instead of one long page, and injectable medications show their dose-escalation plan as a timeline. No breaking changes; no migration.

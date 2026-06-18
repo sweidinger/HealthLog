@@ -32,7 +32,7 @@ export function SortableHead({
       <button
         type="button"
         onClick={() => onSort(column)}
-        className="hover:text-foreground inline-flex items-center gap-1 transition-colors"
+        className="hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none sm:min-h-0"
       >
         {label}
         {isActive ? (

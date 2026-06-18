@@ -206,7 +206,7 @@ describe("<RecoverySection> data-gating", () => {
     // Routed through the shared <EmptyState> (dashed bordered card), not the
     // old hand-rolled div — the empty title comes from the unified primitive.
     expect(html).toContain("border-dashed");
-    expect(html).not.toContain('data-slot="recovery-group-strain"');
+    expect(html).not.toContain('data-slot="recovery-block-DAY_STRAIN"');
   });
 
   it("renders a canonical chart block for the present signal", () => {
@@ -218,13 +218,18 @@ describe("<RecoverySection> data-gating", () => {
       }),
     );
     const html = render(<RecoverySection />);
-    expect(html).toContain('data-slot="recovery-group-strain"');
+    // v1.18.6 — the per-group sub-headings are gone; present blocks render as
+    // one flat stack. The data gate now reads at the block level.
     expect(html).toContain('data-slot="recovery-block-DAY_STRAIN"');
     // B3 — the redundant "Recovery score" cross-link block is gone; this
     // surface is reached from the overview already.
     expect(html).not.toContain('data-slot="recovery-score-link"');
-    // The recharge group (ANS charge only) has no data → hidden.
-    expect(html).not.toContain('data-slot="recovery-group-recharge"');
+    // The recharge group's only signal (ANS charge) has no data → its block
+    // is dropped.
+    expect(html).not.toContain('data-slot="recovery-block-ANS_CHARGE"');
+    // The removed sub-headings must not reappear.
+    expect(html).not.toContain('data-slot="recovery-group-strain"');
+    expect(html).not.toContain("Strain &amp; load");
     // Empty note must not show when at least one signal is present.
     expect(html).not.toContain('data-slot="recovery-empty"');
   });

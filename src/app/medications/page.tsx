@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
@@ -328,7 +329,10 @@ export default function MedicationsPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1
+            data-tour-id="medications-hero"
+            className="text-2xl font-bold tracking-tight"
+          >
             {t("medications.title")}
           </h1>
           {/* v1.4.34 IW-G — subtitle stays visible on mobile so the
@@ -338,6 +342,7 @@ export default function MedicationsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <ModuleTourTrigger stopId="medications" />
           {/* v1.16.11 (#316) — "Alle fälligen einnehmen". Contextual, not a
               permanent fixture: it renders only while at least TWO
               medications are currently due (a single due dose is the

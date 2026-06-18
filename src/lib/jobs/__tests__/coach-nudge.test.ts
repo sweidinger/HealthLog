@@ -524,6 +524,7 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     users?: unknown[];
     intakeRows?: unknown[];
     recentNudge?: unknown;
+    recentPersistedNudge?: unknown;
     coachFocusEncrypted?: Uint8Array | null;
   }) {
     return {
@@ -537,6 +538,12 @@ describe("runCoachNudgeTick — gates and prefs", () => {
         findFirst: vi.fn(async (args?: unknown) => {
           void args;
           return overrides.recentNudge ?? null;
+        }),
+      },
+      coachMessage: {
+        findFirst: vi.fn(async (args?: unknown) => {
+          void args;
+          return overrides.recentPersistedNudge ?? null;
         }),
       },
       medicationIntakeEvent: {
@@ -643,6 +650,42 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     );
   });
 
+  it("caps on a recently persisted nudge conversation even with no push-success row (M1)", async () => {
+    // A no-push-channel user never writes an `ok` push-attempt row, so the
+    // ledger side of gate 5 stays empty. The persisted nudge conversation
+    // from a prior tick must still pin the window so the rail does not get a
+    // brand-new nudge conversation every cron run.
+    const dispatch = vi.fn();
+    const recordNudge = vi.fn();
+    const prisma = prismaMock({
+      users: [userRow(null)],
+      intakeRows: failingIntakes,
+      recentNudge: null,
+      recentPersistedNudge: { id: "msg_recent" },
+    });
+    const summary = await runCoachNudgeTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch: dispatch as never, recordNudge: recordNudge as never },
+    );
+    expect(summary.skippedRecentNudge).toBe(1);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(recordNudge).not.toHaveBeenCalled();
+    // The persisted-nudge query honours the same rolling cutoff as the ledger.
+    const arg = vi.mocked(prisma.coachMessage.findFirst).mock.calls[0]?.[0] as {
+      where: {
+        providerType: string;
+        role: string;
+        createdAt: { gte: Date };
+      };
+    } | undefined;
+    expect(arg?.where.providerType).toBe("nudge");
+    expect(arg?.where.role).toBe("assistant");
+    expect(arg?.where.createdAt.gte.getTime()).toBe(
+      now.getTime() - 7 * MS_PER_DAY,
+    );
+  });
+
   it("skips a disabled group's trigger queries entirely", async () => {
     const prisma = prismaMock({
       users: [
@@ -713,5 +756,68 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     expect(payload.message).toContain(
       "You wanted to keep an eye on: morning blood pressure.",
     );
+  });
+
+  it("persists the nudge as a conversation before dispatching (CCH-02)", async () => {
+    const order: string[] = [];
+    const recordNudge = vi.fn(
+      async (args: { userId: string; title: string; body: string }) => {
+        void args;
+        order.push("persist");
+        return {
+          conversationId: "conv_1",
+          messageId: "msg_1",
+          createdAt: now,
+        };
+      },
+    );
+    const dispatch = vi.fn(async () => {
+      order.push("dispatch");
+      return { dispatched: true };
+    });
+    const prisma = prismaMock({
+      users: [userRow(null)],
+      intakeRows: failingIntakes,
+    });
+    const summary = await runCoachNudgeTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch: dispatch as never, recordNudge: recordNudge as never },
+    );
+    expect(summary.dispatched).toBe(1);
+    expect(summary.persisted).toBe(1);
+    // The conversation must be written BEFORE the notification fires so
+    // the rail always carries the nudge even if the push channel is gone.
+    expect(order).toEqual(["persist", "dispatch"]);
+    const persistArg = recordNudge.mock.calls[0]?.[0] as unknown as {
+      userId: string;
+      title: string;
+      body: string;
+    };
+    expect(persistArg.userId).toBe("user-1");
+    // The persisted body is the same compliance nudge copy the
+    // notification carries — it lands as the initial assistant message.
+    expect(persistArg.body).toContain("Your intakes were patchy this week");
+    expect(persistArg.title.length).toBeGreaterThan(0);
+  });
+
+  it("still dispatches + counts the nudge when persistence throws", async () => {
+    const recordNudge = vi.fn(async () => {
+      throw new Error("db down");
+    });
+    const dispatch = vi.fn(async () => ({ dispatched: true }));
+    const prisma = prismaMock({
+      users: [userRow(null)],
+      intakeRows: failingIntakes,
+    });
+    const summary = await runCoachNudgeTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch: dispatch as never, recordNudge: recordNudge as never },
+    );
+    // A persistence failure must not swallow the notification.
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(summary.dispatched).toBe(1);
+    expect(summary.persisted).toBe(0);
   });
 });

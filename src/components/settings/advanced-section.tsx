@@ -51,26 +51,16 @@ import { apiFetchRaw } from "@/lib/api/api-fetch";
  * dialog.
  */
 export function AdvancedSection() {
-  const { t } = useTranslations();
-
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+  // `<SettingsSectionFrame>` in the route; this body is the advanced cards.
   return (
-    <section
-      aria-labelledby="settings-section-advanced-title"
-      className="space-y-6"
-    >
-      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
-      <header>
-        <h1 id="settings-section-advanced-title" className="sr-only">
-          {t("settings.sections.advanced.title")}
-        </h1>
-      </header>
-
+    <div className="space-y-6">
       {/* v1.18.1 (D1) — "Tour neu starten" relocated here from Account. */}
       <TourReplayCard />
       <ResearchModeCard />
       <DataResetCard />
       <AccountDeleteCard />
-    </section>
+    </div>
   );
 }
 

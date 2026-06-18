@@ -67,6 +67,20 @@ const disableCoachFlag = z
       "Per-account Coach opt-out toggle (v1.4.47 W3). `true` hides the Coach FAB and short-circuits its API gates.",
   });
 
+// v1.18.6 — explicit diabetes opt-in. Shared by GET (current) and PATCH
+// (request body + resolved response). `true` switches the glucose target
+// resolver to the tighter ADA glycemic GOAL bands (fasting 80–130,
+// postprandial < 180). Never inferred from a reading; asserts no diagnosis.
+const diabetesFlag = z
+  .object({
+    hasDiabetes: z.boolean(),
+  })
+  .meta({
+    id: "DiabetesFlag",
+    description:
+      "Per-account diabetes opt-in (v1.18.6). `true` selects the ADA glycemic GOAL bands (fasting 80–130, postprandial < 180) for glucose targets instead of the general non-diabetic bands. A user-declared preference only — never inferred from a value, never a diagnosis.",
+  });
+
 // v1.16.11 — per-user notification preferences. The PATCH request body
 // is the REAL runtime validator (`notificationPrefsSchema` — every
 // category and field optional, deep-merged server-side); the response
@@ -408,6 +422,47 @@ export const profilePaths: NonNullable<ZodOpenApiObject["paths"]> = {
                 disableCoachFlag,
                 "PatchDisableCoachResponse",
               ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/diabetes": {
+    get: {
+      tags: ["Auth"],
+      summary: "Read per-user diabetes opt-in flag",
+      description:
+        'Returns the user\'s per-account diabetes opt-in flag. Default `false`. When `true`, the glucose target resolver applies the tighter ADA glycemic GOAL bands (fasting 80–130, postprandial < 180) instead of the general non-diabetic bands. Powers the Settings "I have diabetes / clinician glucose targets" toggle. Never inferred from a reading; asserts no diagnosis.',
+      responses: {
+        "200": {
+          description: "Resolved flag.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(diabetesFlag, "GetDiabetesResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    patch: {
+      tags: ["Auth"],
+      summary: "Toggle per-user diabetes opt-in flag",
+      description:
+        "Sets the per-account diabetes opt-in flag. Idempotent — the DB write fires even when the value matches so the audit-log row mirrors the API call. Always returns the resolved next-state. `userId` is never accepted from the body. Rate-limit 60/min per user.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: diabetesFlag } },
+      },
+      responses: {
+        "200": {
+          description:
+            "Resolved next-state echoed back for optimistic-update consumers.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(diabetesFlag, "PatchDiabetesResponse"),
             },
           },
         },

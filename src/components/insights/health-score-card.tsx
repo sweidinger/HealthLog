@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, Minus } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Minus, Moon } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { HealthScoreDeltaExplainer } from "./health-score-delta-explainer";
@@ -26,8 +26,8 @@ import { HealthScoreDeltaExplainer } from "./health-score-delta-explainer";
  * at least one component blends entries from more than one source.
  *
  * Pure presentational — the parent owns the analytics query + the
- * drawer state. The same `onAskCoach` handler is shared with the hero
- * strip's main "Ask the coach" button (different prefill string).
+ * drawer state. The card mounts no inline Coach affordance; the hero
+ * strip carries the single "Ask the coach" entry point.
  */
 
 export type HealthScoreBand = "green" | "yellow" | "red";
@@ -70,7 +70,6 @@ export interface HealthScoreCardProps {
     compliance: HealthScoreCardComponent;
   };
   delta: number | null;
-  onAskCoach?: (prefill: string) => void;
   /**
    * v1.4.25 W8e — opens the provenance accordion on first render.
    * The SSR tests use it to exercise the expanded markup without a
@@ -87,6 +86,15 @@ export interface HealthScoreCardProps {
    * four-row layout for the common (mood-enabled) case.
    */
   moodEnabled?: boolean;
+  /**
+   * v1.18.6 — Rest Mode annotation. When an illness episode is active the
+   * server suppresses (never penalises) the score; the card itself then
+   * carries an explicit "paused during illness — not being judged today"
+   * line so a frozen/held number reads as intentional rather than as a
+   * silent drop. Value-free: the card only needs to know that it is
+   * active, not the episode details. Default off (the common case).
+   */
+  restModeActive?: boolean;
 }
 
 type ComponentKey = keyof HealthScoreCardProps["components"];
@@ -166,14 +174,9 @@ export function HealthScoreCard({
   band,
   components,
   delta,
-  // v1.4.27 B1 — onAskCoach stays on the prop signature so the hero
-  // strip's existing wire-up doesn't break, but the card no longer
-  // mounts an inline button (the hero strip already carries the same
-  // action). Destructure-and-ignore is intentional.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onAskCoach: _onAskCoach,
   initiallyExpanded = false,
   moodEnabled = true,
+  restModeActive = false,
 }: HealthScoreCardProps) {
   const { t, locale } = useTranslations();
   // The asOf timestamps render under the source pill as a tooltip
@@ -404,6 +407,21 @@ export function HealthScoreCard({
           )}
         </p>
 
+        {/* v1.18.6 — Rest Mode legibility. While an illness episode is
+            active the server suppresses (never penalises) the score, so
+            the card states plainly that the number is paused and not being
+            judged today. Without this the held score reads as a silent
+            decline. */}
+        {restModeActive && (
+          <p
+            data-slot="health-score-card-rest-mode"
+            className="text-muted-foreground inline-flex items-start gap-1.5 text-[11px] leading-relaxed"
+          >
+            <Moon className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+            <span>{t("insights.healthScore.restModePaused")}</span>
+          </p>
+        )}
+
         <ul
           data-slot="health-score-card-components"
           // v1.8.5 W4a — the always-visible "Zusammensetzung" breakdown is
@@ -602,25 +620,9 @@ export function HealthScoreCard({
           )}
         </div>
 
-        {/* v1.4.27 B1 — disclaimer bumped from text-[10px] to
-            text-[11px] (BL-P4-9 L2: the 10 px size was borderline
-            against the 12 px mobile floor). The hero strip already
-            carries an "Ask the coach" action so the inline button
-            here retires; the parent still receives onAskCoach via
-            other surfaces but the card no longer mounts a duplicate
-            CTA.
-            v1.4.28 R3c-Insights — `mt-auto` pins the disclaimer to
-            the bottom of the stretched card so the score number and
-            sub-bars stay anchored at the top while the recovered
-            vertical space (when the parent column is taller) sits
-            quietly between the provenance accordion and the
-            disclaimer footer. */}
-        <p
-          data-slot="health-score-card-disclaimer"
-          className="text-muted-foreground mt-auto text-[11px] leading-snug"
-        >
-          {t("insights.healthScore.disclaimer")}
-        </p>
+        {/* v1.18.6 (DISC-01) — the "indicative, not a clinical assessment"
+            card disclaimer is removed; the one-time onboarding acknowledgment
+            now covers the not-a-diagnosis framing app-wide. */}
       </div>
     </div>
   );

@@ -575,6 +575,12 @@ export const createMeasurementSchema = z
     // metadata) now persist the tag instead of seeing it disappear.
     // Accepts `null` so a client can explicitly clear the column.
     deviceType: z.string().min(1).max(32).nullable().optional(),
+    // v1.18.6 — optional "I feel unwell with this reading" flag. Transient
+    // (NOT persisted on the measurement row): it only lifts a confirmed
+    // safety-floor escalation from the asymptomatic "contact your doctor"
+    // copy to the symptom-coupled emergency copy. Defaults to false/absent —
+    // every existing client keeps the asymptomatic posture. Never a diagnosis.
+    symptomsPresent: z.boolean().optional(),
   })
   .refine((data) => validateMeasurementRange(data.type, data.value) === null, {
     message: "Value out of plausible range",

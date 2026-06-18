@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -144,14 +145,21 @@ export function InsightStatusCard({
 
   if (!hasProvider) {
     return (
-      <Card className="gap-1.5 py-4 opacity-60 md:py-5">
+      <Card className="gap-1.5 py-4 opacity-80 md:py-5">
         <CardHeader className="pb-1">
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-1.5">
           <p className="text-muted-foreground text-sm">
             {t("insights.noProviderConfigured")}
           </p>
+          <Link
+            href="/settings/ai"
+            data-slot="insight-status-no-provider-cta"
+            className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {t("insights.noProviderAction")}
+          </Link>
         </CardContent>
       </Card>
     );

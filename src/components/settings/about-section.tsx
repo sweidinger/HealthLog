@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpCircle,
   BookOpen,
-  Compass,
   ExternalLink,
   GitBranch,
   Info,
@@ -15,9 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
-import { useAuth } from "@/hooks/use-auth";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
-import { restartOnboardingTour } from "@/lib/onboarding/tour-restart";
 import { queryKeys } from "@/lib/query-keys";
 import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
@@ -118,25 +115,9 @@ export function UpdateBadge({
   );
 }
 
-export interface AboutSectionProps {
-  /**
-   * v1.18.1 E5 — suppress the "Replay tour" card. The admin → Über
-   * surface reuses this component but the onboarding tour is a
-   * user-facing affordance with no place in the admin console, so the
-   * admin renderer passes `hideTourReplay`. The Settings → About surface
-   * leaves it on.
-   */
-  hideTourReplay?: boolean;
-}
-
-export function AboutSection({ hideTourReplay = false }: AboutSectionProps = {}) {
+export function AboutSection() {
   const { t } = useTranslations();
   const fmt = useFormatters();
-  // Pull the auth user — only needed so the "Replay the tour" button
-  // can stamp a per-user force-launch marker into sessionStorage. The
-  // hook is cheap (a cached `/api/auth/me` read) and every settings
-  // page already lives behind the same auth boundary.
-  const { user } = useAuth();
 
   const { data: version, isLoading } = useQuery({
     queryKey: queryKeys.apiVersion(),
@@ -146,45 +127,6 @@ export function AboutSection({ hideTourReplay = false }: AboutSectionProps = {})
     // The endpoint is `force-static` — version doesn't change at runtime.
     staleTime: Infinity,
   });
-
-  // v1.4.47 W5 — onboarding chain-gate: the spotlight tour now auto-
-  // launches only ≥ 24 h after the wizard finishes (see
-  // `shouldAutoLaunchTour` in `components/onboarding/tour-launcher.tsx`).
-  // The carousel + tour no longer stack into ~90 s of forced onboarding
-  // on first visit. The tradeoff: a first-day user who *does* want the
-  // tour needs a discoverable manual trigger. Settings → About is the
-  // surface every user can find (every locale puts "About" right on the
-  // settings shell), so it carries the replay button next to the
-  // sources/docs links. Settings → Account still has its own
-  // "Restart onboarding tour" — both buttons share the same flow.
-  const [replayingTour, setReplayingTour] = useState(false);
-  // v1.4.48 M6c — text + type collapsed into one discriminated state so
-  // the two values can never drift (a "success" message rendered in the
-  // destructive colour was the latent bug class).
-  const [tourFeedback, setTourFeedback] = useState<{
-    text: string;
-    type: "success" | "error";
-  } | null>(null);
-
-  async function handleReplayTour() {
-    setReplayingTour(true);
-    setTourFeedback(null);
-    // v1.4.48 M6b — both Settings → Account and Settings → About now
-    // delegate to the shared `restartOnboardingTour()` worker so the
-    // server flip + force-launch marker + window event live in one
-    // place. The helper returns a discriminated result; this surface
-    // only owns the translation + feedback rendering.
-    const result = await restartOnboardingTour(user?.id);
-    if (result.ok) {
-      setTourFeedback({
-        text: t("onboarding.tour.restartConfirmation"),
-        type: "success",
-      });
-    } else {
-      setTourFeedback({ text: t(result.messageKey), type: "error" });
-    }
-    setReplayingTour(false);
-  }
 
   // v1.4.36 W4f — the explicit "Check for updates" button is gone;
   // only the 24 h auto-check stays. When the auto-check reports
@@ -239,17 +181,12 @@ export function AboutSection({ hideTourReplay = false }: AboutSectionProps = {})
   }, [version?.version]);
   /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the section
+  // frame that wraps this component: `<SettingsSectionFrame>` on the settings
+  // route and the admin renderer's `SectionFrame` on `/admin/about`. The body
+  // is the version / license / sources cards.
   return (
-    <section
-      aria-labelledby="settings-section-about-title"
-      className="space-y-6"
-    >
-      <header>
-        <h1 id="settings-section-about-title" className="sr-only">
-          {t("settings.sections.about.title")}
-        </h1>
-      </header>
-
+    <div className="space-y-6">
       {/* Identity card — version + license inline. The v1.4.2 layout
           stacked the license under the version inside its own boxed Badge,
           which read as a separate field even though the two values belong
@@ -364,63 +301,10 @@ export function AboutSection({ hideTourReplay = false }: AboutSectionProps = {})
         </div>
       )}
 
-      {/* v1.4.47 W5 — Replay tour card. The dashboard spotlight
-          tour now auto-launches only ≥ 24 h after the wizard finishes,
-          so a first-day user who wants to see it still needs a
-          discoverable manual trigger. About is the surface every user
-          can find (it's the standard "where am I?" stop in the
-          settings shell), so the button lives here next to version +
-          links. Mirrors the stack-on-mobile / right-align-on-desktop
-          contract used by the Account section's "Restart onboarding
-          tour" card so the two surfaces feel consistent.
-
-          v1.18.1 E5 — hidden on the admin → Über surface (`hideTourReplay`):
-          the onboarding tour is a user-facing affordance with no place in
-          the admin console. */}
-      {!hideTourReplay && (
-        <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-            <div className="flex items-start gap-2">
-              <Compass className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">
-                  {t("settings.about.tourReplay")}
-                </h2>
-                <p className="text-muted-foreground text-xs">
-                  {t("settings.about.tourReplayHint")}
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleReplayTour}
-              disabled={replayingTour}
-              data-testid="about-replay-tour"
-              className="w-full shrink-0 sm:w-auto"
-            >
-              {replayingTour ? (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-              ) : (
-                <Compass className="h-4 w-4" />
-              )}
-              {t("settings.about.tourReplay")}
-            </Button>
-          </div>
-          {tourFeedback && (
-            <p
-              role="alert"
-              className={`mt-2 pl-7 text-xs ${
-                tourFeedback.type === "success"
-                  ? "text-success"
-                  : "text-destructive"
-              }`}
-            >
-              {tourFeedback.text}
-            </p>
-          )}
-        </div>
-      )}
+      {/* v1.18.6 — the tour-replay card consolidated onto a single home in
+          Settings → Advanced ("Modul-Tour neu starten"). The About surface
+          no longer duplicates it; per-module "Diese Tour zeigen" affordances
+          on every module page cover in-context re-entry. */}
 
       {/* v1.4.36 W4f — the dedicated "Updates" card with the
           manual "Check for updates" button is gone. The 24 h auto-
@@ -432,6 +316,6 @@ export function AboutSection({ hideTourReplay = false }: AboutSectionProps = {})
           button were collectively never the point of the surface —
           the only signal users ever cared about was "is a newer
           release out?", and the badge answers that with no clicks. */}
-    </section>
+    </div>
   );
 }

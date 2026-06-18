@@ -50,6 +50,58 @@ export function getUserTodayBounds(
 }
 
 /**
+ * UTC instant of local midnight (00:00 wall-clock) on the calendar day
+ * `instant` falls on in `tz`. DST-safe: derives the zone offset at the
+ * target local time so the returned instant always represents the user's
+ * local start-of-day, never UTC midnight of that calendar date.
+ *
+ * Canonical start-of-local-day primitive. The medication-scheduling
+ * `startOfLocalDay` (cadence) and `startOfDayInTz` (recurrence) route
+ * through this so the day-floor never drifts between surfaces. When `tz`
+ * is omitted the host's system-local day is used.
+ */
+export function startOfLocalDayInTz(
+  instant: Date,
+  tz: string | undefined,
+): Date {
+  if (!tz) {
+    return new Date(
+      instant.getFullYear(),
+      instant.getMonth(),
+      instant.getDate(),
+      0,
+      0,
+      0,
+      0,
+    );
+  }
+  const parts = wallClockInTz(instant, tz);
+  // Two-pass converge: treat the wall clock as UTC, then correct by the
+  // zone offset at that approximate instant. The second pass settles the
+  // offset across a DST transition for every IANA zone.
+  let guess = new Date(
+    Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0),
+  );
+  for (let i = 0; i < 2; i++) {
+    const at = wallClockInTz(guess, tz);
+    const asIfUtc = Date.UTC(
+      at.year,
+      at.month - 1,
+      at.day,
+      at.hour,
+      at.minute,
+      at.second,
+    );
+    const offsetMin = Math.round((asIfUtc - guess.getTime()) / 60_000);
+    guess = new Date(
+      Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0) -
+        offsetMin * 60_000,
+    );
+  }
+  return guess;
+}
+
+/**
  * Get the day of the week (0=Sun..6=Sat) for a given instant in a specific
  * timezone.
  */

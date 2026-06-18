@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { I18nProvider } from "@/lib/i18n/context";
 import { makeFormatters } from "@/lib/format-locale";
 import type { DashboardSnapshot } from "@/lib/dashboard/snapshot";
+import { buildTargetBands } from "@/lib/dashboard/snapshot";
 import type { MedsTodayBlock } from "@/lib/dashboard/meds-today";
 import type { DataSummary } from "@/lib/analytics/trends";
 import { DashboardHero } from "../dashboard-hero";
@@ -92,6 +93,11 @@ function baseSnapshot(
     layout: { version: 1, widgets: [] },
     layoutCatalogue: [],
     metricStates: {},
+    targetBands: buildTargetBands({
+      dateOfBirth: null,
+      gender: null,
+      heightCm: null,
+    }),
     tiles: {
       summaries: {},
       lastSeenByType: {},

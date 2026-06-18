@@ -1,18 +1,26 @@
 /**
- * GET /api/insights/coach/nudge-status — has the proactive Coach nudge
- * something the caller has not engaged with yet?
+ * GET /api/insights/coach/nudge-status — is there an unread Coach
+ * message the caller has not opened yet?
  *
- * v1.16.1 — feeds the floating Coach bubble: the bubble renders only
- * while an unseen Coach-initiated nudge exists, instead of being a
- * permanent FAB. "Unseen" is derived, not stored: the latest successful
- * `COACH_NUDGE` dispatch (the `push_attempts` ledger the nudge cron
- * already anchors its frequency cap on) counts as read once the user
- * has sent a Coach message after it. The client additionally remembers
- * a local "seen" stamp so opening the chat without sending also clears
- * the bubble on that device.
+ * v1.18.6 (CCH-03) — the proactive Coach nudge now lands as a real
+ * ASSISTANT message in the conversation rail (CCH-02), not as a
+ * notification-only dispatch. The unread signal moved with it: instead
+ * of anchoring on the `push_attempts` ledger (which is empty when no
+ * push channel is configured, so the nudge was invisible), the status
+ * compares the newest Coach assistant message against the
+ * server-authoritative `User.coachLastSeenAt` stamp.
  *
- * No new table, no migration: both timestamps come from existing rows,
- * scoped to the caller.
+ * `unread` is true when an assistant message exists that is newer than
+ * the last time the user opened the Coach (drawer or page, which writes
+ * `coachLastSeenAt` via `POST /api/insights/coach/seen`). A user who has
+ * never opened the Coach reads any existing nudge as unread exactly
+ * once. Server-authoritative so the signal is consistent across web +
+ * iOS; the FAB keeps a local mirror only as an instant-paint
+ * optimisation.
+ *
+ * `nudgedAt` carries the newest assistant-message timestamp so the FAB's
+ * local seen-stamp keys on a stable value (kept for the existing client
+ * contract).
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";
@@ -23,23 +31,26 @@ export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
   await requireAssistantSurface("coach");
 
-  const [lastNudge, lastUserMessage] = await Promise.all([
-    prisma.pushAttempt.findFirst({
-      where: { userId: user.id, eventType: "COACH_NUDGE", result: "ok" },
+  // The newest assistant message across the caller's conversations — the
+  // proactive nudge writes one, and so does every normal Coach reply. We
+  // intentionally key on assistant (not user) messages: the unread dot
+  // means "the Coach said something", and the open-stamp clears it.
+  const [lastAssistant, seen] = await Promise.all([
+    prisma.coachMessage.findFirst({
+      where: { role: "assistant", conversation: { userId: user.id } },
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     }),
-    prisma.coachMessage.findFirst({
-      where: { role: "user", conversation: { userId: user.id } },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true },
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { coachLastSeenAt: true },
     }),
   ]);
 
-  const nudgedAt = lastNudge?.createdAt ?? null;
+  const nudgedAt = lastAssistant?.createdAt ?? null;
+  const lastSeenAt = seen?.coachLastSeenAt ?? null;
   const unread =
-    nudgedAt !== null &&
-    (lastUserMessage === null || lastUserMessage.createdAt < nudgedAt);
+    nudgedAt !== null && (lastSeenAt === null || lastSeenAt < nudgedAt);
 
   return apiSuccess({
     nudgedAt: nudgedAt ? nudgedAt.toISOString() : null,

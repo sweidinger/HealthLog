@@ -29,6 +29,7 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
+import { SettingsSectionFrame } from "../settings-section-frame";
 import { GesundheitsakteSection } from "../gesundheitsakte-section";
 
 function render(node: React.ReactElement, locale: "en" | "de" = "en") {
@@ -38,8 +39,14 @@ function render(node: React.ReactElement, locale: "en" | "de" = "en") {
 }
 
 describe("<GesundheitsakteSection> — SSR smoke", () => {
-  it("renders the section description and the health-record panel", () => {
-    const html = render(<GesundheitsakteSection />);
+  it("renders the section heading and the health-record panel", () => {
+    // v1.18.6 (W9) — the visible heading (with the historic id) comes from
+    // the shared frame the route wraps the section in.
+    const html = render(
+      <SettingsSectionFrame slug="gesundheitsakte">
+        <GesundheitsakteSection />
+      </SettingsSectionFrame>,
+    );
     expect(html).toContain('id="settings-section-gesundheitsakte-title"');
     expect(html).toContain('data-testid="health-record-export-panel"');
     // Raw key never leaks past i18n.

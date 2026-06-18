@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, FileUp, PlusCircle, Plug } from "lucide-react";
+import { useEffect } from "react";
+import {
+  CheckCircle2,
+  FileUp,
+  PlusCircle,
+  Plug,
+  Sparkles,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { setTourReferrer } from "@/components/onboarding/tour-launcher";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
@@ -18,10 +27,21 @@ import { useTranslations } from "@/lib/i18n/context";
  * through `next/link` so the regular client-side navigation kicks in
  * (the proxy redirect was cleared with the same step-API write that
  * landed the user here).
+ *
+ * v1.18.6 — on mount we write the per-user wizard-return marker so the
+ * shell-level `<TourLauncher>` auto-opens the module tour immediately
+ * on the next dashboard arrival (sequenced after the post-wizard
+ * grace), instead of waiting out the 24 h fallback. Whichever exit the
+ * user picks from this screen, the next `/` mount finds the marker.
  */
 
 export function DoneScreen() {
   const { t } = useTranslations();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user?.id) setTourReferrer(user.id);
+  }, [user?.id]);
 
   return (
     <section
@@ -50,6 +70,33 @@ export function DoneScreen() {
           {t("onboarding.done.learning")}
         </p>
       </header>
+
+      {/* v1.18.6 — surface the AI Insights / Coach / briefing setup at
+          the highest-intent moment. The flagship feature needs a BYOK or
+          local provider that the rest of onboarding never mentions, so a
+          fresh user otherwise discovers it as a cold error. This card is
+          skippable by construction — it is an optional deep-link, not a
+          gate. */}
+      <div className="border-border/60 bg-muted/30 mx-auto flex w-full max-w-md flex-col items-center gap-2 rounded-lg border p-4 text-center">
+        <span
+          aria-hidden="true"
+          className="from-dracula-purple to-dracula-pink flex size-9 items-center justify-center rounded-full bg-gradient-to-br"
+        >
+          <Sparkles className="text-background size-4" />
+        </span>
+        <p className="text-foreground text-sm font-medium">
+          {t("onboarding.done.aiTitle")}
+        </p>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {t("onboarding.done.aiBody")}
+        </p>
+        <Link
+          href="/settings/ai"
+          className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+        >
+          {t("onboarding.done.aiCta")}
+        </Link>
+      </div>
 
       <div className="flex w-full max-w-xs flex-col gap-2">
         <Button asChild size="lg">

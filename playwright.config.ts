@@ -33,6 +33,17 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
+    // v1.18.6 — block the service worker in the test context. The
+    // production build registers `/sw.js`, whose v1.18.6 data branch
+    // serves allowlisted `/api/*` GET reads network-first. A worker-
+    // originated `fetch` is NOT subject to Playwright's `page.route`
+    // interception, so the SW would re-fetch the real (empty) backend
+    // and serve that — bypassing every per-spec `route.fulfill` mock and
+    // breaking read-after-write assertions (a just-created row never
+    // surfaced). Blocking the worker keeps the route mocks authoritative
+    // without weakening the shipped SW behaviour. Real users keep the
+    // offline data cache; only the test harness opts out.
+    serviceWorkers: "block",
     // HealthLog ships dark mode as the default (Dracula theme) — `globals.css`
     // sets `color-scheme: dark` on the root and the `<ThemeProvider>` defaults
     // to "system". Playwright's stock context is `colorScheme: "light"`, which

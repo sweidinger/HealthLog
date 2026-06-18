@@ -98,10 +98,53 @@ test.describe("authenticated dashboard render", () => {
       }),
     );
 
+    // v1.18.6 — the dashboard now batches every visible chart's daily
+    // series into ONE `/api/measurements/series-batch` round-trip and
+    // hands each chart its slice via `preloadedSeries`. The route is a
+    // sub-path of `/api/measurements`, which the `**/api/measurements*`
+    // glob below does NOT match (Playwright's `*` does not cross `/`), so
+    // without an explicit stub the request fell through to the real
+    // backend. The seed user has no measurements, so the route returned
+    // every requested type as an EMPTY array — and an empty-but-present
+    // slice satisfies the chart's preloaded-coverage check, so each chart
+    // rendered the batched empty slice instead of self-fetching. Mock the
+    // endpoint with the same populated set so the charts paint.
+    await page.route(/\/api\/measurements\/series-batch(\?|$)/, (route) => {
+      const url = new URL(route.request().url());
+      const types = (url.searchParams.get("types") ?? "WEIGHT").split(",");
+      const series: Record<
+        string,
+        Array<{ type: string; value: number; measuredAt: string; count: number }>
+      > = {};
+      for (const type of types) {
+        const baseValue =
+          type === "BLOOD_PRESSURE_SYS"
+            ? 124
+            : type === "BLOOD_PRESSURE_DIA"
+              ? 80
+              : type === "PULSE"
+                ? 70
+                : 78.5;
+        series[type] = Array.from({ length: 10 }, (_, i) => ({
+          type,
+          value: baseValue + (i % 3) - 1,
+          measuredAt: new Date(Date.now() - i * 86_400_000).toISOString(),
+          count: 1,
+        }));
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { series }, error: null }),
+      });
+    });
+
     // The chart's per-type fetch reads `json.data.measurements` and
     // expects a `meta.total`. Return a small dataset so the chart has
     // points to plot — otherwise Recharts mounts a placeholder instead
     // of the recharts-wrapper SVG and the assertion below times out.
+    // (Self-fetch fallback for any chart not covered by the batch above,
+    // e.g. a range-tab change that drops batched coverage.)
     await page.route("**/api/measurements*", (route) => {
       const url = new URL(route.request().url());
       const type = url.searchParams.get("type") ?? "WEIGHT";
