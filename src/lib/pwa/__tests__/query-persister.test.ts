@@ -134,8 +134,90 @@ describe("persister round-trips through a fake IndexedDB", () => {
       weightKg: 81,
     });
 
+    // Restored data must paint instantly BUT be marked stale so the first
+    // observer background-refetches — otherwise the client's 5-minute
+    // staleTime treats a minutes-old snapshot as fresh and a list opened
+    // right after a mutation serves the stale pre-mutation copy.
+    const restored = matchingBuild
+      .getQueryCache()
+      .find({ queryKey: ["dashboard", "snapshot"] });
+    expect(restored?.isStale()).toBe(true);
+
     const foreignBuild = new QueryClient();
     await restorePersistedQueryCache(foreignBuild, "v9.9.9");
     expect(foreignBuild.getQueryData(["dashboard", "snapshot"])).toBeUndefined();
+  });
+
+  it("never clobbers a query the live cache already holds", async () => {
+    // The read-after-write invariant: restore runs in an effect, possibly
+    // AFTER the page already fetched a fresh (post-mutation) list. A
+    // persisted STALE copy under the same key must not overwrite it — a
+    // present query is always fresher than disk.
+    const store = new Map<string, unknown>();
+    const makeReq = (run: () => void) => {
+      const req: Record<string, unknown> = {};
+      queueMicrotask(() => {
+        run();
+        (req.onsuccess as (() => void) | undefined)?.();
+      });
+      return req;
+    };
+    const fakeDb = {
+      close() {},
+      transaction() {
+        return {
+          objectStore() {
+            return {
+              put(value: unknown, key: string) {
+                store.set(key, value);
+                return makeReq(() => {});
+              },
+              get(key: string) {
+                const req = makeReq(() => {});
+                (req as { result?: unknown }).result = store.get(key);
+                return req;
+              },
+              delete(key: string) {
+                store.delete(key);
+                return makeReq(() => {});
+              },
+            };
+          },
+          set oncomplete(fn: () => void) {
+            queueMicrotask(fn);
+          },
+          set onerror(_fn: () => void) {},
+        };
+      },
+    };
+    (globalThis as { indexedDB?: unknown }).indexedDB = {
+      open() {
+        const req: Record<string, unknown> = { result: fakeDb };
+        queueMicrotask(() => (req.onsuccess as () => void)?.());
+        return req;
+      },
+    };
+
+    // Persist a STALE (empty) measurements list.
+    const source = new QueryClient();
+    source.setQueryData(["measurements", "list"], []);
+    const stop = startPersistingQueryCache(source, "v1.18.6");
+    vi.useFakeTimers();
+    source.setQueryData(["measurements", "list"], []);
+    vi.advanceTimersByTime(1100);
+    vi.useRealTimers();
+    await new Promise((r) => setTimeout(r, 0));
+    stop();
+
+    // The live client already fetched the FRESH (post-mutation) row.
+    const live = new QueryClient();
+    live.setQueryData(["measurements", "list"], [{ id: "fresh-row" }]);
+
+    await restorePersistedQueryCache(live, "v1.18.6");
+
+    // The fresh row survived — the empty persisted snapshot did not win.
+    expect(live.getQueryData(["measurements", "list"])).toEqual([
+      { id: "fresh-row" },
+    ]);
   });
 });

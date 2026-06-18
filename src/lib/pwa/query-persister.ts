@@ -106,7 +106,38 @@ export async function restorePersistedQueryCache(
       await clearPersistedQueryCache();
       return;
     }
-    hydrate(queryClient, payload.state);
+
+    // Never clobber a query the live client already holds. `hydrate` calls
+    // `setData` per dehydrated query unconditionally, so a snapshot restored
+    // in an effect AFTER the first paint would overwrite a query the page
+    // already fetched/prefetched — replacing the fresh (post-mutation) list
+    // with the stale persisted (often empty) copy. That was the read-after-
+    // write break across dashboard/measurements/medications: the restore won
+    // the race against the in-flight fetch. Drop every dehydrated query whose
+    // key the cache already carries so restore only ever FILLS gaps, never
+    // overwrites; a query already present is by definition fresher than disk.
+    const cache = queryClient.getQueryCache();
+    const filtered: DehydratedState = {
+      ...payload.state,
+      queries: payload.state.queries.filter(
+        (q) => cache.get(q.queryHash) === undefined,
+      ),
+    };
+    if (filtered.queries.length === 0) return;
+
+    hydrate(queryClient, filtered);
+    // Restored queries carry their original `dataUpdatedAt`, so with the
+    // client's 5-minute `staleTime` a snapshot saved minutes ago hydrates as
+    // *fresh* and the first observer never refetches — a list opened straight
+    // after a create/update then serves the stale pre-mutation copy. Marking
+    // every restored query invalidated makes it stale-but-shown: the persisted
+    // data still paints instantly, and the first mount triggers a background
+    // refetch. Online that lands fresh data within ms; offline the refetch
+    // fails and the hydrated copy stays on screen — the offline value holds.
+    // Scoped to the keys we just hydrated so we never disturb a live query.
+    for (const dq of filtered.queries) {
+      cache.get(dq.queryHash)?.invalidate();
+    }
   } catch {
     // Persistence is best-effort; never block boot on a cache restore.
   }
