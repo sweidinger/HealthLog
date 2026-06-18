@@ -1,6 +1,28 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { summariseTitle } from "../persistence";
+// Mock the db + crypto boundaries so `recordProactiveNudge` can be
+// exercised without a real Postgres / encryption key. The transaction
+// runner simply invokes the callback with the stubbed `tx`.
+const txCreate = {
+  coachConversation: { create: vi.fn() },
+  coachMessage: { create: vi.fn() },
+};
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    $transaction: vi.fn(
+      async (cb: (tx: typeof txCreate) => Promise<unknown>) => cb(txCreate),
+    ),
+  },
+}));
+vi.mock("../bytes-codec", () => ({
+  encryptToBytes: vi.fn((text: string) =>
+    new TextEncoder().encode(`enc:${text}`),
+  ),
+  decryptFromBytes: vi.fn(),
+}));
+
+import { recordProactiveNudge, summariseTitle } from "../persistence";
+import { encryptToBytes } from "../bytes-codec";
 
 describe("summariseTitle", () => {
   it("returns the input unchanged when below 80 chars", () => {
@@ -39,5 +61,53 @@ describe("summariseTitle", () => {
   it("falls back to a default title for empty input", () => {
     expect(summariseTitle("")).toBe("New conversation");
     expect(summariseTitle("    ")).toBe("New conversation");
+  });
+});
+
+describe("recordProactiveNudge", () => {
+  it("creates a conversation + an encrypted ASSISTANT message in one transaction", async () => {
+    const now = new Date("2026-06-18T05:15:00.000Z");
+    txCreate.coachConversation.create.mockResolvedValue({
+      id: "conv_1",
+      userId: "user_1",
+      title: "Time to weigh in",
+      createdAt: now,
+      updatedAt: now,
+    });
+    txCreate.coachMessage.create.mockResolvedValue({
+      id: "msg_1",
+      createdAt: now,
+    });
+
+    const out = await recordProactiveNudge({
+      userId: "user_1",
+      title: "Time to weigh in",
+      body: "It has been a week — a quick weigh-in keeps the trend honest.",
+    });
+
+    expect(out).toEqual({
+      conversationId: "conv_1",
+      messageId: "msg_1",
+      createdAt: now,
+    });
+
+    // Conversation owned by the user, title summarised.
+    expect(txCreate.coachConversation.create).toHaveBeenCalledWith({
+      data: { userId: "user_1", title: "Time to weigh in" },
+    });
+
+    // The body is encrypted at rest (Bytes), role is assistant, and the
+    // message hangs off the new conversation. No raw plaintext column.
+    const msgArg = txCreate.coachMessage.create.mock.calls[0][0];
+    expect(msgArg.data.conversationId).toBe("conv_1");
+    expect(msgArg.data.role).toBe("assistant");
+    expect(msgArg.data.providerType).toBe("nudge");
+    expect(encryptToBytes).toHaveBeenCalledWith(
+      "It has been a week — a quick weigh-in keeps the trend honest.",
+    );
+    // The stored column is the ciphertext, never the plaintext body.
+    expect(new TextDecoder().decode(msgArg.data.encryptedContent)).toContain(
+      "enc:",
+    );
   });
 });
