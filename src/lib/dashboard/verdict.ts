@@ -31,6 +31,7 @@ import {
   COACH_NUDGE_SLEEP_DEFICIT_MARGIN_H,
 } from "@/lib/jobs/coach-nudge-thresholds";
 import { buildWeightRangeFromHeight } from "@/lib/analytics/value-bands";
+import { userDayKey } from "@/lib/tz/format";
 import type { DashboardSnapshot } from "@/lib/dashboard/snapshot";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -91,16 +92,6 @@ export interface DashboardVerdict {
    */
   values: Record<string, string | number>;
   cta: DashboardVerdictCta | null;
-}
-
-/** YYYY-MM-DD key of `d`'s calendar day in `tz`. */
-function dayKeyInTz(d: Date, tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
 }
 
 /** HH:mm wall-clock of `d` in `tz`. */
@@ -176,7 +167,7 @@ export function resolveDashboardVerdict(
     if (
       untilDue >= 0 &&
       untilDue <= DOSE_UPCOMING_WINDOW_MS &&
-      dayKeyInTz(new Date(dueMs), tz) === dayKeyInTz(now, tz)
+      userDayKey(new Date(dueMs), tz) === userDayKey(now, tz)
     ) {
       return {
         variant: "doseUpcoming",

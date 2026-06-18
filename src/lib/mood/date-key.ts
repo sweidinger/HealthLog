@@ -28,6 +28,8 @@
  * legacy date string (`effectiveMoodTz`).
  */
 
+import { userDayKey } from "@/lib/tz/format";
+
 export const DEFAULT_TIMEZONE = "Europe/Berlin";
 
 /**
@@ -35,14 +37,14 @@ export const DEFAULT_TIMEZONE = "Europe/Berlin";
  * timezone at write time. Used by `POST /api/mood-entries` and the
  * `PUT /api/mood-entries/:id` route when `moodLoggedAt` changes.
  *
- * The Swedish locale ("sv-SE") is the historical choice for ISO 8601
- * day output via `Intl.DateTimeFormat`; we keep it so the new path
- * produces byte-identical strings to the legacy `toBerlinDate()` for
- * Europe/Berlin users (the only path tested under the v1.4.24 suite).
+ * Delegates to the canonical `userDayKey` so the mood day-bucket key
+ * stays byte-identical to every other day-bucket surface. The ISO
+ * YYYY-MM-DD shape is unchanged from the legacy sv-SE formatter; the
+ * empty-tz fallback to Europe/Berlin is preserved here.
  */
 export function moodDateKey(date: Date, tz: string): string {
   const safe = tz && tz.length > 0 ? tz : DEFAULT_TIMEZONE;
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: safe }).format(date);
+  return userDayKey(date, safe);
 }
 
 /**
