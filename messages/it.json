@@ -1276,6 +1276,13 @@
       "noCurrentDose": "Nessuna dose ancora registrata.",
       "empty": "Nessuna cronologia di titolazione. Registra un cambio di dose per vedere la curva della dose."
     },
+    "titration": {
+      "title": "Piano di titolazione",
+      "empty": "Nessuna fase di aumento della dose registrata. Aggiungi variazioni di dose con data per tracciare il piano.",
+      "youAreHere": "Sei qui",
+      "doseStep": "{dose} {unit}",
+      "plannedFor": "Previsto · {date}"
+    },
     "injectionSiteBodyOutlineAriaLabel": "Sagoma del corpo",
     "injectionSitePickerAriaLabel": "Selettore del sito di iniezione",
     "injectionSiteRecommendedAriaLabel": "{site} — prossimo sito consigliato",
@@ -6377,6 +6384,9 @@
     "dateFrom": "Dal",
     "dateTo": "Al",
     "dateRange": "Periodo",
+    "valueRange": "Valore",
+    "valueMin": "Min.",
+    "valueMax": "Max.",
     "typeLabel": "Tipo",
     "sourceLabel": "Fonte",
     "resetFilters": "Reimposta",

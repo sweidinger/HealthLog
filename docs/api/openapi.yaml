@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.18.4
+  version: 1.18.5
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -1648,6 +1648,14 @@ paths:
               - NIGHTSCOUT
               - POLAR
               - OURA
+        - in: query
+          name: valueMin
+          schema:
+            type: number
+        - in: query
+          name: valueMax
+          schema:
+            type: number
         - in: query
           name: groupBy
           schema:

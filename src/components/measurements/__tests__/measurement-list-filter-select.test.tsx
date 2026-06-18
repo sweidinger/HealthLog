@@ -76,14 +76,17 @@ describe("MeasurementList — filter bar + multi-select chrome", () => {
   // `<FilterBar>` pill rail (date range · type · source pills + count).
   // The date inputs now live inside the pill's popover (closed in SSR),
   // so the guard pins the labelled pill triggers instead.
-  it("renders the filter rail with type, source and date-range pills", () => {
+  it("renders the filter rail with type, source, date-range and value pills", () => {
     const html = render("en");
     expect(html).toContain('data-slot="filter-bar"');
     expect(html).toContain('aria-label="Type"');
     expect(html).toContain('aria-label="Source"');
     expect(html).toContain('aria-label="Date range"');
+    // v1.18.5 — value-range pill rides the rail for the raw per-sample
+    // list (the default `ALL` type is not a day-grouped/sleep type).
+    expect(html).toContain('aria-label="Value"');
     const pills = html.match(/data-slot="filter-bar-pill"/g);
-    expect(pills?.length).toBe(3);
+    expect(pills?.length).toBe(4);
   });
 
   it("renders labelled selection checkboxes (per-row + select-all)", () => {

@@ -1276,6 +1276,13 @@
       "noCurrentDose": "No dose recorded yet.",
       "empty": "No titration history yet. Log a dose change to see the strength curve."
     },
+    "titration": {
+      "title": "Titration plan",
+      "empty": "No dose-escalation steps recorded yet. Add dated dose changes to plot the plan.",
+      "youAreHere": "You are here",
+      "doseStep": "{dose} {unit}",
+      "plannedFor": "Planned · {date}"
+    },
     "injectionSiteBodyOutlineAriaLabel": "Body outline",
     "injectionSitePickerAriaLabel": "Injection site picker",
     "injectionSiteRecommendedAriaLabel": "{site} — recommended next site",
@@ -6377,6 +6384,9 @@
     "dateFrom": "From",
     "dateTo": "To",
     "dateRange": "Date range",
+    "valueRange": "Value",
+    "valueMin": "Min",
+    "valueMax": "Max",
     "typeLabel": "Type",
     "sourceLabel": "Source",
     "resetFilters": "Reset",

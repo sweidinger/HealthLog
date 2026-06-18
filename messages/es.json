@@ -1276,6 +1276,13 @@
       "noCurrentDose": "Aún no hay dosis registrada.",
       "empty": "Aún no hay historial de titulación. Registra un cambio de dosis para ver la curva de dosis."
     },
+    "titration": {
+      "title": "Plan de titulación",
+      "empty": "Aún no hay pasos de escalada de dosis registrados. Añade cambios de dosis con fecha para trazar el plan.",
+      "youAreHere": "Estás aquí",
+      "doseStep": "{dose} {unit}",
+      "plannedFor": "Previsto · {date}"
+    },
     "injectionSiteBodyOutlineAriaLabel": "Silueta del cuerpo",
     "injectionSitePickerAriaLabel": "Selector de sitio de inyección",
     "injectionSiteRecommendedAriaLabel": "{site}: sitio siguiente recomendado",
@@ -6377,6 +6384,9 @@
     "dateFrom": "Desde",
     "dateTo": "Hasta",
     "dateRange": "Periodo",
+    "valueRange": "Valor",
+    "valueMin": "Mín.",
+    "valueMax": "Máx.",
     "typeLabel": "Tipo",
     "sourceLabel": "Fuente",
     "resetFilters": "Restablecer",
