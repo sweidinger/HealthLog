@@ -63,18 +63,27 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // so the batched reader doesn't re-query it per type.
   const priorityJson = await loadUserSourcePriority(user.id);
 
+  // Per-type isolation: a single type's transient DB reject degrades to an
+  // empty slice for THAT type only, never a 500 that blanks every chart in
+  // the row. The failing chart self-fetches through its existing fallback.
   const limit = pLimit(SERIES_BATCH_CONCURRENCY);
+  let degradedTypes = 0;
   const entries = await Promise.all(
     uniqueTypes.map((type) =>
-      limit(async () => {
-        const rows = await readDailySeries({
-          userId: user.id,
-          type,
-          from,
-          to,
-          priorityJson,
-        });
-        return [type, rows] as const;
+      limit(async (): Promise<readonly [MeasurementType, DailySeriesRow[]]> => {
+        try {
+          const rows = await readDailySeries({
+            userId: user.id,
+            type,
+            from,
+            to,
+            priorityJson,
+          });
+          return [type, rows] as const;
+        } catch {
+          degradedTypes += 1;
+          return [type, []] as const;
+        }
       }),
     ),
   );
@@ -89,6 +98,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     meta: {
       type_count: uniqueTypes.length,
       total: entries.reduce((sum, [, rows]) => sum + rows.length, 0),
+      degraded_types: degradedTypes,
     },
   });
 

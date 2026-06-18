@@ -117,4 +117,24 @@ describe("GET /api/measurements/series-batch", () => {
     expect(res.status).toBe(200);
     expect(vi.mocked(readDailySeries)).toHaveBeenCalledTimes(1);
   });
+
+  it("isolates a single type's failure to an empty slice, others still return", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const weightRows = [
+      { type: "WEIGHT", value: 80, measuredAt: FROM, count: 1 },
+    ];
+    vi.mocked(readDailySeries).mockImplementation(async ({ type }) => {
+      if (type === "WEIGHT") return weightRows as never;
+      throw new Error("transient db reject");
+    });
+
+    const res = await GET(
+      req(`types=WEIGHT,BLOOD_PRESSURE_SYS&from=${FROM}&to=${TO}`),
+    );
+    // One type rejecting must NOT 500 the whole batch.
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.series.WEIGHT).toEqual(weightRows);
+    expect(body.data.series.BLOOD_PRESSURE_SYS).toEqual([]);
+  });
 });
