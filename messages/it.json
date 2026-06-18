@@ -2575,7 +2575,7 @@
       "chronotype": {
         "title": "Cronotipo",
         "learning": "Stiamo ancora imparando il tuo ritmo — {counted} di {total} notti libere. Un cronotipo richiede alcune mattine senza sveglia per avere significato.",
-        "midSleepCaption": "Metà del sonno nei giorni liberi intorno alle {clock}",
+        "midSleepCaption": "Il punto medio naturale del tuo sonno nei giorni liberi è intorno alle {clock}.",
         "advancedToggle": "Avanzate",
         "socialJetlagValue": "{hours} h {minutes} min di jet lag sociale",
         "socialJetlagCaption": "La differenza tra gli orari del sonno nei giorni lavorativi e in quelli liberi — come un piccolo cambio di fuso orario settimanale.",
@@ -2588,7 +2588,8 @@
           "intermediate": "Tipo intermedio",
           "late": "Tipo serale",
           "extreme_late": "Tipo serale marcato"
-        }
+        },
+        "cornerLabel": "Cronotipo"
       },
       "rhythm": {
         "loadError": "Non è stato possibile caricare il tuo ritmo del sonno in questo momento. Riapparirà non appena la connessione sarà stabile."
@@ -3480,7 +3481,28 @@
     },
     "sleepQuality": {
       "title": "Qualità del sonno",
-      "subtitle": "Punteggi notturni del tuo wearable"
+      "subtitle": "Punteggi notturni del tuo wearable",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "il tuo punteggio di sonno complessivo",
+          "SLEEP_EFFICIENCY": "l’efficienza del sonno",
+          "SLEEP_PERFORMANCE": "la prestazione del sonno",
+          "SLEEP_CONSISTENCY": "la regolarità del sonno"
+        },
+        "grade": {
+          "excellent": "eccellente",
+          "good": "solida",
+          "fair": "discreta",
+          "low": "piuttosto bassa"
+        },
+        "clause": "Nelle ultime 30 notti {metric} è {grade}, a {value}.",
+        "closing": {
+          "excellent": "Mantieni la routine che ti porta fin qui.",
+          "good": "Orari di sonno e risveglio più stabili sono di solito il prossimo guadagno.",
+          "fair": "Proteggere una finestra di sonno costante è ciò che alza di più questo valore.",
+          "low": "Una routine serale regolare e un orario di sveglia fisso sono le prime leve."
+        }
+      }
     },
     "recovery": {
       "title": "Recupero",

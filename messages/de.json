@@ -2575,7 +2575,7 @@
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Dein Rhythmus wird noch erfasst — {counted} von {total} freien Nächten. Ein Chronotyp braucht ein paar weckerfreie Morgen, um aussagekräftig zu sein.",
-        "midSleepCaption": "Schlafmitte an freien Tagen gegen {clock}",
+        "midSleepCaption": "Deine natürliche Schlafmitte an freien Tagen liegt etwa um {clock}.",
         "advancedToggle": "Mehr Details",
         "socialJetlagValue": "{hours} Std. {minutes} Min. sozialer Jetlag",
         "socialJetlagCaption": "Der Unterschied zwischen deinem Schlaf an Arbeits- und freien Tagen — wie eine kleine wöchentliche Zeitzonenverschiebung.",
@@ -2588,7 +2588,8 @@
           "intermediate": "Mischtyp",
           "late": "Abendtyp",
           "extreme_late": "Ausgeprägter Abendtyp"
-        }
+        },
+        "cornerLabel": "Chronotyp"
       },
       "rhythm": {
         "loadError": "Dein Schlafrhythmus konnte gerade nicht geladen werden. Er erscheint wieder, sobald die Verbindung steht."
@@ -3480,7 +3481,28 @@
     },
     "sleepQuality": {
       "title": "Schlafqualität",
-      "subtitle": "Nächtliche Werte deines Wearables"
+      "subtitle": "Nächtliche Werte deines Wearables",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "dein Gesamt-Schlafscore",
+          "SLEEP_EFFICIENCY": "die Schlafeffizienz",
+          "SLEEP_PERFORMANCE": "die Schlafleistung",
+          "SLEEP_CONSISTENCY": "die Schlafkonstanz"
+        },
+        "grade": {
+          "excellent": "ausgezeichnet",
+          "good": "solide",
+          "fair": "durchschnittlich",
+          "low": "eher niedrig"
+        },
+        "clause": "Über die letzten 30 Nächte ist {metric} mit {value} {grade}.",
+        "closing": {
+          "excellent": "Behalte die Routine bei, die dich hierher bringt.",
+          "good": "Konstantere Zubett- und Aufstehzeiten sind meist der nächste Gewinn.",
+          "fair": "Ein konstantes Schlaffenster hebt diesen Wert erfahrungsgemäß am stärksten.",
+          "low": "Ein festes Herunterfahren am Abend und eine feste Aufstehzeit sind die ersten Hebel."
+        }
+      }
     },
     "recovery": {
       "title": "Erholung",

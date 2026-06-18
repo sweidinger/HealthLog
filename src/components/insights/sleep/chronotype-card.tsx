@@ -5,7 +5,6 @@ import { Clock, ChevronDown, ChevronUp } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { LearningGate } from "@/components/ui/learning-gate";
 import type { ChronotypeDto } from "./use-sleep-rhythm";
 
@@ -67,26 +66,38 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
   return (
     <Card>
       <CardHeader className="pb-0">
-        <div className="flex items-center gap-2">
-          <Clock className="text-info h-4 w-4" />
-          <CardTitle className="text-base font-semibold">
-            {t("insights.sleep.chronotype.title")}
-          </CardTitle>
+        {/* The resolved chronotype rides the top-right corner as a labelled
+            readout — a small "Chronotyp" label over the band value — rather
+            than a badge buried in the body. The title stays left; the value
+            is the thing the eye should land on first. */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Clock className="text-info h-4 w-4" />
+            <CardTitle className="text-base font-semibold">
+              {t("insights.sleep.chronotype.title")}
+            </CardTitle>
+          </div>
+          <div
+            className="flex flex-col items-end text-right"
+            data-slot="chronotype-corner"
+          >
+            <span className="text-muted-foreground text-[0.625rem] font-medium tracking-wide uppercase">
+              {t("insights.sleep.chronotype.cornerLabel")}
+            </span>
+            <span className="text-foreground text-sm font-semibold">
+              {bandLabel}
+            </span>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="space-y-1">
-          <Badge variant="secondary" className="text-sm">
-            {bandLabel}
-          </Badge>
-          {msfClock && (
-            <p className="text-muted-foreground text-xs">
-              {t("insights.sleep.chronotype.midSleepCaption", {
-                clock: msfClock,
-              })}
-            </p>
-          )}
-        </div>
+        {msfClock && (
+          <p className="text-muted-foreground text-xs">
+            {t("insights.sleep.chronotype.midSleepCaption", {
+              clock: msfClock,
+            })}
+          </p>
+        )}
 
         <button
           type="button"

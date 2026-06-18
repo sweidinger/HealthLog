@@ -110,6 +110,14 @@ describe("<ChronotypeCard>", () => {
     expect(html).toContain("04:30");
   });
 
+  it("renders the band as a labelled top-right corner readout, not a badge", () => {
+    const html = render(<ChronotypeCard chronotype={READY_CHRONO} />);
+    // The labelled corner carries both the "Chronotype" label and the value.
+    expect(html).toContain('data-slot="chronotype-corner"');
+    expect(html).toContain("Chronotype");
+    expect(html).toContain("Intermediate type");
+  });
+
   it("inherits the standard Card rhythm (no compact override)", () => {
     const learning = render(<ChronotypeCard chronotype={LEARNING_CHRONO} />);
     const ready = render(<ChronotypeCard chronotype={READY_CHRONO} />);
