@@ -453,6 +453,18 @@ model User {
   // `GET /api/auth/me` as a `modules: { <key>: boolean }` map.
   modulePreferencesJson Json? @map("module_preferences_json")
 
+  // v1.18.6 (CCH-03) — "Coach last seen" stamp powering the unread dot
+  // on the Coach FAB. The proactive nudge now lands as an ASSISTANT
+  // message in the conversation rail (CCH-02); the FAB shows a discreet
+  // unread dot when the newest Coach message is newer than this stamp,
+  // and clears it when the user opens the Coach (drawer or page, which
+  // writes the current time here via `POST /api/insights/coach/seen`).
+  // Null = never opened the Coach, so any existing message reads as
+  // unread once. Server-authoritative so the signal is consistent across
+  // web + iOS; the FAB keeps a local mirror only as an instant-paint
+  // optimisation.
+  coachLastSeenAt DateTime? @map("coach_last_seen_at")
+
   // v1.5.5 — self-hosted avatar storage.
   //
   // Replaces the Gravatar third-party leak (the old `getGravatarUrl`
