@@ -2713,6 +2713,7 @@
         "title": "Glucose overview",
         "subtitle": "A read on your last {days} days, from {count} readings.",
         "spotCaveat": "These are spot-reading estimates from individual measurements, not a continuous-monitor profile — read them as a direction of travel rather than a clinical verdict.",
+        "labsLink": "Lab results? Log a blood-draw HbA1c or fasting glucose under Labs.",
         "learningTitle": "Still learning your glucose",
         "learningBody": "So far that's {count} over {days}. A little more history and a fuller picture comes into focus — keep logging, or let a connected device fill it in.",
         "learningBodyEmpty": "Once a handful of readings come in — logged by you or synced from a device — your time-in-range, average, and variability take shape here.",

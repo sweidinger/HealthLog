@@ -2713,6 +2713,7 @@
         "title": "Przegląd glukozy",
         "subtitle": "Spojrzenie na ostatnie {days} dni, na podstawie {count} pomiarów.",
         "spotCaveat": "To szacunki z pojedynczych pomiarów punktowych, a nie profil z czujnika ciągłego — traktuj je jako kierunek, nie jako diagnozę.",
+        "labsLink": "Wyniki laboratoryjne? HbA1c lub glukozę na czczo z pobrania krwi zapisz w sekcji Laboratorium.",
         "learningTitle": "Wciąż poznajemy Twoją glukozę",
         "learningBody": "Na razie to {count} w ciągu {days}. Przy nieco dłuższej historii obraz się wyostrza — rejestruj dalej lub pozwól uzupełnić to podłączonemu urządzeniu.",
         "learningBodyEmpty": "Gdy pojawi się kilka pomiarów — wpisanych przez Ciebie lub zsynchronizowanych z urządzenia — czas w zakresie, średnia i zmienność nabiorą tu kształtu.",

@@ -2713,6 +2713,7 @@
         "title": "Aperçu du glucose",
         "subtitle": "Un point sur vos {days} derniers jours, à partir de {count} mesures.",
         "spotCaveat": "Ce sont des estimations issues de mesures ponctuelles, pas le profil d’un capteur continu : lisez-les comme une tendance, non comme un verdict clinique.",
+        "labsLink": "Résultats de laboratoire ? Saisis une HbA1c ou une glycémie à jeun issue d'une prise de sang dans Laboratoire.",
         "learningTitle": "Votre glucose se découvre encore",
         "learningBody": "Pour l’instant, cela fait {count} sur {days}. Avec un peu plus d’historique, le tableau se précise : continuez à enregistrer ou laissez un appareil connecté compléter.",
         "learningBodyEmpty": "Dès que quelques mesures arrivent — saisies par vous ou synchronisées depuis un appareil — votre temps dans la cible, votre moyenne et votre variabilité prennent forme ici.",

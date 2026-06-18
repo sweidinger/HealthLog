@@ -2713,6 +2713,7 @@
         "title": "Glukose-Überblick",
         "subtitle": "Ein Blick auf deine letzten {days} Tage, aus {count} Messungen.",
         "spotCaveat": "Das sind Schätzungen aus einzelnen Stichproben-Messungen, kein Profil eines kontinuierlichen Sensors – lies sie als Richtung, nicht als klinisches Urteil.",
+        "labsLink": "Laborergebnisse? HbA1c und Nüchternglukose aus einer Blutabnahme trägst du unter Labor ein.",
         "learningTitle": "Lerne deine Glukose noch kennen",
         "learningBody": "Bisher sind das {count} über {days}. Mit etwas mehr Verlauf wird das Bild klarer – mess weiter oder lass es ein verbundenes Gerät ergänzen.",
         "learningBodyEmpty": "Sobald ein paar Messungen vorliegen – von dir erfasst oder von einem Gerät synchronisiert – nehmen Zeit-im-Zielbereich, Durchschnitt und Schwankung hier Gestalt an.",

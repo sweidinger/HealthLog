@@ -2713,6 +2713,7 @@
         "title": "Panoramica della glicemia",
         "subtitle": "Una lettura dei tuoi ultimi {days} giorni, da {count} misurazioni.",
         "spotCaveat": "Sono stime da singole misurazioni puntuali, non il profilo di un sensore continuo: leggile come una tendenza, non come un verdetto clinico.",
+        "labsLink": "Risultati di laboratorio? Registra una HbA1c o la glicemia a digiuno da un prelievo in Laboratorio.",
         "learningTitle": "Stiamo ancora imparando la tua glicemia",
         "learningBody": "Per ora sono {count} su {days}. Con un po’ più di storico il quadro si chiarisce: continua a registrare o lascia che lo completi un dispositivo connesso.",
         "learningBodyEmpty": "Appena arrivano alcune misurazioni — registrate da te o sincronizzate da un dispositivo — il tempo nel range, la media e la variabilità prendono forma qui.",

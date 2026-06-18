@@ -2713,6 +2713,7 @@
         "title": "Resumen de glucosa",
         "subtitle": "Una lectura de tus últimos {days} días, a partir de {count} mediciones.",
         "spotCaveat": "Son estimaciones a partir de mediciones puntuales, no un perfil de un sensor continuo: léelas como una tendencia, no como un veredicto clínico.",
+        "labsLink": "¿Resultados de laboratorio? Registra una HbA1c o glucosa en ayunas de una analítica en Laboratorio.",
         "learningTitle": "Aún conociendo tu glucosa",
         "learningBody": "De momento son {count} en {days}. Con algo más de historial el panorama se aclara: sigue registrando o deja que lo complete un dispositivo conectado.",
         "learningBodyEmpty": "En cuanto lleguen unas cuantas mediciones —registradas por ti o sincronizadas desde un dispositivo— tu tiempo en rango, promedio y variabilidad tomarán forma aquí.",
