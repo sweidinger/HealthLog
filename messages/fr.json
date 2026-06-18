@@ -3533,31 +3533,72 @@
       "back": "Précédent",
       "skip": "Passer la visite",
       "done": "Compris",
-      "restart": "Relancer la visite",
-      "restartHint": "Affiche à nouveau la visite du tableau de bord à la prochaine ouverture.",
-      "restartConfirmation": "La visite redémarrera lors de ta prochaine visite du tableau de bord.",
+      "restart": "Relancer la visite des modules",
+      "restartHint": "Rejoue la visite guidée des modules depuis le début lors de votre prochaine ouverture du tableau de bord.",
+      "restartConfirmation": "La visite des modules redémarrera depuis le début à votre prochaine ouverture du tableau de bord.",
       "steps": {
-        "tileStrip": {
-          "title": "Tes valeurs du jour",
-          "body": "La barre de tuiles affiche la dernière valeur et la tendance 7 jours de chaque métrique — poids, tension, pouls, humeur. Masque ce qui ne te sert pas dans Paramètres → Tableau de bord."
+        "dashboardOverview": {
+          "title": "Votre tableau de bord",
+          "body": "Le tableau de bord rassemble tous les modules d’un coup d’œil. Appuyez longuement sur une tuile pour la réorganiser ou la masquer (Réglages → Disposition du tableau de bord). Une tuile ne vaut que par les données derrière elle — les modules suivants les remplissent."
         },
         "quickAdd": {
-          "title": "Saisi en deux tapotements",
-          "body": "Via le bouton Ajouter, tu saisis des mesures ou des humeurs sans quitter le tableau de bord. Le formulaire mémorise le dernier contexte et les étiquettes."
+          "title": "Saisi en quelques secondes",
+          "body": "Avec « + Ajouter », saisissez n’importe quelle mesure en quelques secondes — poids, tension, pouls, glycémie. Atout caché : antidater les valeurs oubliées. Tout ce que vous saisissez ici alimente les tendances, le score santé et les analyses IA."
+        },
+        "measurements": {
+          "title": "Mesures et plages cibles",
+          "body": "Mesures affiche l’historique et la plage cible de chaque métrique. Astuce cachée : définir une plage par valeur pour que les écarts ressortent en couleur. Ces séries sont la base des corrélations du Coach et du rapport médical."
+        },
+        "medications": {
+          "title": "Médicaments et prises",
+          "body": "Médicaments gère plannings, prises, stock et titration. Caché : plans récurrents (RRULE/glissants) et alertes de stock bas. Votre taux de prise alimente le pilier d’observance du tableau de bord et le contexte de l’IA."
+        },
+        "labs": {
+          "title": "Valeurs de laboratoire",
+          "body": "Laboratoire recense les biomarqueurs avec plages de référence — hémogramme, cholestérol, HbA1c. Atout : import et export FHIR. Les valeurs hors plage réapparaissent comme preuves dans les analyses et le rapport médical."
+        },
+        "illness": {
+          "title": "Journal des maladies",
+          "body": "Le journal des maladies consigne les épisodes aigus et les diagnostics chroniques avec leurs poussées. Caché : corréler un épisode à vos mesures et le Mode repos qui suspend les rappels. Le Coach comprend ainsi pourquoi les valeurs dérivent un temps."
+        },
+        "vorsorge": {
+          "title": "Prévention",
+          "body": "Prévention vous rappelle examens et vaccins selon leur propre intervalle. Astuce : « Fait » peut créer directement une mesure ou un résultat de laboratoire. Les échéances apparaissent en rappels et dans le rapport médical."
+        },
+        "cycle": {
+          "title": "Cycle",
+          "body": "Le suivi du cycle consigne phases et symptômes. Caché : comparer les symptômes à l’humeur et au sommeil. Le cycle donne du contexte aux variations qui paraîtraient autrement inexpliquées."
+        },
+        "mood": {
+          "title": "Humeur",
+          "body": "Humeur saisit votre ressenti et des tags en deux secondes. Atout : vos propres tags. Les tendances d’humeur se corrèlent au sommeil, aux médicaments et au cycle — le Coach repère les schémas."
         },
         "insights": {
-          "title": "Insights automatiques",
-          "body": "Insights transforme tes valeurs en un résumé santé clair, avec un classement de la tension, du poids et de l’humeur. Clé personnelle ou par défaut — c’est toi qui choisis."
+          "title": "Analyses",
+          "body": "Analyses, c’est le cœur : une analyse dynamique et fondée sur des preuves plutôt que des conseils génériques — chaque affirmation pointe vos données réelles. Caché : la disposition est personnalisable. Analyses réunit tout ce que les modules ci-dessus fournissent."
+        },
+        "coach": {
+          "title": "Coach",
+          "body": "Le Coach répond à vos questions sur vos données en dialogue, en utilisant antécédents, médicaments et résultats comme contexte. Vous choisissez le fournisseur IA (votre clé ou local). Il ne recalcule rien — il lit les mêmes chiffres que le tableau de bord."
         },
         "integrations": {
-          "title": "Connecter des appareils",
-          "body": "Dans les paramètres, tu connectes Withings (synchronisation automatique du poids, de la tension et du pouls), moodLog ou ton fournisseur d’analyse. Tout reste optionnel et chiffré."
+          "title": "Intégrations",
+          "body": "Les intégrations synchronisent Withings, WHOOP, Polar, Oura et Apple Santé automatiquement. Poids, sommeil et récupération se remplissent sans saisie, et alimentent à leur tour les analyses et le Coach."
+        },
+        "export": {
+          "title": "Rapport médical",
+          "body": "Le rapport médical regroupe mesures, médicaments, valeurs de laboratoire et prévention en PDF ou FHIR pour le rendez-vous. Tous les modules convergent ici — un rapport complet ne vient que de données bien tenues."
         },
         "achievements": {
-          "title": "Collecter séries et badges",
-          "body": "La page Succès suit les séries de saisie quotidienne, les paliers de tension et les badges de constance. Un petit coup de pouce pour rester régulier."
+          "title": "Réussites",
+          "body": "Les réussites récompensent la régularité — séries et jalons. Une petite boucle de motivation qui aide à tenir bon."
+        },
+        "wrapUp": {
+          "title": "C’est la fin de la visite",
+          "body": "Vous pouvez revoir chaque module séparément à tout moment (« Afficher cette visite » sur chaque page) ou relancer la visite complète dans Réglages → Avancé."
         }
-      }
+      },
+      "moduleTrigger": "Afficher cette visite"
     },
     "shell": {
       "back": "Retour",
@@ -4469,9 +4510,7 @@
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources et documentation",
-      "newerAvailable": "Nouvelle version : {tag}",
-      "tourReplay": "Revoir la visite",
-      "tourReplayHint": "Voir la visite guidée du tableau de bord — pratique si tu l'as sautée à la première visite."
+      "newerAvailable": "Nouvelle version : {tag}"
     },
     "testConnection": {
       "test": "Tester la connexion",

@@ -16,6 +16,7 @@ import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/context";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 export default function MeasurementsPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -110,7 +111,10 @@ export default function MeasurementsPage() {
       <PullToRefreshIndicator {...pull} />
       <div className="flex items-center justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1
+            data-tour-id="measurements-hero"
+            className="text-2xl font-bold tracking-tight"
+          >
             {t("measurements.title")}
           </h1>
           {/* v1.4.34 IW-G — subtitle now stays visible on mobile so
@@ -120,13 +124,16 @@ export default function MeasurementsPage() {
             {t("measurements.subtitle")}
           </p>
         </div>
-        <Button
-          className="min-h-11 shrink-0 sm:min-h-9"
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          {t("measurements.addMeasurement")}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <ModuleTourTrigger stopId="measurements" />
+          <Button
+            className="min-h-11 sm:min-h-9"
+            onClick={() => setDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            {t("measurements.addMeasurement")}
+          </Button>
+        </div>
       </div>
 
       <ResponsiveSheet

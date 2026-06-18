@@ -6,6 +6,7 @@ import { Minimize2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CoachConversation } from "@/components/insights/coach-panel/coach-conversation";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { useTranslations } from "@/lib/i18n/context";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
@@ -61,6 +62,7 @@ export default function CoachPage() {
   return (
     <div
       data-slot="coach-page"
+      data-tour-id="coach-hero"
       // v1.18.1 (W-COACH-UI C1/C3) — the card was capped at
       // `100dvh-13rem`, leaving a band of wasted space below it on a
       // standalone route that no longer carries the Insights tab strip.
@@ -77,18 +79,21 @@ export default function CoachPage() {
           <h1 className="min-w-0 truncate text-sm font-semibold">{title}</h1>
         )}
         leadingHeaderActions={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={handleMinimize}
-            data-slot="coach-page-minimize"
-            aria-label={t("insights.coach.minimizeAriaLabel")}
-            title={t("insights.coach.minimizeAriaLabel")}
-            className="text-muted-foreground hover:text-foreground size-11 shrink-0"
-          >
-            <Minimize2 className="size-4" aria-hidden="true" />
-          </Button>
+          <>
+            <ModuleTourTrigger stopId="coach" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleMinimize}
+              data-slot="coach-page-minimize"
+              aria-label={t("insights.coach.minimizeAriaLabel")}
+              title={t("insights.coach.minimizeAriaLabel")}
+              className="text-muted-foreground hover:text-foreground size-11 shrink-0"
+            >
+              <Minimize2 className="size-4" aria-hidden="true" />
+            </Button>
+          </>
         }
       />
     </div>

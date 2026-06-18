@@ -3533,31 +3533,72 @@
       "back": "Indietro",
       "skip": "Salta tour",
       "done": "Ho capito",
-      "restart": "Riavvia tour",
-      "restartHint": "Mostra di nuovo il tour della dashboard alla prossima apertura.",
-      "restartConfirmation": "Il tour ripartirà alla tua prossima visita alla dashboard.",
+      "restart": "Riavvia la visita ai moduli",
+      "restartHint": "Riproduce la visita guidata ai moduli dall’inizio al tuo prossimo accesso alla dashboard.",
+      "restartConfirmation": "La visita ai moduli ripartirà dall’inizio al tuo prossimo accesso alla dashboard.",
       "steps": {
-        "tileStrip": {
-          "title": "I tuoi valori di oggi",
-          "body": "La striscia di tile mostra l’ultimo valore e il trend a 7 giorni di ogni metrica — peso, pressione, pulsazioni, umore. Nascondi ciò che non ti serve in Impostazioni → Dashboard."
+        "dashboardOverview": {
+          "title": "La tua dashboard",
+          "body": "La dashboard riunisce tutti i moduli a colpo d’occhio. Tieni premuta una scheda per riordinarla o nasconderla (Impostazioni → Layout dashboard). Una scheda vale quanto i dati che ha dietro: i moduli successivi li riempiono."
         },
         "quickAdd": {
-          "title": "Registrato in due tap",
-          "body": "Con il pulsante Aggiungi registri misurazioni o voci di umore senza lasciare la dashboard. Il modulo ricorda il contesto e i tag più recenti."
+          "title": "Registrato in pochi secondi",
+          "body": "Con « + Aggiungi » registri qualsiasi misurazione in pochi secondi — peso, pressione, polso, glicemia. Forza nascosta: retrodatare i valori dimenticati. Tutto ciò che inserisci qui alimenta tendenze, punteggio salute e analisi IA."
+        },
+        "measurements": {
+          "title": "Misurazioni e intervalli obiettivo",
+          "body": "Misurazioni mostra lo storico e l’intervallo obiettivo per ogni metrica. Chicca nascosta: definire un intervallo per valore così gli scostamenti risaltano a colori. Queste serie sono la base delle correlazioni del Coach e del referto medico."
+        },
+        "medications": {
+          "title": "Farmaci e assunzioni",
+          "body": "Farmaci gestisce orari, assunzioni, scorte e titolazione. Nascosto: piani ricorrenti (RRULE/scorrevoli) e avvisi di scorte basse. La tua aderenza alimenta il pilastro di compliance nella dashboard e il contesto dell’IA."
+        },
+        "labs": {
+          "title": "Valori di laboratorio",
+          "body": "Laboratorio raccoglie i biomarcatori con intervalli di riferimento — emocromo, colesterolo, HbA1c. Forza: importazione ed esportazione FHIR. I valori fuori intervallo riemergono come prove nelle analisi e nel referto medico."
+        },
+        "illness": {
+          "title": "Diario delle malattie",
+          "body": "Il diario delle malattie registra episodi acuti e diagnosi croniche con le loro riacutizzazioni. Nascosto: correlare un episodio alle tue misurazioni e la Modalità riposo che mette in pausa i promemoria. Così il Coach capisce perché i valori variano per un periodo."
+        },
+        "vorsorge": {
+          "title": "Prevenzione",
+          "body": "Prevenzione ti ricorda controlli e vaccinazioni con un proprio intervallo. Suggerimento: «Fatto» può creare direttamente una misurazione o un risultato di laboratorio. Le scadenze compaiono come promemoria e nel referto medico."
+        },
+        "cycle": {
+          "title": "Ciclo",
+          "body": "Il monitoraggio del ciclo registra fasi e sintomi. Nascosto: confrontare i sintomi con umore e sonno. Il ciclo dà contesto alle variazioni che altrimenti sembrerebbero inspiegabili."
+        },
+        "mood": {
+          "title": "Umore",
+          "body": "Umore cattura come ti senti e dei tag in due secondi. Forza: i tuoi tag personalizzati. Gli andamenti dell’umore si correlano con sonno, farmaci e ciclo — il Coach coglie gli schemi."
         },
         "insights": {
-          "title": "Insights automatici",
-          "body": "Insights trasforma i tuoi valori in un riepilogo chiaro della salute, con inquadramento di pressione, peso e umore. Chiave personale o predefinita — scegli tu."
+          "title": "Analisi",
+          "body": "Analisi è il cuore: analisi dinamica e basata su prove invece di consigli generici — ogni affermazione punta ai tuoi dati reali. Nascosto: il layout è personalizzabile. Analisi raccoglie tutto ciò che forniscono i moduli sopra."
+        },
+        "coach": {
+          "title": "Coach",
+          "body": "Il Coach risponde alle domande sui tuoi dati in dialogo, usando anamnesi, farmaci e valori di laboratorio come contesto. Scegli tu il fornitore IA (chiave tua o locale). Non ricalcola nulla: legge gli stessi numeri della dashboard."
         },
         "integrations": {
-          "title": "Collegare dispositivi",
-          "body": "Dalle impostazioni colleghi Withings (sincronizzazione automatica di peso, pressione e pulsazioni), moodLog o il tuo provider di analisi. Tutto resta opzionale e cifrato."
+          "title": "Integrazioni",
+          "body": "Le integrazioni sincronizzano Withings, WHOOP, Polar, Oura e Apple Salute automaticamente. Peso, sonno e recupero si riempiono senza digitare e a loro volta alimentano analisi e Coach."
+        },
+        "export": {
+          "title": "Referto medico",
+          "body": "Il referto medico raccoglie misurazioni, farmaci, valori di laboratorio e prevenzione in PDF o FHIR per la visita. Qui convergono tutti i moduli: un referto completo nasce solo da dati ben curati."
         },
         "achievements": {
-          "title": "Accumula serie e badge",
-          "body": "La pagina Traguardi tiene traccia delle serie di registrazioni giornaliere, dei traguardi di pressione e dei badge di costanza. Un piccolo incentivo per non mollare."
+          "title": "Traguardi",
+          "body": "I traguardi premiano la costanza — serie e tappe. Un piccolo ciclo di motivazione che rende più facile non mollare."
+        },
+        "wrapUp": {
+          "title": "Questa è la visita guidata",
+          "body": "Puoi rivedere ogni modulo singolarmente in qualsiasi momento («Mostra questa visita» su ogni pagina) o riavviare l’intera visita da Impostazioni → Avanzate."
         }
-      }
+      },
+      "moduleTrigger": "Mostra questa visita"
     },
     "shell": {
       "back": "Indietro",
@@ -4469,9 +4510,7 @@
       "changelog": "Changelog",
       "docs": "Documentazione",
       "linksHeading": "Fonti e documentazione",
-      "newerAvailable": "Nuova versione: {tag}",
-      "tourReplay": "Rivedi il tour",
-      "tourReplayHint": "Guarda il tour della dashboard — utile se l'hai saltato alla prima visita."
+      "newerAvailable": "Nuova versione: {tag}"
     },
     "testConnection": {
       "test": "Prova connessione",

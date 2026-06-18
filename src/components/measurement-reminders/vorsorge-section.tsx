@@ -32,6 +32,7 @@ import { useState } from "react";
 import { CalendarClock, CheckCircle2, Plus, Settings2 } from "lucide-react";
 
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import {
   AlertDialog,
@@ -370,6 +371,7 @@ export function VorsorgeSection({
           <div className="min-w-0">
             <h1
               id="vorsorge-section-title"
+              data-tour-id="vorsorge-hero"
               className="text-2xl font-bold tracking-tight"
             >
               {t("measurementReminders.sectionTitle")}
@@ -379,6 +381,7 @@ export function VorsorgeSection({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <ModuleTourTrigger stopId="vorsorge" />
             {addButton}
             {wrenchButton}
           </div>

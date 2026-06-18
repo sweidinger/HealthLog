@@ -3533,31 +3533,72 @@
       "back": "Wstecz",
       "skip": "Pomiń tour",
       "done": "Rozumiem",
-      "restart": "Uruchom tour ponownie",
-      "restartHint": "Pokaż tour panelu przy następnym wejściu.",
-      "restartConfirmation": "Tour ruszy ponownie przy twojej następnej wizycie w panelu.",
+      "restart": "Uruchom przewodnik modułów ponownie",
+      "restartHint": "Odtwarza przewodnik po modułach od początku przy następnej wizycie na pulpicie.",
+      "restartConfirmation": "Przewodnik po modułach uruchomi się od początku przy następnej wizycie na pulpicie.",
       "steps": {
-        "tileStrip": {
-          "title": "Twoje wartości dzienne",
-          "body": "Pasek kafelków pokazuje ostatnią wartość i 7-dniowy trend dla każdej metryki — waga, ciśnienie, tętno, nastrój. Niepotrzebne wyłączysz w Ustawienia → Panel."
+        "dashboardOverview": {
+          "title": "Twój pulpit",
+          "body": "Pulpit zbiera wszystkie moduły na jednym ekranie. Przytrzymaj kafelek, aby go przestawić lub ukryć (Ustawienia → Układ pulpitu). Kafelek jest wart tyle, ile dane za nim — kolejne moduły je wypełniają."
         },
         "quickAdd": {
-          "title": "Zarejestrowane w dwóch stuknięciach",
-          "body": "Przyciskiem Dodaj zapisujesz pomiary lub nastroje bez opuszczania panelu. Formularz zapamiętuje ostatni kontekst i tagi."
+          "title": "Zapisane w kilka sekund",
+          "body": "Przez „+ Dodaj” zapiszesz każdy pomiar w sekundy — wagę, ciśnienie, tętno, glukozę. Ukryta moc: datowanie wstecz zapomnianych wartości. Wszystko, co tu wpiszesz, zasila trendy, wynik zdrowia i analizy AI."
+        },
+        "measurements": {
+          "title": "Pomiary i zakresy docelowe",
+          "body": "Pomiary pokazują historię i zakres docelowy każdej metryki. Ukryta perełka: ustaw zakres na wartość, aby odchylenia rzucały się w oczy kolorem. Te serie są podstawą korelacji Coacha i raportu dla lekarza."
+        },
+        "medications": {
+          "title": "Leki i przyjęcia",
+          "body": "Leki zarządzają harmonogramami, przyjęciami, zapasem i titracją. Ukryte: plany cykliczne (RRULE/przesuwne) i ostrzeżenia o niskim zapasie. Twój wskaźnik przyjęć zasila filar stosowania na pulpicie oraz kontekst AI."
+        },
+        "labs": {
+          "title": "Wyniki laboratoryjne",
+          "body": "Laboratorium gromadzi biomarkery z zakresami referencyjnymi — morfologia, cholesterol, HbA1c. Atut: import i eksport FHIR. Wartości poza zakresem wracają jako dowody w analizach i w raporcie dla lekarza."
+        },
+        "illness": {
+          "title": "Dziennik chorób",
+          "body": "Dziennik chorób zapisuje ostre epizody i przewlekłe diagnozy wraz z zaostrzeniami. Ukryte: korelacja epizodu z pomiarami oraz Tryb odpoczynku wstrzymujący przypomnienia. Dzięki temu Coach rozumie, czemu wartości przez chwilę odbiegają."
+        },
+        "vorsorge": {
+          "title": "Profilaktyka",
+          "body": "Profilaktyka przypomina o badaniach i szczepieniach z własnym interwałem. Wskazówka: „Wykonane” może od razu utworzyć pomiar lub wynik laboratoryjny. Terminy pojawiają się jako przypomnienia i w raporcie dla lekarza."
+        },
+        "cycle": {
+          "title": "Cykl",
+          "body": "Śledzenie cyklu zapisuje fazy i objawy. Ukryte: zestawienie objawów z nastrojem i snem. Cykl daje kontekst wahaniom, które inaczej wyglądałyby na niewyjaśnione."
+        },
+        "mood": {
+          "title": "Nastrój",
+          "body": "Nastrój zapisuje samopoczucie i tagi w dwie sekundy. Atut: własne tagi. Trendy nastroju korelują ze snem, lekami i cyklem — Coach dostrzega wzorce."
         },
         "insights": {
-          "title": "Automatyczne insights",
-          "body": "Insights zamienia twoje wartości w przejrzysty przegląd zdrowia, z oceną ciśnienia, wagi i nastroju. Własny klucz lub domyślny — ty decydujesz."
+          "title": "Analizy",
+          "body": "Analizy to serce aplikacji: dynamiczna analiza oparta na dowodach zamiast ogólnych porad — każde stwierdzenie wskazuje na Twoje realne dane. Ukryte: układ można dostosować. Analizy łączą wszystko, co dostarczają moduły powyżej."
+        },
+        "coach": {
+          "title": "Coach",
+          "body": "Coach odpowiada na pytania o Twoje dane w dialogu, korzystając z wywiadu, leków i wyników jako kontekstu. Dostawcę AI wybierasz sam (własny klucz lub lokalnie). Niczego nie przelicza — czyta te same liczby co pulpit."
         },
         "integrations": {
-          "title": "Połącz urządzenia",
-          "body": "W ustawieniach łączysz Withings (auto-sync wagi, ciśnienia i tętna), moodLog lub dostawcę analizy. Wszystko zostaje opcjonalne i zaszyfrowane."
+          "title": "Integracje",
+          "body": "Integracje synchronizują Withings, WHOOP, Polar, Oura i Apple Health automatycznie. Waga, sen i regeneracja uzupełniają się bez wpisywania, a z kolei zasilają analizy i Coacha."
+        },
+        "export": {
+          "title": "Raport dla lekarza",
+          "body": "Raport dla lekarza łączy pomiary, leki, wyniki laboratoryjne i profilaktykę w PDF lub FHIR na wizytę. Tu zbiegają się wszystkie moduły — pełny raport powstaje tylko z zadbanych danych."
         },
         "achievements": {
-          "title": "Zbieraj serie i odznaki",
-          "body": "Strona Osiągnięć śledzi codzienne serie zapisów, kamienie milowe ciśnienia i odznaki konsekwencji. Drobna motywacja do trzymania się planu."
+          "title": "Osiągnięcia",
+          "body": "Osiągnięcia nagradzają konsekwencję — passy i kamienie milowe. Mała pętla motywacji, dzięki której łatwiej wytrwać."
+        },
+        "wrapUp": {
+          "title": "To koniec przewodnika",
+          "body": "Każdy moduł możesz obejrzeć osobno w dowolnej chwili („Pokaż ten przewodnik” na każdej stronie) lub uruchomić cały przewodnik ponownie w Ustawienia → Zaawansowane."
         }
-      }
+      },
+      "moduleTrigger": "Pokaż ten przewodnik"
     },
     "shell": {
       "back": "Wstecz",
@@ -4469,9 +4510,7 @@
       "changelog": "Changelog",
       "docs": "Dokumentacja",
       "linksHeading": "Źródła i dokumentacja",
-      "newerAvailable": "Nowa wersja: {tag}",
-      "tourReplay": "Obejrzyj samouczek",
-      "tourReplayHint": "Zobacz przewodnik po panelu — przydatne, jeśli pominąłeś go przy pierwszej wizycie."
+      "newerAvailable": "Nowa wersja: {tag}"
     },
     "testConnection": {
       "test": "Testuj połączenie",

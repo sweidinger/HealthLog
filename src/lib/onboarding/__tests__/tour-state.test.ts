@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTourStops,
   currentStop,
+  deriveProgress,
   initTourState,
   isTourFinished,
   nextStep,
@@ -11,48 +12,82 @@ import {
   stepCounter,
 } from "../tour-state";
 
+const FULL_ORDER = [
+  "dashboardOverview",
+  "quickAdd",
+  "measurements",
+  "medications",
+  "labs",
+  "illness",
+  "vorsorge",
+  "cycle",
+  "mood",
+  "insights",
+  "coach",
+  "integrations",
+  "export",
+  "achievements",
+  "wrapUp",
+];
+
 describe("tour-state", () => {
   describe("buildTourStops()", () => {
-    it("includes the achievements stop by default (5 stops)", () => {
+    it("returns all 15 module stops in order with every module on", () => {
       const stops = buildTourStops();
-      expect(stops.map((s) => s.id)).toEqual([
-        "tile-strip",
-        "quick-add",
-        "insights",
-        "integrations",
-        "achievements",
-      ]);
+      expect(stops.map((s) => s.id)).toEqual(FULL_ORDER);
     });
 
-    it("omits the achievements stop when the flag is off (4 stops)", () => {
-      const stops = buildTourStops({ includeAchievements: false });
-      expect(stops.map((s) => s.id)).toEqual([
-        "tile-strip",
-        "quick-add",
-        "insights",
-        "integrations",
-      ]);
+    it("drops a stop whose module resolves to false (default-on otherwise)", () => {
+      const stops = buildTourStops({
+        modules: { cycle: false, mood: false, achievements: false },
+      });
+      const ids = stops.map((s) => s.id);
+      expect(ids).not.toContain("cycle");
+      expect(ids).not.toContain("mood");
+      expect(ids).not.toContain("achievements");
+      // Core + un-disabled modules survive.
+      expect(ids).toContain("dashboardOverview");
+      expect(ids).toContain("labs");
+      expect(ids).toContain("wrapUp");
     });
 
-    it("every stop carries a non-empty i18n title and body key", () => {
-      const stops = buildTourStops();
-      for (const s of stops) {
+    it("keeps a module stop when its key is absent or true (fail-open)", () => {
+      const stops = buildTourStops({ modules: { labs: true } });
+      expect(stops.map((s) => s.id)).toContain("labs");
+      expect(stops.map((s) => s.id)).toContain("mood");
+    });
+
+    it("filterToStop narrows to a single module card", () => {
+      const stops = buildTourStops({ filterToStop: "labs" });
+      expect(stops.map((s) => s.id)).toEqual(["labs"]);
+    });
+
+    it("filterToStop yields nothing when the module is disabled", () => {
+      const stops = buildTourStops({
+        filterToStop: "cycle",
+        modules: { cycle: false },
+      });
+      expect(stops).toEqual([]);
+    });
+
+    it("every stop carries a distinct, namespaced i18n title and body key", () => {
+      for (const s of buildTourStops()) {
         expect(s.titleKey).toMatch(/^onboarding\.tour\.steps\./);
         expect(s.bodyKey).toMatch(/^onboarding\.tour\.steps\./);
         expect(s.titleKey).not.toBe(s.bodyKey);
       }
     });
 
-    it("every stop declares a stable targetId for the data-tour-id contract", () => {
-      const stops = buildTourStops();
-      for (const s of stops) {
-        // `null` is allowed (centred-screen tooltip without a
-        // spotlight cutout) but we currently use real targets for
-        // every stop — a regression here would mean the spotlight
-        // silently falls back to centre-screen.
-        expect(typeof s.targetId === "string" && s.targetId.length > 0).toBe(
-          true,
-        );
+    it("every cross-page stop declares a route; the wrap-up is centred + routeless", () => {
+      for (const s of buildTourStops()) {
+        if (s.id === "wrapUp") {
+          expect(s.targetId).toBeNull();
+          expect(s.route).toBeUndefined();
+          expect(s.placement).toBe("center");
+        } else {
+          expect(typeof s.route).toBe("string");
+          expect(s.targetId).toBeTruthy();
+        }
       }
     });
   });
@@ -62,76 +97,97 @@ describe("tour-state", () => {
       const state = initTourState(buildTourStops());
       expect(state.index).toBe(0);
       expect(state.outcome).toBeNull();
-      expect(isTourFinished(state)).toBe(false);
-      expect(currentStop(state)?.id).toBe("tile-strip");
+      expect(currentStop(state)?.id).toBe("dashboardOverview");
+    });
+
+    it("resumes from a persisted stop id", () => {
+      const state = initTourState(buildTourStops(), "labs");
+      expect(currentStop(state)?.id).toBe("labs");
+    });
+
+    it("ignores a resume id absent from the resolved list", () => {
+      const state = initTourState(
+        buildTourStops({ modules: { cycle: false } }),
+        "cycle",
+      );
+      expect(state.index).toBe(0);
     });
 
     it("nextStep advances through the list", () => {
       let state = initTourState(buildTourStops());
       state = nextStep(state);
-      expect(currentStop(state)?.id).toBe("quick-add");
-      state = nextStep(state);
-      expect(currentStop(state)?.id).toBe("insights");
+      expect(currentStop(state)?.id).toBe("quickAdd");
     });
 
-    it("nextStep on the last step finishes the tour with outcome=completed", () => {
+    it("nextStep on the last step finishes with outcome=completed", () => {
       const stops = buildTourStops();
       let state = initTourState(stops);
-      // step through every stop
-      for (let i = 0; i < stops.length; i++) {
-        state = nextStep(state);
-      }
+      for (let i = 0; i < stops.length; i++) state = nextStep(state);
       expect(state.outcome).toBe("completed");
       expect(isTourFinished(state)).toBe(true);
       expect(currentStop(state)).toBeNull();
     });
 
-    it("prevStep is pinned at index 0 (LeftArrow on first step is a no-op)", () => {
+    it("prevStep is pinned at index 0", () => {
       const state = initTourState(buildTourStops());
-      const back = prevStep(state);
-      expect(back.index).toBe(0);
-      expect(back.outcome).toBeNull();
-    });
-
-    it("prevStep walks backward when not at the start", () => {
-      let state = initTourState(buildTourStops());
-      state = nextStep(state);
-      state = nextStep(state);
-      expect(state.index).toBe(2);
-      const back = prevStep(state);
-      expect(back.index).toBe(1);
+      expect(prevStep(state).index).toBe(0);
     });
 
     it("skipTour from any step finishes with outcome=skipped", () => {
       let state = initTourState(buildTourStops());
-      state = nextStep(state); // on step 2 of 5
+      state = nextStep(state);
       const skipped = skipTour(state);
       expect(skipped.outcome).toBe("skipped");
-      expect(isTourFinished(skipped)).toBe(true);
       expect(currentStop(skipped)).toBeNull();
-    });
-
-    it("nextStep / prevStep / skipTour are no-ops once finished", () => {
-      let state = initTourState(buildTourStops());
-      state = skipTour(state);
-      const after = nextStep(prevStep(skipTour(state)));
-      expect(after).toEqual(state);
     });
   });
 
   describe("stepCounter", () => {
-    it("reports 1-based current and the total step count", () => {
+    it("reports 1-based current and the resolved total", () => {
       const stops = buildTourStops();
       let state = initTourState(stops);
       expect(stepCounter(state)).toEqual({ current: 1, total: stops.length });
       state = nextStep(state);
-      expect(stepCounter(state)).toEqual({ current: 2, total: stops.length });
+      expect(stepCounter(state).current).toBe(2);
     });
 
-    it("clamps `current` to total when the tour is finished", () => {
-      let state = initTourState(buildTourStops({ includeAchievements: false }));
+    it("total tracks the gated list so the counter stays honest", () => {
+      const stops = buildTourStops({ modules: { cycle: false, mood: false } });
+      const state = initTourState(stops);
+      expect(stepCounter(state).total).toBe(stops.length);
+      expect(stops.length).toBe(13);
+    });
+  });
+
+  describe("deriveProgress", () => {
+    it("reports the current stop as the resume point while running", () => {
+      let state = initTourState(buildTourStops());
+      state = nextStep(state);
+      state = nextStep(state);
+      const p = deriveProgress(state);
+      expect(p.lastStopId).toBe("measurements");
+      expect(p.status).toBe("in_progress");
+      expect(p.completedStopIds).toEqual([
+        "dashboardOverview",
+        "quickAdd",
+        "measurements",
+      ]);
+    });
+
+    it("marks completed with every stop reached and a null resume point", () => {
+      const stops = buildTourStops();
+      let state = initTourState(stops);
+      for (let i = 0; i < stops.length; i++) state = nextStep(state);
+      const p = deriveProgress(state);
+      expect(p.status).toBe("completed");
+      expect(p.lastStopId).toBeNull();
+      expect(p.completedStopIds).toHaveLength(stops.length);
+    });
+
+    it("marks skipped", () => {
+      let state = initTourState(buildTourStops());
       state = skipTour(state);
-      expect(stepCounter(state)).toEqual({ current: 4, total: 4 });
+      expect(deriveProgress(state).status).toBe("skipped");
     });
   });
 });

@@ -119,12 +119,13 @@ describe("settings sections — SSR smoke", () => {
     expect(html).not.toContain("settings.sections.");
   });
 
-  it("<AdvancedSection> exposes the Restart-tour button (moved from Account)", () => {
-    // v1.18.1 (D1) — the "Restart onboarding tour" card moved from Settings →
-    // Account into Settings → Advanced (a maintenance/reset action).
+  it("<AdvancedSection> exposes the single Restart-tour card", () => {
+    // v1.18.1 (D1) — the tour-replay card moved from Account into Advanced.
+    // v1.18.6 — relabelled "Restart module tour" and consolidated as the one
+    // full-tour replay home (the About duplicate was removed).
     const html = render(<AdvancedSection />);
     expect(html).toContain('data-testid="settings-restart-tour"');
-    expect(html).toContain("Restart onboarding tour");
+    expect(html).toContain("Restart module tour");
     // No raw i18n key leaks.
     expect(html).not.toContain("onboarding.tour.");
   });
@@ -148,27 +149,13 @@ describe("settings sections — SSR smoke", () => {
     expect(html).not.toContain("settings.about.");
   });
 
-  it("<AboutSection> exposes a Replay-tour button for the W5 chain gate", () => {
+  it("<AboutSection> no longer carries a tour-replay card (consolidated to Advanced)", () => {
+    // v1.18.6 — the tour replay lives on one home in Settings → Advanced;
+    // the About duplicate was removed. Per-module "Diese Tour zeigen"
+    // affordances cover in-context re-entry.
     const html = render(<AboutSection />);
-    // v1.4.47 W5 — the spotlight tour now auto-launches only ≥ 24 h
-    // after the wizard finishes (see `shouldAutoLaunchTour` in
-    // `components/onboarding/tour-launcher.tsx`). A first-day user who
-    // *does* want the tour needs a discoverable manual trigger, and
-    // Settings → About is the surface every user can find. Pin both
-    // the data-testid and the visible copy so a future refactor can't
-    // silently drop the button.
-    expect(html).toContain('data-testid="about-replay-tour"');
-    expect(html).toContain("Replay the tour");
-    // No raw i18n key leaks past the i18n layer.
-    expect(html).not.toContain("settings.about.tourReplay");
-  });
-
-  it("<AboutSection> renders the German Replay-tour label end-to-end", () => {
-    // project-voice + i18n parity: the W5 spec explicitly names this
-    // surface "Tour ansehen" in German. Lock the resolved copy so a
-    // future locale-bundle drift doesn't silently fall back to English.
-    const html = render(<AboutSection />, "de");
-    expect(html).toContain("Tour ansehen");
+    expect(html).not.toContain('data-testid="about-replay-tour"');
+    expect(html).not.toContain("Replay the tour");
   });
 
   it("<AiSection> renders the AI Insights heading", () => {

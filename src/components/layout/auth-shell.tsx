@@ -7,6 +7,7 @@ import { AchievementUnlockNotifier } from "@/components/gamification/achievement
 import { MaintainershipBanner } from "@/components/i18n/maintainership-banner";
 import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
 import { LayoutCoachMount } from "@/components/insights/layout-coach-mount";
+import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { useAuth } from "@/hooks/use-auth";
 import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
 import { useTranslations } from "@/lib/i18n/context";
@@ -280,6 +281,13 @@ export function AuthShell({
         <BottomNav />
       </div>
       <LayoutCoachMount />
+      {/* v1.18.6 — the module-tour launcher lives at the shell level so its
+          overlay survives the cross-page `router.push`es the tour makes. It
+          self-gates: it only auto-opens on the dashboard for a user who has
+          not finished/dismissed the tour, and otherwise renders null. Stays
+          out of demo mode (the tour PATCHes `/api/onboarding/tour`, which the
+          proxy blocks for demo visitors). */}
+      {!demoMode && <TourLauncher />}
       {/* v1.16.13 — the Coach FAB stays hidden in demo mode. Its send hits
           `/api/insights/chat`, which is not in the proxy's
           `DEMO_MUTATION_ALLOWLIST`, so a demo visitor who tapped it and sent

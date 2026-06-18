@@ -36,6 +36,7 @@
  * `skipped` to the API + audit log).
  */
 
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -43,26 +44,46 @@ import { useTranslations } from "@/lib/i18n/context";
 import {
   buildTourStops,
   currentStop,
+  deriveProgress,
   initTourState,
   isTourFinished,
   nextStep,
   prevStep,
   skipTour,
   stepCounter,
+  type TourModuleMap,
+  type TourState,
   type TourStop,
+  type TourStopId,
 } from "@/lib/onboarding/tour-state";
 
 interface TourProps {
   /**
-   * Whether the achievements page exists and should be a tour stop.
-   * The launcher passes `false` if B4 hasn't shipped to skip the
-   * stop without renumbering.
+   * Resolved module map (`GET /api/auth/me`'s `modules`). Stops whose
+   * `requiresModule` resolves to `false` are dropped; the counter total
+   * tracks the resolved list so "Schritt n/total" stays honest.
    */
-  includeAchievements?: boolean;
+  modules?: TourModuleMap;
   /**
-   * Called when the tour finishes (Done OR Skip OR Esc OR Backdrop
-   * click). Receives the terminal outcome so the launcher can audit
-   * the difference.
+   * v1.18.6 — open at this stop id (the persisted resume point). When
+   * the id is absent from the resolved list the tour starts at the top.
+   */
+  resumeFromStopId?: string | null;
+  /**
+   * v1.18.6 — narrow the tour to a single module card (the per-page
+   * "Diese Tour zeigen" re-entry). When set, the overlay shows just
+   * that stop with a Done button and no cross-page navigation.
+   */
+  filterToStop?: TourStopId;
+  /**
+   * v1.18.6 — fire-and-forget progress checkpoint on every step change
+   * + terminal. The launcher PATCHes it so a reload resumes correctly.
+   * Not called for the single-stop re-entry (`filterToStop`).
+   */
+  onProgress?: (progress: ReturnType<typeof deriveProgress>) => void;
+  /**
+   * Called when the tour finishes (Done OR Skip OR Esc). Receives the
+   * terminal outcome so the launcher can audit the difference.
    */
   onClose: (outcome: "completed" | "skipped") => void;
 }
@@ -216,56 +237,125 @@ const COLLISION_PAD = 8;
 const SHEET_BREAKPOINT = 480;
 
 export function OnboardingTour({
-  includeAchievements = true,
+  modules,
+  resumeFromStopId,
+  filterToStop,
+  onProgress,
   onClose,
 }: TourProps) {
   const { t } = useTranslations();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const stops = useMemo(
-    () => buildTourStops({ includeAchievements }),
-    [includeAchievements],
+    () => buildTourStops({ modules, filterToStop }),
+    [modules, filterToStop],
   );
-  const [state, setState] = useState(() => initTourState(stops));
+  // Single-stop re-entry never resumes from a checkpoint — it opens on
+  // the one card the page asked for.
+  const [state, setState] = useState<TourState>(() =>
+    initTourState(stops, filterToStop ? null : resumeFromStopId),
+  );
   const [rect, setRect] = useState<SpotlightRect | null>(null);
 
   const stop = currentStop(state);
 
-  // Re-measure on step change, viewport resize, and scroll. We intentionally
-  // *don't* MutationObserver the whole document — the targets are stable in
-  // the layout and re-measuring on rAF after scroll/resize is plenty.
+  // v1.18.6 — cross-page step change. A stop on another route triggers a
+  // `router.push` first; the overlay survives the navigation because it is
+  // mounted at the app-shell level (not inside the dashboard). After the
+  // route settles we must wait for the new page's anchor to MOUNT before
+  // measuring — anchoring against a not-yet-rendered (0×0) target would snap
+  // the spotlight to centre-screen. We poll on rAF with a bounded retry, then
+  // give up to the centred fallback so the tour never blocks indefinitely.
+  //
+  // We intentionally *don't* MutationObserver the whole document — the
+  // targets are stable once mounted; bounded rAF polling on step change plus
+  // re-measuring on scroll/resize is plenty.
   useEffect(() => {
     if (!stop) return;
+    if (typeof document === "undefined") return;
+
     let raf = 0;
+    let cancelled = false;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
+    // Navigate to the stop's route if we're not already there. Same-route
+    // stops (the two dashboard stops while on `/`, or the wrap-up which has
+    // no route) skip the push. `filterToStop` re-entry never navigates — it
+    // runs on the page the user is already viewing.
+    if (!filterToStop && stop.route && stop.route !== pathname) {
+      router.push(stop.route);
+    }
+
+    const measureNow = () => {
+      if (cancelled) return;
+      setRect(measureTarget(stop.targetId));
+    };
     const measure = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        setRect(measureTarget(stop.targetId));
-      });
+      raf = requestAnimationFrame(measureNow);
     };
-    // Bring the target into view BEFORE the first measurement of this
-    // step — anchors low on the page (e.g. the Settings nav item) can
-    // sit entirely below the fold, and positioning against an
-    // off-screen rect put the popover under the viewport bottom where
-    // its Next button was unreachable. `block: "center"` keeps room on
-    // both sides for the flipped placement; the rAF in `measure()`
-    // runs after the instant scroll so we measure post-scroll
-    // coordinates. Optional-chained: jsdom and older engines lack it.
-    if (stop.targetId && typeof document !== "undefined") {
-      document
-        .querySelector<HTMLElement>(
-          `[data-tour-id="${CSS.escape(stop.targetId)}"]`,
-        )
-        ?.scrollIntoView?.({ block: "center", inline: "nearest" });
-    }
-    measure();
+
+    // Wait for the anchor to mount (after navigation it isn't in the DOM on
+    // the first frame). Bounded poll: ~40 frames (~650 ms) before falling
+    // back to the centred tooltip via `measureTarget` returning null.
+    let attempts = 0;
+    const MAX_ATTEMPTS = 40;
+    const settleAndMeasure = () => {
+      if (cancelled) return;
+      const el = stop.targetId
+        ? document.querySelector<HTMLElement>(
+            `[data-tour-id="${CSS.escape(stop.targetId)}"]`,
+          )
+        : null;
+      if (el) {
+        // Bring the anchor into view BEFORE measuring — anchors below the
+        // fold positioned the popover under the viewport bottom otherwise.
+        // Reduced-motion users get an instant jump, not a smooth scroll.
+        el.scrollIntoView?.({
+          block: "center",
+          inline: "nearest",
+          behavior: reduceMotion ? "auto" : "smooth",
+        });
+        measure();
+        return;
+      }
+      // Centred / route-less stop (wrap-up): measure immediately.
+      if (!stop.targetId) {
+        measureNow();
+        return;
+      }
+      attempts += 1;
+      if (attempts < MAX_ATTEMPTS) {
+        raf = requestAnimationFrame(settleAndMeasure);
+      } else {
+        // Anchor never mounted — centre the tooltip rather than block.
+        measureNow();
+      }
+    };
+    settleAndMeasure();
+
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [stop]);
+    // `pathname` is intentionally a dep: after the route settles the effect
+    // re-runs and the anchor poll finds the now-mounted target.
+  }, [stop, filterToStop, router, pathname]);
+
+  // v1.18.6 — fire-and-forget progress checkpoint on every step / terminal
+  // transition so a mid-tour reload resumes at the right module. Skipped for
+  // the single-stop re-entry (it isn't "the tour", just one card).
+  useEffect(() => {
+    if (filterToStop || !onProgress) return;
+    onProgress(deriveProgress(state));
+  }, [state, filterToStop, onProgress]);
 
   // Focus management — moves focus to the primary action when the
   // step changes so keyboard users can hit Enter to advance. The

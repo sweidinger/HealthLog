@@ -10,7 +10,14 @@ import { useTranslations } from "@/lib/i18n/context";
 import type { TimeFormatPreference } from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
 import type { ModuleKey } from "@/lib/modules/registry";
+import type { TourProgress } from "@/lib/onboarding/tour-progress";
 import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
+
+/**
+ * v1.18.6 — resume point for the module tour as the client sees it on
+ * `/api/auth/me`. Mirrors the server-side `TourProgress` shape.
+ */
+export type AuthTourProgress = TourProgress;
 
 export interface AuthUser {
   id: string;
@@ -29,6 +36,13 @@ export interface AuthUser {
    * `<TourLauncher>` component for the gating logic.
    */
   onboardingTourCompleted: boolean;
+  /**
+   * v1.18.6 — resumable module-tour progress, or null when the user
+   * has not started the tour. The `<TourLauncher>` seeds its resume
+   * index from `lastStopId`. Distinct from the coarse
+   * `onboardingTourCompleted` boolean, which stays the auto-launch gate.
+   */
+  onboardingTourProgress: AuthTourProgress | null;
   /**
    * v1.5.5 — relative URL of the user's self-hosted avatar, served
    * from `/api/user/avatar/{id}?v={updatedAtMs}`. Replaces the
@@ -137,6 +151,9 @@ async function fetchMe(): Promise<AuthUser> {
   return {
     ...(data as AuthUser),
     disableCoach: data.disableCoach ?? false,
+    // v1.18.6 — coerce against a stale /me payload (older server image
+    // without the field) to null so the tour starts from the top.
+    onboardingTourProgress: data.onboardingTourProgress ?? null,
     // v1.7.0 — coerce against a stale /me payload (older server image
     // without the field) so the display defaults to metric.
     unitPreference: data.unitPreference === "imperial" ? "imperial" : "metric",
