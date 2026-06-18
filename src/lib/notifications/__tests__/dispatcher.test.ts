@@ -501,3 +501,45 @@ describe("dispatchNotification — Telegram hard reject", () => {
     );
   });
 });
+
+describe("dispatchNotification — reminders reach Web Push without APNs", () => {
+  it("a PWA-only self-hoster (WEB_PUSH channel, no APNS) still gets MEDICATION_REMINDER", async () => {
+    const channel = makeChannel({ type: "WEB_PUSH" });
+    vi.mocked(prisma.notificationChannel.findMany).mockResolvedValueOnce([
+      channel,
+    ] as never);
+    sendViaWebPushMock.mockResolvedValueOnce({ ok: true });
+
+    const outcome = await dispatchNotification({
+      eventType: "MEDICATION_REMINDER",
+      userId: "u-1",
+      title: "Time for your dose",
+      message: "Ramipril 5mg",
+      metadata: { webPushTag: "med:med-1:2026-06-18T07:00:00.000Z" },
+    });
+
+    expect(sendViaWebPushMock).toHaveBeenCalledTimes(1);
+    expect(outcome.dispatched).toBe(true);
+    expect(outcome.channelsSucceeded).toBe(1);
+  });
+
+  it("MEASUREMENT_REMINDER and MEDICATION_LOW_STOCK also reach Web Push", async () => {
+    for (const eventType of [
+      "MEASUREMENT_REMINDER",
+      "MEDICATION_LOW_STOCK",
+    ] as const) {
+      vi.mocked(prisma.notificationChannel.findMany).mockResolvedValueOnce([
+        makeChannel({ type: "WEB_PUSH" }),
+      ] as never);
+      sendViaWebPushMock.mockResolvedValueOnce({ ok: true });
+
+      const outcome = await dispatchNotification({
+        eventType,
+        userId: "u-1",
+        title: "t",
+        message: "m",
+      });
+      expect(outcome.dispatched).toBe(true);
+    }
+  });
+});

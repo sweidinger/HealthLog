@@ -78,6 +78,25 @@ export async function sendViaWebPush(
       };
     }
 
+    // v1.18.4 — a dispatcher payload may carry a stable per-slot tag in
+    // `metadata.webPushTag` (e.g. a medication dose slot, see
+    // `medicationDoseTag`). The matching `type:"clear"` push reuses the SAME
+    // tag so the SW can replace/close the pending reminder when the dose is
+    // logged — the PWA-only equivalent of ending a Live Activity. Discreet
+    // mode still wins so no event name leaks even when a stable tag exists.
+    const stableTag =
+      typeof payload.metadata?.webPushTag === "string"
+        ? payload.metadata.webPushTag
+        : undefined;
+    // v1.18.4 — server-authoritative app-badge count. The dispatcher puts the
+    // user's current outstanding-dose count in `metadata.badgeCount`; the SW
+    // calls `navigator.setAppBadge(count)` (feature-detected, no-op elsewhere).
+    const badgeCount =
+      typeof payload.metadata?.badgeCount === "number" &&
+      Number.isFinite(payload.metadata.badgeCount)
+        ? Math.max(0, Math.trunc(payload.metadata.badgeCount))
+        : undefined;
+
     const pushPayload = JSON.stringify({
       title: plainPushText(payload.title, payload.eventType),
       body: plainPushText(
@@ -88,7 +107,8 @@ export async function sendViaWebPush(
       // event. Web-Push payloads are VAPID-encrypted (only the SW sees this),
       // but the discreet contract still requires no event name on the wire —
       // mirror the APNs GENERIC_EVENT collapse (QA M-sec3).
-      tag: payload.discreet ? "REMINDER" : payload.eventType,
+      tag: payload.discreet ? "REMINDER" : (stableTag ?? payload.eventType),
+      ...(badgeCount !== undefined ? { badge: badgeCount } : {}),
       // v1.15.20 — opt-in deep link: a dispatcher payload may carry a
       // same-origin path in `metadata.url` (e.g. the Coach nudge's
       // `/coach`); everything else keeps the legacy "/" click

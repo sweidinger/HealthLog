@@ -10,6 +10,7 @@ import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-
 import { decrypt } from "@/lib/crypto";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
+import { medicationDoseTag } from "@/lib/notifications/dose-tag";
 import {
   buildCanonicalSchedule,
   buildRecurrenceContext,
@@ -494,6 +495,15 @@ export async function handleReminderCheck(jobs: Job<ReminderCheckPayload>[]) {
                     timeOfDay: dedupTimeOfDay,
                     scheduledAt: scheduledAtIso,
                     replyMarkup: keyboard,
+                    // v1.18.4 — stable per-slot Web Push tag. The
+                    // clear-on-taken push reuses the SAME tag so the SW
+                    // replaces/closes this reminder when the dose is logged
+                    // (the PWA equivalent of ending a Live Activity), and a
+                    // re-fired reminder for the same slot coalesces instead
+                    // of stacking on the lock screen. Deep-link clicks land
+                    // on the dose's medication page.
+                    webPushTag: medicationDoseTag(med.id, scheduledAtIso),
+                    url: `/medications/${med.id}`,
                   },
                 });
               } catch (notifErr) {

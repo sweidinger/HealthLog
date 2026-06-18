@@ -51,6 +51,8 @@ import {
   type InjectionSiteValue,
 } from "@/lib/validations/medication";
 import { dispatchMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
+import { dispatchMedicationIntakeWebClear } from "@/lib/notifications/web-push-clear";
+import { countOutstandingDosesToday } from "@/lib/medications/outstanding-doses";
 
 const querySchema = z.object({
   scope: z.enum(["today", "compliance"]),
@@ -697,6 +699,24 @@ export const POST = apiHandler(async (request: NextRequest) => {
     scheduledFor: (movedTo ?? existing.scheduledFor).toISOString(),
     originDeviceToken: request.headers.get("x-device-id"),
   });
+
+  // v1.18.4 — PWA-only equivalent of the Live Activity end: when a dose is
+  // resolved (taken / skipped), push a `type:"clear"` to the user's Web Push
+  // subscriptions so the still-pending dose-due reminder for this slot is
+  // closed by the service worker (matched on the stable slot tag) and the app
+  // badge re-reflects the outstanding-dose count. A snooze leaves the dose
+  // outstanding, so it neither clears the reminder nor changes the badge.
+  if (status === "taken" || status === "skipped") {
+    void (async () => {
+      const badgeCount = await countOutstandingDosesToday(user.id, userTzForHook);
+      await dispatchMedicationIntakeWebClear({
+        userId: user.id,
+        medicationId: existing.medicationId,
+        scheduledFor: (movedTo ?? existing.scheduledFor).toISOString(),
+        badgeCount,
+      });
+    })();
+  }
 
   return apiSuccess(updated);
 });

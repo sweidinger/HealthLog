@@ -36,7 +36,7 @@ try {
 // v1.4.38.4 → v1.4.42. Do not hand-edit; bump `package.json` and rebuild.
 const CACHE_VERSION =
   (typeof self !== "undefined" && self.__APP_VERSION__) ||
-  /* @sw-version-fallback */ "v1.18.2";
+  /* @sw-version-fallback */ "v1.18.4";
 const STATIC_CACHE = `healthlog-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `healthlog-pages-${CACHE_VERSION}`;
 const MAX_STATIC_ENTRIES = 150;
@@ -216,6 +216,27 @@ async function trimCache(cacheName, maxEntries) {
   }
 }
 
+// ── App badge helper (PWA Badging API) ───────────────────────────────────────
+// v1.18.4 — reflect the server-authoritative outstanding-dose count on the
+// installed PWA icon. Feature-detected + best-effort: unsupported engines
+// (most desktop Firefox, older Safari) silently no-op. A count of 0 clears the
+// badge; a positive count sets it. `undefined`/non-number leaves it untouched.
+function applyAppBadge(count) {
+  if (typeof count !== "number" || !isFinite(count)) return;
+  try {
+    if (count > 0) {
+      if (typeof self.navigator?.setAppBadge === "function") {
+        self.navigator.setAppBadge(count);
+      }
+    } else if (typeof self.navigator?.clearAppBadge === "function") {
+      self.navigator.clearAppBadge();
+    }
+  } catch {
+    // Badging API can reject (permission / unsupported) — never let it
+    // break the push handler.
+  }
+}
+
 // ── Push Notifications ───────────────────────────────────────────────────────
 self.addEventListener("push", (event) => {
   if (!event.data) return;
@@ -227,21 +248,54 @@ self.addEventListener("push", (event) => {
     payload = { title: "HealthLog", body: event.data.text() };
   }
 
+  // v1.18.4 — `type:"clear"` is the PWA equivalent of ending an iOS Live
+  // Activity: the server sends it when a dose is logged so the still-pending
+  // dose-due reminder for that slot is closed here (matched on its stable
+  // `tag`), and the app badge re-reflects the outstanding-dose count. No new
+  // notification is shown.
+  if (payload && payload.type === "clear") {
+    event.waitUntil(
+      (async () => {
+        const tagToClear = payload.tag;
+        if (tagToClear) {
+          const matches = await self.registration.getNotifications({
+            tag: tagToClear,
+          });
+          for (const n of matches) n.close();
+        }
+        applyAppBadge(payload.badge);
+      })(),
+    );
+    return;
+  }
+
   const {
     title = "HealthLog",
     body = "",
     tag = "default",
     url = "/",
+    badge,
+    requireInteraction = false,
   } = payload;
 
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      tag,
-      icon: "/logo-192.png",
-      badge: "/logo-192.png",
-      data: { url },
-    }),
+    Promise.all([
+      self.registration.showNotification(title, {
+        body,
+        tag,
+        // `renotify` lets a re-fired reminder for the same `tag` re-alert the
+        // user instead of silently replacing the existing notification.
+        renotify: true,
+        // v1.18.4 — urgent events (the web-push sender sets this) keep the
+        // notification on screen until the user acts, where the browser
+        // honours it.
+        requireInteraction: requireInteraction === true,
+        icon: "/logo-192.png",
+        badge: "/logo-192.png",
+        data: { url },
+      }),
+      Promise.resolve(applyAppBadge(badge)),
+    ]),
   );
 });
 
