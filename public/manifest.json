@@ -6,7 +6,8 @@
   "scope": "/",
   "start_url": "/",
   "display": "standalone",
-  "display_override": ["standalone"],
+  "display_override": ["standalone", "minimal-ui"],
+  "categories": ["health", "medical", "lifestyle"],
   "theme_color": "#282a36",
   "background_color": "#282a36",
   "icons": [

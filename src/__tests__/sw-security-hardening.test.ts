@@ -85,7 +85,8 @@ describe("public/manifest.json PWA identity hygiene (F-7, 2026-05-16)", () => {
     const manifest = JSON.parse(raw) as Record<string, unknown>;
     expect(manifest.scope).toBe("/");
     expect(manifest.id).toBe("/?source=pwa");
-    expect(manifest.display_override).toEqual(["standalone"]);
+    expect(manifest.display_override).toEqual(["standalone", "minimal-ui"]);
+    expect(manifest.categories).toEqual(["health", "medical", "lifestyle"]);
   });
 
   it("keeps the existing display/start_url contract", () => {
