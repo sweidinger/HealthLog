@@ -59,6 +59,13 @@ interface DispatchLocalisedOptions {
   eventType?: EventType;
   /** Channel-specific extras forwarded to the dispatcher metadata. */
   metadata?: Record<string, unknown>;
+  /**
+   * Escalate to every channel's highest urgency (v1.18.4). Forwarded to
+   * the dispatcher so APNs goes time-sensitive, ntfy max, Web Push
+   * `Urgency: high`, webhook `urgent` — APNs-less instances degrade
+   * gracefully to whatever channels are configured.
+   */
+  urgent?: boolean;
 }
 
 function isLocale(value: string | null | undefined): value is Locale {
@@ -163,5 +170,6 @@ export async function dispatchLocalisedNotification(
     title,
     message,
     metadata,
+    urgent: opts.urgent,
   });
 }

@@ -219,4 +219,33 @@ export interface NotificationPayload {
    * — the title/body are already masked upstream.
    */
   discreet?: boolean;
+  /**
+   * Urgent / escalation dimension (v1.18.4). When true, EVERY configured
+   * channel delivers at the HIGHEST urgency it supports — never assuming
+   * APNs is one of them (most self-hosters have no Apple Developer account):
+   *  - APNs    → interruption-level `time-sensitive` + priority 10 (and
+   *    `critical` only when `APNS_CRITICAL_ENTITLEMENT=true`, since the
+   *    critical flag needs an Apple-approved entitlement; time-sensitive
+   *    does not).
+   *  - ntfy    → `Priority: 5` (max) + an `urgent` tag.
+   *  - WebPush → `Urgency: high` header + `requireInteraction`.
+   *  - Webhook → `priority: "urgent"` in the JSON body.
+   *  - Telegram → normal delivery (no urgency tier exists; never silent).
+   * Normal events leave `urgent` unset and behave exactly as before.
+   */
+  urgent?: boolean;
+}
+
+/**
+ * Whether a payload should escalate to each channel's highest urgency.
+ * Explicit `urgent: true` is the modern signal. `MEDICATION_REMINDER`
+ * stays escalated for backward compatibility (it has shipped as APNs
+ * time-sensitive / ntfy high since v1.4.40), so callers that don't set
+ * the flag keep their existing behaviour.
+ */
+export function isUrgentPayload(payload: {
+  urgent?: boolean;
+  eventType: string;
+}): boolean {
+  return payload.urgent === true || payload.eventType === "MEDICATION_REMINDER";
 }
