@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.18.4] — 2026-06-18 — urgent alerts that reach you on whatever you've set up, and a stronger free notification path
+
+This release makes notifications work well for self-hosters who don't run Apple push. Genuinely urgent health signals — a sustained low-oxygen or fever pattern flagged by the condition journal — now go out at the strongest level each notification channel you've configured supports, and reach you even with no Apple Developer account: max-priority ntfy, high-urgency Web Push, a webhook, or a time-sensitive iOS alert if you do run push. The installed web app gains real reminder handling: a dose reminder clears itself once you mark it taken, and an app badge counts what's still due. No breaking changes; no migration.
+
+### Added
+
+- **Urgent alerts, on every channel you have.** A condition red-flag (sustained low SpO₂ or fever — "seek care", never reassurance) now sends an urgent alert that escalates per channel: time-sensitive on iOS (critical only if you've been granted and enabled Apple's entitlement), max priority on ntfy, high urgency on Web Push, flagged on the webhook. No Apple account required — an instance with only ntfy or Web Push still gets the urgent treatment. De-duplicated per condition.
+- **A real reminder experience in the installed web app.** Dose, preventive-care and low-stock reminders reach the home-screen web app over Web Push; marking a dose taken clears its reminder (no leftover notification), and an app badge shows how many doses are still due today — the closest the no-Apple-account path gets to the native lock-screen behaviour.
+
+### Changed
+
+- **Notifications degrade gracefully without Apple push.** The channel cascade and every urgent path are now explicit that an instance without APNs still delivers through its other channels at their top tier.
+
+### Docs
+
+- A self-hosting notifications guide: what each free channel (Web Push, Telegram, ntfy, webhook, email) can and can't do, the recommended PWA + Web Push setup, and a step-by-step path for running your own signed iOS build with your own Apple Developer account and APNs key for native push and the lock-screen widget.
+
+### Operator note
+
+- UI/API-only; no migration. Optional new env var `APNS_CRITICAL_ENTITLEMENT` (default off) — set it only if your own iOS build carries Apple's Critical Alerts entitlement; otherwise urgent iOS alerts use the time-sensitive level, which needs no Apple approval.
+
 ## [1.18.3] — 2026-06-17 — the condition journal you can scroll back through, and a clearer view of what's tracked
 
 A small follow-up that finishes a few rough edges from the previous releases. The condition journal's day-by-day timeline now scrolls through the whole illness, not just today; deleting a condition can be undone; the condition journal is on by default like every other area; and medication inventory that was never set now reads as "unknown" instead of a misleading zero. No breaking changes; no migration.

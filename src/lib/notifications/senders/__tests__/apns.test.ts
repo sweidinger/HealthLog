@@ -630,6 +630,53 @@ describe("sendViaApns — dispatcher fan-out", () => {
     expect(note.priority).toBe(10);
   });
 
+  it("urgent payload sets time-sensitive + priority=10 on a non-medication event", async () => {
+    // v1.18.4 — an explicitly urgent event (e.g. an illness red-flag
+    // escalation) reaches APNs's strongest no-entitlement tier:
+    // time-sensitive + priority 10, regardless of eventType.
+    vi.mocked(prisma.device.findMany).mockResolvedValueOnce([
+      { id: "d1", apnsToken: "tok-a", apnsEnvironment: "sandbox" },
+    ] as never);
+    sendMock.mockResolvedValueOnce({ sent: [{ device: "tok-a" }], failed: [] });
+    await sendViaApns("u-1", {
+      title: "Seek care",
+      message: "Sustained fever",
+      eventType: "SYSTEM_ALERT",
+      urgent: true,
+    });
+    const note = sendMock.mock.calls[0][0];
+    expect(note.interruptionLevel).toBe("time-sensitive");
+    expect(note.priority).toBe(10);
+  });
+
+  it("urgent payload escalates to critical ONLY with the entitlement env set", async () => {
+    // v1.18.4 — the `critical` level ignores DND/Focus but needs an
+    // Apple-approved entitlement; gate it behind APNS_CRITICAL_ENTITLEMENT.
+    const prev = process.env.APNS_CRITICAL_ENTITLEMENT;
+    process.env.APNS_CRITICAL_ENTITLEMENT = "true";
+    try {
+      vi.mocked(prisma.device.findMany).mockResolvedValueOnce([
+        { id: "d1", apnsToken: "tok-a", apnsEnvironment: "sandbox" },
+      ] as never);
+      sendMock.mockResolvedValueOnce({
+        sent: [{ device: "tok-a" }],
+        failed: [],
+      });
+      await sendViaApns("u-1", {
+        title: "Seek care",
+        message: "Sustained fever",
+        eventType: "SYSTEM_ALERT",
+        urgent: true,
+      });
+      const note = sendMock.mock.calls[0][0];
+      expect(note.interruptionLevel).toBe("critical");
+      expect(note.priority).toBe(10);
+    } finally {
+      if (prev === undefined) delete process.env.APNS_CRITICAL_ENTITLEMENT;
+      else process.env.APNS_CRITICAL_ENTITLEMENT = prev;
+    }
+  });
+
   it.each([
     "MOOD_REMINDER",
     "MEASUREMENT_ANOMALY",

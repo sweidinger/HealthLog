@@ -136,6 +136,9 @@ services:
       APNS_KEY_ID: "${APNS_KEY_ID:-}"
       APNS_TEAM_ID: "${APNS_TEAM_ID:-}"
       APNS_BUNDLE_ID: "${APNS_BUNDLE_ID:-}"
+      # Set "true" only if your own iOS build carries Apple's Critical Alerts
+      # entitlement; otherwise urgent alerts use the time-sensitive level.
+      APNS_CRITICAL_ENTITLEMENT: "${APNS_CRITICAL_ENTITLEMENT:-}"
     depends_on:
       db:
         condition: service_healthy

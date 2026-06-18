@@ -3,17 +3,24 @@
 HealthLog delivers reminders (medication doses, mood check-ins, personal
 records) and a few operational alerts through a small cascade of push
 channels. The single message to take away: **you do not need an Apple
-Developer account or APNs to get push.** Three of the four channels are
-free, work in the browser or in a messaging app you already have, and
-cover every platform a self-hoster runs. APNs is only for the optional
-native iOS app.
+Developer account or APNs to get push.** Five of the six channels are
+free, work in the browser or in an app you already have, and cover every
+platform a self-hoster runs. APNs is only for the native iOS app, and
+even that you can build yourself (see the last section).
 
 When an event fires, the dispatcher fans it out to every channel a user
 has enabled, in a fixed order — APNs first, then Telegram, then ntfy,
-then Web Push as the universal fallback
-(`src/lib/notifications/dispatcher.ts`). Each channel is best-effort and
-independent: a user can enable one, two, or all four, and a failure on
-one never blocks the others.
+then the generic webhook, then email, then Web Push as the universal
+fallback (`src/lib/notifications/dispatcher.ts`). Each channel is
+best-effort and independent: a user can enable one or several, and a
+failure on one never blocks the others.
+
+An APNs-less instance degrades gracefully. Nothing about push depends on
+APNs being configured. Urgent events still surface everywhere it matters:
+ntfy escalates them to max priority (`5`), Web Push raises urgency and
+keeps the notification on screen until the user acts, and the webhook
+carries the urgent flag for your own routing. APNs only adds the
+Apple-platform exclusives the web cannot offer.
 
 ## TL;DR — which channel needs what
 
@@ -22,7 +29,9 @@ one never blocks the others.
 | **Web Push** | A VAPID keypair (one command, or paste into the admin panel) | Free | Any modern desktop/Android browser; the installed PWA on iPhone (iOS 16.4+, after *Add to Home Screen*) |
 | **Telegram** | A bot token from @BotFather + each user's chat ID | Free | Anywhere the Telegram app runs |
 | **ntfy** | A topic on `ntfy.sh` or your own ntfy server | Free | The ntfy app (iOS/Android) or any browser |
-| **APNs** | An Apple Developer account + a `.p8` push key | Apple Developer Program (paid) | The native iOS app only (TestFlight / App Store) |
+| **Webhook** | A URL you own (and optionally one custom header) | Free | Anywhere — you route the POST yourself |
+| **Email** | An SMTP transport you operate or rent | Free–cheap | Any mailbox |
+| **APNs** | An Apple Developer account + a `.p8` push key + your own signed iOS build | Apple Developer Program (paid) | A native iOS app you build and sign |
 
 Web Push is the recommended default — it needs no third-party account,
 just a keypair you generate yourself once.
@@ -73,9 +82,8 @@ That prints a **public key** and a **private key** (both Base64URL).
 
 ### 2. Store the keys via environment variables (alternative)
 
-If you would rather keep
-secrets out of the database, set them in `.env` / the compose
-`environment:` block instead:
+If you would rather keep secrets out of the database, set them in `.env` /
+the compose `environment:` block instead:
 
 ```env
 VAPID_PUBLIC_KEY="BElx...(public key)"
@@ -96,7 +104,28 @@ button, and a Test button to fire a one-off push once subscribed. The
 browser prompts for notification permission on first subscribe; once
 granted, that browser receives every enabled event.
 
-### iPhone caveat — Add to Home Screen first
+## The PWA path — install to the Home Screen
+
+Installing HealthLog as a PWA and enabling Web Push is the recommended
+default for phones. It needs nothing from Apple and gives you, in
+v1.18.4:
+
+- **Reminders.** Medication doses, mood check-ins, and any other event
+  the user has enabled, delivered to the installed app even when it is
+  closed.
+- **Taken → clears the reminder.** When you log a dose, the server sends
+  a silent `type:"clear"` push that closes the still-pending dose-due
+  reminder for that slot (matched on its stable tag) without showing a
+  new notification (`public/sw.js`). This is the PWA equivalent of ending
+  an iOS Live Activity.
+- **An app badge for outstanding doses.** The icon on the Home Screen
+  carries a server-authoritative count of doses still due; logging a dose
+  decrements it, and a count of zero clears the badge. The count is
+  computed on the server and reflected by the service worker via the
+  Badging API (`navigator.setAppBadge`), feature-detected — engines
+  without it (most desktop Firefox, older Safari) silently no-op.
+
+### iPhone — Add to Home Screen first
 
 Safari on iPhone supports Web Push only from **iOS 16.4 or newer**, and
 only for a site that has been **installed to the Home Screen as a PWA**.
@@ -111,6 +140,14 @@ A regular Safari tab cannot subscribe. So on iPhone:
 
 Android and desktop browsers have no such step — Subscribe and grant the
 permission, and push works.
+
+### The inherent limit
+
+The installed PWA gets reminders, the taken-clears behaviour, and the app
+badge — but it **cannot** show a native iOS lock-screen Live Activity
+widget. That single feature rides Apple Push Notification service and is
+only available through a native iOS build with APNs. Reminders themselves
+arrive on both paths; only the Live Activity is APNs-exclusive.
 
 ## Telegram
 
@@ -146,38 +183,112 @@ HealthLog publishes to that topic.
 
 If your ntfy server requires auth, an access token can be attached; the
 server URL is validated as a public host and dialled through the egress
-guard (`src/lib/notifications/senders/ntfy.ts`).
+guard (`src/lib/notifications/senders/ntfy.ts`). Urgent events are sent at
+ntfy's top priority (`5` / max) so they bypass batching and surface on the
+lock screen.
 
-## APNs — native iOS app only
+## Webhook
 
-Apple Push Notification service is used by **only** the native SwiftUI
-iOS app (TestFlight / App Store build). PWA and browser users never touch
-it. Setting it up requires a paid **Apple Developer Program** membership.
+The generic webhook POSTs every enabled event as JSON to a URL you own —
+wire it into your own automation (Home Assistant, n8n, a Discord/Slack
+relay, whatever routes the payload). You supply a public URL and,
+optionally, one custom header (e.g. an auth token).
 
-You do **not** need APNs to give iPhone users push: the installed PWA
-gets every reminder over Web Push (see the iPhone caveat above). APNs adds
-one Apple-platform exclusive the PWA cannot offer — the lock-screen Live
-Activity — plus the tighter native delivery path. Reminders themselves
-arrive on both.
+1. In HealthLog open `/settings/notifications`, fill the Webhook card's
+   **URL** and, if your endpoint expects one, a single **header name** +
+   **header value**.
+2. Save. A Test button fires a one-off POST so you can confirm routing.
 
-If you do run the native app and want server-driven push, set the APNs
-manifest (`src/lib/notifications/senders/apns.ts`) — three identifiers
-plus exactly one key source:
+The URL is validated as a public host and dialled through
+`safeFetch({ requirePublicHost: true })` — the SSRF guard blocks private
+and loopback ranges because the target is user-supplied
+(`src/lib/notifications/senders/webhook.ts`). The webhook carries the
+event's urgency flag so you can route urgent events differently.
+
+## Email (SMTP)
+
+The email channel sends reminders to a mailbox over an SMTP transport you
+operate or rent. It is configured **instance-wide by the operator** (one
+transport serves every user); each user then enables the channel and sets
+their destination address from `/settings/notifications`.
+
+Set the SMTP transport in `.env` / the compose `environment:` block:
+
+```env
+SMTP_HOST="smtp.example.com"
+SMTP_PORT="587"
+SMTP_FROM="HealthLog <noreply@example.com>"
+SMTP_USER=""           # optional — omit for an unauthenticated relay
+SMTP_PASS=""           # optional
+SMTP_SECURE="false"    # true = implicit TLS (port 465); false = STARTTLS
+```
+
+`SMTP_HOST` + `SMTP_PORT` + `SMTP_FROM` together enable the channel;
+`SMTP_USER` / `SMTP_PASS` are optional (omit them for an unauthenticated
+relay). `SMTP_SECURE=true` uses implicit TLS on port 465; leave it `false`
+for STARTTLS on 587. As with every var in `docker-compose.yml`, these must
+be on the compose `environment:` whitelist to reach the container.
+
+## APNs — native iOS, and why it needs your own Apple account
+
+Apple Push Notification service is used by **only** a native SwiftUI iOS
+app. PWA, browser, Telegram, ntfy, webhook, and email users never touch
+it. It is the one channel a self-hoster cannot simply switch on, and the
+reason is worth stating plainly.
+
+### Why your server can't push to the published app
+
+APNs binds a push to a specific **Apple Developer team + app bundle ID +
+signing key**. The HealthLog iOS app published on TestFlight / the App
+Store is signed under **the maintainer's Apple team and bundle ID**. Your
+self-hosted server has neither that team's `.p8` key nor the authority to
+mint one, so it **cannot** send APNs pushes to the published app. There is
+no way around this — it is how Apple's trust model works, by design.
+
+To get native iOS push **and** the lock-screen Live Activity widget on
+**your own** infrastructure, you have to publish your own copy of the app
+under your own Apple identity. Everything below is that path.
+
+### Step by step — your own native iOS build
+
+1. **Get an Apple Developer account** (~$99/yr). Required to sign an iOS
+   app for a real device and to create a push key.
+2. **Build and sign your own copy of the iOS app.** The client is open in
+   a separate repository (`healthlog-iOS`). Open it in Xcode and set your
+   **own bundle identifier** and **your team** as the signing team, then
+   build to your device (or distribute via your own TestFlight).
+3. **Create your own APNs `.p8` auth key** in the Apple Developer Portal,
+   under **Keys → Create a Key → Apple Push Notifications service (APNs)**.
+   Note the **Key ID**, and your **Team ID** (top-right of the portal).
+   Scope the key **Sandbox & Production** (see the gotcha below).
+4. **Point your bundle ID at your server.** Build the iOS app against your
+   instance so the device registers its APNs token with your server.
+5. **Set the APNs manifest on the server.** Add the env vars below to
+   `.env` / the compose `environment:` block.
+
+The APNs env vars (`src/lib/notifications/senders/apns.ts`):
 
 | Variable | Purpose |
 | --- | --- |
 | `APNS_KEY_ID` | The `.p8` key's Key ID |
 | `APNS_TEAM_ID` | Your Apple Developer Team ID |
-| `APNS_BUNDLE_ID` | The app's bundle identifier |
+| `APNS_BUNDLE_ID` | Your app's bundle identifier |
 | `APNS_KEY_B64` | The `.p8` PEM, base64-encoded (recommended key source) |
 | `APNS_KEY` | OR the raw PEM body inline |
 | `APNS_KEY_FILE` | OR a path to the `.p8` file |
+| `APNS_CRITICAL_ENTITLEMENT` | Optional — set `true` only if Apple grants your app the Critical Alerts entitlement |
 
-APNs is **all-or-none**: either set the three IDs plus one key source, or
-leave the whole block unset. A partial config is rejected so the channel
-never silently half-works (`scripts/check-env.ts`). When more than one key
-source is present, the precedence is `APNS_KEY_B64` > `APNS_KEY` >
-`APNS_KEY_FILE`.
+APNs is **all-or-none**: either set the three IDs plus exactly one key
+source, or leave the whole block unset. A partial config is rejected so
+the channel never silently half-works (`scripts/check-env.ts`). When more
+than one key source is present, the precedence is `APNS_KEY_B64` >
+`APNS_KEY` > `APNS_KEY_FILE`.
+
+`APNS_CRITICAL_ENTITLEMENT=true` is honoured only if Apple has actually
+granted your app the Critical Alerts entitlement (a separate request to
+Apple). Without that entitlement, leave it unset — the server keeps urgent
+events at normal priority rather than minting a `critical` payload your
+app cannot send (`src/lib/notifications/types.ts`).
 
 Two gotchas worth knowing before you blame a stale token:
 
@@ -190,9 +301,9 @@ Two gotchas worth knowing before you blame a stale token:
   `BadEnvironmentKeyInToken`. Confirm the key shows **Sandbox &
   Production**; a wrongly scoped key cannot be reconfigured — re-issue it.
 
-> **`clientManaged` is iOS-app-only.** The native iOS app can opt to run
-> its own local medication reminders and ask the server to stop sending
-> the duplicate `MEDICATION_REMINDER` push (the `clientManaged` flag on
+> **`clientManaged` is iOS-app-only.** A native iOS app can opt to run its
+> own local medication reminders and ask the server to stop sending the
+> duplicate `MEDICATION_REMINDER` push (the `clientManaged` flag on
 > `PATCH /api/auth/me/notification-prefs`). This is a native-app contract:
 > a web/PWA-only self-hoster never needs it and there is no toggle for it
 > in the web UI. If you only run the PWA, ignore it entirely — your
@@ -203,9 +314,11 @@ Two gotchas worth knowing before you blame a stale token:
 | Your setup | Recommended channel |
 | --- | --- |
 | PWA on Android or desktop | **Web Push** — generate a VAPID keypair, subscribe, done. |
-| PWA on an iPhone | **Web Push**, but install the PWA via *Add to Home Screen* first (iOS 16.4+). Reminders work; the lock-screen Live Activity needs the native app. |
-| You want the native iOS app's full experience | **APNs** (paid Apple Developer account) *plus* Web Push as a fallback for any non-iOS device. |
+| PWA on an iPhone | **Web Push**, but install the PWA via *Add to Home Screen* first (iOS 16.4+). Reminders, taken-clears, and the app badge all work; the lock-screen Live Activity needs a native build. |
+| You want the native iOS lock-screen Live Activity | Build and sign **your own** iOS app under your own Apple account and wire up **APNs** (paid), with Web Push as a fallback for any non-iOS device. |
 | Headless / no browser, or you live in chat | **Telegram** or **ntfy** — neither needs a browser, both are free. ntfy is the most self-host-native; Telegram adds inline reminder action buttons. |
+| You already run an automation hub | **Webhook** — POST every event to your own URL and route it however you like. |
+| You want reminders in your inbox | **Email** — set the SMTP transport once as the operator; users add their address. |
 
 Mixing channels is fine and common — e.g. Web Push on the laptop and
 ntfy on the phone. Each user configures their own set from

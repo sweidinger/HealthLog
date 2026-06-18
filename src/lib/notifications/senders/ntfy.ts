@@ -8,6 +8,7 @@ import { getEvent } from "@/lib/logging/context";
 import { recordPushAttempt } from "@/lib/notifications/senders/push-attempt-record";
 import { safeFetch } from "@/lib/safe-fetch";
 import { plainPushText } from "@/lib/notifications/strip-emoji";
+import { isUrgentPayload } from "@/lib/notifications/types";
 
 /**
  * Send notification via ntfy (simple HTTP POST).
@@ -26,16 +27,28 @@ export async function sendViaNtfy(
   try {
     const url = `${config.serverUrl.replace(/\/$/, "")}/${encodeURIComponent(config.topic)}`;
 
+    // v1.18.4 — an explicitly urgent payload escalates to ntfy's top
+    // priority (`5` / max) so it bypasses the relay's batching and surfaces
+    // loudest; MEDICATION_REMINDER keeps its long-standing `high` (4); the
+    // rest stay `default` (3). `urgent` also adds a tag so the lock-screen
+    // entry reads as an alert (unless discreet privacy collapses tags).
+    const urgent = isUrgentPayload(payload) && payload.urgent === true;
+    const priority = urgent
+      ? "5"
+      : payload.eventType === "MEDICATION_REMINDER"
+        ? "high"
+        : "default";
+    const eventTag = payload.discreet
+      ? "reminder"
+      : payload.eventType.toLowerCase().replace(/_/g, "-");
     const headers: Record<string, string> = {
       Title: plainPushText(payload.title, payload.eventType),
-      Priority:
-        payload.eventType === "MEDICATION_REMINDER" ? "high" : "default",
+      Priority: priority,
       // Discreet mode (cycle privacy): the X-Tags header is visible on the
       // lock screen, so collapse it to a generic tag instead of leaking the
-      // cycle event name.
-      Tags: payload.discreet
-        ? "reminder"
-        : payload.eventType.toLowerCase().replace(/_/g, "-"),
+      // cycle event name. An urgent (non-discreet) event also carries a
+      // `warning` tag so the entry renders as an alert.
+      Tags: urgent && !payload.discreet ? `warning,${eventTag}` : eventTag,
     };
 
     if (config.authToken) {
