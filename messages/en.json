@@ -4725,7 +4725,10 @@
         "savedOff": "Coach hidden.",
         "saveError": "Could not save the change. Please try again."
       }
-    }
+    },
+    "diabetes": "I have diabetes",
+    "diabetesDescription": "Use clinician glucose targets (fasting 80–130, post-meal under 180 mg/dL) instead of the general bands. This only changes the target you are measured against — it is never a diagnosis.",
+    "diabetesSaved": "Glucose target preference saved"
   },
   "admin": {
     "title": "Administration",
@@ -6759,6 +6762,25 @@
     "settings": {
       "reminderSuggestionsLabel": "Cadence suggestions",
       "reminderSuggestionsDescription": "Let the Coach offer an occasional, evidence-based reminder to measure a metric more regularly."
+    }
+  },
+  "safety": {
+    "floor": {
+      "bpHighTitle": "Very high blood pressure",
+      "bpHighDoctor": "Two recent readings were {systolic}/{diastolic} mmHg or higher. Rest, re-check in a few minutes, and contact your doctor as soon as possible if it stays this high.",
+      "bpHighEmergency": "Two recent readings were {systolic}/{diastolic} mmHg or higher and you noted symptoms. If you have chest pain, breathlessness, weakness, or vision or speech changes, call emergency services now.",
+      "bpLowTitle": "Low blood pressure",
+      "bpLowDoctor": "Two recent readings had a systolic below {systolic} mmHg. If you feel dizzy or faint, sit or lie down, and contact your doctor if it continues.",
+      "bpLowEmergency": "Two recent readings had a systolic below {systolic} mmHg and you noted symptoms. If you feel faint, confused, or have cold clammy skin, call emergency services now.",
+      "glucoseLowTitle": "Low blood sugar",
+      "glucoseLowDoctor": "Two recent readings were below 70 mg/dL ({value} mg/dL). Take fast-acting carbohydrate, re-check in 15 minutes, and contact your doctor if lows continue.",
+      "glucoseLowEmergency": "Two recent readings were below 70 mg/dL ({value} mg/dL) and you noted symptoms. Treat now with fast-acting sugar; if you cannot, or you feel very unwell, call emergency services.",
+      "glucoseLowSevereTitle": "Very low blood sugar",
+      "glucoseLowSevereDoctor": "Two recent readings were below 54 mg/dL ({value} mg/dL). Treat immediately with fast-acting carbohydrate, re-check in 15 minutes, and contact your doctor.",
+      "glucoseLowSevereEmergency": "Two recent readings were below 54 mg/dL ({value} mg/dL) and you noted symptoms. Treat now; if you cannot keep food down or feel very unwell, call emergency services.",
+      "glucoseHighTitle": "Very high blood sugar",
+      "glucoseHighDoctor": "Two recent readings were {value} mg/dL or higher. Re-check, hydrate, and contact your doctor as soon as possible if it stays this high.",
+      "glucoseHighEmergency": "Two recent readings were {value} mg/dL or higher and you noted symptoms. If you have vomiting, fast breathing, or confusion, call emergency services now."
     }
   }
 }

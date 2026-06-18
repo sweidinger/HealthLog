@@ -4725,7 +4725,10 @@
         "savedOff": "Coach ukryty.",
         "saveError": "Nie udało się zapisać zmiany. Spróbuj ponownie."
       }
-    }
+    },
+    "diabetes": "Mam cukrzycę",
+    "diabetesDescription": "Użyj klinicznych celów glukozy (na czczo 80–130, po posiłku poniżej 180 mg/dL) zamiast ogólnych zakresów. Zmienia to tylko cel, względem którego jesteś oceniany — to nigdy nie jest diagnoza.",
+    "diabetesSaved": "Zapisano preferencję celu glukozy"
   },
   "admin": {
     "title": "Administracja",
@@ -6759,6 +6762,25 @@
     "settings": {
       "reminderSuggestionsLabel": "Sugestie częstotliwości",
       "reminderSuggestionsDescription": "Pozwól Coachowi od czasu do czasu zaproponować oparte na dowodach przypomnienie, aby mierzyć daną wartość bardziej regularnie."
+    }
+  },
+  "safety": {
+    "floor": {
+      "bpHighTitle": "Bardzo wysokie ciśnienie",
+      "bpHighDoctor": "Dwa ostatnie pomiary wyniosły {systolic}/{diastolic} mmHg lub więcej. Odpocznij, zmierz ponownie za kilka minut i jak najszybciej skontaktuj się z lekarzem, jeśli pozostaje tak wysokie.",
+      "bpHighEmergency": "Dwa ostatnie pomiary wyniosły {systolic}/{diastolic} mmHg lub więcej i zgłosiłeś objawy. W razie bólu w klatce piersiowej, duszności, osłabienia lub zaburzeń widzenia czy mowy natychmiast zadzwoń po pomoc.",
+      "bpLowTitle": "Niskie ciśnienie",
+      "bpLowDoctor": "Dwa ostatnie pomiary miały ciśnienie skurczowe poniżej {systolic} mmHg. Jeśli kręci ci się w głowie lub czujesz osłabienie, usiądź lub połóż się i skontaktuj się z lekarzem, jeśli to się utrzymuje.",
+      "bpLowEmergency": "Dwa ostatnie pomiary miały ciśnienie skurczowe poniżej {systolic} mmHg i zgłosiłeś objawy. Jeśli czujesz, że możesz zemdleć, jesteś zdezorientowany lub masz zimną, lepką skórę, natychmiast zadzwoń po pomoc.",
+      "glucoseLowTitle": "Niski poziom cukru",
+      "glucoseLowDoctor": "Dwa ostatnie pomiary były poniżej 70 mg/dL ({value} mg/dL). Przyjmij szybko działające węglowodany, zmierz ponownie za 15 minut i skontaktuj się z lekarzem, jeśli spadki się utrzymują.",
+      "glucoseLowEmergency": "Dwa ostatnie pomiary były poniżej 70 mg/dL ({value} mg/dL) i zgłosiłeś objawy. Lecz to teraz szybkim cukrem; jeśli nie możesz lub czujesz się bardzo źle, zadzwoń po pomoc.",
+      "glucoseLowSevereTitle": "Bardzo niski poziom cukru",
+      "glucoseLowSevereDoctor": "Dwa ostatnie pomiary były poniżej 54 mg/dL ({value} mg/dL). Lecz natychmiast szybko działającymi węglowodanami, zmierz ponownie za 15 minut i skontaktuj się z lekarzem.",
+      "glucoseLowSevereEmergency": "Dwa ostatnie pomiary były poniżej 54 mg/dL ({value} mg/dL) i zgłosiłeś objawy. Lecz to teraz; jeśli nie utrzymujesz pokarmu lub czujesz się bardzo źle, zadzwoń po pomoc.",
+      "glucoseHighTitle": "Bardzo wysoki poziom cukru",
+      "glucoseHighDoctor": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej. Zmierz ponownie, nawodnij się i jak najszybciej skontaktuj się z lekarzem, jeśli pozostaje tak wysoki.",
+      "glucoseHighEmergency": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej i zgłosiłeś objawy. W razie wymiotów, przyspieszonego oddechu lub dezorientacji natychmiast zadzwoń po pomoc."
     }
   }
 }

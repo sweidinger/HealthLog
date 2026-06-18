@@ -4725,7 +4725,10 @@
         "savedOff": "Coach oculto.",
         "saveError": "No se pudo guardar el cambio. Inténtalo de nuevo."
       }
-    }
+    },
+    "diabetes": "Tengo diabetes",
+    "diabetesDescription": "Usa objetivos de glucosa clínicos (en ayunas 80–130, tras la comida menos de 180 mg/dL) en lugar de las bandas generales. Esto solo cambia el objetivo con el que te comparas; nunca es un diagnóstico.",
+    "diabetesSaved": "Preferencia de objetivo de glucosa guardada"
   },
   "admin": {
     "title": "Administration",
@@ -6759,6 +6762,25 @@
     "settings": {
       "reminderSuggestionsLabel": "Sugerencias de frecuencia",
       "reminderSuggestionsDescription": "Permite que el Coach ofrezca de vez en cuando un recordatorio basado en evidencia para medir una métrica con más regularidad."
+    }
+  },
+  "safety": {
+    "floor": {
+      "bpHighTitle": "Presión arterial muy alta",
+      "bpHighDoctor": "Dos lecturas recientes fueron de {systolic}/{diastolic} mmHg o más. Descansa, vuelve a medir en unos minutos y contacta a tu médico cuanto antes si sigue así de alta.",
+      "bpHighEmergency": "Dos lecturas recientes fueron de {systolic}/{diastolic} mmHg o más e indicaste síntomas. Si tienes dolor en el pecho, falta de aire, debilidad o cambios en la visión o el habla, llama a emergencias ya.",
+      "bpLowTitle": "Presión arterial baja",
+      "bpLowDoctor": "Dos lecturas recientes tuvieron una sistólica por debajo de {systolic} mmHg. Si te mareas o te sientes débil, siéntate o recuéstate y contacta a tu médico si continúa.",
+      "bpLowEmergency": "Dos lecturas recientes tuvieron una sistólica por debajo de {systolic} mmHg e indicaste síntomas. Si te sientes a punto de desmayar, confuso o con piel fría y húmeda, llama a emergencias ya.",
+      "glucoseLowTitle": "Glucosa baja",
+      "glucoseLowDoctor": "Dos lecturas recientes estuvieron por debajo de 70 mg/dL ({value} mg/dL). Toma carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico si los bajones continúan.",
+      "glucoseLowEmergency": "Dos lecturas recientes estuvieron por debajo de 70 mg/dL ({value} mg/dL) e indicaste síntomas. Trátalo ahora con azúcar rápida; si no puedes o te sientes muy mal, llama a emergencias.",
+      "glucoseLowSevereTitle": "Glucosa muy baja",
+      "glucoseLowSevereDoctor": "Dos lecturas recientes estuvieron por debajo de 54 mg/dL ({value} mg/dL). Trátalo de inmediato con carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico.",
+      "glucoseLowSevereEmergency": "Dos lecturas recientes estuvieron por debajo de 54 mg/dL ({value} mg/dL) e indicaste síntomas. Trátalo ahora; si no retienes alimentos o te sientes muy mal, llama a emergencias.",
+      "glucoseHighTitle": "Glucosa muy alta",
+      "glucoseHighDoctor": "Dos lecturas recientes fueron de {value} mg/dL o más. Vuelve a medir, hidrátate y contacta a tu médico cuanto antes si sigue así de alta.",
+      "glucoseHighEmergency": "Dos lecturas recientes fueron de {value} mg/dL o más e indicaste síntomas. Si tienes vómitos, respiración rápida o confusión, llama a emergencias ya."
     }
   }
 }
