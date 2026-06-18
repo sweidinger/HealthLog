@@ -90,6 +90,12 @@ interface HeroStripProps {
     band: HealthScoreCardProps["band"];
     components: HealthScoreCardProps["components"];
     delta: HealthScoreCardProps["delta"];
+    /**
+     * v1.18.6 — value-free Rest Mode annotation off the analytics
+     * payload. When present + active the score card states it is paused
+     * during illness (suppressed, not penalised).
+     */
+    restMode?: { active: boolean } | null;
   } | null;
   /**
    * v1.16.8 — true while the analytics payload that carries
@@ -346,6 +352,7 @@ export function HeroStrip({
             components={healthScore.components}
             delta={healthScore.delta}
             moodEnabled={moodEnabled}
+            restModeActive={healthScore.restMode?.active ?? false}
             onAskCoach={
               // v1.4.37 W5 — short-circuit the prop drilling even
               // though `HealthScoreCard` retired its inline button in

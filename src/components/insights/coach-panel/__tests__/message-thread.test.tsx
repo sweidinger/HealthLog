@@ -662,11 +662,18 @@ describe("errorCodeToI18nKey", () => {
     for (const code of [
       "coach.provider.unavailable",
       "coach.provider.empty",
-      "coach.provider.none",
       "coach.stream",
     ]) {
       expect(errorCodeToI18nKey(code)).toBe("insights.coach.errorProvider");
     }
+  });
+
+  // v1.18.6 — a "no provider configured anywhere" turn is a setup gap,
+  // not a transient failure, so it carries its own guided-setup copy.
+  it("maps the no-provider case to its dedicated guided-setup copy", () => {
+    expect(errorCodeToI18nKey("coach.provider.none")).toBe(
+      "insights.coach.errorNoProvider",
+    );
   });
 
   // v1.4.43 QoL (M6) — `coach.network` no longer collapses to the

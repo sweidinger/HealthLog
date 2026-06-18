@@ -414,7 +414,7 @@
   },
   "measurements": {
     "title": "Misurazioni",
-    "subtitle": "Peso, pressione arteriosa, pulsazioni e altro",
+    "subtitle": "Registra le misurazioni e consulta lo storico completo. Tendenze e analisi sono in Analisi.",
     "addMeasurement": "Aggiungi",
     "editMeasurement": "Modifica misurazione",
     "type": "Tipo",
@@ -1892,7 +1892,8 @@
     "bmiEmptyTitle": "Aggiungi l’altezza per il BMI",
     "bmiEmptyDescription": "Per il BMI serve la tua altezza. Salvala in Impostazioni → Account.",
     "bmiEmptyAction": "Apri impostazioni account",
-    "noProviderConfigured": "Valutazione non disponibile.",
+    "noProviderConfigured": "Collega un provider IA per vedere qui una valutazione delle tue misurazioni.",
+    "noProviderAction": "Apri impostazioni IA",
     "startAnalysis": "Avvia valutazione",
     "refreshAnalysis": "Aggiorna valutazione",
     "keyTakeaway": "Ciò che conta",
@@ -1965,6 +1966,7 @@
       "progressAria": "Avanzamento del punteggio di salute",
       "deltaVsLastWeek": "{delta} rispetto alla settimana scorsa",
       "deltaUnavailable": "Ancora nessuno storico — ripassa la prossima settimana.",
+      "restModePaused": "In pausa durante la malattia — oggi il tuo punteggio non viene valutato.",
       "componentBp": "PA",
       "componentWeight": "Peso",
       "componentMood": "Umore",
@@ -2007,7 +2009,7 @@
       "emptyAction": "Genera briefing",
       "loadingLabel": "Preparazione del briefing",
       "noProviderTitle": "Nessun provider IA collegato",
-      "noProviderDescription": "Collega un provider IA nelle impostazioni per ricevere briefing giornalieri.",
+      "noProviderDescription": "Il briefing giornaliero riassume le tue misurazioni in linguaggio chiaro. HealthLog ha bisogno di un provider IA per questo: usa la tua chiave (OpenAI, Anthropic) o un modello locale. I tuoi dati restano tuoi.",
       "noProviderAction": "Apri impostazioni IA"
     },
     "trendsRow": {
@@ -2072,6 +2074,8 @@
       "refusalInjection": "Nel tuo messaggio ci sono istruzioni che cercano di sovrascrivere le mie indicazioni. Sono il coach di HealthLog e riassumo solo i tuoi dati di salute — riformula la domanda in questo perimetro.",
       "errorBudget": "Hai raggiunto il limite giornaliero del coach. Il budget si reimposta a mezzanotte (UTC).",
       "errorProvider": "Il coach non è riuscito a contattare un provider di analisi ora. Riprova fra poco.",
+      "errorNoProvider": "Il coach legge i tuoi dati di salute registrati e risponde a domande su di essi (non è consulenza medica). HealthLog ha bisogno di un provider IA per questo: collega la tua chiave o un modello locale.",
+      "errorNoProviderAction": "Collega un provider IA",
       "errorNetwork": "Nessuna connessione Internet — riprova quando sei di nuovo online.",
       "prefsSaveError": "Impossibile salvare le preferenze del Coach. Riprova.",
       "errorCredentialExpired": "La connessione al provider di IA è scaduta. Riconnettila nelle Impostazioni per mantenere attivo il Coach.",
@@ -2709,6 +2713,7 @@
         "title": "Panoramica della glicemia",
         "subtitle": "Una lettura dei tuoi ultimi {days} giorni, da {count} misurazioni.",
         "spotCaveat": "Sono stime da singole misurazioni puntuali, non il profilo di un sensore continuo: leggile come una tendenza, non come un verdetto clinico.",
+        "labsLink": "Risultati di laboratorio? Registra una HbA1c o la glicemia a digiuno da un prelievo in Laboratorio.",
         "learningTitle": "Stiamo ancora imparando la tua glicemia",
         "learningBody": "Per ora sono {count} su {days}. Con un po’ più di storico il quadro si chiarisce: continua a registrare o lascia che lo completi un dispositivo connesso.",
         "learningBodyEmpty": "Appena arrivano alcune misurazioni — registrate da te o sincronizzate da un dispositivo — il tempo nel range, la media e la variabilità prendono forma qui.",
@@ -3623,7 +3628,10 @@
       "learning": "Alcune analisi — glicemia, ritmo del sonno, tendenze della pressione, ciclo — si affinano nella prima settimana o due man mano che i tuoi dati si accumulano. Le caselle vuote ora indicano solo che stiamo ancora imparando il tuo riferimento.",
       "connectCta": "Collega un dispositivo",
       "logCta": "Registra la tua prima misurazione",
-      "importCta": "Importa la cronologia esistente"
+      "importCta": "Importa la cronologia esistente",
+      "aiTitle": "Attiva gli Insight IA (facoltativo)",
+      "aiBody": "Il coach, il briefing giornaliero e le valutazioni trasformano le tue misurazioni in linguaggio chiaro. Per farlo colleghi la tua chiave IA (OpenAI, Anthropic) o un modello locale: i tuoi dati restano tuoi.",
+      "aiCta": "Collega un provider IA"
     },
     "welcomeBack": {
       "title": "Bentornato",

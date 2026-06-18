@@ -106,18 +106,7 @@ import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import type { DataSummary } from "@/lib/analytics/trends";
 import { mergeSlimAndThickAnalytics } from "@/lib/analytics/merge-slim-thick";
 import { isWindowSufficient } from "@/lib/analytics/window-confidence";
-import { getBpTargets } from "@/lib/analytics/bp-targets";
-import {
-  buildTrafficLightBands,
-  buildTrafficRange,
-  buildWeightBandsFromHeight,
-  buildWeightRangeFromHeight,
-  getBodyFatTargetRange,
-} from "@/lib/analytics/value-bands";
-import {
-  getAgeFromDateOfBirth,
-  getPersonalizedPulseTarget,
-} from "@/lib/analytics/pulse-targets";
+import { buildDashboardBands } from "@/lib/dashboard/bands";
 import { apiGet } from "@/lib/api/api-fetch";
 
 // v1.18.6 — the pure first-paint / skeleton-reservation gates moved to
@@ -537,34 +526,22 @@ export default function DashboardPage() {
   const serverBands = snapshotEnabled
     ? snapshotQuery.data?.targetBands
     : undefined;
-  const bpTargets = snapshotEnabled
-    ? (serverBands?.bpTargets ?? null)
-    : user?.dateOfBirth != null
-      ? getBpTargets(new Date(user.dateOfBirth))
-      : null;
-  const bodyFatRange = snapshotEnabled
-    ? (serverBands?.bodyFatRange ?? getBodyFatTargetRange(user?.gender))
-    : getBodyFatTargetRange(user?.gender);
-  const weightRange = snapshotEnabled
-    ? (serverBands?.weightRange ?? null)
-    : user?.heightCm
-      ? buildWeightRangeFromHeight(user.heightCm)
-      : null;
-  const weightBands = snapshotEnabled
-    ? (serverBands?.weightBands ?? undefined)
-    : user?.heightCm
-      ? buildWeightBandsFromHeight(user.heightCm, {
-          lowerBound: 30,
-          upperBound: 250,
-        })
-      : undefined;
-  // The pulse target range / bands carry no i18n — read them server-side
-  // under snapshot mode; recompute from the profile otherwise.
-  const pulseAge = getAgeFromDateOfBirth(user?.dateOfBirth ?? null);
-  const pulseTarget = getPersonalizedPulseTarget(
-    pulseAge,
-    (user?.gender as "MALE" | "FEMALE" | null | undefined) ?? null,
-  );
+  // Resolve the bands through the SAME `buildDashboardBands` helper the
+  // server snapshot uses, so the snapshot path and the client fallback
+  // are byte-identical by construction (no second inline copy of the
+  // band math to drift). Always compute the client copy from the profile
+  // — it is pure + cheap — so a still-loading snapshot frame keeps real
+  // bands rather than blank charts; `serverBands ?? clientBands` then
+  // prefers the authoritative server numbers the moment they arrive.
+  const clientBands = buildDashboardBands({
+    dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth) : null,
+    gender: (user?.gender as "MALE" | "FEMALE" | null | undefined) ?? null,
+    heightCm: user?.heightCm ?? null,
+  });
+  const bands = serverBands ?? clientBands;
+  const bpTargets = bands.bpTargets;
+  const weightRange = bands.weightRange;
+  const weightBands = bands.weightBands ?? undefined;
   const bpTargetZones = bpTargets
     ? [
         {
@@ -587,50 +564,11 @@ export default function DashboardPage() {
         },
       ]
     : undefined;
-  const bpSysRange = snapshotEnabled
-    ? (serverBands?.bpSysRange ?? null)
-    : bpTargets
-      ? buildTrafficRange(bpTargets.sysLow, bpTargets.sysHigh)
-      : null;
-  const bpDiaRange = snapshotEnabled
-    ? (serverBands?.bpDiaRange ?? null)
-    : bpTargets
-      ? buildTrafficRange(bpTargets.diaLow, bpTargets.diaHigh)
-      : null;
-  const pulseDisplayRange = serverBands?.pulseDisplayRange ?? {
-    greenMin: pulseTarget.greenMin,
-    greenMax: pulseTarget.greenMax,
-    orangeMin: pulseTarget.orangeMin,
-    orangeMax: pulseTarget.orangeMax,
-  };
-  const pulseBands = serverBands?.pulseBands ?? [
-    { min: 30, max: pulseTarget.orangeMin, color: "#ff5555", opacity: 0.16 },
-    {
-      min: pulseTarget.orangeMin,
-      max: pulseTarget.greenMin,
-      color: "#ffb86c",
-      opacity: 0.18,
-    },
-    {
-      min: pulseTarget.greenMin,
-      max: pulseTarget.greenMax,
-      color: "#50fa7b",
-      opacity: 0.2,
-    },
-    {
-      min: pulseTarget.greenMax,
-      max: pulseTarget.orangeMax,
-      color: "#ffb86c",
-      opacity: 0.18,
-    },
-    { min: pulseTarget.orangeMax, max: 220, color: "#ff5555", opacity: 0.16 },
-  ].filter((band) => band.max > band.min);
-  const bodyFatBands =
-    serverBands?.bodyFatBands ??
-    buildTrafficLightBands(bodyFatRange.min, bodyFatRange.max, {
-      lowerBound: 2,
-      upperBound: 55,
-    });
+  const bpSysRange = bands.bpSysRange;
+  const bpDiaRange = bands.bpDiaRange;
+  const pulseDisplayRange = bands.pulseDisplayRange;
+  const pulseBands = bands.pulseBands;
+  const bodyFatBands = bands.bodyFatBands;
 
   // v1.18.6 — ONE batched fetch for every visible non-sleep chart series
   // (audit finding #2). Pre-fix, each `<HealthChart>` fired its own

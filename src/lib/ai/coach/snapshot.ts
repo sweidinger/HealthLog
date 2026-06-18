@@ -23,6 +23,7 @@ import {
   type CoachDataCluster,
 } from "@/lib/validations/coach-prefs";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import { userDayKey } from "@/lib/tz/format";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import {
   computeGlucoseClinicalMetrics,
@@ -223,15 +224,11 @@ function windowToDays(window: CoachScopeWindow): number {
  * "last night" answer has to use the user's clock, not UTC. Up to
  * v1.4.24 the day-key was UTC, so a 23:50 Pacific/Auckland reading
  * landed in the next UTC day's bucket and the Coach couldn't pair it
- * with the user's mental model.
+ * with the user's mental model. Delegates to the canonical
+ * `userDayKey` so every day-bucket surface stays byte-aligned.
  */
 function tzDayKey(date: Date, tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  return userDayKey(date, tz);
 }
 
 /**

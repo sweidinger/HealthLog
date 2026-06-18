@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, FileUp, PlusCircle, Plug } from "lucide-react";
+import {
+  CheckCircle2,
+  FileUp,
+  PlusCircle,
+  Plug,
+  Sparkles,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
@@ -50,6 +56,33 @@ export function DoneScreen() {
           {t("onboarding.done.learning")}
         </p>
       </header>
+
+      {/* v1.18.6 — surface the AI Insights / Coach / briefing setup at
+          the highest-intent moment. The flagship feature needs a BYOK or
+          local provider that the rest of onboarding never mentions, so a
+          fresh user otherwise discovers it as a cold error. This card is
+          skippable by construction — it is an optional deep-link, not a
+          gate. */}
+      <div className="border-border/60 bg-muted/30 mx-auto flex w-full max-w-md flex-col items-center gap-2 rounded-lg border p-4 text-center">
+        <span
+          aria-hidden="true"
+          className="from-dracula-purple to-dracula-pink flex size-9 items-center justify-center rounded-full bg-gradient-to-br"
+        >
+          <Sparkles className="text-background size-4" />
+        </span>
+        <p className="text-foreground text-sm font-medium">
+          {t("onboarding.done.aiTitle")}
+        </p>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {t("onboarding.done.aiBody")}
+        </p>
+        <Link
+          href="/settings/ai"
+          className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+        >
+          {t("onboarding.done.aiCta")}
+        </Link>
+      </div>
 
       <div className="flex w-full max-w-xs flex-col gap-2">
         <Button asChild size="lg">

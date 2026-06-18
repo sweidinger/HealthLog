@@ -80,7 +80,11 @@ describe("<InsightStatusCard>", () => {
         text="ignored when hasProvider is false"
       />,
     );
-    expect(html).toContain("Assessment unavailable.");
+    // v1.18.6 — the no-provider tile is a guided-setup explainer + a
+    // Settings link, not a bare "unavailable" line.
+    expect(html).toContain("Connect an AI provider");
+    expect(html).toContain("Open AI settings");
+    expect(html).toContain("/settings/ai");
     expect(html).not.toContain("ignored when hasProvider is false");
   });
 

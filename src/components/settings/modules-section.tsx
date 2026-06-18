@@ -118,21 +118,29 @@ export function ModulesSection() {
       aria-labelledby="settings-section-modules-title"
       className="space-y-6"
     >
-      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
-      <header>
+      {/* v1.18.6 — restore a short intro line so a new user understands
+          that this page drives the nav, tiles and assessments they see.
+          (Dropped in v1.18.1 D0 for top alignment; the orientation cost
+          outweighed the alignment.) */}
+      <header className="space-y-1">
         <h1 id="settings-section-modules-title" className="sr-only">
           {t("settings.sections.modules.title")}
         </h1>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {t("settings.sections.modules.description")}
+        </p>
       </header>
 
-      {/* Toggleable modules. v1.18.1 (D2) — the explanatory line above the
-          first card dropped; the per-row labels carry the meaning. */}
       <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <SettingsCardHeader
           icon={Blocks}
           title={t("settings.sections.modules.toggleable.title")}
           className="mb-2"
         />
+        {/* v1.18.6 — restore the one-line "what this section does" hint. */}
+        <p className="text-muted-foreground mb-3 pl-7 text-sm leading-relaxed">
+          {t("settings.sections.modules.toggleable.description")}
+        </p>
         <div className="divide-border divide-y pl-7">
           {(Object.keys(MODULE_REGISTRY) as ModuleKey[]).map((key) => {
             const def = MODULE_REGISTRY[key];
