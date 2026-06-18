@@ -191,7 +191,8 @@
     "backToDashboard": "Torna alla dashboard"
   },
   "offlineBanner": {
-    "message": "Nessuna connessione — le tue modifiche verranno salvate appena torni online."
+    "message": "Nessuna connessione — le tue modifiche verranno salvate appena torni online.",
+    "showingCached": "Vengono mostrati i tuoi ultimi dati sincronizzati."
   },
   "demoBanner": {
     "message": "Modalità demo — le modifiche non vengono salvate."

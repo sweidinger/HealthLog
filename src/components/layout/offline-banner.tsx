@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { WifiOff } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useTranslations } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * v1.4.43 QoL (M5) — slim banner that surfaces "you're offline" while
@@ -25,6 +27,7 @@ import { useTranslations } from "@/lib/i18n/context";
  */
 export function OfflineBanner() {
   const { t } = useTranslations();
+  const queryClient = useQueryClient();
   // Initialise to `true` so the banner stays hidden during SSR + the
   // first client render. The effect below flips it true/false after
   // mount based on `navigator.onLine`. (We do NOT read navigator on
@@ -62,6 +65,12 @@ export function OfflineBanner() {
 
   if (isOnline) return null;
 
+  // v1.18.6 — when an offline install is showing last-synced data (the SW's
+  // allowlisted read cache + the IndexedDB query persister hydrated the
+  // dashboard snapshot), say so honestly rather than implying a blank screen.
+  const hasCachedData =
+    queryClient.getQueryData(queryKeys.dashboardSnapshot()) != null;
+
   return (
     <div
       role="status"
@@ -70,7 +79,10 @@ export function OfflineBanner() {
       className="bg-warning/15 border-warning/40 text-foreground flex items-center justify-center gap-2 border-b px-3 py-2 text-xs"
     >
       <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span className="text-center">{t("offlineBanner.message")}</span>
+      <span className="text-center">
+        {t("offlineBanner.message")}
+        {hasCachedData ? ` ${t("offlineBanner.showingCached")}` : ""}
+      </span>
     </div>
   );
 }

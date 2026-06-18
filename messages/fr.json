@@ -191,7 +191,8 @@
     "backToDashboard": "Retour au tableau de bord"
   },
   "offlineBanner": {
-    "message": "Pas de connexion — tes modifications seront enregistrées dès que tu seras de nouveau en ligne."
+    "message": "Pas de connexion — tes modifications seront enregistrées dès que tu seras de nouveau en ligne.",
+    "showingCached": "Affichage de tes dernières données synchronisées."
   },
   "demoBanner": {
     "message": "Mode démo — les modifications ne sont pas enregistrées."

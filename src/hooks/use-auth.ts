@@ -10,6 +10,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import type { TimeFormatPreference } from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
 import type { ModuleKey } from "@/lib/modules/registry";
+import { clearPersistedQueryCache } from "@/lib/pwa/query-persister";
 
 export interface AuthUser {
   id: string;
@@ -203,10 +204,19 @@ export function useLogout() {
       if (typeof caches !== "undefined") {
         void caches.keys().then((keys) => {
           for (const key of keys) {
-            if (key.startsWith("healthlog-pages-")) void caches.delete(key);
+            // v1.18.6 — also drop the offline read-data cache; it holds the
+            // last-synced health JSON and must never survive a logout.
+            if (
+              key.startsWith("healthlog-pages-") ||
+              key.startsWith("healthlog-data-")
+            ) {
+              void caches.delete(key);
+            }
           }
         });
       }
+      // Wipe the persisted IndexedDB query cache for the same reason.
+      void clearPersistedQueryCache();
       router.push("/auth/login");
     },
     // v1.16.4 — a network-failed logout used to do nothing at all (the
