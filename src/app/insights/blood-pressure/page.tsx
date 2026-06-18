@@ -170,6 +170,32 @@ export default function InsightsBlutdruckPage() {
           average). */}
       <MetricTargetSummary slug="blood-pressure" />
 
+      {/* v1.18.6 — free derived BP context: pulse pressure (SBP − DBP) and
+          mean arterial pressure ((SBP + 2·DBP)/3), computed from the most
+          recent reading. Pure derivation of stored BP — no schema, no extra
+          fetch. Calm, cited, non-alarming. */}
+      {(() => {
+        const sbp = sysSummary?.latest ?? null;
+        const dbp = diaSummary?.latest ?? null;
+        if (sbp == null || dbp == null || sbp <= dbp) return null;
+        const pp = Math.round(sbp - dbp);
+        const map = Math.round((sbp + 2 * dbp) / 3);
+        return (
+          <p
+            data-slot="bp-derived-caption"
+            className="text-muted-foreground text-sm leading-relaxed"
+          >
+            {t("insights.subPage.bpDerived.pulsePressure", {
+              value: pp,
+            })}{" "}
+            {t("insights.subPage.bpDerived.meanArterialPressure", {
+              value: map,
+            })}{" "}
+            {t("insights.subPage.bpDerived.caveat")}
+          </p>
+        );
+      })()}
+
       {/* v1.12.4 — Einschätzung is the last content block; the stat strip
           (rendered by the shell) closes the spine below it. */}
       <SlugInsightStatusCard

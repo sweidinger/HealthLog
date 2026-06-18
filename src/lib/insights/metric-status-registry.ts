@@ -155,6 +155,11 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     normalRange: { low: 50, high: 100 },
     archetype: "physiological-vital",
   },
+  // HRV — no universal "normal" band (ESC/NASPE 1996): only the personal
+  // trend is meaningful and overnight wearable RMSSD is not interchangeable
+  // with the clinical 24-h SDNN norms. No `normalRange` by design; the user's
+  // own baseline leads and single-night swings of ~±10% are routine noise
+  // (see `reference-ranges.ts HEART_RATE_VARIABILITY.guidanceCaveat`).
   HEART_RATE_VARIABILITY: {
     id: "HEART_RATE_VARIABILITY",
     measurementType: "HEART_RATE_VARIABILITY",
@@ -163,6 +168,13 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     direction: "higher-better",
     archetype: "physiological-vital",
   },
+  // SpO₂ — healthy room-air 95–100% (StatPearls/NIH 2023). C4 equity note:
+  // optical pulse oximeters can OVER-READ true saturation in people with
+  // darker skin pigmentation (~3× more often than in lighter skin per the
+  // US FDA 2024 review), so a single near-normal reading is not a clearance.
+  // The band is unchanged; the caveat lives in the explainer copy +
+  // `reference-ranges.ts OXYGEN_SATURATION.guidanceCaveat`. Do NOT set a
+  // "higher is always better" goal — above ~98% adds no benefit.
   OXYGEN_SATURATION: {
     id: "OXYGEN_SATURATION",
     measurementType: "OXYGEN_SATURATION",
@@ -181,13 +193,18 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     normalRange: { low: 12, high: 20 },
     archetype: "physiological-vital",
   },
+  // Body temperature — the population oral-equivalent mean is ~36.6 °C, not
+  // 37.0 °C, with a normal band ~35.7–37.4 °C and fever ≥38.0 °C (J Gen
+  // Intern Med systematic review, 2019). C6: the high anchor tightens
+  // 37.5 → 37.2 so the band sits below the fever line; sites differ by up
+  // to ~1 °C, so the read is a coarse placement only.
   BODY_TEMPERATURE: {
     id: "BODY_TEMPERATURE",
     measurementType: "BODY_TEMPERATURE",
     displayName: "Body temperature",
     unit: "°C",
     direction: "target-band",
-    normalRange: { low: 36.1, high: 37.5 },
+    normalRange: { low: 36.1, high: 37.2 },
     archetype: "physiological-vital",
   },
   SKIN_TEMPERATURE: {
@@ -215,12 +232,17 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     direction: "lower-better",
     archetype: "physiological-vital",
   },
+  // Pulse-wave velocity — the cf-PWV >10 m/s organ-damage marker is the
+  // European clinical reference (ESC/ESH 2018). A consumer estimate is a
+  // PROXY, not interchangeable with clinical cf-PWV tonometry; the band is
+  // a coarse "below 10 is the reference side" placement only.
   PULSE_WAVE_VELOCITY: {
     id: "PULSE_WAVE_VELOCITY",
     measurementType: "PULSE_WAVE_VELOCITY",
     displayName: "Pulse-wave velocity",
     unit: "m/s",
     direction: "lower-better",
+    normalRange: { low: 0, high: 10 },
     archetype: "physiological-vital",
   },
   VASCULAR_AGE: {
@@ -232,13 +254,18 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     archetype: "physiological-vital",
   },
   // ── activity-fitness ──
+  // Steps — C2/D4 reconcile: the canonical "green" floor is 8,000/day
+  // (Saint-Maurice JAMA 2020: mortality risk falls steeply toward ~8k with
+  // continued benefit through ~12k), aligning this display band with the
+  // resolver + classifier so the cross-surface number stops contradicting.
+  // The "10,000" target is a marketing slogan, not research.
   STEPS: {
     id: "STEPS",
     measurementType: "ACTIVITY_STEPS",
     displayName: "Steps",
     unit: "steps/day",
     direction: "higher-better",
-    normalRange: { low: 7000, high: 10000 },
+    normalRange: { low: 8000, high: 15000 },
     archetype: "activity-fitness",
   },
   ACTIVE_ENERGY: {
