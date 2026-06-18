@@ -5866,6 +5866,33 @@ paths:
         "404": *a7
         "422": *a3
         "429": *a4
+  /api/measurement-reminders/{id}/complete:
+    post:
+      tags:
+        - MeasurementReminders
+      summary: Complete a Vorsorge reminder (v1.18.6)
+      description: "Explicit user-action completion (iOS #23): the app marks a reminder done server-side instead of only
+        dismissing it locally. Routes through the same satisfaction primitive as the cron auto-resolve — stamps
+        lastSatisfiedAt = now, re-anchors nextDueAt, fires no notification. Idempotent: completing an already-completed
+        / auto-satisfied reminder returns 200 with completed=false. Owner-scoped."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Completion applied (completed=true) or already-satisfied no-op (completed=false); reminder carries the
+            canonical post-completion DTO.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementReminderCompleteEnvelope"
+        "401": *a1
+        "404": *a7
+        "422": *a3
+        "429": *a4
   /api/labs:
     get:
       tags:
@@ -18498,6 +18525,37 @@ components:
         - data
         - error
       additionalProperties: false
+    MeasurementReminderCompleteEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementReminderCompletion"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementReminderCompletion:
+      type: object
+      properties:
+        completed:
+          type: boolean
+        reminder:
+          $ref: "#/components/schemas/MeasurementReminderDTO"
+      required:
+        - completed
+        - reminder
+      additionalProperties: false
+      description: Result of an explicit reminder completion. completed=true when this call advanced lastSatisfiedAt;
+        completed=false when an earlier satisfy or a matching reading had already fulfilled the current cycle
+        (idempotent no-op). reminder is the canonical post-completion DTO.
     ListLabResultsEnvelope:
       type: object
       properties:
