@@ -74,6 +74,15 @@ export interface TrendChartConfig {
    * for additive metrics, which fall back to {@link captionKey}.
    */
   annotationKey?: TrendAnnotationKey;
+  /**
+   * Routed detail page for the metric (`/insights/<slug>`), when one exists.
+   * The Trends-row card links to it so the overview can drill into the metric
+   * — notably the one cross-link to `/insights/steps`, which the overview
+   * otherwise never offered despite the steps page existing and being used.
+   * Omitted for slots with no dedicated page (mood routes through its own
+   * surface; metabolic re-frames live on their composite pages).
+   */
+  detailHref?: string;
 }
 
 /**
@@ -100,6 +109,7 @@ export const TREND_CHART_CONFIG: Record<
     titleKey: "charts.bloodPressure",
     captionKey: "insights.trendsRow.caption.bp",
     annotationKey: "bp",
+    detailHref: "/insights/blood-pressure",
   },
   weight: {
     metric: "weight",
@@ -110,6 +120,7 @@ export const TREND_CHART_CONFIG: Record<
     titleKey: "charts.weight",
     captionKey: "insights.trendsRow.caption.weight",
     annotationKey: "weight",
+    detailHref: "/insights/weight",
   },
   pulse: {
     metric: "pulse",
@@ -120,6 +131,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "bpm",
     titleKey: "charts.pulse",
     captionKey: "insights.trendsRow.caption.pulse",
+    detailHref: "/insights/pulse",
   },
   mood: {
     metric: "mood",
@@ -129,6 +141,7 @@ export const TREND_CHART_CONFIG: Record<
     titleKey: "charts.mood",
     captionKey: "insights.trendsRow.caption.mood",
     annotationKey: "mood",
+    detailHref: "/insights/mood",
   },
   sleep: {
     metric: "sleep",
@@ -139,6 +152,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "h",
     titleKey: "charts.sleep",
     captionKey: "insights.trendsRow.caption.sleep",
+    detailHref: "/insights/sleep",
   },
   steps: {
     metric: "steps",
@@ -149,6 +163,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "steps",
     titleKey: "charts.steps",
     captionKey: "insights.trendsRow.caption.steps",
+    detailHref: "/insights/steps",
   },
   hrv: {
     metric: "hrv",
@@ -159,6 +174,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "ms",
     titleKey: "charts.hrv",
     captionKey: "insights.trendsRow.caption.hrv",
+    detailHref: "/insights/hrv",
   },
   resting_hr: {
     metric: "resting_hr",
@@ -169,6 +185,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "bpm",
     titleKey: "charts.restingHeartRate",
     captionKey: "insights.trendsRow.caption.resting_hr",
+    detailHref: "/insights/resting-pulse",
   },
   active_energy: {
     metric: "active_energy",
@@ -179,6 +196,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "kcal",
     titleKey: "charts.activeEnergy",
     captionKey: "insights.trendsRow.caption.active_energy",
+    detailHref: "/insights/active-energy",
   },
   flights: {
     metric: "flights",
@@ -189,6 +207,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "flights",
     titleKey: "charts.flights",
     captionKey: "insights.trendsRow.caption.flights",
+    detailHref: "/insights/flights-climbed",
   },
   distance: {
     metric: "distance",
@@ -199,6 +218,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "km",
     titleKey: "charts.distance",
     captionKey: "insights.trendsRow.caption.distance",
+    detailHref: "/insights/walking-distance",
   },
   vo2_max: {
     metric: "vo2_max",
@@ -209,6 +229,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "mL/kg·min",
     titleKey: "charts.vo2Max",
     captionKey: "insights.trendsRow.caption.vo2_max",
+    detailHref: "/insights/cardio-fitness",
   },
   body_temp: {
     metric: "body_temp",
@@ -219,6 +240,7 @@ export const TREND_CHART_CONFIG: Record<
     yAxisUnit: "°C",
     titleKey: "charts.bodyTemperature",
     captionKey: "insights.trendsRow.caption.body_temp",
+    detailHref: "/insights/body-temperature",
   },
   // Adherence-context findings — no single plottable trend series in
   // this row. A finding on one of these is skipped during selection so

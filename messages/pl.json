@@ -2029,7 +2029,8 @@
         "distance": "Dystans marszu i biegu z ostatnich 30 dni.",
         "vo2_max": "VO₂ max z ostatnich 30 dni.",
         "body_temp": "Temperatura ciała z ostatnich 30 dni."
-      }
+      },
+      "viewDetail": "Zobacz szczegóły: {metric}"
     },
     "vo2Max": {
       "statLatest": "Aktualne",
@@ -2547,7 +2548,8 @@
         "asleepTotal": "Sen {value}",
         "inBedTotal": "W łóżku {value}",
         "awakenings": "{count} przebudzeń",
-        "source": "Źródło: {source}"
+        "source": "Źródło: {source}",
+        "estimateNote": "Czasy faz są szacowane — to źródło podaje sumy dla każdej fazy, a nie zmierzony przebieg."
       },
       "stages": {
         "deep": "Głęboki",
@@ -2574,7 +2576,7 @@
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Wciąż poznajemy Twój rytm — {counted} z {total} wolnych nocy. Chronotyp wymaga kilku poranków bez budzika, aby coś znaczył.",
-        "midSleepCaption": "Środek snu w dni wolne około {clock}",
+        "midSleepCaption": "Naturalny środek Twojego snu w dni wolne przypada około {clock}.",
         "advancedToggle": "Zaawansowane",
         "socialJetlagValue": "{hours} godz. {minutes} min jet lagu społecznego",
         "socialJetlagCaption": "Różnica między porą snu w dni robocze i wolne — jak niewielka cotygodniowa zmiana strefy czasowej.",
@@ -2587,7 +2589,8 @@
           "intermediate": "Typ pośredni",
           "late": "Typ wieczorny",
           "extreme_late": "Wyraźny typ wieczorny"
-        }
+        },
+        "cornerLabel": "Chronotyp"
       },
       "rhythm": {
         "loadError": "Nie udało się teraz wczytać Twojego rytmu snu. Pojawi się ponownie, gdy połączenie się ustabilizuje."
@@ -3479,25 +3482,34 @@
     },
     "sleepQuality": {
       "title": "Jakość snu",
-      "subtitle": "Nocne wyniki z Twojego urządzenia"
+      "subtitle": "Nocne wyniki z Twojego urządzenia",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "Twój ogólny wynik snu",
+          "SLEEP_EFFICIENCY": "efektywność snu",
+          "SLEEP_PERFORMANCE": "wydajność snu",
+          "SLEEP_CONSISTENCY": "regularność snu"
+        },
+        "grade": {
+          "excellent": "doskonała",
+          "good": "solidna",
+          "fair": "przeciętna",
+          "low": "raczej niska"
+        },
+        "clause": "W ciągu ostatnich 30 nocy {metric} jest {grade} i wynosi {value}.",
+        "closing": {
+          "excellent": "Trzymaj się rutyny, która Cię tu doprowadziła.",
+          "good": "Bardziej stałe pory zasypiania i wstawania to zwykle następny zysk.",
+          "fair": "Utrzymanie stałego okna snu zwykle podnosi ten wynik najbardziej.",
+          "low": "Regularne wyciszenie wieczorem i stała pora pobudki to pierwsze dźwignie."
+        }
+      }
     },
     "recovery": {
       "title": "Regeneracja",
       "description": "Jak dobrze Twój organizm się zregenerował – sygnały regeneracji, obciążenia i load, które Twoje urządzenie rejestruje w nocy.",
       "emptyTitle": "Brak danych o regeneracji",
       "empty": "Brak danych o regeneracji. Połącz konto WHOOP, Polar lub Oura, a te wyniki uzupełnią się po synchronizacji urządzenia.",
-      "recharge": {
-        "title": "Recharge",
-        "subtitle": "Ładowanie autonomicznego układu nerwowego"
-      },
-      "strain": {
-        "title": "Obciążenie i load",
-        "subtitle": "Dzienne obciążenie sercowo-naczyniowe"
-      },
-      "cardio": {
-        "title": "Serce i energia w ciągu dnia",
-        "subtitle": "Całodobowe sumy sercowe i energetyczne"
-      },
       "block": {
         "ansChargeExplainer": "Jak naładowany jest Twój autonomiczny układ nerwowy na dany dzień — odczyt regeneracji oparty na nocnych sygnałach serca i oddechu.",
         "dayStrainExplainer": "Dzienne obciążenie sercowo-naczyniowe na skali wysiłku Twojego urządzenia. Odczytuj je w odniesieniu do regeneracji, nie jako cel sam w sobie.",

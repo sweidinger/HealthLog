@@ -2029,7 +2029,8 @@
         "distance": "Geh- und Laufstrecke der letzten 30 Tage.",
         "vo2_max": "VO₂max der letzten 30 Tage.",
         "body_temp": "Körpertemperatur der letzten 30 Tage."
-      }
+      },
+      "viewDetail": "{metric} im Detail"
     },
     "vo2Max": {
       "statLatest": "Aktuell",
@@ -2547,7 +2548,8 @@
         "asleepTotal": "Geschlafen {value}",
         "inBedTotal": "Im Bett {value}",
         "awakenings": "{count} Wachphasen",
-        "source": "Quelle: {source}"
+        "source": "Quelle: {source}",
+        "estimateNote": "Die Phasen-Zeiten sind geschätzt — diese Quelle liefert Summen je Phase, keinen gemessenen Verlauf."
       },
       "stages": {
         "deep": "Tief",
@@ -2574,7 +2576,7 @@
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Dein Rhythmus wird noch erfasst — {counted} von {total} freien Nächten. Ein Chronotyp braucht ein paar weckerfreie Morgen, um aussagekräftig zu sein.",
-        "midSleepCaption": "Schlafmitte an freien Tagen gegen {clock}",
+        "midSleepCaption": "Deine natürliche Schlafmitte an freien Tagen liegt etwa um {clock}.",
         "advancedToggle": "Mehr Details",
         "socialJetlagValue": "{hours} Std. {minutes} Min. sozialer Jetlag",
         "socialJetlagCaption": "Der Unterschied zwischen deinem Schlaf an Arbeits- und freien Tagen — wie eine kleine wöchentliche Zeitzonenverschiebung.",
@@ -2587,7 +2589,8 @@
           "intermediate": "Mischtyp",
           "late": "Abendtyp",
           "extreme_late": "Ausgeprägter Abendtyp"
-        }
+        },
+        "cornerLabel": "Chronotyp"
       },
       "rhythm": {
         "loadError": "Dein Schlafrhythmus konnte gerade nicht geladen werden. Er erscheint wieder, sobald die Verbindung steht."
@@ -3479,25 +3482,34 @@
     },
     "sleepQuality": {
       "title": "Schlafqualität",
-      "subtitle": "Nächtliche Werte deines Wearables"
+      "subtitle": "Nächtliche Werte deines Wearables",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "dein Gesamt-Schlafscore",
+          "SLEEP_EFFICIENCY": "die Schlafeffizienz",
+          "SLEEP_PERFORMANCE": "die Schlafleistung",
+          "SLEEP_CONSISTENCY": "die Schlafkonstanz"
+        },
+        "grade": {
+          "excellent": "ausgezeichnet",
+          "good": "solide",
+          "fair": "durchschnittlich",
+          "low": "eher niedrig"
+        },
+        "clause": "Über die letzten 30 Nächte ist {metric} mit {value} {grade}.",
+        "closing": {
+          "excellent": "Behalte die Routine bei, die dich hierher bringt.",
+          "good": "Konstantere Zubett- und Aufstehzeiten sind meist der nächste Gewinn.",
+          "fair": "Ein konstantes Schlaffenster hebt diesen Wert erfahrungsgemäß am stärksten.",
+          "low": "Ein festes Herunterfahren am Abend und eine feste Aufstehzeit sind die ersten Hebel."
+        }
+      }
     },
     "recovery": {
       "title": "Erholung",
       "description": "Wie gut sich dein Körper erholt hat – die Erholungs-, Belastungs- und Load-Signale, die dein Wearable über Nacht aufzeichnet.",
       "emptyTitle": "Noch keine Erholungsdaten",
       "empty": "Noch keine Erholungsdaten. Verbinde ein WHOOP-, Polar- oder Oura-Konto, dann füllen sich diese Werte, sobald dein Gerät synchronisiert.",
-      "recharge": {
-        "title": "Recharge",
-        "subtitle": "Ladung des autonomen Nervensystems"
-      },
-      "strain": {
-        "title": "Belastung & Load",
-        "subtitle": "Tägliche kardiovaskuläre Belastung"
-      },
-      "cardio": {
-        "title": "Herz & Energie pro Tag",
-        "subtitle": "Herz- und Energiewerte des ganzen Tages"
-      },
       "block": {
         "ansChargeExplainer": "Wie aufgeladen dein autonomes Nervensystem in den Tag startet – ein Recharge-Wert aus deinen nächtlichen Herz- und Atemsignalen.",
         "dayStrainExplainer": "Die kardiovaskuläre Tagesbelastung auf der Belastungsskala deines Geräts. Lies sie im Verhältnis zu deiner Erholung, nicht als Ziel für sich.",

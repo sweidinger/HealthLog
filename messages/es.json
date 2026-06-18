@@ -2029,7 +2029,8 @@
         "distance": "Distancia caminando y corriendo de los últimos 30 días.",
         "vo2_max": "VO₂ máx de los últimos 30 días.",
         "body_temp": "Temperatura corporal de los últimos 30 días."
-      }
+      },
+      "viewDetail": "Ver detalles de {metric}"
     },
     "vo2Max": {
       "statLatest": "Actual",
@@ -2547,7 +2548,8 @@
         "asleepTotal": "Dormido {value}",
         "inBedTotal": "En la cama {value}",
         "awakenings": "{count} despertares",
-        "source": "Fuente: {source}"
+        "source": "Fuente: {source}",
+        "estimateNote": "Los tiempos de cada fase son estimados: esta fuente informa totales por fase, no una cronología medida."
       },
       "stages": {
         "deep": "Profundo",
@@ -2574,7 +2576,7 @@
       "chronotype": {
         "title": "Cronotipo",
         "learning": "Aún estamos aprendiendo tu ritmo — {counted} de {total} noches libres. Un cronotipo necesita varias mañanas sin despertador para tener sentido.",
-        "midSleepCaption": "Punto medio del sueño en días libres en torno a las {clock}",
+        "midSleepCaption": "El punto medio natural de tu sueño en días libres ronda las {clock}.",
         "advancedToggle": "Avanzado",
         "socialJetlagValue": "{hours} h {minutes} min de jet lag social",
         "socialJetlagCaption": "La diferencia entre el horario de sueño laboral y el de los días libres — como un pequeño cambio de huso horario semanal.",
@@ -2587,7 +2589,8 @@
           "intermediate": "Intermedio",
           "late": "Vespertino",
           "extreme_late": "Vespertino marcado"
-        }
+        },
+        "cornerLabel": "Cronotipo"
       },
       "rhythm": {
         "loadError": "Tu ritmo de sueño no pudo cargarse ahora mismo. Reaparecerá en cuanto se estabilice la conexión."
@@ -3479,25 +3482,34 @@
     },
     "sleepQuality": {
       "title": "Calidad del sueño",
-      "subtitle": "Puntuaciones nocturnas de tu wearable"
+      "subtitle": "Puntuaciones nocturnas de tu wearable",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "tu puntuación global de sueño",
+          "SLEEP_EFFICIENCY": "la eficiencia del sueño",
+          "SLEEP_PERFORMANCE": "el rendimiento del sueño",
+          "SLEEP_CONSISTENCY": "la regularidad del sueño"
+        },
+        "grade": {
+          "excellent": "excelente",
+          "good": "sólida",
+          "fair": "aceptable",
+          "low": "más bien baja"
+        },
+        "clause": "En las últimas 30 noches {metric} es {grade}, en {value}.",
+        "closing": {
+          "excellent": "Mantén la rutina que te trae hasta aquí.",
+          "good": "Acostarte y levantarte a horas más estables suele ser la siguiente mejora.",
+          "fair": "Proteger una franja de sueño constante es lo que más suele subir esto.",
+          "low": "Una rutina de relajación regular y una hora fija para despertar son las primeras palancas."
+        }
+      }
     },
     "recovery": {
       "title": "Recuperación",
       "description": "Cómo se ha recuperado tu cuerpo: las señales de recuperación, esfuerzo y carga que tu wearable registra durante la noche.",
       "emptyTitle": "Aún no hay datos de recuperación",
       "empty": "Aún no hay datos de recuperación. Conecta una cuenta de WHOOP, Polar u Oura y estas puntuaciones se completarán cuando tu dispositivo sincronice.",
-      "recharge": {
-        "title": "Recarga",
-        "subtitle": "Carga del sistema nervioso autónomo"
-      },
-      "strain": {
-        "title": "Esfuerzo y carga",
-        "subtitle": "Carga cardiovascular diaria"
-      },
-      "cardio": {
-        "title": "Corazón y energía del día",
-        "subtitle": "Totales cardiacos y de energía de todo el día"
-      },
       "block": {
         "ansChargeExplainer": "Cuán cargado está tu sistema nervioso autónomo para el día — una lectura de recarga obtenida de tus señales nocturnas de corazón y respiración.",
         "dayStrainExplainer": "La carga cardiovascular del día en la escala de esfuerzo de tu dispositivo. Léela en relación con tu recuperación, no como una meta en sí.",

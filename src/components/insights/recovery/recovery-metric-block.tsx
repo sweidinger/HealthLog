@@ -77,12 +77,12 @@ export function RecoveryMetricBlock({
             className="text-muted-foreground size-4 shrink-0"
             aria-hidden="true"
           />
-          {/* v1.18.1 — block title is an `<h3>` (kept at `text-base`): it
-              nests under the group `SectionHeading` `<h2>`, which itself
-              sits under the page `<h1>` from `SubPageShell`. Demoting it
-              keeps the recovery page's heading outline strictly nested
-              (h1 → h2 → h3) instead of stacking two sibling `<h2>`s. */}
-          <h3 className="text-base font-semibold">{title}</h3>
+          {/* v1.18.6 — block title is an `<h2>` (at `text-base`): the per-group
+              sub-headings were removed, so each block now sits directly under
+              the page `<h1>` from `SubPageShell`. Promoting it from `<h3>` keeps
+              the recovery page's heading outline strictly nested (h1 → h2)
+              with no skipped level. */}
+          <h2 className="text-base font-semibold">{title}</h2>
         </div>
         <p className="text-muted-foreground text-sm leading-relaxed">
           {explainer}

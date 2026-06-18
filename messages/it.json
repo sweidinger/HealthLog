@@ -2029,7 +2029,8 @@
         "distance": "Distanza a piedi e di corsa degli ultimi 30 giorni.",
         "vo2_max": "VO₂ max degli ultimi 30 giorni.",
         "body_temp": "Temperatura corporea degli ultimi 30 giorni."
-      }
+      },
+      "viewDetail": "Vedi i dettagli di {metric}"
     },
     "vo2Max": {
       "statLatest": "Attuale",
@@ -2547,7 +2548,8 @@
         "asleepTotal": "Sonno {value}",
         "inBedTotal": "A letto {value}",
         "awakenings": "{count} risvegli",
-        "source": "Fonte: {source}"
+        "source": "Fonte: {source}",
+        "estimateNote": "I tempi delle fasi sono stimati: questa sorgente riporta i totali per fase, non una cronologia misurata."
       },
       "stages": {
         "deep": "Profondo",
@@ -2574,7 +2576,7 @@
       "chronotype": {
         "title": "Cronotipo",
         "learning": "Stiamo ancora imparando il tuo ritmo — {counted} di {total} notti libere. Un cronotipo richiede alcune mattine senza sveglia per avere significato.",
-        "midSleepCaption": "Metà del sonno nei giorni liberi intorno alle {clock}",
+        "midSleepCaption": "Il punto medio naturale del tuo sonno nei giorni liberi è intorno alle {clock}.",
         "advancedToggle": "Avanzate",
         "socialJetlagValue": "{hours} h {minutes} min di jet lag sociale",
         "socialJetlagCaption": "La differenza tra gli orari del sonno nei giorni lavorativi e in quelli liberi — come un piccolo cambio di fuso orario settimanale.",
@@ -2587,7 +2589,8 @@
           "intermediate": "Tipo intermedio",
           "late": "Tipo serale",
           "extreme_late": "Tipo serale marcato"
-        }
+        },
+        "cornerLabel": "Cronotipo"
       },
       "rhythm": {
         "loadError": "Non è stato possibile caricare il tuo ritmo del sonno in questo momento. Riapparirà non appena la connessione sarà stabile."
@@ -3479,25 +3482,34 @@
     },
     "sleepQuality": {
       "title": "Qualità del sonno",
-      "subtitle": "Punteggi notturni del tuo wearable"
+      "subtitle": "Punteggi notturni del tuo wearable",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "il tuo punteggio di sonno complessivo",
+          "SLEEP_EFFICIENCY": "l’efficienza del sonno",
+          "SLEEP_PERFORMANCE": "la prestazione del sonno",
+          "SLEEP_CONSISTENCY": "la regolarità del sonno"
+        },
+        "grade": {
+          "excellent": "eccellente",
+          "good": "solida",
+          "fair": "discreta",
+          "low": "piuttosto bassa"
+        },
+        "clause": "Nelle ultime 30 notti {metric} è {grade}, a {value}.",
+        "closing": {
+          "excellent": "Mantieni la routine che ti porta fin qui.",
+          "good": "Orari di sonno e risveglio più stabili sono di solito il prossimo guadagno.",
+          "fair": "Proteggere una finestra di sonno costante è ciò che alza di più questo valore.",
+          "low": "Una routine serale regolare e un orario di sveglia fisso sono le prime leve."
+        }
+      }
     },
     "recovery": {
       "title": "Recupero",
       "description": "Quanto bene il tuo corpo si è ripreso: i segnali di recupero, sforzo e carico che il tuo wearable registra durante la notte.",
       "emptyTitle": "Ancora nessun dato di recupero",
       "empty": "Ancora nessun dato di recupero. Collega un account WHOOP, Polar o Oura e questi punteggi si popoleranno appena il dispositivo si sincronizza.",
-      "recharge": {
-        "title": "Ricarica",
-        "subtitle": "Carica del sistema nervoso autonomo"
-      },
-      "strain": {
-        "title": "Sforzo e carico",
-        "subtitle": "Carico cardiovascolare giornaliero"
-      },
-      "cardio": {
-        "title": "Cuore ed energia del giorno",
-        "subtitle": "Totali cardiaci ed energetici dell'intera giornata"
-      },
       "block": {
         "ansChargeExplainer": "Quanto è carico il tuo sistema nervoso autonomo per la giornata — una lettura di ricarica ricavata dai segnali notturni di cuore e respiro.",
         "dayStrainExplainer": "Il carico cardiovascolare della giornata sulla scala di sforzo del tuo dispositivo. Leggilo in rapporto al tuo recupero, non come obiettivo a sé.",

@@ -2029,7 +2029,8 @@
         "distance": "Walking and running distance over the last 30 days.",
         "vo2_max": "VO₂ max over the last 30 days.",
         "body_temp": "Body temperature over the last 30 days."
-      }
+      },
+      "viewDetail": "View {metric} details"
     },
     "vo2Max": {
       "statLatest": "Latest",
@@ -2547,7 +2548,8 @@
         "asleepTotal": "Asleep {value}",
         "inBedTotal": "In bed {value}",
         "awakenings": "{count} awakenings",
-        "source": "Source: {source}"
+        "source": "Source: {source}",
+        "estimateNote": "Stage timing is estimated — this source reports totals per stage, not a measured timeline."
       },
       "stages": {
         "deep": "Deep",
@@ -2574,7 +2576,7 @@
       "chronotype": {
         "title": "Chronotype",
         "learning": "Still learning your rhythm — {counted} of {total} free nights. A chronotype needs a few alarm-free mornings before it means anything.",
-        "midSleepCaption": "Mid-sleep on free days around {clock}",
+        "midSleepCaption": "Your natural sleep midpoint on free days lands around {clock}.",
         "advancedToggle": "Advanced",
         "socialJetlagValue": "{hours}h {minutes}m social jetlag",
         "socialJetlagCaption": "The gap between your work-day and free-day sleep timing — like a small weekly time-zone shift.",
@@ -2587,7 +2589,8 @@
           "intermediate": "Intermediate type",
           "late": "Evening type",
           "extreme_late": "Strong evening type"
-        }
+        },
+        "cornerLabel": "Chronotype"
       },
       "rhythm": {
         "loadError": "Your sleep rhythm couldn't load just now. It'll reappear once the connection settles."
@@ -3479,25 +3482,34 @@
     },
     "sleepQuality": {
       "title": "Sleep quality",
-      "subtitle": "Nightly scores from your wearable"
+      "subtitle": "Nightly scores from your wearable",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "your overall sleep score",
+          "SLEEP_EFFICIENCY": "sleep efficiency",
+          "SLEEP_PERFORMANCE": "sleep performance",
+          "SLEEP_CONSISTENCY": "sleep consistency"
+        },
+        "grade": {
+          "excellent": "excellent",
+          "good": "solid",
+          "fair": "fair",
+          "low": "on the low side"
+        },
+        "clause": "Over the last 30 nights {metric} is {grade} at {value}.",
+        "closing": {
+          "excellent": "Keep the routine that is getting you here.",
+          "good": "A steadier bed and wake time is the usual next gain.",
+          "fair": "Protecting a consistent sleep window tends to lift this most.",
+          "low": "A regular wind-down and a fixed wake time are the first levers to pull."
+        }
+      }
     },
     "recovery": {
       "title": "Recovery",
       "description": "How well your body has bounced back — the recovery, strain and load signals your wearable records overnight.",
       "emptyTitle": "No recovery data yet",
       "empty": "No recovery data yet. Connect a WHOOP, Polar or Oura account and these scores fill in once your device syncs.",
-      "recharge": {
-        "title": "Recharge",
-        "subtitle": "Autonomic-nervous-system charge"
-      },
-      "strain": {
-        "title": "Strain & load",
-        "subtitle": "Daily cardiovascular load"
-      },
-      "cardio": {
-        "title": "Daily heart & energy",
-        "subtitle": "Whole-day cardiac and energy totals"
-      },
       "block": {
         "ansChargeExplainer": "How charged your autonomic nervous system is for the day ahead — a recharge reading drawn from your overnight heart and breathing signals.",
         "dayStrainExplainer": "The day's whole-body cardiovascular load on your device's strain scale. Read it against your recovery, not as a goal on its own.",

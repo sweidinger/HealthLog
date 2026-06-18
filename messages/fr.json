@@ -2029,7 +2029,8 @@
         "distance": "Distance de marche et de course des 30 derniers jours.",
         "vo2_max": "VO₂ max des 30 derniers jours.",
         "body_temp": "Température corporelle des 30 derniers jours."
-      }
+      },
+      "viewDetail": "Voir le détail de {metric}"
     },
     "vo2Max": {
       "statLatest": "Actuel",
@@ -2547,7 +2548,8 @@
         "asleepTotal": "Sommeil {value}",
         "inBedTotal": "Au lit {value}",
         "awakenings": "{count} réveils",
-        "source": "Source : {source}"
+        "source": "Source : {source}",
+        "estimateNote": "Les durées des phases sont estimées : cette source indique des totaux par phase, pas une chronologie mesurée."
       },
       "stages": {
         "deep": "Profond",
@@ -2574,7 +2576,7 @@
       "chronotype": {
         "title": "Chronotype",
         "learning": "Votre rythme est encore en cours d'analyse — {counted} sur {total} nuits libres. Un chronotype a besoin de quelques matins sans réveil pour avoir du sens.",
-        "midSleepCaption": "Milieu de sommeil les jours libres vers {clock}",
+        "midSleepCaption": "Le milieu naturel de votre sommeil les jours de repos se situe vers {clock}.",
         "advancedToggle": "Avancé",
         "socialJetlagValue": "{hours} h {minutes} min de jet lag social",
         "socialJetlagCaption": "L'écart entre vos horaires de sommeil les jours travaillés et les jours libres — comme un petit décalage horaire hebdomadaire.",
@@ -2587,7 +2589,8 @@
           "intermediate": "Type intermédiaire",
           "late": "Type du soir",
           "extreme_late": "Type du soir marqué"
-        }
+        },
+        "cornerLabel": "Chronotype"
       },
       "rhythm": {
         "loadError": "Votre rythme de sommeil n'a pas pu se charger pour l'instant. Il réapparaîtra dès que la connexion sera rétablie."
@@ -3479,25 +3482,34 @@
     },
     "sleepQuality": {
       "title": "Qualité du sommeil",
-      "subtitle": "Scores nocturnes de votre wearable"
+      "subtitle": "Scores nocturnes de votre wearable",
+      "assessment": {
+        "metric": {
+          "SLEEP_SCORE": "votre score de sommeil global",
+          "SLEEP_EFFICIENCY": "l’efficacité du sommeil",
+          "SLEEP_PERFORMANCE": "la performance de sommeil",
+          "SLEEP_CONSISTENCY": "la régularité du sommeil"
+        },
+        "grade": {
+          "excellent": "excellente",
+          "good": "solide",
+          "fair": "correcte",
+          "low": "plutôt faible"
+        },
+        "clause": "Sur les 30 dernières nuits, {metric} est {grade}, à {value}.",
+        "closing": {
+          "excellent": "Gardez la routine qui vous mène jusque-là.",
+          "good": "Des heures de coucher et de lever plus stables sont souvent le prochain gain.",
+          "fair": "Protéger une fenêtre de sommeil constante est ce qui fait le plus progresser ce point.",
+          "low": "Un rituel d’endormissement régulier et une heure de réveil fixe sont les premiers leviers."
+        }
+      }
     },
     "recovery": {
       "title": "Récupération",
       "description": "À quel point votre corps a récupéré : les signaux de récupération, de charge et d'effort que votre wearable enregistre la nuit.",
       "emptyTitle": "Pas encore de données de récupération",
       "empty": "Pas encore de données de récupération. Connectez un compte WHOOP, Polar ou Oura et ces scores se rempliront dès que votre appareil se synchronise.",
-      "recharge": {
-        "title": "Recharge",
-        "subtitle": "Charge du système nerveux autonome"
-      },
-      "strain": {
-        "title": "Effort et charge",
-        "subtitle": "Charge cardiovasculaire quotidienne"
-      },
-      "cardio": {
-        "title": "Cœur et énergie du jour",
-        "subtitle": "Totaux cardiaques et énergétiques de la journée"
-      },
       "block": {
         "ansChargeExplainer": "À quel point votre système nerveux autonome est rechargé pour la journée — une mesure de recharge issue de vos signaux nocturnes de cœur et de respiration.",
         "dayStrainExplainer": "La charge cardiovasculaire de la journée sur l'échelle d'effort de votre appareil. Lisez-la au regard de votre récupération, pas comme un objectif en soi.",
