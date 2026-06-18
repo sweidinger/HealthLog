@@ -45,7 +45,20 @@ import {
   type DataPoint,
   type DataSummary,
 } from "@/lib/analytics/trends";
-import { getBpTargets } from "@/lib/analytics/bp-targets";
+import { getBpTargets, type BpTargets } from "@/lib/analytics/bp-targets";
+import {
+  buildTrafficLightBands,
+  buildTrafficRange,
+  buildWeightBandsFromHeight,
+  buildWeightRangeFromHeight,
+  getBodyFatTargetRange,
+  type ValueBand,
+  type TrafficRange,
+} from "@/lib/analytics/value-bands";
+import {
+  getAgeFromDateOfBirth,
+  getPersonalizedPulseTarget,
+} from "@/lib/analytics/pulse-targets";
 import {
   computeGlucoseClinicalMetrics,
   GLUCOSE_PANEL_WINDOW_DAYS,
@@ -196,6 +209,48 @@ export interface DashboardSnapshotUser {
   greetingHour: number;
 }
 
+/**
+ * v1.18.6 — server-computed band / target math (audit finding #3).
+ *
+ * The dashboard used to derive every chart band + tile range CLIENT-side
+ * in `page.tsx` from `user.dateOfBirth` / `gender` / `heightCm`. This
+ * block resolves the same numbers server-side from the EXISTING band
+ * helpers (`getBpTargets`, `getPersonalizedPulseTarget`,
+ * `getBodyFatTargetRange`, `buildWeight*FromHeight`,
+ * `buildTrafficLightBands`, `buildTrafficRange`) so the client reads them
+ * instead of recomputing. Only the NUMERIC structures live here — the
+ * `bpTargetZones` array carries `t()`-localised labels, so the client
+ * assembles THAT from `bpTargets` (numbers) at render time. Every field
+ * is `null` when the driving profile fact is missing (no DOB → BP/pulse
+ * personalisation, no height → weight band), matching the client's
+ * previous null-guards exactly.
+ */
+export interface DashboardTargetBands {
+  /** Personalised BP target numbers (null when no DOB). */
+  bpTargets: BpTargets | null;
+  /** Systolic traffic range (null when no DOB). */
+  bpSysRange: TrafficRange | null;
+  /** Diastolic traffic range (null when no DOB). */
+  bpDiaRange: TrafficRange | null;
+  /** Resting-pulse display range (always present — AHA fallback). */
+  pulseDisplayRange: {
+    greenMin: number;
+    greenMax: number;
+    orangeMin: number;
+    orangeMax: number;
+  };
+  /** Resting-pulse chart bands (always present — AHA fallback). */
+  pulseBands: ValueBand[];
+  /** Body-fat target range (gender-aware; always present). */
+  bodyFatRange: { min: number; max: number };
+  /** Body-fat chart bands (always present). */
+  bodyFatBands: ValueBand[];
+  /** Weight traffic range (null when no height). */
+  weightRange: TrafficRange | null;
+  /** Weight chart bands (null when no height). */
+  weightBands: ValueBand[] | null;
+}
+
 export interface DashboardSnapshotMoodEntry {
   date: string;
   score: number;
@@ -301,6 +356,12 @@ export interface DashboardSnapshot {
    * `MetricKind` raw value. Additive; the web page does not read it.
    */
   metricStates: Record<string, DashboardMetricState>;
+  /**
+   * v1.18.6 — server-computed band / target math (audit finding #3). The
+   * web dashboard reads these instead of recomputing from the profile;
+   * additive for iOS.
+   */
+  targetBands: DashboardTargetBands;
   /** Fast phase — always present. */
   tiles: {
     summaries: Record<string, DataSummary>;
@@ -597,6 +658,84 @@ async function buildExtras(
       glucoseClinical,
     },
     healthScore,
+  };
+}
+
+/**
+ * v1.18.6 — resolve the band / target math server-side from the same
+ * helpers the client used. Pure projection over the profile facts; no DB
+ * read. Mirrors the exact construction `page.tsx` ran (same helper calls,
+ * same literal pulse-band colours/opacities, same null-guards) so the
+ * snapshot path and the legacy client-compute path produce byte-identical
+ * numbers.
+ */
+export function buildTargetBands(profile: {
+  dateOfBirth: Date | null;
+  gender: "MALE" | "FEMALE" | null;
+  heightCm: number | null;
+}): DashboardTargetBands {
+  const bpTargets = profile.dateOfBirth
+    ? getBpTargets(profile.dateOfBirth)
+    : null;
+  const pulseAge = getAgeFromDateOfBirth(profile.dateOfBirth);
+  const pulseTarget = getPersonalizedPulseTarget(pulseAge, profile.gender);
+  const bodyFatRange = getBodyFatTargetRange(profile.gender);
+  const weightRange = profile.heightCm
+    ? buildWeightRangeFromHeight(profile.heightCm)
+    : null;
+  const weightBands = profile.heightCm
+    ? buildWeightBandsFromHeight(profile.heightCm, {
+        lowerBound: 30,
+        upperBound: 250,
+      })
+    : null;
+  const bpSysRange = bpTargets
+    ? buildTrafficRange(bpTargets.sysLow, bpTargets.sysHigh)
+    : null;
+  const bpDiaRange = bpTargets
+    ? buildTrafficRange(bpTargets.diaLow, bpTargets.diaHigh)
+    : null;
+  const pulseBands = [
+    { min: 30, max: pulseTarget.orangeMin, color: "#ff5555", opacity: 0.16 },
+    {
+      min: pulseTarget.orangeMin,
+      max: pulseTarget.greenMin,
+      color: "#ffb86c",
+      opacity: 0.18,
+    },
+    {
+      min: pulseTarget.greenMin,
+      max: pulseTarget.greenMax,
+      color: "#50fa7b",
+      opacity: 0.2,
+    },
+    {
+      min: pulseTarget.greenMax,
+      max: pulseTarget.orangeMax,
+      color: "#ffb86c",
+      opacity: 0.18,
+    },
+    { min: pulseTarget.orangeMax, max: 220, color: "#ff5555", opacity: 0.16 },
+  ].filter((band) => band.max > band.min);
+  const bodyFatBands = buildTrafficLightBands(bodyFatRange.min, bodyFatRange.max, {
+    lowerBound: 2,
+    upperBound: 55,
+  });
+  return {
+    bpTargets,
+    bpSysRange,
+    bpDiaRange,
+    pulseDisplayRange: {
+      greenMin: pulseTarget.greenMin,
+      greenMax: pulseTarget.greenMax,
+      orangeMin: pulseTarget.orangeMin,
+      orangeMax: pulseTarget.orangeMax,
+    },
+    pulseBands,
+    bodyFatRange,
+    bodyFatBands,
+    weightRange,
+    weightBands,
   };
 }
 
@@ -968,6 +1107,11 @@ export async function buildDashboardSnapshot(
     layout,
     layoutCatalogue: buildLayoutCatalogue(layout),
     metricStates: buildMetricStates(slim.summaries, slim.lastSeenByType),
+    targetBands: buildTargetBands({
+      dateOfBirth: user.dateOfBirth,
+      gender,
+      heightCm: user.heightCm ?? null,
+    }),
     tiles: {
       summaries: slim.summaries,
       lastSeenByType: enrichLastSeen(slim.lastSeenByType, nowMs),

@@ -120,115 +120,20 @@ import {
 } from "@/lib/analytics/pulse-targets";
 import { apiGet } from "@/lib/api/api-fetch";
 
-/**
- * v1.7.0 — first-paint gate for the dashboard tile strip.
- *
- * `primaryLoading` must come from whichever query actually drives the
- * tiles: the snapshot cell by default, the slim analytics cell when
- * `NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false`. A disabled TanStack query reports
- * `isLoading: false` (idle fetch status), so keying off the wrong
- * source flashes the empty state for the whole fetch. Pure + exported
- * so the gate has direct unit coverage without mounting the page.
- */
-export function resolveDashboardFirstPaintGate(input: {
-  trendCardCount: number;
-  chartCount: number;
-  configuredTileCount: number;
-  primaryLoading: boolean;
-}): { showTileStripSkeleton: boolean; showEmptyState: boolean } {
-  const showTileStripSkeleton =
-    input.trendCardCount === 0 &&
-    input.primaryLoading &&
-    input.configuredTileCount > 0;
-  const showEmptyState =
-    input.trendCardCount === 0 &&
-    input.chartCount === 0 &&
-    !showTileStripSkeleton &&
-    !input.primaryLoading;
-  return { showTileStripSkeleton, showEmptyState };
-}
-
-/**
- * v1.16.8 — widget ids that actually paint a tile in the strip on the
- * web dashboard, mirrored from the per-id render blocks below.
- * `medications` / `recentWorkouts` / `achievements` carry NO strip tile
- * (chart-row cards only), and the iOS-pin-only ids have no web render
- * path at all — counting any of them over-reserved the loading
- * silhouette and made the strip reshuffle when the data landed.
- */
-const TILE_CAPABLE_WIDGET_IDS = new Set<string>([
-  "weight",
-  "bp",
-  "pulse",
-  "bodyFat",
-  "mood",
-  "sleep",
-  "steps",
-  "glucose",
-  "bpInTarget",
-  "vo2Max",
-]);
-
-/**
- * v1.16.8 — silhouette count for the tile-strip skeleton: one card per
- * tile-capable, tile-visible widget. `bp` paints TWO tiles (sys + dia,
- * see the render block below) so it counts double; `glucose` can fan
- * out to one tile per logged context, but the contexts are unknown
- * until the snapshot lands, so it reserves one card (the sane floor).
- * Pure + exported for direct unit coverage.
- */
-export function resolveConfiguredTileCount(layout: DashboardLayout): number {
-  let count = 0;
-  for (const widget of layout.widgets) {
-    if (!TILE_CAPABLE_WIDGET_IDS.has(widget.id)) continue;
-    if (!(widget.tileVisible ?? widget.visible)) continue;
-    count += widget.id === "bp" ? 2 : 1;
-  }
-  return count;
-}
-
-/**
- * v1.16.8 — widget ids with a chart-row surface on the web dashboard,
- * mirrored from the `charts[]` entries below. The achievements +
- * recent-workouts cards stay out: they self-skeleton, carry no
- * chart-shaped footprint, and gate on `layoutResolved`.
- */
-const CHART_CAPABLE_WIDGET_IDS = new Set<string>([
-  "weight",
-  "bp",
-  "pulse",
-  "bodyFat",
-  "mood",
-  "sleep",
-  "steps",
-  "medications",
-  // v1.18.2 — Vorsorge preventive-care summary card (chart-row only).
-  "vorsorge",
-]);
-
-/**
- * v1.16.8 — expected chart-row card count while the snapshot is still
- * in flight. Every chart gate below needs `count > 0` from snapshot
- * data, so the cold page used to render NO chart row at all and then
- * grow ~1000 px when the snapshot landed. The best available signal
- * before data arrives is the layout config (the user's saved layout
- * when cached, the default otherwise): one card per chart-visible
- * widget, plus the BMI card that rides the weight gate when the
- * profile carries a height. Pure + exported for direct unit coverage.
- */
-export function resolveChartRowPlaceholderCount(
-  layout: DashboardLayout,
-  opts?: { hasHeightCm?: boolean },
-): number {
-  let count = 0;
-  for (const widget of layout.widgets) {
-    if (!CHART_CAPABLE_WIDGET_IDS.has(widget.id)) continue;
-    if (!widget.visible) continue;
-    count += 1;
-    if (widget.id === "weight" && opts?.hasHeightCm) count += 1;
-  }
-  return count;
-}
+// v1.18.6 — the pure first-paint / skeleton-reservation gates moved to
+// `@/components/dashboard/dashboard-gates`. Re-exported here so the
+// existing `../page` unit-test imports stay valid while `page.tsx` thins
+// to an orchestrator.
+export {
+  resolveDashboardFirstPaintGate,
+  resolveConfiguredTileCount,
+  resolveChartRowPlaceholderCount,
+} from "@/components/dashboard/dashboard-gates";
+import {
+  resolveDashboardFirstPaintGate,
+  resolveConfiguredTileCount,
+  resolveChartRowPlaceholderCount,
+} from "@/components/dashboard/dashboard-gates";
 
 export default function DashboardPage() {
   const { isAuthenticated, user } = useAuth();
@@ -621,23 +526,45 @@ export default function DashboardPage() {
     RANDOM: "targets.glucoseRandom",
     BEDTIME: "targets.glucoseBedtime",
   };
-  const bpTargets =
-    user?.dateOfBirth != null ? getBpTargets(new Date(user.dateOfBirth)) : null;
+  // v1.18.6 — band / target math is computed SERVER-side in the snapshot
+  // DTO (`targetBands`) so the client stops recomputing it from the
+  // profile (audit finding #3). When snapshot mode is on, read the
+  // resolved numbers straight from `snapshotQuery.data.targetBands`; the
+  // `!snapshotEnabled` branch keeps the legacy client-compute path so the
+  // non-snapshot fallback still works. The two produce byte-identical
+  // numbers (the server calls the SAME helpers — see
+  // `buildTargetBands` + its parity test).
+  const serverBands = snapshotEnabled
+    ? snapshotQuery.data?.targetBands
+    : undefined;
+  const bpTargets = snapshotEnabled
+    ? (serverBands?.bpTargets ?? null)
+    : user?.dateOfBirth != null
+      ? getBpTargets(new Date(user.dateOfBirth))
+      : null;
+  const bodyFatRange = snapshotEnabled
+    ? (serverBands?.bodyFatRange ?? getBodyFatTargetRange(user?.gender))
+    : getBodyFatTargetRange(user?.gender);
+  const weightRange = snapshotEnabled
+    ? (serverBands?.weightRange ?? null)
+    : user?.heightCm
+      ? buildWeightRangeFromHeight(user.heightCm)
+      : null;
+  const weightBands = snapshotEnabled
+    ? (serverBands?.weightBands ?? undefined)
+    : user?.heightCm
+      ? buildWeightBandsFromHeight(user.heightCm, {
+          lowerBound: 30,
+          upperBound: 250,
+        })
+      : undefined;
+  // The pulse target range / bands carry no i18n — read them server-side
+  // under snapshot mode; recompute from the profile otherwise.
   const pulseAge = getAgeFromDateOfBirth(user?.dateOfBirth ?? null);
   const pulseTarget = getPersonalizedPulseTarget(
     pulseAge,
     (user?.gender as "MALE" | "FEMALE" | null | undefined) ?? null,
   );
-  const bodyFatRange = getBodyFatTargetRange(user?.gender);
-  const weightRange = user?.heightCm
-    ? buildWeightRangeFromHeight(user.heightCm)
-    : null;
-  const weightBands = user?.heightCm
-    ? buildWeightBandsFromHeight(user.heightCm, {
-        lowerBound: 30,
-        upperBound: 250,
-      })
-    : undefined;
   const bpTargetZones = bpTargets
     ? [
         {
@@ -660,19 +587,23 @@ export default function DashboardPage() {
         },
       ]
     : undefined;
-  const bpSysRange = bpTargets
-    ? buildTrafficRange(bpTargets.sysLow, bpTargets.sysHigh)
-    : null;
-  const bpDiaRange = bpTargets
-    ? buildTrafficRange(bpTargets.diaLow, bpTargets.diaHigh)
-    : null;
-  const pulseDisplayRange = {
+  const bpSysRange = snapshotEnabled
+    ? (serverBands?.bpSysRange ?? null)
+    : bpTargets
+      ? buildTrafficRange(bpTargets.sysLow, bpTargets.sysHigh)
+      : null;
+  const bpDiaRange = snapshotEnabled
+    ? (serverBands?.bpDiaRange ?? null)
+    : bpTargets
+      ? buildTrafficRange(bpTargets.diaLow, bpTargets.diaHigh)
+      : null;
+  const pulseDisplayRange = serverBands?.pulseDisplayRange ?? {
     greenMin: pulseTarget.greenMin,
     greenMax: pulseTarget.greenMax,
     orangeMin: pulseTarget.orangeMin,
     orangeMax: pulseTarget.orangeMax,
   };
-  const pulseBands = [
+  const pulseBands = serverBands?.pulseBands ?? [
     { min: 30, max: pulseTarget.orangeMin, color: "#ff5555", opacity: 0.16 },
     {
       min: pulseTarget.orangeMin,
@@ -694,14 +625,84 @@ export default function DashboardPage() {
     },
     { min: pulseTarget.orangeMax, max: 220, color: "#ff5555", opacity: 0.16 },
   ].filter((band) => band.max > band.min);
-  const bodyFatBands = buildTrafficLightBands(
-    bodyFatRange.min,
-    bodyFatRange.max,
-    {
+  const bodyFatBands =
+    serverBands?.bodyFatBands ??
+    buildTrafficLightBands(bodyFatRange.min, bodyFatRange.max, {
       lowerBound: 2,
       upperBound: 55,
+    });
+
+  // v1.18.6 — ONE batched fetch for every visible non-sleep chart series
+  // (audit finding #2). Pre-fix, each `<HealthChart>` fired its own
+  // `/api/measurements?...&source=rollup` round-trip, so a 6-8 chart
+  // dashboard issued 6-8 parallel requests on load. The batched endpoint
+  // returns all of them in one response; each chart reads its slice via
+  // `preloadedSeries` instead of self-fetching. Sleep stays on its
+  // dedicated per-night `/series` adapter (not rollup-backed), so it is
+  // never included here and the sleep chart keeps its own fetch.
+  //
+  // The window matches the charts' default 30-point view (the dashboard
+  // mounts them with no range-tab interaction); a chart whose window
+  // widens past this slice (range tab / comparison) drops batched
+  // coverage and self-fetches for the new window — see `usePreloaded`.
+  const batchTypeSet = new Set<string>();
+  if (showWeightChart) batchTypeSet.add("WEIGHT");
+  if (showBpCharts) {
+    batchTypeSet.add("BLOOD_PRESSURE_SYS");
+    batchTypeSet.add("BLOOD_PRESSURE_DIA");
+  }
+  if (showPulseChart)
+    batchTypeSet.add(hasRestingHr ? "RESTING_HEART_RATE" : "PULSE");
+  if (showBodyFatChart) batchTypeSet.add("BODY_FAT");
+  if (showStepsChart) batchTypeSet.add("ACTIVITY_STEPS");
+  const batchChartTypes = Array.from(batchTypeSet);
+
+  // Stable day-bucketed window so the cache key is stable across the day
+  // (mirrors the chart's own ISO-window stability contract). Computed
+  // once per mount via lazy state so a re-render never re-keys the batch.
+  const [batchWindow] = useState(() => {
+    const to = new Date();
+    to.setHours(23, 59, 59, 999);
+    const from = new Date(to.getTime() - 31 * 86_400_000);
+    return { from: from.toISOString(), to: to.toISOString() };
+  });
+
+  const { data: batchedSeries } = useQuery({
+    queryKey: queryKeys.chartSeriesBatch(
+      batchChartTypes.join(","),
+      batchWindow.from,
+      batchWindow.to,
+    ),
+    enabled:
+      isAuthenticated && mounted && batchChartTypes.length > 0,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const sp = new URLSearchParams();
+      sp.set("types", batchChartTypes.join(","));
+      sp.set("from", batchWindow.from);
+      sp.set("to", batchWindow.to);
+      const res = await apiGet<{
+        series: Record<
+          string,
+          Array<{
+            value: number;
+            measuredAt: string;
+            count?: number;
+            minValue?: number | null;
+            maxValue?: number | null;
+          }>
+        >;
+      }>(`/api/measurements/series-batch?${sp}`);
+      return res.series;
     },
-  );
+  });
+
+  // Per-chart slices in the chart's `MeasurementApiRow` shape. The batched
+  // rows already carry `measuredAt` / `value` / `count` / min / max — the
+  // exact fields the chart's bucketing loop reads.
+  const preloadedSeries = batchedSeries;
   // v1.7.0 — the primary data source differs by flag. In snapshot
   // mode `analyticsSlimQuery` is `enabled: false`, and a disabled
   // TanStack query reports `fetchStatus: "idle"` → `isLoading` is
@@ -1222,6 +1223,7 @@ export default function DashboardPage() {
               <HealthChartDynamic
                 key="weight-chart"
                 onDataReady={() => markChartReady("weight-chart")}
+                preloadedSeries={preloadedSeries}
                 chartKey="weight"
                 types={["WEIGHT"]}
                 title={t("dashboard.weight")}
@@ -1242,6 +1244,7 @@ export default function DashboardPage() {
                 <HealthChartDynamic
                   key="bmi-chart"
                   onDataReady={() => markChartReady("bmi-chart")}
+                  preloadedSeries={preloadedSeries}
                   chartKey="bmi"
                   types={["WEIGHT"]}
                   title={t("targets.bmi")}
@@ -1271,6 +1274,7 @@ export default function DashboardPage() {
               <HealthChartDynamic
                 key="bp-chart"
                 onDataReady={() => markChartReady("bp-chart")}
+                preloadedSeries={preloadedSeries}
                 chartKey="bp"
                 types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
                 title={t("dashboard.bloodPressure")}
@@ -1294,6 +1298,7 @@ export default function DashboardPage() {
               <HealthChartDynamic
                 key="pulse-chart"
                 onDataReady={() => markChartReady("pulse-chart")}
+                preloadedSeries={preloadedSeries}
                 chartKey="pulse"
                 // v1.15.12 A2 — chart the RESTING series against the
                 // resting band when available; otherwise chart raw heart
@@ -1320,6 +1325,7 @@ export default function DashboardPage() {
               <HealthChartDynamic
                 key="bodyFat-chart"
                 onDataReady={() => markChartReady("bodyFat-chart")}
+                preloadedSeries={preloadedSeries}
                 chartKey="bodyFat"
                 types={["BODY_FAT"]}
                 title={t("dashboard.bodyFat")}
@@ -1380,6 +1386,7 @@ export default function DashboardPage() {
               <HealthChartDynamic
                 key="steps-chart"
                 onDataReady={() => markChartReady("steps-chart")}
+                preloadedSeries={preloadedSeries}
                 chartKey="steps"
                 types={["ACTIVITY_STEPS"]}
                 title={t("dashboard.steps") ?? "Steps"}

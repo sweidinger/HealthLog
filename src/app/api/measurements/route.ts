@@ -33,12 +33,9 @@ import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import {
   recomputeBucketsForMeasurement,
   collapseToTypeDayKeys,
-  recomputeUserRollups,
 } from "@/lib/rollups/measurement-rollups";
-import {
-  collapseRollupRowsBySource,
-  loadUserSourcePriority,
-} from "@/lib/rollups/measurement-read";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import { readDailySeries } from "@/lib/measurements/daily-series-read";
 import {
   reconstructSleepSessions,
   pickMainNightAndNaps,
@@ -350,186 +347,23 @@ export const GET = apiHandler(async (request: NextRequest) => {
   //     populator hasn't caught up still sees a correct chart on its
   //     first render.
   if (source === "rollup" && aggregate === "daily" && type && from && to) {
+    // v1.18.6 — the rollup-daily read (per-source collapse + coverage
+    // probe + inline fold + live-SQL fallback) moved to the shared
+    // `readDailySeries` reader so the batched series endpoint
+    // (`/api/measurements/series-batch`) reads through the SAME path
+    // instead of duplicating this SQL. Behaviour is unchanged: the rows
+    // returned here are byte-identical with the pre-extraction branch.
     const cap = Math.min(limit, BUCKET_CAP.daily);
-    // v1.11.1 — rollup rows are per source; collapse overlapping sources to the
-    // ladder-canonical reading per day before the chart consumes them, so a
-    // dual-source vital paints one line, not two stacked points per day.
     const priorityJson = await loadUserSourcePriority(user.id);
-    const rollupRows = collapseRollupRowsBySource(
-      await prisma.measurementRollup.findMany({
-        where: {
-          userId: user.id,
-          type: type as MeasurementType,
-          granularity: "DAY",
-          bucketStart: { gte: from, lte: to },
-        },
-        orderBy: { bucketStart: "asc" },
-        // Fetch beyond the bucket cap pre-collapse — N sources per day can
-        // exceed `cap` rows before the per-day collapse reduces them.
-        select: {
-          type: true,
-          source: true,
-          bucketStart: true,
-          mean: true,
-          count: true,
-          // v1.4.39 W-SUM — the writer now populates `sum_value` on
-          // every fold. The cumulative metric path consumes the column
-          // directly instead of reconstructing `mean * count`; the
-          // legacy fallback below covers the boot-backfill convergence
-          // window when an existing bucket pre-dates v1.4.39.
-          sumValue: true,
-          minValue: true,
-          maxValue: true,
-        },
-      }),
-      type as MeasurementType,
+    const measurements = await readDailySeries({
+      userId: user.id,
+      type: type as MeasurementType,
+      from,
+      to,
+      limit,
       priorityJson,
-    ).slice(0, cap);
-    // v1.4.39.2 — coverage-mismatch fallback. v1.4.39.1 wired the
-    // rollup write hook into the previously-bypassed Withings sync,
-    // /api/import, and admin-restore paths, and widened the boot-time
-    // backfill discovery to per-(user, type, day). Together those
-    // changes ensure new writes and post-deploy restarts converge the
-    // rollup tier for every measurement type the user has logged. They
-    // do NOT, however, guarantee convergence inside a single request
-    // when the boot backfill has not yet finished folding the user's
-    // historic rows: a chart query lands first, the rollup table still
-    // carries 2 rows for a 30-day BP_SYS window, and the route's pre-
-    // v1.4.39.2 "rollup wins on length > 0" short-circuit returns the
-    // sparse rollup. The chart trips its `< 3 daily points` empty-state
-    // even though `measurements` holds the full 30 days.
-    //
-    // This branch closes that gap. When the rollup row count is
-    // suspiciously low for the requested window (≥ 7 days asked and
-    // < 3 rollup rows present), we probe `measurements` for the actual
-    // distinct-day count over the same window. If `measurements`
-    // carries strictly more days than the rollup, the rollup is
-    // under-converged: we fold the (user, type, DAY, [from, to])
-    // partition inline, re-read the rollup, and return the refreshed
-    // rows. The inline fold is bounded by the window + type so it is
-    // small (~30 buckets × one type for the dashboard chart's 30-day
-    // window) and finishes well inside the request budget.
-    //
-    // The probe runs only on suspicious rollups so the covered-tenant
-    // happy path stays a single indexed read. The maintainer's tenant on a 30-day
-    // BP_SYS window pre-fix returned 2 rollup rows and hit `total: 2`
-    // in the live trace; post-fix the probe finds ~30 distinct days in
-    // `measurements`, folds them, and the chart paints all 30.
-    const windowMs = to.getTime() - from.getTime();
-    const windowDays = Math.ceil(windowMs / 86_400_000);
-    const SUSPICIOUS_ROW_FLOOR = 3;
-    const SUSPICIOUS_WINDOW_DAYS = 7;
-    let effectiveRows = rollupRows;
-    let coverageFallbackFired = false;
-    if (
-      rollupRows.length > 0 &&
-      rollupRows.length < SUSPICIOUS_ROW_FLOOR &&
-      windowDays >= SUSPICIOUS_WINDOW_DAYS
-    ) {
-      // Cheap probe — one indexed range scan over
-      // `(user_id, type, measured_at)`. Returns the count of distinct
-      // calendar days the live table holds for the window.
-      const liveDayCountRows = await prisma.$queryRaw<Array<{ days: bigint }>>`
-        SELECT COUNT(DISTINCT date_trunc('day', m."measured_at"))::bigint AS days
-        FROM measurements m
-        WHERE m."user_id"     = ${user.id}
-          AND m."type"        = ${type}::measurement_type
-          AND m."measured_at" >= ${from}
-          AND m."measured_at" <= ${to}
-          AND m."deleted_at"  IS NULL
-      `;
-      const liveDays = Number(liveDayCountRows[0]?.days ?? BigInt(0));
-      if (liveDays > rollupRows.length) {
-        coverageFallbackFired = true;
-        try {
-          // Inline fold of the (user, type, DAY, window) partition.
-          // Bounded by the window so it stays small even on a
-          // power-user account; the upsert is idempotent against the
-          // composite primary key.
-          await recomputeUserRollups(user.id, {
-            types: [type as MeasurementType],
-            granularities: ["DAY"],
-            from,
-            to,
-          });
-          // Re-read so this request returns the converged rows. The
-          // next chart paint hits the same warm rollup without paying
-          // the fallback cost. v1.11.1 — collapse per-source rows to the
-          // canonical reading per day, same as the initial read.
-          effectiveRows = collapseRollupRowsBySource(
-            await prisma.measurementRollup.findMany({
-              where: {
-                userId: user.id,
-                type: type as MeasurementType,
-                granularity: "DAY",
-                bucketStart: { gte: from, lte: to },
-              },
-              orderBy: { bucketStart: "asc" },
-              select: {
-                type: true,
-                source: true,
-                bucketStart: true,
-                mean: true,
-                count: true,
-                sumValue: true,
-                minValue: true,
-                maxValue: true,
-              },
-            }),
-            type as MeasurementType,
-            priorityJson,
-          ).slice(0, cap);
-        } catch (err) {
-          // Best-effort — fall back to the legacy live aggregate path
-          // below if the fold itself failed so the chart paints
-          // something sensible regardless. `annotate` carries the
-          // surface so ops can spot a silent populator regression.
-          const message = err instanceof Error ? err.message : String(err);
-          annotate({
-            meta: {
-              rollup_coverage_fallback_failed: true,
-              rollup_coverage_fallback_error: message,
-              type,
-            },
-          });
-          // Drop into the live `date_trunc` branch below.
-          effectiveRows = [];
-        }
-      }
-    }
-    if (effectiveRows.length > 0) {
-      // Cumulative metrics (steps, active energy, distance, flights,
-      // daylight) store `mean` per bucket but the chart needs the
-      // daily SUM. v1.4.39 W-SUM — read `sumValue` directly; fall back
-      // to `mean * count` only when the legacy NULL surfaces (pre-
-      // v1.4.39 rows still waiting for the boot-time backfill to
-      // converge). `mean * count` is algebraically equivalent to
-      // SUM(value) for a single-source day because AVG = SUM / COUNT.
-      const useSum =
-        type != null && CUMULATIVE_HK_TYPES.has(type as MeasurementType);
-      const measurements = effectiveRows.map((r) => ({
-        type: r.type,
-        value: useSum ? (r.sumValue ?? r.mean * r.count) : r.mean,
-        measuredAt: r.bucketStart.toISOString(),
-        count: r.count,
-        // v1.8.5 — per-day min / max so the chart can shade an
-        // Apple-Health-style range band around the daily mean line.
-        // Omitted for cumulative metrics (steps, distance, …) where the
-        // daily value is a SUM, not a central tendency, so an intra-day
-        // spread band carries no meaning.
-        minValue: useSum ? undefined : r.minValue,
-        maxValue: useSum ? undefined : r.maxValue,
-      }));
-      annotate({
-        action: { name: "measurement.list" },
-        meta: {
-          total: measurements.length,
-          type,
-          aggregate: "daily",
-          source: "rollup",
-          coverage_fallback: coverageFallbackFired,
-        },
-      });
+    });
+    if (measurements.length > 0) {
       return apiSuccess({
         measurements,
         meta: {
@@ -540,10 +374,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
         },
       });
     }
-    // Fall through to the live aggregate path when the rollup is
-    // empty for the requested window — covers brand-new accounts +
-    // the race between a recent write hook and the read, and the
-    // coverage-fallback inline-fold-failed branch above.
+    // `readDailySeries` already falls back to the live `date_trunc`
+    // aggregate on a rollup-coverage miss, so an empty result here means
+    // the window genuinely holds no rows. Fall through to the shared
+    // live aggregate branch below to keep the response shape identical
+    // for the truly-empty case.
   }
 
   if (aggregate && aggregate !== "raw" && from && to) {

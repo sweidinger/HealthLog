@@ -13,6 +13,7 @@ import {
   measurementTypeEnum,
   measurementSourceEnum,
 } from "@/lib/validations/measurement";
+import { seriesBatchQuerySchema } from "@/lib/validations/series-batch";
 import { deviceTypeEnum } from "@/lib/validations/source-priority";
 import { dataEnvelope, moduleDisabledResponse, stdResponses } from "./shared";
 
@@ -392,7 +393,74 @@ const seriesResponse = z
       "iOS-friendly per-kind time series: one point per reading (or per reconstructed night for `sleep`), an explicit `unit` token, and a summary `stats` block.",
   });
 
+// ── Batched daily series (v1.18.6 dashboard fetch coalescing) ────────
+//
+// Returns every requested MeasurementType's rollup-backed daily series
+// in one response so the dashboard chart row does a single round-trip
+// instead of one per chart. Each row mirrors the daily-aggregate shape
+// `GET /api/measurements?aggregate=daily&source=rollup` emits.
+const seriesBatchRowSchema = z.object({
+  type: measurementTypeEnum,
+  value: z.number().describe("Daily mean (spot metrics) or SUM (cumulative)."),
+  measuredAt: z.iso
+    .datetime({ offset: true })
+    .describe("Day-bucket start (ISO-8601)."),
+  count: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe("Underlying raw-row count for the bucket."),
+  minValue: z
+    .number()
+    .nullable()
+    .optional()
+    .describe("Per-day minimum (spot metrics only; absent for cumulative)."),
+  maxValue: z
+    .number()
+    .nullable()
+    .optional()
+    .describe("Per-day maximum (spot metrics only; absent for cumulative)."),
+});
+
+const seriesBatchResponse = z
+  .object({
+    series: z
+      .record(measurementTypeEnum, z.array(seriesBatchRowSchema))
+      .describe("Per-type daily series, keyed by MeasurementType."),
+  })
+  .meta({
+    id: "MeasurementsSeriesBatchResponse",
+    description:
+      "Batched daily series — one rollup-backed series per requested type.",
+  });
+
 export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/measurements/series-batch": {
+    get: {
+      tags: ["Measurements"],
+      summary: "Batched daily series (dashboard fetch coalescing)",
+      description:
+        "Returns the rollup-backed daily series for every requested MeasurementType in ONE response, so the dashboard chart row does a single round-trip instead of one self-fetch per chart. Each per-type series is byte-identical with `GET /api/measurements?aggregate=daily&source=rollup` for the same window. SLEEP_DURATION is not served here (it rides the per-night reconstruction at `/api/measurements/series?kind=sleep`). Auth via cookie or Bearer.",
+      requestParams: {
+        query: seriesBatchQuerySchema,
+      },
+      responses: {
+        "200": {
+          description: "Per-type daily series.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                seriesBatchResponse,
+                "GetMeasurementsSeriesBatchResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/measurements/series": {
     get: {
       tags: ["Measurements"],
