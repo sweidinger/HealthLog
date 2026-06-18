@@ -238,7 +238,7 @@ export function TimesOfDayChips({
                 disabled={disabled}
                 aria-label={`${t(`${i18nPrefix}.remove`)} ${time}`}
                 onClick={() => onRemove(time)}
-                className="focus-visible:ring-ring hover:bg-background inline-flex h-7 w-7 items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                className="focus-visible:ring-ring hover:bg-background relative inline-flex h-7 w-7 items-center justify-center rounded-sm before:absolute before:inset-[-8px] before:content-[''] focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
                 data-slot="times-of-day-chip-remove"
               >
                 <X className="h-3.5 w-3.5" aria-hidden="true" />

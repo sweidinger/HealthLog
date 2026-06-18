@@ -889,3 +889,21 @@
     animation: none;
   }
 }
+
+/* ── Global reduced-motion backstop ──────────────────────────────────
+ * Defensive catch-all so any animation/transition we forget to gate
+ * per-component still collapses to near-instant when the user has asked
+ * for reduced motion. The per-component blocks above stay — they carry
+ * tailored static fallbacks (static dots, full-height bars). This is the
+ * floor, not a replacement. Near-zero (not 0) keeps JS animation-end /
+ * transition-end listeners firing so state machines don't stall. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

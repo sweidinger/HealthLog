@@ -1,0 +1,14 @@
+# Trivy vulnerability ignore list.
+# One CVE id per line. Only suppress a finding that has NO upstream fix we
+# can apply; never suppress one with a fixed version available — bump instead.
+# Each entry names what it covers and the condition to re-check / remove it.
+
+# CVE-2026-33671 (picomatch ReDoS, HIGH) — flagged only in the npm CLI's
+# OWN bundled copy that ships inside the Node base image
+# (usr/local/lib/node_modules/npm/node_modules/picomatch, v4.0.3), used at
+# image-build time by npm, not by our runtime. Our application dependency
+# tree pins picomatch >= 4.0.4 via a pnpm override, so the running app is
+# not affected and the path is not reachable at runtime. Re-check when the
+# Node base image ships an npm build whose bundled picomatch is >= 4.0.4,
+# then drop this entry.
+CVE-2026-33671
