@@ -3697,6 +3697,10 @@
       "body": "Das Onboarding hast du bereits abgeschlossen. Möchtest du etwas anpassen, findest du alles in den Einstellungen.",
       "cta": "Zum Dashboard"
     },
+    "disclaimer": {
+      "acknowledge": "Mir ist klar: HealthLog ist ein privates Tracking-Tool, keine klinische Bewertung und keine Diagnose. Bei Sorgen wende ich mich an meine Ärztin oder meinen Arzt, nicht an diese App.",
+      "learnMore": "Mehr erfahren"
+    },
     "welcome": {
       "title": "Willkommen bei HealthLog",
       "carouselLabel": "Begrüßungs-Karussell",
@@ -6379,19 +6383,43 @@
     "until": "Bis {date}",
     "selfPlanned": "Selbstgeplant",
     "captureValue": "Wert erfassen",
+    "measureNow": "Jetzt messen",
+    "nextDueLabel": "Nächste Fälligkeit:",
+    "lastDoneLabel": "Zuletzt erledigt:",
+    "customize": "Vorsorge anpassen",
+    "adherence": {
+      "label": "Im Intervall",
+      "onTrack": "Im Plan",
+      "due": "Jetzt fällig"
+    },
+    "settings": {
+      "title": "Vorsorge anpassen",
+      "description": "Ansicht, Reihenfolge und einzelne Erinnerungen verwalten.",
+      "back": "Zurück zur Vorsorge"
+    },
     "capture": {
       "title": "Messwert erfassen",
       "description": "Wert eintragen; die Erinnerung wird als erledigt markiert."
     },
     "manage": {
-      "menuItem": "Anpassen",
-      "title": "Erinnerungen anpassen",
+      "title": "Erinnerungen verwalten",
       "description": "Einzelne Erinnerungen aktivieren oder deaktivieren.",
       "empty": "Noch keine Erinnerungen zum Anpassen."
     },
     "dashboard": {
       "empty": "Keine anstehenden Vorsorge-Erinnerungen.",
       "openLink": "Vorsorge öffnen"
+    }
+  },
+  "moduleList": {
+    "viewToggleLabel": "Ansicht",
+    "viewCards": "Kartenansicht",
+    "viewList": "Listenansicht",
+    "viewHeading": "Ansicht",
+    "viewDescription": "Lege fest, ob die Einträge als Karten oder als kompakte Liste angezeigt werden.",
+    "reorder": {
+      "heading": "Reihenfolge",
+      "empty": "Noch keine Einträge zum Sortieren."
     }
   },
   "labs": {
@@ -6409,6 +6437,20 @@
     "deletedToast": "Wert gelöscht",
     "deleteError": "Wert konnte nicht gelöscht werden",
     "loadError": "Laborwerte konnten nicht geladen werden",
+    "customize": "Laborwerte anpassen",
+    "settings": {
+      "title": "Laborwerte anpassen",
+      "description": "Ansicht, Sortierung und Biomarker verwalten.",
+      "back": "Zurück zu den Laborwerten"
+    },
+    "sort": {
+      "heading": "Sortierung",
+      "label": "Reihenfolge der Werte",
+      "recentDesc": "Neueste Messung zuerst",
+      "recentAsc": "Älteste Messung zuerst",
+      "manual": "Manuell sortieren",
+      "hint": "Bei manueller Sortierung kannst du die Biomarker unten in deine eigene Reihenfolge bringen."
+    },
     "range": {
       "inRange": "Im Bereich",
       "below": "Unter Bereich",
@@ -6456,9 +6498,7 @@
       }
     },
     "biomarker": {
-      "manage": "Biomarker",
       "manageTitle": "Biomarker",
-      "manageSheetDescription": "Lege die Marker an, die du verfolgst. Jeder wird einmal mit Einheit und Referenzbereich eingerichtet.",
       "managerDescription": "Marker einmal definieren — Einheit und Bereich gelten für jede Messung.",
       "define": "Anlegen",
       "defineFirst": "Ersten Biomarker anlegen",
@@ -6612,7 +6652,12 @@
   "illness": {
     "title": "Krankheitstagebuch",
     "subtitle": "Ein rückblickendes Protokoll deiner Krankheits- und Beschwerde-Episoden.",
-    "disclaimer": "Ein persönliches Tagebuch — kein Medizinprodukt. Es stellt keine Diagnose und keine Prognose.",
+    "customize": "Krankheitstagebuch anpassen",
+    "settings": {
+      "title": "Krankheitstagebuch anpassen",
+      "description": "Ansicht und Reihenfolge der Episoden verwalten.",
+      "back": "Zurück zum Krankheitstagebuch"
+    },
     "newEpisode": "Neue Episode",
     "logDay": "Tag erfassen",
     "markRecovered": "Als genesen markieren",

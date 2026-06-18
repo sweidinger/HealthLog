@@ -3697,6 +3697,10 @@
       "body": "Vous avez déjà terminé la configuration. Pour modifier un élément, ouvrez les paramètres — tout reste éditable.",
       "cta": "Ouvrir le tableau de bord"
     },
+    "disclaimer": {
+      "acknowledge": "Je comprends : HealthLog est un outil de suivi privé, pas une évaluation clinique ni un diagnostic. En cas d'inquiétude, je consulte mon médecin, pas cette application.",
+      "learnMore": "En savoir plus"
+    },
     "welcome": {
       "title": "Bienvenue dans HealthLog",
       "carouselLabel": "Carrousel de bienvenue",
@@ -6379,19 +6383,43 @@
     "until": "Jusqu'au {date}",
     "selfPlanned": "Auto-planifié",
     "captureValue": "Enregistrer la valeur",
+    "measureNow": "Mesurer maintenant",
+    "nextDueLabel": "Prochaine échéance :",
+    "lastDoneLabel": "Dernière fois :",
+    "customize": "Personnaliser la prévention",
+    "adherence": {
+      "label": "Dans l'intervalle",
+      "onTrack": "Dans les temps",
+      "due": "À faire maintenant"
+    },
+    "settings": {
+      "title": "Personnaliser la prévention",
+      "description": "Gérer l'affichage, l'ordre et les rappels individuels.",
+      "back": "Retour à la prévention"
+    },
     "capture": {
       "title": "Enregistrer une mesure",
       "description": "Saisissez la valeur ; le rappel est marqué comme fait."
     },
     "manage": {
-      "menuItem": "Personnaliser",
-      "title": "Personnaliser les rappels",
+      "title": "Gérer les rappels",
       "description": "Activer ou désactiver des rappels individuels.",
       "empty": "Aucun rappel à personnaliser pour l'instant."
     },
     "dashboard": {
       "empty": "Aucun rappel de prévention à venir.",
       "openLink": "Ouvrir la prévention"
+    }
+  },
+  "moduleList": {
+    "viewToggleLabel": "Affichage",
+    "viewCards": "Vue en cartes",
+    "viewList": "Vue en liste",
+    "viewHeading": "Affichage",
+    "viewDescription": "Choisissez si les entrées s'affichent en cartes ou en liste compacte.",
+    "reorder": {
+      "heading": "Ordre",
+      "empty": "Aucune entrée à réordonner pour l'instant."
     }
   },
   "labs": {
@@ -6409,6 +6437,20 @@
     "deletedToast": "Résultat supprimé",
     "deleteError": "Impossible de supprimer le résultat",
     "loadError": "Impossible de charger les résultats",
+    "customize": "Personnaliser les analyses",
+    "settings": {
+      "title": "Personnaliser les analyses",
+      "description": "Gérer l'affichage, le tri et les biomarqueurs.",
+      "back": "Retour aux analyses"
+    },
+    "sort": {
+      "heading": "Tri",
+      "label": "Ordre des valeurs",
+      "recentDesc": "Mesure la plus récente d'abord",
+      "recentAsc": "Mesure la plus ancienne d'abord",
+      "manual": "Trier manuellement",
+      "hint": "En tri manuel, vous pouvez glisser les biomarqueurs ci-dessous dans votre propre ordre."
+    },
     "range": {
       "inRange": "Dans la norme",
       "below": "Sous la norme",
@@ -6456,9 +6498,7 @@
       }
     },
     "biomarker": {
-      "manage": "Biomarqueurs",
       "manageTitle": "Biomarqueurs",
-      "manageSheetDescription": "Définissez les marqueurs que vous suivez. Chacun est configuré une fois avec son unité et sa plage de référence.",
       "managerDescription": "Définissez un marqueur une fois — son unité et sa plage sont réutilisées pour chaque mesure.",
       "define": "Définir",
       "defineFirst": "Définir votre premier biomarqueur",
@@ -6612,7 +6652,12 @@
   "illness": {
     "title": "Journal de maladie",
     "subtitle": "Un suivi rétrospectif de vos épisodes de maladie et d'affections.",
-    "disclaimer": "Un journal personnel, pas un dispositif médical. Il ne diagnostique ni ne prédit.",
+    "customize": "Personnaliser le journal de maladie",
+    "settings": {
+      "title": "Personnaliser le journal de maladie",
+      "description": "Gérer l'affichage et l'ordre des épisodes.",
+      "back": "Retour au journal de maladie"
+    },
     "newEpisode": "Nouvel épisode",
     "logDay": "Enregistrer un jour",
     "markRecovered": "Marquer comme rétabli",

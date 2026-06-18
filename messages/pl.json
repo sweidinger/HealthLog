@@ -3697,6 +3697,10 @@
       "body": "Wstępne kroki masz już za sobą. Aby coś zmienić, otwórz ustawienia — wszystko, co skonfigurowałeś, da się tam edytować.",
       "cta": "Otwórz pulpit"
     },
+    "disclaimer": {
+      "acknowledge": "Rozumiem: HealthLog to prywatne narzędzie do śledzenia, a nie ocena kliniczna ani diagnoza. Gdy się niepokoję, rozmawiam z lekarzem, a nie z tą aplikacją.",
+      "learnMore": "Dowiedz się więcej"
+    },
     "welcome": {
       "title": "Witaj w HealthLog",
       "carouselLabel": "Karuzela powitalna",
@@ -6379,19 +6383,43 @@
     "until": "Do {date}",
     "selfPlanned": "Zaplanowane samodzielnie",
     "captureValue": "Zapisz wartość",
+    "measureNow": "Zmierz teraz",
+    "nextDueLabel": "Następny termin:",
+    "lastDoneLabel": "Ostatnio wykonano:",
+    "customize": "Dostosuj profilaktykę",
+    "adherence": {
+      "label": "W interwale",
+      "onTrack": "Zgodnie z planem",
+      "due": "Termin teraz"
+    },
+    "settings": {
+      "title": "Dostosuj profilaktykę",
+      "description": "Zarządzaj widokiem, kolejnością i poszczególnymi przypomnieniami.",
+      "back": "Powrót do profilaktyki"
+    },
     "capture": {
       "title": "Zapisz pomiar",
       "description": "Wpisz wartość; przypomnienie zostanie oznaczone jako wykonane."
     },
     "manage": {
-      "menuItem": "Dostosuj",
-      "title": "Dostosuj przypomnienia",
+      "title": "Zarządzaj przypomnieniami",
       "description": "Włącz lub wyłącz poszczególne przypomnienia.",
       "empty": "Brak przypomnień do dostosowania."
     },
     "dashboard": {
       "empty": "Brak nadchodzących przypomnień profilaktycznych.",
       "openLink": "Otwórz profilaktykę"
+    }
+  },
+  "moduleList": {
+    "viewToggleLabel": "Widok",
+    "viewCards": "Widok kart",
+    "viewList": "Widok listy",
+    "viewHeading": "Widok",
+    "viewDescription": "Wybierz, czy pozycje mają być pokazywane jako karty czy jako zwarta lista.",
+    "reorder": {
+      "heading": "Kolejność",
+      "empty": "Brak pozycji do uporządkowania."
     }
   },
   "labs": {
@@ -6409,6 +6437,20 @@
     "deletedToast": "Wynik usunięty",
     "deleteError": "Nie udało się usunąć wyniku",
     "loadError": "Nie udało się wczytać wyników",
+    "customize": "Dostosuj wyniki badań",
+    "settings": {
+      "title": "Dostosuj wyniki badań",
+      "description": "Zarządzaj widokiem, sortowaniem i biomarkerami.",
+      "back": "Powrót do wyników badań"
+    },
+    "sort": {
+      "heading": "Sortowanie",
+      "label": "Kolejność wartości",
+      "recentDesc": "Najnowszy pomiar najpierw",
+      "recentAsc": "Najstarszy pomiar najpierw",
+      "manual": "Sortuj ręcznie",
+      "hint": "Przy sortowaniu ręcznym możesz przeciągnąć biomarkery poniżej we własnej kolejności."
+    },
     "range": {
       "inRange": "W normie",
       "below": "Poniżej normy",
@@ -6456,9 +6498,7 @@
       }
     },
     "biomarker": {
-      "manage": "Biomarkery",
       "manageTitle": "Biomarkery",
-      "manageSheetDescription": "Zdefiniuj śledzone markery. Każdy ustawiasz raz wraz z jednostką i zakresem referencyjnym.",
       "managerDescription": "Zdefiniuj marker raz — jednostka i zakres są używane dla każdego pomiaru.",
       "define": "Zdefiniuj",
       "defineFirst": "Zdefiniuj pierwszy biomarker",
@@ -6612,7 +6652,12 @@
   "illness": {
     "title": "Dziennik chorób",
     "subtitle": "Retrospektywny zapis Twoich epizodów chorób i dolegliwości.",
-    "disclaimer": "Osobisty dziennik — nie wyrób medyczny. Nie diagnozuje ani nie przewiduje.",
+    "customize": "Dostosuj dziennik chorób",
+    "settings": {
+      "title": "Dostosuj dziennik chorób",
+      "description": "Zarządzaj widokiem i kolejnością epizodów.",
+      "back": "Powrót do dziennika chorób"
+    },
     "newEpisode": "Nowy epizod",
     "logDay": "Zapisz dzień",
     "markRecovered": "Oznacz jako wyleczone",

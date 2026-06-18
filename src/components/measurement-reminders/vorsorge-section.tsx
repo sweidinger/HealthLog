@@ -29,9 +29,18 @@
  *     card so the card carries a single med-style kebab).
  */
 import { useState } from "react";
-import { CalendarClock, CheckCircle2, Plus, Settings2 } from "lucide-react";
+import Link from "next/link";
+import {
+  Activity,
+  CalendarClock,
+  CheckCircle2,
+  Plus,
+  Wrench,
+} from "lucide-react";
 
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
+import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
 import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import {
@@ -59,12 +68,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Progress } from "@/components/ui/progress";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
-import { MedicationNextLastSlot } from "@/components/medications/card-parts/medication-next-last-slot";
 import {
   useMeasurementReminders,
   useMeasurementReminderMutations,
@@ -204,15 +212,15 @@ export function VorsorgeSection({
   const { data: reminders, isLoading } = useMeasurementReminders(enabled);
   const { create, update, remove, satisfy } =
     useMeasurementReminderMutations();
+  // v1.18.6 (MOD-03) — page view (cards/list) + manual order persist
+  // client-side; the settings page writes them, the page reads them.
+  const { prefs } = useModuleListPrefs("vorsorge");
 
   // `null` = sheet closed; "new" = create; a reminder = edit pre-filled.
   const [editing, setEditing] = useState<MeasurementReminder | "new" | null>(
     null,
   );
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  // The customize ("wrench") sheet — re-homes the per-reminder enable
-  // toggles that no longer live on the card itself.
-  const [manageOpen, setManageOpen] = useState(false);
   // The value-capture sheet: holds the reminder whose measurement we are
   // entering. Non-null ⇒ the MeasurementForm sheet is open for that row.
   const [capturing, setCapturing] = useState<MeasurementReminder | null>(null);
@@ -328,7 +336,8 @@ export function VorsorgeSection({
   const cadenceCustom = form.cadenceChoice === CADENCE_CUSTOM;
   const cadenceRrule = form.cadenceChoice === CADENCE_RRULE;
 
-  // The shared primary add-entry affordance — identical in both variants.
+  // v1.18.6 (MOD-02) — the primary add affordance reads "hinzufügen" like
+  // every other module's add button.
   const addButton = (
     <Button
       type="button"
@@ -336,32 +345,29 @@ export function VorsorgeSection({
       onClick={openCreate}
     >
       <Plus className="h-4 w-4" />
-      {t("measurementReminders.addButton")}
+      {t("common.add")}
     </Button>
   );
 
-  // v1.18.2 — wrench/customize affordance, mirroring the labs page: a
-  // ghost icon button beside Add opening the manage sheet.
+  // v1.18.6 (MOD-01) — the wrench links to the Vorsorge settings page (view,
+  // reorder, per-reminder enable toggles), left of the Add button — the
+  // canonical medication-page pattern. The old kebab "Anpassen" sheet is
+  // gone (MOD-07); its toggles moved to the settings page.
   const wrenchButton = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
-          aria-label={t("common.moreOptions")}
-        >
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onClick={() => setManageOpen(true)}>
-          <Settings2 className="mr-2 h-4 w-4" />
-          {t("measurementReminders.manage.menuItem")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      asChild
+      variant="ghost"
+      size="icon"
+      className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+    >
+      <Link
+        href="/settings/vorsorge"
+        aria-label={t("measurementReminders.customize")}
+        title={t("measurementReminders.customize")}
+      >
+        <Wrench className="h-4 w-4" aria-hidden="true" />
+      </Link>
+    </Button>
   );
 
   return (
@@ -382,8 +388,8 @@ export function VorsorgeSection({
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <ModuleTourTrigger stopId="vorsorge" />
-            {addButton}
             {wrenchButton}
+            {addButton}
           </div>
         </div>
       ) : (
@@ -634,42 +640,6 @@ export function VorsorgeSection({
         )}
       </ResponsiveSheet>
 
-      {/* v1.18.2 — customize sheet: re-homes the per-reminder enable/disable
-          toggles (moved off the card so it carries a single med-style kebab). */}
-      <ResponsiveSheet
-        open={manageOpen}
-        onOpenChange={setManageOpen}
-        title={t("measurementReminders.manage.title")}
-        description={t("measurementReminders.manage.description")}
-      >
-        {(reminders?.length ?? 0) === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("measurementReminders.manage.empty")}
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {reminders?.map((reminder) => (
-              <li
-                key={reminder.id}
-                className="flex items-center justify-between gap-3 rounded-md border p-3"
-              >
-                <span className="min-w-0 truncate text-sm">
-                  {resolveReminderLabel(reminder, t)}
-                </span>
-                <Switch
-                  checked={reminder.enabled}
-                  onCheckedChange={(next) =>
-                    update.mutate({ id: reminder.id, body: { enabled: next } })
-                  }
-                  disabled={update.isPending}
-                  aria-label={t("measurementReminders.enabledToggleAria")}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </ResponsiveSheet>
-
       {isLoading && (
         <div
           className="grid gap-4 sm:grid-cols-2"
@@ -694,37 +664,68 @@ export function VorsorgeSection({
           description={t("measurementReminders.empty.description")}
           action={
             <Button type="button" onClick={openCreate}>
-              {t("measurementReminders.addButton")}
+              {t("common.add")}
             </Button>
           }
         />
       )}
 
       {!isLoading && (reminders?.length ?? 0) > 0 && (
-        <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">
-          {reminders?.map((reminder) => (
-            <li key={reminder.id} className="contents">
-              <VorsorgeCard
-                reminder={reminder}
-                now={now}
-                onPrimaryAction={() => onPrimaryAction(reminder)}
-                onRemove={() => remove.mutate(reminder.id)}
-                onEdit={() => openEdit(reminder)}
-                busy={
-                  satisfy.isPending || remove.isPending || update.isPending
-                }
-              />
-            </li>
-          ))}
+        <ul
+          className={
+            prefs.view === "list"
+              ? "list-none space-y-2 p-0"
+              : "grid list-none gap-4 p-0 sm:grid-cols-2"
+          }
+        >
+          {applyOrder(reminders ?? [], prefs.order, (r) => r.id).map(
+            (reminder) => (
+              <li key={reminder.id} className="contents">
+                <VorsorgeCard
+                  reminder={reminder}
+                  now={now}
+                  view={prefs.view}
+                  onPrimaryAction={() => onPrimaryAction(reminder)}
+                  onRemove={() => remove.mutate(reminder.id)}
+                  onEdit={() => openEdit(reminder)}
+                  busy={
+                    satisfy.isPending || remove.isPending || update.isPending
+                  }
+                />
+              </li>
+            ),
+          )}
         </ul>
       )}
     </section>
   );
 }
 
+/**
+ * v1.18.6 (MOD-06) — progress through the current interval toward the next
+ * due date, as a 0–100 percentage. Honest "are we on track" gamification
+ * that reuses the medication card's `Progress` building block without
+ * fabricating a streak the reminder data cannot support: 100 % (or beyond)
+ * means due/overdue now, lower means time still remains in the window.
+ * Returns null when there is no interval to measure against (RRULE / unset).
+ */
+function intervalProgress(
+  reminder: MeasurementReminder,
+  now: number,
+): number | null {
+  if (reminder.intervalDays == null || reminder.nextDueAt == null) return null;
+  const dueMs = new Date(reminder.nextDueAt).getTime();
+  if (Number.isNaN(dueMs)) return null;
+  const windowMs = reminder.intervalDays * DAY_MS;
+  const startMs = dueMs - windowMs;
+  const elapsed = now - startMs;
+  return Math.max(0, Math.min(100, Math.round((elapsed / windowMs) * 100)));
+}
+
 function VorsorgeCard({
   reminder,
   now,
+  view,
   onPrimaryAction,
   onRemove,
   onEdit,
@@ -732,6 +733,7 @@ function VorsorgeCard({
 }: {
   reminder: MeasurementReminder;
   now: number;
+  view: "cards" | "list";
   onPrimaryAction: () => void;
   onRemove: () => void;
   onEdit: () => void;
@@ -751,6 +753,12 @@ function VorsorgeCard({
         : "";
   const isCoach = reminder.origin === "COACH";
   const isLinked = reminder.measurementType != null;
+  // Due now / overdue ⇒ the action button takes the green "do it now" tone,
+  // analogous to the medication card's due affordance. The CARD stays neutral
+  // (no tint) per the project rule — only the action button goes green.
+  const isDue =
+    due.key === "nextDue.today" || due.key === "overdueByDays";
+  const progress = intervalProgress(reminder, now);
 
   // Category-style header badge: the measurement label, or "self-planned"
   // for a free-text exam — mirroring the medication card's class badge.
@@ -758,21 +766,22 @@ function VorsorgeCard({
     ? t(`measurementReminders.types.${reminder.measurementType}`)
     : t("measurementReminders.selfPlanned");
 
-  const stateBadges =
-    isCoach || !reminder.enabled ? (
-      <>
-        {isCoach && (
-          <Badge variant="outline">
-            {t("measurementReminders.originCoach")}
-          </Badge>
-        )}
-        {!reminder.enabled && (
-          <Badge variant="outline">
-            {t("measurementReminders.disabledBadge")}
-          </Badge>
-        )}
-      </>
-    ) : null;
+  // v1.18.6 (MOD-06) — the cadence renders as a chip beside the item name
+  // (the med-card cadence-chip convention), alongside the provenance /
+  // disabled state badges.
+  const stateBadges = (
+    <>
+      {cadence && <Badge variant="secondary">{cadence}</Badge>}
+      {isCoach && (
+        <Badge variant="outline">{t("measurementReminders.originCoach")}</Badge>
+      )}
+      {!reminder.enabled && (
+        <Badge variant="outline">
+          {t("measurementReminders.disabledBadge")}
+        </Badge>
+      )}
+    </>
+  );
 
   // Single med-style kebab: Edit + Delete. The Delete item is the shared
   // confirm-on-delete control rendered as a full-width menu row.
@@ -806,95 +815,186 @@ function VorsorgeCard({
     </DropdownMenu>
   );
 
-  // Next/last block in the med-card grammar. The "next" value carries the
-  // discreet neutral due badge + cadence; the "last" value is the last
-  // satisfied date.
-  const nextValue = (
-    <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
-      <Badge variant="secondary">
-        {t(`measurementReminders.${due.key}`, { days: due.days })}
-      </Badge>
-      {cadence && <span className="text-muted-foreground">{cadence}</span>}
-    </span>
+  // v1.18.6 (MOD-06) — the green "Jetzt messen" / mark-done action. Green only
+  // on the action button (never the card surface). When not due it stays the
+  // calm default tone so the green reads as "now is the time".
+  const primaryButton = (
+    <Button
+      type="button"
+      className={cn(
+        "min-h-11 w-full",
+        isDue && "bg-success text-white hover:bg-success/90",
+      )}
+      onClick={onPrimaryAction}
+      disabled={busy}
+    >
+      {isLinked ? (
+        <>
+          <Activity className="h-4 w-4" />
+          {t("measurementReminders.measureNow")}
+        </>
+      ) : (
+        <>
+          <CheckCircle2 className="h-4 w-4" />
+          {t("measurementReminders.markDone")}
+        </>
+      )}
+    </Button>
   );
+
+  const deleteDialog = (
+    <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {t("measurementReminders.deleteConfirmTitle")}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t("measurementReminders.deleteConfirmDescription")}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onRemove}>
+            {t("measurementReminders.delete")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  // v1.18.6 (MOD-03) — compact list row variant.
+  if (view === "list") {
+    return (
+      <>
+        <Card>
+          <CardContent className="flex items-center justify-between gap-3 px-4 py-2.5">
+            <div className="min-w-0 space-y-0.5">
+              <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                <span className="truncate font-medium">
+                  {resolveReminderLabel(reminder, t)}
+                </span>
+                {cadence && <Badge variant="secondary">{cadence}</Badge>}
+              </div>
+              <div className="flex flex-wrap items-center gap-x-2 text-xs">
+                <Badge variant="outline">
+                  {t(`measurementReminders.${due.key}`, { days: due.days })}
+                </Badge>
+                <span className="text-muted-foreground">{categoryLabel}</span>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                className={cn(
+                  "min-h-9",
+                  isDue && "bg-success text-white hover:bg-success/90",
+                )}
+                onClick={onPrimaryAction}
+                disabled={busy}
+              >
+                {isLinked
+                  ? t("measurementReminders.measureNow")
+                  : t("measurementReminders.markDone")}
+              </Button>
+              {headerActions}
+            </div>
+          </CardContent>
+        </Card>
+        {deleteDialog}
+      </>
+    );
+  }
+
+  // Next/last block in the med-card grammar, but with MEASUREMENT wording
+  // (MOD-06: never "Einnahme" / intake — a measurement is not an intake). The
+  // "next" value carries the discreet neutral due badge; the "last" value is
+  // the last satisfied date.
   const lastValue = reminder.lastSatisfiedAt
     ? fmt.date(new Date(reminder.lastSatisfiedAt))
     : null;
+  const nextLastSlot = (
+    <div className="min-h-[2.75rem] space-y-1.5 text-sm">
+      <div className="text-muted-foreground flex items-baseline justify-between gap-3">
+        <span className="min-w-0 flex-shrink truncate font-medium">
+          {t("measurementReminders.nextDueLabel")}
+        </span>
+        <span className="text-right">
+          <Badge variant="secondary">
+            {t(`measurementReminders.${due.key}`, { days: due.days })}
+          </Badge>
+        </span>
+      </div>
+      {lastValue && (
+        <div className="text-muted-foreground flex items-baseline justify-between gap-3">
+          <span className="min-w-0 flex-shrink truncate font-medium">
+            {t("measurementReminders.lastDoneLabel")}
+          </span>
+          <span className="text-foreground text-right">{lastValue}</span>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <>
-    {/* NEUTRAL card — no status-driven colour. Due state reads only through
-        the discreet badge below. Shares the medication card shell + tokens. */}
-    <Card className="h-full gap-3 md:gap-3">
-      <MedicationCardHeader
-        name={resolveReminderLabel(reminder, t)}
-        dose=""
-        categoryLabel={categoryLabel}
-        stateBadges={stateBadges}
-        actions={headerActions}
-      />
-      <CardContent className="flex h-full flex-col space-y-3.5">
-        <MedicationNextLastSlot next={nextValue} last={lastValue} />
+      {/* NEUTRAL card — no status-driven colour. Due state reads only through
+          the discreet badge + the green action button below (MOD-06). Shares
+          the medication card shell + tokens. */}
+      <Card className="h-full gap-3 md:gap-3">
+        <MedicationCardHeader
+          name={resolveReminderLabel(reminder, t)}
+          dose=""
+          categoryLabel={categoryLabel}
+          stateBadges={stateBadges}
+          actions={headerActions}
+        />
+        <CardContent className="flex h-full flex-col space-y-3.5">
+          {nextLastSlot}
 
-        {reminder.endsOn && (
-          <p className="text-muted-foreground text-sm">
-            {t("measurementReminders.until", {
-              date: fmt.date(new Date(reminder.endsOn)),
-            })}
-          </p>
-        )}
-        {reminder.location && (
-          <p className="text-muted-foreground text-sm">
-            {t("measurementReminders.location.prefix", {
-              location: reminder.location,
-            })}
-          </p>
-        )}
+          {/* v1.18.6 (MOD-06) — light gamification: progress through the
+              current interval toward next-due, reusing the medication card's
+              Progress building block. Honest "on track / due" signal without
+              a fabricated streak; hidden for RRULE / unscheduled reminders. */}
+          {progress != null && (
+            <div className="space-y-1">
+              <div className="text-muted-foreground flex items-center justify-between text-xs">
+                <span>{t("measurementReminders.adherence.label")}</span>
+                <span className="tabular-nums">
+                  {isDue
+                    ? t("measurementReminders.adherence.due")
+                    : t("measurementReminders.adherence.onTrack")}
+                </span>
+              </div>
+              <Progress
+                value={progress}
+                aria-label={t("measurementReminders.adherence.label")}
+              />
+            </div>
+          )}
 
-        {/* Bottom-pinned single primary action — branches on the link state:
-            a self-planned exam marks done; a measurement-linked reminder
-            opens the value-entry form. */}
-        <div className="mt-auto pt-0">
-          <Button
-            type="button"
-            className="min-h-11 w-full"
-            onClick={onPrimaryAction}
-            disabled={busy}
-          >
-            {isLinked ? (
-              <>
-                <Plus className="h-4 w-4" />
-                {t("measurementReminders.captureValue")}
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="h-4 w-4" />
-                {t("measurementReminders.markDone")}
-              </>
-            )}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          {reminder.endsOn && (
+            <p className="text-muted-foreground text-sm">
+              {t("measurementReminders.until", {
+                date: fmt.date(new Date(reminder.endsOn)),
+              })}
+            </p>
+          )}
+          {reminder.location && (
+            <p className="text-muted-foreground text-sm">
+              {t("measurementReminders.location.prefix", {
+                location: reminder.location,
+              })}
+            </p>
+          )}
 
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("measurementReminders.deleteConfirmTitle")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("measurementReminders.deleteConfirmDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={onRemove}>
-              {t("measurementReminders.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          {/* Bottom-pinned single primary action — green when due (MOD-06). */}
+          <div className="mt-auto pt-0">{primaryButton}</div>
+        </CardContent>
+      </Card>
+
+      {deleteDialog}
     </>
   );
 }
