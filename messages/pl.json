@@ -1276,6 +1276,13 @@
       "noCurrentDose": "Nie zapisano jeszcze żadnej dawki.",
       "empty": "Brak historii titracji. Zapisz zmianę dawki, aby zobaczyć krzywą dawki."
     },
+    "titration": {
+      "title": "Plan titracji",
+      "empty": "Nie zarejestrowano jeszcze kroków zwiększania dawki. Dodaj datowane zmiany dawki, aby nakreślić plan.",
+      "youAreHere": "Jesteś tutaj",
+      "doseStep": "{dose} {unit}",
+      "plannedFor": "Zaplanowano · {date}"
+    },
     "injectionSiteBodyOutlineAriaLabel": "Sylwetka ciała",
     "injectionSitePickerAriaLabel": "Wybór miejsca iniekcji",
     "injectionSiteRecommendedAriaLabel": "{site} — zalecane następne miejsce",

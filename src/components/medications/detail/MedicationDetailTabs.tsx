@@ -70,6 +70,7 @@ import { SettingsGroup } from "@/components/medications/settings-group";
 import { PhaseConfigSheet } from "@/components/medications/sections/phase-config-sheet";
 import { SideEffectsSection } from "@/components/medications/SideEffectsSection";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { TitrationTimeline } from "@/components/medications/titration-timeline";
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
 import { summariseSupply } from "@/lib/medications/inventory/summary";
 import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
@@ -661,6 +662,11 @@ export function MedicationDetailTabs({
             wave. */}
         {isInjectable && (
           <TabsContent value="injektion" className="space-y-6 pt-2">
+            {/* Dose-escalation plan: completed + planned titration steps
+                with a "you are here" marker. Renders for every injectable
+                route (not GLP-1-only) since titration is a property of the
+                injection ladder, not the treatment class. */}
+            <TitrationTimeline medicationId={id} />
             {isGlp1 && <SideEffectsSection medicationId={id} />}
             {isGlp1 && (
               <div
@@ -689,6 +695,7 @@ export function MedicationDetailTabs({
           <SettingsGroup
             label={t("medications.detail.erweitert.group.externalApi")}
             dataSlot="api-group-external-api"
+            collapsible
           >
             <div className="py-3">
               <ApiTokensRow
@@ -712,6 +719,7 @@ export function MedicationDetailTabs({
           <SettingsGroup
             label={t("medications.detail.erweitert.group.lifecycle")}
             dataSlot="erweitert-group-lifecycle"
+            collapsible
           >
             <div className="py-3">
               <LifecycleManageBody
@@ -763,6 +771,8 @@ export function MedicationDetailTabs({
           <SettingsGroup
             label={t("medications.detail.erweitert.group.data")}
             dataSlot="erweitert-group-data"
+            collapsible
+            defaultOpen={false}
           >
             <div className="py-3">
               <DataPortabilityRow
@@ -899,6 +909,8 @@ function ComplianceGatedDangerZone({
     <SettingsGroup
       label={t("medications.detail.erweitert.group.danger")}
       dataSlot="erweitert-group-danger"
+      collapsible
+      defaultOpen={false}
     >
       <DangerZoneBody
         medicationId={medicationId}
