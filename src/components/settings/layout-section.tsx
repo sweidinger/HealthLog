@@ -53,47 +53,38 @@ const LAYOUT_LINKS: ReadonlyArray<LayoutLink> = [
 export function LayoutSection() {
   const { t } = useTranslations();
 
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+  // `<SettingsSectionFrame>` in the route; this body is the hub link list.
   return (
-    <section
-      aria-labelledby="settings-section-layout-title"
-      className="space-y-6"
-    >
-      <header>
-        <h1 id="settings-section-layout-title" className="sr-only">
-          {t("settings.sections.layout.title")}
-        </h1>
-      </header>
-
-      <ul className="space-y-3">
-        {LAYOUT_LINKS.map((link) => {
-          const Icon = link.icon;
-          return (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className={cn(
-                  "bg-card border-border hover:bg-accent/40 group flex items-center gap-4 rounded-xl border p-4 transition-colors sm:p-5",
-                )}
-              >
-                <Icon
-                  className="text-muted-foreground h-5 w-5 shrink-0"
-                  aria-hidden="true"
-                />
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-sm font-semibold">{t(link.titleKey)}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {t(link.descriptionKey)}
-                  </p>
-                </div>
-                <ChevronRight
-                  className="text-muted-foreground/60 group-hover:text-foreground h-4 w-4 shrink-0 transition-colors"
-                  aria-hidden="true"
-                />
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+    <ul className="space-y-3">
+      {LAYOUT_LINKS.map((link) => {
+        const Icon = link.icon;
+        return (
+          <li key={link.href}>
+            <Link
+              href={link.href}
+              className={cn(
+                "bg-card border-border hover:bg-accent/40 group flex items-center gap-4 rounded-xl border p-4 transition-colors sm:p-5",
+              )}
+            >
+              <Icon
+                className="text-muted-foreground h-5 w-5 shrink-0"
+                aria-hidden="true"
+              />
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="text-sm font-semibold">{t(link.titleKey)}</p>
+                <p className="text-muted-foreground text-xs">
+                  {t(link.descriptionKey)}
+                </p>
+              </div>
+              <ChevronRight
+                className="text-muted-foreground/60 group-hover:text-foreground h-4 w-4 shrink-0 transition-colors"
+                aria-hidden="true"
+              />
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

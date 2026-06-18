@@ -181,17 +181,12 @@ export function AboutSection() {
   }, [version?.version]);
   /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the section
+  // frame that wraps this component: `<SettingsSectionFrame>` on the settings
+  // route and the admin renderer's `SectionFrame` on `/admin/about`. The body
+  // is the version / license / sources cards.
   return (
-    <section
-      aria-labelledby="settings-section-about-title"
-      className="space-y-6"
-    >
-      <header>
-        <h1 id="settings-section-about-title" className="sr-only">
-          {t("settings.sections.about.title")}
-        </h1>
-      </header>
-
+    <div className="space-y-6">
       {/* Identity card — version + license inline. The v1.4.2 layout
           stacked the license under the version inside its own boxed Badge,
           which read as a separate field even though the two values belong
@@ -321,6 +316,6 @@ export function AboutSection() {
           button were collectively never the point of the surface —
           the only signal users ever cared about was "is a newer
           release out?", and the badge answers that with no clicks. */}
-    </section>
+    </div>
   );
 }

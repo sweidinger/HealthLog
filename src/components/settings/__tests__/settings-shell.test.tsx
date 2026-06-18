@@ -319,9 +319,9 @@ describe("<SettingsShell>", () => {
     expect(html).toContain('href="/settings/mood"');
     // Targets keeps its German nav entry ("Zielwerte").
     expect(html).toContain("Zielwerte");
-    // v1.8.7.1 — the AI Insights section is named "KI-Auswertungen" in
-    // German (the "KI" prefix makes the AI nature explicit).
-    expect(html).toContain("KI-Auswertungen");
+    // v1.18.6 (W9) — the AI section is named "KI-Anbieter" in German: the
+    // page is about the provider / BYOK, not an "Auswertung".
+    expect(html).toContain("KI-Anbieter");
     // API & Tokens is identical in both locales (proper noun + ampersand)
     expect(html).toContain("API &amp; Tokens");
     expect(html).toContain("Erweitert");

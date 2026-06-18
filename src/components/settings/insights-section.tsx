@@ -2,8 +2,6 @@
 
 import { InsightsOverviewArrangeSection } from "@/components/settings/insights-overview-arrange-section";
 import { InsightsPillOrderSection } from "@/components/settings/insights-pill-order-section";
-import { SettingsHubBackLink } from "@/components/settings/settings-hub-back-link";
-import { useTranslations } from "@/lib/i18n/context";
 
 /**
  * v1.15.18 — the "Insights" settings section (analogous to the Dashboard
@@ -15,28 +13,16 @@ import { useTranslations } from "@/lib/i18n/context";
  *
  * Both write through the same `/api/insights/layout` contract the tab strip
  * and the overview share, so a save here repaints both surfaces in lockstep.
+ *
+ * v1.18.6 (W9) — the visible "Insights" heading + subtitle now come from the
+ * shared `<SettingsSectionFrame>`, and the "← back to hub" link rides the
+ * frame's `topSlot`. The body is the two arrange cards only.
  */
 export function InsightsSection() {
-  const { t } = useTranslations();
-
   return (
-    <section
-      aria-labelledby="settings-section-insights-title"
-      className="space-y-6"
-    >
-      <header className="space-y-2">
-        <SettingsHubBackLink
-          href="/settings/layout"
-          labelKey="settings.sections.layout.backToHub"
-        />
-        <h1 id="settings-section-insights-title" className="sr-only">
-          {t("settings.sections.insights.title")}
-        </h1>
-        {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
-      </header>
-
+    <div className="space-y-6">
       <InsightsOverviewArrangeSection id="insights-overview-arrange" />
       <InsightsPillOrderSection id="insights-pill-order" />
-    </section>
+    </div>
   );
 }

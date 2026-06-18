@@ -2,11 +2,11 @@
  * v1.4.16 phase B6 — settings i18n parity.
  *
  * Every slug declared in `SETTINGS_SECTION_SLUGS` MUST have a
- * `settings.sections.<slug>.title` AND a `settings.sections.<slug>.description`
- * resolved in both English and German. The audit doc
- * (`docs/audit/v1416-settings-audit.md`) calls this out as the canonical
- * shape — the sidebar, the page `<h1>`, and the page subtitle all read
- * from these two keys, so a missing key paints a raw key in production.
+ * `settings.sections.<slug>.title` AND a `settings.sections.<slug>.subtitle`
+ * resolved in both English and German. The sidebar reads `.title`; the shared
+ * `<SettingsSectionFrame>` reads `.title` + `.subtitle` for the visible page
+ * heading + subheading (v1.18.6 W9), so a missing key paints a raw key in
+ * production.
  */
 
 import { describe, expect, it } from "vitest";
@@ -46,43 +46,39 @@ describe("settings sections — i18n parity (B6)", () => {
       expect(deValue?.length ?? 0).toBeGreaterThan(0);
     });
 
-    it(`every locale resolves settings.sections.${slug}.description`, () => {
+    it(`every locale resolves settings.sections.${slug}.subtitle`, () => {
       const enValue = lookup(en as Bag, [
         "settings",
         "sections",
         slug,
-        "description",
+        "subtitle",
       ]);
       const deValue = lookup(de as Bag, [
         "settings",
         "sections",
         slug,
-        "description",
+        "subtitle",
       ]);
-      expect(enValue, `EN missing description for ${slug}`).toBeTypeOf(
-        "string",
-      );
+      expect(enValue, `EN missing subtitle for ${slug}`).toBeTypeOf("string");
       expect(enValue?.length ?? 0).toBeGreaterThan(0);
-      expect(deValue, `DE missing description for ${slug}`).toBeTypeOf(
-        "string",
-      );
+      expect(deValue, `DE missing subtitle for ${slug}`).toBeTypeOf("string");
       expect(deValue?.length ?? 0).toBeGreaterThan(0);
     });
   }
 
-  it("EN and DE description for every slug are different (catches accidental copy-paste)", () => {
+  it("EN and DE subtitle for every slug are different (catches accidental copy-paste)", () => {
     for (const slug of SETTINGS_SECTION_SLUGS) {
       const enValue = lookup(en as Bag, [
         "settings",
         "sections",
         slug,
-        "description",
+        "subtitle",
       ]);
       const deValue = lookup(de as Bag, [
         "settings",
         "sections",
         slug,
-        "description",
+        "subtitle",
       ]);
       // It's legitimate for some titles to coincide between locales when
       // the proper noun is the same (e.g. "Dashboard", "API & Tokens").
@@ -90,7 +86,7 @@ describe("settings sections — i18n parity (B6)", () => {
       // EN value into the DE bag is a bug.
       expect(
         deValue,
-        `DE description for ${slug} is identical to EN — needs translation`,
+        `DE subtitle for ${slug} is identical to EN — needs translation`,
       ).not.toBe(enValue);
     }
   });

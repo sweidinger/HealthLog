@@ -3778,18 +3778,21 @@
     "sections": {
       "account": {
         "title": "Konto",
-        "description": "Profil, hasło, klucze dostępu i przewodnik wprowadzający."
+        "description": "Profil, hasło, klucze dostępu i przewodnik wprowadzający.",
+        "subtitle": "Twój profil, tożsamość i dane logowania."
       },
       "integrations": {
         "title": "Integracje",
-        "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu."
+        "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
+        "subtitle": "Połącz i zarządzaj źródłami danych oraz urządzeniami."
       },
       "notifications": {
         "title": "Powiadomienia",
         "description": "Wszystkie przypomnienia w jednym miejscu — co i kiedy. Kanały dostarczania znajdują się w Integracjach.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook i e-mail konfigurujesz teraz w",
         "channelsHintLink": "Integracje → Kanały",
-        "inboxLink": "Otwórz skrzynkę odbiorczą"
+        "inboxLink": "Otwórz skrzynkę odbiorczą",
+        "subtitle": "Wybierz, które przypomnienia otrzymujesz."
       },
       "layout": {
         "title": "Układ",
@@ -3802,15 +3805,18 @@
         "insights": {
           "title": "Analizy",
           "description": "Kolejność przeglądu i pigułek nawigacyjnych."
-        }
+        },
+        "subtitle": "Dostosuj układ pulpitu i analiz."
       },
       "dashboard": {
         "title": "Pulpit",
-        "description": "Układ i kolejność kafelków."
+        "description": "Układ i kolejność kafelków.",
+        "subtitle": "Rozmieść kafelki na pulpicie."
       },
       "thresholds": {
         "title": "Cele",
-        "description": "Dla każdej metryki: własny zakres docelowy zdrowych wartości."
+        "description": "Dla każdej metryki: własny zakres docelowy zdrowych wartości.",
+        "subtitle": "Ustaw osobiste zakresy docelowe dla każdej metryki."
       },
       "sources": {
         "title": "Priorytet źródeł",
@@ -3869,19 +3875,23 @@
           "scale": "Waga",
           "other": "Inne",
           "unknown": "Nieznane"
-        }
+        },
+        "subtitle": "Zdecyduj, które źródło wygrywa, gdy dwa podają tę samą metrykę."
       },
       "ai": {
-        "title": "Analizy AI",
-        "description": "Dostawca, model i klucz API do analiz, a także Twój kontekst „o mnie”."
+        "title": "Dostawca AI",
+        "description": "Dostawca, model i klucz API do analiz, a także Twój kontekst „o mnie”.",
+        "subtitle": "Wybierz dostawcę AI i użyj własnego klucza."
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Tokeny Bearer dla własnych skryptów i aplikacji — zapisuj pomiary lub przyjęcia leków z dowolnego miejsca."
+        "description": "Tokeny Bearer dla własnych skryptów i aplikacji — zapisuj pomiary lub przyjęcia leków z dowolnego miejsca.",
+        "subtitle": "Zarządzaj punktami końcowymi API i tokenami dostępu."
       },
       "advanced": {
         "title": "Zaawansowane",
-        "description": "Opt-in przełącznika trybu Badawczego oraz strefa zagrożenia umożliwiająca nieodwracalne wymazanie wszystkich danych zdrowotnych."
+        "description": "Opt-in przełącznika trybu Badawczego oraz strefa zagrożenia umożliwiająca nieodwracalne wymazanie wszystkich danych zdrowotnych.",
+        "subtitle": "Tryb badawczy, reset danych i usunięcie konta."
       },
       "export": {
         "title": "Eksport i import",
@@ -3982,27 +3992,33 @@
             "resultSummary": "Zaimportowano {inserted} nowych i zaktualizowano {updated}, pominięto {skipped}.",
             "rowError": "Wiersz {line}: {reason}"
           }
-        }
+        },
+        "subtitle": "Wyeksportuj dane lub zaimportuj z kopii zapasowej."
       },
       "about": {
         "title": "O tej aplikacji",
-        "description": "Wersja, licencja, linki."
+        "description": "Wersja, licencja, linki.",
+        "subtitle": "Wersja, licencja i linki do projektu."
       },
       "sharing": {
         "title": "Udostępnianie",
-        "description": "Utwórz link tylko do odczytu, aby udostępnić swoją dokumentację zdrowotną lekarzowi."
+        "description": "Utwórz link tylko do odczytu, aby udostępnić swoją dokumentację zdrowotną lekarzowi.",
+        "subtitle": "Udostępnij dostęp tylko do odczytu do swoich danych."
       },
       "insights": {
         "title": "Analizy",
-        "description": "Kolejność przeglądu i pigułek nawigacyjnych."
+        "description": "Kolejność przeglądu i pigułek nawigacyjnych.",
+        "subtitle": "Rozmieść sekcje przeglądu i kolejność etykiet."
       },
       "medications": {
         "title": "Leki",
-        "description": "Widok listy, kolejność i miejsca wstrzyknięć Twoich leków."
+        "description": "Widok listy, kolejność i miejsca wstrzyknięć Twoich leków.",
+        "subtitle": "Zarządzaj widokiem i kolejnością listy leków."
       },
       "mood": {
         "title": "Tagi nastroju",
-        "description": "Grupy, tagi i zarchiwizowane tagi w wyborze nastroju."
+        "description": "Grupy, tagi i zarchiwizowane tagi w wyborze nastroju.",
+        "subtitle": "Uporządkuj tagi nastroju, grupy i kolejność wyboru."
       },
       "modules": {
         "title": "Moduły",
@@ -4012,26 +4028,24 @@
           "title": "Co śledzisz",
           "description": "Obszary opcjonalne. Wyłączone moduły znikają z nawigacji, kafelków i analiz — Twoje dane pozostają nienaruszone."
         },
-        "core": {
-          "title": "Zawsze aktywne",
-          "description": "Podstawy HealthLog. Tych obszarów nie można wyłączyć.",
-          "note": "Obszar podstawowy — zawsze aktywny"
-        },
-        "description": "Wybierz, co HealthLog ma dla Ciebie śledzić. Włączaj i wyłączaj poszczególne obszary — nawigacja, kafelki i analizy dostosują się od razu.",
         "manageIn": "Zarządzaj w {section}",
-        "operatorDisabled": "Wyłączone na całym serwerze"
+        "operatorDisabled": "Wyłączone na całym serwerze",
+        "subtitle": "Wybierz, które obszary śledzenia pokazuje HealthLog w aplikacji."
       },
       "gesundheitsakte": {
         "title": "Dokumentacja zdrowotna",
-        "description": "Wyeksportuj pełną dokumentację zdrowotną jako PDF, FHIR R4 lub łączony pakiet ZIP."
+        "description": "Wyeksportuj pełną dokumentację zdrowotną jako PDF, FHIR R4 lub łączony pakiet ZIP.",
+        "subtitle": "Eksportuj kompletną dokumentację zdrowotną gotową dla lekarza."
       },
       "coach": {
         "title": "Coach",
-        "description": "Włącz Coacha, ton i zakres, zapisane wspomnienia."
+        "description": "Włącz Coacha, ton i zakres, zapisane wspomnienia.",
+        "subtitle": "Dostosuj Coacha, jego proaktywne podpowiedzi i pamięć."
       },
       "channels": {
         "title": "Kanały",
-        "description": "Dostarczanie przez Telegram, ntfy, Web Push, Webhook i e-mail."
+        "description": "Dostarczanie przez Telegram, ntfy, Web Push, Webhook i e-mail.",
+        "subtitle": "Gdzie dostarczane są przypomnienia i powiadomienia."
       }
     },
     "profile": "Profil",
@@ -5291,7 +5305,12 @@
         "subtitle": "Destrukcyjne operacje obejmujące cały system."
       },
       "about": {
-        "title": "O programie"
+        "title": "O programie",
+        "subtitle": "Wersja, licencja i stan aktualizacji."
+      },
+      "module-availability": {
+        "title": "Dostępność modułów",
+        "subtitle": "Włącz lub wyłącz moduły dla wszystkich kont na tym serwerze."
       }
     },
     "carrier": "Operator",
@@ -6587,18 +6606,6 @@
     "doctorReport": {
       "label": "Raport dla lekarza",
       "description": "Eksport PDF i FHIR dla Twojej przychodni."
-    },
-    "weight": {
-      "label": "Waga",
-      "description": "Waga i skład ciała."
-    },
-    "bloodPressure": {
-      "label": "Ciśnienie krwi",
-      "description": "Skurczowe i rozkurczowe."
-    },
-    "pulse": {
-      "label": "Tętno",
-      "description": "Tętno spoczynkowe i rytm serca."
     },
     "medications": {
       "label": "Leki",

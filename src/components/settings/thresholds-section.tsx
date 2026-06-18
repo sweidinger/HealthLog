@@ -1,7 +1,6 @@
 "use client";
 
 import { ThresholdsEditorSection } from "@/components/settings/thresholds-editor-section";
-import { useTranslations } from "@/lib/i18n/context";
 
 /**
  * `<ThresholdsSection>` — route-level wrapper for `/settings/thresholds`
@@ -16,7 +15,8 @@ import { useTranslations } from "@/lib/i18n/context";
  * flows, so each concern is self-contained on its own page.
  *
  * Visual structure on this page:
- *   1. Section header (title + description).
+ *   1. Section heading + subtitle — supplied by the shared
+ *      `<SettingsSectionFrame>` in the route (v1.18.6 W9).
  *   2. `<ThresholdsEditorSection>` — per-metric range inputs. The editor
  *      card keeps its own affordance row (icon, reset-all button).
  *
@@ -31,21 +31,6 @@ import { useTranslations } from "@/lib/i18n/context";
  * the names stop clashing.
  */
 export function ThresholdsSection() {
-  const { t } = useTranslations();
-
-  return (
-    <section
-      aria-labelledby="settings-section-thresholds-title"
-      className="space-y-6"
-    >
-      <header>
-        <h1 id="settings-section-thresholds-title" className="sr-only">
-          {t("settings.sections.thresholds.title")}
-        </h1>
-      </header>
-
-      {/* Per-metric threshold ranges. */}
-      <ThresholdsEditorSection id="thresholds" />
-    </section>
-  );
+  // Per-metric threshold ranges; the heading is supplied by the route frame.
+  return <ThresholdsEditorSection id="thresholds" />;
 }

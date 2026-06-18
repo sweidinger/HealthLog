@@ -18,6 +18,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  Blocks,
   Database,
   FileText,
   Info,
@@ -39,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { scrollBehaviorForUser } from "@/lib/motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import { SectionNavHeadingSpacer } from "@/components/settings/section-nav-heading-spacer";
 import { isAdminSectionSlug, type AdminSectionSlug } from "./section-slugs";
 
 interface AdminSection {
@@ -81,6 +83,13 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     slug: "coach",
     titleKey: "admin.section.coach.title",
     icon: Sparkles,
+  },
+  // v1.18.6 (W9) — server-wide module availability split out of Coach into
+  // its own entry, sitting next to it.
+  {
+    slug: "module-availability",
+    titleKey: "admin.section.module-availability.title",
+    icon: Blocks,
   },
   {
     slug: "feedback",
@@ -276,6 +285,9 @@ export function AdminShell({ active, children }: AdminShellProps) {
           className="hidden md:block"
         >
           <div className="sticky top-20">
+            {/* v1.18.6 (W9) — align the first nav item with the top of the
+                first card, matching the settings shell. */}
+            <SectionNavHeadingSpacer />
             <ul className="space-y-1">
               <li>
                 <Link

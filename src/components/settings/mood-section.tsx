@@ -40,17 +40,10 @@ export function MoodSection() {
     </div>
   );
 
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+  // `<SettingsSectionFrame>` in the route; this body is the mood-tag cards.
   return (
-    <section
-      aria-labelledby="settings-section-mood-title"
-      className="space-y-6"
-    >
-      <header>
-        <h1 id="settings-section-mood-title" className="sr-only">
-          {t("settings.sections.mood.title")}
-        </h1>
-      </header>
-
+    <div className="space-y-6">
       {/* Groups — picker group order + own groups. */}
       <div
         id="mood-groups"
@@ -87,6 +80,6 @@ export function MoodSection() {
           <ArchivedTagsCard catalog={catalog} />
         )}
       </div>
-    </section>
+    </div>
   );
 }

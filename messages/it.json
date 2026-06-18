@@ -3778,18 +3778,21 @@
     "sections": {
       "account": {
         "title": "Account",
-        "description": "Profilo, password, passkey e il tour di benvenuto."
+        "description": "Profilo, password, passkey e il tour di benvenuto.",
+        "subtitle": "Il tuo profilo, la tua identità e i dati di accesso."
       },
       "integrations": {
         "title": "Integrazioni",
-        "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto."
+        "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto.",
+        "subtitle": "Collega e gestisci le tue fonti di dati e i dispositivi."
       },
       "notifications": {
         "title": "Notifiche",
         "description": "Tutti i promemoria in un unico posto — cosa e quando. I canali di recapito si trovano in Integrazioni.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook ed e-mail ora si configurano in",
         "channelsHintLink": "Integrazioni → Canali",
-        "inboxLink": "Apri la posta in arrivo"
+        "inboxLink": "Apri la posta in arrivo",
+        "subtitle": "Scegli quali promemoria ricevere."
       },
       "layout": {
         "title": "Layout",
@@ -3802,15 +3805,18 @@
         "insights": {
           "title": "Approfondimenti",
           "description": "Ordine della panoramica e delle schede di navigazione."
-        }
+        },
+        "subtitle": "Personalizza la disposizione di dashboard e insights."
       },
       "dashboard": {
         "title": "Cruscotto",
-        "description": "Layout e ordine dei riquadri."
+        "description": "Layout e ordine dei riquadri.",
+        "subtitle": "Disponi i riquadri della tua dashboard."
       },
       "thresholds": {
         "title": "Obiettivi",
-        "description": "Per metrica: il tuo intervallo target per valori sani."
+        "description": "Per metrica: il tuo intervallo target per valori sani.",
+        "subtitle": "Imposta i tuoi intervalli target personali per metrica."
       },
       "sources": {
         "title": "Priorità delle fonti",
@@ -3869,19 +3875,23 @@
           "scale": "Bilancia",
           "other": "Altro",
           "unknown": "Sconosciuto"
-        }
+        },
+        "subtitle": "Decidi quale fonte prevale quando due riportano la stessa metrica."
       },
       "ai": {
-        "title": "Analisi IA",
-        "description": "Provider, modello e chiave API per gli approfondimenti, oltre al tuo contesto «su di me»."
+        "title": "Provider IA",
+        "description": "Provider, modello e chiave API per gli approfondimenti, oltre al tuo contesto «su di me».",
+        "subtitle": "Scegli il tuo provider IA e usa la tua chiave."
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Token Bearer per i tuoi script e le tue app — registra misurazioni o assunzioni di farmaci da ovunque."
+        "description": "Token Bearer per i tuoi script e le tue app — registra misurazioni o assunzioni di farmaci da ovunque.",
+        "subtitle": "Gestisci gli endpoint API e i token di accesso."
       },
       "advanced": {
         "title": "Avanzate",
-        "description": "Interruttore opt-in della modalità Ricerca e zona pericolosa per cancellare in modo irrevocabile tutti i dati di salute."
+        "description": "Interruttore opt-in della modalità Ricerca e zona pericolosa per cancellare in modo irrevocabile tutti i dati di salute.",
+        "subtitle": "Modalità ricerca, ripristino dati ed eliminazione account."
       },
       "export": {
         "title": "Esporta e importa",
@@ -3982,27 +3992,33 @@
             "resultSummary": "{inserted} nuove importate e {updated} aggiornate, {skipped} saltate.",
             "rowError": "Riga {line}: {reason}"
           }
-        }
+        },
+        "subtitle": "Esporta i tuoi dati o importa da un backup."
       },
       "about": {
         "title": "Informazioni su questa app",
-        "description": "Versione, licenza, link."
+        "description": "Versione, licenza, link.",
+        "subtitle": "Versione, licenza e link al progetto."
       },
       "sharing": {
         "title": "Condivisione",
-        "description": "Crea un link di sola lettura per condividere la tua cartella clinica con un medico."
+        "description": "Crea un link di sola lettura per condividere la tua cartella clinica con un medico.",
+        "subtitle": "Condividi l'accesso in sola lettura ai tuoi dati."
       },
       "insights": {
         "title": "Approfondimenti",
-        "description": "Ordine della panoramica e delle schede di navigazione."
+        "description": "Ordine della panoramica e delle schede di navigazione.",
+        "subtitle": "Disponi le sezioni della panoramica e l'ordine dei pill."
       },
       "medications": {
         "title": "Farmaci",
-        "description": "Vista elenco, ordine e siti di iniezione dei tuoi farmaci."
+        "description": "Vista elenco, ordine e siti di iniezione dei tuoi farmaci.",
+        "subtitle": "Gestisci vista e ordine del tuo elenco di farmaci."
       },
       "mood": {
         "title": "Tag dell’umore",
-        "description": "Gruppi, tag e tag archiviati del selettore dell’umore."
+        "description": "Gruppi, tag e tag archiviati del selettore dell’umore.",
+        "subtitle": "Organizza i tag dell'umore, i gruppi e l'ordine del selettore."
       },
       "modules": {
         "title": "Moduli",
@@ -4012,26 +4028,24 @@
           "title": "Cosa monitori",
           "description": "Ambiti opzionali. I moduli disattivati spariscono da navigazione, riquadri e analisi; i tuoi dati restano intatti."
         },
-        "core": {
-          "title": "Sempre attivi",
-          "description": "Le fondamenta di HealthLog. Questi ambiti non possono essere disattivati.",
-          "note": "Ambito di base — sempre attivo"
-        },
-        "description": "Scegli cosa registra HealthLog per te. Attiva o disattiva i singoli ambiti: navigazione, riquadri e analisi si adattano subito.",
         "manageIn": "Gestisci in {section}",
-        "operatorDisabled": "Disattivato a livello di server"
+        "operatorDisabled": "Disattivato a livello di server",
+        "subtitle": "Scegli quali aree di monitoraggio HealthLog mostra nell'app."
       },
       "gesundheitsakte": {
         "title": "Cartella clinica",
-        "description": "Esporta la tua cartella clinica completa in PDF, FHIR R4 o in un pacchetto ZIP combinato."
+        "description": "Esporta la tua cartella clinica completa in PDF, FHIR R4 o in un pacchetto ZIP combinato.",
+        "subtitle": "Esporta una cartella clinica completa, pronta per il medico."
       },
       "coach": {
         "title": "Coach",
-        "description": "Attiva il Coach, tono e ambito, ricordi salvati."
+        "description": "Attiva il Coach, tono e ambito, ricordi salvati.",
+        "subtitle": "Regola il Coach, i suoi suggerimenti proattivi e la sua memoria."
       },
       "channels": {
         "title": "Canali",
-        "description": "Recapito tramite Telegram, ntfy, Web Push, Webhook ed e-mail."
+        "description": "Recapito tramite Telegram, ntfy, Web Push, Webhook ed e-mail.",
+        "subtitle": "Dove vengono recapitati promemoria e avvisi."
       }
     },
     "profile": "Profilo",
@@ -5291,7 +5305,12 @@
         "subtitle": "Operazioni distruttive a livello di sistema."
       },
       "about": {
-        "title": "Informazioni"
+        "title": "Informazioni",
+        "subtitle": "Versione, licenza e stato degli aggiornamenti."
+      },
+      "module-availability": {
+        "title": "Disponibilità dei moduli",
+        "subtitle": "Attiva o disattiva i moduli per tutti gli account su questo server."
       }
     },
     "carrier": "Operatore",
@@ -6587,18 +6606,6 @@
     "doctorReport": {
       "label": "Referto medico",
       "description": "Esportazione PDF e FHIR per il tuo studio."
-    },
-    "weight": {
-      "label": "Peso",
-      "description": "Peso e composizione corporea."
-    },
-    "bloodPressure": {
-      "label": "Pressione",
-      "description": "Sistolica e diastolica."
-    },
-    "pulse": {
-      "label": "Battito",
-      "description": "Battito a riposo e frequenza cardiaca."
     },
     "medications": {
       "label": "Farmaci",

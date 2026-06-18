@@ -44,6 +44,7 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
+import { SettingsSectionFrame } from "../settings-section-frame";
 import { ExportSection } from "../export-section";
 
 function render(node: React.ReactElement, locale: "en" | "de" = "en") {
@@ -54,7 +55,13 @@ function render(node: React.ReactElement, locale: "en" | "de" = "en") {
 
 describe("<ExportSection> — SSR smoke", () => {
   it("renders the section heading + description", () => {
-    const html = render(<ExportSection />);
+    // v1.18.6 (W9) — the page heading comes from the shared frame the route
+    // wraps the section in.
+    const html = render(
+      <SettingsSectionFrame slug="export">
+        <ExportSection />
+      </SettingsSectionFrame>,
+    );
     // v1.15.7 — the section was relabelled "Export & Import" (issue #281).
     expect(html).toContain("Export &amp; Import");
     // Raw key never leaks past i18n.

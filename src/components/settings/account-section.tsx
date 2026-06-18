@@ -367,20 +367,10 @@ export function AccountSection() {
 
   if (!user) return null;
 
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+  // `<SettingsSectionFrame>` in the route; this body is the profile cards.
   return (
-    <section
-      aria-labelledby="settings-section-account-title"
-      className="space-y-6"
-    >
-      {/* v1.18.1 (D0) — the explanatory section blurb was dropped so every
-          settings section starts at the same vertical height; the sr-only
-          heading stays for the accessibility tree. */}
-      <header>
-        <h1 id="settings-section-account-title" className="sr-only">
-          {t("settings.sections.account.title")}
-        </h1>
-      </header>
-
+    <div className="space-y-6">
       {/* Profile card */}
       {/* Profile photo card */}
       <AvatarSection />
@@ -760,7 +750,7 @@ export function AccountSection() {
           </form>
         </DialogContent>
       </Dialog>
-    </section>
+    </div>
   );
 }
 

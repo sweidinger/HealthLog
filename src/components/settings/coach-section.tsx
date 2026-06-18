@@ -10,25 +10,31 @@
  *   1. Disable Coach    — the per-user opt-out (kept first so a user who
  *                         wants the surface gone finds it immediately).
  *   2. Coach preferences — tone, verbosity, data scope (`useCoachPrefs`).
- *   3. Coach memory      — durable-fact review + forget controls.
+ *   3. Proactive nudge   — the daily-nudge opt-out + per-group frequency
+ *                          (moved here from Settings → Benachrichtigungen in
+ *                          v1.18.6: it is a Coach setting, not a generic
+ *                          notification).
+ *   4. Coach memory      — durable-fact review + forget controls.
  *
- * The nav entry is module-gated on `coach`. The preference + memory cards
- * keep their own content gate on `!user.disableCoach` (mirrored from the
+ * The nav entry is module-gated on `coach`. The preference + nudge + memory
+ * cards keep their own content gate on `!user.disableCoach` (mirrored from the
  * old AI section): hiding the Coach hides its tuning + memory controls too.
  *
  * The "about me" context lives in the AI section, not here — the daily
  * briefing reads it too, so it is not a Coach-only setting.
+ *
+ * v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+ * `<SettingsSectionFrame>` in the route; this body is the Coach cards only.
  */
 
 import { DisableCoachCard } from "@/components/settings/ai/disable-coach-card";
 import { CoachMemorySection } from "@/components/settings/coach-memory-section";
+import { CoachNudgeCard } from "@/components/settings/coach-nudge-card";
 import { CoachPrefsSection } from "@/components/settings/coach-prefs-section";
 import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
-import { useTranslations } from "@/lib/i18n/context";
 
 export function CoachSection() {
-  const { t } = useTranslations();
   const { isAuthenticated, user } = useAuth();
   // Mirror the AI section's hydration-safe gating: the auth query can
   // resolve before this boundary hydrates, so gate the child props on
@@ -42,22 +48,20 @@ export function CoachSection() {
   const coachEnabled = !mounted || !user?.disableCoach;
 
   return (
-    <section
-      aria-labelledby="settings-section-coach-title"
-      className="space-y-6"
-    >
-      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
-      <header>
-        <h1 id="settings-section-coach-title" className="sr-only">
-          {t("settings.sections.coach.title")}
-        </h1>
-      </header>
-
+    <div className="space-y-6">
       <DisableCoachCard isAuthenticated={authed} />
 
       {coachEnabled && <CoachPrefsSection isAuthenticated={authed} />}
 
+      {/* Proactive Coach nudge — moved here from Benachrichtigungen (v1.18.6).
+          Keeps the `#coach-nudge` anchor so existing deep links resolve. */}
+      {coachEnabled && (
+        <div id="coach-nudge" className="scroll-mt-28">
+          <CoachNudgeCard isAuthenticated={isAuthenticated} />
+        </div>
+      )}
+
       {coachEnabled && <CoachMemorySection isAuthenticated={authed} />}
-    </section>
+    </div>
   );
 }

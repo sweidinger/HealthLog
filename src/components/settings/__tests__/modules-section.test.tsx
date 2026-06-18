@@ -20,11 +20,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "@/lib/i18n/context";
 import type { AuthUser } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  MODULE_KEYS,
-  CORE_DOMAIN_KEYS,
-  moduleDelegatesTo,
-} from "@/lib/modules/registry";
+import { MODULE_KEYS, moduleDelegatesTo } from "@/lib/modules/registry";
 
 // Capture the latest useMutation config + a shared mutate spy so we can
 // invoke `mutationFn` / `onSuccess` by hand (the SSR pass can't fire a
@@ -46,9 +42,9 @@ vi.mock("@tanstack/react-query", () => ({
   },
 }));
 
-const authSpy = vi.fn<() => { user: AuthUser | null; isAuthenticated: boolean }>(
-  () => ({ user: buildUser({}), isAuthenticated: true }),
-);
+const authSpy = vi.fn<
+  () => { user: AuthUser | null; isAuthenticated: boolean }
+>(() => ({ user: buildUser({}), isAuthenticated: true }));
 vi.mock("@/hooks/use-auth", async () => {
   const actual =
     await vi.importActual<typeof import("@/hooks/use-auth")>(
@@ -109,7 +105,10 @@ afterEach(() => {
 });
 
 describe("<ModulesSection>", () => {
-  it("renders a Switch for every non-delegated toggleable module, a managed deep-link for delegated ones, and locked switches for core", () => {
+  it("renders a Switch for every non-delegated toggleable module and a managed deep-link for delegated ones", () => {
+    // v1.18.6 (W9) — the "Always on" core-domains card was removed (a domain
+    // that can't be turned off doesn't need listing), so this section now
+    // only renders the toggleable modules.
     const html = render();
     for (const key of MODULE_KEYS) {
       if (moduleDelegatesTo(key) !== undefined) {
@@ -126,8 +125,16 @@ describe("<ModulesSection>", () => {
         );
       }
     }
-    for (const key of CORE_DOMAIN_KEYS) {
-      expect(html, `core switch ${key}`).toContain(`id="module-toggle-${key}"`);
+  });
+
+  it("no longer renders the 'Always on' core-domains card", () => {
+    // v1.18.6 (W9) — the read-only core card (weight / BP / pulse) was
+    // removed; the core domains are always active regardless.
+    const html = render();
+    for (const key of ["weight", "bloodPressure", "pulse"]) {
+      expect(html, `core ${key} not rendered`).not.toContain(
+        `id="module-toggle-${key}"`,
+      );
     }
   });
 
@@ -150,18 +157,6 @@ describe("<ModulesSection>", () => {
       /<button[^>]*id="module-toggle-mood"[^>]*>/,
     )?.[0];
     expect(moodTag).toMatch(/data-state="checked"/);
-  });
-
-  it("renders the core domains locked (checked + disabled)", () => {
-    const html = render();
-    for (const key of CORE_DOMAIN_KEYS) {
-      const tag = html.match(
-        new RegExp(`<button[^>]*id="module-toggle-${key}"[^>]*>`),
-      )?.[0];
-      expect(tag, `core ${key}`).toBeDefined();
-      expect(tag).toMatch(/data-state="checked"/);
-      expect(tag).toMatch(/disabled/);
-    }
   });
 
   it("PATCHes only the flipped key as a disabled-allowlist entry", async () => {
