@@ -39,6 +39,7 @@ import {
   type RecurrenceContext,
 } from "./recurrence";
 import { normaliseDoseWindows } from "./worker-helpers";
+import { userDayKey } from "@/lib/tz/resolver";
 
 export interface ComplianceChips {
   /** 0-100, taken / (taken + missed). Skipped doses are excluded from
@@ -62,9 +63,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Day-key in the user's timezone (or system-local when `tz` is
- * undefined). `Intl.DateTimeFormat` with `en-CA` reliably returns
- * `YYYY-MM-DD`, which sorts lexically and matches the chart
- * legend's `day` ticks.
+ * undefined). Routes through the canonical `userDayKey` so the
+ * `YYYY-MM-DD` bucket stays byte-for-byte aligned with every other
+ * day-bucketed surface; the host-local branch covers the pre-per-user
+ * callers that pass no zone.
  */
 function localDayKey(d: Date, tz: string | undefined): string {
   if (!tz) {
@@ -73,12 +75,7 @@ function localDayKey(d: Date, tz: string | undefined): string {
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   }
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
+  return userDayKey(d, tz);
 }
 
 /**

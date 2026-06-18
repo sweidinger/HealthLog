@@ -58,6 +58,7 @@ import {
   type CorrelationResult,
 } from "@/lib/insights/correlations";
 import { isNearUtc, userDayKey } from "@/lib/tz/resolver";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 
 /**
  * v1.4.37 W2 — cold-path correlation window. Trim from 30 to 28 days
@@ -368,34 +369,8 @@ function dateFromDayKey(key: string): Date {
   return new Date(`${key}T00:00:00.000Z`);
 }
 
-const WEEKDAY_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
-function getWeekdayFormatter(timeZone: string): Intl.DateTimeFormat {
-  let formatter = WEEKDAY_FORMATTER_CACHE.get(timeZone);
-  if (!formatter) {
-    formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      weekday: "short",
-    });
-    WEEKDAY_FORMATTER_CACHE.set(timeZone, formatter);
-  }
-  return formatter;
-}
-
-const ISO_WEEKDAY: Record<string, number> = {
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-  Sun: 7,
-};
-
 function isoWeekdayInTz(d: Date, timeZone: string): number {
-  const parts = getWeekdayFormatter(timeZone).formatToParts(d);
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
-  return ISO_WEEKDAY[weekday] ?? 1;
+  // `wallClockInTz` returns 0=Sun..6=Sat; remap to ISO 1=Mon..7=Sun.
+  const weekday = wallClockInTz(d, timeZone).weekday;
+  return weekday === 0 ? 7 : weekday;
 }
