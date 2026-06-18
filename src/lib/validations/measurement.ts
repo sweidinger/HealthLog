@@ -651,6 +651,13 @@ export const listMeasurementsSchema = z
     // threaded into the plain-list `where`. Backed by the `(userId, source,
     // measuredAt)` index (migration 0136).
     sourceEq: measurementSourceEnum.optional(),
+    // v1.18.5 — value-range FILTER (backlog G). Narrows the plain list to
+    // readings whose `value` falls within an optional `[valueMin, valueMax]`
+    // band. Either bound may be omitted for an open-ended range. Coerced
+    // from the query string; threaded into the plain-list `where` as a
+    // `value: { gte, lte }` range. Server-authoritative; validated min<=max.
+    valueMin: z.coerce.number().finite().optional(),
+    valueMax: z.coerce.number().finite().optional(),
     // v1.4.37 W7c — list-view "one row per day" mode for cumulative
     // types (steps, active energy, distance, flights, daylight). When
     // `groupBy=day` is set and `type` is a cumulative HK type, the route
@@ -715,7 +722,19 @@ export const listMeasurementsSchema = z
     message:
       "limit must be <= 1000 when dayKey is set; drill-down responses are capped at 1000 rows",
     path: ["limit"],
-  });
+  })
+  // v1.18.5 — an inverted value range (`valueMin > valueMax`) is a client
+  // bug, not an empty result set; reject it at the validator with a 422 so
+  // the filter UI can surface the mismatch instead of silently returning
+  // zero rows. Open-ended ranges (one bound omitted) pass through.
+  .refine(
+    ({ valueMin, valueMax }) =>
+      valueMin == null || valueMax == null || valueMin <= valueMax,
+    {
+      message: "valueMin must be <= valueMax",
+      path: ["valueMin"],
+    },
+  );
 
 export const createBatchMeasurementSchema = z.object({
   measurements: z.array(createMeasurementSchema).min(1).max(5),

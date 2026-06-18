@@ -99,6 +99,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     aggregate,
     source,
     sourceEq,
+    valueMin,
+    valueMax,
     groupBy,
     dayKey,
   } = parsed.data;
@@ -116,6 +118,16 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // `source=rollup` opt-in above (which selects the rollup read tier);
     // `sourceEq` narrows the plain list to one ingest source.
     ...(sourceEq && { source: sourceEq }),
+    // v1.18.5 — value-range filter (backlog G). Open-ended on either side;
+    // the validator has already rejected an inverted `valueMin > valueMax`.
+    ...(valueMin != null || valueMax != null
+      ? {
+          value: {
+            ...(valueMin != null && { gte: valueMin }),
+            ...(valueMax != null && { lte: valueMax }),
+          },
+        }
+      : {}),
     ...(from || to
       ? {
           measuredAt: {

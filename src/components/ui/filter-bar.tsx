@@ -5,6 +5,7 @@ import { ListFilter, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -286,6 +287,104 @@ export function FilterBarDateRange({
               value={to}
               min={from || undefined}
               onChange={(e) => onToChange(e.target.value)}
+            />
+          </div>
+        </PopoverContent>
+      </Popover>
+      {active && <ClearPillButton label={label} onClear={clear} />}
+    </span>
+  );
+}
+
+/**
+ * v1.18.5 — value-range filter pill (backlog G). Mirrors
+ * `FilterBarDateRange` but over a numeric `[min, max]` band; either bound
+ * may be left empty for an open-ended range. State stays as strings (the
+ * raw input value) so the owning component controls coercion; empty string
+ * means "unset". The pill shows `min – max` with an ellipsis for an open
+ * bound, exactly as the date range does.
+ */
+export function FilterBarNumberRange({
+  label,
+  min,
+  max,
+  onMinChange,
+  onMaxChange,
+  idPrefix,
+  fromLabel,
+  toLabel,
+}: {
+  label: string;
+  /** Raw input string (a number) or empty string when unset. */
+  min: string;
+  max: string;
+  onMinChange: (value: string) => void;
+  onMaxChange: (value: string) => void;
+  /** Unique prefix for the two input ids (label association). */
+  idPrefix: string;
+  fromLabel: string;
+  toLabel: string;
+}) {
+  const active = min !== "" || max !== "";
+  const display = active ? `${min || "…"} – ${max || "…"}` : null;
+  const clear = () => {
+    onMinChange("");
+    onMaxChange("");
+  };
+  return (
+    <span className="relative inline-flex shrink-0">
+      <Popover>
+        <PopoverTrigger
+          aria-label={label}
+          data-slot="filter-bar-pill"
+          data-active={active ? "true" : "false"}
+          className={cn(
+            PILL_CLASSES,
+            "outline-none",
+            "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+            active && cn(PILL_ACTIVE_CLASSES, "pr-8"),
+          )}
+        >
+          {active ? (
+            <span className="truncate">
+              <span className="text-muted-foreground">{label}: </span>
+              {display}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">{label}</span>
+          )}
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto space-y-3 p-4">
+          <div className="flex flex-col gap-1">
+            <Label
+              htmlFor={`${idPrefix}-min`}
+              className="text-muted-foreground text-xs"
+            >
+              {fromLabel}
+            </Label>
+            <Input
+              id={`${idPrefix}-min`}
+              type="number"
+              inputMode="decimal"
+              className="w-44"
+              value={min}
+              onChange={(e) => onMinChange(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label
+              htmlFor={`${idPrefix}-max`}
+              className="text-muted-foreground text-xs"
+            >
+              {toLabel}
+            </Label>
+            <Input
+              id={`${idPrefix}-max`}
+              type="number"
+              inputMode="decimal"
+              className="w-44"
+              value={max}
+              onChange={(e) => onMaxChange(e.target.value)}
             />
           </div>
         </PopoverContent>
