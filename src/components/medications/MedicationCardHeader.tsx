@@ -36,6 +36,13 @@ export interface MedicationCardHeaderProps {
   name: string;
   dose: string;
   categoryLabel: string;
+  /**
+   * v1.18.6.1 — an inline chip rendered DIRECTLY to the right of the name on
+   * line 1 (e.g. the Vorsorge cadence chip "alle 7 Tage"), mirroring how the
+   * medication card surfaces its cadence next to the drug name. Kept distinct
+   * from `stateBadges` (which ride their own row below the category).
+   */
+  nameChip?: ReactNode;
   stateBadges?: ReactNode;
   actions?: ReactNode;
   /**
@@ -52,6 +59,7 @@ export function MedicationCardHeader({
   name,
   dose,
   categoryLabel,
+  nameChip,
   stateBadges,
   actions,
   href,
@@ -59,8 +67,11 @@ export function MedicationCardHeader({
 }: MedicationCardHeaderProps) {
   const body = (
     <>
-      <CardTitle className="text-lg">
-        {name} {dose}
+      <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg">
+        <span>
+          {name} {dose}
+        </span>
+        {nameChip}
       </CardTitle>
       {/* D-H6 — state badges (without-notification, paused-since,
           inactive) used to share line 2 with the category badge
