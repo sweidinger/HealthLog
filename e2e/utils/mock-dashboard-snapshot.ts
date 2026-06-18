@@ -8,7 +8,79 @@ import type { DataSummary } from "@/lib/analytics/trends";
 import type {
   DashboardSnapshot,
   DashboardLayoutCatalogueEntry,
+  DashboardTargetBands,
 } from "@/lib/dashboard/snapshot";
+import { getBpTargets } from "@/lib/analytics/bp-targets";
+import {
+  buildTrafficLightBands,
+  buildTrafficRange,
+  buildWeightBandsFromHeight,
+  buildWeightRangeFromHeight,
+  getBodyFatTargetRange,
+} from "@/lib/analytics/value-bands";
+import {
+  getAgeFromDateOfBirth,
+  getPersonalizedPulseTarget,
+} from "@/lib/analytics/pulse-targets";
+
+// v1.18.6 — resolve the mock's band block from the same pure helpers the
+// server builder uses, so the e2e fixture matches the real DTO shape.
+function mockTargetBands(): DashboardTargetBands {
+  const dob = new Date("1990-01-01T00:00:00.000Z");
+  const bpTargets = getBpTargets(dob);
+  const pulseTarget = getPersonalizedPulseTarget(
+    getAgeFromDateOfBirth(dob),
+    "MALE",
+  );
+  const bodyFatRange = getBodyFatTargetRange("MALE");
+  return {
+    bpTargets,
+    bpSysRange: bpTargets
+      ? buildTrafficRange(bpTargets.sysLow, bpTargets.sysHigh)
+      : null,
+    bpDiaRange: bpTargets
+      ? buildTrafficRange(bpTargets.diaLow, bpTargets.diaHigh)
+      : null,
+    pulseDisplayRange: {
+      greenMin: pulseTarget.greenMin,
+      greenMax: pulseTarget.greenMax,
+      orangeMin: pulseTarget.orangeMin,
+      orangeMax: pulseTarget.orangeMax,
+    },
+    pulseBands: [
+      { min: 30, max: pulseTarget.orangeMin, color: "#ff5555", opacity: 0.16 },
+      {
+        min: pulseTarget.orangeMin,
+        max: pulseTarget.greenMin,
+        color: "#ffb86c",
+        opacity: 0.18,
+      },
+      {
+        min: pulseTarget.greenMin,
+        max: pulseTarget.greenMax,
+        color: "#50fa7b",
+        opacity: 0.2,
+      },
+      {
+        min: pulseTarget.greenMax,
+        max: pulseTarget.orangeMax,
+        color: "#ffb86c",
+        opacity: 0.18,
+      },
+      { min: pulseTarget.orangeMax, max: 220, color: "#ff5555", opacity: 0.16 },
+    ].filter((b) => b.max > b.min),
+    bodyFatRange,
+    bodyFatBands: buildTrafficLightBands(bodyFatRange.min, bodyFatRange.max, {
+      lowerBound: 2,
+      upperBound: 55,
+    }),
+    weightRange: buildWeightRangeFromHeight(180),
+    weightBands: buildWeightBandsFromHeight(180, {
+      lowerBound: 30,
+      upperBound: 250,
+    }),
+  };
+}
 
 /**
  * v1.7.2 — shared mock for `GET /api/dashboard/snapshot`.
@@ -138,6 +210,7 @@ export function buildMockSnapshot(
     layout: DEFAULT_DASHBOARD_LAYOUT,
     layoutCatalogue: buildLayoutCatalogue(),
     metricStates: {},
+    targetBands: mockTargetBands(),
     tiles: {
       summaries,
       lastSeenByType,
