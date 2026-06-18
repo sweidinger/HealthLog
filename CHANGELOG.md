@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.18.6] — 2026-06-18 — a real offline app and a faster dashboard
+
+This release makes the installed app genuinely useful offline and lightens the dashboard. Opened without a connection, the home-screen app now shows your last synced data instead of empty placeholders, and a quiet line tells you it's the last sync. The dashboard fetches all its charts in one request instead of one per chart, and resolves its target ranges on the server. Plus a mobile touch-target pass and a reduced-motion safeguard. No breaking changes; no migration.
+
+### Added
+
+- **Real offline reads.** The installed app caches your dashboard, recent readings, medications and insights (safe, read-only data only — never anything tied to sign-in), so opening it offline shows your last synced view with a "showing your last synced data" note, rather than blank skeletons. Changes you make offline still save when you reconnect.
+
+### Changed
+
+- **A faster dashboard.** All dashboard charts now load from a single batched request instead of one fetch per chart, and target ranges are computed on the server — less work on your device and lighter load on the database.
+- **Mobile polish.** Small tap targets (reminder-time chips, the dose-history and token-copy buttons, sortable headers) were brought up to a comfortable touch size, and a global reduced-motion safeguard now quiets animation when your device asks for it.
+
+### Security
+
+- The container scan ignores a known `picomatch` advisory (CVE-2026-33671) that exists only in the npm CLI bundled inside the base image, not in the app's own dependencies (which are pinned to the fixed version) — clearing a false-positive in the non-blocking security scan.
+
+### Operator note
+
+- UI/API-only; no migration. The service worker cache version bumps with the release, so clients refresh their offline cache automatically on update.
+
 ## [1.18.5] — 2026-06-18 — filter by value, a tidier advanced panel, and a titration timeline for injectables
 
 A small polish release. You can now filter your readings by value, the advanced medication settings collapse into sections instead of one long page, and injectable medications show their dose-escalation plan as a timeline. No breaking changes; no migration.
