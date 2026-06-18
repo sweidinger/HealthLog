@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.18.5] — 2026-06-18 — filter by value, a tidier advanced panel, and a titration timeline for injectables
+
+A small polish release. You can now filter your readings by value, the advanced medication settings collapse into sections instead of one long page, and injectable medications show their dose-escalation plan as a timeline. No breaking changes; no migration.
+
+### Added
+
+- **Filter readings by value.** Search now takes a numeric range — show only readings whose value is between two numbers (or just above / just below one), alongside the existing type, source and date filters. Useful for finding outliers or a specific episode.
+- **A titration timeline for injectables.** Injectable medications now show their planned dose-escalation (e.g. 2.5 mg → 5 mg → 7.5 mg over the weeks) as a timeline with a "you are here" marker, on the injection tab. Built from the dose-change history already recorded — nothing new to enter.
+
+### Changed
+
+- **The advanced medication settings read more calmly.** The advanced and API panels group into collapsible sections (lifecycle expanded, data and danger areas collapsed by default) instead of one long wall — the settings themselves are unchanged.
+
 ## [1.18.4] — 2026-06-18 — urgent alerts that reach you on whatever you've set up, and a stronger free notification path
 
 This release makes notifications work well for self-hosters who don't run Apple push. Genuinely urgent health signals — a sustained low-oxygen or fever pattern flagged by the condition journal — now go out at the strongest level each notification channel you've configured supports, and reach you even with no Apple Developer account: max-priority ntfy, high-urgency Web Push, a webhook, or a time-sensitive iOS alert if you do run push. The installed web app gains real reminder handling: a dose reminder clears itself once you mark it taken, and an app badge counts what's still due. No breaking changes; no migration.
