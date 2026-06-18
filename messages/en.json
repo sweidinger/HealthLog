@@ -414,7 +414,7 @@
   },
   "measurements": {
     "title": "Measurements",
-    "subtitle": "Weight, blood pressure, pulse and more",
+    "subtitle": "Log readings and browse the full history. Trends and analysis live under Insights.",
     "addMeasurement": "Add",
     "editMeasurement": "Edit measurement",
     "type": "Type",

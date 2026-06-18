@@ -414,7 +414,7 @@
   },
   "measurements": {
     "title": "Mediciones",
-    "subtitle": "Peso, tensión arterial, pulso y más",
+    "subtitle": "Registra lecturas y consulta el historial completo. Las tendencias y los análisis están en Análisis.",
     "addMeasurement": "Añadir",
     "editMeasurement": "Editar medición",
     "type": "Tipo",

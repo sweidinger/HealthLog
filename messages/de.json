@@ -414,7 +414,7 @@
   },
   "measurements": {
     "title": "Messungen",
-    "subtitle": "Gewicht, Blutdruck, Puls und mehr",
+    "subtitle": "Werte erfassen und die vollständige Historie einsehen. Trends und Auswertungen findest du unter Auswertungen.",
     "addMeasurement": "Hinzufügen",
     "editMeasurement": "Messwert bearbeiten",
     "type": "Typ",

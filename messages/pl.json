@@ -414,7 +414,7 @@
   },
   "measurements": {
     "title": "Pomiary",
-    "subtitle": "Waga, ciśnienie tętnicze, tętno i więcej",
+    "subtitle": "Zapisuj pomiary i przeglądaj pełną historię. Trendy i analizy znajdziesz w Analizach.",
     "addMeasurement": "Dodaj",
     "editMeasurement": "Edytuj pomiar",
     "type": "Typ",

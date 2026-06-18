@@ -414,7 +414,7 @@
   },
   "measurements": {
     "title": "Misurazioni",
-    "subtitle": "Peso, pressione arteriosa, pulsazioni e altro",
+    "subtitle": "Registra le misurazioni e consulta lo storico completo. Tendenze e analisi sono in Analisi.",
     "addMeasurement": "Aggiungi",
     "editMeasurement": "Modifica misurazione",
     "type": "Tipo",

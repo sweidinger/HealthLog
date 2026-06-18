@@ -414,7 +414,7 @@
   },
   "measurements": {
     "title": "Mesures",
-    "subtitle": "Poids, tension artérielle, pouls et plus",
+    "subtitle": "Saisis tes mesures et consulte l'historique complet. Les tendances et analyses sont dans Analyses.",
     "addMeasurement": "Ajouter",
     "editMeasurement": "Modifier la mesure",
     "type": "Type",
