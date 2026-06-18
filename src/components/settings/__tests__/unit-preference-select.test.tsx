@@ -44,6 +44,7 @@ function buildUser(unitPreference: "metric" | "imperial"): AuthUser {
     timezone: "Europe/Berlin",
     onboardingCompletedAt: null,
     onboardingTourCompleted: true,
+    onboardingTourProgress: null,
     avatarUrl: null,
     glucoseUnit: null,
     unitPreference,

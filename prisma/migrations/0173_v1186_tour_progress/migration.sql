@@ -1,0 +1,22 @@
+-- v1.18.6 — resumable module-tour progress.
+--
+-- A single nullable JSONB column on `users` carrying the fine-grained
+-- resume point for the module-by-module guided tour. Follows the
+-- established per-user JSON-column convention (`dashboard_widgets_json`,
+-- `insights_layout_json`, `coach_prefs_json`).
+--
+-- Shape (validated by `src/lib/onboarding/tour-progress.ts`):
+--   { "lastStopId": string | null,
+--     "completedStopIds": string[],
+--     "status": "in_progress" | "completed" | "skipped",
+--     "updatedAt": string (ISO 8601) }
+--
+-- NULL = the user has not started the module tour. The coarse
+-- `onboarding_tour_completed` boolean stays the launcher's auto-launch
+-- gate; this column is purely the resume point and is cleared back to
+-- NULL on a Settings replay so the tour genuinely restarts.
+--
+-- Additive + nullable: every existing account keeps NULL and the
+-- application resolver treats NULL as "not started".
+
+ALTER TABLE "users" ADD COLUMN "onboarding_tour_progress_json" JSONB;

@@ -10,6 +10,7 @@ import {
   resolveModuleMap,
   getOperatorModuleAvailability,
 } from "@/lib/modules/gate";
+import { parseTourProgress } from "@/lib/onboarding/tour-progress";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,11 @@ export const GET = apiHandler(async () => {
     timezone: user.timezone,
     onboardingCompletedAt: user.onboardingCompletedAt,
     onboardingTourCompleted: user.onboardingTourCompleted,
+    // v1.18.6 — resumable module-tour progress. Null when the user has
+    // not started the tour; otherwise the resume point the launcher
+    // seeds its index from. Fail-soft parse: a corrupt blob degrades to
+    // null ("start from the top") rather than 500-ing the /me read.
+    onboardingTourProgress: parseTourProgress(user.onboardingTourProgressJson),
     // v1.5.5 — self-hosted avatar. Replaces the Gravatar leak; the
     // URL is relative so PWA + native clients render identically
     // and the `?v={updatedAtMs}` suffix busts the browser cache on

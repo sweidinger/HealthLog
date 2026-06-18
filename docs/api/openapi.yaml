@@ -6749,6 +6749,30 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/onboarding/tour:
+    post:
+      tags:
+        - Onboarding
+      summary: Update module-tour completion + resume point
+      description: Persists the module-tour state. The client posts a fire-and-forget `progress` checkpoint on each step so a
+        reload resumes at the right module, and a terminal `completed:true` with `outcome` when the tour ends.
+        `completed:false` is a replay reset that also clears the resume point.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TourUpdateRequest"
+      responses:
+        "200":
+          description: Tour state updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TourUpdateEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -8079,6 +8103,55 @@ components:
             type: string
       required:
         - ids
+    TourUpdateRequest:
+      type: object
+      properties:
+        completed:
+          description: Flip the coarse completion flag. `false` is a replay reset and clears the stored progress point.
+          type: boolean
+        outcome:
+          description: Informational — distinguishes reaching the end from a skip.
+          type: string
+          enum:
+            - completed
+            - skipped
+        progress:
+          description: Mid-tour resume checkpoint. May arrive alone or with `completed`.
+          $ref: "#/components/schemas/TourProgress"
+      description: Update the module-tour state. Provide `completed` and/or `progress`.
+    TourProgress:
+      type: object
+      properties:
+        lastStopId:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 64
+            - type: "null"
+        completedStopIds:
+          default: []
+          maxItems: 64
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        status:
+          type: string
+          enum:
+            - in_progress
+            - completed
+            - skipped
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+      required:
+        - lastStopId
+        - status
+        - updatedAt
+      description: Resumable module-tour progress point. `lastStopId` seeds the resume index; `status` is the running/terminal
+        state.
     MedicationTreatmentClass:
       type: string
       enum:
@@ -19363,6 +19436,37 @@ components:
       description: "Cross-episode retrospective summary over the trailing window: episode + resolved counts, the typical
         (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally,
         and a per-type breakdown. Retrospective only."
+    TourUpdateEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TourUpdateResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TourUpdateResponse:
+      type: object
+      properties:
+        onboardingTourCompleted:
+          type: boolean
+        progress:
+          anyOf:
+            - $ref: "#/components/schemas/TourProgressOutput"
+            - type: "null"
+      required:
+        - onboardingTourCompleted
+        - progress
+      additionalProperties: false
+      description: The persisted completion flag and resume point after the write.
     MedicationScheduleOutput:
       type: object
       properties:
@@ -19634,6 +19738,41 @@ components:
         compatibility and are normalised to their English equivalents before persisting; GET responses always carry the
         canonical English ids. Section ids are English-only. The legacy tile ids are deprecated and will be removed in a
         future major version."
+    TourProgressOutput:
+      type: object
+      properties:
+        lastStopId:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 64
+            - type: "null"
+        completedStopIds:
+          default: []
+          maxItems: 64
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        status:
+          type: string
+          enum:
+            - in_progress
+            - completed
+            - skipped
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+      required:
+        - lastStopId
+        - completedStopIds
+        - status
+        - updatedAt
+      additionalProperties: false
+      description: Resumable module-tour progress point. `lastStopId` seeds the resume index; `status` is the running/terminal
+        state.
     Medication:
       type: object
       properties:
