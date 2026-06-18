@@ -48,7 +48,7 @@
  */
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -430,6 +430,17 @@ export function TourLauncher({ ready = true }: TourLauncherProps) {
     };
   }, []);
 
+  // v1.18.6 — stable progress callback so the overlay's checkpoint effect
+  // fires on a real step transition, not on every launcher re-render.
+  const handleProgress = useCallback(
+    (progress: { lastStopId: string | null; completedStopIds: string[]; status: "in_progress" | "completed" | "skipped" }) => {
+      void apiPost("/api/onboarding/tour", {
+        progress: { ...progress, updatedAt: new Date().toISOString() },
+      }).catch(() => {});
+    },
+    [],
+  );
+
   if (showTour !== true) return null;
 
   // The resolved module map gates which stops appear (default-on) and
@@ -446,15 +457,11 @@ export function TourLauncher({ ready = true }: TourLauncherProps) {
       modules={modules}
       resumeFromStopId={resumeFromStopId}
       filterToStop={singleStop ?? undefined}
-      onProgress={(progress) => {
-        // Fire-and-forget checkpoint so a mid-tour reload resumes at the
-        // right module. Skipped implicitly by the overlay for the
-        // single-stop re-entry. A failed write is non-fatal — the resume
-        // point is a convenience, not a correctness invariant.
-        void apiPost("/api/onboarding/tour", {
-          progress: { ...progress, updatedAt: new Date().toISOString() },
-        }).catch(() => {});
-      }}
+      // Fire-and-forget checkpoint so a mid-tour reload resumes at the
+      // right module. Skipped implicitly by the overlay for the single-
+      // stop re-entry. A failed write is non-fatal — the resume point is
+      // a convenience, not a correctness invariant.
+      onProgress={handleProgress}
       onClose={async (outcome) => {
         // Optimistic: hide the overlay immediately, persist in the
         // background. The flag is idempotent so re-fires are safe;
