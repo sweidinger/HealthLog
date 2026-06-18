@@ -532,11 +532,20 @@ export default function DashboardPage() {
   // — it is pure + cheap — so a still-loading snapshot frame keeps real
   // bands rather than blank charts; `serverBands ?? clientBands` then
   // prefers the authoritative server numbers the moment they arrive.
-  const clientBands = buildDashboardBands({
-    dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth) : null,
-    gender: (user?.gender as "MALE" | "FEMALE" | null | undefined) ?? null,
-    heightCm: user?.heightCm ?? null,
-  });
+  // Inputs only change with profile facts, so memoise the band math — it
+  // ran on every dashboard render (and got discarded by `serverBands ??`
+  // in the snapshot steady state) before this. Keyed on the `user` object
+  // identity so the React Compiler can preserve the memo (a narrower
+  // property list trips `preserve-manual-memoization`).
+  const clientBands = useMemo(
+    () =>
+      buildDashboardBands({
+        dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth) : null,
+        gender: (user?.gender as "MALE" | "FEMALE" | null | undefined) ?? null,
+        heightCm: user?.heightCm ?? null,
+      }),
+    [user],
+  );
   const bands = serverBands ?? clientBands;
   const bpTargets = bands.bpTargets;
   const weightRange = bands.weightRange;

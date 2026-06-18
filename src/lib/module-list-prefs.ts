@@ -19,7 +19,7 @@
  * block (the server default order is preserved for the tail).
  */
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 export const MODULE_LIST_VIEWS = ["cards", "list"] as const;
 export type ModuleListView = (typeof MODULE_LIST_VIEWS)[number];
@@ -150,7 +150,11 @@ export function useModuleListPrefs(module: ModuleListKey): {
   }, [key]);
 
   const raw = useSyncExternalStore(subscribe, getSnapshot, () => null);
-  const prefs = parseModuleListPrefs(raw);
+  // `useSyncExternalStore` returns a stable `raw` string when storage hasn't
+  // changed, so keying the parse on it gives downstream `applyOrder`
+  // memoisation a stable `prefs` reference instead of a fresh object + a
+  // JSON.parse on every render.
+  const prefs = useMemo(() => parseModuleListPrefs(raw), [raw]);
 
   const write = useCallback(
     (next: ModuleListPrefs) => {
