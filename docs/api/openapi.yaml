@@ -6861,6 +6861,30 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/onboarding/disclaimer:
+    post:
+      tags:
+        - Onboarding
+      summary: Acknowledge the one-time medical disclaimer
+      description: "Stamps the user's medical-disclaimer acknowledgment. Idempotent: a repeat acknowledgment of the same
+        version refreshes the timestamp. The body version is a freshness signal so a stale shell cannot record copy it
+        never rendered; the server persists its own canonical version."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DisclaimerAckRequest"
+      responses:
+        "200":
+          description: Disclaimer acknowledged.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisclaimerAckEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/onboarding/tour:
     post:
       tags:
@@ -8225,6 +8249,18 @@ components:
             type: string
       required:
         - ids
+    DisclaimerAckRequest:
+      type: object
+      properties:
+        version:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: The disclaimer copy version the client rendered. A freshness signal only — the server pins and persists its
+            own canonical version.
+      required:
+        - version
+      description: Acknowledge the one-time medical disclaimer shown at onboarding.
     TourUpdateRequest:
       type: object
       properties:
@@ -19681,6 +19717,33 @@ components:
       description: "Cross-episode retrospective summary over the trailing window: episode + resolved counts, the typical
         (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally,
         and a per-type breakdown. Retrospective only."
+    DisclaimerAckEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DisclaimerAckResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DisclaimerAckResponse:
+      type: object
+      properties:
+        acknowledgedVersion:
+          type: string
+          description: The canonical disclaimer version the server stamped.
+      required:
+        - acknowledgedVersion
+      additionalProperties: false
+      description: The persisted disclaimer acknowledgment version.
     TourUpdateEnvelope:
       type: object
       properties:

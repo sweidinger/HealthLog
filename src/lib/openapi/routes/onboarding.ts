@@ -54,7 +54,59 @@ const tourUpdateResponse = z
     description: "The persisted completion flag and resume point after the write.",
   });
 
+const disclaimerAckRequest = z
+  .object({
+    version: z
+      .string()
+      .min(1)
+      .max(64)
+      .describe(
+        "The disclaimer copy version the client rendered. A freshness signal only — the server pins and persists its own canonical version.",
+      ),
+  })
+  .meta({
+    id: "DisclaimerAckRequest",
+    description: "Acknowledge the one-time medical disclaimer shown at onboarding.",
+  });
+
+const disclaimerAckResponse = z
+  .object({
+    acknowledgedVersion: z
+      .string()
+      .describe("The canonical disclaimer version the server stamped."),
+  })
+  .meta({
+    id: "DisclaimerAckResponse",
+    description: "The persisted disclaimer acknowledgment version.",
+  });
+
 export const onboardingPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/onboarding/disclaimer": {
+    post: {
+      tags: ["Onboarding"],
+      summary: "Acknowledge the one-time medical disclaimer",
+      description:
+        "Stamps the user's medical-disclaimer acknowledgment. Idempotent: a repeat acknowledgment of the same version refreshes the timestamp. The body version is a freshness signal so a stale shell cannot record copy it never rendered; the server persists its own canonical version.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: disclaimerAckRequest } },
+      },
+      responses: {
+        "200": {
+          description: "Disclaimer acknowledged.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                disclaimerAckResponse,
+                "DisclaimerAckEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/onboarding/tour": {
     post: {
       tags: ["Onboarding"],
