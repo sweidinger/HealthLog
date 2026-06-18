@@ -20,8 +20,6 @@ export const TOUR_PROGRESS_STATUSES = [
   "skipped",
 ] as const;
 
-export type TourProgressStatus = (typeof TOUR_PROGRESS_STATUSES)[number];
-
 /**
  * The persisted progress shape. `lastStopId` seeds the resume index;
  * `completedStopIds` is informational (analytics + future per-module

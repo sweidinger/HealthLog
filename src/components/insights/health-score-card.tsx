@@ -26,8 +26,8 @@ import { HealthScoreDeltaExplainer } from "./health-score-delta-explainer";
  * at least one component blends entries from more than one source.
  *
  * Pure presentational — the parent owns the analytics query + the
- * drawer state. The same `onAskCoach` handler is shared with the hero
- * strip's main "Ask the coach" button (different prefill string).
+ * drawer state. The card mounts no inline Coach affordance; the hero
+ * strip carries the single "Ask the coach" entry point.
  */
 
 export type HealthScoreBand = "green" | "yellow" | "red";
@@ -70,7 +70,6 @@ export interface HealthScoreCardProps {
     compliance: HealthScoreCardComponent;
   };
   delta: number | null;
-  onAskCoach?: (prefill: string) => void;
   /**
    * v1.4.25 W8e — opens the provenance accordion on first render.
    * The SSR tests use it to exercise the expanded markup without a
@@ -175,12 +174,6 @@ export function HealthScoreCard({
   band,
   components,
   delta,
-  // v1.4.27 B1 — onAskCoach stays on the prop signature so the hero
-  // strip's existing wire-up doesn't break, but the card no longer
-  // mounts an inline button (the hero strip already carries the same
-  // action). Destructure-and-ignore is intentional.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onAskCoach: _onAskCoach,
   initiallyExpanded = false,
   moodEnabled = true,
   restModeActive = false,

@@ -302,27 +302,6 @@ export async function clearPersistedQueryCache(): Promise<void> {
 }
 
 /**
- * Drop the service-worker offline read-data cache (`healthlog-data-*`). It
- * holds the last-synced dashboard JSON and must never survive a session end on
- * a shared device. Scoped to the data cache only — the static cache (hashed
- * chunks, icons) carries no PII and dropping it would force a needless
- * re-download. Best-effort; never throws.
- */
-export async function clearServiceWorkerDataCache(): Promise<void> {
-  if (typeof caches === "undefined") return;
-  try {
-    const keys = await caches.keys();
-    await Promise.all(
-      keys
-        .filter((k) => k.startsWith("healthlog-data-"))
-        .map((k) => caches.delete(k)),
-    );
-  } catch {
-    /* best effort */
-  }
-}
-
-/**
  * Wipe every client-side cache that can hold one account's health data: the
  * IndexedDB query snapshot, the SW offline read-data cache, and the SW page
  * cache (cached navigation HTML). The single call for a session END (logout or

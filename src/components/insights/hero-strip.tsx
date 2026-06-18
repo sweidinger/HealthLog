@@ -353,16 +353,6 @@ export function HeroStrip({
             delta={healthScore.delta}
             moodEnabled={moodEnabled}
             restModeActive={healthScore.restMode?.active ?? false}
-            onAskCoach={
-              // v1.4.37 W5 — short-circuit the prop drilling even
-              // though `HealthScoreCard` retired its inline button in
-              // v1.4.27. A future re-addition can't accidentally
-              // surface a Coach affordance from this card while the
-              // operator has the flag off.
-              coachEnabled && onAskCoach
-                ? (prefill: string) => onAskCoach(prefill)
-                : undefined
-            }
           />
         )}
       </div>

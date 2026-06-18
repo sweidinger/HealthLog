@@ -194,10 +194,10 @@ describe("<HealthScoreCard>", () => {
 
   it("v1.4.27 B1 — no longer mounts an inline Ask-the-Coach button (hero strip carries the CTA)", () => {
     // The hero strip's existing "Ask the coach" action covers this
-    // surface; the card-internal duplicate button retired. The
-    // onAskCoach prop stays on the type signature so callers don't
-    // break, but the card no longer renders it.
-    const omitted = ssr(
+    // surface; the card-internal duplicate button retired. v1.18.6 (L13)
+    // dropped the now-dead `onAskCoach` prop too — the card renders no
+    // Coach affordance at all.
+    const html = ssr(
       <HealthScoreCard
         score={86}
         band="green"
@@ -205,17 +205,7 @@ describe("<HealthScoreCard>", () => {
         delta={null}
       />,
     );
-    const supplied = ssr(
-      <HealthScoreCard
-        score={86}
-        band="green"
-        components={baseComponents}
-        delta={null}
-        onAskCoach={() => {}}
-      />,
-    );
-    expect(omitted).not.toContain('data-slot="health-score-card-ask-coach"');
-    expect(supplied).not.toContain('data-slot="health-score-card-ask-coach"');
+    expect(html).not.toContain('data-slot="health-score-card-ask-coach"');
   });
 
 
@@ -226,7 +216,6 @@ describe("<HealthScoreCard>", () => {
         band="green"
         components={baseComponents}
         delta={5}
-        onAskCoach={() => {}}
       />,
       "de",
     );

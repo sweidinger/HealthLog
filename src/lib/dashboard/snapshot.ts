@@ -78,7 +78,6 @@ import {
 } from "@/lib/dashboard/meds-today";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
 import {
-  buildDashboardBands,
   buildTargetBands,
   type DashboardTargetBands,
 } from "@/lib/dashboard/bands";
@@ -217,7 +216,7 @@ export interface DashboardSnapshotUser {
  * personalisation, no height → weight band), matching the client's
  * previous null-guards exactly.
  */
-export { buildDashboardBands, buildTargetBands };
+export { buildTargetBands };
 export type { DashboardTargetBands };
 
 export interface DashboardSnapshotMoodEntry {
