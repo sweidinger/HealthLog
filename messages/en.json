@@ -2547,7 +2547,8 @@
         "asleepTotal": "Asleep {value}",
         "inBedTotal": "In bed {value}",
         "awakenings": "{count} awakenings",
-        "source": "Source: {source}"
+        "source": "Source: {source}",
+        "estimateNote": "Stage timing is estimated — this source reports totals per stage, not a measured timeline."
       },
       "stages": {
         "deep": "Deep",

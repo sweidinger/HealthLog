@@ -2547,7 +2547,8 @@
         "asleepTotal": "Sonno {value}",
         "inBedTotal": "A letto {value}",
         "awakenings": "{count} risvegli",
-        "source": "Fonte: {source}"
+        "source": "Fonte: {source}",
+        "estimateNote": "I tempi delle fasi sono stimati: questa sorgente riporta i totali per fase, non una cronologia misurata."
       },
       "stages": {
         "deep": "Profondo",

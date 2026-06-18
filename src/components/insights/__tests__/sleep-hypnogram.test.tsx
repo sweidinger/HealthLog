@@ -127,6 +127,30 @@ describe("<SleepHypnogram> — timeline bar visibility", () => {
     expect(render(session)).toContain('role="img"');
   });
 
+  it("suppresses the timeline bar for a SYNTHESISED (reconstructed) night", () => {
+    // WHOOP / Polar report per-stage TOTALS and the server lays the segments
+    // out in a fixed physiological order — the timeline would invent a phase
+    // progression that was never measured. So even with distinct, well-timed
+    // spans, a `reconstructed` night drops the bar and keeps the breakdown.
+    const session: SleepHypnogramSession = {
+      ...baseSession,
+      source: "WHOOP",
+      reconstructed: true,
+    };
+    const html = render(session);
+    expect(html).not.toContain('role="img"');
+    expect(html).toContain('data-slot="sleep-hypnogram-breakdown"');
+    expect(html).toContain('data-slot="sleep-hypnogram-estimate-note"');
+  });
+
+  it("keeps the timeline bar for a measured (non-reconstructed) night", () => {
+    // An Apple Health night carries real per-stage onsets, so the stepped bar
+    // is genuine and stays. The estimate note never appears.
+    const html = render({ ...baseSession, reconstructed: false });
+    expect(html).toContain('role="img"');
+    expect(html).not.toContain('data-slot="sleep-hypnogram-estimate-note"');
+  });
+
   it("collapses to the breakdown footer for a degenerate single-instant session", () => {
     // Every segment stamped on ONE instant — no real timeline, so only the
     // breakdown footer, no bar.

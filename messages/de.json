@@ -2547,7 +2547,8 @@
         "asleepTotal": "Geschlafen {value}",
         "inBedTotal": "Im Bett {value}",
         "awakenings": "{count} Wachphasen",
-        "source": "Quelle: {source}"
+        "source": "Quelle: {source}",
+        "estimateNote": "Die Phasen-Zeiten sind geschätzt — diese Quelle liefert Summen je Phase, keinen gemessenen Verlauf."
       },
       "stages": {
         "deep": "Tief",

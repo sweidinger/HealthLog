@@ -2547,7 +2547,8 @@
         "asleepTotal": "Dormido {value}",
         "inBedTotal": "En la cama {value}",
         "awakenings": "{count} despertares",
-        "source": "Fuente: {source}"
+        "source": "Fuente: {source}",
+        "estimateNote": "Los tiempos de cada fase son estimados: esta fuente informa totales por fase, no una cronología medida."
       },
       "stages": {
         "deep": "Profundo",

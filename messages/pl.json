@@ -2547,7 +2547,8 @@
         "asleepTotal": "Sen {value}",
         "inBedTotal": "W łóżku {value}",
         "awakenings": "{count} przebudzeń",
-        "source": "Źródło: {source}"
+        "source": "Źródło: {source}",
+        "estimateNote": "Czasy faz są szacowane — to źródło podaje sumy dla każdej fazy, a nie zmierzony przebieg."
       },
       "stages": {
         "deep": "Głęboki",
