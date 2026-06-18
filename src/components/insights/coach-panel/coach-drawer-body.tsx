@@ -146,7 +146,14 @@ export function CoachDrawerBody({
           </Button>
         </div>
 
-        <div className="min-h-0 flex-1">{thread}</div>
+        {/* v1.18.6.1 — the thread wrapper must be a flex column itself so the
+            `<MessageThread>` scroll region resolves a bounded height. The
+            wrapper used to be a plain block, so the thread's `h-full` resolved
+            against an auto-height parent and the scroll container grew with its
+            content instead of scrolling — pushing the composer off-screen and
+            leaving a stray scrollbar on the page. `flex min-h-0 flex-1 flex-col`
+            gives the thread a definite track to scroll within. */}
+        <div className="flex min-h-0 flex-1 flex-col">{thread}</div>
         {/* Composer pinned to the bottom. */}
         <div
           data-slot="coach-drawer-composer"
