@@ -59,6 +59,7 @@ import { RRule } from "rrule";
 import { annotate } from "@/lib/logging/context";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
+import { startOfLocalDayInTz } from "@/lib/tz/local-day";
 
 /**
  * v1.7.0 — schedule-type discriminator on the canonical schedule.
@@ -303,7 +304,7 @@ export function nextOccurrenceAfter(
   // keeps a slot the user has not yet acted on visible through the rest
   // of its due day instead of silently rolling it forward by N.
   if (schedule.rollingIntervalDays !== null) {
-    const dayFloor = startOfDayInTz(after, ctx.timeZone);
+    const dayFloor = startOfLocalDayInTz(after, ctx.timeZone);
     // With no intake logged the first dose anchors at `startsOn ?? createdAt`.
     // When that anchor is on a PRIOR calendar day the dose is overdue by ≥1
     // day and must still surface ("take now"); flooring only to the start of
@@ -434,7 +435,7 @@ function expandOneShot(
  */
 function firstRollingDoseDayFloor(ctx: RecurrenceContext): number {
   const anchor = ctx.medication.startsOn ?? ctx.medication.createdAt;
-  return startOfDayInTz(anchor, ctx.timeZone).getTime();
+  return startOfLocalDayInTz(anchor, ctx.timeZone).getTime();
 }
 
 function expandRolling(
@@ -780,16 +781,6 @@ function applyTimeOfDayToDate(day: Date, hhmm: string, tz: string): Date {
     );
   }
   return guess;
-}
-
-/**
- * The UTC instant of midnight (00:00 wall-clock) on `instant`'s day in
- * the user's IANA timezone. Used by the rolling-cadence next-due search
- * to floor the window to the start of the user's current day so an
- * overdue / due-earlier-today rolling dose still surfaces.
- */
-function startOfDayInTz(instant: Date, tz: string): Date {
-  return applyTimeOfDayToDate(instant, "00:00", tz);
 }
 
 function tzOffsetMinutes(date: Date, tz: string): number {

@@ -36,7 +36,7 @@ const CALL_SITES: Array<{ file: string; surface: string }> = [
     surface: "insight feature extraction (c7/c30/c90)",
   },
   {
-    file: "src/app/api/insights/targets/route.ts",
+    file: "src/lib/targets/build-response.ts",
     surface: "insight targets",
   },
   {

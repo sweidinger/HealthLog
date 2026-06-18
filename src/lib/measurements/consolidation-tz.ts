@@ -22,6 +22,9 @@
  * every existing import site keeps working unchanged.
  */
 import type { MeasurementType } from "@/generated/prisma/client";
+// `userDayKey` lives in the pure `@/lib/tz/format` leaf (no Prisma /
+// node:module pull) so importing it keeps this dependency-free module clean.
+import { userDayKey } from "@/lib/tz/format";
 
 /**
  * Canonical grace window shared by the cumulative + mean drains. Rows
@@ -52,12 +55,12 @@ export interface PerSampleRow {
 
 /**
  * Resolve the user's calendar-day key (`YYYY-MM-DD`) for a given
- * timestamp + timezone. Reuses the same `sv-SE` Intl formatting choice
- * the mood-entries path locked in v1.4.25 W7b so iOS-side and
- * server-side day-keys round-trip byte-identically.
+ * timestamp + timezone. Delegates to the canonical `userDayKey` so the
+ * server-side and iOS-side day-keys round-trip byte-identically against
+ * every other day-bucketed surface.
  */
 export function dayKeyForUserTz(date: Date, tz: string): string {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: tz }).format(date);
+  return userDayKey(date, tz);
 }
 
 /**

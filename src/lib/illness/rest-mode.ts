@@ -26,6 +26,7 @@
 import type { PrismaClient, IllnessEpisode } from "@/generated/prisma/client";
 import { prisma as defaultPrisma } from "@/lib/db";
 import { isIllnessEnabled } from "@/lib/illness/gate";
+import { memoizePerRequest } from "@/lib/request-cache";
 
 /** Minimal shape the Rest Mode resolver needs from an episode row. */
 export type ActiveIllnessEpisode = Pick<
@@ -78,6 +79,24 @@ export async function getActiveIllnessEpisodes(
   userId: string,
   asOf: Date = new Date(),
   client: PrismaClient = defaultPrisma,
+): Promise<ActiveIllnessEpisode[]> {
+  // Several surfaces resolve Rest Mode for the same `(userId, asOf)` inside
+  // one request — the snapshot builder, the recovery score it builds, the
+  // analytics route, and coincident-deviation — each firing an identical
+  // `findMany`. Dedupe them to a single read per request. An explicit client
+  // (a test stub or a transaction) bypasses the memo so its query is never
+  // served a default-client cached result.
+  if (client !== defaultPrisma) return readActiveIllnessEpisodes(userId, asOf, client);
+  return memoizePerRequest(
+    `illness-active-episodes:${userId}:${asOf.getTime()}`,
+    () => readActiveIllnessEpisodes(userId, asOf, client),
+  );
+}
+
+async function readActiveIllnessEpisodes(
+  userId: string,
+  asOf: Date,
+  client: PrismaClient,
 ): Promise<ActiveIllnessEpisode[]> {
   if (!(await isIllnessEnabled(userId))) return [];
   return client.illnessEpisode.findMany({
