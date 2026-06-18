@@ -1966,6 +1966,7 @@
       "progressAria": "Gesundheitsscore-Fortschritt",
       "deltaVsLastWeek": "{delta} im Vergleich zur Vorwoche",
       "deltaUnavailable": "Noch keine Historie — schau nächste Woche wieder vorbei.",
+      "restModePaused": "Während einer Krankheitsphase pausiert — dein Score wird heute nicht bewertet.",
       "componentBp": "Blutdruck",
       "componentWeight": "Gewicht",
       "componentMood": "Stimmung",

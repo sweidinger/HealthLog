@@ -1966,6 +1966,7 @@
       "progressAria": "Progreso de la puntuación de salud",
       "deltaVsLastWeek": "{delta} respecto a la semana anterior",
       "deltaUnavailable": "Aún no hay historial — vuelve la semana que viene.",
+      "restModePaused": "En pausa durante la enfermedad — hoy tu puntuación no se evalúa.",
       "componentBp": "PA",
       "componentWeight": "Peso",
       "componentMood": "Estado de ánimo",

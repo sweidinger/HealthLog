@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, Minus } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Minus, Moon } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { HealthScoreDeltaExplainer } from "./health-score-delta-explainer";
@@ -87,6 +87,15 @@ export interface HealthScoreCardProps {
    * four-row layout for the common (mood-enabled) case.
    */
   moodEnabled?: boolean;
+  /**
+   * v1.18.6 — Rest Mode annotation. When an illness episode is active the
+   * server suppresses (never penalises) the score; the card itself then
+   * carries an explicit "paused during illness — not being judged today"
+   * line so a frozen/held number reads as intentional rather than as a
+   * silent drop. Value-free: the card only needs to know that it is
+   * active, not the episode details. Default off (the common case).
+   */
+  restModeActive?: boolean;
 }
 
 type ComponentKey = keyof HealthScoreCardProps["components"];
@@ -174,6 +183,7 @@ export function HealthScoreCard({
   onAskCoach: _onAskCoach,
   initiallyExpanded = false,
   moodEnabled = true,
+  restModeActive = false,
 }: HealthScoreCardProps) {
   const { t, locale } = useTranslations();
   // The asOf timestamps render under the source pill as a tooltip
@@ -403,6 +413,21 @@ export function HealthScoreCard({
             </>
           )}
         </p>
+
+        {/* v1.18.6 — Rest Mode legibility. While an illness episode is
+            active the server suppresses (never penalises) the score, so
+            the card states plainly that the number is paused and not being
+            judged today. Without this the held score reads as a silent
+            decline. */}
+        {restModeActive && (
+          <p
+            data-slot="health-score-card-rest-mode"
+            className="text-muted-foreground inline-flex items-start gap-1.5 text-[11px] leading-relaxed"
+          >
+            <Moon className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+            <span>{t("insights.healthScore.restModePaused")}</span>
+          </p>
+        )}
 
         <ul
           data-slot="health-score-card-components"

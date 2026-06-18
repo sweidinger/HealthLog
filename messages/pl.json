@@ -1966,6 +1966,7 @@
       "progressAria": "Postęp wyniku zdrowia",
       "deltaVsLastWeek": "{delta} w porównaniu z ubiegłym tygodniem",
       "deltaUnavailable": "Brak historii — zajrzyj w przyszłym tygodniu.",
+      "restModePaused": "Wstrzymane podczas choroby — Twój wynik nie jest dziś oceniany.",
       "componentBp": "RR",
       "componentWeight": "Waga",
       "componentMood": "Nastrój",

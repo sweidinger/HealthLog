@@ -1966,6 +1966,7 @@
       "progressAria": "Avanzamento del punteggio di salute",
       "deltaVsLastWeek": "{delta} rispetto alla settimana scorsa",
       "deltaUnavailable": "Ancora nessuno storico — ripassa la prossima settimana.",
+      "restModePaused": "In pausa durante la malattia — oggi il tuo punteggio non viene valutato.",
       "componentBp": "PA",
       "componentWeight": "Peso",
       "componentMood": "Umore",

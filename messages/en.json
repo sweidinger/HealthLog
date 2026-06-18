@@ -1966,6 +1966,7 @@
       "progressAria": "Health Score progress",
       "deltaVsLastWeek": "{delta} vs last week",
       "deltaUnavailable": "No history yet — check back next week.",
+      "restModePaused": "Paused during illness — your score isn't being judged today.",
       "componentBp": "BP",
       "componentWeight": "Weight",
       "componentMood": "Mood",
