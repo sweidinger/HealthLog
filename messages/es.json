@@ -191,7 +191,8 @@
     "backToDashboard": "Volver al panel"
   },
   "offlineBanner": {
-    "message": "Sin conexión — tus cambios se guardarán cuando vuelvas a estar en línea."
+    "message": "Sin conexión — tus cambios se guardarán cuando vuelvas a estar en línea.",
+    "showingCached": "Mostrando tus últimos datos sincronizados."
   },
   "demoBanner": {
     "message": "Modo demo — los cambios no se guardan."

@@ -36,11 +36,60 @@ try {
 // v1.4.38.4 → v1.4.42. Do not hand-edit; bump `package.json` and rebuild.
 const CACHE_VERSION =
   (typeof self !== "undefined" && self.__APP_VERSION__) ||
-  /* @sw-version-fallback */ "v1.18.4";
+  /* @sw-version-fallback */ "v1.18.6";
 const STATIC_CACHE = `healthlog-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `healthlog-pages-${CACHE_VERSION}`;
+// v1.18.6 — read-only data cache for a curated allowlist of safe GET `/api/*`
+// reads. Stale-while-revalidate: an installed PWA opened offline now renders
+// the LAST cached dashboard/series instead of empty skeletons forever.
+const DATA_CACHE = `healthlog-data-${CACHE_VERSION}`;
 const MAX_STATIC_ENTRIES = 150;
 const MAX_PAGE_ENTRIES = 30;
+const MAX_DATA_ENTRIES = 60;
+
+// Safe-GET read allowlist. ONLY idempotent reads that render the core views
+// and carry NO secret-shaped body. Auth, mutations and token endpoints are
+// never listed — and `isCacheableApiResponse` is a second, body-level guard
+// (mirrors the idempotency cache's `hlk_`/`hlr_`/`sk-` refusal) so a future
+// endpoint that slipped onto the list can still never persist a secret.
+// Matched by exact path or `<path>/` / `<path>?` prefix.
+const API_READ_ALLOWLIST = [
+  "/api/dashboard/snapshot",
+  "/api/dashboard/widgets",
+  "/api/measurements",
+  "/api/medications",
+  "/api/insights",
+  "/api/analytics",
+  "/api/version",
+];
+
+// Defence in depth: even an allowlisted path is refused if its pathname looks
+// like an auth/token/secret surface.
+const API_DENY_RE = /\/(auth|tokens?|sessions?|login|password|webauthn)(\/|$|\?)/i;
+
+function isAllowlistedApiRead(pathname) {
+  if (API_DENY_RE.test(pathname)) return false;
+  return API_READ_ALLOWLIST.some(
+    (p) =>
+      pathname === p ||
+      pathname.startsWith(p + "/") ||
+      pathname.startsWith(p + "?"),
+  );
+}
+
+// Body-level secret refusal: never persist a body carrying a token/secret-
+// shaped pattern even if the path was allowlisted by mistake.
+const SECRET_BODY_RE = /(hlk_|hlr_|sk-)[A-Za-z0-9_-]/;
+
+function isCacheableApiResponse(response, bodyText) {
+  if (!response || !response.ok) return false;
+  const cacheControl = response.headers.get("Cache-Control") || "";
+  if (/no-store/i.test(cacheControl)) return false;
+  if (typeof bodyText === "string" && SECRET_BODY_RE.test(bodyText)) {
+    return false;
+  }
+  return true;
+}
 
 // App shell files to precache on install
 const PRECACHE_URLS = ["/", "/logo-192.png", "/logo-512.png", "/favicon.svg"];
@@ -64,7 +113,10 @@ self.addEventListener("activate", (event) => {
         .then((keys) =>
           Promise.all(
             keys
-              .filter((k) => k !== STATIC_CACHE && k !== PAGE_CACHE)
+              .filter(
+                (k) =>
+                  k !== STATIC_CACHE && k !== PAGE_CACHE && k !== DATA_CACHE,
+              )
               .map((k) => caches.delete(k)),
           ),
         ),
@@ -87,8 +139,15 @@ self.addEventListener("fetch", (event) => {
   // Only handle same-origin GET requests
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // API calls — network only (never serve stale data)
-  if (url.pathname.startsWith("/api/")) return;
+  // API calls. Allowlisted safe GET reads use stale-while-revalidate so the
+  // installed PWA renders last-synced data offline; everything else (auth,
+  // mutations, anything not on the list) stays network-only.
+  if (url.pathname.startsWith("/api/")) {
+    if (isAllowlistedApiRead(url.pathname)) {
+      event.respondWith(staleWhileRevalidateApi(request));
+    }
+    return;
+  }
 
   // Next.js static assets — cache-first (immutable hashed filenames)
   if (url.pathname.startsWith("/_next/static/")) {
@@ -124,6 +183,62 @@ async function cacheFirst(request, cacheName) {
     trimCache(cacheName, MAX_STATIC_ENTRIES);
   }
   return response;
+}
+
+/**
+ * Stale-while-revalidate for allowlisted safe GET `/api/*` reads.
+ *
+ * Serves the cached copy immediately (instant offline value) while a
+ * background fetch refreshes it. With no cache yet it awaits the network and,
+ * if that fails offline, returns a JSON 503 so the client's TanStack Query
+ * cache / IndexedDB persister (also added in v1.18.6) supplies the data.
+ *
+ * Caching is gated twice: `isAllowlistedApiRead` already filtered the path,
+ * and `isCacheableApiResponse` inspects the actual body so a `no-store` or
+ * secret-shaped (`hlk_`/`hlr_`/`sk-`) response is never persisted — the same
+ * refusal discipline the idempotency cache uses.
+ */
+async function staleWhileRevalidateApi(request) {
+  const cache = await caches.open(DATA_CACHE);
+  const cached = await cache.match(request);
+
+  const network = fetch(request)
+    .then(async (response) => {
+      // Read the body once to body-screen it, then reconstruct a fresh
+      // Response so both the cache.put and the return value have an
+      // unconsumed body.
+      const bodyText = await response
+        .clone()
+        .text()
+        .catch(() => undefined);
+      if (isCacheableApiResponse(response, bodyText)) {
+        const toStore = new Response(bodyText, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+        await cache.put(request, toStore);
+        trimCache(DATA_CACHE, MAX_DATA_ENTRIES);
+      }
+      return response;
+    })
+    .catch(() => null);
+
+  if (cached) {
+    // Refresh in the background; don't block the cached response on it.
+    return cached;
+  }
+
+  const fresh = await network;
+  if (fresh) return fresh;
+
+  return new Response(
+    JSON.stringify({ data: null, error: "offline", meta: { offline: true } }),
+    {
+      status: 503,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    },
+  );
 }
 
 /**

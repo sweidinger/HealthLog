@@ -191,7 +191,8 @@
     "backToDashboard": "Powrót do panelu"
   },
   "offlineBanner": {
-    "message": "Brak połączenia — twoje zmiany zostaną zapisane, gdy ponownie pojawisz się online."
+    "message": "Brak połączenia — twoje zmiany zostaną zapisane, gdy ponownie pojawisz się online.",
+    "showingCached": "Wyświetlane są ostatnio zsynchronizowane dane."
   },
   "demoBanner": {
     "message": "Tryb demo — zmiany nie są zapisywane."

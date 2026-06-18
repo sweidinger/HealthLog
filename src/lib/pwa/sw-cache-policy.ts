@@ -1,0 +1,60 @@
+/**
+ * Service-worker offline-read cache policy (v1.18.6).
+ *
+ * The runtime copy of this logic lives inline in `public/sw.js` (a service
+ * worker cannot import app modules at runtime). This module is the
+ * unit-tested source of truth for the safety boundary — the allowlist match,
+ * the auth/token deny guard, and the body-level secret refusal — so the SW's
+ * caching decisions are covered by `pnpm test`. Keep the two in lockstep when
+ * either changes.
+ *
+ * Boundary: ONLY idempotent GET reads that render the core views are cached.
+ * Auth/mutation/token surfaces are never cached, and a body carrying a
+ * secret-shaped token (`hlk_`/`hlr_`/`sk-`) is refused even if its path was
+ * allowlisted by mistake — mirroring the idempotency cache's refusal.
+ */
+
+/** Path prefixes whose safe GET reads are eligible for the offline data cache. */
+export const API_READ_ALLOWLIST = [
+  "/api/dashboard/snapshot",
+  "/api/dashboard/widgets",
+  "/api/measurements",
+  "/api/medications",
+  "/api/insights",
+  "/api/analytics",
+  "/api/version",
+] as const;
+
+/** Auth/token surfaces refused even when nested under an allowlisted prefix. */
+export const API_DENY_RE = /\/(auth|tokens?|sessions?|login|password|webauthn)(\/|$|\?)/i;
+
+/** Secret-shaped token patterns refused at the response-body level. */
+export const SECRET_BODY_RE = /(hlk_|hlr_|sk-)[A-Za-z0-9_-]/;
+
+export function isAllowlistedApiRead(pathname: string): boolean {
+  if (API_DENY_RE.test(pathname)) return false;
+  return API_READ_ALLOWLIST.some(
+    (p) =>
+      pathname === p ||
+      pathname.startsWith(p + "/") ||
+      pathname.startsWith(p + "?"),
+  );
+}
+
+/**
+ * Decide whether an allowlisted response may be persisted. `ok` + no
+ * `no-store` + no secret-shaped body. Mirrors `isCacheableApiResponse` in
+ * `public/sw.js`.
+ */
+export function isCacheableApiResponse(opts: {
+  ok: boolean;
+  cacheControl?: string | null;
+  bodyText?: string;
+}): boolean {
+  if (!opts.ok) return false;
+  if (/no-store/i.test(opts.cacheControl || "")) return false;
+  if (typeof opts.bodyText === "string" && SECRET_BODY_RE.test(opts.bodyText)) {
+    return false;
+  }
+  return true;
+}

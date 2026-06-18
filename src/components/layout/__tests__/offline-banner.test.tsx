@@ -13,6 +13,7 @@ import { join } from "node:path";
 
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { I18nProvider } from "@/lib/i18n/context";
 import { OfflineBanner } from "../offline-banner";
@@ -27,8 +28,14 @@ function loadMessages(locale: string): { offlineBanner: { message: string } } {
 }
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
+  // v1.18.6 — the banner now reads the cached dashboard snapshot to decide
+  // whether to append the "showing last synced data" hint, so it needs a
+  // QueryClient in context.
+  const queryClient = new QueryClient();
   return renderToStaticMarkup(
-    <I18nProvider initialLocale={locale}>{node}</I18nProvider>,
+    <QueryClientProvider client={queryClient}>
+      <I18nProvider initialLocale={locale}>{node}</I18nProvider>
+    </QueryClientProvider>,
   );
 }
 
