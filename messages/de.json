@@ -2498,13 +2498,7 @@
         "meanArterialPressureBody": "Der mittlere arterielle Druck ist der durchschnittliche Druck, den deine Organe über einen Herzschlag sehen – grob der diastolische Wert plus ein Drittel der Differenz zum systolischen. Als allgemeine Orientierung liegt ein Ruhewert bei etwa 70–100 mmHg (StatPearls/NIH 2023). Die oft genannte Grenze von ~60 mmHg ist ein Konzept der Akutmedizin, kein Alarm für die Selbstmessung.",
         "cycleEducationBody": "Dein Zyklus durchläuft vier hormongesteuerte Phasen, und seine Länge und Regelmäßigkeit sind ein gut zugängliches Fenster auf die allgemeine Gesundheit. Als allgemeine Orientierung dauern Zyklen bei Erwachsenen typischerweise 21–35 Tage (klinische Referenzen nennen 24–38), mit einer Blutung von rund fünf Tagen (ACOG 2015). Die Lutealphase ist der stabile Anker, daher schätzt man den Eisprung am besten durch Rückrechnen von der nächsten erwarteten Periode – nie über einen festen „Tag 14“. Ein vorhergesagtes fruchtbares Fenster ist eine Schätzung, die mehrere erfasste Zyklen braucht und ungefähr bleibt, und die Basaltemperatur bestätigt den Eisprung im Nachhinein, statt ihn vorherzusagen. Dies ist keine Verhütungsmethode.",
         "sleepHygieneBody": "Einige evidenzbasierte Gewohnheiten unterstützen den Schlaf: gleichbleibende Zubett- und Aufstehzeiten auch am Wochenende, helles Morgenlicht und gedämpfte Abende, ein kühles, dunkles und ruhiges Zimmer sowie der Verzicht auf Koffein am Nachmittag, späten Alkohol und große späte Mahlzeiten (CDC 2024). Regelmäßigkeit sagt die Gesundheit mindestens so stark voraus wie die Dauer, und die Gesamtschlafzeit eines Wearables ist weit verlässlicher als seine Aufteilung in Tief-, Leicht- und REM-Schlaf.",
-        "referenceGuidance": "Allgemeine Orientierung, keine medizinische Beratung. Referenzbereiche sind Populationswerte, die sich mit Alter, Geschlecht und Erkrankungen verschieben – dein eigener Verlauf über die Zeit führt die Einordnung.",
-        "referenceState": {
-          "within": "Dein letzter Wert liegt im allgemeinen Referenzbereich.",
-          "slightlyOutside": "Dein letzter Wert liegt knapp außerhalb des üblichen Bereichs – behalte den Verlauf im Blick.",
-          "outside": "Dein letzter Wert liegt außerhalb des üblichen Bereichs. Das ist eine Einordnungshilfe, keine Diagnose; besprich ein anhaltendes Muster mit einer Ärztin oder einem Arzt.",
-          "insufficient": "Es gibt noch nicht genug Daten, oder dieses Signal hat keinen festen Populationsbereich – dein eigener Ausgangswert führt die Einordnung."
-        }
+        "referenceGuidance": "Allgemeine Orientierung, keine medizinische Beratung. Referenzbereiche sind Populationswerte, die sich mit Alter, Geschlecht und Erkrankungen verschieben – dein eigener Verlauf über die Zeit führt die Einordnung."
       },
       "bpDerived": {
         "pulsePressure": "Der Pulsdruck (die Differenz zwischen deinen Werten) beträgt etwa {value} mmHg – rund 40 ist in Ruhe typisch.",
@@ -4768,10 +4762,7 @@
         "savedOff": "Coach ist ausgeblendet.",
         "saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen."
       }
-    },
-    "diabetes": "Ich habe Diabetes",
-    "diabetesDescription": "Nutze ärztliche Glukose-Zielwerte (nüchtern 80–130, nach dem Essen unter 180 mg/dL) statt der allgemeinen Bänder. Das ändert nur den Zielbereich, an dem du gemessen wirst — es ist keine Diagnose.",
-    "diabetesSaved": "Glukose-Zielwert-Einstellung gespeichert"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -6405,7 +6396,6 @@
     "pushLocation": "(bei {location})",
     "edit": "Bearbeiten",
     "originCoach": "Coach",
-    "enabledToggleAria": "Diese Erinnerung aktivieren oder deaktivieren",
     "until": "Bis {date}",
     "selfPlanned": "Selbstgeplant",
     "captureValue": "Wert erfassen",

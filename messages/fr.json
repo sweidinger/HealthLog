@@ -2498,13 +2498,7 @@
         "meanArterialPressureBody": "La pression artérielle moyenne est la pression moyenne que voient vos organes sur un battement, soit grosso modo la diastolique plus un tiers de l'écart avec la systolique. À titre indicatif général, une valeur au repos se situe autour de 70–100 mmHg (StatPearls/NIH 2023). Le seuil de ~60 mmHg souvent cité est un concept de soins aigus, pas une alarme pour l'autosurveillance.",
         "cycleEducationBody": "Votre cycle traverse quatre phases pilotées par les hormones, et sa durée et sa régularité sont une fenêtre accessible sur la santé globale. À titre indicatif général, les cycles chez l'adulte durent typiquement 21–35 jours (les références cliniques citent 24–38), avec des règles d'environ cinq jours (ACOG 2015). La phase lutéale est l'ancrage stable, donc l'ovulation s'estime au mieux en comptant à rebours depuis vos prochaines règles prévues, jamais à un « jour 14 » fixe. Une fenêtre fertile prédite est une estimation qui demande plusieurs cycles enregistrés et reste approximative, et la température basale confirme l'ovulation après coup plutôt qu'elle ne la prédit. Ce n'est pas une méthode de contraception.",
         "sleepHygieneBody": "Quelques habitudes fondées sur les preuves favorisent le sommeil : des heures de coucher et de lever régulières, week-ends compris, une lumière vive le matin et des soirées tamisées, une chambre fraîche, sombre et calme, et éviter la caféine l'après-midi, l'alcool tardif et les repas copieux tard le soir (CDC 2024). La régularité prédit la santé au moins autant que la durée, et le temps de sommeil total d'un wearable est bien plus fiable que sa répartition entre sommeil profond, léger et paradoxal.",
-        "referenceGuidance": "Indication générale, pas un avis médical. Les plages de référence sont des repères de population qui évoluent avec votre âge, votre sexe et vos conditions de santé ; votre propre tendance dans le temps guide la lecture.",
-        "referenceState": {
-          "within": "Votre valeur récente se situe dans la plage de référence générale.",
-          "slightlyOutside": "Votre valeur récente est juste en dehors de la plage habituelle — il vaut la peine de surveiller la tendance.",
-          "outside": "Votre valeur récente est en dehors de la plage habituelle. C'est une aide au repérage, pas un diagnostic ; parlez d'un schéma persistant à un professionnel de santé.",
-          "insufficient": "Il n'y a pas encore assez de données, ou ce signal n'a pas de plage de population fixe — votre propre référence guide la lecture."
-        }
+        "referenceGuidance": "Indication générale, pas un avis médical. Les plages de référence sont des repères de population qui évoluent avec votre âge, votre sexe et vos conditions de santé ; votre propre tendance dans le temps guide la lecture."
       },
       "bpDerived": {
         "pulsePressure": "La pression pulsée (l'écart entre vos valeurs) est d'environ {value} mmHg ; environ 40 est typique au repos.",
@@ -4768,10 +4762,7 @@
         "savedOff": "Coach masqué.",
         "saveError": "Impossible d enregistrer la modification. Veuillez réessayer."
       }
-    },
-    "diabetes": "Je suis diabétique",
-    "diabetesDescription": "Utilise des objectifs glycémiques cliniques (à jeun 80–130, après le repas moins de 180 mg/dL) au lieu des plages générales. Cela ne change que l'objectif auquel tu es comparé — ce n'est jamais un diagnostic.",
-    "diabetesSaved": "Préférence d'objectif glycémique enregistrée"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -6405,7 +6396,6 @@
     "pushLocation": "(chez {location})",
     "edit": "Modifier",
     "originCoach": "Coach",
-    "enabledToggleAria": "Activer ou désactiver ce rappel",
     "until": "Jusqu'au {date}",
     "selfPlanned": "Auto-planifié",
     "captureValue": "Enregistrer la valeur",

@@ -2498,13 +2498,7 @@
         "meanArterialPressureBody": "La presión arterial media es la presión promedio que ven tus órganos a lo largo de un latido, aproximadamente la diastólica más un tercio de la diferencia con la sistólica. Como orientación general, un valor en reposo ronda los 70–100 mmHg (StatPearls/NIH 2023). El umbral de ~60 mmHg que se suele citar es un concepto de cuidados agudos, no una alarma para el autocontrol.",
         "cycleEducationBody": "Tu ciclo atraviesa cuatro fases impulsadas por hormonas, y su duración y regularidad son una ventana accesible a la salud general. Como orientación general, los ciclos en personas adultas suelen durar 21–35 días (las referencias clínicas citan 24–38), con un sangrado de unos cinco días (ACOG 2015). La fase lútea es el ancla estable, así que la ovulación se estima mejor contando hacia atrás desde tu próxima regla prevista, nunca con un «día 14» fijo. Una ventana fértil predicha es una estimación que necesita varios ciclos registrados y sigue siendo aproximada, y la temperatura basal confirma la ovulación a posteriori en lugar de predecirla. No es un método anticonceptivo.",
         "sleepHygieneBody": "Algunos hábitos con respaldo de evidencia favorecen el sueño: mantener horarios constantes de acostarse y levantarse incluso los fines de semana, recibir luz brillante por la mañana y atenuar las noches, una habitación fresca, oscura y silenciosa, y evitar la cafeína por la tarde, el alcohol tardío y las comidas copiosas a última hora (CDC 2024). La regularidad predice la salud al menos tanto como la duración, y el tiempo total de sueño de un wearable es mucho más fiable que su reparto entre sueño profundo, ligero y REM.",
-        "referenceGuidance": "Orientación general, no consejo médico. Los rangos de referencia son valores poblacionales que cambian con tu edad, sexo y condiciones de salud; tu propia tendencia a lo largo del tiempo guía la lectura.",
-        "referenceState": {
-          "within": "Tu valor reciente se sitúa dentro del rango de referencia general.",
-          "slightlyOutside": "Tu valor reciente queda justo fuera del rango habitual; conviene vigilar la tendencia.",
-          "outside": "Tu valor reciente queda fuera del rango habitual. Es una ayuda de ubicación, no un diagnóstico; comenta un patrón sostenido con un profesional sanitario.",
-          "insufficient": "Aún no hay datos suficientes, o esta señal no tiene un rango poblacional fijo; tu propia base guía la lectura."
-        }
+        "referenceGuidance": "Orientación general, no consejo médico. Los rangos de referencia son valores poblacionales que cambian con tu edad, sexo y condiciones de salud; tu propia tendencia a lo largo del tiempo guía la lectura."
       },
       "bpDerived": {
         "pulsePressure": "La presión de pulso (la diferencia entre tus valores) es de unos {value} mmHg; alrededor de 40 es lo típico en reposo.",
@@ -4768,10 +4762,7 @@
         "savedOff": "Coach oculto.",
         "saveError": "No se pudo guardar el cambio. Inténtalo de nuevo."
       }
-    },
-    "diabetes": "Tengo diabetes",
-    "diabetesDescription": "Usa objetivos de glucosa clínicos (en ayunas 80–130, tras la comida menos de 180 mg/dL) en lugar de las bandas generales. Esto solo cambia el objetivo con el que te comparas; nunca es un diagnóstico.",
-    "diabetesSaved": "Preferencia de objetivo de glucosa guardada"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -6405,7 +6396,6 @@
     "pushLocation": "(en {location})",
     "edit": "Editar",
     "originCoach": "Coach",
-    "enabledToggleAria": "Activar o desactivar este recordatorio",
     "until": "Hasta {date}",
     "selfPlanned": "Autoplanificado",
     "captureValue": "Registrar valor",

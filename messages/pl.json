@@ -2498,13 +2498,7 @@
         "meanArterialPressureBody": "Średnie ciśnienie tętnicze to przeciętne ciśnienie, jakie widzą Twoje narządy w trakcie uderzenia serca, w przybliżeniu rozkurczowe plus jedna trzecia różnicy do skurczowego. Jako ogólna wskazówka, wartość spoczynkowa mieści się w okolicy 70–100 mmHg (StatPearls/NIH 2023). Często przywoływany próg ~60 mmHg to pojęcie z medycyny ostrej, nie alarm do samodzielnego pomiaru.",
         "cycleEducationBody": "Twój cykl przebiega przez cztery fazy sterowane hormonami, a jego długość i regularność to dostępne okno na ogólny stan zdrowia. Jako ogólna wskazówka, u osób dorosłych cykle trwają zwykle 21–35 dni (źródła kliniczne podają 24–38), z krwawieniem około pięciu dni (ACOG 2015). Faza lutealna jest stałą kotwicą, dlatego owulację najlepiej szacować, licząc wstecz od następnej spodziewanej miesiączki, nigdy według stałego „14. dnia”. Przewidziane okno płodne to oszacowanie, które wymaga kilku zarejestrowanych cykli i pozostaje przybliżone, a podstawowa temperatura ciała potwierdza owulację po fakcie, a nie ją przewiduje. To nie jest metoda antykoncepcji.",
         "sleepHygieneBody": "Kilka opartych na dowodach nawyków wspiera sen: stałe pory kładzenia się i wstawania także w weekendy, jasne światło rano i przyciemnione wieczory, chłodna, ciemna i cicha sypialnia oraz unikanie kofeiny po południu, alkoholu późnym wieczorem i obfitych posiłków przed snem (CDC 2024). Regularność przewiduje zdrowie co najmniej tak silnie jak długość snu, a całkowity czas snu z urządzenia jest znacznie bardziej wiarygodny niż jego podział na sen głęboki, lekki i REM.",
-        "referenceGuidance": "Ogólna wskazówka, nie porada medyczna. Zakresy referencyjne to wartości populacyjne, które zmieniają się wraz z Twoim wiekiem, płcią i stanem zdrowia; to Twój własny trend w czasie prowadzi odczyt.",
-        "referenceState": {
-          "within": "Twoja ostatnia wartość mieści się w ogólnym zakresie referencyjnym.",
-          "slightlyOutside": "Twoja ostatnia wartość jest tuż poza zwykłym zakresem – warto obserwować trend.",
-          "outside": "Twoja ostatnia wartość jest poza zwykłym zakresem. To pomoc w umiejscowieniu, nie diagnoza; omów utrzymujący się wzorzec z lekarzem.",
-          "insufficient": "Nie ma jeszcze wystarczających danych lub ten sygnał nie ma stałego zakresu populacyjnego – odczyt prowadzi Twoja własna wartość bazowa."
-        }
+        "referenceGuidance": "Ogólna wskazówka, nie porada medyczna. Zakresy referencyjne to wartości populacyjne, które zmieniają się wraz z Twoim wiekiem, płcią i stanem zdrowia; to Twój własny trend w czasie prowadzi odczyt."
       },
       "bpDerived": {
         "pulsePressure": "Ciśnienie tętna (różnica między Twoimi wartościami) wynosi około {value} mmHg – około 40 jest typowe w spoczynku.",
@@ -4768,10 +4762,7 @@
         "savedOff": "Coach ukryty.",
         "saveError": "Nie udało się zapisać zmiany. Spróbuj ponownie."
       }
-    },
-    "diabetes": "Mam cukrzycę",
-    "diabetesDescription": "Użyj klinicznych celów glukozy (na czczo 80–130, po posiłku poniżej 180 mg/dL) zamiast ogólnych zakresów. Zmienia to tylko cel, względem którego jesteś oceniany — to nigdy nie jest diagnoza.",
-    "diabetesSaved": "Zapisano preferencję celu glukozy"
+    }
   },
   "admin": {
     "title": "Administracja",
@@ -6405,7 +6396,6 @@
     "pushLocation": "(u {location})",
     "edit": "Edytuj",
     "originCoach": "Coach",
-    "enabledToggleAria": "Włącz lub wyłącz to przypomnienie",
     "until": "Do {date}",
     "selfPlanned": "Zaplanowane samodzielnie",
     "captureValue": "Zapisz wartość",

@@ -2498,13 +2498,7 @@
         "meanArterialPressureBody": "La pressione arteriosa media è la pressione media che i tuoi organi vedono in un battito, all'incirca la diastolica più un terzo del divario con la sistolica. Come orientamento generale, un valore a riposo si aggira sui 70–100 mmHg (StatPearls/NIH 2023). La soglia di ~60 mmHg spesso citata è un concetto di terapia intensiva, non un allarme per l'automisurazione.",
         "cycleEducationBody": "Il tuo ciclo attraversa quattro fasi guidate dagli ormoni, e la sua durata e regolarità sono una finestra accessibile sulla salute generale. Come orientamento generale, nei adulti i cicli durano tipicamente 21–35 giorni (i riferimenti clinici citano 24–38), con un sanguinamento di circa cinque giorni (ACOG 2015). La fase luteale è l'ancora stabile, quindi l'ovulazione si stima meglio contando a ritroso dalla prossima mestruazione attesa, mai con un «giorno 14» fisso. Una finestra fertile prevista è una stima che richiede più cicli registrati e resta approssimativa, e la temperatura basale conferma l'ovulazione a posteriori anziché prevederla. Non è un metodo contraccettivo.",
         "sleepHygieneBody": "Alcune abitudini basate sull'evidenza favoriscono il sonno: orari costanti per coricarsi e svegliarsi anche nel weekend, luce intensa al mattino e serate soffuse, una stanza fresca, buia e silenziosa, ed evitare la caffeina nel pomeriggio, l'alcol a tarda ora e i pasti abbondanti a fine giornata (CDC 2024). La regolarità predice la salute almeno quanto la durata, e il tempo di sonno totale di un wearable è molto più affidabile della sua suddivisione tra sonno profondo, leggero e REM.",
-        "referenceGuidance": "Orientamento generale, non un consiglio medico. Gli intervalli di riferimento sono valori di popolazione che cambiano con la tua età, il sesso e le condizioni di salute; il tuo andamento nel tempo guida la lettura.",
-        "referenceState": {
-          "within": "Il tuo valore recente rientra nell'intervallo di riferimento generale.",
-          "slightlyOutside": "Il tuo valore recente è appena fuori dall'intervallo abituale: vale la pena tenere d'occhio l'andamento.",
-          "outside": "Il tuo valore recente è fuori dall'intervallo abituale. È un aiuto alla collocazione, non una diagnosi; parla di un andamento persistente con un medico.",
-          "insufficient": "Non ci sono ancora dati sufficienti, oppure questo segnale non ha un intervallo di popolazione fisso: il tuo riferimento personale guida la lettura."
-        }
+        "referenceGuidance": "Orientamento generale, non un consiglio medico. Gli intervalli di riferimento sono valori di popolazione che cambiano con la tua età, il sesso e le condizioni di salute; il tuo andamento nel tempo guida la lettura."
       },
       "bpDerived": {
         "pulsePressure": "La pressione differenziale (il divario tra i tuoi valori) è di circa {value} mmHg; circa 40 è tipico a riposo.",
@@ -4768,10 +4762,7 @@
         "savedOff": "Coach nascosto.",
         "saveError": "Impossibile salvare la modifica. Riprova."
       }
-    },
-    "diabetes": "Ho il diabete",
-    "diabetesDescription": "Usa obiettivi glicemici clinici (a digiuno 80–130, dopo i pasti sotto 180 mg/dL) invece delle bande generali. Questo cambia solo l'obiettivo con cui ti confronti — non è mai una diagnosi.",
-    "diabetesSaved": "Preferenza dell'obiettivo glicemico salvata"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -6405,7 +6396,6 @@
     "pushLocation": "(presso {location})",
     "edit": "Modifica",
     "originCoach": "Coach",
-    "enabledToggleAria": "Attiva o disattiva questo promemoria",
     "until": "Fino al {date}",
     "selfPlanned": "Autopianificato",
     "captureValue": "Registra valore",

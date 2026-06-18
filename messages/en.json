@@ -2498,13 +2498,7 @@
         "meanArterialPressureBody": "Mean arterial pressure is the average pressure your organs see across a heartbeat, roughly the diastolic plus a third of the gap to systolic. As general guidance, a resting value sits around 70–100 mmHg (StatPearls/NIH 2023). The often-cited ~60 mmHg floor is an acute-care concept, not a consumer self-alarm.",
         "cycleEducationBody": "Your cycle runs through four phases driven by shifting hormones, and its length and regularity are an accessible window on overall health. As general guidance, adult cycles typically run 21–35 days (clinical references cite 24–38), with bleeding around five days (ACOG 2015). The luteal phase is the steady anchor, so ovulation is best estimated by counting back from your next expected period — never a fixed 'day 14'. A predicted fertile window is an estimate that needs several recorded cycles and stays approximate, and basal body temperature confirms ovulation after the fact rather than predicting it. This is not a contraceptive method.",
         "sleepHygieneBody": "A few evidence-based habits support sleep: keep consistent bed and wake times including weekends, get bright morning daylight and dim your evenings, keep the room cool, dark and quiet, and avoid afternoon caffeine, late alcohol and large late meals (CDC 2024). Regularity predicts health at least as strongly as duration, and a wearable's total sleep time is far more trustworthy than its deep, light and REM split.",
-        "referenceGuidance": "General guidance, not medical advice. Reference ranges are population anchors that shift with your age, sex and health conditions — your own trend over time leads the read.",
-        "referenceState": {
-          "within": "Your recent value sits within the general reference range.",
-          "slightlyOutside": "Your recent value sits just outside the usual range — worth keeping an eye on the trend.",
-          "outside": "Your recent value sits outside the usual range. This is a placement aid, not a diagnosis; discuss a sustained pattern with a clinician.",
-          "insufficient": "There isn't enough data yet, or this signal has no fixed population range — your own baseline carries the read."
-        }
+        "referenceGuidance": "General guidance, not medical advice. Reference ranges are population anchors that shift with your age, sex and health conditions — your own trend over time leads the read."
       },
       "bpDerived": {
         "pulsePressure": "Pulse pressure (the gap between your readings) is about {value} mmHg — roughly 40 is typical at rest.",
@@ -4768,10 +4762,7 @@
         "savedOff": "Coach hidden.",
         "saveError": "Could not save the change. Please try again."
       }
-    },
-    "diabetes": "I have diabetes",
-    "diabetesDescription": "Use clinician glucose targets (fasting 80–130, post-meal under 180 mg/dL) instead of the general bands. This only changes the target you are measured against — it is never a diagnosis.",
-    "diabetesSaved": "Glucose target preference saved"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -6405,7 +6396,6 @@
     "pushLocation": "(at {location})",
     "edit": "Edit",
     "originCoach": "Coach",
-    "enabledToggleAria": "Enable or disable this reminder",
     "until": "Until {date}",
     "selfPlanned": "Self-planned",
     "captureValue": "Log value",
