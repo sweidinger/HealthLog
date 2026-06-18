@@ -239,17 +239,23 @@ describe("<SettingsShell>", () => {
     expect(disabled).not.toContain('href="/settings/coach"');
   });
 
-  it("module-gates the Health-record entry off `user.modules.doctorReport` (B3)", () => {
-    // Fail-open default: doctorReport undefined → entry shown.
+  it("always surfaces the Health-record entry, regardless of `doctorReport` (v1.18.6.1)", () => {
+    // The health-record (PDF / FHIR) entry is a flagship export capability
+    // and is no longer nav-gated: a default/unset modules map shows it, and
+    // even an explicit `doctorReport: false` keeps the Settings entry-point
+    // reachable. The server-side `/api/export/health-record` route remains
+    // the hard enforcement of the opt-out.
     expect(renderShell({ active: "account" })).toContain(
       'href="/settings/gesundheitsakte"',
     );
-    // Explicitly disabled → entry hidden.
-    const disabled = renderShell({
+    expect(renderShell({ active: "account", modules: {} })).toContain(
+      'href="/settings/gesundheitsakte"',
+    );
+    const optedOut = renderShell({
       active: "account",
       modules: { doctorReport: false },
     });
-    expect(disabled).not.toContain('href="/settings/gesundheitsakte"');
+    expect(optedOut).toContain('href="/settings/gesundheitsakte"');
   });
 
   it("falls back to `account` when the pathname doesn't match a known slug", () => {

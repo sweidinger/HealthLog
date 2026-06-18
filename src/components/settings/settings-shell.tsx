@@ -177,15 +177,21 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
   // v1.18.0 (S5) — the full health record (PDF + FHIR R4 + zip package)
-  // earns its own home, lifted out of Export & Import. Gated on the
-  // `doctorReport` module: when the user turns the doctor-report surface off,
-  // the entry hides (the server-side `/api/export/health-record` gate is the
-  // hard enforcement; this hides the entry-point to match).
+  // earns its own home, lifted out of Export & Import.
+  //
+  // v1.18.6.1 — the nav entry is NOT module-gated. The health record is a
+  // flagship export capability; gating its only entry-point on the
+  // `doctorReport` opt-out meant a stray toggle in the Modules hub made the
+  // whole section vanish with no in-context way back. The entry now always
+  // shows. The `doctorReport` module still governs the data layer: the
+  // server-side `/api/export/health-record` route remains the hard
+  // enforcement (403 `module.disabled` over Bearer when the account opts
+  // out), and the Modules hub keeps the toggle for anyone who wants the
+  // surface gone elsewhere — but the Settings entry-point stays reachable.
   {
     slug: "gesundheitsakte",
     titleKey: "settings.sections.gesundheitsakte.title",
     icon: FileHeart,
-    moduleGate: "doctorReport",
   },
   {
     slug: "export",

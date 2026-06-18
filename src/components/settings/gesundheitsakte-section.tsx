@@ -10,10 +10,12 @@
  * the generic CSV / JSON data-out paths. Export & Import now keeps only
  * the generic data export/import surfaces.
  *
- * Module-gated on `doctorReport` (v1.18.0 B3): the nav entry hides when the
- * module is off (see `SETTINGS_SECTIONS` in `settings-shell.tsx`), and the
- * server-side `/api/export/health-record` route refuses with a 403
- * `module.disabled` envelope — so a disabled doctor-report surface cannot be
+ * The `doctorReport` module governs the data layer, not the Settings
+ * entry-point: as of v1.18.6.1 the nav entry always shows (the health record
+ * is a flagship export capability and should never silently vanish from
+ * Settings). The server-side `/api/export/health-record` route is the hard
+ * enforcement — it refuses with a 403 `module.disabled` envelope when the
+ * account has opted out, so a disabled doctor-report surface cannot be
  * reached over a Bearer token either.
  */
 
