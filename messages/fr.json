@@ -1971,7 +1971,6 @@
       "componentWeight": "Poids",
       "componentMood": "Humeur",
       "componentCompliance": "Observance",
-      "disclaimer": "Repère — pas un avis médical.",
       "deltaExplainer": {
         "trigger": "Que signifie cet écart ?",
         "title": "Comment l'écart est calculé",
@@ -2052,7 +2051,6 @@
     },
     "correlationRow": {
       "title": "Corrélations",
-      "disclaimer": "Les corrélations sont observationnelles, pas causales — parle à ton médecin si ta tension est élevée.",
       "experimentCta": "Lancer une expérience de 7 jours",
       "experimentTooltip": "Bientôt disponible",
       "emptyTitle": "Il faut plus de données pour afficher cette corrélation",
@@ -3451,9 +3449,6 @@
     },
     "target": {
       "heading": "Objectif"
-    },
-    "disclaimer": {
-      "footer": "HealthLog décrit vos propres données suivies — il ne s'agit pas d'une évaluation clinique ni d'un diagnostic. Parlez à votre médecin de tout ce qui vous préoccupe."
     },
     "settings": {
       "overviewTitle": "Organiser la vue d'ensemble",

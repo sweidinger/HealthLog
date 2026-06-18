@@ -1971,7 +1971,6 @@
       "componentWeight": "Waga",
       "componentMood": "Nastrój",
       "componentCompliance": "Przestrzeganie",
-      "disclaimer": "Wskazówka — nie ocena medyczna.",
       "deltaExplainer": {
         "trigger": "Co oznacza ta zmiana?",
         "title": "Jak liczona jest ta zmiana",
@@ -2052,7 +2051,6 @@
     },
     "correlationRow": {
       "title": "Korelacje",
-      "disclaimer": "Korelacje są obserwacyjne, nie przyczynowe — porozmawiaj z lekarzem, jeśli ciśnienie jest wysokie.",
       "experimentCta": "Uruchom 7-dniowy eksperyment",
       "experimentTooltip": "Wkrótce",
       "emptyTitle": "Potrzeba więcej danych, aby pokazać tę korelację",
@@ -3451,9 +3449,6 @@
     },
     "target": {
       "heading": "Cel"
-    },
-    "disclaimer": {
-      "footer": "HealthLog opisuje Twoje własne zarejestrowane dane — nie jest oceną kliniczną ani diagnozą. Porozmawiaj z lekarzem o wszystkim, co Cię niepokoi."
     },
     "settings": {
       "overviewTitle": "Uporządkuj przegląd",

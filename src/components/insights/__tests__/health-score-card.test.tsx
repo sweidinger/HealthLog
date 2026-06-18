@@ -192,19 +192,6 @@ describe("<HealthScoreCard>", () => {
     expect(moodSliceMatch?.[1]).toBe("—");
   });
 
-  it("renders the disclaimer", () => {
-    const html = ssr(
-      <HealthScoreCard
-        score={86}
-        band="green"
-        components={baseComponents}
-        delta={null}
-      />,
-    );
-    expect(html).toMatch(/data-slot="health-score-card-disclaimer"/);
-    expect(html).toContain("Indicative");
-  });
-
   it("v1.4.27 B1 — no longer mounts an inline Ask-the-Coach button (hero strip carries the CTA)", () => {
     // The hero strip's existing "Ask the coach" action covers this
     // surface; the card-internal duplicate button retired. The
@@ -245,7 +232,6 @@ describe("<HealthScoreCard>", () => {
     );
     expect(html).toContain("Gesundheitsscore");
     expect(html).toContain("im Vergleich zur Vorwoche");
-    expect(html).toContain("Orientierungshilfe");
     // v1.4.27 B1 — the inline Coach button retired; hero strip carries
     // the action now.
     expect(html).not.toContain("Coach fragen");
@@ -306,27 +292,6 @@ describe("<HealthScoreCard>", () => {
     expect(cardOpen?.[0]).toContain("h-full");
     expect(cardOpen?.[0]).toContain("flex");
     expect(cardOpen?.[0]).toContain("flex-col");
-  });
-
-  it("pins the disclaimer to the bottom of the stretched card via mt-auto", () => {
-    // Without `mt-auto` the disclaimer rides directly under the
-    // provenance accordion and leaves the recovered space below the
-    // disclaimer instead of between the body and the footer. The
-    // FB-H2 contract is "score number on top, disclaimer on bottom,
-    // recovered space in the middle".
-    const html = ssr(
-      <HealthScoreCard
-        score={86}
-        band="green"
-        components={baseComponents}
-        delta={null}
-      />,
-    );
-    const disclaimerOpen = html.match(
-      /<p[^>]*data-slot="health-score-card-disclaimer"[^>]*>/,
-    );
-    expect(disclaimerOpen).not.toBeNull();
-    expect(disclaimerOpen?.[0]).toContain("mt-auto");
   });
 
   // v1.4.37 W4a item 1 — the inner column switched from `flex

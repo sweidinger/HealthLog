@@ -1971,7 +1971,6 @@
       "componentWeight": "Gewicht",
       "componentMood": "Stimmung",
       "componentCompliance": "Therapietreue",
-      "disclaimer": "Orientierungshilfe — keine ärztliche Bewertung.",
       "deltaExplainer": {
         "trigger": "Was bedeutet diese Veränderung?",
         "title": "So wird die Veränderung berechnet",
@@ -2052,7 +2051,6 @@
     },
     "correlationRow": {
       "title": "Zusammenhänge",
-      "disclaimer": "Zusammenhänge sind beobachtend, nicht kausal — sprich mit deinem Arzt, wenn der Blutdruck hoch ist.",
       "experimentCta": "7-Tage-Experiment starten",
       "experimentTooltip": "Bald verfügbar",
       "emptyTitle": "Mehr Daten nötig, um diesen Zusammenhang zu zeigen",
@@ -3451,9 +3449,6 @@
     },
     "target": {
       "heading": "Ziel"
-    },
-    "disclaimer": {
-      "footer": "HealthLog beschreibt deine eigenen erfassten Daten — es ist keine klinische Bewertung und keine Diagnose. Sprich mit deiner Ärztin oder deinem Arzt über alles, was dich beunruhigt."
     },
     "settings": {
       "overviewTitle": "Übersicht anordnen",

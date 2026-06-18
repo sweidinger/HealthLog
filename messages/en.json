@@ -1971,7 +1971,6 @@
       "componentWeight": "Weight",
       "componentMood": "Mood",
       "componentCompliance": "Adherence",
-      "disclaimer": "Indicative — not a clinical assessment.",
       "deltaExplainer": {
         "trigger": "What does this delta mean?",
         "title": "How the delta is computed",
@@ -2052,7 +2051,6 @@
     },
     "correlationRow": {
       "title": "Relationships",
-      "disclaimer": "Relationships are observational, not causal — talk to your doctor if BP runs high.",
       "experimentCta": "Try a 7-day experiment",
       "experimentTooltip": "Coming soon",
       "emptyTitle": "Need more data to see this relationship",
@@ -3451,9 +3449,6 @@
     },
     "target": {
       "heading": "Target"
-    },
-    "disclaimer": {
-      "footer": "HealthLog describes your own tracked data — it is not a clinical assessment or diagnosis. Talk to your doctor about anything that concerns you."
     },
     "settings": {
       "overviewTitle": "Arrange the overview",

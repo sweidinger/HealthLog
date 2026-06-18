@@ -1971,7 +1971,6 @@
       "componentWeight": "Peso",
       "componentMood": "Umore",
       "componentCompliance": "Aderenza",
-      "disclaimer": "Indicazione — non è una valutazione medica.",
       "deltaExplainer": {
         "trigger": "Cosa significa questa variazione?",
         "title": "Come si calcola la variazione",
@@ -2052,7 +2051,6 @@
     },
     "correlationRow": {
       "title": "Correlazioni",
-      "disclaimer": "Le correlazioni sono osservazionali, non causali — parla con il medico se la pressione è alta.",
       "experimentCta": "Avvia esperimento di 7 giorni",
       "experimentTooltip": "In arrivo",
       "emptyTitle": "Servono più dati per mostrare questa correlazione",
@@ -3451,9 +3449,6 @@
     },
     "target": {
       "heading": "Obiettivo"
-    },
-    "disclaimer": {
-      "footer": "HealthLog descrive i tuoi dati registrati — non è una valutazione clinica né una diagnosi. Parla con il tuo medico di qualsiasi cosa ti preoccupi."
     },
     "settings": {
       "overviewTitle": "Organizza la panoramica",

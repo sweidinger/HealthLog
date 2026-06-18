@@ -627,25 +627,9 @@ export function HealthScoreCard({
           )}
         </div>
 
-        {/* v1.4.27 B1 — disclaimer bumped from text-[10px] to
-            text-[11px] (BL-P4-9 L2: the 10 px size was borderline
-            against the 12 px mobile floor). The hero strip already
-            carries an "Ask the coach" action so the inline button
-            here retires; the parent still receives onAskCoach via
-            other surfaces but the card no longer mounts a duplicate
-            CTA.
-            v1.4.28 R3c-Insights — `mt-auto` pins the disclaimer to
-            the bottom of the stretched card so the score number and
-            sub-bars stay anchored at the top while the recovered
-            vertical space (when the parent column is taller) sits
-            quietly between the provenance accordion and the
-            disclaimer footer. */}
-        <p
-          data-slot="health-score-card-disclaimer"
-          className="text-muted-foreground mt-auto text-[11px] leading-snug"
-        >
-          {t("insights.healthScore.disclaimer")}
-        </p>
+        {/* v1.18.6 (DISC-01) — the "indicative, not a clinical assessment"
+            card disclaimer is removed; the one-time onboarding acknowledgment
+            now covers the not-a-diagnosis framing app-wide. */}
       </div>
     </div>
   );

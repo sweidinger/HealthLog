@@ -1971,7 +1971,6 @@
       "componentWeight": "Peso",
       "componentMood": "Estado de ánimo",
       "componentCompliance": "Cumplimiento",
-      "disclaimer": "Orientación — no es valoración médica.",
       "deltaExplainer": {
         "trigger": "¿Qué significa este cambio?",
         "title": "Cómo se calcula el cambio",
@@ -2052,7 +2051,6 @@
     },
     "correlationRow": {
       "title": "Correlaciones",
-      "disclaimer": "Las correlaciones son observacionales, no causales — habla con tu médico si tu tensión es alta.",
       "experimentCta": "Iniciar experimento de 7 días",
       "experimentTooltip": "Próximamente",
       "emptyTitle": "Necesitamos más datos para mostrar esta correlación",
@@ -3451,9 +3449,6 @@
     },
     "target": {
       "heading": "Objetivo"
-    },
-    "disclaimer": {
-      "footer": "HealthLog describe tus propios datos registrados — no es una evaluación clínica ni un diagnóstico. Habla con tu médico sobre cualquier cosa que te preocupe."
     },
     "settings": {
       "overviewTitle": "Organizar la vista general",
