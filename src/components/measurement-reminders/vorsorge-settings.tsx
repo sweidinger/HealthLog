@@ -100,7 +100,10 @@ export function VorsorgeSettings() {
                   key={reminder.id}
                   className="flex items-center justify-between gap-3 px-4 py-3"
                 >
-                  <span className="min-w-0 truncate text-sm">
+                  <span
+                    id={`vorsorge-reminder-label-${reminder.id}`}
+                    className="min-w-0 truncate text-sm"
+                  >
                     {resolveLabel(reminder, t)}
                   </span>
                   <Switch
@@ -112,7 +115,10 @@ export function VorsorgeSettings() {
                       })
                     }
                     disabled={update.isPending}
-                    aria-label={t("measurementReminders.enabledToggleAria")}
+                    // L3 — label each row's Switch by its own name span so SR
+                    // users hear the reminder name (plus the switch role's
+                    // on/off state) instead of N identical generic labels.
+                    aria-labelledby={`vorsorge-reminder-label-${reminder.id}`}
                   />
                 </div>
               ))}

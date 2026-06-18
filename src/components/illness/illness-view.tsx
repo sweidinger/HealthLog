@@ -15,7 +15,7 @@
  * per-day timeline and correlation card live. Retrospective-only copy — a
  * journal, not a medical device, and it does not diagnose.
  */
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Plus, Stethoscope, Wrench } from "lucide-react";
 
@@ -245,10 +245,12 @@ function EpisodeGroup({
 }) {
   // Hooks must run unconditionally; bail on the empty render afterwards.
   const [open, setOpen] = useState(false);
+  const gridId = useId();
   if (parents.length === 0) return null;
 
   const grid = (
     <div
+      id={gridId}
       className={cn(
         view === "list" ? "space-y-2" : "grid gap-4 sm:grid-cols-2",
       )}
@@ -275,6 +277,7 @@ function EpisodeGroup({
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
+          aria-controls={gridId}
           className="text-muted-foreground hover:text-foreground -mx-1 flex w-fit items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium uppercase tracking-wide transition-colors"
         >
           <ChevronDown

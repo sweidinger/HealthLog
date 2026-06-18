@@ -103,6 +103,7 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
           type="button"
           onClick={() => setShowAdvanced((v) => !v)}
           aria-expanded={showAdvanced}
+          aria-controls="chronotype-advanced"
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs font-medium transition-colors"
         >
           {showAdvanced ? (
@@ -114,7 +115,7 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
         </button>
 
         {showAdvanced && (
-          <div className="space-y-2 border-t pt-3">
+          <div id="chronotype-advanced" className="space-y-2 border-t pt-3">
             {chronotype.socialJetlagMinutes != null &&
               (() => {
                 const { hours, minutes } = hoursMinutes(

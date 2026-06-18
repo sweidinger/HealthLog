@@ -19,12 +19,13 @@
  */
 import { z } from "zod";
 
-import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
 import {
   apiError,
   apiSuccess,
   getClientIp,
   returnAllZodIssues,
+  safeJson,
 } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
@@ -74,12 +75,12 @@ export const PATCH = apiHandler(async (req: Request) => {
     return response;
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    throw new HttpError(422, "diabetes.body.invalid_json");
-  }
+  // The body is a single boolean — bound the parse so a malformed or
+  // oversized payload is rejected before it is materialised.
+  const { data: body, error: jsonError } = await safeJson(req, {
+    maxBytes: 1024,
+  });
+  if (jsonError) return jsonError;
 
   const parsed = patchBodySchema.safeParse(body);
   if (!parsed.success) {
