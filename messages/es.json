@@ -3697,6 +3697,10 @@
       "body": "Ya completaste la configuración inicial. Para cambiar algo, abre Ajustes — todo lo que configuraste se puede editar desde ahí.",
       "cta": "Abrir el panel"
     },
+    "disclaimer": {
+      "acknowledge": "Lo entiendo: HealthLog es una herramienta privada de seguimiento, no una valoración clínica ni un diagnóstico. Si me preocupa algo, hablaré con mi médico, no con esta app.",
+      "learnMore": "Más información"
+    },
     "welcome": {
       "title": "Bienvenido a HealthLog",
       "carouselLabel": "Carrusel de bienvenida",
@@ -6398,19 +6402,43 @@
     "until": "Hasta {date}",
     "selfPlanned": "Autoplanificado",
     "captureValue": "Registrar valor",
+    "measureNow": "Medir ahora",
+    "nextDueLabel": "Próximo vencimiento:",
+    "lastDoneLabel": "Última vez:",
+    "customize": "Personalizar prevención",
+    "adherence": {
+      "label": "Dentro del intervalo",
+      "onTrack": "Al día",
+      "due": "Toca ahora"
+    },
+    "settings": {
+      "title": "Personalizar prevención",
+      "description": "Gestiona la vista, el orden y los recordatorios individuales.",
+      "back": "Volver a prevención"
+    },
     "capture": {
       "title": "Registrar medición",
       "description": "Introduce el valor; el recordatorio se marca como hecho."
     },
     "manage": {
-      "menuItem": "Personalizar",
-      "title": "Personalizar recordatorios",
+      "title": "Gestionar recordatorios",
       "description": "Activa o desactiva recordatorios individuales.",
       "empty": "Aún no hay recordatorios para personalizar."
     },
     "dashboard": {
       "empty": "No hay recordatorios de prevención próximos.",
       "openLink": "Abrir prevención"
+    }
+  },
+  "moduleList": {
+    "viewToggleLabel": "Vista",
+    "viewCards": "Vista de tarjetas",
+    "viewList": "Vista de lista",
+    "viewHeading": "Vista",
+    "viewDescription": "Elige si las entradas se muestran como tarjetas o como lista compacta.",
+    "reorder": {
+      "heading": "Orden",
+      "empty": "Aún no hay entradas para ordenar."
     }
   },
   "labs": {
@@ -6428,6 +6456,20 @@
     "deletedToast": "Resultado eliminado",
     "deleteError": "No se pudo eliminar el resultado",
     "loadError": "No se pudieron cargar los resultados",
+    "customize": "Personalizar laboratorio",
+    "settings": {
+      "title": "Personalizar laboratorio",
+      "description": "Gestiona la vista, el orden y los biomarcadores.",
+      "back": "Volver al laboratorio"
+    },
+    "sort": {
+      "heading": "Orden",
+      "label": "Orden de los valores",
+      "recentDesc": "Medición más reciente primero",
+      "recentAsc": "Medición más antigua primero",
+      "manual": "Ordenar manualmente",
+      "hint": "Con el orden manual puedes arrastrar los biomarcadores de abajo en tu propio orden."
+    },
     "range": {
       "inRange": "En rango",
       "below": "Por debajo",
@@ -6475,9 +6517,7 @@
       }
     },
     "biomarker": {
-      "manage": "Biomarcadores",
       "manageTitle": "Biomarcadores",
-      "manageSheetDescription": "Define los marcadores que sigues. Cada uno se configura una vez con su unidad y rango de referencia.",
       "managerDescription": "Define un marcador una vez: su unidad y rango se reutilizan en cada medición.",
       "define": "Definir",
       "defineFirst": "Define tu primer biomarcador",
@@ -6619,7 +6659,12 @@
   "illness": {
     "title": "Diario de enfermedad",
     "subtitle": "Un registro retrospectivo de tus episodios de enfermedad y dolencias.",
-    "disclaimer": "Un diario personal, no un dispositivo médico. No diagnostica ni predice.",
+    "customize": "Personalizar diario de enfermedad",
+    "settings": {
+      "title": "Personalizar diario de enfermedad",
+      "description": "Gestiona la vista y el orden de los episodios.",
+      "back": "Volver al diario de enfermedad"
+    },
     "newEpisode": "Nuevo episodio",
     "logDay": "Registrar un día",
     "markRecovered": "Marcar como recuperado",

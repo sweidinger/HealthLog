@@ -13,11 +13,16 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { scrollBehaviorForUser } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { apiPost } from "@/lib/api/api-fetch";
+import { DISCLAIMER_VERSION } from "@/lib/onboarding/disclaimer";
 
 /**
  * v1.4.25 W14b-Content — onboarding welcome carousel.
@@ -72,11 +77,19 @@ export function WelcomeCarousel() {
   const { t } = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const railRef = useRef<HTMLDivElement | null>(null);
   const liveRegionId = useId();
+  const disclaimerId = useId();
   const [active, setActive] = useState(0);
   const [advancing, setAdvancing] = useState(false);
+  // v1.18.6 (DISC-02) — the one-time medical-disclaimer acknowledgment gates
+  // "Get started". Pre-checked for an account that already acknowledged (a
+  // re-walk of step 0) so a returning user is not re-asked.
+  const [acknowledged, setAcknowledged] = useState(
+    () => user?.disclaimerAcknowledgedAt != null,
+  );
 
   // Track which slide is centred in the rail. We observe each slide
   // with an IntersectionObserver — simpler and more reliable than
@@ -128,9 +141,16 @@ export function WelcomeCarousel() {
   }, []);
 
   async function handleGetStarted() {
-    if (advancing) return;
+    if (advancing || !acknowledged) return;
     setAdvancing(true);
     try {
+      // v1.18.6 (DISC-02) — record the one-time acknowledgment before
+      // advancing. Skipped when the account already acknowledged (re-walk).
+      if (user?.disclaimerAcknowledgedAt == null) {
+        await apiPost("/api/onboarding/disclaimer", {
+          version: DISCLAIMER_VERSION,
+        });
+      }
       await apiPost("/api/onboarding/step", { step: 1 });
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
       router.push("/onboarding/1");
@@ -273,12 +293,39 @@ export function WelcomeCarousel() {
         </Button>
       </div>
 
+      {/* v1.18.6 (DISC-02) — one-time medical-disclaimer acknowledgment. This
+          replaces the per-page / per-chart disclaimer banners removed app-wide
+          in the same release; the full legal text stays reachable on the
+          public privacy page (link below). */}
+      <div className="border-border/60 bg-muted/30 flex items-start gap-3 rounded-lg border p-4">
+        <Checkbox
+          id={disclaimerId}
+          checked={acknowledged}
+          onCheckedChange={(next) => setAcknowledged(next === true)}
+          className="mt-0.5"
+        />
+        <label
+          htmlFor={disclaimerId}
+          className="text-muted-foreground text-sm leading-relaxed"
+        >
+          {t("onboarding.disclaimer.acknowledge")}{" "}
+          <Link
+            href="/privacy#medical-boundary"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            {t("onboarding.disclaimer.learnMore")}
+          </Link>
+        </label>
+      </div>
+
       <div className="flex justify-end pt-2">
         <Button
           type="button"
           size="lg"
           onClick={handleGetStarted}
-          disabled={advancing}
+          disabled={advancing || !acknowledged}
           className="min-h-11"
         >
           {t("onboarding.welcome.cta")}

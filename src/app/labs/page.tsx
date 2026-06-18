@@ -1,20 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { FlaskConical, Loader2, MoreVertical, Plus } from "lucide-react";
+import { Loader2, Plus, Wrench } from "lucide-react";
 
-import { BiomarkerManager } from "@/components/labs/biomarker-manager";
 import { LabForm } from "@/components/labs/lab-form";
 import { LabList } from "@/components/labs/lab-list";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useAuth } from "@/hooks/use-auth";
@@ -31,7 +25,6 @@ export default function LabsPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslations();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [manageOpen, setManageOpen] = useState(false);
   // Sticky-footer slot element for the add-result sheet (filled by the
   // ResponsiveSheet `footer` ref so the form portals its action row there).
   const [addFooterEl, setAddFooterEl] = useState<HTMLDivElement | null>(null);
@@ -42,7 +35,7 @@ export default function LabsPage() {
   );
   const pull = usePullToRefresh({
     onRefresh: refreshVisible,
-    disabled: dialogOpen || manageOpen,
+    disabled: dialogOpen,
   });
 
   useEffect(() => {
@@ -76,34 +69,31 @@ export default function LabsPage() {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <ModuleTourTrigger stopId="labs" />
+          {/* v1.18.6 (MOD-01) — the wrench is the module's customize entry
+              point, left of the primary Add and linking to the Labs settings
+              page (view, sort order, biomarker CRUD + reorder). Mirrors the
+              medication page header's wrench glyph + slot + 44px tap floor. */}
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+          >
+            <Link
+              href="/settings/labs"
+              aria-label={t("labs.customize")}
+              title={t("labs.customize")}
+            >
+              <Wrench className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
           <Button
             onClick={() => setDialogOpen(true)}
             className="min-h-11 sm:min-h-9"
           >
             <Plus className="h-4 w-4" />
-            {t("labs.addResult")}
+            {t("common.add")}
           </Button>
-          {/* Secondary actions fold into one overflow kebab beside the primary
-              Add, mirroring the medication-card header (one cluster, not a
-              two-button row). */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
-                aria-label={t("common.moreOptions")}
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => setManageOpen(true)}>
-                <FlaskConical className="mr-2 h-4 w-4" />
-                {t("labs.biomarker.manage")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
@@ -124,15 +114,6 @@ export default function LabsPage() {
           }}
           onCancel={() => setDialogOpen(false)}
         />
-      </ResponsiveSheet>
-
-      <ResponsiveSheet
-        open={manageOpen}
-        onOpenChange={setManageOpen}
-        title={t("labs.biomarker.manageTitle")}
-        description={t("labs.biomarker.manageSheetDescription")}
-      >
-        <BiomarkerManager />
       </ResponsiveSheet>
 
       <LabList onAddFirst={() => setDialogOpen(true)} />

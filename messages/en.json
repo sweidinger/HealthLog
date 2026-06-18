@@ -3697,6 +3697,10 @@
       "body": "You've already finished onboarding. To adjust anything, head to Settings — everything you set up is editable from there.",
       "cta": "Open dashboard"
     },
+    "disclaimer": {
+      "acknowledge": "I understand: HealthLog is a private tracking tool, not a clinical assessment or diagnosis. If I'm worried I'll talk to my doctor, not this app.",
+      "learnMore": "Learn more"
+    },
     "welcome": {
       "title": "Welcome to HealthLog",
       "carouselLabel": "Welcome carousel",
@@ -6398,19 +6402,43 @@
     "until": "Until {date}",
     "selfPlanned": "Self-planned",
     "captureValue": "Log value",
+    "measureNow": "Measure now",
+    "nextDueLabel": "Next due:",
+    "lastDoneLabel": "Last done:",
+    "customize": "Customize preventive care",
+    "adherence": {
+      "label": "Within interval",
+      "onTrack": "On track",
+      "due": "Due now"
+    },
+    "settings": {
+      "title": "Customize preventive care",
+      "description": "Manage the view, order, and individual reminders.",
+      "back": "Back to preventive care"
+    },
     "capture": {
       "title": "Log measurement",
       "description": "Enter the reading; the reminder is marked done."
     },
     "manage": {
-      "menuItem": "Customize",
-      "title": "Customize reminders",
+      "title": "Manage reminders",
       "description": "Enable or disable individual reminders.",
       "empty": "No reminders to customize yet."
     },
     "dashboard": {
       "empty": "No upcoming preventive-care reminders.",
       "openLink": "Open preventive care"
+    }
+  },
+  "moduleList": {
+    "viewToggleLabel": "View",
+    "viewCards": "Card view",
+    "viewList": "List view",
+    "viewHeading": "View",
+    "viewDescription": "Choose whether entries show as cards or as a compact list.",
+    "reorder": {
+      "heading": "Order",
+      "empty": "No entries to reorder yet."
     }
   },
   "labs": {
@@ -6428,6 +6456,20 @@
     "deletedToast": "Result deleted",
     "deleteError": "Could not delete the result",
     "loadError": "Could not load lab results",
+    "customize": "Customize labs",
+    "settings": {
+      "title": "Customize labs",
+      "description": "Manage the view, sort order, and biomarkers.",
+      "back": "Back to labs"
+    },
+    "sort": {
+      "heading": "Sort order",
+      "label": "Order of values",
+      "recentDesc": "Most recent reading first",
+      "recentAsc": "Oldest reading first",
+      "manual": "Sort manually",
+      "hint": "With manual sorting you can drag the biomarkers below into your own order."
+    },
     "range": {
       "inRange": "In range",
       "below": "Below range",
@@ -6475,9 +6517,7 @@
       }
     },
     "biomarker": {
-      "manage": "Biomarkers",
       "manageTitle": "Biomarkers",
-      "manageSheetDescription": "Define the markers you track. Each is set up once with its unit and reference range.",
       "managerDescription": "Define a marker once — its unit and range are reused for every reading.",
       "define": "Define",
       "defineFirst": "Define your first biomarker",
@@ -6619,7 +6659,12 @@
   "illness": {
     "title": "Illness journal",
     "subtitle": "A retrospective log of your illness and condition episodes.",
-    "disclaimer": "A personal journal — not a medical device. It does not diagnose or predict.",
+    "customize": "Customize illness journal",
+    "settings": {
+      "title": "Customize illness journal",
+      "description": "Manage the view and order of episodes.",
+      "back": "Back to the illness journal"
+    },
     "newEpisode": "New episode",
     "logDay": "Log a day",
     "markRecovered": "Mark recovered",

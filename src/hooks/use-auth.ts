@@ -44,6 +44,15 @@ export interface AuthUser {
    */
   onboardingTourProgress: AuthTourProgress | null;
   /**
+   * v1.18.6 (DISC-02) — ISO timestamp of the one-time medical-disclaimer
+   * acknowledgment, or null when never acknowledged. The onboarding welcome
+   * step gates "Get started" on a non-null value for a fresh account.
+   * Optional in the type so a stale /me payload (older server image without
+   * the field) and existing test fixtures coerce to "never acknowledged"
+   * rather than failing the shape.
+   */
+  disclaimerAcknowledgedAt?: string | null;
+  /**
    * v1.5.5 — relative URL of the user's self-hosted avatar, served
    * from `/api/user/avatar/{id}?v={updatedAtMs}`. Replaces the
    * Gravatar leak; null when the user has not uploaded an avatar

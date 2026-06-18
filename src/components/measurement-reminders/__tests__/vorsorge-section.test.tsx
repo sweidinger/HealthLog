@@ -73,9 +73,10 @@ describe("<VorsorgeSection> loading + empty", () => {
     expect(html).not.toContain('data-slot="vorsorge-loading"');
   });
 
-  it("renders a 'Log value' action for a measurement-linked reminder", () => {
-    // v1.18.2 — a typed reminder's primary action opens the value-entry
-    // form, surfaced as a "Log value" button (not a silent checkmark).
+  it("renders a 'Measure now' action for a measurement-linked reminder", () => {
+    // v1.18.2 — a typed reminder's primary action opens the value-entry form.
+    // v1.18.6 (MOD-06) — surfaced as a green "Measure now" button (a
+    // measurement is not an intake), not a silent checkmark.
     const reminder: MeasurementReminder = {
       id: "linked",
       label: "Measure blood pressure",
@@ -95,7 +96,7 @@ describe("<VorsorgeSection> loading + empty", () => {
     } as MeasurementReminder;
     remindersMock.mockReturnValue({ data: [reminder], isLoading: false });
     const html = render(<VorsorgeSection />);
-    expect(html).toContain("Log value");
+    expect(html).toContain("Measure now");
     expect(html).not.toContain(">Done<");
   });
 
