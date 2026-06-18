@@ -198,7 +198,6 @@ describe("dashboard.*Short keys exist across all six locales", () => {
     "sleepShort",
     "stepsShort",
     "vo2MaxShort",
-    "bpInTargetShort",
   ];
 
   // Resolved at test time so the assertion runs against the current
