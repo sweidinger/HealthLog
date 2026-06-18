@@ -34,7 +34,7 @@ import {
   expectedSlotCountForDay,
   lastNonSkippedTakenAt,
 } from "@/lib/analytics/compliance";
-import { getUserTodayBounds } from "@/lib/tz/local-day";
+import { getUserTodayBounds, startOfLocalDayInTz } from "@/lib/tz/local-day";
 import { projectTodayIntakesAndRecompute } from "@/lib/medications/scheduling/project-today-intakes";
 import {
   applyCanonicalSlotWrite,
@@ -84,19 +84,6 @@ const updateSchema = z.object({
     .optional(),
 });
 
-function startOfDayInTz(date: Date, tz: string): Date {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const y = parts.find((p) => p.type === "year")?.value ?? "1970";
-  const m = parts.find((p) => p.type === "month")?.value ?? "01";
-  const d = parts.find((p) => p.type === "day")?.value ?? "01";
-  return new Date(`${y}-${m}-${d}T00:00:00.000Z`);
-}
-
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
@@ -138,7 +125,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const userTz = user.timezone ?? DEFAULT_TIMEZONE;
 
   if (scope === "today") {
-    const todayStart = startOfDayInTz(new Date(), userTz);
+    const todayStart = startOfLocalDayInTz(new Date(), userTz);
     const todayEnd = new Date(todayStart.getTime() + 86_400_000);
 
     // v1.4.39 W-SERVER-FIX — project pending intake rows for every
