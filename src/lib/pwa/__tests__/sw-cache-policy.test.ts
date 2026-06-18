@@ -1,9 +1,17 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
   isAllowlistedApiRead,
   isCacheableApiResponse,
 } from "@/lib/pwa/sw-cache-policy";
+
+const SW_SOURCE = readFileSync(
+  join(process.cwd(), "public", "sw.js"),
+  "utf8",
+);
 
 describe("isAllowlistedApiRead — offline read boundary", () => {
   it("caches the curated safe GET read endpoints", () => {
@@ -89,5 +97,34 @@ describe("isCacheableApiResponse — body/header refusal", () => {
         bodyText: JSON.stringify({ data: { key: "sk-livesecret00" } }),
       }),
     ).toBe(false);
+  });
+});
+
+// v1.18.6.x regression guard. The first v1.18.6 cut cached allowlisted API
+// reads with stale-while-revalidate, which served the pre-mutation copy first
+// and broke read-after-write (a list fetched straight after a create showed
+// the old/empty data). The strategy must be network-first: always fetch fresh
+// online, fall back to cache ONLY when the network throws (offline).
+describe("public/sw.js — allowlisted API reads are network-first", () => {
+  it("routes the allowlisted API branch through a network-first handler", () => {
+    expect(SW_SOURCE).toContain("networkFirstApi(request)");
+    expect(SW_SOURCE).toContain("async function networkFirstApi(request)");
+  });
+
+  it("no longer uses stale-while-revalidate for API reads", () => {
+    expect(SW_SOURCE).not.toContain("staleWhileRevalidateApi");
+  });
+
+  it("falls back to the cached copy only inside the network-failure catch", () => {
+    const handler = SW_SOURCE.slice(
+      SW_SOURCE.indexOf("async function networkFirstApi(request)"),
+    );
+    const tryIdx = handler.indexOf("await fetch(request)");
+    const catchIdx = handler.indexOf("} catch {");
+    const cacheMatchIdx = handler.indexOf("cache.match(request)");
+    // fetch comes first; the cache read lives after the catch boundary.
+    expect(tryIdx).toBeGreaterThan(-1);
+    expect(catchIdx).toBeGreaterThan(tryIdx);
+    expect(cacheMatchIdx).toBeGreaterThan(catchIdx);
   });
 });
