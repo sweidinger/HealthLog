@@ -87,6 +87,8 @@ vi.mock("@/components/settings/thresholds-editor-section", () => ({
   ThresholdsEditorSection: () => <div data-testid="thresholds-editor" />,
 }));
 import { I18nProvider } from "@/lib/i18n/context";
+import { SettingsSectionFrame } from "../settings-section-frame";
+import type { SettingsSectionSlug } from "../section-slugs";
 import { AboutSection } from "../about-section";
 import { AccountSection } from "../account-section";
 import { AdvancedSection } from "../advanced-section";
@@ -108,10 +110,25 @@ function render(node: React.ReactElement, locale: "en" | "de" = "en") {
   );
 }
 
+// v1.18.6 (W9) — the visible page heading + subtitle moved out of the section
+// bodies into the shared `<SettingsSectionFrame>` that the route wraps every
+// section in. The heading-level smoke checks render the body THROUGH the frame
+// (mirroring production) so they assert what the user actually sees.
+function renderFramed(
+  slug: SettingsSectionSlug,
+  node: React.ReactElement,
+  locale: "en" | "de" = "en",
+) {
+  return render(
+    <SettingsSectionFrame slug={slug}>{node}</SettingsSectionFrame>,
+    locale,
+  );
+}
+
 describe("settings sections — SSR smoke", () => {
   it("<AccountSection> renders the Account heading and Profile card", () => {
-    const html = render(<AccountSection />);
-    // Section title resolves via the i18n provider.
+    const html = renderFramed("account", <AccountSection />);
+    // Section title resolves via the frame + i18n provider.
     expect(html).toContain("Account");
     // Profile card heading is also painted.
     expect(html).toContain("Profile");
@@ -136,7 +153,7 @@ describe("settings sections — SSR smoke", () => {
   });
 
   it("<AboutSection> renders version + license + sources/docs cards (no Updates panel)", () => {
-    const html = render(<AboutSection />);
+    const html = renderFramed("about", <AboutSection />);
     expect(html).toContain("About");
     // v1.4.36 W4f — the dedicated "Updates" card with its manual
     // "Check now" button is gone. The 24 h auto-check still runs and
@@ -158,34 +175,33 @@ describe("settings sections — SSR smoke", () => {
     expect(html).not.toContain("Replay the tour");
   });
 
-  it("<AiSection> renders the AI Insights heading", () => {
-    const html = render(<AiSection />);
-    // v1.8.7.1 — section renamed to "AI Insights" so the AI nature of the
-    // surface is explicit (was the bare "Insights"). The section H1 carries
-    // the only heading.
-    expect(html).toContain("AI Insights");
+  it("<AiSection> renders the AI provider heading", () => {
+    const html = renderFramed("ai", <AiSection />);
+    // v1.18.6 (W9) — section renamed to "AI provider"; the visible heading
+    // now comes from the shared frame, which keeps the historic id.
+    expect(html).toContain("AI provider");
     expect(html).toContain("settings-section-ai-title");
   });
 
   it("<IntegrationsSection> renders Withings card title", () => {
-    const html = render(<IntegrationsSection />);
+    const html = renderFramed("integrations", <IntegrationsSection />);
     expect(html).toContain("Integrations");
     expect(html).toContain("Withings");
   });
 
   it("<NotificationsSection> renders the single reminder-types home", () => {
-    const html = render(<NotificationsSection />);
-    // v1.18.1 (D0/D5) — the screen is lean: sr-only h1 only, no section blurb,
-    // no channels/inbox cross-links, and no embedded Vorsorge editor.
+    const html = renderFramed("notifications", <NotificationsSection />);
+    // v1.18.6 (W9) — the visible heading comes from the frame; the proactive
+    // Coach nudge moved to Settings → Coach, so it no longer renders here.
     expect(html).toContain("settings-section-notifications-title");
     expect(html).not.toContain("Notification channels");
     expect(html).not.toContain('data-slot="notifications-channels-cross-link"');
     expect(html).not.toContain('data-slot="notifications-inbox-cross-link"');
-    // The mood + coach cards fail OPEN (mock user carries no module map),
-    // so all three reminder-type cards render.
+    // The mood card fails OPEN (mock user carries no module map), so both
+    // remaining reminder-type cards render. The coach-nudge card is gone.
     expect(html).toContain('id="mood-reminder"');
-    expect(html).toContain('id="coach-nudge"');
     expect(html).toContain('id="low-stock"');
+    expect(html).not.toContain('id="coach-nudge"');
     // No raw i18n key leaks past the provider.
     expect(html).not.toContain("settings.sections.notifications.");
   });
@@ -194,32 +210,31 @@ describe("settings sections — SSR smoke", () => {
     // v1.4.3 split: the per-metric thresholds (Persönliche Zielwerte) moved
     // out into their own settings section under `/settings/thresholds`,
     // so the dashboard panel is now layout-only. Verifying the heading
-    // says "Dashboard" (not "Übersicht" — the v1.4.2 placeholder) and the
-    // layout slot still mounts.
-    const html = render(<DashboardSection />);
+    // (supplied by the frame) says "Dashboard" and the layout slot mounts.
+    const html = renderFramed("dashboard", <DashboardSection />);
     expect(html).toContain("Dashboard");
     expect(html).toContain('data-testid="dashboard-layout"');
     expect(html).not.toContain('data-testid="thresholds"');
   });
 
   it("<ApiSection> renders endpoints + tokens cards", () => {
-    const html = render(<ApiSection />);
+    const html = renderFramed("api", <ApiSection />);
     expect(html).toContain("API &amp; Tokens");
   });
 
   it("<AdvancedSection> renders the danger-zone card only (export moved to /settings/export)", () => {
-    const html = render(<AdvancedSection />);
+    const html = renderFramed("advanced", <AdvancedSection />);
     // v1.4.16 phase B7: every export path moved out into the dedicated
     // `<ExportSection>` so what remains is the irreversible delete-all
-    // path. The section heading + dangerZone surface are the only
-    // primary surfaces here now.
+    // path. The heading (supplied by the frame) + dangerZone surface are the
+    // only primary surfaces here now.
     expect(html).toContain("Advanced");
     expect(html).not.toContain("settings.export");
     expect(html).not.toContain("doctorReport");
   });
 
   it("<AboutSection> resolves about.* keys in German", () => {
-    const html = render(<AboutSection />, "de");
+    const html = renderFramed("about", <AboutSection />, "de");
     // v1.4.36 W4f — "Updates" panel + "Jetzt prüfen" button removed;
     // the surviving German copy is the section title + the Sources
     // & docs heading + the version line.
@@ -235,7 +250,7 @@ describe("settings sections — SSR smoke", () => {
     // `<ThresholdsEditorSection>` (was `<ThresholdsSection>`).
     // v1.8.7.1 — Sources split back onto its own page, so this wrapper
     // renders the target-range editor only.
-    const html = render(<ThresholdsSection />);
+    const html = renderFramed("thresholds", <ThresholdsSection />);
     // v1.8.7.1: section renamed to "Targets".
     expect(html).toContain("Targets");
     expect(html).toContain('data-testid="thresholds-editor"');
@@ -244,7 +259,7 @@ describe("settings sections — SSR smoke", () => {
   });
 
   it("<ThresholdsSection> resolves the German title", () => {
-    const html = render(<ThresholdsSection />, "de");
+    const html = renderFramed("thresholds", <ThresholdsSection />, "de");
     // v1.8.7.1 — German title is "Zielwerte" (Targets only).
     expect(html).toContain("Zielwerte");
     expect(html).toContain('data-testid="thresholds-editor"');

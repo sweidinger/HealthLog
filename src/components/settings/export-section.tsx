@@ -70,17 +70,11 @@ async function downloadFromUrl(url: string, filename: string): Promise<void> {
 
 export function ExportSection() {
   const { t } = useTranslations();
+  // v1.18.6 (W9) — the visible page heading + subtitle now come from the
+  // shared `<SettingsSectionFrame>` in the route; the inner `<h2>` keeps its
+  // own "other options" subsection label.
   return (
-    <section
-      aria-labelledby="settings-section-export-title"
-      className="space-y-6"
-    >
-      <header>
-        <h1 id="settings-section-export-title" className="sr-only">
-          {t("settings.sections.export.title")}
-        </h1>
-      </header>
-
+    <div className="space-y-6">
       {/* v1.18.0 (S5) — the full health-record export moved to its own
           top-level "Gesundheitsakte" section. This page keeps the generic
           CSV/JSON data-out paths and the import surface. */}
@@ -111,7 +105,7 @@ export function ExportSection() {
           `export.zip` and the generic JSON paths. The export routes had
           backends with no UI until now. */}
       <ImportPanel />
-    </section>
+    </div>
   );
 }
 

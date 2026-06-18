@@ -31,12 +31,17 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
+import { SettingsSectionFrame } from "../settings-section-frame";
 import { CoachSection } from "../coach-section";
 
 function render(locale: "en" | "de" = "en") {
+  // v1.18.6 (W9) — the visible heading lives in the shared frame the route
+  // wraps the section in; render through it so the heading id is present.
   return renderToStaticMarkup(
     <I18nProvider initialLocale={locale}>
-      <CoachSection />
+      <SettingsSectionFrame slug="coach">
+        <CoachSection />
+      </SettingsSectionFrame>
     </I18nProvider>,
   );
 }
@@ -51,6 +56,9 @@ describe("<CoachSection> — SSR smoke", () => {
     // v1.18.1 (D7) — polarity flipped to activate/default-on.
     expect(html).toContain("Activate Coach");
     expect(html).toContain("Show the Coach button and drawer. On by default");
+    // v1.18.6 (W9) — the proactive Coach nudge card moved here from
+    // Benachrichtigungen; its anchor renders under the enabled-coach gate.
+    expect(html).toContain('id="coach-nudge"');
     // Raw key never leaks past i18n.
     expect(html).not.toContain("settings.sections.coach.");
     expect(html).not.toContain("settings.coach.activate.");

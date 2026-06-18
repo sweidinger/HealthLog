@@ -3778,18 +3778,21 @@
     "sections": {
       "account": {
         "title": "Cuenta",
-        "description": "Perfil, contraseña, claves de acceso y tu recorrido de incorporación."
+        "description": "Perfil, contraseña, claves de acceso y tu recorrido de incorporación.",
+        "subtitle": "Tu perfil, identidad y datos de acceso."
       },
       "integrations": {
         "title": "Integraciones",
-        "description": "Servicios conectados, canales de entrega y prioridad de fuentes en un solo lugar."
+        "description": "Servicios conectados, canales de entrega y prioridad de fuentes en un solo lugar.",
+        "subtitle": "Conecta y gestiona tus fuentes de datos y dispositivos."
       },
       "notifications": {
         "title": "Notificaciones",
         "description": "Todos los recordatorios en un solo lugar: qué se recuerda y cuándo. Los canales de entrega están en Integraciones.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook y correo se configuran ahora en",
         "channelsHintLink": "Integraciones → Canales",
-        "inboxLink": "Abrir la bandeja de entrada"
+        "inboxLink": "Abrir la bandeja de entrada",
+        "subtitle": "Elige qué recordatorios recibes."
       },
       "layout": {
         "title": "Diseño",
@@ -3802,15 +3805,18 @@
         "insights": {
           "title": "Análisis",
           "description": "Orden de la vista general y de las pestañas de navegación."
-        }
+        },
+        "subtitle": "Personaliza cómo se organizan tu panel e insights."
       },
       "dashboard": {
         "title": "Panel",
-        "description": "Diseño y orden de los mosaicos."
+        "description": "Diseño y orden de los mosaicos.",
+        "subtitle": "Organiza los mosaicos de tu panel."
       },
       "thresholds": {
         "title": "Objetivos",
-        "description": "Por métrica: tu propio rango objetivo de valores saludables."
+        "description": "Por métrica: tu propio rango objetivo de valores saludables.",
+        "subtitle": "Define tus rangos objetivo personales por métrica."
       },
       "sources": {
         "title": "Prioridad de fuentes",
@@ -3869,19 +3875,23 @@
           "scale": "Báscula",
           "other": "Otro",
           "unknown": "Desconocido"
-        }
+        },
+        "subtitle": "Decide qué fuente prevalece cuando dos informan la misma métrica."
       },
       "ai": {
-        "title": "Análisis con IA",
-        "description": "Proveedor, modelo y clave API para los análisis, además de tu contexto «sobre mí»."
+        "title": "Proveedor de IA",
+        "description": "Proveedor, modelo y clave API para los análisis, además de tu contexto «sobre mí».",
+        "subtitle": "Elige tu proveedor de IA y usa tu propia clave."
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Tokens Bearer para tus propios scripts y apps — registra mediciones o tomas de medicación desde cualquier lugar."
+        "description": "Tokens Bearer para tus propios scripts y apps — registra mediciones o tomas de medicación desde cualquier lugar.",
+        "subtitle": "Gestiona los endpoints de la API y los tokens de acceso."
       },
       "advanced": {
         "title": "Avanzado",
-        "description": "Activador opt-in del modo Investigación y zona de peligro para borrar irrevocablemente todos los registros de salud."
+        "description": "Activador opt-in del modo Investigación y zona de peligro para borrar irrevocablemente todos los registros de salud.",
+        "subtitle": "Modo investigación, restablecer datos y eliminar cuenta."
       },
       "export": {
         "title": "Exportar e importar",
@@ -3982,27 +3992,33 @@
             "resultSummary": "{inserted} nuevas importadas y {updated} actualizadas, {skipped} omitidas.",
             "rowError": "Línea {line}: {reason}"
           }
-        }
+        },
+        "subtitle": "Exporta tus datos o importa desde una copia de seguridad."
       },
       "about": {
         "title": "Acerca de esta app",
-        "description": "Versión, licencia, enlaces."
+        "description": "Versión, licencia, enlaces.",
+        "subtitle": "Versión, licencia y enlaces del proyecto."
       },
       "sharing": {
         "title": "Compartir",
-        "description": "Crea un enlace de solo lectura para compartir tu historial de salud con un profesional médico."
+        "description": "Crea un enlace de solo lectura para compartir tu historial de salud con un profesional médico.",
+        "subtitle": "Comparte acceso de solo lectura a tus datos."
       },
       "insights": {
         "title": "Análisis",
-        "description": "Orden de la vista general y de las pestañas de navegación."
+        "description": "Orden de la vista general y de las pestañas de navegación.",
+        "subtitle": "Organiza las secciones de tu resumen y el orden de las píldoras."
       },
       "medications": {
         "title": "Medicamentos",
-        "description": "Vista de lista, orden y zonas de inyección de tus medicamentos."
+        "description": "Vista de lista, orden y zonas de inyección de tus medicamentos.",
+        "subtitle": "Gestiona la vista y el orden de tu lista de medicamentos."
       },
       "mood": {
         "title": "Etiquetas de ánimo",
-        "description": "Grupos, etiquetas y etiquetas archivadas del selector de ánimo."
+        "description": "Grupos, etiquetas y etiquetas archivadas del selector de ánimo.",
+        "subtitle": "Organiza tus etiquetas de ánimo, grupos y orden del selector."
       },
       "modules": {
         "title": "Módulos",
@@ -4012,26 +4028,24 @@
           "title": "Qué registras",
           "description": "Áreas opcionales. Los módulos desactivados desaparecen de la navegación, los paneles y los análisis; tus datos se conservan."
         },
-        "core": {
-          "title": "Siempre activos",
-          "description": "Los pilares de HealthLog. Estas áreas no se pueden desactivar.",
-          "note": "Área esencial — siempre activa"
-        },
-        "description": "Elige qué registra HealthLog por ti. Activa o desactiva áreas concretas: la navegación, los paneles y los análisis se adaptan al instante.",
         "manageIn": "Gestionar en {section}",
-        "operatorDisabled": "Desactivado en todo el servidor"
+        "operatorDisabled": "Desactivado en todo el servidor",
+        "subtitle": "Elige qué áreas de seguimiento muestra HealthLog en la app."
       },
       "gesundheitsakte": {
         "title": "Historial médico",
-        "description": "Exporta tu historial médico completo como PDF, FHIR R4 o un paquete ZIP combinado."
+        "description": "Exporta tu historial médico completo como PDF, FHIR R4 o un paquete ZIP combinado.",
+        "subtitle": "Exporta un historial de salud completo, listo para el médico."
       },
       "coach": {
         "title": "Coach",
-        "description": "Activa el Coach, tono y alcance, recuerdos guardados."
+        "description": "Activa el Coach, tono y alcance, recuerdos guardados.",
+        "subtitle": "Ajusta el Coach, sus avisos proactivos y su memoria."
       },
       "channels": {
         "title": "Canales",
-        "description": "Envío por Telegram, ntfy, Web Push, Webhook y correo electrónico."
+        "description": "Envío por Telegram, ntfy, Web Push, Webhook y correo electrónico.",
+        "subtitle": "Dónde se entregan los recordatorios y avisos."
       }
     },
     "profile": "Perfil",
@@ -5291,7 +5305,12 @@
         "subtitle": "Operaciones destructivas en todo el sistema."
       },
       "about": {
-        "title": "Acerca de"
+        "title": "Acerca de",
+        "subtitle": "Versión, licencia y estado de actualizaciones."
+      },
+      "module-availability": {
+        "title": "Disponibilidad de módulos",
+        "subtitle": "Activa o desactiva módulos para todas las cuentas de este servidor."
       }
     },
     "carrier": "Operador",
@@ -6587,18 +6606,6 @@
     "doctorReport": {
       "label": "Informe médico",
       "description": "Exportación PDF y FHIR para tu consulta."
-    },
-    "weight": {
-      "label": "Peso",
-      "description": "Peso y composición corporal."
-    },
-    "bloodPressure": {
-      "label": "Presión arterial",
-      "description": "Sistólica y diastólica."
-    },
-    "pulse": {
-      "label": "Pulso",
-      "description": "Pulso en reposo y frecuencia cardiaca."
     },
     "medications": {
       "label": "Medicamentos",

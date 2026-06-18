@@ -3778,18 +3778,21 @@
     "sections": {
       "account": {
         "title": "Compte",
-        "description": "Profil, mot de passe, clés d’accès et votre visite guidée."
+        "description": "Profil, mot de passe, clés d’accès et votre visite guidée.",
+        "subtitle": "Votre profil, votre identité et vos identifiants."
       },
       "integrations": {
         "title": "Intégrations",
-        "description": "Services connectés, canaux de diffusion et priorité des sources au même endroit."
+        "description": "Services connectés, canaux de diffusion et priorité des sources au même endroit.",
+        "subtitle": "Connectez et gérez vos sources de données et appareils."
       },
       "notifications": {
         "title": "Notifications",
         "description": "Tous les rappels au même endroit — quoi et quand. Les canaux de diffusion se trouvent dans Intégrations.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook et e-mail se configurent désormais dans",
         "channelsHintLink": "Intégrations → Canaux",
-        "inboxLink": "Ouvrir la boîte de réception"
+        "inboxLink": "Ouvrir la boîte de réception",
+        "subtitle": "Choisissez les rappels que vous recevez."
       },
       "layout": {
         "title": "Disposition",
@@ -3802,15 +3805,18 @@
         "insights": {
           "title": "Analyses",
           "description": "Ordre de la vue d'ensemble et des onglets de navigation."
-        }
+        },
+        "subtitle": "Personnalisez l'agencement de votre tableau de bord et de vos insights."
       },
       "dashboard": {
         "title": "Tableau de bord",
-        "description": "Disposition et ordre des tuiles."
+        "description": "Disposition et ordre des tuiles.",
+        "subtitle": "Organisez les tuiles de votre tableau de bord."
       },
       "thresholds": {
         "title": "Objectifs",
-        "description": "Par métrique : votre propre plage cible pour des valeurs saines."
+        "description": "Par métrique : votre propre plage cible pour des valeurs saines.",
+        "subtitle": "Définissez vos plages cibles personnelles par mesure."
       },
       "sources": {
         "title": "Priorité des sources",
@@ -3869,19 +3875,23 @@
           "scale": "Balance",
           "other": "Autre",
           "unknown": "Inconnu"
-        }
+        },
+        "subtitle": "Choisissez la source prioritaire en cas de doublon de mesure."
       },
       "ai": {
-        "title": "Analyses IA",
-        "description": "Fournisseur, modèle et clé API pour les analyses, ainsi que votre contexte « à propos de moi »."
+        "title": "Fournisseur d'IA",
+        "description": "Fournisseur, modèle et clé API pour les analyses, ainsi que votre contexte « à propos de moi ».",
+        "subtitle": "Choisissez votre fournisseur d'IA et utilisez votre propre clé."
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Jetons Bearer pour vos propres scripts et applis — enregistrez des mesures ou des prises de médicaments depuis n’importe où."
+        "description": "Jetons Bearer pour vos propres scripts et applis — enregistrez des mesures ou des prises de médicaments depuis n’importe où.",
+        "subtitle": "Gérez les points d'accès API et les jetons d'accès."
       },
       "advanced": {
         "title": "Avancé",
-        "description": "Bouton opt-in du mode Recherche et zone dangereuse pour effacer irrévocablement toutes les données de santé."
+        "description": "Bouton opt-in du mode Recherche et zone dangereuse pour effacer irrévocablement toutes les données de santé.",
+        "subtitle": "Mode recherche, réinitialisation des données et suppression du compte."
       },
       "export": {
         "title": "Export et import",
@@ -3982,27 +3992,33 @@
             "resultSummary": "{inserted} nouvelles importées et {updated} mises à jour, {skipped} ignorées.",
             "rowError": "Ligne {line} : {reason}"
           }
-        }
+        },
+        "subtitle": "Exportez vos données ou importez depuis une sauvegarde."
       },
       "about": {
         "title": "À propos de cette app",
-        "description": "Version, licence, liens."
+        "description": "Version, licence, liens.",
+        "subtitle": "Version, licence et liens du projet."
       },
       "sharing": {
         "title": "Partage",
-        "description": "Créez un lien en lecture seule pour partager votre dossier de santé avec un professionnel de santé."
+        "description": "Créez un lien en lecture seule pour partager votre dossier de santé avec un professionnel de santé.",
+        "subtitle": "Partagez un accès en lecture seule à vos données."
       },
       "insights": {
         "title": "Analyses",
-        "description": "Ordre de la vue d'ensemble et des onglets de navigation."
+        "description": "Ordre de la vue d'ensemble et des onglets de navigation.",
+        "subtitle": "Organisez les sections d'aperçu et l'ordre des pastilles."
       },
       "medications": {
         "title": "Médicaments",
-        "description": "Vue liste, ordre et sites d’injection de vos médicaments."
+        "description": "Vue liste, ordre et sites d’injection de vos médicaments.",
+        "subtitle": "Gérez l'affichage et l'ordre de votre liste de médicaments."
       },
       "mood": {
         "title": "Étiquettes d’humeur",
-        "description": "Groupes, étiquettes et étiquettes archivées du sélecteur d’humeur."
+        "description": "Groupes, étiquettes et étiquettes archivées du sélecteur d’humeur.",
+        "subtitle": "Organisez vos tags d'humeur, groupes et ordre du sélecteur."
       },
       "modules": {
         "title": "Modules",
@@ -4012,26 +4028,24 @@
           "title": "Ce que vous suivez",
           "description": "Domaines optionnels. Les modules désactivés disparaissent de la navigation, des tuiles et des analyses ; vos données sont conservées."
         },
-        "core": {
-          "title": "Toujours actifs",
-          "description": "Les fondations de HealthLog. Ces domaines ne peuvent pas être désactivés.",
-          "note": "Domaine essentiel — toujours actif"
-        },
-        "description": "Choisissez ce que HealthLog suit pour vous. Activez ou désactivez chaque domaine : la navigation, les tuiles et les analyses s'adaptent aussitôt.",
         "manageIn": "Gérer dans {section}",
-        "operatorDisabled": "Désactivé sur tout le serveur"
+        "operatorDisabled": "Désactivé sur tout le serveur",
+        "subtitle": "Choisissez les domaines de suivi affichés par HealthLog."
       },
       "gesundheitsakte": {
         "title": "Dossier médical",
-        "description": "Exportez votre dossier médical complet au format PDF, FHIR R4 ou en paquet ZIP combiné."
+        "description": "Exportez votre dossier médical complet au format PDF, FHIR R4 ou en paquet ZIP combiné.",
+        "subtitle": "Exportez un dossier de santé complet, prêt pour le médecin."
       },
       "coach": {
         "title": "Coach",
-        "description": "Activez le Coach, le ton et la portée, les souvenirs enregistrés."
+        "description": "Activez le Coach, le ton et la portée, les souvenirs enregistrés.",
+        "subtitle": "Réglez le Coach, ses suggestions proactives et sa mémoire."
       },
       "channels": {
         "title": "Canaux",
-        "description": "Distribution via Telegram, ntfy, Web Push, Webhook et e-mail."
+        "description": "Distribution via Telegram, ntfy, Web Push, Webhook et e-mail.",
+        "subtitle": "Où sont envoyés les rappels et alertes."
       }
     },
     "profile": "Profil",
@@ -5291,7 +5305,12 @@
         "subtitle": "Opérations destructrices à l'échelle du système."
       },
       "about": {
-        "title": "À propos"
+        "title": "À propos",
+        "subtitle": "Version, licence et état des mises à jour."
+      },
+      "module-availability": {
+        "title": "Disponibilité des modules",
+        "subtitle": "Activez ou désactivez les modules pour tous les comptes de ce serveur."
       }
     },
     "carrier": "Opérateur",
@@ -6587,18 +6606,6 @@
     "doctorReport": {
       "label": "Rapport médical",
       "description": "Export PDF et FHIR pour votre cabinet."
-    },
-    "weight": {
-      "label": "Poids",
-      "description": "Poids et composition corporelle."
-    },
-    "bloodPressure": {
-      "label": "Tension artérielle",
-      "description": "Systolique et diastolique."
-    },
-    "pulse": {
-      "label": "Pouls",
-      "description": "Pouls au repos et fréquence cardiaque."
     },
     "medications": {
       "label": "Médicaments",

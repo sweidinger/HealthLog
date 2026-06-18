@@ -37,19 +37,13 @@ interface ApiTokenInfo {
 }
 
 export function ApiSection() {
-  const { t } = useTranslations();
-
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+  // `<SettingsSectionFrame>` in the route; this body is the API cards.
   return (
-    <section aria-labelledby="settings-section-api-title" className="space-y-6">
-      <header>
-        <h1 id="settings-section-api-title" className="sr-only">
-          {t("settings.sections.api.title")}
-        </h1>
-      </header>
-
+    <div className="space-y-6">
       <ApiEndpointsCard />
       <ApiTokensCard />
-    </section>
+    </div>
   );
 }
 

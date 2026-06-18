@@ -65,12 +65,17 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
+import { SettingsSectionFrame } from "../settings-section-frame";
 import { MedicationsSection } from "../medications-section";
 
 function render(locale: "en" | "de" = "en"): string {
+  // v1.18.6 (W9) — the visible heading (with the historic id) comes from the
+  // shared frame the route wraps the section in.
   return renderToStaticMarkup(
     <I18nProvider initialLocale={locale}>
-      <MedicationsSection />
+      <SettingsSectionFrame slug="medications">
+        <MedicationsSection />
+      </SettingsSectionFrame>
     </I18nProvider>,
   );
 }

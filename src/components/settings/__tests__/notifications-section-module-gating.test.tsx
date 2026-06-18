@@ -2,10 +2,13 @@
  * v1.18.0 (S4) — module-gated per-type visibility on the consolidated
  * "Benachrichtigungen" reminder-types home.
  *
- * The mood reminder shows only when the `mood` module is enabled; the Coach
- * nudge only when `coach` is enabled. Low-stock maps to the medications CORE
- * domain (always shown). The gate fails OPEN, so a `/me` payload without a
- * module map keeps every card visible.
+ * The mood reminder shows only when the `mood` module is enabled. Low-stock
+ * maps to the medications domain (shown unless explicitly disabled). The gate
+ * fails OPEN, so a `/me` payload without a module map keeps every card
+ * visible.
+ *
+ * v1.18.6 (W9) — the proactive Coach nudge card moved to Settings → Coach, so
+ * it no longer appears on this screen.
  */
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -47,30 +50,23 @@ function render(modules?: Record<string, boolean>) {
 }
 
 describe("<NotificationsSection> module-gated reminder types", () => {
-  it("shows mood + coach cards when no module map (fails open)", () => {
+  it("shows mood + low-stock cards when no module map (fails open); no coach nudge", () => {
     const html = render(undefined);
     expect(html).toContain('id="mood-reminder"');
-    expect(html).toContain('id="coach-nudge"');
     expect(html).toContain('id="low-stock"');
+    // v1.18.6 (W9) — the coach nudge moved to Settings → Coach.
+    expect(html).not.toContain('id="coach-nudge"');
   });
 
   it("hides the mood card when the mood module is disabled", () => {
     const html = render({ mood: false });
     expect(html).not.toContain('id="mood-reminder"');
-    // Coach + low-stock are unaffected.
-    expect(html).toContain('id="coach-nudge"');
+    // Low-stock is unaffected.
     expect(html).toContain('id="low-stock"');
   });
 
-  it("hides the coach card when the coach module is disabled", () => {
-    const html = render({ coach: false });
-    expect(html).not.toContain('id="coach-nudge"');
-    expect(html).toContain('id="mood-reminder"');
-    expect(html).toContain('id="low-stock"');
-  });
-
-  it("always shows low-stock (medications is a CORE domain)", () => {
-    const html = render({ mood: false, coach: false });
+  it("always shows low-stock unless medications is disabled", () => {
+    const html = render({ mood: false });
     expect(html).toContain('id="low-stock"');
     expect(html).not.toContain('id="mood-reminder"');
     expect(html).not.toContain('id="coach-nudge"');
@@ -82,9 +78,9 @@ describe("<NotificationsSection> module-gated reminder types", () => {
     const html = render({});
     expect(html).not.toContain('data-slot="notifications-channels-cross-link"');
     expect(html).not.toContain('data-slot="notifications-inbox-cross-link"');
-    // The three reminder-type cards remain.
+    // The remaining reminder-type cards (no coach nudge here anymore).
     expect(html).toContain('id="mood-reminder"');
     expect(html).toContain('id="low-stock"');
-    expect(html).toContain('id="coach-nudge"');
+    expect(html).not.toContain('id="coach-nudge"');
   });
 });

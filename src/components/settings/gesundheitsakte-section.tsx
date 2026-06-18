@@ -18,32 +18,10 @@
  */
 
 import { HealthRecordExportPanel } from "@/components/settings/health-record-export-panel";
-import { useTranslations } from "@/lib/i18n/context";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 export function GesundheitsakteSection() {
-  const { t } = useTranslations();
-  return (
-    <section
-      aria-labelledby="settings-section-gesundheitsakte-title"
-      className="space-y-6"
-    >
-      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
-      <header className="flex items-center justify-end">
-        <h1
-          id="settings-section-gesundheitsakte-title"
-          className="sr-only"
-        >
-          {t("settings.sections.gesundheitsakte.title")}
-        </h1>
-        {/* v1.18.6 — guided-tour re-entry for the doctor-report module + a
-            real spotlight anchor (the section h1 is sr-only). */}
-        <span data-tour-id="export-hero">
-          <ModuleTourTrigger stopId="export" />
-        </span>
-      </header>
-
-      <HealthRecordExportPanel />
-    </section>
-  );
+  // v1.18.6 (W9) — the visible heading + subtitle and the module tour-replay
+  // trigger now live in the shared `<SettingsSectionFrame>` in the route; the
+  // body is the health-record export panel only.
+  return <HealthRecordExportPanel />;
 }

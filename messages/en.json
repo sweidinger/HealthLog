@@ -3778,18 +3778,21 @@
     "sections": {
       "account": {
         "title": "Account",
-        "description": "Profile, password, passkeys, and your onboarding tour."
+        "description": "Profile, password, passkeys, and your onboarding tour.",
+        "subtitle": "Your profile, identity, and sign-in details."
       },
       "integrations": {
         "title": "Integrations",
-        "description": "Connected services, delivery channels, and source priority in one place."
+        "description": "Connected services, delivery channels, and source priority in one place.",
+        "subtitle": "Connect and manage your data sources and devices."
       },
       "notifications": {
         "title": "Notifications",
         "description": "Every reminder in one place — what gets reminded and when. The delivery channels live under Integrations.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook, and Email are now set up under",
         "channelsHintLink": "Integrations → Channels",
-        "inboxLink": "Open the inbox"
+        "inboxLink": "Open the inbox",
+        "subtitle": "Choose which reminders you receive."
       },
       "layout": {
         "title": "Layout",
@@ -3802,15 +3805,18 @@
         "insights": {
           "title": "Insights",
           "description": "Overview sections and navigation-pill order."
-        }
+        },
+        "subtitle": "Personalize how your dashboard and insights are arranged."
       },
       "dashboard": {
         "title": "Dashboard",
-        "description": "Tile layout and order."
+        "description": "Tile layout and order.",
+        "subtitle": "Arrange the tiles on your dashboard."
       },
       "thresholds": {
         "title": "Targets",
-        "description": "Per metric: your own target range for healthy values."
+        "description": "Per metric: your own target range for healthy values.",
+        "subtitle": "Set your personal target ranges per metric."
       },
       "sources": {
         "title": "Source priority",
@@ -3869,19 +3875,23 @@
           "scale": "Scale",
           "other": "Other",
           "unknown": "Unknown"
-        }
+        },
+        "subtitle": "Decide which source wins when two report the same metric."
       },
       "ai": {
-        "title": "AI Insights",
-        "description": "Provider, model, and API key for the insights — plus your “about me” context."
+        "title": "AI provider",
+        "description": "Provider, model, and API key for the insights — plus your “about me” context.",
+        "subtitle": "Choose your AI provider and bring your own key."
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Bearer tokens for your own scripts and apps — log measurements or medication intake from anywhere."
+        "description": "Bearer tokens for your own scripts and apps — log measurements or medication intake from anywhere.",
+        "subtitle": "Manage API endpoints and access tokens."
       },
       "advanced": {
         "title": "Advanced",
-        "description": "Opt-in Research Mode toggle plus the account-wide danger zone for wiping every health record."
+        "description": "Opt-in Research Mode toggle plus the account-wide danger zone for wiping every health record.",
+        "subtitle": "Research mode, data reset, and account deletion."
       },
       "export": {
         "title": "Export & Import",
@@ -3982,27 +3992,33 @@
             "resultSummary": "Imported {inserted} new and updated {updated}, {skipped} skipped.",
             "rowError": "Line {line}: {reason}"
           }
-        }
+        },
+        "subtitle": "Export your data or import from a backup."
       },
       "about": {
         "title": "About this app",
-        "description": "Version, license, links."
+        "description": "Version, license, links.",
+        "subtitle": "Version, license, and project links."
       },
       "sharing": {
         "title": "Sharing",
-        "description": "Create a read-only link to share your health record with a clinician."
+        "description": "Create a read-only link to share your health record with a clinician.",
+        "subtitle": "Share read-only access to your data."
       },
       "insights": {
         "title": "Insights",
-        "description": "Overview and navigation-pill order."
+        "description": "Overview and navigation-pill order.",
+        "subtitle": "Arrange your overview sections and pill order."
       },
       "medications": {
         "title": "Medications",
-        "description": "List view, order, and injection sites for your medications."
+        "description": "List view, order, and injection sites for your medications.",
+        "subtitle": "Manage your medication list view and order."
       },
       "mood": {
         "title": "Mood tags",
-        "description": "Groups, tags, and archived tags for the mood picker."
+        "description": "Groups, tags, and archived tags for the mood picker.",
+        "subtitle": "Organize your mood tags, groups, and picker order."
       },
       "modules": {
         "title": "Modules",
@@ -4012,26 +4028,24 @@
           "title": "What you track",
           "description": "Optional areas. Disabled modules drop out of the navigation, tiles, and insights — your data stays untouched."
         },
-        "core": {
-          "title": "Always on",
-          "description": "HealthLog's foundations. These areas can't be turned off.",
-          "note": "Core area — always on"
-        },
-        "description": "Choose what HealthLog tracks for you. Turn individual areas on or off — the navigation, tiles, and insights adapt right away.",
         "manageIn": "Manage in {section}",
-        "operatorDisabled": "Disabled server-wide"
+        "operatorDisabled": "Disabled server-wide",
+        "subtitle": "Choose which tracking areas HealthLog shows across the app."
       },
       "gesundheitsakte": {
         "title": "Health record",
-        "description": "Export your full health record as PDF, FHIR R4, or a combined ZIP package."
+        "description": "Export your full health record as PDF, FHIR R4, or a combined ZIP package.",
+        "subtitle": "Export a complete, clinician-ready health record."
       },
       "coach": {
         "title": "Coach",
-        "description": "Enable the Coach, tone and scope, stored memories."
+        "description": "Enable the Coach, tone and scope, stored memories.",
+        "subtitle": "Tune the Coach, its proactive nudges, and its memory."
       },
       "channels": {
         "title": "Channels",
-        "description": "Telegram, ntfy, Web Push, Webhook, and Email delivery."
+        "description": "Telegram, ntfy, Web Push, Webhook, and Email delivery.",
+        "subtitle": "Where reminders and alerts are delivered."
       }
     },
     "profile": "Profile",
@@ -5291,7 +5305,12 @@
         "subtitle": "Destructive system-wide operations."
       },
       "about": {
-        "title": "About"
+        "title": "About",
+        "subtitle": "Version, license, and update status."
+      },
+      "module-availability": {
+        "title": "Module availability",
+        "subtitle": "Turn modules on or off for every account on this server."
       }
     },
     "carrier": "Carrier",
@@ -6587,18 +6606,6 @@
     "doctorReport": {
       "label": "Doctor report",
       "description": "PDF and FHIR export for your practice."
-    },
-    "weight": {
-      "label": "Weight",
-      "description": "Weight and body composition."
-    },
-    "bloodPressure": {
-      "label": "Blood pressure",
-      "description": "Systolic and diastolic."
-    },
-    "pulse": {
-      "label": "Pulse",
-      "description": "Resting pulse and heart rate."
     },
     "medications": {
       "label": "Medications",

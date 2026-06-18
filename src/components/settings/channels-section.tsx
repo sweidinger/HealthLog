@@ -8,30 +8,13 @@
  * delivery provider — the same family as a connected device — and now reads as
  * a first-class settings home rather than a tab hidden behind Integrationen.
  *
- * The content is the existing `<NotificationChannelsPanel>`; this wrapper only
- * owns the section frame (sr-only heading scaffold matching every other
- * settings section).
+ * The content is the existing `<NotificationChannelsPanel>`. v1.18.6 (W9) —
+ * the visible heading + subtitle now come from the shared
+ * `<SettingsSectionFrame>` in the route; this wrapper is the panel only.
  */
 
 import { NotificationChannelsPanel } from "@/components/settings/integrations/notification-channels-panel";
-import { useTranslations } from "@/lib/i18n/context";
 
 export function ChannelsSection() {
-  const { t } = useTranslations();
-
-  return (
-    <section
-      aria-labelledby="settings-section-channels-title"
-      className="space-y-6"
-    >
-      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
-      <header>
-        <h1 id="settings-section-channels-title" className="sr-only">
-          {t("settings.sections.channels.title")}
-        </h1>
-      </header>
-
-      <NotificationChannelsPanel />
-    </section>
-  );
+  return <NotificationChannelsPanel />;
 }

@@ -21,10 +21,8 @@
 import { AiInsightsCard } from "@/components/settings/ai/ai-insights-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
-import { useTranslations } from "@/lib/i18n/context";
 
 export function AiSection() {
-  const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
   // v1.16.6 — the auth query can resolve before this boundary
   // hydrates; every `disabled={!isAuthenticated}` binding in the child
@@ -35,19 +33,8 @@ export function AiSection() {
   const mounted = useMounted();
   const authed = mounted && isAuthenticated;
 
-  return (
-    <section aria-labelledby="settings-section-ai-title" className="space-y-6">
-      {/* v1.18.1 (D0) — section blurb dropped for consistent top alignment. */}
-      <header>
-        <h1 id="settings-section-ai-title" className="sr-only">
-          {t("settings.sections.ai.title")}
-        </h1>
-      </header>
-
-      <AiInsightsCard isAuthenticated={authed} />
-
-      {/* v1.18.1 (D8) — the "About me" context moved to Settings → Account
-          (under Profil, before Zyklus-Tracking). */}
-    </section>
-  );
+  // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
+  // `<SettingsSectionFrame>` in the route; this body is the single provider
+  // card. (The "About me" context moved to Settings → Account in v1.18.1 D8.)
+  return <AiInsightsCard isAuthenticated={authed} />;
 }
