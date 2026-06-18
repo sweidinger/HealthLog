@@ -3509,18 +3509,6 @@
       "description": "Wie gut sich dein Körper erholt hat – die Erholungs-, Belastungs- und Load-Signale, die dein Wearable über Nacht aufzeichnet.",
       "emptyTitle": "Noch keine Erholungsdaten",
       "empty": "Noch keine Erholungsdaten. Verbinde ein WHOOP-, Polar- oder Oura-Konto, dann füllen sich diese Werte, sobald dein Gerät synchronisiert.",
-      "recharge": {
-        "title": "Recharge",
-        "subtitle": "Ladung des autonomen Nervensystems"
-      },
-      "strain": {
-        "title": "Belastung & Load",
-        "subtitle": "Tägliche kardiovaskuläre Belastung"
-      },
-      "cardio": {
-        "title": "Herz & Energie pro Tag",
-        "subtitle": "Herz- und Energiewerte des ganzen Tages"
-      },
       "block": {
         "ansChargeExplainer": "Wie aufgeladen dein autonomes Nervensystem in den Tag startet – ein Recharge-Wert aus deinen nächtlichen Herz- und Atemsignalen.",
         "dayStrainExplainer": "Die kardiovaskuläre Tagesbelastung auf der Belastungsskala deines Geräts. Lies sie im Verhältnis zu deiner Erholung, nicht als Ziel für sich.",

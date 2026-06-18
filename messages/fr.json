@@ -3509,18 +3509,6 @@
       "description": "À quel point votre corps a récupéré : les signaux de récupération, de charge et d'effort que votre wearable enregistre la nuit.",
       "emptyTitle": "Pas encore de données de récupération",
       "empty": "Pas encore de données de récupération. Connectez un compte WHOOP, Polar ou Oura et ces scores se rempliront dès que votre appareil se synchronise.",
-      "recharge": {
-        "title": "Recharge",
-        "subtitle": "Charge du système nerveux autonome"
-      },
-      "strain": {
-        "title": "Effort et charge",
-        "subtitle": "Charge cardiovasculaire quotidienne"
-      },
-      "cardio": {
-        "title": "Cœur et énergie du jour",
-        "subtitle": "Totaux cardiaques et énergétiques de la journée"
-      },
       "block": {
         "ansChargeExplainer": "À quel point votre système nerveux autonome est rechargé pour la journée — une mesure de recharge issue de vos signaux nocturnes de cœur et de respiration.",
         "dayStrainExplainer": "La charge cardiovasculaire de la journée sur l'échelle d'effort de votre appareil. Lisez-la au regard de votre récupération, pas comme un objectif en soi.",

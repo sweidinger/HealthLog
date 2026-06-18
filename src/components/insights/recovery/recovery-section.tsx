@@ -14,7 +14,6 @@ import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import { useTranslations } from "@/lib/i18n/context";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SectionHeading } from "@/components/insights/section-heading";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { RestModeBanner } from "@/components/insights/rest-mode-banner";
 import type { RestModeAnnotation } from "@/lib/analytics/health-score";
@@ -36,9 +35,6 @@ interface BlockSpec {
 
 interface BlockGroup {
   key: string;
-  headingIcon: typeof Activity;
-  title: string;
-  subtitle: string;
   blocks: BlockSpec[];
 }
 
@@ -84,9 +80,6 @@ export function RecoverySection() {
   const groups: BlockGroup[] = [
     {
       key: "recharge",
-      headingIcon: Battery,
-      title: t("insights.recovery.recharge.title"),
-      subtitle: t("insights.recovery.recharge.subtitle"),
       blocks: [
         {
           type: "ANS_CHARGE",
@@ -103,9 +96,6 @@ export function RecoverySection() {
     },
     {
       key: "strain",
-      headingIcon: Gauge,
-      title: t("insights.recovery.strain.title"),
-      subtitle: t("insights.recovery.strain.subtitle"),
       blocks: [
         {
           type: "DAY_STRAIN",
@@ -143,9 +133,6 @@ export function RecoverySection() {
     },
     {
       key: "cardio",
-      headingIcon: HeartPulse,
-      title: t("insights.recovery.cardio.title"),
-      subtitle: t("insights.recovery.cardio.subtitle"),
       blocks: [
         {
           type: "AVERAGE_HEART_RATE",
@@ -190,10 +177,6 @@ export function RecoverySection() {
   if (isLoading || summaries == null) {
     return (
       <div className="space-y-3" data-slot="recovery-loading">
-        <SectionHeading
-          icon={Battery}
-          title={t("insights.recovery.recharge.title")}
-        />
         <ChartSkeleton />
       </div>
     );
@@ -210,51 +193,36 @@ export function RecoverySection() {
     );
   }
 
+  // v1.18.6 — the per-group sub-headings ("Recharge" / "Strain & load" /
+  // "Daily heart & energy") are gone: read next to the page's "Erholung"
+  // heading they were redundant chrome. The groups still drive ORDER + the
+  // data gate (a group with no present block contributes nothing); their
+  // present blocks now render as one flat, evenly-spaced stack, each block
+  // carrying its own title + explainer so nothing loses context.
+  const presentBlocks = groups.flatMap((group) =>
+    group.blocks.filter((block) => (summaries[block.type]?.count ?? 0) > 0),
+  );
+
   return (
     <div className="space-y-8" data-slot="recovery-section">
       {/* v1.18.1 — calm Rest Mode cue at the head of the recovery surface.
           Self-gating: renders nothing unless an episode is active. */}
       <RestModeBanner annotation={restMode} />
-      {groups.map((group) => {
-        const present = group.blocks.filter(
-          (block) => (summaries[block.type]?.count ?? 0) > 0,
-        );
-        if (present.length === 0) return null;
-        return (
-          <section
-            key={group.key}
-            data-slot={`recovery-group-${group.key}`}
-            className="space-y-4"
-          >
-            <SectionHeading
-              icon={group.headingIcon}
-              title={group.title}
-              action={
-                <p className="text-muted-foreground text-xs">
-                  {group.subtitle}
-                </p>
-              }
-            />
-            <div className="space-y-8">
-              {present.map((block) => (
-                <RecoveryMetricBlock
-                  key={block.type}
-                  type={block.type}
-                  chartKey={block.chartKey}
-                  statusMetric={block.statusMetric}
-                  title={block.title}
-                  explainer={block.explainer}
-                  icon={block.icon}
-                  color={block.color}
-                  unit={block.unit}
-                  summary={summaries[block.type] ?? null}
-                  fractionDigits={block.fractionDigits}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      {presentBlocks.map((block) => (
+        <RecoveryMetricBlock
+          key={block.type}
+          type={block.type}
+          chartKey={block.chartKey}
+          statusMetric={block.statusMetric}
+          title={block.title}
+          explainer={block.explainer}
+          icon={block.icon}
+          color={block.color}
+          unit={block.unit}
+          summary={summaries[block.type] ?? null}
+          fractionDigits={block.fractionDigits}
+        />
+      ))}
     </div>
   );
 }

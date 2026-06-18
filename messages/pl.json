@@ -3509,18 +3509,6 @@
       "description": "Jak dobrze Twój organizm się zregenerował – sygnały regeneracji, obciążenia i load, które Twoje urządzenie rejestruje w nocy.",
       "emptyTitle": "Brak danych o regeneracji",
       "empty": "Brak danych o regeneracji. Połącz konto WHOOP, Polar lub Oura, a te wyniki uzupełnią się po synchronizacji urządzenia.",
-      "recharge": {
-        "title": "Recharge",
-        "subtitle": "Ładowanie autonomicznego układu nerwowego"
-      },
-      "strain": {
-        "title": "Obciążenie i load",
-        "subtitle": "Dzienne obciążenie sercowo-naczyniowe"
-      },
-      "cardio": {
-        "title": "Serce i energia w ciągu dnia",
-        "subtitle": "Całodobowe sumy sercowe i energetyczne"
-      },
       "block": {
         "ansChargeExplainer": "Jak naładowany jest Twój autonomiczny układ nerwowy na dany dzień — odczyt regeneracji oparty na nocnych sygnałach serca i oddechu.",
         "dayStrainExplainer": "Dzienne obciążenie sercowo-naczyniowe na skali wysiłku Twojego urządzenia. Odczytuj je w odniesieniu do regeneracji, nie jako cel sam w sobie.",
