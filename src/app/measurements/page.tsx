@@ -16,7 +16,6 @@ import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/context";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 export default function MeasurementsPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -125,7 +124,6 @@ export default function MeasurementsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ModuleTourTrigger stopId="measurements" />
           <Button
             className="min-h-11 sm:min-h-9"
             onClick={() => setDialogOpen(true)}

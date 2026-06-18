@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.18.6.1] — 2026-06-18 — settings and Coach UI follow-ups
+
+A small UI and settings patch on top of v1.18.6. No migration, no API contract change.
+
+### Fixed
+
+- The settings and admin left menu now aligns with the top of the first card, instead of sitting slightly offset.
+- The Coach conversation scrolls within a bounded area with the composer pinned to the bottom, instead of overflowing the panel.
+- The health-record settings section (PDF and FHIR export) is reliably reachable again — its entry no longer disappears from Settings.
+
+### Changed
+
+- The guided tour is first-run only. The per-page and Settings "show tour" triggers are removed.
+- Preventive-care cards now mirror the medication card: the cadence sits as a chip beside the name, due and last dates read as text, and "last done" always shows — with an em-dash when there is nothing yet.
+
 ## [1.18.6] — 2026-06-18 — offline reads, grounded guidance, and one consistent app
 
 A large release that makes the app genuinely useful offline, gives every metric cited reference context, grounds the AI Coach and Daily Briefing in that same context, adds responsible safety alerts for clinically urgent readings, and brings the newer modules (preventive care, illness, labs) and the whole settings area in line with the established patterns. A guided tour now explains what each module does and how they connect. No breaking changes; all schema changes are additive.

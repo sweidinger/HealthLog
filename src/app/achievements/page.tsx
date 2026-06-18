@@ -34,7 +34,6 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { formatDate } from "@/lib/format";
 import { useAchievementsQuery } from "@/lib/queries/use-achievements-query";
 import {
@@ -331,7 +330,6 @@ export default function AchievementsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ModuleTourTrigger stopId="achievements" />
         </div>
       </div>
 

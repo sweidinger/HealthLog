@@ -15,7 +15,6 @@ import { Plus, Loader2, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useTranslations } from "@/lib/i18n/context";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 export default function MoodPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -79,7 +78,6 @@ export default function MoodPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ModuleTourTrigger stopId="mood" />
           {/* v1.17 — the wrench is the one customize entry point: it
               links to /settings/mood, which owns the tag groups, custom
               tags, visibility, and picker order. Same glyph, slot (left

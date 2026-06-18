@@ -23,7 +23,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslations } from "@/lib/i18n/context";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
 import { getHourForTimeZone } from "@/components/dashboard/range-display";
@@ -97,8 +96,6 @@ export function DashboardHeader({
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {/* v1.18.6 — re-enter the guided module tour from the dashboard. */}
-        <ModuleTourTrigger stopId="dashboardOverview" />
         {/* Customize shortcut to the dashboard-customization settings
             (the tile/layout editor at /settings/dashboard). Sits to
             the left of the add button as a monochrome ghost icon, with

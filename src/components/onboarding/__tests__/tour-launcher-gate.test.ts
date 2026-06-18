@@ -10,20 +10,15 @@
  * The fix turns the tour into "the second-visit thing": auto-launch
  * is suppressed until `onboardingCompletedAt + 24 h`. This file pins
  * the pure decision helper so a future refactor doesn't silently
- * regress the gate. The "manual restart from Settings" path bypasses
- * the gate entirely and lives in `<TourLauncher>`'s
- * `healthlog:tour-restart` window event listener — exercised by the
- * sections SSR smoke test (`settings/__tests__/sections.test.tsx`) +
- * the e2e suite, not by this file.
+ * regress the gate. v1.18.6.1 — the tour is first-time-auto-start
+ * only; the former "manual restart from Settings" bypass was removed.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
-  setTourForceLaunch,
   shouldAutoLaunchTour,
   tourIncludesAchievements,
   TOUR_AUTOLAUNCH_DELAY_MS,
-  tourForceLaunchKey,
 } from "../tour-launcher";
 
 const NOW = Date.parse("2026-05-21T12:00:00Z");
@@ -151,70 +146,5 @@ describe("tourIncludesAchievements() — v1.18.0 B5 module gate", () => {
     expect(
       tourIncludesAchievements({ sleep: false, mood: false }),
     ).toBe(true);
-  });
-});
-
-describe("setTourForceLaunch() — v1.4.47 W5 manual replay bypass", () => {
-  // (c) of the W5 acceptance: the manual "launch tour" trigger still
-  // works. The launcher's render-phase gate is exercised by
-  // shouldAutoLaunchTour() above; the *bypass* is a sessionStorage
-  // marker the Settings buttons drop and the launcher reads-and-
-  // clears on its next mount. Vitest runs in the Node environment by
-  // default — stub a minimal window so the helper's window-guard +
-  // try/catch wrappers can be exercised end-to-end.
-  let storage: Map<string, string>;
-  const originalWindow = (globalThis as { window?: unknown }).window;
-
-  beforeEach(() => {
-    storage = new Map<string, string>();
-    (globalThis as { window?: unknown }).window = {
-      sessionStorage: {
-        getItem: (key: string) => storage.get(key) ?? null,
-        setItem: (key: string, value: string) => {
-          storage.set(key, value);
-        },
-        removeItem: (key: string) => {
-          storage.delete(key);
-        },
-      },
-    };
-  });
-
-  afterEach(() => {
-    if (originalWindow === undefined) {
-      delete (globalThis as { window?: unknown }).window;
-    } else {
-      (globalThis as { window?: unknown }).window = originalWindow;
-    }
-  });
-
-  it("writes the per-user force-launch marker into sessionStorage", () => {
-    // The Settings → About + Settings → Account "Replay tour" buttons
-    // call this exact helper after the API round-trip succeeds. The
-    // launcher reads-and-clears the marker on its next dashboard
-    // mount, bypassing the 24 h auto-launch gate so a same-day user
-    // who explicitly asked for the tour actually gets it.
-    setTourForceLaunch("u_replay_demo");
-    expect(storage.get(tourForceLaunchKey("u_replay_demo"))).toBe("1");
-  });
-
-  it("scopes the marker per user (two users do not bleed into each other)", () => {
-    setTourForceLaunch("u_alice");
-    setTourForceLaunch("u_bob");
-    expect(storage.get(tourForceLaunchKey("u_alice"))).toBe("1");
-    expect(storage.get(tourForceLaunchKey("u_bob"))).toBe("1");
-    // The two keys are independent slots — clearing one (which the
-    // launcher does on mount) must not affect the other.
-    storage.delete(tourForceLaunchKey("u_alice"));
-    expect(storage.get(tourForceLaunchKey("u_bob"))).toBe("1");
-  });
-
-  it("does not throw when window is undefined (SSR safety)", () => {
-    // The launcher itself is "use client" but the helper is exported
-    // from the same module and could be imported by a server component
-    // in the future. The window-guard inside the helper has to keep
-    // SSR happy — verify it stays a silent no-op.
-    delete (globalThis as { window?: unknown }).window;
-    expect(() => setTourForceLaunch("u_x")).not.toThrow();
   });
 });

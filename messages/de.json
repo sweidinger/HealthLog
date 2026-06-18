@@ -3552,9 +3552,6 @@
       "back": "Zurück",
       "skip": "Tour überspringen",
       "done": "Verstanden",
-      "restart": "Modul-Tour neu starten",
-      "restartHint": "Zeigt die geführte Modul-Tour beim nächsten Dashboard-Besuch von vorne.",
-      "restartConfirmation": "Die Modul-Tour startet bei deinem nächsten Dashboard-Besuch von vorne.",
       "steps": {
         "dashboardOverview": {
           "title": "Dein Dashboard",
@@ -3616,8 +3613,7 @@
           "title": "Das war die Tour",
           "body": "Du kannst jedes Modul jederzeit einzeln erneut ansehen („Diese Tour zeigen“ auf jeder Seite) oder die komplette Tour unter Einstellungen → Erweitert neu starten."
         }
-      },
-      "moduleTrigger": "Diese Tour zeigen"
+      }
     },
     "shell": {
       "back": "Zurück",

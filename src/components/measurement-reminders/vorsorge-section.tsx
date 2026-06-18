@@ -41,7 +41,6 @@ import {
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import {
   AlertDialog,
@@ -387,7 +386,6 @@ export function VorsorgeSection({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ModuleTourTrigger stopId="vorsorge" />
             {wrenchButton}
             {addButton}
           </div>
@@ -766,12 +764,17 @@ function VorsorgeCard({
     ? t(`measurementReminders.types.${reminder.measurementType}`)
     : t("measurementReminders.selfPlanned");
 
-  // v1.18.6 (MOD-06) — the cadence renders as a chip beside the item name
-  // (the med-card cadence-chip convention), alongside the provenance /
-  // disabled state badges.
-  const stateBadges = (
+  // v1.18.6.1 — the cadence renders as a chip DIRECTLY to the right of the
+  // metric name (the med-card convention: cadence sits next to the name).
+  const cadenceChip = cadence ? (
+    <Badge variant="secondary">{cadence}</Badge>
+  ) : null;
+
+  // Provenance / disabled state badges keep their own row below the category.
+  // Omit the row entirely when neither applies (don't render an empty band).
+  const hasStateBadges = isCoach || !reminder.enabled;
+  const stateBadges = hasStateBadges ? (
     <>
-      {cadence && <Badge variant="secondary">{cadence}</Badge>}
       {isCoach && (
         <Badge variant="outline">{t("measurementReminders.originCoach")}</Badge>
       )}
@@ -781,7 +784,7 @@ function VorsorgeCard({
         </Badge>
       )}
     </>
-  );
+  ) : undefined;
 
   // Single med-style kebab: Edit + Delete. The Delete item is the shared
   // confirm-on-delete control rendered as a full-width menu row.
@@ -872,17 +875,17 @@ function VorsorgeCard({
         <Card>
           <CardContent className="flex items-center justify-between gap-3 px-4 py-2.5">
             <div className="min-w-0 space-y-0.5">
-              <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+              <div className="flex flex-wrap items-center gap-x-2 text-sm">
                 <span className="truncate font-medium">
                   {resolveReminderLabel(reminder, t)}
                 </span>
-                {cadence && <Badge variant="secondary">{cadence}</Badge>}
+                {cadenceChip}
               </div>
-              <div className="flex flex-wrap items-center gap-x-2 text-xs">
-                <Badge variant="outline">
+              <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+                <span className="text-foreground">
                   {t(`measurementReminders.${due.key}`, { days: due.days })}
-                </Badge>
-                <span className="text-muted-foreground">{categoryLabel}</span>
+                </span>
+                <span>{categoryLabel}</span>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -913,29 +916,29 @@ function VorsorgeCard({
   // (MOD-06: never "Einnahme" / intake — a measurement is not an intake). The
   // "next" value carries the discreet neutral due badge; the "last" value is
   // the last satisfied date.
+  // v1.18.6.1 — the due/overdue status renders as plain TEXT (not a chip),
+  // and the "zuletzt erledigt" line ALWAYS renders, falling back to "—" when
+  // there is no last-done value — mirroring the medication card's next/last
+  // text rows.
   const lastValue = reminder.lastSatisfiedAt
     ? fmt.date(new Date(reminder.lastSatisfiedAt))
-    : null;
+    : "—";
   const nextLastSlot = (
     <div className="min-h-[2.75rem] space-y-1.5 text-sm">
       <div className="text-muted-foreground flex items-baseline justify-between gap-3">
         <span className="min-w-0 flex-shrink truncate font-medium">
           {t("measurementReminders.nextDueLabel")}
         </span>
-        <span className="text-right">
-          <Badge variant="secondary">
-            {t(`measurementReminders.${due.key}`, { days: due.days })}
-          </Badge>
+        <span className="text-foreground text-right">
+          {t(`measurementReminders.${due.key}`, { days: due.days })}
         </span>
       </div>
-      {lastValue && (
-        <div className="text-muted-foreground flex items-baseline justify-between gap-3">
-          <span className="min-w-0 flex-shrink truncate font-medium">
-            {t("measurementReminders.lastDoneLabel")}
-          </span>
-          <span className="text-foreground text-right">{lastValue}</span>
-        </div>
-      )}
+      <div className="text-muted-foreground flex items-baseline justify-between gap-3">
+        <span className="min-w-0 flex-shrink truncate font-medium">
+          {t("measurementReminders.lastDoneLabel")}
+        </span>
+        <span className="text-foreground text-right">{lastValue}</span>
+      </div>
     </div>
   );
 
@@ -949,6 +952,7 @@ function VorsorgeCard({
           name={resolveReminderLabel(reminder, t)}
           dose=""
           categoryLabel={categoryLabel}
+          nameChip={cadenceChip}
           stateBadges={stateBadges}
           actions={headerActions}
         />

@@ -33,7 +33,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 
 import { LogDaySheet } from "./log-day-sheet";
 import { NewEpisodeSheet } from "./new-episode-sheet";
@@ -380,7 +379,6 @@ export function IllnessView() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ModuleTourTrigger stopId="illness" />
           {/* v1.18.6 (MOD-01) — wrench left of the primary Add, linking to the
               Illness settings page (view + reorder). */}
           <Button

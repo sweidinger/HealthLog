@@ -19,7 +19,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useTranslations } from "@/lib/i18n/context";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import {
@@ -863,7 +862,6 @@ function InsightsTabStripImpl({
         {/* v1.18.6 — per-module tour re-entry, travelling with the
             top-right control cluster. Anchors to this strip's
             `insights-hero` and opens the Insights tour card on the spot. */}
-        <ModuleTourTrigger stopId="insights" />
         {/* v1.15.18 — customise cog. Sits immediately LEFT of the
             regenerate button and links to the Insights settings section
             (overview arrange + pill sort), matching the Dashboard cog

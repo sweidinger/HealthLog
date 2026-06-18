@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpenCheck, Compass, Loader2, Trash2 } from "lucide-react";
+import { BookOpenCheck, Loader2, Trash2 } from "lucide-react";
 
 import {
   AlertDialog,
@@ -20,9 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { ResearchModeAcknowledgmentDialog } from "@/components/medications/ResearchModeAcknowledgmentDialog";
 import { formatDateTime } from "@/lib/format";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
-import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
-import { restartOnboardingTour } from "@/lib/onboarding/tour-restart";
 import { queryKeys } from "@/lib/query-keys";
 import {
   type ResearchModeStatus,
@@ -53,92 +51,14 @@ import { apiFetchRaw } from "@/lib/api/api-fetch";
 export function AdvancedSection() {
   // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
   // `<SettingsSectionFrame>` in the route; this body is the advanced cards.
+  // v1.18.6.1 — the guided tour replay card was removed: the tour now exists
+  // only as the first-time auto-start after onboarding. This page is the
+  // research-mode + data/account destructive controls.
   return (
     <div className="space-y-6">
-      {/* v1.18.1 (D1) — "Tour neu starten" relocated here from Account. */}
-      <TourReplayCard />
       <ResearchModeCard />
       <DataResetCard />
       <AccountDeleteCard />
-    </div>
-  );
-}
-
-/**
- * v1.18.1 (D1) — onboarding-tour replay, relocated from Settings → Account.
- *
- * Resets `users.onboarding_tour_completed` on the server and dispatches a
- * `healthlog:tour-restart` window event so a dashboard already in the
- * background reopens the spotlight tour immediately. Delegates to the shared
- * `restartOnboardingTour()` worker (the same one Settings → About uses) and
- * refetches the auth payload so the launcher's `onboardingTourCompleted` flag
- * matches the server flip without a navigation.
- */
-function TourReplayCard() {
-  const { t } = useTranslations();
-  const { user, refetch } = useAuth();
-  const [restarting, setRestarting] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    key: string;
-    type: "success" | "error";
-  } | null>(null);
-
-  async function handleRestartTour() {
-    setRestarting(true);
-    setFeedback(null);
-    const result = await restartOnboardingTour(user?.id);
-    if (result.ok) {
-      await refetch();
-      setFeedback({
-        key: "onboarding.tour.restartConfirmation",
-        type: "success",
-      });
-    } else {
-      setFeedback({ key: result.messageKey, type: "error" });
-    }
-    setRestarting(false);
-  }
-
-  return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-        <div className="flex items-start gap-2">
-          <Compass className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">
-              {t("onboarding.tour.restart")}
-            </h2>
-            <p className="text-muted-foreground text-xs">
-              {t("onboarding.tour.restartHint")}
-            </p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleRestartTour}
-          disabled={restarting}
-          data-testid="settings-restart-tour"
-          className="w-full shrink-0 sm:w-auto"
-        >
-          {restarting ? (
-            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-          ) : (
-            <Compass className="h-4 w-4" />
-          )}
-          {t("onboarding.tour.restart")}
-        </Button>
-      </div>
-      {feedback && (
-        <p
-          role="alert"
-          className={`mt-2 text-xs ${
-            feedback.type === "success" ? "text-success" : "text-destructive"
-          }`}
-        >
-          {t(feedback.key)}
-        </p>
-      )}
     </div>
   );
 }

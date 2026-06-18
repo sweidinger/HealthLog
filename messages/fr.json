@@ -3552,9 +3552,6 @@
       "back": "Précédent",
       "skip": "Passer la visite",
       "done": "Compris",
-      "restart": "Relancer la visite des modules",
-      "restartHint": "Rejoue la visite guidée des modules depuis le début lors de votre prochaine ouverture du tableau de bord.",
-      "restartConfirmation": "La visite des modules redémarrera depuis le début à votre prochaine ouverture du tableau de bord.",
       "steps": {
         "dashboardOverview": {
           "title": "Votre tableau de bord",
@@ -3616,8 +3613,7 @@
           "title": "C’est la fin de la visite",
           "body": "Vous pouvez revoir chaque module séparément à tout moment (« Afficher cette visite » sur chaque page) ou relancer la visite complète dans Réglages → Avancé."
         }
-      },
-      "moduleTrigger": "Afficher cette visite"
+      }
     },
     "shell": {
       "back": "Retour",

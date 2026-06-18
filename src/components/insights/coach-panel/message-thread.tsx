@@ -342,7 +342,7 @@ export function MessageThread({
         data-slot="coach-message-thread"
         role="status"
         aria-live="polite"
-        className="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 px-6 text-center"
+        className="text-muted-foreground flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 text-center"
       >
         <div
           aria-hidden="true"
@@ -362,7 +362,10 @@ export function MessageThread({
       ref={scrollerRef}
       data-slot="coach-message-thread"
       className={cn(
-        "flex h-full flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-6",
+        // v1.18.6.1 — `min-h-0 flex-1` (not `h-full`) so the scroll region
+        // resolves its height from the flex parent rather than a 100%-of-auto
+        // chain that let the thread grow instead of scroll.
+        "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-6",
         // v1.18.6 (CCH-01) — on the now full-width page surface a thread
         // stretched edge-to-edge sprawled the prose to an unreadable
         // measure. Centre the content on a comfortable max width (Claude-

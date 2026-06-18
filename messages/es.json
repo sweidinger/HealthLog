@@ -3552,9 +3552,6 @@
       "back": "Atrás",
       "skip": "Saltar tour",
       "done": "Entendido",
-      "restart": "Reiniciar la visita de módulos",
-      "restartHint": "Vuelve a reproducir la visita guiada de módulos desde el principio en tu próxima visita al panel.",
-      "restartConfirmation": "La visita de módulos se reiniciará desde el principio en tu próxima visita al panel.",
       "steps": {
         "dashboardOverview": {
           "title": "Tu panel",
@@ -3616,8 +3613,7 @@
           "title": "Esto es la visita",
           "body": "Puedes volver a ver cualquier módulo por separado cuando quieras («Mostrar esta visita» en cada página) o reiniciar la visita completa en Ajustes → Avanzado."
         }
-      },
-      "moduleTrigger": "Mostrar esta visita"
+      }
     },
     "shell": {
       "back": "Atrás",

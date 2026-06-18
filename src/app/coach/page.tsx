@@ -6,7 +6,6 @@ import { Minimize2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CoachConversation } from "@/components/insights/coach-panel/coach-conversation";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { useTranslations } from "@/lib/i18n/context";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
@@ -100,7 +99,6 @@ export default function CoachPage() {
         )}
         leadingHeaderActions={
           <>
-            <ModuleTourTrigger stopId="coach" />
             <Button
               type="button"
               variant="ghost"

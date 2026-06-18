@@ -40,7 +40,6 @@ import { cn } from "@/lib/utils";
 import { scrollBehaviorForUser } from "@/lib/motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
-import { SectionNavHeadingSpacer } from "@/components/settings/section-nav-heading-spacer";
 import { isAdminSectionSlug, type AdminSectionSlug } from "./section-slugs";
 
 interface AdminSection {
@@ -208,6 +207,24 @@ export function AdminShell({ active, children }: AdminShellProps) {
   // children — until the role is confirmed ADMIN.
   if (!user || user.role !== "ADMIN") return null;
 
+  // v1.18.6.1 — the heading lives in the shell so it can occupy its own grid
+  // row spanning only the content column; the nav's first item then lines up
+  // with the top of the first card by construction. `/admin` overview
+  // (activeSlug === null) shows the console title; each section shows its own.
+  const headingTitle =
+    activeSlug === null ? t("admin.title") : t(`admin.section.${activeSlug}.title`);
+  const headingSubtitle =
+    activeSlug === null
+      ? t("admin.subtitle")
+      : t(`admin.section.${activeSlug}.subtitle`);
+
+  const headingBlock = (
+    <div>
+      <h1 className="text-2xl font-bold tracking-tight">{headingTitle}</h1>
+      <p className="text-muted-foreground text-sm">{headingSubtitle}</p>
+    </div>
+  );
+
   // v1.4.25 W8 — AuthShell wraps the page in `px-4 py-6 md:px-6`
   // already, so this inner shell only carries the wider max-width.
   // Previously the duplicate `px-4 py-6 md:px-6 md:py-8` here was
@@ -215,6 +232,10 @@ export function AdminShell({ active, children }: AdminShellProps) {
   // pages than on Dashboard/Insights/Measurements.
   return (
     <div className="mx-auto w-full max-w-screen-xl">
+      {/* v1.18.6.1 — heading above the chip strip on mobile; on desktop it
+          renders inside the grid (row 1 / content column). */}
+      <div className="mb-4 md:hidden">{headingBlock}</div>
+
       {/* Mobile section strip — horizontal scroll, hidden on md+.
           `no-scrollbar` (defined in `globals.css`) suppresses the
           painted scrollbar at the top of every admin page; the
@@ -278,16 +299,22 @@ export function AdminShell({ active, children }: AdminShellProps) {
         </ul>
       </nav>
 
-      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-        {/* Desktop sticky sidebar */}
+      {/* v1.18.6.1 — two-row grid: heading in row 1 / col 2, nav in row 2 /
+          col 1, cards in row 2 / col 2. The nav's first item starts the same
+          grid row as the first card, so they align by construction across
+          locales and however the heading wraps — no fixed-height spacer. */}
+      <div className="grid gap-6 md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]">
+        {/* Heading — desktop only (mobile renders it above the strip). */}
+        <div className="hidden md:col-start-2 md:row-start-1 md:block">
+          {headingBlock}
+        </div>
+
+        {/* Desktop sticky sidebar — starts at the cards row (row 2). */}
         <aside
           aria-label={t("admin.shell.sectionsNav")}
-          className="hidden md:block"
+          className="hidden md:col-start-1 md:row-start-2 md:block"
         >
           <div className="sticky top-20">
-            {/* v1.18.6 (W9) — align the first nav item with the top of the
-                first card, matching the settings shell. */}
-            <SectionNavHeadingSpacer />
             <ul className="space-y-1">
               <li>
                 <Link
@@ -329,12 +356,14 @@ export function AdminShell({ active, children }: AdminShellProps) {
           </div>
         </aside>
 
-        {/* Main column — page renders its own h1 + subtitle. Same
+        {/* Main column (cards) — row 2 / col 2. Same
             `min-h-[calc(100dvh-12rem)]` reserve as `<SettingsShell>`
             so navigating between admin sub-pages (e.g. system-status
             → login-overview) does not jump the page height while the
             new section is still fetching. */}
-        <main className="min-h-[calc(100dvh-12rem)] min-w-0">{children}</main>
+        <main className="min-h-[calc(100dvh-12rem)] min-w-0 md:col-start-2 md:row-start-2">
+          {children}
+        </main>
       </div>
     </div>
   );

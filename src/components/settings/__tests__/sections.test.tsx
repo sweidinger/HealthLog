@@ -136,15 +136,14 @@ describe("settings sections — SSR smoke", () => {
     expect(html).not.toContain("settings.sections.");
   });
 
-  it("<AdvancedSection> exposes the single Restart-tour card", () => {
-    // v1.18.1 (D1) — the tour-replay card moved from Account into Advanced.
-    // v1.18.6 — relabelled "Restart module tour" and consolidated as the one
-    // full-tour replay home (the About duplicate was removed).
+  it("<AdvancedSection> no longer carries a tour-replay card", () => {
+    // v1.18.6.1 — the guided tour exists only as the first-time auto-start
+    // after onboarding. Every in-app replay / re-entry trigger was removed,
+    // including this Advanced card.
     const html = render(<AdvancedSection />);
-    expect(html).toContain('data-testid="settings-restart-tour"');
-    expect(html).toContain("Restart module tour");
-    // No raw i18n key leaks.
-    expect(html).not.toContain("onboarding.tour.");
+    expect(html).not.toContain('data-testid="settings-restart-tour"');
+    expect(html).not.toContain("Restart module tour");
+    expect(html).not.toContain("onboarding.tour.restart");
   });
 
   it("<AccountSection> no longer carries the Restart-tour button", () => {

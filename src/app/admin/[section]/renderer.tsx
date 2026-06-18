@@ -224,21 +224,16 @@ export function AdminSectionRenderer({
 }
 
 interface SectionFrameProps {
-  title: string;
+  // v1.18.6.1 — the visible heading + subtitle moved to `<AdminShell>`, which
+  // places them in their own grid row so the left nav lines up with the first
+  // card. `title` / `subtitle` are still passed by every call site (and remain
+  // the i18n source of truth the shell reads), but the frame no longer paints
+  // them — it is now just the `space-y-6` card-stack wrapper.
+  title?: string;
   subtitle?: string;
   children: React.ReactNode;
 }
 
-function SectionFrame({ title, subtitle, children }: SectionFrameProps) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        {subtitle && (
-          <p className="text-muted-foreground text-sm">{subtitle}</p>
-        )}
-      </div>
-      {children}
-    </div>
-  );
+function SectionFrame({ children }: SectionFrameProps) {
+  return <div className="space-y-6">{children}</div>;
 }

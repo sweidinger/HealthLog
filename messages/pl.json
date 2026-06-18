@@ -3552,9 +3552,6 @@
       "back": "Wstecz",
       "skip": "Pomiń tour",
       "done": "Rozumiem",
-      "restart": "Uruchom przewodnik modułów ponownie",
-      "restartHint": "Odtwarza przewodnik po modułach od początku przy następnej wizycie na pulpicie.",
-      "restartConfirmation": "Przewodnik po modułach uruchomi się od początku przy następnej wizycie na pulpicie.",
       "steps": {
         "dashboardOverview": {
           "title": "Twój pulpit",
@@ -3616,8 +3613,7 @@
           "title": "To koniec przewodnika",
           "body": "Każdy moduł możesz obejrzeć osobno w dowolnej chwili („Pokaż ten przewodnik” na każdej stronie) lub uruchomić cały przewodnik ponownie w Ustawienia → Zaawansowane."
         }
-      },
-      "moduleTrigger": "Pokaż ten przewodnik"
+      }
     },
     "shell": {
       "back": "Wstecz",

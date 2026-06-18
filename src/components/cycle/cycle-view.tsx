@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "@/lib/i18n/context";
-import { ModuleTourTrigger } from "@/components/onboarding/module-tour-trigger";
 import { cn } from "@/lib/utils";
 import { CycleRing } from "./cycle-ring";
 import { BbtChart } from "./bbt-chart";
@@ -151,7 +150,6 @@ export function CycleView() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ModuleTourTrigger stopId="cycle" />
           <Button
             onClick={() => openSheet(today)}
             className="min-h-11 sm:min-h-9"

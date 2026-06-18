@@ -30,13 +30,8 @@ export default function AdminOverviewPage() {
   return (
     <AdminShell>
       <div className="space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {t("admin.title")}
-          </h1>
-          <p className="text-muted-foreground text-sm">{t("admin.subtitle")}</p>
-        </header>
-
+        {/* v1.18.6.1 — the console title + subtitle render in `<AdminShell>`
+            now (its own grid row, so the nav lines up with the first card). */}
         {settingsError && (
           <div
             role="alert"
