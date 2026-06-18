@@ -78,7 +78,7 @@ import {
 } from "@/lib/dashboard/meds-today";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
 import {
-  buildTargetBands,
+  buildDashboardBands as buildTargetBands,
   type DashboardTargetBands,
 } from "@/lib/dashboard/bands";
 import type {

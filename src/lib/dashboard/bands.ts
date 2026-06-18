@@ -135,9 +135,6 @@ export function buildDashboardBands(profile: {
   };
 }
 
-/**
- * Snapshot-era alias. The snapshot builder and its parity test still
- * import `buildTargetBands`; keep the name pointing at the canonical
- * builder so neither has to change.
- */
-export const buildTargetBands = buildDashboardBands;
+// The snapshot builder re-exports `buildDashboardBands` under the historic
+// `buildTargetBands` name (see dashboard/snapshot.ts) so callers and the
+// parity test keep working without a duplicate export living in this file.
