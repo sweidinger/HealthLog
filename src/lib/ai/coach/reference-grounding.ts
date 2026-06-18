@@ -42,6 +42,7 @@
 import {
   classifyReference,
   getReferenceRange,
+  normalBandIndex,
   referenceLabel,
   type ReferenceMetric,
   type ReferencePlacement,
@@ -134,13 +135,16 @@ function placementPhrase(placement: ReferencePlacement): string {
 
 /**
  * Render the half-open band as a compact "low–high unit" descriptor for the
- * metric's headline (first/normal) band. Open-ended bounds render with a
- * leading/trailing ≤ / ≥.
+ * metric's NORMAL band — resolved by the `normal` marker, NOT by index 0
+ * (some metrics author an abnormal band first, e.g. BMI Underweight or
+ * pulse-pressure Narrow). Open-ended bounds render with a leading/trailing
+ * ≤ / ≥.
  */
 function headlineBandText(metric: ReferenceMetric): string | null {
   const range = getReferenceRange(metric);
   if (!range || range.bands.length === 0) return null;
-  const band = range.bands[0];
+  const idx = normalBandIndex(metric);
+  const band = range.bands[idx];
   const unit = range.unit;
   if (band.low != null && band.high != null) {
     return `${band.low}–${band.high} ${unit}`;
@@ -217,6 +221,13 @@ export function buildReferenceGroundingBlock(
   for (const m of input.metrics) {
     if (seen.has(m.metric)) continue;
     if (!getReferenceRange(m.metric)) continue;
+    // STEPS is excluded from grounding for now: the caller feeds the
+    // intra-day MEAN of the ACTIVITY_STEPS rows, so a day logged across
+    // several rows is averaged DOWN and can be misclassified below the
+    // 8,000-step floor. Grounding it on a sum-per-day aggregate is the
+    // correct fix and is tracked as a follow-up; until then we drop the
+    // line rather than ship a wrong placement.
+    if (m.metric === "STEPS") continue;
     seen.add(m.metric);
     ordered.push(m);
     if (ordered.length >= MAX_GROUNDING_METRICS) break;

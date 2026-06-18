@@ -7,6 +7,7 @@ import {
   classifyReference,
   getReferenceRange,
   isReferenceMetric,
+  normalBandIndex,
   referenceCitation,
   referenceLabel,
   type ReferenceMetric,
@@ -52,6 +53,42 @@ describe("reference-ranges backbone", () => {
     // SpO2 below the healthy floor is attention.
     expect(classifyReference("OXYGEN_SATURATION", 88)).toBe("outside");
     expect(classifyReference("OXYGEN_SATURATION", 98)).toBe("within");
+  });
+
+  it("every banded metric marks exactly one normal band", () => {
+    for (const metric of REFERENCE_METRICS) {
+      const bands = REFERENCE_RANGES[metric].bands;
+      if (bands.length === 0) continue;
+      const marked = bands.filter((b) => b.normal === true);
+      expect(marked, `${metric} normal-band count`).toHaveLength(1);
+      // `normalBandIndex` points at that marked band.
+      expect(bands[normalBandIndex(metric)].normal, `${metric} index`).toBe(true);
+    }
+  });
+
+  it("resolves the normal band by marker, not by index 0", () => {
+    // BMI authors Underweight FIRST; the normal band is the 18.5–24.9 entry.
+    expect(REFERENCE_RANGES.BMI.bands[0].label).toBe("Underweight");
+    expect(REFERENCE_RANGES.BMI.bands[normalBandIndex("BMI")].label).toBe("Normal");
+    // BMI 22 is healthy → within (the index-0 bug reported it slightly-outside).
+    expect(classifyReference("BMI", 22)).toBe("within");
+    // BMI 17 is underweight → one band below normal → slightly-outside
+    // (the index-0 bug reported it as within).
+    expect(classifyReference("BMI", 17)).toBe("slightly-outside");
+    // BMI 27 overweight (one above) → slightly-outside; 35 obesity (two
+    // above) → outside.
+    expect(classifyReference("BMI", 27)).toBe("slightly-outside");
+    expect(classifyReference("BMI", 35)).toBe("outside");
+  });
+
+  it("classifies pulse pressure around its interior normal band", () => {
+    // Narrow is the FIRST band; the normal band is "Typical at rest".
+    expect(REFERENCE_RANGES.PULSE_PRESSURE.bands[0].label).toBe("Narrow");
+    expect(classifyReference("PULSE_PRESSURE", 40)).toBe("within");
+    // Narrow (≤25) is one band below normal → slightly-outside.
+    expect(classifyReference("PULSE_PRESSURE", 20)).toBe("slightly-outside");
+    // Wide (≥60) is one band above normal → slightly-outside.
+    expect(classifyReference("PULSE_PRESSURE", 75)).toBe("slightly-outside");
   });
 
   it("returns insufficient for absent values and band-less metrics", () => {

@@ -113,6 +113,71 @@ describe("buildReferenceGroundingBlock", () => {
     expect(outOfGoal).toContain("outside the typical diabetes management goal");
   });
 
+  it("grounds BMI against the WHO normal band, not the first (Underweight) band", () => {
+    // The headline band rendered must be the 18.5–24.9 normal range — the
+    // index-0 bug surfaced the Underweight "≤18.5" ceiling instead.
+    const normal = buildReferenceGroundingBlock({
+      metrics: [{ metric: "BMI", value: 22 }],
+      hasDiabetes: false,
+    })!;
+    const bmiLine = normal.split("\n").find((l) => l.startsWith("- BMI:"))!;
+    expect(bmiLine).toContain("18.5–24.9 kg/m²");
+    expect(bmiLine).not.toContain("≤18.5");
+    // A healthy 22 sits INSIDE the band (was wrongly "just outside").
+    expect(bmiLine).toContain("sits inside the general reference band");
+
+    // Underweight 17 sits just outside (was wrongly "inside").
+    const under = buildReferenceGroundingBlock({
+      metrics: [{ metric: "BMI", value: 17 }],
+      hasDiabetes: false,
+    })!;
+    expect(under.split("\n").find((l) => l.startsWith("- BMI:"))).toContain(
+      "sits just outside the general reference band",
+    );
+
+    // Overweight 27 sits just outside.
+    const over = buildReferenceGroundingBlock({
+      metrics: [{ metric: "BMI", value: 27 }],
+      hasDiabetes: false,
+    })!;
+    expect(over.split("\n").find((l) => l.startsWith("- BMI:"))).toContain(
+      "sits just outside the general reference band",
+    );
+  });
+
+  it("grounds pulse pressure against its interior normal band", () => {
+    const block = buildReferenceGroundingBlock({
+      metrics: [{ metric: "PULSE_PRESSURE", value: 40 }],
+      hasDiabetes: false,
+    })!;
+    const line = block.split("\n").find((l) => l.startsWith("- pulse pressure:"))!;
+    // The normal "Typical at rest" band (25–60), not the first "Narrow" band.
+    expect(line).toContain("25–60 mmHg");
+    expect(line).toContain("sits inside the general reference band");
+  });
+
+  it("does not ground steps (mean-aggregation misplacement; follow-up)", () => {
+    const block = buildReferenceGroundingBlock({
+      metrics: [
+        { metric: "STEPS", value: 9000 },
+        { metric: "BMI", value: 22 },
+      ],
+      hasDiabetes: false,
+    })!;
+    // STEPS is dropped; the BMI line still renders.
+    expect(block).not.toContain("daily steps");
+    expect(block.split("\n").some((l) => l.startsWith("- BMI:"))).toBe(true);
+  });
+
+  it("returns null when steps is the only metric (it is not grounded)", () => {
+    expect(
+      buildReferenceGroundingBlock({
+        metrics: [{ metric: "STEPS", value: 9000 }],
+        hasDiabetes: false,
+      }),
+    ).toBeNull();
+  });
+
   it("treats a band-less metric (HRV) as baseline-led, never out-of-band", () => {
     const block = buildReferenceGroundingBlock({
       metrics: [{ metric: "HEART_RATE_VARIABILITY", value: 45 }],
