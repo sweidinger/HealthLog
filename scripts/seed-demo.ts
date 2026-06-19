@@ -541,19 +541,39 @@ async function seed() {
     // ── Achievements ─────────────────────────
     console.log("Creating achievements...");
 
+    // Every id below is a real key from the achievement registry
+    // (src/lib/gamification/achievements.ts) so the badge resolves to a real
+    // title/icon rather than an "unknown" placeholder. Only milestones the
+    // seeded history genuinely supports are unlocked (first-entry badges,
+    // logging streaks, in-range BP/pulse/BMI streaks, compliance + miss-free
+    // streaks, the self-context + 7-night sleep badges). The dynamic streak
+    // families use the `<prefix>-<target>` naming the generator emits.
     const achievements = [
-      { id: "first-measurement", daysAgo: 89 },
-      { id: "first-medication", daysAgo: 89 },
-      { id: "first-mood", daysAgo: 89 },
-      { id: "week-streak-measurements", daysAgo: 82 },
-      { id: "week-streak-mood", daysAgo: 82 },
-      { id: "month-streak-measurements", daysAgo: 59 },
-      { id: "compliance-90", daysAgo: 45 },
-      { id: "weight-loss-5", daysAgo: 30 },
-      { id: "bp-normal", daysAgo: 20 },
-      { id: "steps-10k", daysAgo: 15 },
-      { id: "month-streak-mood", daysAgo: 10 },
-      { id: "three-month-streak", daysAgo: 2 },
+      { id: "weight-first", daysAgo: 89 },
+      { id: "bp-first", daysAgo: 89 },
+      { id: "pulse-first", daysAgo: 89 },
+      { id: "mood-first", daysAgo: 89 },
+      { id: "self-context-complete", daysAgo: 88 },
+      { id: "entry-streak-7", daysAgo: 82 },
+      { id: "mood-streak-7", daysAgo: 82 },
+      { id: "sleep-log-7", daysAgo: 70 },
+      { id: "mood-up-7", daysAgo: 68 },
+      { id: "weight-50", daysAgo: 60 },
+      { id: "bp-50", daysAgo: 55 },
+      { id: "entry-streak-30", daysAgo: 50 },
+      { id: "mood-streak-30", daysAgo: 50 },
+      { id: "miss-free-7", daysAgo: 48 },
+      { id: "consistent-month", daysAgo: 45 },
+      { id: "bp-green-7", daysAgo: 42 },
+      { id: "pulse-green-7", daysAgo: 40 },
+      { id: "bmi-green-7", daysAgo: 38 },
+      { id: "compliance-80-30", daysAgo: 30 },
+      { id: "miss-free-30", daysAgo: 30 },
+      { id: "on-time-perfect-7", daysAgo: 28 },
+      { id: "measurement-weeks-4", daysAgo: 25 },
+      { id: "bp-green-30", daysAgo: 12 },
+      { id: "pulse-green-30", daysAgo: 10 },
+      { id: "miss-free-90", daysAgo: 2 },
     ];
 
     for (const ach of achievements) {
