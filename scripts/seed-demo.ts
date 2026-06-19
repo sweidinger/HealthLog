@@ -11,6 +11,16 @@
  *   sleep, steps) — flat-or-improving trends, most-recent point from today
  * - A full week of per-stage sleep nights (awake/REM/light(core)/deep),
  *   ~7.5 h each, including last night
+ * - 90 days of body composition (fat/lean/muscle mass, total body water,
+ *   bone mass, visceral fat, BMI) derived from the same-day weight + body fat
+ * - 90 days of blood glucose in a healthy non-diabetic band (fasting +
+ *   post-meal + bedtime, contexts tagged)
+ * - 90 days of cardio fitness + vitals (HRV SDNN + RMSSD, SpO2, respiratory
+ *   rate, VO2 max, active energy, walking/running distance, flights climbed)
+ * - 90 days of WHOOP-style scores (recovery, day strain, sleep
+ *   performance/efficiency/consistency) coherent with the sleep nights
+ * - ~3-4 workouts/week (running, strength, cycling) with per-workout HR
+ *   samples and per-workout strain
  * - 3 medications with schedules and ~90 days of intake history at high
  *   compliance, with today scheduled on-track (taken or not-yet-due)
  * - 90 days of mood entries
@@ -118,6 +128,8 @@ async function seed() {
     await client.query("DELETE FROM lab_results");
     await client.query("DELETE FROM measurement_reminders");
     await client.query("DELETE FROM mood_entries");
+    await client.query("DELETE FROM workout_samples");
+    await client.query("DELETE FROM workouts");
     await client.query("DELETE FROM medication_intake_events");
     await client.query("DELETE FROM medication_schedules");
     await client.query("DELETE FROM reminder_phase_configs");
@@ -290,6 +302,248 @@ async function seed() {
           [cuid(), userId, stageMin, stage, wake],
         );
       }
+    }
+
+    // ── Body composition (smart-scale series) ──
+    // A full scale-style breakdown, written every 2–3 days like a real
+    // body-composition scale would record. Every component is DERIVED from
+    // the same-day weight + body-fat series above so the numbers reconcile:
+    // fat mass = weight × bodyFat%, fat-free mass = weight − fat mass, and
+    // the muscle / water / bone / BMI components hang off those so the demo
+    // never contradicts its own headline weight + body-fat tiles. Source
+    // APPLE_HEALTH with device_type 'scale' so they read as device-tracked.
+    // Canonical units (see prisma/schema.prisma + VALUE_RANGES): mass
+    // components in kg, VISCERAL_FAT a 1–12 rating, BODY_MASS_INDEX kg/m².
+    console.log("Creating body composition series...");
+    const HEIGHT_M = 1.82;
+    for (let i = 0; i < span; i++) {
+      // Roughly every other day, jittered, so the cadence reads organic.
+      if (i % 2 !== 0 && Math.random() > 0.4) continue;
+      const date = daysAgo(days - i);
+      const weightKg = weights[i];
+      const fatPct = bodyFat[i];
+      const fatMass = Math.round(weightKg * (fatPct / 100) * 10) / 10;
+      const fatFree = Math.round((weightKg - fatMass) * 10) / 10;
+      // Skeletal muscle is a subset of fat-free mass (~75% of it for a lean
+      // adult male); lean body mass ≈ fat-free mass.
+      const muscleMass = Math.round(fatFree * 0.75 * 10) / 10;
+      const leanMass = fatFree;
+      // Total body water ≈ 73% of fat-free mass (kg of water).
+      const bodyWater = Math.round(fatFree * 0.73 * 10) / 10;
+      const boneMass = Math.round((3.1 + (Math.random() - 0.5) * 0.2) * 10) / 10;
+      // Visceral-fat rating on Withings' 1–12 scale; a healthy ~6, easing
+      // down slightly as the body fat trends down.
+      const visceralFat = Math.round(7 - (i / span) * 1.5);
+      const bmi = Math.round((weightKg / (HEIGHT_M * HEIGHT_M)) * 10) / 10;
+
+      const composition: Array<{ type: string; value: number; unit: string }> =
+        [
+          { type: "FAT_MASS", value: fatMass, unit: "kg" },
+          { type: "FAT_FREE_MASS", value: fatFree, unit: "kg" },
+          { type: "LEAN_BODY_MASS", value: leanMass, unit: "kg" },
+          { type: "MUSCLE_MASS", value: muscleMass, unit: "kg" },
+          { type: "TOTAL_BODY_WATER", value: bodyWater, unit: "kg" },
+          { type: "BONE_MASS", value: boneMass, unit: "kg" },
+          { type: "VISCERAL_FAT", value: visceralFat, unit: "rating" },
+          { type: "BODY_MASS_INDEX", value: bmi, unit: "kg/m²" },
+        ];
+      for (const c of composition) {
+        await client.query(
+          `INSERT INTO measurements (id, user_id, type, value, unit, source, device_type, measured_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, 'APPLE_HEALTH', 'scale', $6, $6, $6)`,
+          [cuid(), userId, c.type, c.value, c.unit, date],
+        );
+      }
+    }
+
+    // ── Blood glucose (healthy non-diabetic series) ──
+    // A few readings per day over the full window, every value in a healthy
+    // non-diabetic band: fasting ~85–95 mg/dL, a well-controlled post-meal
+    // peak ~110–135, and a calm bedtime ~95–105. Canonical storage is mg/dL
+    // (schema note on BLOOD_GLUCOSE); the per-reading context lands in the
+    // glucose_context column (FASTING / POSTPRANDIAL / BEDTIME) so the
+    // glucose panel can apply the right target band per reading.
+    console.log("Creating blood glucose series...");
+    const glucoseReadings: Array<{
+      context: string;
+      hour: number;
+      base: number;
+      jitter: number;
+    }> = [
+      { context: "FASTING", hour: 7, base: 89, jitter: 6 },
+      { context: "POSTPRANDIAL", hour: 13, base: 122, jitter: 12 },
+      { context: "POSTPRANDIAL", hour: 19, base: 118, jitter: 12 },
+      { context: "BEDTIME", hour: 22, base: 99, jitter: 6 },
+    ];
+    for (let i = 0; i < span; i++) {
+      for (const r of glucoseReadings) {
+        const at = daysAgoAt(days - i, r.hour, Math.floor(Math.random() * 30));
+        const value = Math.round(r.base + (Math.random() - 0.5) * r.jitter);
+        await client.query(
+          `INSERT INTO measurements (id, user_id, type, value, unit, source, glucose_context, device_type, measured_at, created_at, updated_at)
+           VALUES ($1, $2, 'BLOOD_GLUCOSE', $3, 'mg/dL', 'APPLE_HEALTH', $4, 'phone', $5, $5, $5)`,
+          [cuid(), userId, value, r.context, at],
+        );
+      }
+    }
+
+    // ── Cardio fitness + vitals ───────────────
+    // The dashboard + insights surface these device-tracked vitals. All
+    // recent (full window, latest point today), all in healthy/aspirational
+    // bands. Canonical units per schema + VALUE_RANGES: HRV ms,
+    // OXYGEN_SATURATION percent, RESPIRATORY_RATE breaths/min, VO2_MAX
+    // mL/(kg·min), ACTIVE_ENERGY_BURNED kcal, WALKING_RUNNING_DISTANCE metres,
+    // FLIGHTS_CLIMBED count. Source APPLE_HEALTH device_type 'watch'.
+    console.log("Creating cardio fitness + vitals series...");
+    // HRV SDNN: a healthy ~55 ms, gently rising; also write the RMSSD variant.
+    const hrvSdnn = randomWalk(48, 58, span, 5, VALUE_RANGES.HEART_RATE_VARIABILITY);
+    const hrvRmssd = randomWalk(42, 52, span, 5, VALUE_RANGES.HRV_RMSSD);
+    // SpO2: 97–99%.
+    const spo2 = randomWalk(98, 98, span, 0.8, VALUE_RANGES.OXYGEN_SATURATION);
+    // Respiratory rate: 13–16 breaths/min.
+    const respRate = randomWalk(15, 14, span, 0.8, VALUE_RANGES.RESPIRATORY_RATE);
+    // Active energy: ~550 kcal/day.
+    const activeKcal = randomWalk(480, 600, span, 80, VALUE_RANGES.ACTIVE_ENERGY_BURNED);
+    // Walking + running distance (metres): ~6–8 km/day, tracks steps.
+    const distM = randomWalk(6200, 7800, span, 900, VALUE_RANGES.WALKING_RUNNING_DISTANCE);
+    // Flights climbed: ~8–14/day.
+    const flights = randomWalk(9, 13, span, 4, VALUE_RANGES.FLIGHTS_CLIMBED);
+
+    for (let i = 0; i < span; i++) {
+      const date = daysAgo(days - i);
+      const vitals: Array<{ type: string; value: number; unit: string }> = [
+        { type: "HEART_RATE_VARIABILITY", value: Math.round(hrvSdnn[i]), unit: "ms" },
+        { type: "HRV_RMSSD", value: Math.round(hrvRmssd[i]), unit: "ms" },
+        { type: "OXYGEN_SATURATION", value: Math.round(spo2[i] * 10) / 10, unit: "%" },
+        { type: "RESPIRATORY_RATE", value: Math.round(respRate[i] * 10) / 10, unit: "count/min" },
+        { type: "ACTIVE_ENERGY_BURNED", value: Math.round(activeKcal[i]), unit: "kcal" },
+        { type: "WALKING_RUNNING_DISTANCE", value: Math.round(distM[i]), unit: "m" },
+        { type: "FLIGHTS_CLIMBED", value: Math.round(flights[i]), unit: "count" },
+      ];
+      for (const v of vitals) {
+        await client.query(
+          `INSERT INTO measurements (id, user_id, type, value, unit, source, device_type, measured_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, 'APPLE_HEALTH', 'watch', $6, $6, $6)`,
+          [cuid(), userId, v.type, v.value, v.unit, date],
+        );
+      }
+      // VO2 max: only every ~10 days (Apple samples it rarely), ~46–49.
+      if (i % 10 === 0) {
+        const vo2 = Math.round((46 + (i / span) * 3) * 10) / 10;
+        await client.query(
+          `INSERT INTO measurements (id, user_id, type, value, unit, source, device_type, measured_at, created_at, updated_at)
+           VALUES ($1, $2, 'VO2_MAX', $3, 'mL/(kg·min)', 'APPLE_HEALTH', 'watch', $4, $4, $4)`,
+          [cuid(), userId, vo2, date],
+        );
+      }
+    }
+
+    // ── Recovery / strain / sleep scores (WHOOP-style) ──
+    // The WHOOP-style readiness surface. These are stored as Measurement rows
+    // (type RECOVERY_SCORE / DAY_STRAIN / SLEEP_PERFORMANCE / SLEEP_EFFICIENCY
+    // / SLEEP_CONSISTENCY, unit 'score' or '%') with source WHOOP, distinct
+    // from the COMPUTED engine's own rows. Coherent with the seeded sleep:
+    // well-slept nights pair with high recovery + efficiency, and day-strain
+    // sits in a sustainable band. RECOVERY_SCORE / sleep percentages are
+    // 0–100; DAY_STRAIN is on WHOOP's 0–21 scale.
+    console.log("Creating recovery / strain / sleep scores...");
+    const recovery = randomWalk(68, 78, span, 8, VALUE_RANGES.RECOVERY_SCORE);
+    const dayStrain = randomWalk(11, 13, span, 2.5, VALUE_RANGES.DAY_STRAIN);
+    const sleepPerf = randomWalk(82, 90, span, 6, VALUE_RANGES.SLEEP_PERFORMANCE);
+    const sleepEff = randomWalk(88, 93, span, 4, VALUE_RANGES.SLEEP_EFFICIENCY);
+    const sleepConsistency = randomWalk(74, 84, span, 6, VALUE_RANGES.SLEEP_CONSISTENCY);
+    for (let i = 0; i < span; i++) {
+      // Anchor scores to the morning wake instant so a night's recovery sits
+      // on the day it belongs to.
+      const at = daysAgoAt(days - i, 7, 0);
+      const scores: Array<{ type: string; value: number; unit: string }> = [
+        { type: "RECOVERY_SCORE", value: Math.round(recovery[i]), unit: "score" },
+        { type: "DAY_STRAIN", value: Math.round(dayStrain[i] * 10) / 10, unit: "score" },
+        { type: "SLEEP_PERFORMANCE", value: Math.round(sleepPerf[i]), unit: "%" },
+        { type: "SLEEP_EFFICIENCY", value: Math.round(sleepEff[i]), unit: "%" },
+        { type: "SLEEP_CONSISTENCY", value: Math.round(sleepConsistency[i]), unit: "%" },
+      ];
+      for (const s of scores) {
+        await client.query(
+          `INSERT INTO measurements (id, user_id, type, value, unit, source, device_type, measured_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, 'WHOOP', 'band', $6, $6, $6)`,
+          [cuid(), userId, s.type, s.value, s.unit, at],
+        );
+      }
+    }
+
+    // ── Workouts ──────────────────────────────
+    // ~3–4 sessions/week across the window: a mix of running, strength, and
+    // cycling, with the fields the workout tiles render — duration, energy,
+    // avg/max HR, distance (running/cycling). Each workout carries a sparse
+    // HR sample series in WorkoutSamples (the per-workout HR chart) and its
+    // per-workout strain in metadata (WORKOUT_STRAIN lives on the workout row
+    // per the schema note, not as a free-floating Measurement). Distances in
+    // metres, energy in kcal, durations in seconds — matching the model.
+    console.log("Creating workouts...");
+    const workoutPlan: Array<{
+      sport: string;
+      durationMin: number;
+      kcal: number;
+      avgHr: number;
+      maxHr: number;
+      distanceM: number | null;
+      strain: number;
+    }> = [
+      { sport: "running", durationMin: 38, kcal: 420, avgHr: 148, maxHr: 171, distanceM: 6500, strain: 13.4 },
+      { sport: "strength", durationMin: 52, kcal: 360, avgHr: 118, maxHr: 152, distanceM: null, strain: 10.2 },
+      { sport: "cycling", durationMin: 65, kcal: 520, avgHr: 134, maxHr: 158, distanceM: 24000, strain: 12.1 },
+    ];
+    // Step backwards through the window placing ~2 sessions a week per slot
+    // so the cadence lands around 3–4/week without overlapping.
+    let planIdx = 0;
+    for (let dayOffset = days - 1; dayOffset >= 1; dayOffset -= 2) {
+      // Skip ~25% of slots so the week isn't perfectly regular.
+      if (Math.random() < 0.25) continue;
+      const plan = workoutPlan[planIdx % workoutPlan.length];
+      planIdx += 1;
+      const startHour = 17 + Math.floor(Math.random() * 3);
+      const startedAt = daysAgoAt(dayOffset, startHour, Math.floor(Math.random() * 50));
+      const durationSec = plan.durationMin * 60;
+      const endedAt = new Date(startedAt.getTime() + durationSec * 1000);
+      const workoutId = cuid();
+      await client.query(
+        `INSERT INTO workouts (id, user_id, sport_type, started_at, ended_at, duration_sec, total_energy_kcal, total_distance_m, avg_heart_rate, max_heart_rate, source, metadata, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'APPLE_HEALTH', $11, $4, $4)`,
+        [
+          workoutId,
+          userId,
+          plan.sport,
+          startedAt,
+          endedAt,
+          durationSec,
+          plan.kcal,
+          plan.distanceM,
+          plan.avgHr,
+          plan.maxHr,
+          JSON.stringify({ workoutStrain: plan.strain }),
+        ],
+      );
+      // A sparse HR series — one sample every ~5 minutes across the session,
+      // rising into the working band and easing at the end. The per-workout
+      // HR chart renders straight from this WorkoutSamples blob.
+      const sampleCount = Math.max(2, Math.round(plan.durationMin / 5));
+      const samples: Array<{ t: string; hr: number }> = [];
+      for (let s = 0; s < sampleCount; s++) {
+        const frac = s / (sampleCount - 1);
+        // Warm up from ~60% to the avg, peak near the max around 70% through.
+        const peakBias = 1 - Math.abs(frac - 0.7) * 0.6;
+        const hr = Math.round(
+          plan.avgHr + (plan.maxHr - plan.avgHr) * peakBias * 0.7,
+        );
+        const t = new Date(startedAt.getTime() + frac * durationSec * 1000);
+        samples.push({ t: t.toISOString(), hr });
+      }
+      await client.query(
+        `INSERT INTO workout_samples (id, workout_id, samples, sample_count, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [cuid(), workoutId, JSON.stringify(samples), samples.length],
+      );
     }
 
     // ── Medications ───────────────────────────
@@ -541,19 +795,39 @@ async function seed() {
     // ── Achievements ─────────────────────────
     console.log("Creating achievements...");
 
+    // Every id below is a real key from the achievement registry
+    // (src/lib/gamification/achievements.ts) so the badge resolves to a real
+    // title/icon rather than an "unknown" placeholder. Only milestones the
+    // seeded history genuinely supports are unlocked (first-entry badges,
+    // logging streaks, in-range BP/pulse/BMI streaks, compliance + miss-free
+    // streaks, the self-context + 7-night sleep badges). The dynamic streak
+    // families use the `<prefix>-<target>` naming the generator emits.
     const achievements = [
-      { id: "first-measurement", daysAgo: 89 },
-      { id: "first-medication", daysAgo: 89 },
-      { id: "first-mood", daysAgo: 89 },
-      { id: "week-streak-measurements", daysAgo: 82 },
-      { id: "week-streak-mood", daysAgo: 82 },
-      { id: "month-streak-measurements", daysAgo: 59 },
-      { id: "compliance-90", daysAgo: 45 },
-      { id: "weight-loss-5", daysAgo: 30 },
-      { id: "bp-normal", daysAgo: 20 },
-      { id: "steps-10k", daysAgo: 15 },
-      { id: "month-streak-mood", daysAgo: 10 },
-      { id: "three-month-streak", daysAgo: 2 },
+      { id: "weight-first", daysAgo: 89 },
+      { id: "bp-first", daysAgo: 89 },
+      { id: "pulse-first", daysAgo: 89 },
+      { id: "mood-first", daysAgo: 89 },
+      { id: "self-context-complete", daysAgo: 88 },
+      { id: "entry-streak-7", daysAgo: 82 },
+      { id: "mood-streak-7", daysAgo: 82 },
+      { id: "sleep-log-7", daysAgo: 70 },
+      { id: "mood-up-7", daysAgo: 68 },
+      { id: "weight-50", daysAgo: 60 },
+      { id: "bp-50", daysAgo: 55 },
+      { id: "entry-streak-30", daysAgo: 50 },
+      { id: "mood-streak-30", daysAgo: 50 },
+      { id: "miss-free-7", daysAgo: 48 },
+      { id: "consistent-month", daysAgo: 45 },
+      { id: "bp-green-7", daysAgo: 42 },
+      { id: "pulse-green-7", daysAgo: 40 },
+      { id: "bmi-green-7", daysAgo: 38 },
+      { id: "compliance-80-30", daysAgo: 30 },
+      { id: "miss-free-30", daysAgo: 30 },
+      { id: "on-time-perfect-7", daysAgo: 28 },
+      { id: "measurement-weeks-4", daysAgo: 25 },
+      { id: "bp-green-30", daysAgo: 12 },
+      { id: "pulse-green-30", daysAgo: 10 },
+      { id: "miss-free-90", daysAgo: 2 },
     ];
 
     for (const ach of achievements) {
@@ -645,9 +919,14 @@ async function seed() {
     await client.query("COMMIT");
     console.log("\nDemo data seeded successfully!");
     console.log(`  User: demo / demo123demo123`);
-    console.log(`  Measurements: ~${span * 8} entries (8 types, today included)`);
+    console.log(`  Measurements: weight, BP, pulse, resting HR, body fat, steps, sleep`);
+    console.log(`  Body composition: fat/lean/muscle mass, water, bone, visceral fat, BMI`);
+    console.log(`  Blood glucose: ${glucoseReadings.length} readings/day (fasting + post-meal + bedtime)`);
+    console.log(`  Cardio + vitals: HRV (SDNN + RMSSD), SpO2, resp. rate, VO2max, active energy, distance, flights`);
+    console.log(`  Scores: recovery, day strain, sleep performance/efficiency/consistency`);
     console.log(`  Sleep: 7 per-stage nights (4 stages each) + daily aggregate`);
     console.log(`  Medications: 3 (high compliance, today on-track)`);
+    console.log(`  Workouts: ~3-4/week (running, strength, cycling) with HR samples`);
     console.log(`  Mood: ~${Math.round(span * 0.95)} entries`);
     console.log(`  Vorsorge reminders: 2 (dental, annual physical)`);
     console.log(`  Lab panel: ${labResults.length} biomarkers`);
