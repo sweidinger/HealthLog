@@ -4025,6 +4025,21 @@
         "description": "Groups, tags, and archived tags for the mood picker.",
         "subtitle": "Organize your mood tags, groups, and picker order."
       },
+      "labs": {
+        "title": "Labs",
+        "description": "View, sort order, and biomarkers for your labs.",
+        "subtitle": "Manage the view, sort order, and biomarkers."
+      },
+      "illness": {
+        "title": "Illness journal",
+        "description": "View and order of your illness episodes.",
+        "subtitle": "Manage the view and order of episodes."
+      },
+      "vorsorge": {
+        "title": "Preventive care",
+        "description": "View, order, and individual preventive-care reminders.",
+        "subtitle": "Manage the view, order, and individual reminders."
+      },
       "modules": {
         "title": "Modules",
         "saved": "Saved.",
@@ -6407,11 +6422,6 @@
       "onTrack": "On track",
       "due": "Due now"
     },
-    "settings": {
-      "title": "Customize preventive care",
-      "description": "Manage the view, order, and individual reminders.",
-      "back": "Back to preventive care"
-    },
     "capture": {
       "title": "Log measurement",
       "description": "Enter the reading; the reminder is marked done."
@@ -6461,11 +6471,6 @@
     "deleteError": "Could not delete the result",
     "loadError": "Could not load lab results",
     "customize": "Customize labs",
-    "settings": {
-      "title": "Customize labs",
-      "description": "Manage the view, sort order, and biomarkers.",
-      "back": "Back to labs"
-    },
     "sort": {
       "heading": "Sort order",
       "label": "Order of values",
@@ -6664,11 +6669,6 @@
     "title": "Illness journal",
     "subtitle": "A retrospective log of your illness and condition episodes.",
     "customize": "Customize illness journal",
-    "settings": {
-      "title": "Customize illness journal",
-      "description": "Manage the view and order of episodes.",
-      "back": "Back to the illness journal"
-    },
     "newEpisode": "New episode",
     "logDay": "Log a day",
     "markRecovered": "Mark recovered",

@@ -4025,6 +4025,21 @@
         "description": "Grupos, etiquetas y etiquetas archivadas del selector de ánimo.",
         "subtitle": "Organiza tus etiquetas de ánimo, grupos y orden del selector."
       },
+      "labs": {
+        "title": "Laboratorio",
+        "description": "Vista, orden y biomarcadores de tu laboratorio.",
+        "subtitle": "Gestiona la vista, el orden y los biomarcadores."
+      },
+      "illness": {
+        "title": "Diario de enfermedad",
+        "description": "Vista y orden de tus episodios de enfermedad.",
+        "subtitle": "Gestiona la vista y el orden de los episodios."
+      },
+      "vorsorge": {
+        "title": "Prevención",
+        "description": "Vista, orden y recordatorios de prevención individuales.",
+        "subtitle": "Gestiona la vista, el orden y los recordatorios individuales."
+      },
       "modules": {
         "title": "Módulos",
         "saved": "Guardado.",
@@ -6407,11 +6422,6 @@
       "onTrack": "Al día",
       "due": "Toca ahora"
     },
-    "settings": {
-      "title": "Personalizar prevención",
-      "description": "Gestiona la vista, el orden y los recordatorios individuales.",
-      "back": "Volver a prevención"
-    },
     "capture": {
       "title": "Registrar medición",
       "description": "Introduce el valor; el recordatorio se marca como hecho."
@@ -6461,11 +6471,6 @@
     "deleteError": "No se pudo eliminar el resultado",
     "loadError": "No se pudieron cargar los resultados",
     "customize": "Personalizar laboratorio",
-    "settings": {
-      "title": "Personalizar laboratorio",
-      "description": "Gestiona la vista, el orden y los biomarcadores.",
-      "back": "Volver al laboratorio"
-    },
     "sort": {
       "heading": "Orden",
       "label": "Orden de los valores",
@@ -6664,11 +6669,6 @@
     "title": "Diario de enfermedad",
     "subtitle": "Un registro retrospectivo de tus episodios de enfermedad y dolencias.",
     "customize": "Personalizar diario de enfermedad",
-    "settings": {
-      "title": "Personalizar diario de enfermedad",
-      "description": "Gestiona la vista y el orden de los episodios.",
-      "back": "Volver al diario de enfermedad"
-    },
     "newEpisode": "Nuevo episodio",
     "logDay": "Registrar un día",
     "markRecovered": "Marcar como recuperado",

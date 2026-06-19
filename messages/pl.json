@@ -4025,6 +4025,21 @@
         "description": "Grupy, tagi i zarchiwizowane tagi w wyborze nastroju.",
         "subtitle": "Uporządkuj tagi nastroju, grupy i kolejność wyboru."
       },
+      "labs": {
+        "title": "Wyniki badań",
+        "description": "Widok, sortowanie i biomarkery Twoich wyników badań.",
+        "subtitle": "Zarządzaj widokiem, sortowaniem i biomarkerami."
+      },
+      "illness": {
+        "title": "Dziennik chorób",
+        "description": "Widok i kolejność Twoich epizodów chorobowych.",
+        "subtitle": "Zarządzaj widokiem i kolejnością epizodów."
+      },
+      "vorsorge": {
+        "title": "Profilaktyka",
+        "description": "Widok, kolejność i poszczególne przypomnienia profilaktyczne.",
+        "subtitle": "Zarządzaj widokiem, kolejnością i poszczególnymi przypomnieniami."
+      },
       "modules": {
         "title": "Moduły",
         "saved": "Zapisano.",
@@ -6407,11 +6422,6 @@
       "onTrack": "Zgodnie z planem",
       "due": "Termin teraz"
     },
-    "settings": {
-      "title": "Dostosuj profilaktykę",
-      "description": "Zarządzaj widokiem, kolejnością i poszczególnymi przypomnieniami.",
-      "back": "Powrót do profilaktyki"
-    },
     "capture": {
       "title": "Zapisz pomiar",
       "description": "Wpisz wartość; przypomnienie zostanie oznaczone jako wykonane."
@@ -6461,11 +6471,6 @@
     "deleteError": "Nie udało się usunąć wyniku",
     "loadError": "Nie udało się wczytać wyników",
     "customize": "Dostosuj wyniki badań",
-    "settings": {
-      "title": "Dostosuj wyniki badań",
-      "description": "Zarządzaj widokiem, sortowaniem i biomarkerami.",
-      "back": "Powrót do wyników badań"
-    },
     "sort": {
       "heading": "Sortowanie",
       "label": "Kolejność wartości",
@@ -6664,11 +6669,6 @@
     "title": "Dziennik chorób",
     "subtitle": "Retrospektywny zapis Twoich epizodów chorób i dolegliwości.",
     "customize": "Dostosuj dziennik chorób",
-    "settings": {
-      "title": "Dostosuj dziennik chorób",
-      "description": "Zarządzaj widokiem i kolejnością epizodów.",
-      "back": "Powrót do dziennika chorób"
-    },
     "newEpisode": "Nowy epizod",
     "logDay": "Zapisz dzień",
     "markRecovered": "Oznacz jako wyleczone",

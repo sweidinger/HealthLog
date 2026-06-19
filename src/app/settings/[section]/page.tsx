@@ -10,14 +10,17 @@ import { CoachSection } from "@/components/settings/coach-section";
 import { DashboardSection } from "@/components/settings/dashboard-section";
 import { ExportSection } from "@/components/settings/export-section";
 import { GesundheitsakteSection } from "@/components/settings/gesundheitsakte-section";
+import { IllnessSection } from "@/components/settings/illness-section";
 import { InsightsSection } from "@/components/settings/insights-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
+import { LabsSection } from "@/components/settings/labs-section";
 import { LayoutSection } from "@/components/settings/layout-section";
 import { MedicationsSection } from "@/components/settings/medications-section";
 import { ModulesSection } from "@/components/settings/modules-section";
 import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
+import { VorsorgeSection } from "@/components/settings/vorsorge-section";
 // v1.18.1 (D4) — `channels` and `sources` are standalone left-side entries
 // again (split out of the Integrations sub-tabs).
 import { ChannelsSection } from "@/components/settings/channels-section";
@@ -64,6 +67,9 @@ const SECTION_COMPONENTS: Record<
   insights: InsightsSection,
   medications: MedicationsSection,
   mood: MoodSection,
+  labs: LabsSection,
+  illness: IllnessSection,
+  vorsorge: VorsorgeSection,
   thresholds: ThresholdsSection,
   api: ApiSection,
   gesundheitsakte: GesundheitsakteSection,

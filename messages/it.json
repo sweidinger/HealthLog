@@ -4025,6 +4025,21 @@
         "description": "Gruppi, tag e tag archiviati del selettore dell’umore.",
         "subtitle": "Organizza i tag dell'umore, i gruppi e l'ordine del selettore."
       },
+      "labs": {
+        "title": "Esami",
+        "description": "Vista, ordinamento e biomarcatori dei tuoi esami.",
+        "subtitle": "Gestisci la vista, l’ordinamento e i biomarcatori."
+      },
+      "illness": {
+        "title": "Diario delle malattie",
+        "description": "Vista e ordine dei tuoi episodi di malattia.",
+        "subtitle": "Gestisci la vista e l’ordine degli episodi."
+      },
+      "vorsorge": {
+        "title": "Prevenzione",
+        "description": "Vista, ordine e singoli promemoria di prevenzione.",
+        "subtitle": "Gestisci la vista, l’ordine e i singoli promemoria."
+      },
       "modules": {
         "title": "Moduli",
         "saved": "Salvato.",
@@ -6407,11 +6422,6 @@
       "onTrack": "In linea",
       "due": "Da fare ora"
     },
-    "settings": {
-      "title": "Personalizza prevenzione",
-      "description": "Gestisci la vista, l'ordine e i singoli promemoria.",
-      "back": "Torna alla prevenzione"
-    },
     "capture": {
       "title": "Registra misurazione",
       "description": "Inserisci il valore; il promemoria viene segnato come fatto."
@@ -6461,11 +6471,6 @@
     "deleteError": "Impossibile eliminare il risultato",
     "loadError": "Impossibile caricare i risultati",
     "customize": "Personalizza esami",
-    "settings": {
-      "title": "Personalizza esami",
-      "description": "Gestisci la vista, l'ordinamento e i biomarcatori.",
-      "back": "Torna agli esami"
-    },
     "sort": {
       "heading": "Ordinamento",
       "label": "Ordine dei valori",
@@ -6664,11 +6669,6 @@
     "title": "Diario delle malattie",
     "subtitle": "Un registro retrospettivo dei tuoi episodi di malattia e disturbi.",
     "customize": "Personalizza diario delle malattie",
-    "settings": {
-      "title": "Personalizza diario delle malattie",
-      "description": "Gestisci la vista e l'ordine degli episodi.",
-      "back": "Torna al diario delle malattie"
-    },
     "newEpisode": "Nuovo episodio",
     "logDay": "Registra un giorno",
     "markRecovered": "Segna come guarito",

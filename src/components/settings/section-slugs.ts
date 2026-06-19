@@ -22,6 +22,16 @@
 // v1.17 — `mood` sits after `medications`: the mood-tag management
 // surface (groups, custom tags, hide/archive, picker order), reached
 // from the /mood page header's wrench glyph.
+// v1.18.7 — `labs`, `illness`, and `vorsorge` move INTO the Settings
+// shell as first-class sections, right after `mood`, so the three
+// tracking-domain customise surfaces sit together. They were standalone
+// `ModuleSettingsFrame` pages (their own back-button + title, outside the
+// shell); now the dynamic `[section]` route renders them in shell chrome
+// 1:1 with the other sections. The wrench deep-links (`/settings/labs`,
+// `/settings/illness`, `/settings/vorsorge`) are unchanged — they now
+// resolve through the shell. `labs` + `illness` are module-gated (they are
+// toggleable modules); `vorsorge` (preventive-care reminders) is not a
+// module, so its entry is always shown.
 // v1.17.1 (F-2) — `layout` is the one "Layout & Personalization" home.
 // The dashboard / insights / medications / mood personalization editors
 // each keep their own route (deep links, page-header cogs, and the hub's
@@ -53,6 +63,9 @@ export const SETTINGS_SECTION_SLUGS = [
   "insights",
   "medications",
   "mood",
+  "labs",
+  "illness",
+  "vorsorge",
   "thresholds",
   "ai",
   // v1.18.0 (S5) — `coach` gathers the Coach preference cards (disable

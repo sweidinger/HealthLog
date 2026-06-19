@@ -21,8 +21,10 @@ import {
   Bell,
   Blocks,
   Bot,
+  CalendarCheck,
   Download,
   FileHeart,
+  FlaskConical,
   Info,
   KeyRound,
   LayoutDashboard,
@@ -34,6 +36,7 @@ import {
   SlidersHorizontal,
   Smile,
   Sparkles,
+  Thermometer,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -159,6 +162,34 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.mood.title",
     icon: Smile,
     moduleGate: "mood",
+  },
+  // v1.18.7 — Labor: the labs customise surface (view, sort, biomarkers)
+  // becomes a first-class Settings section, gated on the `labs` module. Was
+  // a standalone `ModuleSettingsFrame` page reached from the /labs wrench.
+  {
+    slug: "labs",
+    titleKey: "settings.sections.labs.title",
+    icon: FlaskConical,
+    moduleGate: "labs",
+  },
+  // v1.18.7 — Krankheitstagebuch: the illness-journal customise surface
+  // (view + order of episodes), gated on the `illness` module. Was a
+  // standalone `ModuleSettingsFrame` page reached from the /illness wrench.
+  {
+    slug: "illness",
+    titleKey: "settings.sections.illness.title",
+    icon: Thermometer,
+    moduleGate: "illness",
+  },
+  // v1.18.7 — Vorsorge: the preventive-care reminders customise surface
+  // (view, order, individual reminders). NOT module-gated — preventive-care
+  // reminders are not a toggleable module — so the entry is always shown.
+  // Was a standalone `ModuleSettingsFrame` page reached from the /vorsorge
+  // wrench.
+  {
+    slug: "vorsorge",
+    titleKey: "settings.sections.vorsorge.title",
+    icon: CalendarCheck,
   },
   {
     slug: "thresholds",
