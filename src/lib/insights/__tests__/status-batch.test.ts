@@ -60,7 +60,7 @@ function servedCard() {
 function pendingCard(
   metric: string,
   finalize: (arg: { content: string }) => Promise<unknown> = vi.fn(
-    async (_arg: { content: string }) => ({}),
+    async (): Promise<unknown> => ({}),
   ),
 ) {
   const timeout = vi.fn(() => ({
@@ -100,7 +100,11 @@ beforeEach(() => {
 
 describe("generateStatusBatchForUser — one call covers all present metrics", () => {
   it("issues exactly ONE provider call for the seven pending cards and fans each summary into its finalize", async () => {
-    const mkFinalize = () => vi.fn(async (_arg: { content: string }) => ({}));
+    const mkFinalize = () =>
+      vi.fn((arg: { content: string }): Promise<unknown> => {
+        void arg;
+        return Promise.resolve({});
+      });
     const finalizers = {
       "blood-pressure": mkFinalize(),
       weight: mkFinalize(),
