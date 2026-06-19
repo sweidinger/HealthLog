@@ -3856,6 +3856,13 @@ model ClinicianShareLink {
   userId    String @map("user_id")
   /// HMAC-SHA256 of the raw `hls_` token (same scheme as `ApiToken.tokenHash`).
   tokenHash String @unique @map("token_hash")
+  /// v1.18.7 — HMAC-SHA256 of the passphrase second factor (same key as
+  /// `tokenHash`). NULL for legacy links minted before the passphrase gate;
+  /// those keep the possession-only contract (the public view renders without
+  /// a gate). A non-null value forces the unlock gate before the record paints.
+  /// The raw passphrase is returned exactly once at create time and stored only
+  /// as this hash — there is no recovery path.
+  passphraseHash String? @map("passphrase_hash")
   /// Human label the owner sets (e.g. a clinic/specialty note). Plaintext, bounded.
   label     String
 
