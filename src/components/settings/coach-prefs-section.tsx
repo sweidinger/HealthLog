@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { useCoachPrefs, useSaveCoachPrefs } from "@/hooks/use-coach-prefs";
@@ -106,8 +107,7 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
   const isLoading = isAuthenticated && !persisted;
 
   return (
-    <div
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
+    <SettingsCard
       data-slot="coach-prefs-section"
     >
       <SettingsCardHeader
@@ -351,6 +351,6 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
           {t("insights.coach.settingsSave")}
         </Button>
       </div>
-    </div>
+    </SettingsCard>
   );
 }

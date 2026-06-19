@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { formatDateOrRelative } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -134,10 +135,11 @@ export function CoachMemorySection({
   }, [facts]);
 
   return (
-    <section
+    <SettingsCard
+      as="section"
       aria-labelledby="settings-ai-coach-memory-title"
       data-testid="settings-coach-memory-card"
-      className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6"
+      className="space-y-4"
     >
       <SettingsCardHeader
         icon={Brain}
@@ -278,6 +280,6 @@ export function CoachMemorySection({
       <p className="text-muted-foreground border-border border-t pt-3 text-xs">
         {t("settings.ai.coachMemory.summaryNote")}
       </p>
-    </section>
+    </SettingsCard>
   );
 }

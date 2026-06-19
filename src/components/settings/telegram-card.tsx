@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PasswordInput } from "@/components/ui/password-input";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { useTranslations } from "@/lib/i18n/context";
@@ -87,7 +88,7 @@ export function TelegramCard({
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={MessageCircle}
         title={t("settings.telegram")}
@@ -177,6 +178,6 @@ export function TelegramCard({
           </div>
         </form>
       </div>
-    </div>
+    </SettingsCard>
   );
 }

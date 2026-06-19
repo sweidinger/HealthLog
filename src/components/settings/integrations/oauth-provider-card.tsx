@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import {
   IntegrationStatusPill,
@@ -201,9 +202,8 @@ export function OAuthProviderCard({
   }
 
   return (
-    <div
+    <SettingsCard
       data-testid={`${provider}-card`}
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={icon}
@@ -429,6 +429,6 @@ export function OAuthProviderCard({
           </p>
         )}
       </div>
-    </div>
+    </SettingsCard>
   );
 }

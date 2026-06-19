@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { IntegrationStatusPill } from "@/components/settings/integration-status-pill";
 import type { IntegrationPillState } from "@/components/settings/integration-status-pill";
@@ -188,9 +189,8 @@ export function FitbitCard({
       : null;
 
   return (
-    <div
+    <SettingsCard
       data-testid="fitbit-card"
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={HeartPulse}
@@ -478,6 +478,6 @@ export function FitbitCard({
           </div>
         )}
       </div>
-    </div>
+    </SettingsCard>
   );
 }

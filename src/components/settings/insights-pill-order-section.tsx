@@ -43,6 +43,7 @@ import {
 } from "@/lib/insights/sub-page-metric";
 import { SUB_PAGE_TABS } from "@/components/insights/insights-tab-strip";
 import { apiPut } from "@/lib/api/api-fetch";
+import { SettingsCard } from "@/components/settings/settings-card";
 
 /**
  * v1.15.18 — dedicated pill-sort control for the Insights settings section.
@@ -202,11 +203,12 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
   );
 
   return (
-    <section
+    <SettingsCard
+      as="section"
       id={id}
       data-slot="insights-pill-order-section"
       aria-labelledby="insights-pill-order-title"
-      className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6"
+      className="space-y-4"
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="space-y-1">
@@ -286,7 +288,7 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
           ))}
         </div>
       )}
-    </section>
+    </SettingsCard>
   );
 }
 

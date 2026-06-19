@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
 import { InsightsEditMode } from "@/components/insights/insights-edit-mode";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { type InsightsSectionId } from "@/lib/insights-layout";
 
 /**
@@ -67,12 +68,12 @@ export function InsightsOverviewArrangeSection({ id }: { id?: string }) {
           defaults over the user's real saved layout (the same QA-L1 gate the
           mother page applies to its "Anpassen" toggle). */}
       {isLoading ? (
-        <div
-          className="bg-card border-border text-muted-foreground flex items-center gap-2 rounded-xl border p-4 text-sm sm:p-6"
+        <SettingsCard
+          className="text-muted-foreground flex items-center gap-2 text-sm"
           data-slot="insights-overview-arrange-loading"
         >
           <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-        </div>
+        </SettingsCard>
       ) : (
         <InsightsEditMode
           layout={layout}

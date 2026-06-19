@@ -7,6 +7,7 @@ import { PackageOpen } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -190,12 +191,13 @@ export function LowStockCard({
   }
 
   return (
-    <section
+    <SettingsCard
+      as="section"
       // `id` is the anchor target of the supply tab's cross-link
       // (`/settings/notifications#low-stock`) — keep it stable.
       id="low-stock"
       aria-labelledby="settings-low-stock-title"
-      className="bg-card border-border scroll-mt-20 rounded-xl border p-4 sm:p-6"
+      className="scroll-mt-20"
     >
       <SettingsCardHeader
         icon={PackageOpen}
@@ -303,6 +305,6 @@ export function LowStockCard({
           {t("notifications.lowStock.medicationsLink")}
         </Link>
       </p>
-    </section>
+    </SettingsCard>
   );
 }
