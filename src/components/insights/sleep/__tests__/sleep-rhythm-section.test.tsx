@@ -12,8 +12,11 @@ import type { SleepRhythmDto } from "../use-sleep-rhythm";
  * clinical panel's treatment:
  *   - a query error renders a quiet inline notice, NOT an endless skeleton
  *   - loading (and settled-but-undefined) shows the skeletons
- *   - a settled DTO renders both cards
+ *   - a settled DTO renders the sleep-debt card
  * `useAuth` + `useSleepRhythm` are mocked so each branch is deterministic.
+ *
+ * v1.18.7 W-D — the chronotype card moved out to `<ChronotypeSection>` (the
+ * prominent bottom block); this section now owns the sleep-debt headline alone.
  */
 
 const authMock = vi.fn();
@@ -87,54 +90,17 @@ describe("<SleepRhythmSection>", () => {
     expect(html).not.toContain('data-slot="sleep-rhythm-error"');
   });
 
-  it("renders both cards on a settled DTO with the standard Card rhythm", () => {
+  it("renders the sleep-debt card on a settled DTO and NOT the chronotype", () => {
     rhythmMock.mockReturnValue({
       data: READY_DTO,
       isLoading: false,
       isError: false,
     });
     const html = render(<SleepRhythmSection enabled />);
-    expect(html).toContain("Intermediate type");
     expect(html).toContain("10h 0m short");
-    // The cards inherit the house Card rhythm (gap-4 py-4 md:gap-6 md:py-6) —
-    // the old compact override must NOT reappear.
-    expect(html).not.toContain("gap-2 py-4 md:gap-2 md:py-4");
-    expect(html).toContain("md:py-6");
-  });
-
-  it("places the two cards side by side when both carry settled data", () => {
-    rhythmMock.mockReturnValue({
-      data: READY_DTO,
-      isLoading: false,
-      isError: false,
-    });
-    const html = render(<SleepRhythmSection enabled />);
-    // Two-up on large screens, single column below.
-    expect(html).toContain("lg:grid-cols-2");
-  });
-
-  it("keeps a lone data-bearing card full width when the other is still learning", () => {
-    rhythmMock.mockReturnValue({
-      data: {
-        ...READY_DTO,
-        // Sleep-debt settled, chronotype still learning → no two-up grid.
-        chronotype: {
-          state: "learning",
-          msfMinutes: null,
-          msfScMinutes: null,
-          band: null,
-          socialJetlagMinutes: null,
-          freeNightsCounted: 2,
-          workNightsCounted: 5,
-          freeNightsUntilReady: 4,
-        },
-      } satisfies SleepRhythmDto,
-      isLoading: false,
-      isError: false,
-    });
-    const html = render(<SleepRhythmSection enabled />);
-    expect(html).toContain("grid-cols-1");
-    expect(html).not.toContain("lg:grid-cols-2");
+    // The chronotype band lives in the separate bottom section now, never here.
+    expect(html).not.toContain("Intermediate type");
+    expect(html).not.toContain('data-slot="chronotype-band"');
   });
 
   it("renders nothing when disabled", () => {

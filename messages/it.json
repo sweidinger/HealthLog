@@ -2569,7 +2569,6 @@
       "chronotype": {
         "title": "Cronotipo",
         "learning": "Stiamo ancora imparando il tuo ritmo — {counted} di {total} notti libere. Un cronotipo richiede alcune mattine senza sveglia per avere significato.",
-        "midSleepCaption": "Il punto medio naturale del tuo sonno nei giorni liberi è intorno alle {clock}.",
         "advancedToggle": "Avanzate",
         "socialJetlagValue": "{hours} h {minutes} min di jet lag sociale",
         "socialJetlagCaption": "La differenza tra gli orari del sonno nei giorni lavorativi e in quelli liberi — come un piccolo cambio di fuso orario settimanale.",
@@ -2583,7 +2582,7 @@
           "late": "Tipo serale",
           "extreme_late": "Tipo serale marcato"
         },
-        "cornerLabel": "Cronotipo"
+        "midpointHeadline": "Il punto medio naturale del tuo sonno è intorno alle {clock}."
       },
       "rhythm": {
         "loadError": "Non è stato possibile caricare il tuo ritmo del sonno in questo momento. Riapparirà non appena la connessione sarà stabile."

@@ -14,6 +14,7 @@ import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
 import { SleepRhythmSection } from "@/components/insights/sleep/sleep-rhythm-section";
+import { ChronotypeSection } from "@/components/insights/sleep/chronotype-section";
 import { SleepQualitySection } from "@/components/insights/sleep/sleep-quality-section";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
@@ -116,9 +117,11 @@ export default function InsightsSchlafPage() {
       />
 
       {/*
-        v1.17.0 — sleep-debt headline + chronotype card. Server-authoritative
-        (the same DTO iOS renders), gated on the data-bearing branch so a
-        source-less account never fetches.
+        v1.17.0 — sleep-debt headline. Server-authoritative (the same DTO iOS
+        renders), gated on the data-bearing branch so a source-less account
+        never fetches. v1.18.7 W-D — the chronotype moved out to the prominent
+        bottom block (`<ChronotypeSection>` below); this section is the
+        sleep-debt headline alone.
       */}
       <SleepRhythmSection enabled={!isEmpty} />
 
@@ -134,6 +137,15 @@ export default function InsightsSchlafPage() {
       <SleepQualitySection enabled={!isEmpty} />
 
       <MetricTargetSummary slug="sleep" />
+
+      {/*
+        v1.18.7 W-D — chronotype as the PROMINENT bottom treatment of the
+        Sleep view (maintainer directive): a large band label with the natural
+        sleep-midpoint clock beneath it and an expandable disclosure for social
+        jetlag + MSFsc. Reads the same `["sleep-rhythm"]` cache the debt section
+        warmed, so it adds no round-trip; gated on the data-bearing branch.
+      */}
+      <ChronotypeSection enabled={!isEmpty} />
     </SubPageShell>
   );
 }
