@@ -448,6 +448,21 @@
   display: none;
 }
 
+/*
+ * `.scroll-touch` — momentum scrolling for horizontal scrollers on iOS
+ * WebKit. `-webkit-overflow-scrolling: touch` restores the inertial
+ * flick the default `overflow-x-auto` row loses on touch; `overscroll-
+ * behavior: contain` keeps a flick that reaches the end of the row from
+ * chaining into the document scroll (the "rubber-band drags the whole
+ * page" paper-cut). Applied to the in-app horizontal pill / tab strips
+ * (insights tab strip, cycle tab list) so the gesture matches the
+ * native feel the bottom-sheet scrollers already get for free.
+ */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
 /* ── Insight card animations ─────────────────────── */
 @keyframes insight-fade-in {
   from {
