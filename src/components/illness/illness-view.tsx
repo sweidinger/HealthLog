@@ -109,7 +109,7 @@ function EpisodeCard({
             <Button
               variant="outline"
               size="sm"
-              className="min-h-9"
+              className="min-h-11 sm:min-h-9"
               onClick={() => onLogDay(episode.id)}
             >
               {t("illness.logDay")}

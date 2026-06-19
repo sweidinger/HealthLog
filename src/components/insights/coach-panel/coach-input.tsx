@@ -352,7 +352,7 @@ export function CoachInput({
                 : t("insights.coach.dictate")
             }
             className={cn(
-              "size-9 shrink-0 rounded-xl transition-colors",
+              "size-11 shrink-0 rounded-xl transition-colors sm:size-9",
               listening
                 ? "text-dracula-pink bg-dracula-pink/10 hover:text-dracula-pink"
                 : "text-muted-foreground hover:text-foreground",
@@ -396,8 +396,8 @@ export function CoachInput({
             // Desktop shrinks back to `text-sm` for the compact
             // composer.
             "min-w-0 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none sm:text-sm",
-            // Centre the single-line state against the 36 px send
-            // button so the placeholder and the icon share a baseline.
+            // Centre the single-line state against the send button so
+            // the placeholder and the icon share a baseline.
             "px-2 py-1.5",
             "max-h-[9.5rem] overflow-auto",
             // v1.18.7 — calm, thin scrollbar inside the composer when
@@ -420,7 +420,7 @@ export function CoachInput({
             data-slot="coach-input-stop"
             aria-label={t("insights.coach.stop")}
             title={t("insights.coach.stop")}
-            className="size-9 shrink-0 rounded-xl"
+            className="size-11 shrink-0 rounded-xl sm:size-9"
           >
             <Square className="size-3.5 fill-current" aria-hidden="true" />
           </Button>
@@ -432,7 +432,7 @@ export function CoachInput({
             data-slot="coach-input-send"
             aria-label={t("insights.coach.send")}
             title={t("insights.coach.send")}
-            className="size-9 shrink-0 rounded-xl"
+            className="size-11 shrink-0 rounded-xl sm:size-9"
           >
             {isStreaming ? (
               <Loader2

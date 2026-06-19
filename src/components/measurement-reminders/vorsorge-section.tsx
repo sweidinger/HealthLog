@@ -794,8 +794,8 @@ function VorsorgeCard({
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          size="icon"
-          className="min-h-11 min-w-11"
+          size="icon-lg"
+          className="sm:size-10"
           aria-label={t("common.moreOptions")}
         >
           <MoreVertical className="h-4 w-4" />
@@ -909,7 +909,7 @@ function VorsorgeCard({
                 type="button"
                 size="sm"
                 className={cn(
-                  "min-h-9",
+                  "min-h-11 sm:min-h-9",
                   isDue && "bg-success text-success-foreground hover:bg-success/90",
                 )}
                 onClick={onPrimaryAction}
