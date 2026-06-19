@@ -27,7 +27,7 @@ vi.mock("@/hooks/use-auth", () => ({
 
 // The create wizard and the dialogs are closed in every assertion here;
 // mock them away so the page render stays scoped to the list surface.
-vi.mock("@/components/medications/wizard/MedicationWizardDialog", () => ({
+vi.mock("@/components/medications/wizard/medication-wizard-dialog", () => ({
   MedicationWizardDialog: () => null,
 }));
 vi.mock("@/components/medications/log-intake-dialog", () => ({

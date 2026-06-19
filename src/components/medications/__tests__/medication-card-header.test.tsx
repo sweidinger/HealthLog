@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
+import { MedicationCardHeader } from "@/components/medications/medication-card-header";
 
 /**
  * v1.4.28 — narrow-viewport contract for the shared medication-list

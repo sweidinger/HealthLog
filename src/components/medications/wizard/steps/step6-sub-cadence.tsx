@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 
-import { encodeCadence } from "@/components/medications/scheduling/CadencePicker";
+import { encodeCadence } from "@/components/medications/scheduling/cadence-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/components/medications/scheduling/types";
 import { useTranslations } from "@/lib/i18n/context";
 
-import type { StepProps } from "./Step1Name";
+import type { StepProps } from "./step1-name";
 
 /**
  * Step 6 — sub-cadence detail. The body swaps on the cadence kind the

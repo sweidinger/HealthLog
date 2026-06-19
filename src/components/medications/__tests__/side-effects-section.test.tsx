@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { I18nProvider } from "@/lib/i18n/context";
-import { SideEffectsSection } from "@/components/medications/SideEffectsSection";
+import { SideEffectsSection } from "@/components/medications/side-effects-section";
 
 /**
  * v1.4.25 W19d — SideEffectsSection SSR smoke tests.

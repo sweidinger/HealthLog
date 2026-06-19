@@ -8,7 +8,7 @@ import {
   dateToIsoString,
   isRangeValid,
   isoStringToDate,
-} from "@/components/medications/scheduling/CourseWindowRow";
+} from "@/components/medications/scheduling/course-window-row";
 
 /**
  * v1.5.0 — CourseWindowRow tests.

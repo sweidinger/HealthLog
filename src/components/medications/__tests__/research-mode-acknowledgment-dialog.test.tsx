@@ -94,7 +94,7 @@ vi.mock("@/components/ui/responsive-sheet", () => ({
     ) : null,
 }));
 
-import { ResearchModeAcknowledgmentDialog } from "../ResearchModeAcknowledgmentDialog";
+import { ResearchModeAcknowledgmentDialog } from "../research-mode-acknowledgment-dialog";
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
   return renderToStaticMarkup(

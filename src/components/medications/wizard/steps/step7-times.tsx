@@ -2,12 +2,12 @@
 
 import { Moon, Sun, Sunrise, Sunset } from "lucide-react";
 
-import { TimesOfDayChips } from "@/components/medications/scheduling/TimesOfDayChips";
-import { DoseWindowEditor } from "@/components/medications/scheduling/DoseWindowEditor";
+import { TimesOfDayChips } from "@/components/medications/scheduling/times-of-day-chips";
+import { DoseWindowEditor } from "@/components/medications/scheduling/dose-window-editor";
 import type { DoseWindowScale } from "@/components/medications/scheduling/dose-window";
 import { useTranslations } from "@/lib/i18n/context";
 
-import type { StepProps } from "./Step1Name";
+import type { StepProps } from "./step1-name";
 
 /**
  * Step 7 — Einnahmezeit(en). Reuses the v1.5 `TimesOfDayChips`

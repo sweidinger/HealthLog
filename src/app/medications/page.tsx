@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
+import { MedicationWizardDialog } from "@/components/medications/wizard/medication-wizard-dialog";
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
 import { LogIntakeDialog } from "@/components/medications/log-intake-dialog";

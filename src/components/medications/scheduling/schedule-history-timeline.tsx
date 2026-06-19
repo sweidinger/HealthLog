@@ -61,7 +61,7 @@ import {
 } from "@/components/ui/dialog";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
-import { TimesOfDayChips } from "@/components/medications/scheduling/TimesOfDayChips";
+import { TimesOfDayChips } from "@/components/medications/scheduling/times-of-day-chips";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";

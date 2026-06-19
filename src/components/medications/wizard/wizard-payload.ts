@@ -43,11 +43,11 @@
  * reads. The mapping table is the single source of truth.
  */
 
-import { encodeCadence } from "@/components/medications/scheduling/CadencePicker";
+import { encodeCadence } from "@/components/medications/scheduling/cadence-picker";
 import {
   dateToIsoString,
   isoStringToDate,
-} from "@/components/medications/scheduling/CourseWindowRow";
+} from "@/components/medications/scheduling/course-window-row";
 import {
   type CadenceKind,
   type CadenceSubControls,

@@ -84,7 +84,7 @@ import {
   DrugLevelChart,
   parseDoseMg,
   resolveDoseMg,
-} from "../DrugLevelChart";
+} from "../drug-level-chart";
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
   return renderToStaticMarkup(

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { ResearchModeAcknowledgmentDialog } from "@/components/medications/ResearchModeAcknowledgmentDialog";
+import { ResearchModeAcknowledgmentDialog } from "@/components/medications/research-mode-acknowledgment-dialog";
 import { formatDateTime } from "@/lib/format";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";

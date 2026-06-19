@@ -49,7 +49,7 @@ import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
 
-import { NaturalLanguageExtractor } from "@/components/medications/scheduling/NaturalLanguageExtractor";
+import { NaturalLanguageExtractor } from "@/components/medications/scheduling/natural-language-extractor";
 
 import {
   addSchedule,
@@ -65,15 +65,15 @@ import {
   setActiveSchedule,
   type WizardPayload,
 } from "./wizard-payload";
-import { WizardStepper } from "./WizardStepper";
-import { Step1Name } from "./steps/Step1Name";
-import { Step2Class } from "./steps/Step2Class";
-import { Step3Dose } from "./steps/Step3Dose";
-import { Step4Window } from "./steps/Step4Window";
-import { Step5Cadence } from "./steps/Step5Cadence";
-import { Step6SubCadence } from "./steps/Step6SubCadence";
-import { Step7Times } from "./steps/Step7Times";
-import { Step8Summary } from "./steps/Step8Summary";
+import { WizardStepper } from "./wizard-stepper";
+import { Step1Name } from "./steps/step1-name";
+import { Step2Class } from "./steps/step2-class";
+import { Step3Dose } from "./steps/step3-dose";
+import { Step4Window } from "./steps/step4-window";
+import { Step5Cadence } from "./steps/step5-cadence";
+import { Step6SubCadence } from "./steps/step6-sub-cadence";
+import { Step7Times } from "./steps/step7-times";
+import { Step8Summary } from "./steps/step8-summary";
 import { validateStep } from "./wizard-payload";
 import { extractorToWizardPartial } from "./nl-bridge";
 

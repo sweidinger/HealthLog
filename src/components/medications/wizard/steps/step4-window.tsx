@@ -1,8 +1,8 @@
 "use client";
 
-import { CourseWindowRow } from "@/components/medications/scheduling/CourseWindowRow";
+import { CourseWindowRow } from "@/components/medications/scheduling/course-window-row";
 
-import type { StepProps } from "./Step1Name";
+import type { StepProps } from "./step1-name";
 
 /**
  * Step 4 — Behandlungszeitraum (course window).

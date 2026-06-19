@@ -72,7 +72,7 @@ import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
 import { VorsorgeTrendStrip } from "@/components/measurement-reminders/vorsorge-trend-strip";
-import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
+import { MedicationCardHeader } from "@/components/medications/medication-card-header";
 import {
   useMeasurementReminders,
   useMeasurementReminderMutations,

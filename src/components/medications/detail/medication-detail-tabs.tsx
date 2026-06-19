@@ -49,7 +49,7 @@ import { MedicationDetailSummary } from "@/components/medications/medication-det
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
 import { DoseHistoryLedger } from "@/components/medications/dose-history-ledger";
-import { ScheduleTimesEditor } from "@/components/medications/scheduling/ScheduleTimesEditor";
+import { ScheduleTimesEditor } from "@/components/medications/scheduling/schedule-times-editor";
 import { ScheduleHistoryTimeline } from "@/components/medications/scheduling/schedule-history-timeline";
 import type { DoseWindowEntry } from "@/components/medications/scheduling/dose-window";
 import { IntakeImportDialog } from "@/components/medications/intake-import-dialog";
@@ -68,12 +68,12 @@ import {
 } from "@/components/medications/sections/destructive-zone-section";
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { PhaseConfigSheet } from "@/components/medications/sections/phase-config-sheet";
-import { SideEffectsSection } from "@/components/medications/SideEffectsSection";
+import { SideEffectsSection } from "@/components/medications/side-effects-section";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { TitrationTimeline } from "@/components/medications/titration-timeline";
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
 import { summariseSupply } from "@/lib/medications/inventory/summary";
-import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
+import { MedicationWizardDialog } from "@/components/medications/wizard/medication-wizard-dialog";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
@@ -88,7 +88,7 @@ import type { ComplianceDisplay } from "@/lib/analytics/compliance";
 // shared chart skeleton standing in while the chunk streams.
 const DrugLevelChart = dynamic(
   () =>
-    import("@/components/medications/DrugLevelChart").then((mod) => ({
+    import("@/components/medications/drug-level-chart").then((mod) => ({
       default: mod.DrugLevelChart,
     })),
   { ssr: false, loading: () => <ChartSkeleton /> },

@@ -23,8 +23,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { TimesOfDayChips } from "@/components/medications/scheduling/TimesOfDayChips";
-import { DoseWindowEditor } from "@/components/medications/scheduling/DoseWindowEditor";
+import { TimesOfDayChips } from "@/components/medications/scheduling/times-of-day-chips";
+import { DoseWindowEditor } from "@/components/medications/scheduling/dose-window-editor";
 import {
   type DoseWindowEntry,
   type DoseWindowScale,

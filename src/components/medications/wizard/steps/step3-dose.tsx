@@ -24,7 +24,7 @@ import type { MedicationDeliveryForm } from "@/lib/validations/medication";
 import { unitsPerDoseOptionsFor } from "@/components/medications/units-per-dose";
 import { useTranslations } from "@/lib/i18n/context";
 
-import type { StepProps } from "./Step1Name";
+import type { StepProps } from "./step1-name";
 
 /**
  * Dose unit choices, ordered so mg / ml / IE / µg lead and the

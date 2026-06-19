@@ -11,14 +11,14 @@
  * the mapping logic.
  */
 
-import { encodeCadence } from "@/components/medications/scheduling/CadencePicker";
-import { isoStringToDate } from "@/components/medications/scheduling/CourseWindowRow";
+import { encodeCadence } from "@/components/medications/scheduling/cadence-picker";
+import { isoStringToDate } from "@/components/medications/scheduling/course-window-row";
 import {
   DEFAULT_SUB_CONTROLS,
   type CadenceSubControls,
   type WeekdayToken,
 } from "@/components/medications/scheduling/types";
-import type { WizardPayload as ExtractorPayload } from "@/components/medications/scheduling/NaturalLanguageExtractor";
+import type { WizardPayload as ExtractorPayload } from "@/components/medications/scheduling/natural-language-extractor";
 
 import type { WizardPayload } from "./wizard-payload";
 

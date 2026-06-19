@@ -1,11 +1,11 @@
 "use client";
 
-import { encodeCadence } from "@/components/medications/scheduling/CadencePicker";
+import { encodeCadence } from "@/components/medications/scheduling/cadence-picker";
 import type { CadenceKind } from "@/components/medications/scheduling/types";
 import { useTranslations } from "@/lib/i18n/context";
 
 import type { WizardPayload } from "../wizard-payload";
-import type { StepProps } from "./Step1Name";
+import type { StepProps } from "./step1-name";
 
 /**
  * The seven cadence rows surfaced in Step 5. Each maps to a (mode,

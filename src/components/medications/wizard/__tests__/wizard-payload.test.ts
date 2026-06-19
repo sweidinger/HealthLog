@@ -20,7 +20,7 @@ import {
   WIZARD_TREATMENT_MAPPING,
   type WizardTreatmentRow,
 } from "@/components/medications/wizard/wizard-payload";
-import { encodeCadence } from "@/components/medications/scheduling/CadencePicker";
+import { encodeCadence } from "@/components/medications/scheduling/cadence-picker";
 import {
   type CadenceKind,
   DEFAULT_SUB_CONTROLS,

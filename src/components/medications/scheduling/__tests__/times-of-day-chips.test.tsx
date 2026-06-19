@@ -9,7 +9,7 @@ import {
   removeTime,
   sortTimes,
   togglePreset,
-} from "@/components/medications/scheduling/TimesOfDayChips";
+} from "@/components/medications/scheduling/times-of-day-chips";
 
 /**
  * v1.5.0 — TimesOfDayChips tests.

@@ -26,7 +26,7 @@ import { Card } from "@/components/ui/card";
 import {
   MedicationDetailTabs,
   type MedicationDetailSnapshot,
-} from "@/components/medications/detail/MedicationDetailTabs";
+} from "@/components/medications/detail/medication-detail-tabs";
 import { apiGet } from "@/lib/api/api-fetch";
 
 export default function MedicationDetailPage({

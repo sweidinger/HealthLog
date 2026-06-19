@@ -29,7 +29,7 @@ vi.mock("@tanstack/react-query", () => ({
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-vi.mock("@/components/medications/ResearchModeAcknowledgmentDialog", () => ({
+vi.mock("@/components/medications/research-mode-acknowledgment-dialog", () => ({
   ResearchModeAcknowledgmentDialog: () => <div data-slot="mock-ack-dialog" />,
 }));
 

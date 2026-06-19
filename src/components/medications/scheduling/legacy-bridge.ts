@@ -12,7 +12,7 @@
  * Pure functions only — no React, no DOM — so the unit tests can pin
  * the mapping table without spinning up a render tree.
  */
-import { encodeCadence } from "./CadencePicker";
+import { encodeCadence } from "./cadence-picker";
 import {
   type CadenceSubControls,
   type CadenceValue,

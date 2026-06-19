@@ -6,7 +6,7 @@ import { I18nProvider } from "@/lib/i18n/context";
 import {
   CadencePicker,
   encodeCadence,
-} from "@/components/medications/scheduling/CadencePicker";
+} from "@/components/medications/scheduling/cadence-picker";
 import {
   type CadenceKind,
   type CadenceSubControls,
