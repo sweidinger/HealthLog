@@ -2003,6 +2003,7 @@
     "dailyBriefing": {
       "title": "Briefing del giorno",
       "keyFindingsTitle": "Riscontri principali",
+      "signalsTitle": "Segnali del giorno",
       "emptyTitle": "Ancora nessun briefing",
       "emptyDescription": "Genera il briefing di oggi per avere un riepilogo dei tuoi trend.",
       "emptyAction": "Genera briefing",

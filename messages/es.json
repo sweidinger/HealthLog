@@ -2003,6 +2003,7 @@
     "dailyBriefing": {
       "title": "Resumen del día",
       "keyFindingsTitle": "Hallazgos clave",
+      "signalsTitle": "Señales del día",
       "emptyTitle": "Aún no hay resumen",
       "emptyDescription": "Genera el resumen de hoy para tener una vista rápida de tus tendencias.",
       "emptyAction": "Generar resumen",

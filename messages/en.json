@@ -2003,6 +2003,7 @@
     "dailyBriefing": {
       "title": "Daily Briefing",
       "keyFindingsTitle": "Key findings",
+      "signalsTitle": "Signals of the day",
       "emptyTitle": "No briefing yet",
       "emptyDescription": "Generate today's briefing to get a narrative read of your trends.",
       "emptyAction": "Generate briefing",

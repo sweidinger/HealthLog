@@ -13,7 +13,6 @@ import {
   type AssistantFlagSet,
 } from "@/hooks/use-feature-flags";
 
-import { HeroStrip } from "@/components/insights/hero-strip";
 import { SuggestedPrompts } from "@/components/insights/suggested-prompts";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
@@ -139,29 +138,11 @@ interface CoachSurface {
   proofWhenOn: string;
 }
 
+// v1.18.7 — the HeroStrip "Ask the coach" action button + the in-band
+// SuggestedPrompts chip strip were removed from the overview hero. The
+// Coach is the bottom-right drawer; its launcher + the standalone
+// SuggestedPrompts surface still carry the flag cascade below.
 const COACH_SURFACES: CoachSurface[] = [
-  {
-    name: "HeroStrip action-row 'Ask the coach' button",
-    mount: () => (
-      <HeroStrip
-        briefing={null}
-        now={new Date(2026, 4, 10, 9, 0, 0)}
-        onAskCoach={() => undefined}
-      />
-    ),
-    proofWhenOn: 'data-slot="insights-hero-strip-action-coach"',
-  },
-  {
-    name: "HeroStrip SuggestedPrompts chip strip",
-    mount: () => (
-      <HeroStrip
-        briefing={null}
-        now={new Date(2026, 4, 10, 9, 0, 0)}
-        onPickPrompt={() => undefined}
-      />
-    ),
-    proofWhenOn: 'data-slot="insights-hero-strip-prompts"',
-  },
   {
     name: "SuggestedPrompts standalone",
     mount: () => <SuggestedPrompts onPick={() => undefined} />,
@@ -290,7 +271,8 @@ describe("Coach disable cascade invariant", () => {
   const KNOWN_COACH_GATE_SITES: ReadonlyArray<string> = [
     // Coach-bearing surfaces mounted directly by the cascade fixture.
     "src/components/insights/coach-launch-button.tsx",
-    "src/components/insights/hero-strip.tsx",
+    // v1.18.7 — hero-strip.tsx no longer reads `flags.coach`: its coach
+    // action button + suggested-prompt strip were removed from the band.
     "src/components/insights/layout-coach-fab.tsx",
     "src/components/insights/layout-coach-mount.tsx",
     "src/components/insights/suggested-prompts.tsx",
@@ -404,6 +386,8 @@ describe("Coach disable cascade invariant", () => {
     // forces them to revisit the fixture. The number tracks the
     // surfaces the fixture mounts directly; the grep-based discovery
     // test above pins every other `flags.coach` call site.
-    expect(COACH_SURFACES.length).toBe(6);
+    // v1.18.7 — dropped from 6 to 4: the two HeroStrip coach surfaces
+    // (action button + suggested-prompt strip) were removed from the band.
+    expect(COACH_SURFACES.length).toBe(4);
   });
 });
