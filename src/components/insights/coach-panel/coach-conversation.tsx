@@ -126,6 +126,10 @@ export function CoachConversation({
   >(null);
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
+  // v1.18.7 (W-coach C-UI) — page surface only: the inline conversation
+  // rail is collapsed by default for a calm, prompt-first surface. The
+  // rail-tray-strip toggle (lg+) opens it; the rail heading closes it.
+  const [historyRailOpen, setHistoryRailOpen] = useState(false);
   const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
   // v1.16.4 — self-context backflow: `pendingAdopt` raises a quiet
   // offer to fold a clarifying-question answer back into the
@@ -359,6 +363,12 @@ export function CoachConversation({
       </header>
 
       <CoachDrawerBody
+        historyOpen={historyRailOpen}
+        onToggleHistory={
+          surface === "page"
+            ? () => setHistoryRailOpen((open) => !open)
+            : undefined
+        }
         historyRail={
           surface === "page" ? (
             <HistoryRail
