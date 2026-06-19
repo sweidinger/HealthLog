@@ -19,8 +19,11 @@
 export interface AiBudget {
   /** Sampling temperature. Low for reference surfaces, slightly higher for chat. */
   temperature: number;
-  /** Output-token ceiling. Sized to the surface's documented output contract. */
-  maxTokens: number;
+  /**
+   * Output-token ceiling. Sized to the surface's documented output contract.
+   * Optional for surfaces whose caller pins its own token const (self-context).
+   */
+  maxTokens?: number;
 }
 
 /**
@@ -94,4 +97,4 @@ export const AI_BUDGETS = {
    * questions. Temperature only; the caller pins its own token const.
    */
   selfContext: { temperature: 0.4 },
-} as const satisfies Record<string, { temperature: number; maxTokens?: number }>;
+} as const satisfies Record<string, AiBudget>;

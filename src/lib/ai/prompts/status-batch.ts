@@ -36,15 +36,6 @@ export const STATUS_BATCH_KEY_BY_METRIC: Record<string, string> = {
   general: "general",
 };
 
-/** Reverse of `STATUS_BATCH_KEY_BY_METRIC` — output key → InsightStatus scope. */
-export const STATUS_BATCH_METRIC_BY_KEY: Record<string, string> =
-  Object.fromEntries(
-    Object.entries(STATUS_BATCH_KEY_BY_METRIC).map(([metric, key]) => [
-      key,
-      metric,
-    ]),
-  );
-
 /**
  * Compose the batch system prompt: the shared assessment scaffold plus the
  * `{ perMetric }` output instruction. `presentKeys` are the output keys for
