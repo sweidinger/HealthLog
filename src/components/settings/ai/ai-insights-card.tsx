@@ -21,6 +21,7 @@ import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { apiFetchRaw } from "@/lib/api/api-fetch";
 import { formatDateTime } from "@/lib/format";
@@ -133,7 +134,7 @@ export function AiInsightsCard({
   }
 
   return (
-    <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
+    <SettingsCard className="space-y-4">
       {/* The card used to render an icon-only header row (Sparkles +
           status badges, no title), which left the tile unanchored next
           to its titled siblings. It now follows the shared
@@ -192,7 +193,7 @@ export function AiInsightsCard({
           }
         />
       </div>
-    </div>
+    </SettingsCard>
   );
 }
 

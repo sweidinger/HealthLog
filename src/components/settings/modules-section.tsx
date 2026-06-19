@@ -42,6 +42,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { ModuleToggleRow } from "@/components/settings/module-toggle-row";
 import { useAuth } from "@/hooks/use-auth";
@@ -106,7 +107,7 @@ export function ModulesSection() {
   // frame's standard subtitle). The "Module immer aktiv" core-domains card
   // was removed: a domain that can't be turned off doesn't need to be listed.
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Blocks}
         title={t("settings.sections.modules.toggleable.title")}
@@ -160,6 +161,6 @@ export function ModulesSection() {
           );
         })}
       </div>
-    </div>
+    </SettingsCard>
   );
 }

@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Switch } from "@/components/ui/switch";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import {
   IntegrationStatusPill,
@@ -158,9 +159,8 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
       : null;
 
   return (
-    <div
+    <SettingsCard
       data-testid="nightscout-card"
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={Droplet}
@@ -369,6 +369,6 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
           </>
         )}
       </div>
-    </div>
+    </SettingsCard>
   );
 }

@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -114,9 +115,9 @@ export function NotificationStatusCard() {
 
   if (isLoading) {
     return (
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         <Loader2 className="text-muted-foreground h-4 w-4 animate-spin motion-reduce:animate-none" />
-      </div>
+      </SettingsCard>
     );
   }
 
@@ -128,8 +129,7 @@ export function NotificationStatusCard() {
   const channels = Array.isArray(data) ? data : [];
   if (channels.length === 0) {
     return (
-      <div
-        className="bg-card border-border rounded-xl border p-4 sm:p-6"
+      <SettingsCard
         data-testid="notification-status-empty"
       >
         <SettingsCardHeader
@@ -137,12 +137,12 @@ export function NotificationStatusCard() {
           title={t("settings.notificationStatus.title")}
           description={t("settings.notificationStatus.emptyDescription")}
         />
-      </div>
+      </SettingsCard>
     );
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Bell}
         title={t("settings.notificationStatus.title")}
@@ -166,7 +166,7 @@ export function NotificationStatusCard() {
           />
         ))}
       </ul>
-    </div>
+    </SettingsCard>
   );
 }
 

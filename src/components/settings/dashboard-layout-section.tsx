@@ -51,6 +51,7 @@ import {
 import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
 import { useAuth } from "@/hooks/use-auth";
 import { WIDGET_MODULE_BY_ID } from "@/lib/dashboard/widget-modules";
+import { SettingsCard } from "@/components/settings/settings-card";
 
 /**
  * v1.4.47 W4 — pure reorder helper shared by the arrow buttons and the
@@ -316,9 +317,9 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   const dirty = draft !== null && layout !== null;
 
   return (
-    <div
+    <SettingsCard
       id={id}
-      className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
+      className="scroll-mt-28 space-y-4"
     >
       {/* v1.4.19 A6 — title / action row uses the same stack-on-mobile,
           right-align-on-desktop contract as Account → Password +
@@ -336,7 +337,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           size="sm"
           onClick={() => resetMutation.mutate()}
           disabled={resetMutation.isPending}
-          className="self-end sm:self-auto"
+          className="min-h-11 self-end sm:min-h-9 sm:self-auto"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           {t("dashboard.layoutReset")}
@@ -550,6 +551,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           <Button
             variant="outline"
             size="sm"
+            className="min-h-11 sm:min-h-9"
             onClick={() => setDraft(null)}
             disabled={saveMutation.isPending}
           >
@@ -557,6 +559,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           </Button>
           <Button
             size="sm"
+            className="min-h-11 sm:min-h-9"
             onClick={() => layout && saveMutation.mutate(layout)}
             disabled={saveMutation.isPending}
           >
@@ -577,7 +580,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
             : t("dashboard.layoutCustomized")}
         </p>
       )}
-    </div>
+    </SettingsCard>
   );
 }
 

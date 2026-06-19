@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -191,7 +192,7 @@ export function AboutSection() {
           stacked the license under the version inside its own boxed Badge,
           which read as a separate field even though the two values belong
           on the same row. */}
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         <SettingsCardHeader icon={Info} title="HealthLog" className="mb-4" />
 
         {isLoading || !version ? (
@@ -255,20 +256,25 @@ export function AboutSection() {
             )}
           </dl>
         )}
-      </div>
+      </SettingsCard>
 
       {/* Sources & docs — every link card was untitled in the v1.4.2
           About surface, so the buttons floated alone with no heading
           telling the user what the section was for. */}
       {version && (
-        <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+        <SettingsCard>
           <SettingsCardHeader
             icon={BookOpen}
             title={t("settings.about.linksHeading")}
             className="mb-4"
           />
           <div className="flex flex-col gap-2 pl-7 sm:flex-row sm:flex-wrap">
-            <Button asChild variant="outline" size="sm">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="min-h-11 sm:min-h-9"
+            >
               <a
                 href={version.repository}
                 target="_blank"
@@ -279,7 +285,12 @@ export function AboutSection() {
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </Button>
-            <Button asChild variant="outline" size="sm">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="min-h-11 sm:min-h-9"
+            >
               <a
                 href={version.changelog}
                 target="_blank"
@@ -290,7 +301,12 @@ export function AboutSection() {
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </Button>
-            <Button asChild variant="outline" size="sm">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="min-h-11 sm:min-h-9"
+            >
               <a href={version.docs} target="_blank" rel="noopener noreferrer">
                 <BookOpen className="h-4 w-4" />
                 {t("settings.about.docs")}
@@ -298,7 +314,7 @@ export function AboutSection() {
               </a>
             </Button>
           </div>
-        </div>
+        </SettingsCard>
       )}
 
       {/* v1.18.6 — the tour-replay card consolidated onto a single home in

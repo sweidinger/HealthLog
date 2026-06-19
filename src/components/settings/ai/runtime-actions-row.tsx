@@ -198,6 +198,7 @@ export function RuntimeActionsRow({
         <Button
           size="sm"
           variant="outline"
+          className="min-h-11 sm:min-h-9"
           onClick={runTest}
           disabled={testing}
           data-testid="ai-test-active-provider"
@@ -213,6 +214,7 @@ export function RuntimeActionsRow({
           <Button
             size="sm"
             variant="outline"
+            className="min-h-11 sm:min-h-9"
             onClick={regenerate}
             disabled={regen}
           >

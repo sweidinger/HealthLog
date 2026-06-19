@@ -23,6 +23,7 @@
 import { useId, useState } from "react";
 import { ChevronDown, Download, FileText, Loader2 } from "lucide-react";
 
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -191,15 +192,10 @@ export function HealthRecordExportPanel() {
   }
 
   return (
-    <section
+    <SettingsCard
+      as="section"
       aria-labelledby="health-record-export-title"
       data-testid="health-record-export-panel"
-      className={cn(
-        // v1.18.1 (D9) — the gradient/glow hero treatment dropped in favour
-        // of a normal card so the Gesundheitsakte reads like every other
-        // settings surface rather than shouting.
-        "bg-card border-border rounded-xl border p-4 sm:p-6",
-      )}
     >
       <SettingsCardHeader
         className="mb-4"
@@ -462,7 +458,7 @@ export function HealthRecordExportPanel() {
           </p>
         )}
       </div>
-    </section>
+    </SettingsCard>
   );
 }
 

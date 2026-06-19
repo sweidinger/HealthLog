@@ -48,6 +48,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { describePasskeyError } from "@/lib/passkey-errors";
 import { queryKeys } from "@/lib/query-keys";
 import { AboutMeSection } from "@/components/settings/about-me-section";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { TimeFormatSelect } from "@/components/settings/time-format-select";
@@ -375,7 +376,7 @@ export function AccountSection() {
       {/* Profile photo card */}
       <AvatarSection />
 
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         <SettingsCardHeader
           icon={User}
           title={t("settings.profile")}
@@ -570,7 +571,11 @@ export function AccountSection() {
           )}
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={saving}>
+            <Button
+              type="submit"
+              className="min-h-11 sm:min-h-9"
+              disabled={saving}
+            >
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
@@ -580,7 +585,7 @@ export function AccountSection() {
             </Button>
           </div>
         </form>
-      </div>
+      </SettingsCard>
 
       {/* v1.18.0 (S5) — injection-site exclusions moved to the dedicated
           Medikamente settings section, where every medication-specific
@@ -599,7 +604,7 @@ export function AccountSection() {
       <CycleTrackingCard isAuthenticated={isAuthenticated} />
 
       {/* Passkeys card */}
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         <SettingsCardHeader
           icon={Shield}
           title={t("settings.passkeys")}
@@ -611,6 +616,7 @@ export function AccountSection() {
         <div className="mt-4 flex justify-end pl-7">
           <Button
             variant="outline"
+            className="min-h-11 sm:min-h-9"
             onClick={handleAddPasskey}
             disabled={passkeyLoading}
           >
@@ -632,7 +638,7 @@ export function AccountSection() {
             {statusText(passkeyMsg, t)}
           </p>
         )}
-      </div>
+      </SettingsCard>
 
       {/* Password card. v1.4.19 A6: action-button placement contract —
           on mobile (`<sm`) the action button stacks below the title +
@@ -643,7 +649,7 @@ export function AccountSection() {
           (the German "Passwort ändern" already pushes it; the tour
           card's "Restart onboarding tour" actually broke through the
           right border by ~48 px). */}
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
           <div className="flex items-start gap-2">
             <Shield className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
@@ -660,12 +666,12 @@ export function AccountSection() {
             type="button"
             variant="outline"
             onClick={() => setPasswordDialogOpen(true)}
-            className="w-full shrink-0 sm:w-auto"
+            className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
           >
             {t("settings.changePassword")}
           </Button>
         </div>
-      </div>
+      </SettingsCard>
 
       {/* v1.18.1 (D1) — the "Tour neu starten" card moved to Settings →
           Erweitert. It is a maintenance / reset action, not a profile or
@@ -693,7 +699,7 @@ export function AccountSection() {
           </DialogHeader>
 
           <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="current-password">
                   {t("settings.currentPassword")}
@@ -739,7 +745,12 @@ export function AccountSection() {
               </p>
             )}
 
-            <Button type="submit" variant="outline" disabled={passwordSaving}>
+            <Button
+              type="submit"
+              variant="outline"
+              className="min-h-11 sm:min-h-9"
+              disabled={passwordSaving}
+            >
               {passwordSaving ? (
                 <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
@@ -1096,7 +1107,7 @@ function AvatarSection() {
   const busy = upload.isPending || remove.isPending;
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={ImageUp}
         title={t("settings.avatar.title")}
@@ -1122,6 +1133,7 @@ function AvatarSection() {
           />
           <Button
             variant="outline"
+            className="min-h-11 sm:min-h-9"
             disabled={busy}
             onClick={() => fileInputRef.current?.click()}
           >
@@ -1137,7 +1149,7 @@ function AvatarSection() {
           {avatarUrl && (
             <Button
               variant="ghost"
-              className="text-destructive"
+              className="text-destructive min-h-11 sm:min-h-9"
               disabled={busy}
               onClick={() => {
                 setMsg(null);
@@ -1168,6 +1180,6 @@ function AvatarSection() {
           {statusText(msg, t)}
         </p>
       )}
-    </div>
+    </SettingsCard>
   );
 }

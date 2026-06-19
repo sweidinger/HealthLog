@@ -21,6 +21,7 @@ import { MessageCircleHeart } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
 import { NativeSelect } from "@/components/ui/native-select";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -170,9 +171,9 @@ export function CoachNudgeCard({
   }
 
   return (
-    <section
+    <SettingsCard
+      as="section"
       aria-labelledby="settings-coach-nudge-title"
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
       data-testid="settings-coach-nudge-card"
     >
       <SettingsCardHeader
@@ -266,6 +267,6 @@ export function CoachNudgeCard({
           {msg}
         </p>
       )}
-    </section>
+    </SettingsCard>
   );
 }

@@ -41,6 +41,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { Textarea } from "@/components/ui/textarea";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
@@ -102,9 +103,9 @@ function ImportCardShell({
   children,
 }: ImportCardShellProps) {
   return (
-    <div
+    <SettingsCard
       data-testid={testId}
-      className="bg-card border-border flex h-full flex-col rounded-xl border p-4 sm:p-6"
+      className="flex h-full flex-col"
     >
       <div className="flex items-center gap-2">
         <Icon
@@ -115,7 +116,7 @@ function ImportCardShell({
       </div>
       <p className="text-muted-foreground mt-1 text-xs">{description}</p>
       <div className="mt-3 flex flex-1 flex-col gap-3">{children}</div>
-    </div>
+    </SettingsCard>
   );
 }
 
@@ -365,6 +366,7 @@ function AppleHealthImportCard() {
           type="button"
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           disabled={busy}
           onClick={() => fileInputRef.current?.click()}
           data-testid="import-action-apple-health"
@@ -614,6 +616,7 @@ function JsonImportCard() {
           type="button"
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={() => fileInputRef.current?.click()}
           data-testid="import-json-choose-file"
         >
@@ -624,6 +627,7 @@ function JsonImportCard() {
           type="button"
           variant="ghost"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={downloadExample}
           data-testid="import-json-download-example"
         >
@@ -633,6 +637,7 @@ function JsonImportCard() {
         <Button
           type="button"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           disabled={busy || text.trim().length === 0}
           onClick={handleImport}
           data-testid="import-action-json"
@@ -862,6 +867,7 @@ function CsvImportCard() {
           type="button"
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={() => fileInputRef.current?.click()}
           data-testid="import-csv-choose-file"
         >
@@ -872,6 +878,7 @@ function CsvImportCard() {
           type="button"
           variant="ghost"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={downloadExample}
           data-testid="import-csv-download-example"
         >
@@ -882,6 +889,7 @@ function CsvImportCard() {
           type="button"
           variant="secondary"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           disabled={busy || text.trim().length === 0}
           onClick={() => void send(true)}
           data-testid="import-csv-preview"
@@ -894,6 +902,7 @@ function CsvImportCard() {
         <Button
           type="button"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           disabled={busy || text.trim().length === 0}
           onClick={() => void send(false)}
           data-testid="import-action-csv"
