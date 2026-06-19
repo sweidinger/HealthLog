@@ -34,6 +34,7 @@ import {
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
 import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import { buildRetryCorrectionMessage } from "@/lib/ai/generate-insight";
 import {
   buildAboutMeInsightBlock,
   getSelfContextTextForUser,
@@ -232,6 +233,28 @@ async function rerollBriefingParagraph(args: {
   };
   const merged = { ...cached, dailyBriefing: mergedBriefing };
   return { text: JSON.stringify(merged), providerType };
+}
+
+/**
+ * Parse + (best-effort) validate a comprehensive provider reply. Returns the
+ * parsed payload (validated when it matches `insightResultSchema`, else the
+ * raw object so the richer optional blocks survive), or null when the reply
+ * is not valid JSON even after fence-stripping. Null signals the caller to
+ * run its one corrective retry.
+ */
+function parseComprehensiveResult(
+  content: string,
+): InsightResult | Record<string, unknown> | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripJsonFences(content));
+  } catch {
+    return null;
+  }
+  const validated = insightResultSchema.safeParse(parsed);
+  return validated.success
+    ? validated.data
+    : (parsed as Record<string, unknown>);
 }
 
 /**
@@ -856,16 +879,45 @@ export async function generateComprehensiveInsight(
     return { status: "failed", reason: "provider-error" };
   }
 
-  let insights: InsightResult | Record<string, unknown>;
-  try {
-    // Anthropic + local have no native JSON mode, so a ```json-fenced or
-    // sentence-prefixed reply would otherwise fail the whole generation.
-    // Strip the fence before parsing; clean JSON passes through unchanged.
-    const parsed = JSON.parse(stripJsonFences(result.content));
-    const validated = insightResultSchema.safeParse(parsed);
-    insights = validated.success ? validated.data : parsed;
-  } catch {
-    return { status: "failed", reason: "invalid-json" };
+  // Anthropic + local have no native JSON mode, so a ```json-fenced or
+  // sentence-prefixed reply would otherwise fail the whole generation.
+  // Strip the fence before parsing; clean JSON passes through unchanged.
+  let insights = parseComprehensiveResult(result.content);
+  if (insights === null) {
+    // v1.18.7 (MEDIUM-5) — one corrective retry before declaring failure,
+    // reusing the same `buildRetryCorrectionMessage` the strict insight
+    // wrapper uses next door. The comprehensive path previously failed cold
+    // to `invalid-json` on a first-pass miss even though the recovery helper
+    // sat right there. The retry appends the correction to the user prompt
+    // and re-runs the chain once.
+    annotate({
+      action: { name: "insights.generate.json_retry" },
+      meta: { locale },
+    });
+    try {
+      const retry = await runRawCompletionWithFallback({
+        userId,
+        providers: chain,
+        params: {
+          systemPrompt,
+          userPrompt: `${userPrompt}\n\n${buildRetryCorrectionMessage(
+            "Response was not valid JSON",
+            "The previous reply could not be parsed as a JSON object.",
+          )}`,
+          temperature: AI_BUDGETS.comprehensive.temperature,
+          maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+          responseFormat: "json",
+        },
+      });
+      result = retry.result;
+      workingProviderType = retry.workingProvider.providerType;
+    } catch {
+      return { status: "failed", reason: "invalid-json" };
+    }
+    insights = parseComprehensiveResult(result.content);
+    if (insights === null) {
+      return { status: "failed", reason: "invalid-json" };
+    }
   }
 
   // v1.9.0 — the caller abandoned this generation (its bounded timeout
