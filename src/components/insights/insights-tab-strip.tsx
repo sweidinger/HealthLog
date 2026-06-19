@@ -709,7 +709,7 @@ function InsightsTabStripImpl({
           // gives that room back to the layout so the strip height is
           // unchanged. `px-1 -mx-1` does the same horizontally so the
           // first/last pill's focus ring isn't clipped at the row edges.
-          className="-mx-1 -my-1 flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto px-1 py-1 [&::-webkit-scrollbar]:hidden"
+          className="scroll-touch -mx-1 -my-1 flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto px-1 py-1 [&::-webkit-scrollbar]:hidden"
         >
           {tabs.map((tab) => {
             if (tab.kind === "link") {

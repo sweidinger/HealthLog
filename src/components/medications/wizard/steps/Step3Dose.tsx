@@ -243,7 +243,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
               <Button
                 type="button"
                 variant="ghost"
-                className="h-9 w-full justify-between px-2"
+                className="min-h-11 w-full justify-between px-2 sm:min-h-9"
                 aria-expanded={allowedOpen}
                 onClick={() => setAllowedOpen((prev) => !prev)}
               >

@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { useTranslations } from "@/lib/i18n/context";
@@ -230,28 +231,28 @@ function BriefingRow({
   );
   if (href) {
     return (
-      <Link
-        href={href}
+      <ListRow
+        asChild
         data-slot={dataSlot}
         data-metric={sourceMetric}
         className={cn(
-          "border-border/60 bg-card/40 relative flex items-start gap-3 rounded-md border p-3",
+          "border-border/60 bg-card/40 relative flex items-start gap-3",
           "hover:bg-accent/40 transition-colors",
           "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
         )}
       >
-        {rowContent}
-      </Link>
+        <Link href={href}>{rowContent}</Link>
+      </ListRow>
     );
   }
   return (
-    <div
+    <ListRow
       data-slot={dataSlot}
       data-metric={sourceMetric}
-      className="border-border/60 bg-card/40 relative flex items-start gap-3 rounded-md border p-3"
+      className="border-border/60 bg-card/40 relative flex items-start gap-3"
     >
       {rowContent}
-    </div>
+    </ListRow>
   );
 }
 

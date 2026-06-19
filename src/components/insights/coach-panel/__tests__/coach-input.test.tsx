@@ -175,6 +175,39 @@ describe("<CoachInput>", () => {
     expect(html).toContain("Stopp");
   });
 
+  it("sizes the send control to the 44px tap-target floor on phones", () => {
+    // v1.18.7 — the composer controls (send / stop / mic) must clear the
+    // 44px WCAG 2.5.5 floor on phones and condense at `sm:` upward. Guard
+    // the `size-11 sm:size-9` pattern so a future restyle can't quietly
+    // drop the send button back to 36px.
+    const html = render(
+      <CoachInput value="Hi" onChange={() => {}} onSubmit={() => {}} />,
+    );
+    const sendTag = html.match(
+      /<button[^>]*data-slot="coach-input-send"[^>]*>/,
+    );
+    expect(sendTag?.[0]).toMatch(/\bsize-11\b/);
+    expect(sendTag?.[0]).toMatch(/\bsm:size-9\b/);
+  });
+
+  it("sizes the stop control to the 44px tap-target floor on phones", () => {
+    const html = render(
+      <CoachInput
+        value="Hi"
+        onChange={() => {}}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        disabled
+        isStreaming
+      />,
+    );
+    const stopTag = html.match(
+      /<button[^>]*data-slot="coach-input-stop"[^>]*>/,
+    );
+    expect(stopTag?.[0]).toMatch(/\bsize-11\b/);
+    expect(stopTag?.[0]).toMatch(/\bsm:size-9\b/);
+  });
+
   it("invokes onChange when the parent passes a controlled handler", () => {
     // SSR can't fire DOM events; smoke-check the contract by calling
     // the supplied handler directly.

@@ -255,7 +255,7 @@ export function CycleView() {
               triggers size to their content (`text-xs`, no `flex-1`) and the
               strip scrolls cleanly if needed; from `sm` up they reclaim the
               equal-width `flex-1` layout. */}
-          <TabsList className="w-full max-w-full overflow-x-auto">
+          <TabsList className="scroll-touch w-full max-w-full overflow-x-auto">
             <TabsTrigger
               value="calendar"
               className="text-xs sm:flex-1 sm:text-sm"

@@ -258,15 +258,17 @@ export function DashboardHero({
               cta.kind === "link" ? (
                 <Button
                   asChild
-                  size="sm"
+                  size="default"
                   variant="outline"
+                  className="min-h-11 sm:min-h-9"
                   data-slot="dashboard-hero-cta"
                 >
                   <Link href={cta.href}>{t(ctaLabelKey)}</Link>
                 </Button>
               ) : (
                 <Button
-                  size="sm"
+                  size="default"
+                  className="min-h-11 sm:min-h-9"
                   data-slot="dashboard-hero-cta"
                   onClick={() => onQuickEntry(cta.target)}
                 >
