@@ -343,7 +343,7 @@ export function getUnitForType(type: string): string {
 }
 
 // Plausible ranges per measurement type
-const VALUE_RANGES: Record<string, { min: number; max: number }> = {
+export const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   WEIGHT: { min: 1, max: 500 },
   BLOOD_PRESSURE_SYS: { min: 40, max: 300 },
   BLOOD_PRESSURE_DIA: { min: 20, max: 200 },

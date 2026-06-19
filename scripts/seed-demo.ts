@@ -13,6 +13,7 @@
  */
 
 import pg from "pg";
+import { VALUE_RANGES } from "../src/lib/validations/measurement";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -55,13 +56,20 @@ function randomWalk(
   target: number,
   days: number,
   volatility: number,
+  // Optional physiological band. A free walk can drift below the floor and
+  // mint an out-of-range row (a systolic-0 BP reading was observed in a
+  // fresh seed — iOS #33); clamping every step keeps the series inside the
+  // same band the input validator enforces.
+  clamp?: { min: number; max: number },
 ): number[] {
   const values: number[] = [start];
   for (let i = 1; i < days; i++) {
     const prev = values[i - 1];
     const drift = (target - prev) * 0.03; // mean reversion
     const noise = (Math.random() - 0.5) * volatility;
-    values.push(Math.round((prev + drift + noise) * 10) / 10);
+    let next = Math.round((prev + drift + noise) * 10) / 10;
+    if (clamp) next = Math.min(clamp.max, Math.max(clamp.min, next));
+    values.push(next);
   }
   return values;
 }
@@ -124,10 +132,10 @@ async function seed() {
 
     // Weight: 86.5 → trending down to ~82.5
     const weights = randomWalk(86.5, 82.0, days, 0.6);
-    // Systolic BP: 132 → improving to ~124
-    const sysBP = randomWalk(132, 124, days, 4);
-    // Diastolic BP: 85 → improving to ~78
-    const diaBP = randomWalk(85, 78, days, 3);
+    // Systolic BP: 132 → improving to ~124 (clamped to the physiological band)
+    const sysBP = randomWalk(132, 124, days, 4, VALUE_RANGES.BLOOD_PRESSURE_SYS);
+    // Diastolic BP: 85 → improving to ~78 (clamped to the physiological band)
+    const diaBP = randomWalk(85, 78, days, 3, VALUE_RANGES.BLOOD_PRESSURE_DIA);
     // Pulse: 72 → slight improvement to ~68
     const pulse = randomWalk(72, 68, days, 3);
     // Body fat: 24.5% → trending to ~22%

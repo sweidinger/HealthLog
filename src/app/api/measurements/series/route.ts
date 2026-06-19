@@ -23,6 +23,7 @@ import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { redactSensitiveFields } from "@/lib/observability/redact-payload";
 import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
+import { VALUE_RANGES } from "@/lib/validations/measurement";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
@@ -264,6 +265,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
         };
       });
   } else if (kind === "bloodPressure") {
+    // Exclude non-physiological rows (systolic < 40 / diastolic < 20) from the
+    // series AND the implicit "latest" (the last point). BP is two rows paired
+    // client-side, so a corrupt row that slipped in before the input floor was
+    // enforced — a seed-era systolic-0, iOS #33 — must never surface as the
+    // latest reading. Floors mirror VALUE_RANGES (the input validator's min);
+    // this is a read-side selection guard, not a tightening of the write floor.
     const [sys, dia] = await Promise.all([
       prisma.measurement.findMany({
         where: {
@@ -271,6 +278,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
           type: "BLOOD_PRESSURE_SYS",
           measuredAt: { gte: since },
           deletedAt: null,
+          value: { gte: VALUE_RANGES.BLOOD_PRESSURE_SYS.min },
         },
         orderBy: { measuredAt: "asc" },
         select: { id: true, value: true, measuredAt: true },
@@ -281,6 +289,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
           type: "BLOOD_PRESSURE_DIA",
           measuredAt: { gte: since },
           deletedAt: null,
+          value: { gte: VALUE_RANGES.BLOOD_PRESSURE_DIA.min },
         },
         orderBy: { measuredAt: "asc" },
         select: { id: true, value: true, measuredAt: true },
