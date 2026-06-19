@@ -571,7 +571,11 @@ export function AccountSection() {
           )}
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={saving}>
+            <Button
+              type="submit"
+              className="min-h-11 sm:min-h-9"
+              disabled={saving}
+            >
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
@@ -612,6 +616,7 @@ export function AccountSection() {
         <div className="mt-4 flex justify-end pl-7">
           <Button
             variant="outline"
+            className="min-h-11 sm:min-h-9"
             onClick={handleAddPasskey}
             disabled={passkeyLoading}
           >
@@ -661,7 +666,7 @@ export function AccountSection() {
             type="button"
             variant="outline"
             onClick={() => setPasswordDialogOpen(true)}
-            className="w-full shrink-0 sm:w-auto"
+            className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
           >
             {t("settings.changePassword")}
           </Button>
@@ -740,7 +745,12 @@ export function AccountSection() {
               </p>
             )}
 
-            <Button type="submit" variant="outline" disabled={passwordSaving}>
+            <Button
+              type="submit"
+              variant="outline"
+              className="min-h-11 sm:min-h-9"
+              disabled={passwordSaving}
+            >
               {passwordSaving ? (
                 <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
