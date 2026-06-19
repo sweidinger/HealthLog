@@ -41,6 +41,8 @@ describe("reminder-worker — sleep-timeline backfill queue", () => {
   });
 
   it("imports the backfill exports", () => {
-    expect(source).toMatch(/from\s*["']@\/lib\/jobs\/sleep-timeline-backfill["']/);
+    expect(source).toMatch(
+      /from\s*["']@\/lib\/jobs\/sleep-timeline-backfill["']/,
+    );
   });
 });

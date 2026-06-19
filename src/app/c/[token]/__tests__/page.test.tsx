@@ -105,7 +105,10 @@ describe("clinician share page", () => {
   });
 
   it("renders a legacy (no-passphrase) link without a gate", async () => {
-    gateState.mockResolvedValue({ tokenHash: TOKEN_HASH, passphraseHash: null });
+    gateState.mockResolvedValue({
+      tokenHash: TOKEN_HASH,
+      passphraseHash: null,
+    });
     resolve.mockResolvedValue(resolvedContext());
     loadData.mockResolvedValue({ report: {}, sections: {} });
     await ClinicianSharePage(pageProps(`hls_${"b".repeat(48)}`));

@@ -23,7 +23,12 @@ function ok(value: Record<string, unknown>): Resp {
     metric: "X",
     status: "ok",
     value,
-    coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 30, missing: [] },
+    coverage: {
+      requiredInputs: 1,
+      presentInputs: 1,
+      historyDays: 30,
+      missing: [],
+    },
     confidence: { score: 90, band: "high" },
     provenance: { inputs: [], source: "DAY", windowDays: 30, computedAt: "x" },
     reason: null,
@@ -71,8 +76,19 @@ beforeEach(() => vi.clearAllMocks());
 describe("<VitalsDashboard>", () => {
   it("renders an available baseline vital as an ok tile", () => {
     const batch = mockBatch((token) => {
-      if (token.metric === "VITALS_BASELINE" && token.type === "RESTING_HEART_RATE") {
-        return ok({ type: "RESTING_HEART_RATE", center: 55, low: 48, high: 62, spread: 7, sampleDays: 30, k: 3 });
+      if (
+        token.metric === "VITALS_BASELINE" &&
+        token.type === "RESTING_HEART_RATE"
+      ) {
+        return ok({
+          type: "RESTING_HEART_RATE",
+          center: 55,
+          low: 48,
+          high: 62,
+          spread: 7,
+          sampleDays: 30,
+          k: 3,
+        });
       }
       return insufficient("no_readings_in_window");
     });
@@ -96,7 +112,9 @@ describe("<VitalsDashboard>", () => {
   });
 
   it("renders a skeleton row (no tiles, no heading strand) while loading", () => {
-    const batch = mockBatch(() => insufficient("no_readings_in_window"), { isLoading: true });
+    const batch = mockBatch(() => insufficient("no_readings_in_window"), {
+      isLoading: true,
+    });
     const html = render(<VitalsDashboard batch={batch} />);
     // Heading + grid present so the section reserves its final height, with a
     // busy/live region and skeleton placeholders — but no real tiles yet.
@@ -108,7 +126,9 @@ describe("<VitalsDashboard>", () => {
   });
 
   it("shows an inline error + retry when the batch fails", () => {
-    const batch = mockBatch(() => insufficient("no_readings_in_window"), { isError: true });
+    const batch = mockBatch(() => insufficient("no_readings_in_window"), {
+      isError: true,
+    });
     const html = render(<VitalsDashboard batch={batch} />);
     // The surface must not silently vanish — a compact error + a Retry button.
     expect(html).toContain('data-slot="vitals-dashboard-error"');
@@ -135,7 +155,14 @@ describe("<VitalsDashboard>", () => {
   it("renders the fitness-age tile with its age framing", () => {
     const batch = mockBatch((token) => {
       if (token.metric === "FITNESS_AGE") {
-        return ok({ vo2Max: 46, band: "green", fitnessAgeDeltaYears: -6, referenceBand: { low: 35, high: 45 }, trendDelta: 2, readingCount: 4 });
+        return ok({
+          vo2Max: 46,
+          band: "green",
+          fitnessAgeDeltaYears: -6,
+          referenceBand: { low: 35, high: 45 },
+          trendDelta: 2,
+          readingCount: 4,
+        });
       }
       return insufficient("no_readings_in_window");
     });
@@ -147,7 +174,13 @@ describe("<VitalsDashboard>", () => {
   it("renders the BMI tile with its WHO category", () => {
     const batch = mockBatch((token) => {
       if (token.metric === "BMI") {
-        return ok({ bmi: 24.7, category: "normal", band: "green", weightKg: 80, heightCm: 180 });
+        return ok({
+          bmi: 24.7,
+          category: "normal",
+          band: "green",
+          weightKg: 80,
+          heightCm: 180,
+        });
       }
       return insufficient("no_readings_in_window");
     });
@@ -210,7 +243,16 @@ describe("<VitalsDashboard>", () => {
   it("renders a stair-ascent-speed baseline band tile under Mobility & body", () => {
     const batch = mockBatch((token) => {
       if (token.metric === "STAIR_ASCENT_SPEED_BASELINE") {
-        return ok({ type: "STAIR_ASCENT_SPEED", center: 0.4, low: 0.3, high: 0.5, spread: 0.05, sampleDays: 21, k: 3, series: [0.38, 0.4, 0.42] });
+        return ok({
+          type: "STAIR_ASCENT_SPEED",
+          center: 0.4,
+          low: 0.3,
+          high: 0.5,
+          spread: 0.05,
+          sampleDays: 21,
+          k: 3,
+          series: [0.38, 0.4, 0.42],
+        });
       }
       return insufficient("no_readings_in_window");
     });

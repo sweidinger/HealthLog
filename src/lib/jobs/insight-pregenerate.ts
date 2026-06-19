@@ -72,10 +72,7 @@ import {
   type InsightPregeneratePayload,
 } from "@/lib/jobs/insight-pregenerate-shared";
 
-export {
-  INSIGHT_PREGENERATE_QUEUE,
-  enqueueForceWarm,
-};
+export { INSIGHT_PREGENERATE_QUEUE, enqueueForceWarm };
 export type { InsightPregeneratePayload };
 
 /**
@@ -730,8 +727,10 @@ export async function forceWarmUser(
   //      rolling 24 h, so even a client bug that defeats 1+2 cannot turn
   //      the forced path into an unmetered generation loop.
   if (flags.briefing) {
-    let freshness: { insightsCachedAt: Date | null; insightsWarmFailedAt: Date | null } | null =
-      null;
+    let freshness: {
+      insightsCachedAt: Date | null;
+      insightsWarmFailedAt: Date | null;
+    } | null = null;
     try {
       freshness = await prisma.user.findUnique({
         where: { id: userId },
@@ -745,7 +744,8 @@ export async function forceWarmUser(
     const cachedAt = freshness?.insightsCachedAt ?? null;
     const failedAt = freshness?.insightsWarmFailedAt ?? null;
     const isFresh =
-      cachedAt !== null && now.getTime() - cachedAt.getTime() < FORCE_WARM_FRESH_MS;
+      cachedAt !== null &&
+      now.getTime() - cachedAt.getTime() < FORCE_WARM_FRESH_MS;
     const inBackoff =
       !isFresh &&
       failedAt !== null &&
@@ -779,7 +779,11 @@ export async function forceWarmUser(
         const controller = new AbortController();
         const comprehensive = await withTimeout(
           () =>
-            generate(userId, { locale, force: true, signal: controller.signal }),
+            generate(userId, {
+              locale,
+              force: true,
+              signal: controller.signal,
+            }),
           COMPREHENSIVE_WARM_TIMEOUT_MS,
           null,
           () => controller.abort(),

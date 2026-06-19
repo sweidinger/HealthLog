@@ -147,12 +147,8 @@ describe("dashboard chart-reveal wiring (page.tsx)", () => {
   const src = readFileSync(PAGE_PATH, "utf8");
 
   it("derives the gated id list from the chart visibility gates", () => {
-    expect(src).toMatch(
-      /const\s+revealChartIds:\s*string\[\]\s*=\s*\[\];/,
-    );
-    expect(src).toMatch(
-      /useDashboardChartReveal\(revealChartIds\)/,
-    );
+    expect(src).toMatch(/const\s+revealChartIds:\s*string\[\]\s*=\s*\[\];/);
+    expect(src).toMatch(/useDashboardChartReveal\(revealChartIds\)/);
   });
 
   it("every data-backed chart reports through onDataReady", () => {

@@ -188,7 +188,9 @@ export function IntakeHistoryListV2({
         offset: String(offset),
         status: STATUS_FILTER,
       });
-      return apiGet<IntakeListResponse>(`/api/medications/${medicationId}/intake?${params.toString()}`);
+      return apiGet<IntakeListResponse>(
+        `/api/medications/${medicationId}/intake?${params.toString()}`,
+      );
     },
     enabled: isAuthenticated,
   });
@@ -358,7 +360,7 @@ export function IntakeHistoryListV2({
                         {isTaken ? (
                           <Badge
                             variant="secondary"
-                            className="bg-success/15 text-success dark:bg-green-500/20 dark:text-green-400 gap-1 text-xs"
+                            className="bg-success/15 text-success gap-1 text-xs dark:bg-green-500/20 dark:text-green-400"
                           >
                             <Check aria-hidden="true" className="h-3 w-3" />
                             {t("medications.intakeHistoryStatusTaken")}

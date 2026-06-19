@@ -81,22 +81,28 @@ beforeEach(() => {
 describe("POST /api/admin/import-apple-health-export", () => {
   it("returns 401 when unauthenticated", async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const req = new NextRequest("http://localhost/api/admin/import-apple-health-export", {
-      method: "POST",
-      headers: { "content-type": "multipart/form-data; boundary=---x" },
-      body: "stub",
-    });
+    const req = new NextRequest(
+      "http://localhost/api/admin/import-apple-health-export",
+      {
+        method: "POST",
+        headers: { "content-type": "multipart/form-data; boundary=---x" },
+        body: "stub",
+      },
+    );
     const res = await POST(req);
     expect(res.status).toBe(401);
   });
 
   it("returns 403 when a non-admin cookie session calls the route", async () => {
     vi.mocked(getSession).mockResolvedValue(USER_SESSION as never);
-    const req = new NextRequest("http://localhost/api/admin/import-apple-health-export", {
-      method: "POST",
-      headers: { "content-type": "multipart/form-data; boundary=---x" },
-      body: "stub",
-    });
+    const req = new NextRequest(
+      "http://localhost/api/admin/import-apple-health-export",
+      {
+        method: "POST",
+        headers: { "content-type": "multipart/form-data; boundary=---x" },
+        body: "stub",
+      },
+    );
     const res = await POST(req);
     expect(res.status).toBe(403);
   });
@@ -107,11 +113,14 @@ describe("POST /api/admin/import-apple-health-export", () => {
       "content-type": "multipart/form-data; boundary=---x",
       "content-length": String(2 * 1024 * 1024 * 1024),
     });
-    const req = new NextRequest("http://localhost/api/admin/import-apple-health-export", {
-      method: "POST",
-      headers,
-      body: "stub",
-    });
+    const req = new NextRequest(
+      "http://localhost/api/admin/import-apple-health-export",
+      {
+        method: "POST",
+        headers,
+        body: "stub",
+      },
+    );
     const res = await POST(req);
     expect(res.status).toBe(413);
   });
@@ -119,11 +128,14 @@ describe("POST /api/admin/import-apple-health-export", () => {
   it("returns 429 on rate-limit exhaustion", async () => {
     vi.mocked(getSession).mockResolvedValue(ADMIN_SESSION as never);
     mocks.checkRateLimit.mockResolvedValueOnce({ allowed: false });
-    const req = new NextRequest("http://localhost/api/admin/import-apple-health-export", {
-      method: "POST",
-      headers: { "content-type": "multipart/form-data; boundary=---x" },
-      body: "stub",
-    });
+    const req = new NextRequest(
+      "http://localhost/api/admin/import-apple-health-export",
+      {
+        method: "POST",
+        headers: { "content-type": "multipart/form-data; boundary=---x" },
+        body: "stub",
+      },
+    );
     const res = await POST(req);
     expect(res.status).toBe(429);
   });

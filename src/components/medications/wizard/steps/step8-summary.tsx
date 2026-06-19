@@ -158,7 +158,7 @@ export function Step8Summary({
               "border-border/70 hover:bg-muted/40 focus-visible:ring-ring",
               "flex w-full items-center justify-center gap-2 rounded-md border border-dashed",
               "p-3 text-sm font-medium transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2",
+              "focus-visible:ring-2 focus-visible:outline-none",
             ].join(" ")}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -170,28 +170,25 @@ export function Step8Summary({
       {/* v1.16.11 — an as-needed medication never reminds (no slots),
           so the reminders toggle is hidden alongside the schedules. */}
       {payload.mode !== "asNeeded" && (
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <Label
-            htmlFor="wizard-reminders"
-            className="text-sm font-medium"
-          >
-            {t("medications.wizard.steps.step8.remindersLabel")}
-          </Label>
-          <p className="text-muted-foreground text-xs">
-            {t("medications.wizard.steps.step8.remindersDescription")}
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <Label htmlFor="wizard-reminders" className="text-sm font-medium">
+              {t("medications.wizard.steps.step8.remindersLabel")}
+            </Label>
+            <p className="text-muted-foreground text-xs">
+              {t("medications.wizard.steps.step8.remindersDescription")}
+            </p>
+          </div>
+          <Switch
+            id="wizard-reminders"
+            checked={payload.notificationsEnabled}
+            onCheckedChange={(checked) =>
+              applyPartial({ notificationsEnabled: checked })
+            }
+            data-slot="wizard-reminders-toggle"
+            aria-label={t("medications.wizard.steps.step8.remindersLabel")}
+          />
         </div>
-        <Switch
-          id="wizard-reminders"
-          checked={payload.notificationsEnabled}
-          onCheckedChange={(checked) =>
-            applyPartial({ notificationsEnabled: checked })
-          }
-          data-slot="wizard-reminders-toggle"
-          aria-label={t("medications.wizard.steps.step8.remindersLabel")}
-        />
-      </div>
       )}
 
       {payload.mode !== "asNeeded" && showNoChannelHint && (

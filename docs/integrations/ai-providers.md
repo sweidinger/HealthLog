@@ -9,12 +9,12 @@ Ollama endpoint can fall back from one to the other automatically.
 
 ## Provider matrix
 
-| Provider | Key acquisition | Default model | Endpoint | Privacy stance |
-| -------- | ---------------- | ------------- | -------- | -------------- |
-| `OPENAI` | <https://platform.openai.com/api-keys> | `gpt-4o` | `https://api.openai.com/v1` | Measurement context sent to OpenAI |
-| `ANTHROPIC` | <https://console.anthropic.com/settings/keys> | `claude-sonnet-4-6` | Anthropic SDK default | Measurement context sent to Anthropic |
-| `LOCAL` | None (your endpoint) | `local-model` | OpenAI-compatible URL you control | Stays on your network |
-| `CHATGPT_OAUTH` | Sign in with your ChatGPT account | Codex-routed | `chatgpt.com/backend-api/codex/responses` | Routed via your ChatGPT subscription |
+| Provider        | Key acquisition                               | Default model       | Endpoint                                  | Privacy stance                        |
+| --------------- | --------------------------------------------- | ------------------- | ----------------------------------------- | ------------------------------------- |
+| `OPENAI`        | <https://platform.openai.com/api-keys>        | `gpt-4o`            | `https://api.openai.com/v1`               | Measurement context sent to OpenAI    |
+| `ANTHROPIC`     | <https://console.anthropic.com/settings/keys> | `claude-sonnet-4-6` | Anthropic SDK default                     | Measurement context sent to Anthropic |
+| `LOCAL`         | None (your endpoint)                          | `local-model`       | OpenAI-compatible URL you control         | Stays on your network                 |
+| `CHATGPT_OAUTH` | Sign in with your ChatGPT account             | Codex-routed        | `chatgpt.com/backend-api/codex/responses` | Routed via your ChatGPT subscription  |
 
 The four spellings above are the canonical `User.aiProvider` enum
 values. Anything else falls through to the admin-shared OpenAI key

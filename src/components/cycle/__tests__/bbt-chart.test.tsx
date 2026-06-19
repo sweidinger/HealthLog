@@ -11,10 +11,7 @@ function render(node: React.ReactNode) {
   );
 }
 
-function day(
-  date: string,
-  overrides: Partial<CalendarDay> = {},
-): CalendarDay {
+function day(date: string, overrides: Partial<CalendarDay> = {}): CalendarDay {
   return {
     date,
     phase: "FOLLICULAR",

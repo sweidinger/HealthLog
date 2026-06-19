@@ -22,12 +22,12 @@ import {
 } from "@/components/ui/select";
 import { useTranslations } from "@/lib/i18n/context";
 
-import { useCreateEpisode, useIllnessEpisodes, useUpdateEpisode } from "./use-illness";
-import type {
-  IllnessEpisodeDTO,
-  IllnessLifecycle,
-  IllnessType,
-} from "./types";
+import {
+  useCreateEpisode,
+  useIllnessEpisodes,
+  useUpdateEpisode,
+} from "./use-illness";
+import type { IllnessEpisodeDTO, IllnessLifecycle, IllnessType } from "./types";
 
 const TYPES: IllnessType[] = [
   "INFECTION",
@@ -151,7 +151,10 @@ export function NewEpisodeSheet({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={handleSave} disabled={pending || label.trim() === ""}>
+          <Button
+            onClick={handleSave}
+            disabled={pending || label.trim() === ""}
+          >
             {t("common.save")}
           </Button>
         </>
@@ -212,7 +215,9 @@ export function NewEpisodeSheet({
                 <SelectValue placeholder={t("illness.new.parentNone")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>{t("illness.new.parentNone")}</SelectItem>
+                <SelectItem value={NONE}>
+                  {t("illness.new.parentNone")}
+                </SelectItem>
                 {parentCandidates.map((e) => (
                   <SelectItem key={e.id} value={e.id}>
                     {e.label}

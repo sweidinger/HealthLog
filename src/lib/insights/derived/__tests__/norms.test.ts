@@ -83,7 +83,9 @@ describe("lookupNormalRange — the age/sex reference-range enabler", () => {
 
   it("rejects negative / non-finite ages", () => {
     expect(lookupNormalRange("RESTING_HEART_RATE", -5, null)).toBeNull();
-    expect(lookupNormalRange("RESTING_HEART_RATE", Number.NaN, null)).toBeNull();
+    expect(
+      lookupNormalRange("RESTING_HEART_RATE", Number.NaN, null),
+    ).toBeNull();
   });
 });
 
@@ -126,7 +128,9 @@ describe("predictSixMinuteWalkDistance — Enright & Sherrill 1998", () => {
 
   it("returns null for non-adult / non-finite ages", () => {
     expect(predictSixMinuteWalkDistance(12, 150, 45, "MALE")).toBeNull();
-    expect(predictSixMinuteWalkDistance(Number.NaN, 180, 80, "MALE")).toBeNull();
+    expect(
+      predictSixMinuteWalkDistance(Number.NaN, 180, 80, "MALE"),
+    ).toBeNull();
     expect(predictSixMinuteWalkDistance(null, 180, 80, "MALE")).toBeNull();
   });
 });

@@ -65,7 +65,8 @@ function summariseEntries(payload: unknown): Array<{
         : [],
       label: typeof e.label === "string" ? e.label : null,
       dose: typeof e.dose === "string" ? e.dose : null,
-      scheduleType: typeof e.scheduleType === "string" ? e.scheduleType : "SCHEDULED",
+      scheduleType:
+        typeof e.scheduleType === "string" ? e.scheduleType : "SCHEDULED",
     };
   });
 }

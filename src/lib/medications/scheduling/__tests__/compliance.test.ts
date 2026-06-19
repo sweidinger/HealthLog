@@ -196,8 +196,22 @@ describe("complianceChips", () => {
       });
     }
 
-    const berlin = complianceChips([sched], events, NOW, 7, undefined, "Europe/Berlin");
-    const tokyo = complianceChips([sched], events, NOW, 7, undefined, "Asia/Tokyo");
+    const berlin = complianceChips(
+      [sched],
+      events,
+      NOW,
+      7,
+      undefined,
+      "Europe/Berlin",
+    );
+    const tokyo = complianceChips(
+      [sched],
+      events,
+      NOW,
+      7,
+      undefined,
+      "Asia/Tokyo",
+    );
 
     // Both must compute a finite adherence rate (the schedule has
     // expected doses in the window). The exact rate may differ
@@ -212,7 +226,9 @@ describe("complianceChips", () => {
 });
 
 describe("complianceChips — canonical-engine delegation (v1.7.0 SB-SCHED-2)", () => {
-  function engineCtx(over?: Partial<CadenceEngineContext>): CadenceEngineContext {
+  function engineCtx(
+    over?: Partial<CadenceEngineContext>,
+  ): CadenceEngineContext {
     return {
       startsOn: null,
       endsOn: null,
@@ -355,7 +371,6 @@ describe("complianceChips — canonical-engine delegation (v1.7.0 SB-SCHED-2)", 
     // Both configured times land inside the one-day window → two slots.
     expect(timeline.length).toBe(2);
   });
-
 });
 
 describe("streaksFromTimeline — DST-correct day walk", () => {

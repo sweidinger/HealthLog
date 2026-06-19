@@ -67,14 +67,18 @@ describe("OAuth signed state (Polar / Oura)", () => {
   it("rejects an expired token even with a valid signature", () => {
     const now = 10_000;
     const token = mintSignedState("polar", "u1", now);
-    expect(verifySignedState("polar", token, now + OAUTH_STATE_TTL_MS + 1)).toBeNull();
+    expect(
+      verifySignedState("polar", token, now + OAUTH_STATE_TTL_MS + 1),
+    ).toBeNull();
   });
 
   it("rejects malformed shapes and empty input", () => {
     expect(verifySignedState("polar", null)).toBeNull();
     expect(verifySignedState("polar", "")).toBeNull();
     expect(verifySignedState("polar", "a.b.c")).toBeNull();
-    expect(verifySignedState("polar", "polar.u1.notanumber.nonce.tag")).toBeNull();
+    expect(
+      verifySignedState("polar", "polar.u1.notanumber.nonce.tag"),
+    ).toBeNull();
   });
 
   it("a token minted under a different key fails verification", () => {

@@ -58,7 +58,10 @@ export function MoodDistributionChart({
     // tidy card rather than a dominant block, and matches the weekday sibling.
     <div className="h-[150px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+        <BarChart
+          data={data}
+          margin={{ top: 8, right: 12, bottom: 8, left: 0 }}
+        >
           <XAxis
             dataKey="label"
             // v1.15.14 — theme-aware axis text. `--dracula-fg` (near-white) is

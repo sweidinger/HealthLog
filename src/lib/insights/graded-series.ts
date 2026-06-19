@@ -70,8 +70,7 @@ const WEEKLY_WINDOW_MS = (RECENT_DAYS + WEEKLY_WEEKS * 7) * MS_PER_DAY;
 // Approximate the monthly horizon in days; the precise calendar-month
 // boundary is handled by the YMD key, this only separates monthly from
 // yearly buckets.
-const MONTHLY_WINDOW_MS =
-  WEEKLY_WINDOW_MS + MONTHLY_MONTHS * 30 * MS_PER_DAY;
+const MONTHLY_WINDOW_MS = WEEKLY_WINDOW_MS + MONTHLY_MONTHS * 30 * MS_PER_DAY;
 
 export interface RecentDayBucket {
   /** Berlin YYYY-MM-DD. */

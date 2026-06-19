@@ -95,7 +95,9 @@ export function DisableCoachCard({
   // the activated-state view of it. The SSR default is ON (checked) so the
   // default-on contract holds before the wire value resolves.
   const mounted = useMounted();
-  const activated = mounted ? (optimistic ?? !(user?.disableCoach ?? false)) : true;
+  const activated = mounted
+    ? (optimistic ?? !(user?.disableCoach ?? false))
+    : true;
 
   const mutation = useMutation({
     // `next` is the desired ACTIVATED state; the column stores the inverse.

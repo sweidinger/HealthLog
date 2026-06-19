@@ -54,8 +54,7 @@ vi.mock("@/lib/logging/background", () => ({
         addWarning: (m: string) => void;
         setError: (e: unknown) => void;
       }) => Promise<void>,
-    ) =>
-      fn({ addMeta: vi.fn(), addWarning: vi.fn(), setError: vi.fn() }),
+    ) => fn({ addMeta: vi.fn(), addWarning: vi.fn(), setError: vi.fn() }),
   ),
 }));
 vi.mock("@/lib/notifications/dispatcher", () => ({

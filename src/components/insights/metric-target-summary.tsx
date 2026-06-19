@@ -335,69 +335,69 @@ function TargetReferencePanel({
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Row 2: range bar — where today's value sits inside the band. */}
-      {target.current != null ? (
-        <RangeBar
-          value={target.current}
-          min={range.min}
-          max={range.max}
-          unit={unit}
-          orangeMin={isMedicationCompliance ? 70 : undefined}
-          orangeMax={isMedicationCompliance ? 100 : undefined}
-        />
-      ) : null}
-
-      {/* Row 2b: diastolic range bar for blood pressure. */}
-      {isBp && bpDiastolic?.range && bpDiastolic.current != null ? (
-        <div className="space-y-1">
-          <p className="text-muted-foreground text-xs">
-            {t("targets.diastolic")}
-          </p>
+        {target.current != null ? (
           <RangeBar
-            value={bpDiastolic.current}
-            min={bpDiastolic.range.min}
-            max={bpDiastolic.range.max}
-            unit="mmHg"
+            value={target.current}
+            min={range.min}
+            max={range.max}
+            unit={unit}
+            orangeMin={isMedicationCompliance ? 70 : undefined}
+            orangeMax={isMedicationCompliance ? 100 : undefined}
           />
-        </div>
-      ) : null}
+        ) : null}
 
-      {/* Row 3: 30-day average (blood pressure only — every other metric
+        {/* Row 2b: diastolic range bar for blood pressure. */}
+        {isBp && bpDiastolic?.range && bpDiastolic.current != null ? (
+          <div className="space-y-1">
+            <p className="text-muted-foreground text-xs">
+              {t("targets.diastolic")}
+            </p>
+            <RangeBar
+              value={bpDiastolic.current}
+              min={bpDiastolic.range.min}
+              max={bpDiastolic.range.max}
+              unit="mmHg"
+            />
+          </div>
+        ) : null}
+
+        {/* Row 3: 30-day average (blood pressure only — every other metric
           surfaces its 30-day average in `<MetricPrimaryTile>` above the
           chart, so repeating it here would duplicate the figure). */}
-      {averageLabel ? (
-        <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
-          <span>{averageLabel}</span>
-        </div>
-      ) : null}
+        {averageLabel ? (
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+            <span>{averageLabel}</span>
+          </div>
+        ) : null}
 
-      {/* Row 4: 7-day consistency strip. */}
-      {showConsistency && target.consistency7d ? (
-        <ConsistencyStrip
-          days={target.consistency7d}
-          daysInRange={target.daysInRange7d ?? 0}
-          daysLogged={target.daysLogged7d ?? 0}
-        />
-      ) : null}
+        {/* Row 4: 7-day consistency strip. */}
+        {showConsistency && target.consistency7d ? (
+          <ConsistencyStrip
+            days={target.consistency7d}
+            daysInRange={target.daysInRange7d ?? 0}
+            daysLogged={target.daysLogged7d ?? 0}
+          />
+        ) : null}
 
-      {/* Footer: guideline source link. The adjust-target affordance
+        {/* Footer: guideline source link. The adjust-target affordance
           moved to the header gear (see `TargetAdjustProvider`); this
           panel registers itself as that gear's edit target above. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-0.5">
-        {sourceLink ? (
-          <a
-            href={sourceLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
-          >
-            <span>{t("targets.sourceLabel", { source: target.source })}</span>
-            <ExternalLink className="size-3" aria-hidden="true" />
-          </a>
-        ) : (
-          <span className="text-muted-foreground text-xs">
-            {t("targets.sourceLabel", { source: target.source })}
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-0.5">
+          {sourceLink ? (
+            <a
+              href={sourceLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+            >
+              <span>{t("targets.sourceLabel", { source: target.source })}</span>
+              <ExternalLink className="size-3" aria-hidden="true" />
+            </a>
+          ) : (
+            <span className="text-muted-foreground text-xs">
+              {t("targets.sourceLabel", { source: target.source })}
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>

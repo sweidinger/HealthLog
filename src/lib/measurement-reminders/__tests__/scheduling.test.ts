@@ -13,7 +13,9 @@ import {
 
 const TZ = "Europe/Berlin";
 
-function base(overrides: Partial<ReminderScheduleInput>): ReminderScheduleInput {
+function base(
+  overrides: Partial<ReminderScheduleInput>,
+): ReminderScheduleInput {
   return {
     intervalDays: null,
     rrule: null,

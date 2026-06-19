@@ -98,7 +98,7 @@ export function WorkoutList({ workouts, className }: WorkoutListProps) {
   return (
     <ul
       data-slot="workout-list"
-      className={cn("divide-y divide-border rounded-lg border", className)}
+      className={cn("divide-border divide-y rounded-lg border", className)}
     >
       {workouts.map((workout) => {
         const Icon = iconForSport(workout.sportType);
@@ -107,9 +107,8 @@ export function WorkoutList({ workouts, className }: WorkoutListProps) {
         // Translation keys missing from one locale fall back to the
         // canonical sport-type string so a new HK enum value never
         // renders the raw `insights.workouts.sport.x` placeholder.
-        const sportName = sportLabel === sportLabelKey
-          ? workout.sportType
-          : sportLabel;
+        const sportName =
+          sportLabel === sportLabelKey ? workout.sportType : sportLabel;
 
         return (
           <li key={workout.id}>
@@ -123,7 +122,7 @@ export function WorkoutList({ workouts, className }: WorkoutListProps) {
             >
               <span
                 aria-hidden="true"
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+                className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-full"
               >
                 <Icon className="size-4" />
               </span>

@@ -360,9 +360,12 @@ describe("DELETE /api/medications/[id]/inventory/[itemId]", () => {
     } as never);
 
     const res = await DELETE(
-      new NextRequest("http://localhost/api/medications/med-1/inventory/inv-1", {
-        method: "DELETE",
-      }),
+      new NextRequest(
+        "http://localhost/api/medications/med-1/inventory/inv-1",
+        {
+          method: "DELETE",
+        },
+      ),
       { params: Promise.resolve({ id: "med-1", itemId: "inv-1" }) },
     );
     expect(res.status).toBe(200);

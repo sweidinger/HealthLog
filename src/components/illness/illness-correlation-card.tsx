@@ -16,10 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 
 import { useIllnessCorrelation } from "./use-illness";
-import type {
-  IllnessCorrelationValue,
-  IllnessVitalDeviation,
-} from "./types";
+import type { IllnessCorrelationValue, IllnessVitalDeviation } from "./types";
 
 /** Translate a MeasurementType to its illness-surface label. */
 function useVitalLabel() {
@@ -76,7 +73,9 @@ function CorrelationBody({ value }: { value: IllnessCorrelationValue }) {
             {gap > 0
               ? t("illness.correlation.recoveryGapLag", { days: gap })
               : gap < 0
-                ? t("illness.correlation.recoveryGapLead", { days: Math.abs(gap) })
+                ? t("illness.correlation.recoveryGapLead", {
+                    days: Math.abs(gap),
+                  })
                 : t("illness.correlation.recoveryGapSame")}
           </p>
         </div>

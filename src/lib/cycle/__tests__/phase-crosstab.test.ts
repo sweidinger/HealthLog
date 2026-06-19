@@ -16,11 +16,7 @@ import type { CrossMetricMeasurement } from "@/lib/insights/mood-aggregates";
 import type { CyclePhase } from "../types";
 
 /** Build a measurement row on a given YYYY-MM-DD at noon UTC. */
-function m(
-  type: string,
-  day: string,
-  value: number,
-): CrossMetricMeasurement {
+function m(type: string, day: string, value: number): CrossMetricMeasurement {
   return {
     type,
     value,
@@ -55,7 +51,9 @@ function fixture(opts: {
     const k = dayKey(dayIdx++);
     phaseByDay.set(k, "LUTEAL");
     // tiny deterministic jitter so the group has non-zero variance
-    measurements.push(m("RESTING_HEART_RATE", k, opts.lutealRhr + (i % 3) * 0.5));
+    measurements.push(
+      m("RESTING_HEART_RATE", k, opts.lutealRhr + (i % 3) * 0.5),
+    );
   }
   for (let i = 0; i < opts.n; i++) {
     const k = dayKey(dayIdx++);
@@ -130,7 +128,11 @@ describe("computePhaseMetricCrosstab — MOOD + GLUCOSE outcomes (QA HIGH)", () 
   });
 
   it("surfaces a luteal-vs-follicular MOOD contrast (injected synthetic channel)", () => {
-    const { phaseByDay, measurements } = contrastFor(MOOD_CHANNEL_KEY, 4.4, 2.6);
+    const { phaseByDay, measurements } = contrastFor(
+      MOOD_CHANNEL_KEY,
+      4.4,
+      2.6,
+    );
     const rows = computePhaseMetricCrosstab({ phaseByDay, measurements });
     const mood = rows.find((r) => r.metricKey === "mood");
     expect(mood).toBeDefined();
@@ -193,7 +195,9 @@ describe("computePhaseMetricCrosstab", () => {
     });
     const rows = computePhaseMetricCrosstab({ phaseByDay, measurements });
     // No real separation → nothing clears p < 0.05.
-    expect(rows.find((r) => r.metricKey === "restingHeartRate")).toBeUndefined();
+    expect(
+      rows.find((r) => r.metricKey === "restingHeartRate"),
+    ).toBeUndefined();
   });
 
   it("ignores MENSTRUAL / OVULATORY days (only the two contrast phases count)", () => {
@@ -298,7 +302,12 @@ describe("discoverPhaseCorrelations", () => {
     const phaseByDay = new Map<string, CyclePhase>();
     const measurements: CrossMetricMeasurement[] = [];
     const base = new Date(Date.UTC(2026, 0, 1));
-    const phases: CyclePhase[] = ["MENSTRUAL", "FOLLICULAR", "OVULATORY", "LUTEAL"];
+    const phases: CyclePhase[] = [
+      "MENSTRUAL",
+      "FOLLICULAR",
+      "OVULATORY",
+      "LUTEAL",
+    ];
     for (let i = 0; i < 42; i++) {
       const d = new Date(base);
       d.setUTCDate(d.getUTCDate() + i);
@@ -326,13 +335,19 @@ describe("selectHeadlinePhaseRow", () => {
   });
 
   it("prefers resting heart rate", () => {
-    const rows = [row("weight"), row("restingHeartRate"), row("heartRateVariability")];
+    const rows = [
+      row("weight"),
+      row("restingHeartRate"),
+      row("heartRateVariability"),
+    ];
     expect(selectHeadlinePhaseRow(rows)?.metricKey).toBe("restingHeartRate");
   });
 
   it("falls back to HRV when RHR is absent", () => {
     const rows = [row("weight"), row("heartRateVariability")];
-    expect(selectHeadlinePhaseRow(rows)?.metricKey).toBe("heartRateVariability");
+    expect(selectHeadlinePhaseRow(rows)?.metricKey).toBe(
+      "heartRateVariability",
+    );
   });
 
   it("falls back to the strongest remaining row", () => {

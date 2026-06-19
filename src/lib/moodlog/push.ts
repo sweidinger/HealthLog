@@ -62,7 +62,11 @@ export interface MoodEntryForPush {
 export async function pushMoodEntriesToMoodLog(
   userId: string,
   entries: ReadonlyArray<MoodEntryForPush>,
-): Promise<{ pushed: number; skipped: number; status: "ok" | "skipped" | "failed" }> {
+): Promise<{
+  pushed: number;
+  skipped: number;
+  status: "ok" | "skipped" | "failed";
+}> {
   // Entries originating in MoodLog mustn't loop back. The pull side
   // also filters incoming `HEALTHLOG`-tagged rows; this is the
   // outbound mirror of that gate.

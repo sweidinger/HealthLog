@@ -429,11 +429,13 @@ export async function prepareWeightStatusForUser(
     },
     weightVsSystolic: {
       correlation: weightVsSystolicCorrelation,
-      pairs: weightVsSystolicPairs.slice(-CORRELATION_PAIR_CAP).map((entry) => ({
-        day: entry.dayKey,
-        weight: round(entry.a, 2),
-        systolic: round(entry.b, 2),
-      })),
+      pairs: weightVsSystolicPairs
+        .slice(-CORRELATION_PAIR_CAP)
+        .map((entry) => ({
+          day: entry.dayKey,
+          weight: round(entry.a, 2),
+          systolic: round(entry.b, 2),
+        })),
     },
     weightVsMeanBloodPressure: {
       correlation: weightVsMeanBpCorrelation,

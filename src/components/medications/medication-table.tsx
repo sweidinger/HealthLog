@@ -261,14 +261,22 @@ export function MedicationTable({
       className: "bg-card sticky left-0 z-10",
     },
     { key: "status", label: t("medications.tableColStatus"), sortable: false },
-    { key: "nextDue", label: t("medications.tableColNextDose"), sortable: true },
+    {
+      key: "nextDue",
+      label: t("medications.tableColNextDose"),
+      sortable: true,
+    },
     {
       key: "compliance",
       label: t("medications.tableColCompliance"),
       sortable: true,
     },
     { key: "stock", label: t("medications.tableColStock"), sortable: true },
-    { key: "actions", label: t("medications.tableColActions"), sortable: false },
+    {
+      key: "actions",
+      label: t("medications.tableColActions"),
+      sortable: false,
+    },
   ];
 
   function ariaSort(
@@ -651,7 +659,13 @@ function MedicationTableRowItem({
       </TableCell>
       <TableCell>{statusCell}</TableCell>
       <TableCell className="text-sm">{nextCell}</TableCell>
-      <TableCell>{medication.active && !medication.asNeeded ? complianceCell : <span className="text-muted-foreground text-sm">–</span>}</TableCell>
+      <TableCell>
+        {medication.active && !medication.asNeeded ? (
+          complianceCell
+        ) : (
+          <span className="text-muted-foreground text-sm">–</span>
+        )}
+      </TableCell>
       <TableCell className="text-sm">{stockCell}</TableCell>
       <TableCell>
         {medication.active ? (

@@ -85,8 +85,10 @@ describe("extractDeterministicFacts", () => {
 
   it("matches German intolerance statements", () => {
     expect(
-      extractDeterministicFacts("ich habe eine Laktoseunverträglichkeit", "de")[0]
-        ?.fact,
+      extractDeterministicFacts(
+        "ich habe eine Laktoseunverträglichkeit",
+        "de",
+      )[0]?.fact,
     ).toContain("Laktose");
     expect(
       extractDeterministicFacts("ich bin laktoseintolerant", "de")[0]?.fact,
@@ -139,7 +141,10 @@ describe("extractDeterministicFacts", () => {
       [],
     );
     expect(
-      extractDeterministicFacts("meine Schwester hat eine Katzenhaarallergie", "de"),
+      extractDeterministicFacts(
+        "meine Schwester hat eine Katzenhaarallergie",
+        "de",
+      ),
     ).toEqual([]);
     expect(
       extractDeterministicFacts("what is an allergy exactly?", "en"),

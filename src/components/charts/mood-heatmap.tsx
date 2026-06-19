@@ -207,7 +207,7 @@ export function MoodHeatmap({
       <div
         className={
           stretch
-            ? "w-full sm:w-full overflow-x-auto sm:overflow-visible"
+            ? "w-full overflow-x-auto sm:w-full sm:overflow-visible"
             : "overflow-x-auto"
         }
       >
@@ -218,7 +218,9 @@ export function MoodHeatmap({
           // natural, square, left-aligned grid rather than CSS-stretching a few
           // capped columns into wide rectangles. Mirrors `compliance-heatmap`.
           className={stretch ? "block max-w-full" : "block"}
-          onMouseLeave={() => setTooltip((prev) => (prev?.pinned ? prev : null))}
+          onMouseLeave={() =>
+            setTooltip((prev) => (prev?.pinned ? prev : null))
+          }
         >
           {monthMarkers.map((m, i) => (
             <text
@@ -254,7 +256,9 @@ export function MoodHeatmap({
               if (!cell.cell) {
                 return `${formatDateDE(cell.dateKey)}: ${t("insights.mood.heatmapNoEntry")}`;
               }
-              const labelKey = moodLabelKeyForScore(Math.round(cell.cell.score));
+              const labelKey = moodLabelKeyForScore(
+                Math.round(cell.cell.score),
+              );
               const moodLabel = labelKey ? t(labelKey) : "";
               return `${formatDateDE(cell.dateKey)}: ${cell.cell.score.toFixed(1)}${moodLabel ? ` · ${moodLabel}` : ""}`;
             };
@@ -310,9 +314,18 @@ export function MoodHeatmap({
         style={{ marginLeft: stretch ? 0 : labelWidth }}
       >
         {[
-          { color: "var(--dracula-green)", label: t("insights.mood.legendGreat") },
-          { color: "var(--dracula-yellow)", label: t("insights.mood.legendGood") },
-          { color: "var(--dracula-orange)", label: t("insights.mood.legendOkay") },
+          {
+            color: "var(--dracula-green)",
+            label: t("insights.mood.legendGreat"),
+          },
+          {
+            color: "var(--dracula-yellow)",
+            label: t("insights.mood.legendGood"),
+          },
+          {
+            color: "var(--dracula-orange)",
+            label: t("insights.mood.legendOkay"),
+          },
           { color: "var(--dracula-red)", label: t("insights.mood.legendLow") },
         ].map(({ color, label }) => (
           <span key={label} className="flex items-center gap-1">

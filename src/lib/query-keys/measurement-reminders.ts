@@ -10,12 +10,9 @@ export const measurementReminderKeys = {
    */
   measurementReminders: () => ["measurement-reminders"] as const,
   /** Mutation keys — kept in the factory so no bare array reaches a call site. */
-  measurementReminderCreate: () =>
-    ["measurement-reminders", "create"] as const,
-  measurementReminderUpdate: () =>
-    ["measurement-reminders", "update"] as const,
-  measurementReminderDelete: () =>
-    ["measurement-reminders", "delete"] as const,
+  measurementReminderCreate: () => ["measurement-reminders", "create"] as const,
+  measurementReminderUpdate: () => ["measurement-reminders", "update"] as const,
+  measurementReminderDelete: () => ["measurement-reminders", "delete"] as const,
   measurementReminderSatisfy: () =>
     ["measurement-reminders", "satisfy"] as const,
 };

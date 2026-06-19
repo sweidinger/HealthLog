@@ -25,10 +25,7 @@ import {
 import type { StepProps } from "./step1-name";
 
 // Each row's Lucide glyph. maintainer-confirmed assignment in D-1 §3 Step 2.
-const ROW_ICONS: Record<
-  WizardTreatmentRow,
-  ComponentType<LucideProps>
-> = {
+const ROW_ICONS: Record<WizardTreatmentRow, ComponentType<LucideProps>> = {
   bloodPressure: Stethoscope,
   diabetes: Droplet,
   hormone: Activity,

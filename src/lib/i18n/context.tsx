@@ -17,10 +17,7 @@ import {
   type Formatters,
   type TimeFormatPreference,
 } from "../format-locale";
-import {
-  readStoredTimeFormat,
-  subscribeTimeFormat,
-} from "../time-format";
+import { readStoredTimeFormat, subscribeTimeFormat } from "../time-format";
 import { resolveKey } from "./resolve-key";
 import {
   fallbackMessages,

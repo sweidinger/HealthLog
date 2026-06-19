@@ -106,7 +106,9 @@ describe("useDashboardSnapshot — auto-refresh on an open page", () => {
       "fetch",
       vi
         .fn()
-        .mockResolvedValue(envelopeResponse({ layout: { widgets: [] }, tiles: {} })),
+        .mockResolvedValue(
+          envelopeResponse({ layout: { widgets: [] }, tiles: {} }),
+        ),
     );
     getQueryDataMock.mockReturnValue({ widgets: [{ id: "existing" }] });
     useDashboardSnapshot();
@@ -127,7 +129,9 @@ describe("prefetchDashboardSnapshot — hydration-safe promise handoff", () => {
     } as unknown as QueryClient;
   }
 
-  function stubFetch(payload: unknown = { layout: { widgets: [] }, tiles: {} }) {
+  function stubFetch(
+    payload: unknown = { layout: { widgets: [] }, tiles: {} },
+  ) {
     const fetchMock = vi
       .fn()
       .mockImplementation(() => Promise.resolve(envelopeResponse(payload)));
@@ -184,9 +188,7 @@ describe("prefetchDashboardSnapshot — hydration-safe promise handoff", () => {
   });
 });
 
-function lastOptsOf(
-  mock: typeof useQueryMock,
-): Record<string, unknown> {
+function lastOptsOf(mock: typeof useQueryMock): Record<string, unknown> {
   const call = mock.mock.calls.at(-1);
   expect(call).toBeDefined();
   return call![0];

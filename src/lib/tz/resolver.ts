@@ -39,10 +39,7 @@
  */
 import { prisma } from "@/lib/db";
 
-import {
-  DEFAULT_TIMEZONE,
-  isValidTimezone,
-} from "./format";
+import { DEFAULT_TIMEZONE, isValidTimezone } from "./format";
 
 export {
   DEFAULT_TIMEZONE,

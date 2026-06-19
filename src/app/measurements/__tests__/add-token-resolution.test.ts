@@ -18,7 +18,12 @@ import {
 describe("measurements ?add= deep link", () => {
   const repoRoot = join(__dirname, "..", "..", "..", "..");
   const insightsRoot = join(repoRoot, "src", "app", "insights");
-  const insightsComponentsRoot = join(repoRoot, "src", "components", "insights");
+  const insightsComponentsRoot = join(
+    repoRoot,
+    "src",
+    "components",
+    "insights",
+  );
 
   // Captures both `href="/measurements?add=FOO"` literals and the
   // dynamic `?add=${prop}` template the shared HealthKit metric page

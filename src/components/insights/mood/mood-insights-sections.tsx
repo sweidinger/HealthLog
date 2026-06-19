@@ -385,7 +385,6 @@ export function MoodInsightsSections({
       )}
 
       <SectionCard title={t("insights.mood.correlationsTitle")} icon={Link2}>
-
         <p className="text-muted-foreground mb-2 text-sm">
           {t("insights.mood.correlationsDescription")}
         </p>

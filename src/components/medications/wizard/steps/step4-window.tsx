@@ -21,9 +21,7 @@ export function Step4Window({ payload, applyPartial }: StepProps) {
         startsOn={payload.startsOn}
         endsOn={payload.endsOn}
         lockEndsToStart={isOneShot}
-        onChange={({ startsOn, endsOn }) =>
-          applyPartial({ startsOn, endsOn })
-        }
+        onChange={({ startsOn, endsOn }) => applyPartial({ startsOn, endsOn })}
       />
     </div>
   );

@@ -16,7 +16,10 @@ vi.mock("@/lib/jobs/boss-instance", () => ({
   getGlobalBoss: () => bossInstance,
 }));
 
-import { enqueueReminderSatisfy, REMINDER_SATISFY_QUEUE } from "../reminder-satisfy";
+import {
+  enqueueReminderSatisfy,
+  REMINDER_SATISFY_QUEUE,
+} from "../reminder-satisfy";
 import { runReminderSatisfyForUser } from "../measurement-reminder";
 
 describe("enqueueReminderSatisfy", () => {
@@ -52,7 +55,13 @@ function makePrisma(opts: {
     measurementReminder: {
       findMany: vi.fn(async () => opts.reminders),
       update: vi.fn(
-        async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        async ({
+          where,
+          data,
+        }: {
+          where: { id: string };
+          data: Record<string, unknown>;
+        }) => {
           updates.push({ id: where.id, data });
           return { id: where.id, ...data };
         },
@@ -60,7 +69,13 @@ function makePrisma(opts: {
       // v1.18.1 — `satisfyReminder` now writes via a conditional `updateMany`
       // (forward-only TOCTOU close). Record the write + report a hit.
       updateMany: vi.fn(
-        async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        async ({
+          where,
+          data,
+        }: {
+          where: { id: string };
+          data: Record<string, unknown>;
+        }) => {
           updates.push({ id: where.id, data });
           return { count: 1 };
         },
@@ -153,7 +168,11 @@ describe("runReminderSatisfyForUser", () => {
       measurement: { measuredAt: new Date("2026-06-10T08:00:00Z") },
     });
 
-    const summary = await runReminderSatisfyForUser(prisma as never, "u1", new Date());
+    const summary = await runReminderSatisfyForUser(
+      prisma as never,
+      "u1",
+      new Date(),
+    );
 
     expect(summary.satisfied).toBe(0);
     expect(updates).toHaveLength(0);

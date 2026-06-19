@@ -42,7 +42,10 @@ describe("decideFromPrefs", () => {
 
   it("suppresses a dismissed cadence (dismissal memory)", () => {
     const d = decideFromPrefs(
-      { ...DEFAULT_REMINDER_SUGGESTION_PREFS, dismissedCadences: ["weight_daily"] },
+      {
+        ...DEFAULT_REMINDER_SUGGESTION_PREFS,
+        dismissedCadences: ["weight_daily"],
+      },
       "weight_daily",
       NOW,
     );
@@ -131,8 +134,11 @@ describe("gateSuggestion", () => {
       now: NOW,
     });
     expect(
-      (prisma as unknown as { measurementReminder: { findFirst: ReturnType<typeof vi.fn> } })
-        .measurementReminder.findFirst,
+      (
+        prisma as unknown as {
+          measurementReminder: { findFirst: ReturnType<typeof vi.fn> };
+        }
+      ).measurementReminder.findFirst,
     ).not.toHaveBeenCalled();
   });
 });

@@ -28,7 +28,6 @@ describe("<MoodChart> — empty-state gate by raw count", () => {
     vi.resetModules();
   });
 
-
   it("renders need-more-days copy when chartData.length < 3 but rawCount >= 3", async () => {
     const data = {
       entries: [

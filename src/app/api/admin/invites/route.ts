@@ -22,10 +22,7 @@ import {
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { hashToken } from "@/lib/auth/hmac";
-import {
-  buildInviteUrl,
-  generateInviteToken,
-} from "@/lib/auth/invite-token";
+import { buildInviteUrl, generateInviteToken } from "@/lib/auth/invite-token";
 import { inviteCreateSchema } from "@/lib/validations/invite";
 
 export const dynamic = "force-dynamic";
@@ -77,9 +74,7 @@ export const POST = apiHandler(async (req: Request) => {
 
   const { expiresInDays, maxUses } = parsed.data;
   const rawToken = generateInviteToken();
-  const expiresAt = new Date(
-    Date.now() + expiresInDays * 24 * 60 * 60 * 1000,
-  );
+  const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
 
   const invite = await prisma.inviteToken.create({
     data: {

@@ -52,11 +52,16 @@ describe("computeFitnessAge", () => {
     findMany.mockResolvedValueOnce([]);
     const r = await computeFitnessAge("u1", MALE_40, { now: NOW });
     expect(r.status).toBe("insufficient");
-    if (r.status === "insufficient") expect(r.reason).toBe("no_readings_in_window");
+    if (r.status === "insufficient")
+      expect(r.reason).toBe("no_readings_in_window");
   });
 
   it("ok with a band + fitness-age delta when demographics are present", async () => {
-    findMany.mockResolvedValueOnce([{ value: 46 }, { value: 44 }, { value: 43 }]);
+    findMany.mockResolvedValueOnce([
+      { value: 46 },
+      { value: 44 },
+      { value: 43 },
+    ]);
     const r = await computeFitnessAge("u1", MALE_40, { now: NOW });
     expect(r.status).toBe("ok");
     if (r.status === "ok") {

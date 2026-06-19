@@ -44,9 +44,9 @@ vi.mock("@/lib/modules/gate", () => ({
   // with the same resolved map the tests drive via `resolveModuleMap`.
   isModuleEnabled: vi.fn(async (...args: [string, ModuleKey]) => {
     const key = args[1];
-    const map = await (resolveModuleMap as unknown as () => Promise<
-      Record<ModuleKey, boolean>
-    >)();
+    const map = await (
+      resolveModuleMap as unknown as () => Promise<Record<ModuleKey, boolean>>
+    )();
     return map[key] !== false;
   }),
 }));
@@ -406,7 +406,10 @@ describe("buildCoachSnapshot — WHOOP-native day strain (v1.17.0)", () => {
     mockByType({
       HEART_RATE_VARIABILITY: [daysAgo(2, 64, "HEART_RATE_VARIABILITY")],
       // Ascending (oldest first), mirroring the `orderBy: measuredAt asc` read.
-      DAY_STRAIN: [daysAgo(3, 11.8, "DAY_STRAIN"), daysAgo(1, 14.2, "DAY_STRAIN")],
+      DAY_STRAIN: [
+        daysAgo(3, 11.8, "DAY_STRAIN"),
+        daysAgo(1, 14.2, "DAY_STRAIN"),
+      ],
     });
 
     const out = await buildCoachSnapshot("user-1", {

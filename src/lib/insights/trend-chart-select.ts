@@ -1,7 +1,4 @@
-import type {
-  DailyBriefing,
-  DailyBriefingKeyFinding,
-} from "@/lib/ai/schema";
+import type { DailyBriefing, DailyBriefingKeyFinding } from "@/lib/ai/schema";
 
 /**
  * v1.8.5 — derive the Insights overview "Trends" chart set from the

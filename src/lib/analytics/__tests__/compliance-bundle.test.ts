@@ -94,13 +94,29 @@ interface FixtureEvent {
 function dailyFixtureEvents(): FixtureEvent[] {
   return [
     // Taken on time across several days.
-    { takenAt: slotAt(1, "08:05"), skipped: false, scheduledFor: slotAt(1, "08:00") },
-    { takenAt: slotAt(2, "08:10"), skipped: false, scheduledFor: slotAt(2, "08:00") },
-    { takenAt: slotAt(4, "07:55"), skipped: false, scheduledFor: slotAt(4, "08:00") },
+    {
+      takenAt: slotAt(1, "08:05"),
+      skipped: false,
+      scheduledFor: slotAt(1, "08:00"),
+    },
+    {
+      takenAt: slotAt(2, "08:10"),
+      skipped: false,
+      scheduledFor: slotAt(2, "08:00"),
+    },
+    {
+      takenAt: slotAt(4, "07:55"),
+      skipped: false,
+      scheduledFor: slotAt(4, "08:00"),
+    },
     // A deliberate skip (excluded from the denominator).
     { takenAt: null, skipped: true, scheduledFor: slotAt(3, "08:00") },
     // A taken-late dose (inside the late tail).
-    { takenAt: slotAt(5, "10:30"), skipped: false, scheduledFor: slotAt(5, "08:00") },
+    {
+      takenAt: slotAt(5, "10:30"),
+      skipped: false,
+      scheduledFor: slotAt(5, "08:00"),
+    },
     // Day 6 has no event → the unfilled slot reads missed.
     // An auto-missed forgotten dose.
     {
@@ -254,7 +270,8 @@ describe("dailyComplianceRatesFromLedger — cadence-aware per-day series", () =
     // counted as a miss.
     const from = new Date(NOW.getTime() - 30 * DAY_MS);
     const windowRows = bundle.ledgerRows.filter(
-      (r) => r.at.getTime() >= from.getTime() && r.at.getTime() <= NOW.getTime(),
+      (r) =>
+        r.at.getTime() >= from.getTime() && r.at.getTime() <= NOW.getTime(),
     );
     const series = dailyComplianceRatesFromLedger(windowRows);
 
@@ -269,8 +286,7 @@ describe("dailyComplianceRatesFromLedger — cadence-aware per-day series", () =
 
     // The series' mean rate equals the canonical compliance30 rate: the two
     // are computed from the SAME ledger and cannot contradict each other.
-    const meanRate =
-      series.reduce((sum, d) => sum + d.rate, 0) / series.length;
+    const meanRate = series.reduce((sum, d) => sum + d.rate, 0) / series.length;
     expect(Math.round(meanRate)).toBe(bundle.compliance30.rate);
   });
 
@@ -300,7 +316,8 @@ describe("dailyComplianceRatesFromLedger — cadence-aware per-day series", () =
 
     const from = new Date(NOW.getTime() - 30 * DAY_MS);
     const windowRows = bundle.ledgerRows.filter(
-      (r) => r.at.getTime() >= from.getTime() && r.at.getTime() <= NOW.getTime(),
+      (r) =>
+        r.at.getTime() >= from.getTime() && r.at.getTime() <= NOW.getTime(),
     );
     const series = dailyComplianceRatesFromLedger(windowRows);
 
@@ -331,7 +348,14 @@ describe("tallyLedgerRows — windowed tallies over one shared ledger", () => {
     );
     const from = new Date(NOW.getTime() - 30 * DAY_MS);
 
-    const rows = buildComplianceLedgerRows(events, schedules, ctx, from, NOW, NOW);
+    const rows = buildComplianceLedgerRows(
+      events,
+      schedules,
+      ctx,
+      from,
+      NOW,
+      NOW,
+    );
     expect(tallyLedgerRows(rows)).toEqual(
       tallyComplianceFromLedger(events, schedules, ctx, from, NOW, NOW),
     );

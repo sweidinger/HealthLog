@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import {
-  CheckCircle2,
-  FileUp,
-  PlusCircle,
-  Plug,
-  Sparkles,
-} from "lucide-react";
+import { CheckCircle2, FileUp, PlusCircle, Plug, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -109,10 +103,7 @@ export function DoneScreen() {
           </Link>
         </Button>
         <Button asChild size="lg" variant="outline">
-          <Link
-            href="/measurements"
-            className="inline-flex items-center gap-2"
-          >
+          <Link href="/measurements" className="inline-flex items-center gap-2">
             <PlusCircle className="size-4" />
             {t("onboarding.done.logCta")}
           </Link>

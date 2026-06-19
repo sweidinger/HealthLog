@@ -73,7 +73,9 @@ function rhrMeasurements() {
     out.push({
       type: "RESTING_HEART_RATE",
       value: v + (i % 3) * 0.5,
-      measuredAt: new Date(`2026-03-${String(i).padStart(2, "0")}T12:00:00.000Z`),
+      measuredAt: new Date(
+        `2026-03-${String(i).padStart(2, "0")}T12:00:00.000Z`,
+      ),
       source: "APPLE_HEALTH",
       deviceType: null,
     });
@@ -176,6 +178,8 @@ describe("buildCycleSnapshotBlock", () => {
     expect(block!.phaseInsight).not.toBeNull();
     expect(block!.phaseInsight!.metric).toBe("resting heart rate");
     expect(block!.phaseInsight!.delta).toBeGreaterThan(0);
-    expect(block!.phaseInsight!.interpretation).toMatch(/descriptive pattern, not a cause/);
+    expect(block!.phaseInsight!.interpretation).toMatch(
+      /descriptive pattern, not a cause/,
+    );
   });
 });

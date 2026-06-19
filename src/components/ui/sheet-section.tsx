@@ -74,10 +74,7 @@ export function SheetSection({
           {title}
         </span>
         {summary ? (
-          <span
-            data-slot="sheet-section-summary"
-            className="flex items-center"
-          >
+          <span data-slot="sheet-section-summary" className="flex items-center">
             {summary}
           </span>
         ) : null}
@@ -88,7 +85,7 @@ export function SheetSection({
       </CollapsiblePrimitive.Trigger>
       <CollapsiblePrimitive.Content
         data-slot="sheet-section-content"
-        className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none"
+        className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden motion-reduce:animate-none"
       >
         <div className="space-y-3 pt-3 pb-1">{children}</div>
       </CollapsiblePrimitive.Content>

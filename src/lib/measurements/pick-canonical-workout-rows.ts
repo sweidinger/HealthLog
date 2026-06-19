@@ -31,9 +31,7 @@
  * v1.4.30; the existing ladder ships first so the dashboard tile is
  * unambiguous.
  */
-import type {
-  MeasurementSource,
-} from "@/generated/prisma/client";
+import type { MeasurementSource } from "@/generated/prisma/client";
 
 import {
   getSourceLadder,

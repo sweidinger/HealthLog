@@ -187,9 +187,7 @@ export interface DashboardWidgetConfig {
 export const COMPARISON_BASELINES = ["none", "lastMonth", "lastYear"] as const;
 export type ComparisonBaseline = (typeof COMPARISON_BASELINES)[number];
 
-function isComparisonBaseline(
-  value: unknown,
-): value is ComparisonBaseline {
+function isComparisonBaseline(value: unknown): value is ComparisonBaseline {
   return (
     typeof value === "string" &&
     (COMPARISON_BASELINES as readonly string[]).includes(value)

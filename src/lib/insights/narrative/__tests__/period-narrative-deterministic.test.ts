@@ -3,7 +3,9 @@ import { describe, it, expect } from "vitest";
 import { buildDeterministicNarrative } from "@/lib/insights/narrative/period-narrative-deterministic";
 import type { PeriodNarrativeContext } from "@/lib/insights/narrative/period-narrative";
 
-function ctx(over: Partial<PeriodNarrativeContext> = {}): PeriodNarrativeContext {
+function ctx(
+  over: Partial<PeriodNarrativeContext> = {},
+): PeriodNarrativeContext {
   return {
     status: "ready",
     period: "week",
@@ -15,7 +17,10 @@ function ctx(over: Partial<PeriodNarrativeContext> = {}): PeriodNarrativeContext
     fdrQ: 0.1,
     provenance: {
       metrics: [],
-      window: { from: "2026-05-01T00:00:00.000Z", to: "2026-05-08T00:00:00.000Z" },
+      window: {
+        from: "2026-05-01T00:00:00.000Z",
+        to: "2026-05-08T00:00:00.000Z",
+      },
       computedAt: "2026-05-08T05:00:00.000Z",
     },
     ...over,
@@ -80,16 +85,23 @@ describe("buildDeterministicNarrative", () => {
         deltaPercent: 0.3,
       },
     ];
-    const text = buildDeterministicNarrative(ctx({ metricDeltas: deltas }), "en");
+    const text = buildDeterministicNarrative(
+      ctx({ metricDeltas: deltas }),
+      "en",
+    );
     // Pulse (+8%) is the strongest mover and must lead; the 0.3% body-fat
     // mover is below the top three and must be dropped.
     expect(text.indexOf("your pulse")).toBeGreaterThan(-1);
     expect(text).not.toContain("body fat");
-    expect(text.indexOf("your pulse")).toBeLessThan(text.indexOf("your weight"));
+    expect(text.indexOf("your pulse")).toBeLessThan(
+      text.indexOf("your weight"),
+    );
   });
 
   it("reports a held-steady period when nothing moved", () => {
-    expect(buildDeterministicNarrative(ctx(), "en")).toContain("held largely steady");
+    expect(buildDeterministicNarrative(ctx(), "en")).toContain(
+      "held largely steady",
+    );
     expect(buildDeterministicNarrative(ctx(), "de")).toContain(
       "weitgehend stabil",
     );

@@ -461,7 +461,12 @@ function collapseToTaggedDays(
   const cutoff = now.getTime() - windowDays * MS_PER_DAY;
   const byDay = new Map<
     string,
-    { sum: number; count: number; flat: Set<string>; structured: Map<string, StructuredTagRef> }
+    {
+      sum: number;
+      count: number;
+      flat: Set<string>;
+      structured: Map<string, StructuredTagRef>;
+    }
   >();
   for (const entry of entries) {
     if (entry.moodLoggedAt.getTime() < cutoff) continue;
@@ -542,8 +547,7 @@ function influenceForTag(
   const varWith =
     withVals.reduce((s, v) => s + (v - withAvg) ** 2, 0) / (nWith - 1);
   const varWithout =
-    withoutVals.reduce((s, v) => s + (v - withoutAvg) ** 2, 0) /
-    (nWithout - 1);
+    withoutVals.reduce((s, v) => s + (v - withoutAvg) ** 2, 0) / (nWithout - 1);
   const pooledVar =
     ((nWith - 1) * varWith + (nWithout - 1) * varWithout) /
     (nWith + nWithout - 2);
@@ -844,14 +848,26 @@ type CrosstabMode = "sameDay" | "nextDay";
  */
 export const CROSSTAB_METRICS: Record<
   string,
-  { type: MeasurementType; mode: CrosstabMode; display: "hours" | "kcal" | "score" }
+  {
+    type: MeasurementType;
+    mode: CrosstabMode;
+    display: "hours" | "kcal" | "score";
+  }
 > = {
   // A workout / active tag × same-day active energy.
-  activeEnergy: { type: "ACTIVE_ENERGY_BURNED", mode: "sameDay", display: "kcal" },
+  activeEnergy: {
+    type: "ACTIVE_ENERGY_BURNED",
+    mode: "sameDay",
+    display: "kcal",
+  },
   // A sleep tag × same-night sleep duration (stored minutes → hours on UI).
   sleepDuration: { type: "SLEEP_DURATION", mode: "sameDay", display: "hours" },
   // An alcohol / food tag × next-day recovery/readiness (D → D+1 lag).
-  nextDayRecovery: { type: "RECOVERY_SCORE", mode: "nextDay", display: "score" },
+  nextDayRecovery: {
+    type: "RECOVERY_SCORE",
+    mode: "nextDay",
+    display: "score",
+  },
 } as const;
 
 export type CrosstabMetricKey = keyof typeof CROSSTAB_METRICS;
@@ -983,7 +999,10 @@ export function shiftDayKey(day: string, lagDays: number): string {
 }
 
 /** Convert a raw metric value to the row's display unit. */
-function toDisplayUnit(value: number, display: "hours" | "kcal" | "score"): number {
+function toDisplayUnit(
+  value: number,
+  display: "hours" | "kcal" | "score",
+): number {
   return display === "hours" ? value / 60 : value;
 }
 
@@ -1223,10 +1242,14 @@ export interface FactorMetricCrosstabRow {
   confidence: InfluenceConfidence;
 }
 
-type FactorMetricDisplay = (typeof FACTOR_CROSSTAB_METRICS)[FactorCrosstabMetricKey]["display"];
+type FactorMetricDisplay =
+  (typeof FACTOR_CROSSTAB_METRICS)[FactorCrosstabMetricKey]["display"];
 
 /** Convert a raw metric value to its factor-crosstab display unit. */
-function toFactorDisplayUnit(value: number, display: FactorMetricDisplay): number {
+function toFactorDisplayUnit(
+  value: number,
+  display: FactorMetricDisplay,
+): number {
   return display === "hours" ? value / 60 : value;
 }
 
@@ -1242,7 +1265,10 @@ function median(values: number[]): number {
 
 /** Reference data for one RATED factor's daily series + its meta. */
 interface FactorDailySeries {
-  ref: Pick<RatedFactorScore, "key" | "labelKey" | "categoryKey" | "icon" | "inverse">;
+  ref: Pick<
+    RatedFactorScore,
+    "key" | "labelKey" | "categoryKey" | "icon" | "inverse"
+  >;
   /** Day key → factor's daily-mean score, inverse-flipped if needed. */
   byDay: Map<string, number>;
 }
@@ -1276,21 +1302,17 @@ export function buildFactorDailySeries(
       // The documented sign-flip: an inverse factor's rating is mirrored
       // across its scale midpoint so a higher series value always means a
       // better day. Done here, once, at the series boundary.
-      const value = f.inverse
-        ? f.scaleMin + f.scaleMax - f.rating
-        : f.rating;
-      const slot =
-        acc.get(f.key) ??
-        {
-          ref: {
-            key: f.key,
-            labelKey: f.labelKey,
-            categoryKey: f.categoryKey,
-            icon: f.icon,
-            inverse: f.inverse,
-          },
-          byDay: new Map<string, { sum: number; count: number }>(),
-        };
+      const value = f.inverse ? f.scaleMin + f.scaleMax - f.rating : f.rating;
+      const slot = acc.get(f.key) ?? {
+        ref: {
+          key: f.key,
+          labelKey: f.labelKey,
+          categoryKey: f.categoryKey,
+          icon: f.icon,
+          inverse: f.inverse,
+        },
+        byDay: new Map<string, { sum: number; count: number }>(),
+      };
       const cur = slot.byDay.get(entry.date) ?? { sum: 0, count: 0 };
       cur.sum += value;
       cur.count += 1;
@@ -1333,8 +1355,13 @@ export function computeFactorMetricCrosstab(args: {
 
   const candidates: FactorCrosstabCandidate[] = [];
 
-  for (const [metricKey, cfg] of Object.entries(FACTOR_CROSSTAB_METRICS) as Array<
-    [FactorCrosstabMetricKey, (typeof FACTOR_CROSSTAB_METRICS)[FactorCrosstabMetricKey]]
+  for (const [metricKey, cfg] of Object.entries(
+    FACTOR_CROSSTAB_METRICS,
+  ) as Array<
+    [
+      FactorCrosstabMetricKey,
+      (typeof FACTOR_CROSSTAB_METRICS)[FactorCrosstabMetricKey],
+    ]
   >) {
     const metricByDay = metricDayMap(measurements, cfg.type, userPriorityJson);
     if (metricByDay.size === 0) continue;
@@ -1343,7 +1370,10 @@ export function computeFactorMetricCrosstab(args: {
       // The median split is over the factor's own rated days only, so a
       // sparse factor never borrows another's threshold.
       const ratedDays = [...series.byDay.values()];
-      if (ratedDays.length < CROSSTAB_MIN_PRESENT_DAYS + CROSSTAB_MIN_ABSENT_DAYS) {
+      if (
+        ratedDays.length <
+        CROSSTAB_MIN_PRESENT_DAYS + CROSSTAB_MIN_ABSENT_DAYS
+      ) {
         continue;
       }
       const split = median(ratedDays);
@@ -1643,7 +1673,11 @@ export const STABILITY_MIN_DAYS = 7;
  */
 export const STABILITY_SD_FULL_SCALE = 1.5;
 
-export type StabilityBand = "verySteady" | "steady" | "variable" | "veryVariable";
+export type StabilityBand =
+  | "verySteady"
+  | "steady"
+  | "variable"
+  | "veryVariable";
 
 export interface MoodStability {
   /** 0..100; higher = steadier (lower day-to-day variance). */
@@ -1681,7 +1715,9 @@ function stabilityBand(score: number): StabilityBand {
  * `STABILITY_MIN_DAYS` distinct daily points so a sparse logger never
  * gets a meaningless score.
  */
-export function computeMoodStability(daily: DailyPoint[]): MoodStability | null {
+export function computeMoodStability(
+  daily: DailyPoint[],
+): MoodStability | null {
   if (daily.length < STABILITY_MIN_DAYS) return null;
 
   const values = daily.map((bucket) => bucket.value);
@@ -1690,7 +1726,8 @@ export function computeMoodStability(daily: DailyPoint[]): MoodStability | null 
     values.reduce((sum, v) => sum + (v - avg) ** 2, 0) / values.length;
   const stdDev = Math.sqrt(variance);
 
-  const normalised = Math.min(stdDev, STABILITY_SD_FULL_SCALE) / STABILITY_SD_FULL_SCALE;
+  const normalised =
+    Math.min(stdDev, STABILITY_SD_FULL_SCALE) / STABILITY_SD_FULL_SCALE;
   const score = Math.round(100 * (1 - normalised));
 
   return {

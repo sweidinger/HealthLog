@@ -198,9 +198,7 @@ describe("pickCanonicalWorkout — determinism", () => {
       row("apple-1", "APPLE_HEALTH", "2026-05-14T07:30:00.000Z"),
       row("withings-1", "WITHINGS", "2026-05-14T07:31:00.000Z"),
     ]);
-    expect(a.canonical.map((r) => r.id)).toEqual(
-      b.canonical.map((r) => r.id),
-    );
+    expect(a.canonical.map((r) => r.id)).toEqual(b.canonical.map((r) => r.id));
   });
 
   it("breaks same-timestamp ties via id ordering", () => {

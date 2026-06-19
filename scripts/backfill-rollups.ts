@@ -66,12 +66,9 @@ async function main(): Promise<void> {
   for (const [index, user] of users.entries()) {
     const userStarted = Date.now();
     try {
-      const { rowsUpserted, durationMs } = await recomputeUserRollups(
-        user.id,
-        {
-          granularities: ALL_GRANULARITIES,
-        },
-      );
+      const { rowsUpserted, durationMs } = await recomputeUserRollups(user.id, {
+        granularities: ALL_GRANULARITIES,
+      });
       totalRowsUpserted += rowsUpserted;
       console.log(
         `[${index + 1}/${users.length}] user=${user.username} ` +

@@ -97,7 +97,9 @@ describe("GET /api/personal-records", () => {
 
   it("honours an explicit ?limit param", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    const res = await GET(req("http://localhost/api/personal-records?limit=25"));
+    const res = await GET(
+      req("http://localhost/api/personal-records?limit=25"),
+    );
     expect(res.status).toBe(200);
     expect(prisma.personalRecord.findMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
@@ -121,7 +123,9 @@ describe("GET /api/personal-records", () => {
 
   it("falls back to default on garbage ?limit (defence-in-depth)", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    const res = await GET(req("http://localhost/api/personal-records?limit=abc"));
+    const res = await GET(
+      req("http://localhost/api/personal-records?limit=abc"),
+    );
     expect(res.status).toBe(200);
     expect(prisma.personalRecord.findMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },

@@ -186,9 +186,7 @@ describe("POST /api/user/avatar", () => {
     // Plain text content — no JPEG/PNG/WebP magic.
     const notAnImage = Buffer.from("hello, world — definitely not an image");
 
-    const res = await post(
-      mkUpload(notAnImage, "avatar.png", "image/png"),
-    );
+    const res = await post(mkUpload(notAnImage, "avatar.png", "image/png"));
     expect(res.status).toBe(415);
     expect(prisma.user.update).not.toHaveBeenCalled();
   });

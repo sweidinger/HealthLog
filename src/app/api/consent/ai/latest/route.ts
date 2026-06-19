@@ -16,11 +16,7 @@
  */
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import {
-  apiError,
-  apiSuccess,
-  returnAllZodIssues,
-} from "@/lib/api-response";
+import { apiError, apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { checkConsentRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
@@ -76,7 +72,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // Map each enum value to either the serialised row or `null` so the
   // client always sees the full keyspace and never has to guess
   // whether a missing key means "not granted" or "schema gap".
-  const result: Record<ConsentKind, ReturnType<typeof serialiseReceipt> | null> = {
+  const result: Record<
+    ConsentKind,
+    ReturnType<typeof serialiseReceipt> | null
+  > = {
     ai_full: byKind.ai_full ? serialiseReceipt(byKind.ai_full) : null,
     ai_insights_only: byKind.ai_insights_only
       ? serialiseReceipt(byKind.ai_insights_only)

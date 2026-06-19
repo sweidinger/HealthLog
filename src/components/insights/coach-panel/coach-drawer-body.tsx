@@ -80,7 +80,9 @@ export function CoachDrawerBody({
   return (
     <div
       data-slot="coach-drawer-body"
-      data-history-open={historyRail ? (historyOpen ? "true" : "false") : undefined}
+      data-history-open={
+        historyRail ? (historyOpen ? "true" : "false") : undefined
+      }
       // v1.18.7 — the inline rail column animates between 0 and a fixed
       // width so collapsing it hands the full width back to the thread
       // without a layout jump. Without a rail the body is a single

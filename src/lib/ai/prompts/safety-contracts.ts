@@ -195,10 +195,7 @@ export function loadSafetyContracts(locale: Locale): SafetyContractMatrix {
  * `.locale`. Throws if the rule has no body for the requested locale
  * (this indicates a translation gap and is caught by the parity test).
  */
-export function getGroundRuleBody(
-  locale: Locale,
-  key: GroundRuleKey,
-): string {
+export function getGroundRuleBody(locale: Locale, key: GroundRuleKey): string {
   const matrix = loadSafetyContracts(locale);
   const rule = matrix.ground_rules[key];
   const body = locale === "en" ? rule.en : rule.locale;

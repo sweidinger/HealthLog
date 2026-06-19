@@ -10,9 +10,9 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const useQueryMock = vi.fn<(opts: Record<string, unknown>) => { data: undefined }>(
-  () => ({ data: undefined }),
-);
+const useQueryMock = vi.fn<
+  (opts: Record<string, unknown>) => { data: undefined }
+>(() => ({ data: undefined }));
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (opts: Record<string, unknown>) => useQueryMock(opts),

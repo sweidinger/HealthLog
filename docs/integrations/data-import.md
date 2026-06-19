@@ -36,8 +36,12 @@ arrays:
 
 ```json
 {
-  "measurements": [ /* … */ ],
-  "moodEntries": [ /* … */ ]
+  "measurements": [
+    /* … */
+  ],
+  "moodEntries": [
+    /* … */
+  ]
 }
 ```
 
@@ -48,26 +52,26 @@ skipped and counted under `skipped` in the response.
 
 ### Measurement entry
 
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `type` | yes | enum | One of the `MeasurementType` values in the table below. |
-| `value` | yes | number | Plausibility-checked per type; out-of-range values are rejected. |
-| `unit` | yes | string | The canonical unit for the type (see the table). |
-| `measuredAt` | yes | string | ISO-8601 datetime, e.g. `2026-05-01T08:00:00.000Z`. |
-| `source` | no | string | Free-text origin label. Imported rows are tagged `IMPORT` server-side regardless. |
-| `notes` | no | string | Optional free text. |
-| `glucoseContext` | no | enum | Only for `BLOOD_GLUCOSE` (e.g. fasting / post-meal). |
+| Field            | Required | Type   | Notes                                                                             |
+| ---------------- | -------- | ------ | --------------------------------------------------------------------------------- |
+| `type`           | yes      | enum   | One of the `MeasurementType` values in the table below.                           |
+| `value`          | yes      | number | Plausibility-checked per type; out-of-range values are rejected.                  |
+| `unit`           | yes      | string | The canonical unit for the type (see the table).                                  |
+| `measuredAt`     | yes      | string | ISO-8601 datetime, e.g. `2026-05-01T08:00:00.000Z`.                               |
+| `source`         | no       | string | Free-text origin label. Imported rows are tagged `IMPORT` server-side regardless. |
+| `notes`          | no       | string | Optional free text.                                                               |
+| `glucoseContext` | no       | enum   | Only for `BLOOD_GLUCOSE` (e.g. fasting / post-meal).                              |
 
 ### Mood entry
 
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `date` | yes | string | `YYYY-MM-DD`. |
-| `mood` | yes | enum | One of `SUPER_GUT`, `GUT`, `OKAY`, `SCHLECHT`, `LAUSIG`. |
-| `score` | yes | integer | `1`–`5`. |
-| `tags` | no | string | Comma-separated tags. |
-| `loggedAt` | no | string | ISO-8601 datetime; defaults to now. |
-| `externalId` | no | string | A source-stable id (1–120 chars). When present, a re-import upserts on `(user, source, externalId)` so an edit upstream is reflected rather than skipped. |
+| Field        | Required | Type    | Notes                                                                                                                                                     |
+| ------------ | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `date`       | yes      | string  | `YYYY-MM-DD`.                                                                                                                                             |
+| `mood`       | yes      | enum    | One of `SUPER_GUT`, `GUT`, `OKAY`, `SCHLECHT`, `LAUSIG`.                                                                                                  |
+| `score`      | yes      | integer | `1`–`5`.                                                                                                                                                  |
+| `tags`       | no       | string  | Comma-separated tags.                                                                                                                                     |
+| `loggedAt`   | no       | string  | ISO-8601 datetime; defaults to now.                                                                                                                       |
+| `externalId` | no       | string  | A source-stable id (1–120 chars). When present, a re-import upserts on `(user, source, externalId)` so an edit upstream is reflected rather than skipped. |
 
 ### `MeasurementType` values and canonical units
 
@@ -76,72 +80,72 @@ display per the user's preference. Event-class types record a single
 fired event (`value` is `1`) and are normally produced by a device, not
 hand-authored.
 
-| Type | Canonical unit |
-|---|---|
-| `WEIGHT` | kg |
-| `BLOOD_PRESSURE_SYS` | mmHg |
-| `BLOOD_PRESSURE_DIA` | mmHg |
-| `PULSE` | bpm |
-| `RESTING_HEART_RATE` | bpm |
-| `WALKING_HEART_RATE_AVERAGE` | bpm |
-| `AVERAGE_HEART_RATE` | bpm |
-| `MAX_HEART_RATE` | bpm |
-| `CARDIO_RECOVERY` | bpm |
-| `HEART_RATE_VARIABILITY` | ms (SDNN) |
-| `HRV_RMSSD` | ms (RMSSD) |
-| `RESPIRATORY_RATE` | count/min |
-| `OXYGEN_SATURATION` | percent (0–100) |
-| `BLOOD_GLUCOSE` | mg/dL |
-| `BODY_FAT` | percent (0–100) |
-| `FAT_MASS` | kg |
-| `FAT_FREE_MASS` | kg |
-| `LEAN_BODY_MASS` | kg |
-| `MUSCLE_MASS` | kg |
-| `BONE_MASS` | kg |
-| `TOTAL_BODY_WATER` | kg |
-| `VISCERAL_FAT` | rating |
-| `BODY_MASS_INDEX` | kg/m² |
-| `BODY_TEMPERATURE` | °C (core) |
-| `SKIN_TEMPERATURE` | °C (dermal spot) |
-| `WRIST_TEMPERATURE` | °C (overnight wrist) |
-| `SLEEP_DURATION` | minutes |
-| `SLEEP_NEED` | minutes |
-| `SLEEP_PERFORMANCE` | percent (0–100) |
-| `SLEEP_EFFICIENCY` | percent (0–100) |
-| `SLEEP_CONSISTENCY` | percent (0–100) |
-| `SLEEP_DISTURBANCE_COUNT` | count |
-| `BREATHING_DISTURBANCES` | count |
-| `ACTIVITY_STEPS` | count |
-| `FLIGHTS_CLIMBED` | count |
-| `WALKING_RUNNING_DISTANCE` | metres |
-| `SIX_MINUTE_WALK_DISTANCE` | metres |
-| `WALKING_STEP_LENGTH` | metres |
-| `WALKING_SPEED` | m/s |
-| `STAIR_ASCENT_SPEED` | m/s |
-| `STAIR_DESCENT_SPEED` | m/s |
-| `WALKING_STEADINESS` | percent (0–100) |
-| `WALKING_ASYMMETRY` | percent (0–100) |
-| `WALKING_DOUBLE_SUPPORT` | percent (0–100) |
-| `ACTIVE_ENERGY_BURNED` | kcal |
-| `ENERGY_EXPENDITURE_KJ` | kJ |
-| `VO2_MAX` | mL/(kg·min) |
-| `PULSE_WAVE_VELOCITY` | m/s |
-| `VASCULAR_AGE` | years |
-| `FALL_COUNT` | count |
-| `AUDIO_EXPOSURE_ENV` | dBA |
-| `AUDIO_EXPOSURE_HEADPHONE` | dBA |
-| `TIME_IN_DAYLIGHT` | minutes |
-| `RECOVERY_SCORE` | score (0–100) |
-| `STRESS_SCORE` | score (0–100) |
-| `STRAIN_SCORE` | score (0–100) |
-| `DAY_STRAIN` | score (0–21) |
-| `WORKOUT_STRAIN` | score (0–21) |
-| `AUDIO_EXPOSURE_EVENT` | count (event) |
-| `IRREGULAR_RHYTHM_NOTIFICATION` | event |
-| `HIGH_HEART_RATE_EVENT` | event |
-| `LOW_HEART_RATE_EVENT` | event |
-| `WALKING_STEADINESS_EVENT` | event |
-| `BREATHING_DISTURBANCE_EVENT` | event |
+| Type                            | Canonical unit       |
+| ------------------------------- | -------------------- |
+| `WEIGHT`                        | kg                   |
+| `BLOOD_PRESSURE_SYS`            | mmHg                 |
+| `BLOOD_PRESSURE_DIA`            | mmHg                 |
+| `PULSE`                         | bpm                  |
+| `RESTING_HEART_RATE`            | bpm                  |
+| `WALKING_HEART_RATE_AVERAGE`    | bpm                  |
+| `AVERAGE_HEART_RATE`            | bpm                  |
+| `MAX_HEART_RATE`                | bpm                  |
+| `CARDIO_RECOVERY`               | bpm                  |
+| `HEART_RATE_VARIABILITY`        | ms (SDNN)            |
+| `HRV_RMSSD`                     | ms (RMSSD)           |
+| `RESPIRATORY_RATE`              | count/min            |
+| `OXYGEN_SATURATION`             | percent (0–100)      |
+| `BLOOD_GLUCOSE`                 | mg/dL                |
+| `BODY_FAT`                      | percent (0–100)      |
+| `FAT_MASS`                      | kg                   |
+| `FAT_FREE_MASS`                 | kg                   |
+| `LEAN_BODY_MASS`                | kg                   |
+| `MUSCLE_MASS`                   | kg                   |
+| `BONE_MASS`                     | kg                   |
+| `TOTAL_BODY_WATER`              | kg                   |
+| `VISCERAL_FAT`                  | rating               |
+| `BODY_MASS_INDEX`               | kg/m²                |
+| `BODY_TEMPERATURE`              | °C (core)            |
+| `SKIN_TEMPERATURE`              | °C (dermal spot)     |
+| `WRIST_TEMPERATURE`             | °C (overnight wrist) |
+| `SLEEP_DURATION`                | minutes              |
+| `SLEEP_NEED`                    | minutes              |
+| `SLEEP_PERFORMANCE`             | percent (0–100)      |
+| `SLEEP_EFFICIENCY`              | percent (0–100)      |
+| `SLEEP_CONSISTENCY`             | percent (0–100)      |
+| `SLEEP_DISTURBANCE_COUNT`       | count                |
+| `BREATHING_DISTURBANCES`        | count                |
+| `ACTIVITY_STEPS`                | count                |
+| `FLIGHTS_CLIMBED`               | count                |
+| `WALKING_RUNNING_DISTANCE`      | metres               |
+| `SIX_MINUTE_WALK_DISTANCE`      | metres               |
+| `WALKING_STEP_LENGTH`           | metres               |
+| `WALKING_SPEED`                 | m/s                  |
+| `STAIR_ASCENT_SPEED`            | m/s                  |
+| `STAIR_DESCENT_SPEED`           | m/s                  |
+| `WALKING_STEADINESS`            | percent (0–100)      |
+| `WALKING_ASYMMETRY`             | percent (0–100)      |
+| `WALKING_DOUBLE_SUPPORT`        | percent (0–100)      |
+| `ACTIVE_ENERGY_BURNED`          | kcal                 |
+| `ENERGY_EXPENDITURE_KJ`         | kJ                   |
+| `VO2_MAX`                       | mL/(kg·min)          |
+| `PULSE_WAVE_VELOCITY`           | m/s                  |
+| `VASCULAR_AGE`                  | years                |
+| `FALL_COUNT`                    | count                |
+| `AUDIO_EXPOSURE_ENV`            | dBA                  |
+| `AUDIO_EXPOSURE_HEADPHONE`      | dBA                  |
+| `TIME_IN_DAYLIGHT`              | minutes              |
+| `RECOVERY_SCORE`                | score (0–100)        |
+| `STRESS_SCORE`                  | score (0–100)        |
+| `STRAIN_SCORE`                  | score (0–100)        |
+| `DAY_STRAIN`                    | score (0–21)         |
+| `WORKOUT_STRAIN`                | score (0–21)         |
+| `AUDIO_EXPOSURE_EVENT`          | count (event)        |
+| `IRREGULAR_RHYTHM_NOTIFICATION` | event                |
+| `HIGH_HEART_RATE_EVENT`         | event                |
+| `LOW_HEART_RATE_EVENT`          | event                |
+| `WALKING_STEADINESS_EVENT`      | event                |
+| `BREATHING_DISTURBANCE_EVENT`   | event                |
 
 The live, machine-readable list of writable types and their units is
 also served by `GET /api/meta/capabilities` under `ingest.quantityTypes`

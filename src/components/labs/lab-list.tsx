@@ -6,12 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, FlaskConical } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -57,8 +52,7 @@ function groupReadings(results: LabResultDto[]): MarkerGroup[] {
   const groups: MarkerGroup[] = [];
   for (const [key, readings] of byKey.entries()) {
     const ordered = [...readings].sort(
-      (a, b) =>
-        new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime(),
+      (a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime(),
     );
     const latest = ordered[ordered.length - 1];
     groups.push({
@@ -184,8 +178,7 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                     </div>
                     <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                       <span className="text-foreground font-semibold tabular-nums">
-                        {formatLabValue(group.latest.value)}{" "}
-                        {group.latest.unit}
+                        {formatLabValue(group.latest.value)} {group.latest.unit}
                       </span>
                       <span>{formatDate(group.latest.takenAt)}</span>
                     </div>

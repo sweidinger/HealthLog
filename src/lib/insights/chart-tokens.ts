@@ -305,4 +305,3 @@ export function stripChartTokens(text: string | null | undefined): string {
 export function tokenToMetric(token: ChartToken): string {
   return token.slice("metric:".length);
 }
-

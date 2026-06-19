@@ -102,9 +102,7 @@ export function MoodBetterDays({
           // read-out is COLORED TEXT, so it needs the Alucard light-mode
           // override to clear AA. The arrow icon shares the same token so the
           // good→down ramp stays coherent across both themes.
-          const directionColor = up
-            ? "var(--success)"
-            : "var(--destructive)";
+          const directionColor = up ? "var(--success)" : "var(--destructive)";
 
           // The effect read-out: tag factors show the mood-point delta,
           // metric factors show the correlation coefficient.

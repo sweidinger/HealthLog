@@ -264,9 +264,8 @@ describe("Telegram webhook — callback dispatch", () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     // v1.16.10 — the confirmed take consumes inventory units (after the
     // intake transaction committed, on the created row).
-    const { consumeForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     expect(consumeForIntake).toHaveBeenCalledTimes(1);
     expect(consumeForIntake).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "user-1", medicationId: "med-1" }),
@@ -345,9 +344,8 @@ describe("Telegram webhook — callback dispatch", () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     // v1.16.10 — an explicit skip refunds a previously-consumed stamp
     // (no-op for a never-consumed row) and never consumes.
-    const { consumeForIntake, restoreForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake, restoreForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     expect(consumeForIntake).not.toHaveBeenCalled();
     expect(restoreForIntake).toHaveBeenCalledTimes(1);
   });

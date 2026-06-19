@@ -57,4 +57,3 @@ Schreibe eine kurze Gesamteinschätzung über die verfügbaren Gesundheitsdaten:
 
 ${snapshotJson}`;
 }
-

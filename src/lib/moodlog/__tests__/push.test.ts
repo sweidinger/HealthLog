@@ -48,10 +48,9 @@ describe("pushMoodEntriesToMoodLog", () => {
 
   beforeEach(() => {
     fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({ imported: 1, updated: 0, failed: 0 }),
-        { status: 200 },
-      ),
+      new Response(JSON.stringify({ imported: 1, updated: 0, failed: 0 }), {
+        status: 200,
+      }),
     );
     globalThis.fetch = fetchMock as never;
     vi.mocked(prisma.user.findUnique).mockResolvedValue(USER_OK as never);
@@ -118,10 +117,9 @@ describe("pushMoodEntriesToMoodLog", () => {
 
   it("returns ok with pushed=0 when MoodLog responds 200 but no rows were accepted", async () => {
     fetchMock.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ imported: 0, updated: 0, failed: 1 }),
-        { status: 200 },
-      ),
+      new Response(JSON.stringify({ imported: 0, updated: 0, failed: 1 }), {
+        status: 200,
+      }),
     );
     const result = await pushMoodEntriesToMoodLog("user-1", [ENTRY]);
     expect(result.status).toBe("ok");
@@ -130,7 +128,9 @@ describe("pushMoodEntriesToMoodLog", () => {
   });
 
   it("reports failed on a 5xx without throwing", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("upstream down", { status: 502 }));
+    fetchMock.mockResolvedValueOnce(
+      new Response("upstream down", { status: 502 }),
+    );
     const result = await pushMoodEntriesToMoodLog("user-1", [ENTRY]);
     expect(result.status).toBe("failed");
     expect(result.pushed).toBe(0);
@@ -150,9 +150,7 @@ describe("pushMoodEntriesToMoodLog", () => {
   });
 
   it("omits the tags field when the column is null or malformed JSON", async () => {
-    await pushMoodEntriesToMoodLog("user-1", [
-      { ...ENTRY, tags: null },
-    ]);
+    await pushMoodEntriesToMoodLog("user-1", [{ ...ENTRY, tags: null }]);
     const body = JSON.parse(
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     ) as { entries: Array<{ tags?: unknown }> };

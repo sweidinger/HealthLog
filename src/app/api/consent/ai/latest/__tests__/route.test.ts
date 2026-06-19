@@ -440,9 +440,7 @@ describe("append-only invariant", () => {
     it("GET surfaces multi-issue validation errors (≥ 1)", async () => {
       vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
       const res = await GET(
-        new NextRequest(
-          "http://localhost/api/consent/ai/latest?kind=junk",
-        ),
+        new NextRequest("http://localhost/api/consent/ai/latest?kind=junk"),
       );
       expect(res.status).toBe(400);
       const body = (await res.json()) as {
@@ -467,10 +465,9 @@ describe("append-only invariant", () => {
     it("DELETE surfaces multi-issue validation errors (≥ 1)", async () => {
       vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
       const res = await DELETE(
-        new NextRequest(
-          "http://localhost/api/consent/ai/latest?kind=junk",
-          { method: "DELETE" },
-        ),
+        new NextRequest("http://localhost/api/consent/ai/latest?kind=junk", {
+          method: "DELETE",
+        }),
       );
       expect(res.status).toBe(400);
       const body = (await res.json()) as {

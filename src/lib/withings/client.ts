@@ -421,8 +421,6 @@ export async function unsubscribeWebhook(
   // bubble the verdict into a warning so the audit-log path still
   // sees the off-response.
   if (verdict.classification !== "success") {
-    getEvent()?.addWarning(
-      `Withings unsubscribe warning: ${verdict.reason}`,
-    );
+    getEvent()?.addWarning(`Withings unsubscribe warning: ${verdict.reason}`);
   }
 }

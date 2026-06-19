@@ -21,10 +21,8 @@ import { reconstructContiguousSleepTimeline } from "@/lib/sleep/reconstruct-time
 import { WhoopApiError, classifyWhoopResponse } from "./response-classifier";
 
 const WHOOP_API_BASE = "https://api.prod.whoop.com/developer";
-const WHOOP_OAUTH_AUTH_URL =
-  "https://api.prod.whoop.com/oauth/oauth2/auth";
-const WHOOP_OAUTH_TOKEN_URL =
-  "https://api.prod.whoop.com/oauth/oauth2/token";
+const WHOOP_OAUTH_AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth";
+const WHOOP_OAUTH_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";
 
 /** WHOOP collection reads cap `limit` at 25. */
 export const WHOOP_PAGE_LIMIT = 25;
@@ -104,8 +102,7 @@ async function postToken(
       classification: verdict.classification,
       httpStatus: verdict.httpStatus,
       reason: verdict.reason,
-      upstreamError:
-        typeof json?.error === "string" ? json.error : undefined,
+      upstreamError: typeof json?.error === "string" ? json.error : undefined,
     });
   }
   return json as WhoopTokenResponse;
@@ -296,17 +293,16 @@ async function fetchCollection<T>(
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    const json = (await res.json().catch(() => null)) as
-      | WhoopCollection<T>
-      | null;
+    const json = (await res
+      .json()
+      .catch(() => null)) as WhoopCollection<T> | null;
     const verdict = classifyWhoopResponse(res.status);
     getEvent()?.addExternalCall({
       service: "whoop",
       method: `${verb}(page=${pageCount})`,
       duration_ms: Math.round(performance.now() - pageStart),
       status: res.status,
-      error:
-        verdict.classification === "success" ? undefined : verdict.reason,
+      error: verdict.classification === "success" ? undefined : verdict.reason,
     });
     if (verdict.classification !== "success") {
       throw new WhoopApiError({
@@ -621,14 +617,26 @@ export function mapSleep(s: WhoopSleep): MappedMeasurement[] {
     ...reconstructContiguousSleepTimeline({
       startMs: onset,
       stages: [
-        { durationMs: stages.total_awake_time_milli, stage: "AWAKE", fieldTag: "sleep_awake" },
-        { durationMs: stages.total_light_sleep_time_milli, stage: "CORE", fieldTag: "sleep_core" },
+        {
+          durationMs: stages.total_awake_time_milli,
+          stage: "AWAKE",
+          fieldTag: "sleep_awake",
+        },
+        {
+          durationMs: stages.total_light_sleep_time_milli,
+          stage: "CORE",
+          fieldTag: "sleep_core",
+        },
         {
           durationMs: stages.total_slow_wave_sleep_time_milli,
           stage: "DEEP",
           fieldTag: "sleep_deep",
         },
-        { durationMs: stages.total_rem_sleep_time_milli, stage: "REM", fieldTag: "sleep_rem" },
+        {
+          durationMs: stages.total_rem_sleep_time_milli,
+          stage: "REM",
+          fieldTag: "sleep_rem",
+        },
       ],
       // IN_BED — single envelope row over the whole sleep window. `measuredAt`
       // is the sleep END so `segmentOf` resolves the span back to [start, end];

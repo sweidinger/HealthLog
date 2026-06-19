@@ -101,7 +101,8 @@ export function LowStockCard({
     prefs?.medication?.reorderLeadDays === undefined
       ? DEFAULT_LEAD
       : prefs.medication.reorderLeadDays;
-  const leadDays = leadOptimistic === undefined ? persistedLead : leadOptimistic;
+  const leadDays =
+    leadOptimistic === undefined ? persistedLead : leadOptimistic;
 
   async function patchPrefs(
     body: Record<string, unknown>,

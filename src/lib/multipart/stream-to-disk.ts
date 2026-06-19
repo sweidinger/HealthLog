@@ -125,11 +125,7 @@ export async function streamMultipartToDisk(
   const writeFileChunk = (chunk: Buffer): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (bytesWritten + chunk.length > opts.maxBytes) {
-        reject(
-          new Error(
-            `Upload exceeds size cap of ${opts.maxBytes} bytes`,
-          ),
-        );
+        reject(new Error(`Upload exceeds size cap of ${opts.maxBytes} bytes`));
         return;
       }
       bytesWritten += chunk.length;
@@ -212,7 +208,10 @@ export async function streamMultipartToDisk(
         // malformed.
         if (buffer[0] === 0x20 || buffer[0] === 0x09) {
           let i = 0;
-          while (i < buffer.length && (buffer[i] === 0x20 || buffer[i] === 0x09)) {
+          while (
+            i < buffer.length &&
+            (buffer[i] === 0x20 || buffer[i] === 0x09)
+          ) {
             i++;
           }
           if (i >= buffer.length) return; // need more bytes
@@ -279,9 +278,8 @@ export async function streamMultipartToDisk(
       }
       // Finalise the text field if applicable.
       if (state === "body-text" && currentFieldName) {
-        textFields[currentFieldName] = Buffer.concat(
-          currentTextBuffer,
-        ).toString("utf8");
+        textFields[currentFieldName] =
+          Buffer.concat(currentTextBuffer).toString("utf8");
         currentTextBuffer = [];
       }
       if (state === "body-file") {

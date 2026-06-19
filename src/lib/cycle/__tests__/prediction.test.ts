@@ -65,7 +65,10 @@ describe("cycle/prediction — robust statistics", () => {
 
 describe("cycle/prediction — cycle-length estimator (§1, §5)", () => {
   it("regular 28-day user: median 28, MAD 0 → sigma floor 1.0", () => {
-    const est = estimateCycleLength([28, 28, 28, 28, 28, 28], "TRYING_TO_CONCEIVE");
+    const est = estimateCycleLength(
+      [28, 28, 28, 28, 28, 28],
+      "TRYING_TO_CONCEIVE",
+    );
     expect(est.lengthRounded).toBe(28);
     expect(est.sigma).toBe(1.0); // SIGMA_FLOOR (MAD = 0)
     expect(est.cyclesObserved).toBe(6);
@@ -74,14 +77,20 @@ describe("cycle/prediction — cycle-length estimator (§1, §5)", () => {
 
   it("irregular user: high MAD widens sigma", () => {
     // lengths 24,28,32,26,30,28 → median 28, deviations 4,0,4,2,2,0 → MAD 2
-    const est = estimateCycleLength([24, 28, 32, 26, 30, 28], "TRYING_TO_CONCEIVE");
+    const est = estimateCycleLength(
+      [24, 28, 32, 26, 30, 28],
+      "TRYING_TO_CONCEIVE",
+    );
     expect(est.lengthRounded).toBe(28);
     expect(est.sigma).toBeCloseTo(1.4826 * 2, 6); // 2.9652
   });
 
   it("excludes a 3-MAD outlier from the point estimate but counts it against confidence", () => {
     // 28,28,29,28,28 + one wild 60-day (missed-log: >= 1.75*28 = 49).
-    const est = estimateCycleLength([28, 28, 29, 28, 28, 60], "TRYING_TO_CONCEIVE");
+    const est = estimateCycleLength(
+      [28, 28, 29, 28, 28, 60],
+      "TRYING_TO_CONCEIVE",
+    );
     // 60 excluded → median over kept = 28, kept count = 5.
     expect(est.lengthRounded).toBe(28);
     expect(est.cyclesObserved).toBe(5);
@@ -122,7 +131,13 @@ describe("cycle/prediction — period-length estimator (§2)", () => {
   };
 
   function flowDay(date: string, flow: DayLogInput["flow"]): DayLogInput {
-    return { date, flow, basalBodyTempC: null, ovulationTest: null, cervicalMucus: null };
+    return {
+      date,
+      flow,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: null,
+    };
   }
 
   it("counts a contiguous 5-day bleeding run", () => {
@@ -149,7 +164,9 @@ describe("cycle/prediction — period-length estimator (§2)", () => {
   });
 
   it("returns 0 when startDate itself has no bleeding", () => {
-    expect(observedPeriodLength("2024-01-01", [flowDay("2024-01-02", "MEDIUM")])).toBe(0);
+    expect(
+      observedPeriodLength("2024-01-01", [flowDay("2024-01-02", "MEDIUM")]),
+    ).toBe(0);
   });
 
   it("estimatePeriodLength prefers explicit periodEndDate", () => {
@@ -286,7 +303,12 @@ describe("cycle/prediction — predictCycle calendar path (§1–§3)", () => {
         cervicalMucus: null,
       });
     }
-    const result = predictCycle(cycles, logs, BASE_PROFILE, addDays(lastStart, 7));
+    const result = predictCycle(
+      cycles,
+      logs,
+      BASE_PROFILE,
+      addDays(lastStart, 7),
+    );
     // density 1 → logSparsity 0 → penalty 1 → halfWidth round(1*1*1)=1.
     expect(result.nextPeriodStartLow).toBe(addDays(result.nextPeriodStart, -1));
     // cAdherence = 0.4 + 0.6*1 = 1.0 → confidence 1*1*1.0 = 0.98 (clamped from 1.0).
@@ -296,8 +318,18 @@ describe("cycle/prediction — predictCycle calendar path (§1–§3)", () => {
 });
 
 describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
-  function bbtDay(date: string, t: number, mucus: DayLogInput["cervicalMucus"] = null): DayLogInput {
-    return { date, flow: null, basalBodyTempC: t, ovulationTest: null, cervicalMucus: mucus };
+  function bbtDay(
+    date: string,
+    t: number,
+    mucus: DayLogInput["cervicalMucus"] = null,
+  ): DayLogInput {
+    return {
+      date,
+      flow: null,
+      basalBodyTempC: t,
+      ovulationTest: null,
+      cervicalMucus: mucus,
+    };
   }
 
   function cervixDay(
@@ -529,7 +561,10 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     logs.push(bbtDay(addDays(start, 8), 36.62));
     // temp ovulation = 2024-01-06. Add a mucus peak (EGG_WHITE) on 2024-01-06,
     // confirmed by 3 drier days after it (Sensiplan post-peak count).
-    const mucusDay = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+    const mucusDay = (
+      date: string,
+      m: DayLogInput["cervicalMucus"],
+    ): DayLogInput => ({
       date,
       flow: null,
       basalBodyTempC: null,
@@ -670,7 +705,10 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     logs.push(bbtDay(addDays(riseStart, 1), 36.62));
     logs.push(bbtDay(addDays(riseStart, 2), 36.63));
     // mucus peak agreeing with the temp ovulation, confirmed by 3 drier days.
-    const mucusDay = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+    const mucusDay = (
+      date: string,
+      m: DayLogInput["cervicalMucus"],
+    ): DayLogInput => ({
       date,
       flow: null,
       basalBodyTempC: null,
@@ -682,7 +720,12 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     logs.push(mucusDay(addDays(ovDay, 2), "DRY"));
     logs.push(mucusDay(addDays(ovDay, 3), "DRY"));
 
-    const result = predictCycle(cycles, logs, BASE_PROFILE, addDays(lastStart, 16));
+    const result = predictCycle(
+      cycles,
+      logs,
+      BASE_PROFILE,
+      addDays(lastStart, 16),
+    );
     expect(result.ovulationConfirmed).toBe(true);
     expect(result.method).toBe("BLENDED");
     expect(result.predictedOvulation).toBe(ovDay);
@@ -768,7 +811,10 @@ describe("cycle/prediction — Marquette LH/OPK ovulation anchor (§4, C2)", () 
     logs.push(bbt(riseStart, 36.6));
     logs.push(bbt(addDays(riseStart, 1), 36.62));
     logs.push(bbt(addDays(riseStart, 2), 36.63));
-    const mucus = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+    const mucus = (
+      date: string,
+      m: DayLogInput["cervicalMucus"],
+    ): DayLogInput => ({
       date,
       flow: null,
       basalBodyTempC: null,
@@ -782,7 +828,12 @@ describe("cycle/prediction — Marquette LH/OPK ovulation anchor (§4, C2)", () 
     // A contradicting LH surge far from the temp shift must NOT override it.
     logs.push(lhDay(addDays(ovDay, 5)));
 
-    const result = predictCycle(cycles, logs, BASE_PROFILE, addDays(lastStart, 20));
+    const result = predictCycle(
+      cycles,
+      logs,
+      BASE_PROFILE,
+      addDays(lastStart, 20),
+    );
     expect(result.ovulationConfirmed).toBe(true);
     expect(result.predictedOvulation).toBe(ovDay); // symptothermal wins
   });
@@ -793,7 +844,8 @@ describe("cycle/prediction — temperature-trend retrospective ovulation (§4.3)
     const start = "2024-02-01";
     const nights: NightlyTempInput[] = [];
     // 6 trailing nights at 36.30 → mean 36.30.
-    for (let i = 0; i < 6; i++) nights.push({ date: addDays(start, i), valueC: 36.3 });
+    for (let i = 0; i < 6; i++)
+      nights.push({ date: addDays(start, i), valueC: 36.3 });
     // 4-night window: 3 elevated (>= 36.45) + 1 not.
     nights.push({ date: addDays(start, 6), valueC: 36.46 });
     nights.push({ date: addDays(start, 7), valueC: 36.47 });
@@ -810,13 +862,20 @@ describe("cycle/prediction — temperature-trend retrospective ovulation (§4.3)
     const lastStart = cycles[cycles.length - 1].startDate;
     const start = addDays(lastStart, 5);
     const nights: NightlyTempInput[] = [];
-    for (let i = 0; i < 6; i++) nights.push({ date: addDays(start, i), valueC: 36.3 });
+    for (let i = 0; i < 6; i++)
+      nights.push({ date: addDays(start, i), valueC: 36.3 });
     nights.push({ date: addDays(start, 6), valueC: 36.46 });
     nights.push({ date: addDays(start, 7), valueC: 36.47 });
     nights.push({ date: addDays(start, 8), valueC: 36.48 });
     nights.push({ date: addDays(start, 9), valueC: 36.49 });
 
-    const result = predictCycle(cycles, [], BASE_PROFILE, addDays(lastStart, 20), nights);
+    const result = predictCycle(
+      cycles,
+      [],
+      BASE_PROFILE,
+      addDays(lastStart, 20),
+      nights,
+    );
     expect(result.ovulationConfirmed).toBe(true);
     expect(result.method).toBe("BLENDED");
     expect(result.predictedOvulation).toBe(addDays(start, 5));
@@ -824,8 +883,18 @@ describe("cycle/prediction — temperature-trend retrospective ovulation (§4.3)
 });
 
 describe("cycle/prediction — multi-cycle window scoping (QA HIGH)", () => {
-  function bbtDay(date: string, t: number, mucus: DayLogInput["cervicalMucus"] = null): DayLogInput {
-    return { date, flow: null, basalBodyTempC: t, ovulationTest: null, cervicalMucus: mucus };
+  function bbtDay(
+    date: string,
+    t: number,
+    mucus: DayLogInput["cervicalMucus"] = null,
+  ): DayLogInput {
+    return {
+      date,
+      flow: null,
+      basalBodyTempC: t,
+      ovulationTest: null,
+      cervicalMucus: mucus,
+    };
   }
 
   /** Build a confirmable symptothermal shift (temp + agreeing mucus) on `ovDay`. */
@@ -839,7 +908,10 @@ describe("cycle/prediction — multi-cycle window scoping (QA HIGH)", () => {
     logs.push(bbtDay(riseStart, 36.6));
     logs.push(bbtDay(addDays(riseStart, 1), 36.62));
     logs.push(bbtDay(addDays(riseStart, 2), 36.63));
-    const mucusDay = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+    const mucusDay = (
+      date: string,
+      m: DayLogInput["cervicalMucus"],
+    ): DayLogInput => ({
       date,
       flow: null,
       basalBodyTempC: null,
@@ -882,9 +954,17 @@ describe("cycle/prediction — multi-cycle window scoping (QA HIGH)", () => {
 
     const staleOv = addDays("2024-01-01", 13); // months ago
     const currentOv = addDays(lastStart, 13); // current cycle
-    const logs = [...symptothermalAround(staleOv), ...symptothermalAround(currentOv)];
+    const logs = [
+      ...symptothermalAround(staleOv),
+      ...symptothermalAround(currentOv),
+    ];
 
-    const result = predictCycle(cycles, logs, BASE_PROFILE, addDays(lastStart, 16));
+    const result = predictCycle(
+      cycles,
+      logs,
+      BASE_PROFILE,
+      addDays(lastStart, 16),
+    );
     expect(result.ovulationConfirmed).toBe(true);
     expect(result.predictedOvulation).toBe(currentOv);
     expect(result.nextPeriodStart).toBe(addDays(currentOv, 14));
@@ -932,10 +1012,15 @@ describe("cycle/prediction — luteal clamp single source of truth (QA HIGH)", (
     const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
     const lastStart = cycles[cycles.length - 1].startDate;
     // Profile asks for luteal 8 → engine clamps to 10.
-    const profile: CycleProfileInput = { ...BASE_PROFILE, lutealPhaseLength: 8 };
+    const profile: CycleProfileInput = {
+      ...BASE_PROFILE,
+      lutealPhaseLength: 8,
+    };
     const result = predictCycle(cycles, [], profile, addDays(lastStart, 5));
     // predictedOvulation = nextStart − clampedLuteal(10).
-    expect(result.predictedOvulation).toBe(addDays(result.nextPeriodStart, -10));
+    expect(result.predictedOvulation).toBe(
+      addDays(result.nextPeriodStart, -10),
+    );
   });
 });
 

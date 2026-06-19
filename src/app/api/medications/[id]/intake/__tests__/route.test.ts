@@ -226,7 +226,10 @@ describe("v1.4.43 W6 — multi-issue 422 envelope", () => {
   }
 
   it("GET surfaces TWO simultaneous validation errors", async () => {
-    const res = await GET(makeRequest("status=junk&sortBy=garbage"), ROUTE_PARAMS);
+    const res = await GET(
+      makeRequest("status=junk&sortBy=garbage"),
+      ROUTE_PARAMS,
+    );
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       data: null;
@@ -284,7 +287,9 @@ describe("v1.4.43 W6 — multi-issue 422 envelope", () => {
     expect(prisma.auditLog.create).toHaveBeenCalled();
     const actions = vi
       .mocked(prisma.auditLog.create)
-      .mock.calls.map((c) => (c[0] as { data: { action: string } }).data.action);
+      .mock.calls.map(
+        (c) => (c[0] as { data: { action: string } }).data.action,
+      );
     expect(actions).toContain("medications.intake.list.validation-failed");
     expect(actions).toContain("medications.intake.create.validation-failed");
   });
@@ -413,9 +418,8 @@ describe("POST /api/medications/[id]/intake — v1.8.2 reconcile (M2 inventory)"
   });
 
   it("does NOT decrement inventory on a re-post of an already-taken slot (M2)", async () => {
-    const { consumeForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     // Resolver load → scheduled med.
     vi.mocked(prisma.medication.findFirst).mockResolvedValueOnce(
       SCHEDULED_MED as never,
@@ -463,9 +467,8 @@ describe("POST /api/medications/[id]/intake — v1.8.2 reconcile (M2 inventory)"
   });
 
   it("DOES decrement inventory on a genuine pending→taken move (M2)", async () => {
-    const { consumeForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     vi.mocked(prisma.medication.findFirst).mockResolvedValueOnce(
       SCHEDULED_MED as never,
     );
@@ -626,9 +629,8 @@ describe("POST /api/medications/[id]/intake — as-needed (schedule-less) medica
 
     // Inventory consumption fires exactly as for a scheduled medication —
     // the seam is medication-level (eventId + intakeAt), no schedule input.
-    const { consumeForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     expect(consumeForIntake).toHaveBeenCalledTimes(1);
     expect(consumeForIntake).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -674,9 +676,8 @@ describe("POST /api/medications/[id]/intake — as-needed (schedule-less) medica
     const res = await POST(postReq({ skipped: true }), ROUTE_PARAMS);
     expect(res.status).toBe(201);
 
-    const { consumeForIntake, restoreForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake, restoreForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     expect(consumeForIntake).not.toHaveBeenCalled();
     expect(restoreForIntake).toHaveBeenCalledTimes(1);
   });

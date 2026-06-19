@@ -96,10 +96,7 @@ describe("localDayWindow — DST-aware [dayStart, dayEnd) drill-down bounds", ()
   // 23 / 24 / 25-hour span.
 
   it("spring-forward day (Berlin 2025-03-30) is exactly 23 hours wide", () => {
-    const { dayStart, dayEnd } = localDayWindow(
-      "2025-03-30",
-      "Europe/Berlin",
-    );
+    const { dayStart, dayEnd } = localDayWindow("2025-03-30", "Europe/Berlin");
     // 2025-03-30 00:00 CET = 2025-03-29 23:00 UTC.
     // 2025-03-31 00:00 CEST = 2025-03-30 22:00 UTC.
     expect(dayStart.toISOString()).toBe("2025-03-29T23:00:00.000Z");
@@ -108,10 +105,7 @@ describe("localDayWindow — DST-aware [dayStart, dayEnd) drill-down bounds", ()
   });
 
   it("fall-back day (Berlin 2025-10-26) is exactly 25 hours wide", () => {
-    const { dayStart, dayEnd } = localDayWindow(
-      "2025-10-26",
-      "Europe/Berlin",
-    );
+    const { dayStart, dayEnd } = localDayWindow("2025-10-26", "Europe/Berlin");
     // 2025-10-26 00:00 CEST = 2025-10-25 22:00 UTC.
     // 2025-10-27 00:00 CET  = 2025-10-26 23:00 UTC.
     expect(dayStart.toISOString()).toBe("2025-10-25T22:00:00.000Z");
@@ -120,27 +114,18 @@ describe("localDayWindow — DST-aware [dayStart, dayEnd) drill-down bounds", ()
   });
 
   it("regular day is exactly 24 hours wide", () => {
-    const { dayStart, dayEnd } = localDayWindow(
-      "2026-05-16",
-      "Europe/Berlin",
-    );
+    const { dayStart, dayEnd } = localDayWindow("2026-05-16", "Europe/Berlin");
     expect(dayEnd.getTime() - dayStart.getTime()).toBe(24 * 60 * 60 * 1000);
   });
 
   it("crosses a month boundary cleanly (2026-05-31 → 2026-06-01)", () => {
-    const { dayStart, dayEnd } = localDayWindow(
-      "2026-05-31",
-      "Europe/Berlin",
-    );
+    const { dayStart, dayEnd } = localDayWindow("2026-05-31", "Europe/Berlin");
     expect(dayStart.toISOString()).toBe("2026-05-30T22:00:00.000Z");
     expect(dayEnd.toISOString()).toBe("2026-05-31T22:00:00.000Z");
   });
 
   it("crosses a year boundary cleanly (2025-12-31 → 2026-01-01)", () => {
-    const { dayStart, dayEnd } = localDayWindow(
-      "2025-12-31",
-      "Europe/Berlin",
-    );
+    const { dayStart, dayEnd } = localDayWindow("2025-12-31", "Europe/Berlin");
     // Berlin in December is CET (UTC+1).
     expect(dayStart.toISOString()).toBe("2025-12-30T23:00:00.000Z");
     expect(dayEnd.toISOString()).toBe("2025-12-31T23:00:00.000Z");
@@ -225,9 +210,27 @@ describe("bucketRowsByUserDay", () => {
 describe("sumBucketValues", () => {
   it("sums a non-empty bucket", () => {
     const rows = [
-      { id: "1", type: "ACTIVITY_STEPS" as const, value: 1200, measuredAt: new Date(), externalId: null },
-      { id: "2", type: "ACTIVITY_STEPS" as const, value: 3400, measuredAt: new Date(), externalId: null },
-      { id: "3", type: "ACTIVITY_STEPS" as const, value: 800, measuredAt: new Date(), externalId: null },
+      {
+        id: "1",
+        type: "ACTIVITY_STEPS" as const,
+        value: 1200,
+        measuredAt: new Date(),
+        externalId: null,
+      },
+      {
+        id: "2",
+        type: "ACTIVITY_STEPS" as const,
+        value: 3400,
+        measuredAt: new Date(),
+        externalId: null,
+      },
+      {
+        id: "3",
+        type: "ACTIVITY_STEPS" as const,
+        value: 800,
+        measuredAt: new Date(),
+        externalId: null,
+      },
     ];
     expect(sumBucketValues(rows)).toBe(5400);
   });
@@ -238,8 +241,20 @@ describe("sumBucketValues", () => {
 
   it("handles fractional values (e.g. ACTIVE_ENERGY_BURNED kcal)", () => {
     const rows = [
-      { id: "1", type: "ACTIVE_ENERGY_BURNED" as const, value: 12.4, measuredAt: new Date(), externalId: null },
-      { id: "2", type: "ACTIVE_ENERGY_BURNED" as const, value: 7.6, measuredAt: new Date(), externalId: null },
+      {
+        id: "1",
+        type: "ACTIVE_ENERGY_BURNED" as const,
+        value: 12.4,
+        measuredAt: new Date(),
+        externalId: null,
+      },
+      {
+        id: "2",
+        type: "ACTIVE_ENERGY_BURNED" as const,
+        value: 7.6,
+        measuredAt: new Date(),
+        externalId: null,
+      },
     ];
     expect(sumBucketValues(rows)).toBeCloseTo(20.0);
   });
@@ -330,9 +345,9 @@ describe("drainPerSampleCumulative — cutoffHours", () => {
 // it with just the partial late sum (the original samples are gone).
 describe("drainPerSampleCumulative — late-sync fold into existing total", () => {
   function buildFoldMock(existingValue: number | null) {
-    const findManyUser = vi.fn().mockResolvedValue([
-      { id: "user-1", timezone: "Europe/Berlin" },
-    ]);
+    const findManyUser = vi
+      .fn()
+      .mockResolvedValue([{ id: "user-1", timezone: "Europe/Berlin" }]);
 
     // Only ACTIVITY_STEPS yields the late per-sample rows; every other
     // cumulative type returns an empty scan so the run stays a single
@@ -363,9 +378,11 @@ describe("drainPerSampleCumulative — late-sync fold into existing total", () =
 
     const upsert = vi.fn().mockResolvedValue({});
     const deleteMany = vi.fn().mockResolvedValue({ count: 2 });
-    const findUnique = vi.fn().mockResolvedValue(
-      existingValue === null ? null : { value: existingValue },
-    );
+    const findUnique = vi
+      .fn()
+      .mockResolvedValue(
+        existingValue === null ? null : { value: existingValue },
+      );
     const findFirst = vi.fn().mockResolvedValue({ unit: "count" });
 
     const tx = {

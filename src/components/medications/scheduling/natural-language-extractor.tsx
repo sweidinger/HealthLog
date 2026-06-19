@@ -161,10 +161,7 @@ export function NaturalLanguageExtractor({
         const body = (await res.json().catch(() => null)) as {
           error?: string;
         } | null;
-        if (
-          body?.error &&
-          /budget/i.test(body.error)
-        ) {
+        if (body?.error && /budget/i.test(body.error)) {
           setError({ kind: "budget" });
           return;
         }
@@ -247,9 +244,11 @@ export function NaturalLanguageExtractor({
               maxLength={MAX_TEXT_LENGTH + 200}
               disabled={busy}
               aria-invalid={overLimit || error?.kind === "empty" || undefined}
-              aria-describedby={errorMessage ? `${textareaId}-error` : undefined}
+              aria-describedby={
+                errorMessage ? `${textareaId}-error` : undefined
+              }
             />
-            <div className="mt-1 text-right text-xs text-muted-foreground">
+            <div className="text-muted-foreground mt-1 text-right text-xs">
               {charCount} / {MAX_TEXT_LENGTH}
             </div>
           </div>
@@ -258,14 +257,14 @@ export function NaturalLanguageExtractor({
             <p
               id={`${textareaId}-error`}
               role="alert"
-              className="text-sm text-destructive"
+              className="text-destructive text-sm"
             >
               {errorMessage}
             </p>
           ) : null}
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-xs font-medium text-muted-foreground">
+            <legend className="text-muted-foreground text-xs font-medium">
               {t("medications.scheduling.naturalLanguage.examples.label")}
             </legend>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -341,7 +340,7 @@ function ExampleChip({ label, onPick, disabled }: ExampleChipProps) {
       type="button"
       onClick={() => onPick(label)}
       disabled={disabled}
-      className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 sm:min-h-9"
+      className="border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground min-h-11 rounded-md border px-3 py-2 text-left text-sm transition-colors disabled:pointer-events-none disabled:opacity-50 sm:min-h-9"
     >
       {label}
     </button>

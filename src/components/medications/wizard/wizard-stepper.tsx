@@ -84,114 +84,114 @@ export function WizardStepper({
       aria-label={srLabel}
     >
       <div className="flex items-center gap-1">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="relative h-8 w-8 shrink-0 before:absolute before:-inset-1.5 before:content-['']"
-        onClick={onFirst}
-        disabled={!firstEnabled}
-        data-slot="wizard-stepper-first"
-        aria-label={firstLabel}
-      >
-        <SkipBack className="h-4 w-4" aria-hidden="true" />
-      </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="relative h-8 w-8 shrink-0 before:absolute before:-inset-1.5 before:content-['']"
+          onClick={onFirst}
+          disabled={!firstEnabled}
+          data-slot="wizard-stepper-first"
+          aria-label={firstLabel}
+        >
+          <SkipBack className="h-4 w-4" aria-hidden="true" />
+        </Button>
 
-      <ol className="flex min-w-0 flex-1 items-center justify-between">
-        {steps.map((stepNumber, index) => {
-          const isActive = index === activeIndex;
-          const isCompleted = index < activeIndex;
-          const isReachable = index <= reachableUntil;
-          const label = labels[stepNumber] ?? String(stepNumber);
-          // Backward + current are always navigable; forward is gated
-          // on the reachability ceiling.
-          const enabled = index <= activeIndex || isReachable;
-          // A connector segment leads INTO this dot from the previous
-          // one; it reads "completed" (solid) once we've passed it.
-          const connectorSolid = index <= activeIndex;
+        <ol className="flex min-w-0 flex-1 items-center justify-between">
+          {steps.map((stepNumber, index) => {
+            const isActive = index === activeIndex;
+            const isCompleted = index < activeIndex;
+            const isReachable = index <= reachableUntil;
+            const label = labels[stepNumber] ?? String(stepNumber);
+            // Backward + current are always navigable; forward is gated
+            // on the reachability ceiling.
+            const enabled = index <= activeIndex || isReachable;
+            // A connector segment leads INTO this dot from the previous
+            // one; it reads "completed" (solid) once we've passed it.
+            const connectorSolid = index <= activeIndex;
 
-          return (
-            <li
-              key={stepNumber}
-              className={cn(
-                "flex min-w-0 items-center",
-                index === 0 ? "flex-initial" : "flex-1",
-              )}
-            >
-              {index > 0 && (
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "mx-1 h-0 flex-1 border-t",
-                    connectorSolid
-                      ? "border-primary"
-                      : "border-muted-foreground/30 border-dashed",
-                  )}
-                />
-              )}
-              <button
-                type="button"
-                onClick={() => onJump(stepNumber)}
-                disabled={!enabled}
-                data-slot="wizard-stepper-dot"
-                data-step-dot={stepNumber}
-                data-active={isActive || undefined}
-                data-completed={isCompleted || undefined}
-                aria-current={isActive ? "step" : undefined}
-                aria-label={`${index + 1}. ${label}`}
+            return (
+              <li
+                key={stepNumber}
                 className={cn(
-                  // 44 px hit target via padding even though the visual
-                  // dot is small.
-                  "group focus-visible:ring-ring/50 flex shrink-0 flex-col items-center gap-1 rounded-md p-2 transition-colors focus-visible:ring-2 focus-visible:outline-none",
-                  enabled
-                    ? "cursor-pointer"
-                    : "cursor-not-allowed opacity-60",
+                  "flex min-w-0 items-center",
+                  index === 0 ? "flex-initial" : "flex-1",
                 )}
               >
-                <span
+                {index > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "mx-1 h-0 flex-1 border-t",
+                      connectorSolid
+                        ? "border-primary"
+                        : "border-muted-foreground/30 border-dashed",
+                    )}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => onJump(stepNumber)}
+                  disabled={!enabled}
+                  data-slot="wizard-stepper-dot"
+                  data-step-dot={stepNumber}
+                  data-active={isActive || undefined}
+                  data-completed={isCompleted || undefined}
+                  aria-current={isActive ? "step" : undefined}
+                  aria-label={`${index + 1}. ${label}`}
                   className={cn(
-                    "grid h-3 w-3 place-items-center rounded-full border transition-colors",
-                    isActive
-                      ? "border-primary bg-primary ring-primary/30 ring-2 ring-offset-1 ring-offset-transparent"
-                      : isCompleted
-                        ? "border-primary bg-primary"
-                        : isReachable
-                          ? "border-primary bg-transparent"
-                          : "border-muted-foreground/30 bg-transparent",
-                  )}
-                />
-                <span
-                  className={cn(
-                    "max-w-[6rem] truncate text-[0.6875rem] leading-none",
-                    isActive
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground",
-                    // Crowding guard: narrow viewports drop the per-dot
-                    // labels entirely (the caption below names the active
-                    // step instead); from `sm+` every dot is labelled.
-                    "hidden sm:inline",
+                    // 44 px hit target via padding even though the visual
+                    // dot is small.
+                    "group focus-visible:ring-ring/50 flex shrink-0 flex-col items-center gap-1 rounded-md p-2 transition-colors focus-visible:ring-2 focus-visible:outline-none",
+                    enabled
+                      ? "cursor-pointer"
+                      : "cursor-not-allowed opacity-60",
                   )}
                 >
-                  {label}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+                  <span
+                    className={cn(
+                      "grid h-3 w-3 place-items-center rounded-full border transition-colors",
+                      isActive
+                        ? "border-primary bg-primary ring-primary/30 ring-2 ring-offset-1 ring-offset-transparent"
+                        : isCompleted
+                          ? "border-primary bg-primary"
+                          : isReachable
+                            ? "border-primary bg-transparent"
+                            : "border-muted-foreground/30 bg-transparent",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "max-w-[6rem] truncate text-[0.6875rem] leading-none",
+                      isActive
+                        ? "text-foreground font-medium"
+                        : "text-muted-foreground",
+                      // Crowding guard: narrow viewports drop the per-dot
+                      // labels entirely (the caption below names the active
+                      // step instead); from `sm+` every dot is labelled.
+                      "hidden sm:inline",
+                    )}
+                  >
+                    {label}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="relative h-8 w-8 shrink-0 before:absolute before:-inset-1.5 before:content-['']"
-        onClick={onLast}
-        disabled={!lastEnabled}
-        data-slot="wizard-stepper-last"
-        aria-label={lastLabel}
-      >
-        <SkipForward className="h-4 w-4" aria-hidden="true" />
-      </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="relative h-8 w-8 shrink-0 before:absolute before:-inset-1.5 before:content-['']"
+          onClick={onLast}
+          disabled={!lastEnabled}
+          data-slot="wizard-stepper-last"
+          aria-label={lastLabel}
+        >
+          <SkipForward className="h-4 w-4" aria-hidden="true" />
+        </Button>
       </div>
 
       {/* Compact caption — on narrow viewports the per-dot labels collapse

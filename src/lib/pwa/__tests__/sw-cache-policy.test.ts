@@ -8,10 +8,7 @@ import {
   isCacheableApiResponse,
 } from "@/lib/pwa/sw-cache-policy";
 
-const SW_SOURCE = readFileSync(
-  join(process.cwd(), "public", "sw.js"),
-  "utf8",
-);
+const SW_SOURCE = readFileSync(join(process.cwd(), "public", "sw.js"), "utf8");
 
 describe("isAllowlistedApiRead — offline read boundary", () => {
   it("caches the curated safe GET read endpoints", () => {

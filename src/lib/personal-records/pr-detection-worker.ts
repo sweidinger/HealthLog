@@ -239,7 +239,11 @@ export async function detectPersonalRecordsForUser(
           : { value: "asc" },
     });
 
-    const outcome = compareToCurrentBest(best.value, currentPR?.value, direction);
+    const outcome = compareToCurrentBest(
+      best.value,
+      currentPR?.value,
+      direction,
+    );
     if (outcome === "no-improvement") continue;
 
     // Application-level idempotency. The DB unique index covers the

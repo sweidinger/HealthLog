@@ -69,9 +69,7 @@ describe("side-effect taxonomy drift guard", () => {
   describe("entry keysets", () => {
     it("validator entries equal Prisma enum entries", () => {
       const prisma = Object.values(MedicationSideEffectEntry);
-      expect(sortedKeys(SIDE_EFFECT_ENTRY_VALUES)).toEqual(
-        sortedKeys(prisma),
-      );
+      expect(sortedKeys(SIDE_EFFECT_ENTRY_VALUES)).toEqual(sortedKeys(prisma));
     });
 
     it("taxonomy SIDE_EFFECT_CATEGORIES covers every Prisma entry", () => {

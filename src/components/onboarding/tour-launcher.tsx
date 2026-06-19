@@ -336,7 +336,11 @@ export function TourLauncher({ ready = true }: TourLauncherProps) {
   // v1.18.6 — stable progress callback so the overlay's checkpoint effect
   // fires on a real step transition, not on every launcher re-render.
   const handleProgress = useCallback(
-    (progress: { lastStopId: string | null; completedStopIds: string[]; status: "in_progress" | "completed" | "skipped" }) => {
+    (progress: {
+      lastStopId: string | null;
+      completedStopIds: string[];
+      status: "in_progress" | "completed" | "skipped";
+    }) => {
       void apiPost("/api/onboarding/tour", {
         progress: { ...progress, updatedAt: new Date().toISOString() },
       }).catch(() => {});

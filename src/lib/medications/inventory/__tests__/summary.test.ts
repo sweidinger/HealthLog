@@ -86,8 +86,7 @@ describe("summariseSupply — expired stock is visible but never available", () 
 });
 
 describe("supply surfaces — both detail-page readouts ride the shared helper (source guard)", () => {
-  const read = (rel: string) =>
-    readFileSync(join(process.cwd(), rel), "utf8");
+  const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
   it("the Übersicht supply row sums through summariseSupply and feeds the runway with the available-only figure", () => {
     const src = read(

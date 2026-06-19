@@ -3,10 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const COMPONENT_DIR = join(__dirname, "..");
-const MOOD_LIST = join(
-  __dirname,
-  "../../../mood/mood-list.tsx",
-);
+const MOOD_LIST = join(__dirname, "../../../mood/mood-list.tsx");
 
 /**
  * v1.8.6 — the notes timeline display is removed from the mood insights

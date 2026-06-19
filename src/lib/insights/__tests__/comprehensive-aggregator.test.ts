@@ -71,16 +71,18 @@ import { buildComprehensiveAggregate } from "../comprehensive-aggregator";
 
 const RAW = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
 const UNSAFE = prisma.$queryRawUnsafe as unknown as ReturnType<typeof vi.fn>;
-const USER_FIND_UNIQUE =
-  prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
-const FIND_MANY =
-  prisma.measurement.findMany as unknown as ReturnType<typeof vi.fn>;
-const MEASUREMENT_FIND_FIRST =
-  prisma.measurement.findFirst as unknown as ReturnType<typeof vi.fn>;
-const ROLLUP_FIND_MANY =
-  prisma.measurementRollup.findMany as unknown as ReturnType<typeof vi.fn>;
-const ROLLUP_FIND_FIRST =
-  prisma.measurementRollup.findFirst as unknown as ReturnType<typeof vi.fn>;
+const USER_FIND_UNIQUE = prisma.user.findUnique as unknown as ReturnType<
+  typeof vi.fn
+>;
+const FIND_MANY = prisma.measurement.findMany as unknown as ReturnType<
+  typeof vi.fn
+>;
+const MEASUREMENT_FIND_FIRST = prisma.measurement
+  .findFirst as unknown as ReturnType<typeof vi.fn>;
+const ROLLUP_FIND_MANY = prisma.measurementRollup
+  .findMany as unknown as ReturnType<typeof vi.fn>;
+const ROLLUP_FIND_FIRST = prisma.measurementRollup
+  .findFirst as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   RAW.mockReset();
@@ -116,10 +118,11 @@ describe("buildComprehensiveAggregate", () => {
       //         2. firstMeasurementAt.
       // UNSAFE: 1. narrow aggregate — windowed/regression columns only.
       //         2. latests.
-      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }])
-        .mockResolvedValueOnce([
-          { first_at: new Date(now.getTime() - 86400000) },
-        ]);
+      RAW.mockResolvedValueOnce([
+        { type: "WEIGHT", has_buckets: true },
+      ]).mockResolvedValueOnce([
+        { first_at: new Date(now.getTime() - 86400000) },
+      ]);
       UNSAFE.mockResolvedValueOnce([
         {
           type: "WEIGHT",
@@ -253,10 +256,11 @@ describe("buildComprehensiveAggregate", () => {
       //         2. firstMeasurementAt (totalMeasurements > 0).
       // UNSAFE: 1. heavy aggregate — populated.
       //         2. latests — populated.
-      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: false }])
-        .mockResolvedValueOnce([
-          { first_at: new Date(now.getTime() - 86400000) },
-        ]);
+      RAW.mockResolvedValueOnce([
+        { type: "WEIGHT", has_buckets: false },
+      ]).mockResolvedValueOnce([
+        { first_at: new Date(now.getTime() - 86400000) },
+      ]);
       UNSAFE.mockResolvedValueOnce([
         {
           type: "WEIGHT",

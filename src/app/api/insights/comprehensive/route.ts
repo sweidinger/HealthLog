@@ -74,9 +74,9 @@ export const GET = apiHandler(async () => {
   // the response, never inside the cached body, so a warmed entry
   // doesn't freeze the flag.
   const { value: body, outcome } = await cachedSwrWithMeta(
-    caches.analytics as ServerCache<Awaited<
-      ReturnType<typeof buildComprehensiveResponse>
-    >>,
+    caches.analytics as ServerCache<
+      Awaited<ReturnType<typeof buildComprehensiveResponse>>
+    >,
     `${user.id}|comprehensive`,
     () => buildComprehensiveResponse(user),
     annotate,
@@ -241,10 +241,7 @@ export async function buildComprehensiveResponse(user: AuthedUser) {
   // small semantic shift to bound the raw-row footprint).
   const weightDaily = aggregate.dailyByType.WEIGHT ?? [];
   const sysDaily = aggregate.dailyByType.BLOOD_PRESSURE_SYS ?? [];
-  const weightBpPairs: PairedPoint[] = joinDailyByDay(
-    weightDaily,
-    sysDaily,
-  );
+  const weightBpPairs: PairedPoint[] = joinDailyByDay(weightDaily, sysDaily);
   const weightBpCorrelation = pearsonCorrelation(weightBpPairs);
   const scatterData = weightBpPairs.map((p) => ({
     weight: p.a,

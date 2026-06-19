@@ -72,7 +72,9 @@ describe("PUT /api/measurements/[id] — duplicate-timestamp handling", () => {
       {
         code: "P2002",
         clientVersion: "x",
-        meta: { target: ["userId", "type", "measuredAt", "source", "sleepStage"] },
+        meta: {
+          target: ["userId", "type", "measuredAt", "source", "sleepStage"],
+        },
       },
     );
     vi.mocked(prisma.measurement.update).mockRejectedValue(p2002);
@@ -83,7 +85,10 @@ describe("PUT /api/measurements/[id] — duplicate-timestamp handling", () => {
     );
 
     expect(res.status).toBe(409);
-    const json = (await res.json()) as { error: string; meta?: { errorCode?: string } };
+    const json = (await res.json()) as {
+      error: string;
+      meta?: { errorCode?: string };
+    };
     expect(json.error).toMatch(/already exists|duplicate/i);
     expect(json.meta?.errorCode).toBe("measurement.duplicate_timestamp");
   });
@@ -108,10 +113,9 @@ describe("PUT /api/measurements/[id] — duplicate-timestamp handling", () => {
     );
     vi.mocked(prisma.measurement.update).mockRejectedValue(otherError);
 
-    const res = await PUT(
-      putRequest("m-3", { value: 76 }),
-      { params: Promise.resolve({ id: "m-3" }) },
-    );
+    const res = await PUT(putRequest("m-3", { value: 76 }), {
+      params: Promise.resolve({ id: "m-3" }),
+    });
 
     // apiHandler converts uncaught errors to 500.
     expect(res.status).toBe(500);
@@ -143,7 +147,9 @@ describe("PUT /api/measurements/[id] — duplicate-timestamp handling", () => {
       {
         code: "P2002",
         clientVersion: "x",
-        meta: { target: ["userId", "type", "measuredAt", "source", "sleepStage"] },
+        meta: {
+          target: ["userId", "type", "measuredAt", "source", "sleepStage"],
+        },
       },
     );
     vi.mocked(prisma.measurement.update).mockRejectedValue(p2002);
@@ -186,10 +192,9 @@ describe("PUT /api/measurements/[id] — duplicate-timestamp handling", () => {
       unit: "kg",
     } as never);
 
-    const res = await PUT(
-      putRequest("m-4", { value: 76 }),
-      { params: Promise.resolve({ id: "m-4" }) },
-    );
+    const res = await PUT(putRequest("m-4", { value: 76 }), {
+      params: Promise.resolve({ id: "m-4" }),
+    });
 
     expect(res.status).toBe(200);
     const json = (await res.json()) as { data: { id: string; value: number } };

@@ -42,7 +42,8 @@ vi.mock("@/hooks/use-insights-analytics", () => ({
 
 const metricStatusMock = vi.fn();
 vi.mock("@/hooks/use-insight-status", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/hooks/use-insight-status")>();
+  const actual =
+    await importOriginal<typeof import("@/hooks/use-insight-status")>();
   return {
     ...actual,
     useInsightMetricStatus: (...args: unknown[]) => metricStatusMock(...args),
@@ -113,7 +114,10 @@ describe("<HealthKitMetricPage> status mount", () => {
     expect(html).toContain('data-testid="insight-status-card-loading"');
     expect(html).not.toContain("Your HRV has trended upward");
     // The card fetch is enabled (statusMetric present + data present).
-    expect(metricStatusMock).toHaveBeenCalledWith("HEART_RATE_VARIABILITY", true);
+    expect(metricStatusMock).toHaveBeenCalledWith(
+      "HEART_RATE_VARIABILITY",
+      true,
+    );
   });
 
   it("does not mount the assessment card when statusMetric is omitted", () => {
@@ -158,7 +162,10 @@ describe("<HealthKitMetricPage> status mount", () => {
     metricStatusMock.mockReturnValue({ data: undefined, isLoading: false });
 
     const html = render(
-      <HealthKitMetricPage {...baseProps} statusMetric="HEART_RATE_VARIABILITY" />,
+      <HealthKitMetricPage
+        {...baseProps}
+        statusMetric="HEART_RATE_VARIABILITY"
+      />,
     );
 
     // Stat-strip skeleton + chart skeleton paint; the assessment card never
@@ -180,7 +187,10 @@ describe("<HealthKitMetricPage> status mount", () => {
     metricStatusMock.mockReturnValue({ data: undefined, isLoading: false });
 
     const html = render(
-      <HealthKitMetricPage {...baseProps} statusMetric="HEART_RATE_VARIABILITY" />,
+      <HealthKitMetricPage
+        {...baseProps}
+        statusMetric="HEART_RATE_VARIABILITY"
+      />,
     );
 
     expect(html).toContain('data-slot="healthkit-metric-error"');

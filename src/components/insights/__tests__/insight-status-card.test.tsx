@@ -100,10 +100,7 @@ describe("<InsightStatusCard>", () => {
     // upstream is unchanged; the card simply never announced it, so the
     // assessment reads as authoritative.
     const html = render(
-      <InsightStatusCard
-        {...baseProps}
-        text="Pulse stayed inside the band."
-      />,
+      <InsightStatusCard {...baseProps} text="Pulse stayed inside the band." />,
     );
     expect(html).toContain("Pulse stayed inside the band.");
     expect(html).not.toContain("Cached");

@@ -74,7 +74,9 @@ describe("reconstructDoseHistory", () => {
     );
     const morning = rows.find((r) => r.timeOfDay === "07:00");
     expect(morning?.status).toBe("taken_on_time");
-    expect(morning?.intake?.takenAt?.toISOString()).toBe(at(7, 0).toISOString());
+    expect(morning?.intake?.takenAt?.toISOString()).toBe(
+      at(7, 0).toISOString(),
+    );
   });
 
   it("attributes a take inside the late tail as taken_late", () => {
@@ -83,7 +85,9 @@ describe("reconstructDoseHistory", () => {
       [intake({ takenAt: at(8, 30), scheduledFor: at(7, 0) })],
       nowEvening,
     );
-    expect(rows.find((r) => r.timeOfDay === "07:00")?.status).toBe("taken_late");
+    expect(rows.find((r) => r.timeOfDay === "07:00")?.status).toBe(
+      "taken_late",
+    );
   });
 
   it("emits an 11:29 take as an ad-hoc row and leaves 07:00 missed", () => {
@@ -475,10 +479,18 @@ describe("suggestNearestSlot fallback cap", () => {
     };
     // First minted slot is 2026-05-31 (startsOn); the take predates it by 6 days.
     const bands = [mk("2026-05-31T07:00:00Z"), mk("2026-06-01T07:00:00Z")];
-    const far = suggestNearestSlot(new Date("2026-05-25T09:26:00Z"), bands, () => false);
+    const far = suggestNearestSlot(
+      new Date("2026-05-25T09:26:00Z"),
+      bands,
+      () => false,
+    );
     expect(far).toBeNull();
     // A take inside the suggestion zone still gets its context.
-    const near = suggestNearestSlot(new Date("2026-05-31T08:30:00Z"), bands, () => false);
+    const near = suggestNearestSlot(
+      new Date("2026-05-31T08:30:00Z"),
+      bands,
+      () => false,
+    );
     expect(near?.timeOfDay).toBe("09:00");
   });
 });

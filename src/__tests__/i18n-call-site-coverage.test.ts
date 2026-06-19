@@ -27,12 +27,7 @@ const ROOT = join(__dirname, "../..");
 const SRC = join(ROOT, "src");
 const EN_BUNDLE_PATH = join(ROOT, "messages/en.json");
 
-const SKIP_DIRS = new Set([
-  "__tests__",
-  "node_modules",
-  ".next",
-  "generated",
-]);
+const SKIP_DIRS = new Set(["__tests__", "node_modules", ".next", "generated"]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -48,8 +43,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const KEY_PATTERN =
-  /(?<![a-zA-Z0-9_])t\(\s*["']([a-zA-Z][a-zA-Z0-9_.]+)["']/g;
+const KEY_PATTERN = /(?<![a-zA-Z0-9_])t\(\s*["']([a-zA-Z][a-zA-Z0-9_.]+)["']/g;
 
 interface CallSite {
   key: string;
@@ -98,7 +92,10 @@ function extractKeys(): CallSite[] {
           inBlockComment = true;
           break;
         }
-        line = line.slice(0, start) + " ".repeat(end - start + 2) + line.slice(end + 2);
+        line =
+          line.slice(0, start) +
+          " ".repeat(end - start + 2) +
+          line.slice(end + 2);
       }
       line = stripCommentLine(line);
       let m: RegExpExecArray | null;
@@ -119,7 +116,11 @@ function resolveLeaf(obj: unknown, dotted: string): string | null {
   const parts = dotted.split(".");
   let cur: unknown = obj;
   for (const p of parts) {
-    if (cur && typeof cur === "object" && p in (cur as Record<string, unknown>)) {
+    if (
+      cur &&
+      typeof cur === "object" &&
+      p in (cur as Record<string, unknown>)
+    ) {
       cur = (cur as Record<string, unknown>)[p];
     } else {
       return null;

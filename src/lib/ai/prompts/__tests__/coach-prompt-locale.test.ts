@@ -72,25 +72,28 @@ describe("getCoachSystemPrompt — native AI-initial locales", () => {
     expect(prompt).toMatch(/BLOK DOWODÓW/);
   });
 
-  it.each(NATIVE_LOCALES)("%s carries every GROUND RULE body verbatim", (locale) => {
-    const matrix = loadSafetyContracts(locale);
-    const prompt = getCoachSystemPrompt(locale);
-    for (const key of Object.keys(matrix.ground_rules) as Array<
-      keyof typeof matrix.ground_rules
-    >) {
-      const rule = matrix.ground_rules[key];
-      // Coach uses surface = "coach" or "both" rules.
-      if (rule.surface === "insights") continue;
-      const body = rule.locale ?? rule.en;
-      expect(body).toBeDefined();
-      // Match on a representative substring (first 80 chars of body).
-      const sample = body!.trim().slice(0, 80);
-      expect(
-        prompt,
-        `coach prompt for ${locale} dropped ${key} (looking for "${sample}")`,
-      ).toContain(sample);
-    }
-  });
+  it.each(NATIVE_LOCALES)(
+    "%s carries every GROUND RULE body verbatim",
+    (locale) => {
+      const matrix = loadSafetyContracts(locale);
+      const prompt = getCoachSystemPrompt(locale);
+      for (const key of Object.keys(matrix.ground_rules) as Array<
+        keyof typeof matrix.ground_rules
+      >) {
+        const rule = matrix.ground_rules[key];
+        // Coach uses surface = "coach" or "both" rules.
+        if (rule.surface === "insights") continue;
+        const body = rule.locale ?? rule.en;
+        expect(body).toBeDefined();
+        // Match on a representative substring (first 80 chars of body).
+        const sample = body!.trim().slice(0, 80);
+        expect(
+          prompt,
+          `coach prompt for ${locale} dropped ${key} (looking for "${sample}")`,
+        ).toContain(sample);
+      }
+    },
+  );
 
   it.each(NATIVE_LOCALES)(
     "%s preserves the ---KEYVALUES--- / ---END--- sentinels",

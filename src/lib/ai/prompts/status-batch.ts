@@ -51,16 +51,12 @@ export function getStatusBatchSystemPrompt(
   const en = `BATCHED OUTPUT — you are assessing SEVERAL of this user's metrics in one pass. Each metric below carries its OWN graded snapshot under a "### <key>" heading; assess each one STRICTLY from its own snapshot block, applying every rule above per metric. Do NOT let one metric's finding leak into another. Do NOT invent a metric: assess ONLY the keys present below.
 
 OUTPUT FORMAT: Reply with valid JSON only, in exactly this schema. "perMetric" carries one short assessment (2-4 sentences each, the same contract as a single card) per present key:
-{ "perMetric": { ${presentKeys
-    .map((k) => `"${k}": "..."`)
-    .join(", ")} } }
+{ "perMetric": { ${presentKeys.map((k) => `"${k}": "..."`).join(", ")} } }
 Include a key ONLY if its snapshot block is present below (keys present: ${keyList}). Omit any metric whose block is absent — never fabricate one.`;
   const de = `GEBÜNDELTE AUSGABE — du bewertest in einem Durchgang MEHRERE Metriken dieses Nutzers. Jede Metrik unten trägt ihren EIGENEN graded snapshot unter einer Überschrift "### <key>"; bewerte jede ausschließlich aus ihrem eigenen Snapshot-Block und wende alle obigen Regeln pro Metrik an. Lass den Befund einer Metrik NICHT in eine andere überlaufen. Erfinde KEINE Metrik: bewerte NUR die unten vorhandenen Keys.
 
 AUSGABEFORMAT: Antworte ausschließlich mit validem JSON in genau diesem Schema. "perMetric" enthält je vorhandenem Key eine kurze Einschätzung (je 2-4 Sätze, derselbe Vertrag wie eine Einzelkarte):
-{ "perMetric": { ${presentKeys
-    .map((k) => `"${k}": "..."`)
-    .join(", ")} } }
+{ "perMetric": { ${presentKeys.map((k) => `"${k}": "..."`).join(", ")} } }
 Nimm einen Key NUR auf, wenn sein Snapshot-Block unten vorhanden ist (vorhandene Keys: ${keyList}). Lass jede Metrik ohne Block weg — erfinde niemals eine.`;
   return `${base}\n\n${locale === "en" ? en : de}`;
 }

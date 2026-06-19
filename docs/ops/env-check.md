@@ -39,11 +39,11 @@ export without polluting the local shell.
 Output is one row per declared variable, grouped by section. Three
 states:
 
-| Marker                | Meaning                                                                            |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| `[OK]`                | Variable is set and non-empty.                                                     |
-| `[MISSING-REQUIRED]`  | Variable is required for boot. The script exits 1.                                 |
-| `[missing-optional]`  | Variable is optional. The script reports it but does not fail.                     |
+| Marker               | Meaning                                                        |
+| -------------------- | -------------------------------------------------------------- |
+| `[OK]`               | Variable is set and non-empty.                                 |
+| `[MISSING-REQUIRED]` | Variable is required for boot. The script exits 1.             |
+| `[missing-optional]` | Variable is optional. The script reports it but does not fail. |
 
 The grep-friendly format lets a CI pipeline do `grep -q
 '\[MISSING-REQUIRED\]'` to gate a deploy. The CI integration itself
@@ -93,7 +93,7 @@ so changes go through a PR. To add a new variable:
 Deferred to v1.4.43:
 
 - GitHub Actions workflow that runs `pnpm check-env --file
-  .env.production.example` on every PR, blocking changes that
+.env.production.example` on every PR, blocking changes that
   introduce new required vars without updating the example file.
 - Coolify pre-deploy hook that runs `pnpm check-env` inside the
   target container and aborts the deploy on exit code 1.

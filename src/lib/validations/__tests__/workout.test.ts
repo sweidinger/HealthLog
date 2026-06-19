@@ -135,9 +135,7 @@ describe("workoutHrSamplesSchema", () => {
 
   it("rejects an out-of-range heart rate", () => {
     expect(() =>
-      workoutHrSamplesSchema.parse([
-        { t: "2026-05-14T07:00:00.000Z", hr: 5 },
-      ]),
+      workoutHrSamplesSchema.parse([{ t: "2026-05-14T07:00:00.000Z", hr: 5 }]),
     ).toThrow();
   });
 
@@ -155,13 +153,10 @@ describe("workoutHrSamplesSchema", () => {
   });
 
   it("accepts a series exactly at the cap", () => {
-    const atCap = Array.from(
-      { length: MAX_WORKOUT_HR_SAMPLES },
-      (_v, i) => ({
-        t: new Date(Date.UTC(2026, 4, 14, 7, 0, 0) + i * 1000).toISOString(),
-        hr: 140,
-      }),
-    );
+    const atCap = Array.from({ length: MAX_WORKOUT_HR_SAMPLES }, (_v, i) => ({
+      t: new Date(Date.UTC(2026, 4, 14, 7, 0, 0) + i * 1000).toISOString(),
+      hr: 140,
+    }));
     expect(workoutHrSamplesSchema.parse(atCap)).toHaveLength(
       MAX_WORKOUT_HR_SAMPLES,
     );
@@ -370,9 +365,8 @@ describe("createBatchWorkoutSchema", () => {
   });
 
   it("accepts a batch at the cap (100 workouts)", () => {
-    const workouts = Array.from(
-      { length: MAX_WORKOUTS_PER_BATCH },
-      (_, i) => minimalRun(`hk-uuid-${i}`),
+    const workouts = Array.from({ length: MAX_WORKOUTS_PER_BATCH }, (_, i) =>
+      minimalRun(`hk-uuid-${i}`),
     );
     const parsed = createBatchWorkoutSchema.parse({ workouts });
     expect(parsed.workouts).toHaveLength(MAX_WORKOUTS_PER_BATCH);

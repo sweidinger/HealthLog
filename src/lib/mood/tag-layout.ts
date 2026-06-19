@@ -28,10 +28,7 @@ export const MOOD_TAG_LAYOUT_MAX_GROUPS = 50;
 /** Upper bound on placement tag keys summed across every group. */
 export const MOOD_TAG_LAYOUT_MAX_PLACEMENTS = 400;
 
-const layoutKeySchema = z
-  .string()
-  .min(1)
-  .max(MOOD_TAG_LAYOUT_KEY_MAX_LENGTH);
+const layoutKeySchema = z.string().min(1).max(MOOD_TAG_LAYOUT_KEY_MAX_LENGTH);
 
 /**
  * PUT body / stored-blob schema. Both fields optional so a client can PUT
@@ -43,9 +40,7 @@ export const moodTagLayoutSchema = z
       .array(layoutKeySchema)
       .max(MOOD_TAG_LAYOUT_MAX_GROUPS)
       .optional(),
-    placements: z
-      .record(layoutKeySchema, z.array(layoutKeySchema))
-      .optional(),
+    placements: z.record(layoutKeySchema, z.array(layoutKeySchema)).optional(),
   })
   .superRefine((value, ctx) => {
     if (!value.placements) return;

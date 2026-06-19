@@ -5,7 +5,9 @@ import { extractNoteAndSlimTags } from "../note-backfill";
 describe("extractNoteAndSlimTags", () => {
   it("extracts the first note:<text> entry and slims the tag array", () => {
     expect(
-      extractNoteAndSlimTags(JSON.stringify(["coffee", "note:slept poorly", "workout"])),
+      extractNoteAndSlimTags(
+        JSON.stringify(["coffee", "note:slept poorly", "workout"]),
+      ),
     ).toEqual({
       note: "slept poorly",
       newTags: JSON.stringify(["coffee", "workout"]),
@@ -13,14 +15,18 @@ describe("extractNoteAndSlimTags", () => {
   });
 
   it("returns null tags when the slimmed array is empty", () => {
-    expect(extractNoteAndSlimTags(JSON.stringify(["note:lonely entry"]))).toEqual({
+    expect(
+      extractNoteAndSlimTags(JSON.stringify(["note:lonely entry"])),
+    ).toEqual({
       note: "lonely entry",
       newTags: null,
     });
   });
 
   it("returns note=null when no entry starts with note:", () => {
-    expect(extractNoteAndSlimTags(JSON.stringify(["coffee", "workout"]))).toEqual({
+    expect(
+      extractNoteAndSlimTags(JSON.stringify(["coffee", "workout"])),
+    ).toEqual({
       note: null,
       newTags: JSON.stringify(["coffee", "workout"]),
     });

@@ -233,9 +233,7 @@ describe("dedupeWorkoutBatch", () => {
     const onBoundary = row({
       id: "boundary",
       source: "WITHINGS",
-      startedAt: new Date(
-        anchor.startedAt.getTime() + WORKOUT_DEDUP_WINDOW_MS,
-      ),
+      startedAt: new Date(anchor.startedAt.getTime() + WORKOUT_DEDUP_WINDOW_MS),
     });
     const justOutside = row({
       id: "outside",
@@ -246,14 +244,15 @@ describe("dedupeWorkoutBatch", () => {
     });
 
     // anchor + onBoundary → one group; APPLE_HEALTH wins.
-    expect(
-      dedupeWorkoutBatch([anchor, onBoundary]).map((r) => r.id),
-    ).toEqual(["anchor"]);
+    expect(dedupeWorkoutBatch([anchor, onBoundary]).map((r) => r.id)).toEqual([
+      "anchor",
+    ]);
 
     // anchor + justOutside → two distinct groups, both survive.
-    expect(
-      dedupeWorkoutBatch([anchor, justOutside]).map((r) => r.id),
-    ).toEqual(["anchor", "outside"]);
+    expect(dedupeWorkoutBatch([anchor, justOutside]).map((r) => r.id)).toEqual([
+      "anchor",
+      "outside",
+    ]);
   });
 
   it("walks the full source ladder (APPLE_HEALTH > WITHINGS > MANUAL > IMPORT)", () => {
@@ -275,9 +274,7 @@ describe("dedupeWorkoutBatch", () => {
       }),
     );
 
-    expect(dedupeWorkoutBatch(rows).map((r) => r.id)).toEqual([
-      "APPLE_HEALTH",
-    ]);
+    expect(dedupeWorkoutBatch(rows).map((r) => r.id)).toEqual(["APPLE_HEALTH"]);
   });
 
   it("honours a custom user ladder that promotes MANUAL above APPLE_HEALTH", () => {
@@ -324,9 +321,9 @@ describe("dedupeWorkoutBatch", () => {
       startedAt: new Date("2026-05-21T08:01:00Z"),
     });
 
-    expect(
-      dedupeWorkoutBatch([apple, manual], null).map((r) => r.id),
-    ).toEqual(["apple"]);
+    expect(dedupeWorkoutBatch([apple, manual], null).map((r) => r.id)).toEqual([
+      "apple",
+    ]);
     expect(
       dedupeWorkoutBatch([apple, manual], undefined).map((r) => r.id),
     ).toEqual(["apple"]);

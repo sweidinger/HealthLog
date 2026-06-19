@@ -89,7 +89,9 @@ describe("lab-result FHIR Observations", () => {
       { insuranceNumber: "A123456780" },
       FIXED_NOW,
     );
-    const ldl = observationsOf(bundle).find((o) => o.code.text === "LDL (Lipid panel)");
+    const ldl = observationsOf(bundle).find(
+      (o) => o.code.text === "LDL (Lipid panel)",
+    );
     expect(ldl).toBeDefined();
     expect(ldl?.valueQuantity?.value).toBe(110);
     expect(ldl?.valueQuantity?.unit).toBe("mg/dL");
@@ -102,7 +104,9 @@ describe("lab-result FHIR Observations", () => {
       { insuranceNumber: "A123456780" },
       FIXED_NOW,
     );
-    const ldl = observationsOf(bundle).find((o) => o.code.text === "LDL (Lipid panel)");
+    const ldl = observationsOf(bundle).find(
+      (o) => o.code.text === "LDL (Lipid panel)",
+    );
     expect(ldl?.referenceRange).toHaveLength(1);
     expect(ldl?.referenceRange?.[0].high?.value).toBe(116);
     expect(ldl?.referenceRange?.[0].low).toBeUndefined();

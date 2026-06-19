@@ -125,14 +125,17 @@ describe("MedicationIntakeEvent — re-take after delete (v1.12.1 / 0121)", () =
 
 describe("MoodEntry — external-id re-import idempotency (v1.12.1 / 0122)", () => {
   function webhookRequest(secret: string, body: unknown): NextRequest {
-    return new NextRequest("http://localhost/api/integrations/moodlog/webhook", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-webhook-secret": secret,
+    return new NextRequest(
+      "http://localhost/api/integrations/moodlog/webhook",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-webhook-secret": secret,
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+    );
   }
 
   it("re-import with the same stable id but re-zoned time updates one row", async () => {
@@ -149,9 +152,8 @@ describe("MoodEntry — external-id re-import idempotency (v1.12.1 / 0122)", () 
       },
     });
 
-    const { POST } = await import(
-      "@/app/api/integrations/moodlog/webhook/route"
-    );
+    const { POST } =
+      await import("@/app/api/integrations/moodlog/webhook/route");
 
     // First import — entry carries a stable upstream id.
     const r1 = await POST(
@@ -210,9 +212,8 @@ describe("MoodEntry — external-id re-import idempotency (v1.12.1 / 0122)", () 
       },
     });
 
-    const { POST } = await import(
-      "@/app/api/integrations/moodlog/webhook/route"
-    );
+    const { POST } =
+      await import("@/app/api/integrations/moodlog/webhook/route");
 
     // Two entries, no id, DIFFERENT times → two rows (legacy behaviour
     // preserved). A re-emit at the SAME time updates in place.

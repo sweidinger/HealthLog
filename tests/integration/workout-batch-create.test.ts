@@ -343,10 +343,7 @@ describe("POST /api/workouts/batch (real Postgres)", () => {
     // reaching the DB. This is the Apple Watch + Withings ScanWatch
     // case the picker exists to handle.
     const body = {
-      workouts: [
-        baseWorkout("hk-uuid-dup-1"),
-        baseWorkout("hk-uuid-dup-2"),
-      ],
+      workouts: [baseWorkout("hk-uuid-dup-1"), baseWorkout("hk-uuid-dup-2")],
     };
 
     const first = await POST(makeRequest(body));

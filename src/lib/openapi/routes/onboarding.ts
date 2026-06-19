@@ -36,7 +36,9 @@ const tourUpdateRequest = z
       .describe("Informational — distinguishes reaching the end from a skip."),
     progress: tourProgressResource
       .optional()
-      .describe("Mid-tour resume checkpoint. May arrive alone or with `completed`."),
+      .describe(
+        "Mid-tour resume checkpoint. May arrive alone or with `completed`.",
+      ),
   })
   .meta({
     id: "TourUpdateRequest",
@@ -51,7 +53,8 @@ const tourUpdateResponse = z
   })
   .meta({
     id: "TourUpdateResponse",
-    description: "The persisted completion flag and resume point after the write.",
+    description:
+      "The persisted completion flag and resume point after the write.",
   });
 
 const disclaimerAckRequest = z
@@ -66,7 +69,8 @@ const disclaimerAckRequest = z
   })
   .meta({
     id: "DisclaimerAckRequest",
-    description: "Acknowledge the one-time medical disclaimer shown at onboarding.",
+    description:
+      "Acknowledge the one-time medical disclaimer shown at onboarding.",
   });
 
 const disclaimerAckResponse = z

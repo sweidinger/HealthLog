@@ -11,10 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider } from "@/lib/i18n/context";
-import {
-  AnamnesisCard,
-  buildAnamnesisAboutMeBody,
-} from "../anamnesis-card";
+import { AnamnesisCard, buildAnamnesisAboutMeBody } from "../anamnesis-card";
 
 describe("buildAnamnesisAboutMeBody", () => {
   const empty = { conditions: "", allergies: "" };

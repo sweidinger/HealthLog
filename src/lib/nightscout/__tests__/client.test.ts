@@ -125,9 +125,7 @@ describe("buildEntriesUrl", () => {
 describe("sha1Hex", () => {
   it("hashes the API secret as Nightscout expects (api-secret header)", () => {
     // Known SHA1 of "secret".
-    expect(sha1Hex("secret")).toBe(
-      "e5e9fa1ba31ecd1ae84f75caaa474f3a663f05f4",
-    );
+    expect(sha1Hex("secret")).toBe("e5e9fa1ba31ecd1ae84f75caaa474f3a663f05f4");
   });
 });
 

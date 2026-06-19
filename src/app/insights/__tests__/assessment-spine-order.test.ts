@@ -48,7 +48,11 @@ const BESPOKE_PAGES: ReadonlyArray<{
 }> = [
   { slug: "weight", assessmentTag: "<SlugInsightStatusCard" },
   { slug: "bmi", assessmentTag: "<SlugInsightStatusCard" },
-  { slug: "pulse", assessmentTag: "<SlugInsightStatusCard", assessmentMayTrail: true },
+  {
+    slug: "pulse",
+    assessmentTag: "<SlugInsightStatusCard",
+    assessmentMayTrail: true,
+  },
   { slug: "blood-pressure", assessmentTag: "<SlugInsightStatusCard" },
   { slug: "mood", assessmentTag: "<SlugInsightStatusCard" },
   { slug: "medications", assessmentTag: "<InsightStatusCard" },
@@ -57,10 +61,7 @@ const BESPOKE_PAGES: ReadonlyArray<{
 describe("bespoke metric-detail spine — assessment is the last block", () => {
   for (const { slug, assessmentTag, assessmentMayTrail } of BESPOKE_PAGES) {
     it(`renders the assessment card as the last SubPageShell child on /insights/${slug}`, () => {
-      const source = readFileSync(
-        join(PAGES_DIR, slug, "page.tsx"),
-        "utf8",
-      );
+      const source = readFileSync(join(PAGES_DIR, slug, "page.tsx"), "utf8");
 
       // The render branch that carries the assessment is the final
       // `<SubPageShell>…</SubPageShell>` in the module (the empty-state
@@ -70,7 +71,9 @@ describe("bespoke metric-detail spine — assessment is the last block", () => {
         -1,
       );
       const shellOpen = source.lastIndexOf("<SubPageShell", shellClose);
-      expect(shellOpen, `${slug}: no opening <SubPageShell`).toBeGreaterThan(-1);
+      expect(shellOpen, `${slug}: no opening <SubPageShell`).toBeGreaterThan(
+        -1,
+      );
 
       const body = source.slice(shellOpen, shellClose);
 

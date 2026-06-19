@@ -155,10 +155,7 @@ export interface StressComputeResult {
   /** The 0..100 score to persist, or null when the inputs gate. */
   score: number | null;
   /** Why a null score gated (exposed for the job log + tests). */
-  reason:
-    | "ok"
-    | "insufficient_intraday_samples"
-    | "insufficient_baseline";
+  reason: "ok" | "insufficient_intraday_samples" | "insufficient_baseline";
   /** Number of intra-day SDNN samples found for the scored day. */
   intradaySamples: number;
 }

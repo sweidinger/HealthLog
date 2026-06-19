@@ -14,9 +14,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 
 vi.mock("@/lib/ai/schema", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/ai/schema")>(
-    "@/lib/ai/schema",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/ai/schema")>("@/lib/ai/schema");
   return actual;
 });
 
@@ -84,10 +83,8 @@ describe("fetchAdvisor abort timeout — v1.4.31", () => {
 // in-session despite the 1 h staleTime + focus-refetch-off defaults.
 describe("nextAdvisorPollInterval — bounded revalidation poll", () => {
   it("returns the interval while revalidating is true and under the cap", async () => {
-    const {
-      nextAdvisorPollInterval,
-      ADVISOR_REVALIDATE_POLL_MS,
-    } = await import("../use-insights-advisor");
+    const { nextAdvisorPollInterval, ADVISOR_REVALIDATE_POLL_MS } =
+      await import("../use-insights-advisor");
     expect(nextAdvisorPollInterval(true, 1)).toBe(ADVISOR_REVALIDATE_POLL_MS);
     expect(nextAdvisorPollInterval(true, 5)).toBe(ADVISOR_REVALIDATE_POLL_MS);
   });
@@ -99,10 +96,8 @@ describe("nextAdvisorPollInterval — bounded revalidation poll", () => {
   });
 
   it("stops at the attempt ceiling even while still revalidating", async () => {
-    const {
-      nextAdvisorPollInterval,
-      ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS,
-    } = await import("../use-insights-advisor");
+    const { nextAdvisorPollInterval, ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS } =
+      await import("../use-insights-advisor");
     expect(
       nextAdvisorPollInterval(true, ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS),
     ).toBe(false);

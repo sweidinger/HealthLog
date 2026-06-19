@@ -266,9 +266,9 @@ describe("POST /api/auth/password (real Postgres)", () => {
     // Hit a session-protected endpoint — `apiHandler` raises HttpError(401)
     // which the wrapper converts to a 401 JSON response.
     const { GET } = await import("@/app/api/auth/me/route");
-    const meRes = await (
-      GET as unknown as (req: Request) => Promise<Response>
-    )(new Request("http://localhost/api/auth/me"));
+    const meRes = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/auth/me"),
+    );
     expect(meRes.status).toBe(401);
   });
 });

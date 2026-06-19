@@ -31,7 +31,7 @@ describe("isDashboardSnapshotEnabled", () => {
     expect(isDashboardSnapshotEnabled()).toBe(true);
   });
 
-  it("turns OFF only for the exact string \"false\"", () => {
+  it('turns OFF only for the exact string "false"', () => {
     process.env.NEXT_PUBLIC_DASHBOARD_SNAPSHOT = "false";
     expect(isDashboardSnapshotEnabled()).toBe(false);
   });

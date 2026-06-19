@@ -360,4 +360,3 @@ export async function deleteConversation(
   await prisma.coachConversation.delete({ where: { id: row.id } });
   return true;
 }
-

@@ -13,7 +13,10 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("classifyBmi (WHO)", () => {
   it("underweight < 18.5 (yellow)", () => {
-    expect(classifyBmi(17)).toEqual({ category: "underweight", band: "yellow" });
+    expect(classifyBmi(17)).toEqual({
+      category: "underweight",
+      band: "yellow",
+    });
   });
   it("normal 18.5–24.9 (green)", () => {
     expect(classifyBmi(22)).toEqual({ category: "normal", band: "green" });
@@ -28,22 +31,36 @@ describe("classifyBmi (WHO)", () => {
 
 describe("computeBmi", () => {
   it("insufficient with no height on profile (never reads weight)", async () => {
-    const r = await computeBmi("u1", { ageYears: 40, sex: "MALE", heightCm: null }, { now: NOW });
+    const r = await computeBmi(
+      "u1",
+      { ageYears: 40, sex: "MALE", heightCm: null },
+      { now: NOW },
+    );
     expect(r.status).toBe("insufficient");
-    if (r.status === "insufficient") expect(r.reason).toBe("no_height_on_profile");
+    if (r.status === "insufficient")
+      expect(r.reason).toBe("no_height_on_profile");
     expect(findMany).not.toHaveBeenCalled();
   });
 
   it("insufficient when height present but no recent weight", async () => {
     findMany.mockResolvedValueOnce([]);
-    const r = await computeBmi("u1", { ageYears: 40, sex: "MALE", heightCm: 180 }, { now: NOW });
+    const r = await computeBmi(
+      "u1",
+      { ageYears: 40, sex: "MALE", heightCm: 180 },
+      { now: NOW },
+    );
     expect(r.status).toBe("insufficient");
-    if (r.status === "insufficient") expect(r.reason).toBe("no_weight_in_window");
+    if (r.status === "insufficient")
+      expect(r.reason).toBe("no_weight_in_window");
   });
 
   it("ok exact BMI from weight + height", async () => {
     findMany.mockResolvedValueOnce([{ value: 80 }]);
-    const r = await computeBmi("u1", { ageYears: 40, sex: "MALE", heightCm: 180 }, { now: NOW });
+    const r = await computeBmi(
+      "u1",
+      { ageYears: 40, sex: "MALE", heightCm: 180 },
+      { now: NOW },
+    );
     expect(r.status).toBe("ok");
     if (r.status === "ok") {
       // 80 / 1.8^2 = 24.69 → rounded to 24.7

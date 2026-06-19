@@ -293,9 +293,7 @@ export function isDerivedMetricId(value: string): value is DerivedMetricId {
 }
 
 /** Resolve a derived metric's metadata, or `null` when unregistered. */
-export function getDerivedMetricMeta(
-  metric: string,
-): DerivedMetricMeta | null {
+export function getDerivedMetricMeta(metric: string): DerivedMetricMeta | null {
   return isDerivedMetricId(metric) ? REGISTRY[metric] : null;
 }
 

@@ -94,7 +94,7 @@ describe("MeasurementList — filter bar + multi-select chrome", () => {
     // The shared Checkbox primitive carries data-slot="checkbox".
     const boxes = html.match(/data-slot="checkbox"/g);
     // 1 header select-all + 2 selectable rows (desktop) + 2 rows (mobile).
-    expect((boxes?.length ?? 0)).toBeGreaterThanOrEqual(3);
+    expect(boxes?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(html).toContain('aria-label="Select all on this page"');
     expect(html).toContain('aria-label="Select row"');
   });

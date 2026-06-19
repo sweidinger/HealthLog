@@ -42,10 +42,7 @@ describe("<ProvenanceExplainer>", () => {
 
   it("meets the 44px hit-target floor on the trigger", () => {
     const html = render(
-      <ProvenanceExplainer
-        provenance={PROVENANCE}
-        method="method copy"
-      />,
+      <ProvenanceExplainer provenance={PROVENANCE} method="method copy" />,
     );
     expect(html).toContain("min-h-11");
     expect(html).toContain("min-w-11");

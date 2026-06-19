@@ -107,9 +107,7 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
   const isLoading = isAuthenticated && !persisted;
 
   return (
-    <SettingsCard
-      data-slot="coach-prefs-section"
-    >
+    <SettingsCard data-slot="coach-prefs-section">
       <SettingsCardHeader
         icon={SlidersHorizontal}
         title={t("insights.coach.settingsTitle")}

@@ -177,8 +177,7 @@ describe("<TrendsRow>", () => {
     // flight. The loading flag now propagates to each annotation
     // slot so the user reads a generating-state shimmer instead.
     const html = render(<TrendsRow loading />);
-    const pending =
-      html.match(/data-slot="trend-annotation-pending"/g) ?? [];
+    const pending = html.match(/data-slot="trend-annotation-pending"/g) ?? [];
     expect(pending.length).toBe(3);
     expect(html).not.toContain("Awaiting more data");
   });
@@ -197,8 +196,7 @@ describe("<TrendsRow>", () => {
     expect(html).not.toContain("stale BP");
     expect(html).not.toContain("stale weight");
     expect(html).not.toContain("stale mood");
-    const pending =
-      html.match(/data-slot="trend-annotation-pending"/g) ?? [];
+    const pending = html.match(/data-slot="trend-annotation-pending"/g) ?? [];
     expect(pending.length).toBe(3);
   });
 
@@ -242,7 +240,9 @@ describe("<TrendsRow>", () => {
     expect(html).toMatch(/data-metric="pulse"/);
     expect(html).not.toMatch(/data-slot="trend-annotation-empty"/);
     // The standard caption renders in its place.
-    expect(html).toMatch(/data-slot="trends-row-caption"[^>]*data-metric="pulse"/);
+    expect(html).toMatch(
+      /data-slot="trends-row-caption"[^>]*data-metric="pulse"/,
+    );
     expect(html).toContain("Resting pulse over the last 30 days.");
   });
 
@@ -259,8 +259,7 @@ describe("<TrendsRow>", () => {
     expect(cards.length).toBe(3);
     // None of these additive metrics carries an advisor annotation, so
     // all three captions come through the standard description slot.
-    const captions =
-      html.match(/data-slot="trends-row-caption"/g) ?? [];
+    const captions = html.match(/data-slot="trends-row-caption"/g) ?? [];
     expect(captions.length).toBe(3);
     expect(html).toContain("Heart-rate variability over the last 30 days.");
     expect(html).toContain("Daily step count over the last 30 days.");

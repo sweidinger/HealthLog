@@ -289,12 +289,15 @@ export function SidebarNav() {
       : pathname === href;
   }
 
-  function renderUtilityLink(
-    item: { href: string; tKey: string; icon: typeof Settings },
-  ) {
+  function renderUtilityLink(item: {
+    href: string;
+    tKey: string;
+    icon: typeof Settings;
+  }) {
     const Icon = item.icon;
     const isActive = isUtilityActive(item.href);
-    const tourId = item.href === "/settings/account" ? "nav-settings" : undefined;
+    const tourId =
+      item.href === "/settings/account" ? "nav-settings" : undefined;
     if (collapsed) {
       return (
         <Tooltip key={item.href}>

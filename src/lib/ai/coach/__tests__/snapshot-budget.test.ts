@@ -33,9 +33,9 @@ vi.mock("@/lib/modules/gate", () => ({
   // with the same resolved map the tests drive via `resolveModuleMap`.
   isModuleEnabled: vi.fn(async (...args: [string, ModuleKey]) => {
     const key = args[1];
-    const map = await (resolveModuleMap as unknown as () => Promise<
-      Record<ModuleKey, boolean>
-    >)();
+    const map = await (
+      resolveModuleMap as unknown as () => Promise<Record<ModuleKey, boolean>>
+    )();
     return map[key] !== false;
   }),
 }));

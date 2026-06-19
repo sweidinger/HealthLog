@@ -31,8 +31,7 @@ export const illnessKeys = {
    * (pre-onset scan, nadir, recovery-gap). Server-authoritative; the read
    * is gated, so the surface pattern-matches `status` rather than recomputing.
    */
-  illnessCorrelation: (id: string) =>
-    ["illness", "correlation", id] as const,
+  illnessCorrelation: (id: string) => ["illness", "correlation", id] as const,
   /**
    * v1.18.1 P3 — the cross-episode retrospective summary ("sick N times ·
    * typical recovery gap X days") over a trailing window in days.

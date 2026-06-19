@@ -56,10 +56,9 @@ const pkCalls: Array<{
 }> = [];
 
 vi.mock("@/lib/medications/glp1-pk", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/lib/medications/glp1-pk")>(
-      "@/lib/medications/glp1-pk",
-    );
+  const actual = await vi.importActual<
+    typeof import("@/lib/medications/glp1-pk")
+  >("@/lib/medications/glp1-pk");
   return {
     ...actual,
     computeOneCompartment: (

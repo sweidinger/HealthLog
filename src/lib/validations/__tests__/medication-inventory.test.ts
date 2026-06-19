@@ -103,12 +103,12 @@ describe("medication schemas — dosesPerUnit cap 1000 + unitsPerDose 1–100", 
   });
 
   it("update accepts dosesPerUnit 1000 and rejects 1001", () => {
-    expect(updateMedicationSchema.safeParse({ dosesPerUnit: 1000 }).success).toBe(
-      true,
-    );
-    expect(updateMedicationSchema.safeParse({ dosesPerUnit: 1001 }).success).toBe(
-      false,
-    );
+    expect(
+      updateMedicationSchema.safeParse({ dosesPerUnit: 1000 }).success,
+    ).toBe(true);
+    expect(
+      updateMedicationSchema.safeParse({ dosesPerUnit: 1001 }).success,
+    ).toBe(false);
   });
 
   it("create bounds unitsPerDose to 1–100", () => {
@@ -167,9 +167,9 @@ describe("medication schemas — dosesPerUnit cap 1000 + unitsPerDose 1–100", 
           unitsPerDose: v,
         }).success,
       ).toBe(true);
-      expect(updateMedicationSchema.safeParse({ unitsPerDose: v }).success).toBe(
-        true,
-      );
+      expect(
+        updateMedicationSchema.safeParse({ unitsPerDose: v }).success,
+      ).toBe(true);
     }
   });
 
@@ -196,9 +196,21 @@ describe("medication schemas — dosesPerUnit cap 1000 + unitsPerDose 1–100", 
 
 describe("glp1InventoryPostSchema — the legacy pen-ledger delta keeps ±100", () => {
   it("accepts ±100 and rejects ±101", () => {
-    expect(glp1InventoryPostSchema.safeParse({ delta: 100, reason: "purchased" }).success).toBe(true);
-    expect(glp1InventoryPostSchema.safeParse({ delta: -100, reason: "damaged" }).success).toBe(true);
-    expect(glp1InventoryPostSchema.safeParse({ delta: 101, reason: "purchased" }).success).toBe(false);
-    expect(glp1InventoryPostSchema.safeParse({ delta: -101, reason: "damaged" }).success).toBe(false);
+    expect(
+      glp1InventoryPostSchema.safeParse({ delta: 100, reason: "purchased" })
+        .success,
+    ).toBe(true);
+    expect(
+      glp1InventoryPostSchema.safeParse({ delta: -100, reason: "damaged" })
+        .success,
+    ).toBe(true);
+    expect(
+      glp1InventoryPostSchema.safeParse({ delta: 101, reason: "purchased" })
+        .success,
+    ).toBe(false);
+    expect(
+      glp1InventoryPostSchema.safeParse({ delta: -101, reason: "damaged" })
+        .success,
+    ).toBe(false);
   });
 });

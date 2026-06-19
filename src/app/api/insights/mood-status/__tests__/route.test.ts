@@ -58,9 +58,7 @@ const SESSION_OK = {
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;
 function makeReq(): NextRequest {
-  return new NextRequest(
-    new URL("http://localhost/api/insights/mood-status"),
-  );
+  return new NextRequest(new URL("http://localhost/api/insights/mood-status"));
 }
 
 /** Persisted module-preferences blob for the gated user row. */
@@ -81,9 +79,7 @@ beforeEach(() => {
 describe("GET /api/insights/mood-status — module gate", () => {
   it("200s when the mood module is enabled (default-on, no blob)", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    vi.mocked(prisma.user.findUnique).mockResolvedValue(
-      userRow(null) as never,
-    );
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(userRow(null) as never);
     const res = await callGet(makeReq());
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { text: string } | null };

@@ -57,7 +57,9 @@ export async function findStressScoreCandidates(
   now: Date,
   cap: number,
 ): Promise<string[]> {
-  const since = new Date(now.getTime() - STRESS_SCORE_RECENCY_DAYS * MS_PER_DAY);
+  const since = new Date(
+    now.getTime() - STRESS_SCORE_RECENCY_DAYS * MS_PER_DAY,
+  );
   // Deterministic recency-under-cap: group by user, newest HRV first, `userId`
   // tiebreak. `distinct` + `take` without an order picks an arbitrary set when
   // more than `cap` users qualify; `groupBy` makes the cap take the

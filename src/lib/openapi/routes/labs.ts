@@ -36,13 +36,11 @@ listLabResultsSchema.meta({
     "Query params for the lab-result list: optional `analyte` (exact) + `panel` filters, an inclusive `from`/`to` date range, and `limit` (≤ 500) / `offset` pagination. Defaults to `takenAt` DESC.",
 });
 
-const rangeStatusEnum = z
-  .enum(["in-range", "below", "above", "unknown"])
-  .meta({
-    id: "LabReferenceRangeStatus",
-    description:
-      "Server-computed, NEUTRAL reference-range verdict. `unknown` when the lab reported no usable bounds. Inclusive bounds: a value on the limit reads in-range. The badge that renders this must stay calm and informative — not an alarming red.",
-  });
+const rangeStatusEnum = z.enum(["in-range", "below", "above", "unknown"]).meta({
+  id: "LabReferenceRangeStatus",
+  description:
+    "Server-computed, NEUTRAL reference-range verdict. `unknown` when the lab reported no usable bounds. Inclusive bounds: a value on the limit reads in-range. The badge that renders this must stay calm and informative — not an alarming red.",
+});
 
 const labResultRow = z
   .object({

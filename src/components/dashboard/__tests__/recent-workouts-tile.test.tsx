@@ -40,10 +40,9 @@ let mockResult: {
 };
 
 vi.mock("@/hooks/use-workouts", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/hooks/use-workouts")>(
-      "@/hooks/use-workouts",
-    );
+  const actual = await vi.importActual<typeof import("@/hooks/use-workouts")>(
+    "@/hooks/use-workouts",
+  );
   return {
     ...actual,
     useWorkouts: () => mockResult,

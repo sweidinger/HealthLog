@@ -11,11 +11,11 @@ the env-var pairing is identical across them.
 
 ## Pre-flight — env vars the proxy interacts with
 
-| Variable | Required for | Notes |
-| -------- | ------------ | ----- |
-| `NEXT_PUBLIC_APP_URL` | Every public-facing absolute URL the UI emits | Must match the hostname the proxy serves |
-| `APP_URL` | Server-side absolute URLs from background jobs | Mirror of the above; both must match |
-| `TRUST_PROXY_HOPS` | `X-Forwarded-For` chain trust | Defaults to `1` — one trusted hop |
+| Variable              | Required for                                   | Notes                                    |
+| --------------------- | ---------------------------------------------- | ---------------------------------------- |
+| `NEXT_PUBLIC_APP_URL` | Every public-facing absolute URL the UI emits  | Must match the hostname the proxy serves |
+| `APP_URL`             | Server-side absolute URLs from background jobs | Mirror of the above; both must match     |
+| `TRUST_PROXY_HOPS`    | `X-Forwarded-For` chain trust                  | Defaults to `1` — one trusted hop        |
 
 Set the URL pair to the public origin (`https://your-instance.example.com`)
 and restart the `app` container. The image reads both at startup; no
@@ -28,12 +28,12 @@ chain from the **right**, counting back `TRUST_PROXY_HOPS` entries.
 This guards against a client rotating `X-Forwarded-For` per request
 to defeat IP-based rate limits.
 
-| Topology | `TRUST_PROXY_HOPS` |
-| -------- | ------------------ |
-| App is internet-facing with no proxy | `0` (XFF ignored entirely) |
-| Single proxy in front (Caddy / Traefik / Nginx / Coolify) | `1` (default) |
-| Cloudflare → your proxy → app | `2` |
-| Cloudflare → Coolify-Tunnel → Coolify → app | `3` |
+| Topology                                                  | `TRUST_PROXY_HOPS`         |
+| --------------------------------------------------------- | -------------------------- |
+| App is internet-facing with no proxy                      | `0` (XFF ignored entirely) |
+| Single proxy in front (Caddy / Traefik / Nginx / Coolify) | `1` (default)              |
+| Cloudflare → your proxy → app                             | `2`                        |
+| Cloudflare → Coolify-Tunnel → Coolify → app               | `3`                        |
 
 A misconfigured count logs a one-shot warning to stderr and collapses
 every anonymous caller into one shared rate-limit bucket. Match the
@@ -132,7 +132,7 @@ operator attention:
 
 The following variables are **build-time only** — they are injected
 via `--build-arg` by the `docker-publish` workflow and baked into the
-shipped image. Setting them under Coolify's *Environment Variables*
+shipped image. Setting them under Coolify's _Environment Variables_
 panel has zero effect on the running container, and the stale value
 becomes a misleading artefact next time someone audits the deploy
 config:

@@ -185,13 +185,19 @@ export function DoseHistoryLedger({
     };
   });
 
-  const queryKey = queryKeys.medicationDoseHistory(medicationId, fromIso, toIso);
+  const queryKey = queryKeys.medicationDoseHistory(
+    medicationId,
+    fromIso,
+    toIso,
+  );
 
   const { data, isLoading, isError } = useQuery<LedgerPayload>({
     queryKey,
     queryFn: async () => {
       const search = new URLSearchParams({ from: fromIso, to: toIso });
-      return apiGet<LedgerPayload>(`/api/medications/${medicationId}/dose-history?${search.toString()}`);
+      return apiGet<LedgerPayload>(
+        `/api/medications/${medicationId}/dose-history?${search.toString()}`,
+      );
     },
     staleTime: 15_000,
   });
@@ -542,8 +548,7 @@ function LedgerRowItem({
   const actionable = isSlotActionable(row);
   // A missed slot from an earlier day stays markable, but only through the
   // kebab — the visible button is reserved for doses still in play.
-  const showTakenButton =
-    actionable && (row.status === "upcoming" || isToday);
+  const showTakenButton = actionable && (row.status === "upcoming" || isToday);
   const intake = row.intake;
   const takeBusy = marking === `${row.at}:taken`;
   const skipBusy = marking === `${row.at}:skipped`;
@@ -678,10 +683,7 @@ function LedgerRowItem({
               <MoreVertical aria-hidden="true" className="size-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            data-slot="ledger-row-menu-content"
-          >
+          <DropdownMenuContent align="end" data-slot="ledger-row-menu-content">
             {actionable && !showTakenButton && (
               <DropdownMenuItem
                 onClick={() => onMark(row, "taken")}
@@ -709,9 +711,7 @@ function LedgerRowItem({
             )}
             {canPin && (
               <DropdownMenuItem
-                onClick={() =>
-                  onPin(intake!.id as string, dueContext!.at)
-                }
+                onClick={() => onPin(intake!.id as string, dueContext!.at)}
                 data-slot="ledger-pin"
               >
                 <Link2 aria-hidden="true" className="mr-2 size-4" />
@@ -761,10 +761,7 @@ function LedgerRowItem({
                     {intake.skipped ? (
                       <Check aria-hidden="true" className="mr-2 size-4" />
                     ) : (
-                      <SkipForward
-                        aria-hidden="true"
-                        className="mr-2 size-4"
-                      />
+                      <SkipForward aria-hidden="true" className="mr-2 size-4" />
                     )}
                     {intake.skipped
                       ? t("medications.detail.verlauf.markAsTaken")

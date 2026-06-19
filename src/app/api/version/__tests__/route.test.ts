@@ -35,7 +35,9 @@ describe("GET /api/version", () => {
   it("returns the package.json version", async () => {
     const response = await (GET as unknown as () => Promise<Response>)();
     const body = (await response.json()) as VersionEnvelope;
-    expect(body.data.version).toMatch(/^\d+\.\d+\.\d+(\.\d+)?(-[a-z0-9.-]+)?$/i);
+    expect(body.data.version).toMatch(
+      /^\d+\.\d+\.\d+(\.\d+)?(-[a-z0-9.-]+)?$/i,
+    );
     expect(body.data.license).toBe("PolyForm-Noncommercial-1.0.0");
     expect(body.data.repository).toContain("github.com");
     expect(body.data.changelog).toContain("CHANGELOG");
@@ -75,7 +77,9 @@ describe("GET /api/version", () => {
     process.env.NEXT_PUBLIC_APP_VERSION = "   ";
     const response = await (GET as unknown as () => Promise<Response>)();
     const body = (await response.json()) as VersionEnvelope;
-    expect(body.data.version).toMatch(/^\d+\.\d+\.\d+(\.\d+)?(-[a-z0-9.-]+)?$/i);
+    expect(body.data.version).toMatch(
+      /^\d+\.\d+\.\d+(\.\d+)?(-[a-z0-9.-]+)?$/i,
+    );
   });
 
   it("reports offlineGeoEnabled=false when the GeoLite2 databases are absent", async () => {

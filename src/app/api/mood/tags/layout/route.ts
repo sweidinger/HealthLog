@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { prisma, toJson } from "@/lib/db";
-import {
-  apiSuccess,
-  returnAllZodIssues,
-  safeJson,
-} from "@/lib/api-response";
+import { apiSuccess, returnAllZodIssues, safeJson } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import {

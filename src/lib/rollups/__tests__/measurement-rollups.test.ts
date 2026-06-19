@@ -497,9 +497,7 @@ describe("enqueueRollupRecompute", () => {
     expect(payload.from).toBe(from.toISOString());
     // The singleton key collapses repeat enqueues for the same bucket
     // so a multi-write minute doesn't fan out one worker run per row.
-    expect(opts.singletonKey).toBe(
-      `user-9|PULSE|WEEK|${from.toISOString()}`,
-    );
+    expect(opts.singletonKey).toBe(`user-9|PULSE|WEEK|${from.toISOString()}`);
   });
 });
 
@@ -735,7 +733,7 @@ describe("enqueueBootTimeRollupBackfill", () => {
     const sqlParts = queryRaw.mock.calls[0][0] as TemplateStringsArray;
     const sqlText = Array.isArray(sqlParts) ? sqlParts.join("?") : "";
     // Inner DISTINCT widens to `(user_id, type, bucket_start)`.
-    expect(sqlText).toContain('date_trunc(\'day\', m."measured_at")');
+    expect(sqlText).toContain("date_trunc('day', m.\"measured_at\")");
     // LEFT JOIN now compares bucket_start on both sides.
     expect(sqlText).toContain('r."bucket_start" = mt."bucket_start"');
   });

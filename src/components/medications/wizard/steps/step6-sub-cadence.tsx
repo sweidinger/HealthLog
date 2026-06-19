@@ -173,7 +173,7 @@ function WeekdayChips({ selected, onChange }: WeekdayChipsProps) {
             data-active={isOn ? "true" : "false"}
             onClick={() => toggle(tok)}
             className={[
-              "focus-visible:ring-ring inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2",
+              "focus-visible:ring-ring inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-2 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none",
               isOn
                 ? "bg-primary text-primary-foreground border-primary"
                 : "border-border bg-background text-foreground hover:bg-muted",

@@ -76,19 +76,20 @@ export const MIN_EPISODE_COVERAGE_DAYS = 4;
  * Weight/glucose have no single illness-adverse direction → omitted (their
  * deviation magnitude is still surfaced, direction stays neutral).
  */
-export const ADVERSE_DIRECTION: Partial<Record<MeasurementType, "up" | "down">> =
-  {
-    RESTING_HEART_RATE: "up",
-    PULSE: "up",
-    BODY_TEMPERATURE: "up",
-    SKIN_TEMPERATURE: "up",
-    RESPIRATORY_RATE: "up",
-    BLOOD_PRESSURE_SYS: "up",
-    BLOOD_PRESSURE_DIA: "up",
-    HEART_RATE_VARIABILITY: "down",
-    RECOVERY_SCORE: "down",
-    OXYGEN_SATURATION: "down",
-  };
+export const ADVERSE_DIRECTION: Partial<
+  Record<MeasurementType, "up" | "down">
+> = {
+  RESTING_HEART_RATE: "up",
+  PULSE: "up",
+  BODY_TEMPERATURE: "up",
+  SKIN_TEMPERATURE: "up",
+  RESPIRATORY_RATE: "up",
+  BLOOD_PRESSURE_SYS: "up",
+  BLOOD_PRESSURE_DIA: "up",
+  HEART_RATE_VARIABILITY: "down",
+  RECOVERY_SCORE: "down",
+  OXYGEN_SATURATION: "down",
+};
 
 /**
  * Vitals scanned by the illness engine. Superset of the typical-range set
@@ -316,7 +317,14 @@ export function computeIllnessCorrelation(
   // Only vitals with a trustworthy own-baseline band participate.
   const banded = input.series
     .map((s) => ({ series: s, band: bandFor(s) }))
-    .filter((b): b is { series: VitalSeries; band: { center: number; spread: number } } => b.band !== null);
+    .filter(
+      (
+        b,
+      ): b is {
+        series: VitalSeries;
+        band: { center: number; spread: number };
+      } => b.band !== null,
+    );
 
   const inputs = banded.map((b) => String(b.series.type));
   const provenance = {
@@ -447,8 +455,12 @@ export function computeIllnessCorrelation(
   return buildOk<IllnessCorrelationValue>({
     value: {
       episodeId: input.episodeId,
-      preOnset: preOnset.sort((a, b) => Math.abs(b.deviationSd) - Math.abs(a.deviationSd)),
-      nadir: nadir.sort((a, b) => Math.abs(b.deviationSd) - Math.abs(a.deviationSd)),
+      preOnset: preOnset.sort(
+        (a, b) => Math.abs(b.deviationSd) - Math.abs(a.deviationSd),
+      ),
+      nadir: nadir.sort(
+        (a, b) => Math.abs(b.deviationSd) - Math.abs(a.deviationSd),
+      ),
       returns,
       recoveryGapDays,
       feltBetterDay: window.feltBetterDay,
@@ -526,7 +538,10 @@ function detectRedFlags(input: IllnessCorrelationInput): IllnessRedFlag[] {
   }
   for (const p of input.dayLogFever ?? []) {
     if (!inActive(p)) continue;
-    feverByDay.set(p.day, Math.max(feverByDay.get(p.day) ?? -Infinity, p.feverC));
+    feverByDay.set(
+      p.day,
+      Math.max(feverByDay.get(p.day) ?? -Infinity, p.feverC),
+    );
   }
   if (feverByDay.size > 0) {
     const fevPoints: VitalDayPoint[] = [...feverByDay.entries()].map(

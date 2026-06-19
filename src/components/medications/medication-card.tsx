@@ -299,8 +299,7 @@ export function MedicationCard({
   // `reorderLeadDays` overrides the default. The notice lights at runway
   // ≤ trigger (matching the daily cron), so a weekly med is warned before
   // its last dose, not at it.
-  const lowStockFloor =
-    thresholds == null ? 7 : thresholds.lowStockRunwayDays;
+  const lowStockFloor = thresholds == null ? 7 : thresholds.lowStockRunwayDays;
   const leadDays =
     medication.reorderLeadDays != null
       ? medication.reorderLeadDays
@@ -378,7 +377,10 @@ export function MedicationCard({
   // No due pill, no overdue escalation, ever (structurally there is no
   // schedule, so the window status is already null).
   const asNeededLine = medication.asNeeded ? (
-    <span className="text-muted-foreground" data-slot="medication-as-needed-marker">
+    <span
+      className="text-muted-foreground"
+      data-slot="medication-as-needed-marker"
+    >
       {t("medications.asNeededMarker")}
     </span>
   ) : null;

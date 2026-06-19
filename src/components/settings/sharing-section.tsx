@@ -270,9 +270,7 @@ function ShareLinksCard() {
             </p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="share-expiry">
-              {t("settings.sharing.expiry")}
-            </Label>
+            <Label htmlFor="share-expiry">{t("settings.sharing.expiry")}</Label>
             <Input
               id="share-expiry"
               type="number"

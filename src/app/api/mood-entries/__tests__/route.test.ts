@@ -32,8 +32,8 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn().mockResolvedValue([]),
     },
     auditLog: { create: vi.fn() },
-    $transaction: vi.fn(
-      async (fn: (tx: typeof txClient) => unknown) => fn(txClient),
+    $transaction: vi.fn(async (fn: (tx: typeof txClient) => unknown) =>
+      fn(txClient),
     ),
   },
 }));
@@ -111,8 +111,8 @@ beforeEach(() => {
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
   // Re-establish the interactive-transaction passthrough after the reset.
-  vi.mocked(prisma.$transaction).mockImplementation(
-    async (fn: unknown) => (fn as (tx: typeof txClient) => unknown)(txClient),
+  vi.mocked(prisma.$transaction).mockImplementation(async (fn: unknown) =>
+    (fn as (tx: typeof txClient) => unknown)(txClient),
   );
   txClient.moodEntryTagLink.findMany.mockResolvedValue([]);
   vi.mocked(createTagLinks).mockResolvedValue(undefined);
@@ -148,9 +148,7 @@ describe("GET /api/mood-entries — 422 multi-issue (v1.4.43 W6)", () => {
 
   it("surfaces THREE simultaneous validation errors", async () => {
     // Bad mood + bad sortBy + bad sortDir.
-    const res = await GET(
-      getReq("mood=junk&sortBy=garbage&sortDir=upside"),
-    );
+    const res = await GET(getReq("mood=junk&sortBy=garbage&sortDir=upside"));
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       details: { issues: Array<{ path: string; code: string }> };
@@ -338,9 +336,8 @@ describe("POST /api/mood-entries — entry + tag-links transaction (v1.8.5)", ()
 
     const { auditLog } = await import("@/lib/auth/audit");
     expect(auditLog).not.toHaveBeenCalled();
-    const { recomputeMoodBucketsForEntry } = await import(
-      "@/lib/rollups/mood-rollups"
-    );
+    const { recomputeMoodBucketsForEntry } =
+      await import("@/lib/rollups/mood-rollups");
     expect(recomputeMoodBucketsForEntry).not.toHaveBeenCalled();
   });
 });
@@ -393,7 +390,10 @@ describe("POST /api/mood-entries — rated factors (v1.12.0)", () => {
     );
     expect(res.status).toBe(201);
     const out = (await res.json()) as {
-      data: { tagKeys: string[]; ratedFactors: { key: string; rating: number }[] };
+      data: {
+        tagKeys: string[];
+        ratedFactors: { key: string; rating: number }[];
+      };
     };
     expect(out.data.tagKeys).toEqual(["happy"]);
     expect(out.data.ratedFactors).toEqual([{ key: "factor_work", rating: 4 }]);

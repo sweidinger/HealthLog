@@ -3,10 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import {
-  DEFAULT_ASSISTANT_FLAGS,
-  useFeatureFlags,
-} from "../use-feature-flags";
+import { DEFAULT_ASSISTANT_FLAGS, useFeatureFlags } from "../use-feature-flags";
 
 function Probe() {
   const flags = useFeatureFlags();
@@ -46,22 +43,23 @@ describe("useFeatureFlags", () => {
   it("returns the resolved matrix when the endpoint responds", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            data: {
-              assistant: {
-                enabled: true,
-                coach: false,
-                briefing: true,
-                insightStatus: false,
-                correlations: true,
-                healthScoreExplainer: false,
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              data: {
+                assistant: {
+                  enabled: true,
+                  coach: false,
+                  briefing: true,
+                  insightStatus: false,
+                  correlations: true,
+                  healthScoreExplainer: false,
+                },
               },
-            },
-          }),
-          { status: 200 },
-        ),
+            }),
+            { status: 200 },
+          ),
       ),
     );
 

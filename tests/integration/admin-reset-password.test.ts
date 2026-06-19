@@ -108,9 +108,8 @@ describe("POST /api/admin/users/[id]/reset-password (real Postgres)", () => {
   it("returns 401 when the caller is unauthenticated", async () => {
     const targetId = await seedTargetUser();
 
-    const { POST } = await import(
-      "@/app/api/admin/users/[id]/reset-password/route"
-    );
+    const { POST } =
+      await import("@/app/api/admin/users/[id]/reset-password/route");
     const res = await POST(
       makeRequest(targetId, { password: STRONG_NEW_PW }),
       paramsFor(targetId),
@@ -131,9 +130,8 @@ describe("POST /api/admin/users/[id]/reset-password (real Postgres)", () => {
       },
     });
 
-    const { POST } = await import(
-      "@/app/api/admin/users/[id]/reset-password/route"
-    );
+    const { POST } =
+      await import("@/app/api/admin/users/[id]/reset-password/route");
     const res = await POST(
       makeRequest(targetId, { password: STRONG_NEW_PW }),
       paramsFor(targetId),
@@ -151,9 +149,8 @@ describe("POST /api/admin/users/[id]/reset-password (real Postgres)", () => {
   it("returns 404 when the target user does not exist", async () => {
     await seedCaller("ADMIN");
 
-    const { POST } = await import(
-      "@/app/api/admin/users/[id]/reset-password/route"
-    );
+    const { POST } =
+      await import("@/app/api/admin/users/[id]/reset-password/route");
     const res = await POST(
       makeRequest("user-does-not-exist", { password: STRONG_NEW_PW }),
       paramsFor("user-does-not-exist"),
@@ -169,9 +166,8 @@ describe("POST /api/admin/users/[id]/reset-password (real Postgres)", () => {
 
     const before = await prisma.user.findUnique({ where: { id: targetId } });
 
-    const { POST } = await import(
-      "@/app/api/admin/users/[id]/reset-password/route"
-    );
+    const { POST } =
+      await import("@/app/api/admin/users/[id]/reset-password/route");
     const res = await POST(
       makeRequest(targetId, { password: "password1234" }),
       paramsFor(targetId),
@@ -211,9 +207,8 @@ describe("POST /api/admin/users/[id]/reset-password (real Postgres)", () => {
       },
     });
 
-    const { POST } = await import(
-      "@/app/api/admin/users/[id]/reset-password/route"
-    );
+    const { POST } =
+      await import("@/app/api/admin/users/[id]/reset-password/route");
     const res = await POST(
       makeRequest(targetId, { password: STRONG_NEW_PW }),
       paramsFor(targetId),

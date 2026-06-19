@@ -283,7 +283,6 @@ function GatedUnknownDrug({ medicationName }: { medicationName: string }) {
   );
 }
 
-
 function EmptyState() {
   const { t } = useTranslations();
   return (
@@ -370,50 +369,46 @@ function ChartBody({
         style={{ height: "240px" }}
         data-slot="drug-level-chart-area"
       >
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
-          data={chartData}
-          margin={{ top: 10, right: 12, bottom: 16, left: 8 }}
-        >
-          <defs>
-            <linearGradient
-              id="drug-level-gradient"
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
-              <stop
-                offset="0%"
-                stopColor={CHART_COLOR}
-                stopOpacity={CHART_FILL_OPACITY * 1.4}
-              />
-              <stop
-                offset="100%"
-                stopColor={CHART_COLOR}
-                stopOpacity={0}
-              />
-            </linearGradient>
-          </defs>
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="var(--border)"
-            opacity={0.5}
-          />
-          {/* v1.4.27 MB6 CF-16 — dropped a stray empty `<text>` child
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={chartData}
+            margin={{ top: 10, right: 12, bottom: 16, left: 8 }}
+          >
+            <defs>
+              <linearGradient
+                id="drug-level-gradient"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop
+                  offset="0%"
+                  stopColor={CHART_COLOR}
+                  stopOpacity={CHART_FILL_OPACITY * 1.4}
+                />
+                <stop offset="100%" stopColor={CHART_COLOR} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="var(--border)"
+              opacity={0.5}
+            />
+            {/* v1.4.27 MB6 CF-16 — dropped a stray empty `<text>` child
               that previously declared no content and rendered an
               invisible SVG node beneath the x-axis. */}
-          <XAxis
-            dataKey="dayOffset"
-            type="number"
-            domain={[-windowDays, 0]}
-            ticks={ticks}
-            tickFormatter={(v) => (v === 0 ? "0" : `${v}d`)}
-            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-            tickLine={false}
-            axisLine={false}
-          />
-          {/* Research §2.3 — y-axis is unit-less. We hide tick labels
+            <XAxis
+              dataKey="dayOffset"
+              type="number"
+              domain={[-windowDays, 0]}
+              ticks={ticks}
+              tickFormatter={(v) => (v === 0 ? "0" : `${v}d`)}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              tickLine={false}
+              axisLine={false}
+            />
+            {/* Research §2.3 — y-axis is unit-less. We hide tick labels
               and the axis line entirely; the human-readable label sits
               outside the chart frame, above. The `tick={false}` flag
               suppresses the textual ticks per Recharts. v1.4.27 MB6
@@ -422,33 +417,33 @@ function ChartBody({
               `width={1}` axis, where it could never be read. The
               external `<p>` above the chart is the single source of
               truth for the caption. */}
-          <YAxis
-            domain={[0, "auto"]}
-            tick={false}
-            tickLine={false}
-            axisLine={false}
-            width={1}
-          />
-          <Tooltip
-            content={() => null}
-            cursor={{
-              stroke: "var(--muted-foreground)",
-              strokeOpacity: 0.3,
-              strokeDasharray: "3 3",
-            }}
-          />
-          <Area
-            type="monotone"
-            dataKey="level"
-            stroke={CHART_COLOR}
-            strokeWidth={2}
-            fill="url(#drug-level-gradient)"
-            isAnimationActive={animationsEnabled}
-            animationDuration={animationsEnabled ? 600 : 0}
-            animationEasing="ease-out"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+            <YAxis
+              domain={[0, "auto"]}
+              tick={false}
+              tickLine={false}
+              axisLine={false}
+              width={1}
+            />
+            <Tooltip
+              content={() => null}
+              cursor={{
+                stroke: "var(--muted-foreground)",
+                strokeOpacity: 0.3,
+                strokeDasharray: "3 3",
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="level"
+              stroke={CHART_COLOR}
+              strokeWidth={2}
+              fill="url(#drug-level-gradient)"
+              isAnimationActive={animationsEnabled}
+              animationDuration={animationsEnabled ? 600 : 0}
+              animationEasing="ease-out"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </>
   );

@@ -35,8 +35,10 @@ import {
 } from "@/lib/rollups/measurement-coverage";
 import { computeBpInTargetFastPath } from "../bp-in-target-fast-path";
 
-const MEASUREMENT_FIND_MANY = prisma.measurement.findMany as unknown as ReturnType<typeof vi.fn>;
-const ROLLUP_FIND_MANY = prisma.measurementRollup.findMany as unknown as ReturnType<typeof vi.fn>;
+const MEASUREMENT_FIND_MANY = prisma.measurement
+  .findMany as unknown as ReturnType<typeof vi.fn>;
+const ROLLUP_FIND_MANY = prisma.measurementRollup
+  .findMany as unknown as ReturnType<typeof vi.fn>;
 const PROBE = probeRollupCoverage as unknown as ReturnType<typeof vi.fn>;
 const FULLY_COVERED = isFullyCovered as unknown as ReturnType<typeof vi.fn>;
 const ANNOTATE = annotate as unknown as ReturnType<typeof vi.fn>;
@@ -223,11 +225,18 @@ describe("computeBpInTargetFastPath", () => {
 
       // First findMany = SYS rows, second = DIA rows.
       MEASUREMENT_FIND_MANY.mockResolvedValueOnce([
-        { id: "1", measuredAt: new Date("2026-05-15T08:00:00.000Z"), value: 122 },
-      ])
-        .mockResolvedValueOnce([
-          { id: "2", measuredAt: new Date("2026-05-15T08:00:00.000Z"), value: 76 },
-        ]);
+        {
+          id: "1",
+          measuredAt: new Date("2026-05-15T08:00:00.000Z"),
+          value: 122,
+        },
+      ]).mockResolvedValueOnce([
+        {
+          id: "2",
+          measuredAt: new Date("2026-05-15T08:00:00.000Z"),
+          value: 76,
+        },
+      ]);
 
       const result = await computeBpInTargetFastPath({
         userId: "user-partial",

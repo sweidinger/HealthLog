@@ -59,8 +59,7 @@ interface SettingsSectionFrameSlugProps extends SettingsSectionFrameBaseProps {
  * an optional heading id. This lets `ModuleSettingsFrame` delegate here so
  * every settings page shares one heading frame.
  */
-interface SettingsSectionFrameExplicitProps
-  extends SettingsSectionFrameBaseProps {
+interface SettingsSectionFrameExplicitProps extends SettingsSectionFrameBaseProps {
   title: string;
   subtitle: string;
   /** Heading element id (defaults to a stable slug-less id). */

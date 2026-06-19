@@ -70,7 +70,10 @@ vi.mock("@/lib/ai/coach/persistence", () => ({
   appendMessage: vi.fn(),
   createConversation: vi.fn(),
   fetchConversationWithMessages: vi.fn(),
-  listConversations: vi.fn(async () => ({ conversations: [], nextCursor: null })),
+  listConversations: vi.fn(async () => ({
+    conversations: [],
+    nextCursor: null,
+  })),
 }));
 vi.mock("@/lib/ai/coach/coach-memory-shared", () => ({
   enqueueCoachMemoryRefresh: vi.fn(),
@@ -82,12 +85,16 @@ vi.mock("@/lib/ai/coach/budget", () => ({
   recordSpend: vi.fn(),
 }));
 vi.mock("@/lib/ai/coach/refusal", () => ({ detectRefusal: vi.fn() }));
-vi.mock("@/lib/ai/coach/system-prompt", () => ({ getCoachSystemPrompt: vi.fn() }));
+vi.mock("@/lib/ai/coach/system-prompt", () => ({
+  getCoachSystemPrompt: vi.fn(),
+}));
 vi.mock("@/lib/ai/coach/about-me", () => ({
   getSelfContextTextForUser: vi.fn(),
 }));
 vi.mock("@/lib/ai/coach/snapshot", () => ({ buildCoachSnapshot: vi.fn() }));
-vi.mock("@/lib/ai/coach/keyvalues", () => ({ parseKeyValuesSentinel: vi.fn() }));
+vi.mock("@/lib/ai/coach/keyvalues", () => ({
+  parseKeyValuesSentinel: vi.fn(),
+}));
 vi.mock("@/lib/validations/coach-prefs", () => ({ parseCoachPrefs: vi.fn() }));
 vi.mock("@/lib/sse/create-stream", () => ({ createSseStream: vi.fn() }));
 

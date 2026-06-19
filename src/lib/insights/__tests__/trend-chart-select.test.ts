@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import type {
-  DailyBriefing,
-  DailyBriefingKeyFinding,
-} from "@/lib/ai/schema";
+import type { DailyBriefing, DailyBriefingKeyFinding } from "@/lib/ai/schema";
 import {
   selectTrendCharts,
   DEFAULT_TREND_CHART_CAP,
@@ -61,9 +58,7 @@ describe("selectTrendCharts", () => {
   });
 
   it("dedupes repeated metrics, keeping first-seen order", () => {
-    const charts = selectTrendCharts(
-      briefing(["bp", "weight", "bp", "pulse"]),
-    );
+    const charts = selectTrendCharts(briefing(["bp", "weight", "bp", "pulse"]));
     expect(charts.map((c) => c.metric)).toEqual(["bp", "weight", "pulse"]);
   });
 
@@ -108,9 +103,7 @@ describe("selectTrendCharts", () => {
   });
 
   it("carries an annotation key only for the legacy triple", () => {
-    const charts = selectTrendCharts(
-      briefing(["bp", "weight", "mood"]),
-    );
+    const charts = selectTrendCharts(briefing(["bp", "weight", "mood"]));
     expect(charts.map((c) => c.annotationKey)).toEqual([
       "bp",
       "weight",
@@ -144,10 +137,9 @@ describe("selectTrendCharts", () => {
       if (!config) continue;
       if (config.kind === "health-chart") {
         expect(config.types.length, `${metric} types`).toBeGreaterThan(0);
-        expect(
-          config.colors.length,
-          `${metric} colors`,
-        ).toBeGreaterThanOrEqual(config.types.length);
+        expect(config.colors.length, `${metric} colors`).toBeGreaterThanOrEqual(
+          config.types.length,
+        );
       }
     }
   });

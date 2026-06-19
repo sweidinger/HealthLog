@@ -73,7 +73,9 @@ describe("<GlucoseClinicalPanel> learning state", () => {
       measuredAt: new Date(NOW.getTime() - (4 - i) * DAY),
       mgdl,
     }));
-    const glucoseClinical = computeGlucoseClinicalMetrics(readings, { now: NOW });
+    const glucoseClinical = computeGlucoseClinicalMetrics(readings, {
+      now: NOW,
+    });
     expect(glucoseClinical.stillLearning).toBe(true);
 
     analyticsMock.mockReturnValue({
@@ -85,7 +87,7 @@ describe("<GlucoseClinicalPanel> learning state", () => {
     expect(html).toContain('data-state="learning"');
     expect(html).toContain("Still learning your glucose");
     // the asserted blocks must NOT be present in the learning state
-    expect(html).not.toContain("data-slot=\"glucose-tir-bar\"");
+    expect(html).not.toContain('data-slot="glucose-tir-bar"');
     expect(html).not.toContain("Glucose Management Indicator");
     // the spot-reading caveat is always carried
     expect(html).toContain("spot-reading estimates");
@@ -115,7 +117,10 @@ describe("<GlucoseClinicalPanel> asserted state", () => {
       measuredAt: new Date(NOW.getTime() - (values.length - 1 - i) * DAY),
       mgdl,
     }));
-    return computeGlucoseClinicalMetrics(readings, { now: NOW, windowDays: 30 });
+    return computeGlucoseClinicalMetrics(readings, {
+      now: NOW,
+      windowDays: 30,
+    });
   }
 
   it("renders TIR bar, GMI, eA1C, a CV badge, and the advanced disclosure", () => {
@@ -140,7 +145,7 @@ describe("<GlucoseClinicalPanel> asserted state", () => {
     expect(html).toContain('data-slot="glucose-cv-badge"');
     // advanced disclosure trigger is present (region collapsed by default in SSR)
     expect(html).toContain('data-slot="glucose-advanced-toggle"');
-    expect(html).toContain("aria-expanded=\"false\"");
+    expect(html).toContain('aria-expanded="false"');
     expect(html).toContain("J-index");
   });
 
@@ -169,7 +174,10 @@ describe("<GlucoseClinicalPanel> asserted state", () => {
   });
 
   it("renders nothing when the thick slice carries no glucoseClinical", () => {
-    analyticsMock.mockReturnValue({ isLoading: false, data: { summaries: {} } });
+    analyticsMock.mockReturnValue({
+      isLoading: false,
+      data: { summaries: {} },
+    });
     const html = render(<GlucoseClinicalPanel />);
     expect(html).toBe("");
   });

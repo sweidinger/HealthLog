@@ -213,7 +213,8 @@ describe("DELETE /api/share-links/[id] — revoke", () => {
       params: Promise.resolve({ id: "link-1" }),
     });
     expect(res.status).toBe(200);
-    const arg = vi.mocked(prisma.clinicianShareLink.updateMany).mock.calls[0][0];
+    const arg = vi.mocked(prisma.clinicianShareLink.updateMany).mock
+      .calls[0][0];
     expect(arg.where).toEqual({
       id: "link-1",
       userId: "user-1",

@@ -17,10 +17,7 @@
  * in-app tour re-entry trigger.
  */
 import { describe, expect, it } from "vitest";
-import {
-  tourReferrerKey,
-  tourSessionDismissedKey,
-} from "../tour-launcher";
+import { tourReferrerKey, tourSessionDismissedKey } from "../tour-launcher";
 
 describe("tour-launcher sessionStorage key scoping", () => {
   it("scopes the dismiss key by user id", () => {

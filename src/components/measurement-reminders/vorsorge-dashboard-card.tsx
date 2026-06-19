@@ -65,8 +65,9 @@ export function VorsorgeDashboardCard() {
   const { satisfy } = useMeasurementReminderMutations();
   const [now] = useState(() => Date.now());
   const [capturing, setCapturing] = useState<MeasurementReminder | null>(null);
-  const [captureFooterEl, setCaptureFooterEl] =
-    useState<HTMLDivElement | null>(null);
+  const [captureFooterEl, setCaptureFooterEl] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   // Active reminders only (the manage toggles hide disabled ones from the
   // summary), most-urgent first as the API already sorts them.
@@ -126,39 +127,41 @@ export function VorsorgeDashboardCard() {
                   className="flex items-center justify-between gap-3"
                 >
                   <li>
-                  <div className="min-w-0 space-y-1">
-                    <p className="truncate text-sm font-medium">
-                      {resolveLabel(reminder, t)}
-                    </p>
-                    <Badge variant="secondary" className="text-xs">
-                      {t(`measurementReminders.${due.key}`, { days: due.days })}
-                    </Badge>
-                    {/* v1.18.7 (Wave E) — discreet 7-day strip under the
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate text-sm font-medium">
+                        {resolveLabel(reminder, t)}
+                      </p>
+                      <Badge variant="secondary" className="text-xs">
+                        {t(`measurementReminders.${due.key}`, {
+                          days: due.days,
+                        })}
+                      </Badge>
+                      {/* v1.18.7 (Wave E) — discreet 7-day strip under the
                         metric context; renders nothing for a free-text
                         reminder or a too-thin window. */}
-                    <VorsorgeTrendStrip
-                      measurementType={reminder.measurementType}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    size="default"
-                    className="min-h-11 shrink-0 sm:min-h-9"
-                    onClick={() => onPrimaryAction(reminder)}
-                    disabled={satisfy.isPending}
-                  >
-                    {isLinked ? (
-                      <>
-                        <Plus className="h-4 w-4" />
-                        {t("measurementReminders.captureValue")}
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4" />
-                        {t("measurementReminders.markDone")}
-                      </>
-                    )}
-                  </Button>
+                      <VorsorgeTrendStrip
+                        measurementType={reminder.measurementType}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="default"
+                      className="min-h-11 shrink-0 sm:min-h-9"
+                      onClick={() => onPrimaryAction(reminder)}
+                      disabled={satisfy.isPending}
+                    >
+                      {isLinked ? (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          {t("measurementReminders.captureValue")}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          {t("measurementReminders.markDone")}
+                        </>
+                      )}
+                    </Button>
                   </li>
                 </ListRow>
               );

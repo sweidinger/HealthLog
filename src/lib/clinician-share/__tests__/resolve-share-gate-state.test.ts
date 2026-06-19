@@ -58,7 +58,9 @@ describe("resolveShareGateState", () => {
   });
 
   it("returns null for an expired link", async () => {
-    findUnique.mockResolvedValue(row({ expiresAt: new Date(Date.now() - 1000) }));
+    findUnique.mockResolvedValue(
+      row({ expiresAt: new Date(Date.now() - 1000) }),
+    );
     expect(await resolveShareGateState(VALID_TOKEN)).toBeNull();
   });
 

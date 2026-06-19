@@ -69,10 +69,7 @@ export function ChartSkeleton({
   const [showSlowHint, setShowSlowHint] = useState(false);
   useEffect(() => {
     if (mini) return undefined;
-    const handle = setTimeout(
-      () => setShowSlowHint(true),
-      SLOW_HINT_DELAY_MS,
-    );
+    const handle = setTimeout(() => setShowSlowHint(true), SLOW_HINT_DELAY_MS);
     return () => clearTimeout(handle);
   }, [mini]);
 

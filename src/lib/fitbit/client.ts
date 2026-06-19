@@ -54,7 +54,8 @@ export interface FitbitCredentials {
 function getRedirectUri(): string {
   const explicit = process.env.FITBIT_REDIRECT_URI;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  const raw = explicit ?? (appUrl ? `${appUrl}/api/fitbit/callback` : undefined);
+  const raw =
+    explicit ?? (appUrl ? `${appUrl}/api/fitbit/callback` : undefined);
 
   if (!raw) {
     throw new Error(
@@ -74,7 +75,10 @@ function getRedirectUri(): string {
     parsed.hostname === "127.0.0.1" ||
     parsed.hostname === "[::1]" ||
     parsed.hostname === "::1";
-  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLoopback)) {
+  if (
+    parsed.protocol !== "https:" &&
+    !(parsed.protocol === "http:" && isLoopback)
+  ) {
     throw new Error(
       `Fitbit redirect_uri must be https (or http on localhost): ${parsed.origin}`,
     );
@@ -510,7 +514,9 @@ export async function fetchDataPoints(
       },
     );
 
-    const json = (await res.json().catch(() => null)) as FitbitDataPointPage | null;
+    const json = (await res
+      .json()
+      .catch(() => null)) as FitbitDataPointPage | null;
     const verdict = classifyFitbitResponse(res.status);
     getEvent()?.addExternalCall({
       service: "fitbit",
@@ -591,10 +597,7 @@ export type FitbitSleepStage =
  * the small set of shapes the field is likely to take (a bare `value`, a typed
  * sub-object, a `{ value: { fpVal } }` wrapper, …); the first finite hit wins.
  */
-function firstNumber(
-  point: FitbitDataPoint,
-  paths: string[],
-): number | null {
+function firstNumber(point: FitbitDataPoint, paths: string[]): number | null {
   for (const path of paths) {
     const v = readPath(point, path);
     if (positive(v)) return v;
@@ -660,7 +663,10 @@ function resolveMeasuredAt(
       const d = new Date(t);
       if (!Number.isNaN(d.getTime())) return d;
     }
-    const civil = readPath(point, `${dataType.filter}.interval.civil_start_time`);
+    const civil = readPath(
+      point,
+      `${dataType.filter}.interval.civil_start_time`,
+    );
     if (typeof civil === "string") {
       const d = new Date(civil);
       if (!Number.isNaN(d.getTime())) return d;
@@ -685,7 +691,10 @@ function resolveMeasuredAt(
  * field-tag this makes the upsert key idempotent across re-fetches (a re-sync of
  * the same window overwrites in place rather than minting a duplicate).
  */
-function externalAnchor(point: FitbitDataPoint, dataType: FitbitDataType): string {
+function externalAnchor(
+  point: FitbitDataPoint,
+  dataType: FitbitDataType,
+): string {
   const at = resolveMeasuredAt(point, dataType, new Date(0));
   // The mapper-driven interval types (steps/distance/calories/floors) are daily
   // totals, so they share the civil-day externalId grain with `date` summaries —
@@ -705,7 +714,13 @@ function externalAnchor(point: FitbitDataPoint, dataType: FitbitDataType): strin
 function mapSimple(
   point: FitbitDataPoint,
   dataType: FitbitDataType,
-  spec: { type: string; unit: string; fieldTag: string; valuePaths: string[]; factor?: number },
+  spec: {
+    type: string;
+    unit: string;
+    fieldTag: string;
+    valuePaths: string[];
+    factor?: number;
+  },
 ): FitbitMappedMeasurement[] {
   let value = firstNumber(point, spec.valuePaths);
   if (value === null) return [];
@@ -813,7 +828,9 @@ export function mapRespiratoryRate(
   });
 }
 
-export function mapHeartRate(point: FitbitDataPoint): FitbitMappedMeasurement[] {
+export function mapHeartRate(
+  point: FitbitDataPoint,
+): FitbitMappedMeasurement[] {
   const dt = FITBIT_DATA_TYPES.heartRate;
   return mapSimple(point, dt, {
     type: "PULSE",
@@ -875,7 +892,12 @@ export const FITBIT_FIELD_MAP: Record<
     filter: "weight",
     note: "picker ranks a real Withings scale above Fitbit",
   },
-  bodyFat: { type: "BODY_FAT", unit: "%", path: "body-fat", filter: "body_fat" },
+  bodyFat: {
+    type: "BODY_FAT",
+    unit: "%",
+    path: "body-fat",
+    filter: "body_fat",
+  },
   oxygenSaturation: {
     type: "OXYGEN_SATURATION",
     unit: "%",
@@ -1047,7 +1069,10 @@ export function mapSteps(point: FitbitDataPoint): FitbitMappedMeasurement[] {
     type: "ACTIVITY_STEPS",
     unit: "steps",
     fieldTag: "steps",
-    valuePaths: [...valuePaths(dt.filter, "count"), ...valuePaths(dt.filter, "steps")],
+    valuePaths: [
+      ...valuePaths(dt.filter, "count"),
+      ...valuePaths(dt.filter, "steps"),
+    ],
   });
 }
 
@@ -1055,10 +1080,7 @@ export function mapDistance(point: FitbitDataPoint): FitbitMappedMeasurement[] {
   const dt = FITBIT_DATA_TYPES.distance;
   // Google may report metres or kilometres; prefer the explicit-metres field,
   // else convert km → m. Both pass the non-negative guard.
-  const meters = firstNonNegativeNumber(
-    point,
-    valuePaths(dt.filter, "meters"),
-  );
+  const meters = firstNonNegativeNumber(point, valuePaths(dt.filter, "meters"));
   if (meters !== null) {
     return [
       {
@@ -1104,7 +1126,10 @@ export function mapFloors(point: FitbitDataPoint): FitbitMappedMeasurement[] {
     type: "FLIGHTS_CLIMBED",
     unit: "flights",
     fieldTag: "floors",
-    valuePaths: [...valuePaths(dt.filter, "count"), ...valuePaths(dt.filter, "floors")],
+    valuePaths: [
+      ...valuePaths(dt.filter, "count"),
+      ...valuePaths(dt.filter, "floors"),
+    ],
   });
 }
 
@@ -1152,8 +1177,15 @@ const FITBIT_SLEEP_STAGE_MAP: Record<string, FitbitSleepStage> = {
  */
 export function mapFitbitSleepStage(raw: unknown): FitbitSleepStage | null {
   if (typeof raw !== "string") return null;
-  const key = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  return FITBIT_SLEEP_STAGE_MAP[key] ?? FITBIT_SLEEP_STAGE_MAP[key.replace(/_/g, "")] ?? null;
+  const key = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  return (
+    FITBIT_SLEEP_STAGE_MAP[key] ??
+    FITBIT_SLEEP_STAGE_MAP[key.replace(/_/g, "")] ??
+    null
+  );
 }
 
 /** One sleep-stage segment pulled defensively off a Google sleep session. */
@@ -1331,7 +1363,10 @@ const FITBIT_EXERCISE_TYPE_MAP: Record<string, string> = {
 /** Resolve a Google exercise activity type to a canonical sport label. */
 export function mapFitbitSportType(raw: unknown): string {
   if (typeof raw !== "string" || raw.trim() === "") return "other";
-  const key = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const key = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
   return (
     FITBIT_EXERCISE_TYPE_MAP[key] ??
     FITBIT_EXERCISE_TYPE_MAP[key.replace(/_/g, "")] ??
@@ -1402,7 +1437,9 @@ export function mapWorkout(point: FitbitDataPoint): FitbitMappedWorkout | null {
   ]);
   if (!startedAt || !endedAt || endedAt <= startedAt) return null;
 
-  const durationSec = Math.round((endedAt.getTime() - startedAt.getTime()) / 1000);
+  const durationSec = Math.round(
+    (endedAt.getTime() - startedAt.getTime()) / 1000,
+  );
 
   const sessionId =
     (typeof readPath(point, `${f}.session_id`) === "string" &&
@@ -1453,7 +1490,8 @@ export function mapWorkout(point: FitbitDataPoint): FitbitMappedWorkout | null {
     endedAt,
     durationSec,
     totalEnergyKcal: energyKcal !== null ? Math.round(energyKcal) : null,
-    totalDistanceM: distanceM !== null && distanceM >= 0 ? round2(distanceM) : null,
+    totalDistanceM:
+      distanceM !== null && distanceM >= 0 ? round2(distanceM) : null,
     avgHeartRate: avgHr !== null && avgHr > 0 ? Math.round(avgHr) : null,
     maxHeartRate: maxHr !== null && maxHr > 0 ? Math.round(maxHr) : null,
     minHeartRate: minHr !== null && minHr > 0 ? Math.round(minHr) : null,

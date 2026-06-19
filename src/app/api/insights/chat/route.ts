@@ -571,7 +571,8 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       prisma,
       userId,
       cadence: suggestParse.cadence,
-      prefs: coachPrefs.reminderSuggestions ?? DEFAULT_REMINDER_SUGGESTION_PREFS,
+      prefs:
+        coachPrefs.reminderSuggestions ?? DEFAULT_REMINDER_SUGGESTION_PREFS,
     });
     if (decision.surface) {
       const cadence = suggestParse.cadence;
@@ -613,9 +614,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   }
   const enrichedProvenance: typeof snapshot.provenance = {
     ...snapshot.provenance,
-    ...(sentinel.keyValues.length > 0
-      ? { keyValues: sentinel.keyValues }
-      : {}),
+    ...(sentinel.keyValues.length > 0 ? { keyValues: sentinel.keyValues } : {}),
     ...(surfacedSuggestion ? { suggestion: surfacedSuggestion } : {}),
   };
   if (sentinel.malformed) {

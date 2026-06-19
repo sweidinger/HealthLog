@@ -106,7 +106,9 @@ describe("createTagLinks with rated factors", () => {
     ]);
     expect(linkCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: [{ moodEntryId: "entry-1", moodTagId: "mt_factor_work", rating: 5 }],
+        data: [
+          { moodEntryId: "entry-1", moodTagId: "mt_factor_work", rating: 5 },
+        ],
       }),
     );
   });
@@ -163,7 +165,10 @@ describe("replaceTagLinks — archived-tag links survive an entry edit", () => {
   });
 
   it("removes an active tag the body dropped", async () => {
-    linkFindMany.mockResolvedValue([link("mt_happy", true), link("mt_tired", true)]);
+    linkFindMany.mockResolvedValue([
+      link("mt_happy", true),
+      link("mt_tired", true),
+    ]);
     moodTagFindMany.mockResolvedValue([{ id: "mt_happy" }]);
 
     await replaceTagLinks("entry-1", "user-1", ["happy"]);

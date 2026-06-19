@@ -125,10 +125,7 @@ export function aggregateRows(
     .sort((a, b) => a.bucketStart.getTime() - b.bucketStart.getTime());
 }
 
-function bucketStartFor(
-  d: Date,
-  grain: "daily" | "weekly" | "monthly",
-): Date {
+function bucketStartFor(d: Date, grain: "daily" | "weekly" | "monthly"): Date {
   if (grain === "daily") {
     return new Date(
       Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),

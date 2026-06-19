@@ -70,7 +70,6 @@ function deriveDrugNames(raw: string): { display: string; generic: string } {
   return { display, generic };
 }
 
-
 function parseDaysOfWeek(raw: string | null): number[] {
   if (!raw) return [];
   return raw
@@ -437,4 +436,3 @@ export async function buildGlp1SnapshotBlock(
     medications,
   };
 }
-

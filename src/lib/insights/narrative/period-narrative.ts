@@ -227,12 +227,16 @@ function factorDailyMeans(
   links: FactorLink[],
   tz: string,
 ): Map<string, DailySeriesPoint[]> {
-  const byFactor = new Map<string, Map<string, { sum: number; count: number }>>();
+  const byFactor = new Map<
+    string,
+    Map<string, { sum: number; count: number }>
+  >();
   for (const l of links) {
     if (!Number.isFinite(l.rating)) continue;
     const value = l.inverse ? l.scaleMin + l.scaleMax - l.rating : l.rating;
     const day = tzDayKey(l.at, tz);
-    const days = byFactor.get(l.key) ?? new Map<string, { sum: number; count: number }>();
+    const days =
+      byFactor.get(l.key) ?? new Map<string, { sum: number; count: number }>();
     const acc = days.get(day) ?? { sum: 0, count: 0 };
     acc.sum += value;
     acc.count += 1;
@@ -476,7 +480,8 @@ function computeCoincidentFlags(
       const band = bands.get(type);
       if (!band) continue;
       if (value > band.high) contributing.push({ type, direction: "above" });
-      else if (value < band.low) contributing.push({ type, direction: "below" });
+      else if (value < band.low)
+        contributing.push({ type, direction: "below" });
     }
     if (contributing.length >= COINCIDENT_FIRE_THRESHOLD) {
       flags.push({ day, vitals: contributing });

@@ -7,7 +7,11 @@ function row(
   analyte: string,
   unit: string,
   takenAt: string,
-  opts: { low?: number | null; high?: number | null; panel?: string | null } = {},
+  opts: {
+    low?: number | null;
+    high?: number | null;
+    panel?: string | null;
+  } = {},
 ) {
   return {
     id,

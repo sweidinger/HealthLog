@@ -102,7 +102,7 @@ describe("GET /api/gamification/achievements — achievements module gate", () =
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(requireModuleEnabled).mockResolvedValue({
       enabled: false,
-      response: apiError("Module \"achievements\" is not enabled", 403, {
+      response: apiError('Module "achievements" is not enabled', 403, {
         errorCode: "module.disabled",
         module: "achievements",
       }),
@@ -216,8 +216,7 @@ describe("GET /api/gamification/achievements — per-module badge skipping", () 
     // A mood badge would unlock at >=1 entry; with mood OFF the createMany
     // must carry no mood achievement row.
     await badgesFor({ mood: false });
-    const createCalls = vi.mocked(prisma.userAchievement.createMany).mock
-      .calls;
+    const createCalls = vi.mocked(prisma.userAchievement.createMany).mock.calls;
     for (const [arg] of createCalls) {
       const rows = (arg as { data: Array<{ achievementId: string }> }).data;
       expect(rows.some((r) => r.achievementId.includes("mood"))).toBe(false);

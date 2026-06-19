@@ -62,7 +62,9 @@ export async function storeOuraClientCredentials(
 }
 
 /** Clear the user's stored Oura OAuth client id/secret. */
-export async function clearOuraClientCredentials(userId: string): Promise<void> {
+export async function clearOuraClientCredentials(
+  userId: string,
+): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
     data: {

@@ -33,7 +33,7 @@ vi.mock("@/lib/db", () => ({
       // calls land on the same vi.fn instances.
       if (typeof fn === "function") {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (fn as any)((prisma as unknown as { workout: unknown }));
+        return (fn as any)(prisma as unknown as { workout: unknown });
       }
     }),
   },
@@ -103,7 +103,10 @@ function makeRequest(
   });
 }
 
-function validWorkout(externalId: string, overrides: Record<string, unknown> = {}) {
+function validWorkout(
+  externalId: string,
+  overrides: Record<string, unknown> = {},
+) {
   return {
     sportType: "running",
     startedAt: "2026-05-14T06:30:00.000Z",
@@ -583,9 +586,7 @@ describe("POST /api/workouts/batch — PR detection enqueue (v1.4.25 W16c)", () 
   });
 
   it("propagates silent=true when the batch exceeds the historical threshold", async () => {
-    const big = Array.from({ length: 51 }, (_, i) =>
-      validWorkout(`uuid-${i}`),
-    );
+    const big = Array.from({ length: 51 }, (_, i) => validWorkout(`uuid-${i}`));
     vi.mocked(prisma.workout.createMany).mockResolvedValue({ count: 51 });
     const res = await POST(makeRequest({ workouts: big }));
     expect(res.status).toBe(200);

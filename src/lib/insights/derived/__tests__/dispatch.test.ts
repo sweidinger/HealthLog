@@ -41,7 +41,9 @@ describe("registry", () => {
     expect(getDerivedMetricMeta("BMI")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("SLEEP_SCORE")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("READINESS")?.implemented).toBe(true);
-    expect(getDerivedMetricMeta("COINCIDENT_DEVIATION")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("COINCIDENT_DEVIATION")?.implemented).toBe(
+      true,
+    );
     expect(getDerivedMetricMeta("RECOVERY_SCORE")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("STRESS_SCORE")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("STRAIN_SCORE")?.implemented).toBe(true);
@@ -54,7 +56,9 @@ describe("registry", () => {
     expect(
       getDerivedMetricMeta("STAIR_DESCENT_SPEED_BASELINE")?.implemented,
     ).toBe(true);
-    expect(getDerivedMetricMeta("SIX_MINUTE_WALK_BAND")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("SIX_MINUTE_WALK_BAND")?.implemented).toBe(
+      true,
+    );
     expect(getDerivedMetricMeta("TRAJECTORY")?.implemented).toBe(true);
   });
 

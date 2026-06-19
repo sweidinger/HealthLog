@@ -269,7 +269,11 @@ export const webhookSettingsSchema = z.object({
  * the only per-user value is the recipient address.
  */
 export const emailSettingsSchema = z.object({
-  recipient: z.email("Ungültige E-Mail-Adresse").max(254).optional().or(z.literal("")),
+  recipient: z
+    .email("Ungültige E-Mail-Adresse")
+    .max(254)
+    .optional()
+    .or(z.literal("")),
   enabled: z.boolean(),
 });
 

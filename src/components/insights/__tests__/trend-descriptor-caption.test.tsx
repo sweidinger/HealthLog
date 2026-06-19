@@ -24,9 +24,7 @@ vi.mock("@/hooks/use-auth", () => ({
 
 import { TrendDescriptorCaption } from "../trend-annotation";
 
-function seededClient(
-  seed: (client: QueryClient) => void,
-): QueryClient {
+function seededClient(seed: (client: QueryClient) => void): QueryClient {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -34,7 +32,11 @@ function seededClient(
   return client;
 }
 
-function render(client: QueryClient, node: React.ReactNode, locale: "en" | "de" = "en") {
+function render(
+  client: QueryClient,
+  node: React.ReactNode,
+  locale: "en" | "de" = "en",
+) {
   return renderToStaticMarkup(
     <QueryClientProvider client={client}>
       <I18nProvider initialLocale={locale}>{node}</I18nProvider>

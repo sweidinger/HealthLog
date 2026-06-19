@@ -79,7 +79,11 @@ describe("clinical glucose-panel FHIR Observations", () => {
     });
     expect(glucoseClinical.readingCount).toBeGreaterThan(0);
 
-    const bundle = buildFhirDocumentBundle(makeData({ glucoseClinical }), { insuranceNumber: "A123456780" }, FIXED_NOW);
+    const bundle = buildFhirDocumentBundle(
+      makeData({ glucoseClinical }),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
     const codes = observationsOf(bundle).map(codeOf);
 
     expect(codes).toContain(GLUCOSE_TIR_LOINC);
@@ -93,8 +97,14 @@ describe("clinical glucose-panel FHIR Observations", () => {
       now: FIXED_NOW,
       windowDays: 90,
     });
-    const bundle = buildFhirDocumentBundle(makeData({ glucoseClinical }), { insuranceNumber: "A123456780" }, FIXED_NOW);
-    const tir = observationsOf(bundle).find((o) => codeOf(o) === GLUCOSE_TIR_LOINC);
+    const bundle = buildFhirDocumentBundle(
+      makeData({ glucoseClinical }),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
+    const tir = observationsOf(bundle).find(
+      (o) => codeOf(o) === GLUCOSE_TIR_LOINC,
+    );
     expect(tir).toBeDefined();
     expect(tir!.valueQuantity?.code).toBe("%");
     expect(tir!.valueQuantity?.value).toBeGreaterThan(0);
@@ -103,7 +113,11 @@ describe("clinical glucose-panel FHIR Observations", () => {
 
   it("emits NO clinical glucose Observation when the panel has no readings (module off / no data)", () => {
     // Default makeData() has an empty (zero-reading) panel.
-    const bundle = buildFhirDocumentBundle(makeData(), { insuranceNumber: "A123456780" }, FIXED_NOW);
+    const bundle = buildFhirDocumentBundle(
+      makeData(),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
     const codes = observationsOf(bundle).map(codeOf);
     expect(codes).not.toContain(GLUCOSE_TIR_LOINC);
     expect(codes).not.toContain(GLUCOSE_GMI_LOINC);

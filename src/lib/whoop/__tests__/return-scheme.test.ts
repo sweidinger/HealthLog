@@ -17,7 +17,14 @@ describe("validateReturnScheme", () => {
   });
 
   it("rejects forbidden web/script schemes even if shaped like a scheme", () => {
-    for (const s of ["http", "https", "javascript", "data", "file", "vbscript"]) {
+    for (const s of [
+      "http",
+      "https",
+      "javascript",
+      "data",
+      "file",
+      "vbscript",
+    ]) {
       expect(validateReturnScheme(s)).toBeNull();
     }
   });

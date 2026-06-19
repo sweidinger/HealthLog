@@ -131,9 +131,7 @@ describe("GET /api/auth/me/research-mode", () => {
     };
     expect(env.data.enabled).toBe(true);
     expect(env.data.acknowledgedAt).toBe(ackAt.toISOString());
-    expect(env.data.acknowledgedVersion).toBe(
-      RESEARCH_MODE_DISCLAIMER_VERSION,
-    );
+    expect(env.data.acknowledgedVersion).toBe(RESEARCH_MODE_DISCLAIMER_VERSION);
   });
 });
 
@@ -165,9 +163,7 @@ describe("POST /api/auth/me/research-mode", () => {
       data: { enabled: boolean; acknowledgedVersion: string };
     };
     expect(env.data.enabled).toBe(true);
-    expect(env.data.acknowledgedVersion).toBe(
-      RESEARCH_MODE_DISCLAIMER_VERSION,
-    );
+    expect(env.data.acknowledgedVersion).toBe(RESEARCH_MODE_DISCLAIMER_VERSION);
 
     expect(prisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({

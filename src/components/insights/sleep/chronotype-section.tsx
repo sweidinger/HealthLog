@@ -35,7 +35,10 @@ export function ChronotypeSection({ enabled }: { enabled: boolean }) {
 
   return (
     <section data-slot="chronotype-section" className="space-y-3">
-      <SectionHeading icon={Clock} title={t("insights.sleep.chronotype.title")} />
+      <SectionHeading
+        icon={Clock}
+        title={t("insights.sleep.chronotype.title")}
+      />
       {isError ? (
         <div
           data-slot="chronotype-error"

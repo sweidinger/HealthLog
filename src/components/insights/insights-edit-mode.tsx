@@ -116,10 +116,10 @@ export function InsightsEditMode({
   const saveMutation = useMutation({
     mutationFn: async (next: InsightsLayout) => {
       return apiPut<InsightsLayout>("/api/insights/layout", {
-          version: 2,
-          sections: next.sections,
-          tiles: next.tiles,
-        });
+        version: 2,
+        sections: next.sections,
+        tiles: next.tiles,
+      });
     },
     onSuccess: (saved) => {
       // Optimistic-style settle: write the server-resolved layout into the

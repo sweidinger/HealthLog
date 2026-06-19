@@ -140,9 +140,7 @@ function ResearchModeCard() {
   }
 
   return (
-    <SettingsCard
-      data-slot="settings-research-mode-card"
-    >
+    <SettingsCard data-slot="settings-research-mode-card">
       <SettingsCardHeader
         icon={BookOpenCheck}
         title={t("settings.researchMode.sectionTitle")}
@@ -254,9 +252,7 @@ function DataResetCard() {
   }
 
   return (
-    <SettingsCard
-      data-slot="settings-data-reset-card"
-    >
+    <SettingsCard data-slot="settings-data-reset-card">
       {/* v1.4.43 QoL (L5) — dropped the `AlertTriangle` icon and
           neutralised the title colour so the danger-zone shaping is
           GitHub-style (red CTA only) rather than red-on-red-on-red.
@@ -401,9 +397,7 @@ function AccountDeleteCard() {
   }
 
   return (
-    <SettingsCard
-      data-slot="settings-account-delete-card"
-    >
+    <SettingsCard data-slot="settings-account-delete-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
         <div className="space-y-1">
           <h2 className="text-foreground text-lg font-semibold">

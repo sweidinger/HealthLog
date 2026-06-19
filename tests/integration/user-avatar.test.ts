@@ -99,11 +99,7 @@ describe("self-hosted avatar — end-to-end", () => {
 
     // ── POST: upload the 1×1 PNG ──────────────────────────────
     const fd = new FormData();
-    fd.append(
-      "file",
-      new Blob([PNG_1X1], { type: "image/png" }),
-      "avatar.png",
-    );
+    fd.append("file", new Blob([PNG_1X1], { type: "image/png" }), "avatar.png");
     const uploadReq = new Request("http://localhost/api/user/avatar", {
       method: "POST",
       body: fd,

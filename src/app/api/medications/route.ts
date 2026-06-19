@@ -63,90 +63,90 @@ async function buildMedicationsList(
     usableStock,
     inventoryCounts,
   ] = await Promise.all([
-      prisma.medication.findMany({
-        where: { userId },
-        include: { schedules: true },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.medicationIntakeEvent.groupBy({
-        by: ["medicationId"],
-        // v1.7.0 sync — exclude tombstoned rows from the last-taken map.
-        where: {
-          userId,
-          deletedAt: null,
-          skipped: false,
-          takenAt: { not: null },
-        },
-        _max: { takenAt: true },
-      }),
-      prisma.medicationIntakeEvent.groupBy({
-        by: ["medicationId"],
-        // v1.7.0 sync — exclude tombstoned rows from the today-count map.
-        // v1.16.9 — count only ACTIONED rows (taken or skipped). The
-        // dashboard projector mints pending rows for every slot of the
-        // day, so counting all rows made `todayEventCount` cover every
-        // passed dose after any dashboard visit — and the cards'
-        // overdue-pill suppression (`todayEventCount < passedDoseCount`)
-        // went dark nondeterministically for genuinely overdue doses.
-        where: {
-          userId,
-          deletedAt: null,
-          scheduledFor: { gte: todayStartUtc, lte: todayEndUtc },
-          OR: [{ takenAt: { not: null } }, { skipped: true }],
-        },
-        _count: { id: true },
-      }),
-      prisma.medicationIntakeEvent.findMany({
-        where: {
-          userId,
-          deletedAt: null,
-          scheduledFor: { gte: resolvedWindowStart, lte: resolvedWindowEnd },
-          OR: [
-            { takenAt: { not: null } },
-            { skipped: true },
-            { autoMissed: true },
-          ],
-        },
-        // v1.16.9 — `takenAt` rides along so the ad-hoc shape
-        // (`scheduledFor === takenAt`) is detectable: such a row must not
-        // ±6h-resolve a DIFFERENT slot (a 14:30 ad-hoc take hid tonight's
-        // genuinely-due 20:00 dose).
-        select: { medicationId: true, scheduledFor: true, takenAt: true },
-      }),
-      // v1.16.4 — current-era floor per medication: the newest revision's
-      // `validUntil` is where the LIVE schedule rows became valid. The
-      // open-overdue search mints from the live rows, so it must not reach
-      // past this boundary into a previous era's cadence.
-      prisma.medicationScheduleRevision.groupBy({
-        by: ["medicationId"],
-        // Superseded rows are audit records — a correction may have
-        // shortened the era, so the boundary reads only active rows.
-        where: { medication: { userId }, supersededByRevisionId: null },
-        _max: { validUntil: true },
-      }),
-      // v1.16.10 — usable stock per medication (one batched aggregate,
-      // not per-row): the sum of `unitsRemaining` over ACTIVE / IN_USE
-      // containers with units left — the same usable-container filter
-      // the GLP-1 details endpoint applies. Feeds the list payload's
-      // `stockUnitsRemaining` / `stockDosesRemaining` for the table view.
-      prisma.medicationInventoryItem.groupBy({
-        by: ["medicationId"],
-        where: {
-          userId,
-          state: { in: ["ACTIVE", "IN_USE"] },
-          unitsRemaining: { gt: 0 },
-        },
-        _sum: { unitsRemaining: true },
-      }),
-      // …and the any-state item count, so a medication whose containers
-      // are all used up / expired reads as stock 0 (tracking is ON, the
-      // supply ran out) instead of null (tracking off).
-      prisma.medicationInventoryItem.groupBy({
-        by: ["medicationId"],
-        where: { userId },
-        _count: { id: true },
-      }),
-    ]);
+    prisma.medication.findMany({
+      where: { userId },
+      include: { schedules: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.medicationIntakeEvent.groupBy({
+      by: ["medicationId"],
+      // v1.7.0 sync — exclude tombstoned rows from the last-taken map.
+      where: {
+        userId,
+        deletedAt: null,
+        skipped: false,
+        takenAt: { not: null },
+      },
+      _max: { takenAt: true },
+    }),
+    prisma.medicationIntakeEvent.groupBy({
+      by: ["medicationId"],
+      // v1.7.0 sync — exclude tombstoned rows from the today-count map.
+      // v1.16.9 — count only ACTIONED rows (taken or skipped). The
+      // dashboard projector mints pending rows for every slot of the
+      // day, so counting all rows made `todayEventCount` cover every
+      // passed dose after any dashboard visit — and the cards'
+      // overdue-pill suppression (`todayEventCount < passedDoseCount`)
+      // went dark nondeterministically for genuinely overdue doses.
+      where: {
+        userId,
+        deletedAt: null,
+        scheduledFor: { gte: todayStartUtc, lte: todayEndUtc },
+        OR: [{ takenAt: { not: null } }, { skipped: true }],
+      },
+      _count: { id: true },
+    }),
+    prisma.medicationIntakeEvent.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        scheduledFor: { gte: resolvedWindowStart, lte: resolvedWindowEnd },
+        OR: [
+          { takenAt: { not: null } },
+          { skipped: true },
+          { autoMissed: true },
+        ],
+      },
+      // v1.16.9 — `takenAt` rides along so the ad-hoc shape
+      // (`scheduledFor === takenAt`) is detectable: such a row must not
+      // ±6h-resolve a DIFFERENT slot (a 14:30 ad-hoc take hid tonight's
+      // genuinely-due 20:00 dose).
+      select: { medicationId: true, scheduledFor: true, takenAt: true },
+    }),
+    // v1.16.4 — current-era floor per medication: the newest revision's
+    // `validUntil` is where the LIVE schedule rows became valid. The
+    // open-overdue search mints from the live rows, so it must not reach
+    // past this boundary into a previous era's cadence.
+    prisma.medicationScheduleRevision.groupBy({
+      by: ["medicationId"],
+      // Superseded rows are audit records — a correction may have
+      // shortened the era, so the boundary reads only active rows.
+      where: { medication: { userId }, supersededByRevisionId: null },
+      _max: { validUntil: true },
+    }),
+    // v1.16.10 — usable stock per medication (one batched aggregate,
+    // not per-row): the sum of `unitsRemaining` over ACTIVE / IN_USE
+    // containers with units left — the same usable-container filter
+    // the GLP-1 details endpoint applies. Feeds the list payload's
+    // `stockUnitsRemaining` / `stockDosesRemaining` for the table view.
+    prisma.medicationInventoryItem.groupBy({
+      by: ["medicationId"],
+      where: {
+        userId,
+        state: { in: ["ACTIVE", "IN_USE"] },
+        unitsRemaining: { gt: 0 },
+      },
+      _sum: { unitsRemaining: true },
+    }),
+    // …and the any-state item count, so a medication whose containers
+    // are all used up / expired reads as stock 0 (tracking is ON, the
+    // supply ran out) instead of null (tracking off).
+    prisma.medicationInventoryItem.groupBy({
+      by: ["medicationId"],
+      where: { userId },
+      _count: { id: true },
+    }),
+  ]);
 
   const resolvedSlotsByMedId = new Map<string, ResolvedSlotMark[]>();
   for (const e of resolvedEvents) {
@@ -158,7 +158,8 @@ async function buildMedicationsList(
 
   const eraStartByMedId = new Map<string, Date>();
   for (const f of eraFloors) {
-    if (f._max.validUntil) eraStartByMedId.set(f.medicationId, f._max.validUntil);
+    if (f._max.validUntil)
+      eraStartByMedId.set(f.medicationId, f._max.validUntil);
   }
 
   const lastTakenAtByMedicationId = Object.fromEntries(
@@ -354,10 +355,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       );
     }
     const s = scheduleInputs[0];
-    if (
-      s &&
-      (s.rrule !== undefined || s.rollingIntervalDays !== undefined)
-    ) {
+    if (s && (s.rrule !== undefined || s.rollingIntervalDays !== undefined)) {
       return apiError(
         "A one-shot medication cannot have a recurrence (rrule or rollingIntervalDays)",
         422,

@@ -129,7 +129,11 @@ export function EmailCard({ isAuthenticated }: { isAuthenticated: boolean }) {
               endpoint="/api/settings/email/test"
               disabled={!settings?.enabled}
             />
-            <Button type="submit" disabled={save.isPending} className="min-h-11">
+            <Button
+              type="submit"
+              disabled={save.isPending}
+              className="min-h-11"
+            >
               {save.isPending && (
                 <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}

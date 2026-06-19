@@ -59,7 +59,9 @@ async function main(): Promise<void> {
   const dryRun = !args.confirm;
 
   if (dryRun) {
-    console.log("[backfill-note] DRY RUN — no rows will be written. Pass --confirm to commit.");
+    console.log(
+      "[backfill-note] DRY RUN — no rows will be written. Pass --confirm to commit.",
+    );
   } else {
     console.log("[backfill-note] COMMIT MODE — updating rows in place.");
   }
@@ -92,7 +94,9 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log(`[backfill-note] ${updated} row${updated === 1 ? "" : "s"} ${dryRun ? "would be" : "were"} updated`);
+  console.log(
+    `[backfill-note] ${updated} row${updated === 1 ? "" : "s"} ${dryRun ? "would be" : "were"} updated`,
+  );
   await prisma.$disconnect();
 }
 

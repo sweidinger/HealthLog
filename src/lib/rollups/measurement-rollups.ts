@@ -600,9 +600,7 @@ function bucketSpan(
       // Postgres ISO week: Monday is day 1. JS getUTCDay(): Sunday=0..Saturday=6.
       const dayOfWeek = day.getUTCDay(); // 0=Sun
       const mondayOffset = (dayOfWeek + 6) % 7; // 0 for Mon … 6 for Sun
-      const from = new Date(
-        day.getTime() - mondayOffset * 24 * 60 * 60 * 1000,
-      );
+      const from = new Date(day.getTime() - mondayOffset * 24 * 60 * 60 * 1000);
       return { from, to: new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000) };
     }
     case "MONTH": {
@@ -610,11 +608,7 @@ function bucketSpan(
         Date.UTC(measuredAt.getUTCFullYear(), measuredAt.getUTCMonth(), 1),
       );
       const to = new Date(
-        Date.UTC(
-          measuredAt.getUTCFullYear(),
-          measuredAt.getUTCMonth() + 1,
-          1,
-        ),
+        Date.UTC(measuredAt.getUTCFullYear(), measuredAt.getUTCMonth() + 1, 1),
       );
       return { from, to };
     }

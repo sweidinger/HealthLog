@@ -37,17 +37,17 @@ both forms per type so a fetcher can never encode the wrong one.
 
 Scope: `googlehealth.health_metrics_and_measurements.readonly`.
 
-| Data type (path / filter) | MeasurementType | Unit | fieldTag | Grain | Note |
-|---|---|---|---|---|---|
-| `weight` / `weight` | `WEIGHT` | kg | `weight` | sample | Picker ranks a real Withings scale above Fitbit. |
-| `body-fat` / `body_fat` | `BODY_FAT` | % | `body_fat` | sample | |
-| `daily-oxygen-saturation` / `daily_oxygen_saturation` | `OXYGEN_SATURATION` | % | `spo2` | daily | Already 0–100. |
-| `daily-heart-rate-variability` / `daily_heart_rate_variability` | `HEART_RATE_VARIABILITY` | ms | `hrv` | daily | **Decision:** SDNN slot (Apple-comparable), NOT `HRV_RMSSD`. Fitbit reports an RMSSD-style nightly HRV — confirm the estimator at build and reconsider `HRV_RMSSD` if warranted. |
-| `daily-resting-heart-rate` / `daily_resting_heart_rate` | `RESTING_HEART_RATE` | bpm | `rhr` | daily | |
-| `daily-respiratory-rate` / `daily_respiratory_rate` | `RESPIRATORY_RATE` | breaths/min | `resp_rate` | daily | |
-| `heart-rate` / `heart_rate` | `PULSE` | bpm | `hr` | sample | Intraday spot HR. |
-| `daily-sleep-temperature-derivations` / `daily_sleep_temperature_derivations` | `WRIST_TEMPERATURE` | celsius | `wrist_temp` | daily | Closest semantic slot to Apple sleeping-wrist-temp. Confirm absolute-vs-baseline at build; the positive guard rejects a baseline-delta reading. |
-| `height` / `height` | `User.heightCm` | cm | — | sample | Profile seed — written to `User.heightCm` ONLY when null; never minted as a Measurement (WHOOP `mapBody` pattern). m→cm when reported in metres. |
+| Data type (path / filter)                                                     | MeasurementType          | Unit        | fieldTag     | Grain  | Note                                                                                                                                                                             |
+| ----------------------------------------------------------------------------- | ------------------------ | ----------- | ------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `weight` / `weight`                                                           | `WEIGHT`                 | kg          | `weight`     | sample | Picker ranks a real Withings scale above Fitbit.                                                                                                                                 |
+| `body-fat` / `body_fat`                                                       | `BODY_FAT`               | %           | `body_fat`   | sample |                                                                                                                                                                                  |
+| `daily-oxygen-saturation` / `daily_oxygen_saturation`                         | `OXYGEN_SATURATION`      | %           | `spo2`       | daily  | Already 0–100.                                                                                                                                                                   |
+| `daily-heart-rate-variability` / `daily_heart_rate_variability`               | `HEART_RATE_VARIABILITY` | ms          | `hrv`        | daily  | **Decision:** SDNN slot (Apple-comparable), NOT `HRV_RMSSD`. Fitbit reports an RMSSD-style nightly HRV — confirm the estimator at build and reconsider `HRV_RMSSD` if warranted. |
+| `daily-resting-heart-rate` / `daily_resting_heart_rate`                       | `RESTING_HEART_RATE`     | bpm         | `rhr`        | daily  |                                                                                                                                                                                  |
+| `daily-respiratory-rate` / `daily_respiratory_rate`                           | `RESPIRATORY_RATE`       | breaths/min | `resp_rate`  | daily  |                                                                                                                                                                                  |
+| `heart-rate` / `heart_rate`                                                   | `PULSE`                  | bpm         | `hr`         | sample | Intraday spot HR.                                                                                                                                                                |
+| `daily-sleep-temperature-derivations` / `daily_sleep_temperature_derivations` | `WRIST_TEMPERATURE`      | celsius     | `wrist_temp` | daily  | Closest semantic slot to Apple sleeping-wrist-temp. Confirm absolute-vs-baseline at build; the positive guard rejects a baseline-delta reading.                                  |
+| `height` / `height`                                                           | `User.heightCm`          | cm          | —            | sample | Profile seed — written to `User.heightCm` ONLY when null; never minted as a Measurement (WHOOP `mapBody` pattern). m→cm when reported in metres.                                 |
 
 Every value passes a finite + strictly-positive guard (the launch metrics are
 all positive — a zero/NaN is a garbage/empty reading and is dropped).
@@ -68,13 +68,13 @@ place rather than minting a duplicate, matching the Apple-Health
 (steps/distance/floors/active-energy) **preserve a 0** (a rest day is real data,
 not a gap); VO2 max stays strictly positive (daily latest-wins).
 
-| Data type (path / filter) | MeasurementType | Unit | fieldTag | Note |
-|---|---|---|---|---|
-| `steps` / `steps` | `ACTIVITY_STEPS` | steps | `steps` | daily total; 0 valid |
-| `distance` / `distance` | `WALKING_RUNNING_DISTANCE` | m | `distance` | metres (km → m when reported in km) |
-| `active-calories` / `active_calories` | `ACTIVE_ENERGY_BURNED` | kcal | `active_calories` | **ACTIVE portion only** — NOT total caloriesOut (which folds in BMR) |
-| `floors` / `floors` | `FLIGHTS_CLIMBED` | flights | `floors` | daily total; 0 valid |
-| `vo2-max` / `vo2_max` | `VO2_MAX` | mL/(kg·min) | `vo2_max` | daily latest-wins; strictly positive |
+| Data type (path / filter)             | MeasurementType            | Unit        | fieldTag          | Note                                                                 |
+| ------------------------------------- | -------------------------- | ----------- | ----------------- | -------------------------------------------------------------------- |
+| `steps` / `steps`                     | `ACTIVITY_STEPS`           | steps       | `steps`           | daily total; 0 valid                                                 |
+| `distance` / `distance`               | `WALKING_RUNNING_DISTANCE` | m           | `distance`        | metres (km → m when reported in km)                                  |
+| `active-calories` / `active_calories` | `ACTIVE_ENERGY_BURNED`     | kcal        | `active_calories` | **ACTIVE portion only** — NOT total caloriesOut (which folds in BMR) |
+| `floors` / `floors`                   | `FLIGHTS_CLIMBED`          | flights     | `floors`          | daily total; 0 valid                                                 |
+| `vo2-max` / `vo2_max`                 | `VO2_MAX`                  | mL/(kg·min) | `vo2_max`         | daily latest-wins; strictly positive                                 |
 
 ## Sleep bundle (W5)
 

@@ -505,25 +505,25 @@ export function MedicationDetailTabs({
           </MedicationDetailSection>
 
           {!asNeeded && (
-          <MedicationDetailSection
-            titleId="medication-uebersicht-compliance-heading"
-            title={t("medications.detail.uebersicht.complianceTitle")}
-            dataSlot="medication-uebersicht-compliance"
-          >
-            {compliance ? (
-              <MedicationComplianceBars
-                rate7={rate7}
-                rate30={rate30}
-                streak={streak}
-                shortDays={shortDays}
-                longDays={longDays}
-              />
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                {t("medications.detail.uebersicht.complianceEmpty")}
-              </p>
-            )}
-          </MedicationDetailSection>
+            <MedicationDetailSection
+              titleId="medication-uebersicht-compliance-heading"
+              title={t("medications.detail.uebersicht.complianceTitle")}
+              dataSlot="medication-uebersicht-compliance"
+            >
+              {compliance ? (
+                <MedicationComplianceBars
+                  rate7={rate7}
+                  rate30={rate30}
+                  streak={streak}
+                  shortDays={shortDays}
+                  longDays={longDays}
+                />
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {t("medications.detail.uebersicht.complianceEmpty")}
+                </p>
+              )}
+            </MedicationDetailSection>
           )}
         </TabsContent>
 

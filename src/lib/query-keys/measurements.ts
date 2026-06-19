@@ -93,7 +93,7 @@ export const measurementKeys = {
     // byte-identical tuple and the existing cache layout is unchanged.
     readMode: string = "",
   ) =>
-    (readMode
+    readMode
       ? ([
           "chart-data",
           types,
@@ -114,7 +114,7 @@ export const measurementKeys = {
           fromIso,
           toIso,
           valueScale,
-        ] as const)),
+        ] as const),
 
   /**
    * v1.8.5 — bounded recent-timestamp read powering the

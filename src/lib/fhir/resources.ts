@@ -151,7 +151,10 @@ const UCUM_DOSE_CODES: Record<string, string> = {
   mL: "mL",
 };
 
-function doseQuantity(value: number, unit: string): {
+function doseQuantity(
+  value: number,
+  unit: string,
+): {
   value: number;
   unit: string;
   system?: string;
@@ -452,7 +455,11 @@ export function observationsFromReportData(
         {
           code: {
             coding: [
-              { system: LOINC_SYSTEM, code: BP_DIA_LOINC, display: "Diastolic" },
+              {
+                system: LOINC_SYSTEM,
+                code: BP_DIA_LOINC,
+                display: "Diastolic",
+              },
             ],
           },
           valueQuantity: {
@@ -506,7 +513,9 @@ export function observationsFromReportData(
       status: "final",
       category: [categoryConcept("laboratory")],
       code: {
-        coding: [{ system: LOINC_SYSTEM, code: map.loinc, display: map.display }],
+        coding: [
+          { system: LOINC_SYSTEM, code: map.loinc, display: map.display },
+        ],
         text: map.display,
       },
       subject: patientRef,
@@ -529,16 +538,14 @@ export function observationsFromReportData(
   // rides a `survey` text-only concept. Percent metrics use UCUM `%`.
   const clinical = data.glucoseClinical;
   if (clinical && clinical.readingCount > 0) {
-    const pushClinical = (
-      opts: {
-        loinc?: string;
-        text: string;
-        value: number;
-        unit: string;
-        ucum: string;
-        survey?: boolean;
-      },
-    ) => {
+    const pushClinical = (opts: {
+      loinc?: string;
+      text: string;
+      value: number;
+      unit: string;
+      ucum: string;
+      survey?: boolean;
+    }) => {
       obsSeq += 1;
       push({
         resourceType: "Observation",
@@ -875,7 +882,8 @@ export function cycleObservationsFromReportData(
       code: { text: "Current menstrual cycle phase" },
       subject: patientRef,
       effectiveDateTime: effective,
-      valueString: CYCLE_PHASE_DISPLAY[cycle.currentPhase] ?? cycle.currentPhase,
+      valueString:
+        CYCLE_PHASE_DISPLAY[cycle.currentPhase] ?? cycle.currentPhase,
       note: [
         {
           text: "Phase derived from logged cycle boundaries; descriptive, not a clinical assessment.",
@@ -902,8 +910,7 @@ function conditionClinicalStatus(resolved: boolean): FhirCodeableConcept {
   return {
     coding: [
       {
-        system:
-          "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        system: "http://terminology.hl7.org/CodeSystem/condition-clinical",
         code: resolved ? "resolved" : "active",
       },
     ],

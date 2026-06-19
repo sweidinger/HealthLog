@@ -106,9 +106,7 @@ describe("<HealthScoreDeltaExplainer>", () => {
     // directly. Pinning the negative so a future refactor can't
     // reintroduce the wrapper.
     const html = ssr(<HealthScoreDeltaExplainer delta={-3} />);
-    expect(html).not.toMatch(
-      /<span[^>]*onclick/i,
-    );
+    expect(html).not.toMatch(/<span[^>]*onclick/i);
   });
 
   it("renders the trigger in German with the localised aria-label", () => {
@@ -129,9 +127,7 @@ describe("<HealthScoreDeltaExplainer>", () => {
     // future "open on render" refactor from leaking long-form copy
     // into the static markup.
     const html = ssr(<HealthScoreDeltaExplainer delta={-3} />);
-    expect(html).not.toContain(
-      'data-slot="health-score-delta-explainer-body"',
-    );
+    expect(html).not.toContain('data-slot="health-score-delta-explainer-body"');
     expect(html).not.toContain(
       'data-slot="health-score-delta-explainer-title"',
     );
@@ -187,15 +183,9 @@ describe("<HealthScoreDeltaExplainer>", () => {
       // The probe re-uses the same `t()` payload the popover does,
       // so any missing key surfaces as the literal key path which
       // would never contain a space.
-      expect(html).not.toContain(
-        "insights.healthScore.deltaExplainer.trigger",
-      );
-      expect(html).not.toContain(
-        "insights.healthScore.deltaExplainer.title",
-      );
-      expect(html).not.toContain(
-        "insights.healthScore.deltaExplainer.body",
-      );
+      expect(html).not.toContain("insights.healthScore.deltaExplainer.trigger");
+      expect(html).not.toContain("insights.healthScore.deltaExplainer.title");
+      expect(html).not.toContain("insights.healthScore.deltaExplainer.body");
     }
   });
 });

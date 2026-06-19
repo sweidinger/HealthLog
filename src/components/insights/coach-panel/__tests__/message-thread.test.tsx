@@ -498,7 +498,10 @@ describe("<MessageThread>", () => {
   });
 
   it("localises the remember control under 'de'", () => {
-    const html = render(<MessageThread conversation={baseConversation} />, "de");
+    const html = render(
+      <MessageThread conversation={baseConversation} />,
+      "de",
+    );
     expect(html).toContain('data-slot="coach-remember-message"');
     expect(html).toContain("Merken");
   });
@@ -707,7 +710,10 @@ describe("errorCodeToI18nKey", () => {
  * messages, the optimistic user bubble, and the thread tail.
  */
 describe("placeInterleaved", () => {
-  const item = (key: string, anchorAnswer: string | null): InterleavedThreadItem => ({
+  const item = (
+    key: string,
+    anchorAnswer: string | null,
+  ): InterleavedThreadItem => ({
     key,
     anchorAnswer,
     node: <span data-testid={key} />,

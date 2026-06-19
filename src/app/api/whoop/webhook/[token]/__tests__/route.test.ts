@@ -56,15 +56,18 @@ function signedRequest(
   const signature = createHmac("sha256", signingSecret)
     .update(timestamp + rawBody, "utf8")
     .digest("base64");
-  return new NextRequest("https://app.example.com/api/whoop/webhook/" + SECRET, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "X-WHOOP-Signature": signature,
-      "X-WHOOP-Signature-Timestamp": timestamp,
+  return new NextRequest(
+    "https://app.example.com/api/whoop/webhook/" + SECRET,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-WHOOP-Signature": signature,
+        "X-WHOOP-Signature-Timestamp": timestamp,
+      },
+      body: rawBody,
     },
-    body: rawBody,
-  });
+  );
 }
 
 const ctx = (token: string) => ({ params: Promise.resolve({ token }) });

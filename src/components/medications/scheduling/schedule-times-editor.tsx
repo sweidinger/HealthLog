@@ -205,9 +205,7 @@ export function ScheduleTimesEditor({
               <TimesOfDayChips
                 value={edit.timesOfDay}
                 onChange={(timesOfDay) => patchSchedule(i, { timesOfDay })}
-                maxChips={
-                  typeof s.rollingIntervalDays === "number" ? 1 : 8
-                }
+                maxChips={typeof s.rollingIntervalDays === "number" ? 1 : 8}
               />
             </div>
 

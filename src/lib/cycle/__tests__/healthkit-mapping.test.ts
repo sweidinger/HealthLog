@@ -32,7 +32,9 @@ describe("cycle/healthkit-mapping — identifier ownership", () => {
   });
 
   it("does NOT own unrelated identifiers", () => {
-    expect(isCycleHkIdentifier("HKQuantityTypeIdentifierStepCount")).toBe(false);
+    expect(isCycleHkIdentifier("HKQuantityTypeIdentifierStepCount")).toBe(
+      false,
+    );
   });
 });
 
@@ -83,7 +85,10 @@ describe("cycle/healthkit-mapping — ovulation + cervical mucus + tests", () =>
         HK_OVULATION_TEST,
         "HKCategoryValueOvulationTestResultLuteinizingHormoneSurge",
       ),
-    ).toEqual({ kind: "day-log", fields: { ovulationTest: "POSITIVE_LH_SURGE" } });
+    ).toEqual({
+      kind: "day-log",
+      fields: { ovulationTest: "POSITIVE_LH_SURGE" },
+    });
     expect(mapHkCycleSample(HK_OVULATION_TEST, "4")).toEqual({
       kind: "day-log",
       fields: { ovulationTest: "ESTROGEN_SURGE" },
@@ -141,10 +146,7 @@ describe("cycle/healthkit-mapping — sexual activity + protection", () => {
 describe("cycle/healthkit-mapping — contraceptive routes to day-log + profile", () => {
   it("records the method AND carries a profile nudge", () => {
     expect(
-      mapHkCycleSample(
-        HK_CONTRACEPTIVE,
-        "HKCategoryValueContraceptiveOral",
-      ),
+      mapHkCycleSample(HK_CONTRACEPTIVE, "HKCategoryValueContraceptiveOral"),
     ).toEqual({
       kind: "day-log+profile",
       fields: { contraceptive: "ORAL" },
@@ -164,9 +166,9 @@ describe("cycle/healthkit-mapping — symptoms", () => {
   });
 
   it("skips an explicit not-present symptom sample", () => {
-    expect(
-      mapHkCycleSample("HKCategoryTypeIdentifierHeadache", "1"),
-    ).toEqual({ kind: "skip" });
+    expect(mapHkCycleSample("HKCategoryTypeIdentifierHeadache", "1")).toEqual({
+      kind: "skip",
+    });
     expect(hkSymptomIsPresent("1")).toBe(false);
     expect(hkSymptomIsPresent("HKCategoryValueSeverityNotPresent")).toBe(false);
     expect(hkSymptomIsPresent("3")).toBe(true);

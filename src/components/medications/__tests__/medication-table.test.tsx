@@ -90,7 +90,9 @@ const pastWindow = {
   dose: null,
 };
 
-function med(partial: Partial<TableMedication> & { id: string; name: string }): TableMedication {
+function med(
+  partial: Partial<TableMedication> & { id: string; name: string },
+): TableMedication {
   return {
     dose: "5 mg",
     active: true,
@@ -442,7 +444,12 @@ describe("nextSortState — tri-state cycle", () => {
 });
 
 describe("sortMedicationRows — null-last semantics", () => {
-  const a = med({ id: "a", name: "Alpha", nextDueAt: null, stockDosesRemaining: null });
+  const a = med({
+    id: "a",
+    name: "Alpha",
+    nextDueAt: null,
+    stockDosesRemaining: null,
+  });
   const b = med({
     id: "b",
     name: "Beta",
@@ -457,9 +464,11 @@ describe("sortMedicationRows — null-last semantics", () => {
   });
 
   it("returns the input order untouched for a null sort", () => {
-    expect(
-      sortMedicationRows([b, a, c], null).map((m) => m.id),
-    ).toEqual(["b", "a", "c"]);
+    expect(sortMedicationRows([b, a, c], null).map((m) => m.id)).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
   });
 
   it("sorts by next due ascending, rows without a due date last", () => {

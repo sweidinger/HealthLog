@@ -82,7 +82,12 @@ const TZ = "UTC";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "testuser", role: "USER" as const, timezone: TZ },
+  user: {
+    id: "user-1",
+    username: "testuser",
+    role: "USER" as const,
+    timezone: TZ,
+  },
 };
 
 const ROUTE_PARAMS = { params: Promise.resolve({ id: "med-1" }) };
@@ -340,31 +345,29 @@ describe("GET /api/medications/[id]/compliance — complianceDisplay", () => {
   });
 
   it("35-day-interval med → steps the windows up past 7 / 30 days", async () => {
-    vi.mocked(prisma.medication.findUnique).mockResolvedValue(
-      {
-        id: "med-1",
-        userId: "user-1",
-        createdAt: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000),
-        startsOn: new Date(Date.now() - 380 * 24 * 60 * 60 * 1000),
-        endsOn: null,
-        oneShot: false,
-        schedules: [
-          {
-            id: "sched-1",
-            windowStart: "10:00",
-            windowEnd: "11:00",
-            timesOfDay: ["10:00"],
-            daysOfWeek: null,
-            rrule: null,
-            rollingIntervalDays: 35,
-            reminderGraceMinutes: null,
-            scheduleType: "SCHEDULED",
-            cyclicOnWeeks: null,
-            cyclicOffWeeks: null,
-          },
-        ],
-      } as never,
-    );
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      createdAt: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000),
+      startsOn: new Date(Date.now() - 380 * 24 * 60 * 60 * 1000),
+      endsOn: null,
+      oneShot: false,
+      schedules: [
+        {
+          id: "sched-1",
+          windowStart: "10:00",
+          windowEnd: "11:00",
+          timesOfDay: ["10:00"],
+          daysOfWeek: null,
+          rrule: null,
+          rollingIntervalDays: 35,
+          reminderGraceMinutes: null,
+          scheduleType: "SCHEDULED",
+          cyclicOnWeeks: null,
+          cyclicOffWeeks: null,
+        },
+      ],
+    } as never);
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
       {
         takenAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),

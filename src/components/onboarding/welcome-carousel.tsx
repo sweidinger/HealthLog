@@ -164,10 +164,7 @@ export function WelcomeCarousel() {
   }
 
   return (
-    <section
-      aria-labelledby="onboarding-welcome-title"
-      className="space-y-6"
-    >
+    <section aria-labelledby="onboarding-welcome-title" className="space-y-6">
       <h1
         id="onboarding-welcome-title"
         tabIndex={-1}
@@ -185,7 +182,7 @@ export function WelcomeCarousel() {
           className={cn(
             "flex w-full snap-x snap-mandatory gap-4 overflow-x-auto",
             // Hide native scrollbar; the dot pager is the visible affordance.
-            "scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]",
+            "[scrollbar-width:none] scrollbar-none [-ms-overflow-style:none]",
             "[&::-webkit-scrollbar]:hidden",
             "scroll-smooth motion-reduce:scroll-auto",
           )}
@@ -282,9 +279,7 @@ export function WelcomeCarousel() {
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() =>
-            scrollToSlide(Math.min(SLIDES.length - 1, active + 1))
-          }
+          onClick={() => scrollToSlide(Math.min(SLIDES.length - 1, active + 1))}
           disabled={active === SLIDES.length - 1}
           aria-label={t("onboarding.welcome.nextSlide")}
           aria-controls={liveRegionId}
@@ -335,4 +330,3 @@ export function WelcomeCarousel() {
     </section>
   );
 }
-

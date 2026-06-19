@@ -102,7 +102,7 @@ const notificationPrefsResolved = z
       deliveryDefault: z
         .enum(["server", "client"])
         .describe(
-          "Roaming user-level delivery default. \"client\" implies clientManaged: true.",
+          'Roaming user-level delivery default. "client" implies clientManaged: true.',
         ),
       lowStockRunwayDays: z
         .number()
@@ -731,7 +731,7 @@ export const profilePaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Notifications"],
       summary: "Update per-user notification preferences",
       description:
-        "Deep-merges the supplied partial shape over the persisted row — a PATCH touching only one category leaves the siblings intact. Always returns the fully-resolved next state so clients can hard-set their optimistic update. `medication.clientManaged: true` (or `deliveryDefault: \"client\"`) suppresses server-side MEDICATION_REMINDER APNs; `medication.lowStockRunwayDays` (1–60, nullable, default 7) tunes the low-stock alert — null switches it off. Rate-limit 60/min per user.",
+        'Deep-merges the supplied partial shape over the persisted row — a PATCH touching only one category leaves the siblings intact. Always returns the fully-resolved next state so clients can hard-set their optimistic update. `medication.clientManaged: true` (or `deliveryDefault: "client"`) suppresses server-side MEDICATION_REMINDER APNs; `medication.lowStockRunwayDays` (1–60, nullable, default 7) tunes the low-stock alert — null switches it off. Rate-limit 60/min per user.',
       requestBody: {
         required: true,
         content: {

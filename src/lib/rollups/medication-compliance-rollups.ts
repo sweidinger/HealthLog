@@ -50,11 +50,7 @@
 import { prisma } from "@/lib/db";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
-import {
-  DEFAULT_TIMEZONE,
-  isValidTimezone,
-  userDayKey,
-} from "@/lib/tz/format";
+import { DEFAULT_TIMEZONE, isValidTimezone, userDayKey } from "@/lib/tz/format";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 
 /**
@@ -296,10 +292,7 @@ export async function recomputeMedicationComplianceForEvent(input: {
         medication_compliance_rollup_error: message,
       },
     });
-    console.error(
-      "[medication-compliance-rollups] recompute failed:",
-      message,
-    );
+    console.error("[medication-compliance-rollups] recompute failed:", message);
   }
 }
 

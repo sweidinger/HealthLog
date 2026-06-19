@@ -24,8 +24,10 @@ import { cn } from "@/lib/utils";
  *   - `"bordered"`: a dashed-border centered note for STANDALONE use where
  *     there is no surrounding card chrome (score anatomy).
  */
-export interface LearningGateProps
-  extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
+export interface LearningGateProps extends Omit<
+  React.HTMLAttributes<HTMLDivElement>,
+  "title"
+> {
   /** Localized primary "still learning" sentence. */
   message: React.ReactNode;
   /** Optional secondary line — a caveat or a "N more days" nudge. */
@@ -72,8 +74,7 @@ export function LearningGate({
       aria-live="polite"
       className={cn(
         "space-y-2",
-        variant === "bordered" &&
-          "rounded-lg border border-dashed px-4 py-6",
+        variant === "bordered" && "rounded-lg border border-dashed px-4 py-6",
         className,
       )}
       {...props}

@@ -184,8 +184,7 @@ export function HistoryRail({
                   data-confirming={isConfirming ? "true" : undefined}
                   className={cn(
                     "size-11 shrink-0",
-                    isConfirming &&
-                      "text-dracula-red hover:text-dracula-red",
+                    isConfirming && "text-dracula-red hover:text-dracula-red",
                   )}
                 >
                   <Trash2 className="size-4" aria-hidden="true" />

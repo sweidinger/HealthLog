@@ -79,7 +79,7 @@ export function ShareUnlockGate({ t, token }: ShareUnlockGateProps) {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
       <form
-        className="space-y-4 rounded-lg border border-border bg-card p-6"
+        className="border-border bg-card space-y-4 rounded-lg border p-6"
         onSubmit={(e) => {
           e.preventDefault();
           void submit(passphrase);
@@ -89,7 +89,7 @@ export function ShareUnlockGate({ t, token }: ShareUnlockGateProps) {
           <h1 className="text-lg font-semibold">
             {t("clinicianView.unlock.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {t("clinicianView.unlock.description")}
           </p>
         </div>
@@ -112,7 +112,7 @@ export function ShareUnlockGate({ t, token }: ShareUnlockGateProps) {
         </div>
 
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-destructive text-sm">
             {t("clinicianView.unlock.error")}
           </p>
         )}

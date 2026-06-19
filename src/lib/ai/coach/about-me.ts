@@ -27,10 +27,7 @@
  * Server-only — reads `@/lib/db`.
  */
 import { prisma } from "@/lib/db";
-import {
-  decryptFromBytes,
-  encryptToBytes,
-} from "@/lib/ai/coach/bytes-codec";
+import { decryptFromBytes, encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import {
   SELF_REPORT_FENCE_START,
   SELF_REPORT_FENCE_END,
@@ -87,10 +84,14 @@ export async function getSelfContextForUser(
       coachFocus: decryptOrNull(row?.coachFocusEncrypted ?? null),
     };
   } catch {
-    return { aboutMe: null, conditions: null, allergies: null, coachFocus: null };
+    return {
+      aboutMe: null,
+      conditions: null,
+      allergies: null,
+      coachFocus: null,
+    };
   }
 }
-
 
 /** Whole years between `dateOfBirth` and `now`; null when unknown. */
 export function deriveAgeYears(
@@ -142,9 +143,7 @@ export function composeSelfContextText(
     }
   }
   if (facts.length > 0) {
-    lines.push(
-      (de ? "Profil: " : "Profile: ") + facts.join(" · "),
-    );
+    lines.push((de ? "Profil: " : "Profile: ") + facts.join(" · "));
   }
 
   if (ctx.conditions) {

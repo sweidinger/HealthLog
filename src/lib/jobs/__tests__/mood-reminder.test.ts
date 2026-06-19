@@ -250,9 +250,7 @@ describe("runMoodReminderTick", () => {
 
   it("dispatches MOOD_REMINDER for opted-in users in the 22:00 window", async () => {
     const state: FakePrismaState = {
-      candidates: [
-        { id: "u-1", timezone: "Europe/Berlin", locale: "de" },
-      ],
+      candidates: [{ id: "u-1", timezone: "Europe/Berlin", locale: "de" }],
       moodEntries: [],
       dispatches: [],
       raceUserIds: new Set(),
@@ -337,9 +335,7 @@ describe("runMoodReminderTick", () => {
 
   it("v1.7.0 — an unset notificationPrefs still fires at the default 22:00", async () => {
     const state: FakePrismaState = {
-      candidates: [
-        { id: "u-1", timezone: "Europe/Berlin", locale: "de" },
-      ],
+      candidates: [{ id: "u-1", timezone: "Europe/Berlin", locale: "de" }],
       moodEntries: [],
       dispatches: [],
       raceUserIds: new Set(),
@@ -357,9 +353,7 @@ describe("runMoodReminderTick", () => {
 
   it("does NOT dispatch for users outside the 22:00 window", async () => {
     const state: FakePrismaState = {
-      candidates: [
-        { id: "u-1", timezone: "Europe/Berlin", locale: "de" },
-      ],
+      candidates: [{ id: "u-1", timezone: "Europe/Berlin", locale: "de" }],
       moodEntries: [],
       dispatches: [],
       raceUserIds: new Set(),
@@ -399,9 +393,7 @@ describe("runMoodReminderTick", () => {
 
   it("skips users who already logged a mood for the local date", async () => {
     const state: FakePrismaState = {
-      candidates: [
-        { id: "u-1", timezone: "Europe/Berlin", locale: "de" },
-      ],
+      candidates: [{ id: "u-1", timezone: "Europe/Berlin", locale: "de" }],
       moodEntries: [{ userId: "u-1", date: "2026-05-17" }],
       dispatches: [],
       raceUserIds: new Set(),
@@ -422,9 +414,7 @@ describe("runMoodReminderTick", () => {
 
   it("idempotency: a second tick inside the same window does not re-send", async () => {
     const state: FakePrismaState = {
-      candidates: [
-        { id: "u-1", timezone: "Europe/Berlin", locale: "de" },
-      ],
+      candidates: [{ id: "u-1", timezone: "Europe/Berlin", locale: "de" }],
       moodEntries: [],
       dispatches: [{ userId: "u-1", date: "2026-05-17" }],
       raceUserIds: new Set(),
@@ -444,9 +434,7 @@ describe("runMoodReminderTick", () => {
 
   it("ledger-after-delivery: dispatcher reporting dispatched=false leaves the slot free", async () => {
     const state: FakePrismaState = {
-      candidates: [
-        { id: "u-1", timezone: "Europe/Berlin", locale: "de" },
-      ],
+      candidates: [{ id: "u-1", timezone: "Europe/Berlin", locale: "de" }],
       moodEntries: [],
       dispatches: [],
       raceUserIds: new Set(),
@@ -470,9 +458,7 @@ describe("runMoodReminderTick", () => {
 
   it("P2002 race: counts as dispatched (both workers pushed, one ledger row survives)", async () => {
     const state: FakePrismaState = {
-      candidates: [
-        { id: "u-1", timezone: "Europe/Berlin", locale: "de" },
-      ],
+      candidates: [{ id: "u-1", timezone: "Europe/Berlin", locale: "de" }],
       moodEntries: [],
       dispatches: [],
       raceUserIds: new Set(["u-1"]),

@@ -43,7 +43,9 @@ export function RestModeBanner({
   // start).
   const since = annotation.since;
   const sinceLabel =
-    since && !Number.isNaN(Date.parse(since)) ? fmt.date(new Date(since)) : null;
+    since && !Number.isNaN(Date.parse(since))
+      ? fmt.date(new Date(since))
+      : null;
 
   return (
     <div

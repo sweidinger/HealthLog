@@ -85,9 +85,7 @@ describe("/api/integrations/status — Polar/Oura fold (04-M2)", () => {
 
     const entries = await fetchEntries();
     const keys = entries.map((e) => e.integration);
-    expect(keys).toEqual(
-      expect.arrayContaining(["polar", "oura"]),
-    );
+    expect(keys).toEqual(expect.arrayContaining(["polar", "oura"]));
 
     const polar = entries.find((e) => e.integration === "polar")!;
     expect(polar.connected).toBe(true);

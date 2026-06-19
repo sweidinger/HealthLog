@@ -362,7 +362,11 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
   // the unqualified rollup + inner-subquery columns, `m."…"` for the latest
   // read's outer alias.
   const priorityJson = await loadUserSourcePriority(userId);
-  const rankUnqualified = buildSourceRankCase(priorityJson, '"type"', '"source"');
+  const rankUnqualified = buildSourceRankCase(
+    priorityJson,
+    '"type"',
+    '"source"',
+  );
   const rankM = buildSourceRankCase(priorityJson, 'm."type"', 'm."source"');
 
   const [narrows, latests, dayBuckets] = await Promise.all([
@@ -628,7 +632,11 @@ async function computeFromLiveAggregate(
   // parity). `canonicalMeasurementsFrom` swaps `FROM measurements m` for a
   // canonical-source-filtered subquery; the latest read uses the ladder rank.
   const priorityJson = await loadUserSourcePriority(userId);
-  const rankUnqualified = buildSourceRankCase(priorityJson, '"type"', '"source"');
+  const rankUnqualified = buildSourceRankCase(
+    priorityJson,
+    '"type"',
+    '"source"',
+  );
   const rankM = buildSourceRankCase(priorityJson, 'm."type"', 'm."source"');
 
   const [allTime, windowed, latests] = await Promise.all([

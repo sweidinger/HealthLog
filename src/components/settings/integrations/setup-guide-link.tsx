@@ -20,8 +20,7 @@ import { useTranslations } from "@/lib/i18n/context";
  * path segment, e.g. `https://docs.healthlog.dev/integrations/whoop`. Kept as
  * a single constant so the host never drifts across cards.
  */
-export const INTEGRATION_DOCS_BASE =
-  "https://docs.healthlog.dev/integrations";
+export const INTEGRATION_DOCS_BASE = "https://docs.healthlog.dev/integrations";
 
 export type IntegrationDocsProvider =
   | "whoop"

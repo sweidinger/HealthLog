@@ -22,10 +22,7 @@ export const UCUM_SYSTEM = "http://unitsofmeasure.org";
 export const HEALTHKIT_CODESYSTEM =
   "https://healthlog.dev/fhir/CodeSystem/healthkit";
 
-export type FhirObservationCategory =
-  | "vital-signs"
-  | "laboratory"
-  | "activity";
+export type FhirObservationCategory = "vital-signs" | "laboratory" | "activity";
 
 export interface LoincMapping {
   /** LOINC code, or null when no stable LOINC applies (local text fallback). */

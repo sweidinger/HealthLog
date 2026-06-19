@@ -66,9 +66,7 @@ function isTolerableRequestProbeError(err: unknown): boolean {
     // Covers both modern `Cannot read properties of undefined
     // (reading 'X')` and the older `Cannot read property 'X' of
     // undefined` wordings.
-    /Cannot read propert(?:y|ies)\b.*\bof (?:undefined|null)\b/.test(
-      msg,
-    )
+    /Cannot read propert(?:y|ies)\b.*\bof (?:undefined|null)\b/.test(msg)
   );
 }
 
@@ -144,11 +142,8 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
       route: url.pathname,
       status: 200,
       user_agent:
-        safeRequestProp(
-          request,
-          (r) => r.headers.get("user-agent"),
-          null,
-        ) ?? undefined,
+        safeRequestProp(request, (r) => r.headers.get("user-agent"), null) ??
+        undefined,
       ip:
         safeRequestProp(
           request,

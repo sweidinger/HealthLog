@@ -129,10 +129,20 @@ describe("intake scheduledFor targeting — record the viewed dose", () => {
     await recordViaSchedule(medId, slot0700);
 
     const morning = await prisma.medicationIntakeEvent.findMany({
-      where: { userId: TEST_USER_ID, medicationId: medId, scheduledFor: slot0700, deletedAt: null },
+      where: {
+        userId: TEST_USER_ID,
+        medicationId: medId,
+        scheduledFor: slot0700,
+        deletedAt: null,
+      },
     });
     const evening = await prisma.medicationIntakeEvent.findMany({
-      where: { userId: TEST_USER_ID, medicationId: medId, scheduledFor: slot1900, deletedAt: null },
+      where: {
+        userId: TEST_USER_ID,
+        medicationId: medId,
+        scheduledFor: slot1900,
+        deletedAt: null,
+      },
     });
 
     // Exactly one taken morning row; the evening slot holds no taken row.
@@ -144,10 +154,20 @@ describe("intake scheduledFor targeting — record the viewed dose", () => {
     await recordViaSchedule(medId, slot1900);
 
     const morningAfter = await prisma.medicationIntakeEvent.findMany({
-      where: { userId: TEST_USER_ID, medicationId: medId, scheduledFor: slot0700, deletedAt: null },
+      where: {
+        userId: TEST_USER_ID,
+        medicationId: medId,
+        scheduledFor: slot0700,
+        deletedAt: null,
+      },
     });
     const eveningAfter = await prisma.medicationIntakeEvent.findMany({
-      where: { userId: TEST_USER_ID, medicationId: medId, scheduledFor: slot1900, deletedAt: null },
+      where: {
+        userId: TEST_USER_ID,
+        medicationId: medId,
+        scheduledFor: slot1900,
+        deletedAt: null,
+      },
     });
     expect(morningAfter).toHaveLength(1);
     expect(morningAfter[0]?.takenAt).not.toBeNull();

@@ -46,10 +46,7 @@ function reject() {
 }
 
 export const POST = apiHandler(
-  async (
-    request: NextRequest,
-    ctx: { params: Promise<{ token: string }> },
-  ) => {
+  async (request: NextRequest, ctx: { params: Promise<{ token: string }> }) => {
     const { token } = await ctx.params;
     annotate({ action: { name: "share-link.unlock" } });
 
@@ -91,14 +88,18 @@ export const POST = apiHandler(
 
     // Correct passphrase — mint the short-lived, token-scoped unlock cookie.
     const cookieStore = await cookies();
-    cookieStore.set(unlockCookieName(gate.tokenHash), mintUnlockValue(gate.tokenHash), {
-      httpOnly: true,
-      secure: shouldEmitSecureCookie(),
-      sameSite: "strict",
-      // Scope to THIS token's view path only — the cookie unlocks nothing else.
-      path: `/c/${token}`,
-      maxAge: UNLOCK_TTL_SECONDS,
-    });
+    cookieStore.set(
+      unlockCookieName(gate.tokenHash),
+      mintUnlockValue(gate.tokenHash),
+      {
+        httpOnly: true,
+        secure: shouldEmitSecureCookie(),
+        sameSite: "strict",
+        // Scope to THIS token's view path only — the cookie unlocks nothing else.
+        path: `/c/${token}`,
+        maxAge: UNLOCK_TTL_SECONDS,
+      },
+    );
 
     annotate({ meta: { unlock: "granted" } });
     return apiSuccess({ unlocked: true });

@@ -106,7 +106,11 @@ export function parseOAuthOutcome(search: string): OAuthOutcome | null {
     const v = params.get(provider);
     if (v === "connected") return { provider, kind: "connected" };
     if (v === "error") {
-      return { provider, kind: "error", reason: params.get("reason") ?? "unknown" };
+      return {
+        provider,
+        kind: "error",
+        reason: params.get("reason") ?? "unknown",
+      };
     }
   }
   return null;
@@ -218,7 +222,9 @@ export function ConnectionsPanel() {
       toast.success(t(`settings.${provider}OauthConnected`));
       // Polar/Oura own a per-card status query; WHOOP/Fitbit read off the
       // consolidated envelope — invalidate both so the card repaints either way.
-      queryClient.invalidateQueries({ queryKey: OAUTH_OUTCOME_KEYS[provider]() });
+      queryClient.invalidateQueries({
+        queryKey: OAUTH_OUTCOME_KEYS[provider](),
+      });
       queryClient.invalidateQueries({
         queryKey: queryKeys.integrationsStatus(),
       });

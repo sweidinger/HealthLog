@@ -169,7 +169,9 @@ function CardSkeleton({ compact = false }: { compact?: boolean }) {
         <div className="bg-muted/40 h-3 w-32 rounded" />
         <div className="bg-muted/40 h-5 w-5 rounded-full" />
       </div>
-      <div className={cn("bg-muted/40 w-full rounded", compact ? "h-12" : "h-24")} />
+      <div
+        className={cn("bg-muted/40 w-full rounded", compact ? "h-12" : "h-24")}
+      />
     </div>
   );
 }
@@ -211,7 +213,10 @@ export function TrajectoryForecastCard({
       base: scaled(v.lastValue, valueScale),
       range: 0,
     };
-    return { points: [anchor, ...points], lastValue: scaled(v.lastValue, valueScale) };
+    return {
+      points: [anchor, ...points],
+      lastValue: scaled(v.lastValue, valueScale),
+    };
   }, [data, valueScale]);
 
   if (!data) {
@@ -258,7 +263,11 @@ export function TrajectoryForecastCard({
 
   const v = data.value!;
   const DirectionIcon =
-    v.direction === "up" ? TrendingUp : v.direction === "down" ? TrendingDown : Minus;
+    v.direction === "up"
+      ? TrendingUp
+      : v.direction === "down"
+        ? TrendingDown
+        : Minus;
   const last = chart.points[chart.points.length - 1];
   const projectedLow = last.base;
   const projectedHigh = last.base + last.range;

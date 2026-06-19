@@ -24,12 +24,20 @@ vi.mock("@/lib/crypto", () => ({
   decrypt: (s: string) => s.replace(/^enc:/, ""),
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
-vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/auth/audit", () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
-vi.mock("@/lib/db-compat", () => ({ ensureDbCompatibility: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
-  cookies: vi.fn(async () => ({ get: () => undefined, set: () => {}, delete: () => {} })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
 }));
 
 import { POST } from "../custom/route";
@@ -59,19 +67,40 @@ describe("POST /api/mood/tags/custom", () => {
   it("creates a custom tag and returns it (custom:true, decrypted label)", async () => {
     db.moodTag.count.mockResolvedValue(3);
     db.moodTag.create.mockResolvedValue({
-      key: "custom:abc", icon: "Heart", kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false,
+      key: "custom:abc",
+      icon: "Heart",
+      kind: "BINARY",
+      scaleMin: 1,
+      scaleMax: 5,
+      inverse: false,
     });
-    const res = await POST(jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "Date night", icon: "Heart" }));
+    const res = await POST(
+      jsonReq("http://localhost/api/mood/tags/custom", "POST", {
+        label: "Date night",
+        icon: "Heart",
+      }),
+    );
     expect(res.status).toBe(201);
-    const body = (await res.json()) as { data: { custom: boolean; label: string; labelKey: null; key: string } };
-    expect(body.data).toMatchObject({ custom: true, label: "Date night", labelKey: null, key: "custom:abc" });
+    const body = (await res.json()) as {
+      data: { custom: boolean; label: string; labelKey: null; key: string };
+    };
+    expect(body.data).toMatchObject({
+      custom: true,
+      label: "Date night",
+      labelKey: null,
+      key: "custom:abc",
+    });
     // Label is stored encrypted, never plaintext.
-    expect(db.moodTag.create.mock.calls[0][0].data.labelEncrypted).toBe("enc:Date night");
+    expect(db.moodTag.create.mock.calls[0][0].data.labelEncrypted).toBe(
+      "enc:Date night",
+    );
   });
 
   it("rejects over the per-user cap with 422", async () => {
     db.moodTag.count.mockResolvedValue(50);
-    const res = await POST(jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "X" }));
+    const res = await POST(
+      jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "X" }),
+    );
     expect(res.status).toBe(422);
     expect(db.moodTag.create).not.toHaveBeenCalled();
   });
@@ -79,21 +108,38 @@ describe("POST /api/mood/tags/custom", () => {
   it("defaults to the seeded custom category without a categoryKey (v1.13 contract)", async () => {
     db.moodTag.count.mockResolvedValue(0);
     db.moodTag.create.mockResolvedValue({
-      key: "custom:x", icon: null, kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false,
+      key: "custom:x",
+      icon: null,
+      kind: "BINARY",
+      scaleMin: 1,
+      scaleMax: 5,
+      inverse: false,
     });
-    await POST(jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "X" }));
+    await POST(
+      jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "X" }),
+    );
     expect(db.moodTagCategory.findFirst).not.toHaveBeenCalled();
-    expect(db.moodTag.create.mock.calls[0][0].data.categoryId).toBe("mtc_custom");
+    expect(db.moodTag.create.mock.calls[0][0].data.categoryId).toBe(
+      "mtc_custom",
+    );
   });
 
   it("resolves categoryKey to a seeded OR own group (v1.17.0) and 422s an unknown one", async () => {
     db.moodTag.count.mockResolvedValue(0);
     db.moodTagCategory.findFirst.mockResolvedValue({ id: "cg1" });
     db.moodTag.create.mockResolvedValue({
-      key: "custom:x", icon: null, kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false,
+      key: "custom:x",
+      icon: null,
+      kind: "BINARY",
+      scaleMin: 1,
+      scaleMax: 5,
+      inverse: false,
     });
     const ok = await POST(
-      jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "X", categoryKey: "customcat:g1" }),
+      jsonReq("http://localhost/api/mood/tags/custom", "POST", {
+        label: "X",
+        categoryKey: "customcat:g1",
+      }),
     );
     expect(ok.status).toBe(201);
     expect(db.moodTag.create.mock.calls[0][0].data.categoryId).toBe("cg1");
@@ -107,7 +153,10 @@ describe("POST /api/mood/tags/custom", () => {
 
     db.moodTagCategory.findFirst.mockResolvedValue(null);
     const bad = await POST(
-      jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "X", categoryKey: "customcat:theirs" }),
+      jsonReq("http://localhost/api/mood/tags/custom", "POST", {
+        label: "X",
+        categoryKey: "customcat:theirs",
+      }),
     );
     expect(bad.status).toBe(422);
   });
@@ -119,14 +168,19 @@ describe("PATCH/DELETE /api/mood/tags/custom/:key", () => {
   it("404s when the key is not the caller's own custom tag", async () => {
     db.moodTag.findFirst.mockResolvedValue(null);
     const res = await PATCH(
-      jsonReq("http://localhost/api/mood/tags/custom/custom:x", "PATCH", { isActive: false }),
+      jsonReq("http://localhost/api/mood/tags/custom/custom:x", "PATCH", {
+        isActive: false,
+      }),
       params("custom:x"),
     );
     expect(res.status).toBe(404);
   });
 
   it("404s a non-custom key without touching the DB", async () => {
-    const res = await DELETE(new NextRequest("http://localhost/api/mood/tags/custom/happy"), params("happy"));
+    const res = await DELETE(
+      new NextRequest("http://localhost/api/mood/tags/custom/happy"),
+      params("happy"),
+    );
     expect(res.status).toBe(404);
     expect(db.moodTag.findFirst).not.toHaveBeenCalled();
   });
@@ -135,22 +189,34 @@ describe("PATCH/DELETE /api/mood/tags/custom/:key", () => {
     db.moodTag.findFirst.mockResolvedValue({ id: "id1" });
     db.moodTagCategory.findFirst.mockResolvedValue({ id: "cg1" });
     db.moodTag.update.mockResolvedValue({
-      key: "custom:x", icon: null, kind: "BINARY", scaleMin: 1, scaleMax: 5,
-      inverse: false, isActive: true, labelEncrypted: "enc:X",
+      key: "custom:x",
+      icon: null,
+      kind: "BINARY",
+      scaleMin: 1,
+      scaleMax: 5,
+      inverse: false,
+      isActive: true,
+      labelEncrypted: "enc:X",
     });
     const res = await PATCH(
-      jsonReq("http://localhost/api/mood/tags/custom/custom:x", "PATCH", { categoryKey: "customcat:g1" }),
+      jsonReq("http://localhost/api/mood/tags/custom/custom:x", "PATCH", {
+        categoryKey: "customcat:g1",
+      }),
       params("custom:x"),
     );
     expect(res.status).toBe(200);
-    expect(db.moodTag.update.mock.calls[0][0].data).toEqual({ categoryId: "cg1" });
+    expect(db.moodTag.update.mock.calls[0][0].data).toEqual({
+      categoryId: "cg1",
+    });
   });
 
   it("422s a move to an unknown / foreign group without writing", async () => {
     db.moodTag.findFirst.mockResolvedValue({ id: "id1" });
     db.moodTagCategory.findFirst.mockResolvedValue(null);
     const res = await PATCH(
-      jsonReq("http://localhost/api/mood/tags/custom/custom:x", "PATCH", { categoryKey: "ghost" }),
+      jsonReq("http://localhost/api/mood/tags/custom/custom:x", "PATCH", {
+        categoryKey: "ghost",
+      }),
       params("custom:x"),
     );
     expect(res.status).toBe(422);
@@ -159,15 +225,26 @@ describe("PATCH/DELETE /api/mood/tags/custom/:key", () => {
 
   it("soft-deactivates by default and hard-deletes on ?purge=true", async () => {
     db.moodTag.findFirst.mockResolvedValue({ id: "id1" });
-    const soft = await DELETE(new NextRequest("http://localhost/api/mood/tags/custom/custom:abc"), params("custom:abc"));
+    const soft = await DELETE(
+      new NextRequest("http://localhost/api/mood/tags/custom/custom:abc"),
+      params("custom:abc"),
+    );
     expect(soft.status).toBe(200);
-    expect(db.moodTag.update).toHaveBeenCalledWith({ where: { id: "id1" }, data: { isActive: false } });
+    expect(db.moodTag.update).toHaveBeenCalledWith({
+      where: { id: "id1" },
+      data: { isActive: false },
+    });
     expect(db.moodTag.delete).not.toHaveBeenCalled();
 
     vi.clearAllMocks();
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     db.moodTag.findFirst.mockResolvedValue({ id: "id1" });
-    const purge = await DELETE(new NextRequest("http://localhost/api/mood/tags/custom/custom:abc?purge=true"), params("custom:abc"));
+    const purge = await DELETE(
+      new NextRequest(
+        "http://localhost/api/mood/tags/custom/custom:abc?purge=true",
+      ),
+      params("custom:abc"),
+    );
     expect(purge.status).toBe(200);
     expect(db.moodTag.delete).toHaveBeenCalledWith({ where: { id: "id1" } });
   });
@@ -176,7 +253,9 @@ describe("PATCH/DELETE /api/mood/tags/custom/:key", () => {
 describe("PUT /api/mood/tags/:key/hidden", () => {
   it("rejects a custom key with 400 (custom tags hide via isActive)", async () => {
     const res = await PUT(
-      jsonReq("http://localhost/api/mood/tags/custom:abc/hidden", "PUT", { hidden: true }),
+      jsonReq("http://localhost/api/mood/tags/custom:abc/hidden", "PUT", {
+        hidden: true,
+      }),
       { params: Promise.resolve({ key: "custom:abc" }) },
     );
     expect(res.status).toBe(400);
@@ -185,7 +264,9 @@ describe("PUT /api/mood/tags/:key/hidden", () => {
   it("upserts a hide row for a catalogue tag", async () => {
     db.moodTag.findFirst.mockResolvedValue({ id: "t_sad" });
     const res = await PUT(
-      jsonReq("http://localhost/api/mood/tags/sad/hidden", "PUT", { hidden: true }),
+      jsonReq("http://localhost/api/mood/tags/sad/hidden", "PUT", {
+        hidden: true,
+      }),
       { params: Promise.resolve({ key: "sad" }) },
     );
     expect(res.status).toBe(200);

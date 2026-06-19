@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/insights/derived", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/insights/derived")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/insights/derived")>();
   return { ...actual, computeTrajectory: vi.fn() };
 });
 
@@ -26,20 +27,52 @@ function okTrajectory(type: string) {
       sampleDays: 20,
       lastValue: 61.44,
       projection: [
-        { dayOffset: 1, date: "2026-06-03", projected: 61.5, bandLow: 60.1, bandHigh: 62.9 },
-        { dayOffset: 14, date: "2026-06-16", projected: 63.16, bandLow: 60.02, bandHigh: 66.34 },
+        {
+          dayOffset: 1,
+          date: "2026-06-03",
+          projected: 61.5,
+          bandLow: 60.1,
+          bandHigh: 62.9,
+        },
+        {
+          dayOffset: 14,
+          date: "2026-06-16",
+          projected: 63.16,
+          bandLow: 60.02,
+          bandHigh: 66.34,
+        },
       ],
       method: "ols" as const,
     },
-    coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 20, missing: [] },
+    coverage: {
+      requiredInputs: 1,
+      presentInputs: 1,
+      historyDays: 20,
+      missing: [],
+    },
     confidence: { score: 71, band: "moderate" as const },
-    provenance: { inputs: [type], source: "DAY" as const, windowDays: 30, computedAt: "x" },
+    provenance: {
+      inputs: [type],
+      source: "DAY" as const,
+      windowDays: 30,
+      computedAt: "x",
+    },
   };
 }
 const insufficient = {
   status: "insufficient" as const,
-  coverage: { requiredInputs: 1, presentInputs: 0, historyDays: 4, missing: [] },
-  provenance: { inputs: [], source: "none" as const, windowDays: 30, computedAt: "x" },
+  coverage: {
+    requiredInputs: 1,
+    presentInputs: 0,
+    historyDays: 4,
+    missing: [],
+  },
+  provenance: {
+    inputs: [],
+    source: "none" as const,
+    windowDays: 30,
+    computedAt: "x",
+  },
   reason: "insufficient_fit_for_projection",
 };
 

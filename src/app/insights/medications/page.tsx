@@ -108,7 +108,10 @@ export default function InsightsMedikamentePage() {
         MED_STATUS_TIMEOUT_MS,
       );
       try {
-        return apiGet<MedicationComplianceStatusData>(`/api/insights/medication-compliance-status?locale=${locale}`, { signal: controller.signal });
+        return apiGet<MedicationComplianceStatusData>(
+          `/api/insights/medication-compliance-status?locale=${locale}`,
+          { signal: controller.signal },
+        );
       } finally {
         clearTimeout(timeoutHandle);
       }
@@ -170,9 +173,7 @@ export default function InsightsMedikamentePage() {
             </Button>
           }
         />
-        <CoachLaunchButton
-          prefill="I haven't added any medications yet — what should I know before I start tracking medication compliance here?"
-        />
+        <CoachLaunchButton prefill="I haven't added any medications yet — what should I know before I start tracking medication compliance here?" />
       </SubPageShell>
     );
   }
@@ -217,7 +218,10 @@ export default function InsightsMedikamentePage() {
                   <span aria-hidden="true">·</span>
                   <span>{categoryLabel}</span>
                   {med.streak > 0 ? (
-                    <Badge variant="outline" className="ml-auto shrink-0 text-xs">
+                    <Badge
+                      variant="outline"
+                      className="ml-auto shrink-0 text-xs"
+                    >
                       {med.streak === 1
                         ? t("insights.dayStreakOne", { count: med.streak })
                         : t("insights.dayStreak", { count: med.streak })}

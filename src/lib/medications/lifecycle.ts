@@ -94,7 +94,9 @@ export async function reconcileOneShotState(
     return "noop";
   }
 
-  const action: ReconcileOneShotAction = shouldBeActive ? "activate" : "deactivate";
+  const action: ReconcileOneShotAction = shouldBeActive
+    ? "activate"
+    : "deactivate";
 
   // `updateMany` with `oneShot:true` is structurally a no-op on every
   // non-one-shot row; collapse to zero count when the medication is

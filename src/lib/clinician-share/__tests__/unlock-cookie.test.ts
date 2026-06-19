@@ -50,9 +50,9 @@ describe("unlock-cookie", () => {
     expect(verifyUnlockValue(undefined, HASH_A)).toBe(false);
     expect(verifyUnlockValue("", HASH_A)).toBe(false);
     expect(verifyUnlockValue("nodot", HASH_A)).toBe(false);
-    expect(verifyUnlockValue(`${Date.now() + 1_000_000}.deadbeef`, HASH_A)).toBe(
-      false,
-    );
+    expect(
+      verifyUnlockValue(`${Date.now() + 1_000_000}.deadbeef`, HASH_A),
+    ).toBe(false);
   });
 
   it("derives a per-token cookie name", () => {

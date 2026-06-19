@@ -102,7 +102,12 @@ describe("IntakeEditDialog guardrails (P0-4)", () => {
     const html = renderToStaticMarkup(
       <IntakeEditDialog
         medicationId="med-1"
-        event={{ id: "evt-1", takenAt: taken, skipped: false, scheduledFor: slot }}
+        event={{
+          id: "evt-1",
+          takenAt: taken,
+          skipped: false,
+          scheduledFor: slot,
+        }}
         onClose={() => {}}
       />,
     );
@@ -120,7 +125,12 @@ describe("IntakeEditDialog guardrails (P0-4)", () => {
     const html = renderToStaticMarkup(
       <IntakeEditDialog
         medicationId="med-1"
-        event={{ id: "evt-1", takenAt: taken, skipped: false, scheduledFor: slot }}
+        event={{
+          id: "evt-1",
+          takenAt: taken,
+          skipped: false,
+          scheduledFor: slot,
+        }}
         onClose={() => {}}
       />,
     );

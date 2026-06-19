@@ -189,9 +189,7 @@ function SleepQualityAssessmentBlock({
   // which branch renders — it runs at the top of this component — so swapping
   // its render for the note loses no `hasProvider` knowledge.
   if (showGroundedNote) {
-    return (
-      <SleepQualityGroundedNote summaries={summaries} showWhenAiAbsent />
-    );
+    return <SleepQualityGroundedNote summaries={summaries} showWhenAiAbsent />;
   }
 
   return (

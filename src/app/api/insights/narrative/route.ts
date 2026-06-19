@@ -20,7 +20,10 @@ import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { readPeriodNarrative } from "@/lib/insights/narrative/period-narrative-generate";
-import { PERIOD_DAYS, type NarrativePeriod } from "@/lib/insights/narrative/period-narrative";
+import {
+  PERIOD_DAYS,
+  type NarrativePeriod,
+} from "@/lib/insights/narrative/period-narrative";
 import { enqueueNarrativeWarm } from "@/lib/jobs/period-narrative-shared";
 
 export const dynamic = "force-dynamic";

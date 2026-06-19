@@ -134,12 +134,8 @@ describe("range-aggregation", () => {
       expect(out[0].avg).toBeCloseTo(75.5, 5);
       expect(out[1].count).toBe(1);
       expect(out[1].avg).toBe(77);
-      expect(out[0].bucketStart.toISOString()).toBe(
-        "2025-01-01T00:00:00.000Z",
-      );
-      expect(out[1].bucketStart.toISOString()).toBe(
-        "2025-02-01T00:00:00.000Z",
-      );
+      expect(out[0].bucketStart.toISOString()).toBe("2025-01-01T00:00:00.000Z");
+      expect(out[1].bucketStart.toISOString()).toBe("2025-02-01T00:00:00.000Z");
     });
   });
 });

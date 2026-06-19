@@ -111,11 +111,15 @@ function makeClient(state: FakeState) {
           const matches = state.events.filter((e) => {
             if (w.id !== undefined && e.id !== w.id) return false;
             if (w.userId !== undefined && e.userId !== w.userId) return false;
-            if (w.medicationId !== undefined && e.medicationId !== w.medicationId)
+            if (
+              w.medicationId !== undefined &&
+              e.medicationId !== w.medicationId
+            )
               return false;
             if ("deletedAt" in w && e.deletedAt !== null) return false;
             if (w.takenAt !== undefined && e.takenAt === null) return false;
-            if (w.skipped !== undefined && e.skipped !== w.skipped) return false;
+            if (w.skipped !== undefined && e.skipped !== w.skipped)
+              return false;
             if (w.inventoryConsumption !== undefined) {
               const eq = w.inventoryConsumption.equals;
               if (eq === Prisma.AnyNull) {
@@ -184,10 +188,7 @@ function makeClient(state: FakeState) {
           ) ?? null,
       ),
       update: vi.fn(
-        async (args: {
-          where: { id: string };
-          data: Partial<FakeItem>;
-        }) => {
+        async (args: { where: { id: string }; data: Partial<FakeItem> }) => {
           const item = state.items.find((i) => i.id === args.where.id)!;
           Object.assign(item, args.data);
           return item;
@@ -386,9 +387,7 @@ describe("consumeForIntake", () => {
     const opened = state.items[0];
     expect(opened.firstUseAt).toEqual(NOW);
     expect(opened.state).toBe("IN_USE");
-    expect(opened.expiresAt?.getTime()).toBe(
-      NOW.getTime() + 30 * MS_PER_DAY,
-    );
+    expect(opened.expiresAt?.getTime()).toBe(NOW.getTime() + 30 * MS_PER_DAY);
     expect(annotate).toHaveBeenCalledWith(
       expect.objectContaining({
         meta: expect.objectContaining({ auto_opened: 1 }),
@@ -575,7 +574,9 @@ describe("consumeForIntake", () => {
       new Error("connection lost"),
     );
 
-    await expect(consumeForIntake(consumeArgs(client))).resolves.toBeUndefined();
+    await expect(
+      consumeForIntake(consumeArgs(client)),
+    ).resolves.toBeUndefined();
     expect(annotate).toHaveBeenCalledWith(
       expect.objectContaining({
         action: { name: "medication.inventory.consume_error" },

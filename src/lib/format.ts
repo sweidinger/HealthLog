@@ -105,8 +105,7 @@ export function formatDateOrRelative(
    */
   nowMs: number = Date.now(),
 ): string {
-  const target =
-    iso instanceof Date ? iso.getTime() : new Date(iso).getTime();
+  const target = iso instanceof Date ? iso.getTime() : new Date(iso).getTime();
   if (Number.isNaN(target)) return "";
   const diffMs = nowMs - target;
   // Future timestamps fall back to absolute — relative copy doesn't
@@ -143,4 +142,3 @@ export function formatDateOrRelative(
   }
   return formatDateTime(iso);
 }
-

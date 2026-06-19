@@ -46,9 +46,9 @@ vi.mock("@/lib/modules/gate", () => ({
   // cycle block (operator/user kill-switch parity) without a DB read.
   isModuleEnabled: vi.fn(async (...args: [string, ModuleKey]) => {
     const key = args[1];
-    const map = await (resolveModuleMap as unknown as () => Promise<
-      Record<ModuleKey, boolean>
-    >)();
+    const map = await (
+      resolveModuleMap as unknown as () => Promise<Record<ModuleKey, boolean>>
+    )();
     return map[key] !== false;
   }),
 }));
@@ -319,12 +319,12 @@ describe("buildCoachSnapshot", () => {
     // The compliance query and the GLP-1 query share this mock; only the
     // compliance one (no `treatmentClass` filter) gets the fixture so the
     // GLP-1 block — which selects `doseChanges` etc. — sees no rows.
-    prismaMock.medication.findMany.mockImplementation((args?: {
-      where?: { treatmentClass?: string };
-    }) => {
-      if (args?.where?.treatmentClass === "GLP1") return Promise.resolve([]);
-      return Promise.resolve([medication]);
-    });
+    prismaMock.medication.findMany.mockImplementation(
+      (args?: { where?: { treatmentClass?: string } }) => {
+        if (args?.where?.treatmentClass === "GLP1") return Promise.resolve([]);
+        return Promise.resolve([medication]);
+      },
+    );
     prismaMock.user.findUnique.mockResolvedValue({
       coachPrefsJson: null,
       timezone: "Europe/Berlin",
@@ -339,7 +339,11 @@ describe("buildCoachSnapshot", () => {
     // Independent authority over the same window the coach uses (30-day
     // default scope), same ledger context — the coach rate must equal it.
     const now = new Date();
-    const ctx = buildComplianceMedicationContext(medication, null, "Europe/Berlin");
+    const ctx = buildComplianceMedicationContext(
+      medication,
+      null,
+      "Europe/Berlin",
+    );
     const authority = calculateCompliance(
       intakeEvents,
       [schedule],
@@ -672,9 +676,8 @@ describe("buildCoachSnapshot", () => {
       recovery: false,
     });
     const { buildDerivedSnapshotBlock } = await import("../derived-snapshot");
-    const { buildTrajectorySnapshotBlock } = await import(
-      "../trajectory-snapshot"
-    );
+    const { buildTrajectorySnapshotBlock } =
+      await import("../trajectory-snapshot");
 
     prismaMock.measurement.findMany.mockResolvedValue([]);
     featuresMock.mockResolvedValue({
@@ -850,8 +853,7 @@ describe("Coach snapshot — free-text fields wrap through sanitizeForPrompt (L-
       if (violations.length > 0) {
         const formatted = violations
           .map(
-            (v) =>
-              `  ${filePath}:${v.line} — \`${v.fieldName}\`: ${v.snippet}`,
+            (v) => `  ${filePath}:${v.line} — \`${v.fieldName}\`: ${v.snippet}`,
           )
           .join("\n");
         throw new Error(

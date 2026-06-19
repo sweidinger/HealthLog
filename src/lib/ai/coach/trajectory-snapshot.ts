@@ -101,7 +101,10 @@ export async function buildTrajectorySnapshotBlock(
       continue;
     }
     if (!isDerivedOk(derived)) continue; // omit insufficient — no projection noise
-    const summary = summariseTrajectory(derived.value, derived.confidence.score);
+    const summary = summariseTrajectory(
+      derived.value,
+      derived.confidence.score,
+    );
     if (!summary) continue;
     block[type] = summary;
   }

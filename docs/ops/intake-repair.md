@@ -96,6 +96,7 @@ pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts --fix
   ```
 
   `--tombstone-implausible` is refused without `--fix`.
+
 - **Drifted schedule windows are reconciled** to
   `min/max(times_of_day)` so the legacy pair stops contradicting the
   canonical dose times. Overnight windows (`window_end < window_start`)

@@ -619,8 +619,7 @@ export default function DashboardPage() {
       batchWindow.from,
       batchWindow.to,
     ),
-    enabled:
-      isAuthenticated && mounted && batchChartTypes.length > 0,
+    enabled: isAuthenticated && mounted && batchChartTypes.length > 0,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,

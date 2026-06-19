@@ -195,8 +195,12 @@ describe("loadApnsConfig — all-or-none env-var guard", () => {
     setEnv({ ...VALID_ENV, APNS_KEY: collapsed });
     const config = loadApnsConfig();
     expect(config).toBeTruthy();
-    expect(config?.signingKey.startsWith("-----BEGIN PRIVATE KEY-----\n")).toBe(true);
-    expect(config?.signingKey.endsWith("\n-----END PRIVATE KEY-----")).toBe(true);
+    expect(config?.signingKey.startsWith("-----BEGIN PRIVATE KEY-----\n")).toBe(
+      true,
+    );
+    expect(config?.signingKey.endsWith("\n-----END PRIVATE KEY-----")).toBe(
+      true,
+    );
   });
 
   it("accepts a bare base64 body without BEGIN/END markers", () => {
@@ -207,13 +211,16 @@ describe("loadApnsConfig — all-or-none env-var guard", () => {
     setEnv({ ...VALID_ENV, APNS_KEY: bareBase64 });
     const config = loadApnsConfig();
     expect(config).toBeTruthy();
-    expect(config?.signingKey.startsWith("-----BEGIN PRIVATE KEY-----\n")).toBe(true);
+    expect(config?.signingKey.startsWith("-----BEGIN PRIVATE KEY-----\n")).toBe(
+      true,
+    );
   });
 
   it("returns null + warns when APNS_KEY does not parse as an asymmetric key", () => {
     setEnv({
       ...VALID_ENV,
-      APNS_KEY: "-----BEGIN PRIVATE KEY-----\\nNOTAREALKEY\\n-----END PRIVATE KEY-----",
+      APNS_KEY:
+        "-----BEGIN PRIVATE KEY-----\\nNOTAREALKEY\\n-----END PRIVATE KEY-----",
     });
     const config = loadApnsConfig();
     expect(config).toBeNull();
@@ -229,7 +236,8 @@ describe("loadApnsConfig — all-or-none env-var guard", () => {
       APNS_TEAM_ID: VALID_ENV.APNS_TEAM_ID,
       APNS_BUNDLE_ID: VALID_ENV.APNS_BUNDLE_ID,
       // Both set on purpose — B64 takes precedence.
-      APNS_KEY: "-----BEGIN PRIVATE KEY-----\\nBROKEN\\n-----END PRIVATE KEY-----",
+      APNS_KEY:
+        "-----BEGIN PRIVATE KEY-----\\nBROKEN\\n-----END PRIVATE KEY-----",
       APNS_KEY_B64: b64,
     });
     const config = loadApnsConfig();
@@ -508,7 +516,13 @@ describe("sendViaApns — dispatcher fan-out", () => {
     // First send (production gateway): rejected.
     sendMock.mockResolvedValueOnce({
       sent: [],
-      failed: [{ device: "tok-a", status: 403, response: { reason: "BadEnvironmentKeyInToken" } }],
+      failed: [
+        {
+          device: "tok-a",
+          status: 403,
+          response: { reason: "BadEnvironmentKeyInToken" },
+        },
+      ],
     });
     // Second send (sandbox gateway): success.
     sendMock.mockResolvedValueOnce({
@@ -536,7 +550,13 @@ describe("sendViaApns — dispatcher fan-out", () => {
     ] as never);
     sendMock.mockResolvedValueOnce({
       sent: [],
-      failed: [{ device: "tok-a", status: 410, response: { reason: "BadDeviceToken" } }],
+      failed: [
+        {
+          device: "tok-a",
+          status: 410,
+          response: { reason: "BadDeviceToken" },
+        },
+      ],
     });
 
     const r = await sendViaApns("u-1", {
@@ -703,25 +723,31 @@ describe("sendViaApns — dispatcher fan-out", () => {
     "WITHINGS_SYNC_FAILED",
     "SYSTEM_ALERT",
     "PERSONAL_RECORD",
-  ])("eventType %s does NOT set interruption-level (Focus respected)", async (eventType) => {
-    // Every non-MEDICATION_REMINDER event-type must omit the
-    // interruption-level so the system default (`active`) lets Focus
-    // modes — Sleep, Do-Not-Disturb, Personal — silence the alert as
-    // the user expects.
-    vi.mocked(prisma.device.findMany).mockResolvedValueOnce([
-      { id: "d1", apnsToken: "tok-a", apnsEnvironment: "sandbox" },
-    ] as never);
-    sendMock.mockResolvedValueOnce({ sent: [{ device: "tok-a" }], failed: [] });
-    await sendViaApns("u-1", {
-      title: "t",
-      message: "m",
-      eventType,
-    });
-    const note = sendMock.mock.calls[0][0];
-    expect(note.interruptionLevel).toBeUndefined();
-    // priority too — only opt in for time-sensitive deliveries.
-    expect(note.priority).toBeUndefined();
-  });
+  ])(
+    "eventType %s does NOT set interruption-level (Focus respected)",
+    async (eventType) => {
+      // Every non-MEDICATION_REMINDER event-type must omit the
+      // interruption-level so the system default (`active`) lets Focus
+      // modes — Sleep, Do-Not-Disturb, Personal — silence the alert as
+      // the user expects.
+      vi.mocked(prisma.device.findMany).mockResolvedValueOnce([
+        { id: "d1", apnsToken: "tok-a", apnsEnvironment: "sandbox" },
+      ] as never);
+      sendMock.mockResolvedValueOnce({
+        sent: [{ device: "tok-a" }],
+        failed: [],
+      });
+      await sendViaApns("u-1", {
+        title: "t",
+        message: "m",
+        eventType,
+      });
+      const note = sendMock.mock.calls[0][0];
+      expect(note.interruptionLevel).toBeUndefined();
+      // priority too — only opt in for time-sensitive deliveries.
+      expect(note.priority).toBeUndefined();
+    },
+  );
 
   it("forwards explicit interruptionLevel on sendApnsPush", async () => {
     // Lower-level entry should round-trip the explicit flag — caller

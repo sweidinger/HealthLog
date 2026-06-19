@@ -17,13 +17,22 @@ describe("reference-ranges backbone", () => {
   it("every band + conflict + headline resolves a real citation", () => {
     for (const metric of REFERENCE_METRICS) {
       const range = REFERENCE_RANGES[metric];
-      expect(CITATIONS[range.referenceId], `${metric} referenceId`).toBeTruthy();
+      expect(
+        CITATIONS[range.referenceId],
+        `${metric} referenceId`,
+      ).toBeTruthy();
       expect(range.unit, `${metric} unit`).toBeTruthy();
       expect(range.guidanceCaveat, `${metric} guidanceCaveat`).toBeTruthy();
       for (const band of range.bands) {
-        expect(CITATIONS[band.citation], `${metric} band ${band.label}`).toBeTruthy();
+        expect(
+          CITATIONS[band.citation],
+          `${metric} band ${band.label}`,
+        ).toBeTruthy();
         // A band must pin at least one bound.
-        expect(band.low != null || band.high != null, `${metric} ${band.label}`).toBe(true);
+        expect(
+          band.low != null || band.high != null,
+          `${metric} ${band.label}`,
+        ).toBe(true);
       }
       for (const conflict of range.conflicts ?? []) {
         expect(CITATIONS[conflict.citation], `${metric} conflict`).toBeTruthy();
@@ -62,14 +71,18 @@ describe("reference-ranges backbone", () => {
       const marked = bands.filter((b) => b.normal === true);
       expect(marked, `${metric} normal-band count`).toHaveLength(1);
       // `normalBandIndex` points at that marked band.
-      expect(bands[normalBandIndex(metric)].normal, `${metric} index`).toBe(true);
+      expect(bands[normalBandIndex(metric)].normal, `${metric} index`).toBe(
+        true,
+      );
     }
   });
 
   it("resolves the normal band by marker, not by index 0", () => {
     // BMI authors Underweight FIRST; the normal band is the 18.5–24.9 entry.
     expect(REFERENCE_RANGES.BMI.bands[0].label).toBe("Underweight");
-    expect(REFERENCE_RANGES.BMI.bands[normalBandIndex("BMI")].label).toBe("Normal");
+    expect(REFERENCE_RANGES.BMI.bands[normalBandIndex("BMI")].label).toBe(
+      "Normal",
+    );
     // BMI 22 is healthy → within (the index-0 bug reported it slightly-outside).
     expect(classifyReference("BMI", 22)).toBe("within");
     // BMI 17 is underweight → one band below normal → slightly-outside
@@ -93,10 +106,14 @@ describe("reference-ranges backbone", () => {
 
   it("returns insufficient for absent values and band-less metrics", () => {
     expect(classifyReference("RESTING_HEART_RATE", null)).toBe("insufficient");
-    expect(classifyReference("RESTING_HEART_RATE", Number.NaN)).toBe("insufficient");
+    expect(classifyReference("RESTING_HEART_RATE", Number.NaN)).toBe(
+      "insufficient",
+    );
     // HRV carries no fixed population band — baseline-only.
     expect(REFERENCE_RANGES.HEART_RATE_VARIABILITY.bands).toHaveLength(0);
-    expect(classifyReference("HEART_RATE_VARIABILITY", 42)).toBe("insufficient");
+    expect(classifyReference("HEART_RATE_VARIABILITY", 42)).toBe(
+      "insufficient",
+    );
   });
 
   it("steps backbone uses the canonical 8,000 green floor", () => {

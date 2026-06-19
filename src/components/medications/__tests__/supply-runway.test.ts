@@ -26,9 +26,7 @@ function schedule(partial: Partial<RunwaySchedule>): RunwaySchedule {
 describe("estimateDailyDoseCount", () => {
   it("counts a plain daily schedule as its times-of-day per day", () => {
     expect(
-      estimateDailyDoseCount([
-        schedule({ timesOfDay: ["08:00", "20:00"] }),
-      ]),
+      estimateDailyDoseCount([schedule({ timesOfDay: ["08:00", "20:00"] })]),
     ).toBe(2);
   });
 
@@ -88,9 +86,9 @@ describe("estimateRunwayDays", () => {
   });
 
   it("floors to whole days", () => {
-    expect(estimateRunwayDays(5, [schedule({ timesOfDay: ["08:00", "20:00"] })])).toBe(
-      2,
-    );
+    expect(
+      estimateRunwayDays(5, [schedule({ timesOfDay: ["08:00", "20:00"] })]),
+    ).toBe(2);
   });
 
   it("returns null when no supply remains", () => {
@@ -159,26 +157,42 @@ describe("lowStockTriggerDays — v1.17.0", () => {
 
   it("keeps a daily med with no lead at the bare floor (never shrinks)", () => {
     expect(
-      lowStockTriggerDays({ lowStockRunwayDays: 7, leadDays: 0, schedules: daily }),
+      lowStockTriggerDays({
+        lowStockRunwayDays: 7,
+        leadDays: 0,
+        schedules: daily,
+      }),
     ).toBe(7);
   });
 
   it("widens a weekly med to cover the reorder lead PLUS one dose-interval", () => {
     // max(7, 10 lead + 7 interval) = 17 → fires ~10 days before the last dose.
     expect(
-      lowStockTriggerDays({ lowStockRunwayDays: 7, leadDays: 10, schedules: weekly }),
+      lowStockTriggerDays({
+        lowStockRunwayDays: 7,
+        leadDays: 10,
+        schedules: weekly,
+      }),
     ).toBe(17);
   });
 
   it("never drops below the user floor even when lead + cadence are small", () => {
     expect(
-      lowStockTriggerDays({ lowStockRunwayDays: 14, leadDays: 2, schedules: daily }),
+      lowStockTriggerDays({
+        lowStockRunwayDays: 14,
+        leadDays: 2,
+        schedules: daily,
+      }),
     ).toBe(14);
   });
 
   it("falls back to the bare floor for a schedule-less medication", () => {
     expect(
-      lowStockTriggerDays({ lowStockRunwayDays: 7, leadDays: 10, schedules: [] }),
+      lowStockTriggerDays({
+        lowStockRunwayDays: 7,
+        leadDays: 10,
+        schedules: [],
+      }),
     ).toBe(7);
   });
 });
@@ -188,19 +202,31 @@ describe("classifyLowStockState — v1.17.0", () => {
 
   it("returns null when comfortably above the trigger", () => {
     expect(
-      classifyLowStockState({ runwayDays: 20, triggerDays: 17, schedules: weekly }),
+      classifyLowStockState({
+        runwayDays: 20,
+        triggerDays: 17,
+        schedules: weekly,
+      }),
     ).toBeNull();
   });
 
   it("flags running_low within the trigger but above one cadence interval", () => {
     expect(
-      classifyLowStockState({ runwayDays: 14, triggerDays: 17, schedules: weekly }),
+      classifyLowStockState({
+        runwayDays: 14,
+        triggerDays: 17,
+        schedules: weekly,
+      }),
     ).toBe("running_low");
   });
 
   it("flags last_dose at one cadence interval", () => {
     expect(
-      classifyLowStockState({ runwayDays: 7, triggerDays: 17, schedules: weekly }),
+      classifyLowStockState({
+        runwayDays: 7,
+        triggerDays: 17,
+        schedules: weekly,
+      }),
     ).toBe("last_dose");
   });
 });

@@ -58,9 +58,7 @@ beforeEach(async () => {
   await truncateAllTables(getPrismaClient());
   cookieJar.clear();
   headerJar.clear();
-  const { __resetAllCachesForTests } = await import(
-    "@/lib/cache/server-cache"
-  );
+  const { __resetAllCachesForTests } = await import("@/lib/cache/server-cache");
   __resetAllCachesForTests();
 });
 
@@ -98,12 +96,10 @@ describe("v1.4.34 IW-G — server-cache route integration", () => {
     // the `pending` promise; the other nine join it. The cache's
     // counter snapshot witnesses the fan-in: misses === 1, stampedes
     // covers the remaining nine reads.
-    const requests = Array.from(
-      { length: 10 },
-      () =>
-        (GET as unknown as (req: Request) => Promise<Response>)(
-          new Request("http://localhost/api/analytics"),
-        ),
+    const requests = Array.from({ length: 10 }, () =>
+      (GET as unknown as (req: Request) => Promise<Response>)(
+        new Request("http://localhost/api/analytics"),
+      ),
     );
     const responses = await Promise.all(requests);
 
@@ -118,9 +114,9 @@ describe("v1.4.34 IW-G — server-cache route integration", () => {
     expect(stats.misses).toBe(1);
     expect(stats.stampedes + stats.hits).toBe(9);
     // Subsequent serial reads inside the TTL hit the warm cache.
-    const warm = await (
-      GET as unknown as (req: Request) => Promise<Response>
-    )(new Request("http://localhost/api/analytics"));
+    const warm = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/analytics"),
+    );
     expect(warm.status).toBe(200);
     // Plus at least one extra hit from this serial read.
     expect(caches.analytics.stats().hits).toBeGreaterThanOrEqual(1);
@@ -130,15 +126,14 @@ describe("v1.4.34 IW-G — server-cache route integration", () => {
     const user = await seedSession("cache-invalidate-user");
 
     const { GET } = await import("@/app/api/analytics/route");
-    const { POST: postMeasurement } = await import(
-      "@/app/api/measurements/route"
-    );
+    const { POST: postMeasurement } =
+      await import("@/app/api/measurements/route");
     const { caches } = await import("@/lib/cache/server-cache");
 
     // Prime the cache — first read is a miss; second is a hit.
-    const first = await (
-      GET as unknown as (req: Request) => Promise<Response>
-    )(new Request("http://localhost/api/analytics"));
+    const first = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/analytics"),
+    );
     expect(first.status).toBe(200);
     expect(caches.analytics.stats().misses).toBe(1);
     expect(caches.analytics.stats().hits).toBe(0);
@@ -168,9 +163,9 @@ describe("v1.4.34 IW-G — server-cache route integration", () => {
 
     // The next read MUST miss — the cache for this userId|default key
     // was evicted by the write's invalidation call.
-    const third = await (
-      GET as unknown as (req: Request) => Promise<Response>
-    )(new Request("http://localhost/api/analytics"));
+    const third = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/analytics"),
+    );
     expect(third.status).toBe(200);
     expect(caches.analytics.stats().misses).toBe(2);
 
@@ -216,9 +211,8 @@ describe("v1.4.34 IW-G — server-cache route integration", () => {
       },
     });
 
-    const { GET: intakeGet, POST: intakePost } = await import(
-      "@/app/api/medications/intake/route"
-    );
+    const { GET: intakeGet, POST: intakePost } =
+      await import("@/app/api/medications/intake/route");
     const { NextRequest } = await import("next/server");
     const { caches } = await import("@/lib/cache/server-cache");
 

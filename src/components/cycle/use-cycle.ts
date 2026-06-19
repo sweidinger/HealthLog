@@ -193,8 +193,7 @@ export function useDeleteCustomSymptom() {
 export function useCycleProfile() {
   return useQuery({
     queryKey: queryKeys.cycleProfile(),
-    queryFn: () =>
-      apiGet<CycleProfileDTO>("/api/cycle/profile"),
+    queryFn: () => apiGet<CycleProfileDTO>("/api/cycle/profile"),
     staleTime: 5 * 60_000,
   });
 }
@@ -207,8 +206,7 @@ export function useCycleProfile() {
 export function useCycleInsights() {
   return useQuery({
     queryKey: queryKeys.cycleInsights(),
-    queryFn: () =>
-      apiGet<CycleInsightsResponse>("/api/cycle/insights"),
+    queryFn: () => apiGet<CycleInsightsResponse>("/api/cycle/insights"),
     staleTime: 5 * 60_000,
   });
 }

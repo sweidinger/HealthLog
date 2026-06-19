@@ -123,9 +123,7 @@ function weekdayOfOffset(now: Date, dayOffset: number): number {
  */
 function weekdayNarratives(input: MoodNarrativeInput): MoodNarrative[] {
   const populated = input.weekday.filter(
-    (
-      row,
-    ): row is WeekdayRow & { avgScore: number } =>
+    (row): row is WeekdayRow & { avgScore: number } =>
       row.avgScore != null && row.count >= MOOD_NARRATIVE_MIN_WEEKDAY_SAMPLES,
   );
   if (populated.length < 2) return [];

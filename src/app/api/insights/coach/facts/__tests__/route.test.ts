@@ -58,8 +58,7 @@ vi.mock("@/lib/db-compat", () => ({
 }));
 
 vi.mock("@/lib/logging/context", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/logging/context")>();
+  const actual = await importOriginal<typeof import("@/lib/logging/context")>();
   return {
     ...actual,
     annotate: vi.fn(),
@@ -167,10 +166,7 @@ describe("GET /api/insights/coach/facts", () => {
     await callGet();
     const orderBy = vi.mocked(prisma.coachFact.findMany).mock.calls[0]?.[0]
       ?.orderBy;
-    expect(orderBy).toEqual([
-      { confidence: "desc" },
-      { createdAt: "desc" },
-    ]);
+    expect(orderBy).toEqual([{ confidence: "desc" }, { createdAt: "desc" }]);
   });
 
   it("skips an undecryptable row rather than 500ing the whole list", async () => {

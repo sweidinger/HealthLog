@@ -21,7 +21,9 @@ import {
  */
 
 function render(node: React.ReactNode) {
-  return renderToStaticMarkup(<I18nProvider initialLocale="en">{node}</I18nProvider>);
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale="en">{node}</I18nProvider>,
+  );
 }
 
 const NOOP = () => undefined;
@@ -60,10 +62,7 @@ describe("addTime", () => {
   });
 
   it("refuses to add beyond maxChips", () => {
-    expect(addTime(["08:00", "12:00"], "18:00", 2)).toEqual([
-      "08:00",
-      "12:00",
-    ]);
+    expect(addTime(["08:00", "12:00"], "18:00", 2)).toEqual(["08:00", "12:00"]);
   });
 });
 
@@ -116,9 +115,7 @@ describe("<TimesOfDayChips> — SSR render", () => {
   });
 
   it("marks a preset chip active when its time is in value", () => {
-    const html = render(
-      <TimesOfDayChips value={["08:00"]} onChange={NOOP} />,
-    );
+    const html = render(<TimesOfDayChips value={["08:00"]} onChange={NOOP} />);
     expect(html).toMatch(/data-preset="morning"[^>]*data-active="true"/);
     expect(html).toMatch(/data-preset="evening"[^>]*data-active="false"/);
   });
@@ -156,9 +153,7 @@ describe("<TimesOfDayChips> — SSR render", () => {
   });
 
   it("renders the preset row by default (showPresets defaults true)", () => {
-    const html = render(
-      <TimesOfDayChips value={["08:00"]} onChange={NOOP} />,
-    );
+    const html = render(<TimesOfDayChips value={["08:00"]} onChange={NOOP} />);
     expect(html).toContain('data-slot="times-of-day-presets"');
   });
 });

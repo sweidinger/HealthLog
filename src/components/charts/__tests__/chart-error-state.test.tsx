@@ -100,9 +100,8 @@ describe("chart isError rendering — error state, not empty state", () => {
     mockQueryError();
 
     const { I18nProvider } = await import("@/lib/i18n/context");
-    const { MedicationComplianceChart } = await import(
-      "../medication-compliance-chart"
-    );
+    const { MedicationComplianceChart } =
+      await import("../medication-compliance-chart");
 
     const html = renderToStaticMarkup(
       <I18nProvider initialLocale="de" initialMessages={deMessages}>
@@ -125,9 +124,7 @@ describe("<ChartErrorState> — announcement, sizing, accessible name", () => {
   });
 
   async function renderState(
-    props: Partial<
-      import("../chart-error-state").ChartErrorStateProps
-    > = {},
+    props: Partial<import("../chart-error-state").ChartErrorStateProps> = {},
   ) {
     const { ChartErrorState } = await import("../chart-error-state");
     return renderToStaticMarkup(

@@ -105,7 +105,7 @@ export function HealthScoreDeltaExplainer({
         // the extra reach.
         "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50",
         "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full",
-        "-my-3 -mx-2",
+        "-mx-2 -my-3",
         "transition-colors focus-visible:ring-2 focus-visible:outline-none",
         className,
       )}
@@ -123,10 +123,9 @@ export function HealthScoreDeltaExplainer({
           open={open}
           onOpenChange={setOpen}
           title={title}
-          description={t(
-            "insights.healthScore.deltaExplainer.description",
-            { delta: delta > 0 ? `+${delta}` : `${delta}` },
-          )}
+          description={t("insights.healthScore.deltaExplainer.description", {
+            delta: delta > 0 ? `+${delta}` : `${delta}`,
+          })}
         >
           <p
             id={bodyId}

@@ -116,9 +116,7 @@ beforeEach(async () => {
   await truncateAllTables(getPrismaClient());
   cookieJar.clear();
   headerJar.clear();
-  const { __resetAllCachesForTests } = await import(
-    "@/lib/cache/server-cache"
-  );
+  const { __resetAllCachesForTests } = await import("@/lib/cache/server-cache");
   __resetAllCachesForTests();
   // Run the real db-compat helper directly so a sibling test file's
   // `vi.mock("@/lib/db-compat", ...)` cannot leave the `app_settings`

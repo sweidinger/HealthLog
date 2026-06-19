@@ -83,23 +83,22 @@ export function extractExportXml(archivePath: string): UnzipResult {
   const entries = readCentralDirectory(buf);
 
   const exportXmlEntry = entries.find(
-    (e) =>
-      e.fileName.endsWith("/export.xml") || e.fileName === "export.xml",
+    (e) => e.fileName.endsWith("/export.xml") || e.fileName === "export.xml",
   );
   if (!exportXmlEntry) {
     throw new Error(
-      "Archive is missing the `apple_health_export/export.xml` member"
-        + " — is this a valid Apple Health export.zip?",
+      "Archive is missing the `apple_health_export/export.xml` member" +
+        " — is this a valid Apple Health export.zip?",
     );
   }
 
   if (
-    exportXmlEntry.compressionMethod !== 0
-    && exportXmlEntry.compressionMethod !== 8
+    exportXmlEntry.compressionMethod !== 0 &&
+    exportXmlEntry.compressionMethod !== 8
   ) {
     throw new Error(
-      `Unsupported ZIP compression method ${exportXmlEntry.compressionMethod}`
-        + " for export.xml (expected 0=stored or 8=deflate)",
+      `Unsupported ZIP compression method ${exportXmlEntry.compressionMethod}` +
+        " for export.xml (expected 0=stored or 8=deflate)",
     );
   }
 
@@ -110,20 +109,20 @@ export function extractExportXml(archivePath: string): UnzipResult {
   // `extractEntry()` which trips on the actual inflate output.
   if (exportXmlEntry.uncompressedSize > MAX_DECOMPRESSED_BYTES) {
     throw new Error(
-      `export.xml declares an uncompressed size of ${exportXmlEntry.uncompressedSize} bytes`
-        + ` — refusing to extract (cap is ${MAX_DECOMPRESSED_BYTES} bytes).`,
+      `export.xml declares an uncompressed size of ${exportXmlEntry.uncompressedSize} bytes` +
+        ` — refusing to extract (cap is ${MAX_DECOMPRESSED_BYTES} bytes).`,
     );
   }
   if (
-    exportXmlEntry.compressedSize > 0
-    && exportXmlEntry.uncompressedSize / exportXmlEntry.compressedSize
-      > MAX_COMPRESSION_RATIO
+    exportXmlEntry.compressedSize > 0 &&
+    exportXmlEntry.uncompressedSize / exportXmlEntry.compressedSize >
+      MAX_COMPRESSION_RATIO
   ) {
     throw new Error(
       `export.xml advertises a ${(
         exportXmlEntry.uncompressedSize / exportXmlEntry.compressedSize
-      ).toFixed(0)}× compression ratio (cap is ${MAX_COMPRESSION_RATIO}×)`
-        + " — refusing as a suspected zip bomb.",
+      ).toFixed(0)}× compression ratio (cap is ${MAX_COMPRESSION_RATIO}×)` +
+        " — refusing as a suspected zip bomb.",
     );
   }
 
@@ -151,9 +150,7 @@ export function extractExportXml(archivePath: string): UnzipResult {
  * Exported for unit testing the central-directory parser independently
  * of the file-extraction path.
  */
-export function readCentralDirectory(
-  buf: Buffer,
-): CentralDirectoryEntry[] {
+export function readCentralDirectory(buf: Buffer): CentralDirectoryEntry[] {
   const eocdOffset = locateEocd(buf);
   if (eocdOffset === -1) {
     throw new Error("Could not locate ZIP End-Of-Central-Directory record");
@@ -167,13 +164,15 @@ export function readCentralDirectory(
   // 0xFFFFFFFF / 0xFFFF sentinel, the real value lives in the Zip64
   // EOCD record located by walking back through the locator.
   if (
-    centralDirOffset === 0xffffffff
-    || centralDirSize === 0xffffffff
-    || entryCount === 0xffff
+    centralDirOffset === 0xffffffff ||
+    centralDirSize === 0xffffffff ||
+    entryCount === 0xffff
   ) {
     const locatorOffset = eocdOffset - 20;
-    if (locatorOffset < 0
-      || buf.readUInt32LE(locatorOffset) !== ZIP64_EOCD_LOCATOR) {
+    if (
+      locatorOffset < 0 ||
+      buf.readUInt32LE(locatorOffset) !== ZIP64_EOCD_LOCATOR
+    ) {
       throw new Error("Zip64 sentinels present but Zip64 locator missing");
     }
     const zip64EocdOffset = Number(buf.readBigUInt64LE(locatorOffset + 8));
@@ -216,9 +215,9 @@ export function readCentralDirectory(
 
     // Zip64 extra-field walk if any of the three values is sentinel.
     if (
-      compressedSize === 0xffffffff
-      || uncompressedSize === 0xffffffff
-      || localHeaderOffset === 0xffffffff
+      compressedSize === 0xffffffff ||
+      uncompressedSize === 0xffffffff ||
+      localHeaderOffset === 0xffffffff
     ) {
       const extraStart = cursor + 46 + fileNameLen;
       let extraCursor = extraStart;
@@ -281,7 +280,9 @@ function extractEntry(buf: Buffer, entry: CentralDirectoryEntry): Buffer {
   // refuse expansion past the cap with a thrown error, defeating
   // zip-bomb amplification even when the central-directory metadata
   // lies about the uncompressed size.
-  return inflateRawSync(compressed, { maxOutputLength: MAX_DECOMPRESSED_BYTES });
+  return inflateRawSync(compressed, {
+    maxOutputLength: MAX_DECOMPRESSED_BYTES,
+  });
 }
 
 /**

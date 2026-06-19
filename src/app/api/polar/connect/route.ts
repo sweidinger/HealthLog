@@ -48,10 +48,7 @@ export const GET = apiHandler(async () => {
 
   const creds = await getPolarClientCredentials(user.id);
   if (!creds) {
-    return apiError(
-      "Polar integration is not configured on this server.",
-      400,
-    );
+    return apiError("Polar integration is not configured on this server.", 400);
   }
 
   const state = mintSignedState("polar", user.id);

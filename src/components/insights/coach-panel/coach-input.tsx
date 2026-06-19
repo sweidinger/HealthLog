@@ -130,9 +130,7 @@ type SpeechRecognitionLike = {
 };
 type SpeechRecognitionResultEventLike = {
   resultIndex: number;
-  results: ArrayLike<
-    ArrayLike<{ transcript: string }> & { isFinal: boolean }
-  >;
+  results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
 };
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
@@ -403,7 +401,7 @@ export function CoachInput({
             // v1.18.7 — calm, thin scrollbar inside the composer when
             // dictation overruns 6 lines (see also the thread/history
             // scroll regions). Scoped here, not in globals.css.
-            "[scrollbar-color:color-mix(in_srgb,var(--dracula-purple)_35%,transparent)_transparent] [scrollbar-width:thin]",
+            "[scrollbar-width:thin] [scrollbar-color:color-mix(in_srgb,var(--dracula-purple)_35%,transparent)_transparent]",
             "placeholder:text-muted-foreground disabled:opacity-60",
           )}
         />

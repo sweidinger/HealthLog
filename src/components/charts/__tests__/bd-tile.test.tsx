@@ -86,9 +86,7 @@ describe("BD-Zielbereich tile (v1.4.28 FB-C1/C2 rewrite)", () => {
     );
 
     // Same primitive slots on both tiles.
-    for (const slot of [
-      "trend-card-value-row",
-    ]) {
+    for (const slot of ["trend-card-value-row"]) {
       expect(bdHtml).toContain(`data-slot="${slot}"`);
       expect(weightHtml).toContain(`data-slot="${slot}"`);
     }

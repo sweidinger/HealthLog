@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  computeSleepDebt,
-  type SleepDebtNight,
-} from "../sleep-debt";
+import { computeSleepDebt, type SleepDebtNight } from "../sleep-debt";
 
 /** Build a contiguous run of nights ending YYYY-06-?? with given asleep mins. */
 function nights(asleepPerNight: number[]): SleepDebtNight[] {

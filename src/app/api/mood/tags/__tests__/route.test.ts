@@ -58,8 +58,22 @@ const SESSION_OK = {
 };
 
 const CATEGORIES = [
-  { id: "c1", key: "feelings", labelKey: "mood.tagCategory.feelings", icon: "Smile", userId: null, labelEncrypted: null },
-  { id: "mtc_custom", key: "custom", labelKey: "mood.tagCategory.custom", icon: "Tag", userId: null, labelEncrypted: null },
+  {
+    id: "c1",
+    key: "feelings",
+    labelKey: "mood.tagCategory.feelings",
+    icon: "Smile",
+    userId: null,
+    labelEncrypted: null,
+  },
+  {
+    id: "mtc_custom",
+    key: "custom",
+    labelKey: "mood.tagCategory.custom",
+    icon: "Tag",
+    userId: null,
+    labelEncrypted: null,
+  },
 ];
 
 const OWN_GROUP = {
@@ -72,9 +86,48 @@ const OWN_GROUP = {
 };
 
 const TAGS = [
-  { id: "t_happy", categoryId: "c1", key: "happy", labelKey: "mood.tag.happy", icon: "Smile", kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false, isActive: true, userId: null, labelEncrypted: null },
-  { id: "t_sad", categoryId: "c1", key: "sad", labelKey: "mood.tag.sad", icon: "Frown", kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false, isActive: true, userId: null, labelEncrypted: null },
-  { id: "t_custom", categoryId: "mtc_custom", key: "custom:abc", labelKey: "custom:abc", icon: "Heart", kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false, isActive: true, userId: "user-1", labelEncrypted: "enc:Migräne" },
+  {
+    id: "t_happy",
+    categoryId: "c1",
+    key: "happy",
+    labelKey: "mood.tag.happy",
+    icon: "Smile",
+    kind: "BINARY",
+    scaleMin: 1,
+    scaleMax: 5,
+    inverse: false,
+    isActive: true,
+    userId: null,
+    labelEncrypted: null,
+  },
+  {
+    id: "t_sad",
+    categoryId: "c1",
+    key: "sad",
+    labelKey: "mood.tag.sad",
+    icon: "Frown",
+    kind: "BINARY",
+    scaleMin: 1,
+    scaleMax: 5,
+    inverse: false,
+    isActive: true,
+    userId: null,
+    labelEncrypted: null,
+  },
+  {
+    id: "t_custom",
+    categoryId: "mtc_custom",
+    key: "custom:abc",
+    labelKey: "custom:abc",
+    icon: "Heart",
+    kind: "BINARY",
+    scaleMin: 1,
+    scaleMax: 5,
+    inverse: false,
+    isActive: true,
+    userId: "user-1",
+    labelEncrypted: "enc:Migräne",
+  },
 ];
 
 const ARCHIVED_TAG = {
@@ -188,7 +241,14 @@ describe("GET /api/mood/tags — groups + layout + archived + usage (v1.17.0)", 
     categoryFindMany.mockResolvedValue([...CATEGORIES, OWN_GROUP]);
     tagFindMany.mockResolvedValue([
       ...TAGS,
-      { ...TAGS[2], id: "t_c2", categoryId: "cg1", key: "custom:ing1", labelKey: "custom:ing1", labelEncrypted: "enc:Sitzung" },
+      {
+        ...TAGS[2],
+        id: "t_c2",
+        categoryId: "cg1",
+        key: "custom:ing1",
+        labelKey: "custom:ing1",
+        labelEncrypted: "enc:Sitzung",
+      },
     ]);
     const res = await GET(req());
     const body = (await res.json()) as Body;

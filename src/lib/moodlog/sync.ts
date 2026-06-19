@@ -324,9 +324,7 @@ export async function syncMoodLogEntries(
     try {
       await recomputeUserMoodRollups(userId, { granularities: ["DAY"] });
     } catch (err) {
-      getEvent()?.addWarning(
-        `Mood rollup recompute failed after sync: ${err}`,
-      );
+      getEvent()?.addWarning(`Mood rollup recompute failed after sync: ${err}`);
     }
   }
 

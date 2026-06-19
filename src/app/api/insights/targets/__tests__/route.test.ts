@@ -69,12 +69,14 @@ vi.mock("next/headers", () => ({
 // `recomputeUserMoodRollups` aggregate. The warm-up is fire-and-forget
 // on the route so its return value is irrelevant for parity.
 vi.mock("@/lib/rollups/mood-rollups", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/rollups/mood-rollups")>(
-    "@/lib/rollups/mood-rollups",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/rollups/mood-rollups")
+  >("@/lib/rollups/mood-rollups");
   return {
     ...actual,
-    ensureUserMoodRollupsFresh: vi.fn().mockResolvedValue({ recomputed: false }),
+    ensureUserMoodRollupsFresh: vi
+      .fn()
+      .mockResolvedValue({ recomputed: false }),
   };
 });
 
@@ -160,11 +162,61 @@ describe("GET /api/insights/targets — mood-rollup tier swap", () => {
     (
       prisma.moodEntryRollup.findMany as ReturnType<typeof vi.fn>
     ).mockResolvedValue([
-      { userId: SESSION_USER.id, granularity: "DAY", bucketStart: day(0), count: 1, mean: 4, minScore: 4, maxScore: 4, sd: null, computedAt: new Date() },
-      { userId: SESSION_USER.id, granularity: "DAY", bucketStart: day(1), count: 1, mean: 4, minScore: 4, maxScore: 4, sd: null, computedAt: new Date() },
-      { userId: SESSION_USER.id, granularity: "DAY", bucketStart: day(2), count: 1, mean: 5, minScore: 5, maxScore: 5, sd: null, computedAt: new Date() },
-      { userId: SESSION_USER.id, granularity: "DAY", bucketStart: day(3), count: 1, mean: 4, minScore: 4, maxScore: 4, sd: null, computedAt: new Date() },
-      { userId: SESSION_USER.id, granularity: "DAY", bucketStart: day(4), count: 1, mean: 4.5, minScore: 4, maxScore: 5, sd: 0.5, computedAt: new Date() },
+      {
+        userId: SESSION_USER.id,
+        granularity: "DAY",
+        bucketStart: day(0),
+        count: 1,
+        mean: 4,
+        minScore: 4,
+        maxScore: 4,
+        sd: null,
+        computedAt: new Date(),
+      },
+      {
+        userId: SESSION_USER.id,
+        granularity: "DAY",
+        bucketStart: day(1),
+        count: 1,
+        mean: 4,
+        minScore: 4,
+        maxScore: 4,
+        sd: null,
+        computedAt: new Date(),
+      },
+      {
+        userId: SESSION_USER.id,
+        granularity: "DAY",
+        bucketStart: day(2),
+        count: 1,
+        mean: 5,
+        minScore: 5,
+        maxScore: 5,
+        sd: null,
+        computedAt: new Date(),
+      },
+      {
+        userId: SESSION_USER.id,
+        granularity: "DAY",
+        bucketStart: day(3),
+        count: 1,
+        mean: 4,
+        minScore: 4,
+        maxScore: 4,
+        sd: null,
+        computedAt: new Date(),
+      },
+      {
+        userId: SESSION_USER.id,
+        granularity: "DAY",
+        bucketStart: day(4),
+        count: 1,
+        mean: 4.5,
+        minScore: 4,
+        maxScore: 5,
+        sd: 0.5,
+        computedAt: new Date(),
+      },
     ]);
     // Latest score read — one bounded row.
     (prisma.moodEntry.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({

@@ -66,10 +66,7 @@ export function redactNightscoutSecret(message: string): string {
   // Match `token=...` / `api-secret=...` up to the next param / whitespace /
   // quote boundary. Case-insensitive on the key; the value is whatever a URL
   // query value can hold short of a delimiter.
-  return message.replace(
-    /\b(token|api-secret)=[^\s&"']+/gi,
-    "$1=REDACTED",
-  );
+  return message.replace(/\b(token|api-secret)=[^\s&"']+/gi, "$1=REDACTED");
 }
 
 /** Map a Nightscout HTTP status / network error onto the shared ledger kind. */

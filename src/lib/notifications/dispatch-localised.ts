@@ -69,8 +69,14 @@ interface DispatchLocalisedOptions {
 }
 
 function isLocale(value: string | null | undefined): value is Locale {
-  return value === "de" || value === "en" || value === "fr" ||
-    value === "es" || value === "it" || value === "pl";
+  return (
+    value === "de" ||
+    value === "en" ||
+    value === "fr" ||
+    value === "es" ||
+    value === "it" ||
+    value === "pl"
+  );
 }
 
 /**

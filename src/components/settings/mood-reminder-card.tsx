@@ -156,10 +156,7 @@ export function MoodReminderCard({
   }
 
   return (
-    <SettingsCard
-      as="section"
-      aria-labelledby="settings-mood-reminder-title"
-    >
+    <SettingsCard as="section" aria-labelledby="settings-mood-reminder-title">
       <SettingsCardHeader
         icon={SmilePlus}
         title={t("notifications.moodReminder.title")}

@@ -214,9 +214,9 @@ describe("reconstructNights", () => {
     // 390 asleep + 30 awake = 420 synthesised in-bed denominator.
     expect(nights[0].inBedMinutes).toBe(420);
     // The efficiency sub-score is non-null and stable (390 / 420 ≈ 93 %).
-    expect(scoreEfficiency(nights[0].asleepMinutes, nights[0].inBedMinutes)).toBe(
-      93,
-    );
+    expect(
+      scoreEfficiency(nights[0].asleepMinutes, nights[0].inBedMinutes),
+    ).toBe(93);
   });
 
   it("keeps the real IN_BED figure when present (synthesis does not override)", () => {
@@ -242,7 +242,9 @@ describe("reconstructNights", () => {
     ]);
     const nights = reconstructNights(rows);
     expect(nights[0].inBedMinutes).toBeNull();
-    expect(scoreEfficiency(nights[0].asleepMinutes, nights[0].inBedMinutes)).toBeNull();
+    expect(
+      scoreEfficiency(nights[0].asleepMinutes, nights[0].inBedMinutes),
+    ).toBeNull();
   });
 
   it("deduplicates a multi-source night to ONE canonical total (no double-count)", () => {

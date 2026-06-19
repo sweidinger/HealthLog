@@ -72,7 +72,9 @@ export interface ProviderSkipHint {
 export interface ProviderHealthLedger {
   /** Providers to skip right now for this user, keyed by chain type.
    *  Fails open (empty) on any error. */
-  getSkipHints(userId: string): Promise<Map<ProviderChainType, ProviderSkipHint>>;
+  getSkipHints(
+    userId: string,
+  ): Promise<Map<ProviderChainType, ProviderSkipHint>>;
   /** Record a successful generation — clears any negative cache. */
   recordSuccess(userId: string, providerType: ProviderChainType): Promise<void>;
   /** Record a hard failure. `httpStatus` null = network/transport. */
@@ -285,7 +287,8 @@ export function createInMemoryProviderHealthLedger(): ProviderHealthLedger & {
     async recordFailure(userId, providerType, httpStatus) {
       const { result, cooldownMs } = classifyFailure(httpStatus);
       const prev = rowsFor(userId).get(providerType);
-      const priorCount = prev && prev.result !== "ok" ? prev.consecutiveFailures : 0;
+      const priorCount =
+        prev && prev.result !== "ok" ? prev.consecutiveFailures : 0;
       rowsFor(userId).set(providerType, {
         result,
         status: httpStatus,

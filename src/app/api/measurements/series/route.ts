@@ -152,7 +152,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // query map is routed through `redactSensitiveFields` first so any
     // future credential-shaped query string (`token`, `apiKey`,
     // `csrfState`) redacts to `"[redacted]"` before the truncate.
-    const payloadDiagnostic = buildPayloadDiagnostic(redactSensitiveFields(rawQuery));
+    const payloadDiagnostic = buildPayloadDiagnostic(
+      redactSensitiveFields(rawQuery),
+    );
     annotate({
       action: { name: "measurements.series.validation-failed" },
       meta: {
@@ -260,8 +262,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
           at: n.measuredAt.toISOString(),
           value: Math.round((n.asleepMinutes / 60) * 100) / 100,
           secondary: null,
-          sleepStages:
-            Object.keys(stageHours).length > 0 ? stageHours : null,
+          sleepStages: Object.keys(stageHours).length > 0 ? stageHours : null,
         };
       });
   } else if (kind === "bloodPressure") {

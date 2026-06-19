@@ -105,9 +105,7 @@ describe("<TrendAnnotation>", () => {
         annotation="Mood ran steady across the back half of the week — three good days, one dip, then a recovery. The dip aligns with the Tuesday BP spike but the magnitude was small. Logged five mood entries in seven days, well above the 30-day median of three."
       />,
     );
-    expect(html).toMatch(
-      /<p[^>]*class="[^"]*line-clamp-3[^"]*"[^>]*>/,
-    );
+    expect(html).toMatch(/<p[^>]*class="[^"]*line-clamp-3[^"]*"[^>]*>/);
   });
 
   it("clamps the empty-state caption to 3 lines too (same row contract)", () => {

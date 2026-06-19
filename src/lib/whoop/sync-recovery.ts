@@ -9,11 +9,7 @@
  * sleep UUID (v2 recovery carries `sleep_id`, not a stable recovery id) so the
  * externalId is stable across re-scores.
  */
-import {
-  fetchRecoveries,
-  fetchRecoveryByCycleId,
-  mapRecovery,
-} from "./client";
+import { fetchRecoveries, fetchRecoveryByCycleId, mapRecovery } from "./client";
 import {
   getValidToken,
   incrementalStart,

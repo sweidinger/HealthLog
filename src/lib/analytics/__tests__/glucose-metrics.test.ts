@@ -254,13 +254,10 @@ describe("computeGlucoseClinicalMetrics — window + adequacy", () => {
       // 30/day. That clears the bar legitimately, but a handful in a day must
       // not: 10 readings in one day = 10/day < 24 → still a spot estimate.
       const HOUR = 60 * 60 * 1000;
-      const readings: GlucoseReading[] = Array.from(
-        { length: 10 },
-        (_, i) => ({
-          mgdl: 115,
-          measuredAt: new Date(now.getTime() - i * HOUR),
-        }),
-      );
+      const readings: GlucoseReading[] = Array.from({ length: 10 }, (_, i) => ({
+        mgdl: 115,
+        measuredAt: new Date(now.getTime() - i * HOUR),
+      }));
       const m = computeGlucoseClinicalMetrics(readings, { now });
       expect(m.isSpotEstimate).toBe(true);
     });
@@ -309,10 +306,9 @@ describe("computeGlucoseClinicalMetrics — window + adequacy", () => {
     it("clears above both thresholds and asserts the panel", () => {
       // 14 readings, one per day → 13-day span, count 14
       const values = Array.from({ length: 14 }, () => 154);
-      const m = computeGlucoseClinicalMetrics(
-        dailyReadings(values, now),
-        { now },
-      );
+      const m = computeGlucoseClinicalMetrics(dailyReadings(values, now), {
+        now,
+      });
       expect(m.readingCount).toBe(14);
       expect(m.actualSpanDays).toBeCloseTo(13, 6);
       expect(m.stillLearning).toBe(false);

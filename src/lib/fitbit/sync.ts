@@ -360,9 +360,7 @@ export async function upsertFitbitMeasurements(
     } else {
       // A duplicate fresh key inside the same batch — overwrite the planned
       // create's payload so last-write-wins, matching the prior upsert loop.
-      const idx = toCreate.findIndex(
-        (c) => `${c.type} ${c.externalId}` === key,
-      );
+      const idx = toCreate.findIndex((c) => `${c.type} ${c.externalId}` === key);
       if (idx >= 0) {
         toCreate[idx] = {
           type,
@@ -421,7 +419,10 @@ export async function upsertFitbitMeasurements(
           syncVersion: { increment: 1 },
         },
       });
-      touched.push({ type: r.type as MeasurementType, measuredAt: r.measuredAt });
+      touched.push({
+        type: r.type as MeasurementType,
+        measuredAt: r.measuredAt,
+      });
       imported++;
     } catch (err) {
       getEvent()?.addWarning(`Fitbit: failed to update measurement: ${err}`);
@@ -526,13 +527,17 @@ export async function syncUserFitbit(
     deferRollup: opts.fullSync === true,
   };
 
-  const [{ syncUserMetrics }, { syncUserActivity }, { syncUserSleep }, { syncUserWorkout }] =
-    await Promise.all([
-      import("./sync-metrics"),
-      import("./sync-activity"),
-      import("./sync-sleep"),
-      import("./sync-workout"),
-    ]);
+  const [
+    { syncUserMetrics },
+    { syncUserActivity },
+    { syncUserSleep },
+    { syncUserWorkout },
+  ] = await Promise.all([
+    import("./sync-metrics"),
+    import("./sync-activity"),
+    import("./sync-sleep"),
+    import("./sync-workout"),
+  ]);
 
   const resources = [
     syncUserMetrics,

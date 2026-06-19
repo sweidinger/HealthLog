@@ -40,7 +40,9 @@ const BRAND_TOKENS = [
 
 describe("buildReferenceGroundingBlock", () => {
   it("returns null when no metric is covered by the backbone", () => {
-    expect(buildReferenceGroundingBlock({ metrics: [], hasDiabetes: false })).toBeNull();
+    expect(
+      buildReferenceGroundingBlock({ metrics: [], hasDiabetes: false }),
+    ).toBeNull();
   });
 
   it("cites the ESH 2023 source for blood pressure and never the US/ESC line", () => {
@@ -74,9 +76,7 @@ describe("buildReferenceGroundingBlock", () => {
     })!;
     expect(block).toContain("general guidance");
     expect(block).toContain("not a diagnosis");
-    expect(block.toLowerCase()).toContain(
-      "not personal medical advice",
-    );
+    expect(block.toLowerCase()).toContain("not personal medical advice");
     // The closing reminder line is present.
     expect(block).toMatch(/general guidance, not personal medical advice\.$/);
   });
@@ -150,7 +150,9 @@ describe("buildReferenceGroundingBlock", () => {
       metrics: [{ metric: "PULSE_PRESSURE", value: 40 }],
       hasDiabetes: false,
     })!;
-    const line = block.split("\n").find((l) => l.startsWith("- pulse pressure:"))!;
+    const line = block
+      .split("\n")
+      .find((l) => l.startsWith("- pulse pressure:"))!;
     // The normal "Typical at rest" band (25–60), not the first "Narrow" band.
     expect(line).toContain("25–60 mmHg");
     expect(line).toContain("sits inside the general reference band");

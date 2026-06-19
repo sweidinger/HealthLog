@@ -50,8 +50,7 @@ describe("motion-reduce coverage — every animate-spin pairs with motion-reduce
       lines.forEach((line, idx) => {
         if (!line.includes("animate-spin")) return;
         // Skip comments and string literals that aren't classNames.
-        if (line.trim().startsWith("//") || line.trim().startsWith("*"))
-          return;
+        if (line.trim().startsWith("//") || line.trim().startsWith("*")) return;
         if (!line.includes("motion-reduce:animate-none")) {
           violations.push(`${file}:${idx + 1}: ${line.trim()}`);
         }

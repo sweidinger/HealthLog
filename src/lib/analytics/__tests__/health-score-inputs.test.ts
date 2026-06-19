@@ -76,7 +76,11 @@ describe("buildHealthScoreBpInputs — single Health-Score BP input builder", ()
     // path), but here it is genuinely thin so the rate is the all-time pct.
     // Pin the stricter case: when all-time is also null the pillar collapses.
     const thin = buildHealthScoreBpInputs(
-      env({ last90Days: { pct: 100, pairs: 4 }, allTime: null, gradedScore: 95 }),
+      env({
+        last90Days: { pct: 100, pairs: 4 },
+        allTime: null,
+        gradedScore: 95,
+      }),
       null,
     );
     expect(thin.bpInTargetPct).toBeNull();

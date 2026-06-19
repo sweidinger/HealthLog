@@ -291,47 +291,51 @@ export class CodexClient implements AIProvider {
   ): Promise<Response> {
     const sessionId = randomUUID();
     const threadId = randomUUID();
-    return safeFetch(CODEX_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
-        Authorization: `Bearer ${this.accessToken}`,
-        "ChatGPT-Account-ID": this.accountId,
-        originator: ORIGINATOR,
-        "User-Agent": USER_AGENT,
-        session_id: sessionId,
-        "session-id": sessionId,
-        thread_id: threadId,
-        "thread-id": threadId,
+    return safeFetch(
+      CODEX_ENDPOINT,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+          Authorization: `Bearer ${this.accessToken}`,
+          "ChatGPT-Account-ID": this.accountId,
+          originator: ORIGINATOR,
+          "User-Agent": USER_AGENT,
+          session_id: sessionId,
+          "session-id": sessionId,
+          thread_id: threadId,
+          "thread-id": threadId,
+        },
+        body: JSON.stringify({
+          model: slug,
+          instructions: params.systemPrompt,
+          input: [
+            {
+              type: "message",
+              role: "user",
+              content: [{ type: "input_text", text: params.userPrompt }],
+            },
+          ],
+          tools: [],
+          tool_choice: "auto",
+          parallel_tool_calls: false,
+          // Reasoning is required-but-nullable on the wire. We don't ask
+          // for reasoning summaries — emit `null` so the JSON has the
+          // field present and the server stops complaining about a
+          // missing key (it returned 400 in earlier iterations).
+          reasoning: null,
+          store: false,
+          stream: true,
+          // Required field; empty array when not asking for reasoning.
+          include: [],
+        }),
+        // SSE streaming completion — match the 60 s budget the other AI
+        // clients use so a long generation is not clipped by the 15 s
+        // default while still bounding a tar-pit upstream.
       },
-      body: JSON.stringify({
-        model: slug,
-        instructions: params.systemPrompt,
-        input: [
-          {
-            type: "message",
-            role: "user",
-            content: [{ type: "input_text", text: params.userPrompt }],
-          },
-        ],
-        tools: [],
-        tool_choice: "auto",
-        parallel_tool_calls: false,
-        // Reasoning is required-but-nullable on the wire. We don't ask
-        // for reasoning summaries — emit `null` so the JSON has the
-        // field present and the server stops complaining about a
-        // missing key (it returned 400 in earlier iterations).
-        reasoning: null,
-        store: false,
-        stream: true,
-        // Required field; empty array when not asking for reasoning.
-        include: [],
-      }),
-      // SSE streaming completion — match the 60 s budget the other AI
-      // clients use so a long generation is not clipped by the 15 s
-      // default while still bounding a tar-pit upstream.
-    }, { timeoutMs: 60_000 });
+      { timeoutMs: 60_000 },
+    );
   }
 
   /**

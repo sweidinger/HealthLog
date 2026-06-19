@@ -24,8 +24,12 @@ describe("base-system assessment prompt — locale skeleton parity", () => {
   it("every section carries both EN and DE fragments, none blank", () => {
     expect(ASSESSMENT_SECTION_PAIRS.length).toBeGreaterThan(0);
     for (const s of ASSESSMENT_SECTION_PAIRS) {
-      expect(s.en.trim().length, `EN fragment for "${s.id}"`).toBeGreaterThan(0);
-      expect(s.de.trim().length, `DE fragment for "${s.id}"`).toBeGreaterThan(0);
+      expect(s.en.trim().length, `EN fragment for "${s.id}"`).toBeGreaterThan(
+        0,
+      );
+      expect(s.de.trim().length, `DE fragment for "${s.id}"`).toBeGreaterThan(
+        0,
+      );
     }
   });
 
@@ -49,8 +53,12 @@ describe("insight system prompt — locale skeleton parity", () => {
   it("every section carries both EN and DE fragments, none blank", () => {
     expect(INSIGHT_PROMPT_SECTION_PAIRS.length).toBeGreaterThan(0);
     for (const s of INSIGHT_PROMPT_SECTION_PAIRS) {
-      expect(s.en.trim().length, `EN fragment for "${s.id}"`).toBeGreaterThan(0);
-      expect(s.de.trim().length, `DE fragment for "${s.id}"`).toBeGreaterThan(0);
+      expect(s.en.trim().length, `EN fragment for "${s.id}"`).toBeGreaterThan(
+        0,
+      );
+      expect(s.de.trim().length, `DE fragment for "${s.id}"`).toBeGreaterThan(
+        0,
+      );
     }
   });
 

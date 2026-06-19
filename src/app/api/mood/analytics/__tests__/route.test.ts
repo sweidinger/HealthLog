@@ -60,12 +60,14 @@ vi.mock("next/headers", () => ({
 // `recomputeUserMoodRollups` aggregate. The warm-up is fire-and-
 // forget on the route so its return value is irrelevant for parity.
 vi.mock("@/lib/rollups/mood-rollups", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/rollups/mood-rollups")>(
-    "@/lib/rollups/mood-rollups",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/rollups/mood-rollups")
+  >("@/lib/rollups/mood-rollups");
   return {
     ...actual,
-    ensureUserMoodRollupsFresh: vi.fn().mockResolvedValue({ recomputed: false }),
+    ensureUserMoodRollupsFresh: vi
+      .fn()
+      .mockResolvedValue({ recomputed: false }),
   };
 });
 

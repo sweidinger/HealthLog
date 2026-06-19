@@ -21,10 +21,7 @@
  * day" claim.
  */
 import { prisma } from "@/lib/db";
-import {
-  predictCycle,
-  type NightlyTempInput,
-} from "@/lib/cycle";
+import { predictCycle, type NightlyTempInput } from "@/lib/cycle";
 import { LUTEAL_DEFAULT, type CyclePhase } from "@/lib/cycle/types";
 import {
   phaseForDate,

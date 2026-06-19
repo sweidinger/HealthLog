@@ -100,7 +100,10 @@ const TAG = "[repair-intake-anomalies]";
 // LOCAL time by default; this parser pins them back to UTC so every
 // Date this script handles is the true instant. (OID 1114 = timestamp
 // without time zone.)
-types.setTypeParser(1114, (value: string) => new Date(`${value.replace(" ", "T")}Z`));
+types.setTypeParser(
+  1114,
+  (value: string) => new Date(`${value.replace(" ", "T")}Z`),
+);
 
 /**
  * Serialise a Date for a `timestamp without time zone` comparison /
@@ -1056,11 +1059,7 @@ async function main(): Promise<void> {
           SET "starts_on" = $2::timestamp, "updated_at" = NOW()
           WHERE "id" = $1 AND "starts_on" = $3::timestamp
           `,
-          [
-            p.medicationId,
-            utcParam(p.firstRow),
-            utcParam(p.startsOn),
-          ],
+          [p.medicationId, utcParam(p.firstRow), utcParam(p.startsOn)],
         );
         summary.startsOnAdjusted += res.rowCount ?? 0;
       }
@@ -1105,11 +1104,17 @@ async function main(): Promise<void> {
   console.log(`  duplicate slot groups:        ${summary.duplicateGroups}`);
   console.log(`  duplicate rows tombstoned:    ${summary.rowsTombstoned}`);
   console.log(`  implausible taken_at rows:    ${summary.implausibleRows}`);
-  console.log(`  implausible rows tombstoned:  ${summary.implausibleTombstoned}`);
-  console.log(`  window/times drift schedules: ${summary.windowDriftSchedules}`);
+  console.log(
+    `  implausible rows tombstoned:  ${summary.implausibleTombstoned}`,
+  );
+  console.log(
+    `  window/times drift schedules: ${summary.windowDriftSchedules}`,
+  );
   console.log(`  windows reconciled:           ${summary.windowsReconciled}`);
   console.log(`  stale-anchor pending rows:    ${summary.staleAnchorRows}`);
-  console.log(`  stale-anchor rows tombstoned: ${summary.staleAnchorTombstoned}`);
+  console.log(
+    `  stale-anchor rows tombstoned: ${summary.staleAnchorTombstoned}`,
+  );
   console.log(`  era-inference candidates:     ${summary.eraCandidates}`);
   console.log(`  era revisions created:        ${summary.eraRevisionsCreated}`);
   console.log(`  startsOn candidates:          ${summary.startsOnCandidates}`);

@@ -372,7 +372,8 @@ export async function registerIntegrationSyncQueues(
     async (jobs) => {
       for (const job of jobs) {
         const { userId } = job.data;
-        const { markers, linked } = await runLabBiomarkerBackfillForUser(userId);
+        const { markers, linked } =
+          await runLabBiomarkerBackfillForUser(userId);
         workerLog(
           "info",
           `[lab-biomarker-backfill] user=${userId} markers=${markers} linked=${linked}`,

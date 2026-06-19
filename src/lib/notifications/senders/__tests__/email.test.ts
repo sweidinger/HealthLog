@@ -33,10 +33,7 @@ vi.mock("@/lib/notifications/senders/push-attempt-record", () => ({
   recordPushAttempt: (...args: unknown[]) => recordPushAttemptMock(...args),
 }));
 
-import {
-  sendViaEmail,
-  resetEmailTransporterForTesting,
-} from "../email";
+import { sendViaEmail, resetEmailTransporterForTesting } from "../email";
 
 const transport = {
   host: "smtp.example.com",
@@ -73,7 +70,10 @@ describe("sendViaEmail", () => {
     loadEmailConfigMock.mockReturnValue(transport);
     sendMailMock.mockResolvedValue({ messageId: "1" });
 
-    const result = await sendViaEmail({ recipient: "you@example.com" }, payload());
+    const result = await sendViaEmail(
+      { recipient: "you@example.com" },
+      payload(),
+    );
 
     expect(result.ok).toBe(true);
     const mail = sendMailMock.mock.calls[0][0];
@@ -107,7 +107,10 @@ describe("sendViaEmail", () => {
   it("soft-skips when SMTP is unconfigured (no channel burn)", async () => {
     loadEmailConfigMock.mockReturnValue(null);
 
-    const result = await sendViaEmail({ recipient: "you@example.com" }, payload());
+    const result = await sendViaEmail(
+      { recipient: "you@example.com" },
+      payload(),
+    );
 
     expect(result.ok).toBe(false);
     expect(result.hardReject).toBe(false);
@@ -135,7 +138,10 @@ describe("sendViaEmail", () => {
     });
     sendMailMock.mockRejectedValue(err);
 
-    const result = await sendViaEmail({ recipient: "you@example.com" }, payload());
+    const result = await sendViaEmail(
+      { recipient: "you@example.com" },
+      payload(),
+    );
 
     expect(result.ok).toBe(false);
     expect(result.hardReject).toBe(true);
@@ -146,7 +152,10 @@ describe("sendViaEmail", () => {
     loadEmailConfigMock.mockReturnValue(transport);
     sendMailMock.mockRejectedValue(new Error("ECONNREFUSED"));
 
-    const result = await sendViaEmail({ recipient: "you@example.com" }, payload());
+    const result = await sendViaEmail(
+      { recipient: "you@example.com" },
+      payload(),
+    );
 
     expect(result.ok).toBe(false);
     expect(result.hardReject).toBe(false);

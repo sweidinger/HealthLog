@@ -166,11 +166,7 @@ export async function buildCoachMemoryBlock(
     facts = undefined;
   }
 
-  if (
-    !priorNarrative &&
-    Object.keys(trendMemory).length === 0 &&
-    !facts
-  ) {
+  if (!priorNarrative && Object.keys(trendMemory).length === 0 && !facts) {
     return null;
   }
 

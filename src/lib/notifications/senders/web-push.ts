@@ -128,9 +128,10 @@ export async function sendViaWebPush(
     // v1.18.4 — the Web Push `Urgency` header (RFC 8030) tells the push
     // service to deliver immediately rather than batching for power. An
     // urgent event uses `high`; everything else keeps the library default.
-    const sendOptions = payload.urgent === true
-      ? ({ urgency: "high" as const } as const)
-      : undefined;
+    const sendOptions =
+      payload.urgent === true
+        ? ({ urgency: "high" as const } as const)
+        : undefined;
 
     let anySuccess = false;
     const expiredIds: string[] = [];

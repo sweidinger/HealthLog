@@ -28,10 +28,7 @@ describe("isLocalAiHostAllowed", () => {
   });
 
   it("permits ONLY the listed hosts when given a comma-separated allowlist", () => {
-    vi.stubEnv(
-      "ALLOW_LOCAL_AI_PRIVATE_HOSTS",
-      "ollama.lan, 10.0.0.5",
-    );
+    vi.stubEnv("ALLOW_LOCAL_AI_PRIVATE_HOSTS", "ollama.lan, 10.0.0.5");
     expect(isLocalAiHostAllowed("http://ollama.lan:11434/v1")).toBe(true);
     expect(isLocalAiHostAllowed("http://10.0.0.5:11434/v1")).toBe(true);
     // A different private host is still rejected — the metadata endpoint and

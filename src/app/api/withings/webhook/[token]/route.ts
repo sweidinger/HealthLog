@@ -26,9 +26,7 @@ interface RouteContext {
   params: Promise<{ token: string }>;
 }
 
-async function verifyTokenSegment(
-  token: string | undefined,
-): Promise<boolean> {
+async function verifyTokenSegment(token: string | undefined): Promise<boolean> {
   const expected = process.env.WITHINGS_WEBHOOK_SECRET;
   if (!expected) {
     getEvent()?.addWarning("WITHINGS_WEBHOOK_SECRET not configured");

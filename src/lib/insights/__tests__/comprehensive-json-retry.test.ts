@@ -81,7 +81,11 @@ describe("comprehensive JSON-retry", () => {
   it("recovers via one corrective retry after a first-pass JSON miss", async () => {
     runRawCompletionWithFallback
       .mockResolvedValueOnce({
-        result: { content: "I'm sorry, here is the data:", tokensUsed: 5, model: "m" },
+        result: {
+          content: "I'm sorry, here is the data:",
+          tokensUsed: 5,
+          model: "m",
+        },
         workingProvider: { providerType: "openai" },
         fallbackHops: [],
       })

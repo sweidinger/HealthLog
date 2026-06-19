@@ -59,9 +59,12 @@ const SESSION_OK = {
 const ROUTE_PARAMS = { params: Promise.resolve({ id: "med-1" }) };
 
 function deleteReq(): NextRequest {
-  return new NextRequest("http://localhost/api/medications/med-1/intake/purge", {
-    method: "DELETE",
-  });
+  return new NextRequest(
+    "http://localhost/api/medications/med-1/intake/purge",
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 beforeEach(() => {

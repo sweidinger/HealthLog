@@ -76,8 +76,16 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
     const input: MoodNarrativeInput = {
       ...emptyInput(),
       weekday: [
-        { weekday: 0, avgScore: 2.5, count: MOOD_NARRATIVE_MIN_WEEKDAY_SAMPLES - 1 },
-        { weekday: 1, avgScore: 4.5, count: MOOD_NARRATIVE_MIN_WEEKDAY_SAMPLES - 1 },
+        {
+          weekday: 0,
+          avgScore: 2.5,
+          count: MOOD_NARRATIVE_MIN_WEEKDAY_SAMPLES - 1,
+        },
+        {
+          weekday: 1,
+          avgScore: 4.5,
+          count: MOOD_NARRATIVE_MIN_WEEKDAY_SAMPLES - 1,
+        },
       ],
     };
     expect(
@@ -87,14 +95,20 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
 
   it("fires the trend takeaway only when the window means differ by the threshold", () => {
     // Recent window high, prior window low → upward trend.
-    const recent = Array.from({ length: MOOD_NARRATIVE_TREND_WINDOW }, (_, i) => ({
-      dayOffset: i,
-      value: 5,
-    }));
-    const prior = Array.from({ length: MOOD_NARRATIVE_TREND_WINDOW }, (_, i) => ({
-      dayOffset: i + MOOD_NARRATIVE_TREND_WINDOW,
-      value: 2,
-    }));
+    const recent = Array.from(
+      { length: MOOD_NARRATIVE_TREND_WINDOW },
+      (_, i) => ({
+        dayOffset: i,
+        value: 5,
+      }),
+    );
+    const prior = Array.from(
+      { length: MOOD_NARRATIVE_TREND_WINDOW },
+      (_, i) => ({
+        dayOffset: i + MOOD_NARRATIVE_TREND_WINDOW,
+        value: 2,
+      }),
+    );
     const input: MoodNarrativeInput = {
       ...emptyInput(),
       daily: daily([...recent, ...prior]),
@@ -105,14 +119,20 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
   });
 
   it("stays silent on the trend when the change is below the effect threshold", () => {
-    const recent = Array.from({ length: MOOD_NARRATIVE_TREND_WINDOW }, (_, i) => ({
-      dayOffset: i,
-      value: 3.5,
-    }));
-    const prior = Array.from({ length: MOOD_NARRATIVE_TREND_WINDOW }, (_, i) => ({
-      dayOffset: i + MOOD_NARRATIVE_TREND_WINDOW,
-      value: 3.55,
-    }));
+    const recent = Array.from(
+      { length: MOOD_NARRATIVE_TREND_WINDOW },
+      (_, i) => ({
+        dayOffset: i,
+        value: 3.5,
+      }),
+    );
+    const prior = Array.from(
+      { length: MOOD_NARRATIVE_TREND_WINDOW },
+      (_, i) => ({
+        dayOffset: i + MOOD_NARRATIVE_TREND_WINDOW,
+        value: 3.55,
+      }),
+    );
     const input: MoodNarrativeInput = {
       ...emptyInput(),
       daily: daily([...recent, ...prior]),
@@ -123,14 +143,20 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
   });
 
   it("stays silent on the trend below the minimum window sample size", () => {
-    const recent = Array.from({ length: MOOD_NARRATIVE_TREND_WINDOW - 1 }, (_, i) => ({
-      dayOffset: i,
-      value: 5,
-    }));
-    const prior = Array.from({ length: MOOD_NARRATIVE_TREND_WINDOW - 1 }, (_, i) => ({
-      dayOffset: i + MOOD_NARRATIVE_TREND_WINDOW,
-      value: 2,
-    }));
+    const recent = Array.from(
+      { length: MOOD_NARRATIVE_TREND_WINDOW - 1 },
+      (_, i) => ({
+        dayOffset: i,
+        value: 5,
+      }),
+    );
+    const prior = Array.from(
+      { length: MOOD_NARRATIVE_TREND_WINDOW - 1 },
+      (_, i) => ({
+        dayOffset: i + MOOD_NARRATIVE_TREND_WINDOW,
+        value: 2,
+      }),
+    );
     const input: MoodNarrativeInput = {
       ...emptyInput(),
       daily: daily([...recent, ...prior]),
@@ -171,7 +197,9 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
       ]),
       tags: [{ tag: "work", count: MOOD_NARRATIVE_MIN_TAG_COUNT, avgScore: 2 }],
     };
-    const drop = computeMoodNarratives(input).find((n) => n.kind === "tag-drop");
+    const drop = computeMoodNarratives(input).find(
+      (n) => n.kind === "tag-drop",
+    );
     expect(drop?.vars.tag).toBe("work");
     expect(Number(drop?.vars.delta)).toBeGreaterThanOrEqual(
       MOOD_NARRATIVE_MIN_EFFECT,
@@ -242,7 +270,9 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
         { dayOffset: 1, value: 3 },
         { dayOffset: 2, value: 3 },
       ]),
-      tags: [{ tag: "sport", count: MOOD_NARRATIVE_MIN_TAG_COUNT, avgScore: 4 }],
+      tags: [
+        { tag: "sport", count: MOOD_NARRATIVE_MIN_TAG_COUNT, avgScore: 4 },
+      ],
       structuredTags: [
         {
           key: "celebrating",
@@ -254,7 +284,9 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
         },
       ],
     };
-    const lift = computeMoodNarratives(input).find((n) => n.kind === "tag-lift");
+    const lift = computeMoodNarratives(input).find(
+      (n) => n.kind === "tag-lift",
+    );
     // the stronger structured lift wins the single tag-lift slot.
     expect(lift?.vars.tagKey).toBe("insights.mood.tags.events.celebrating");
   });
@@ -323,7 +355,9 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
       ...emptyInput(),
       loggedDayKeys: keys(MOOD_NARRATIVE_MIN_STREAK),
     };
-    const streak = computeMoodNarratives(above).find((n) => n.kind === "streak");
+    const streak = computeMoodNarratives(above).find(
+      (n) => n.kind === "streak",
+    );
     expect(streak?.vars.days).toBe(String(MOOD_NARRATIVE_MIN_STREAK));
   });
 
@@ -374,14 +408,20 @@ describe("computeMoodNarratives — ranking and capping", () => {
       { weekday: 1, avgScore: 5, count: 5 },
       { weekday: 2, avgScore: 5, count: 5 },
     ];
-    const recent = Array.from({ length: MOOD_NARRATIVE_TREND_WINDOW }, (_, i) => ({
-      dayOffset: i,
-      value: 5,
-    }));
-    const prior = Array.from({ length: MOOD_NARRATIVE_TREND_WINDOW }, (_, i) => ({
-      dayOffset: i + MOOD_NARRATIVE_TREND_WINDOW,
-      value: 1,
-    }));
+    const recent = Array.from(
+      { length: MOOD_NARRATIVE_TREND_WINDOW },
+      (_, i) => ({
+        dayOffset: i,
+        value: 5,
+      }),
+    );
+    const prior = Array.from(
+      { length: MOOD_NARRATIVE_TREND_WINDOW },
+      (_, i) => ({
+        dayOffset: i + MOOD_NARRATIVE_TREND_WINDOW,
+        value: 1,
+      }),
+    );
     const input: MoodNarrativeInput = {
       daily: [...recent, ...prior],
       weekday,

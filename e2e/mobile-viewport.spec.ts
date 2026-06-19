@@ -159,7 +159,9 @@ test.describe("mobile-viewport smoke", () => {
         // trimmed text. A role-based label is more stable across
         // re-skins than the raw `innerText` that brittle selectors
         // surfaced previously.
-        const ariaLabel = await btn.getAttribute("aria-label").catch(() => null);
+        const ariaLabel = await btn
+          .getAttribute("aria-label")
+          .catch(() => null);
         const innerText = await btn.innerText().catch(() => "");
         const label = ariaLabel || innerText || "(no text)";
         failures.push(

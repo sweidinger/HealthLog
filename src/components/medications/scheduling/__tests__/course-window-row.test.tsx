@@ -19,7 +19,9 @@ import {
  */
 
 function render(node: React.ReactNode) {
-  return renderToStaticMarkup(<I18nProvider initialLocale="en">{node}</I18nProvider>);
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale="en">{node}</I18nProvider>,
+  );
 }
 
 const NOOP = () => undefined;
@@ -70,11 +72,7 @@ describe("<CourseWindowRow> — SSR render", () => {
   it("renders both date inputs + the no-end Switch", () => {
     const start = new Date(Date.UTC(2026, 4, 28));
     const html = render(
-      <CourseWindowRow
-        startsOn={start}
-        endsOn={null}
-        onChange={NOOP}
-      />,
+      <CourseWindowRow startsOn={start} endsOn={null} onChange={NOOP} />,
     );
     expect(html).toContain('data-slot="course-window-row"');
     expect(html).toContain('data-slot="course-window-starts"');
@@ -86,11 +84,7 @@ describe("<CourseWindowRow> — SSR render", () => {
   it("disables the endsOn input when no-end-date is on (endsOn=null)", () => {
     const start = new Date(Date.UTC(2026, 4, 28));
     const html = render(
-      <CourseWindowRow
-        startsOn={start}
-        endsOn={null}
-        onChange={NOOP}
-      />,
+      <CourseWindowRow startsOn={start} endsOn={null} onChange={NOOP} />,
     );
     expect(html).toMatch(/data-slot="course-window-ends"[^>]*disabled/);
   });
@@ -117,11 +111,7 @@ describe("<CourseWindowRow> — SSR render", () => {
     const start = new Date(Date.UTC(2026, 4, 28));
     const end = new Date(Date.UTC(2026, 4, 1));
     const html = render(
-      <CourseWindowRow
-        startsOn={start}
-        endsOn={end}
-        onChange={NOOP}
-      />,
+      <CourseWindowRow startsOn={start} endsOn={end} onChange={NOOP} />,
     );
     expect(html).toContain('data-slot="course-window-error"');
     expect(html).toMatch(/aria-invalid="true"/);

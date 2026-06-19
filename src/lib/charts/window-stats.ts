@@ -69,9 +69,7 @@ export function computeWindowStats(
   const sorted = [...finite].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   const median =
-    sorted.length % 2 === 0
-      ? (sorted[mid - 1] + sorted[mid]) / 2
-      : sorted[mid];
+    sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 
   return { count: finite.length, min, max, median, mean };
 }

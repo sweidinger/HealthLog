@@ -9,11 +9,7 @@
  *     `self.__APP_VERSION__` (falling back to a literal).
  */
 import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  readFileSync,
-  rmSync,
-} from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect, afterAll } from "vitest";
 

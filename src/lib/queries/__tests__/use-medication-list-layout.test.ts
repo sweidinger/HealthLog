@@ -61,9 +61,9 @@ describe("runSetMedicationListView", () => {
       version: 1,
       view: "table",
     });
-    expect(
-      queryClient.getQueryData(queryKeys.medicationListLayout()),
-    ).toEqual(saved);
+    expect(queryClient.getQueryData(queryKeys.medicationListLayout())).toEqual(
+      saved,
+    );
     expect(toast.error).not.toHaveBeenCalled();
   });
 
@@ -98,9 +98,9 @@ describe("runSetMedicationListView", () => {
 
     await runSetMedicationListView({ view: "table", queryClient, t });
 
-    expect(
-      queryClient.getQueryData(queryKeys.medicationListLayout()),
-    ).toEqual(previous);
+    expect(queryClient.getQueryData(queryKeys.medicationListLayout())).toEqual(
+      previous,
+    );
     expect(toast.error).toHaveBeenCalledWith("medications.viewSaveFailed");
   });
 });
@@ -126,9 +126,9 @@ describe("runSaveMedicationListOrder", () => {
       version: 1,
       order: ["med-b", "med-a"],
     });
-    expect(
-      queryClient.getQueryData(queryKeys.medicationListLayout()),
-    ).toEqual(saved);
+    expect(queryClient.getQueryData(queryKeys.medicationListLayout())).toEqual(
+      saved,
+    );
     expect(toast.success).toHaveBeenCalledWith("medications.reorderSaved");
   });
 
@@ -143,8 +143,6 @@ describe("runSaveMedicationListOrder", () => {
     });
 
     expect(ok).toBe(false);
-    expect(toast.error).toHaveBeenCalledWith(
-      "medications.reorderSaveFailed",
-    );
+    expect(toast.error).toHaveBeenCalledWith("medications.reorderSaveFailed");
   });
 });

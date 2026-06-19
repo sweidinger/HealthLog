@@ -124,83 +124,83 @@ export function PhaseEducationCard({
           className,
         )}
       >
-      {/* Zone 1 — eyebrow + phase name with a hue dot (never colour-only). */}
-      <div className="flex items-center gap-2">
-        <Sparkles
-          className="h-4 w-4 shrink-0"
-          style={{ color: hue }}
-          aria-hidden="true"
-        />
-        <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-          {t("cycle.phaseEducation.title")}
-        </span>
-      </div>
+        {/* Zone 1 — eyebrow + phase name with a hue dot (never colour-only). */}
+        <div className="flex items-center gap-2">
+          <Sparkles
+            className="h-4 w-4 shrink-0"
+            style={{ color: hue }}
+            aria-hidden="true"
+          />
+          <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+            {t("cycle.phaseEducation.title")}
+          </span>
+        </div>
 
-      {stillLearning ? (
-        <p
-          data-slot="cycle-phase-education-learning"
-          className="text-muted-foreground mt-2 text-sm"
-        >
-          {t("cycle.phaseEducation.stillLearning")}
-        </p>
-      ) : (
-        <>
-          <h3 className="text-foreground mt-2 flex items-center gap-2 text-base font-semibold">
-            <span
-              aria-hidden="true"
-              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: hue }}
-            />
-            {phaseName}
-          </h3>
+        {stillLearning ? (
+          <p
+            data-slot="cycle-phase-education-learning"
+            className="text-muted-foreground mt-2 text-sm"
+          >
+            {t("cycle.phaseEducation.stillLearning")}
+          </p>
+        ) : (
+          <>
+            <h3 className="text-foreground mt-2 flex items-center gap-2 text-base font-semibold">
+              <span
+                aria-hidden="true"
+                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: hue }}
+              />
+              {phaseName}
+            </h3>
 
-          {/* Zone 2 — the curated, descriptive-only "what's happening" line,
+            {/* Zone 2 — the curated, descriptive-only "what's happening" line,
               followed by a deeper "context" line (what someone might notice +
               gentle framing of normal variation). Both stay descriptive, never
               clinical advice / a medical claim. */}
-          <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
-            {t(PHASE_WHATS_HAPPENING_KEY[phase as CyclePhase])}
-          </p>
-          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-            {t(PHASE_CONTEXT_KEY[phase as CyclePhase])}
-          </p>
+            <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+              {t(PHASE_WHATS_HAPPENING_KEY[phase as CyclePhase])}
+            </p>
+            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+              {t(PHASE_CONTEXT_KEY[phase as CyclePhase])}
+            </p>
 
-          {/* Zone 3 — the user's OWN clustered symptoms for this phase
+            {/* Zone 3 — the user's OWN clustered symptoms for this phase
               ("you often notice this here"). */}
-          {chips.length > 0 ? (
-            <div className="mt-4">
-              <p className="text-muted-foreground text-xs font-medium">
-                {t("cycle.phaseEducation.commonHere")}
-              </p>
-              <ul
-                data-slot="cycle-phase-education-chips"
-                className="mt-2 flex flex-wrap gap-1.5"
-              >
-                {chips.map((row) => {
-                  const meta = byKey.get(row.symptomKey);
-                  const Icon = meta?.icon;
-                  const name = meta ? t(meta.labelKey) : row.symptomKey;
-                  return (
-                    <li
-                      key={row.symptomKey}
-                      className="border-foreground/15 bg-background/55 text-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
-                    >
-                      {Icon ? (
-                        <Icon
-                          className="h-3 w-3 shrink-0"
-                          style={{ color: hue }}
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                      {name}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ) : null}
-        </>
-      )}
+            {chips.length > 0 ? (
+              <div className="mt-4">
+                <p className="text-muted-foreground text-xs font-medium">
+                  {t("cycle.phaseEducation.commonHere")}
+                </p>
+                <ul
+                  data-slot="cycle-phase-education-chips"
+                  className="mt-2 flex flex-wrap gap-1.5"
+                >
+                  {chips.map((row) => {
+                    const meta = byKey.get(row.symptomKey);
+                    const Icon = meta?.icon;
+                    const name = meta ? t(meta.labelKey) : row.symptomKey;
+                    return (
+                      <li
+                        key={row.symptomKey}
+                        className="border-foreground/15 bg-background/55 text-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
+                      >
+                        {Icon ? (
+                          <Icon
+                            className="h-3 w-3 shrink-0"
+                            style={{ color: hue }}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        {name}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
+          </>
+        )}
       </section>
     </div>
   );

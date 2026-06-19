@@ -348,9 +348,7 @@ export async function computeReadiness(
 
   const { score, components } = blendReadinessComponents(raw);
   const presentCount = components.filter((c) => c.value !== null).length;
-  const missing = components
-    .filter((c) => c.value === null)
-    .map((c) => c.key);
+  const missing = components.filter((c) => c.value === null).map((c) => c.key);
 
   // The REAL history depth backing the composite. v1.10.0 QA: this used to be
   // pinned to `windowDays` (the constant), so `historyFraction` was always 1

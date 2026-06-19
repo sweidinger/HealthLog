@@ -19,10 +19,7 @@ import {
   isTrajectoryType,
   type DerivedMetricId,
 } from "./registry";
-import {
-  computeVitalsBaseline,
-  type BaselineProfile,
-} from "./baseline";
+import { computeVitalsBaseline, type BaselineProfile } from "./baseline";
 import { computeFitnessAge } from "./fitness-age";
 import { computeSixMinuteWalkBand } from "./six-minute-walk";
 import { computeVascularAgeDelta } from "./vascular-age";
@@ -53,13 +50,15 @@ export interface DerivedComputeArgs {
 }
 
 /** A `not_implemented` insufficient — the stub guard for W2/W3 metrics. */
-function notImplemented(
-  inputs: string[],
-  now: Date,
-): Derived<unknown> {
+function notImplemented(inputs: string[], now: Date): Derived<unknown> {
   const computedAt = nowProvenanceTimestamp(now);
   return buildInsufficient<unknown>({
-    coverage: { requiredInputs: 1, presentInputs: 0, historyDays: 0, missing: inputs },
+    coverage: {
+      requiredInputs: 1,
+      presentInputs: 0,
+      historyDays: 0,
+      missing: inputs,
+    },
     provenance: { inputs, source: "none", windowDays: 0, computedAt },
     reason: "not_implemented",
   });

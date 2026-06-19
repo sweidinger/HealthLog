@@ -30,10 +30,7 @@ const collapsed = [
 // triggers).
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
-    if (
-      Array.isArray(queryKey) &&
-      queryKey[0] === "measurement-drilldown"
-    ) {
+    if (Array.isArray(queryKey) && queryKey[0] === "measurement-drilldown") {
       return { data: undefined, isLoading: false };
     }
     return {

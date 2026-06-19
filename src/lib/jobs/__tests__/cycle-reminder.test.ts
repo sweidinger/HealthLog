@@ -84,23 +84,17 @@ function makePrisma(state: FakeState) {
     },
     pushAttempt: {
       findFirst: vi.fn(
-        async ({
-          where,
-        }: {
-          where: { userId: string; eventType: string };
-        }) => {
+        async ({ where }: { where: { userId: string; eventType: string } }) => {
           const key = `${where.userId}:${where.eventType}`;
           return state.alreadyOk.has(key) ? { id: "pa-1" } : null;
         },
       ),
     },
     menstrualCycle: {
-      findMany: vi.fn(
-        async ({ where }: { where: { userId: string } }) => {
-          const starts = state.observedStarts[where.userId] ?? [];
-          return starts.map((startDate) => ({ startDate }));
-        },
-      ),
+      findMany: vi.fn(async ({ where }: { where: { userId: string } }) => {
+        const starts = state.observedStarts[where.userId] ?? [];
+        return starts.map((startDate) => ({ startDate }));
+      }),
     },
   };
 }
@@ -145,7 +139,10 @@ describe("cycleReminderLocalDate", () => {
   it("respects a non-Berlin timezone", () => {
     // 09:00 America/New_York (EDT) = 13:00Z
     expect(
-      cycleReminderLocalDate(new Date("2026-05-17T13:00:00Z"), "America/New_York"),
+      cycleReminderLocalDate(
+        new Date("2026-05-17T13:00:00Z"),
+        "America/New_York",
+      ),
     ).toBe("2026-05-17");
   });
 });
@@ -253,7 +250,11 @@ describe("evaluateFertileReminder", () => {
 
 describe("buildCycleReminderPayload", () => {
   it("carries non-contraceptive fertile framing when not discreet", () => {
-    const fertile = buildCycleReminderPayload("CYCLE_FERTILE_SOON", "en", false);
+    const fertile = buildCycleReminderPayload(
+      "CYCLE_FERTILE_SOON",
+      "en",
+      false,
+    );
     expect(fertile.title.toLowerCase()).toContain("fertile");
     // Honesty boundary: never a contraceptive / safe-day claim.
     expect(fertile.body.toLowerCase()).toContain("not");
@@ -326,7 +327,8 @@ describe("runCycleReminderTick", () => {
       prisma as any,
       now,
       {
-        dispatch: dispatch as typeof import("@/lib/notifications/dispatcher").dispatchNotification,
+        dispatch:
+          dispatch as typeof import("@/lib/notifications/dispatcher").dispatchNotification,
         isModuleEnabled:
           isModuleEnabled as unknown as typeof import("@/lib/modules/gate").isModuleEnabled,
       },
@@ -463,7 +465,14 @@ describe("runCycleReminderTick", () => {
         {
           userId: "u1",
           nextPeriodStart: "2026-05-19",
-          user: baseUser({ gender: "MALE", cycleProfile: { cycleTrackingEnabled: null, predictionEnabled: true, discreetNotifications: false } }),
+          user: baseUser({
+            gender: "MALE",
+            cycleProfile: {
+              cycleTrackingEnabled: null,
+              predictionEnabled: true,
+              discreetNotifications: false,
+            },
+          }),
         },
       ],
       observedStarts: {},
@@ -503,7 +512,11 @@ describe("runCycleReminderTick", () => {
           nextPeriodStart: "2026-05-19",
           user: baseUser({
             gender: "MALE",
-            cycleProfile: { cycleTrackingEnabled: true, predictionEnabled: true, discreetNotifications: false },
+            cycleProfile: {
+              cycleTrackingEnabled: true,
+              predictionEnabled: true,
+              discreetNotifications: false,
+            },
           }),
         },
       ],
@@ -522,7 +535,11 @@ describe("runCycleReminderTick", () => {
           userId: "u1",
           nextPeriodStart: "2026-05-19",
           user: baseUser({
-            cycleProfile: { cycleTrackingEnabled: null, predictionEnabled: false, discreetNotifications: false },
+            cycleProfile: {
+              cycleTrackingEnabled: null,
+              predictionEnabled: false,
+              discreetNotifications: false,
+            },
           }),
         },
       ],
@@ -562,7 +579,11 @@ describe("runCycleReminderTick", () => {
           userId: "u1",
           nextPeriodStart: "2026-05-19",
           user: baseUser({
-            cycleProfile: { cycleTrackingEnabled: null, predictionEnabled: true, discreetNotifications: true },
+            cycleProfile: {
+              cycleTrackingEnabled: null,
+              predictionEnabled: true,
+              discreetNotifications: true,
+            },
           }),
         },
       ],
@@ -618,7 +639,11 @@ describe("runCycleReminderTick", () => {
       alreadyOk: new Set(),
     };
     const dispatch = vi.fn<DispatchFn>(async () => OK);
-    const summary = await run(state, dispatch, new Date("2026-05-17T20:00:00Z"));
+    const summary = await run(
+      state,
+      dispatch,
+      new Date("2026-05-17T20:00:00Z"),
+    );
     expect(dispatch).not.toHaveBeenCalled();
     expect(summary.skippedOutsideWindow).toBe(1);
   });
@@ -626,8 +651,16 @@ describe("runCycleReminderTick", () => {
   it("isolates a per-user failure from the rest of the tick", async () => {
     const state: FakeState = {
       predictions: [
-        { userId: "bad", nextPeriodStart: "not-a-date", user: baseUser({ id: "bad" }) },
-        { userId: "u2", nextPeriodStart: "2026-05-19", user: baseUser({ id: "u2" }) },
+        {
+          userId: "bad",
+          nextPeriodStart: "not-a-date",
+          user: baseUser({ id: "bad" }),
+        },
+        {
+          userId: "u2",
+          nextPeriodStart: "2026-05-19",
+          user: baseUser({ id: "u2" }),
+        },
       ],
       observedStarts: {},
       alreadyOk: new Set(),

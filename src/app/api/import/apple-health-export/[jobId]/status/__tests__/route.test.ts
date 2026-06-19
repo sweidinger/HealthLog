@@ -63,8 +63,13 @@ function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
     exportedAt: null,
     startedAt: NOW,
     completedAt: null,
-    progress: { currentPhase: "parsing", recordsRead: 100, rowsUpserted: 0,
-                 percent: null, elapsedMs: 1500 },
+    progress: {
+      currentPhase: "parsing",
+      recordsRead: 100,
+      rowsUpserted: 0,
+      percent: null,
+      elapsedMs: 1500,
+    },
     result: null,
     ...overrides,
   };
@@ -78,10 +83,15 @@ describe("GET /api/import/apple-health-export/[jobId]/status", () => {
   it("returns the row envelope to the owning user", async () => {
     vi.mocked(getSession).mockResolvedValue(OWNER_SESSION as never);
     mocks.importJobFindUnique.mockResolvedValue(makeRow());
-    const req = new NextRequest("http://localhost/api/import/apple-health-export/ij-1/status");
+    const req = new NextRequest(
+      "http://localhost/api/import/apple-health-export/ij-1/status",
+    );
     const res = await GET(req, { params: Promise.resolve({ jobId: "ij-1" }) });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: { status: string }; error: null };
+    const body = (await res.json()) as {
+      data: { status: string };
+      error: null;
+    };
     expect(body.error).toBeNull();
     expect(body.data.status).toBe("parsing");
   });
@@ -89,7 +99,9 @@ describe("GET /api/import/apple-health-export/[jobId]/status", () => {
   it("returns 404 to a non-owner non-admin user", async () => {
     vi.mocked(getSession).mockResolvedValue(OTHER_SESSION as never);
     mocks.importJobFindUnique.mockResolvedValue(makeRow());
-    const req = new NextRequest("http://localhost/api/import/apple-health-export/ij-1/status");
+    const req = new NextRequest(
+      "http://localhost/api/import/apple-health-export/ij-1/status",
+    );
     const res = await GET(req, { params: Promise.resolve({ jobId: "ij-1" }) });
     expect(res.status).toBe(404);
   });
@@ -99,7 +111,9 @@ describe("GET /api/import/apple-health-export/[jobId]/status", () => {
     mocks.importJobFindUnique.mockResolvedValue(
       makeRow({ triggeredByAdminId: "admin-1" }),
     );
-    const req = new NextRequest("http://localhost/api/import/apple-health-export/ij-1/status");
+    const req = new NextRequest(
+      "http://localhost/api/import/apple-health-export/ij-1/status",
+    );
     const res = await GET(req, { params: Promise.resolve({ jobId: "ij-1" }) });
     expect(res.status).toBe(200);
   });
@@ -107,14 +121,18 @@ describe("GET /api/import/apple-health-export/[jobId]/status", () => {
   it("returns 404 when the job row is missing", async () => {
     vi.mocked(getSession).mockResolvedValue(OWNER_SESSION as never);
     mocks.importJobFindUnique.mockResolvedValue(null);
-    const req = new NextRequest("http://localhost/api/import/apple-health-export/ij-1/status");
+    const req = new NextRequest(
+      "http://localhost/api/import/apple-health-export/ij-1/status",
+    );
     const res = await GET(req, { params: Promise.resolve({ jobId: "ij-1" }) });
     expect(res.status).toBe(404);
   });
 
   it("returns 401 when unauthenticated", async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const req = new NextRequest("http://localhost/api/import/apple-health-export/ij-1/status");
+    const req = new NextRequest(
+      "http://localhost/api/import/apple-health-export/ij-1/status",
+    );
     const res = await GET(req, { params: Promise.resolve({ jobId: "ij-1" }) });
     expect(res.status).toBe(401);
   });

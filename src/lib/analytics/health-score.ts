@@ -267,8 +267,7 @@ function bareWeightTrendScore(
   // 25-point span keeps the unfavourable floor honest (a steep sustained
   // gain reads "concerning", not "failing") while the favourable ceiling
   // reaches the full 100.
-  const score =
-    slope < 0 ? 75 + 25 * normalised : 75 - 50 * normalised;
+  const score = slope < 0 ? 75 + 25 * normalised : 75 - 50 * normalised;
   return Math.round(Math.max(0, Math.min(100, score)));
 }
 
@@ -502,8 +501,7 @@ function redistribute(
     const source = resolveSourceLabel(value !== null, attr.sources);
     // When a component is `none`, fall back to the window-end anchor so
     // the UI can still render "as of <today>" without inventing a date.
-    const asOf =
-      source === "none" ? windowEndAt : (attr.asOf ?? windowEndAt);
+    const asOf = source === "none" ? windowEndAt : (attr.asOf ?? windowEndAt);
     return {
       value,
       weight: weightFor(key),

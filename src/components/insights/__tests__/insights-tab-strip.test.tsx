@@ -270,12 +270,7 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
   });
 
   it("shows a pill when its slug is layout-visible AND has data", () => {
-    const visibleTileIds = new Set([
-      "overview",
-      "pulse",
-      "weight",
-      "bmi",
-    ]);
+    const visibleTileIds = new Set(["overview", "pulse", "weight", "bmi"]);
     const html = render(
       <InsightsTabStrip
         availability={dataAvailability}
@@ -369,9 +364,7 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
   // when their data is present.
   it("default layout shows every data-having pill (nav-pill regression guard)", () => {
     const visibleTileIds = new Set(
-      DEFAULT_INSIGHTS_LAYOUT.tiles
-        .filter((t) => t.visible)
-        .map((t) => t.id),
+      DEFAULT_INSIGHTS_LAYOUT.tiles.filter((t) => t.visible).map((t) => t.id),
     );
     const availability: InsightInputs = {
       summaries: {
@@ -470,9 +463,7 @@ describe("<InsightsTabStrip> — module enable/disable gate (v1.18.0)", () => {
   });
 
   it("hides the Recovery pill when the recovery module is disabled, keeps it when enabled", () => {
-    const disabled = render(
-      <InsightsTabStrip modules={{ recovery: false }} />,
-    );
+    const disabled = render(<InsightsTabStrip modules={{ recovery: false }} />);
     expect(disabled).not.toContain(">Recovery<");
     expect(disabled).not.toContain('href="/insights/recovery"');
     // Overview still anchors the strip.

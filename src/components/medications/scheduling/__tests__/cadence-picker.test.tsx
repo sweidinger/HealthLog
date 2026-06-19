@@ -28,7 +28,9 @@ import {
  */
 
 function render(node: React.ReactNode) {
-  return renderToStaticMarkup(<I18nProvider initialLocale="en">{node}</I18nProvider>);
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale="en">{node}</I18nProvider>,
+  );
 }
 
 function makeValue(kind: CadenceKind): CadenceValue {
@@ -138,12 +140,12 @@ describe("encodeCadence", () => {
   });
 
   it("clamps dayOfMonth to [1, 31]", () => {
-    expect(
-      encodeCadence("monthly", { ...baseSub, dayOfMonth: 99 }).rrule,
-    ).toBe("FREQ=MONTHLY;BYMONTHDAY=31");
-    expect(
-      encodeCadence("monthly", { ...baseSub, dayOfMonth: 0 }).rrule,
-    ).toBe("FREQ=MONTHLY;BYMONTHDAY=1");
+    expect(encodeCadence("monthly", { ...baseSub, dayOfMonth: 99 }).rrule).toBe(
+      "FREQ=MONTHLY;BYMONTHDAY=31",
+    );
+    expect(encodeCadence("monthly", { ...baseSub, dayOfMonth: 0 }).rrule).toBe(
+      "FREQ=MONTHLY;BYMONTHDAY=1",
+    );
   });
 
   it("clamps rollingDays to [1, 365]", () => {

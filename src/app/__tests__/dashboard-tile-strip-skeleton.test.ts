@@ -243,9 +243,7 @@ describe("v1.4.43 W11 — dashboard tile-strip skeleton (wiring)", () => {
 
   it("uses the structured silhouette as the per-tile Suspense fallback", () => {
     const src = readFileSync(PAGE_PATH, "utf8");
-    expect(src).toMatch(
-      /<Suspense fallback=\{<TrendCardSkeleton \/>\}>/,
-    );
+    expect(src).toMatch(/<Suspense fallback=\{<TrendCardSkeleton \/>\}>/);
   });
 
   it("gates the EmptyState on the resolved `showEmptyState` flag", () => {

@@ -104,9 +104,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const locale: Locale =
     selection.locale ??
     cookieLocale ??
-    parseLocaleFromAcceptLanguage(
-      request.headers.get("accept-language") ?? "",
-    );
+    parseLocaleFromAcceptLanguage(request.headers.get("accept-language") ?? "");
 
   // BfArM ATC: an explicit selection flag wins; otherwise derive it from a
   // German-region locale. The WHO ATC coding is unaffected either way.
@@ -207,12 +205,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   // format === "package": one zip holding the PDF + FHIR Bundle + a README.
-  const bundle = buildFhirDocumentBundle(
-    data,
-    { insuranceNumber },
-    undefined,
-    { germanAtc },
-  );
+  const bundle = buildFhirDocumentBundle(data, { insuranceNumber }, undefined, {
+    germanAtc,
+  });
   const readme = t("doctorReport.packageReadme");
   const zipped = zipSync(
     {

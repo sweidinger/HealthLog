@@ -89,8 +89,8 @@ describe("gradeBpScore", () => {
     // floor and descends smoothly. Walk across the systolic floor (90):
     // dia 66 sits on the optimal plateau (offset −13 → 100) so the
     // systolic axis is the worst-of(sys,dia) winner across the walk.
-    const sysWalk = [92, 91, 90, 89, 88].map(
-      (sys) => gradeBpScore({ sys, dia: 66, target: UNDER65 }),
+    const sysWalk = [92, 91, 90, 89, 88].map((sys) =>
+      gradeBpScore({ sys, dia: 66, target: UNDER65 }),
     );
     // AT and ABOVE the floor sit on the plateau (100).
     expect(sysWalk[2]).toBe(100); // sys 90
@@ -108,8 +108,8 @@ describe("gradeBpScore", () => {
     // the diastolic axis is the worst-of(sys,dia) winner throughout.
     // sys 117 sits on the optimal plateau (offset −12 → 100) so the
     // diastolic axis is the worst-of(sys,dia) winner across the walk.
-    const diaWalk = [52, 51, 50, 49, 48].map(
-      (dia) => gradeBpScore({ sys: 117, dia, target: UNDER65 }),
+    const diaWalk = [52, 51, 50, 49, 48].map((dia) =>
+      gradeBpScore({ sys: 117, dia, target: UNDER65 }),
     );
     expect(diaWalk[2]).toBe(100); // dia 50
     expect(diaWalk[1]).toBe(100); // dia 51
@@ -177,9 +177,9 @@ describe("gradeBpScoreFromSeries", () => {
       { at: NOW, sys: 134, dia: 87 },
       { at: NOW, sys: 134, dia: 87 },
     ];
-    expect(
-      gradeBpScoreFromSeries({ pairs, target: UNDER65, now: NOW }),
-    ).toBe(gradeBpScore({ sys: 134, dia: 87, target: UNDER65 }));
+    expect(gradeBpScoreFromSeries({ pairs, target: UNDER65, now: NOW })).toBe(
+      gradeBpScore({ sys: 134, dia: 87, target: UNDER65 }),
+    );
   });
 
   it("rollup (per-day-mean + count) and live (per-event) agree on the same data", () => {
@@ -218,6 +218,8 @@ describe("gradeBpScoreFromSeries", () => {
     });
     expect(live).not.toBeNull();
     expect(rollup).not.toBeNull();
-    expect(Math.abs((live as number) - (rollup as number))).toBeLessThanOrEqual(1);
+    expect(Math.abs((live as number) - (rollup as number))).toBeLessThanOrEqual(
+      1,
+    );
   });
 });

@@ -193,9 +193,7 @@ export async function runIntakeAutoSkipPass(
   options: { nowMs?: number } = {},
 ): Promise<IntakeAutoSkipResult> {
   const nowMs = options.nowMs ?? Date.now();
-  const baseCutoff = new Date(
-    nowMs - INTAKE_AUTO_SKIP_GRACE_HOURS * HOUR_MS,
-  );
+  const baseCutoff = new Date(nowMs - INTAKE_AUTO_SKIP_GRACE_HOURS * HOUR_MS);
 
   const pendingWhere = {
     skipped: false,

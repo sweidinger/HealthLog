@@ -62,7 +62,7 @@ export const coachReminderSuggestionPaths: NonNullable<
       tags: ["Insights"],
       summary: "Act on a Coach cadence suggestion",
       description:
-        "v1.18.1 — accept / dismiss / stop a Coach-proposed measurement cadence. Coach-gated (`requireModuleEnabled(\"coach\")`); a disabled surface 403s. `accept` resolves the cadence from the closed server-side catalog and creates a `MeasurementReminder` with `origin: COACH` (201), or returns 200 with `duplicate: true` when a live COACH reminder for that metric already exists — idempotent against a re-tapped or stale card, with a partial unique index as the structural backstop. Per-user rate-limited (429 on excess). Auth via cookie or Bearer; the owner is narrowed from the session.",
+        'v1.18.1 — accept / dismiss / stop a Coach-proposed measurement cadence. Coach-gated (`requireModuleEnabled("coach")`); a disabled surface 403s. `accept` resolves the cadence from the closed server-side catalog and creates a `MeasurementReminder` with `origin: COACH` (201), or returns 200 with `duplicate: true` when a live COACH reminder for that metric already exists — idempotent against a re-tapped or stale card, with a partial unique index as the structural backstop. Per-user rate-limited (429 on excess). Auth via cookie or Bearer; the owner is narrowed from the session.',
       requestBody: {
         required: true,
         content: {
@@ -261,7 +261,9 @@ const coachProvenanceSchema = z
     counts: z
       .record(z.string(), z.number().int())
       .optional()
-      .describe("Per-metric sample-count summary; absent on an empty snapshot."),
+      .describe(
+        "Per-metric sample-count summary; absent on an empty snapshot.",
+      ),
     keyValues: z
       .array(
         z.object({
@@ -302,7 +304,9 @@ const coachMessageSchema = z
     promptVersion: z
       .string()
       .nullable()
-      .describe("Coach prompt version that produced the reply; null for user turns."),
+      .describe(
+        "Coach prompt version that produced the reply; null for user turns.",
+      ),
   })
   .meta({
     id: "CoachMessage",
@@ -315,8 +319,8 @@ const coachConversationSchema = z
     id: z.string(),
     title: z.string().describe("Title summarised from the first user message."),
     createdAt: z.iso.datetime({ offset: true }),
-    updatedAt: z
-      .iso.datetime({ offset: true })
+    updatedAt: z.iso
+      .datetime({ offset: true })
       .describe("Bumped on every appended message; the rail orders by this."),
     messageCount: z.number().int(),
   })
@@ -384,7 +388,7 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Insights"],
       summary: "List the caller's Coach conversations",
       description:
-        "v1.18.0 — cursor-paginated list of the caller's Coach conversations for the history rail, most-recent activity first. Metadata only (id, title, timestamps, message count); message bodies are not decrypted here. `limit` defaults to 20, capped at 50; pass the returned `nextCursor` back as `cursor` for the next page (null at the end). Coach-gated (`requireAssistantSurface(\"coach\")`); a disabled surface 403s. Auth via cookie or Bearer; the owner is narrowed from the session.",
+        'v1.18.0 — cursor-paginated list of the caller\'s Coach conversations for the history rail, most-recent activity first. Metadata only (id, title, timestamps, message count); message bodies are not decrypted here. `limit` defaults to 20, capped at 50; pass the returned `nextCursor` back as `cursor` for the next page (null at the end). Coach-gated (`requireAssistantSurface("coach")`); a disabled surface 403s. Auth via cookie or Bearer; the owner is narrowed from the session.',
       parameters: [
         {
           name: "cursor",
@@ -650,7 +654,7 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Insights"],
       summary: "Whether an unopened Coach message is waiting",
       description:
-        "v1.18.6 (CCH-03) — server-authoritative unread signal for the Coach FAB. `unread` is true when the caller's newest Coach ASSISTANT message (a proactive nudge or any reply) is newer than `User.coachLastSeenAt`; a user who has never opened the Coach reads an existing nudge as unread exactly once. `nudgedAt` carries that newest assistant-message timestamp (null when none exists) so the client can key a local seen-mirror on a stable value. Coach-gated (`requireAssistantSurface(\"coach\")`); a disabled surface 403s. Auth via cookie or Bearer; the owner is narrowed from the session.",
+        'v1.18.6 (CCH-03) — server-authoritative unread signal for the Coach FAB. `unread` is true when the caller\'s newest Coach ASSISTANT message (a proactive nudge or any reply) is newer than `User.coachLastSeenAt`; a user who has never opened the Coach reads an existing nudge as unread exactly once. `nudgedAt` carries that newest assistant-message timestamp (null when none exists) so the client can key a local seen-mirror on a stable value. Coach-gated (`requireAssistantSurface("coach")`); a disabled surface 403s. Auth via cookie or Bearer; the owner is narrowed from the session.',
       responses: {
         "200": {
           description: "The current unread state.",
@@ -658,8 +662,8 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             "application/json": {
               schema: dataEnvelope(
                 z.object({
-                  nudgedAt: z
-                    .iso.datetime({ offset: true })
+                  nudgedAt: z.iso
+                    .datetime({ offset: true })
                     .nullable()
                     .describe(
                       "Timestamp of the newest Coach assistant message; null when none exists.",
@@ -692,8 +696,8 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             "application/json": {
               schema: dataEnvelope(
                 z.object({
-                  seenAt: z
-                    .iso.datetime({ offset: true })
+                  seenAt: z.iso
+                    .datetime({ offset: true })
                     .describe("The server-minted open timestamp."),
                 }),
                 "CoachSeenResponse",

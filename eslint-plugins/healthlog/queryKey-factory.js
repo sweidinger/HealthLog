@@ -125,8 +125,8 @@ const queryKeyFactoryRule = {
         node.key.type === "Identifier"
           ? node.key.name
           : node.key.type === "Literal"
-          ? node.key.value
-          : null;
+            ? node.key.value
+            : null;
       if (keyName !== "queryKey" && keyName !== "mutationKey") return;
 
       context.report({

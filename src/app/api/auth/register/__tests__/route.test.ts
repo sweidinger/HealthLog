@@ -23,7 +23,9 @@ vi.mock("@/lib/auth/session", () => ({
 
 vi.mock("@/lib/auth/password", () => ({
   hashPassword: vi.fn().mockResolvedValue("hashed"),
-  checkPasswordStrength: vi.fn().mockReturnValue({ isAcceptable: true, feedback: [] }),
+  checkPasswordStrength: vi
+    .fn()
+    .mockReturnValue({ isAcceptable: true, feedback: [] }),
 }));
 
 vi.mock("@/lib/auth/audit", () => ({

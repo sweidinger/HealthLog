@@ -88,7 +88,9 @@ export function buildGoalSeededDashboardLayout(
   if (promoted.size === 0) return null;
 
   const base = DEFAULT_DASHBOARD_LAYOUT.widgets;
-  const promotedWidgets = base.filter((w) => promoted.has(w.id as DashboardWidgetId));
+  const promotedWidgets = base.filter((w) =>
+    promoted.has(w.id as DashboardWidgetId),
+  );
   const rest = base.filter((w) => !promoted.has(w.id as DashboardWidgetId));
 
   const ordered = [...promotedWidgets, ...rest].map((w, index) => ({

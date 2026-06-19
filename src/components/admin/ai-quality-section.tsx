@@ -115,67 +115,67 @@ export function AiQualitySection() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm" data-slot="ai-quality-table">
             <thead>
-            <tr className="text-muted-foreground border-border border-b text-left text-xs tracking-wider uppercase">
-              <th className="py-2 pr-3 font-medium">
-                {t("admin.aiQuality.colSeverity")}
-              </th>
-              <th className="py-2 pr-3 font-medium">
-                {t("admin.aiQuality.colMetric")}
-              </th>
-              <th className="py-2 pr-3 font-medium">
-                {t("admin.aiQuality.colProvider")}
-              </th>
-              <th className="py-2 pr-3 font-medium">
-                {t("admin.aiQuality.colPromptVersion")}
-              </th>
-              <th className="py-2 pr-3 font-medium tabular-nums">
-                {t("admin.aiQuality.colHelpful")}
-              </th>
-              <th className="py-2 pr-3 font-medium tabular-nums">
-                {t("admin.aiQuality.colNotHelpful")}
-              </th>
-              <th className="py-2 font-medium tabular-nums">
-                {t("admin.aiQuality.colHelpfulRate")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {buckets.map((bucket, idx) => {
-              const ratePct = Math.round(bucket.helpfulRate * 100);
-              return (
-                <tr
-                  key={`${bucket.severity}-${bucket.metricSourceType}-${bucket.providerType}-${bucket.promptVersion}-${idx}`}
-                  className="border-border/40 border-b last:border-0"
-                  data-slot="ai-quality-bucket"
-                >
-                  <td
-                    className={`py-2 pr-3 font-medium ${
-                      SEVERITY_TINT[bucket.severity] ?? ""
-                    }`}
+              <tr className="text-muted-foreground border-border border-b text-left text-xs tracking-wider uppercase">
+                <th className="py-2 pr-3 font-medium">
+                  {t("admin.aiQuality.colSeverity")}
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  {t("admin.aiQuality.colMetric")}
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  {t("admin.aiQuality.colProvider")}
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  {t("admin.aiQuality.colPromptVersion")}
+                </th>
+                <th className="py-2 pr-3 font-medium tabular-nums">
+                  {t("admin.aiQuality.colHelpful")}
+                </th>
+                <th className="py-2 pr-3 font-medium tabular-nums">
+                  {t("admin.aiQuality.colNotHelpful")}
+                </th>
+                <th className="py-2 font-medium tabular-nums">
+                  {t("admin.aiQuality.colHelpfulRate")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {buckets.map((bucket, idx) => {
+                const ratePct = Math.round(bucket.helpfulRate * 100);
+                return (
+                  <tr
+                    key={`${bucket.severity}-${bucket.metricSourceType}-${bucket.providerType}-${bucket.promptVersion}-${idx}`}
+                    className="border-border/40 border-b last:border-0"
+                    data-slot="ai-quality-bucket"
                   >
-                    {bucket.severity}
-                  </td>
-                  <td className="py-2 pr-3">{bucket.metricSourceType}</td>
-                  <td className="py-2 pr-3">{bucket.providerType}</td>
-                  <td className="text-muted-foreground py-2 pr-3 text-xs">
-                    {bucket.promptVersion}
-                  </td>
-                  <td className="py-2 pr-3 tabular-nums">{bucket.helpful}</td>
-                  <td className="py-2 pr-3 tabular-nums">
-                    {bucket.notHelpful}
-                  </td>
-                  <td
-                    className={`py-2 font-semibold tabular-nums ${helpfulRateColour(
-                      bucket.helpfulRate,
-                    )}`}
-                  >
-                    {ratePct}%
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    <td
+                      className={`py-2 pr-3 font-medium ${
+                        SEVERITY_TINT[bucket.severity] ?? ""
+                      }`}
+                    >
+                      {bucket.severity}
+                    </td>
+                    <td className="py-2 pr-3">{bucket.metricSourceType}</td>
+                    <td className="py-2 pr-3">{bucket.providerType}</td>
+                    <td className="text-muted-foreground py-2 pr-3 text-xs">
+                      {bucket.promptVersion}
+                    </td>
+                    <td className="py-2 pr-3 tabular-nums">{bucket.helpful}</td>
+                    <td className="py-2 pr-3 tabular-nums">
+                      {bucket.notHelpful}
+                    </td>
+                    <td
+                      className={`py-2 font-semibold tabular-nums ${helpfulRateColour(
+                        bucket.helpfulRate,
+                      )}`}
+                    >
+                      {ratePct}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

@@ -185,7 +185,8 @@ function compareCandidates<T extends WorkoutRow>(
   b: T,
   ladder: readonly MeasurementSource[],
 ): number {
-  const sourceDelta = sourceRank(a.source, ladder) - sourceRank(b.source, ladder);
+  const sourceDelta =
+    sourceRank(a.source, ladder) - sourceRank(b.source, ladder);
   if (sourceDelta !== 0) return sourceDelta;
 
   // Tie-breaker 1 — higher caloriesKcal wins (more sensor data).

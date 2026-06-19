@@ -92,8 +92,7 @@ function rankOf(source: MeasurementSource): number {
  * users (the common case) are unaffected.
  */
 function wakeDayKeyOf(d: Date, source: MeasurementSource, tz: string): string {
-  const anchor =
-    source === "COMPUTED" ? new Date(d.getTime() + MS_PER_DAY) : d;
+  const anchor = source === "COMPUTED" ? new Date(d.getTime() + MS_PER_DAY) : d;
   return dayKeyForUserTz(anchor, tz);
 }
 

@@ -111,9 +111,7 @@ describe("GET /api/medications/[id]/cadence", () => {
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([]);
 
     const res = await GET(
-      new NextRequest(
-        "http://localhost/api/medications/med-1/cadence?days=14",
-      ),
+      new NextRequest("http://localhost/api/medications/med-1/cadence?days=14"),
       { params: Promise.resolve({ id: "med-1" }) },
     );
     expect(res.status).toBe(200);

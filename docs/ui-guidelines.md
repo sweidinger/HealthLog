@@ -235,7 +235,7 @@ lists) uses the unified `<FilterBar>` rail from
 labelled `<Select>`s and date inputs.
 
 - **Grammar**: `[icon] [Zeitraum] [Typ] [Quelle] [extras…]
-  [Zurücksetzen] … [count]`. Canonical dimension order is date range,
+[Zurücksetzen] … [count]`. Canonical dimension order is date range,
   type, source; surface-specific dimensions append after.
 - **Pill = trigger + chip**: inactive pills show only the dimension
   name; active pills show `Name: Wert`, pick up the primary accent and

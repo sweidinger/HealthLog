@@ -53,7 +53,12 @@ import { apiError } from "@/lib/api-response";
 
 const SESSION_OK = {
   session: { id: "s1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "t", role: "USER" as const, gender: "FEMALE" },
+  user: {
+    id: "user-1",
+    username: "t",
+    role: "USER" as const,
+    gender: "FEMALE",
+  },
 };
 
 function jsonReq(url: string, method: string, body: unknown) {
@@ -92,7 +97,10 @@ describe("GET /api/cycle/symptoms/custom", () => {
 describe("POST /api/cycle/symptoms/custom", () => {
   it("creates a custom symptom, stores the label encrypted, returns it", async () => {
     db.cycleSymptom.count.mockResolvedValue(2);
-    db.cycleSymptom.create.mockResolvedValue({ key: "custom:abc", icon: "Brain" });
+    db.cycleSymptom.create.mockResolvedValue({
+      key: "custom:abc",
+      icon: "Brain",
+    });
     const res = await POST(
       jsonReq("http://localhost/api/cycle/symptoms/custom", "POST", {
         label: "Dizziness",
@@ -122,7 +130,9 @@ describe("POST /api/cycle/symptoms/custom", () => {
   it("rejects over the per-user cap with 422", async () => {
     db.cycleSymptom.count.mockResolvedValue(50);
     const res = await POST(
-      jsonReq("http://localhost/api/cycle/symptoms/custom", "POST", { label: "X" }),
+      jsonReq("http://localhost/api/cycle/symptoms/custom", "POST", {
+        label: "X",
+      }),
     );
     expect(res.status).toBe(422);
     expect(db.cycleSymptom.create).not.toHaveBeenCalled();
@@ -134,7 +144,9 @@ describe("POST /api/cycle/symptoms/custom", () => {
       response: apiError("Cycle tracking is not enabled", 403),
     });
     const res = await POST(
-      jsonReq("http://localhost/api/cycle/symptoms/custom", "POST", { label: "X" }),
+      jsonReq("http://localhost/api/cycle/symptoms/custom", "POST", {
+        label: "X",
+      }),
     );
     expect(res.status).toBe(403);
     expect(db.cycleSymptom.count).not.toHaveBeenCalled();
@@ -170,9 +182,13 @@ describe("PATCH/DELETE /api/cycle/symptoms/custom/:key", () => {
     db.cycleSymptom.findFirst.mockResolvedValue({ id: "id1", isActive: false });
     db.cycleSymptom.count.mockResolvedValue(50);
     const res = await PATCH(
-      jsonReq("http://localhost/api/cycle/symptoms/custom/custom:abc", "PATCH", {
-        isActive: true,
-      }),
+      jsonReq(
+        "http://localhost/api/cycle/symptoms/custom/custom:abc",
+        "PATCH",
+        {
+          isActive: true,
+        },
+      ),
       params("custom:abc"),
     );
     expect(res.status).toBe(422);
@@ -188,9 +204,13 @@ describe("PATCH/DELETE /api/cycle/symptoms/custom/:key", () => {
       labelEncrypted: "enc:Renamed",
     });
     const res = await PATCH(
-      jsonReq("http://localhost/api/cycle/symptoms/custom/custom:abc", "PATCH", {
-        label: "Renamed",
-      }),
+      jsonReq(
+        "http://localhost/api/cycle/symptoms/custom/custom:abc",
+        "PATCH",
+        {
+          label: "Renamed",
+        },
+      ),
       params("custom:abc"),
     );
     expect(res.status).toBe(200);
@@ -224,6 +244,8 @@ describe("PATCH/DELETE /api/cycle/symptoms/custom/:key", () => {
       params("custom:abc"),
     );
     expect(purge.status).toBe(200);
-    expect(db.cycleSymptom.delete).toHaveBeenCalledWith({ where: { id: "id1" } });
+    expect(db.cycleSymptom.delete).toHaveBeenCalledWith({
+      where: { id: "id1" },
+    });
   });
 });

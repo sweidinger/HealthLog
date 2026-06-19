@@ -121,7 +121,8 @@ describe("refreshConversationSummary", () => {
   });
 
   it("(c) merge path passes the decrypted prior summary into the user prompt", async () => {
-    const prior = "Earlier: user wants better sleep and dislikes evening caffeine.";
+    const prior =
+      "Earlier: user wants better sleep and dislikes evening caffeine.";
     // 30 turns, no prior summaryTurnCount → forces a generation.
     const { client } = makePrisma(
       makeConversation(30, {
@@ -162,7 +163,9 @@ describe("refreshConversationSummary", () => {
 
   it("(e) success path encrypts and persists summaryEncrypted + turn count + updatedAt", async () => {
     const now = new Date("2026-06-04T08:00:00.000Z");
-    const { client, update } = makePrisma(makeConversation(30, { summaryTurnCount: 0 }));
+    const { client, update } = makePrisma(
+      makeConversation(30, { summaryTurnCount: 0 }),
+    );
     const runCompletion = vi.fn().mockResolvedValue(okCompletion);
 
     const result = await refreshConversationSummary("conv-1", "user-1", {
@@ -185,9 +188,7 @@ describe("refreshConversationSummary", () => {
 
 describe("buildSummaryUserPrompt", () => {
   it("uses (none) when no prior summary is supplied", () => {
-    const out = buildSummaryUserPrompt(null, [
-      { role: "user", content: "hi" },
-    ]);
+    const out = buildSummaryUserPrompt(null, [{ role: "user", content: "hi" }]);
     expect(out).toContain("PRIOR SUMMARY\n(none)");
     expect(out).toContain("user: hi");
   });

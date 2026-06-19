@@ -101,7 +101,6 @@ export interface StepConsolidationSummary {
   };
 }
 
-
 export interface StepConsolidationOptions {
   /** Limit the pass to a single user. Default = every user. */
   userId?: string;

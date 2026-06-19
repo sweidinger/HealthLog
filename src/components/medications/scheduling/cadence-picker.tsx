@@ -196,7 +196,9 @@ function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.trunc(n)));
 }
 
-function parseIsoDate(s: string): { year: number; month: number; day: number } | null {
+function parseIsoDate(
+  s: string,
+): { year: number; month: number; day: number } | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
   const [y, m, d] = s.split("-").map(Number);
   if (!y || !m || !d) return null;
@@ -322,7 +324,7 @@ function CadenceOption({
           checked={selected}
           disabled={disabled}
           onChange={onPick}
-          className="text-primary focus-visible:ring-ring h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2"
+          className="text-primary focus-visible:ring-ring h-4 w-4 cursor-pointer focus-visible:ring-2 focus-visible:outline-none"
           data-slot="cadence-option-radio"
         />
         <span className="text-sm font-medium">{label}</span>
@@ -483,7 +485,7 @@ function WeekdayChips({
             data-active={isOn ? "true" : "false"}
             onClick={() => toggle(tok)}
             className={[
-              "focus-visible:ring-ring inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50",
+              "focus-visible:ring-ring inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-2 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50",
               isOn
                 ? "bg-primary text-primary-foreground border-primary"
                 : "border-border bg-background text-foreground hover:bg-muted",
@@ -587,7 +589,13 @@ interface YearlyDateProps {
   t: (key: string) => string;
 }
 
-function YearlyDate({ value, disabled, i18nPrefix, onChange, t }: YearlyDateProps) {
+function YearlyDate({
+  value,
+  disabled,
+  i18nPrefix,
+  onChange,
+  t,
+}: YearlyDateProps) {
   const id = useId();
   return (
     <div className="flex items-center gap-2">

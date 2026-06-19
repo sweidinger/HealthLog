@@ -25,6 +25,5 @@ export const coachKeys = {
    * Keyed on the conversation id so two open threads never share a cache slot;
    * the streaming hook invalidates this slot once the persisted twin lands.
    */
-  coachConversation: (id: string | null) =>
-    ["coachConversation", id] as const,
+  coachConversation: (id: string | null) => ["coachConversation", id] as const,
 };

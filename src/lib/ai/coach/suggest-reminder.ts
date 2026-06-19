@@ -171,8 +171,7 @@ export function parseSuggestReminder(raw: string): SuggestReminderParseResult {
   const closeRel = afterOpen.indexOf(CLOSE_SENTINEL);
   // Cap the payload before parsing regardless of whether the close marker
   // is present (a missing close marker treats the rest as the body).
-  const bodyRaw =
-    closeRel === -1 ? afterOpen : afterOpen.slice(0, closeRel);
+  const bodyRaw = closeRel === -1 ? afterOpen : afterOpen.slice(0, closeRel);
   const body =
     bodyRaw.length > SENTINEL_BYTE_CAP
       ? bodyRaw.slice(0, SENTINEL_BYTE_CAP)
@@ -183,9 +182,7 @@ export function parseSuggestReminder(raw: string): SuggestReminderParseResult {
   // it. Only the sentinel block itself is stripped; when the close marker is
   // missing there is no trailing text to recover.
   const after =
-    closeRel === -1
-      ? ""
-      : afterOpen.slice(closeRel + CLOSE_SENTINEL.length);
+    closeRel === -1 ? "" : afterOpen.slice(closeRel + CLOSE_SENTINEL.length);
   const prose = `${before}${after}`.replace(/^\s+|\s+$/gu, "");
 
   const cadenceId = extractCadenceId(body);

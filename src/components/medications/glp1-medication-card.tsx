@@ -349,8 +349,7 @@ export function Glp1MedicationCard({
   // (max(lowStockRunwayDays, lead + cadenceIntervalDays)), so the weekly
   // GLP-1 cadence is warned before its last dose. Stock 0 with a consuming
   // schedule is runway 0 (mirrors `evaluateMedicationRunway`).
-  const lowStockFloor =
-    thresholds == null ? 7 : thresholds.lowStockRunwayDays;
+  const lowStockFloor = thresholds == null ? 7 : thresholds.lowStockRunwayDays;
   const leadDays =
     medication.reorderLeadDays != null
       ? medication.reorderLeadDays

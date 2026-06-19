@@ -201,13 +201,14 @@ const CORE_CLUSTERS: ReadonlySet<CoachDataCluster> = new Set<CoachDataCluster>([
  * a data domain. `labs` / `achievements` / `insights` / `doctorReport`
  * own no coach-snapshot data domain.
  */
-const MODULE_EXCLUDED_SOURCES: Partial<Record<ModuleKey, CoachScopeSource[]>> = {
-  mood: ["mood"],
-  sleep: ["sleep"],
-  glucose: ["glucose"],
-  workouts: ["workouts"],
-  recovery: ["hrv", "resting_hr", "vo2_max"],
-};
+const MODULE_EXCLUDED_SOURCES: Partial<Record<ModuleKey, CoachScopeSource[]>> =
+  {
+    mood: ["mood"],
+    sleep: ["sleep"],
+    glucose: ["glucose"],
+    workouts: ["workouts"],
+    recovery: ["hrv", "resting_hr", "vo2_max"],
+  };
 
 const WEEKDAY_KEYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
@@ -420,12 +421,18 @@ async function buildCoarseTimelineTail(
     return undefined;
   }
   const monthly = series.monthBand.map(
-    (b) => [b.bucketStart, b.mean, b.min, b.max] as [string, number, number, number],
+    (b) =>
+      [b.bucketStart, b.mean, b.min, b.max] as [string, number, number, number],
   );
   const yearly = series.yearBand.map(
-    (b) => [b.bucketStart, b.mean, b.min, b.max] as [string, number, number, number],
+    (b) =>
+      [b.bucketStart, b.mean, b.min, b.max] as [string, number, number, number],
   );
-  if (monthly.length === 0 && yearly.length === 0 && series.anomalies.length === 0) {
+  if (
+    monthly.length === 0 &&
+    yearly.length === 0 &&
+    series.anomalies.length === 0
+  ) {
     return undefined;
   }
   return {
@@ -523,7 +530,10 @@ const snapshotCache = new Map<
   { expiresAt: number; result: CoachSnapshotResult }
 >();
 
-function snapshotCacheKey(userId: string, scope: CoachScope | undefined): string {
+function snapshotCacheKey(
+  userId: string,
+  scope: CoachScope | undefined,
+): string {
   // v1.7.0 — when the request pins an explicit source list, key on it.
   // Otherwise the source set is derived from the user's saved
   // `dataClusters`, which we don't read here (the cache must stay
@@ -1523,42 +1533,202 @@ async function buildCoachSnapshotImpl(
   // so accounts without that data never see a void section.
   const valueBlocks: ValueBlock[] = [
     // ── cardio ──
-    { metric: "hrv", source: "hrv", snapshotKey: "heartRateVariability", type: "HEART_RATE_VARIABILITY" },
-    { metric: "resting_hr", source: "resting_hr", snapshotKey: "restingHeartRate", type: "RESTING_HEART_RATE" },
-    { metric: "walking_hr", source: "walking_hr", snapshotKey: "walkingHeartRateAverage", type: "WALKING_HEART_RATE_AVERAGE" },
-    { metric: "respiratory_rate", source: "respiratory_rate", snapshotKey: "respiratoryRate", type: "RESPIRATORY_RATE" },
-    { metric: "spo2", source: "spo2", snapshotKey: "oxygenSaturation", type: "OXYGEN_SATURATION" },
-    { metric: "pulse_wave_velocity", source: "pulse_wave_velocity", snapshotKey: "pulseWaveVelocity", type: "PULSE_WAVE_VELOCITY" },
-    { metric: "vascular_age", source: "vascular_age", snapshotKey: "vascularAge", type: "VASCULAR_AGE" },
+    {
+      metric: "hrv",
+      source: "hrv",
+      snapshotKey: "heartRateVariability",
+      type: "HEART_RATE_VARIABILITY",
+    },
+    {
+      metric: "resting_hr",
+      source: "resting_hr",
+      snapshotKey: "restingHeartRate",
+      type: "RESTING_HEART_RATE",
+    },
+    {
+      metric: "walking_hr",
+      source: "walking_hr",
+      snapshotKey: "walkingHeartRateAverage",
+      type: "WALKING_HEART_RATE_AVERAGE",
+    },
+    {
+      metric: "respiratory_rate",
+      source: "respiratory_rate",
+      snapshotKey: "respiratoryRate",
+      type: "RESPIRATORY_RATE",
+    },
+    {
+      metric: "spo2",
+      source: "spo2",
+      snapshotKey: "oxygenSaturation",
+      type: "OXYGEN_SATURATION",
+    },
+    {
+      metric: "pulse_wave_velocity",
+      source: "pulse_wave_velocity",
+      snapshotKey: "pulseWaveVelocity",
+      type: "PULSE_WAVE_VELOCITY",
+    },
+    {
+      metric: "vascular_age",
+      source: "vascular_age",
+      snapshotKey: "vascularAge",
+      type: "VASCULAR_AGE",
+    },
     // ── body composition ──
-    { metric: "body_fat", source: "body_fat", snapshotKey: "bodyFat", type: "BODY_FAT" },
-    { metric: "fat_mass", source: "fat_mass", snapshotKey: "fatMass", type: "FAT_MASS" },
-    { metric: "fat_free_mass", source: "fat_free_mass", snapshotKey: "fatFreeMass", type: "FAT_FREE_MASS" },
-    { metric: "muscle_mass", source: "muscle_mass", snapshotKey: "muscleMass", type: "MUSCLE_MASS" },
-    { metric: "lean_body_mass", source: "lean_body_mass", snapshotKey: "leanBodyMass", type: "LEAN_BODY_MASS" },
-    { metric: "bone_mass", source: "bone_mass", snapshotKey: "boneMass", type: "BONE_MASS" },
-    { metric: "total_body_water", source: "total_body_water", snapshotKey: "totalBodyWater", type: "TOTAL_BODY_WATER" },
-    { metric: "bmi", source: "bmi", snapshotKey: "bodyMassIndex", type: "BODY_MASS_INDEX" },
-    { metric: "visceral_fat", source: "visceral_fat", snapshotKey: "visceralFat", type: "VISCERAL_FAT" },
+    {
+      metric: "body_fat",
+      source: "body_fat",
+      snapshotKey: "bodyFat",
+      type: "BODY_FAT",
+    },
+    {
+      metric: "fat_mass",
+      source: "fat_mass",
+      snapshotKey: "fatMass",
+      type: "FAT_MASS",
+    },
+    {
+      metric: "fat_free_mass",
+      source: "fat_free_mass",
+      snapshotKey: "fatFreeMass",
+      type: "FAT_FREE_MASS",
+    },
+    {
+      metric: "muscle_mass",
+      source: "muscle_mass",
+      snapshotKey: "muscleMass",
+      type: "MUSCLE_MASS",
+    },
+    {
+      metric: "lean_body_mass",
+      source: "lean_body_mass",
+      snapshotKey: "leanBodyMass",
+      type: "LEAN_BODY_MASS",
+    },
+    {
+      metric: "bone_mass",
+      source: "bone_mass",
+      snapshotKey: "boneMass",
+      type: "BONE_MASS",
+    },
+    {
+      metric: "total_body_water",
+      source: "total_body_water",
+      snapshotKey: "totalBodyWater",
+      type: "TOTAL_BODY_WATER",
+    },
+    {
+      metric: "bmi",
+      source: "bmi",
+      snapshotKey: "bodyMassIndex",
+      type: "BODY_MASS_INDEX",
+    },
+    {
+      metric: "visceral_fat",
+      source: "visceral_fat",
+      snapshotKey: "visceralFat",
+      type: "VISCERAL_FAT",
+    },
     // ── activity ──
-    { metric: "steps", source: "steps", snapshotKey: "steps", type: "ACTIVITY_STEPS" },
-    { metric: "active_energy", source: "active_energy", snapshotKey: "activeEnergy", type: "ACTIVE_ENERGY_BURNED" },
-    { metric: "flights", source: "flights", snapshotKey: "flightsClimbed", type: "FLIGHTS_CLIMBED" },
-    { metric: "distance", source: "distance", snapshotKey: "walkingRunningDistance", type: "WALKING_RUNNING_DISTANCE" },
-    { metric: "vo2_max", source: "vo2_max", snapshotKey: "vo2Max", type: "VO2_MAX" },
+    {
+      metric: "steps",
+      source: "steps",
+      snapshotKey: "steps",
+      type: "ACTIVITY_STEPS",
+    },
+    {
+      metric: "active_energy",
+      source: "active_energy",
+      snapshotKey: "activeEnergy",
+      type: "ACTIVE_ENERGY_BURNED",
+    },
+    {
+      metric: "flights",
+      source: "flights",
+      snapshotKey: "flightsClimbed",
+      type: "FLIGHTS_CLIMBED",
+    },
+    {
+      metric: "distance",
+      source: "distance",
+      snapshotKey: "walkingRunningDistance",
+      type: "WALKING_RUNNING_DISTANCE",
+    },
+    {
+      metric: "vo2_max",
+      source: "vo2_max",
+      snapshotKey: "vo2Max",
+      type: "VO2_MAX",
+    },
     // ── mobility & gait ──
-    { metric: "walking_steadiness", source: "walking_steadiness", snapshotKey: "walkingSteadiness", type: "WALKING_STEADINESS" },
-    { metric: "walking_asymmetry", source: "walking_asymmetry", snapshotKey: "walkingAsymmetry", type: "WALKING_ASYMMETRY" },
-    { metric: "walking_double_support", source: "walking_double_support", snapshotKey: "walkingDoubleSupport", type: "WALKING_DOUBLE_SUPPORT" },
-    { metric: "walking_step_length", source: "walking_step_length", snapshotKey: "walkingStepLength", type: "WALKING_STEP_LENGTH" },
-    { metric: "walking_speed", source: "walking_speed", snapshotKey: "walkingSpeed", type: "WALKING_SPEED" },
+    {
+      metric: "walking_steadiness",
+      source: "walking_steadiness",
+      snapshotKey: "walkingSteadiness",
+      type: "WALKING_STEADINESS",
+    },
+    {
+      metric: "walking_asymmetry",
+      source: "walking_asymmetry",
+      snapshotKey: "walkingAsymmetry",
+      type: "WALKING_ASYMMETRY",
+    },
+    {
+      metric: "walking_double_support",
+      source: "walking_double_support",
+      snapshotKey: "walkingDoubleSupport",
+      type: "WALKING_DOUBLE_SUPPORT",
+    },
+    {
+      metric: "walking_step_length",
+      source: "walking_step_length",
+      snapshotKey: "walkingStepLength",
+      type: "WALKING_STEP_LENGTH",
+    },
+    {
+      metric: "walking_speed",
+      source: "walking_speed",
+      snapshotKey: "walkingSpeed",
+      type: "WALKING_SPEED",
+    },
     // ── environment / exposure ──
-    { metric: "audio_env", source: "audio_env", snapshotKey: "audioExposureEnvironment", type: "AUDIO_EXPOSURE_ENV" },
-    { metric: "audio_headphone", source: "audio_headphone", snapshotKey: "audioExposureHeadphone", type: "AUDIO_EXPOSURE_HEADPHONE" },
-    { metric: "audio_event", source: "audio_event", snapshotKey: "audioExposureEvent", type: "AUDIO_EXPOSURE_EVENT" },
-    { metric: "daylight", source: "daylight", snapshotKey: "timeInDaylight", type: "TIME_IN_DAYLIGHT" },
-    { metric: "skin_temp", source: "skin_temp", snapshotKey: "skinTemperature", type: "SKIN_TEMPERATURE" },
-    { metric: "body_temp", source: "body_temp", snapshotKey: "bodyTemperature", type: "BODY_TEMPERATURE" },
+    {
+      metric: "audio_env",
+      source: "audio_env",
+      snapshotKey: "audioExposureEnvironment",
+      type: "AUDIO_EXPOSURE_ENV",
+    },
+    {
+      metric: "audio_headphone",
+      source: "audio_headphone",
+      snapshotKey: "audioExposureHeadphone",
+      type: "AUDIO_EXPOSURE_HEADPHONE",
+    },
+    {
+      metric: "audio_event",
+      source: "audio_event",
+      snapshotKey: "audioExposureEvent",
+      type: "AUDIO_EXPOSURE_EVENT",
+    },
+    {
+      metric: "daylight",
+      source: "daylight",
+      snapshotKey: "timeInDaylight",
+      type: "TIME_IN_DAYLIGHT",
+    },
+    {
+      metric: "skin_temp",
+      source: "skin_temp",
+      snapshotKey: "skinTemperature",
+      type: "SKIN_TEMPERATURE",
+    },
+    {
+      metric: "body_temp",
+      source: "body_temp",
+      snapshotKey: "bodyTemperature",
+      type: "BODY_TEMPERATURE",
+    },
   ];
   for (const block of valueBlocks) {
     if (!sources.has(block.source)) continue;
@@ -1765,10 +1935,11 @@ async function buildCoachSnapshotImpl(
         // then convert each resulting figure ONCE (parity with the series
         // DTO + detail page + FHIR). mg/dL users stay byte-identical because
         // the conversion is skipped entirely.
-        const recent = buildDailyValueRows(rows, recentCutoff, userTz).map((d) =>
-          glucoseUnit === "mmol/L"
-            ? { ...d, value: convertGlucose(d.value, glucoseUnit) }
-            : d,
+        const recent = buildDailyValueRows(rows, recentCutoff, userTz).map(
+          (d) =>
+            glucoseUnit === "mmol/L"
+              ? { ...d, value: convertGlucose(d.value, glucoseUnit) }
+              : d,
         );
         const weekly = bucketWeekly(
           rows.filter((r) => r.measuredAt < recentCutoff),
@@ -1960,9 +2131,7 @@ async function buildCoachSnapshotImpl(
     const ctx = features.context;
     if (
       ctx &&
-      (ctx.heightCm !== null ||
-        ctx.ageYears !== null ||
-        ctx.gender !== null)
+      (ctx.heightCm !== null || ctx.ageYears !== null || ctx.gender !== null)
     ) {
       snapshot.anthropometrics = {
         heightCm: ctx.heightCm,
@@ -2293,9 +2462,7 @@ function degradeToBudget(
   }
 
   if (degraded.length > 0) {
-    const droppedClusters = Array.from(
-      new Set(degraded.map((d) => d.cluster)),
-    );
+    const droppedClusters = Array.from(new Set(degraded.map((d) => d.cluster)));
     annotate({
       action: { name: "coach.snapshot.truncated" },
       meta: {

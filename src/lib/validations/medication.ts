@@ -85,7 +85,8 @@ export const MEDICATION_CATEGORY_VALUES = [
   "ANTIBIOTIC",
   "OTHER",
 ] as const;
-export type MedicationCategoryValue = (typeof MEDICATION_CATEGORY_VALUES)[number];
+export type MedicationCategoryValue =
+  (typeof MEDICATION_CATEGORY_VALUES)[number];
 
 /**
  * v1.4.25 W4d — Prisma-level treatment class. Orthogonal to
@@ -116,9 +117,7 @@ export const UNITS_PER_DOSE_FRACTIONS = [
 export const UNITS_PER_DOSE_MAX_WHOLE = 100;
 
 export function isSupportedUnitsPerDose(value: number): boolean {
-  if (
-    (UNITS_PER_DOSE_FRACTIONS as readonly number[]).includes(value)
-  ) {
+  if ((UNITS_PER_DOSE_FRACTIONS as readonly number[]).includes(value)) {
     return true;
   }
   return (
@@ -168,7 +167,9 @@ export const doseWindowEntrySchema = z
     timeOfDay: z
       .string()
       .regex(timeRegex, "Format: HH:mm")
-      .describe("The dose time this window applies to (matches a `timesOfDay` entry)."),
+      .describe(
+        "The dose time this window applies to (matches a `timesOfDay` entry).",
+      ),
     start: z
       .string()
       .regex(timeRegex, "Format: HH:mm")
@@ -176,7 +177,9 @@ export const doseWindowEntrySchema = z
     end: z
       .string()
       .regex(timeRegex, "Format: HH:mm")
-      .describe("On-time band upper bound (HH:mm, user local). Must be >= `start`."),
+      .describe(
+        "On-time band upper bound (HH:mm, user local). Must be >= `start`.",
+      ),
   })
   .refine((w) => hhmmToMinutes(w.start) <= hhmmToMinutes(w.end), {
     message: "Window start must be on or before end (same day)",
@@ -241,7 +244,7 @@ export const scheduleSchema = z
       .string()
       .max(50)
       .optional()
-      .describe("Optional human label (e.g. \"Morning\", \"Evening\")."),
+      .describe('Optional human label (e.g. "Morning", "Evening").'),
     dose: z
       .string()
       .max(50)
@@ -336,7 +339,7 @@ export const scheduleSchema = z
       .max(52)
       .optional()
       .describe(
-        "Cyclic \"on\" weeks (1..52). Required when `scheduleType` is CYCLIC; ignored otherwise.",
+        'Cyclic "on" weeks (1..52). Required when `scheduleType` is CYCLIC; ignored otherwise.',
       ),
     /** v1.7.0 — cyclic "off" weeks. Required when `scheduleType === "CYCLIC"`. */
     cyclicOffWeeks: z
@@ -346,7 +349,7 @@ export const scheduleSchema = z
       .max(52)
       .optional()
       .describe(
-        "Cyclic \"off\" weeks (0..52). Required when `scheduleType` is CYCLIC; ignored otherwise.",
+        'Cyclic "off" weeks (0..52). Required when `scheduleType` is CYCLIC; ignored otherwise.',
       ),
     /**
      * v1.15.18 — per-dose configurable on-time intake window (the maintainer's
@@ -364,14 +367,10 @@ export const scheduleSchema = z
         "Per-dose on-time intake windows. Each `{ timeOfDay, start, end }` HH:mm triple sets the explicit on-time band for the matching dose time; a dose time with no entry keeps the symmetric ±1h default. `timeOfDay` must match one of `timesOfDay` (or `windowStart`); `start <= end`. Up to 8 entries. Absent leaves every slot on the default derivation. The late tail stays cadence-derived.",
       ),
   })
-  .refine(
-    (s) => !(s.rrule && s.rollingIntervalDays),
-    {
-      message:
-        "A schedule can be calendar-anchored (rrule) or rolling, not both",
-      path: ["rrule"],
-    },
-  )
+  .refine((s) => !(s.rrule && s.rollingIntervalDays), {
+    message: "A schedule can be calendar-anchored (rrule) or rolling, not both",
+    path: ["rrule"],
+  })
   .refine(
     (s) =>
       s.scheduleType !== "CYCLIC" ||
@@ -409,12 +408,15 @@ export const scheduleSchema = z
       // (mirrors the engine's `effectiveTimesOfDay`).
       if (!s.doseWindows || s.doseWindows.length === 0) return true;
       const times = new Set(
-        s.timesOfDay && s.timesOfDay.length > 0 ? s.timesOfDay : [s.windowStart],
+        s.timesOfDay && s.timesOfDay.length > 0
+          ? s.timesOfDay
+          : [s.windowStart],
       );
       return s.doseWindows.every((w) => times.has(w.timeOfDay));
     },
     {
-      message: "Each doseWindows.timeOfDay must match one of the schedule's timesOfDay",
+      message:
+        "Each doseWindows.timeOfDay must match one of the schedule's timesOfDay",
       path: ["doseWindows"],
     },
   )
@@ -614,16 +616,14 @@ export const createMedicationSchema = z
     path: ["asNeeded"],
   })
   .refine(
-    (b) =>
-      b.asNeeded === true || (!!b.schedules && b.schedules.length >= 1),
+    (b) => b.asNeeded === true || (!!b.schedules && b.schedules.length >= 1),
     {
       message: "Mindestens ein Zeitfenster",
       path: ["schedules"],
     },
   )
   .refine(
-    (b) =>
-      b.asNeeded !== true || !b.schedules || b.schedules.length === 0,
+    (b) => b.asNeeded !== true || !b.schedules || b.schedules.length === 0,
     {
       message: AS_NEEDED_SCHEDULES_MESSAGE,
       path: ["schedules"],
@@ -632,7 +632,7 @@ export const createMedicationSchema = z
   .meta({
     id: "CreateMedicationRequest",
     description:
-      "Create-medication body. The route enforces the v1.5 cross-field invariants on top of the per-schedule `rrule_xor_rolling` Zod refine: a `oneShot:true` medication may carry at most one schedule and that schedule must not declare a recurrence; `endsOn` is normalised to equal `startsOn` for one-shot doses; a recurring schedule with no `rrule`, `rollingIntervalDays`, or legacy `daysOfWeek` defaults to `rrule = \"FREQ=DAILY\"`; and `timesOfDay` is dual-written from `windowStart` when the caller omits it. v1.16.11 — `asNeeded: true` creates a PRN medication with ZERO schedules (`schedules` must be absent or empty, 422 otherwise); a scheduled medication still requires at least one schedule entry.",
+      'Create-medication body. The route enforces the v1.5 cross-field invariants on top of the per-schedule `rrule_xor_rolling` Zod refine: a `oneShot:true` medication may carry at most one schedule and that schedule must not declare a recurrence; `endsOn` is normalised to equal `startsOn` for one-shot doses; a recurring schedule with no `rrule`, `rollingIntervalDays`, or legacy `daysOfWeek` defaults to `rrule = "FREQ=DAILY"`; and `timesOfDay` is dual-written from `windowStart` when the caller omits it. v1.16.11 — `asNeeded: true` creates a PRN medication with ZERO schedules (`schedules` must be absent or empty, 422 otherwise); a scheduled medication still requires at least one schedule entry.',
   });
 
 export const updateMedicationSchema = z
@@ -742,8 +742,7 @@ export const updateMedicationSchema = z
     path: ["asNeeded"],
   })
   .refine(
-    (b) =>
-      b.asNeeded !== true || !b.schedules || b.schedules.length === 0,
+    (b) => b.asNeeded !== true || !b.schedules || b.schedules.length === 0,
     {
       message: AS_NEEDED_SCHEDULES_MESSAGE,
       path: ["schedules"],

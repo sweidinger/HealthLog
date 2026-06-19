@@ -128,8 +128,7 @@ describe("consolidateDailyMean — drain flow (mocked Prisma)", () => {
     );
     expect(scannedTypes).not.toContain("PULSE");
     for (const call of findManyMeasurement.mock.calls) {
-      const where = (call[0] as unknown as { where: { source: string } })
-        .where;
+      const where = (call[0] as unknown as { where: { source: string } }).where;
       expect(where.source).toBe("APPLE_HEALTH");
     }
   });
@@ -175,8 +174,22 @@ describe("consolidateDailyMean — drain flow (mocked Prisma)", () => {
   it("routes the v1.8.5 gait/mobility types through the drain", async () => {
     const { mock, upsert } = buildPrismaMock({
       WALKING_ASYMMETRY: [
-        row("a", 2.0, "2026-05-01T08:00:00.000Z", null, "%", "WALKING_ASYMMETRY"),
-        row("b", 4.0, "2026-05-01T09:00:00.000Z", null, "%", "WALKING_ASYMMETRY"),
+        row(
+          "a",
+          2.0,
+          "2026-05-01T08:00:00.000Z",
+          null,
+          "%",
+          "WALKING_ASYMMETRY",
+        ),
+        row(
+          "b",
+          4.0,
+          "2026-05-01T09:00:00.000Z",
+          null,
+          "%",
+          "WALKING_ASYMMETRY",
+        ),
       ],
       WALKING_HEART_RATE_AVERAGE: [
         row(
@@ -402,7 +415,14 @@ describe("consolidateDailyMean — canonical-slot collision (second unique index
     const { mock, upsert } = buildPrismaMock({
       WALKING_SPEED: [row("a", 1.0, "2026-05-01T08:00:00.000Z")],
       WALKING_ASYMMETRY: [
-        row("c", 2.0, "2026-05-01T08:00:00.000Z", null, "%", "WALKING_ASYMMETRY"),
+        row(
+          "c",
+          2.0,
+          "2026-05-01T08:00:00.000Z",
+          null,
+          "%",
+          "WALKING_ASYMMETRY",
+        ),
       ],
     });
     // First bucket's mint trips the unique index; the second succeeds.

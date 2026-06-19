@@ -45,7 +45,8 @@ export const GET = apiHandler(async () => {
   // BuildKit-layer cache hit on `pnpm build` can never re-ship the
   // prior release's version string. Local `pnpm dev` (env unset) falls
   // through to package.json as before.
-  const version = process.env.NEXT_PUBLIC_APP_VERSION?.trim() || packageJson.version;
+  const version =
+    process.env.NEXT_PUBLIC_APP_VERSION?.trim() || packageJson.version;
   const buildSha = process.env.NEXT_PUBLIC_APP_BUILD_SHA?.trim() || null;
   const builtAt = process.env.NEXT_PUBLIC_APP_BUILT_AT?.trim() || null;
   const offlineGeoEnabled = offlineGeoReady();

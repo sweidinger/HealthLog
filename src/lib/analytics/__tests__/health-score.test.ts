@@ -101,7 +101,10 @@ describe("weightTrendAlignment", () => {
   it("scores the bare trend (non-null) when the target is missing but ≥2 readings exist", () => {
     // No target → fall back to trend-only scoring instead of returning
     // null, so a height-less user with weight data gets a populated pillar.
-    const result = weightTrendAlignment(weightSeries([80, 80.5, 81, 81.5]), null);
+    const result = weightTrendAlignment(
+      weightSeries([80, 80.5, 81, 81.5]),
+      null,
+    );
     expect(result).not.toBeNull();
     expect(result!).toBeGreaterThanOrEqual(0);
     expect(result!).toBeLessThanOrEqual(100);
@@ -112,13 +115,19 @@ describe("weightTrendAlignment", () => {
   });
 
   it("rewards a gentle decline (>75) when there is no target", () => {
-    const result = weightTrendAlignment(weightSeries([84, 83.5, 83, 82.5]), null);
+    const result = weightTrendAlignment(
+      weightSeries([84, 83.5, 83, 82.5]),
+      null,
+    );
     expect(result).not.toBeNull();
     expect(result!).toBeGreaterThan(75);
   });
 
   it("penalises a sustained rise (<75) when there is no target", () => {
-    const result = weightTrendAlignment(weightSeries([80, 81, 82, 83, 84]), null);
+    const result = weightTrendAlignment(
+      weightSeries([80, 81, 82, 83, 84]),
+      null,
+    );
     expect(result).not.toBeNull();
     expect(result!).toBeLessThan(75);
   });

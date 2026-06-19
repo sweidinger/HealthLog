@@ -74,9 +74,7 @@ async function seedSession(username: string) {
 
 async function callList(query: string): Promise<Response> {
   const { GET } = await import("@/app/api/measurements/route");
-  return GET(
-    new NextRequest(`http://localhost/api/measurements?${query}`),
-  );
+  return GET(new NextRequest(`http://localhost/api/measurements?${query}`));
 }
 
 describe("GET /api/measurements?type=SLEEP_DURATION", () => {
@@ -88,7 +86,11 @@ describe("GET /api/measurements?type=SLEEP_DURATION", () => {
     // stage rows ending this morning (Berlin default tz).
     const wakeBase = new Date();
     wakeBase.setUTCHours(4, 0, 0, 0);
-    const seed = async (stage: "CORE" | "DEEP" | "REM", min: number, offsetMin: number) =>
+    const seed = async (
+      stage: "CORE" | "DEEP" | "REM",
+      min: number,
+      offsetMin: number,
+    ) =>
       prisma.measurement.create({
         data: {
           userId: user.id,
@@ -124,7 +126,11 @@ describe("GET /api/measurements?type=SLEEP_DURATION", () => {
 
     const wakeBase = new Date();
     wakeBase.setUTCHours(4, 0, 0, 0);
-    const seed = async (stage: "CORE" | "DEEP" | "REM", min: number, offsetMin: number) =>
+    const seed = async (
+      stage: "CORE" | "DEEP" | "REM",
+      min: number,
+      offsetMin: number,
+    ) =>
       prisma.measurement.create({
         data: {
           userId: user.id,

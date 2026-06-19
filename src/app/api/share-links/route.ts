@@ -85,8 +85,7 @@ function toSummary(row: {
     lastAccessAt: row.lastAccessAt ? row.lastAccessAt.toISOString() : null,
     accessCount: row.accessCount,
     // Status the UI can render without re-deriving expiry/revocation.
-    active:
-      row.revokedAt === null && row.expiresAt.getTime() > Date.now(),
+    active: row.revokedAt === null && row.expiresAt.getTime() > Date.now(),
   };
 }
 
@@ -94,11 +93,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "share-link.create" } });
 
-  const rl = await checkRateLimit(
-    `share-link:${user.id}`,
-    20,
-    60 * 60 * 1000,
-  );
+  const rl = await checkRateLimit(`share-link:${user.id}`, 20, 60 * 60 * 1000);
   if (!rl.allowed) {
     return apiError("Maximum 20 share-link operations per hour", 429);
   }

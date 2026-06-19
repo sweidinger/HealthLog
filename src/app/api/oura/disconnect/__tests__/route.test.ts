@@ -47,7 +47,11 @@ describe("POST /api/oura/disconnect", () => {
   });
 
   it("rate-limits the disconnect surface (429 on bucket exhaustion)", async () => {
-    rateLimitMock.mockResolvedValue({ allowed: false, remaining: 0, resetAt: 0 });
+    rateLimitMock.mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: 0,
+    });
     const res = await post();
     expect(res.status).toBe(429);
     // The user lookup never runs once the bucket is exhausted.

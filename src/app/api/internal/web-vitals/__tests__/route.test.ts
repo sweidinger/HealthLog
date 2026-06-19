@@ -117,9 +117,7 @@ describe("POST /api/internal/web-vitals", () => {
       remaining: 0,
       resetAt: Date.now() + 60_000,
     });
-    const res = await POST(
-      postRequest({ name: "CLS", value: 0.1, id: "x" }),
-    );
+    const res = await POST(postRequest({ name: "CLS", value: 0.1, id: "x" }));
     expect(res.status).toBe(429);
   });
 

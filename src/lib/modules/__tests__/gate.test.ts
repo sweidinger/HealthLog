@@ -48,14 +48,25 @@ const ALL_AVAILABLE = operator();
 
 describe("resolveModuleEnabled — disabled allowlist (default-on)", () => {
   it("enables a module when no preference is recorded", () => {
-    expect(resolveModuleEnabled("mood", inputs(), true, ALL_AVAILABLE)).toBe(true);
-    expect(resolveModuleEnabled("sleep", inputs(), true, ALL_AVAILABLE)).toBe(true);
-    expect(resolveModuleEnabled("labs", inputs(), true, ALL_AVAILABLE)).toBe(true);
+    expect(resolveModuleEnabled("mood", inputs(), true, ALL_AVAILABLE)).toBe(
+      true,
+    );
+    expect(resolveModuleEnabled("sleep", inputs(), true, ALL_AVAILABLE)).toBe(
+      true,
+    );
+    expect(resolveModuleEnabled("labs", inputs(), true, ALL_AVAILABLE)).toBe(
+      true,
+    );
   });
 
   it("enables a module when the key is present and true", () => {
     expect(
-      resolveModuleEnabled("mood", inputs({ modulePreferences: { mood: true } }), true, ALL_AVAILABLE),
+      resolveModuleEnabled(
+        "mood",
+        inputs({ modulePreferences: { mood: true } }),
+        true,
+        ALL_AVAILABLE,
+      ),
     ).toBe(true);
   });
 
@@ -72,7 +83,9 @@ describe("resolveModuleEnabled — disabled allowlist (default-on)", () => {
 
   it("isolates per-module: disabling one leaves siblings on", () => {
     const i = inputs({ modulePreferences: { workouts: false } });
-    expect(resolveModuleEnabled("workouts", i, true, ALL_AVAILABLE)).toBe(false);
+    expect(resolveModuleEnabled("workouts", i, true, ALL_AVAILABLE)).toBe(
+      false,
+    );
     expect(resolveModuleEnabled("recovery", i, true, ALL_AVAILABLE)).toBe(true);
     expect(resolveModuleEnabled("labs", i, true, ALL_AVAILABLE)).toBe(true);
   });
@@ -159,7 +172,12 @@ describe("resolveModuleEnabled — cycle delegation", () => {
 
   it("a MALE account with a null toggle is cycle-disabled", () => {
     expect(
-      resolveModuleEnabled("cycle", inputs({ gender: "MALE" }), true, ALL_AVAILABLE),
+      resolveModuleEnabled(
+        "cycle",
+        inputs({ gender: "MALE" }),
+        true,
+        ALL_AVAILABLE,
+      ),
     ).toBe(false);
   });
 });
@@ -167,33 +185,53 @@ describe("resolveModuleEnabled — cycle delegation", () => {
 describe("resolveModuleEnabled — coach delegation (two-layer)", () => {
   it("is enabled only when the operator master flag AND !disableCoach", () => {
     expect(
-      resolveModuleEnabled("coach", inputs({ disableCoach: false }), true, ALL_AVAILABLE),
+      resolveModuleEnabled(
+        "coach",
+        inputs({ disableCoach: false }),
+        true,
+        ALL_AVAILABLE,
+      ),
     ).toBe(true);
   });
 
   it("is disabled when the per-user opt-out is set", () => {
     expect(
-      resolveModuleEnabled("coach", inputs({ disableCoach: true }), true, ALL_AVAILABLE),
+      resolveModuleEnabled(
+        "coach",
+        inputs({ disableCoach: true }),
+        true,
+        ALL_AVAILABLE,
+      ),
     ).toBe(false);
   });
 
   it("is disabled when the operator master flag is off", () => {
     expect(
-      resolveModuleEnabled("coach", inputs({ disableCoach: false }), false, ALL_AVAILABLE),
+      resolveModuleEnabled(
+        "coach",
+        inputs({ disableCoach: false }),
+        false,
+        ALL_AVAILABLE,
+      ),
     ).toBe(false);
   });
 
   it("ignores the module blob for coach", () => {
     // A crafted `{ coach: true }` cannot re-enable against a disabled
     // operator flag or a user opt-out.
-    const i = inputs({ disableCoach: true, modulePreferences: { coach: true } });
+    const i = inputs({
+      disableCoach: true,
+      modulePreferences: { coach: true },
+    });
     expect(resolveModuleEnabled("coach", i, true, ALL_AVAILABLE)).toBe(false);
   });
 });
 
 describe("insights — narrative layer, not a delegated module", () => {
   it("resolves from the disabled allowlist like the other secondary domains", () => {
-    expect(resolveModuleEnabled("insights", inputs(), true, ALL_AVAILABLE)).toBe(true);
+    expect(
+      resolveModuleEnabled("insights", inputs(), true, ALL_AVAILABLE),
+    ).toBe(true);
     expect(
       resolveModuleEnabled(
         "insights",

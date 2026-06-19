@@ -1,6 +1,10 @@
 "use client";
 
-import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { apiGet, apiPut } from "@/lib/api/api-fetch";
@@ -110,7 +114,6 @@ export function useMedicationListLayout(enabled: boolean = true): {
     layout: data ?? DEFAULT_MEDICATION_LIST_LAYOUT,
     isLayoutLoading: enabled && isLoading,
     setView: (view) => runSetMedicationListView({ view, queryClient, t }),
-    saveOrder: (order) =>
-      runSaveMedicationListOrder({ order, queryClient, t }),
+    saveOrder: (order) => runSaveMedicationListOrder({ order, queryClient, t }),
   };
 }

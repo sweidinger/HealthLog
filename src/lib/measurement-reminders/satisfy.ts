@@ -102,10 +102,7 @@ export async function satisfyReminder(
   const result = await prisma.measurementReminder.updateMany({
     where: {
       id: reminder.id,
-      OR: [
-        { lastSatisfiedAt: null },
-        { lastSatisfiedAt: { lt: satisfiedAt } },
-      ],
+      OR: [{ lastSatisfiedAt: null }, { lastSatisfiedAt: { lt: satisfiedAt } }],
     },
     data: { lastSatisfiedAt: satisfiedAt, nextDueAt },
   });

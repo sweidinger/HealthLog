@@ -117,7 +117,10 @@ export const GET = apiHandler(async () => {
     }),
   ]);
 
-  const measurementsByType = new Map<string, Array<{ value: number; at: Date }>>();
+  const measurementsByType = new Map<
+    string,
+    Array<{ value: number; at: Date }>
+  >();
   for (const m of measurements) {
     const list = measurementsByType.get(m.type) ?? [];
     list.push({ value: m.value, at: m.measuredAt });
@@ -134,12 +137,16 @@ export const GET = apiHandler(async () => {
   const series: NamedSeries[] = [];
   for (const key of DISCOVERY_BEHAVIOURS) {
     const points =
-      key === "MOOD" ? moodDaily : toDailyMeans(measurementsByType.get(key) ?? [], tz);
+      key === "MOOD"
+        ? moodDaily
+        : toDailyMeans(measurementsByType.get(key) ?? [], tz);
     series.push({ key, role: "behaviour", points });
   }
   for (const key of DISCOVERY_OUTCOMES) {
     const points =
-      key === "MOOD" ? moodDaily : toDailyMeans(measurementsByType.get(key) ?? [], tz);
+      key === "MOOD"
+        ? moodDaily
+        : toDailyMeans(measurementsByType.get(key) ?? [], tz);
     series.push({ key, role: "outcome", points });
   }
 

@@ -16,16 +16,36 @@ function okDerived<T>(value: T): Derived<T> {
   return {
     status: "ok",
     value,
-    coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 30, missing: [] },
+    coverage: {
+      requiredInputs: 1,
+      presentInputs: 1,
+      historyDays: 30,
+      missing: [],
+    },
     confidence: { score: 90, band: "high" },
-    provenance: { inputs: ["X"], source: "DAY", windowDays: 30, computedAt: NOW.toISOString() },
+    provenance: {
+      inputs: ["X"],
+      source: "DAY",
+      windowDays: 30,
+      computedAt: NOW.toISOString(),
+    },
   };
 }
 
 const insufficient: Derived<unknown> = {
   status: "insufficient",
-  coverage: { requiredInputs: 1, presentInputs: 0, historyDays: 0, missing: ["X"] },
-  provenance: { inputs: ["X"], source: "none", windowDays: 0, computedAt: NOW.toISOString() },
+  coverage: {
+    requiredInputs: 1,
+    presentInputs: 0,
+    historyDays: 0,
+    missing: ["X"],
+  },
+  provenance: {
+    inputs: ["X"],
+    source: "none",
+    windowDays: 0,
+    computedAt: NOW.toISOString(),
+  },
   reason: "no_score_in_window",
 };
 
@@ -83,7 +103,12 @@ describe("assessable derived scores", () => {
 describe("resolveDeterministicAssessment", () => {
   it("returns null for a non-assessable metric", () => {
     expect(
-      resolveDeterministicAssessment("BMI", okDerived({ score: 50, band: "green" }), "en", NOW),
+      resolveDeterministicAssessment(
+        "BMI",
+        okDerived({ score: 50, band: "green" }),
+        "en",
+        NOW,
+      ),
     ).toBeNull();
   });
 
@@ -94,7 +119,12 @@ describe("resolveDeterministicAssessment", () => {
   });
 
   it("always fills a non-empty deterministic text for an ok score", () => {
-    const a = resolveDeterministicAssessment("READINESS", okDerived(readiness), "en", NOW);
+    const a = resolveDeterministicAssessment(
+      "READINESS",
+      okDerived(readiness),
+      "en",
+      NOW,
+    );
     expect(a).not.toBeNull();
     expect(a!.source).toBe("deterministic");
     expect(a!.text.length).toBeGreaterThan(0);
@@ -102,7 +132,12 @@ describe("resolveDeterministicAssessment", () => {
   });
 
   it("names the score and the weakest contributors for a yellow readiness (en)", () => {
-    const a = resolveDeterministicAssessment("READINESS", okDerived(readiness), "en", NOW);
+    const a = resolveDeterministicAssessment(
+      "READINESS",
+      okDerived(readiness),
+      "en",
+      NOW,
+    );
     expect(a!.text).toContain("64 out of 100");
     // rhr (40) is the lowest present contributor → mentioned.
     expect(a!.text.toLowerCase()).toContain("resting heart rate");
@@ -111,7 +146,12 @@ describe("resolveDeterministicAssessment", () => {
   });
 
   it("affirms the strongest contributor for a green sleep score (de)", () => {
-    const a = resolveDeterministicAssessment("SLEEP_SCORE", okDerived(sleepScore), "de", NOW);
+    const a = resolveDeterministicAssessment(
+      "SLEEP_SCORE",
+      okDerived(sleepScore),
+      "de",
+      NOW,
+    );
     expect(a!.text).toContain("82 von 100");
     expect(a!.text).toContain("im guten Bereich");
     // sufficiency (95) is the strongest → affirmed for a green band.
@@ -119,7 +159,12 @@ describe("resolveDeterministicAssessment", () => {
   });
 
   it("uses the trend for a contributor-less recovery score (en)", () => {
-    const a = resolveDeterministicAssessment("RECOVERY_SCORE", okDerived(recovery), "en", NOW);
+    const a = resolveDeterministicAssessment(
+      "RECOVERY_SCORE",
+      okDerived(recovery),
+      "en",
+      NOW,
+    );
     expect(a!.text).toContain("55 out of 100");
     // trendDelta -8 → "8 points lower".
     expect(a!.text).toContain("−8 points lower");

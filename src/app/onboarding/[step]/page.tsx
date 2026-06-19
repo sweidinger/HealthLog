@@ -56,7 +56,10 @@ export default async function OnboardingStepPage({ params }: PageProps) {
   const { step: stepParam } = await params;
   const parsedStep = Number.parseInt(stepParam, 10);
 
-  if (!Number.isFinite(parsedStep) || !VALID_STEPS.includes(parsedStep as Step)) {
+  if (
+    !Number.isFinite(parsedStep) ||
+    !VALID_STEPS.includes(parsedStep as Step)
+  ) {
     notFound();
   }
   const requested = parsedStep as Step;

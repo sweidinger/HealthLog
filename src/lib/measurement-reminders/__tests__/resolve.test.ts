@@ -51,7 +51,10 @@ describe("satisfactionFloor", () => {
 describe("findSatisfyingEvent", () => {
   it("resolves a typed reminder from a matching Measurement, not a lab", async () => {
     const measuredAt = new Date("2026-06-14T18:00:00Z");
-    const prisma = makePrisma({ measurement: { measuredAt }, lab: { takenAt: new Date() } });
+    const prisma = makePrisma({
+      measurement: { measuredAt },
+      lab: { takenAt: new Date() },
+    });
 
     const at = await findSatisfyingEvent(prisma as never, "u1", {
       ...base,

@@ -295,34 +295,40 @@ describe("fetchDataPoints", () => {
     // steps / distance / calories / floors, sleep and exercise are INTERVAL data
     // types — Google anchors them on `interval.start_time`. A sample_time filter
     // 400s/empties for these and stalls incremental sync.
-    const stepsMock = installFetchMock([{ status: 200, body: { dataPoints: [] } }]);
+    const stepsMock = installFetchMock([
+      { status: 200, body: { dataPoints: [] } },
+    ]);
     await fetchDataPoints(FITBIT_DATA_TYPES.steps, "at", "fetchSteps", {
       start: new Date("2026-03-04T10:00:00.000Z"),
     });
     expect(
-      new URL((stepsMock.mock.calls[0] as unknown as [string])[0]).searchParams.get(
-        "filter",
-      ),
+      new URL(
+        (stepsMock.mock.calls[0] as unknown as [string])[0],
+      ).searchParams.get("filter"),
     ).toBe('steps.interval.start_time >= "2026-03-04T10:00:00.000Z"');
 
-    const sleepMock = installFetchMock([{ status: 200, body: { dataPoints: [] } }]);
+    const sleepMock = installFetchMock([
+      { status: 200, body: { dataPoints: [] } },
+    ]);
     await fetchDataPoints(FITBIT_DATA_TYPES.sleep, "at", "fetchSleep", {
       start: new Date("2026-03-04T10:00:00.000Z"),
     });
     expect(
-      new URL((sleepMock.mock.calls[0] as unknown as [string])[0]).searchParams.get(
-        "filter",
-      ),
+      new URL(
+        (sleepMock.mock.calls[0] as unknown as [string])[0],
+      ).searchParams.get("filter"),
     ).toBe('sleep.interval.start_time >= "2026-03-04T10:00:00.000Z"');
 
-    const exMock = installFetchMock([{ status: 200, body: { dataPoints: [] } }]);
+    const exMock = installFetchMock([
+      { status: 200, body: { dataPoints: [] } },
+    ]);
     await fetchDataPoints(FITBIT_DATA_TYPES.exercise, "at", "fetchExercise", {
       start: new Date("2026-03-04T10:00:00.000Z"),
     });
     expect(
-      new URL((exMock.mock.calls[0] as unknown as [string])[0]).searchParams.get(
-        "filter",
-      ),
+      new URL(
+        (exMock.mock.calls[0] as unknown as [string])[0],
+      ).searchParams.get("filter"),
     ).toBe('exercise.interval.start_time >= "2026-03-04T10:00:00.000Z"');
   });
 
@@ -466,7 +472,9 @@ describe("activity mappers (cumulative daily)", () => {
   });
 
   it("maps distance in metres, converting km → m when reported in km", () => {
-    expect(mapDistance({ distance: { meters: 6200, interval } })[0]).toMatchObject({
+    expect(
+      mapDistance({ distance: { meters: 6200, interval } })[0],
+    ).toMatchObject({
       type: "WALKING_RUNNING_DISTANCE",
       value: 6200,
       unit: "m",
@@ -506,7 +514,9 @@ describe("activity mappers (cumulative daily)", () => {
     expect(out[0]).toMatchObject({ type: "VO2_MAX", value: 47.3 });
     // VO2 max of 0 is garbage — dropped (unlike the running totals).
     expect(
-      mapVo2Max({ vo2_max: { milliliters_per_kilogram_per_minute: 0, date: day } }),
+      mapVo2Max({
+        vo2_max: { milliliters_per_kilogram_per_minute: 0, date: day },
+      }),
     ).toHaveLength(0);
   });
 });
@@ -667,7 +677,9 @@ describe("workout mapping", () => {
   });
 
   it("returns null for a session with no usable time span", () => {
-    expect(mapWorkout({ exercise: { startTime: "2026-05-10T07:00:00.000Z" } })).toBeNull();
+    expect(
+      mapWorkout({ exercise: { startTime: "2026-05-10T07:00:00.000Z" } }),
+    ).toBeNull();
     expect(
       mapWorkout({
         exercise: {

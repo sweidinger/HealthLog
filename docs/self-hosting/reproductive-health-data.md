@@ -45,7 +45,7 @@ reached:
 - **Physical or legal seizure of your own host.** If the machine
   running PostgreSQL — your VPS, your home server, your NAS — is seized,
   imaged, or compelled, the data is on it. Encryption at rest protects
-  against a stolen disk or a leaked backup only while the key is *not*
+  against a stolen disk or a leaked backup only while the key is _not_
   also available; if the host is running, or the key is stored next to
   the data, that protection is gone.
 - **Your hosting provider.** A VPS provider can snapshot your disk and
@@ -77,7 +77,7 @@ record, not speculation:
   California privacy statute over the sharing of menstrual-tracking
   data; the verdict and the underlying class action are public record.
 
-These are cited as factual public record to explain *why* the
+These are cited as factual public record to explain _why_ the
 "who holds the data" question is the one that matters for this category.
 HealthLog makes no claim about any other product's current practices.
 

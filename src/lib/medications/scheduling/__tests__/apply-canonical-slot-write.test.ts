@@ -13,10 +13,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  applyCanonicalSlotWrite,
-  type SlotIntakeRow,
-} from "../slot-upsert";
+import { applyCanonicalSlotWrite, type SlotIntakeRow } from "../slot-upsert";
 
 const SLOT = new Date("2026-06-15T05:00:00.000Z");
 
@@ -48,11 +45,10 @@ function makeClient(opts: {
     findManyQueue.length > 1 ? findManyQueue.shift()! : findManyQueue[0],
   );
   const create = vi.fn(
-    opts.createImpl ??
-      (async () => row({ id: "created-1", source: "WEB" })),
+    opts.createImpl ?? (async () => row({ id: "created-1", source: "WEB" })),
   );
   const update = vi.fn(async ({ where }: { where: { id: string } }) =>
-    (opts.updateImpl ? opts.updateImpl(where.id) : row({ id: where.id })),
+    opts.updateImpl ? opts.updateImpl(where.id) : row({ id: where.id }),
   );
   return {
     medication: {},

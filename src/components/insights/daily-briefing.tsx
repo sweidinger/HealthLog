@@ -376,10 +376,7 @@ export function DailyBriefing({
                   >
                     {t("insights.dailyBriefing.signalsTitle")}
                   </p>
-                  <div
-                    data-slot="daily-briefing-signals"
-                    className="space-y-2"
-                  >
+                  <div data-slot="daily-briefing-signals" className="space-y-2">
                     {briefing.signalsOfDay.map((signal, index) => (
                       <SignalRow
                         key={`${signal.sourceMetric}-${index}`}

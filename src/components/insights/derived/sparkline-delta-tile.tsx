@@ -102,9 +102,7 @@ export function SparklineDeltaTile({
   };
 
   const sparkData =
-    series && series.length >= 2
-      ? series.map((v, i) => ({ i, v }))
-      : null;
+    series && series.length >= 2 ? series.map((v, i) => ({ i, v })) : null;
 
   // The sparkline tints with the trend sentiment so it reads "same signal"
   // as the arrow; neutral metrics ride the muted-foreground line.
@@ -130,10 +128,7 @@ export function SparklineDeltaTile({
           the old muted-uppercase caption. Kept on one line for the dense
           grid; provenance trails to the right edge. */}
       <div className="flex min-w-0 items-center gap-2">
-        <Icon
-          className="text-foreground h-5 w-5 shrink-0"
-          aria-hidden="true"
-        />
+        <Icon className="text-foreground h-5 w-5 shrink-0" aria-hidden="true" />
         <span
           className="text-foreground min-w-0 flex-1 truncate text-base leading-none font-semibold whitespace-nowrap"
           data-slot="sparkline-delta-tile-label"
@@ -184,7 +179,10 @@ export function SparklineDeltaTile({
           than reserving an empty dashed placeholder (which read as visual
           dead space across the whole grid). */}
       {sparkData ? (
-        <div className="mt-3 h-10 w-full" data-slot="sparkline-delta-tile-spark">
+        <div
+          className="mt-3 h-10 w-full"
+          data-slot="sparkline-delta-tile-spark"
+        >
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={sparkData}

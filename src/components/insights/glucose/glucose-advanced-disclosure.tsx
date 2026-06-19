@@ -26,7 +26,8 @@ import type { DataSummary } from "@/lib/analytics/trends";
 
 const CONTEXT_LABEL_KEYS: Record<string, string> = {
   FASTING: "insights.bloodGlucose.clinical.advanced.byContext.fasting",
-  POSTPRANDIAL: "insights.bloodGlucose.clinical.advanced.byContext.postprandial",
+  POSTPRANDIAL:
+    "insights.bloodGlucose.clinical.advanced.byContext.postprandial",
   RANDOM: "insights.bloodGlucose.clinical.advanced.byContext.random",
   BEDTIME: "insights.bloodGlucose.clinical.advanced.byContext.bedtime",
 };
@@ -68,10 +69,7 @@ export function GlucoseAdvancedDisclosure({
         <span>{t("insights.bloodGlucose.clinical.advanced.toggle")}</span>
         <ChevronDown
           aria-hidden="true"
-          className={cn(
-            "h-4 w-4 transition-transform",
-            open && "rotate-180",
-          )}
+          className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
         />
       </button>
 

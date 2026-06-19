@@ -483,7 +483,10 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
     const { enqueued, skipped, error } =
       await enqueueBootTimeStepConsolidation();
     if (error) {
-      workerLog("error", `[step-consolidation] boot discovery failed: ${error}`);
+      workerLog(
+        "error",
+        `[step-consolidation] boot discovery failed: ${error}`,
+      );
     } else {
       workerLog(
         "info",
@@ -505,7 +508,10 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
     const { enqueued, skipped, error } =
       await enqueueBootTimeMeanConsolidation();
     if (error) {
-      workerLog("error", `[mean-consolidation] boot discovery failed: ${error}`);
+      workerLog(
+        "error",
+        `[mean-consolidation] boot discovery failed: ${error}`,
+      );
     } else {
       workerLog(
         "info",

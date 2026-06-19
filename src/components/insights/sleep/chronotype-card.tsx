@@ -17,7 +17,10 @@ function clockLabel(minutesOfDay: number): string {
 }
 
 /** Whole hours + minutes from a minute total, for the social-jetlag readout. */
-function hoursMinutes(totalMinutes: number): { hours: number; minutes: number } {
+function hoursMinutes(totalMinutes: number): {
+  hours: number;
+  minutes: number;
+} {
   const t = Math.round(totalMinutes);
   return { hours: Math.floor(t / 60), minutes: t - Math.floor(t / 60) * 60 };
 }
@@ -37,8 +40,7 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   if (chronotype.state === "learning" || chronotype.band == null) {
-    const need =
-      chronotype.freeNightsCounted + chronotype.freeNightsUntilReady;
+    const need = chronotype.freeNightsCounted + chronotype.freeNightsUntilReady;
     return (
       <Card data-slot="chronotype-card">
         <CardHeader className="pb-0">

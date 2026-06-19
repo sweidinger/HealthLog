@@ -33,9 +33,8 @@ vi.mock("@/lib/integrations/status", async (importOriginal) => ({
 }));
 
 vi.mock("@/lib/rollups/measurement-rollups", () => ({
-  collapseToTypeDayKeys: (
-    rows: Array<{ type: string; measuredAt: Date }>,
-  ) => rows.map((r) => ({ type: r.type, measuredAt: r.measuredAt })),
+  collapseToTypeDayKeys: (rows: Array<{ type: string; measuredAt: Date }>) =>
+    rows.map((r) => ({ type: r.type, measuredAt: r.measuredAt })),
   recomputeBucketsForMeasurement: recomputeMock,
 }));
 
@@ -101,8 +100,8 @@ describe("syncUserNightscout", () => {
   it("keys the upsert on (userId,type,source,externalId) for idempotency", async () => {
     fetchSgvEntriesMock.mockResolvedValue([ENTRY_A]);
     await syncUserNightscout("u1");
-    const where = upsertMock.mock.calls[0]![0].where
-      .userId_type_source_externalId;
+    const where =
+      upsertMock.mock.calls[0]![0].where.userId_type_source_externalId;
     expect(where).toEqual({
       userId: "u1",
       type: "BLOOD_GLUCOSE",

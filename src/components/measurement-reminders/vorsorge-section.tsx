@@ -210,8 +210,7 @@ export function VorsorgeSection({
 }) {
   const { t } = useTranslations();
   const { data: reminders, isLoading } = useMeasurementReminders(enabled);
-  const { create, update, remove, satisfy } =
-    useMeasurementReminderMutations();
+  const { create, update, remove, satisfy } = useMeasurementReminderMutations();
   // v1.18.6 (MOD-03) — page view (cards/list) + manual order persist
   // client-side; the settings page writes them, the page reads them.
   const { prefs } = useModuleListPrefs("vorsorge");
@@ -224,8 +223,9 @@ export function VorsorgeSection({
   // The value-capture sheet: holds the reminder whose measurement we are
   // entering. Non-null ⇒ the MeasurementForm sheet is open for that row.
   const [capturing, setCapturing] = useState<MeasurementReminder | null>(null);
-  const [captureFooterEl, setCaptureFooterEl] =
-    useState<HTMLDivElement | null>(null);
+  const [captureFooterEl, setCaptureFooterEl] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   // Wall-clock anchor for the relative-due labels, captured once at mount
   // via a lazy state initializer so the impure Date.now() stays out of
@@ -640,10 +640,7 @@ export function VorsorgeSection({
       </ResponsiveSheet>
 
       {isLoading && (
-        <div
-          className="grid gap-4 sm:grid-cols-2"
-          data-slot="vorsorge-loading"
-        >
+        <div className="grid gap-4 sm:grid-cols-2" data-slot="vorsorge-loading">
           {Array.from({ length: 4 }, (_, i) => (
             <Card key={i} aria-hidden="true" className="h-full gap-3">
               <CardContent className="space-y-3">
@@ -755,8 +752,7 @@ function VorsorgeCard({
   // Due now / overdue ⇒ the action button takes the green "do it now" tone.
   // The CARD stays neutral (no tint) per the project rule — only the action
   // button goes green; the surface follows the medication-card grammar.
-  const isDue =
-    due.key === "nextDue.today" || due.key === "overdueByDays";
+  const isDue = due.key === "nextDue.today" || due.key === "overdueByDays";
   const progress = intervalProgress(reminder, now);
 
   // Category-style header badge: the measurement label, or "self-planned"
@@ -910,7 +906,8 @@ function VorsorgeCard({
                 size="sm"
                 className={cn(
                   "min-h-11 sm:min-h-9",
-                  isDue && "bg-success text-success-foreground hover:bg-success/90",
+                  isDue &&
+                    "bg-success text-success-foreground hover:bg-success/90",
                 )}
                 onClick={onPrimaryAction}
                 disabled={busy}

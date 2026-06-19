@@ -36,8 +36,7 @@ vi.mock("@/lib/db-compat", () => ({
 }));
 
 vi.mock("@/lib/logging/context", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/logging/context")>();
+  const actual = await importOriginal<typeof import("@/lib/logging/context")>();
   return {
     ...actual,
     annotate: vi.fn(),
@@ -240,7 +239,8 @@ describe("PUT /api/insights/layout — happy path", () => {
     expect(returnedIds).not.toContain("medikamente");
 
     // The persisted blob is canonical too.
-    const updateCall = vi.mocked(prisma.user.update).mock.calls[0]?.[0] as unknown as {
+    const updateCall = vi.mocked(prisma.user.update).mock
+      .calls[0]?.[0] as unknown as {
       data: { insightsLayoutJson: { tiles: Array<{ id: string }> } };
     };
     const persistedIds = updateCall.data.insightsLayoutJson.tiles.map(
@@ -291,9 +291,9 @@ describe("PUT /api/insights/layout — accepts version 1 (iOS contract)", () => 
       data: { insightsLayoutJson: { version: number; sections: unknown[] } };
     };
     expect(updateCall.data.insightsLayoutJson.version).toBe(2);
-    expect(
-      Array.isArray(updateCall.data.insightsLayoutJson.sections),
-    ).toBe(true);
+    expect(Array.isArray(updateCall.data.insightsLayoutJson.sections)).toBe(
+      true,
+    );
   });
 });
 
@@ -396,9 +396,9 @@ describe("PUT /api/insights/layout — full metric-slug universe", () => {
     const body = (await res.json()) as {
       details: { issues: Array<{ path: string }> };
     };
-    expect(
-      body.details.issues.some((i) => i.path.startsWith("tiles")),
-    ).toBe(true);
+    expect(body.details.issues.some((i) => i.path.startsWith("tiles"))).toBe(
+      true,
+    );
   });
 });
 
@@ -436,9 +436,9 @@ describe("PUT /api/insights/layout — 422 multi-issue envelope", () => {
     const body = (await res.json()) as {
       details: { issues: Array<{ path: string }> };
     };
-    expect(
-      body.details.issues.some((i) => i.path.startsWith("tiles")),
-    ).toBe(true);
+    expect(body.details.issues.some((i) => i.path.startsWith("tiles"))).toBe(
+      true,
+    );
   });
 
   it("writes one audit-ledger row keyed insights.layout.validation-failed", async () => {
@@ -488,11 +488,13 @@ describe("PUT /api/insights/layout — 422 multi-issue envelope", () => {
     const res = await callPut(makeReq(payload));
     expect(res.status).toBe(422);
 
-    const annotated = vi.mocked(annotate).mock.calls.find(
-      (call) =>
-        (call[0] as { action?: { name?: string } })?.action?.name ===
-        "insights.layout.validation-failed",
-    );
+    const annotated = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "insights.layout.validation-failed",
+      );
     expect(annotated, "validation-failed annotate call").toBeTruthy();
     const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
 
@@ -524,11 +526,13 @@ describe("PUT /api/insights/layout — 422 multi-issue envelope", () => {
     const res = await callPut(makeReq(payload));
     expect(res.status).toBe(422);
 
-    const annotated = vi.mocked(annotate).mock.calls.find(
-      (call) =>
-        (call[0] as { action?: { name?: string } })?.action?.name ===
-        "insights.layout.validation-failed",
-    );
+    const annotated = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "insights.layout.validation-failed",
+      );
     const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
     const excerpt = meta.received_shape_excerpt as string;
 
@@ -578,7 +582,9 @@ describe("PUT /api/insights/layout — v2 sections", () => {
     expect(res.status).toBe(200);
 
     const body = (await res.json()) as {
-      data: { sections: Array<{ id: string; visible: boolean; order: number }> };
+      data: {
+        sections: Array<{ id: string; visible: boolean; order: number }>;
+      };
     };
     // Saved sections surface in saved order, dense 0-based.
     expect(body.data.sections[0]).toEqual({
@@ -651,9 +657,9 @@ describe("PUT /api/insights/layout — v2 sections", () => {
     const body = (await res.json()) as {
       details: { issues: Array<{ path: string }> };
     };
-    expect(
-      body.details.issues.some((i) => i.path.startsWith("sections")),
-    ).toBe(true);
+    expect(body.details.issues.some((i) => i.path.startsWith("sections"))).toBe(
+      true,
+    );
   });
 });
 

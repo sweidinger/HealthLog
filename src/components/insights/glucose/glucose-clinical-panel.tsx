@@ -159,7 +159,10 @@ export function GlucoseClinicalPanel() {
         ) : null}
 
         {/* Headline metrics */}
-        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-slot="glucose-headline">
+        <section
+          className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+          data-slot="glucose-headline"
+        >
           {clinical.meanMgdl !== null ? (
             <Metric
               icon={<Droplet className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -217,7 +220,10 @@ export function GlucoseClinicalPanel() {
             and reports `isSpotEstimate: false`, so the caveat would undersell
             the data. */}
         {clinical.isSpotEstimate ? (
-          <p className="text-muted-foreground/80 text-xs" data-slot="glucose-spot-caveat">
+          <p
+            className="text-muted-foreground/80 text-xs"
+            data-slot="glucose-spot-caveat"
+          >
             {t("insights.bloodGlucose.clinical.spotCaveat")}
           </p>
         ) : null}

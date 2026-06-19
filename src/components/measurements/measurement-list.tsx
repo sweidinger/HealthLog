@@ -1515,7 +1515,9 @@ function DayDrillDown({
       params.set("type", type);
       params.set("dayKey", dayKey);
       params.set("sortDir", "asc");
-      return apiGet<{ measurements: Measurement[] }>(`/api/measurements?${params}`);
+      return apiGet<{ measurements: Measurement[] }>(
+        `/api/measurements?${params}`,
+      );
     },
     enabled: isAuthenticated,
     // The drill-down is per-day — once fetched it rarely needs to

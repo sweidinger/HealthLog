@@ -27,9 +27,9 @@ export function getPrismaClient(): PrismaClient {
 }
 
 /** Lazily-captured global mood-tag catalogue (NULL user_id rows). */
-let catalogueSnapshot:
-  | Awaited<ReturnType<PrismaClient["moodTag"]["findMany"]>>
-  | null = null;
+let catalogueSnapshot: Awaited<
+  ReturnType<PrismaClient["moodTag"]["findMany"]>
+> | null = null;
 
 /**
  * v1.17.0 — same treatment for the seeded mood-tag categories:
@@ -37,9 +37,9 @@ let catalogueSnapshot:
  * users TRUNCATE cascades into the category table too. The categories must
  * restore BEFORE the tags (tags FK into categories).
  */
-let categorySnapshot:
-  | Awaited<ReturnType<PrismaClient["moodTagCategory"]["findMany"]>>
-  | null = null;
+let categorySnapshot: Awaited<
+  ReturnType<PrismaClient["moodTagCategory"]["findMany"]>
+> | null = null;
 
 /**
  * Truncate every user-facing table in dependency-safe order using

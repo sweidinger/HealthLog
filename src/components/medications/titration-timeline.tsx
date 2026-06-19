@@ -98,7 +98,10 @@ export function buildTitrationSteps(
   }));
 }
 
-export function TitrationTimeline({ medicationId, asOf }: TitrationTimelineProps) {
+export function TitrationTimeline({
+  medicationId,
+  asOf,
+}: TitrationTimelineProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
 
@@ -152,10 +155,14 @@ export function TitrationTimeline({ medicationId, asOf }: TitrationTimelineProps
                   first planned step (or at the top when nothing is yet
                   in effect). */}
               {markerAfter === i - 1 && i > 0 && (
-                <TitrationMarker label={t("medications.titration.youAreHere")} />
+                <TitrationMarker
+                  label={t("medications.titration.youAreHere")}
+                />
               )}
               {markerAfter === -1 && i === 0 && (
-                <TitrationMarker label={t("medications.titration.youAreHere")} />
+                <TitrationMarker
+                  label={t("medications.titration.youAreHere")}
+                />
               )}
               <div
                 className="flex items-start gap-3 py-2.5"
@@ -176,7 +183,7 @@ export function TitrationTimeline({ medicationId, asOf }: TitrationTimelineProps
                         ? "border-primary bg-primary/15 text-primary"
                         : step.isPast
                           ? "border-border bg-muted text-muted-foreground"
-                          : "border-border/60 border-dashed text-muted-foreground/70",
+                          : "border-border/60 text-muted-foreground/70 border-dashed",
                     )}
                     aria-hidden="true"
                   >

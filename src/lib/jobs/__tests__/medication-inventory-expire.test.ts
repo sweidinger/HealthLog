@@ -15,7 +15,9 @@ import {
 
 describe("medication-inventory-expire module", () => {
   it("exports the canonical queue name", () => {
-    expect(MEDICATION_INVENTORY_EXPIRE_QUEUE).toBe("medication-inventory-expire");
+    expect(MEDICATION_INVENTORY_EXPIRE_QUEUE).toBe(
+      "medication-inventory-expire",
+    );
   });
 
   it("schedules at 03:30 Europe/Berlin", () => {

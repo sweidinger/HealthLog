@@ -79,7 +79,9 @@ export async function buildMedsTodayBlock(
   const { start: todayStart, end: todayEnd } = getUserTodayBounds(now, userTz);
   // The projector + tally read use an exclusive upper bound (`lt`),
   // matching the summary route's window convention.
-  const todayEndExclusive = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const todayEndExclusive = new Date(
+    todayStart.getTime() + 24 * 60 * 60 * 1000,
+  );
 
   // Projection FIRST so the tally read below sees the freshly minted
   // pending rows. Idempotent — `skipDuplicates` + the
@@ -170,7 +172,8 @@ export async function buildMedsTodayBlock(
   }
   const eraStartByMedId = new Map<string, Date>();
   for (const f of eraFloors) {
-    if (f._max.validUntil) eraStartByMedId.set(f.medicationId, f._max.validUntil);
+    if (f._max.validUntil)
+      eraStartByMedId.set(f.medicationId, f._max.validUntil);
   }
 
   // Earliest display-due across active medications. An open overdue

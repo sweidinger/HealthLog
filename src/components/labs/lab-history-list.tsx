@@ -12,7 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, apiDelete, apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
+import {
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiPost,
+  apiPut,
+} from "@/lib/api/api-fetch";
 import { formatDateShort } from "@/lib/format";
 import { formatLabValue } from "@/lib/labs/format-value";
 import { resolveNoteForUpdate } from "@/lib/labs/note-update";
@@ -110,9 +116,7 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
       closeEdit();
     },
     onError: (err) => {
-      setEditError(
-        err instanceof ApiError ? err.message : t("labs.editError"),
-      );
+      setEditError(err instanceof ApiError ? err.message : t("labs.editError"));
     },
   });
 
@@ -242,9 +246,7 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="lab-edit-takenAt">
-                {t("labs.form.takenAt")}
-              </Label>
+              <Label htmlFor="lab-edit-takenAt">{t("labs.form.takenAt")}</Label>
               <DateTimeInput
                 id="lab-edit-takenAt"
                 value={editTakenAt}

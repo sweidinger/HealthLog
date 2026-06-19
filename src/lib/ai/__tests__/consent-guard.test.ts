@@ -49,7 +49,10 @@ describe("chainRequiresServerManagedConsent", () => {
       true,
     );
     expect(
-      chainRequiresServerManagedConsent([entry("openai"), entry("admin-openai")]),
+      chainRequiresServerManagedConsent([
+        entry("openai"),
+        entry("admin-openai"),
+      ]),
     ).toBe(true);
   });
 

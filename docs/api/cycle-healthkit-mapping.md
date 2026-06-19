@@ -13,16 +13,16 @@ row. The fold only runs when cycle tracking is enabled for the account.
 
 ## Day-log fields
 
-| HealthKit category type | CycleDayLog field | Values |
-|---|---|---|
-| `MenstrualFlow` | `flow` | unspecified→LIGHT, light→LIGHT, medium→MEDIUM, heavy→HEAVY, none→NONE |
-| `IntermenstrualBleeding` | `intermenstrualBleeding` | presence → `true` |
-| `CervicalMucusQuality` | `cervicalMucus` | dry→DRY, sticky→STICKY, creamy→CREAMY, watery→WATERY, eggWhite→EGG_WHITE |
-| `OvulationTestResult` | `ovulationTest` | negative→NEGATIVE, lhSurge→POSITIVE_LH_SURGE, indeterminate→INDETERMINATE, estrogenSurge→ESTROGEN_SURGE |
-| `SexualActivity` | `sexualActivity` + `protectedSex` | presence → `true`; `HKMetadataKeySexualActivityProtectionUsed` → `protectedSex` |
-| `PregnancyTestResult` | `pregnancyTest` | negative→NEGATIVE, positive→POSITIVE, indeterminate→INDETERMINATE |
-| `ProgesteroneTestResult` | `progesteroneTest` | negative→NEGATIVE, positive→POSITIVE, indeterminate→INDETERMINATE |
-| `Contraceptive` | `contraceptive` (+ profile nudge) | unspecified→UNSPECIFIED, implant→IMPLANT, injection→INJECTION, iud→IUD, ring→INTRAVAGINAL_RING, oral→ORAL, patch→PATCH, emergency→EMERGENCY |
+| HealthKit category type  | CycleDayLog field                 | Values                                                                                                                                      |
+| ------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MenstrualFlow`          | `flow`                            | unspecified→LIGHT, light→LIGHT, medium→MEDIUM, heavy→HEAVY, none→NONE                                                                       |
+| `IntermenstrualBleeding` | `intermenstrualBleeding`          | presence → `true`                                                                                                                           |
+| `CervicalMucusQuality`   | `cervicalMucus`                   | dry→DRY, sticky→STICKY, creamy→CREAMY, watery→WATERY, eggWhite→EGG_WHITE                                                                    |
+| `OvulationTestResult`    | `ovulationTest`                   | negative→NEGATIVE, lhSurge→POSITIVE_LH_SURGE, indeterminate→INDETERMINATE, estrogenSurge→ESTROGEN_SURGE                                     |
+| `SexualActivity`         | `sexualActivity` + `protectedSex` | presence → `true`; `HKMetadataKeySexualActivityProtectionUsed` → `protectedSex`                                                             |
+| `PregnancyTestResult`    | `pregnancyTest`                   | negative→NEGATIVE, positive→POSITIVE, indeterminate→INDETERMINATE                                                                           |
+| `ProgesteroneTestResult` | `progesteroneTest`                | negative→NEGATIVE, positive→POSITIVE, indeterminate→INDETERMINATE                                                                           |
+| `Contraceptive`          | `contraceptive` (+ profile nudge) | unspecified→UNSPECIFIED, implant→IMPLANT, injection→INJECTION, iud→IUD, ring→INTRAVAGINAL_RING, oral→ORAL, patch→PATCH, emergency→EMERGENCY |
 
 HealthLog's `SPOTTING` flow level has no HealthKit counterpart; it is only ever
 produced by a manual entry. HealthKit `unspecified` flow maps to `LIGHT` (a
@@ -31,21 +31,21 @@ logged-but-unspecified bleeding day is at least light flow).
 ## Symptom category types → seeded symptom keys
 
 Symptom category samples link to the seeded `CycleSymptom` catalogue by key. A
-sample whose severity is *not present* (codepoint 1) does NOT create a link.
+sample whose severity is _not present_ (codepoint 1) does NOT create a link.
 
-| HealthKit category type | CycleSymptom key |
-|---|---|
-| `AbdominalCramps` | `cramps` |
-| `Headache` | `headache` |
-| `Bloating` | `bloating` |
-| `Acne` | `acne` |
-| `BreastPain` | `breast_tenderness` |
-| `Fatigue` | `fatigue` |
-| `LowerBackPain` | `back_pain` |
-| `SleepChanges` | `insomnia` |
-| `MoodChanges` | `mood_swings` |
-| `AppetiteChanges` | `food_cravings` |
-| `Nausea` | `nausea` |
+| HealthKit category type | CycleSymptom key    |
+| ----------------------- | ------------------- |
+| `AbdominalCramps`       | `cramps`            |
+| `Headache`              | `headache`          |
+| `Bloating`              | `bloating`          |
+| `Acne`                  | `acne`              |
+| `BreastPain`            | `breast_tenderness` |
+| `Fatigue`               | `fatigue`           |
+| `LowerBackPain`         | `back_pain`         |
+| `SleepChanges`          | `insomnia`          |
+| `MoodChanges`           | `mood_swings`       |
+| `AppetiteChanges`       | `food_cravings`     |
+| `Nausea`                | `nausea`            |
 
 ## Profile-level signals
 
@@ -64,8 +64,8 @@ the temperature-trend ovulation method directly from `Measurement`.
 
 ## Deferred
 
-| HealthKit category type | Status |
-|---|---|
-| `Pregnancy`, `Lactation` | Deferred — no `CycleProfile` column yet (pregnancy-mode is a later release). |
-| `BleedingDuringPregnancy`, `BleedingAfterPregnancy` | Deferred — pregnancy-mode. |
-| `IrregularMenstrualCycles`, `InfrequentMenstrualCycles`, `ProlongedMenstrualPeriods`, `PersistentIntermenstrualBleeding` | Server-derived from the cycle engine, never ingested. |
+| HealthKit category type                                                                                                  | Status                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `Pregnancy`, `Lactation`                                                                                                 | Deferred — no `CycleProfile` column yet (pregnancy-mode is a later release). |
+| `BleedingDuringPregnancy`, `BleedingAfterPregnancy`                                                                      | Deferred — pregnancy-mode.                                                   |
+| `IrregularMenstrualCycles`, `InfrequentMenstrualCycles`, `ProlongedMenstrualPeriods`, `PersistentIntermenstrualBleeding` | Server-derived from the cycle engine, never ingested.                        |

@@ -20,7 +20,10 @@ const REGISTRAR_PATH = join(
 );
 const workerSource =
   readFileSync(REGISTRAR_PATH, "utf8") +
-  readFileSync(join(__dirname, "..", "reminder", "cleanup-handlers.ts"), "utf8");
+  readFileSync(
+    join(__dirname, "..", "reminder", "cleanup-handlers.ts"),
+    "utf8",
+  );
 
 describe("reminder-worker — coach-message-cleanup wiring", () => {
   it("imports the cleanup handler from the cleanup-handlers module", () => {

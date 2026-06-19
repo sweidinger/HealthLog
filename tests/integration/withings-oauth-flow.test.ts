@@ -200,9 +200,7 @@ describe("Withings OAuth nonce ledger (real Postgres)", () => {
     );
     const callbackRes = await callback(callbackReq);
     expect(callbackRes.status).toBe(307);
-    expect(callbackRes.headers.get("location")).toContain(
-      "withings=connected",
-    );
+    expect(callbackRes.headers.get("location")).toContain("withings=connected");
 
     const afterCallback = await prisma.withingsOAuthState.findUnique({
       where: { nonce },

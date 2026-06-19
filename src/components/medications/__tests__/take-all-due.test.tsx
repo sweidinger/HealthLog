@@ -386,7 +386,13 @@ describe("runTakeAllDue — per-medication loop with failure isolation", () => {
   const slotA = new Date(Date.now() - 60 * 60 * 1000);
   const slotB = new Date(Date.now() - 30 * 60 * 1000);
   const dueTwo: DueMedication[] = [
-    { id: "med-a", name: "A", dose: "10 mg", window: null, scheduledFor: slotA },
+    {
+      id: "med-a",
+      name: "A",
+      dose: "10 mg",
+      window: null,
+      scheduledFor: slotA,
+    },
     { id: "med-b", name: "B", dose: "5 mg", window: null, scheduledFor: slotB },
   ];
 
@@ -489,10 +495,7 @@ describe("runTakeAllDue — per-medication loop with failure isolation", () => {
     // The bundle includes the dashboard snapshot key (v1.16.11), so a
     // batch take refreshes the hero dose tally too. Pin the source so a
     // refactor to a hand-rolled key list cannot slip through.
-    const src = readFileSync(
-      resolve(__dirname, "../take-all-due.ts"),
-      "utf8",
-    );
+    const src = readFileSync(resolve(__dirname, "../take-all-due.ts"), "utf8");
     expect(src).toContain(
       "await invalidateKeys(queryClient, medicationDependentKeys)",
     );

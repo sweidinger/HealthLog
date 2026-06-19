@@ -81,7 +81,9 @@ export async function computeEpisodeCorrelation(
   const end = episode.resolvedAt ?? now;
 
   // Window seams (UTC instants; the day keys are read in the user's tz).
-  const preOnsetStart = new Date(onset.getTime() - PRE_ONSET_LOOKBACK_DAYS * MS_PER_DAY);
+  const preOnsetStart = new Date(
+    onset.getTime() - PRE_ONSET_LOOKBACK_DAYS * MS_PER_DAY,
+  );
   const baselineEnd = preOnsetStart; // baseline ends where the lookback starts
   const baselineStart = new Date(
     baselineEnd.getTime() - BASELINE_WINDOW_DAYS * MS_PER_DAY,
@@ -106,8 +108,24 @@ export async function computeEpisodeCorrelation(
       ILLNESS_SCAN_TYPES.map((type) =>
         limit(async () => {
           const [baseline, episodeWin] = await Promise.all([
-            readWindowMeans(userId, type, baselineStart, baselineEnd, coverage, tz, now),
-            readWindowMeans(userId, type, preOnsetStart, end, coverage, tz, now),
+            readWindowMeans(
+              userId,
+              type,
+              baselineStart,
+              baselineEnd,
+              coverage,
+              tz,
+              now,
+            ),
+            readWindowMeans(
+              userId,
+              type,
+              preOnsetStart,
+              end,
+              coverage,
+              tz,
+              now,
+            ),
           ]);
           return { type, baseline, episodeWin };
         }),
@@ -120,8 +138,10 @@ export async function computeEpisodeCorrelation(
   let anyLive = false;
   let anyDay = false;
   for (const { type, baseline, episodeWin } of perType) {
-    if (baseline.points.length === 0 && episodeWin.points.length === 0) continue;
-    if (baseline.source === "live" || episodeWin.source === "live") anyLive = true;
+    if (baseline.points.length === 0 && episodeWin.points.length === 0)
+      continue;
+    if (baseline.source === "live" || episodeWin.source === "live")
+      anyLive = true;
     if (baseline.source === "DAY" || episodeWin.source === "DAY") anyDay = true;
     series.push({
       type,
@@ -129,7 +149,10 @@ export async function computeEpisodeCorrelation(
       episodeDays: episodeWin.points.map((p) => ({ day: p.day, mean: p.mean })),
       // Per-day max over the episode window — the fever red-flag prefers it so
       // an evening spike averaged toward normal in the daily mean is not masked.
-      episodeDayMax: episodeWin.points.map((p) => ({ day: p.day, mean: p.max })),
+      episodeDayMax: episodeWin.points.map((p) => ({
+        day: p.day,
+        mean: p.max,
+      })),
     });
   }
 
@@ -173,7 +196,11 @@ async function readWindowMeans(
       Math.ceil((to.getTime() - from.getTime()) / MS_PER_DAY),
     );
     const resolved = await readBestGranularityRollups(userId, type, windowDays);
-    if (resolved && resolved.granularity === "DAY" && resolved.rows.length > 0) {
+    if (
+      resolved &&
+      resolved.granularity === "DAY" &&
+      resolved.rows.length > 0
+    ) {
       const fromKey = dayKeyForUserTz(from, tz);
       // DAY buckets are minted at the UTC midnight of the user-tz day, so
       // keying `bucketStart` through the user tz is exact.

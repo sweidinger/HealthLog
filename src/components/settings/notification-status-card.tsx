@@ -129,9 +129,7 @@ export function NotificationStatusCard() {
   const channels = Array.isArray(data) ? data : [];
   if (channels.length === 0) {
     return (
-      <SettingsCard
-        data-testid="notification-status-empty"
-      >
+      <SettingsCard data-testid="notification-status-empty">
         <SettingsCardHeader
           icon={Bell}
           title={t("settings.notificationStatus.title")}

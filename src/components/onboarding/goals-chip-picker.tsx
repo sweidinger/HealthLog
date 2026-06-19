@@ -139,10 +139,7 @@ export function GoalsChipPicker({ userId: _userId }: GoalsChipPickerProps) {
   }
 
   return (
-    <section
-      aria-labelledby="onboarding-goals-title"
-      className="space-y-6"
-    >
+    <section aria-labelledby="onboarding-goals-title" className="space-y-6">
       <header className="space-y-2">
         <h1
           id="onboarding-goals-title"
@@ -195,7 +192,7 @@ export function GoalsChipPicker({ userId: _userId }: GoalsChipPickerProps) {
               >
                 <Icon className="size-4" />
               </span>
-              <span className="text-foreground text-sm font-medium leading-tight">
+              <span className="text-foreground text-sm leading-tight font-medium">
                 {t(option.labelKey)}
               </span>
             </label>
@@ -230,4 +227,3 @@ export function GoalsChipPicker({ userId: _userId }: GoalsChipPickerProps) {
     </section>
   );
 }
-

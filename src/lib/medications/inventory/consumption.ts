@@ -36,10 +36,7 @@
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { toJson } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
-import {
-  computeExpiresAt,
-  computeInventoryState,
-} from "./state-machine";
+import { computeExpiresAt, computeInventoryState } from "./state-machine";
 
 /** The Prisma surface the consumption hook needs. A bare transaction
  *  client satisfies it; the base client additionally carries
@@ -80,7 +77,9 @@ async function runAtomically<T>(
 
 /** Parse a stamp column value defensively — a malformed stamp refunds
  *  nothing rather than throwing. */
-function parseStamp(value: Prisma.JsonValue | null): InventoryConsumptionEntry[] | null {
+function parseStamp(
+  value: Prisma.JsonValue | null,
+): InventoryConsumptionEntry[] | null {
   if (value === null || !Array.isArray(value)) return null;
   const entries: InventoryConsumptionEntry[] = [];
   for (const raw of value) {

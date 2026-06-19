@@ -115,11 +115,7 @@ export type ModuleKey = (typeof MODULE_KEYS)[number];
  * `ModuleKey`, so the gate never reads it and the PATCH validator rejects
  * it. (Medications is a toggleable module since D3 — see `MODULE_KEYS`.)
  */
-export const CORE_DOMAIN_KEYS = [
-  "weight",
-  "bloodPressure",
-  "pulse",
-] as const;
+export const CORE_DOMAIN_KEYS = ["weight", "bloodPressure", "pulse"] as const;
 
 export type CoreDomainKey = (typeof CORE_DOMAIN_KEYS)[number];
 
@@ -250,6 +246,8 @@ export function isModuleKey(key: string): key is ModuleKey {
 }
 
 /** The two delegated keys, resolved by their existing source of truth. */
-export function moduleDelegatesTo(key: ModuleKey): ModuleDelegation | undefined {
+export function moduleDelegatesTo(
+  key: ModuleKey,
+): ModuleDelegation | undefined {
   return MODULE_REGISTRY[key].delegatesTo;
 }

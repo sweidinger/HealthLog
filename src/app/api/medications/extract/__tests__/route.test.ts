@@ -52,10 +52,9 @@ vi.mock("@/lib/ai/consent-guard", () => ({
 }));
 
 vi.mock("@/lib/ai/provider-runner", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/lib/ai/provider-runner")>(
-      "@/lib/ai/provider-runner",
-    );
+  const actual = await vi.importActual<
+    typeof import("@/lib/ai/provider-runner")
+  >("@/lib/ai/provider-runner");
   return {
     ...actual,
     runRawCompletionWithFallback: vi.fn(),
@@ -65,17 +64,17 @@ vi.mock("@/lib/ai/provider-runner", async () => {
 vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
   getEvent: vi.fn(() => null),
-  eventStorage: { getStore: () => undefined, run: (_s: unknown, f: () => unknown) => f() },
+  eventStorage: {
+    getStore: () => undefined,
+    run: (_s: unknown, f: () => unknown) => f(),
+  },
 }));
 
 import { POST } from "../route";
 import { requireAuth, HttpError } from "@/lib/api-handler";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { enforceBudget } from "@/lib/ai/coach/budget";
-import {
-  resolveProvider,
-  resolveProviderChain,
-} from "@/lib/ai/provider";
+import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
 import { runRawCompletionWithFallback } from "@/lib/ai/provider-runner";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
 
@@ -136,9 +135,7 @@ describe("POST /api/medications/extract — rate limit", () => {
       remaining: 0,
       resetAt: Date.now() + 60_000,
     });
-    const res = await POST(
-      postReq({ text: "Mounjaro 5mg weekly" }) as never,
-    );
+    const res = await POST(postReq({ text: "Mounjaro 5mg weekly" }) as never);
     expect(res.status).toBe(429);
     const body = await res.json();
     expect(body.error).toMatch(/Too many requests/i);
@@ -233,9 +230,7 @@ describe("POST /api/medications/extract — validation + provider errors", () =>
       type: "none",
     } as never);
 
-    const res = await POST(
-      postReq({ text: "Mounjaro 5mg weekly" }) as never,
-    );
+    const res = await POST(postReq({ text: "Mounjaro 5mg weekly" }) as never);
     expect(res.status).toBe(503);
   });
 
@@ -252,9 +247,7 @@ describe("POST /api/medications/extract — validation + provider errors", () =>
       fallbackHops: [],
     });
 
-    const res = await POST(
-      postReq({ text: "Mounjaro 5mg weekly" }) as never,
-    );
+    const res = await POST(postReq({ text: "Mounjaro 5mg weekly" }) as never);
     expect(res.status).toBe(502);
   });
 });

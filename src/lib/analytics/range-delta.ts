@@ -121,7 +121,11 @@ export async function computeRangeDelta(
   const windowDays = rangeWindowDays(range);
   // Read the full 2N span in one go so the current and previous halves share
   // a granularity; the router picks the coarsest tier that resolves 2N.
-  const resolved = await readBestGranularityRollups(userId, type, windowDays * 2);
+  const resolved = await readBestGranularityRollups(
+    userId,
+    type,
+    windowDays * 2,
+  );
   if (!resolved) {
     const empty: WindowAggregate = {
       count: 0,
@@ -140,7 +144,11 @@ export async function computeRangeDelta(
       deltaPct: null,
     };
   }
-  const { current, previous } = sliceWindowDelta(resolved.rows, windowDays, now);
+  const { current, previous } = sliceWindowDelta(
+    resolved.rows,
+    windowDays,
+    now,
+  );
   const { delta, deltaPct } = composeDelta(current, previous);
   return {
     range,

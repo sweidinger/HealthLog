@@ -17,8 +17,7 @@ vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/fhir/rest", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/fhir/rest")>();
+  const actual = await importOriginal<typeof import("@/lib/fhir/rest")>();
   return { ...actual, loadFhirContext: vi.fn() };
 });
 vi.mock("@/lib/fhir/resources", () => ({

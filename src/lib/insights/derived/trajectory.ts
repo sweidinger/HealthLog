@@ -147,10 +147,7 @@ export interface OlsFit {
  * degenerate (< 3 points, or all x identical → Sxx = 0). Three points is
  * the floor for a meaningful residual standard error (n − 2 ≥ 1).
  */
-export function fitOls(
-  xs: number[],
-  ys: number[],
-): OlsFit | null {
+export function fitOls(xs: number[], ys: number[]): OlsFit | null {
   const n = xs.length;
   if (n < 3 || ys.length !== n) return null;
 
@@ -192,10 +189,7 @@ export function fitOls(
  * summand grows quadratically as x leaves the data centre, so a point far
  * into the horizon carries a visibly wider band than one near the data.
  */
-export function predictionIntervalHalfWidth(
-  fit: OlsFit,
-  x: number,
-): number {
+export function predictionIntervalHalfWidth(fit: OlsFit, x: number): number {
   const { n, meanX, sxx, residualStdError } = fit;
   const leverage = 1 + 1 / n + (x - meanX) ** 2 / sxx;
   return T_CRITICAL_95 * residualStdError * Math.sqrt(leverage);
@@ -249,7 +243,12 @@ export async function computeTrajectory(
     });
     return buildInsufficient<TrajectoryValue>({
       coverage: cov,
-      provenance: { inputs: [String(type)], source: src, windowDays, computedAt },
+      provenance: {
+        inputs: [String(type)],
+        source: src,
+        windowDays,
+        computedAt,
+      },
       reason,
     });
   };

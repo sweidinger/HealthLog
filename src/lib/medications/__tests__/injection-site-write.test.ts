@@ -12,7 +12,10 @@ const base = {
 
 describe("resolveInjectionSiteForWrite()", () => {
   it("persists a valid site on a taken injection with tracking on", () => {
-    const r = resolveInjectionSiteForWrite({ ...base, submitted: "THIGH_LEFT" });
+    const r = resolveInjectionSiteForWrite({
+      ...base,
+      submitted: "THIGH_LEFT",
+    });
     expect(r).toEqual({ kind: "ok", site: "THIGH_LEFT" });
   });
 

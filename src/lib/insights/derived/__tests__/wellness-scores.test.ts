@@ -18,8 +18,9 @@ import {
 const PROFILE = { ageYears: 40, sex: "MALE" as const };
 const NOW = new Date("2026-06-02T08:00:00Z");
 const findMany = prisma.measurement.findMany as ReturnType<typeof vi.fn>;
-const cacheFindUnique = prisma.strainTrimpCache
-  .findUnique as ReturnType<typeof vi.fn>;
+const cacheFindUnique = prisma.strainTrimpCache.findUnique as ReturnType<
+  typeof vi.fn
+>;
 const userFindUnique = prisma.user.findUnique as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -128,7 +129,11 @@ describe("computeWellnessScore", () => {
 
   it("RECOVERY does not read the strain cache and carries a null anchor", async () => {
     findMany.mockResolvedValue([
-      { value: 72, measuredAt: new Date("2026-06-01T12:00:00Z"), source: "COMPUTED" },
+      {
+        value: 72,
+        measuredAt: new Date("2026-06-01T12:00:00Z"),
+        source: "COMPUTED",
+      },
     ]);
     const r = await computeWellnessScore("RECOVERY_SCORE", "u1", PROFILE, {
       now: NOW,
@@ -146,8 +151,16 @@ describe("computeWellnessScore", () => {
     // day-that-ended (Jun 01). The native row is canonical → the tile shows 80,
     // not the proxy's 50, and the off-by-one does NOT spawn two recovery days.
     findMany.mockResolvedValue([
-      { value: 80, measuredAt: new Date("2026-06-02T06:00:00Z"), source: "WHOOP" },
-      { value: 50, measuredAt: new Date("2026-06-01T12:00:00Z"), source: "COMPUTED" },
+      {
+        value: 80,
+        measuredAt: new Date("2026-06-02T06:00:00Z"),
+        source: "WHOOP",
+      },
+      {
+        value: 50,
+        measuredAt: new Date("2026-06-01T12:00:00Z"),
+        source: "COMPUTED",
+      },
     ]);
     const r = await computeWellnessScore("RECOVERY_SCORE", "u1", PROFILE, {
       now: NOW,
@@ -166,7 +179,11 @@ describe("computeWellnessScore", () => {
 
   it("STRESS still hard-filters to the COMPUTED source", async () => {
     findMany.mockResolvedValue([
-      { value: 30, measuredAt: new Date("2026-06-02T12:00:00Z"), source: "COMPUTED" },
+      {
+        value: 30,
+        measuredAt: new Date("2026-06-02T12:00:00Z"),
+        source: "COMPUTED",
+      },
     ]);
     await computeWellnessScore("STRESS_SCORE", "u1", PROFILE, { now: NOW });
     const where = findMany.mock.calls[0][0].where as { source?: unknown };

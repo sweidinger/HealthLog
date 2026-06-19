@@ -228,7 +228,10 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
         title={t("labs.biomarker.editTitle")}
         description={t("labs.biomarker.defineDescription")}
         footer={
-          <div ref={setEditFooterEl} className="flex w-full justify-end gap-2" />
+          <div
+            ref={setEditFooterEl}
+            className="flex w-full justify-end gap-2"
+          />
         }
       >
         {marker ? (

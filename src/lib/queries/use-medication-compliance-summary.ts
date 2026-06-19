@@ -48,9 +48,7 @@ export interface MedicationComplianceSummaryEntry {
  * any future consumer) must ride this exact function so the key can
  * never be registered with diverging fetch shapes.
  */
-function fetchComplianceSummary(): Promise<
-  MedicationComplianceSummaryEntry[]
-> {
+function fetchComplianceSummary(): Promise<MedicationComplianceSummaryEntry[]> {
   return apiGet<MedicationComplianceSummaryEntry[]>(
     "/api/medications/compliance",
   );

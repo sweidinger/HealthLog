@@ -147,10 +147,10 @@ export const PATCH = apiHandler(
       // `createdAt`). The edited era's own recorded end counts — an
       // ARCHIVED era adjacent to the live plan may keep its boundary,
       // but no correction may extend into tracked live history.
-      const liveBoundary = [target.validUntil, ...others.map((r) => r.validUntil)].reduce(
-        (latest, v) => (v > latest ? v : latest),
-        med.createdAt,
-      );
+      const liveBoundary = [
+        target.validUntil,
+        ...others.map((r) => r.validUntil),
+      ].reduce((latest, v) => (v > latest ? v : latest), med.createdAt);
       if (validUntil.getTime() > liveBoundary.getTime()) {
         return {
           ok: false as const,
@@ -290,10 +290,7 @@ export const DELETE = apiHandler(
     }
 
     if (revision.source !== "MANUAL") {
-      return apiError(
-        "Only manually added schedule eras can be deleted",
-        409,
-      );
+      return apiError("Only manually added schedule eras can be deleted", 409);
     }
 
     // Deleting a correction restores the archived original it had

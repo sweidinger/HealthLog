@@ -111,7 +111,9 @@ export function canonicalSchedulesFromRevision(
       id: `rev:${revision.id}:${idx}`,
       rrule: typeof e.rrule === "string" ? e.rrule : null,
       rollingIntervalDays:
-        typeof e.rollingIntervalDays === "number" ? e.rollingIntervalDays : null,
+        typeof e.rollingIntervalDays === "number"
+          ? e.rollingIntervalDays
+          : null,
       timesOfDay: Array.isArray(e.timesOfDay)
         ? e.timesOfDay.filter((t): t is string => typeof t === "string")
         : [],
@@ -197,7 +199,12 @@ export function segmentRangeIntoEras(
         )
       : range.from;
   if (liveFrom.getTime() <= range.to.getTime()) {
-    eras.push({ from: liveFrom, to: range.to, schedules: liveSchedules, live: true });
+    eras.push({
+      from: liveFrom,
+      to: range.to,
+      schedules: liveSchedules,
+      live: true,
+    });
   }
   return eras;
 }
@@ -224,9 +231,14 @@ export function buildBandsForSchedulesWithEras(input: {
   if (input.revisions.length === 0) {
     return buildBandsForSchedules(input);
   }
-  const eras = segmentRangeIntoEras(input.range, input.revisions, input.schedules, {
-    oneShot: input.medication.oneShot,
-  });
+  const eras = segmentRangeIntoEras(
+    input.range,
+    input.revisions,
+    input.schedules,
+    {
+      oneShot: input.medication.oneShot,
+    },
+  );
   const groups: ScheduleBandGroup[] = [];
   for (const era of eras) {
     groups.push(

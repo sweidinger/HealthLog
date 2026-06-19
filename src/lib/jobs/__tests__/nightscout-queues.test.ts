@@ -39,9 +39,7 @@ describe("reminder-worker — Nightscout sync queue", () => {
   });
 
   it("schedules the hourly poll cron", () => {
-    expect(source).toMatch(
-      /\[NIGHTSCOUT_SYNC_QUEUE,\s*NIGHTSCOUT_SYNC_CRON\]/,
-    );
+    expect(source).toMatch(/\[NIGHTSCOUT_SYNC_QUEUE,\s*NIGHTSCOUT_SYNC_CRON\]/);
   });
 
   it("registers a boss.work handler for the queue", () => {

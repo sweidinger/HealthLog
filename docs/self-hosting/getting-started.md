@@ -9,8 +9,8 @@ already installed, longer if a TLS-fronted public hostname is in scope
 
 - **Docker 24+ with Compose v2.** The bundled `docker-compose.yml`
   pulls a multi-arch image from GitHub Container Registry (linux/amd64
-  + linux/arm64), so a Raspberry Pi 5 or an x86 VPS both work
-  unchanged.
+  - linux/arm64), so a Raspberry Pi 5 or an x86 VPS both work
+    unchanged.
 - **2 GB RAM, 10 GB free disk.** The Postgres data volume grows with
   measurement history; the Apple Health import worker can briefly
   hold a 1.5 GB upload in `/tmp` while it parses.
@@ -43,11 +43,11 @@ echo "ENCRYPTION_KEY=$(openssl rand -hex 32)"       >> .env
 echo "API_TOKEN_HMAC_KEY=$(openssl rand -hex 32)"   >> .env
 ```
 
-| Variable | Purpose | Rotation cost |
-| -------- | ------- | ------------- |
-| `POSTGRES_PASSWORD` | Bundled Postgres password — used by both the `db` service and `DATABASE_URL` | Database restart + connection-string update |
-| `ENCRYPTION_KEY` | AES-256-GCM key for at-rest secrets (Withings tokens, AI provider keys, VAPID secrets) | Coordinated; see `docs/ops/encryption-key-rotation.md` |
-| `API_TOKEN_HMAC_KEY` | HMAC-SHA256 key for hashing Bearer API tokens before storage | Invalidates every issued `hlk_*` token |
+| Variable             | Purpose                                                                                | Rotation cost                                          |
+| -------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `POSTGRES_PASSWORD`  | Bundled Postgres password — used by both the `db` service and `DATABASE_URL`           | Database restart + connection-string update            |
+| `ENCRYPTION_KEY`     | AES-256-GCM key for at-rest secrets (Withings tokens, AI provider keys, VAPID secrets) | Coordinated; see `docs/ops/encryption-key-rotation.md` |
+| `API_TOKEN_HMAC_KEY` | HMAC-SHA256 key for hashing Bearer API tokens before storage                           | Invalidates every issued `hlk_*` token                 |
 
 Then open `.env` and confirm `DATABASE_URL` includes the password you
 just generated. The default template (`postgresql://healthlog:CHANGE-ME@db:5432/healthlog`)
@@ -131,9 +131,9 @@ compose `environment:` block has no effect — they only take hold when
 you build your own image. They are intentionally absent from the
 compose runtime whitelist for that reason.
 
-| Variable | Default | Effect when set |
-| --- | --- | --- |
-| `NEXT_PUBLIC_DASHBOARD_SNAPSHOT` | on | The dashboard hydrates every above-the-fold tile from the single `GET /api/dashboard/snapshot` cell so the whole strip shares one completion moment. Build with `NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false` to fall back to the legacy four-cell path. |
+| Variable                         | Default | Effect when set                                                                                                                                                                                                                                   |
+| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_DASHBOARD_SNAPSHOT` | on      | The dashboard hydrates every above-the-fold tile from the single `GET /api/dashboard/snapshot` cell so the whole strip shares one completion moment. Build with `NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false` to fall back to the legacy four-cell path. |
 
 To flip one, rebuild the image with the variable exported:
 
@@ -144,18 +144,18 @@ NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false pnpm build
 
 ## 7. Where to go next
 
-| Next step | File |
-| --------- | ---- |
-| TLS + reverse-proxy configuration | `docs/self-hosting/reverse-proxy.md` |
-| Push notifications — Web Push, Telegram, ntfy, webhook, email, APNs | `docs/self-hosting/notifications.md` |
-| Web/worker process split for horizontal scale | `docs/self-hosting/scaling.md` |
-| Off-host encrypted backups to S3/R2/B2 | `docs/ops/backup-restore.md` |
-| Encryption-key rotation procedure | `docs/ops/encryption-key-rotation.md` |
-| Withings device sync | `docs/integrations/withings.md` |
-| WHOOP device sync (per-user BYO-keys) | `docs/integrations/whoop.md` |
-| Google Health sync — Fitbit & Pixel (per-user BYO-keys) | `docs/integrations/google-health.md` |
-| Apple Health `export.zip` import | `docs/integrations/apple-health.md` |
-| AI provider setup (OpenAI / Anthropic / local / ChatGPT OAuth) | `docs/integrations/ai-providers.md` |
+| Next step                                                           | File                                  |
+| ------------------------------------------------------------------- | ------------------------------------- |
+| TLS + reverse-proxy configuration                                   | `docs/self-hosting/reverse-proxy.md`  |
+| Push notifications — Web Push, Telegram, ntfy, webhook, email, APNs | `docs/self-hosting/notifications.md`  |
+| Web/worker process split for horizontal scale                       | `docs/self-hosting/scaling.md`        |
+| Off-host encrypted backups to S3/R2/B2                              | `docs/ops/backup-restore.md`          |
+| Encryption-key rotation procedure                                   | `docs/ops/encryption-key-rotation.md` |
+| Withings device sync                                                | `docs/integrations/withings.md`       |
+| WHOOP device sync (per-user BYO-keys)                               | `docs/integrations/whoop.md`          |
+| Google Health sync — Fitbit & Pixel (per-user BYO-keys)             | `docs/integrations/google-health.md`  |
+| Apple Health `export.zip` import                                    | `docs/integrations/apple-health.md`   |
+| AI provider setup (OpenAI / Anthropic / local / ChatGPT OAuth)      | `docs/integrations/ai-providers.md`   |
 
 ## Troubleshooting
 
@@ -168,7 +168,7 @@ NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false pnpm build
   `app_settings.singleton.registrationEnabled`. The admin panel can
   flip it back if a previous owner closed it.
 - **Service unreachable on `localhost:3000`.** Check `docker compose
-  ps` — the `app` healthcheck polls `/api/version` every 30 seconds
+ps` — the `app` healthcheck polls `/api/version` every 30 seconds
   and will mark the container unhealthy if Postgres is still
   starting. Tail `docker compose logs db` to confirm Postgres came up
   cleanly.

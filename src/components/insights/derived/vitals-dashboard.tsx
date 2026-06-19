@@ -23,10 +23,7 @@ import {
   SECTION_MOBILITY,
   type DashboardDerived,
 } from "./use-dashboard-derived";
-import {
-  resolveTileLayout,
-  type InsightsLayout,
-} from "@/lib/insights-layout";
+import { resolveTileLayout, type InsightsLayout } from "@/lib/insights-layout";
 import type { TrendDirectionSentiment } from "@/lib/insights/trend-sentiment";
 // Type-only — the compute payloads never drag the server graph into the bundle.
 import type { VitalsBaselineValue } from "@/lib/insights/derived/baseline";
@@ -153,7 +150,10 @@ const MOBILITY_TILE_LAYOUT_ID: Record<string, string> = {
  * `null` layout (caller passed none) is treated as everything-visible so the
  * default behaviour is unchanged.
  */
-function tileVisible(layout: InsightsLayout | undefined, tileId: string): boolean {
+function tileVisible(
+  layout: InsightsLayout | undefined,
+  tileId: string,
+): boolean {
   if (!layout) return true;
   return resolveTileLayout(layout, tileId).visible;
 }
@@ -653,23 +653,23 @@ export function VitalsDashboard({ batch, layout, className }: DashboardProps) {
         order: tileOrder(layout, "bmi"),
         node: <BmiTile key="bmi" {...tileProps} />,
       },
-      ...SECTION_VITALS.filter(
-        (type) => type !== "HEART_RATE_VARIABILITY",
-      ).map((type) => {
-        const id = VITAL_BASELINE_TILE_LAYOUT_ID[type] ?? type;
-        return {
-          id,
-          order: tileOrder(layout, id),
-          node: (
-            <BaselineTile
-              key={type}
-              metric="VITALS_BASELINE"
-              type={type}
-              {...tileProps}
-            />
-          ),
-        };
-      }),
+      ...SECTION_VITALS.filter((type) => type !== "HEART_RATE_VARIABILITY").map(
+        (type) => {
+          const id = VITAL_BASELINE_TILE_LAYOUT_ID[type] ?? type;
+          return {
+            id,
+            order: tileOrder(layout, id),
+            node: (
+              <BaselineTile
+                key={type}
+                metric="VITALS_BASELINE"
+                type={type}
+                {...tileProps}
+              />
+            ),
+          };
+        },
+      ),
     ];
     return entries
       .filter((e) => tileVisible(layout, e.id))

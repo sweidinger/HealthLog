@@ -466,7 +466,9 @@ describe("POST /api/medications/intake", () => {
       scheduleRevisions: [],
     } as never);
     vi.mocked(prisma.$transaction).mockImplementation(async (arg: unknown) =>
-      Array.isArray(arg) ? Promise.all(arg) : (arg as (c: unknown) => unknown)(prisma),
+      Array.isArray(arg)
+        ? Promise.all(arg)
+        : (arg as (c: unknown) => unknown)(prisma),
     );
     vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue({
       id: "e1",
@@ -561,10 +563,10 @@ describe("POST /api/medications/intake", () => {
       expect.objectContaining({ eventId: "e2" }),
     );
     // The refund runs BEFORE the tombstone write on the source row.
-    const restoreOrder = vi.mocked(restoreForIntake).mock
+    const restoreOrder =
+      vi.mocked(restoreForIntake).mock.invocationCallOrder[0];
+    const tombstoneOrder = vi.mocked(prisma.medicationIntakeEvent.update).mock
       .invocationCallOrder[0];
-    const tombstoneOrder = vi.mocked(prisma.medicationIntakeEvent.update)
-      .mock.invocationCallOrder[0];
     expect(restoreOrder).toBeLessThan(tombstoneOrder);
   });
 });

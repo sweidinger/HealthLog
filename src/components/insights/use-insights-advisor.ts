@@ -201,9 +201,8 @@ async function fetchAdvisor(
   // Lazy schema load — see the type-only import note at the top. The
   // module is cached after the first call, so this await is free from
   // the second fetch on.
-  const { dailyBriefingSchema, trendAnnotationsSchema } = await import(
-    "@/lib/ai/schema"
-  );
+  const { dailyBriefingSchema, trendAnnotationsSchema } =
+    await import("@/lib/ai/schema");
   // The cached `insights` blob may carry a `dailyBriefing` from a fresh
   // PROMPT_VERSION 4.20.x generation. Lift it onto the payload so
   // consumers don't have to know the legacy shape.

@@ -36,7 +36,8 @@ export const POST = apiHandler(async () => {
     eventType: "SYSTEM_ALERT",
     userId: user.id,
     title: "HealthLog Test",
-    message: "HealthLog: Connection successful! Webhook notifications are active.",
+    message:
+      "HealthLog: Connection successful! Webhook notifications are active.",
   });
 
   if (!result.ok) {

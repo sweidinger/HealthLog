@@ -37,7 +37,10 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { buildTieredSeries, buildTieredSeriesForTypes } from "../tiered-context";
+import {
+  buildTieredSeries,
+  buildTieredSeriesForTypes,
+} from "../tiered-context";
 
 const NOW = new Date("2026-06-19T00:00:00.000Z").getTime();
 

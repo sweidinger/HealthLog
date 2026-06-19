@@ -49,8 +49,7 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding:
-            "calc(env(safe-area-inset-top, 0px) + 24px) 24px 24px 24px",
+          padding: "calc(env(safe-area-inset-top, 0px) + 24px) 24px 24px 24px",
         }}
       >
         <div style={{ maxWidth: 560 }}>
@@ -67,8 +66,7 @@ export default function GlobalError({
             Etwas ist schiefgegangen / Something went wrong
           </h1>
           <p style={{ color: "#d0d0d0", marginBottom: 16, fontSize: 14 }}>
-            Ein kritischer Fehler ist aufgetreten. / A critical error
-            occurred.
+            Ein kritischer Fehler ist aufgetreten. / A critical error occurred.
           </p>
           <pre
             style={{

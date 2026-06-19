@@ -128,10 +128,7 @@ export function DoseStrengthCurve({
   });
 
   const now = useMemo(() => asOf ?? new Date(), [asOf]);
-  const doseChanges = useMemo(
-    () => details?.doseChanges ?? [],
-    [details],
-  );
+  const doseChanges = useMemo(() => details?.doseChanges ?? [], [details]);
   const points = useMemo(
     () => buildCurvePoints(doseChanges, now),
     [doseChanges, now],

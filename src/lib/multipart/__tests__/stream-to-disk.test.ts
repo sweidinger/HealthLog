@@ -3,10 +3,7 @@ import { readFileSync, unlinkSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { deflateRawSync } from "node:zlib";
 
-import {
-  parseBoundary,
-  streamMultipartToDisk,
-} from "../stream-to-disk";
+import { parseBoundary, streamMultipartToDisk } from "../stream-to-disk";
 import { extractExportXml } from "@/lib/import/unzip-export-xml";
 
 const BOUNDARY = "----HealthLogTestBoundary";
@@ -24,18 +21,18 @@ function buildMultipartBody(
   for (const [name, value] of Object.entries(textFields)) {
     parts.push(
       Buffer.from(
-        `--${BOUNDARY}\r\n`
-        + `Content-Disposition: form-data; name="${name}"\r\n\r\n`
-        + value
-        + `\r\n`,
+        `--${BOUNDARY}\r\n` +
+          `Content-Disposition: form-data; name="${name}"\r\n\r\n` +
+          value +
+          `\r\n`,
       ),
     );
   }
   parts.push(
     Buffer.from(
-      `--${BOUNDARY}\r\n`
-      + `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n`
-      + `Content-Type: application/octet-stream\r\n\r\n`,
+      `--${BOUNDARY}\r\n` +
+        `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
+        `Content-Type: application/octet-stream\r\n\r\n`,
     ),
   );
   parts.push(fileContent);
@@ -95,7 +92,11 @@ describe("streamMultipartToDisk", () => {
         "05c6e08f1d9fdafa03147fcb8f82f124c76d2f70e3d989dc8aadb5e7d7450bec",
       );
     } finally {
-      try { unlinkSync(result.filePath); } catch { /* ignore */ }
+      try {
+        unlinkSync(result.filePath);
+      } catch {
+        /* ignore */
+      }
     }
   });
 
@@ -118,11 +119,11 @@ describe("streamMultipartToDisk", () => {
     // Override the filename to a field name that's NOT the captured one
     // by re-building without a file field at all.
     const onlyText = Buffer.from(
-      `--${BOUNDARY}\r\n`
-      + `Content-Disposition: form-data; name="userId"\r\n\r\n`
-      + `u-1`
-      + `\r\n`
-      + `--${BOUNDARY}--\r\n`,
+      `--${BOUNDARY}\r\n` +
+        `Content-Disposition: form-data; name="userId"\r\n\r\n` +
+        `u-1` +
+        `\r\n` +
+        `--${BOUNDARY}--\r\n`,
     );
     void body; // referenced above for shape demo
     await expect(
@@ -137,11 +138,10 @@ describe("streamMultipartToDisk", () => {
   it("throws when the boundary is missing from the header", async () => {
     const body = buildMultipartBody("export.zip", Buffer.from("x"));
     await expect(
-      streamMultipartToDisk(
-        toWebStream(body),
-        `application/json`,
-        { maxBytes: 1024, fieldName: "file" },
-      ),
+      streamMultipartToDisk(toWebStream(body), `application/json`, {
+        maxBytes: 1024,
+        fieldName: "file",
+      }),
     ).rejects.toThrow(/boundary/);
   });
 });
@@ -179,7 +179,7 @@ function buildZip(name: string, data: Buffer): Buffer {
   const table: number[] = [];
   for (let n = 0; n < 256; n++) {
     let c = n;
-    for (let k = 0; k < 8; k++) c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
     table[n] = c >>> 0;
   }
   let crc = 0 ^ -1;
@@ -278,9 +278,7 @@ describe("streamMultipartToDisk — large multi-chunk binary round-trip", () => 
     // A few-MB payload exercises many chunks at realistic network sizes —
     // this is the shape the wild 40 MB upload took.
     const fileContent = makeAdversarialBinary(3 * 1024 * 1024 + 777);
-    const expectedSha = createHash("sha256")
-      .update(fileContent)
-      .digest("hex");
+    const expectedSha = createHash("sha256").update(fileContent).digest("hex");
     const body = buildMultipartBody("export.zip", fileContent, {
       userId: "u-1",
     });
@@ -330,9 +328,7 @@ describe("streamMultipartToDisk — large multi-chunk binary round-trip", () => 
     // boundary-suffix-loss bug; keep the payload small so the per-chunk
     // file writes stay fast while still spanning thousands of chunks.
     const fileContent = makeAdversarialBinary(16 * 1024 + 17);
-    const expectedSha = createHash("sha256")
-      .update(fileContent)
-      .digest("hex");
+    const expectedSha = createHash("sha256").update(fileContent).digest("hex");
     const body = buildMultipartBody("export.zip", fileContent, {
       userId: "u-1",
     });
@@ -373,9 +369,7 @@ describe("streamMultipartToDisk — large multi-chunk binary round-trip", () => 
       Buffer.from("CCCC\r\nDDDD\r\n--"),
       Buffer.from([0x0d, 0x0a, 0x2d, 0x2d, 0x00, 0xff]),
     ]);
-    const expectedSha = createHash("sha256")
-      .update(fileContent)
-      .digest("hex");
+    const expectedSha = createHash("sha256").update(fileContent).digest("hex");
     const body = buildMultipartBody("export.zip", fileContent, {
       userId: "u-1",
     });

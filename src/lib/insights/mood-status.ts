@@ -68,7 +68,9 @@ import { toBerlinDayKey } from "@/lib/tz/resolver";
  * snapshot payload — it exists solely to standardize the better-days sort
  * and has no place in the model prompt or the UI.
  */
-function stripRankingOnly(row: TagInfluenceRow): Omit<TagInfluenceRow, "pooledSd"> {
+function stripRankingOnly(
+  row: TagInfluenceRow,
+): Omit<TagInfluenceRow, "pooledSd"> {
   const { pooledSd: _pooledSd, ...rest } = row;
   void _pooledSd;
   return rest;
@@ -439,7 +441,11 @@ export async function prepareMoodStatusForUser(
   const betterDays = computeBetterDays(tagInfluence, {
     sleep: emptyCorrelation,
     steps: emptyCorrelation,
-    pulse: computeMoodMetricCorrelation(moodSeries.daily, pulseSeries.daily, now),
+    pulse: computeMoodMetricCorrelation(
+      moodSeries.daily,
+      pulseSeries.daily,
+      now,
+    ),
     weight: computeMoodMetricCorrelation(
       moodSeries.daily,
       weightSeries.daily,
@@ -542,9 +548,10 @@ export async function prepareMoodStatusForUser(
       // delta, FDR-gated). Lets the model say "your data shows sleep runs ~X
       // shorter on days you rate work low (n=N, association not cause)". Only
       // the surviving rows reach the prompt; an empty board emits null.
-      factorCrosstab: factorCrosstab.length > 0
-        ? factorCrosstab.map(stripFactorCrosstab)
-        : null,
+      factorCrosstab:
+        factorCrosstab.length > 0
+          ? factorCrosstab.map(stripFactorCrosstab)
+          : null,
       narratives: narratives.length > 0 ? narratives : null,
       // v1.9.0 — only emit the daypart pattern when it cleared its
       // spread/sample floors, so the model never reasons over a once-a-day

@@ -233,15 +233,9 @@ export function RecommendationFeedback({
         data-slot="rec-feedback-already-rated"
       >
         {verdict === "up" ? (
-          <ThumbsUp
-            className="text-success h-3.5 w-3.5"
-            aria-hidden="true"
-          />
+          <ThumbsUp className="text-success h-3.5 w-3.5" aria-hidden="true" />
         ) : (
-          <ThumbsDown
-            className="text-warning h-3.5 w-3.5"
-            aria-hidden="true"
-          />
+          <ThumbsDown className="text-warning h-3.5 w-3.5" aria-hidden="true" />
         )}
         <span data-feedback-already-rated={verdict}>
           {t("insights.recommendation.feedbackAlreadyRated")}
@@ -266,7 +260,10 @@ export function RecommendationFeedback({
         className="text-muted-foreground hover:text-success disabled:hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
       >
         {submittingUp ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          <Loader2
+            className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
         ) : (
           <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
         )}
@@ -281,7 +278,10 @@ export function RecommendationFeedback({
         className="text-muted-foreground hover:text-warning disabled:hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
       >
         {submittingDown ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          <Loader2
+            className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
         ) : (
           <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
         )}

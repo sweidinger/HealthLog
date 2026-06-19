@@ -104,7 +104,9 @@ beforeEach(() => {
   vi.mocked(prisma.medicationIntakeEvent.count).mockResolvedValue(0);
   vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.moodEntry.count).mockResolvedValue(0);
-  vi.mocked(prisma.user.findUnique).mockResolvedValue({ heightCm: null } as never);
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({
+    heightCm: null,
+  } as never);
 });
 
 describe("v1.4.41 W-DELETED-2 — soft-delete invisibility", () => {
@@ -140,9 +142,7 @@ describe("v1.4.41 W-DELETED-2 — soft-delete invisibility", () => {
 
   it("/api/gamification/achievements scopes the measurement read to deletedAt: null", async () => {
     vi.mocked(prisma.userAchievement.findMany).mockResolvedValue([] as never);
-    const { GET } = await import(
-      "../../gamification/achievements/route"
-    );
+    const { GET } = await import("../../gamification/achievements/route");
     await GET(mkReq("http://localhost/api/gamification/achievements"));
     const calls = vi.mocked(prisma.measurement.findMany).mock.calls;
     // The achievement aggregator reads recent measurements via

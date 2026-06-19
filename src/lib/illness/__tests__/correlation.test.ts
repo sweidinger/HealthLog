@@ -24,11 +24,18 @@ import {
 const NOW = new Date("2026-02-01T00:00:00Z");
 
 /** Build a flat baseline series of `days` days at `value`, ending `endDay`. */
-function flatBaseline(value: number, days: number, endDay: string): VitalDayPoint[] {
+function flatBaseline(
+  value: number,
+  days: number,
+  endDay: string,
+): VitalDayPoint[] {
   const out: VitalDayPoint[] = [];
   let cursor = Date.parse(`${endDay}T00:00:00Z`);
   for (let i = 0; i < days; i++) {
-    out.unshift({ day: new Date(cursor).toISOString().slice(0, 10), mean: value });
+    out.unshift({
+      day: new Date(cursor).toISOString().slice(0, 10),
+      mean: value,
+    });
     cursor -= 24 * 60 * 60 * 1000;
   }
   return out;
@@ -39,16 +46,30 @@ function flatBaseline(value: number, days: number, endDay: string): VitalDayPoin
  * is non-zero and stable. Means cycle through `center − jitter … center +
  * jitter` so the median is `center` and the MAD is ~`jitter/2`.
  */
-function jitteredBaseline(center: number, jitter: number, days: number, endDay: string): VitalDayPoint[] {
+function jitteredBaseline(
+  center: number,
+  jitter: number,
+  days: number,
+  endDay: string,
+): VitalDayPoint[] {
   const base = flatBaseline(center, days, endDay);
   const offsets = [-jitter, -jitter / 2, 0, jitter / 2, jitter];
-  return base.map((p, i) => ({ ...p, mean: center + offsets[i % offsets.length] }));
+  return base.map((p, i) => ({
+    ...p,
+    mean: center + offsets[i % offsets.length],
+  }));
 }
 
-function input(over: Partial<IllnessCorrelationInput>): IllnessCorrelationInput {
+function input(
+  over: Partial<IllnessCorrelationInput>,
+): IllnessCorrelationInput {
   return {
     episodeId: "ep1",
-    window: { onsetDay: "2026-01-10", feltBetterDay: "2026-01-17", lifecycle: "ACUTE" },
+    window: {
+      onsetDay: "2026-01-10",
+      feltBetterDay: "2026-01-17",
+      lifecycle: "ACUTE",
+    },
     series: [],
     source: "DAY",
     now: NOW,
@@ -60,7 +81,8 @@ describe("computeIllnessCorrelation — coverage gate", () => {
   it("returns insufficient with no baselined vitals", () => {
     const out = computeIllnessCorrelation(input({ series: [] }));
     expect(out.status).toBe("insufficient");
-    if (out.status === "insufficient") expect(out.reason).toBe("no_baselined_vitals");
+    if (out.status === "insufficient")
+      expect(out.reason).toBe("no_baselined_vitals");
   });
 
   it("returns insufficient when a vital lacks the min baseline days", () => {
@@ -164,7 +186,11 @@ describe("computeIllnessCorrelation — golden recovery-gap", () => {
     ];
     const out = computeIllnessCorrelation(
       input({
-        window: { onsetDay: "2026-01-10", feltBetterDay: "2026-01-15", lifecycle: "CHRONIC_ONGOING" },
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-15",
+          lifecycle: "CHRONIC_ONGOING",
+        },
         series: [{ type, baselineDays, episodeDays }],
       }),
     );
@@ -185,7 +211,11 @@ describe("computeIllnessCorrelation — golden recovery-gap", () => {
     ];
     const out = computeIllnessCorrelation(
       input({
-        window: { onsetDay: "2026-01-10", feltBetterDay: null, lifecycle: "ACUTE" },
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: null,
+          lifecycle: "ACUTE",
+        },
         series: [{ type, baselineDays, episodeDays }],
       }),
     );
@@ -354,7 +384,9 @@ describe("computeIllnessCorrelation — red-flag escalation", () => {
     );
     expect(out.status).toBe("ok");
     if (out.status !== "ok") return;
-    const fever = out.value.redFlags.find((f) => f.reason === "sustained_fever");
+    const fever = out.value.redFlags.find(
+      (f) => f.reason === "sustained_fever",
+    );
     expect(fever).toBeDefined();
     expect(fever?.days).toBe(3);
     expect(fever?.worstValue).toBe(39.2);
@@ -391,7 +423,9 @@ describe("computeIllnessCorrelation — red-flag escalation", () => {
     );
     expect(out.status).toBe("ok");
     if (out.status !== "ok") return;
-    const fever = out.value.redFlags.find((f) => f.reason === "sustained_fever");
+    const fever = out.value.redFlags.find(
+      (f) => f.reason === "sustained_fever",
+    );
     expect(fever).toBeDefined();
     expect(fever?.days).toBe(3);
   });
@@ -418,7 +452,11 @@ describe("computeIllnessCorrelation — return anchor", () => {
     ];
     const out = computeIllnessCorrelation(
       input({
-        window: { onsetDay: "2026-01-10", feltBetterDay: "2026-01-15", lifecycle: "ACUTE" },
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-15",
+          lifecycle: "ACUTE",
+        },
         series: [{ type, baselineDays, episodeDays }],
       }),
     );

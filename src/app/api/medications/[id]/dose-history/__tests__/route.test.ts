@@ -117,7 +117,9 @@ beforeEach(() => {
       },
     ],
   } as never);
-  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+    [] as never,
+  );
 });
 
 describe("GET /api/medications/[id]/dose-history", () => {

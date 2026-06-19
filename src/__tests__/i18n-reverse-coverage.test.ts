@@ -186,7 +186,11 @@ function isReferenced(leaf: string, ref: Reference): boolean {
       }
     }
     for (const ck of ref.literalKeys) {
-      if (base === ck || base.startsWith(`${ck}.`) || ck.startsWith(`${base}.`)) {
+      if (
+        base === ck ||
+        base.startsWith(`${ck}.`) ||
+        ck.startsWith(`${base}.`)
+      ) {
         return true;
       }
     }

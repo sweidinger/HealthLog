@@ -299,12 +299,40 @@ export async function buildTieredSeries(
         : readRecentDaily(userId, type, now),
       coarseOnly
         ? emptyBand
-        : readBand(userId, type, "DAY", TIERED_BANDS.dayUntil, TIERED_BANDS.rawDays, now),
+        : readBand(
+            userId,
+            type,
+            "DAY",
+            TIERED_BANDS.dayUntil,
+            TIERED_BANDS.rawDays,
+            now,
+          ),
       coarseOnly
         ? emptyBand
-        : readBand(userId, type, "WEEK", TIERED_BANDS.weekUntil, TIERED_BANDS.dayUntil, now),
-      readBand(userId, type, "MONTH", TIERED_BANDS.monthUntil, TIERED_BANDS.weekUntil, now),
-      readBand(userId, type, "YEAR", TIERED_BANDS.yearUntil, TIERED_BANDS.monthUntil, now),
+        : readBand(
+            userId,
+            type,
+            "WEEK",
+            TIERED_BANDS.weekUntil,
+            TIERED_BANDS.dayUntil,
+            now,
+          ),
+      readBand(
+        userId,
+        type,
+        "MONTH",
+        TIERED_BANDS.monthUntil,
+        TIERED_BANDS.weekUntil,
+        now,
+      ),
+      readBand(
+        userId,
+        type,
+        "YEAR",
+        TIERED_BANDS.yearUntil,
+        TIERED_BANDS.monthUntil,
+        now,
+      ),
     ]);
 
   // Window stats span every coarse bucket so the anomaly threshold reflects

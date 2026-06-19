@@ -196,7 +196,10 @@ async function enqueueWithingsSync(
     return;
   }
   try {
-    await boss.send(queueName, { userId, triggeredAt: new Date().toISOString() });
+    await boss.send(queueName, {
+      userId,
+      triggeredAt: new Date().toISOString(),
+    });
   } catch (err) {
     getEvent()?.addWarning(
       `Failed to enqueue ${queueName} for ${userId}: ${err}`,

@@ -7,7 +7,7 @@ vi.mock("@/lib/db", () => ({
     // v1.4.43 W6 — audit-ledger breadcrumb for validation-failed paths.
     auditLog: { create: vi.fn() },
   },
-  toJson: <T,>(v: T) => v,
+  toJson: <T>(v: T) => v,
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));

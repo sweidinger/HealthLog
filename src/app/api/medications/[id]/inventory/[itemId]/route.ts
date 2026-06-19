@@ -108,7 +108,10 @@ export const PATCH = apiHandler(
       // state-machine re-run below owns every state consequence (0 ⇒
       // USED_UP, a raise out of 0 re-evaluates against the expiry
       // clocks).
-      nextUnitsRemaining = Math.min(unitsRemaining, Number(existing.unitsTotal));
+      nextUnitsRemaining = Math.min(
+        unitsRemaining,
+        Number(existing.unitsTotal),
+      );
     }
 
     if (markAsUsedUp === true) {

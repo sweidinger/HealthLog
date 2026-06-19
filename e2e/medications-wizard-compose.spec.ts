@@ -165,10 +165,7 @@ test.describe("medication wizard — compose-mode", () => {
     expect(capture.postBody).toMatchObject({
       name: "Insulin",
       oneShot: false,
-      schedules: [
-        { rrule: "FREQ=DAILY" },
-        { rrule: "FREQ=WEEKLY;BYDAY=WE" },
-      ],
+      schedules: [{ rrule: "FREQ=DAILY" }, { rrule: "FREQ=WEEKLY;BYDAY=WE" }],
     });
 
     await expectMedicationOnList(page, {

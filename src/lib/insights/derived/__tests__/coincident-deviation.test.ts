@@ -47,7 +47,9 @@ function firingRows(args: { where: { type: string } }) {
   const baseline = (base: number, outlier: number) => [
     ...Array.from({ length: 9 }, (_, i) => ({
       value: base,
-      measuredAt: new Date(`2026-05-${String(15 + i).padStart(2, "0")}T07:00:00Z`),
+      measuredAt: new Date(
+        `2026-05-${String(15 + i).padStart(2, "0")}T07:00:00Z`,
+      ),
     })),
     { value: outlier, measuredAt: new Date("2026-06-02T07:00:00Z") },
   ];
@@ -61,7 +63,9 @@ function quietBandedRows(args: { where: { type: string } }) {
   const flat = (base: number) =>
     Array.from({ length: 10 }, (_, i) => ({
       value: base,
-      measuredAt: new Date(`2026-05-${String(15 + i).padStart(2, "0")}T07:00:00Z`),
+      measuredAt: new Date(
+        `2026-05-${String(15 + i).padStart(2, "0")}T07:00:00Z`,
+      ),
     }));
   if (args.where.type === "RESTING_HEART_RATE") return flat(58);
   if (args.where.type === "HEART_RATE_VARIABILITY") return flat(60);
@@ -91,7 +95,9 @@ describe("computeCoincidentDeviation", () => {
       }
       return [];
     });
-    const result = await computeCoincidentDeviation("u1", PROFILE, { now: NOW });
+    const result = await computeCoincidentDeviation("u1", PROFILE, {
+      now: NOW,
+    });
     expect(result.status).toBe("insufficient");
     if (result.status === "insufficient") {
       expect(result.reason).toBe("too_few_banded_vitals");
@@ -118,7 +124,9 @@ describe("computeCoincidentDeviation", () => {
       if (args.where.type === "HEART_RATE_VARIABILITY") return baseline(60, 10);
       return [];
     });
-    const result = await computeCoincidentDeviation("u1", PROFILE, { now: NOW });
+    const result = await computeCoincidentDeviation("u1", PROFILE, {
+      now: NOW,
+    });
     expect(result.status).toBe("ok");
     if (result.status === "ok") {
       expect(result.value.contributing.length).toBeGreaterThanOrEqual(
@@ -141,7 +149,9 @@ describe("computeCoincidentDeviation", () => {
       if (args.where.type === "HEART_RATE_VARIABILITY") return flat(60);
       return [];
     });
-    const result = await computeCoincidentDeviation("u1", PROFILE, { now: NOW });
+    const result = await computeCoincidentDeviation("u1", PROFILE, {
+      now: NOW,
+    });
     expect(result.status).toBe("ok");
     if (result.status === "ok") {
       expect(result.value.fired).toBe(false);
@@ -156,7 +166,9 @@ describe("computeCoincidentDeviation", () => {
       episodes: [],
     });
     findMany.mockImplementation(firingRows);
-    const result = await computeCoincidentDeviation("u1", PROFILE, { now: NOW });
+    const result = await computeCoincidentDeviation("u1", PROFILE, {
+      now: NOW,
+    });
     expect(result.status).toBe("ok");
     if (result.status === "ok") {
       expect(result.value.fired).toBe(true);
@@ -171,7 +183,9 @@ describe("computeCoincidentDeviation", () => {
   it("does not resolve Rest Mode (no reframe) when the flag did not fire", async () => {
     // Banded but inside-band: the reframe must not even query Rest Mode.
     findMany.mockImplementation(quietBandedRows);
-    const result = await computeCoincidentDeviation("u1", PROFILE, { now: NOW });
+    const result = await computeCoincidentDeviation("u1", PROFILE, {
+      now: NOW,
+    });
     expect(result.status === "ok" && result.value.fired).toBe(false);
     expect(result.status === "ok" && result.value.illnessExplained).toBe(false);
     expect(restModeMock.resolveRestMode).not.toHaveBeenCalled();

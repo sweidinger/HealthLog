@@ -25,7 +25,10 @@ function profile(overrides: Partial<CycleProfile> = {}): CycleProfile {
   } as CycleProfile;
 }
 
-function cycle(startDate: string, overrides: Partial<MenstrualCycle> = {}): MenstrualCycle {
+function cycle(
+  startDate: string,
+  overrides: Partial<MenstrualCycle> = {},
+): MenstrualCycle {
   return {
     id: `c-${startDate}`,
     userId: "u1",
@@ -48,14 +51,33 @@ function cycle(startDate: string, overrides: Partial<MenstrualCycle> = {}): Mens
 describe("buildCalendar", () => {
   // Three ~28-day cycles → a real prediction.
   const cycles = [
-    cycle("2026-01-01", { endDate: "2026-01-28", lengthDays: 28, periodEndDate: "2026-01-05" }),
-    cycle("2026-01-29", { endDate: "2026-02-25", lengthDays: 28, periodEndDate: "2026-02-02" }),
+    cycle("2026-01-01", {
+      endDate: "2026-01-28",
+      lengthDays: 28,
+      periodEndDate: "2026-01-05",
+    }),
+    cycle("2026-01-29", {
+      endDate: "2026-02-25",
+      lengthDays: 28,
+      periodEndDate: "2026-02-02",
+    }),
     cycle("2026-02-26", { periodEndDate: "2026-03-02" }),
   ];
 
   it("labels logged-flow days and emits a forecast for ≥2 cycles", () => {
     const dayLogs: CalendarDayLogRow[] = [
-      { date: "2026-02-26", flow: "MEDIUM", basalBodyTempC: null, temperatureExcluded: false, ovulationTest: null, cervicalMucus: null, cervixPosition: null, cervixFirmness: null, cervixOpening: null, hasSymptoms: true },
+      {
+        date: "2026-02-26",
+        flow: "MEDIUM",
+        basalBodyTempC: null,
+        temperatureExcluded: false,
+        ovulationTest: null,
+        cervicalMucus: null,
+        cervixPosition: null,
+        cervixFirmness: null,
+        cervixOpening: null,
+        hasSymptoms: true,
+      },
     ];
     const { prediction, days } = buildCalendar(
       profile(),
@@ -99,9 +121,18 @@ describe("buildCalendar", () => {
   it("surfaces the fertile window for the conception goal once past cold start", () => {
     // Four starts → three completed cycles → not still-learning.
     const fourCycles = [
-      cycle("2026-01-01", { endDate: "2026-01-29", periodEndDate: "2026-01-05" }),
-      cycle("2026-01-29", { endDate: "2026-02-26", periodEndDate: "2026-02-02" }),
-      cycle("2026-02-26", { endDate: "2026-03-26", periodEndDate: "2026-03-02" }),
+      cycle("2026-01-01", {
+        endDate: "2026-01-29",
+        periodEndDate: "2026-01-05",
+      }),
+      cycle("2026-01-29", {
+        endDate: "2026-02-26",
+        periodEndDate: "2026-02-02",
+      }),
+      cycle("2026-02-26", {
+        endDate: "2026-03-26",
+        periodEndDate: "2026-03-02",
+      }),
       cycle("2026-03-26", { periodEndDate: "2026-03-30" }),
     ];
     const { days } = buildCalendar(
@@ -163,9 +194,18 @@ describe("buildCalendar", () => {
     it("emits normal fertile/ovulation/phase output once ≥3 cycles are observed", () => {
       // Four ~28-day starts → three COMPLETED cycle lengths → cyclesObserved=3.
       const fourCycles = [
-        cycle("2026-01-01", { endDate: "2026-01-29", periodEndDate: "2026-01-05" }),
-        cycle("2026-01-29", { endDate: "2026-02-26", periodEndDate: "2026-02-02" }),
-        cycle("2026-02-26", { endDate: "2026-03-26", periodEndDate: "2026-03-02" }),
+        cycle("2026-01-01", {
+          endDate: "2026-01-29",
+          periodEndDate: "2026-01-05",
+        }),
+        cycle("2026-01-29", {
+          endDate: "2026-02-26",
+          periodEndDate: "2026-02-02",
+        }),
+        cycle("2026-02-26", {
+          endDate: "2026-03-26",
+          periodEndDate: "2026-03-02",
+        }),
         cycle("2026-03-26", { periodEndDate: "2026-03-30" }),
       ];
       const { prediction, stillLearning, days } = buildCalendar(

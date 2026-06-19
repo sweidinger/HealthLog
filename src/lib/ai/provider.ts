@@ -418,10 +418,7 @@ export async function hasAnyConfiguredProvider(
     where: { id: "singleton" },
     select: { adminAiKeyEncrypted: true },
   });
-  return userRowHasProviderCredential(
-    userRow,
-    !!settings?.adminAiKeyEncrypted,
-  );
+  return userRowHasProviderCredential(userRow, !!settings?.adminAiKeyEncrypted);
 }
 
 /**

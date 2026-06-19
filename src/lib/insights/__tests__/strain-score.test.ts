@@ -61,9 +61,9 @@ describe("banisterTrimp", () => {
   const sex = "MALE" as const;
 
   it("returns 0 for a series with fewer than two usable HR samples", () => {
-    expect(banisterTrimp([{ t: NOW.toISOString(), hr: 150 }], hrRest, hrMax, sex)).toBe(
-      0,
-    );
+    expect(
+      banisterTrimp([{ t: NOW.toISOString(), hr: 150 }], hrRest, hrMax, sex),
+    ).toBe(0);
   });
 
   it("accumulates a positive TRIMP for a sustained elevated series", () => {

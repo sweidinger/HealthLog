@@ -14,11 +14,7 @@ import {
   VITALS_BASELINE_TYPES,
 } from "@/lib/insights/derived/registry";
 import { ANALYTICS_RANGES } from "@/lib/analytics/range-delta";
-import {
-  consentRequiredResponse,
-  dataEnvelope,
-  stdResponses,
-} from "./shared";
+import { consentRequiredResponse, dataEnvelope, stdResponses } from "./shared";
 
 const insightsComprehensiveResponse = z
   .object({

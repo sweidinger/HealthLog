@@ -170,5 +170,4 @@ describe("GET /api/admin/status (integration health summary)", () => {
     const tokenCallArgs = vi.mocked(prisma.apiToken.count).mock.calls[0]?.[0];
     expect(tokenCallArgs).toEqual({ where: { revoked: false } });
   });
-
 });

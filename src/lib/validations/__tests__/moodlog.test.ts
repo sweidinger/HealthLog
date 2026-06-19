@@ -29,7 +29,8 @@ describe("createMoodEntrySchema — note + structured tagKeys (v1.8.5)", () => {
 
   it("rejects an over-long note and an over-large tagKeys set", () => {
     expect(
-      createMoodEntrySchema.safeParse({ ...base, note: "x".repeat(501) }).success,
+      createMoodEntrySchema.safeParse({ ...base, note: "x".repeat(501) })
+        .success,
     ).toBe(false);
     expect(
       createMoodEntrySchema.safeParse({

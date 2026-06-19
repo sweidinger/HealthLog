@@ -17,7 +17,9 @@ vi.mock("@/lib/db", () => ({
     // v1.17.0 — the GET reads the caller's notificationPrefs to resolve
     // the reorder-lead-aware low-stock trigger. Default null = the
     // documented defaults (alert on, 7-day floor, 10-day lead).
-    user: { findUnique: vi.fn().mockResolvedValue({ notificationPrefs: null }) },
+    user: {
+      findUnique: vi.fn().mockResolvedValue({ notificationPrefs: null }),
+    },
     medicationDoseChange: { create: vi.fn() },
     medicationInventoryEvent: { create: vi.fn() },
   },

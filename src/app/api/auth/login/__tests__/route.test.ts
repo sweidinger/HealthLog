@@ -52,8 +52,7 @@ vi.mock("@/lib/auth/hmac", () => ({
   // privacy contract is "the typed identifier never serialises into
   // the row's body", so the mock must not embed the raw input.
   hashToken: vi.fn(
-    (raw: string) =>
-      "aa".repeat(32) + (raw.length % 8).toString(16),
+    (raw: string) => "aa".repeat(32) + (raw.length % 8).toString(16),
   ),
 }));
 

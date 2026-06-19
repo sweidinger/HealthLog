@@ -31,6 +31,7 @@ grant scoped to credentials they control.
    and the connection dies when the first access token expires (~1 hour).
    The remaining `read:*` scopes are read-only; request all of them so the
    user grants once and every sync resource is covered.
+
 4. Save the app. WHOOP issues a **Client ID** and **Client Secret** —
    keep the secret out of any chat log; it grants read access to the
    linked account's full WHOOP history.

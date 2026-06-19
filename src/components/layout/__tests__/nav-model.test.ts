@@ -35,12 +35,8 @@ describe("nav-model destination list", () => {
   it("orders the core spine: dashboard → measurements → mood → medications", () => {
     const hrefs = NAV_DESTINATIONS.map((d) => d.href);
     expect(hrefs.indexOf("/")).toBeLessThan(hrefs.indexOf("/measurements"));
-    expect(hrefs.indexOf("/measurements")).toBeLessThan(
-      hrefs.indexOf("/mood"),
-    );
-    expect(hrefs.indexOf("/mood")).toBeLessThan(
-      hrefs.indexOf("/medications"),
-    );
+    expect(hrefs.indexOf("/measurements")).toBeLessThan(hrefs.indexOf("/mood"));
+    expect(hrefs.indexOf("/mood")).toBeLessThan(hrefs.indexOf("/medications"));
   });
 
   it("every destination carries an i18n key under the nav namespace", () => {
@@ -65,7 +61,6 @@ describe("nav-model destination list", () => {
     const hrefs = NAV_DESTINATIONS.map((d) => d.href);
     expect(hrefs).not.toContain("/insights/recovery");
   });
-
 });
 
 describe("nav-model utility tail (N-1 — one shared list)", () => {
@@ -184,9 +179,9 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
     const expectedFeatures = visibleNavDestinations(opts.modules)
       .map((d) => d.href)
       .filter((href) => !BOTTOM_NAV_PRIMARY_SLOT_HREFS.includes(href));
-    const expectedTail = visibleUtilityDestinations(
-      opts.bugReportEnabled,
-    ).map((d) => d.href);
+    const expectedTail = visibleUtilityDestinations(opts.bugReportEnabled).map(
+      (d) => d.href,
+    );
 
     expect(hub).toEqual([...expectedFeatures, ...expectedTail]);
   });

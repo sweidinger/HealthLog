@@ -36,12 +36,12 @@ const baseProps = {
 describe("<TrendCard staleDays>", () => {
   it("stays silent when the metric is fresh (<= 7 days)", () => {
     const html = render(<TrendCard {...baseProps} staleDays={3} />);
-    expect(html).not.toContain("data-slot=\"tile-stale-hint\"");
+    expect(html).not.toContain('data-slot="tile-stale-hint"');
   });
 
   it("renders day-bucket copy when staleDays is in (7, 30]", () => {
     const html = render(<TrendCard {...baseProps} staleDays={12} />, "en");
-    expect(html).toContain("data-slot=\"tile-stale-hint\"");
+    expect(html).toContain('data-slot="tile-stale-hint"');
     expect(html).toContain("Last reading 12 d ago");
   });
 

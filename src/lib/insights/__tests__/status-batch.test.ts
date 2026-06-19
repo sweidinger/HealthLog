@@ -78,7 +78,12 @@ function pendingCard(
     userPrompt: `snapshot for ${metric}`,
     snapshotHash: "h",
     temperature: 0.45,
-    noProvider: { hasProvider: false, text: "nokey", cached: true, updatedAt: null },
+    noProvider: {
+      hasProvider: false,
+      text: "nokey",
+      cached: true,
+      updatedAt: null,
+    },
     timeout,
     finalize,
   };
@@ -191,7 +196,9 @@ describe("generateStatusBatchForUser — absent metrics are omitted, not fabrica
       pendingCard("pulse", pulseFinalize) as never,
     );
     vi.mocked(prepareBmiStatusForUser).mockResolvedValue(servedCard() as never);
-    vi.mocked(prepareMoodStatusForUser).mockResolvedValue(servedCard() as never);
+    vi.mocked(prepareMoodStatusForUser).mockResolvedValue(
+      servedCard() as never,
+    );
     vi.mocked(prepareMedicationComplianceStatusForUser).mockResolvedValue(
       servedCard() as never,
     );

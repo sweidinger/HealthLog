@@ -127,9 +127,7 @@ export function ScoreAnatomyView({
       }
       className={cn(
         "relative flex flex-col gap-5 rounded-xl border p-5",
-        hue
-          ? "wellness-detail-card"
-          : "border-border bg-card",
+        hue ? "wellness-detail-card" : "border-border bg-card",
         className,
       )}
       aria-label={typeof title === "string" ? title : undefined}
@@ -212,7 +210,8 @@ export function ScoreAnatomyView({
 /** One ranked contributor row — label + impact bar + value + weight share. */
 function ContributorRow({ contributor }: { contributor: AnatomyContributor }) {
   const { t } = useTranslations();
-  const present = contributor.value != null && Number.isFinite(contributor.value);
+  const present =
+    contributor.value != null && Number.isFinite(contributor.value);
   const clamped = present ? clampScore(contributor.value as number) : 0;
   const rowBand: ScoreBand = bandForScore(clamped);
   const weightPct = Math.round(contributor.weight * 100);

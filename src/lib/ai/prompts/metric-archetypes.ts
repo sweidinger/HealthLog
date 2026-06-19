@@ -27,10 +27,7 @@ import type {
   MetricStatusMeta,
 } from "@/lib/insights/metric-status-registry";
 
-function directionPhrase(
-  meta: MetricStatusMeta,
-  locale: Locale,
-): string {
+function directionPhrase(meta: MetricStatusMeta, locale: Locale): string {
   if (locale === "en") {
     switch (meta.direction) {
       case "higher-better":
@@ -78,10 +75,7 @@ function metaBlock(meta: MetricStatusMeta, locale: Locale): string {
   ].join("\n");
 }
 
-const ARCHETYPE_SECTION: Record<
-  MetricArchetype,
-  { de: string; en: string }
-> = {
+const ARCHETYPE_SECTION: Record<MetricArchetype, { de: string; en: string }> = {
   "physiological-vital": {
     en: "ARCHETYPE — PHYSIOLOGICAL VITAL:\n- This is a point-in-time physiological reading. Name the recent level, place it against both the user's own baseline (recent vs monthly/yearly mean) and, when a reference band is given, that band.\n- A single out-of-band reading is rarely a finding; a sustained shift across the recent window against the user's baseline is. Note an out-of-band trend without alarm.\n- Frame any direction (rising/falling) as a possible explanation (fitness, stress, sleep, illness, medication), never a diagnosis.",
     de: "ARCHETYP — PHYSIOLOGISCHER VITALWERT:\n- Das ist ein Momentanwert. Benenne das aktuelle Niveau und ordne es sowohl gegen die eigene Baseline (recent vs. Monats-/Jahresmittel) als auch — falls ein Referenzband vorliegt — gegen dieses Band ein.\n- Ein einzelner Wert außerhalb des Bands ist selten ein Befund; eine anhaltende Verschiebung über das recent-Fenster gegen die Baseline schon. Erwähne einen Trend außerhalb des Bands sachlich, ohne zu alarmieren.\n- Formuliere jede Richtung (steigend/fallend) als mögliche Erklärung (Fitness, Stress, Schlaf, Krankheit, Medikament), nie als Diagnose.",

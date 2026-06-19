@@ -50,7 +50,11 @@ describe("discoverCorrelations", () => {
       { key: "MOOD", role: "behaviour", points: series([3, 4, 5]) },
     ];
     const outcomes: NamedSeries[] = [
-      { key: "SLEEP_DURATION", role: "outcome", points: series([400, 410, 420]) },
+      {
+        key: "SLEEP_DURATION",
+        role: "outcome",
+        points: series([400, 410, 420]),
+      },
     ];
     const result = discoverCorrelations([...behaviours, ...outcomes]);
     expect(result.discovered).toHaveLength(0);
@@ -62,10 +66,17 @@ describe("discoverCorrelations", () => {
     const n = 30;
     const behaviourVals = Array.from({ length: n }, (_, i) => i + (i % 3));
     // Outcome on day d+1 mirrors behaviour on day d (shift by one).
-    const outcomeVals = [0, ...behaviourVals.slice(0, n - 1).map((v) => v * 2 + 5)];
+    const outcomeVals = [
+      0,
+      ...behaviourVals.slice(0, n - 1).map((v) => v * 2 + 5),
+    ];
     const result = discoverCorrelations(
       [
-        { key: "TIME_IN_DAYLIGHT", role: "behaviour", points: series(behaviourVals) },
+        {
+          key: "TIME_IN_DAYLIGHT",
+          role: "behaviour",
+          points: series(behaviourVals),
+        },
         { key: "SLEEP_DURATION", role: "outcome", points: series(outcomeVals) },
       ],
       { fdrQ: 0.1 },
@@ -85,7 +96,10 @@ describe("discoverCorrelations", () => {
   it("drops a pure-noise pair under FDR control", () => {
     // 30 days of independent-ish noise → no defensible correlation.
     const noiseA = Array.from({ length: 30 }, (_, i) => Math.sin(i) * 10 + 50);
-    const noiseB = Array.from({ length: 30 }, (_, i) => Math.cos(i * 1.7) * 10 + 50);
+    const noiseB = Array.from(
+      { length: 30 },
+      (_, i) => Math.cos(i * 1.7) * 10 + 50,
+    );
     const result = discoverCorrelations([
       { key: "BLOOD_GLUCOSE", role: "behaviour", points: series(noiseA) },
       { key: "WEIGHT", role: "outcome", points: series(noiseB) },
@@ -99,7 +113,10 @@ describe("discoverCorrelations", () => {
     // A `FACTOR:work` behaviour whose next-day sleep tracks it linearly.
     const n = 30;
     const factorVals = Array.from({ length: n }, (_, i) => (i % 5) + 1);
-    const sleepVals = [400, ...factorVals.slice(0, n - 1).map((v) => v * 30 + 300)];
+    const sleepVals = [
+      400,
+      ...factorVals.slice(0, n - 1).map((v) => v * 30 + 300),
+    ];
     const result = discoverCorrelations(
       [
         { key: "FACTOR:work", role: "behaviour", points: series(factorVals) },

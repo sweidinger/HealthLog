@@ -30,11 +30,7 @@ function loadBundle(locale: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(MESSAGES, `${locale}.json`), "utf8"));
 }
 
-function flatten(
-  obj: unknown,
-  prefix: string,
-  out: Map<string, string>,
-): void {
+function flatten(obj: unknown, prefix: string, out: Map<string, string>): void {
   if (obj == null || typeof obj !== "object") return;
   for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
     const key = prefix ? `${prefix}.${k}` : k;

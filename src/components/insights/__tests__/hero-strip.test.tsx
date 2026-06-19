@@ -127,9 +127,7 @@ describe("<HeroStrip>", () => {
   // the insights layout shell), not as a hero affordance.
   it("does NOT render an ask-the-coach action button", () => {
     const html = render(<HeroStrip briefing={null} now={morningLocal} />);
-    expect(html).not.toContain(
-      'data-slot="insights-hero-strip-action-coach"',
-    );
+    expect(html).not.toContain('data-slot="insights-hero-strip-action-coach"');
   });
 
   // v1.4.25 W3 — the regenerate button moved from the hero action row

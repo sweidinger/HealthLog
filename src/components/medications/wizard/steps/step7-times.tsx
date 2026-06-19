@@ -63,9 +63,7 @@ export function Step7Times({ payload, applyPartial }: StepProps) {
       >
         {PRESETS.map(({ time, icon: Icon, key }) => {
           const isOn = payload.timesOfDay.includes(time);
-          const label = t(
-            `medications.wizard.steps.step7.presets.${key}`,
-          );
+          const label = t(`medications.wizard.steps.step7.presets.${key}`);
           return (
             <button
               key={time}
@@ -77,7 +75,7 @@ export function Step7Times({ payload, applyPartial }: StepProps) {
               data-active={isOn ? "true" : "false"}
               onClick={() => togglePreset(time)}
               className={[
-                "focus-visible:ring-ring inline-flex h-11 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2",
+                "focus-visible:ring-ring inline-flex h-11 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none",
                 isOn
                   ? "bg-primary text-primary-foreground border-primary"
                   : "border-border bg-background text-foreground hover:bg-muted",

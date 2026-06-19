@@ -17,10 +17,7 @@
  * — with a prettified-enum fallback for any unmapped type, so a newly added
  * measurement type degrades gracefully instead of leaking an enum constant.
  */
-import type {
-  PeriodNarrativeContext,
-  MetricDelta,
-} from "./period-narrative";
+import type { PeriodNarrativeContext, MetricDelta } from "./period-narrative";
 
 /** Marker stored in `InsightNarrative.providerType` for a fallback row. */
 export const DETERMINISTIC_PROVIDER_TYPE = "deterministic" as const;
@@ -87,10 +84,7 @@ function fmtSigned(n: number, locale: Locale): string {
   // trimmed (so 1.20 → 1.2, 1.50 → 1.5) WITHOUT touching integer zeros.
   const s = Number.isInteger(abs)
     ? String(abs)
-    : abs
-        .toFixed(2)
-        .replace(/0+$/, "")
-        .replace(/\.$/, "");
+    : abs.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
   const localised = locale === "de" ? s.replace(".", ",") : s;
   return `${sign}${localised}`;
 }

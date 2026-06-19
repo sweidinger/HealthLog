@@ -18,7 +18,11 @@ export const POST = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "nightscout.disconnect" } });
 
-  const rl = await checkRateLimit(`nightscout-disconnect:${user.id}`, 20, 60_000);
+  const rl = await checkRateLimit(
+    `nightscout-disconnect:${user.id}`,
+    20,
+    60_000,
+  );
   if (!rl.allowed) {
     return apiError("Too many requests", 429, {
       headers: rateLimitHeaders(rl),

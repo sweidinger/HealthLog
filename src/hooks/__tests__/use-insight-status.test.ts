@@ -35,9 +35,9 @@ describe("nextStatusPollInterval — v1.8.4 poll ceiling", () => {
 
   it("stops polling once the attempt cap is reached", () => {
     expect(nextStatusPollInterval(true, STATUS_POLL_MAX_ATTEMPTS)).toBe(false);
-    expect(
-      nextStatusPollInterval(true, STATUS_POLL_MAX_ATTEMPTS + 5),
-    ).toBe(false);
+    expect(nextStatusPollInterval(true, STATUS_POLL_MAX_ATTEMPTS + 5)).toBe(
+      false,
+    );
   });
 
   it("returns a positive interval while it polls", () => {
@@ -58,9 +58,9 @@ describe("nextStatusPollInterval — v1.8.4 poll ceiling", () => {
   });
 
   it("honours the same attempt cap for revalidating", () => {
-    expect(
-      nextStatusPollInterval(false, STATUS_POLL_MAX_ATTEMPTS, true),
-    ).toBe(false);
+    expect(nextStatusPollInterval(false, STATUS_POLL_MAX_ATTEMPTS, true)).toBe(
+      false,
+    );
     expect(
       nextStatusPollInterval(false, STATUS_POLL_MAX_ATTEMPTS + 5, true),
     ).toBe(false);

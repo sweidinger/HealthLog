@@ -63,7 +63,11 @@ export interface AnamnesisCardProps {
 /** Per-field cap mirrors ABOUT_ME_FIELD_MAX_CHARS on the server. */
 const FIELD_MAX = 500;
 
-export function AnamnesisCard({ value, onChange, disabled }: AnamnesisCardProps) {
+export function AnamnesisCard({
+  value,
+  onChange,
+  disabled,
+}: AnamnesisCardProps) {
   const { t } = useTranslations();
   const [expanded, setExpanded] = useState(false);
   const conditionsId = useId();

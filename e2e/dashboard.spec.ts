@@ -114,7 +114,12 @@ test.describe("authenticated dashboard render", () => {
       const types = (url.searchParams.get("types") ?? "WEIGHT").split(",");
       const series: Record<
         string,
-        Array<{ type: string; value: number; measuredAt: string; count: number }>
+        Array<{
+          type: string;
+          value: number;
+          measuredAt: string;
+          count: number;
+        }>
       > = {};
       for (const type of types) {
         const baseValue =

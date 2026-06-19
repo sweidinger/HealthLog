@@ -17,10 +17,7 @@ import { useMemo, useState } from "react";
 import { Activity, CalendarDays, NotebookPen, Thermometer } from "lucide-react";
 
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
-import {
-  SheetSection,
-  SheetSectionCount,
-} from "@/components/ui/sheet-section";
+import { SheetSection, SheetSectionCount } from "@/components/ui/sheet-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -259,7 +256,9 @@ export function LogDaySheet({
           title={t("illness.sheet.day")}
           icon={<CalendarDays className="h-4 w-4" />}
           summary={
-            <span className="text-muted-foreground text-xs">{selectedDate}</span>
+            <span className="text-muted-foreground text-xs">
+              {selectedDate}
+            </span>
           }
           defaultOpen
         >
@@ -319,9 +318,7 @@ export function LogDaySheet({
                 key={value}
                 active={functionalImpact === value}
                 onClick={() =>
-                  setFunctionalImpact(
-                    functionalImpact === value ? null : value,
-                  )
+                  setFunctionalImpact(functionalImpact === value ? null : value)
                 }
               >
                 {impactLabels[value]}

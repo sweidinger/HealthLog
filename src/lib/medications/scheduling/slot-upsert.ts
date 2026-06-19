@@ -29,7 +29,6 @@ import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
 type PrismaLike = Pick<PrismaClient, "medication" | "medicationIntakeEvent">;
 
-
 /** The minimal intake-row shape the slot upsert reads + returns. */
 export interface SlotIntakeRow {
   id: string;
@@ -680,7 +679,5 @@ async function rollingIntakeInstantsIfNeeded(
     orderBy: { takenAt: "asc" },
     select: { takenAt: true },
   });
-  return rows
-    .map((r) => r.takenAt)
-    .filter((d): d is Date => d !== null);
+  return rows.map((r) => r.takenAt).filter((d): d is Date => d !== null);
 }

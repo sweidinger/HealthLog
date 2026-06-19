@@ -323,9 +323,7 @@ export async function generateMetricStatus(args: {
 
   const ageYears = getAgeFromDateOfBirth(user?.dateOfBirth ?? null);
   const sex =
-    user?.gender === "MALE" || user?.gender === "FEMALE"
-      ? user.gender
-      : null;
+    user?.gender === "MALE" || user?.gender === "FEMALE" ? user.gender : null;
 
   // v1.10.0 F1 — sharpen the coarse registry `normalRange` with the
   // age/sex reference-range enabler when one is available for this

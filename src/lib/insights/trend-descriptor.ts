@@ -109,7 +109,10 @@ export function computeTrendDescriptor(
 
   // Stability floor: the larger of the absolute floor and a fraction of
   // the starting magnitude. A move inside the floor reads as "stable".
-  const floor = Math.max(cfg.absoluteFloor, Math.abs(first) * cfg.relativeFloor);
+  const floor = Math.max(
+    cfg.absoluteFloor,
+    Math.abs(first) * cfg.relativeFloor,
+  );
 
   let direction: TrendDescriptorDirection;
   if (Math.abs(last - first) <= floor) {
@@ -146,18 +149,54 @@ export const TREND_SLOT_DESCRIPTOR_META: Record<
   string,
   TrendSlotDescriptorMeta
 > = {
-  bp: { unit: "mmHg", config: { absoluteFloor: 2, relativeFloor: 0.02, decimals: 0 } },
-  weight: { unit: "kg", config: { absoluteFloor: 0.3, relativeFloor: 0.01, decimals: 1 } },
-  pulse: { unit: "bpm", config: { absoluteFloor: 2, relativeFloor: 0.03, decimals: 0 } },
-  sleep: { unit: "h", config: { absoluteFloor: 0.3, relativeFloor: 0.05, decimals: 1 } },
-  steps: { unit: "", config: { absoluteFloor: 300, relativeFloor: 0.05, decimals: 0 } },
-  hrv: { unit: "ms", config: { absoluteFloor: 3, relativeFloor: 0.05, decimals: 0 } },
-  resting_hr: { unit: "bpm", config: { absoluteFloor: 2, relativeFloor: 0.03, decimals: 0 } },
-  active_energy: { unit: "kcal", config: { absoluteFloor: 50, relativeFloor: 0.05, decimals: 0 } },
-  flights: { unit: "", config: { absoluteFloor: 1, relativeFloor: 0.1, decimals: 0 } },
-  distance: { unit: "km", config: { absoluteFloor: 0.3, relativeFloor: 0.05, decimals: 1 } },
-  vo2_max: { unit: "", config: { absoluteFloor: 0.5, relativeFloor: 0.02, decimals: 1 } },
-  body_temp: { unit: "°C", config: { absoluteFloor: 0.2, relativeFloor: 0.005, decimals: 1 } },
+  bp: {
+    unit: "mmHg",
+    config: { absoluteFloor: 2, relativeFloor: 0.02, decimals: 0 },
+  },
+  weight: {
+    unit: "kg",
+    config: { absoluteFloor: 0.3, relativeFloor: 0.01, decimals: 1 },
+  },
+  pulse: {
+    unit: "bpm",
+    config: { absoluteFloor: 2, relativeFloor: 0.03, decimals: 0 },
+  },
+  sleep: {
+    unit: "h",
+    config: { absoluteFloor: 0.3, relativeFloor: 0.05, decimals: 1 },
+  },
+  steps: {
+    unit: "",
+    config: { absoluteFloor: 300, relativeFloor: 0.05, decimals: 0 },
+  },
+  hrv: {
+    unit: "ms",
+    config: { absoluteFloor: 3, relativeFloor: 0.05, decimals: 0 },
+  },
+  resting_hr: {
+    unit: "bpm",
+    config: { absoluteFloor: 2, relativeFloor: 0.03, decimals: 0 },
+  },
+  active_energy: {
+    unit: "kcal",
+    config: { absoluteFloor: 50, relativeFloor: 0.05, decimals: 0 },
+  },
+  flights: {
+    unit: "",
+    config: { absoluteFloor: 1, relativeFloor: 0.1, decimals: 0 },
+  },
+  distance: {
+    unit: "km",
+    config: { absoluteFloor: 0.3, relativeFloor: 0.05, decimals: 1 },
+  },
+  vo2_max: {
+    unit: "",
+    config: { absoluteFloor: 0.5, relativeFloor: 0.02, decimals: 1 },
+  },
+  body_temp: {
+    unit: "°C",
+    config: { absoluteFloor: 0.2, relativeFloor: 0.005, decimals: 1 },
+  },
 };
 
 /**

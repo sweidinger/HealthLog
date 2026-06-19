@@ -349,8 +349,11 @@ function regularizedIncompleteBeta(x: number, a: number, b: number): number {
   // bt = exp(lnΓ(a+b) - lnΓ(a) - lnΓ(b) + a ln x + b ln(1-x))
   // = x^a · (1-x)^b / B(a,b)
   const bt = Math.exp(
-    lnGamma(a + b) - lnGamma(a) - lnGamma(b)
-      + a * Math.log(x) + b * Math.log(1 - x),
+    lnGamma(a + b) -
+      lnGamma(a) -
+      lnGamma(b) +
+      a * Math.log(x) +
+      b * Math.log(1 - x),
   );
   if (x < (a + 1) / (a + b + 2)) {
     return (bt * betaContinuedFraction(x, a, b)) / a;

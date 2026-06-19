@@ -17,7 +17,11 @@ import { useEffect, useRef, useState } from "react";
  */
 export function useCountUp(
   target: number,
-  options: { durationMs?: number; enabled?: boolean; startDelayMs?: number } = {},
+  options: {
+    durationMs?: number;
+    enabled?: boolean;
+    startDelayMs?: number;
+  } = {},
 ): number {
   const { durationMs = 600, enabled = true, startDelayMs = 0 } = options;
   // Seed at the final value so the reduced-motion / SSR path is already
@@ -47,9 +51,7 @@ export function useCountUp(
         typeof window !== "undefined" &&
         typeof window.requestAnimationFrame === "function"
       ) {
-        frameRef.current = window.requestAnimationFrame(() =>
-          setValue(target),
-        );
+        frameRef.current = window.requestAnimationFrame(() => setValue(target));
         return () => {
           if (frameRef.current != null) {
             window.cancelAnimationFrame(frameRef.current);

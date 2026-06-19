@@ -740,7 +740,9 @@ export function HealthChart({
         // request so a longer comparison window still resolves.
         sleepParams.set(
           "days",
-          String(Math.max(1, Math.min(3650, Math.ceil(fetchWindow.windowDays)))),
+          String(
+            Math.max(1, Math.min(3650, Math.ceil(fetchWindow.windowDays))),
+          ),
         );
         // v1.16.8 — a failed fetch rejects the whole query instead of
         // silently resolving an empty series: the swallowed-catch
@@ -872,9 +874,13 @@ export function HealthChart({
             const scaledMin = measurement.minValue * valueScale;
             const scaledMax = measurement.maxValue * valueScale;
             current.min =
-              current.min === null ? scaledMin : Math.min(current.min, scaledMin);
+              current.min === null
+                ? scaledMin
+                : Math.min(current.min, scaledMin);
             current.max =
-              current.max === null ? scaledMax : Math.max(current.max, scaledMax);
+              current.max === null
+                ? scaledMax
+                : Math.max(current.max, scaledMax);
           }
           bucket.values[type] = current;
           dailyAggregates.set(dayKey, bucket);
@@ -1063,20 +1069,20 @@ export function HealthChart({
   // recomputes whenever the range tab changes the visible slice, so the
   // `<MetricStatStrip>` a sub-page lifts the callback into always reflects the
   // same window the chart paints. Skipped in mini mode (no stat strip).
-  const visibleStatsByType = useMemo<Record<string, MetricWindowStats> | null>(
-    () => {
-      if (mini || !chartData?.length) return null;
-      const out: Record<string, MetricWindowStats> = {};
-      for (const type of types) {
-        const stats = computeWindowStats(
-          chartData.map((point) => point[type] as number | undefined),
-        );
-        if (stats.count > 0) out[type] = stats;
-      }
-      return Object.keys(out).length > 0 ? out : null;
-    },
-    [mini, chartData, types],
-  );
+  const visibleStatsByType = useMemo<Record<
+    string,
+    MetricWindowStats
+  > | null>(() => {
+    if (mini || !chartData?.length) return null;
+    const out: Record<string, MetricWindowStats> = {};
+    for (const type of types) {
+      const stats = computeWindowStats(
+        chartData.map((point) => point[type] as number | undefined),
+      );
+      if (stats.count > 0) out[type] = stats;
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  }, [mini, chartData, types]);
 
   // Report the visible-range stats up to the sub-page so the shared
   // `<MetricStatStrip>` can read them. Effect (not render-time call) so the
@@ -1674,10 +1680,7 @@ export function HealthChart({
                   // positions through the `ticks` prop so the legacy
                   // day-aware density policy stays effective on the
                   // pulse chart.
-                  ticks={computeTickPositions(
-                    chartData ?? [],
-                    viewportWidth,
-                  )}
+                  ticks={computeTickPositions(chartData ?? [], viewportWidth)}
                   padding={{ left: 10, right: 10 }}
                   tickMargin={10}
                 />
@@ -1690,7 +1693,9 @@ export function HealthChart({
                   domain={yDomain}
                   tickFormatter={(value) =>
                     typeof value === "number"
-                      ? formatAxisValue(useDecimalAxis ? value : Math.round(value))
+                      ? formatAxisValue(
+                          useDecimalAxis ? value : Math.round(value),
+                        )
                       : String(value)
                   }
                   unit={

@@ -542,11 +542,27 @@ function computeSignalsOfDay(
   };
 
   // Systolic carries the BP signal (the headline number clinicians read first).
-  push(buildSignal("bp", "blood pressure (systolic)", byType("BLOOD_PRESSURE_SYS"), now, "mmHg"));
+  push(
+    buildSignal(
+      "bp",
+      "blood pressure (systolic)",
+      byType("BLOOD_PRESSURE_SYS"),
+      now,
+      "mmHg",
+    ),
+  );
   // Glucose uses the canonical stored value (the model reads the snapshot,
   // not display units); absent data simply produces no signal.
   push(buildSignal("glucose", "blood glucose", byType("BLOOD_GLUCOSE"), now));
-  push(buildSignal("resting_hr", "resting heart rate", byType("RESTING_HEART_RATE"), now, "bpm"));
+  push(
+    buildSignal(
+      "resting_hr",
+      "resting heart rate",
+      byType("RESTING_HEART_RATE"),
+      now,
+      "bpm",
+    ),
+  );
   push(buildSignal("pulse", "pulse", byType("PULSE"), now, "bpm"));
   push(buildSignal("weight", "weight", byType("WEIGHT"), now, "kg"));
   // Sleep is stored one row per stage per night, so a raw "latest" point
@@ -1190,12 +1206,24 @@ export async function extractFeatures(
       const c7 = calculateCompliance(mapped, med.schedules, 7, med.createdAt, {
         medicationContext,
       });
-      const c30 = calculateCompliance(mapped, med.schedules, 30, med.createdAt, {
-        medicationContext,
-      });
-      const c90 = calculateCompliance(mapped, med.schedules, 90, med.createdAt, {
-        medicationContext,
-      });
+      const c30 = calculateCompliance(
+        mapped,
+        med.schedules,
+        30,
+        med.createdAt,
+        {
+          medicationContext,
+        },
+      );
+      const c90 = calculateCompliance(
+        mapped,
+        med.schedules,
+        90,
+        med.createdAt,
+        {
+          medicationContext,
+        },
+      );
 
       return {
         name: med.name,

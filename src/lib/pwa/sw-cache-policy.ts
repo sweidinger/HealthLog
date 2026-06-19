@@ -33,7 +33,8 @@ export const API_READ_ALLOWLIST = [
 ] as const;
 
 /** Auth/token surfaces refused even when nested under an allowlisted prefix. */
-export const API_DENY_RE = /\/(auth|tokens?|sessions?|login|password|webauthn)(\/|$|\?)/i;
+export const API_DENY_RE =
+  /\/(auth|tokens?|sessions?|login|password|webauthn)(\/|$|\?)/i;
 
 /** Secret-shaped token patterns refused at the response-body level. */
 export const SECRET_BODY_RE = /(hlk_|hlr_|sk-)[A-Za-z0-9_-]/;

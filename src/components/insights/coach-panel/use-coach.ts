@@ -300,9 +300,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
   }, []);
 
   const send = useCallback(
-    async (
-      params: SendCoachMessageParams,
-    ): Promise<string | null> => {
+    async (params: SendCoachMessageParams): Promise<string | null> => {
       // Cancel any prior in-flight request.
       abortRef.current?.abort();
       const controller = new AbortController();

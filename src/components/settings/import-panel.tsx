@@ -103,10 +103,7 @@ function ImportCardShell({
   children,
 }: ImportCardShellProps) {
   return (
-    <SettingsCard
-      data-testid={testId}
-      className="flex h-full flex-col"
-    >
+    <SettingsCard data-testid={testId} className="flex h-full flex-col">
       <div className="flex items-center gap-2">
         <Icon
           className="text-muted-foreground h-5 w-5 shrink-0"
@@ -727,12 +724,15 @@ function CsvImportCard() {
     }
     setBusy(true);
     try {
-      const res = await apiFetchRaw(`/api/import/csv${dryRun ? "?dryRun=1" : ""}`, {
-        method: "POST",
-        headers: { "Content-Type": "text/csv" },
-        credentials: "include",
-        body: text,
-      });
+      const res = await apiFetchRaw(
+        `/api/import/csv${dryRun ? "?dryRun=1" : ""}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "text/csv" },
+          credentials: "include",
+          body: text,
+        },
+      );
       if (res.status === 429) {
         setError(t("settings.sections.export.import.csv.rateLimited"));
         return;

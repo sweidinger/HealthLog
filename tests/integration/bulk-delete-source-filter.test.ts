@@ -84,12 +84,33 @@ describe("POST /api/measurements/bulk-delete (real Postgres)", () => {
     const now = new Date();
     const mine = await prisma.measurement.createManyAndReturn({
       data: [
-        { userId: USER_A, type: "WEIGHT", value: 80, unit: "kg", source: "MANUAL", measuredAt: now },
-        { userId: USER_A, type: "WEIGHT", value: 81, unit: "kg", source: "MANUAL", measuredAt: new Date(now.getTime() - 1000) },
+        {
+          userId: USER_A,
+          type: "WEIGHT",
+          value: 80,
+          unit: "kg",
+          source: "MANUAL",
+          measuredAt: now,
+        },
+        {
+          userId: USER_A,
+          type: "WEIGHT",
+          value: 81,
+          unit: "kg",
+          source: "MANUAL",
+          measuredAt: new Date(now.getTime() - 1000),
+        },
       ],
     });
     const theirs = await prisma.measurement.create({
-      data: { userId: USER_B, type: "WEIGHT", value: 70, unit: "kg", source: "MANUAL", measuredAt: now },
+      data: {
+        userId: USER_B,
+        type: "WEIGHT",
+        value: 70,
+        unit: "kg",
+        source: "MANUAL",
+        measuredAt: now,
+      },
     });
 
     await loginAs(USER_A);
@@ -123,7 +144,14 @@ describe("POST /api/measurements/bulk-delete (real Postgres)", () => {
   it("idempotency replay returns the cached count without re-mutating", async () => {
     const prisma = getPrismaClient();
     const row = await prisma.measurement.create({
-      data: { userId: USER_A, type: "WEIGHT", value: 80, unit: "kg", source: "MANUAL", measuredAt: new Date() },
+      data: {
+        userId: USER_A,
+        type: "WEIGHT",
+        value: 80,
+        unit: "kg",
+        source: "MANUAL",
+        measuredAt: new Date(),
+      },
     });
 
     await loginAs(USER_A);
@@ -134,7 +162,9 @@ describe("POST /api/measurements/bulk-delete (real Postgres)", () => {
       postReq("/api/measurements/bulk-delete", { ids: [row.id] }, key),
     );
     expect(first.status).toBe(200);
-    expect(((await first.json()) as { data: { deleted: number } }).data.deleted).toBe(1);
+    expect(
+      ((await first.json()) as { data: { deleted: number } }).data.deleted,
+    ).toBe(1);
 
     // Replay with the SAME key → cached body, same count, no re-mutation.
     const replay = await POST(
@@ -142,11 +172,15 @@ describe("POST /api/measurements/bulk-delete (real Postgres)", () => {
     );
     expect(replay.status).toBe(200);
     expect(replay.headers.get("X-Idempotent-Replay")).toBe("true");
-    expect(((await replay.json()) as { data: { deleted: number } }).data.deleted).toBe(1);
+    expect(
+      ((await replay.json()) as { data: { deleted: number } }).data.deleted,
+    ).toBe(1);
 
     // Measurement.syncVersion defaults to 1; the single real delete bumped
     // it to 2 and the replay did NOT re-run the mutation (so it stays 2).
-    const after = await prisma.measurement.findUnique({ where: { id: row.id } });
+    const after = await prisma.measurement.findUnique({
+      where: { id: row.id },
+    });
     expect(after!.syncVersion).toBe(2);
   });
 
@@ -164,12 +198,36 @@ describe("POST /api/mood-entries/bulk-delete (real Postgres)", () => {
     const prisma = getPrismaClient();
     const mine = await prisma.moodEntry.createManyAndReturn({
       data: [
-        { userId: USER_A, date: "2026-01-01", mood: "GUT", score: 4, source: "MANUAL", moodLoggedAt: new Date("2026-01-01T08:00:00Z"), tz: "UTC" },
-        { userId: USER_A, date: "2026-01-02", mood: "OKAY", score: 3, source: "MANUAL", moodLoggedAt: new Date("2026-01-02T08:00:00Z"), tz: "UTC" },
+        {
+          userId: USER_A,
+          date: "2026-01-01",
+          mood: "GUT",
+          score: 4,
+          source: "MANUAL",
+          moodLoggedAt: new Date("2026-01-01T08:00:00Z"),
+          tz: "UTC",
+        },
+        {
+          userId: USER_A,
+          date: "2026-01-02",
+          mood: "OKAY",
+          score: 3,
+          source: "MANUAL",
+          moodLoggedAt: new Date("2026-01-02T08:00:00Z"),
+          tz: "UTC",
+        },
       ],
     });
     const theirs = await prisma.moodEntry.create({
-      data: { userId: USER_B, date: "2026-01-01", mood: "LAUSIG", score: 1, source: "MANUAL", moodLoggedAt: new Date("2026-01-01T09:00:00Z"), tz: "UTC" },
+      data: {
+        userId: USER_B,
+        date: "2026-01-01",
+        mood: "LAUSIG",
+        score: 1,
+        source: "MANUAL",
+        moodLoggedAt: new Date("2026-01-01T09:00:00Z"),
+        tz: "UTC",
+      },
     });
 
     await loginAs(USER_A);
@@ -180,7 +238,9 @@ describe("POST /api/mood-entries/bulk-delete (real Postgres)", () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(((await res.json()) as { data: { deleted: number } }).data.deleted).toBe(2);
+    expect(
+      ((await res.json()) as { data: { deleted: number } }).data.deleted,
+    ).toBe(2);
 
     const after = await prisma.moodEntry.findMany({
       where: { id: { in: [mine[0].id, mine[1].id] } },
@@ -202,9 +262,30 @@ describe("source filter narrows the list reads (real Postgres)", () => {
     const now = new Date();
     await prisma.measurement.createMany({
       data: [
-        { userId: USER_A, type: "WEIGHT", value: 80, unit: "kg", source: "MANUAL", measuredAt: now },
-        { userId: USER_A, type: "WEIGHT", value: 81, unit: "kg", source: "WITHINGS", measuredAt: new Date(now.getTime() - 1000) },
-        { userId: USER_A, type: "WEIGHT", value: 82, unit: "kg", source: "WITHINGS", measuredAt: new Date(now.getTime() - 2000) },
+        {
+          userId: USER_A,
+          type: "WEIGHT",
+          value: 80,
+          unit: "kg",
+          source: "MANUAL",
+          measuredAt: now,
+        },
+        {
+          userId: USER_A,
+          type: "WEIGHT",
+          value: 81,
+          unit: "kg",
+          source: "WITHINGS",
+          measuredAt: new Date(now.getTime() - 1000),
+        },
+        {
+          userId: USER_A,
+          type: "WEIGHT",
+          value: 82,
+          unit: "kg",
+          source: "WITHINGS",
+          measuredAt: new Date(now.getTime() - 2000),
+        },
       ],
     });
 
@@ -221,7 +302,9 @@ describe("source filter narrows the list reads (real Postgres)", () => {
       };
     };
     expect(body.data.measurements).toHaveLength(2);
-    expect(body.data.measurements.every((m) => m.source === "WITHINGS")).toBe(true);
+    expect(body.data.measurements.every((m) => m.source === "WITHINGS")).toBe(
+      true,
+    );
     expect(body.data.meta.total).toBe(2);
   });
 
@@ -229,8 +312,24 @@ describe("source filter narrows the list reads (real Postgres)", () => {
     const prisma = getPrismaClient();
     await prisma.moodEntry.createMany({
       data: [
-        { userId: USER_A, date: "2026-01-01", mood: "GUT", score: 4, source: "MANUAL", moodLoggedAt: new Date("2026-01-01T08:00:00Z"), tz: "UTC" },
-        { userId: USER_A, date: "2026-01-02", mood: "OKAY", score: 3, source: "TELEGRAM", moodLoggedAt: new Date("2026-01-02T08:00:00Z"), tz: "UTC" },
+        {
+          userId: USER_A,
+          date: "2026-01-01",
+          mood: "GUT",
+          score: 4,
+          source: "MANUAL",
+          moodLoggedAt: new Date("2026-01-01T08:00:00Z"),
+          tz: "UTC",
+        },
+        {
+          userId: USER_A,
+          date: "2026-01-02",
+          mood: "OKAY",
+          score: 3,
+          source: "TELEGRAM",
+          moodLoggedAt: new Date("2026-01-02T08:00:00Z"),
+          tz: "UTC",
+        },
       ],
     });
 

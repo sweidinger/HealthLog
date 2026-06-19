@@ -389,9 +389,9 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
       ).length;
       expect(insertedEntries).toBe(json.data.inserted);
       expect(duplicateEntries).toBe(json.data.duplicates);
-      expect(
-        insertedEntries + duplicateEntries + skippedEntries,
-      ).toBe(json.data.processed);
+      expect(insertedEntries + duplicateEntries + skippedEntries).toBe(
+        json.data.processed,
+      );
     }
 
     // Invariant 2 — aggregate counts are non-negative. The previous
@@ -498,8 +498,7 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
     it("re-posting a stats:* day-aggregate row overwrites the value and returns status='updated'", async () => {
       const { POST } = await import("@/app/api/measurements/batch/route");
 
-      const externalId =
-        "stats:HKQuantityTypeIdentifierStepCount:2026-05-24";
+      const externalId = "stats:HKQuantityTypeIdentifierStepCount:2026-05-24";
       const firstBody = {
         entries: [
           {
@@ -580,8 +579,9 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
 
       const first = await POST(makeRequest(body));
       expect(first.status).toBe(200);
-      expect(((await first.json()) as { data: { inserted: number } }).data.inserted)
-        .toBe(1);
+      expect(
+        ((await first.json()) as { data: { inserted: number } }).data.inserted,
+      ).toBe(1);
 
       // Replay with a different value — must NOT overwrite because the
       // externalId is not stats:*. Sample-class rows are immutable.
@@ -688,7 +688,9 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
       expect(json.data.updated).toBe(1);
       expect(json.data.duplicates).toBe(1);
 
-      const byIndex = new Map(json.data.entries.map((e) => [e.index, e.status]));
+      const byIndex = new Map(
+        json.data.entries.map((e) => [e.index, e.status]),
+      );
       expect(byIndex.get(0)).toBe("updated");
       expect(byIndex.get(1)).toBe("duplicate");
       expect(byIndex.get(2)).toBe("inserted");
@@ -818,7 +820,9 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
     // externalId. The composite unique index would let both land; the
     // cross-source collapse drops the second copy as a `duplicate`.
     describe("cross-source same-reading merge (iOS #2)", () => {
-      const weightEntry = (over: Partial<BatchEntryFixture>): BatchEntryFixture => ({
+      const weightEntry = (
+        over: Partial<BatchEntryFixture>,
+      ): BatchEntryFixture => ({
         hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
         value: 81.4,
         unit: "kg",
@@ -840,14 +844,20 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
           }),
         );
         expect(first.status).toBe(200);
-        expect(((await first.json()) as { data: { inserted: number } }).data.inserted).toBe(1);
+        expect(
+          ((await first.json()) as { data: { inserted: number } }).data
+            .inserted,
+        ).toBe(1);
 
         // HealthKit background sync re-ingests the same physical reading
         // as APPLE_HEALTH with a different (HKSample.uuid) externalId.
         const second = await POST(
           makeRequest({
             entries: [
-              weightEntry({ externalId: "hk-uuid-001", source: "APPLE_HEALTH" }),
+              weightEntry({
+                externalId: "hk-uuid-001",
+                source: "APPLE_HEALTH",
+              }),
             ],
           }),
         );
@@ -877,7 +887,10 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
         const first = await POST(
           makeRequest({
             entries: [
-              weightEntry({ externalId: "hk-uuid-002", source: "APPLE_HEALTH" }),
+              weightEntry({
+                externalId: "hk-uuid-002",
+                source: "APPLE_HEALTH",
+              }),
             ],
           }),
         );
@@ -911,7 +924,10 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
           makeRequest({
             entries: [
               weightEntry({ externalId: "local-manual-003", source: "MANUAL" }),
-              weightEntry({ externalId: "hk-uuid-003", source: "APPLE_HEALTH" }),
+              weightEntry({
+                externalId: "hk-uuid-003",
+                source: "APPLE_HEALTH",
+              }),
             ],
           }),
         );

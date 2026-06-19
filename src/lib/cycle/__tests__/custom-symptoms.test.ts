@@ -80,8 +80,10 @@ describe("create schema", () => {
 
   it("rejects a categoryKey other than custom", () => {
     expect(
-      createCustomSymptomSchema.safeParse({ label: "X", categoryKey: "physical" })
-        .success,
+      createCustomSymptomSchema.safeParse({
+        label: "X",
+        categoryKey: "physical",
+      }).success,
     ).toBe(false);
   });
 });

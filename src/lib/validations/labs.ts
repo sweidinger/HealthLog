@@ -36,12 +36,7 @@ const takenAtField = validateEntryInstant(
 );
 
 /** Trimmed, bounded free-text field with a min-length guard. */
-const requiredText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .min(1)
-    .max(max);
+const requiredText = (max: number) => z.string().trim().min(1).max(max);
 
 const optionalPanel = z
   .string()
@@ -160,7 +155,9 @@ export function isInvertedRange(
   effectiveHigh: number | null,
 ): boolean {
   return (
-    effectiveLow !== null && effectiveHigh !== null && effectiveLow > effectiveHigh
+    effectiveLow !== null &&
+    effectiveHigh !== null &&
+    effectiveLow > effectiveHigh
   );
 }
 

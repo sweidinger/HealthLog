@@ -262,9 +262,8 @@ describe("syncUserWorkout — Workout rows + cross-source dedup", () => {
     ]);
 
     // Read-time canonical picker collapses the twin to the ladder winner.
-    const { pickCanonicalWorkoutRows } = await import(
-      "@/lib/measurements/pick-canonical-workout-rows"
-    );
+    const { pickCanonicalWorkoutRows } =
+      await import("@/lib/measurements/pick-canonical-workout-rows");
     const canonical = pickCanonicalWorkoutRows(
       allRows.map((r) => ({
         startedAt: r.startedAt,

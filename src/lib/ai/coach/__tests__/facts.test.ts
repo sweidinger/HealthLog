@@ -47,7 +47,12 @@ function bytes(s: string): Uint8Array {
 }
 
 function makeFakePrisma(opts: {
-  activeFacts?: Array<{ id?: string; text: string; category?: string; confidence?: number }>;
+  activeFacts?: Array<{
+    id?: string;
+    text: string;
+    category?: string;
+    confidence?: number;
+  }>;
   turns?: Array<{ role: string; content: string }>;
   conversationExists?: boolean;
 }) {
@@ -87,7 +92,13 @@ function makeFakePrisma(opts: {
 }
 
 function ok(content: string): StatusProviderResult {
-  return { kind: "ok", content, providerType: "mock", model: "m", tokensUsed: 1 };
+  return {
+    kind: "ok",
+    content,
+    providerType: "mock",
+    model: "m",
+    tokensUsed: 1,
+  };
 }
 
 beforeEach(() => {
@@ -97,12 +108,21 @@ beforeEach(() => {
 describe("extractAndStoreFacts", () => {
   it("(a) parses durable facts and persists them field-by-field", async () => {
     const { prisma, createCalls } = makeFakePrisma({
-      turns: [{ role: "user", content: "I prefer morning workouts and I'm vegetarian." }],
+      turns: [
+        {
+          role: "user",
+          content: "I prefer morning workouts and I'm vegetarian.",
+        },
+      ],
     });
     const runCompletion = vi.fn(async () =>
       ok(
         JSON.stringify([
-          { category: "preference", fact: "Prefers morning workouts", confidence: 90 },
+          {
+            category: "preference",
+            fact: "Prefers morning workouts",
+            confidence: 90,
+          },
           { category: "preference", fact: "Is vegetarian", confidence: 80 },
         ]),
       ),
@@ -120,7 +140,13 @@ describe("extractAndStoreFacts", () => {
     // Field-by-field — exact key set, no spread of the parsed object.
     for (const data of createCalls) {
       expect(Object.keys(data).sort()).toEqual(
-        ["category", "confidence", "factEncrypted", "sourceConversationId", "userId"].sort(),
+        [
+          "category",
+          "confidence",
+          "factEncrypted",
+          "sourceConversationId",
+          "userId",
+        ].sort(),
       );
       expect(data.userId).toBe("user-1");
       expect(data.sourceConversationId).toBe("conv-1");
@@ -128,7 +154,9 @@ describe("extractAndStoreFacts", () => {
     }
     // Annotation carries counts/ids only.
     const extracted = annotateMock.mock.calls.find(
-      (c) => (c[0] as { action?: { name?: string } }).action?.name === "coach.facts.extracted",
+      (c) =>
+        (c[0] as { action?: { name?: string } }).action?.name ===
+        "coach.facts.extracted",
     );
     expect(extracted).toBeTruthy();
     expect((extracted![0] as { meta: Record<string, unknown> }).meta).toEqual({
@@ -181,7 +209,9 @@ describe("extractAndStoreFacts", () => {
     expect(res).toEqual({ status: "none", count: 0 });
     expect(createCalls).toHaveLength(0);
     const failed = annotateMock.mock.calls.find(
-      (c) => (c[0] as { action?: { name?: string } }).action?.name === "coach.facts.parse_failed",
+      (c) =>
+        (c[0] as { action?: { name?: string } }).action?.name ===
+        "coach.facts.parse_failed",
     );
     expect(failed).toBeTruthy();
     expect((failed![0] as { meta: Record<string, unknown> }).meta).toEqual({
@@ -197,8 +227,16 @@ describe("extractAndStoreFacts", () => {
     const runCompletion = vi.fn(async () =>
       ok(
         JSON.stringify([
-          { category: "preference", fact: "prefers morning workouts", confidence: 90 }, // dup
-          { category: "goal", fact: "Wants to run a 10k in autumn", confidence: 85 }, // new
+          {
+            category: "preference",
+            fact: "prefers morning workouts",
+            confidence: 90,
+          }, // dup
+          {
+            category: "goal",
+            fact: "Wants to run a 10k in autumn",
+            confidence: 85,
+          }, // new
         ]),
       ),
     );
@@ -229,7 +267,11 @@ describe("extractAndStoreFacts", () => {
       ok(
         JSON.stringify([
           { category: "goal", fact: "low confidence newcomer", confidence: 20 }, // ≤30 → skip
-          { category: "goal", fact: "high confidence newcomer", confidence: 95 }, // >30 → store
+          {
+            category: "goal",
+            fact: "high confidence newcomer",
+            confidence: 95,
+          }, // >30 → store
         ]),
       ),
     );
@@ -251,7 +293,9 @@ describe("extractAndStoreFacts", () => {
       const { prisma, createCalls } = makeFakePrisma({
         turns: [{ role: "user", content: "talk" }],
       });
-      const runCompletion = vi.fn(async () => ({ kind }) as StatusProviderResult);
+      const runCompletion = vi.fn(
+        async () => ({ kind }) as StatusProviderResult,
+      );
       const res = await extractAndStoreFacts("conv-1", "user-1", {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         prisma: prisma as any,

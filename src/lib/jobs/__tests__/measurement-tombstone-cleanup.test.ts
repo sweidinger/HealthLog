@@ -23,9 +23,7 @@ const DAY_MS = 86_400_000;
 describe("cleanupExpiredMeasurementTombstones", () => {
   it("prunes only tombstones older than the retention horizon", async () => {
     const now = new Date("2026-06-01T00:00:00.000Z");
-    const deleteMany = vi
-      .fn()
-      .mockResolvedValue({ count: 3 });
+    const deleteMany = vi.fn().mockResolvedValue({ count: 3 });
     const prisma = {
       measurement: { deleteMany },
     } as unknown as Parameters<typeof cleanupExpiredMeasurementTombstones>[0];

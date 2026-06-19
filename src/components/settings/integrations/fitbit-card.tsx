@@ -189,9 +189,7 @@ export function FitbitCard({
       : null;
 
   return (
-    <SettingsCard
-      data-testid="fitbit-card"
-    >
+    <SettingsCard data-testid="fitbit-card">
       <SettingsCardHeader
         icon={HeartPulse}
         title={t("settings.fitbit")}

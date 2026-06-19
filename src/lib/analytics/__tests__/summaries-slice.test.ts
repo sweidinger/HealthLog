@@ -69,16 +69,18 @@ import { computeSummariesSlice } from "../summaries-slice";
 
 const RAW = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
 const UNSAFE = prisma.$queryRawUnsafe as unknown as ReturnType<typeof vi.fn>;
-const USER_FIND_UNIQUE =
-  prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
-const MEASUREMENT_FIND_FIRST =
-  prisma.measurement.findFirst as unknown as ReturnType<typeof vi.fn>;
-const ROLLUP_FIND_MANY =
-  prisma.measurementRollup.findMany as unknown as ReturnType<typeof vi.fn>;
-const ROLLUP_FIND_FIRST =
-  prisma.measurementRollup.findFirst as unknown as ReturnType<typeof vi.fn>;
-const CANONICAL_FROM =
-  canonicalMeasurementsFrom as unknown as ReturnType<typeof vi.fn>;
+const USER_FIND_UNIQUE = prisma.user.findUnique as unknown as ReturnType<
+  typeof vi.fn
+>;
+const MEASUREMENT_FIND_FIRST = prisma.measurement
+  .findFirst as unknown as ReturnType<typeof vi.fn>;
+const ROLLUP_FIND_MANY = prisma.measurementRollup
+  .findMany as unknown as ReturnType<typeof vi.fn>;
+const ROLLUP_FIND_FIRST = prisma.measurementRollup
+  .findFirst as unknown as ReturnType<typeof vi.fn>;
+const CANONICAL_FROM = canonicalMeasurementsFrom as unknown as ReturnType<
+  typeof vi.fn
+>;
 
 beforeEach(() => {
   RAW.mockReset();
@@ -603,4 +605,3 @@ describe("computeSummariesSlice", () => {
     });
   });
 });
-

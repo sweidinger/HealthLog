@@ -153,10 +153,7 @@ export function BaselineForm() {
   }
 
   return (
-    <section
-      aria-labelledby="onboarding-baseline-title"
-      className="space-y-6"
-    >
+    <section aria-labelledby="onboarding-baseline-title" className="space-y-6">
       <header className="space-y-2">
         <h1
           id="onboarding-baseline-title"
@@ -284,7 +281,9 @@ export function BaselineForm() {
             disabled={saving}
             className="min-h-11 min-w-11"
           >
-            {saving ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : null}
+            {saving ? (
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+            ) : null}
             {t("onboarding.baseline.saveCta")}
           </Button>
         </div>
@@ -292,4 +291,3 @@ export function BaselineForm() {
     </section>
   );
 }
-

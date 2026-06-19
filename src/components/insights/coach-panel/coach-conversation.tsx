@@ -265,14 +265,10 @@ export function CoachConversation({
             current={item.current}
             actionsDisabled={send.isStreaming || dismissQuestions.isPending}
             onSkip={
-              item.current
-                ? () => dispatchGuided({ type: "SKIP" })
-                : undefined
+              item.current ? () => dispatchGuided({ type: "SKIP" }) : undefined
             }
             onLater={
-              item.current
-                ? () => dispatchGuided({ type: "EXIT" })
-                : undefined
+              item.current ? () => dispatchGuided({ type: "EXIT" }) : undefined
             }
             onDismissRemaining={
               item.current

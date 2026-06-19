@@ -90,9 +90,10 @@ export function weekdayIndexesToTokens(indexes: number[]): WeekdayToken[] {
  * own sub-control is empty). The fallback branch covers pathological
  * inputs (negative intervalWeeks, NaN, etc.) without throwing.
  */
-export function inferCadenceFromLegacy(
-  schedule: LegacyScheduleSnapshot,
-): { value: CadenceValue; subControls: CadenceSubControls } {
+export function inferCadenceFromLegacy(schedule: LegacyScheduleSnapshot): {
+  value: CadenceValue;
+  subControls: CadenceSubControls;
+} {
   const tokens = weekdayIndexesToTokens(schedule.daysOfWeek ?? []);
   const interval = Number.isFinite(schedule.intervalWeeks)
     ? Math.trunc(schedule.intervalWeeks)

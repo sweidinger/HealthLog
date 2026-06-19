@@ -80,7 +80,10 @@ export async function OnboardingShell({
       : t(`onboarding.shell.step${clamped}of4`);
 
   const primaryLabel =
-    nextLabel ?? (clamped === 4 ? t("onboarding.done.returnCta") : t("onboarding.shell.next"));
+    nextLabel ??
+    (clamped === 4
+      ? t("onboarding.done.returnCta")
+      : t("onboarding.shell.next"));
 
   return (
     <div

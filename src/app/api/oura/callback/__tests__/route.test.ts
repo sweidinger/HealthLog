@@ -19,12 +19,14 @@ vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn() }));
 vi.mock("@/lib/crypto", () => ({ encrypt: (s: string) => `enc:${s}` }));
 vi.mock("@/lib/integrations/status", () => ({ markReconnected: vi.fn() }));
 
-const { exchangeMock, getCredsMock, matchMock, verifyMock } = vi.hoisted(() => ({
-  exchangeMock: vi.fn(),
-  getCredsMock: vi.fn(),
-  matchMock: vi.fn(),
-  verifyMock: vi.fn(),
-}));
+const { exchangeMock, getCredsMock, matchMock, verifyMock } = vi.hoisted(
+  () => ({
+    exchangeMock: vi.fn(),
+    getCredsMock: vi.fn(),
+    matchMock: vi.fn(),
+    verifyMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/oura/client", () => ({ exchangeCode: exchangeMock }));
 vi.mock("@/lib/oura/credentials", () => ({
@@ -46,7 +48,11 @@ const userUpdate = prisma.user.update as ReturnType<typeof vi.fn>;
 
 process.env.NEXT_PUBLIC_APP_URL = "https://app.example";
 
-function makeReq(opts: { code?: string; state?: string; cookie?: string }): NextRequest {
+function makeReq(opts: {
+  code?: string;
+  state?: string;
+  cookie?: string;
+}): NextRequest {
   const params = new URLSearchParams();
   if (opts.code) params.set("code", opts.code);
   if (opts.state) params.set("state", opts.state);
@@ -54,7 +60,9 @@ function makeReq(opts: { code?: string; state?: string; cookie?: string }): Next
     url: `https://app.example/api/oura/callback?${params}`,
     cookies: {
       get: (name: string) =>
-        name === "oura_state" && opts.cookie ? { value: opts.cookie } : undefined,
+        name === "oura_state" && opts.cookie
+          ? { value: opts.cookie }
+          : undefined,
     },
   } as unknown as NextRequest;
 }
@@ -101,7 +109,9 @@ describe("GET /api/oura/callback", () => {
   });
 
   it("exchanges the code, persists encrypted tokens, and audits on success", async () => {
-    const res = await GET(makeReq({ code: "auth-code", state: "S", cookie: "S" }));
+    const res = await GET(
+      makeReq({ code: "auth-code", state: "S", cookie: "S" }),
+    );
     expect(exchangeMock).toHaveBeenCalledWith("auth-code", {
       clientId: "c",
       clientSecret: "s",

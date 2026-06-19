@@ -77,10 +77,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
     getEvent()?.setError(err);
     annotate({ action: { name: "withings.connect.create_failed" } });
     return NextResponse.redirect(
-      new URL(
-        "/settings/integrations?withings=error&reason=connect",
-        req.url,
-      ),
+      new URL("/settings/integrations?withings=error&reason=connect", req.url),
     );
   }
 

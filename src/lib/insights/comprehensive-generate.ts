@@ -222,7 +222,10 @@ async function rerollBriefingParagraph(args: {
     freshBriefing && typeof freshBriefing === "object"
       ? (freshBriefing as { paragraph?: unknown }).paragraph
       : undefined;
-  if (typeof freshParagraph !== "string" || freshParagraph.trim().length === 0) {
+  if (
+    typeof freshParagraph !== "string" ||
+    freshParagraph.trim().length === 0
+  ) {
     return null;
   }
 
@@ -789,7 +792,10 @@ export async function generateComprehensiveInsight(
   if (aboutMe) {
     userPrompt += buildAboutMeInsightBlock(aboutMe, locale);
   }
-  const systemPrompt = buildSystemPromptWithReferences(locale, referenceMetrics);
+  const systemPrompt = buildSystemPromptWithReferences(
+    locale,
+    referenceMetrics,
+  );
 
   if (
     dbUser?.insightsCachedText &&

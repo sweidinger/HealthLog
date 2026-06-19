@@ -106,10 +106,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ipAddress: getClientIp(request),
       details: { reason: "target_user_missing", targetUserId },
     });
-    return apiError(
-      `Target user '${targetUserId}' does not exist`,
-      422,
-    );
+    return apiError(`Target user '${targetUserId}' does not exist`, 422);
   }
 
   // Same content-hash idempotency as the user-facing route, but scoped

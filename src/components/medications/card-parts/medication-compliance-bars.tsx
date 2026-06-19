@@ -148,7 +148,10 @@ export function MedicationComplianceBars({
           expiring) never changes the card height and the action row below
           stays on one baseline across a grid row. The skeleton and error
           fallbacks reserve the same slot through the same component. */}
-      <ComplianceMetaRow streak={streak} lowStockRunwayDays={lowStockRunwayDays} />
+      <ComplianceMetaRow
+        streak={streak}
+        lowStockRunwayDays={lowStockRunwayDays}
+      />
     </div>
   );
 }

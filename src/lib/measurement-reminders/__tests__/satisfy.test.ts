@@ -38,7 +38,9 @@ function makePrisma(updateManyCount = 1) {
   return { prisma, updates };
 }
 
-function reminder(overrides: Partial<Parameters<typeof satisfyReminder>[1]> = {}) {
+function reminder(
+  overrides: Partial<Parameters<typeof satisfyReminder>[1]> = {},
+) {
   return {
     id: "r1",
     intervalDays: 7,
@@ -56,12 +58,7 @@ describe("satisfyReminder", () => {
     const { prisma, updates } = makePrisma();
     const at = new Date("2026-06-14T18:00:00Z");
 
-    const result = await satisfyReminder(
-      prisma as never,
-      reminder(),
-      TZ,
-      at,
-    );
+    const result = await satisfyReminder(prisma as never, reminder(), TZ, at);
 
     expect(result.satisfied).toBe(true);
     expect(result.nextDueAt).toBeInstanceOf(Date);

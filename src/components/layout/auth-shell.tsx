@@ -257,7 +257,7 @@ export function AuthShell({
             // wrapper then recentres and the whole column, including the
             // admin/settings sidebar, shifts a few px sideways on every
             // toggle. Reserving the gutter holds the layout still.
-            className="flex-1 overflow-y-auto [scrollbar-gutter:stable] pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0"
+            className="flex-1 [scrollbar-gutter:stable] overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0"
           >
             {/*
               v1.4.33 IW9 — container normalised on `max-w-screen-xl`

@@ -104,9 +104,7 @@ describe("computeVitalsBaseline — ok path (rollup tier)", () => {
       expect(result.confidence.score).toBeGreaterThan(0);
       // The trailing per-day mean series backs the inline sparkline: one
       // point per contributing day, oldest → newest (55..62).
-      expect(result.value.series).toEqual([
-        55, 56, 57, 58, 59, 60, 61, 62,
-      ]);
+      expect(result.value.series).toEqual([55, 56, 57, 58, 59, 60, 61, 62]);
     }
     // rollup-covered path must not touch raw SQL
     expect(prisma.measurement.findMany).not.toHaveBeenCalled();
@@ -220,7 +218,11 @@ describe("computeVitalsBaseline — insufficient paths", () => {
     );
     vi.mocked(readBestGranularityRollups).mockResolvedValue({
       granularity: "DAY",
-      rows: [dayRow("2026-05-25", 55), dayRow("2026-05-26", 56), dayRow("2026-05-27", 57)],
+      rows: [
+        dayRow("2026-05-25", 55),
+        dayRow("2026-05-26", 56),
+        dayRow("2026-05-27", 57),
+      ],
     });
 
     const result = await computeVitalsBaseline("u1", PROFILE, {

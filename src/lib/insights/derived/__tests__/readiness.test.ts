@@ -30,7 +30,9 @@ import {
 
 const PROFILE = { ageYears: 40, sex: "MALE" as const };
 const NOW = new Date("2026-06-02T08:00:00Z");
-const measurementFindMany = prisma.measurement.findMany as ReturnType<typeof vi.fn>;
+const measurementFindMany = prisma.measurement.findMany as ReturnType<
+  typeof vi.fn
+>;
 const moodFindMany = prisma.moodEntry.findMany as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -100,7 +102,9 @@ describe("computeReadiness gating", () => {
       Array.from({ length: 10 }, (_, i) => ({
         value: base,
         // 10 distinct days within May (15..24) — all valid calendar days.
-        measuredAt: new Date(`2026-05-${String(15 + i).padStart(2, "0")}T07:00:00Z`),
+        measuredAt: new Date(
+          `2026-05-${String(15 + i).padStart(2, "0")}T07:00:00Z`,
+        ),
         type,
       }));
     measurementFindMany.mockImplementation(
@@ -187,7 +191,9 @@ describe("computeReadiness gating", () => {
     moodFindMany.mockResolvedValue(
       Array.from({ length: 8 }, (_, i) => ({
         score: 4,
-        moodLoggedAt: new Date(`2026-05-${String(20 + i).padStart(2, "0")}T20:00:00Z`),
+        moodLoggedAt: new Date(
+          `2026-05-${String(20 + i).padStart(2, "0")}T20:00:00Z`,
+        ),
       })),
     );
     measurementFindMany.mockImplementation(
@@ -198,9 +204,21 @@ describe("computeReadiness gating", () => {
         if (type === "RESPIRATORY_RATE") return sparse(type, 14);
         if (type === "SLEEP_DURATION") {
           return [
-            { value: 420, measuredAt: new Date("2026-05-31T06:00:00Z"), sleepStage: "ASLEEP" },
-            { value: 430, measuredAt: new Date("2026-06-01T06:10:00Z"), sleepStage: "ASLEEP" },
-            { value: 410, measuredAt: new Date("2026-06-02T06:05:00Z"), sleepStage: "ASLEEP" },
+            {
+              value: 420,
+              measuredAt: new Date("2026-05-31T06:00:00Z"),
+              sleepStage: "ASLEEP",
+            },
+            {
+              value: 430,
+              measuredAt: new Date("2026-06-01T06:10:00Z"),
+              sleepStage: "ASLEEP",
+            },
+            {
+              value: 410,
+              measuredAt: new Date("2026-06-02T06:05:00Z"),
+              sleepStage: "ASLEEP",
+            },
           ];
         }
         return [];
@@ -224,7 +242,9 @@ describe("computeReadiness gating", () => {
     moodFindMany.mockResolvedValue(
       Array.from({ length: 8 }, (_, i) => ({
         score: 4,
-        moodLoggedAt: new Date(`2026-05-${String(20 + i).padStart(2, "0")}T20:00:00Z`),
+        moodLoggedAt: new Date(
+          `2026-05-${String(20 + i).padStart(2, "0")}T20:00:00Z`,
+        ),
       })),
     );
     measurementFindMany.mockImplementation(
@@ -233,9 +253,21 @@ describe("computeReadiness gating", () => {
         if (type === "SLEEP_DURATION") {
           // Three scorable nights so the sleep score lights up.
           return [
-            { value: 420, measuredAt: new Date("2026-05-31T06:00:00Z"), sleepStage: "ASLEEP" },
-            { value: 430, measuredAt: new Date("2026-06-01T06:10:00Z"), sleepStage: "ASLEEP" },
-            { value: 410, measuredAt: new Date("2026-06-02T06:05:00Z"), sleepStage: "ASLEEP" },
+            {
+              value: 420,
+              measuredAt: new Date("2026-05-31T06:00:00Z"),
+              sleepStage: "ASLEEP",
+            },
+            {
+              value: 430,
+              measuredAt: new Date("2026-06-01T06:10:00Z"),
+              sleepStage: "ASLEEP",
+            },
+            {
+              value: 410,
+              measuredAt: new Date("2026-06-02T06:05:00Z"),
+              sleepStage: "ASLEEP",
+            },
           ];
         }
         return [];

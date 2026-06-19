@@ -122,9 +122,7 @@ describe("resolveSlotForWriteByBand — schedule eras", () => {
     });
     // Live schedule (09:00 / 21:00) would not place a 07:10 take on a 07:00
     // anchor — proves the revision is what fixes the attribution.
-    expect(out.slotInstant?.toISOString()).not.toBe(
-      "2026-05-25T05:00:00.000Z",
-    );
+    expect(out.slotInstant?.toISOString()).not.toBe("2026-05-25T05:00:00.000Z");
   });
 });
 

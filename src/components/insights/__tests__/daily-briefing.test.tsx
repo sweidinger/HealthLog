@@ -217,17 +217,12 @@ describe("<DailyBriefing>", () => {
   });
 
   it("renders the German connect-provider hint under the de locale", () => {
-    const html = render(
-      <DailyBriefing briefing={null} noProvider />,
-      "de",
-    );
+    const html = render(<DailyBriefing briefing={null} noProvider />, "de");
     expect(html).toContain("Kein KI-Anbieter verbunden");
   });
 
   it("prefers the briefing content over the no-provider hint when both exist", () => {
-    const html = render(
-      <DailyBriefing briefing={baseBriefing} noProvider />,
-    );
+    const html = render(<DailyBriefing briefing={baseBriefing} noProvider />);
     expect(html).toContain('data-slot="daily-briefing-findings"');
     expect(html).not.toContain('data-slot="daily-briefing-no-provider"');
   });

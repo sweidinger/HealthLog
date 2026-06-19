@@ -29,11 +29,7 @@ import {
   verifyUnlockValue,
 } from "@/lib/clinician-share/unlock-cookie";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
-import {
-  defaultLocale,
-  locales,
-  type Locale,
-} from "@/lib/i18n/config";
+import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { parseLocaleFromAcceptLanguage } from "@/lib/format-locale";
 import { ClinicianView } from "@/components/clinician/clinician-view";
 import { ShareUnlockGate } from "@/components/clinician/share-unlock-gate";
@@ -80,7 +76,9 @@ export default async function ClinicianSharePage({
     // token-scoped unlock cookie is present and valid. Verifying the cookie is
     // constant-time; an invalid / expired / cross-token value shows the gate.
     const cookieStore = await cookies();
-    const unlockValue = cookieStore.get(unlockCookieName(gate.tokenHash))?.value;
+    const unlockValue = cookieStore.get(
+      unlockCookieName(gate.tokenHash),
+    )?.value;
     if (!verifyUnlockValue(unlockValue, gate.tokenHash)) {
       const locale = await resolveLocale();
       const { t } = getServerTranslator(locale);

@@ -104,14 +104,22 @@ function makeFakePrisma() {
       findMany: async ({
         where,
       }: {
-        where: { userId: string; source: string; OR: Array<Record<string, unknown>> };
+        where: {
+          userId: string;
+          source: string;
+          OR: Array<Record<string, unknown>>;
+        };
       }) => {
-        return measurements.filter((m) => {
-          if (m.userId !== where.userId || m.source !== where.source) return false;
-          return where.OR.some(
-            (clause) => m.type === clause.type && m.externalId === clause.externalId,
-          );
-        }).map((m) => ({ type: m.type, externalId: m.externalId }));
+        return measurements
+          .filter((m) => {
+            if (m.userId !== where.userId || m.source !== where.source)
+              return false;
+            return where.OR.some(
+              (clause) =>
+                m.type === clause.type && m.externalId === clause.externalId,
+            );
+          })
+          .map((m) => ({ type: m.type, externalId: m.externalId }));
       },
       findUnique: async ({
         where,
@@ -119,13 +127,15 @@ function makeFakePrisma() {
         where: { userId_type_source_externalId: Record<string, unknown> };
       }) => {
         const key = where.userId_type_source_externalId;
-        return measurements.find(
-          (m) =>
-            m.userId === key.userId
-            && m.type === key.type
-            && m.source === key.source
-            && m.externalId === key.externalId,
-        ) ?? null;
+        return (
+          measurements.find(
+            (m) =>
+              m.userId === key.userId &&
+              m.type === key.type &&
+              m.source === key.source &&
+              m.externalId === key.externalId,
+          ) ?? null
+        );
       },
       upsert: async ({
         where,
@@ -139,10 +149,10 @@ function makeFakePrisma() {
         const key = where.userId_type_source_externalId;
         const idx = measurements.findIndex(
           (m) =>
-            m.userId === key.userId
-            && m.type === key.type
-            && m.source === key.source
-            && m.externalId === key.externalId,
+            m.userId === key.userId &&
+            m.type === key.type &&
+            m.source === key.source &&
+            m.externalId === key.externalId,
         );
         if (idx >= 0) {
           measurements[idx] = { ...measurements[idx], ...update };
@@ -158,12 +168,14 @@ function makeFakePrisma() {
       }: {
         where: { userId: string; source: string; externalId: { in: string[] } };
       }) => {
-        return workouts.filter(
-          (w) =>
-            w.userId === where.userId
-            && w.source === where.source
-            && where.externalId.in.includes(w.externalId as string),
-        ).map((w) => ({ externalId: w.externalId }));
+        return workouts
+          .filter(
+            (w) =>
+              w.userId === where.userId &&
+              w.source === where.source &&
+              where.externalId.in.includes(w.externalId as string),
+          )
+          .map((w) => ({ externalId: w.externalId }));
       },
       upsert: async ({
         where,
@@ -177,9 +189,9 @@ function makeFakePrisma() {
         const key = where.userId_source_externalId;
         const idx = workouts.findIndex(
           (w) =>
-            w.userId === key.userId
-            && w.source === key.source
-            && w.externalId === key.externalId,
+            w.userId === key.userId &&
+            w.source === key.source &&
+            w.externalId === key.externalId,
         );
         if (idx >= 0) {
           workouts[idx] = { ...workouts[idx], ...update };
@@ -254,19 +266,35 @@ describe("SLEEP_STAGE_NAME_TO_CODEPOINT", () => {
 
 describe("hashSampleKey", () => {
   it("returns a stable short hash for the same inputs", () => {
-    const a = hashSampleKey("HKQuantityTypeIdentifierBodyMass", "78.4",
-      "2026-05-14 08:13:00 +0200", "2026-05-14 08:14:00 +0200");
-    const b = hashSampleKey("HKQuantityTypeIdentifierBodyMass", "78.4",
-      "2026-05-14 08:13:00 +0200", "2026-05-14 08:14:00 +0200");
+    const a = hashSampleKey(
+      "HKQuantityTypeIdentifierBodyMass",
+      "78.4",
+      "2026-05-14 08:13:00 +0200",
+      "2026-05-14 08:14:00 +0200",
+    );
+    const b = hashSampleKey(
+      "HKQuantityTypeIdentifierBodyMass",
+      "78.4",
+      "2026-05-14 08:13:00 +0200",
+      "2026-05-14 08:14:00 +0200",
+    );
     expect(a).toBe(b);
     expect(a).toMatch(/^sample:[0-9a-f]{28}$/);
   });
 
   it("differs when any input differs", () => {
-    const a = hashSampleKey("HKQuantityTypeIdentifierBodyMass", "78.4",
-      "2026-05-14 08:13:00 +0200", "2026-05-14 08:14:00 +0200");
-    const b = hashSampleKey("HKQuantityTypeIdentifierBodyMass", "78.5",
-      "2026-05-14 08:13:00 +0200", "2026-05-14 08:14:00 +0200");
+    const a = hashSampleKey(
+      "HKQuantityTypeIdentifierBodyMass",
+      "78.4",
+      "2026-05-14 08:13:00 +0200",
+      "2026-05-14 08:14:00 +0200",
+    );
+    const b = hashSampleKey(
+      "HKQuantityTypeIdentifierBodyMass",
+      "78.5",
+      "2026-05-14 08:13:00 +0200",
+      "2026-05-14 08:14:00 +0200",
+    );
     expect(a).not.toBe(b);
   });
 });
@@ -384,9 +412,9 @@ describe("streamParseExportXml — memory ceiling", () => {
     // timestamps walk seconds within a single day so every record has
     // a valid wall-clock and lands in the same cumulative bucket.
     const header =
-      `<?xml version="1.0" encoding="UTF-8"?>\n`
-      + `<!DOCTYPE HealthData [<!ELEMENT HealthData (Record)*>]>\n`
-      + `<HealthData locale="en_US">\n`;
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<!DOCTYPE HealthData [<!ELEMENT HealthData (Record)*>]>\n` +
+      `<HealthData locale="en_US">\n`;
     const footer = `</HealthData>\n`;
     const rows: string[] = [];
     for (let i = 0; i < 10_000; i++) {
@@ -395,11 +423,11 @@ describe("streamParseExportXml — memory ceiling", () => {
       const second = i % 60;
       const ts = `2026-05-14 ${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}:${second.toString().padStart(2, "0")} +0200`;
       rows.push(
-        `<Record type="HKQuantityTypeIdentifierStepCount"`
-        + ` unit="count"`
-        + ` startDate="${ts}"`
-        + ` endDate="${ts}"`
-        + ` value="${(i % 200) + 1}"/>\n`,
+        `<Record type="HKQuantityTypeIdentifierStepCount"` +
+          ` unit="count"` +
+          ` startDate="${ts}"` +
+          ` endDate="${ts}"` +
+          ` value="${(i % 200) + 1}"/>\n`,
       );
     }
     writeFileSync(xmlPath, header + rows.join("") + footer);

@@ -61,8 +61,9 @@ describe("/api/fitbit/credentials", () => {
     (
       prisma.fitbitConnection.delete as ReturnType<typeof vi.fn>
     ).mockResolvedValue({});
-    const res = (await (DELETE as unknown as () => Promise<{ data: unknown }>)())
-      .data as { deleted: boolean };
+    const res = (
+      await (DELETE as unknown as () => Promise<{ data: unknown }>)()
+    ).data as { deleted: boolean };
     expect(res.deleted).toBe(true);
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: "u1" },

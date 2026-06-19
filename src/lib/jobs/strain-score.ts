@@ -56,7 +56,9 @@ export async function findStrainScoreCandidates(
   now: Date,
   cap: number,
 ): Promise<string[]> {
-  const since = new Date(now.getTime() - STRAIN_SCORE_RECENCY_DAYS * MS_PER_DAY);
+  const since = new Date(
+    now.getTime() - STRAIN_SCORE_RECENCY_DAYS * MS_PER_DAY,
+  );
   // Deterministic recency-under-cap on both source queries: group by user,
   // newest activity first, `userId` tiebreak. `distinct` + `take` without an
   // order picked an arbitrary set when more than `cap` users qualified; the
@@ -87,7 +89,8 @@ export async function findStrainScoreCandidates(
   const maxLen = Math.max(workoutUsers.length, energyUsers.length);
   for (let i = 0; i < maxLen && ids.size < cap; i++) {
     if (i < workoutUsers.length) ids.add(workoutUsers[i].userId);
-    if (ids.size < cap && i < energyUsers.length) ids.add(energyUsers[i].userId);
+    if (ids.size < cap && i < energyUsers.length)
+      ids.add(energyUsers[i].userId);
   }
   return Array.from(ids).slice(0, cap);
 }

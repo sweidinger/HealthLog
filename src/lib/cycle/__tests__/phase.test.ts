@@ -108,8 +108,16 @@ describe("cycle/phase — phaseSeries", () => {
   it("emits a categorical value per day across the span", () => {
     const series = phaseSeries("2024-01-01", "2024-01-28", CYCLE);
     expect(series).toHaveLength(28);
-    expect(series[0]).toEqual({ date: "2024-01-01", phase: "MENSTRUAL", dayOfCycle: 1 });
-    expect(series[27]).toEqual({ date: "2024-01-28", phase: "LUTEAL", dayOfCycle: 28 });
+    expect(series[0]).toEqual({
+      date: "2024-01-01",
+      phase: "MENSTRUAL",
+      dayOfCycle: 1,
+    });
+    expect(series[27]).toEqual({
+      date: "2024-01-28",
+      phase: "LUTEAL",
+      dayOfCycle: 28,
+    });
   });
 
   it("marks out-of-cycle days null at the span edges", () => {
@@ -131,6 +139,8 @@ describe("cycle/phase — phaseSeries", () => {
     };
     expect(phaseForDay("2024-03-14", dstCycle).dayOfCycle).toBe(14);
     expect(phaseForDay("2024-03-14", dstCycle).phase).toBe("OVULATORY");
-    expect(phaseForDay(addDays("2024-03-01", 27), dstCycle).dayOfCycle).toBe(28);
+    expect(phaseForDay(addDays("2024-03-01", 27), dstCycle).dayOfCycle).toBe(
+      28,
+    );
   });
 });

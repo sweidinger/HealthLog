@@ -325,7 +325,10 @@ describe("GET /api/dashboard/summary", () => {
       };
     };
     const bp = body.data.metrics.find((m) => m.id === "bp");
-    expect(bp, "bp tile must be emitted for stale-but-valid history").toBeDefined();
+    expect(
+      bp,
+      "bp tile must be emitted for stale-but-valid history",
+    ).toBeDefined();
     expect(bp?.latestValue).toBe(132);
     expect(bp?.secondaryValue).toBe(84);
     expect(bp?.allTimeCount).toBe(28);
@@ -421,13 +424,55 @@ describe("GET /api/dashboard/summary", () => {
         { type: "PULSE", value: 71, measured_at: days(30) },
       ] as never)
       .mockResolvedValueOnce([
-        { type: "PULSE", bucket_start: days(36), mean: 68, count: 3, sum_value: null },
-        { type: "PULSE", bucket_start: days(35), mean: 70, count: 3, sum_value: null },
-        { type: "PULSE", bucket_start: days(34), mean: 69, count: 3, sum_value: null },
-        { type: "PULSE", bucket_start: days(33), mean: 71, count: 3, sum_value: null },
-        { type: "PULSE", bucket_start: days(32), mean: 73, count: 3, sum_value: null },
-        { type: "PULSE", bucket_start: days(31), mean: 72, count: 3, sum_value: null },
-        { type: "PULSE", bucket_start: days(30), mean: 71, count: 3, sum_value: null },
+        {
+          type: "PULSE",
+          bucket_start: days(36),
+          mean: 68,
+          count: 3,
+          sum_value: null,
+        },
+        {
+          type: "PULSE",
+          bucket_start: days(35),
+          mean: 70,
+          count: 3,
+          sum_value: null,
+        },
+        {
+          type: "PULSE",
+          bucket_start: days(34),
+          mean: 69,
+          count: 3,
+          sum_value: null,
+        },
+        {
+          type: "PULSE",
+          bucket_start: days(33),
+          mean: 71,
+          count: 3,
+          sum_value: null,
+        },
+        {
+          type: "PULSE",
+          bucket_start: days(32),
+          mean: 73,
+          count: 3,
+          sum_value: null,
+        },
+        {
+          type: "PULSE",
+          bucket_start: days(31),
+          mean: 72,
+          count: 3,
+          sum_value: null,
+        },
+        {
+          type: "PULSE",
+          bucket_start: days(30),
+          mean: 71,
+          count: 3,
+          sum_value: null,
+        },
       ] as never)
       .mockResolvedValueOnce([] as never);
 
@@ -498,10 +543,26 @@ describe("GET /api/dashboard/summary", () => {
     ] as never);
     // Raw per-stage rows for the night (the sleep findMany read).
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([
-      { value: 480, measuredAt: new Date("2026-06-03T23:00:00.000Z"), sleepStage: "IN_BED" },
-      { value: 240, measuredAt: new Date("2026-06-04T00:00:00.000Z"), sleepStage: "CORE" },
-      { value: 90, measuredAt: new Date("2026-06-04T02:00:00.000Z"), sleepStage: "DEEP" },
-      { value: 80, measuredAt: new Date("2026-06-04T04:00:00.000Z"), sleepStage: "REM" },
+      {
+        value: 480,
+        measuredAt: new Date("2026-06-03T23:00:00.000Z"),
+        sleepStage: "IN_BED",
+      },
+      {
+        value: 240,
+        measuredAt: new Date("2026-06-04T00:00:00.000Z"),
+        sleepStage: "CORE",
+      },
+      {
+        value: 90,
+        measuredAt: new Date("2026-06-04T02:00:00.000Z"),
+        sleepStage: "DEEP",
+      },
+      {
+        value: 80,
+        measuredAt: new Date("2026-06-04T04:00:00.000Z"),
+        sleepStage: "REM",
+      },
       { value: 20, measuredAt: wake, sleepStage: "AWAKE" },
     ] as never);
     const res = await callGet(makeReq());

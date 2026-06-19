@@ -17,13 +17,13 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 
 export const DELETE = apiHandler(
-  async (
-    request: NextRequest,
-    ctx: { params: Promise<{ id: string }> },
-  ) => {
+  async (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
     const { user } = await requireAuth();
     const { id } = await ctx.params;
-    annotate({ action: { name: "share-link.revoke" }, meta: { shareLinkId: id } });
+    annotate({
+      action: { name: "share-link.revoke" },
+      meta: { shareLinkId: id },
+    });
 
     const rl = await checkRateLimit(
       `share-link:${user.id}`,

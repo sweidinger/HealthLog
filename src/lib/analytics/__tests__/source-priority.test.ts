@@ -243,12 +243,7 @@ describe("pickCanonicalSourceRows — v1.4.25 W8c two-axis device-type picker", 
         default: ["phone", "watch"],
       },
     };
-    const out = pickCanonicalSourceRows(
-      rows,
-      "steps",
-      userPriority,
-      isoDayKey,
-    );
+    const out = pickCanonicalSourceRows(rows, "steps", userPriority, isoDayKey);
     expect(out.canonicalRows).toHaveLength(1);
     expect(out.canonicalRows[0].deviceType).toBe("phone");
     expect(out.canonicalRows[0].value).toBe(4100);
@@ -280,12 +275,7 @@ describe("pickCanonicalSourceRows — v1.4.25 W8c two-axis device-type picker", 
         ACTIVITY_STEPS: ["phone", "watch"],
       },
     };
-    const out = pickCanonicalSourceRows(
-      rows,
-      "steps",
-      userPriority,
-      isoDayKey,
-    );
+    const out = pickCanonicalSourceRows(rows, "steps", userPriority, isoDayKey);
     expect(out.canonicalRows).toHaveLength(1);
     expect(out.canonicalRows[0].deviceType).toBe("phone");
   });
@@ -365,12 +355,7 @@ describe("pickCanonicalSourceRows — v1.4.25 W8c two-axis device-type picker", 
         default: ["ring"],
       },
     };
-    const out = pickCanonicalSourceRows(
-      rows,
-      "steps",
-      userPriority,
-      isoDayKey,
-    );
+    const out = pickCanonicalSourceRows(rows, "steps", userPriority, isoDayKey);
     expect(out.canonicalRows).toHaveLength(2);
   });
 
@@ -425,12 +410,7 @@ describe("pickCanonicalSourceRows — v1.4.25 W8c two-axis device-type picker", 
         ACTIVITY_STEPS: ["watch", "phone"],
       },
     };
-    const out = pickCanonicalSourceRows(
-      rows,
-      "steps",
-      userPriority,
-      isoDayKey,
-    );
+    const out = pickCanonicalSourceRows(rows, "steps", userPriority, isoDayKey);
     // Expect: WEIGHT's scale row + ACTIVITY_STEPS' watch row. Both
     // types' losers (WEIGHT's watch row, ACTIVITY_STEPS' phone row)
     // are dropped against their OWN ladder, not the bucket's first
@@ -485,12 +465,7 @@ describe("pickCanonicalSourceRows — v1.4.25 W8c two-axis device-type picker", 
         WEIGHT: ["ring"],
       },
     };
-    const out = pickCanonicalSourceRows(
-      rows,
-      "steps",
-      userPriority,
-      isoDayKey,
-    );
+    const out = pickCanonicalSourceRows(rows, "steps", userPriority, isoDayKey);
     // 2 WEIGHT rows kept (per-type fall-through) + 1 ACTIVITY_STEPS
     // watch row (phone dropped against default ladder).
     expect(out.canonicalRows).toHaveLength(3);

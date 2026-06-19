@@ -130,10 +130,7 @@ export function resolveRestingPulseSeries(input: {
     );
     return { series, which: "resting" };
   }
-  const proxy = deriveRestingProxyFromPulse(
-    input.pulseSamples,
-    input.dayKeyOf,
-  );
+  const proxy = deriveRestingProxyFromPulse(input.pulseSamples, input.dayKeyOf);
   if (proxy.length > 0) return { series: proxy, which: "proxy" };
   return { series: [], which: "none" };
 }

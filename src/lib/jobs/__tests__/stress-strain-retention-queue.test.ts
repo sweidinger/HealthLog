@@ -35,7 +35,11 @@ const source =
   readFileSync(STATUS_REGISTRAR_PATH, "utf8") +
   readFileSync(ROLLUP_REGISTRAR_PATH, "utf8");
 
-const DENSE_RETENTION_PATH = join(__dirname, "..", "dense-intraday-retention.ts");
+const DENSE_RETENTION_PATH = join(
+  __dirname,
+  "..",
+  "dense-intraday-retention.ts",
+);
 const denseRetentionSource = readFileSync(DENSE_RETENTION_PATH, "utf8");
 
 function allQueuesBlock(): string {

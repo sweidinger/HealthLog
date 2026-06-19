@@ -464,7 +464,14 @@ describe("expandScheduleSlots — timeZone threading", () => {
     const from = new Date("2025-06-02T00:00:00Z");
     const to = new Date("2025-06-03T00:00:00Z");
 
-    const berlin = expandScheduleSlots(sched, 0, from, to, from, "Europe/Berlin");
+    const berlin = expandScheduleSlots(
+      sched,
+      0,
+      from,
+      to,
+      from,
+      "Europe/Berlin",
+    );
     const tokyo = expandScheduleSlots(sched, 0, from, to, from, "Asia/Tokyo");
     const la = expandScheduleSlots(
       sched,

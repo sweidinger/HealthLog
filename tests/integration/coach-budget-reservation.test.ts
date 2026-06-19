@@ -15,7 +15,11 @@ import { getPrismaClient, truncateAllTables } from "./setup";
 
 async function seedUser(): Promise<string> {
   const user = await getPrismaClient().user.create({
-    data: { username: "budget-user", email: "budget@example.test", role: "USER" },
+    data: {
+      username: "budget-user",
+      email: "budget@example.test",
+      role: "USER",
+    },
   });
   return user.id;
 }
@@ -72,9 +76,8 @@ describe("reserveBudget (real Postgres)", () => {
   });
 
   it("reconciles the reservation down to a smaller actual count", async () => {
-    const { reserveBudget, reconcileSpend } = await import(
-      "@/lib/ai/coach/budget"
-    );
+    const { reserveBudget, reconcileSpend } =
+      await import("@/lib/ai/coach/budget");
     const userId = await seedUser();
     const dateKey = "2026-06-21";
 
@@ -89,9 +92,8 @@ describe("reserveBudget (real Postgres)", () => {
   });
 
   it("still records burned tokens on an empty/sentinel reply (no undercount)", async () => {
-    const { reserveBudget, reconcileSpend } = await import(
-      "@/lib/ai/coach/budget"
-    );
+    const { reserveBudget, reconcileSpend } =
+      await import("@/lib/ai/coach/budget");
     const userId = await seedUser();
     const dateKey = "2026-06-22";
 

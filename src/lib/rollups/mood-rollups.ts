@@ -154,7 +154,12 @@ export async function recomputeUserMoodRollups(
     });
     if (rows.length === 0) continue;
 
-    rowsUpserted += await persistMoodRollupRows(prisma, userId, granularity, rows);
+    rowsUpserted += await persistMoodRollupRows(
+      prisma,
+      userId,
+      granularity,
+      rows,
+    );
   }
 
   return { rowsUpserted, durationMs: Date.now() - startedAt };
@@ -242,18 +247,21 @@ export async function recomputeMoodBucketsForEntry(
   void Promise.all(
     ASYNC_GRANULARITIES.map((granularity) => {
       const { from, to } = bucketSpan(moodLoggedAt, granularity);
-      return enqueueMoodRollupRecompute({ userId, granularity, from, to }).catch(
-        (err: unknown) => {
-          const message = err instanceof Error ? err.message : String(err);
-          annotate({
-            meta: {
-              mood_rollup_enqueue_failed: true,
-              mood_rollup_enqueue_error: message,
-            },
-          });
-          console.error("[mood-rollups] async enqueue failed:", message);
-        },
-      );
+      return enqueueMoodRollupRecompute({
+        userId,
+        granularity,
+        from,
+        to,
+      }).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        annotate({
+          meta: {
+            mood_rollup_enqueue_failed: true,
+            mood_rollup_enqueue_error: message,
+          },
+        });
+        console.error("[mood-rollups] async enqueue failed:", message);
+      });
     }),
   );
 }
@@ -631,9 +639,7 @@ function bucketSpan(
       // Postgres ISO week: Monday is day 1. JS getUTCDay(): Sunday=0.
       const dayOfWeek = day.getUTCDay();
       const mondayOffset = (dayOfWeek + 6) % 7;
-      const from = new Date(
-        day.getTime() - mondayOffset * 24 * 60 * 60 * 1000,
-      );
+      const from = new Date(day.getTime() - mondayOffset * 24 * 60 * 60 * 1000);
       return { from, to: new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000) };
     }
     case "MONTH": {

@@ -143,9 +143,11 @@ describe("GET /api/meta/capabilities — drift guards", () => {
   it("computedScores are the three persisted wellness scores", async () => {
     const res = await call();
     const body = (await res.json()) as CapabilitiesBody;
-    expect([...body.data.ingest.computedScores].sort()).toEqual(
-      ["RECOVERY_SCORE", "STRAIN_SCORE", "STRESS_SCORE"],
-    );
+    expect([...body.data.ingest.computedScores].sort()).toEqual([
+      "RECOVERY_SCORE",
+      "STRAIN_SCORE",
+      "STRESS_SCORE",
+    ]);
   });
 
   it("fhir constants mirror the FHIR builder source", async () => {
@@ -163,9 +165,7 @@ describe("GET /api/meta/capabilities — drift guards", () => {
     const body = (await res.json()) as CapabilitiesBody;
     expect(body.data.fhir.restBaseUrl).toBe("/api/fhir");
     expect(body.data.fhir.readScope).toBe(FHIR_READ_SCOPE);
-    expect(body.data.fhir.resourceTypes).toEqual([
-      ...FHIR_REST_RESOURCE_TYPES,
-    ]);
+    expect(body.data.fhir.resourceTypes).toEqual([...FHIR_REST_RESOURCE_TYPES]);
     expect(body.data.fhir.operations).toEqual([FHIR_EVERYTHING_OPERATION]);
     expect(body.data.fhir.searchParams).toEqual([...FHIR_SEARCH_PARAMS]);
   });

@@ -41,10 +41,7 @@ function row(
 describe("collapseRollupRowsBySource", () => {
   it("picks WHOOP over Apple for resting heart rate (ladder head wins)", () => {
     const out = collapseRollupRowsBySource(
-      [
-        row(DAY1, "APPLE_HEALTH", 54),
-        row(DAY1, "WHOOP", 51),
-      ],
+      [row(DAY1, "APPLE_HEALTH", 54), row(DAY1, "WHOOP", 51)],
       "RESTING_HEART_RATE",
       null,
     );
@@ -55,10 +52,7 @@ describe("collapseRollupRowsBySource", () => {
 
   it("picks Withings over Apple for SpO₂", () => {
     const out = collapseRollupRowsBySource(
-      [
-        row(DAY1, "APPLE_HEALTH", 96),
-        row(DAY1, "WITHINGS", 98),
-      ],
+      [row(DAY1, "APPLE_HEALTH", 96), row(DAY1, "WITHINGS", 98)],
       "OXYGEN_SATURATION",
       null,
     );
@@ -69,10 +63,7 @@ describe("collapseRollupRowsBySource", () => {
 
   it("picks native WHOOP over the COMPUTED proxy for RECOVERY_SCORE", () => {
     const out = collapseRollupRowsBySource(
-      [
-        row(DAY1, "COMPUTED", 62),
-        row(DAY1, "WHOOP", 70),
-      ],
+      [row(DAY1, "COMPUTED", 62), row(DAY1, "WHOOP", 70)],
       "RECOVERY_SCORE",
       null,
     );
@@ -125,10 +116,7 @@ describe("collapseRollupRowsBySource", () => {
       restingHeartRate: ["APPLE_HEALTH", "WHOOP", "WITHINGS"],
     };
     const out = collapseRollupRowsBySource(
-      [
-        row(DAY1, "WHOOP", 51),
-        row(DAY1, "APPLE_HEALTH", 54),
-      ],
+      [row(DAY1, "WHOOP", 51), row(DAY1, "APPLE_HEALTH", 54)],
       "RESTING_HEART_RATE",
       custom,
     );
@@ -141,10 +129,7 @@ describe("collapseRollupRowsBySource", () => {
     // row deterministically by source name, matching the live-SQL paths'
     // `ORDER BY … source` tiebreak (live/rollup parity).
     const out = collapseRollupRowsBySource(
-      [
-        row(DAY1, "MANUAL", 58, 5),
-        row(DAY1, "IMPORT", 60, 2),
-      ],
+      [row(DAY1, "MANUAL", 58, 5), row(DAY1, "IMPORT", 60, 2)],
       "RESTING_HEART_RATE",
       null,
     );

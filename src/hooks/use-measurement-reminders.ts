@@ -53,9 +53,8 @@ export interface CreateMeasurementReminderBody {
   enabled?: boolean;
 }
 
-export type UpdateMeasurementReminderBody = Partial<
-  CreateMeasurementReminderBody
->;
+export type UpdateMeasurementReminderBody =
+  Partial<CreateMeasurementReminderBody>;
 
 const BASE = "/api/measurement-reminders";
 

@@ -61,8 +61,7 @@ describe("parseSuggestReminder", () => {
   });
 
   it("flags malformed and strips the block on an unknown cadence id", () => {
-    const raw =
-      "text\n---SUGGEST-REMINDER---\ncadence: bp_hourly\n---END---";
+    const raw = "text\n---SUGGEST-REMINDER---\ncadence: bp_hourly\n---END---";
     const r = parseSuggestReminder(raw);
     expect(r.cadence).toBeNull();
     expect(r.malformed).toBe(true);

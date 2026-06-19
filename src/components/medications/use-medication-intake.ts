@@ -204,8 +204,15 @@ export async function runLogIntake(deps: {
   t: Translator;
   queryClient: QueryClient;
 }): Promise<boolean> {
-  const { medication, skipped, takenAt, scheduledFor, doseTaken, t, queryClient } =
-    deps;
+  const {
+    medication,
+    skipped,
+    takenAt,
+    scheduledFor,
+    doseTaken,
+    t,
+    queryClient,
+  } = deps;
   try {
     const body: Record<string, unknown> = { skipped };
     if (!skipped) body.takenAt = takenAt;

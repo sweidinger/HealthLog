@@ -49,10 +49,7 @@ describe("<NotificationsSection> — split title ids (F-1 H-1)", () => {
   it("renders the section heading and the row label with distinct ids", () => {
     const client = makeClient();
     const html = render(
-      <NotificationsSection
-        medicationId="med-1"
-        notificationsEnabled={true}
-      />,
+      <NotificationsSection medicationId="med-1" notificationsEnabled={true} />,
       client,
     );
 

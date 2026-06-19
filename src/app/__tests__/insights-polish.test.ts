@@ -68,18 +68,14 @@ describe("v1.4.27 R3d MB4 — the layout mounts the Coach drawer", () => {
     const shellSource = load(
       `${process.cwd()}/src/components/layout/auth-shell.tsx`,
     );
-    expect(shellSource).toContain(
-      'from "@/lib/insights/coach-launch-context"',
-    );
+    expect(shellSource).toContain('from "@/lib/insights/coach-launch-context"');
     expect(shellSource).toMatch(/<CoachLaunchProvider>/);
     expect(shellSource).toMatch(/<LayoutCoachMount \/>/);
   });
 
   it("the insights layout no longer double-mounts the provider or drawer", () => {
     const layout = load(INSIGHTS_LAYOUT_PATH);
-    expect(layout).not.toContain(
-      'from "@/lib/insights/coach-launch-context"',
-    );
+    expect(layout).not.toContain('from "@/lib/insights/coach-launch-context"');
     expect(layout).not.toContain("import { LayoutCoachMount }");
     // FAB stays scoped to `/insights/**` because the floating button
     // would distract on surfaces with a contextual inline CTA.

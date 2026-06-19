@@ -230,7 +230,7 @@ export function HeroStrip({
             aria-hidden="true"
             className={cn(
               "bg-card/65 border-border/60 rounded-xl border px-4 py-4 shadow-sm backdrop-blur-sm",
-              "w-full md:basis-[22rem] md:shrink-0 md:grow-0 xl:basis-[26rem]",
+              "w-full md:shrink-0 md:grow-0 md:basis-[22rem] xl:basis-[26rem]",
               "flex h-full min-h-64 flex-col gap-3.5",
             )}
           >

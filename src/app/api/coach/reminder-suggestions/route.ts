@@ -38,10 +38,7 @@ import {
   DEFAULT_REMINDER_SUGGESTION_PREFS,
 } from "@/lib/validations/coach-prefs";
 import { coachReminderSuggestionActionSchema } from "@/lib/validations/coach-reminder-suggestion";
-import {
-  CADENCE_CATALOG,
-  isCadenceId,
-} from "@/lib/ai/coach/suggest-reminder";
+import { CADENCE_CATALOG, isCadenceId } from "@/lib/ai/coach/suggest-reminder";
 import {
   computeReminderNextDueAt,
   type ReminderScheduleInput,

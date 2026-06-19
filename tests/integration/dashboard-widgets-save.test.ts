@@ -259,7 +259,9 @@ describe("PUT /api/dashboard/widgets — Save persists full layouts", () => {
       const body = (await res.json()) as {
         data: null;
         error: string;
-        details: { issues: Array<{ path: string; code: string; message: string }> };
+        details: {
+          issues: Array<{ path: string; code: string; message: string }>;
+        };
       };
       expect(body.data).toBeNull();
       expect(body.error).toBe("Validation failed");

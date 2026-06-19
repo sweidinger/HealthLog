@@ -106,10 +106,7 @@ export interface CoachFeedbackAttribution extends FeedbackAttribution {
   metricSourceType: string;
 }
 
-function buildCoachMetricSourceType(
-  tone: string,
-  verbosity: string,
-): string {
+function buildCoachMetricSourceType(tone: string, verbosity: string): string {
   return `coach:tone=${tone}:verbosity=${verbosity}`;
 }
 

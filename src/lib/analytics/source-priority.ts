@@ -137,7 +137,9 @@ export function pickCanonicalSourceRows<T extends SourcePickerRow>(
   // rather than once per row. Resolution itself lives in
   // `getDeviceTypeLadder` — the cache is the only extra layer here.
   const ladderCache = new Map<string, readonly DeviceType[]>();
-  function resolveLadder(rowType: MeasurementType | null | undefined): readonly DeviceType[] {
+  function resolveLadder(
+    rowType: MeasurementType | null | undefined,
+  ): readonly DeviceType[] {
     const cacheKey = rowType ?? "__default__";
     let ladder = ladderCache.get(cacheKey);
     if (!ladder) {

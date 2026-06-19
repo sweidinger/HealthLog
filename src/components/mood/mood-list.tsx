@@ -347,7 +347,13 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       note: string | null;
       moodLoggedAt: string;
     }) => {
-      await apiPut(`/api/mood-entries/${id}`, { mood, tags, tagKeys, note, moodLoggedAt });
+      await apiPut(`/api/mood-entries/${id}`, {
+        mood,
+        tags,
+        tagKeys,
+        note,
+        moodLoggedAt,
+      });
     },
     onSuccess: async () => {
       await invalidateKeys(queryClient, moodDependentKeys);

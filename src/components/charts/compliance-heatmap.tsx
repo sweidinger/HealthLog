@@ -259,7 +259,11 @@ export function ComplianceHeatmap({
           only kicks in for the non-stretch (static 18 px cell) case
           when the parent column is narrower than `weeks * 21 px`. */}
       <div
-        className={stretch ? "w-full sm:w-full overflow-x-auto sm:overflow-visible" : "overflow-x-auto"}
+        className={
+          stretch
+            ? "w-full overflow-x-auto sm:w-full sm:overflow-visible"
+            : "overflow-x-auto"
+        }
       >
         <svg
           width={svgWidth}
@@ -269,7 +273,9 @@ export function ComplianceHeatmap({
           // off `containerWidth`, so a full window still fills the row) rather
           // than CSS-stretching ~5 columns of capped cells into wide rectangles.
           className={stretch ? "block max-w-full" : "block"}
-          onMouseLeave={() => setTooltip((prev) => (prev?.pinned ? prev : null))}
+          onMouseLeave={() =>
+            setTooltip((prev) => (prev?.pinned ? prev : null))
+          }
         >
           {/* Month labels */}
           {monthMarkers.map((m, i) => (

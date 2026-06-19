@@ -39,7 +39,9 @@ export const dynamic = "force-dynamic";
 // these a year; the cap is a defensive bound, not an expected ceiling.
 const MAX_EVENTS = 200;
 
-const EVENT_TYPE_LIST = Array.from(EVENT_MEASUREMENT_TYPES) as MeasurementType[];
+const EVENT_TYPE_LIST = Array.from(
+  EVENT_MEASUREMENT_TYPES,
+) as MeasurementType[];
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();

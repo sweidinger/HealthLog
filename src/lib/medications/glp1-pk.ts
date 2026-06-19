@@ -64,10 +64,7 @@
  * same dose history at any reference time.
  */
 
-import {
-  GLP1_DRUGS,
-  type Glp1DrugId,
-} from "@/lib/medications/glp1-knowledge";
+import { GLP1_DRUGS, type Glp1DrugId } from "@/lib/medications/glp1-knowledge";
 
 /**
  * Version stamp of the MDR-disclaimer copy that the Research Mode
@@ -179,7 +176,8 @@ function resolveKa(drugId: Glp1DrugId): number {
  * terminal half-life (days → hours).
  */
 function resolveKe(drugId: Glp1DrugId): number {
-  const halfLifeHours = GLP1_DRUGS[drugId].pharmacology.halfLifeDays * HOURS_PER_DAY;
+  const halfLifeHours =
+    GLP1_DRUGS[drugId].pharmacology.halfLifeDays * HOURS_PER_DAY;
   // Defensive: catalog values are positive by construction, but
   // guard against accidental zero so the division below never
   // explodes if a future maintainer mis-edits a record.
@@ -329,8 +327,7 @@ export function shotPhaseAt(
   // which an over-generous threshold would miscall.
   const peakWindow = Math.max(before.concentration, after.concentration);
   const flatGradient =
-    Math.abs(after.concentration - before.concentration) <
-    peakWindow * 0.02;
+    Math.abs(after.concentration - before.concentration) < peakWindow * 0.02;
   if (flatGradient && here.concentration >= peakWindow * 0.99) {
     return "peak";
   }

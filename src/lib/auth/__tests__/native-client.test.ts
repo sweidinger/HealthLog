@@ -127,7 +127,10 @@ describe("isCookielessNativeCaller (M-3 refresh-token issuance gate)", () => {
   it("true for a native caller whose cookie header lacks the session cookie", () => {
     expect(
       isCookielessNativeCaller(
-        h({ "x-client-type": "native", cookie: "other=1; hl_onboarding=pending" }),
+        h({
+          "x-client-type": "native",
+          cookie: "other=1; hl_onboarding=pending",
+        }),
       ),
     ).toBe(true);
   });

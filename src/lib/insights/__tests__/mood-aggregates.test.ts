@@ -113,14 +113,34 @@ describe("computeStructuredTagSummary", () => {
   it("ranks structured tags by frequency, keeps singletons, and groups by category", () => {
     const entries: MoodAggregateEntry[] = [
       entryWithStructured(1, 5, [
-        { key: "happy", categoryKey: "feelings", labelKey: "mood.tag.happy", icon: "Smile" },
-        { key: "worked_out", categoryKey: "health", labelKey: "mood.tag.workedOut", icon: "Dumbbell" },
+        {
+          key: "happy",
+          categoryKey: "feelings",
+          labelKey: "mood.tag.happy",
+          icon: "Smile",
+        },
+        {
+          key: "worked_out",
+          categoryKey: "health",
+          labelKey: "mood.tag.workedOut",
+          icon: "Dumbbell",
+        },
       ]),
       entryWithStructured(2, 3, [
-        { key: "happy", categoryKey: "feelings", labelKey: "mood.tag.happy", icon: "Smile" },
+        {
+          key: "happy",
+          categoryKey: "feelings",
+          labelKey: "mood.tag.happy",
+          icon: "Smile",
+        },
       ]),
       entryWithStructured(3, 1, [
-        { key: "stressed", categoryKey: "feelings", labelKey: "mood.tag.stressed", icon: "Brain" },
+        {
+          key: "stressed",
+          categoryKey: "feelings",
+          labelKey: "mood.tag.stressed",
+          icon: "Brain",
+        },
       ]),
     ];
     const rows = computeStructuredTagSummary(entries, NOW);
@@ -137,7 +157,9 @@ describe("computeStructuredTagSummary", () => {
     // singletons are kept for the structured breakdown (curated catalog,
     // not noisy free text).
     expect(rows.find((r) => r.key === "stressed")?.count).toBe(1);
-    expect(rows.find((r) => r.key === "worked_out")?.categoryKey).toBe("health");
+    expect(rows.find((r) => r.key === "worked_out")?.categoryKey).toBe(
+      "health",
+    );
     // ranked by frequency desc.
     expect(rows[0].key).toBe("happy");
   });
@@ -164,10 +186,20 @@ describe("computeStructuredTagSummary", () => {
   it("excludes entries older than the window and ignores entries without structured tags", () => {
     const entries: MoodAggregateEntry[] = [
       entryWithStructured(1, 5, [
-        { key: "happy", categoryKey: "feelings", labelKey: "mood.tag.happy", icon: "Smile" },
+        {
+          key: "happy",
+          categoryKey: "feelings",
+          labelKey: "mood.tag.happy",
+          icon: "Smile",
+        },
       ]),
       entryWithStructured(200, 5, [
-        { key: "sad", categoryKey: "feelings", labelKey: "mood.tag.sad", icon: "Frown" },
+        {
+          key: "sad",
+          categoryKey: "feelings",
+          labelKey: "mood.tag.sad",
+          icon: "Frown",
+        },
       ]),
       entry(2, 4, ["flat-only"]), // no structuredTags → ignored here
     ];
@@ -417,7 +449,9 @@ describe("computeTimeOfDayAverages", () => {
 
   it("falls back to UTC for legacy rows without a tz", () => {
     const pattern = computeTimeOfDayAverages([tzEntry(1, 14, 5, null)]);
-    expect(pattern.buckets.find((b) => b.bucket === "afternoon")?.count).toBe(1);
+    expect(pattern.buckets.find((b) => b.bucket === "afternoon")?.count).toBe(
+      1,
+    );
   });
 
   it("is unreliable for a once-a-day logger clustered in one bucket", () => {
@@ -501,7 +535,11 @@ describe("computeMoodStability", () => {
 // ── F1 — computeTagInfluence (with-vs-without delta) ─────────────────
 
 describe("computeTagInfluence", () => {
-  function flatEntry(offset: number, score: number, tags: string[]): MoodAggregateEntry {
+  function flatEntry(
+    offset: number,
+    score: number,
+    tags: string[],
+  ): MoodAggregateEntry {
     return entry(offset, score, tags);
   }
 
@@ -509,8 +547,10 @@ describe("computeTagInfluence", () => {
     // 14 days WITH "exercise" averaging ~4.5, 14 days WITHOUT averaging ~2.5
     // — enough per group (>= 12) for a strong clean separation to read high.
     const entries: MoodAggregateEntry[] = [];
-    for (let i = 0; i < 14; i++) entries.push(flatEntry(i, i % 2 === 0 ? 5 : 4, ["exercise"]));
-    for (let i = 14; i < 28; i++) entries.push(flatEntry(i, i % 2 === 0 ? 3 : 2, []));
+    for (let i = 0; i < 14; i++)
+      entries.push(flatEntry(i, i % 2 === 0 ? 5 : 4, ["exercise"]));
+    for (let i = 14; i < 28; i++)
+      entries.push(flatEntry(i, i % 2 === 0 ? 3 : 2, []));
     const result = computeTagInfluence(entries, NOW, 365);
     const ex = result.flat.find((r) => r.tag === "exercise");
     expect(ex).toBeDefined();
@@ -585,7 +625,10 @@ describe("computeTagInfluence", () => {
   });
 
   it("returns empty axes for a sparse history", () => {
-    const entries: MoodAggregateEntry[] = [flatEntry(0, 5, ["a"]), flatEntry(1, 4, ["b"])];
+    const entries: MoodAggregateEntry[] = [
+      flatEntry(0, 5, ["a"]),
+      flatEntry(1, 4, ["b"]),
+    ];
     const result = computeTagInfluence(entries, NOW);
     expect(result.flat).toEqual([]);
     expect(result.structured).toEqual([]);
@@ -598,7 +641,11 @@ describe("computeTagInfluence", () => {
       labelKey: `mood.tag.${key}`,
       icon: "Smile",
     });
-    const e = (offset: number, score: number, keys: string[]): MoodAggregateEntry => ({
+    const e = (
+      offset: number,
+      score: number,
+      keys: string[],
+    ): MoodAggregateEntry => ({
       ...entry(offset, score, null),
       structuredTags: keys.map(tag),
     });
@@ -625,7 +672,11 @@ describe("computeTagInfluence", () => {
       label: "Migraine",
       icon: "Tag",
     };
-    const e = (offset: number, score: number, withTag: boolean): MoodAggregateEntry => ({
+    const e = (
+      offset: number,
+      score: number,
+      withTag: boolean,
+    ): MoodAggregateEntry => ({
       ...entry(offset, score, null),
       structuredTags: withTag ? [customRef] : [],
     });
@@ -654,7 +705,9 @@ describe("computeTagInfluence", () => {
     // 12 distinct tags each present on 6 days, with a shared absent pool
     for (let tagIdx = 0; tagIdx < 12; tagIdx++) {
       for (let d = 0; d < 6; d++) {
-        entries.push(flatEntry(tagIdx * 6 + d, 5 - (tagIdx % 4), [`tag${tagIdx}`]));
+        entries.push(
+          flatEntry(tagIdx * 6 + d, 5 - (tagIdx % 4), [`tag${tagIdx}`]),
+        );
       }
     }
     const result = computeTagInfluence(entries, NOW, 365);
@@ -903,8 +956,16 @@ describe("computeTagMetricCrosstab", () => {
   }
 
   /** A measurement at midday on the day `offset` days before NOW. */
-  function meas(offset: number, type: string, value: number): CrossMetricMeasurement {
-    return { type, value, measuredAt: new Date(NOW.getTime() - offset * dayMs) };
+  function meas(
+    offset: number,
+    type: string,
+    value: number,
+  ): CrossMetricMeasurement {
+    return {
+      type,
+      value,
+      measuredAt: new Date(NOW.getTime() - offset * dayMs),
+    };
   }
 
   it("compares a metric on tag-present vs tag-absent days (same-day) and surfaces a significant delta", () => {
@@ -913,15 +974,21 @@ describe("computeTagMetricCrosstab", () => {
     // 12 days WITH the workout tag, high active energy (~600 ± a little).
     for (let i = 0; i < 12; i++) {
       entries.push(structuredEntry(i, 4, [WORKOUT]));
-      measurements.push(meas(i, "ACTIVE_ENERGY_BURNED", 600 + (i % 2 === 0 ? 20 : -20)));
+      measurements.push(
+        meas(i, "ACTIVE_ENERGY_BURNED", 600 + (i % 2 === 0 ? 20 : -20)),
+      );
     }
     // 12 days WITHOUT the tag, low active energy (~350).
     for (let i = 12; i < 24; i++) {
       entries.push(structuredEntry(i, 3, []));
-      measurements.push(meas(i, "ACTIVE_ENERGY_BURNED", 350 + (i % 2 === 0 ? 20 : -20)));
+      measurements.push(
+        meas(i, "ACTIVE_ENERGY_BURNED", 350 + (i % 2 === 0 ? 20 : -20)),
+      );
     }
     const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
-    const row = rows.find((r) => r.tag === "worked_out" && r.metricKey === "activeEnergy");
+    const row = rows.find(
+      (r) => r.tag === "worked_out" && r.metricKey === "activeEnergy",
+    );
     expect(row).toBeDefined();
     expect(row!.display).toBe("kcal");
     expect(row!.mode).toBe("sameDay");
@@ -947,11 +1014,15 @@ describe("computeTagMetricCrosstab", () => {
     // present: 480 min = 8 h; absent: 360 min = 6 h.
     for (let i = 0; i < 12; i++) {
       entries.push(structuredEntry(i, 4, [SLEEP]));
-      measurements.push(meas(i, "SLEEP_DURATION", 480 + (i % 2 === 0 ? 6 : -6)));
+      measurements.push(
+        meas(i, "SLEEP_DURATION", 480 + (i % 2 === 0 ? 6 : -6)),
+      );
     }
     for (let i = 12; i < 24; i++) {
       entries.push(structuredEntry(i, 3, []));
-      measurements.push(meas(i, "SLEEP_DURATION", 360 + (i % 2 === 0 ? 6 : -6)));
+      measurements.push(
+        meas(i, "SLEEP_DURATION", 360 + (i % 2 === 0 ? 6 : -6)),
+      );
     }
     const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
     const row = rows.find((r) => r.metricKey === "sleepDuration");
@@ -977,11 +1048,15 @@ describe("computeTagMetricCrosstab", () => {
     // Build 24 consecutive days; tag the older half so the +1 day always exists.
     for (let i = 1; i <= 12; i++) {
       entries.push(structuredEntry(i, 3, [ALCOHOL]));
-      measurements.push(meas(i - 1, "RECOVERY_SCORE", 40 + (i % 2 === 0 ? 3 : -3)));
+      measurements.push(
+        meas(i - 1, "RECOVERY_SCORE", 40 + (i % 2 === 0 ? 3 : -3)),
+      );
     }
     for (let i = 13; i <= 24; i++) {
       entries.push(structuredEntry(i, 4, []));
-      measurements.push(meas(i - 1, "RECOVERY_SCORE", 80 + (i % 2 === 0 ? 3 : -3)));
+      measurements.push(
+        meas(i - 1, "RECOVERY_SCORE", 80 + (i % 2 === 0 ? 3 : -3)),
+      );
     }
     const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
     const row = rows.find((r) => r.metricKey === "nextDayRecovery");
@@ -1031,7 +1106,11 @@ describe("computeTagMetricCrosstab", () => {
     for (let i = 0; i < 24; i++) {
       entries.push(structuredEntry(i, 4, i < 12 ? [WORKOUT] : []));
     }
-    const rows = computeTagMetricCrosstab({ entries, measurements: [], now: NOW });
+    const rows = computeTagMetricCrosstab({
+      entries,
+      measurements: [],
+      now: NOW,
+    });
     expect(rows).toEqual([]);
   });
 
@@ -1067,18 +1146,27 @@ describe("computeTagMetricCrosstab", () => {
     for (let i = 0; i < 12; i++) {
       entries.push(structuredEntry(i, 4, [WORKOUT]));
       const v = 600 + (i % 2 === 0 ? 20 : -20);
-      measurements.push(sourcedMeas(i, "ACTIVE_ENERGY_BURNED", v, "APPLE_HEALTH"));
+      measurements.push(
+        sourcedMeas(i, "ACTIVE_ENERGY_BURNED", v, "APPLE_HEALTH"),
+      );
       measurements.push(sourcedMeas(i, "ACTIVE_ENERGY_BURNED", v, "FITBIT"));
     }
     // 12 absent days: single source ~350.
     for (let i = 12; i < 24; i++) {
       entries.push(structuredEntry(i, 3, []));
       measurements.push(
-        sourcedMeas(i, "ACTIVE_ENERGY_BURNED", 350 + (i % 2 === 0 ? 20 : -20), "APPLE_HEALTH"),
+        sourcedMeas(
+          i,
+          "ACTIVE_ENERGY_BURNED",
+          350 + (i % 2 === 0 ? 20 : -20),
+          "APPLE_HEALTH",
+        ),
       );
     }
     const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
-    const row = rows.find((r) => r.tag === "worked_out" && r.metricKey === "activeEnergy");
+    const row = rows.find(
+      (r) => r.tag === "worked_out" && r.metricKey === "activeEnergy",
+    );
     expect(row).toBeDefined();
     // ~600, NOT ~1200 — the Fitbit twin is dropped by the canonical pick.
     expect(row!.withAvg).toBeCloseTo(600, 0);
@@ -1105,7 +1193,9 @@ describe("computeTagMetricCrosstab", () => {
     }
     for (let i = 12; i < 24; i++) {
       entries.push(structuredEntry(i, 3, []));
-      measurements.push(sourcedMeas(i, "SLEEP_DURATION", 360 + (i % 2 === 0 ? 6 : -6), "WHOOP"));
+      measurements.push(
+        sourcedMeas(i, "SLEEP_DURATION", 360 + (i % 2 === 0 ? 6 : -6), "WHOOP"),
+      );
     }
     const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
     const row = rows.find((r) => r.metricKey === "sleepDuration");
@@ -1209,8 +1299,16 @@ describe("computeFactorMetricCrosstab", () => {
     return { ...entry(offset, score, null), ratedFactors: factors };
   }
 
-  function meas(offset: number, type: string, value: number): CrossMetricMeasurement {
-    return { type, value, measuredAt: new Date(NOW.getTime() - offset * dayMs) };
+  function meas(
+    offset: number,
+    type: string,
+    value: number,
+  ): CrossMetricMeasurement {
+    return {
+      type,
+      value,
+      measuredAt: new Date(NOW.getTime() - offset * dayMs),
+    };
   }
 
   const work = (rating: number, inverse = false): RatedFactorScore => ({
@@ -1231,14 +1329,24 @@ describe("computeFactorMetricCrosstab", () => {
     // (~6 h = 360 min); 12 HIGH-work days (rating 5) with long sleep (~8 h).
     for (let i = 0; i < 12; i++) {
       entries.push(factorEntry(i, 3, [work(2)]));
-      measurements.push(meas(i, "SLEEP_DURATION", 360 + (i % 2 === 0 ? 6 : -6)));
+      measurements.push(
+        meas(i, "SLEEP_DURATION", 360 + (i % 2 === 0 ? 6 : -6)),
+      );
     }
     for (let i = 12; i < 24; i++) {
       entries.push(factorEntry(i, 4, [work(5)]));
-      measurements.push(meas(i, "SLEEP_DURATION", 480 + (i % 2 === 0 ? 6 : -6)));
+      measurements.push(
+        meas(i, "SLEEP_DURATION", 480 + (i % 2 === 0 ? 6 : -6)),
+      );
     }
-    const rows = computeFactorMetricCrosstab({ entries, measurements, now: NOW });
-    const row = rows.find((r) => r.factor === "work" && r.metricKey === "sleepDuration");
+    const rows = computeFactorMetricCrosstab({
+      entries,
+      measurements,
+      now: NOW,
+    });
+    const row = rows.find(
+      (r) => r.factor === "work" && r.metricKey === "sleepDuration",
+    );
     expect(row).toBeDefined();
     expect(row!.display).toBe("hours");
     expect(row!.lowDays).toBe(12);
@@ -1260,13 +1368,21 @@ describe("computeFactorMetricCrosstab", () => {
     // 1 (low/worse). Worse-stress days carry higher next-day RHR (D → D+1).
     for (let i = 1; i <= 12; i++) {
       entries.push(factorEntry(i, 3, [work(5, true)])); // worse → flipped low
-      measurements.push(meas(i - 1, "RESTING_HEART_RATE", 64 + (i % 2 === 0 ? 1 : -1)));
+      measurements.push(
+        meas(i - 1, "RESTING_HEART_RATE", 64 + (i % 2 === 0 ? 1 : -1)),
+      );
     }
     for (let i = 13; i <= 24; i++) {
       entries.push(factorEntry(i, 4, [work(1, true)])); // better → flipped high
-      measurements.push(meas(i - 1, "RESTING_HEART_RATE", 56 + (i % 2 === 0 ? 1 : -1)));
+      measurements.push(
+        meas(i - 1, "RESTING_HEART_RATE", 56 + (i % 2 === 0 ? 1 : -1)),
+      );
     }
-    const rows = computeFactorMetricCrosstab({ entries, measurements, now: NOW });
+    const rows = computeFactorMetricCrosstab({
+      entries,
+      measurements,
+      now: NOW,
+    });
     const row = rows.find((r) => r.metricKey === "restingHeartRate");
     expect(row).toBeDefined();
     expect(row!.mode).toBe("nextDay");
@@ -1285,8 +1401,14 @@ describe("computeFactorMetricCrosstab", () => {
       entries.push(factorEntry(i, 3, [work(i < 3 ? 2 : 5)]));
       measurements.push(meas(i, "SLEEP_DURATION", i < 3 ? 360 : 480));
     }
-    expect(CROSSTAB_MIN_PRESENT_DAYS + CROSSTAB_MIN_ABSENT_DAYS).toBeGreaterThan(6);
-    const rows = computeFactorMetricCrosstab({ entries, measurements, now: NOW });
+    expect(
+      CROSSTAB_MIN_PRESENT_DAYS + CROSSTAB_MIN_ABSENT_DAYS,
+    ).toBeGreaterThan(6);
+    const rows = computeFactorMetricCrosstab({
+      entries,
+      measurements,
+      now: NOW,
+    });
     expect(rows.find((r) => r.factor === "work")).toBeUndefined();
   });
 
@@ -1297,7 +1419,9 @@ describe("computeFactorMetricCrosstab", () => {
       entries.push(entry(i, 3, null));
       measurements.push(meas(i, "SLEEP_DURATION", 420));
     }
-    expect(computeFactorMetricCrosstab({ entries, measurements, now: NOW })).toEqual([]);
+    expect(
+      computeFactorMetricCrosstab({ entries, measurements, now: NOW }),
+    ).toEqual([]);
   });
 
   it("caps the surface at CROSSTAB_MAX_ROWS", () => {

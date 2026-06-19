@@ -125,7 +125,9 @@ export const DELETE = apiHandler(
       if (layout.groupOrder !== undefined || layout.placements !== undefined) {
         await tx.user.update({
           where: { id: user.id },
-          data: { moodTagLayoutJson: toJson(stripGroupFromLayout(layout, key)) },
+          data: {
+            moodTagLayoutJson: toJson(stripGroupFromLayout(layout, key)),
+          },
         });
       }
 

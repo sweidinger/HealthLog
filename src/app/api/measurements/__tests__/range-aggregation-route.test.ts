@@ -324,9 +324,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
   it("falls back to live date_trunc when source=rollup returns zero buckets", async () => {
     // Empty rollup ⇒ heavy aggregate runs so brand-new accounts still
     // see a correct chart on their first render.
-    vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue(
-      [] as never,
-    );
+    vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
     const liveBuckets = Array.from({ length: 7 }, (_, i) => ({
       type: "WEIGHT",
       bucket_start: new Date(Date.UTC(2026, 4, 8 + i, 0, 0, 0)),

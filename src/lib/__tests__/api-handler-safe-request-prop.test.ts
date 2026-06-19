@@ -90,9 +90,9 @@ describe("isTolerableRequestProbeError — narrow-catch classifier", () => {
     expect(isTolerableRequestProbeError(new Error("private member #x"))).toBe(
       false,
     );
-    expect(
-      isTolerableRequestProbeError(new RangeError("private member")),
-    ).toBe(false);
+    expect(isTolerableRequestProbeError(new RangeError("private member"))).toBe(
+      false,
+    );
     expect(isTolerableRequestProbeError("private member string")).toBe(false);
     expect(isTolerableRequestProbeError(null)).toBe(false);
     expect(isTolerableRequestProbeError(undefined)).toBe(false);

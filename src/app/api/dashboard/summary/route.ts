@@ -334,9 +334,9 @@ export const GET = apiHandler(async () => {
   // existing `invalidateUserMeasurements` + the v1.4.38-extended
   // `invalidateUserMedications` hooks.
   const body = await cached(
-    caches.analytics as ServerCache<Awaited<
-      ReturnType<typeof buildDashboardSummary>
-    >>,
+    caches.analytics as ServerCache<
+      Awaited<ReturnType<typeof buildDashboardSummary>>
+    >,
     `${user.id}|dashboard-summary`,
     () => buildDashboardSummary(user.id, userTz, buildContext(user)),
     annotate,
@@ -350,9 +350,11 @@ interface SummaryBuilderContext {
   locale: Locale;
 }
 
-function buildContext(
-  user: { displayName: string | null; username: string; locale: string | null },
-): SummaryBuilderContext {
+function buildContext(user: {
+  displayName: string | null;
+  username: string;
+  locale: string | null;
+}): SummaryBuilderContext {
   const greetingName = user.displayName ?? user.username;
   // v1.5.x — accept every shipped locale (de / en / es / fr / it / pl)
   // so the greeting + streak label resolve against the user's
@@ -395,7 +397,10 @@ async function buildDashboardSummary(
   // perf-verify can attribute a regression to a specific sub-query
   // without re-instrumenting the route.
   const timings: Record<string, number> = {};
-  const time = async <T>(label: string, builder: () => Promise<T>): Promise<T> => {
+  const time = async <T>(
+    label: string,
+    builder: () => Promise<T>,
+  ): Promise<T> => {
     const t0 = Date.now();
     const result = await builder();
     timings[`dashboard.sub_${label}_ms`] = Date.now() - t0;
@@ -424,8 +429,10 @@ async function buildDashboardSummary(
     measurementStreakDays,
     sleepStageRows,
   ] = await Promise.all([
-    time("latestEver", () =>
-      prisma.$queryRaw<LatestEverRow[]>`
+    time(
+      "latestEver",
+      () =>
+        prisma.$queryRaw<LatestEverRow[]>`
         SELECT DISTINCT ON (m."type")
           m."type"                                  AS type,
           m."value"::double precision               AS value,
@@ -436,8 +443,10 @@ async function buildDashboardSummary(
         ORDER BY m."type", m."measured_at" DESC
       `,
     ),
-    time("sparkline", () =>
-      prisma.$queryRaw<SparklineRow[]>`
+    time(
+      "sparkline",
+      () =>
+        prisma.$queryRaw<SparklineRow[]>`
         SELECT type, bucket_start, mean, count, sum_value
         FROM (
           SELECT
@@ -497,8 +506,10 @@ async function buildDashboardSummary(
     // conversion is folded server-side so the day boundary matches
     // `userDayKey`'s output (it formats the timestamp in the user's
     // tz before slicing YYYY-MM-DD).
-    time("streakDays", () =>
-      prisma.$queryRaw<ActivityDayRow[]>`
+    time(
+      "streakDays",
+      () =>
+        prisma.$queryRaw<ActivityDayRow[]>`
         SELECT DISTINCT
           to_char(
             (m."measured_at" AT TIME ZONE ${userTz}),

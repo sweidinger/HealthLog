@@ -315,7 +315,9 @@ describe("verb helpers", () => {
     await apiPost(
       "/api/foo",
       { a: 1 },
-      { headers: new Headers({ "Content-Type": "application/json-patch+json" }) },
+      {
+        headers: new Headers({ "Content-Type": "application/json-patch+json" }),
+      },
     );
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];

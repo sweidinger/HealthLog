@@ -104,7 +104,8 @@ export function PersonalRecordBadge({
   // until the response lands — desired behaviour for the SSR path.
   const fresh = (data ?? []).find(
     (row) =>
-      row.metricSlot === null && isPRWithin30Days(row.achievedAt, dataUpdatedAt),
+      row.metricSlot === null &&
+      isPRWithin30Days(row.achievedAt, dataUpdatedAt),
   );
 
   if (!fresh) return null;
@@ -119,7 +120,7 @@ export function PersonalRecordBadge({
         // green on the dark card (#50fa7b). Both clear 4.5:1 against
         // their card background — the previous `text-dracula-green` on
         // `bg-dracula-green/10` measured ~2.6:1 in dark mode.
-        "border-success/40 bg-success/15 text-success inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[10px] leading-none font-semibold tracking-wide tabular-nums uppercase",
+        "border-success/40 bg-success/15 text-success inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[10px] leading-none font-semibold tracking-wide uppercase tabular-nums",
         className,
       )}
       aria-label={t("insights.personalRecord.badge")}

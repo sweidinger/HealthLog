@@ -16,7 +16,9 @@ const headerStore = new Map<string, string>();
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/hmac", () => ({ hashToken: (s: string) => `hash(${s})` }));
-vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/auth/audit", () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/db", () => ({
   prisma: { apiToken: { findUnique: vi.fn() } },
 }));

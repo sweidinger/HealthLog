@@ -89,9 +89,7 @@ describe("POST /api/bugreport — 422 multi-issue (v1.4.43 W6)", () => {
   it("surfaces multiple simultaneous validation errors (≥ 2)", async () => {
     // Schema has only two knobs (description, screenshot). Pin contract
     // on ≥ 2.
-    const res = await POST(
-      postReq({ description: 123, screenshot: 999 }),
-    );
+    const res = await POST(postReq({ description: 123, screenshot: 999 }));
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       details: { issues: Array<unknown> };

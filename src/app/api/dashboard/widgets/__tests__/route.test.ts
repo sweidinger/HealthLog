@@ -37,8 +37,7 @@ vi.mock("@/lib/db-compat", () => ({
 }));
 
 vi.mock("@/lib/logging/context", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/logging/context")>();
+  const actual = await importOriginal<typeof import("@/lib/logging/context")>();
   return {
     ...actual,
     annotate: vi.fn(),
@@ -188,11 +187,13 @@ describe("PUT /api/dashboard/widgets — 422 multi-issue envelope (v1.4.42 W2)",
     const res = await callPut(makeReq(payload));
     expect(res.status).toBe(422);
 
-    const annotated = vi.mocked(annotate).mock.calls.find(
-      (call) =>
-        (call[0] as { action?: { name?: string } })?.action?.name ===
-        "dashboard.widgets.validation-failed",
-    );
+    const annotated = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "dashboard.widgets.validation-failed",
+      );
     expect(annotated, "validation-failed annotate call").toBeTruthy();
     const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
 
@@ -206,7 +207,7 @@ describe("PUT /api/dashboard/widgets — 422 multi-issue envelope (v1.4.42 W2)",
     expect((meta.received_shape_excerpt as string).length).toBeLessThanOrEqual(
       256,
     );
-    expect(meta.received_shape_excerpt as string).toContain("\"version\":2");
+    expect(meta.received_shape_excerpt as string).toContain('"version":2');
 
     // zod_issues is the same sanitised array surfaced under details.issues.
     const issues = meta.zod_issues as Array<{ path: string; code: string }>;
@@ -230,11 +231,13 @@ describe("PUT /api/dashboard/widgets — 422 multi-issue envelope (v1.4.42 W2)",
     const res = await callPut(makeReq({ version: 99, widgets }));
     expect(res.status).toBe(422);
 
-    const annotated = vi.mocked(annotate).mock.calls.find(
-      (call) =>
-        (call[0] as { action?: { name?: string } })?.action?.name ===
-        "dashboard.widgets.validation-failed",
-    );
+    const annotated = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "dashboard.widgets.validation-failed",
+      );
     const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
     expect((meta.received_shape_excerpt as string).length).toBe(256);
   });
@@ -268,11 +271,13 @@ describe("PUT /api/dashboard/widgets — 422 multi-issue envelope (v1.4.42 W2)",
     const res = await callPut(makeReq(payload));
     expect(res.status).toBe(422);
 
-    const annotated = vi.mocked(annotate).mock.calls.find(
-      (call) =>
-        (call[0] as { action?: { name?: string } })?.action?.name ===
-        "dashboard.widgets.validation-failed",
-    );
+    const annotated = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "dashboard.widgets.validation-failed",
+      );
     const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
     const excerpt = meta.received_shape_excerpt as string;
 
@@ -337,7 +342,8 @@ describe("PUT /api/dashboard/widgets — accept-and-ignore unknown ids (v1.7.0 #
 
     // The persisted blob never carries the unknown id.
     expect(prisma.user.update).toHaveBeenCalledTimes(1);
-    const updateArg = vi.mocked(prisma.user.update).mock.calls[0]?.[0] as unknown as {
+    const updateArg = vi.mocked(prisma.user.update).mock
+      .calls[0]?.[0] as unknown as {
       data: { dashboardWidgetsJson: { widgets: Array<{ id: string }> } };
     };
     const persistedIds = updateArg.data.dashboardWidgetsJson.widgets.map(
@@ -372,11 +378,13 @@ describe("PUT /api/dashboard/widgets — accept-and-ignore unknown ids (v1.7.0 #
     // annotation fires regardless, before the Zod parse.
     expect(res.status).toBe(422);
 
-    const dropAnnotate = vi.mocked(annotate).mock.calls.find(
-      (c) =>
-        (c[0] as { action?: { name?: string } }).action?.name ===
-        "dashboard.widgets.unknown-id-dropped",
-    );
+    const dropAnnotate = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (c) =>
+          (c[0] as { action?: { name?: string } }).action?.name ===
+          "dashboard.widgets.unknown-id-dropped",
+      );
     expect(dropAnnotate, "unknown-id-dropped annotate call").toBeTruthy();
     const meta = (dropAnnotate![0] as { meta?: Record<string, unknown> }).meta!;
     expect(meta.dropped_count).toBe(200);
@@ -542,11 +550,13 @@ describe("dashboard widgets — 27-id catalogue round-trip (v1.7.0 W1)", () => {
     expect(res.status).toBe(200);
 
     // No id was dropped — the unknown-id annotation must NOT fire.
-    const dropAnnotate = vi.mocked(annotate).mock.calls.find(
-      (c) =>
-        (c[0] as { action?: { name?: string } }).action?.name ===
-        "dashboard.widgets.unknown-id-dropped",
-    );
+    const dropAnnotate = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (c) =>
+          (c[0] as { action?: { name?: string } }).action?.name ===
+          "dashboard.widgets.unknown-id-dropped",
+      );
     expect(dropAnnotate).toBeUndefined();
 
     expect(prisma.user.update).toHaveBeenCalledTimes(1);
@@ -557,7 +567,9 @@ describe("dashboard widgets — 27-id catalogue round-trip (v1.7.0 W1)", () => {
     const persistedIds = updateArg.data.dashboardWidgetsJson.widgets.map(
       (w) => w.id,
     );
-    expect(persistedIds.sort()).toEqual([...DASHBOARD_WIDGET_CATALOGUE_IDS].sort());
+    expect(persistedIds.sort()).toEqual(
+      [...DASHBOARD_WIDGET_CATALOGUE_IDS].sort(),
+    );
     // The response body echoes the full persisted layout.
     const body = (await res.json()) as {
       data: { widgets: Array<{ id: string }> };

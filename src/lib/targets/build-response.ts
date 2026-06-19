@@ -55,7 +55,6 @@ import {
   readMoodDayRollups,
 } from "@/lib/rollups/mood-rollups";
 
-
 import type { User } from "@/generated/prisma/client";
 
 function getAge(dateOfBirth: Date): number {
@@ -1476,10 +1475,7 @@ export async function buildTargetsResponse(user: AuthedUser) {
     if (range && effRange) {
       if (latest >= range.min && latest <= range.max) {
         classification = { category: "Optimal", color: "#50fa7b" };
-      } else if (
-        latest >= effRange.orangeMin &&
-        latest <= effRange.orangeMax
-      ) {
+      } else if (latest >= effRange.orangeMin && latest <= effRange.orangeMax) {
         classification = { category: "Elevated", color: "#f1fa8c" };
       } else {
         classification = { category: "High", color: "#ff5555" };

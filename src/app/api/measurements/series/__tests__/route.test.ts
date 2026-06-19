@@ -32,8 +32,7 @@ vi.mock("@/lib/db-compat", () => ({
 }));
 
 vi.mock("@/lib/logging/context", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/logging/context")>();
+  const actual = await importOriginal<typeof import("@/lib/logging/context")>();
   return {
     ...actual,
     annotate: vi.fn(),
@@ -141,11 +140,36 @@ describe("GET /api/measurements/series", () => {
     // total in hours, not a point per stage.
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([
-      { id: "s1", value: 240, measuredAt: new Date("2026-06-04T00:00:00.000Z"), sleepStage: "CORE" },
-      { id: "s2", value: 90, measuredAt: new Date("2026-06-04T02:00:00.000Z"), sleepStage: "DEEP" },
-      { id: "s3", value: 80, measuredAt: new Date("2026-06-04T04:00:00.000Z"), sleepStage: "REM" },
-      { id: "s4", value: 60, measuredAt: new Date("2026-06-04T05:00:00.000Z"), sleepStage: "AWAKE" },
-      { id: "s5", value: 480, measuredAt: new Date("2026-06-03T23:00:00.000Z"), sleepStage: "IN_BED" },
+      {
+        id: "s1",
+        value: 240,
+        measuredAt: new Date("2026-06-04T00:00:00.000Z"),
+        sleepStage: "CORE",
+      },
+      {
+        id: "s2",
+        value: 90,
+        measuredAt: new Date("2026-06-04T02:00:00.000Z"),
+        sleepStage: "DEEP",
+      },
+      {
+        id: "s3",
+        value: 80,
+        measuredAt: new Date("2026-06-04T04:00:00.000Z"),
+        sleepStage: "REM",
+      },
+      {
+        id: "s4",
+        value: 60,
+        measuredAt: new Date("2026-06-04T05:00:00.000Z"),
+        sleepStage: "AWAKE",
+      },
+      {
+        id: "s5",
+        value: 480,
+        measuredAt: new Date("2026-06-03T23:00:00.000Z"),
+        sleepStage: "IN_BED",
+      },
     ] as never);
     const res = await GET(req("kind=sleep&days=30"));
     expect(res.status).toBe(200);
@@ -362,11 +386,13 @@ describe("GET /api/measurements/series — 422 multi-issue (v1.4.43 W6)", () => 
     const res = await GET(req("kind=garbage&days=0&extraGarbage=fromIos"));
     expect(res.status).toBe(422);
 
-    const annotated = vi.mocked(annotate).mock.calls.find(
-      (call) =>
-        (call[0] as { action?: { name?: string } })?.action?.name ===
-        "measurements.series.validation-failed",
-    );
+    const annotated = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "measurements.series.validation-failed",
+      );
     expect(annotated, "validation-failed annotate call").toBeTruthy();
     const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
 
@@ -377,7 +403,7 @@ describe("GET /api/measurements/series — 422 multi-issue (v1.4.43 W6)", () => 
     expect((meta.received_shape_excerpt as string).length).toBeLessThanOrEqual(
       256,
     );
-    expect(meta.received_shape_excerpt as string).toContain("\"kind\":\"garbage\"");
+    expect(meta.received_shape_excerpt as string).toContain('"kind":"garbage"');
 
     const issues = meta.zod_issues as Array<{ path: string; code: string }>;
     expect(Array.isArray(issues)).toBe(true);
@@ -392,11 +418,13 @@ describe("GET /api/measurements/series — 422 multi-issue (v1.4.43 W6)", () => 
     const long = "x".repeat(500);
     const res = await GET(req(`kind=garbage&days=0&junk=${long}`));
     expect(res.status).toBe(422);
-    const annotated = vi.mocked(annotate).mock.calls.find(
-      (call) =>
-        (call[0] as { action?: { name?: string } })?.action?.name ===
-        "measurements.series.validation-failed",
-    );
+    const annotated = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "measurements.series.validation-failed",
+      );
     const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
     expect((meta.received_shape_excerpt as string).length).toBe(256);
   });
@@ -420,11 +448,13 @@ describe("GET /api/measurements/series — 422 multi-issue (v1.4.43 W6)", () => 
     );
     expect(res.status).toBe(422);
 
-    const annotated = vi.mocked(annotate).mock.calls.find(
-      (call) =>
-        (call[0] as { action?: { name?: string } })?.action?.name ===
-        "measurements.series.validation-failed",
-    );
+    const annotated = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "measurements.series.validation-failed",
+      );
     const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
     const excerpt = meta.received_shape_excerpt as string;
 

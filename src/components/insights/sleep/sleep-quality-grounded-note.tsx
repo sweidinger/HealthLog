@@ -39,8 +39,12 @@ function clauseFor(
   finding: SleepQualityFinding,
   t: (key: string, vars?: Record<string, string | number>) => string,
 ): string {
-  const metricLabel = t(`insights.sleepQuality.assessment.metric.${finding.type}`);
-  const gradeLabel = t(`insights.sleepQuality.assessment.grade.${finding.grade}`);
+  const metricLabel = t(
+    `insights.sleepQuality.assessment.metric.${finding.type}`,
+  );
+  const gradeLabel = t(
+    `insights.sleepQuality.assessment.grade.${finding.grade}`,
+  );
   // Efficiency / performance / consistency are percentages; the headline score
   // is a 0–100 index. Both read naturally as a rounded integer.
   const value = Math.round(finding.value);

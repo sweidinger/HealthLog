@@ -59,10 +59,28 @@ vi.mock("@/lib/insights/derived", async (importOriginal) => {
     ...actual,
     computeDerivedMetric: vi.fn(async () => ({
       status: "ok",
-      value: { type: "RESTING_HEART_RATE", center: 55, low: 48, high: 62, spread: 7, sampleDays: 30, k: 3 },
-      coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 30, missing: [] },
+      value: {
+        type: "RESTING_HEART_RATE",
+        center: 55,
+        low: 48,
+        high: 62,
+        spread: 7,
+        sampleDays: 30,
+        k: 3,
+      },
+      coverage: {
+        requiredInputs: 1,
+        presentInputs: 1,
+        historyDays: 30,
+        missing: [],
+      },
       confidence: { score: 100, band: "high" },
-      provenance: { inputs: ["RESTING_HEART_RATE"], source: "DAY", windowDays: 30, computedAt: "2026-06-02T07:00:00+02:00" },
+      provenance: {
+        inputs: ["RESTING_HEART_RATE"],
+        source: "DAY",
+        windowDays: 30,
+        computedAt: "2026-06-02T07:00:00+02:00",
+      },
     })),
   };
 });
@@ -74,7 +92,12 @@ import { computeDerivedMetric } from "@/lib/insights/derived";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "testuser", role: "USER" as const, locale: "en" },
+  user: {
+    id: "user-1",
+    username: "testuser",
+    role: "USER" as const,
+    locale: "en",
+  },
 };
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;
@@ -152,14 +175,29 @@ describe("GET /api/insights/derived", () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(computeDerivedMetric).mockResolvedValueOnce({
       status: "insufficient",
-      coverage: { requiredInputs: 1, presentInputs: 0, historyDays: 0, missing: ["RESTING_HEART_RATE"] },
-      provenance: { inputs: ["RESTING_HEART_RATE"], source: "none", windowDays: 30, computedAt: "2026-06-02T07:00:00+02:00" },
+      coverage: {
+        requiredInputs: 1,
+        presentInputs: 0,
+        historyDays: 0,
+        missing: ["RESTING_HEART_RATE"],
+      },
+      provenance: {
+        inputs: ["RESTING_HEART_RATE"],
+        source: "none",
+        windowDays: 30,
+        computedAt: "2026-06-02T07:00:00+02:00",
+      },
       reason: "no_readings_in_window",
     } as never);
     const res = await callGet(makeReq("VITALS_BASELINE"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: { status: string; value: unknown; confidence: unknown; reason: string } | null;
+      data: {
+        status: string;
+        value: unknown;
+        confidence: unknown;
+        reason: string;
+      } | null;
     };
     expect(body.data?.status).toBe("insufficient");
     expect(body.data?.value).toBeNull();

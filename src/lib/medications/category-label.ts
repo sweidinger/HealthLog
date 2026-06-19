@@ -16,7 +16,10 @@
  * the card props.
  */
 
-type Translator = (key: string, params?: Record<string, string | number>) => string;
+type Translator = (
+  key: string,
+  params?: Record<string, string | number>,
+) => string;
 
 const MEDICATION_CATEGORY_KEYS: Record<string, string> = {
   BLOOD_PRESSURE: "medications.categoryBloodPressure",

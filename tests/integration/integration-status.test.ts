@@ -284,9 +284,7 @@ describe("IntegrationStatus end-to-end", () => {
           reauth_required: 0,
           persistent: 28,
         },
-        persistentFailureStartedAt: new Date(
-          Date.now() - 26 * 60 * 60 * 1000,
-        ),
+        persistentFailureStartedAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
         lastError: "encrypted-blob-placeholder",
         lastAttemptAt: new Date(),
       },

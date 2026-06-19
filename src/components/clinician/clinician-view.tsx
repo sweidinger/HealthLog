@@ -50,16 +50,10 @@ function typeLabel(type: string, t: Translate): string {
 }
 
 /** Render a single labelled stat row. */
-function StatRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function StatRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-border/40 py-2 last:border-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
+    <div className="border-border/40 flex items-baseline justify-between gap-4 border-b py-2 last:border-0">
+      <span className="text-muted-foreground text-sm">{label}</span>
       <span className="text-sm font-medium tabular-nums">{value}</span>
     </div>
   );
@@ -73,7 +67,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-card p-5">
+    <section className="border-border bg-card rounded-lg border p-5">
       <h2 className="mb-3 text-base font-semibold">{title}</h2>
       {children}
     </section>
@@ -100,8 +94,7 @@ export function ClinicianView({
   const complianceEntries = sections.compliance
     ? Object.entries(report.compliance).filter(([, c]) => c.total > 0)
     : [];
-  const wellness =
-    report.wellnessScores?.filter((s) => s.count > 0) ?? [];
+  const wellness = report.wellnessScores?.filter((s) => s.count > 0) ?? [];
 
   return (
     <main
@@ -114,18 +107,18 @@ export function ClinicianView({
           {t("clinicianView.title")}
         </h1>
         {label ? (
-          <p className="mt-1 text-sm text-muted-foreground">{label}</p>
+          <p className="text-muted-foreground mt-1 text-sm">{label}</p>
         ) : null}
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-3 text-sm">
           {t("clinicianView.period", {
             start: fmtDate(report.period.start),
             end: fmtDate(report.period.end),
           })}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="text-muted-foreground mt-1 text-xs">
           {t("clinicianView.expires", { date: fmtDate(expiresAt) })}
         </p>
-        <p className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+        <p className="border-border bg-muted/40 text-muted-foreground mt-3 rounded-md border p-3 text-xs">
           {t("clinicianView.provenance")}
         </p>
       </header>
@@ -213,10 +206,10 @@ export function ClinicianView({
         {/* ── Fenced wellness card (descriptive, NOT clinical) ────── */}
         {wellness.length > 0 ? (
           <section className="rounded-lg border border-dashed border-amber-500/50 bg-amber-500/5 p-5">
-            <h2 className="mb-1 text-base font-semibold text-muted-foreground">
+            <h2 className="text-muted-foreground mb-1 text-base font-semibold">
               {t("clinicianView.wellness.title")}
             </h2>
-            <p className="mb-3 text-xs text-muted-foreground">
+            <p className="text-muted-foreground mb-3 text-xs">
               {t("clinicianView.wellness.disclaimer")}
             </p>
             <div>
@@ -239,7 +232,7 @@ export function ClinicianView({
         ) : null}
       </div>
 
-      <footer className="mt-8 border-t border-border pt-4 text-center text-xs text-muted-foreground">
+      <footer className="border-border text-muted-foreground mt-8 border-t pt-4 text-center text-xs">
         {t("clinicianView.footer")}
       </footer>
     </main>

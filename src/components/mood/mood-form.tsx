@@ -38,10 +38,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
 import { invalidateKeys, moodDependentKeys } from "@/lib/query-keys";
 import { ApiError, apiPost } from "@/lib/api/api-fetch";
-import {
-  SheetSection,
-  SheetSectionCount,
-} from "@/components/ui/sheet-section";
+import { SheetSection, SheetSectionCount } from "@/components/ui/sheet-section";
 import { MoodTagPicker, type RatedFactor } from "./mood-tag-picker";
 import { MoodQuickTags } from "./mood-quick-tags";
 import { useRecentTags } from "./recent-tags";

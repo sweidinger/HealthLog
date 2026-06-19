@@ -13,15 +13,23 @@ const db = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: db,
-  toJson: <T,>(v: T) => v,
+  toJson: <T>(v: T) => v,
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
-vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/auth/audit", () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
-vi.mock("@/lib/db-compat", () => ({ ensureDbCompatibility: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
-  cookies: vi.fn(async () => ({ get: () => undefined, set: () => {}, delete: () => {} })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
 }));
 
 import { GET, PUT } from "../layout/route";
@@ -77,7 +85,11 @@ describe("GET /api/mood/tags/layout", () => {
     const body = (await res.json()) as {
       data: { groupOrder: string[]; placements: Record<string, string[]> };
     };
-    expect(body.data.groupOrder).toEqual(["customcat:g1", "feelings", "custom"]);
+    expect(body.data.groupOrder).toEqual([
+      "customcat:g1",
+      "feelings",
+      "custom",
+    ]);
     expect(body.data.placements).toEqual({ "customcat:g1": ["happy"] });
   });
 });
@@ -101,7 +113,11 @@ describe("PUT /api/mood/tags/layout", () => {
     const body = (await res.json()) as {
       data: { groupOrder: string[]; placements: Record<string, string[]> };
     };
-    expect(body.data.groupOrder).toEqual(["custom", "feelings", "customcat:g1"]);
+    expect(body.data.groupOrder).toEqual([
+      "custom",
+      "feelings",
+      "customcat:g1",
+    ]);
     expect(body.data.placements).toEqual({ feelings: ["sad"] });
   });
 

@@ -187,9 +187,8 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     expect(stages).toEqual(["CORE", "DEEP", "REM", "AWAKE"]);
 
     // First segment: 60 minutes (3600s / 60).
-    const firstDuration = vi
-      .mocked(prisma.measurement.create)
-      .mock.calls[0][0] as { data: { value: number; unit: string } };
+    const firstDuration = vi.mocked(prisma.measurement.create).mock
+      .calls[0][0] as { data: { value: number; unit: string } };
     expect(firstDuration.data.value).toBe(60);
     expect(firstDuration.data.unit).toBe("minutes");
   });

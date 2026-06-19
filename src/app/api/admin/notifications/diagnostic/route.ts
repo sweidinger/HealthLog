@@ -80,9 +80,10 @@ interface DiagnosticPayload {
  * (prefix / suffix both null) — that shape never appears in
  * production, but defensive against partial inserts during testing.
  */
-function maskApnsToken(
-  token: string | null,
-): { prefix: string | null; suffix: string | null } {
+function maskApnsToken(token: string | null): {
+  prefix: string | null;
+  suffix: string | null;
+} {
   if (!token || token.length < 16) return { prefix: null, suffix: null };
   return {
     prefix: token.slice(0, 8),

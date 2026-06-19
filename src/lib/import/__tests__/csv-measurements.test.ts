@@ -17,8 +17,7 @@ function parse(rows: string[]) {
 
 describe("splitCsvRows", () => {
   it("handles CRLF, quoted commas, escaped quotes, and a BOM", () => {
-    const csv =
-      "﻿a,b,c\r\n1,\"x,y\",\"he said \"\"hi\"\"\"\r\n2,plain,z\r\n";
+    const csv = '﻿a,b,c\r\n1,"x,y","he said ""hi"""\r\n2,plain,z\r\n';
     const grid = splitCsvRows(csv);
     expect(grid).toEqual([
       ["a", "b", "c"],
@@ -51,9 +50,10 @@ describe("parseCsvMeasurements — header validation", () => {
 
   it("accepts columns in any order", () => {
     const out = parseCsvMeasurements(
-      ["unit,measuredAt,type,value", "kg,2026-05-01T08:00:00Z,WEIGHT,80.5"].join(
-        "\n",
-      ),
+      [
+        "unit,measuredAt,type,value",
+        "kg,2026-05-01T08:00:00Z,WEIGHT,80.5",
+      ].join("\n"),
       { now: NOW },
     );
     expect(out.fatal).toBeUndefined();

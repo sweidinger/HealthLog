@@ -141,7 +141,9 @@ export async function handleReminderSatisfy(
     // Distinct users in this batch — a multi-source ingest spike can enqueue
     // several jobs for one user; resolve each user once.
     const userIds = Array.from(
-      new Set(jobs.map((j) => j.data?.userId).filter((id): id is string => !!id)),
+      new Set(
+        jobs.map((j) => j.data?.userId).filter((id): id is string => !!id),
+      ),
     );
     let satisfied = 0;
     let candidates = 0;

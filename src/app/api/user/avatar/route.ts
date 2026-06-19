@@ -149,10 +149,7 @@ export const POST = apiHandler(async (request: Request) => {
       action: { name: "user.avatar.upload.rejected" },
       meta: { reason: "content_length_exceeded", contentLength },
     });
-    return apiError(
-      `Upload exceeds ${AVATAR_MAX_BYTES} byte limit`,
-      413,
-    );
+    return apiError(`Upload exceeds ${AVATAR_MAX_BYTES} byte limit`, 413);
   }
 
   // Stream-level cap. The Content-Length pre-flight above only fires when
@@ -196,10 +193,7 @@ export const POST = apiHandler(async (request: Request) => {
       action: { name: "user.avatar.upload.rejected" },
       meta: { reason: "file_size_exceeded", size: file.size },
     });
-    return apiError(
-      `Upload exceeds ${AVATAR_MAX_BYTES} byte limit`,
-      413,
-    );
+    return apiError(`Upload exceeds ${AVATAR_MAX_BYTES} byte limit`, 413);
   }
 
   let buffer: Buffer;
@@ -218,10 +212,7 @@ export const POST = apiHandler(async (request: Request) => {
       action: { name: "user.avatar.upload.rejected" },
       meta: { reason: "unsupported_mime" },
     });
-    return apiError(
-      "Unsupported image type. Use JPEG, PNG, or WebP.",
-      415,
-    );
+    return apiError("Unsupported image type. Use JPEG, PNG, or WebP.", 415);
   }
 
   const dimensions = readAvatarDimensions(buffer, sniffed);
@@ -242,10 +233,7 @@ export const POST = apiHandler(async (request: Request) => {
         height: dimensions.height,
       },
     });
-    return apiError(
-      `Image exceeds the 2048×2048 dimension limit`,
-      413,
-    );
+    return apiError(`Image exceeds the 2048×2048 dimension limit`, 413);
   }
 
   const updatedAt = new Date();

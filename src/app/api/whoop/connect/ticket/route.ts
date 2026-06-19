@@ -30,7 +30,10 @@ export const POST = apiHandler(async () => {
   );
   if (!rl.allowed) {
     annotate({ action: { name: "whoop.connect.ticket.rate_limited" } });
-    return apiError("Too many connect-ticket requests. Try again shortly.", 429);
+    return apiError(
+      "Too many connect-ticket requests. Try again shortly.",
+      429,
+    );
   }
 
   // BYO-key gate: a ticket is only useful if the user has WHOOP credentials

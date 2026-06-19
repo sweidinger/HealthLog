@@ -228,9 +228,7 @@ const illnessCorrelationResponse = z
       historyDays: z.number().int(),
       missing: z.array(z.string()),
     }),
-    confidence: z
-      .object({ score: z.number(), band: z.string() })
-      .nullable(),
+    confidence: z.object({ score: z.number(), band: z.string() }).nullable(),
     provenance: z.object({
       inputs: z.array(z.string()),
       source: z.string(),
@@ -515,7 +513,7 @@ export const illnessPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Illness"],
       summary: "Per-episode retrospective correlation (v1.18.1)",
       description:
-        "Returns the coverage-gated `Derived<T>` correlation for one episode: the pre-onset anomaly scan, the nadir, per-vital physiological returns, the headline recovery-gap, and any red flags. The findings derive from the user's OWN baseline (median ± MAD) over a contamination-guarded window — never a population constant. `status:\"insufficient\"` carries coverage + a reason. Retrospective ONLY — never a predictor or diagnoser. Owner-scoped + module-gated.",
+        'Returns the coverage-gated `Derived<T>` correlation for one episode: the pre-onset anomaly scan, the nadir, per-vital physiological returns, the headline recovery-gap, and any red flags. The findings derive from the user\'s OWN baseline (median ± MAD) over a contamination-guarded window — never a population constant. `status:"insufficient"` carries coverage + a reason. Retrospective ONLY — never a predictor or diagnoser. Owner-scoped + module-gated.',
       requestParams: { path: z.object({ id: z.string() }) },
       responses: {
         "200": {

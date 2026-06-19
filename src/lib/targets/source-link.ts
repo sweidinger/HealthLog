@@ -9,7 +9,9 @@ export interface TargetSourceLinkInput {
   source: string;
 }
 
-export function getTargetSourceLink(target: TargetSourceLinkInput): string | null {
+export function getTargetSourceLink(
+  target: TargetSourceLinkInput,
+): string | null {
   if (target.type === "WEIGHT" || target.type === "BMI") {
     return "https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight";
   }

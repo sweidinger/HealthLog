@@ -54,7 +54,11 @@ export async function dispatchMedicationIntakeWebClear(
     if (!subscriptions.length) return;
 
     const webpush = await import("web-push");
-    webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey);
+    webpush.setVapidDetails(
+      config.subject,
+      config.publicKey,
+      config.privateKey,
+    );
 
     const badgeCount =
       typeof input.badgeCount === "number" && Number.isFinite(input.badgeCount)

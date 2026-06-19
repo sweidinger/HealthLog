@@ -44,8 +44,9 @@ describe("cleanupExpiredWithingsOAuthStates", () => {
     await cleanupExpiredWithingsOAuthStates(prisma);
 
     const after = Date.now();
-    const call = (prisma.withingsOAuthState.deleteMany as ReturnType<typeof vi.fn>)
-      .mock.calls[0][0];
+    const call = (
+      prisma.withingsOAuthState.deleteMany as ReturnType<typeof vi.fn>
+    ).mock.calls[0][0];
     const cutoff: Date = call.where.expiresAt.lt;
 
     expect(cutoff).toBeInstanceOf(Date);

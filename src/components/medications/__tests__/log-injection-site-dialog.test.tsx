@@ -30,8 +30,13 @@ vi.mock("@/components/ui/dialog", () => {
     <div>{children}</div>
   );
   return {
-    Dialog: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-      open ? <div data-slot="mock-dialog">{children}</div> : null,
+    Dialog: ({
+      open,
+      children,
+    }: {
+      open: boolean;
+      children: React.ReactNode;
+    }) => (open ? <div data-slot="mock-dialog">{children}</div> : null),
     DialogContent: Pass,
     DialogDescription: Pass,
     DialogFooter: Pass,
@@ -74,7 +79,9 @@ describe("<LogInjectionSiteDialog>", () => {
   });
 
   it("awaits onConfirm behind a submitting guard and re-enables in finally", () => {
-    expect(src).toContain("const [submitting, setSubmitting] = useState(false)");
+    expect(src).toContain(
+      "const [submitting, setSubmitting] = useState(false)",
+    );
     expect(src).toMatch(
       /async function handleConfirm\(\) \{[\s\S]*setSubmitting\(true\)[\s\S]*await onConfirm\(selected\)[\s\S]*finally \{[\s\S]*setSubmitting\(false\)/,
     );

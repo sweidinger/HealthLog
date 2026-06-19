@@ -142,7 +142,11 @@ describe("<RecentAchievementsCard> — achievements module gate", () => {
     mockData = {
       summary: {},
       achievements: [
-        { ...baseAchievement, id: "a", completedAt: "2026-04-15T12:00:00.000Z" },
+        {
+          ...baseAchievement,
+          id: "a",
+          completedAt: "2026-04-15T12:00:00.000Z",
+        },
       ],
       metrics: {},
     };
@@ -154,7 +158,11 @@ describe("<RecentAchievementsCard> — achievements module gate", () => {
     mockData = {
       summary: {},
       achievements: [
-        { ...baseAchievement, id: "a", completedAt: "2026-04-15T12:00:00.000Z" },
+        {
+          ...baseAchievement,
+          id: "a",
+          completedAt: "2026-04-15T12:00:00.000Z",
+        },
       ],
       metrics: {},
     };

@@ -48,7 +48,11 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey, userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import {
+  toBerlinDayKey,
+  userDayKey,
+  DEFAULT_TIMEZONE,
+} from "@/lib/tz/resolver";
 
 /**
  * Public entry — unchanged signature. Prepares the card (cache-read,
@@ -180,19 +184,21 @@ export async function preparePulseStatusForUser(
   // `applyPayloadBudget` trims further but the unbounded findMany was
   // pulling tens of thousands of rows for Apple-Health-rich accounts
   // before the budget call even started.
-  const measurements = await prisma.measurement.findMany({
-    where: {
-      userId,
-      type: "PULSE",
-      deletedAt: null,
-    },
-    orderBy: { measuredAt: "desc" },
-    take: 365,
-    select: {
-      value: true,
-      measuredAt: true,
-    },
-  }).then((rows) => rows.reverse());
+  const measurements = await prisma.measurement
+    .findMany({
+      where: {
+        userId,
+        type: "PULSE",
+        deletedAt: null,
+      },
+      orderBy: { measuredAt: "desc" },
+      take: 365,
+      select: {
+        value: true,
+        measuredAt: true,
+      },
+    })
+    .then((rows) => rows.reverse());
 
   // v1.15.12 A2 — the RESTING band is judged against the RESTING series,
   // not the raw PULSE stream (Apple fills PULSE with workout HR). Pull

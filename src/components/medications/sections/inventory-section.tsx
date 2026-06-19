@@ -130,7 +130,10 @@ interface InventoryResponse {
   meta?: { total: number };
 }
 
-const STATE_BADGE: Record<InventoryState, "secondary" | "outline" | "destructive"> = {
+const STATE_BADGE: Record<
+  InventoryState,
+  "secondary" | "outline" | "destructive"
+> = {
   ACTIVE: "secondary",
   IN_USE: "secondary",
   EXPIRED: "destructive",
@@ -181,7 +184,9 @@ export function InventorySection({
   const { data, isLoading } = useQuery<InventoryResponse>({
     queryKey: queryKeys.medicationInventory(medicationId),
     queryFn: async () => {
-      return apiGet<InventoryResponse>(`/api/medications/${medicationId}/inventory`);
+      return apiGet<InventoryResponse>(
+        `/api/medications/${medicationId}/inventory`,
+      );
     },
     staleTime: 30_000,
     // v1.16.12 (#316) — fresh on every mount so reopening the supply tab
@@ -501,8 +506,7 @@ export function AddInventoryDialog({
 
   const parsed = Number(quantity);
   const effectiveMode = unitsPerDose > 1 ? quantityMode : "units";
-  const units =
-    effectiveMode === "doses" ? parsed * unitsPerDose : parsed;
+  const units = effectiveMode === "doses" ? parsed * unitsPerDose : parsed;
   const quantityValid =
     Number.isInteger(parsed) && parsed >= 1 && units >= 1 && units <= 1000;
 
@@ -607,7 +611,11 @@ export function AddInventoryDialog({
               type="number"
               inputMode="numeric"
               min={1}
-              max={effectiveMode === "doses" ? Math.floor(1000 / unitsPerDose) : 1000}
+              max={
+                effectiveMode === "doses"
+                  ? Math.floor(1000 / unitsPerDose)
+                  : 1000
+              }
               step={1}
               required
               autoComplete="off"
@@ -767,8 +775,7 @@ function AdjustInventoryDialog({
             >
               {t("medications.detail.bestand.adjustHelper", {
                 total:
-                  item.unitsTotal ??
-                  t("medications.detail.bestand.unknown"),
+                  item.unitsTotal ?? t("medications.detail.bestand.unknown"),
               })}
             </p>
           </div>
@@ -824,7 +831,9 @@ function PackagingDialog({
 
   const parsedPerDose = Number(perDoseValue);
   const perDoseValid =
-    Number.isInteger(parsedPerDose) && parsedPerDose >= 1 && parsedPerDose <= 100;
+    Number.isInteger(parsedPerDose) &&
+    parsedPerDose >= 1 &&
+    parsedPerDose <= 100;
   const parsedPack = packValue.trim() === "" ? null : Number(packValue);
   const packValid =
     parsedPack === null ||
@@ -933,7 +942,10 @@ function PackagingDialog({
             >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={!perDoseValid || !packValid || busy}>
+            <Button
+              type="submit"
+              disabled={!perDoseValid || !packValid || busy}
+            >
               {busy && (
                 <Loader2
                   aria-hidden="true"

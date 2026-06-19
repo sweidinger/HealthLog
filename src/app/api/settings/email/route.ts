@@ -59,7 +59,10 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   const { recipient, enabled } = parsed.data;
 
   if (enabled && !recipient) {
-    return apiError("A recipient address is required when email is enabled", 422);
+    return apiError(
+      "A recipient address is required when email is enabled",
+      422,
+    );
   }
 
   const config = JSON.stringify({ recipient: recipient || "" });

@@ -37,7 +37,11 @@ describe("pickVarietyLead — deterministic per-render variety token", () => {
   });
 
   it("never uses Math.random / Date.now (reproducible across calls in different ticks)", () => {
-    const first = pickVarietyLead("u-7", "HEART_RATE_VARIABILITY", "2026-06-05");
+    const first = pickVarietyLead(
+      "u-7",
+      "HEART_RATE_VARIABILITY",
+      "2026-06-05",
+    );
     // A second call after some work must match — proves no time/random seed.
     for (let i = 0; i < 1000; i++) fnvBusy(i);
     const second = pickVarietyLead(
@@ -59,7 +63,9 @@ describe("formatVarietyHint", () => {
   it("never forces a trend — advisory only", () => {
     for (const lead of ["trend", "latest", "consistency"] as const) {
       expect(formatVarietyHint(lead, "en")).toMatch(/never invent a trend/i);
-      expect(formatVarietyHint(lead, "de")).toMatch(/nie einen Trend erfinden/i);
+      expect(formatVarietyHint(lead, "de")).toMatch(
+        /nie einen Trend erfinden/i,
+      );
     }
   });
 });

@@ -250,11 +250,7 @@ export function FallbackChainCard({
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button
-              size="sm"
-              variant="outline"
-              className="min-h-11 sm:min-h-9"
-            >
+            <Button size="sm" variant="outline" className="min-h-11 sm:min-h-9">
               <RotateCcw className="h-4 w-4" />
               {t("settings.ai.providerChain.resetDefaults")}
             </Button>

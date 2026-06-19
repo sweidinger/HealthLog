@@ -254,11 +254,7 @@ export function LayoutCoachFab() {
       </Button>
       {/* Polite announcement for the unread-nudge arrival — see the
           rising-edge effect above. */}
-      <span
-        data-slot="coach-fab-live"
-        aria-live="polite"
-        className="sr-only"
-      >
+      <span data-slot="coach-fab-live" aria-live="polite" className="sr-only">
         {liveAnnouncement}
       </span>
     </>

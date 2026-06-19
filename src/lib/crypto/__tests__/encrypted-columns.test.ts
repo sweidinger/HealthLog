@@ -9,11 +9,7 @@ import {
 
 const ROOT = join(__dirname, "../../../..");
 const SCHEMA_PATH = join(ROOT, "prisma", "schema.prisma");
-const ROTATION_SCRIPT_PATH = join(
-  ROOT,
-  "scripts",
-  "rotate-encryption-key.ts",
-);
+const ROTATION_SCRIPT_PATH = join(ROOT, "scripts", "rotate-encryption-key.ts");
 
 /**
  * Reversibly-encrypted columns whose Prisma field name does NOT end in

@@ -167,7 +167,10 @@ export function BiomarkerManager() {
         }
         description={t("labs.biomarker.defineDescription")}
         footer={
-          <div ref={setFormFooterEl} className="flex w-full justify-end gap-2" />
+          <div
+            ref={setFormFooterEl}
+            className="flex w-full justify-end gap-2"
+          />
         }
       >
         <BiomarkerForm

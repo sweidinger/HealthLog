@@ -75,9 +75,7 @@ describe("<MedicationCardHeader>", () => {
         }
       />,
     );
-    expect(html).toContain(
-      'data-slot="medication-card-header-state-badges"',
-    );
+    expect(html).toContain('data-slot="medication-card-header-state-badges"');
     // Both badges land inside the state row, not adjacent to the
     // category badge. Verifying via document order: the state-badges
     // wrapper must paint AFTER the category badge.

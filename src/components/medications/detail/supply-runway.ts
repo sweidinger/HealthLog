@@ -74,7 +74,9 @@ export function estimateRunwayDays(
  * weekly injection, ≈30 for a monthly RRULE. Returns `null` for a
  * schedule with no derivable consumption (as-needed / empty).
  */
-export function cadenceIntervalDays(schedules: RunwaySchedule[]): number | null {
+export function cadenceIntervalDays(
+  schedules: RunwaySchedule[],
+): number | null {
   const perDay = estimateDailyDoseCount(schedules);
   if (perDay <= 0) return null;
   return Math.ceil(1 / perDay);
@@ -151,6 +153,7 @@ export function supplyRunwayDates(input: {
 }): { runsOutOn: Date; reorderBy: Date } {
   const runsOutOn = addDaysUtc(input.today, Math.max(0, input.runwayDays));
   const reorderRaw = addDaysUtc(runsOutOn, -input.leadDays);
-  const reorderBy = reorderRaw < input.today ? new Date(input.today) : reorderRaw;
+  const reorderBy =
+    reorderRaw < input.today ? new Date(input.today) : reorderRaw;
   return { runsOutOn, reorderBy };
 }

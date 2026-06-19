@@ -10,6 +10,10 @@ import type { ReactNode } from "react";
  * Content agent that follows W14b-Foundation will swap the root page's
  * redirect target once every step has real content.
  */
-export default function OnboardingLayout({ children }: { children: ReactNode }) {
+export default function OnboardingLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return <div className="bg-background min-h-[100svh] w-full">{children}</div>;
 }

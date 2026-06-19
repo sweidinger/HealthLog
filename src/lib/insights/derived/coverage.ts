@@ -87,9 +87,10 @@ export function deriveCoverage(args: DeriveCoverageArgs): {
   // missing inputs. Floor at 1 so a real (non-insufficient) value never
   // reads as 0 confidence.
   const rawScore = historyFraction * inputFraction * 100;
-  const score = presentInputs > 0 && historyDays > 0
-    ? Math.round(clamp(rawScore, 1, 100))
-    : 0;
+  const score =
+    presentInputs > 0 && historyDays > 0
+      ? Math.round(clamp(rawScore, 1, 100))
+      : 0;
 
   return {
     coverage: {

@@ -61,9 +61,12 @@ const ROW = {
 };
 
 function makeRequest(): NextRequest {
-  return new NextRequest("http://localhost/api/measurement-reminders/r1/complete", {
-    method: "POST",
-  });
+  return new NextRequest(
+    "http://localhost/api/measurement-reminders/r1/complete",
+    {
+      method: "POST",
+    },
+  );
 }
 
 const params = { params: Promise.resolve({ id: "r1" }) };
@@ -102,7 +105,10 @@ describe("POST /api/measurement-reminders/[id]/complete", () => {
       lastSatisfiedAt: new Date("2026-06-18T08:00:00Z"),
     });
     // Forward-only guard inside the primitive returns satisfied=false.
-    satisfyReminderMock.mockResolvedValue({ satisfied: false, nextDueAt: null });
+    satisfyReminderMock.mockResolvedValue({
+      satisfied: false,
+      nextDueAt: null,
+    });
     findUniqueOrThrowMock.mockResolvedValue({
       ...ROW,
       lastSatisfiedAt: new Date("2026-06-18T08:00:00Z"),

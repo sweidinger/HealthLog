@@ -11,7 +11,9 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date("2026-05-14T12:00:00Z");
 const NOW_MS = NOW.getTime();
 
-function makeItem(overrides: Partial<InventoryItemView> = {}): InventoryItemView {
+function makeItem(
+  overrides: Partial<InventoryItemView> = {},
+): InventoryItemView {
   return {
     state: "ACTIVE",
     unitsTotal: 4,

@@ -254,7 +254,10 @@ export function resolveForcedSlotInstant(input: {
   let best: { at: Date; dist: number } | null = null;
   for (const band of bands) {
     const dist = Math.abs(band.at.getTime() - target);
-    if (dist <= ANCHOR_MATCH_EPSILON_MS && (best === null || dist < best.dist)) {
+    if (
+      dist <= ANCHOR_MATCH_EPSILON_MS &&
+      (best === null || dist < best.dist)
+    ) {
       best = { at: band.at, dist };
     }
   }

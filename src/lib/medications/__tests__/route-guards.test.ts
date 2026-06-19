@@ -23,7 +23,11 @@ describe("assertMedicationOwnership", () => {
 
   it("returns 404 when the medication does not exist", async () => {
     const client = buildClient(null);
-    const result = await assertMedicationOwnership("med-missing", "user-1", client);
+    const result = await assertMedicationOwnership(
+      "med-missing",
+      "user-1",
+      client,
+    );
     expect(result).not.toBeNull();
     expect(result?.status).toBe(404);
     const body = await result!.json();

@@ -26,9 +26,7 @@
  * single-card path (`runPreparedStatusCard`). The cycle never crashes on a
  * partial or failed batch.
  */
-import {
-  prepareBloodPressureStatusForUser,
-} from "@/lib/insights/blood-pressure-status";
+import { prepareBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
 import { prepareWeightStatusForUser } from "@/lib/insights/weight-status";
 import { preparePulseStatusForUser } from "@/lib/insights/pulse-status";
 import { prepareBmiStatusForUser } from "@/lib/insights/bmi-status";

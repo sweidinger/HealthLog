@@ -50,16 +50,17 @@ export const WIDGET_MODULE_BY_ID: Partial<Record<string, ModuleKey>> = {
  * gates also drop it) before the snapshot leaves the server. Core vital
  * types are absent here and always pass through.
  */
-export const SUMMARY_TYPE_MODULE: Partial<Record<MeasurementType, ModuleKey>> = {
-  SLEEP_DURATION: "sleep",
-  BLOOD_GLUCOSE: "glucose",
-  // v1.18.0 B1 — recovery-domain HealthKit metrics. The recovery page +
-  // its tiles are the recovery module's surface; when it is off these
-  // device-native signals must drop from the dashboard snapshot too.
-  CARDIO_RECOVERY: "recovery",
-  SIX_MINUTE_WALK_DISTANCE: "recovery",
-  STAIR_ASCENT_SPEED: "recovery",
-  STAIR_DESCENT_SPEED: "recovery",
-  // Per-night breathing-disturbance index is a sleep-page signal.
-  BREATHING_DISTURBANCES: "sleep",
-};
+export const SUMMARY_TYPE_MODULE: Partial<Record<MeasurementType, ModuleKey>> =
+  {
+    SLEEP_DURATION: "sleep",
+    BLOOD_GLUCOSE: "glucose",
+    // v1.18.0 B1 — recovery-domain HealthKit metrics. The recovery page +
+    // its tiles are the recovery module's surface; when it is off these
+    // device-native signals must drop from the dashboard snapshot too.
+    CARDIO_RECOVERY: "recovery",
+    SIX_MINUTE_WALK_DISTANCE: "recovery",
+    STAIR_ASCENT_SPEED: "recovery",
+    STAIR_DESCENT_SPEED: "recovery",
+    // Per-night breathing-disturbance index is a sleep-page signal.
+    BREATHING_DISTURBANCES: "sleep",
+  };

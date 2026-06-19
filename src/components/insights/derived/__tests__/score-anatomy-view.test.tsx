@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { ScoreAnatomyView, type AnatomyContributor } from "../score-anatomy-view";
+import {
+  ScoreAnatomyView,
+  type AnatomyContributor,
+} from "../score-anatomy-view";
 import { I18nProvider } from "@/lib/i18n/context";
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {

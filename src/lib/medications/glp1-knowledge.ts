@@ -502,12 +502,7 @@ export const GLP1_DRUGS: Readonly<Record<Glp1DrugId, Glp1DrugRecord>> = {
       dosesPerPen: 60, // Byetta 60 doses per pen
     },
     sideEffects: {
-      veryCommon: [
-        "hypoglycaemia",
-        "nausea",
-        "vomiting",
-        "diarrhea",
-      ],
+      veryCommon: ["hypoglycaemia", "nausea", "vomiting", "diarrhea"],
       common: [
         "decreased_appetite",
         "dizziness",
@@ -609,4 +604,3 @@ export const GLP1_DRUG_IDS: readonly Glp1DrugId[] = [
   "dulaglutide",
   "exenatide",
 ] as const;
-

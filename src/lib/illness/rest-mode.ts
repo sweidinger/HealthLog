@@ -86,7 +86,8 @@ export async function getActiveIllnessEpisodes(
   // `findMany`. Dedupe them to a single read per request. An explicit client
   // (a test stub or a transaction) bypasses the memo so its query is never
   // served a default-client cached result.
-  if (client !== defaultPrisma) return readActiveIllnessEpisodes(userId, asOf, client);
+  if (client !== defaultPrisma)
+    return readActiveIllnessEpisodes(userId, asOf, client);
   return memoizePerRequest(
     `illness-active-episodes:${userId}:${asOf.getTime()}`,
     () => readActiveIllnessEpisodes(userId, asOf, client),

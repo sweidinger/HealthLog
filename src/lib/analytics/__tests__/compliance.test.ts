@@ -194,10 +194,7 @@ describe("calculateCompliance — cadence-aware adapter", () => {
     // `deletedAt: null` filter) and re-added as a fresh taken event.
     const morning = new Date("2025-01-15T07:05:00Z");
     const eveningReAdded = new Date("2025-01-15T19:10:00Z");
-    const events = [
-      eventAt(morning, true),
-      eventAt(eveningReAdded, true),
-    ];
+    const events = [eventAt(morning, true), eventAt(eveningReAdded, true)];
     const result = calculateCompliance(events, schedules, 1, undefined, {
       now: lateNow,
     });
@@ -429,14 +426,16 @@ describe("calculateCompliance — engine-routed (medicationContext)", () => {
     vi.useRealTimers();
   });
 
-  function ctx(overrides: Partial<{
-    startsOn: Date | null;
-    endsOn: Date | null;
-    oneShot: boolean;
-    createdAt: Date;
-    lastIntakeAt: Date | null;
-    timeZone: string;
-  }> = {}) {
+  function ctx(
+    overrides: Partial<{
+      startsOn: Date | null;
+      endsOn: Date | null;
+      oneShot: boolean;
+      createdAt: Date;
+      lastIntakeAt: Date | null;
+      timeZone: string;
+    }> = {},
+  ) {
     return {
       startsOn: null,
       endsOn: null,
@@ -457,7 +456,12 @@ describe("calculateCompliance — engine-routed (medicationContext)", () => {
     // tail ends at 12:00) so it reads upcoming, not missed → a clean 100%.
     // (The off-time / stricter behaviour is pinned in the next test.)
     const schedules: ComplianceSchedule[] = [
-      { windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null, timesOfDay: ["08:00"] },
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        timesOfDay: ["08:00"],
+      },
     ];
     const onTime = (d: Date) => ({
       scheduledFor: d,
@@ -489,7 +493,12 @@ describe("calculateCompliance — engine-routed (medicationContext)", () => {
     // percentage now agrees with the history view (the dose cannot read
     // "taken" in the % while the ledger calls it ad-hoc).
     const schedules: ComplianceSchedule[] = [
-      { windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null, timesOfDay: ["08:00"] },
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        timesOfDay: ["08:00"],
+      },
     ];
     // takenAt = 08:00 slot + 4.5h = 12:30 (eventAt adds 30min onto a 12:00
     // scheduledFor; here we pin the off-time take explicitly).
@@ -1186,7 +1195,12 @@ describe("expectedSlotCountForDay + lastNonSkippedTakenAt", () => {
     // the 14th is 19:00 UTC on the 13th — a UTC slice would mislabel it.
     expect(userDayKey(start, tz)).toBe("2025-01-14");
 
-    const count = expectedSlotCountForDay(schedules, start, dayEnd, ctx({ timeZone: tz }));
+    const count = expectedSlotCountForDay(
+      schedules,
+      start,
+      dayEnd,
+      ctx({ timeZone: tz }),
+    );
     expect(count).toBe(1);
   });
 
@@ -1302,7 +1316,7 @@ describe("classifyIntakeTiming", () => {
     );
   });
 
-  it('respects the configurable `lateMinutes` tail', () => {
+  it("respects the configurable `lateMinutes` tail", () => {
     // With lateMinutes=30 the late tail collapses to 30 min after the
     // 3h on-time grace. windowEnd is 09:00 so `on_time` extends to
     // 12:00 and `late` extends to 12:30. A dose at 12:15 falls in
@@ -1733,11 +1747,21 @@ describe("buildComplianceDisplay — two rows, cadence-scaled windows", () => {
     const slot1900 = new Date("2025-06-15T19:00:00Z");
     const events = [
       // 07:00 dose logged on time.
-      { scheduledFor: slot0700, takenAt: new Date("2025-06-15T07:05:00Z"), skipped: false },
+      {
+        scheduledFor: slot0700,
+        takenAt: new Date("2025-06-15T07:05:00Z"),
+        skipped: false,
+      },
       // 19:00 dose logged EARLY (before its slot) — snapped onto the 19:00 row.
-      { scheduledFor: slot1900, takenAt: new Date("2025-06-15T11:30:00Z"), skipped: false },
+      {
+        scheduledFor: slot1900,
+        takenAt: new Date("2025-06-15T11:30:00Z"),
+        skipped: false,
+      },
     ];
-    const display = buildComplianceDisplay(events, schedules, ctx(), { now: NOW });
+    const display = buildComplianceDisplay(events, schedules, ctx(), {
+      now: NOW,
+    });
     expect(display.currentCycle.nextDueAt).not.toBeNull();
     // Next open slot is tomorrow 07:00 UTC, not today's resolved 19:00.
     expect(display.currentCycle.nextDueAt!.toISOString()).toBe(
@@ -1756,9 +1780,15 @@ describe("buildComplianceDisplay — two rows, cadence-scaled windows", () => {
     ];
     const slot0700 = new Date("2025-06-15T07:00:00Z");
     const events = [
-      { scheduledFor: slot0700, takenAt: new Date("2025-06-15T07:05:00Z"), skipped: false },
+      {
+        scheduledFor: slot0700,
+        takenAt: new Date("2025-06-15T07:05:00Z"),
+        skipped: false,
+      },
     ];
-    const display = buildComplianceDisplay(events, schedules, ctx(), { now: NOW });
+    const display = buildComplianceDisplay(events, schedules, ctx(), {
+      now: NOW,
+    });
     expect(display.currentCycle.nextDueAt).not.toBeNull();
     // Today's 19:00 is still open.
     expect(display.currentCycle.nextDueAt!.toISOString()).toBe(
@@ -2152,16 +2182,25 @@ describe("calculateCompliance — autoMissed forgotten doses (BUG #2 / #3)", () 
       },
     ];
     const ctxVal = buildComplianceMedicationContext(
-      { startsOn: null, endsOn: null, oneShot: false, createdAt: new Date("2025-01-08T00:00:00Z") },
+      {
+        startsOn: null,
+        endsOn: null,
+        oneShot: false,
+        createdAt: new Date("2025-01-08T00:00:00Z"),
+      },
       lastNonSkippedTakenAt(events),
       "UTC",
     );
     const display = buildComplianceDisplay(events, daily, ctxVal, { now: NOW });
     // `expected` is the rate denominator (taken + missed), `missed` counts the
     // forgotten doses, `taken` the numerator — the "taken / expected" triple.
-    expect(display.short.expected).toBe(display.short.taken + display.short.missed);
+    expect(display.short.expected).toBe(
+      display.short.taken + display.short.missed,
+    );
     expect(display.short.missed).toBeGreaterThanOrEqual(1);
-    expect(display.long.expected).toBe(display.long.taken + display.long.missed);
+    expect(display.long.expected).toBe(
+      display.long.taken + display.long.missed,
+    );
   });
 });
 
@@ -2223,7 +2262,11 @@ describe("calculateCompliance — irregular twice-daily taker (BUG 3 verify)", (
     // Cover EVERY slot the window emits so there is no stray uncovered slot:
     // a 3-day window (NOW − 3d = Jan-12 12:00 .. Jan-15 12:00) holds Jan-12
     // 19:00, Jan-13 07:00+19:00, Jan-14 07:00+19:00, Jan-15 07:00 = 6 slots.
-    const onTime = (s: Date) => ({ scheduledFor: s, takenAt: s, skipped: false });
+    const onTime = (s: Date) => ({
+      scheduledFor: s,
+      takenAt: s,
+      skipped: false,
+    });
     const events = [
       onTime(slot(12, "19:00")),
       onTime(slot(13, "07:00")),
@@ -2231,7 +2274,9 @@ describe("calculateCompliance — irregular twice-daily taker (BUG 3 verify)", (
       // 07:00 slot, logged at 08:13 (within the late tail → taken_late).
       {
         scheduledFor: slot(14, "07:00"),
-        takenAt: new Date(slot(14, "07:00").getTime() + (1 * 60 + 13) * 60 * 1000),
+        takenAt: new Date(
+          slot(14, "07:00").getTime() + (1 * 60 + 13) * 60 * 1000,
+        ),
         skipped: false,
       },
       onTime(slot(14, "19:00")),
@@ -2304,7 +2349,11 @@ describe("calculateCompliance — irregular twice-daily taker (BUG 3 verify)", (
       skipped: false,
       autoMissed: true,
     });
-    const extra = (s: Date) => ({ scheduledFor: s, takenAt: s, skipped: false });
+    const extra = (s: Date) => ({
+      scheduledFor: s,
+      takenAt: s,
+      skipped: false,
+    });
 
     const events = [
       taken(slot(8, "19:00"), 20, 10),
@@ -2355,35 +2404,35 @@ describe("deriveDoseStatus — daily / intraday windows", () => {
   const target = new Date("2025-01-15T08:00:00Z");
 
   it("on-time within ±60 min of target", () => {
-    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T08:30:00Z"))).toBe(
-      "on_time_window",
-    );
-    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T07:15:00Z"))).toBe(
-      "on_time_window",
-    );
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T08:30:00Z")),
+    ).toBe("on_time_window");
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T07:15:00Z")),
+    ).toBe("on_time_window");
   });
 
   it("upcoming before the on-time window opens", () => {
-    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T06:30:00Z"))).toBe(
-      "upcoming",
-    );
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T06:30:00Z")),
+    ).toBe("upcoming");
   });
 
   it("overdue between +60 min and +240 min", () => {
     // +90 min → past on-time (60), before miss cutoff (240).
-    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T09:30:00Z"))).toBe(
-      "overdue",
-    );
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T09:30:00Z")),
+    ).toBe("overdue");
     // +239 min → still overdue (takeable).
-    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T11:59:00Z"))).toBe(
-      "overdue",
-    );
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T11:59:00Z")),
+    ).toBe("overdue");
   });
 
   it("missed past +240 min", () => {
-    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T12:30:00Z"))).toBe(
-      "missed",
-    );
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T12:30:00Z")),
+    ).toBe("missed");
   });
 
   it("never overlaps the next dose's on-time window", () => {
@@ -2424,19 +2473,19 @@ describe("deriveDoseStatus — weekly GLP-1 (4-day rule)", () => {
   const target = new Date("2025-01-13T08:00:00Z"); // a Monday shot
 
   it("on-time within ±1 day of the target day", () => {
-    expect(deriveDoseStatus(target, "weekly", new Date("2025-01-13T20:00:00Z"))).toBe(
-      "on_time_window",
-    );
-    expect(deriveDoseStatus(target, "weekly", new Date("2025-01-14T07:00:00Z"))).toBe(
-      "on_time_window",
-    );
+    expect(
+      deriveDoseStatus(target, "weekly", new Date("2025-01-13T20:00:00Z")),
+    ).toBe("on_time_window");
+    expect(
+      deriveDoseStatus(target, "weekly", new Date("2025-01-14T07:00:00Z")),
+    ).toBe("on_time_window");
   });
 
   it("overdue up to +4 days (still counts when taken — the clinical rule)", () => {
     // +3 days from target → past the ±1-day on-time window, before +4 days.
-    expect(deriveDoseStatus(target, "weekly", new Date("2025-01-16T12:00:00Z"))).toBe(
-      "overdue",
-    );
+    expect(
+      deriveDoseStatus(target, "weekly", new Date("2025-01-16T12:00:00Z")),
+    ).toBe("overdue");
     // Taken on day +3 still counts as late, not missed.
     expect(
       deriveDoseStatus(target, "weekly", new Date("2025-01-20T00:00:00Z"), {
@@ -2446,15 +2495,16 @@ describe("deriveDoseStatus — weekly GLP-1 (4-day rule)", () => {
   });
 
   it("missed past +4 days", () => {
-    expect(deriveDoseStatus(target, "weekly", new Date("2025-01-18T12:00:00Z"))).toBe(
-      "missed",
-    );
+    expect(
+      deriveDoseStatus(target, "weekly", new Date("2025-01-18T12:00:00Z")),
+    ).toBe("missed");
   });
 
   it("defaults match the documented 60-min / 240-min / 4-day boundaries", () => {
     expect(DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes).toBe(60);
     expect(
-      DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes + DOSE_WINDOW_DEFAULTS.dailyOverdueMinutes,
+      DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes +
+        DOSE_WINDOW_DEFAULTS.dailyOverdueMinutes,
     ).toBe(240);
     expect(DOSE_WINDOW_DEFAULTS.weeklyOverdueDays).toBe(4);
   });
@@ -2463,7 +2513,11 @@ describe("deriveDoseStatus — weekly GLP-1 (4-day rule)", () => {
 describe("doseCadenceFamily", () => {
   it("rolling ≥ 2 days → weekly", () => {
     expect(
-      doseCadenceFamily({ windowStart: "08:00", windowEnd: "09:00", rollingIntervalDays: 7 }),
+      doseCadenceFamily({
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        rollingIntervalDays: 7,
+      }),
     ).toBe("weekly");
   });
   it("WEEKLY rrule → weekly", () => {
@@ -2477,12 +2531,20 @@ describe("doseCadenceFamily", () => {
   });
   it("daily rrule → daily", () => {
     expect(
-      doseCadenceFamily({ windowStart: "08:00", windowEnd: "09:00", rrule: "FREQ=DAILY" }),
+      doseCadenceFamily({
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        rrule: "FREQ=DAILY",
+      }),
     ).toBe("daily");
   });
   it("plain legacy daily → daily", () => {
     expect(
-      doseCadenceFamily({ windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null }),
+      doseCadenceFamily({
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+      }),
     ).toBe("daily");
   });
 });
@@ -2506,7 +2568,10 @@ import {
   reconstructDoseHistory,
   type HistoryIntake,
 } from "@/lib/medications/scheduling/dose-history";
-import type { CanonicalSchedule, RecurrenceContext } from "@/lib/medications/scheduling/recurrence";
+import type {
+  CanonicalSchedule,
+  RecurrenceContext,
+} from "@/lib/medications/scheduling/recurrence";
 
 describe("tallyComplianceFromLedger — the unified % keystone", () => {
   const TZ = "Europe/Berlin";

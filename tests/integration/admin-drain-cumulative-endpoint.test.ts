@@ -87,9 +87,8 @@ function makeRequest(body: unknown): NextRequest {
 describe("POST /api/admin/drain-per-sample-cumulative (real Postgres)", () => {
   it("returns 403 when the session belongs to a standard (non-admin) user", async () => {
     await setSessionFor(STANDARD_USER_ID);
-    const { POST } = await import(
-      "@/app/api/admin/drain-per-sample-cumulative/route"
-    );
+    const { POST } =
+      await import("@/app/api/admin/drain-per-sample-cumulative/route");
     const res = await POST(makeRequest({ dryRun: true }));
     expect(res.status).toBe(403);
   });
@@ -120,9 +119,8 @@ describe("POST /api/admin/drain-per-sample-cumulative (real Postgres)", () => {
     });
 
     await setSessionFor(ADMIN_USER_ID);
-    const { POST } = await import(
-      "@/app/api/admin/drain-per-sample-cumulative/route"
-    );
+    const { POST } =
+      await import("@/app/api/admin/drain-per-sample-cumulative/route");
     // No body = dryRun defaults to true.
     const res = await POST(makeRequest({ userId: STANDARD_USER_ID }));
     expect(res.status).toBe(200);
@@ -168,9 +166,8 @@ describe("POST /api/admin/drain-per-sample-cumulative (real Postgres)", () => {
     });
 
     await setSessionFor(ADMIN_USER_ID);
-    const { POST } = await import(
-      "@/app/api/admin/drain-per-sample-cumulative/route"
-    );
+    const { POST } =
+      await import("@/app/api/admin/drain-per-sample-cumulative/route");
     const res = await POST(
       makeRequest({ userId: STANDARD_USER_ID, dryRun: false }),
     );

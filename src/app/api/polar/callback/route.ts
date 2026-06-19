@@ -79,7 +79,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // Guard against an off-spec token body without `x_user_id`: persisting the
     // string "undefined" as the member id would break every later data read
     // (`/v3/users/undefined/...`) with no clear cause.
-    if (typeof tokens.x_user_id !== "number" || !Number.isFinite(tokens.x_user_id)) {
+    if (
+      typeof tokens.x_user_id !== "number" ||
+      !Number.isFinite(tokens.x_user_id)
+    ) {
       return ERR("token");
     }
     const polarUserId = String(tokens.x_user_id);

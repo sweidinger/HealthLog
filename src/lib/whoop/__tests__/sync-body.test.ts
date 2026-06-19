@@ -74,7 +74,10 @@ vi.mock("../sync", async (orig) => {
 import { mapBody } from "../client";
 import { syncUserBody, WHOOP_BODY_WEIGHT_EXTERNAL_ID } from "../sync-body";
 
-const TOKEN = { accessToken: "acc", connection: { id: "c1", whoopUserId: "9" } };
+const TOKEN = {
+  accessToken: "acc",
+  connection: { id: "c1", whoopUserId: "9" },
+};
 
 beforeEach(() => {
   vi.clearAllMocks();

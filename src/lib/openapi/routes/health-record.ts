@@ -190,10 +190,7 @@ export const healthRecordPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             "Passphrase accepted; short-lived token-scoped unlock cookie set.",
           content: {
             "application/json": {
-              schema: dataEnvelope(
-                shareLinkUnlockResponse,
-                "ShareLinkUnlock",
-              ),
+              schema: dataEnvelope(shareLinkUnlockResponse, "ShareLinkUnlock"),
             },
           },
         },

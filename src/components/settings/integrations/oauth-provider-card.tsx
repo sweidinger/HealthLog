@@ -11,7 +11,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Link2, Loader2, Save, Unlink, type LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Link2,
+  Loader2,
+  Save,
+  Unlink,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -64,7 +71,9 @@ export interface OAuthProviderStatus {
   lastError?: string | null;
 }
 
-function pillStateFor(status: OAuthProviderStatus | undefined): IntegrationPillState {
+function pillStateFor(
+  status: OAuthProviderStatus | undefined,
+): IntegrationPillState {
   if (!status?.connected) return "disconnected";
   switch (status.state) {
     case "parked":
@@ -202,9 +211,7 @@ export function OAuthProviderCard({
   }
 
   return (
-    <SettingsCard
-      data-testid={`${provider}-card`}
-    >
+    <SettingsCard data-testid={`${provider}-card`}>
       <SettingsCardHeader
         icon={icon}
         title={t(`${i18nPrefix}`)}

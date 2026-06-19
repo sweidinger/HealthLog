@@ -430,7 +430,9 @@ export function SettingsShell({
       {/* v1.18.6.1 — on mobile the heading sits above the chip strip; on
           desktop it is rendered inside the grid (row 1 / content column) so
           it does not paint twice. */}
-      {headingBlock ? <div className="mb-4 md:hidden">{headingBlock}</div> : null}
+      {headingBlock ? (
+        <div className="mb-4 md:hidden">{headingBlock}</div>
+      ) : null}
 
       {/* Mobile section strip — horizontal scroll, hidden on md+.
           `no-scrollbar` (defined in `globals.css`) suppresses the

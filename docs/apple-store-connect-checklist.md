@@ -11,6 +11,7 @@ last_updated: 2026-05-15
 ## TL;DR
 
 Three submission gates that need the maintainer's hand at ASC:
+
 1. Regulated-Medical-Device declaration (Guideline 1.4 + 5.1.1(ix))
 2. Privacy Nutrition Labels matching the iOS Privacy Manifest (Guideline 5.1.2)
 3. Standard metadata (name, description, screenshots, categories, age rating)
@@ -24,9 +25,11 @@ Plus pre-submit final checks.
 **Decision**: HealthLog is **NOT a medical device** under EU MDR 2017/745 / FDA 21 CFR 880 / Apple's interpretation.
 
 **Recommended wording in the declaration form**:
+
 > HealthLog is a personal health-data logging and visualization app. It displays user-entered observations + integrates with Apple HealthKit, Withings, and manual entry. It does not diagnose, treat, prescribe, or recommend dosing. The AI Coach surfaces are explicit-refusal-gated (GROUND RULES 9 + 15) against any medical-device-class output. The drug-level estimation chart is display-only behind a versioned MDR-acknowledgment dialog citing EU 2017/745 + MDCG 2021-24. For medical advice, users must consult licensed clinicians.
 
 **What to check**:
+
 - [ ] Check "No" on the medical-device toggle
 - [ ] Add the description above to the medical-device-justification field if Apple shows one
 - [ ] Cross-reference the in-app `/privacy` page (https://<your-instance>/privacy) §7 MDR-boundary
@@ -44,22 +47,26 @@ Plus pre-submit final checks.
 For each category below: **Linked to user, used for App Functionality + Account Management**. Optional purposes: never enable Analytics, Tracking, Advertising, or Third-Party Tracking.
 
 **Health & Fitness**
+
 - Health: yes (all HKQuantityType + HKCategoryType the iOS app reads — see `/privacy` page §2)
 - Fitness: yes (steps, distance, active energy, workouts)
 - Purpose: App Functionality
 - Linked to user: yes
 
 **Contact Info**
+
 - Email Address: yes (for account login + GDPR data-subject correspondence)
 - Purpose: App Functionality + Account Management
 - Linked to user: yes
 
 **Sensitive Info**
+
 - Blood pressure, glucose, medications, drug-related observations: yes
 - Purpose: App Functionality
 - Linked to user: yes
 
 **User Content**
+
 - Emails or Text Messages: NO (the AI Coach is in-app conversation, but iOS does not send emails)
 - Photos or Videos: NO
 - Audio Data: NO (HealthKit audio-exposure is environmental dB; not the user's voice)
@@ -69,12 +76,14 @@ For each category below: **Linked to user, used for App Functionality + Account 
 - Linked to user: yes
 
 **Identifiers**
+
 - User ID: yes (server-side user UUID)
 - Device ID: yes (X-Device-Id Keychain-stored UUID, APNs push token)
 - Purpose: App Functionality + Account Management
 - Linked to user: yes
 
 **Other Data Types**
+
 - Other Data Types: yes (general medical observations not fitting above)
 - Purpose: App Functionality
 - Linked to user: yes
@@ -97,6 +106,7 @@ For each category below: **Linked to user, used for App Functionality + Account 
 ## Section 3 — Standard Metadata Checklist
 
 ### App Information
+
 - [ ] Name: "HealthLog"
 - [ ] Subtitle: 30-char tagline (suggestion: "Personal health-data log + Coach")
 - [ ] Primary category: Health & Fitness
@@ -105,25 +115,30 @@ For each category below: **Linked to user, used for App Functionality + Account 
 - [ ] Age rating: 17+ (because Sensitive Health Info content)
 
 ### Description
+
 - [ ] Long-form description (4000 char max): cover Insights + Coach + GLP-1 + Withings + Apple HealthKit + open-source nature + EU GDPR compliance
 - [ ] What's New (version-by-version notes): v0.3.0 = "Server-sync, comprehensive Apple HealthKit support across 19 sample types, smart Insights, AI Coach, Health Score, GLP-1 tracking with Research-Mode-gated drug-level chart, interactive charts with drill-down, push notifications, deep links, and account deletion."
 
 ### Screenshots
+
 - [ ] 6.5" iPhone screenshots: cover Onboarding (welcome carousel + permissions), Dashboard (Health Score tile + tile-strip), Insights (sub-page with severity sort), Coach (refusal example to show MDR boundary), Medications (GLP-1 detail stack), Settings (Research Mode toggle + account deletion).
 - [ ] 5.5" iPhone screenshots: same set (Apple's legacy size).
 - [ ] iPad screenshots if supporting iPad.
 
 ### URLs
+
 - [ ] Marketing URL: https://<your-instance> (or the marketing site once the landing repo's v1.4.25 is deployed)
 - [ ] Privacy Policy URL: **https://<your-instance>/privacy** (ships with v1.4.25.1 hotfix)
 - [ ] Support URL: https://github.com/MBombeck/HealthLog/issues
 
 ### App Review Information
+
 - [ ] Demo account credentials: the maintainer creates a read-only demo account on `demo.healthlog.dev` and provides credentials in the demo account fields
 - [ ] Review notes: explain MDR boundary + AI Coach safety contract + Research Mode gating; reference `/privacy` §7 MDR-boundary. Apple reviewers DO read this and DO check the in-app behavior matches the claim.
 - [ ] Sign-in required: yes (provide demo credentials)
 
 ### Pricing + Availability
+
 - [ ] Free
 - [ ] Availability: select countries (maintainer decision — recommend EU + US + Canada + Australia + Japan for first launch)
 
@@ -154,6 +169,7 @@ Run through this list:
 ---
 
 **Source links**:
+
 - Apple Health App Guidelines: https://developer.apple.com/app-store/review/guidelines/#health-and-health-research
 - Apple App Privacy Details: https://developer.apple.com/app-store/app-privacy-details/
 - EU MDR 2017/745: https://eur-lex.europa.eu/eli/reg/2017/745/oj

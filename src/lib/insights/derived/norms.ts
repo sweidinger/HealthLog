@@ -196,7 +196,9 @@ export function lookupNormalRange(
       const round1 = (n: number) => Math.round(n * 10) / 10;
       return {
         low: round1(lo.range.low + (hi.range.low - lo.range.low) * fraction),
-        high: round1(lo.range.high + (hi.range.high - lo.range.high) * fraction),
+        high: round1(
+          lo.range.high + (hi.range.high - lo.range.high) * fraction,
+        ),
       };
     }
   }

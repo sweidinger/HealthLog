@@ -10,7 +10,14 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Droplet, Link2, Loader2, Save, Unlink } from "lucide-react";
+import {
+  ArrowRight,
+  Droplet,
+  Link2,
+  Loader2,
+  Save,
+  Unlink,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -37,7 +44,11 @@ import {
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { apiFetchRaw, apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
-import { invalidateKeys, measurementDependentKeys, queryKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  measurementDependentKeys,
+  queryKeys,
+} from "@/lib/query-keys";
 
 import { IntegrationErrorMessage } from "./shared";
 import { IntegrationCardDescription } from "./setup-guide-link";
@@ -47,14 +58,21 @@ interface NightscoutStatus {
   configured: boolean;
   hasToken?: boolean;
   allowPrivateHost?: boolean;
-  state?: "connected" | "error_transient" | "error_reauth" | "disconnected" | "parked";
+  state?:
+    | "connected"
+    | "error_transient"
+    | "error_reauth"
+    | "disconnected"
+    | "parked";
   lastSuccessAt?: string | null;
   lastAttemptAt?: string | null;
   lastError?: string | null;
 }
 
 /** Map the shared ledger state onto the pill's display state. */
-function pillStateFor(status: NightscoutStatus | undefined): IntegrationPillState {
+function pillStateFor(
+  status: NightscoutStatus | undefined,
+): IntegrationPillState {
   if (!status?.connected) return "disconnected";
   switch (status.state) {
     case "parked":
@@ -159,9 +177,7 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
       : null;
 
   return (
-    <SettingsCard
-      data-testid="nightscout-card"
-    >
+    <SettingsCard data-testid="nightscout-card">
       <SettingsCardHeader
         icon={Droplet}
         title={t("settings.nightscout")}
@@ -226,7 +242,9 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
 
         <form ref={formRef} onSubmit={handleConnect} className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="nightscout-url">{t("settings.nightscoutUrl")}</Label>
+            <Label htmlFor="nightscout-url">
+              {t("settings.nightscoutUrl")}
+            </Label>
             <Input
               id="nightscout-url"
               type="url"

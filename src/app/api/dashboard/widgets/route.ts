@@ -271,7 +271,10 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   let mergedChartOverlayPrefs: ChartOverlayPrefsMap | undefined = parsed.data
     .chartOverlayPrefs as ChartOverlayPrefsMap | undefined;
   let mergedHeroVisible: boolean | undefined = parsed.data.heroVisible;
-  if (mergedChartOverlayPrefs === undefined || mergedHeroVisible === undefined) {
+  if (
+    mergedChartOverlayPrefs === undefined ||
+    mergedHeroVisible === undefined
+  ) {
     const existing = await prisma.user.findUnique({
       where: { id: user.id },
       select: { dashboardWidgetsJson: true },

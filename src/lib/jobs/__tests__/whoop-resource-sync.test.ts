@@ -10,19 +10,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Job } from "pg-boss";
 
-const {
-  syncUserWorkout,
-  syncWhoopWorkoutById,
-  findManyMock,
-} = vi.hoisted(() => ({
-  syncUserWorkout: vi.fn<(...a: unknown[]) => Promise<number>>(async () => 0),
-  syncWhoopWorkoutById: vi.fn<(...a: unknown[]) => Promise<number>>(
-    async () => 0,
-  ),
-  findManyMock: vi.fn<(...a: unknown[]) => Promise<Array<{ userId: string }>>>(
-    async () => [],
-  ),
-}));
+const { syncUserWorkout, syncWhoopWorkoutById, findManyMock } = vi.hoisted(
+  () => ({
+    syncUserWorkout: vi.fn<(...a: unknown[]) => Promise<number>>(async () => 0),
+    syncWhoopWorkoutById: vi.fn<(...a: unknown[]) => Promise<number>>(
+      async () => 0,
+    ),
+    findManyMock: vi.fn<
+      (...a: unknown[]) => Promise<Array<{ userId: string }>>
+    >(async () => []),
+  }),
+);
 
 vi.mock("@/lib/whoop/sync-recovery", () => ({
   syncUserRecovery: vi.fn(async () => 0),

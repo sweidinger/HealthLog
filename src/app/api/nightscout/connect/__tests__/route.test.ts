@@ -23,9 +23,8 @@ vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn() }));
 vi.mock("@/lib/crypto", () => ({ encrypt: (s: string) => `enc:${s}` }));
 vi.mock("@/lib/integrations/status", () => ({ markReconnected: vi.fn() }));
 vi.mock("@/lib/nightscout/client", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("@/lib/nightscout/client")
-  >();
+  const actual =
+    await importOriginal<typeof import("@/lib/nightscout/client")>();
   return { ...actual, fetchSgvEntries: fetchSgvEntriesMock };
 });
 

@@ -23,7 +23,10 @@
  * use), keyed `insights.derived-score:<ID>-status.<locale>`. de/en only — the
  * narratives, like the period narrative, are bilingual by design.
  */
-import { buildMetricSignal, type MetricSignal } from "@/lib/insights/metric-signal";
+import {
+  buildMetricSignal,
+  type MetricSignal,
+} from "@/lib/insights/metric-signal";
 import type { GradedSeries } from "@/lib/insights/graded-series";
 import type { ReadinessValue, ReadinessComponentKey } from "./readiness";
 import type { SleepScoreValue, SleepSubScoreKey } from "./sleep-score";
@@ -79,7 +82,10 @@ const READINESS_COMPONENT_LABELS: Record<
   { de: string; en: string }
 > = {
   rhr: { de: "dein Ruhepuls", en: "your resting heart rate" },
-  hrv: { de: "deine Herzfrequenzvariabilität", en: "your heart-rate variability" },
+  hrv: {
+    de: "deine Herzfrequenzvariabilität",
+    en: "your heart-rate variability",
+  },
   sleep: { de: "dein Schlaf", en: "your sleep" },
   respiratory: { de: "deine Atemfrequenz", en: "your respiratory rate" },
   mood: { de: "deine Stimmung", en: "your mood" },
@@ -98,14 +104,14 @@ const SLEEP_SUBSCORE_LABELS: Record<
 };
 
 function scoreLabel(metric: string, locale: Locale): string {
-  return SCORE_LABELS[metric]?.[locale] ?? (locale === "de" ? "dein Wert" : "your score");
+  return (
+    SCORE_LABELS[metric]?.[locale] ??
+    (locale === "de" ? "dein Wert" : "your score")
+  );
 }
 
 /** Band → bilingual standing phrase. */
-function bandPhrase(
-  band: "green" | "yellow" | "red",
-  locale: Locale,
-): string {
+function bandPhrase(band: "green" | "yellow" | "red", locale: Locale): string {
   if (locale === "de") {
     return band === "green"
       ? "im guten Bereich"
@@ -138,7 +144,15 @@ function singlePointGraded(
     weekly: [],
     monthly:
       baseline !== null
-        ? [{ month: "baseline", min: baseline, max: baseline, mean: baseline, n: 1 }]
+        ? [
+            {
+              month: "baseline",
+              min: baseline,
+              max: baseline,
+              mean: baseline,
+              n: 1,
+            },
+          ]
         : [],
     yearly: [],
   };
@@ -186,9 +200,9 @@ export function buildScoreSignal(
   // signed delta; direction follows the metric (recovery higher-better,
   // stress/strain lower-better).
   const v = value as WellnessScoreValue;
-  const baseline =
-    v.trendDelta !== null ? v.score - v.trendDelta : null;
-  const direction = metric === "RECOVERY_SCORE" ? "higher-better" : "lower-better";
+  const baseline = v.trendDelta !== null ? v.score - v.trendDelta : null;
+  const direction =
+    metric === "RECOVERY_SCORE" ? "higher-better" : "lower-better";
   return buildMetricSignal({
     metric: label,
     direction,
@@ -270,13 +284,11 @@ export function buildDeterministicScoreAssessment(
           : `Carried mostly by ${topLabel}.`,
       );
     } else {
-      const weak = ranked.slice(0, 2).map((c) =>
-        contributorLabel(metric, c.key, locale),
-      );
+      const weak = ranked
+        .slice(0, 2)
+        .map((c) => contributorLabel(metric, c.key, locale));
       const joined =
-        locale === "de"
-          ? joinList(weak, "und")
-          : joinList(weak, "and");
+        locale === "de" ? joinList(weak, "und") : joinList(weak, "and");
       sentences.push(
         locale === "de"
           ? `Am stärksten gedämpft durch ${joined}.`

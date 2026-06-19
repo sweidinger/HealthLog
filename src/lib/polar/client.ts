@@ -122,8 +122,7 @@ export async function exchangeCode(
       classification: verdict.classification,
       httpStatus: verdict.httpStatus,
       reason: verdict.reason,
-      upstreamError:
-        typeof json?.error === "string" ? json.error : undefined,
+      upstreamError: typeof json?.error === "string" ? json.error : undefined,
     });
   }
   return json as PolarTokenResponse;
@@ -391,7 +390,9 @@ function rechargeStatusToScore(status: number): number {
  * `measuredAt` is the record's date at local midnight UTC anchor (the wake
  * morning the night belongs to).
  */
-export function mapNightlyRecharge(r: PolarNightlyRecharge): MappedMeasurement[] {
+export function mapNightlyRecharge(
+  r: PolarNightlyRecharge,
+): MappedMeasurement[] {
   const measuredAt = new Date(`${r.date}T00:00:00.000Z`);
   if (Number.isNaN(measuredAt.getTime())) return [];
   const out: MappedMeasurement[] = [];

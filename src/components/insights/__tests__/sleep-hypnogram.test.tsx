@@ -4,10 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { I18nProvider } from "@/lib/i18n/context";
-import {
-  SleepHypnogram,
-  type SleepHypnogramSession,
-} from "../sleep-hypnogram";
+import { SleepHypnogram, type SleepHypnogramSession } from "../sleep-hypnogram";
 
 /**
  * v1.16.8 — hypnogram polish: the night's measuring source rides the

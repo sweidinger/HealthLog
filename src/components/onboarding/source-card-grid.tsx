@@ -117,10 +117,7 @@ export function SourceCardGrid() {
   }
 
   return (
-    <section
-      aria-labelledby="onboarding-source-title"
-      className="space-y-6"
-    >
+    <section aria-labelledby="onboarding-source-title" className="space-y-6">
       <header className="space-y-2">
         <h1
           id="onboarding-source-title"
@@ -151,7 +148,7 @@ export function SourceCardGrid() {
         ))}
       </div>
 
-      <div className="space-y-3 rounded-lg border border-dashed border-border p-4">
+      <div className="border-border space-y-3 rounded-lg border border-dashed p-4">
         <div className="flex items-start gap-3">
           <span
             aria-hidden="true"
@@ -171,12 +168,7 @@ export function SourceCardGrid() {
         <ul className="flex flex-wrap gap-2" data-testid="source-more-list">
           {MORE_SOURCES.map((item) => (
             <li key={item.slug}>
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="min-h-9"
-              >
+              <Button asChild variant="outline" size="sm" className="min-h-9">
                 <Link
                   href="/settings/integrations"
                   data-testid={`source-more-${item.slug}`}
@@ -268,7 +260,7 @@ function SourceCardItem({
       <div className="min-w-0 flex-1">
         <h2 className="text-base font-semibold tracking-tight">{titleLabel}</h2>
         {recommendedLabel ? (
-          <span className="bg-primary/10 text-primary mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+          <span className="bg-primary/10 text-primary mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase">
             {recommendedLabel}
           </span>
         ) : null}
@@ -318,7 +310,7 @@ function SourceCardItem({
       aria-pressed={selected}
       className={cn(
         baseClasses,
-        "cursor-pointer hover:border-primary/50",
+        "hover:border-primary/50 cursor-pointer",
         selected && "border-primary bg-primary/5",
       )}
       data-testid={`source-card-${card.slug}`}
@@ -328,4 +320,3 @@ function SourceCardItem({
     </button>
   );
 }
-

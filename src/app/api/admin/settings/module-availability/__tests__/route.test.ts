@@ -48,7 +48,9 @@ describe("GET /api/admin/settings/module-availability", () => {
   it("returns 401 when unauthenticated", async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     const res = await (GET as unknown as (r: NextRequest) => Promise<Response>)(
-      new NextRequest("http://localhost/api/admin/settings/module-availability"),
+      new NextRequest(
+        "http://localhost/api/admin/settings/module-availability",
+      ),
     );
     expect(res.status).toBe(401);
   });
@@ -56,7 +58,9 @@ describe("GET /api/admin/settings/module-availability", () => {
   it("returns 403 when the caller is not an admin (cookie-only boundary)", async () => {
     vi.mocked(getSession).mockResolvedValue(USER_OK as never);
     const res = await (GET as unknown as (r: NextRequest) => Promise<Response>)(
-      new NextRequest("http://localhost/api/admin/settings/module-availability"),
+      new NextRequest(
+        "http://localhost/api/admin/settings/module-availability",
+      ),
     );
     expect(res.status).toBe(403);
   });
@@ -65,7 +69,9 @@ describe("GET /api/admin/settings/module-availability", () => {
     vi.mocked(getSession).mockResolvedValue(ADMIN_OK as never);
     vi.mocked(prisma.appSettings.findUnique).mockResolvedValue(null);
     const res = await (GET as unknown as (r: NextRequest) => Promise<Response>)(
-      new NextRequest("http://localhost/api/admin/settings/module-availability"),
+      new NextRequest(
+        "http://localhost/api/admin/settings/module-availability",
+      ),
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -82,7 +88,9 @@ describe("GET /api/admin/settings/module-availability", () => {
       moduleAvailabilityJson: { mood: false },
     } as never);
     const res = await (GET as unknown as (r: NextRequest) => Promise<Response>)(
-      new NextRequest("http://localhost/api/admin/settings/module-availability"),
+      new NextRequest(
+        "http://localhost/api/admin/settings/module-availability",
+      ),
     );
     const body = (await res.json()) as {
       data: { availability: Record<string, boolean> };

@@ -171,10 +171,7 @@ export function CycleView() {
               node never matched, leaving the tile stuck at the rise rule's
               `opacity: 0` (invisible but still boxed). The `contents` wrapper
               carries the flag without adding a layout box. */}
-          <div
-            data-revealed={play ? "true" : undefined}
-            className="contents"
-          >
+          <div data-revealed={play ? "true" : undefined} className="contents">
             <div
               data-slot="cycle-wheel-tile"
               style={
@@ -187,49 +184,49 @@ export function CycleView() {
                 play && "wellness-tile-rise",
               )}
             >
-            {loading ? (
-              <div className="flex h-[220px] items-center justify-center">
-                <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
-              </div>
-            ) : calendarError ? (
-              <div className="flex h-[220px] flex-col items-center justify-center gap-3 text-center">
-                <p className="text-muted-foreground text-sm">
-                  {t("cycle.loadError")}
+              {loading ? (
+                <div className="flex h-[220px] items-center justify-center">
+                  <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
+                </div>
+              ) : calendarError ? (
+                <div className="flex h-[220px] flex-col items-center justify-center gap-3 text-center">
+                  <p className="text-muted-foreground text-sm">
+                    {t("cycle.loadError")}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => void calendar.refetch()}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("common.retry")}
+                  </Button>
+                </div>
+              ) : (
+                <CycleRing
+                  dayOfCycle={wheel.dayOfCycle}
+                  cycleLength={wheel.cycleLength}
+                  phase={wheel.phase}
+                  spans={wheel.spans}
+                  animate={play}
+                />
+              )}
+              {!calendarError ? (
+                <p className="text-muted-foreground text-xs">
+                  {t("cycle.ring.caption")}
                 </p>
+              ) : null}
+              {/* First-period CTA — only when no cycle is active yet. */}
+              {!loading && !calendarError && wheel.dayOfCycle == null ? (
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => void calendar.refetch()}
+                  className="mt-1 w-full"
+                  onClick={() => openSheet(today)}
                 >
-                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                  {t("common.retry")}
+                  {t("cycle.ring.firstPeriodCta")}
                 </Button>
-              </div>
-            ) : (
-              <CycleRing
-                dayOfCycle={wheel.dayOfCycle}
-                cycleLength={wheel.cycleLength}
-                phase={wheel.phase}
-                spans={wheel.spans}
-                animate={play}
-              />
-            )}
-            {!calendarError ? (
-              <p className="text-muted-foreground text-xs">
-                {t("cycle.ring.caption")}
-              </p>
-            ) : null}
-            {/* First-period CTA — only when no cycle is active yet. */}
-            {!loading && !calendarError && wheel.dayOfCycle == null ? (
-              <Button
-                variant="outline"
-                className="mt-1 w-full"
-                onClick={() => openSheet(today)}
-              >
-                {t("cycle.ring.firstPeriodCta")}
-              </Button>
-            ) : null}
+              ) : null}
             </div>
           </div>
 

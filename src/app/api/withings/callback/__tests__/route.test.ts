@@ -123,9 +123,8 @@ describe("withings/callback atomic nonce consumption (M3)", () => {
 
     // Stub the rest of the happy path for the winning request — code
     // exchange returns plausible tokens so the upsert + redirect run.
-    const { getUserWithingsCredentials } = await import(
-      "@/lib/withings/credentials"
-    );
+    const { getUserWithingsCredentials } =
+      await import("@/lib/withings/credentials");
     vi.mocked(getUserWithingsCredentials).mockResolvedValue({
       clientId: "cid",
       clientSecret: "csec",
@@ -155,13 +154,9 @@ describe("withings/callback atomic nonce consumption (M3)", () => {
 
     // Exactly one leg landed on `withings=connected`, exactly one
     // landed on the replay branch (`withings=error&reason=replay`).
-    const locations = [resA, resB]
-      .map((r) => r.headers.get("location"))
-      .sort();
+    const locations = [resA, resB].map((r) => r.headers.get("location")).sort();
     expect(locations).toHaveLength(2);
-    expect(
-      locations.some((l) => l?.includes("withings=connected")),
-    ).toBe(true);
+    expect(locations.some((l) => l?.includes("withings=connected"))).toBe(true);
     expect(
       locations.some((l) => l?.includes("withings=error&reason=replay")),
     ).toBe(true);
@@ -265,7 +260,9 @@ describe("withings/callback atomic nonce consumption (M3)", () => {
       "withings=error&reason=cross_user",
     );
     expect(exchangeCode).not.toHaveBeenCalled();
-    expect(annotateMock).toHaveBeenCalledWith({ meta: { reason: "cross_user" } });
+    expect(annotateMock).toHaveBeenCalledWith({
+      meta: { reason: "cross_user" },
+    });
   });
 
   it("non-P2025 infra error branch annotates reason=state on the Wide Event (legacy fallback for unclassified DB failures)", async () => {
@@ -295,7 +292,10 @@ describe("withings/callback atomic nonce consumption (M3)", () => {
     // CSRF leg 1 — must reject without touching the ledger so a
     // probe can't grief legitimate rows by issuing deletes for
     // nonces it doesn't legitimately hold the cookie for.
-    const req = callbackRequest("aaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbb");
+    const req = callbackRequest(
+      "aaaaaaaaaaaaaaaaaaaaaa",
+      "bbbbbbbbbbbbbbbbbbbbbb",
+    );
     const res = await GET(req);
 
     expect(res.status).toBe(307);

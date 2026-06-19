@@ -79,12 +79,10 @@ describe("<PrivacyPage>", () => {
     // Each section ships a `data-slot="privacy-section-de"` body and a
     // collapsible `data-slot="privacy-section-en"` translation. 11
     // sections total.
-    const deSlotCount = (
-      html.match(/data-slot="privacy-section-de"/g) ?? []
-    ).length;
-    const enSlotCount = (
-      html.match(/data-slot="privacy-section-en"/g) ?? []
-    ).length;
+    const deSlotCount = (html.match(/data-slot="privacy-section-de"/g) ?? [])
+      .length;
+    const enSlotCount = (html.match(/data-slot="privacy-section-en"/g) ?? [])
+      .length;
     expect(deSlotCount).toBe(11);
     expect(enSlotCount).toBe(11);
     // The English translation `<details>` carries the "English

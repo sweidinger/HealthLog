@@ -897,10 +897,7 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
     const { prisma } = makePrisma([]);
     let observedSignal: AbortSignal | undefined;
     const generate = vi.fn().mockImplementation(
-      (
-        _userId: string,
-        opts: { signal?: AbortSignal },
-      ) =>
+      (_userId: string, opts: { signal?: AbortSignal }) =>
         new Promise((resolve) => {
           observedSignal = opts.signal;
           setTimeout(

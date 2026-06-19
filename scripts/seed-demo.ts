@@ -194,17 +194,41 @@ async function seed() {
     // Weight: 86.5 → trending down to a stable ~82 (healthy BMI ~24.7 at 182cm)
     const weights = randomWalk(86.5, 82.0, span, 0.6);
     // Systolic BP: 128 → settled in the optimal band ~118 (clamped)
-    const sysBP = randomWalk(128, 118, span, 3, VALUE_RANGES.BLOOD_PRESSURE_SYS);
+    const sysBP = randomWalk(
+      128,
+      118,
+      span,
+      3,
+      VALUE_RANGES.BLOOD_PRESSURE_SYS,
+    );
     // Diastolic BP: 82 → settled ~76 (clamped)
-    const diaBP = randomWalk(82, 76, span, 2.5, VALUE_RANGES.BLOOD_PRESSURE_DIA);
+    const diaBP = randomWalk(
+      82,
+      76,
+      span,
+      2.5,
+      VALUE_RANGES.BLOOD_PRESSURE_DIA,
+    );
     // Spot pulse (daytime heart rate): ~72, gently lower
     const pulse = randomWalk(74, 70, span, 3, VALUE_RANGES.PULSE);
     // Resting heart rate: clean ~60, the metric the resting-pulse tile scores
-    const restingHr = randomWalk(64, 58, span, 2, VALUE_RANGES.RESTING_HEART_RATE);
+    const restingHr = randomWalk(
+      64,
+      58,
+      span,
+      2,
+      VALUE_RANGES.RESTING_HEART_RATE,
+    );
     // Body fat: 24% → trending to a healthy ~19%
     const bodyFat = randomWalk(24.0, 19.0, span, 0.4, VALUE_RANGES.BODY_FAT);
     // Sleep duration in MINUTES (the SLEEP_DURATION unit): ~7h → ~7h45m
-    const sleepMin = randomWalk(420, 465, span, 25, VALUE_RANGES.SLEEP_DURATION);
+    const sleepMin = randomWalk(
+      420,
+      465,
+      span,
+      25,
+      VALUE_RANGES.SLEEP_DURATION,
+    );
     // Steps: 6500 → a solid ~9000
     const steps = randomWalk(6500, 9000, span, 1500);
 
@@ -330,7 +354,8 @@ async function seed() {
       const leanMass = fatFree;
       // Total body water ≈ 73% of fat-free mass (kg of water).
       const bodyWater = Math.round(fatFree * 0.73 * 10) / 10;
-      const boneMass = Math.round((3.1 + (Math.random() - 0.5) * 0.2) * 10) / 10;
+      const boneMass =
+        Math.round((3.1 + (Math.random() - 0.5) * 0.2) * 10) / 10;
       // Visceral-fat rating on Withings' 1–12 scale; a healthy ~6, easing
       // down slightly as the body fat trends down.
       const visceralFat = Math.round(7 - (i / span) * 1.5);
@@ -396,29 +421,77 @@ async function seed() {
     // FLIGHTS_CLIMBED count. Source APPLE_HEALTH device_type 'watch'.
     console.log("Creating cardio fitness + vitals series...");
     // HRV SDNN: a healthy ~55 ms, gently rising; also write the RMSSD variant.
-    const hrvSdnn = randomWalk(48, 58, span, 5, VALUE_RANGES.HEART_RATE_VARIABILITY);
+    const hrvSdnn = randomWalk(
+      48,
+      58,
+      span,
+      5,
+      VALUE_RANGES.HEART_RATE_VARIABILITY,
+    );
     const hrvRmssd = randomWalk(42, 52, span, 5, VALUE_RANGES.HRV_RMSSD);
     // SpO2: 97–99%.
     const spo2 = randomWalk(98, 98, span, 0.8, VALUE_RANGES.OXYGEN_SATURATION);
     // Respiratory rate: 13–16 breaths/min.
-    const respRate = randomWalk(15, 14, span, 0.8, VALUE_RANGES.RESPIRATORY_RATE);
+    const respRate = randomWalk(
+      15,
+      14,
+      span,
+      0.8,
+      VALUE_RANGES.RESPIRATORY_RATE,
+    );
     // Active energy: ~550 kcal/day.
-    const activeKcal = randomWalk(480, 600, span, 80, VALUE_RANGES.ACTIVE_ENERGY_BURNED);
+    const activeKcal = randomWalk(
+      480,
+      600,
+      span,
+      80,
+      VALUE_RANGES.ACTIVE_ENERGY_BURNED,
+    );
     // Walking + running distance (metres): ~6–8 km/day, tracks steps.
-    const distM = randomWalk(6200, 7800, span, 900, VALUE_RANGES.WALKING_RUNNING_DISTANCE);
+    const distM = randomWalk(
+      6200,
+      7800,
+      span,
+      900,
+      VALUE_RANGES.WALKING_RUNNING_DISTANCE,
+    );
     // Flights climbed: ~8–14/day.
     const flights = randomWalk(9, 13, span, 4, VALUE_RANGES.FLIGHTS_CLIMBED);
 
     for (let i = 0; i < span; i++) {
       const date = daysAgo(days - i);
       const vitals: Array<{ type: string; value: number; unit: string }> = [
-        { type: "HEART_RATE_VARIABILITY", value: Math.round(hrvSdnn[i]), unit: "ms" },
+        {
+          type: "HEART_RATE_VARIABILITY",
+          value: Math.round(hrvSdnn[i]),
+          unit: "ms",
+        },
         { type: "HRV_RMSSD", value: Math.round(hrvRmssd[i]), unit: "ms" },
-        { type: "OXYGEN_SATURATION", value: Math.round(spo2[i] * 10) / 10, unit: "%" },
-        { type: "RESPIRATORY_RATE", value: Math.round(respRate[i] * 10) / 10, unit: "count/min" },
-        { type: "ACTIVE_ENERGY_BURNED", value: Math.round(activeKcal[i]), unit: "kcal" },
-        { type: "WALKING_RUNNING_DISTANCE", value: Math.round(distM[i]), unit: "m" },
-        { type: "FLIGHTS_CLIMBED", value: Math.round(flights[i]), unit: "count" },
+        {
+          type: "OXYGEN_SATURATION",
+          value: Math.round(spo2[i] * 10) / 10,
+          unit: "%",
+        },
+        {
+          type: "RESPIRATORY_RATE",
+          value: Math.round(respRate[i] * 10) / 10,
+          unit: "count/min",
+        },
+        {
+          type: "ACTIVE_ENERGY_BURNED",
+          value: Math.round(activeKcal[i]),
+          unit: "kcal",
+        },
+        {
+          type: "WALKING_RUNNING_DISTANCE",
+          value: Math.round(distM[i]),
+          unit: "m",
+        },
+        {
+          type: "FLIGHTS_CLIMBED",
+          value: Math.round(flights[i]),
+          unit: "count",
+        },
       ];
       for (const v of vitals) {
         await client.query(
@@ -449,19 +522,47 @@ async function seed() {
     console.log("Creating recovery / strain / sleep scores...");
     const recovery = randomWalk(68, 78, span, 8, VALUE_RANGES.RECOVERY_SCORE);
     const dayStrain = randomWalk(11, 13, span, 2.5, VALUE_RANGES.DAY_STRAIN);
-    const sleepPerf = randomWalk(82, 90, span, 6, VALUE_RANGES.SLEEP_PERFORMANCE);
+    const sleepPerf = randomWalk(
+      82,
+      90,
+      span,
+      6,
+      VALUE_RANGES.SLEEP_PERFORMANCE,
+    );
     const sleepEff = randomWalk(88, 93, span, 4, VALUE_RANGES.SLEEP_EFFICIENCY);
-    const sleepConsistency = randomWalk(74, 84, span, 6, VALUE_RANGES.SLEEP_CONSISTENCY);
+    const sleepConsistency = randomWalk(
+      74,
+      84,
+      span,
+      6,
+      VALUE_RANGES.SLEEP_CONSISTENCY,
+    );
     for (let i = 0; i < span; i++) {
       // Anchor scores to the morning wake instant so a night's recovery sits
       // on the day it belongs to.
       const at = daysAgoAt(days - i, 7, 0);
       const scores: Array<{ type: string; value: number; unit: string }> = [
-        { type: "RECOVERY_SCORE", value: Math.round(recovery[i]), unit: "score" },
-        { type: "DAY_STRAIN", value: Math.round(dayStrain[i] * 10) / 10, unit: "score" },
-        { type: "SLEEP_PERFORMANCE", value: Math.round(sleepPerf[i]), unit: "%" },
+        {
+          type: "RECOVERY_SCORE",
+          value: Math.round(recovery[i]),
+          unit: "score",
+        },
+        {
+          type: "DAY_STRAIN",
+          value: Math.round(dayStrain[i] * 10) / 10,
+          unit: "score",
+        },
+        {
+          type: "SLEEP_PERFORMANCE",
+          value: Math.round(sleepPerf[i]),
+          unit: "%",
+        },
         { type: "SLEEP_EFFICIENCY", value: Math.round(sleepEff[i]), unit: "%" },
-        { type: "SLEEP_CONSISTENCY", value: Math.round(sleepConsistency[i]), unit: "%" },
+        {
+          type: "SLEEP_CONSISTENCY",
+          value: Math.round(sleepConsistency[i]),
+          unit: "%",
+        },
       ];
       for (const s of scores) {
         await client.query(
@@ -490,9 +591,33 @@ async function seed() {
       distanceM: number | null;
       strain: number;
     }> = [
-      { sport: "running", durationMin: 38, kcal: 420, avgHr: 148, maxHr: 171, distanceM: 6500, strain: 13.4 },
-      { sport: "strength", durationMin: 52, kcal: 360, avgHr: 118, maxHr: 152, distanceM: null, strain: 10.2 },
-      { sport: "cycling", durationMin: 65, kcal: 520, avgHr: 134, maxHr: 158, distanceM: 24000, strain: 12.1 },
+      {
+        sport: "running",
+        durationMin: 38,
+        kcal: 420,
+        avgHr: 148,
+        maxHr: 171,
+        distanceM: 6500,
+        strain: 13.4,
+      },
+      {
+        sport: "strength",
+        durationMin: 52,
+        kcal: 360,
+        avgHr: 118,
+        maxHr: 152,
+        distanceM: null,
+        strain: 10.2,
+      },
+      {
+        sport: "cycling",
+        durationMin: 65,
+        kcal: 520,
+        avgHr: 134,
+        maxHr: 158,
+        distanceM: 24000,
+        strain: 12.1,
+      },
     ];
     // Step backwards through the window placing ~2 sessions a week per slot
     // so the cadence lands around 3–4/week without overlapping.
@@ -503,7 +628,11 @@ async function seed() {
       const plan = workoutPlan[planIdx % workoutPlan.length];
       planIdx += 1;
       const startHour = 17 + Math.floor(Math.random() * 3);
-      const startedAt = daysAgoAt(dayOffset, startHour, Math.floor(Math.random() * 50));
+      const startedAt = daysAgoAt(
+        dayOffset,
+        startHour,
+        Math.floor(Math.random() * 50),
+      );
       const durationSec = plan.durationMin * 60;
       const endedAt = new Date(startedAt.getTime() + durationSec * 1000);
       const workoutId = cuid();
@@ -755,12 +884,24 @@ async function seed() {
       low: number;
       high: number;
     }> = [
-      { analyte: "Total Cholesterol", value: 178, unit: "mg/dL", low: 0, high: 200 },
+      {
+        analyte: "Total Cholesterol",
+        value: 178,
+        unit: "mg/dL",
+        low: 0,
+        high: 200,
+      },
       { analyte: "LDL", value: 98, unit: "mg/dL", low: 0, high: 130 },
       { analyte: "HDL", value: 58, unit: "mg/dL", low: 40, high: 100 },
       { analyte: "Triglycerides", value: 92, unit: "mg/dL", low: 0, high: 150 },
       { analyte: "HbA1c", value: 5.2, unit: "%", low: 4.0, high: 5.6 },
-      { analyte: "Fasting Glucose", value: 89, unit: "mg/dL", low: 70, high: 99 },
+      {
+        analyte: "Fasting Glucose",
+        value: 89,
+        unit: "mg/dL",
+        low: 70,
+        high: 99,
+      },
       { analyte: "Vitamin D", value: 42, unit: "ng/mL", low: 30, high: 100 },
       { analyte: "TSH", value: 1.8, unit: "mIU/L", low: 0.4, high: 4.0 },
       { analyte: "Ferritin", value: 120, unit: "ng/mL", low: 30, high: 400 },
@@ -919,14 +1060,28 @@ async function seed() {
     await client.query("COMMIT");
     console.log("\nDemo data seeded successfully!");
     console.log(`  User: demo / demo123demo123`);
-    console.log(`  Measurements: weight, BP, pulse, resting HR, body fat, steps, sleep`);
-    console.log(`  Body composition: fat/lean/muscle mass, water, bone, visceral fat, BMI`);
-    console.log(`  Blood glucose: ${glucoseReadings.length} readings/day (fasting + post-meal + bedtime)`);
-    console.log(`  Cardio + vitals: HRV (SDNN + RMSSD), SpO2, resp. rate, VO2max, active energy, distance, flights`);
-    console.log(`  Scores: recovery, day strain, sleep performance/efficiency/consistency`);
-    console.log(`  Sleep: 7 per-stage nights (4 stages each) + daily aggregate`);
+    console.log(
+      `  Measurements: weight, BP, pulse, resting HR, body fat, steps, sleep`,
+    );
+    console.log(
+      `  Body composition: fat/lean/muscle mass, water, bone, visceral fat, BMI`,
+    );
+    console.log(
+      `  Blood glucose: ${glucoseReadings.length} readings/day (fasting + post-meal + bedtime)`,
+    );
+    console.log(
+      `  Cardio + vitals: HRV (SDNN + RMSSD), SpO2, resp. rate, VO2max, active energy, distance, flights`,
+    );
+    console.log(
+      `  Scores: recovery, day strain, sleep performance/efficiency/consistency`,
+    );
+    console.log(
+      `  Sleep: 7 per-stage nights (4 stages each) + daily aggregate`,
+    );
     console.log(`  Medications: 3 (high compliance, today on-track)`);
-    console.log(`  Workouts: ~3-4/week (running, strength, cycling) with HR samples`);
+    console.log(
+      `  Workouts: ~3-4/week (running, strength, cycling) with HR samples`,
+    );
     console.log(`  Mood: ~${Math.round(span * 0.95)} entries`);
     console.log(`  Vorsorge reminders: 2 (dental, annual physical)`);
     console.log(`  Lab panel: ${labResults.length} biomarkers`);
