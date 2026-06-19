@@ -4,7 +4,7 @@
 
 ## [1.18.7] — 2026-06-19 — dashboard, Coach and insights polish
 
-A UI and insights patch. No migration; the Coach context and daily briefing change internally, but the API contract is unchanged.
+A broad UI, insights, and AI-efficiency release. It ships database migrations (see the migration note below) and two client-facing contract changes: Coach budget responses now arrive as a stream error rather than a 429, and the measurement-reminder push carries the reminder id.
 
 ### Added
 
@@ -12,6 +12,9 @@ A UI and insights patch. No migration; the Coach context and daily briefing chan
 - Preventive-care cards show a quiet seven-day strip of the metric, and their menu jumps straight to the measurement history filtered to that type.
 - The Coach reads your active illness state and Rest Mode, can point you to the relevant in-depth guide, and draws on a tiered view of your history (recent days in full, older periods progressively summarised with peaks preserved).
 - Dictate to the Coach by voice.
+- The share-link section is back as its own Settings entry, next to the health-record export: mint a time-boxed, revocable, read-only link to share your record with a clinician.
+- Share links now carry a passphrase second factor. A new link mints a one-time passphrase embedded in a QR code (in the URL fragment, never sent to the server); the public view stays locked until the passphrase is verified. Links created before this release keep working without one.
+- Labs, preventive care, and the condition journal each have their settings as a proper section of the Settings shell, in the same layout as every other section, instead of a separate page.
 
 ### Changed
 
@@ -20,11 +23,30 @@ A UI and insights patch. No migration; the Coach context and daily briefing chan
 - The health-score rings are flattened to match the chart style — the glow, sheen and pulse are gone.
 - Sleep drops the redundant "last night" card; the chronotype reads as a prominent summary with your natural sleep midpoint and an expandable detail.
 - Every integration card follows one layout — a short description ending in an inline setup-guide link, with the credential hint above the save button.
+- A warm insight cycle now sends far fewer AI requests: the per-metric status assessments are batched into a single call, and the comprehensive path recovers from a malformed reply with one corrective retry instead of failing outright.
+- The daily briefing now varies its wording day to day while the underlying findings stay stable, so a quiet day no longer reads as a frozen cache.
+- Prompt construction is consolidated: grounding, tone, and the medication-safety rules come from one shared source across the briefing, status cards, narratives, and the Coach.
+- Settings cards share one card primitive and a consistent padding step, and touch controls across the app meet a 44-pixel target on phones while staying compact on wider screens.
+- The local-AI private-host switch accepts an explicit host allowlist instead of an all-or-nothing flag (the previous `true` still means "any private host").
+- Coach conversations are pruned on a schedule, alongside the existing notification-attempt retention.
 
 ### Fixed
 
 - The daily briefing no longer goes stale: a fresh daily signal forces regeneration instead of re-stamping an unchanged narrative.
 - The sleep assessment no longer shows the "connect an AI provider" prompt when a provider is already connected.
+- A medication's supply now updates on the next read: adding a container or registering a new medication evicts the cached list instead of serving the pre-change stock for the cache window, and the card and table refresh together.
+- The seed for the public demo no longer produces an impossible blood-pressure reading, and reads as a current, healthy, fully-used account.
+
+### Security
+
+- The Coach budget gate reserves spend atomically before each request, so concurrent requests can no longer slip past the cap together, and tokens burned on an empty or refused reply are still counted.
+- New share links require a passphrase to open the record; the passphrase is stored only as an HMAC hash, verified in constant time behind a rate limit, and unlocks a short-lived view cookie scoped to that one link.
+- The session and authentication-challenge tables are indexed on their expiry column for the reaper.
+- The development key-padding fallback fails closed unless the environment is explicitly development or test, so a missing `NODE_ENV` can no longer silently derive a weak key.
+
+### Migration
+
+- This release adds three migrations: expiry indexes on the session and challenge tables, a daily-briefing reroll marker, and the nullable share-link passphrase hash. Run `prisma migrate deploy` (the entrypoint does this automatically). All three are additive — no backfill, no downtime.
 
 ## [1.18.6.1] — 2026-06-18 — settings and Coach UI follow-ups
 
