@@ -48,6 +48,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { describePasskeyError } from "@/lib/passkey-errors";
 import { queryKeys } from "@/lib/query-keys";
 import { AboutMeSection } from "@/components/settings/about-me-section";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { TimeFormatSelect } from "@/components/settings/time-format-select";
@@ -375,7 +376,7 @@ export function AccountSection() {
       {/* Profile photo card */}
       <AvatarSection />
 
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         <SettingsCardHeader
           icon={User}
           title={t("settings.profile")}
@@ -580,7 +581,7 @@ export function AccountSection() {
             </Button>
           </div>
         </form>
-      </div>
+      </SettingsCard>
 
       {/* v1.18.0 (S5) — injection-site exclusions moved to the dedicated
           Medikamente settings section, where every medication-specific
@@ -599,7 +600,7 @@ export function AccountSection() {
       <CycleTrackingCard isAuthenticated={isAuthenticated} />
 
       {/* Passkeys card */}
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         <SettingsCardHeader
           icon={Shield}
           title={t("settings.passkeys")}
@@ -632,7 +633,7 @@ export function AccountSection() {
             {statusText(passkeyMsg, t)}
           </p>
         )}
-      </div>
+      </SettingsCard>
 
       {/* Password card. v1.4.19 A6: action-button placement contract —
           on mobile (`<sm`) the action button stacks below the title +
@@ -643,7 +644,7 @@ export function AccountSection() {
           (the German "Passwort ändern" already pushes it; the tour
           card's "Restart onboarding tour" actually broke through the
           right border by ~48 px). */}
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
           <div className="flex items-start gap-2">
             <Shield className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
@@ -665,7 +666,7 @@ export function AccountSection() {
             {t("settings.changePassword")}
           </Button>
         </div>
-      </div>
+      </SettingsCard>
 
       {/* v1.18.1 (D1) — the "Tour neu starten" card moved to Settings →
           Erweitert. It is a maintenance / reset action, not a profile or
@@ -1096,7 +1097,7 @@ function AvatarSection() {
   const busy = upload.isPending || remove.isPending;
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={ImageUp}
         title={t("settings.avatar.title")}
@@ -1168,6 +1169,6 @@ function AvatarSection() {
           {statusText(msg, t)}
         </p>
       )}
-    </div>
+    </SettingsCard>
   );
 }

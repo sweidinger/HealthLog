@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ResearchModeAcknowledgmentDialog } from "@/components/medications/ResearchModeAcknowledgmentDialog";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -139,8 +140,7 @@ function ResearchModeCard() {
   }
 
   return (
-    <div
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
+    <SettingsCard
       data-slot="settings-research-mode-card"
     >
       <SettingsCardHeader
@@ -211,7 +211,7 @@ function ResearchModeCard() {
         onOpenChange={setDialogOpen}
         currentDisclaimerVersion={status?.currentDisclaimerVersion ?? null}
       />
-    </div>
+    </SettingsCard>
   );
 }
 
@@ -254,8 +254,7 @@ function DataResetCard() {
   }
 
   return (
-    <div
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
+    <SettingsCard
       data-slot="settings-data-reset-card"
     >
       {/* v1.4.43 QoL (L5) — dropped the `AlertTriangle` icon and
@@ -338,7 +337,7 @@ function DataResetCard() {
           {msg}
         </p>
       )}
-    </div>
+    </SettingsCard>
   );
 }
 
@@ -402,8 +401,7 @@ function AccountDeleteCard() {
   }
 
   return (
-    <div
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
+    <SettingsCard
       data-slot="settings-account-delete-card"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
@@ -482,6 +480,6 @@ function AccountDeleteCard() {
           {msg}
         </p>
       )}
-    </div>
+    </SettingsCard>
   );
 }
