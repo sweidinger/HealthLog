@@ -91,6 +91,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // sits right after `ai`.
     // v1.18.1 (D4) — `channels` + `sources` split out of the Integrations
     // sub-tabs into their own left-side entries, right after `integrations`.
+    // v1.18.7 — `labs`, `illness`, `vorsorge` move into the shell as
+    // first-class sections, right after `mood` (the three were standalone
+    // `ModuleSettingsFrame` pages).
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "modules",
@@ -103,6 +106,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "insights",
       "medications",
       "mood",
+      "labs",
+      "illness",
+      "vorsorge",
       "thresholds",
       "ai",
       "coach",

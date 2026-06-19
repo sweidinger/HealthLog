@@ -4025,6 +4025,21 @@
         "description": "Groupes, étiquettes et étiquettes archivées du sélecteur d’humeur.",
         "subtitle": "Organisez vos tags d'humeur, groupes et ordre du sélecteur."
       },
+      "labs": {
+        "title": "Analyses",
+        "description": "Affichage, tri et biomarqueurs de vos analyses.",
+        "subtitle": "Gérez l’affichage, le tri et les biomarqueurs."
+      },
+      "illness": {
+        "title": "Journal de maladie",
+        "description": "Affichage et ordre de vos épisodes de maladie.",
+        "subtitle": "Gérez l’affichage et l’ordre des épisodes."
+      },
+      "vorsorge": {
+        "title": "Prévention",
+        "description": "Affichage, ordre et rappels de prévention individuels.",
+        "subtitle": "Gérez l’affichage, l’ordre et les rappels individuels."
+      },
       "modules": {
         "title": "Modules",
         "saved": "Enregistré.",
@@ -6407,11 +6422,6 @@
       "onTrack": "Dans les temps",
       "due": "À faire maintenant"
     },
-    "settings": {
-      "title": "Personnaliser la prévention",
-      "description": "Gérer l'affichage, l'ordre et les rappels individuels.",
-      "back": "Retour à la prévention"
-    },
     "capture": {
       "title": "Enregistrer une mesure",
       "description": "Saisissez la valeur ; le rappel est marqué comme fait."
@@ -6461,11 +6471,6 @@
     "deleteError": "Impossible de supprimer le résultat",
     "loadError": "Impossible de charger les résultats",
     "customize": "Personnaliser les analyses",
-    "settings": {
-      "title": "Personnaliser les analyses",
-      "description": "Gérer l'affichage, le tri et les biomarqueurs.",
-      "back": "Retour aux analyses"
-    },
     "sort": {
       "heading": "Tri",
       "label": "Ordre des valeurs",
@@ -6664,11 +6669,6 @@
     "title": "Journal de maladie",
     "subtitle": "Un suivi rétrospectif de vos épisodes de maladie et d'affections.",
     "customize": "Personnaliser le journal de maladie",
-    "settings": {
-      "title": "Personnaliser le journal de maladie",
-      "description": "Gérer l'affichage et l'ordre des épisodes.",
-      "back": "Retour au journal de maladie"
-    },
     "newEpisode": "Nouvel épisode",
     "logDay": "Enregistrer un jour",
     "markRecovered": "Marquer comme rétabli",

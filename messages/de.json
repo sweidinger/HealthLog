@@ -4025,6 +4025,21 @@
         "description": "Gruppen, Tags und archivierte Tags der Stimmungs-Auswahl.",
         "subtitle": "Organisiere deine Stimmungs-Tags, Gruppen und Auswahlreihenfolge."
       },
+      "labs": {
+        "title": "Laborwerte",
+        "description": "Ansicht, Sortierung und Biomarker deiner Laborwerte.",
+        "subtitle": "Ansicht, Sortierung und Biomarker verwalten."
+      },
+      "illness": {
+        "title": "Krankheitstagebuch",
+        "description": "Ansicht und Reihenfolge deiner Krankheitsepisoden.",
+        "subtitle": "Ansicht und Reihenfolge der Episoden verwalten."
+      },
+      "vorsorge": {
+        "title": "Vorsorge",
+        "description": "Ansicht, Reihenfolge und einzelne Vorsorge-Erinnerungen.",
+        "subtitle": "Ansicht, Reihenfolge und einzelne Erinnerungen verwalten."
+      },
       "modules": {
         "title": "Module",
         "saved": "Gespeichert.",
@@ -6407,11 +6422,6 @@
       "onTrack": "Im Plan",
       "due": "Jetzt fällig"
     },
-    "settings": {
-      "title": "Vorsorge anpassen",
-      "description": "Ansicht, Reihenfolge und einzelne Erinnerungen verwalten.",
-      "back": "Zurück zur Vorsorge"
-    },
     "capture": {
       "title": "Messwert erfassen",
       "description": "Wert eintragen; die Erinnerung wird als erledigt markiert."
@@ -6461,11 +6471,6 @@
     "deleteError": "Wert konnte nicht gelöscht werden",
     "loadError": "Laborwerte konnten nicht geladen werden",
     "customize": "Laborwerte anpassen",
-    "settings": {
-      "title": "Laborwerte anpassen",
-      "description": "Ansicht, Sortierung und Biomarker verwalten.",
-      "back": "Zurück zu den Laborwerten"
-    },
     "sort": {
       "heading": "Sortierung",
       "label": "Reihenfolge der Werte",
@@ -6664,11 +6669,6 @@
     "title": "Krankheitstagebuch",
     "subtitle": "Ein rückblickendes Protokoll deiner Krankheits- und Beschwerde-Episoden.",
     "customize": "Krankheitstagebuch anpassen",
-    "settings": {
-      "title": "Krankheitstagebuch anpassen",
-      "description": "Ansicht und Reihenfolge der Episoden verwalten.",
-      "back": "Zurück zum Krankheitstagebuch"
-    },
     "newEpisode": "Neue Episode",
     "logDay": "Tag erfassen",
     "markRecovered": "Als genesen markieren",
