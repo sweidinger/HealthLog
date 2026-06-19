@@ -53,6 +53,8 @@ import {
   buildReferenceGroundingBlock,
   type GroundingMetricInput,
 } from "./reference-grounding";
+import { buildTieredSeries } from "@/lib/rollups/tiered-context";
+import type { MeasurementType } from "@/generated/prisma/client";
 import type { ReferenceMetric } from "@/lib/reference-ranges";
 import { isCycleAvailableForUser } from "@/lib/cycle/gate";
 import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
@@ -366,6 +368,76 @@ function buildDailyValueRows(
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * v1.18.7 — coarse tail + anomaly envelope for one metric, from the shared
+ * tiered-context builder. The Coach already ships the 0–14d raw + 30–90d
+ * weekly band (above); this adds only the bands the weekly-fold CANNOT
+ * produce — 90d–1y MONTH, >1y YEAR, and the preserved peak/trough envelope —
+ * so a glucose spike or a BP outlier from months ago survives a coarse
+ * bucket. Token-bounded by the helper's per-band row caps (~10 month + ≤5
+ * year + ≤5 anomalies ≈ 240 tokens), and the degrader sheds it first (it is
+ * the lowest-value, oldest detail). Returns `undefined` when the metric has
+ * no coarse history at all, so the block is omitted rather than shipped empty.
+ */
+interface CoarseTimelineTail {
+  /** 90d–1y monthly buckets: `[bucketStart, mean, min, max]`. */
+  monthly: Array<[string, number, number, number]>;
+  /** >1y yearly buckets: `[bucketStart, mean, min, max]`. */
+  yearly: Array<[string, number, number, number]>;
+  /** Preserved peaks/troughs, ≤5, ranked by |deltaSd|. */
+  anomalies: Array<{
+    band: string;
+    date: string;
+    kind: string;
+    value: number;
+    deltaSd: number;
+  }>;
+}
+
+async function buildCoarseTimelineTail(
+  userId: string,
+  type: MeasurementType,
+  now: Date,
+): Promise<CoarseTimelineTail | undefined> {
+  // `buildTieredSeries` reads fall back on miss — a coverage miss yields empty
+  // bands, which collapse to `undefined` here. The try/catch keeps the coarse
+  // tail a strictly additive enrichment: any unexpected reader failure simply
+  // drops the tail rather than failing the whole snapshot (matching the
+  // "fall back on miss" contract the rest of the snapshot honours).
+  let series: Awaited<ReturnType<typeof buildTieredSeries>>;
+  try {
+    // `skipRecentDaily` — the snapshot already holds the raw 0–14d rows from
+    // its own window read, so the tiered builder skips that duplicate raw
+    // round-trip and returns only the coarse MONTH/YEAR bands + anomalies.
+    series = await buildTieredSeries(userId, type, {
+      now: now.getTime(),
+      skipRecentDaily: true,
+    });
+  } catch {
+    return undefined;
+  }
+  const monthly = series.monthBand.map(
+    (b) => [b.bucketStart, b.mean, b.min, b.max] as [string, number, number, number],
+  );
+  const yearly = series.yearBand.map(
+    (b) => [b.bucketStart, b.mean, b.min, b.max] as [string, number, number, number],
+  );
+  if (monthly.length === 0 && yearly.length === 0 && series.anomalies.length === 0) {
+    return undefined;
+  }
+  return {
+    monthly,
+    yearly,
+    anomalies: series.anomalies.map((a) => ({
+      band: a.band,
+      date: a.date,
+      kind: a.kind,
+      value: a.value,
+      deltaSd: a.deltaSd,
+    })),
+  };
 }
 
 /**
@@ -772,6 +844,43 @@ async function buildCoachSnapshotImpl(
   const wantsMood = sources.has("mood");
   const wantsCompliance = sources.has("compliance");
 
+  // v1.18.7 — coarse tail (90d–1y MONTH + >1y YEAR) + anomaly envelope for the
+  // core clinical metrics, from the shared tiered-context builder. Only the
+  // bands the in-window weekly-fold cannot produce are fetched here; the recent
+  // + weekly bands stay as built below. Bounded per-band, so this holds or
+  // reduces the per-metric token cost while letting the Coach see a spike from
+  // months ago. Reads never throw — a coverage miss yields `undefined`, the
+  // block is then omitted. Run in parallel; awaited at the block site.
+  const coarseTailPromises: Partial<
+    Record<"bp" | "weight" | "pulse", Promise<CoarseTimelineTail | undefined>>
+  > = {};
+  if (wantsBp) {
+    coarseTailPromises.bp = buildCoarseTimelineTail(
+      userId,
+      "BLOOD_PRESSURE_SYS" as MeasurementType,
+      now,
+    );
+  }
+  if (wantsWeight) {
+    coarseTailPromises.weight = buildCoarseTimelineTail(
+      userId,
+      "WEIGHT" as MeasurementType,
+      now,
+    );
+  }
+  if (wantsPulse) {
+    coarseTailPromises.pulse = buildCoarseTimelineTail(
+      userId,
+      "PULSE" as MeasurementType,
+      now,
+    );
+  }
+  const [bpCoarseTail, weightCoarseTail, pulseCoarseTail] = await Promise.all([
+    coarseTailPromises.bp ?? Promise.resolve(undefined),
+    coarseTailPromises.weight ?? Promise.resolve(undefined),
+    coarseTailPromises.pulse ?? Promise.resolve(undefined),
+  ]);
+
   // v1.4.23 W6 (S-04) — single source of truth for the
   // CoachScopeSource → MeasurementType[] mapping. Drives both the
   // SQL `WHERE type IN (…)` build below and the Apple-Health timeline
@@ -1162,6 +1271,7 @@ async function buildCoachSnapshotImpl(
         recent: recentDaily,
         weeklySys: bucketWeekly(olderSys, userTz),
         weeklyDia: bucketWeekly(olderDia, userTz),
+        ...(bpCoarseTail ? { coarse: bpCoarseTail } : {}),
       },
     };
     metrics.add("bp");
@@ -1184,6 +1294,7 @@ async function buildCoachSnapshotImpl(
           rows.filter((r) => r.measuredAt < recentCutoff),
           userTz,
         ),
+        ...(weightCoarseTail ? { coarse: weightCoarseTail } : {}),
       },
     };
     metrics.add("weight");
@@ -1209,6 +1320,7 @@ async function buildCoachSnapshotImpl(
           rows.filter((r) => r.measuredAt < recentCutoff),
           userTz,
         ),
+        ...(pulseCoarseTail ? { coarse: pulseCoarseTail } : {}),
       },
     };
     metrics.add("pulse");
@@ -2084,6 +2196,13 @@ function degradeToBudget(
     const timeline = asRecord(block.timeline);
     if (timeline && "recent" in timeline) {
       delete timeline.recent;
+      changed = true;
+    }
+    // v1.18.7 — the coarse MONTH/YEAR tail + anomaly envelope is the
+    // lowest-value, oldest detail, so it sheds in the same first pass as the
+    // dense per-day rows.
+    if (timeline && "coarse" in timeline) {
+      delete timeline.coarse;
       changed = true;
     }
     const byContext = asRecord(block.byContext);
