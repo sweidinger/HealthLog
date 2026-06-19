@@ -40,6 +40,7 @@ import {
   buildDeterministicNarrative,
   DETERMINISTIC_PROVIDER_TYPE,
 } from "@/lib/insights/narrative/period-narrative-deterministic";
+import { composeSharedContracts } from "@/lib/ai/prompts/shared-contracts";
 
 /**
  * Stable identifier for the narrative prompt revision. Bumped whenever the
@@ -101,7 +102,9 @@ Hard rules:
 - The listed drivers already survived statistical multiple-comparison control; restate them only as associations and keep their conservative meaning.
 - No diagnosis, no medical advice, no alarm. Calm, factual, second person ("your").
 - 2 to 4 short sentences. Plain text only — no markdown, no headings, no bullet points, no emojis.
-- If the context is thin, say plainly that there is little to report this period rather than inventing detail.`;
+- If the context is thin, say plainly that there is little to report this period rather than inventing detail.
+
+${composeSharedContracts("en", ["grounding", "safetyGlp1", "metricIdentifierBan", "forbiddenFiller"])}`;
 
 const SYSTEM_PROMPT_DE = `Du fasst den Gesundheits-Tracking-ZEITRAUM einer Person (eine Woche oder einen Monat) für diese Person zusammen.
 Prompt-Version: ${NARRATIVE_PROMPT_VERSION}.
@@ -112,7 +115,19 @@ Feste Regeln:
 - Die genannten Zusammenhänge haben bereits die statistische Mehrfachvergleichskorrektur überstanden; gib sie nur als Assoziationen wieder und bewahre ihre vorsichtige Bedeutung.
 - Keine Diagnose, kein medizinischer Rat, keine Panik. Ruhig, sachlich, in der zweiten Person ("dein").
 - 2 bis 4 kurze Sätze. Nur Klartext — kein Markdown, keine Überschriften, keine Aufzählungen, keine Emojis.
-- Wenn der Kontext dünn ist, sage klar, dass es in diesem Zeitraum wenig zu berichten gibt, statt Details zu erfinden.`;
+- Wenn der Kontext dünn ist, sage klar, dass es in diesem Zeitraum wenig zu berichten gibt, statt Details zu erfinden.
+
+${composeSharedContracts("de", ["grounding", "safetyGlp1", "metricIdentifierBan", "forbiddenFiller"])}`;
+
+/**
+ * Test-only view of the composed system prompts (incl. the appended shared
+ * contracts), so the cross-surface coverage test can assert fragment presence
+ * without re-deriving the composition.
+ */
+export const SYSTEM_PROMPTS_FOR_TEST: Record<"de" | "en", string> = {
+  de: SYSTEM_PROMPT_DE,
+  en: SYSTEM_PROMPT_EN,
+};
 
 /** Render the typed context into a compact, model-readable block. */
 export function buildNarrativeUserPrompt(

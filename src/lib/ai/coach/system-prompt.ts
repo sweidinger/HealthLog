@@ -29,6 +29,7 @@ import {
   SELF_REPORT_FENCE_END,
   fenceSelfReport,
 } from "@/lib/ai/coach/self-report-fence";
+import { composeSharedContracts } from "@/lib/ai/prompts/shared-contracts";
 
 const COACH_PROMPT_EN = `You are the HealthLog Coach — the user's warm, motivating advisor. You
 sit alongside them as they look at their own health data — blood pressure,
@@ -863,8 +864,22 @@ export function getCoachSystemPrompt(
       base = COACH_PROMPT_EN + LOCALE_REPLY_FOOTER_FALLBACK[locale];
     }
   }
+  // v1.18.7 (HIGH-2) — append the shared cross-surface contracts (canonical
+  // wording, single source of truth in `shared-contracts.ts`) for the
+  // hand-composed de/en bodies. The native FR/ES/IT/PL bodies carry their own
+  // per-locale safety wording from the contract matrix, so they are left as-is.
+  const withContracts =
+    locale === "de" || locale === "en"
+      ? `${base}\n\nSHARED CONTRACTS\n\n${composeSharedContracts(locale, [
+          "grounding",
+          "toneContract",
+          "safetyGlp1",
+          "metricIdentifierBan",
+          "forbiddenFiller",
+        ])}`
+      : base;
   const prefix = buildPrefsPrefix(locale, prefs);
-  const withPrefix = prefix ? `${prefix}\n\n${base}` : base;
+  const withPrefix = prefix ? `${prefix}\n\n${withContracts}` : withContracts;
   // v1.18.7 — article-awareness: a compact catalog of the public /learn
   // guides so the Coach can point the user at the relevant deeper read. The
   // block is locale-independent (English topic labels + URLs) and the model

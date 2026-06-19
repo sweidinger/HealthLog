@@ -29,6 +29,13 @@ import {
   buildNativeInsightsPrompt,
   buildOutOfScopeRefusal,
 } from "./native-prompts";
+import {
+  grounding,
+  toneContract,
+  safetyGlp1,
+  metricIdentifierBan,
+  forbiddenFiller,
+} from "./shared-contracts";
 
 /** Stable identifier for the active system prompt revision. */
 export const PROMPT_VERSION = "4.29.0" as const;
@@ -744,6 +751,23 @@ user-logged event with a neutral label + detail. Hard cap 20 entries.`,
 90-Tage-Timeline keine bemerkenswerten Ereignisse enthält. Jeder
 Eintrag verweist auf ein reales, vom Nutzer geloggtes Ereignis mit
 neutralem Label + Detail. Höchstgrenze: 20 Einträge.`,
+  },
+  // v1.18.7 (HIGH-2) — the shared cross-surface contracts as the canonical
+  // source. The detailed rules above stay for this calibrated surface; these
+  // restate the five contracts in the wording every surface now shares, so a
+  // future safety edit is made once in `shared-contracts.ts`.
+  { id: "sharedGrounding", en: grounding.en, de: grounding.de },
+  { id: "sharedTone", en: toneContract.en, de: toneContract.de },
+  { id: "sharedSafetyGlp1", en: safetyGlp1.en, de: safetyGlp1.de },
+  {
+    id: "sharedMetricIdentifierBan",
+    en: metricIdentifierBan.en,
+    de: metricIdentifierBan.de,
+  },
+  {
+    id: "sharedForbiddenFiller",
+    en: forbiddenFiller.en,
+    de: forbiddenFiller.de,
   },
   {
     id: "language",
