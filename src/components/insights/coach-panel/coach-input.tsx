@@ -6,8 +6,10 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
+  useSyncExternalStore,
 } from "react";
-import { Loader2, Send, Square } from "lucide-react";
+import { Loader2, Mic, Send, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,9 +32,14 @@ import { useTranslations } from "@/lib/i18n/context";
  * out of the composer and into the sources rail footer, so the
  * composer stays focused on the input affordance.
  *
- * v1.4.25 W5: dropped the non-functional mic icon. The voice-input
- * affordance ships with the iOS client; surfacing a placeholder in the
- * web composer drew clicks for an action that did nothing.
+ * v1.18.7 (W-coach C-UI): voice dictation returns to the web composer.
+ * The earlier placeholder mic was dropped in v1.4.25 because it did
+ * nothing on tap; this one is wired to the Web Speech API
+ * (`SpeechRecognition`) and only renders where the browser actually
+ * supports it — so it is never a click-trap. While the user dictates,
+ * interim + final transcripts append into the controlled `value`; the
+ * button toggles listening on/off and is fully keyboard- and
+ * screen-reader-accessible.
  */
 export interface CoachInputProps {
   value: string;
@@ -102,6 +109,56 @@ export function computeAutoGrowHeight(args: {
 
 const AUTO_GROW_MAX_LINES = 6;
 
+/**
+ * v1.18.7 — resolve the browser's `SpeechRecognition` constructor
+ * (prefixed `webkit` on Chromium / Safari, unprefixed on the spec
+ * track). Returns `null` server-side and on browsers without the API
+ * (Firefox) so the mic control hides rather than rendering dead. Kept
+ * tiny + typed locally — the project ships no DOM lib entry for the
+ * Web Speech API.
+ */
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((event: SpeechRecognitionResultEventLike) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+};
+type SpeechRecognitionResultEventLike = {
+  resultIndex: number;
+  results: ArrayLike<
+    ArrayLike<{ transcript: string }> & { isFinal: boolean }
+  >;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+// v1.18.7 — `useSyncExternalStore` resolves Web Speech API support
+// without a setState-in-effect: the server snapshot is `false` (no
+// mic at SSR) and the client snapshot reflects whether the constructor
+// exists. The store never changes after hydration, so the subscribe
+// callback is a no-op.
+const noopSubscribe = () => () => {};
+function useVoiceSupported(): boolean {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => getSpeechRecognitionCtor() !== null,
+    () => false,
+  );
+}
+
 export function CoachInput({
   value,
   onChange,
@@ -113,7 +170,7 @@ export function CoachInput({
   autoFocusOnOpen = false,
   placeholder,
 }: CoachInputProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // v1.4.27 MB3 / CF-30 — focus the textarea once on mount when the
@@ -162,6 +219,80 @@ export function CoachInput({
     el.style.height = `${height}px`;
   }, [value]);
 
+  // v1.18.7 — voice dictation. The mic control only mounts once the
+  // client confirms the Web Speech API exists (resolved through
+  // `useSyncExternalStore`, server snapshot `false`), so SSR +
+  // unsupported browsers render no button at all — never a dead
+  // affordance. `onChange` / `value` are mirrored into refs (in an
+  // effect, never during render) so the long-lived recognition handlers
+  // always read the freshest composer state without re-subscribing.
+  const voiceSupported = useVoiceSupported();
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const onChangeRef = useRef(onChange);
+  const valueRef = useRef(value);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+    valueRef.current = value;
+  });
+
+  // Tear the recogniser down on unmount so a live mic never outlives
+  // the composer (e.g. the drawer closing mid-dictation).
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
+    };
+  }, []);
+
+  const stopDictation = useCallback(() => {
+    recognitionRef.current?.stop();
+  }, []);
+
+  const startDictation = useCallback(() => {
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) return;
+    const recognition = new Ctor();
+    recognition.lang = locale === "en" ? "en-US" : locale;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    // Anchor every transcript onto the text present when dictation
+    // began so interim results replace cleanly rather than stacking.
+    const base = valueRef.current;
+    recognition.onresult = (event) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        const transcript = result[0]?.transcript ?? "";
+        if (result.isFinal) finalText += transcript;
+        else interimText += transcript;
+      }
+      const spoken = (finalText + interimText).trim();
+      if (!spoken) return;
+      const joiner = base && !base.endsWith(" ") ? " " : "";
+      onChangeRef.current(`${base}${joiner}${spoken}`);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      // start() throws if already running; treat as a no-op.
+      setListening(false);
+    }
+  }, [locale]);
+
+  const toggleDictation = useCallback(() => {
+    if (listening) stopDictation();
+    else startDictation();
+  }, [listening, startDictation, stopDictation]);
+
   const canSubmit = !disabled && value.trim().length > 0;
 
   const handleKeyDown = useCallback(
@@ -188,20 +319,54 @@ export function CoachInput({
       onSubmit={handleFormSubmit}
       className="flex flex-col"
     >
-      {/* v1.16.1 — modern chat-app composer: a single row with the
-          textarea and the send control on the same baseline. The
-          textarea starts at one line and auto-grows; `items-end` keeps
-          the button pinned to the input's last line as it grows. The
-          old footer row (Info-popover hint + right-aligned button) is
-          gone — Enter still sends and Shift+Enter still inserts a
-          newline, the affordance just no longer needs explaining. */}
+      {/* v1.16.1 / v1.18.7 — modern chat-app composer: a single rounded
+          field with the textarea flanked by a dictation mic (left) and
+          the send / stop control (right) on the same baseline.
+          `items-end` keeps the controls pinned to the input's last line
+          as it grows. Enter sends, Shift+Enter inserts a newline. */}
       <div
         className={cn(
-          "border-border/60 bg-muted/40 group rounded-md border",
-          "flex items-end gap-2 p-2 transition-colors",
-          "focus-within:border-dracula-purple/50 focus-within:ring-dracula-purple/15 focus-within:ring-2",
+          "border-border/60 bg-muted/40 group rounded-2xl border",
+          "flex items-end gap-1.5 p-1.5 shadow-sm transition-colors",
+          "focus-within:border-dracula-purple/50 focus-within:ring-dracula-purple/15 focus-within:bg-background focus-within:ring-2",
         )}
       >
+        {voiceSupported && (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={toggleDictation}
+            disabled={disabled}
+            data-slot="coach-input-mic"
+            data-listening={listening ? "true" : undefined}
+            aria-label={
+              listening
+                ? t("insights.coach.dictateStop")
+                : t("insights.coach.dictate")
+            }
+            aria-pressed={listening}
+            title={
+              listening
+                ? t("insights.coach.dictateStop")
+                : t("insights.coach.dictate")
+            }
+            className={cn(
+              "size-9 shrink-0 rounded-xl transition-colors",
+              listening
+                ? "text-dracula-pink bg-dracula-pink/10 hover:text-dracula-pink"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Mic
+              className={cn(
+                "size-4",
+                listening && "animate-pulse motion-reduce:animate-none",
+              )}
+              aria-hidden="true"
+            />
+          </Button>
+        )}
         <textarea
           id={inputId}
           ref={textareaRef}
@@ -233,8 +398,12 @@ export function CoachInput({
             "min-w-0 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none sm:text-sm",
             // Centre the single-line state against the 36 px send
             // button so the placeholder and the icon share a baseline.
-            "py-1.5",
+            "px-2 py-1.5",
             "max-h-[9.5rem] overflow-auto",
+            // v1.18.7 — calm, thin scrollbar inside the composer when
+            // dictation overruns 6 lines (see also the thread/history
+            // scroll regions). Scoped here, not in globals.css.
+            "[scrollbar-color:color-mix(in_srgb,var(--dracula-purple)_35%,transparent)_transparent] [scrollbar-width:thin]",
             "placeholder:text-muted-foreground disabled:opacity-60",
           )}
         />
@@ -251,7 +420,7 @@ export function CoachInput({
             data-slot="coach-input-stop"
             aria-label={t("insights.coach.stop")}
             title={t("insights.coach.stop")}
-            className="size-9 shrink-0"
+            className="size-9 shrink-0 rounded-xl"
           >
             <Square className="size-3.5 fill-current" aria-hidden="true" />
           </Button>
@@ -263,7 +432,7 @@ export function CoachInput({
             data-slot="coach-input-send"
             aria-label={t("insights.coach.send")}
             title={t("insights.coach.send")}
-            className="size-9 shrink-0"
+            className="size-9 shrink-0 rounded-xl"
           >
             {isStreaming ? (
               <Loader2

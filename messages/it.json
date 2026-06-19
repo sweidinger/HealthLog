@@ -2264,7 +2264,11 @@
       "settingsClustersLabel": "Dati che il Coach vede",
       "settingsClustersHint": "Scegli quali gruppi di dati il Coach può leggere. Più dati significano risposte più ricche e un prompt più grande.",
       "settingsClusterNoData": "Ancora nessun dato",
-      "sourcesMemberCount": "{count} metriche"
+      "sourcesMemberCount": "{count} metriche",
+      "dictate": "Detta",
+      "dictateStop": "Interrompi dettatura",
+      "showConversations": "Mostra conversazioni",
+      "hideConversations": "Nascondi conversazioni"
     },
     "relativeJustNow": "proprio ora",
     "relativeMinutesAgoOne": "{count} minuto fa",
