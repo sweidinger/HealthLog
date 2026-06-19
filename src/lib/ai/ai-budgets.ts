@@ -52,6 +52,18 @@ export const AI_BUDGETS = {
   status: { temperature: 0.3, maxTokens: 250 },
 
   /**
+   * Batched per-metric status assessment (v1.18.7 HIGH-1) — ONE call that
+   * returns a `{ perMetric: { bp, weight, pulse, bmi, mood, compliance,
+   * general } }` envelope, each value a single 30-60-word assessment in the
+   * same contract as a standalone status card. The seven warm calls a fully
+   * instrumented account fired per cycle collapse into this one. Sized for
+   * up to seven ~80-token summaries plus the JSON envelope: 1400 tokens.
+   * Temperature matches the per-card 0.45 (cadence entropy while the FACTS
+   * stay pinned by the snapshot + the forbidden-phrase guards).
+   */
+  statusBatch: { temperature: 0.45, maxTokens: 1400 },
+
+  /**
    * Period narrative (week/month) — 2-4 short plain-text sentences
    * (period-narrative-generate.ts SYSTEM_PROMPT). 400 tokens.
    */
