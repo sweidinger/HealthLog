@@ -52,4 +52,3 @@ export function sentimentColorClass(
   if (direction === "negative") return "text-warning";
   return "text-muted-foreground";
 }
-

@@ -60,7 +60,11 @@ interface MetricResource {
 /** The launch metric resources (Measurement-producing). Height is handled separately. */
 const METRIC_RESOURCES: MetricResource[] = [
   { dataType: FITBIT_DATA_TYPES.weight, map: mapWeight, verb: "fetchWeight" },
-  { dataType: FITBIT_DATA_TYPES.bodyFat, map: mapBodyFat, verb: "fetchBodyFat" },
+  {
+    dataType: FITBIT_DATA_TYPES.bodyFat,
+    map: mapBodyFat,
+    verb: "fetchBodyFat",
+  },
   {
     dataType: FITBIT_DATA_TYPES.oxygenSaturation,
     map: mapOxygenSaturation,

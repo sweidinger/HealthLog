@@ -32,8 +32,8 @@ function DayLogRow({ log }: { log: IllnessDayLogDTO }) {
   const fmt = useFormatters();
 
   return (
-    <div className="space-y-2 border-border/60 border-l-2 pl-3">
-      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+    <div className="border-border/60 space-y-2 border-l-2 pl-3">
+      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
         {fmt.dateShort(`${log.date}T12:00:00`)}
       </p>
 

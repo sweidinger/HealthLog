@@ -38,6 +38,7 @@ import {
   resolveLowStockRunwayDays,
   resolveReorderLeadDays,
 } from "@/lib/validations/notification-prefs";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -285,6 +286,11 @@ export const POST = apiHandler(
         meta: { medication_id: id, doseValue, doseUnit },
       });
 
+      // A dose change shifts the daily-dose estimate the list payload's
+      // runway derivation uses. Hard-evict the medications + compliance
+      // buckets so the card reflects the new runway on the next read.
+      invalidateUserMedications(user.id, { evict: true });
+
       return apiSuccess({ doseChange: created }, 201);
     }
 
@@ -323,6 +329,11 @@ export const POST = apiHandler(
       },
       meta: { medication_id: id, delta },
     });
+
+    // A legacy ledger delta changes the stock the list payload reports
+    // for a medication with no per-item containers. Hard-evict so the
+    // card reflects it on the next read.
+    invalidateUserMedications(user.id, { evict: true });
 
     return apiSuccess({ inventory: created }, 201);
   },

@@ -7,6 +7,7 @@ import { CalendarHeart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -59,7 +60,7 @@ export function CycleTrackingCard({
   const enabled = data?.cycleTrackingEnabled ?? false;
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={CalendarHeart}
         title={t("settings.cycleTracking.title")}
@@ -79,7 +80,12 @@ export function CycleTrackingCard({
           />
         </div>
         {enabled ? (
-          <Button variant="outline" size="sm" asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-11 sm:min-h-9"
+            asChild
+          >
             <Link href="/cycle">{t("settings.cycleTracking.manage")}</Link>
           </Button>
         ) : null}
@@ -89,6 +95,6 @@ export function CycleTrackingCard({
           </p>
         ) : null}
       </div>
-    </div>
+    </SettingsCard>
   );
 }

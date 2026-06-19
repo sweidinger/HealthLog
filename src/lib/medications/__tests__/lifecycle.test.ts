@@ -28,10 +28,7 @@ interface MedRow {
   active: boolean;
 }
 
-function buildClient(
-  med: MedRow | null,
-  liveIntake: { id: string } | null,
-) {
+function buildClient(med: MedRow | null, liveIntake: { id: string } | null) {
   return {
     medication: {
       findUnique: vi.fn().mockResolvedValue(med),
@@ -108,10 +105,7 @@ describe("reconcileOneShotState", () => {
     expect(action).toBe("activate");
 
     // Now the matching branch: one-shot + active:true + no live intake.
-    const matchingClient = buildClient(
-      { oneShot: true, active: true },
-      null,
-    );
+    const matchingClient = buildClient({ oneShot: true, active: true }, null);
     const matched = await reconcileOneShotState(
       matchingClient,
       "med-1",

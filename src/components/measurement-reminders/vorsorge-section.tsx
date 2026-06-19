@@ -65,13 +65,14 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { LineChart, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
-import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
+import { VorsorgeTrendStrip } from "@/components/measurement-reminders/vorsorge-trend-strip";
+import { MedicationCardHeader } from "@/components/medications/medication-card-header";
 import {
   useMeasurementReminders,
   useMeasurementReminderMutations,
@@ -209,8 +210,7 @@ export function VorsorgeSection({
 }) {
   const { t } = useTranslations();
   const { data: reminders, isLoading } = useMeasurementReminders(enabled);
-  const { create, update, remove, satisfy } =
-    useMeasurementReminderMutations();
+  const { create, update, remove, satisfy } = useMeasurementReminderMutations();
   // v1.18.6 (MOD-03) — page view (cards/list) + manual order persist
   // client-side; the settings page writes them, the page reads them.
   const { prefs } = useModuleListPrefs("vorsorge");
@@ -223,8 +223,9 @@ export function VorsorgeSection({
   // The value-capture sheet: holds the reminder whose measurement we are
   // entering. Non-null ⇒ the MeasurementForm sheet is open for that row.
   const [capturing, setCapturing] = useState<MeasurementReminder | null>(null);
-  const [captureFooterEl, setCaptureFooterEl] =
-    useState<HTMLDivElement | null>(null);
+  const [captureFooterEl, setCaptureFooterEl] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   // Wall-clock anchor for the relative-due labels, captured once at mount
   // via a lazy state initializer so the impure Date.now() stays out of
@@ -639,10 +640,7 @@ export function VorsorgeSection({
       </ResponsiveSheet>
 
       {isLoading && (
-        <div
-          className="grid gap-4 sm:grid-cols-2"
-          data-slot="vorsorge-loading"
-        >
+        <div className="grid gap-4 sm:grid-cols-2" data-slot="vorsorge-loading">
           {Array.from({ length: 4 }, (_, i) => (
             <Card key={i} aria-hidden="true" className="h-full gap-3">
               <CardContent className="space-y-3">
@@ -754,8 +752,7 @@ function VorsorgeCard({
   // Due now / overdue ⇒ the action button takes the green "do it now" tone.
   // The CARD stays neutral (no tint) per the project rule — only the action
   // button goes green; the surface follows the medication-card grammar.
-  const isDue =
-    due.key === "nextDue.today" || due.key === "overdueByDays";
+  const isDue = due.key === "nextDue.today" || due.key === "overdueByDays";
   const progress = intervalProgress(reminder, now);
 
   // Category-style header badge: the measurement label, or "self-planned"
@@ -793,8 +790,8 @@ function VorsorgeCard({
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          size="icon"
-          className="min-h-11 min-w-11"
+          size="icon-lg"
+          className="sm:size-10"
           aria-label={t("common.moreOptions")}
         >
           <MoreVertical className="h-4 w-4" />
@@ -805,6 +802,21 @@ function VorsorgeCard({
           <Pencil className="mr-2 h-4 w-4" />
           {t("measurementReminders.edit")}
         </DropdownMenuItem>
+        {/* v1.18.7 (Wave E) — jump to the measurements list pre-filtered to
+            this reminder's type. Only for measurement-linked reminders; a
+            free-text reminder has no readings to show. */}
+        {isLinked && (
+          <DropdownMenuItem asChild>
+            <Link
+              href={`/measurements?type=${encodeURIComponent(
+                reminder.measurementType as string,
+              )}`}
+            >
+              <LineChart className="mr-2 h-4 w-4" />
+              {t("measurementReminders.showMeasurements")}
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
@@ -893,8 +905,9 @@ function VorsorgeCard({
                 type="button"
                 size="sm"
                 className={cn(
-                  "min-h-9",
-                  isDue && "bg-success text-success-foreground hover:bg-success/90",
+                  "min-h-11 sm:min-h-9",
+                  isDue &&
+                    "bg-success text-success-foreground hover:bg-success/90",
                 )}
                 onClick={onPrimaryAction}
                 disabled={busy}
@@ -958,6 +971,12 @@ function VorsorgeCard({
         />
         <CardContent className="flex h-full flex-col space-y-3.5">
           {nextLastSlot}
+
+          {/* v1.18.7 (Wave E) — discreet 7-day strip of the metric's last
+              readings, sitting under the metric context like the dashboard
+              tiles. Renders nothing for a free-text reminder or a too-thin
+              window, so the card height stays stable when absent. */}
+          <VorsorgeTrendStrip measurementType={reminder.measurementType} />
 
           {/* v1.18.6 (MOD-06) — light gamification: progress through the
               current interval toward next-due, reusing the medication card's

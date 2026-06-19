@@ -6,7 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
-import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
+import { MedicationCardHeader } from "@/components/medications/medication-card-header";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import {
   MedicationComplianceBars,

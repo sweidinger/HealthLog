@@ -33,9 +33,9 @@ describe("retryOnceOnTransientError", () => {
   });
 
   it("never retries 401/403 — the server answered", () => {
-    expect(retryOnceOnTransientError(0, new ApiError("Unauthorized", 401))).toBe(
-      false,
-    );
+    expect(
+      retryOnceOnTransientError(0, new ApiError("Unauthorized", 401)),
+    ).toBe(false);
     expect(retryOnceOnTransientError(0, new ApiError("Forbidden", 403))).toBe(
       false,
     );

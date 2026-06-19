@@ -9,11 +9,7 @@ import {
   complianceCacheKey,
   type CompliancePayload,
 } from "@/lib/medications/compliance-payload";
-import {
-  cachedSwr,
-  caches,
-  type ServerCache,
-} from "@/lib/cache/server-cache";
+import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 /**

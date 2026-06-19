@@ -65,7 +65,10 @@ export function isValidHhmm(value: string): boolean {
  * default range — the whole-day on-time tolerance is the engine's
  * concern; the editor only ever stores a wall-clock HH:mm range.
  */
-export function defaultBandForTime(time: string): { start: string; end: string } {
+export function defaultBandForTime(time: string): {
+  start: string;
+  end: string;
+} {
   if (!isValidHhmm(time)) return { start: time, end: time };
   const half = DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes;
   const centre = hhmmToMinutes(time);

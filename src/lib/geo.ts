@@ -67,10 +67,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Reader as MmdbReader } from "mmdb-lib";
-import type {
-  AsnResponse,
-  CityResponse,
-} from "mmdb-lib/lib/reader/response";
+import type { AsnResponse, CityResponse } from "mmdb-lib/lib/reader/response";
 import { getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
 
@@ -143,9 +140,9 @@ interface MmdbCache {
 
 const cache: MmdbCache = {};
 
-function loadMmdbReader<T extends import("mmdb-lib/lib/reader/response").Response>(
-  file: string,
-): MmdbReader<T> | null {
+function loadMmdbReader<
+  T extends import("mmdb-lib/lib/reader/response").Response,
+>(file: string): MmdbReader<T> | null {
   try {
     const full = path.join(geoLiteDir(), file);
     if (!fs.existsSync(full)) return null;
@@ -268,11 +265,7 @@ async function notifyOfflineGeoUnavailable(): Promise<void> {
 function pickCityName(city: CityResponse["city"]): string | null {
   if (!city?.names) return null;
   return (
-    city.names.de ??
-    city.names.en ??
-    city.names.fr ??
-    city.names.es ??
-    null
+    city.names.de ?? city.names.en ?? city.names.fr ?? city.names.es ?? null
   );
 }
 

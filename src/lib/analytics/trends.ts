@@ -29,11 +29,12 @@ export interface TrendSlope {
 export function trendSlope(
   data: DataPoint[],
   windowDays: number,
+  now: number = Date.now(),
 ): TrendSlope | null {
   if (data.length < 2) return null;
 
   const sorted = [...data].sort((a, b) => a.date.getTime() - b.date.getTime());
-  const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
+  const cutoff = now - windowDays * 24 * 60 * 60 * 1000;
   const window = sorted.filter((p) => p.date.getTime() >= cutoff);
 
   if (window.length < 2) return null;

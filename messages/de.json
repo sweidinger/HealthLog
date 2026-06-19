@@ -2003,6 +2003,7 @@
     "dailyBriefing": {
       "title": "Tagesbriefing",
       "keyFindingsTitle": "Wichtige Befunde",
+      "signalsTitle": "Signale des Tages",
       "emptyTitle": "Noch kein Briefing",
       "emptyDescription": "Erstelle das heutige Briefing, um eine Zusammenfassung deiner Trends zu bekommen.",
       "emptyAction": "Briefing erstellen",
@@ -2263,7 +2264,11 @@
       "settingsClustersLabel": "Daten, die der Coach sieht",
       "settingsClustersHint": "Wähle, welche Datencluster der Coach lesen darf. Mehr Daten bedeuten reichhaltigere Antworten und einen größeren Prompt.",
       "settingsClusterNoData": "Noch keine Daten",
-      "sourcesMemberCount": "{count} Werte"
+      "sourcesMemberCount": "{count} Werte",
+      "dictate": "Diktieren",
+      "dictateStop": "Diktat beenden",
+      "showConversations": "Unterhaltungen anzeigen",
+      "hideConversations": "Unterhaltungen ausblenden"
     },
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",
@@ -2568,7 +2573,6 @@
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Dein Rhythmus wird noch erfasst — {counted} von {total} freien Nächten. Ein Chronotyp braucht ein paar weckerfreie Morgen, um aussagekräftig zu sein.",
-        "midSleepCaption": "Deine natürliche Schlafmitte an freien Tagen liegt etwa um {clock}.",
         "advancedToggle": "Mehr Details",
         "socialJetlagValue": "{hours} Std. {minutes} Min. sozialer Jetlag",
         "socialJetlagCaption": "Der Unterschied zwischen deinem Schlaf an Arbeits- und freien Tagen — wie eine kleine wöchentliche Zeitzonenverschiebung.",
@@ -2582,7 +2586,7 @@
           "late": "Abendtyp",
           "extreme_late": "Ausgeprägter Abendtyp"
         },
-        "cornerLabel": "Chronotyp"
+        "midpointHeadline": "Deine natürliche Schlafmitte liegt etwa um {clock}."
       },
       "rhythm": {
         "loadError": "Dein Schlafrhythmus konnte gerade nicht geladen werden. Er erscheint wieder, sobald die Verbindung steht."
@@ -4021,6 +4025,21 @@
         "description": "Gruppen, Tags und archivierte Tags der Stimmungs-Auswahl.",
         "subtitle": "Organisiere deine Stimmungs-Tags, Gruppen und Auswahlreihenfolge."
       },
+      "labs": {
+        "title": "Laborwerte",
+        "description": "Ansicht, Sortierung und Biomarker deiner Laborwerte.",
+        "subtitle": "Ansicht, Sortierung und Biomarker verwalten."
+      },
+      "illness": {
+        "title": "Krankheitstagebuch",
+        "description": "Ansicht und Reihenfolge deiner Krankheitsepisoden.",
+        "subtitle": "Ansicht und Reihenfolge der Episoden verwalten."
+      },
+      "vorsorge": {
+        "title": "Vorsorge",
+        "description": "Ansicht, Reihenfolge und einzelne Vorsorge-Erinnerungen.",
+        "subtitle": "Ansicht, Reihenfolge und einzelne Erinnerungen verwalten."
+      },
       "modules": {
         "title": "Module",
         "saved": "Gespeichert.",
@@ -4324,7 +4343,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Verbinde deine Withings-Waage und Blutdruckmessgeräte.",
+    "withingsDescription": "Verbinde deine Withings-Waage und dein Blutdruckmessgerät, um Gewicht, Körperzusammensetzung und Blutdruck automatisch zu synchronisieren.",
     "withingsCredentials": "API-Zugangsdaten",
     "withingsClientId": "Client-ID",
     "withingsClientSecret": "Client-Secret",
@@ -4362,10 +4381,8 @@
     "withingsConnect": "Mit Withings verbinden",
     "withingsNoCredentials": "Bitte zuerst die API-Zugangsdaten oben eingeben, um Withings zu verbinden.",
     "whoop": "WHOOP",
-    "whoopDescription": "Verbinde dein WHOOP-Band, um Erholung, Schlaf, Belastung und Workouts zu synchronisieren.",
-    "whoopOverlapNote": "Wenn WHOOP und eine weitere Quelle denselben Vitalwert liefern – Ruhepuls, Blutsauerstoff, Körpertemperatur, Atemfrequenz oder Schlafphasen –, können beide Werte angezeigt werden, bis sich ein künftiges Update auf eine bevorzugte Quelle festlegt.",
+    "whoopDescription": "Verbinde dein WHOOP-Band, um Erholung, Schlaf, Belastung und Workouts direkt in HealthLog zu synchronisieren.",
     "whoopCredentials": "API-Zugangsdaten",
-    "whoopCredentialsHelp": "Registriere deine eigene WHOOP-Entwickler-App und füge hier Client ID und Client Secret ein.",
     "whoopClientId": "Client ID",
     "whoopClientSecret": "Client Secret",
     "whoopCredentialsSaved": "Zugangsdaten gespeichert",
@@ -4399,12 +4416,9 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit & Pixel",
-    "fitbitDescription": "Verbinde Google Health, um deine Fitbit- und Pixel-Watch-Werte zu synchronisieren — Gewicht, Körperfett, Ruhepuls, Sauerstoffsättigung, Herzfrequenzvariabilität und mehr.",
-    "fitbitOverlapNote": "Wenn Google Health und eine andere Quelle denselben Vitalwert liefern — Ruhepuls, Sauerstoffsättigung, Körpertemperatur oder Atemfrequenz —, siehst du möglicherweise beide Werte, bis sich ein künftiges Update auf eine bevorzugte Quelle festlegt.",
+    "fitbitDescription": "Verbinde Google Health, um deine Fitbit- und Pixel-Watch-Werte zu synchronisieren — Gewicht, Herzfrequenz und mehr.",
     "fitbitExperimentalBadge": "Experimentell",
-    "fitbitExperimentalNote": "Diese Integration befindet sich in der Beta — die Datenabdeckung und die Feldzuordnung werden noch gegen echte Google-Health-Konten geprüft, daher können einzelne Werte fehlen oder sich in einem künftigen Update ändern.",
     "fitbitCredentials": "API-Zugangsdaten",
-    "fitbitCredentialsHelp": "Registriere deinen eigenen Google-Cloud-OAuth-Client für die Google-Health-API und füge hier dessen Client-ID und Client-Secret ein.",
     "fitbitClientId": "Client-ID",
     "fitbitClientSecret": "Client-Secret",
     "fitbitCredentialsSaved": "Zugangsdaten gespeichert",
@@ -4662,7 +4676,16 @@
       "statusActive": "Aktiv",
       "statusRevoked": "Widerrufen",
       "statusExpired": "Abgelaufen",
-      "inactiveTitle": "Widerrufen und abgelaufen ({count})"
+      "inactiveTitle": "Widerrufen und abgelaufen ({count})",
+      "shownOnce": "Nur einmal sichtbar. Erfassen Sie QR-Code und Passphrase jetzt — beide lassen sich später nicht wiederherstellen.",
+      "qrLabel": "QR-Code",
+      "qrAlt": "QR-Code mit Freigabelink und Passphrase",
+      "linkLabel": "Link",
+      "passphraseLabel": "Passphrase",
+      "passphraseHint": "Die Empfängerin oder der Empfänger benötigt Link und Passphrase. Der QR-Code enthält beides.",
+      "copyLink": "Link kopieren",
+      "copyPassphrase": "Passphrase kopieren",
+      "protected": "Passphrase"
     },
     "genderOther": "Divers",
     "cycleTracking": {
@@ -4674,9 +4697,8 @@
     },
     "nightscout": "Nightscout",
     "nightscoutTag": "CGM",
-    "nightscoutDescription": "Verbinde deine eigene Nightscout-Seite, um kontinuierliche Glukosewerte für das Glukose-Panel zu synchronisieren.",
+    "nightscoutDescription": "Verbinde deine eigene Nightscout-Seite, um kontinuierliche Glukosewerte ins Glukose-Panel zu synchronisieren.",
     "nightscoutViewData": "Glukose ansehen",
-    "nightscoutHelp": "Richte HealthLog auf deine Nightscout-Instanz aus. Werte werden stündlich im Hintergrund abgerufen.",
     "nightscoutUrl": "Nightscout-URL",
     "nightscoutUrlSavedPlaceholder": "Gespeichert — neue URL eingeben zum Ersetzen",
     "nightscoutToken": "API-Token",
@@ -4693,11 +4715,10 @@
     "nightscoutDisconnectTitle": "Nightscout trennen?",
     "nightscoutDisconnectDescription": "Künftige Synchronisierungen stoppen. Bereits importierte Glukosewerte bleiben in deinem Verlauf.",
     "polar": "Polar",
-    "polarDescription": "Verbinde dein Polar-Konto, um Nightly-Recharge-Erholung, Schlafphasen und Tagesaktivität zu synchronisieren.",
+    "polarDescription": "Verbinde dein Polar-Konto, um Nightly-Recharge-Erholung, Schlafphasen und tägliche Aktivität zu synchronisieren.",
     "polarViewData": "Schlaf & Erholung ansehen",
     "polarHelp": "Melde dich bei Polar an, um den Zugriff zu erlauben. Daten werden stündlich im Hintergrund abgerufen.",
     "polarCredentials": "API-Zugangsdaten",
-    "polarCredentialsHelp": "Optional: Registriere deine eigene Polar-AccessLink-App und füge hier Client ID und Client Secret ein. Leer lassen, um die gemeinsame Polar-App des Servers zu nutzen.",
     "polarClientId": "Client ID",
     "polarClientSecret": "Client Secret",
     "polarCredentialsSaved": "Zugangsdaten gespeichert",
@@ -4721,11 +4742,10 @@
       "generic": "Unbekannter Fehler bei der Verbindung. Bitte starte die Verbindung erneut."
     },
     "oura": "Oura",
-    "ouraDescription": "Verbinde dein Oura-Konto, um Readiness, Schlafphasen, HRV und Tagesaktivität zu synchronisieren.",
+    "ouraDescription": "Verbinde dein Oura-Konto, um Readiness, Schlafphasen, Herzfrequenzvariabilität und tägliche Aktivität zu synchronisieren.",
     "ouraViewData": "Schlaf & Erholung ansehen",
     "ouraHelp": "Melde dich bei Oura an, um den Zugriff zu erlauben. Daten werden stündlich im Hintergrund abgerufen.",
     "ouraCredentials": "API-Zugangsdaten",
-    "ouraCredentialsHelp": "Optional: Registriere deine eigene Oura-App und füge hier Client ID und Client Secret ein. Leer lassen, um die gemeinsame Oura-App des Servers zu nutzen.",
     "ouraClientId": "Client ID",
     "ouraClientSecret": "Client Secret",
     "ouraCredentialsSaved": "Zugangsdaten gespeichert",
@@ -4758,7 +4778,14 @@
         "savedOff": "Coach ist ausgeblendet.",
         "saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "whoopDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "fitbitDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "polarDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "ouraDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "nightscoutDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben."
   },
   "admin": {
     "title": "Administration",
@@ -5945,7 +5972,14 @@
       "strain": "Belastungswert",
       "score": "Wellness-Wert"
     },
-    "footer": "Geteilt aus HealthLog — einem selbst gehosteten Gesundheits-Tracker."
+    "footer": "Geteilt aus HealthLog — einem selbst gehosteten Gesundheits-Tracker.",
+    "unlock": {
+      "title": "Passphrase eingeben",
+      "description": "Diese geteilte Gesundheitsakte ist geschützt. Geben Sie die erhaltene Passphrase ein, um sie anzuzeigen.",
+      "label": "Passphrase",
+      "error": "Diese Passphrase ist nicht korrekt.",
+      "submit": "Entsperren"
+    }
   },
   "cycle": {
     "symptomCategory": {
@@ -6404,11 +6438,6 @@
       "onTrack": "Im Plan",
       "due": "Jetzt fällig"
     },
-    "settings": {
-      "title": "Vorsorge anpassen",
-      "description": "Ansicht, Reihenfolge und einzelne Erinnerungen verwalten.",
-      "back": "Zurück zur Vorsorge"
-    },
     "capture": {
       "title": "Messwert erfassen",
       "description": "Wert eintragen; die Erinnerung wird als erledigt markiert."
@@ -6421,6 +6450,14 @@
     "dashboard": {
       "empty": "Keine anstehenden Vorsorge-Erinnerungen.",
       "openLink": "Vorsorge öffnen"
+    },
+    "showMeasurements": "Messergebnisse anzeigen",
+    "trendStrip": {
+      "label": "Verlauf der letzten 7 Tage",
+      "summary": "Letzter Wert {value}, {direction} über 7 Tage.",
+      "rising": "steigend",
+      "falling": "fallend",
+      "steady": "stabil"
     }
   },
   "moduleList": {
@@ -6450,11 +6487,6 @@
     "deleteError": "Wert konnte nicht gelöscht werden",
     "loadError": "Laborwerte konnten nicht geladen werden",
     "customize": "Laborwerte anpassen",
-    "settings": {
-      "title": "Laborwerte anpassen",
-      "description": "Ansicht, Sortierung und Biomarker verwalten.",
-      "back": "Zurück zu den Laborwerten"
-    },
     "sort": {
       "heading": "Sortierung",
       "label": "Reihenfolge der Werte",
@@ -6653,11 +6685,6 @@
     "title": "Krankheitstagebuch",
     "subtitle": "Ein rückblickendes Protokoll deiner Krankheits- und Beschwerde-Episoden.",
     "customize": "Krankheitstagebuch anpassen",
-    "settings": {
-      "title": "Krankheitstagebuch anpassen",
-      "description": "Ansicht und Reihenfolge der Episoden verwalten.",
-      "back": "Zurück zum Krankheitstagebuch"
-    },
     "newEpisode": "Neue Episode",
     "logDay": "Tag erfassen",
     "markRecovered": "Als genesen markieren",

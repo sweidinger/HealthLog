@@ -159,7 +159,9 @@ describe("recomputeMedicationComplianceForDay", () => {
       "?",
     );
     expect(insertSql).toMatch(/GROUP BY\s+"scheduled_for"/);
-    expect(insertSql).toMatch(/BOOL_OR\("taken_at" IS NOT NULL AND NOT "skipped"\)/);
+    expect(insertSql).toMatch(
+      /BOOL_OR\("taken_at" IS NOT NULL AND NOT "skipped"\)/,
+    );
     expect(insertSql).toMatch(/BOOL_OR\("skipped"\)/);
     // Slot-level taken beats skipped: a slot is `skipped` only when no row
     // in it is taken.

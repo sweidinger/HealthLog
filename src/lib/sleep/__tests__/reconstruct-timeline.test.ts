@@ -62,7 +62,9 @@ describe("reconstructContiguousSleepTimeline", () => {
   it("appends a single IN_BED envelope at the given END instant", () => {
     const rows = reconstructContiguousSleepTimeline({
       startMs: onset,
-      stages: [{ durationMs: 60 * 60_000, stage: "CORE", fieldTag: "sleep_core" }],
+      stages: [
+        { durationMs: 60 * 60_000, stage: "CORE", fieldTag: "sleep_core" },
+      ],
       inBed: {
         durationMs: end - onset,
         measuredAt: new Date(end),
@@ -81,8 +83,14 @@ describe("reconstructContiguousSleepTimeline", () => {
   it("omits IN_BED when its duration is missing or non-positive", () => {
     const rows = reconstructContiguousSleepTimeline({
       startMs: onset,
-      stages: [{ durationMs: 60 * 60_000, stage: "CORE", fieldTag: "sleep_core" }],
-      inBed: { durationMs: 0, measuredAt: new Date(end), fieldTag: "sleep_in_bed" },
+      stages: [
+        { durationMs: 60 * 60_000, stage: "CORE", fieldTag: "sleep_core" },
+      ],
+      inBed: {
+        durationMs: 0,
+        measuredAt: new Date(end),
+        fieldTag: "sleep_in_bed",
+      },
       externalIdFor: (tag, i) => `night:seg:${tag}:${i}`,
     });
     expect(rows.find((r) => r.sleepStage === "IN_BED")).toBeUndefined();

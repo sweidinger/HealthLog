@@ -87,7 +87,7 @@ describe("MoodList — filter bar + multi-select chrome", () => {
   it("renders labelled selection checkboxes (per-row + select-all)", () => {
     const html = render("en");
     const boxes = html.match(/data-slot="checkbox"/g);
-    expect((boxes?.length ?? 0)).toBeGreaterThanOrEqual(3);
+    expect(boxes?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(html).toContain('aria-label="Select all on this page"');
     expect(html).toContain('aria-label="Select row"');
   });

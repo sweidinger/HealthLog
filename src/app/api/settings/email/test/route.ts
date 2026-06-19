@@ -41,14 +41,18 @@ export const POST = apiHandler(async () => {
     eventType: "SYSTEM_ALERT",
     userId: user.id,
     title: "HealthLog Test",
-    message: "HealthLog: Connection successful! Email notifications are active.",
+    message:
+      "HealthLog: Connection successful! Email notifications are active.",
   });
 
   if (!result.ok) {
     return apiError("Failed to send test email", 500);
   }
 
-  annotate({ action: { name: "settings.email.test" }, meta: { success: true } });
+  annotate({
+    action: { name: "settings.email.test" },
+    meta: { success: true },
+  });
 
   return apiSuccess({ sent: true });
 });

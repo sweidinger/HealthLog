@@ -258,10 +258,8 @@ function slotMatchRadius(
   prevCentre: number | null,
   nextCentre: number | null,
 ): number {
-  const halfToPrev =
-    prevCentre === null ? Infinity : (centre - prevCentre) / 2;
-  const halfToNext =
-    nextCentre === null ? Infinity : (nextCentre - centre) / 2;
+  const halfToPrev = prevCentre === null ? Infinity : (centre - prevCentre) / 2;
+  const halfToNext = nextCentre === null ? Infinity : (nextCentre - centre) / 2;
   const halfGap = Math.min(halfToPrev, halfToNext);
   if (!Number.isFinite(halfGap)) return PAIR_RADIUS_MS;
   return Math.max(PAIR_RADIUS_MS, halfGap);
@@ -437,7 +435,10 @@ export function expandScheduleSlots(
   for (
     let day = cursor;
     day.getTime() <= end.getTime();
-    day = startOfLocalDay(new Date(day.getTime() + 25 * 60 * 60 * 1000), timeZone)
+    day = startOfLocalDay(
+      new Date(day.getTime() + 25 * 60 * 60 * 1000),
+      timeZone,
+    )
   ) {
     // Day-of-week constraint
     const dow = wallClockInTz(day, timeZone).weekday;
@@ -454,7 +455,12 @@ export function expandScheduleSlots(
       const weeksFromAnchor = Math.round(
         (thisWeekStart - anchorWeekStart) / WEEK_MS,
       );
-      if (((weeksFromAnchor % recurrence.intervalWeeks) + recurrence.intervalWeeks) % recurrence.intervalWeeks !== 0) {
+      if (
+        ((weeksFromAnchor % recurrence.intervalWeeks) +
+          recurrence.intervalWeeks) %
+          recurrence.intervalWeeks !==
+        0
+      ) {
         continue;
       }
     }

@@ -102,4 +102,3 @@ describe("pearsonCorrelation", () => {
     expect(result.strength).toBe("keine");
   });
 });
-

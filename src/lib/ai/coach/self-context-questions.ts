@@ -21,10 +21,7 @@
  *
  * Server-only — reads `@/lib/db` through the provider resolver.
  */
-import {
-  hasAnyConfiguredProvider,
-  resolveProvider,
-} from "@/lib/ai/provider";
+import { hasAnyConfiguredProvider, resolveProvider } from "@/lib/ai/provider";
 import {
   buildDateKey,
   getDailyTokenSpend,

@@ -146,7 +146,6 @@ export interface TimeInRangeDistribution {
   };
 }
 
-
 /** Variability summary: SD + CV% with the Monnier stability flag. */
 export interface GlucoseVariability {
   /** Sample standard deviation (n−1), mg/dL. */
@@ -245,7 +244,9 @@ export function glucoseSD(values: number[]): number | null {
  * Monnier 2017, Diabetes Care 40(7):832-838, DOI 10.2337/dc16-1769;
  * endorsed in Battelino 2019.
  */
-export function glucoseVariability(values: number[]): GlucoseVariability | null {
+export function glucoseVariability(
+  values: number[],
+): GlucoseVariability | null {
   const sd = glucoseSD(values);
   if (sd === null) return null;
   const m = mean(values);
@@ -344,9 +345,7 @@ export function bloodGlucoseRiskIndices(
  * level-1), so the five fractions are NOT mutually exclusive by design.
  * Battelino 2019, Diabetes Care 42(8):1593-1603, DOI 10.2337/dci19-0028.
  */
-export function timeInRange(
-  values: number[],
-): TimeInRangeDistribution | null {
+export function timeInRange(values: number[]): TimeInRangeDistribution | null {
   const n = values.length;
   if (n === 0) return null;
 

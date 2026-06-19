@@ -107,7 +107,8 @@ export function BottomNav() {
     () =>
       PRIMARY_RIGHT.filter(
         (item) =>
-          !item.requiresModule || user?.modules?.[item.requiresModule] !== false,
+          !item.requiresModule ||
+          user?.modules?.[item.requiresModule] !== false,
       ),
     [user?.modules],
   );
@@ -134,7 +135,7 @@ export function BottomNav() {
         // outer min-h-11 min-w-11 is the actual hit area; the icon
         // stays visually centered at 20px so the design doesn't shift.
         className={cn(
-          "relative flex min-h-11 min-w-11 flex-1 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2",
+          "focus-visible:ring-ring/50 relative flex min-h-11 min-w-11 flex-1 items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
           isActive
             ? "text-primary"
             : "text-muted-foreground hover:text-foreground",
@@ -180,7 +181,7 @@ export function BottomNav() {
               aria-expanded={captureOpen}
               onClick={() => setCaptureOpen(true)}
               data-testid="bottom-nav-capture"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/70 ring-card -mt-5 flex h-14 w-14 items-center justify-center rounded-full shadow-lg ring-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/70 ring-card -mt-5 flex h-14 w-14 items-center justify-center rounded-full shadow-lg ring-4 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             >
               <Plus className="h-7 w-7" />
             </button>
@@ -196,7 +197,7 @@ export function BottomNav() {
             aria-current={moreActive ? "page" : undefined}
             onClick={() => setMoreOpen(true)}
             className={cn(
-              "relative flex min-h-11 min-w-11 flex-1 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2",
+              "focus-visible:ring-ring/50 relative flex min-h-11 min-w-11 flex-1 items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
               moreActive
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground",
@@ -254,7 +255,7 @@ export function BottomNav() {
                       lets the flex child shrink below its content width,
                       `break-words` introduces a break inside the long word, and
                       the auto-height tile (`min-h-14`) absorbs the second line. */}
-                  <span className="min-w-0 break-words text-sm font-medium leading-tight">
+                  <span className="min-w-0 text-sm leading-tight font-medium break-words">
                     {t(item.tKey)}
                   </span>
                 </Link>

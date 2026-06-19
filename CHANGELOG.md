@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+## [1.18.7] — 2026-06-19 — dashboard, Coach and insights polish
+
+A broad UI, insights, and AI-efficiency release. It ships database migrations (see the migration note below) and two client-facing contract changes: Coach budget responses now arrive as a stream error rather than a 429, and the measurement-reminder push carries the reminder id.
+
+### Added
+
+- The daily briefing surfaces "signals of the day" — today's readings against your 7- and 30-day trend, emerging slopes and recent outliers — and leads with one concrete, present-focused nudge.
+- Preventive-care cards show a quiet seven-day strip of the metric, and their menu jumps straight to the measurement history filtered to that type.
+- The Coach reads your active illness state and Rest Mode, can point you to the relevant in-depth guide, and draws on a tiered view of your history (recent days in full, older periods progressively summarised with peaks preserved).
+- Dictate to the Coach by voice.
+- The share-link section is back as its own Settings entry, next to the health-record export: mint a time-boxed, revocable, read-only link to share your record with a clinician.
+- Share links now carry a passphrase second factor. A new link mints a one-time passphrase embedded in a QR code (in the URL fragment, never sent to the server); the public view stays locked until the passphrase is verified. Links created before this release keep working without one.
+- Labs, preventive care, and the condition journal each have their settings as a proper section of the Settings shell, in the same layout as every other section, instead of a separate page.
+
+### Changed
+
+- The daily briefing regenerates every day and reads warmer and more motivating.
+- The Coach interface is rebuilt around a calm, centred reading column with a collapsible conversation list, a thinking indicator that hands off to streaming, and a quieter scrollbar.
+- The health-score rings are flattened to match the chart style — the glow, sheen and pulse are gone.
+- Sleep drops the redundant "last night" card; the chronotype reads as a prominent summary with your natural sleep midpoint and an expandable detail.
+- Every integration card follows one layout — a short description ending in an inline setup-guide link, with the credential hint above the save button.
+- A warm insight cycle now sends far fewer AI requests: the per-metric status assessments are batched into a single call, and the comprehensive path recovers from a malformed reply with one corrective retry instead of failing outright.
+- The daily briefing now varies its wording day to day while the underlying findings stay stable, so a quiet day no longer reads as a frozen cache.
+- Prompt construction is consolidated: grounding, tone, and the medication-safety rules come from one shared source across the briefing, status cards, narratives, and the Coach.
+- Settings cards share one card primitive and a consistent padding step, and touch controls across the app meet a 44-pixel target on phones while staying compact on wider screens.
+- The local-AI private-host switch accepts an explicit host allowlist instead of an all-or-nothing flag (the previous `true` still means "any private host").
+- Coach conversations are pruned on a schedule, alongside the existing notification-attempt retention.
+
+### Fixed
+
+- The daily briefing no longer goes stale: a fresh daily signal forces regeneration instead of re-stamping an unchanged narrative.
+- The sleep assessment no longer shows the "connect an AI provider" prompt when a provider is already connected.
+- A medication's supply now updates on the next read: adding a container or registering a new medication evicts the cached list instead of serving the pre-change stock for the cache window, and the card and table refresh together.
+- The seed for the public demo no longer produces an impossible blood-pressure reading, and reads as a current, healthy, fully-used account.
+
+### Security
+
+- The Coach budget gate reserves spend atomically before each request, so concurrent requests can no longer slip past the cap together, and tokens burned on an empty or refused reply are still counted.
+- New share links require a passphrase to open the record; the passphrase is stored only as an HMAC hash, verified in constant time behind a rate limit, and unlocks a short-lived view cookie scoped to that one link.
+- The session and authentication-challenge tables are indexed on their expiry column for the reaper.
+- The development key-padding fallback fails closed unless the environment is explicitly development or test, so a missing `NODE_ENV` can no longer silently derive a weak key.
+
+### Migration
+
+- This release adds three migrations: expiry indexes on the session and challenge tables, a daily-briefing reroll marker, and the nullable share-link passphrase hash. Run `prisma migrate deploy` (the entrypoint does this automatically). All three are additive — no backfill, no downtime.
+
 ## [1.18.6.1] — 2026-06-18 — settings and Coach UI follow-ups
 
 A small UI and settings patch on top of v1.18.6. No migration, no API contract change.
@@ -2287,6 +2333,7 @@ iOS-operator-blocking hotfix for REG-11: the Home dashboard tile rendered neithe
 ### Tests
 
 Four new cases in `src/app/api/dashboard/summary/__tests__/route.test.ts` pin REG-11:
+
 - BP with a 60-day-old reading → tile emits with historical `latestValue` + `sparkline`
 - BP with null readings ever → tile NOT emitted
 - Weight within 7 days → behaviour unchanged (regression guard)
@@ -2652,7 +2699,7 @@ self-heal via boot-time backfill on first reach.
   card; not exposed via any route yet.
 - **`computeLongWindowSummary(userId, type, windowDays)`** in
   `summaries-slice.ts` — granularity-routed `count / min / max /
-  mean / sum` aggregate for long-window consumers.
+mean / sum` aggregate for long-window consumers.
 - **`rollup-read-cumulative.ts`** — `readCumulativeDaySums` /
   `readCumulativeDaySumsBatch` / `resolveBucketSum` helpers with
   legacy-NULL fallback.
@@ -2682,7 +2729,7 @@ rides the post-deploy window.
 - **`/api/measurements?groupBy=day` cumulative path:** consumes
   `sum_value` directly; eliminates per-type JS aggregation on
   `ACTIVITY_STEPS / FLIGHTS_CLIMBED / WALKING_RUNNING_DISTANCE /
-  TIME_IN_DAYLIGHT / ACTIVE_ENERGY`.
+TIME_IN_DAYLIGHT / ACTIVE_ENERGY`.
 - **`/api/analytics` live-fallback row cap: 347 k → ~5 k.** Trailing
   425-day `since` cap on the `fetchMeasurementSeriesChunked` per-type
   loop. Defense-in-depth — the v1.4.38.8 per-type fast-path gate makes
@@ -2739,10 +2786,10 @@ false and stranded the whole helper on live SQL across the full
 ### Fixed
 
 - **`correlations-fast-path` gates only on `BLOOD_PRESSURE_SYS +
-  PULSE + WEIGHT`** — the three types the helper actually reads.
+PULSE + WEIGHT`** — the three types the helper actually reads.
   `isFullyCovered(coverage)` AND-term dropped.
 - **`bp-in-target-fast-path` gates only on `BLOOD_PRESSURE_SYS +
-  BLOOD_PRESSURE_DIA`**. Same fix.
+BLOOD_PRESSURE_DIA`**. Same fix.
 - **`health-score-fast-path` gates only on `WEIGHT`**. Same fix.
 
 Coverage-probe semantics unchanged. Each helper now consults the
@@ -3049,7 +3096,7 @@ without changing existing behaviour.
   `aps.category = "MEDICATION_REMINDER"` on every medication-reminder
   payload so iOS renders the three action-buttons (Genommen / Snooze
   15 min / Übersprungen) wired up in iOS v0.5.3. `aps.mutable-content
-  = 1` is set by default so a future Notification Service Extension
+= 1` is set by default so a future Notification Service Extension
   can hook the payload without a server-side change. The med-reminder
   metadata gains `scheduledAt` (ISO 8601) so the iOS "snooze 15 min"
   action pins to the schedule slot rather than wall-clock delivery
@@ -3248,7 +3295,7 @@ dashboard SQL surfaced.
   list through a Zod `refine` chained on the existing
   `isValidTimezone` helper. Returns 422 "Invalid IANA timezone" at
   the write boundary so the new `to_char(measured_at AT TIME ZONE
-  $tz)` SQL in the dashboard summary route cannot be self-DoS'd by
+$tz)` SQL in the dashboard summary route cannot be self-DoS'd by
   a corrupted stored value.
 
 ### Tests
@@ -3576,7 +3623,7 @@ surfaces city + country when the carrier lookup misses.
   buckets + a freshly logged WEIGHT type) falls back to the live
   aggregate so no type silently underreports.
 - **Daily chart fetches opt into rollup buckets.** `GET
-  /api/measurements?aggregate=daily&source=rollup` reads DAY buckets
+/api/measurements?aggregate=daily&source=rollup` reads DAY buckets
   from `measurement_rollups` instead of scanning the measurements
   table when the window exceeds seven days. The Insights chart
   fetchers pass `source=rollup`; iOS and other clients are
@@ -3643,7 +3690,7 @@ surfaces city + country when the carrier lookup misses.
   `pickCumulativeDaySum` helper, source-priority-aware in the same
   shape SLEEP_DURATION already used.
 - **Insights nav strict-gate** flipped (`if (!availability) return
-  true` → `return false`). Types without measurements no longer
+true` → `return false`). Types without measurements no longer
   appear in the strip.
 - **About → Admin Console.** "Über HealthLog" moved out of the
   personal dropdown into a new `/admin/about` slug. The public
@@ -3669,7 +3716,7 @@ surfaces city + country when the carrier lookup misses.
 ### Schema
 
 - **Additive `users.insights_exclude_metrics`** (`String[] NOT NULL
-  DEFAULT '{}'`). Migration
+DEFAULT '{}'`). Migration
   `0068_v1436_insights_exclude_metrics` is idempotent under re-run.
 
 ### Refactor
@@ -3679,7 +3726,7 @@ surfaces city + country when the carrier lookup misses.
   `applyInsightsExcludeFilter`, `pickCumulativeDaySum`,
   `probeRollupCoverage`, `isFullyCovered`. Tested standalone.
 - `ensureUserRollupsFresh` now annotates `{ rollup_refresh_failed:
-  true, rollup_refresh_error: ... }` on failure instead of swallowing
+true, rollup_refresh_error: ... }` on failure instead of swallowing
   silently. The read path still returns `{ recomputed: false }` so
   the response never fails because of a populator hiccup.
 - Cumulative metric-key lookup hoisted out of a four-level nested
@@ -3741,7 +3788,7 @@ zero reader-path impact (serial concurrency, runs in the background).
   in place. The discovery query finds users with at least one row in
   `measurements` and zero rows in `measurement_rollups`, then sends
   one job per uncovered account with `singletonKey:
-  boot-backfill|{userId}` so a fast restart while a fold is queued
+boot-backfill|{userId}` so a fast restart while a fold is queued
   doesn't pile up duplicates.
 - **Best-effort:** any error during discovery is captured in the
   return value and logged through `workerLog`; the worker boot never
@@ -3756,7 +3803,7 @@ zero reader-path impact (serial concurrency, runs in the background).
   user lands on the queue when a third already-folded user co-exists;
   zero jobs enqueued when every account is already covered.
 - Unit suite 4280 → 4285. Integration suite 228 → 230. `pnpm
-  typecheck` + `pnpm lint` clean.
+typecheck` + `pnpm lint` clean.
 
 ## [1.4.35] — 2026-05-17 — Persistent measurement rollups + partial read-swap
 
@@ -3774,7 +3821,7 @@ across every analytics surface is planned for a follow-up.
 - **New table `measurement_rollups`** keyed on
   `(user_id, type, granularity, bucket_start)` with
   `count / mean / min_value / max_value / sd / slope / r2 /
-  computed_at`. Backed by a composite-descending index on
+computed_at`. Backed by a composite-descending index on
   `(user_id, type, granularity, bucket_start DESC)`. Additive only —
   no `ALTER` on existing tables. Migration
   `0067_v1434_measurement_rollups` is idempotent under re-run.
@@ -3850,8 +3897,8 @@ viewport-zoom fix surfaced during the mobile-deep pass.
   - `tests/integration/withings-oauth.test.ts` covers connect /
     callback / disconnect plus state-token replay rejection.
   - `tests/integration/passkey-register.test.ts` covers register-options
-    + register-verify + tampered-attestation rejection + challenge
-    single-use.
+    - register-verify + tampered-attestation rejection + challenge
+      single-use.
   - `tests/integration/cache-invalidation-coverage.test.ts` grids the
     v1.4.34 IW-G invalidation matrix across 5 write surfaces.
 - Integration suite goes from 197/50 to 222/55. tsc + lint clean.
@@ -3923,7 +3970,7 @@ freeze.
 - **Focus rings on mobile + tablet navigation.** The bottom-nav primary
   links, the More overflow trigger, and the mobile top-bar user menu
   trigger gained `focus-visible:ring-ring/50 focus-visible:ring-2
-  focus-visible:outline-none focus-visible:ring-offset-2`. Keyboard
+focus-visible:outline-none focus-visible:ring-offset-2`. Keyboard
   and switch-control users can now see focus on every nav surface.
 - **Tap-target floor (WCAG 2.5.5).** Input, NativeSelect, Select, and
   DateTimeInput now ship `h-11 sm:h-10` so mobile clears the 44 px
@@ -4157,7 +4204,7 @@ without leaking userIds.
   gate; Bearer tokens never elevate).
 - **`ImportJob` schema model + migration.** New Prisma model captures
   the per-upload state machine (`queued | unpacking | parsing |
-  upserting | done | failed`), the content-hash for idempotency
+upserting | done | failed`), the content-hash for idempotency
   short-circuits, and the per-`MeasurementType` ingestion counters
   the status route surfaces back to the client.
 - **`lastSeenByType` on `/api/analytics`.** Both the slim
@@ -4408,8 +4455,7 @@ the affected surfaces.
   `very_late`.** Defensive fallback when the dose-window
   estimator can't resolve a window.
 - **`/api/insights/generate` POST gating.** Endpoint now refuses
-  on a disabled assistant master flag instead of returning a
-  500.
+  on a disabled assistant master flag instead of returning a 500.
 - **Mood Log overflow on narrow viewports.** Cards no longer
   shred their internal grid below 360 CSS px.
 - **F13 username readability.** Header username now respects
@@ -4756,7 +4802,7 @@ permission picker and the future Insights nav.
 ### Added
 
 - **Daily-stats `externalId` helper.** `dailyStatsExternalId(hkId,
-  date)` mints `"stats:<HKQuantityTypeIdentifier>:<YYYY-MM-DD>"`
+date)` mints `"stats:<HKQuantityTypeIdentifier>:<YYYY-MM-DD>"`
   alongside the v1.4.29 `CUMULATIVE_HK_TYPES` set. The shape is
   locked in the iOS coordination notes (§12). iOS
   emits one row per day per cumulative type via
@@ -4839,11 +4885,12 @@ encounter them in read paths because no source writes them yet, and
 the codegen path will pick them up on the next iOS regeneration.
 
 **Cutover sequence.** v1.4.30 ships with the helper + drain script
-+ server tolerance for both shapes. The next iOS TestFlight build
-adopts `HealthKitStatisticsService.swift` and starts posting daily-
-aggregated rows for the five cumulative types. Operator runs the
-drain script once after the new TestFlight cuts over; per-sample
-row pressure on `Measurement` drops 50-200× for cumulative types.
+
+- server tolerance for both shapes. The next iOS TestFlight build
+  adopts `HealthKitStatisticsService.swift` and starts posting daily-
+  aggregated rows for the five cumulative types. Operator runs the
+  drain script once after the new TestFlight cuts over; per-sample
+  row pressure on `Measurement` drops 50-200× for cumulative types.
 
 ## [1.4.29.1] — 2026-05-16 — Daily-step aggregation hotfix
 
@@ -5100,7 +5147,7 @@ internal-only `/api/internal/web-vitals` beacon route).
   GLP-1 row painted with a brand icon and a middle-dot separator;
   every other row painted two-line without an icon. Both routes
   through a shared `<MedicationCardHeader>` now — line 1 is `{name}
-  {dose}`, line 2 is the class label plus state badges. The GLP-1
+{dose}`, line 2 is the class label plus state badges. The GLP-1
   outlier shape is gone.
 - **HealthScore card came up short below the action+prompts column.**
   The card now opts into `flex h-full flex-col` with the disclaimer
@@ -5138,7 +5185,7 @@ internal-only `/api/internal/web-vitals` beacon route).
 - **Medications detail-page chrome collapsed to one heading scale.**
   Every section on `/medications/[id]` mounts through
   `<MedicationDetailSection>` (`text-base font-semibold leading-6
-  tracking-tight`). DrugLevelChart's standalone header migrates to
+tracking-tight`). DrugLevelChart's standalone header migrates to
   `<h2>` with the same classes. Micro labels lift from
   `text-[10px]` / `text-[11px]` to `text-xs` across Scheduling,
   Titration, SideEffects. Three scales survive the page: heading,
@@ -5663,7 +5710,7 @@ is additive, `IF NOT EXISTS`-guarded, and forward-only.
   `router.replace`s to a clean URL.
 - **`/api/version` register button below the tap floor.** The
   `/auth/register` submit button promotes to `size="lg" min-h-11
-  w-full` so the primary action stays finger-tap reachable on
+w-full` so the primary action stays finger-tap reachable on
   narrow viewports.
 - **Workouts pagination broken under canonical dedup.** Pulling the
   full filtered set and slicing post-dedup yields the correct
@@ -5759,8 +5806,8 @@ is additive, `IF NOT EXISTS`-guarded, and forward-only.
   contract and the SSR `useIsMobile` first-paint.
 - **16 new `metric-availability.test.ts` cases** cover each metric ×
   `{has data, no data, undefined summaries, missing summary entry,
-  BMI-from-WEIGHT derivation, sys-vs-dia independence,
-  mood/medication overrides}`.
+BMI-from-WEIGHT derivation, sys-vs-dia independence,
+mood/medication overrides}`.
 - **6 new `insights-tab-strip.test.tsx` cases** assert
   backward-compat without `availability`, pill-drop when data is
   missing, overview pill always renders, mood + medication
@@ -5928,7 +5975,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
   browser-detect maps `fr|es|it|pl` to the corresponding bundle.
 - **Coach — native first-party system prompts across six locales.**
   Coach + insights system prompts move from EN body + `REPLY
-  LANGUAGE` footer to native per-locale bodies; the safety contract
+LANGUAGE` footer to native per-locale bodies; the safety contract
   matrix lives as YAML per locale (single source of truth across
   drafting + tests). The refusal-probe matrix in CI catches
   cross-locale prompt regressions before they reach the dispatch
@@ -5939,7 +5986,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
 - **Personal Records end-to-end — schema, detection worker, badge,
   push opt-in.** Migration 0054 introduces the `PersonalRecord`
   table + `PersonalRecordDirection` helper; `GET
-  /api/personal-records` is paginated (default twenty-five, max two
+/api/personal-records` is paginated (default twenty-five, max two
   hundred). A pg-boss worker sweeps MAX / MIN per metric and the
   workout slots on every batch-ingest + a thirty-minute fallback
   cron (concurrency five, warmup gate so the very first datapoint
@@ -6010,7 +6057,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
   GLP-1 detail page renders the user's current step + remaining
   ladder as observational reference, framed as reference-not-advice
   and bound by GROUND RULE 15. `GET
-  /api/medications/[id]/titration-ladder` returns the structured
+/api/medications/[id]/titration-ladder` returns the structured
   ladder + current step.
 - **GLP-1 — pen-and-vial inventory with a 30-day in-use clock.**
   Migration 0056 introduces the `MedicationInventoryItem` table +
@@ -6064,7 +6111,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
   and the per-row collapse affordance comes off.
 - **DELETE `/api/measurements/by-external-ids` for iOS deletion
   sync.** Idempotent batch delete keyed on `(user, source,
-  externalId)` tuples; rate-limited the same way as the batch
+externalId)` tuples; rate-limited the same way as the batch
   ingest endpoint.
 - **Multi-arch Docker image.** GHCR publish workflow builds
   `linux/amd64` on `ubuntu-latest` plus `linux/arm64` on
@@ -6072,7 +6119,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
   Macs and arm64 clouds now pull native; the previously-stale
   README claim is accurate again.
 - **GLP-1 endpoint hardening.** `POST
-  /api/medications/[id]/glp1` now parses through bounded Zod
+/api/medications/[id]/glp1` now parses through bounded Zod
   schemas (`glp1DoseChangePostSchema`, `glp1InventoryPostSchema`)
   with length-capped notes, finite-number guards on dose value,
   and bounded `effectiveFrom`. Every write produces an audit-log
@@ -6157,7 +6204,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
   `src/lib/medications/route-guards.ts` rather than open-coding
   the lookup; rate-limit headers across the same surface align
   on the option-bag form `apiError(..., { headers:
-  rateLimitHeaders(rl) })`.
+rateLimitHeaders(rl) })`.
 
 ### Fixed
 
@@ -6237,7 +6284,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
   single-entry POST stripped it on the Zod boundary. Mirror parity
   restored.
 - **Personal-records endpoint unpaginated.** `GET
-  /api/personal-records` now clamps `?limit` (default twenty-five,
+/api/personal-records` now clamps `?limit` (default twenty-five,
   maximum two hundred); the unbounded read is gone.
 - **Withings activity sync bucketed positive-offset users into the
   wrong day.** The per-day row was anchored at 23:59:59 UTC, so a
@@ -6356,7 +6403,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
   2024 pharmacokinetic reference. The acknowledgment version
   re-prompts the user on bump.
 - **GLP-1 convenience endpoint hardened.** `POST
-  /api/medications/[id]/glp1` parses through bounded Zod schemas
+/api/medications/[id]/glp1` parses through bounded Zod schemas
   (`glp1DoseChangePostSchema`, `glp1InventoryPostSchema`), enforces
   length caps on notes, finite-number guards on dose value, and
   bounded `effectiveFrom`; every write produces an audit-log row
@@ -6562,7 +6609,7 @@ estimates and source citations, is tracked internally. Headline items:
 - **iOS Swift app — P1 through P5.** Login + dashboard + widget
   (P1); Apple Health sync (P2); Coach extended for HRV / sleep /
   resting HR / steps (P3); per-metric APNs alerts (P4); workouts
-  + GeoJSON routes (P5). All server contracts locked in v1.4.25.
+  - GeoJSON routes (P5). All server contracts locked in v1.4.25.
 - **Workout ingest API matching the v1.5 iOS contract.**
   Schema shipped this release; endpoint signature finalised
   during the iOS sprint.

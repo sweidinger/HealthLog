@@ -138,7 +138,9 @@ describe("decideLowStockAction — boundary / dedupe / re-arm", () => {
   });
 });
 
-const payloadArgs = (over: Partial<Parameters<typeof buildLowStockPayload>[0]>) =>
+const payloadArgs = (
+  over: Partial<Parameters<typeof buildLowStockPayload>[0]>,
+) =>
   buildLowStockPayload({
     locale: "en",
     medName: "Metformin",

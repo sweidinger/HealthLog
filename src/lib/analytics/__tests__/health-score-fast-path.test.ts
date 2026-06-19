@@ -37,11 +37,17 @@ import {
 } from "@/lib/rollups/measurement-coverage";
 import { computeUserHealthScoreFastPath } from "../health-score-fast-path";
 
-const MEASUREMENT_FIND_MANY = prisma.measurement.findMany as unknown as ReturnType<typeof vi.fn>;
-const ROLLUP_FIND_MANY = prisma.measurementRollup.findMany as unknown as ReturnType<typeof vi.fn>;
-const MOOD_FIND_MANY = prisma.moodEntry.findMany as unknown as ReturnType<typeof vi.fn>;
-const MEDICATION_FIND_MANY = prisma.medication.findMany as unknown as ReturnType<typeof vi.fn>;
-const INTAKE_FIND_MANY = prisma.medicationIntakeEvent.findMany as unknown as ReturnType<typeof vi.fn>;
+const MEASUREMENT_FIND_MANY = prisma.measurement
+  .findMany as unknown as ReturnType<typeof vi.fn>;
+const ROLLUP_FIND_MANY = prisma.measurementRollup
+  .findMany as unknown as ReturnType<typeof vi.fn>;
+const MOOD_FIND_MANY = prisma.moodEntry.findMany as unknown as ReturnType<
+  typeof vi.fn
+>;
+const MEDICATION_FIND_MANY = prisma.medication
+  .findMany as unknown as ReturnType<typeof vi.fn>;
+const INTAKE_FIND_MANY = prisma.medicationIntakeEvent
+  .findMany as unknown as ReturnType<typeof vi.fn>;
 const PROBE = probeRollupCoverage as unknown as ReturnType<typeof vi.fn>;
 const FULLY_COVERED = isFullyCovered as unknown as ReturnType<typeof vi.fn>;
 const ANNOTATE = annotate as unknown as ReturnType<typeof vi.fn>;
@@ -110,17 +116,16 @@ describe("computeUserHealthScoreFastPath", () => {
       // null` and the score shape is unchanged.
       ROLLUP_FIND_MANY.mockResolvedValueOnce([]);
       // Weight source-attribution read (narrow 2-column).
-      MEASUREMENT_FIND_MANY
-        .mockResolvedValueOnce([
-          {
-            measuredAt: new Date("2026-05-10T08:00:00.000Z"),
-            source: "WITHINGS",
-          },
-          {
-            measuredAt: new Date("2026-05-14T08:00:00.000Z"),
-            source: "WITHINGS",
-          },
-        ])
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([
+        {
+          measuredAt: new Date("2026-05-10T08:00:00.000Z"),
+          source: "WITHINGS",
+        },
+        {
+          measuredAt: new Date("2026-05-14T08:00:00.000Z"),
+          source: "WITHINGS",
+        },
+      ])
         // BP-SYS source attribution read (parallel after rollup).
         .mockResolvedValueOnce([]);
 
@@ -311,18 +316,14 @@ describe("computeUserHealthScoreFastPath", () => {
       // raw weight findMany is already doing the work.
       expect(ROLLUP_FIND_MANY).not.toHaveBeenCalled();
       const calls = ANNOTATE.mock.calls.map((c) => c[0]);
-      const pathCall = calls.find(
-        (c) => c?.meta?.healthScore?.path === "live",
-      );
+      const pathCall = calls.find((c) => c?.meta?.healthScore?.path === "live");
       expect(pathCall?.meta?.healthScore?.weightLongWindow).toBeNull();
     });
   });
 
   describe("live fallback — WEIGHT not covered", () => {
     it("reads raw weight rows and pins path:live", async () => {
-      const coverage = new Map<string, boolean>([
-        ["WEIGHT", false],
-      ]);
+      const coverage = new Map<string, boolean>([["WEIGHT", false]]);
       FULLY_COVERED.mockReturnValue(false);
       PROBE.mockResolvedValue(coverage);
 
@@ -354,9 +355,7 @@ describe("computeUserHealthScoreFastPath", () => {
 
       expect(result).not.toBeNull();
       const calls = ANNOTATE.mock.calls.map((c) => c[0]);
-      const pathCall = calls.find(
-        (c) => c?.meta?.healthScore?.path === "live",
-      );
+      const pathCall = calls.find((c) => c?.meta?.healthScore?.path === "live");
       expect(pathCall).toBeDefined();
       // Live path read raw weight (value selected).
       const weightCall = MEASUREMENT_FIND_MANY.mock.calls[0][0];
@@ -491,9 +490,9 @@ describe("computeUserHealthScoreFastPath", () => {
       // care here that the two windows are NOT pinned to the same
       // value any more.
       const componentDelta = result?.delta;
-      expect(typeof componentDelta === "number" || componentDelta === null).toBe(
-        true,
-      );
+      expect(
+        typeof componentDelta === "number" || componentDelta === null,
+      ).toBe(true);
     });
 
     it("falls back to bpInTargetPct when bpInTargetPctPriorWeek is omitted", async () => {
@@ -802,8 +801,7 @@ describe("computeUserHealthScoreFastPath", () => {
 
       const now = new Date("2026-06-07T12:00:00.000Z");
       // Live fallback — no weight/mood/med data; only BP signal present.
-      MEASUREMENT_FIND_MANY
-        .mockResolvedValueOnce([]) // weight raw read (live fallback)
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]) // weight raw read (live fallback)
         .mockResolvedValueOnce([]); // BP-SYS source attribution
 
       const result = await computeUserHealthScoreFastPath({
@@ -828,8 +826,7 @@ describe("computeUserHealthScoreFastPath", () => {
       PROBE.mockResolvedValue(coverage);
 
       const now = new Date("2026-06-07T12:00:00.000Z");
-      MEASUREMENT_FIND_MANY
-        .mockResolvedValueOnce([]) // weight raw read
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]) // weight raw read
         .mockResolvedValueOnce([]); // BP-SYS source attribution
       // Mood present so the score is computable even without BP.
       MOOD_FIND_MANY.mockResolvedValue(

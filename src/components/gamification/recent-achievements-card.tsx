@@ -115,7 +115,10 @@ export function RecentAchievementsCard() {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Trophy className="text-muted-foreground h-4 w-4" aria-hidden="true" />
+          <Trophy
+            className="text-muted-foreground h-4 w-4"
+            aria-hidden="true"
+          />
           <h2 className="text-sm font-semibold">
             {t("achievements.dashboardCard.title")}
           </h2>

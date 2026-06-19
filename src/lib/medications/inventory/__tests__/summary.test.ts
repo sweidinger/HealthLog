@@ -86,12 +86,11 @@ describe("summariseSupply — expired stock is visible but never available", () 
 });
 
 describe("supply surfaces — both detail-page readouts ride the shared helper (source guard)", () => {
-  const read = (rel: string) =>
-    readFileSync(join(process.cwd(), rel), "utf8");
+  const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
   it("the Übersicht supply row sums through summariseSupply and feeds the runway with the available-only figure", () => {
     const src = read(
-      "src/components/medications/detail/MedicationDetailTabs.tsx",
+      "src/components/medications/detail/medication-detail-tabs.tsx",
     );
     expect(src).toContain('from "@/lib/medications/inventory/summary"');
     expect(src).toMatch(/summariseSupply\(inventoryItems, perDose\)/);

@@ -486,9 +486,7 @@ describe("reconstructSleepSessions", () => {
     expect(sessions[0].source).toBe("APPLE_HEALTH");
     // The surviving segments carry a real timeline: more than one
     // distinct end instant.
-    const ends = new Set(
-      sessions[0].segments.map((seg) => seg.end.getTime()),
-    );
+    const ends = new Set(sessions[0].segments.map((seg) => seg.end.getTime()));
     expect(ends.size).toBeGreaterThan(1);
   });
 

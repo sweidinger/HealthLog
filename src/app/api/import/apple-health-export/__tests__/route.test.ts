@@ -74,11 +74,14 @@ beforeEach(() => {
 describe("POST /api/import/apple-health-export", () => {
   it("returns 401 when unauthenticated", async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const req = new NextRequest("http://localhost/api/import/apple-health-export", {
-      method: "POST",
-      headers: { "content-type": "multipart/form-data; boundary=---x" },
-      body: "stub",
-    });
+    const req = new NextRequest(
+      "http://localhost/api/import/apple-health-export",
+      {
+        method: "POST",
+        headers: { "content-type": "multipart/form-data; boundary=---x" },
+        body: "stub",
+      },
+    );
     const res = await POST(req);
     expect(res.status).toBe(401);
   });
@@ -89,11 +92,14 @@ describe("POST /api/import/apple-health-export", () => {
       "content-type": "multipart/form-data; boundary=---x",
       "content-length": String(2 * 1024 * 1024 * 1024),
     });
-    const req = new NextRequest("http://localhost/api/import/apple-health-export", {
-      method: "POST",
-      headers,
-      body: "stub",
-    });
+    const req = new NextRequest(
+      "http://localhost/api/import/apple-health-export",
+      {
+        method: "POST",
+        headers,
+        body: "stub",
+      },
+    );
     const res = await POST(req);
     expect(res.status).toBe(413);
   });
@@ -101,11 +107,14 @@ describe("POST /api/import/apple-health-export", () => {
   it("returns 429 when the rate-limit window is exhausted", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     mocks.checkRateLimit.mockResolvedValueOnce({ allowed: false });
-    const req = new NextRequest("http://localhost/api/import/apple-health-export", {
-      method: "POST",
-      headers: { "content-type": "multipart/form-data; boundary=---x" },
-      body: "stub",
-    });
+    const req = new NextRequest(
+      "http://localhost/api/import/apple-health-export",
+      {
+        method: "POST",
+        headers: { "content-type": "multipart/form-data; boundary=---x" },
+        body: "stub",
+      },
+    );
     const res = await POST(req);
     expect(res.status).toBe(429);
   });

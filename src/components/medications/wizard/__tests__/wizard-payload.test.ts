@@ -20,7 +20,7 @@ import {
   WIZARD_TREATMENT_MAPPING,
   type WizardTreatmentRow,
 } from "@/components/medications/wizard/wizard-payload";
-import { encodeCadence } from "@/components/medications/scheduling/CadencePicker";
+import { encodeCadence } from "@/components/medications/scheduling/cadence-picker";
 import {
   type CadenceKind,
   DEFAULT_SUB_CONTROLS,
@@ -43,10 +43,7 @@ import {
  */
 
 function makeStubT() {
-  return (
-    key: string,
-    params?: Record<string, string | number>,
-  ): string => {
+  return (key: string, params?: Record<string, string | number>): string => {
     if (!params) return key;
     return `${key}(${JSON.stringify(params)})`;
   };
@@ -109,9 +106,9 @@ describe("validateStep", () => {
   it("step 2: requires a treatment row", () => {
     const base = emptyWizardPayload();
     expect(validateStep(base, 2)).toBe(false);
-    expect(
-      validateStep({ ...base, treatmentRow: "bloodPressure" }, 2),
-    ).toBe(true);
+    expect(validateStep({ ...base, treatmentRow: "bloodPressure" }, 2)).toBe(
+      true,
+    );
   });
 
   it("step 3: requires populated dose amount", () => {
@@ -129,9 +126,9 @@ describe("validateStep", () => {
     const base = emptyWizardPayload();
     const start = new Date(Date.UTC(2026, 5, 1));
     const earlier = new Date(Date.UTC(2026, 4, 1));
-    expect(
-      validateStep({ ...base, startsOn: start, endsOn: earlier }, 4),
-    ).toBe(false);
+    expect(validateStep({ ...base, startsOn: start, endsOn: earlier }, 4)).toBe(
+      false,
+    );
   });
 
   it("step 4: accepts null endsOn (chronic)", () => {
@@ -152,30 +149,30 @@ describe("validateStep", () => {
   });
 
   it("step 6: weekdays requires >= 1 chip", () => {
-    expect(
-      validateStep(withCadence("weekdays", { weekdays: [] }), 6),
-    ).toBe(false);
-    expect(
-      validateStep(withCadence("weekdays", { weekdays: ["MO"] }), 6),
-    ).toBe(true);
+    expect(validateStep(withCadence("weekdays", { weekdays: [] }), 6)).toBe(
+      false,
+    );
+    expect(validateStep(withCadence("weekdays", { weekdays: ["MO"] }), 6)).toBe(
+      true,
+    );
   });
 
   it("step 6: monthly accepts day-of-month 1..31", () => {
-    expect(
-      validateStep(withCadence("monthly", { dayOfMonth: 1 }), 6),
-    ).toBe(true);
-    expect(
-      validateStep(withCadence("monthly", { dayOfMonth: 31 }), 6),
-    ).toBe(true);
+    expect(validateStep(withCadence("monthly", { dayOfMonth: 1 }), 6)).toBe(
+      true,
+    );
+    expect(validateStep(withCadence("monthly", { dayOfMonth: 31 }), 6)).toBe(
+      true,
+    );
   });
 
   it("step 6: rolling accepts 1..365 days", () => {
-    expect(
-      validateStep(withCadence("rolling", { rollingDays: 1 }), 6),
-    ).toBe(true);
-    expect(
-      validateStep(withCadence("rolling", { rollingDays: 365 }), 6),
-    ).toBe(true);
+    expect(validateStep(withCadence("rolling", { rollingDays: 1 }), 6)).toBe(
+      true,
+    );
+    expect(validateStep(withCadence("rolling", { rollingDays: 365 }), 6)).toBe(
+      true,
+    );
   });
 
   it("step 7: requires >= 1 valid HH:mm time", () => {
@@ -189,9 +186,9 @@ describe("validateStep", () => {
     const base = withCadence("daily");
     expect(validateStep({ ...base, startsOn: null }, 8)).toBe(false);
     const start = new Date(Date.UTC(2026, 5, 1));
-    expect(
-      validateStep({ ...base, startsOn: start, endsOn: null }, 8),
-    ).toBe(true);
+    expect(validateStep({ ...base, startsOn: start, endsOn: null }, 8)).toBe(
+      true,
+    );
   });
 });
 
@@ -397,7 +394,9 @@ describe("buildCreateBody", () => {
     // The default "1" still ships (an edit back to 1 must reach the server).
     expect(buildCreateBody({ ...p, unitsPerDose: "1" }).unitsPerDose).toBe(1);
     // An empty field omits it (server default applies).
-    expect(buildCreateBody({ ...p, unitsPerDose: "" }).unitsPerDose).toBeUndefined();
+    expect(
+      buildCreateBody({ ...p, unitsPerDose: "" }).unitsPerDose,
+    ).toBeUndefined();
 
     const hydrated = hydrateWizardPayload({
       id: "m1",
@@ -634,7 +633,9 @@ describe("summariseScheduleDraft — shared cadence-line helper", () => {
   });
 
   it("threads the everyNWeeks interval into the cadence key", () => {
-    const p = commitActiveDraft(withCadence("everyNWeeks", { intervalWeeks: 3 }));
+    const p = commitActiveDraft(
+      withCadence("everyNWeeks", { intervalWeeks: 3 }),
+    );
     const out = summariseScheduleDraft(p.schedules[p.activeScheduleIndex], t);
     expect(out).toMatch(/cadence\.everyNWeeks[^|]*"n":3/);
   });
@@ -686,16 +687,12 @@ describe("hydrateWizardPayload", () => {
   });
 
   it("hydrates a DIABETES medication as the diabetes row", () => {
-    const out = hydrateWizardPayload(
-      makeInitial({ category: "DIABETES" }),
-    );
+    const out = hydrateWizardPayload(makeInitial({ category: "DIABETES" }));
     expect(out.treatmentRow).toBe("diabetes");
   });
 
   it("hydrates an ANTIBIOTIC medication as the antibiotic row", () => {
-    const out = hydrateWizardPayload(
-      makeInitial({ category: "ANTIBIOTIC" }),
-    );
+    const out = hydrateWizardPayload(makeInitial({ category: "ANTIBIOTIC" }));
     expect(out.treatmentRow).toBe("antibiotic");
   });
 

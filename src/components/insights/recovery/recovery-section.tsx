@@ -68,9 +68,9 @@ export function RecoverySection() {
   // primes, so navigating in is a free hit and a direct URL load pays one
   // thick fetch. Read-only — the score itself stays untouched.
   const analyticsQuery = useAnalyticsQuery();
-  const restMode =
-    ((analyticsQuery.data?.healthScore as { restMode?: RestModeAnnotation } | null)
-      ?.restMode ?? null) as RestModeAnnotation | null;
+  const restMode = ((
+    analyticsQuery.data?.healthScore as { restMode?: RestModeAnnotation } | null
+  )?.restMode ?? null) as RestModeAnnotation | null;
 
   const summaries = data?.summaries;
   const unitScore = t("insights.deviceScore.unitScore");

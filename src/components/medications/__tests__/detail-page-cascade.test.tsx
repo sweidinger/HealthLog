@@ -23,10 +23,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  medicationDependentKeys,
-  queryKeys,
-} from "@/lib/query-keys";
+import { medicationDependentKeys, queryKeys } from "@/lib/query-keys";
 
 function asStrings(keys: readonly unknown[]): string[] {
   return keys.map((k) => JSON.stringify(k));
@@ -41,7 +38,7 @@ function isUnderPrefix(key: readonly unknown[], prefix: readonly unknown[]) {
 }
 
 describe("medication-detail-page query-key cascade (D-3 §9)", () => {
-  it("§9.1 header reads sit under the `[\"medications\"]` prefix so the bundle catches them", () => {
+  it('§9.1 header reads sit under the `["medications"]` prefix so the bundle catches them', () => {
     const detail = queryKeys.medicationDetail("med-1");
     expect(isUnderPrefix(detail, queryKeys.medications())).toBe(true);
   });
@@ -68,7 +65,7 @@ describe("medication-detail-page query-key cascade (D-3 §9)", () => {
     expect(phaseKey).toEqual(["phase-config", "med-1"]);
   });
 
-  it("§9.5 intake-history list keys ride under `[\"medications\", id, \"intake\", \"list\"]`", () => {
+  it('§9.5 intake-history list keys ride under `["medications", id, "intake", "list"]`', () => {
     const listKey = queryKeys.medicationIntakeList("med-1", {
       sortBy: "takenAt",
       sortDir: "desc",
@@ -86,7 +83,7 @@ describe("medication-detail-page query-key cascade (D-3 §9)", () => {
     expect(isUnderPrefix(listKey, queryKeys.medications())).toBe(true);
   });
 
-  it("§9.7 api-endpoint per-medication slot rides under the `[\"medications\"]` prefix", () => {
+  it('§9.7 api-endpoint per-medication slot rides under the `["medications"]` prefix', () => {
     // The `<ApiTokensRow>` uses a per-medication key
     // `["medications", id, "api-endpoint"]` so the bundle catches it
     // alongside every other medication-scoped tile.

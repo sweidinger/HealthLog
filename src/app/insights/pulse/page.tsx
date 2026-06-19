@@ -165,7 +165,10 @@ export default function InsightsPulsPage() {
       {/* v1.12.8 — the Einschätzung (assessment) sits ABOVE the cardio-fitness
           CTA so the plain-language read of the pulse data leads, and the
           cross-link to the dedicated VO₂ max page trails it. */}
-      <SlugInsightStatusCard slug="pulse" icon={<Heart className="h-5 w-5" />} />
+      <SlugInsightStatusCard
+        slug="pulse"
+        icon={<Heart className="h-5 w-5" />}
+      />
 
       {/* VO₂ max is a cardio-fitness metric (Apple's Health app surfaces it
           under "Heart"), so the pulse page links across to its dedicated
@@ -182,7 +185,10 @@ export default function InsightsPulsPage() {
           data-slot="vo2-cardio-link"
           className="bg-card hover:bg-accent/40 focus-visible:ring-ring/50 block space-y-1.5 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
-          <TileHeader icon={Gauge} title={t("insights.vo2Max.cardioLinkTitle")} />
+          <TileHeader
+            icon={Gauge}
+            title={t("insights.vo2Max.cardioLinkTitle")}
+          />
           <span className="text-muted-foreground block text-xs leading-snug">
             {t("insights.vo2Max.cardioLinkBody")}
           </span>

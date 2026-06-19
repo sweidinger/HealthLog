@@ -187,7 +187,10 @@ export function buildFhirDocumentBundle(
         // Vital-signs section carries the narrative + every Observation ref,
         // matching the iOS Bundle graph ("Vital signs" + "Medications").
         title: "Vital signs",
-        text: { status: "generated", div: `<div xmlns="http://www.w3.org/1999/xhtml">${escapeXml(narrativeText)}</div>` },
+        text: {
+          status: "generated",
+          div: `<div xmlns="http://www.w3.org/1999/xhtml">${escapeXml(narrativeText)}</div>`,
+        },
         entry: [patientRef, ...observationRefs],
       },
       // Medications section carries both the active-medication

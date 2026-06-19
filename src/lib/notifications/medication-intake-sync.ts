@@ -200,7 +200,9 @@ export async function dispatchMedicationIntakeSync(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    getEvent()?.addWarning(`medication_intake_sync_dispatch_failed: ${message}`);
+    getEvent()?.addWarning(
+      `medication_intake_sync_dispatch_failed: ${message}`,
+    );
   }
 }
 

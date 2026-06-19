@@ -6,25 +6,31 @@ import { cn } from "@/lib/utils";
 import { useCountUp } from "@/hooks/use-count-up";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { bandForScore, clampScore, type ScoreBand } from "./band-tokens";
-import { RING_GRADIENT, RING_GLOW, type RingHue } from "./ring-hues";
+import { RING_GRADIENT, type RingHue } from "./ring-hues";
 
 /**
- * v1.14.0 — the composite-score dial: a hand-rolled SVG arc gauge with a
- * premium "signature reveal" (Oura/WHOOP-tier), 0 KB runtime, no animation
- * library. A score dial is a fixed-geometry gauge, not a data chart, so SVG
- * gives exact control over a thin round-cap arc, a segmented same-hue track,
- * a single-hue two-stop gradient, a faint "vs your baseline" ghost arc, and a
- * token-tinted bloom — all CSS-driven.
+ * v1.14.0 — the composite-score dial: a hand-rolled SVG arc gauge, 0 KB
+ * runtime, no animation library. A score dial is a fixed-geometry gauge, not a
+ * data chart, so SVG gives exact control over a thin round-cap arc, a
+ * segmented same-hue track, a near-flat single-hue arc, and a faint "vs your
+ * baseline" ghost arc.
  *
- * Motion (all CSS-first, all gated on `prefers-reduced-motion`):
+ * v1.18.7 — CALM by default. The earlier dial wore a token-tinted bloom, a
+ * conic specular sheen, and a breathing pulse on the green ring; against the
+ * flat 2-D Recharts charts that read as a glowing 3-D gauge. All three are
+ * gone everywhere — the ring now paints a plain stroke in a muted single hue,
+ * as quiet as a chart series. The only motion left is a subtle spring fill on
+ * first reveal + a count-up, both gated on `prefers-reduced-motion`.
+ *
+ * Motion (CSS-first, gated on `prefers-reduced-motion`):
  *   • the arc sweeps from empty on mount via a `linear()` SPRING that
  *     overshoots ~6% then settles (`--ring-spring`); the spring is swapped for
  *     a plain ease-out above score 94 so a high arc never wraps past full;
  *   • `delayMs` staggers the sweep + the count-up so the strip reveals
  *     left-to-right and each number trails its arc;
- *   • a conic SHEEN + the tile rise + glow live in `globals.css`, gated on the
- *     strip's `data-revealed` flag (set once per session) so a background
- *     refetch never re-triggers the moment.
+ *   • the quiet tile rise lives in `globals.css`, gated on the strip's
+ *     `data-revealed` flag (set once per session) so a background refetch
+ *     never re-triggers it.
  *
  * The arc/track/ghost are real SVG JSX (`<linearGradient>` is NOT
  * `dangerouslySetInnerHTML`). The `<svg>` is rotated -90° so the arc starts at
@@ -78,10 +84,10 @@ export interface ScoreRingProps {
    */
   delayMs?: number;
   /**
-   * Flat 2-D treatment: drops the drop-shadow bloom, the breathing pulse, the
-   * conic sheen, and the sweep/count-up entrance. Used on the dashboard hero so
-   * the ring sits as calmly as the surrounding chart + tile surfaces. The
-   * /insights wellness strip + anatomy view keep the full premium reveal.
+   * v1.18.7 — the bloom / sheen / pulse are gone for every ring, so the only
+   * thing `flat` still does is drop the spring-fill sweep + the count-up: the
+   * dashboard-hero ring paints its final value at once, with no entrance
+   * motion. The /insights strip + anatomy view keep the subtle sweep.
    */
   flat?: boolean;
   /**
@@ -121,10 +127,10 @@ export function ScoreRing({
   const resolvedBand: ScoreBand = band ?? bandForScore(clamped);
   const hueKey = hue ?? resolvedBand;
 
-  // Single-hue two-stop gradient. The per-metric `hue` leans the colour
-  // (Oura's move); with no `hue` the anatomy view falls back to the band token.
+  // Near-flat single-hue arc. The two stops sit a hair apart for a whisper of
+  // depth; the per-metric `hue` leans the colour, with no `hue` the anatomy
+  // view falls back to the muted band token.
   const [from, to] = RING_GRADIENT[hueKey];
-  const glow = RING_GLOW[hueKey];
 
   const reduced = prefersReducedMotion();
   // `flat` forces the calm static treatment regardless of the `animate` prop:
@@ -175,18 +181,15 @@ export function ScoreRing({
         {
           width: dims.px,
           height: dims.px,
-          "--ring-glow": glow,
         } as React.CSSProperties
       }
     >
-      {/* `overflow-visible`: the arc's drop-shadow bloom (`.wellness-ring-arc`)
-          paints outside the viewBox — the arc fills the 0 0 100 100 box, so the
-          default `overflow: hidden` on SVG clipped the glow flat at the circle's
-          edge. The -90° rotation is unaffected (the bloom is radially symmetric)
-          and the parent div never clips, so the glow now feathers out fully. */}
+      {/* The -90° rotation starts the arc at 12 o'clock so it sweeps clockwise
+          without per-point trig. The arc now carries no bloom, so the SVG needs
+          no `overflow-visible`. */}
       <svg
         viewBox={`0 0 ${VIEW} ${VIEW}`}
-        className="h-full w-full -rotate-90 overflow-visible"
+        className="h-full w-full -rotate-90"
         aria-hidden="true"
       >
         <defs>
@@ -227,15 +230,10 @@ export function ScoreRing({
             }}
           />
         ) : null}
-        {/* The progress arc — single-hue gradient, round cap, spring sweep, bloom. */}
+        {/* The progress arc — muted single hue, round cap, subtle spring sweep.
+            No bloom / pulse: `.wellness-ring-arc` is a plain flat stroke. */}
         <circle
-          className={cn(
-            flat ? "wellness-ring-arc--flat" : "wellness-ring-arc",
-            !flat &&
-              shouldAnimate &&
-              resolvedBand === "green" &&
-              "wellness-ring-arc--pulse",
-          )}
+          className="wellness-ring-arc"
           cx={CX}
           cy={CX}
           r={R}
@@ -252,9 +250,6 @@ export function ScoreRing({
           }}
         />
       </svg>
-      {/* Conic specular sheen — sweeps the arc once on the strip reveal.
-          Omitted entirely in the flat treatment (dashboard hero). */}
-      {flat ? null : <div className="wellness-ring-sheen" aria-hidden="true" />}
       {/* Centred number as real DOM text — design tokens + tabular-nums. */}
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
         <span

@@ -451,11 +451,9 @@ describe("v1.5.5 iOS-coord additions — six previously-deferred identifiers", (
 
   it("scales the gait percent identifiers ×100 server-side (project convention)", () => {
     const asym =
-      APPLE_HEALTH_TYPE_MAP
-        .HKQuantityTypeIdentifierWalkingAsymmetryPercentage;
+      APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierWalkingAsymmetryPercentage;
     const ds =
-      APPLE_HEALTH_TYPE_MAP
-        .HKQuantityTypeIdentifierWalkingDoubleSupportPercentage;
+      APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierWalkingDoubleSupportPercentage;
     // Apple ships these as 0..1 fractions; HealthLog stores 0..100.
     expect(asym.convertToDbUnit(0.07)).toBeCloseTo(7);
     expect(ds.convertToDbUnit(0.2)).toBeCloseTo(20);
@@ -563,7 +561,9 @@ describe("v1.5.5 iOS-coord follow-up — raw-SI gait pair", () => {
 
   it("removes both identifiers from the deferred set", () => {
     expect(
-      HK_QUANTITY_TYPE_DEFERRED.has("HKQuantityTypeIdentifierWalkingStepLength"),
+      HK_QUANTITY_TYPE_DEFERRED.has(
+        "HKQuantityTypeIdentifierWalkingStepLength",
+      ),
     ).toBe(false);
     expect(
       HK_QUANTITY_TYPE_DEFERRED.has("HKQuantityTypeIdentifierWalkingSpeed"),
@@ -675,9 +675,9 @@ describe("dailyStatsExternalId (v1.4.30 — R-A Option A handoff lock)", () => {
     expect(
       dailyStatsExternalId("HKQuantityTypeIdentifierStepCount", " 2026-05-16 "),
     ).toBe("stats:HKQuantityTypeIdentifierStepCount: 2026-05-16 ");
-    expect(
-      dailyStatsExternalId("HKQuantityTypeIdentifierStepCount", ""),
-    ).toBe("stats:HKQuantityTypeIdentifierStepCount:");
+    expect(dailyStatsExternalId("HKQuantityTypeIdentifierStepCount", "")).toBe(
+      "stats:HKQuantityTypeIdentifierStepCount:",
+    );
   });
 
   it("covers every CUMULATIVE_HK_TYPES MeasurementType via a known HK identifier", () => {

@@ -325,8 +325,8 @@ describe("POST /api/medications/[id]/schedule-revisions", () => {
     const res = await POST(postReq(VALID_BODY), ROUTE_CTX);
     expect(res.status).toBe(201);
 
-    const createArgs = vi.mocked(prisma.medicationScheduleRevision.create)
-      .mock.calls[0][0] as unknown as {
+    const createArgs = vi.mocked(prisma.medicationScheduleRevision.create).mock
+      .calls[0][0] as unknown as {
       data: {
         medicationId: string;
         source: string;
@@ -374,8 +374,8 @@ describe("POST /api/medications/[id]/schedule-revisions", () => {
       ROUTE_CTX,
     );
     expect(res.status).toBe(201);
-    const createArgs = vi.mocked(prisma.medicationScheduleRevision.create)
-      .mock.calls[0][0] as unknown as {
+    const createArgs = vi.mocked(prisma.medicationScheduleRevision.create).mock
+      .calls[0][0] as unknown as {
       data: { payload: Array<{ timesOfDay: string[] }> };
     };
     // The Zod transform dedupes + sorts — a double-tapped chip must
@@ -386,9 +386,7 @@ describe("POST /api/medications/[id]/schedule-revisions", () => {
 
 describe("DELETE /api/medications/[id]/schedule-revisions/[revisionId]", () => {
   it("404s when the revision belongs to another medication", async () => {
-    vi.mocked(
-      prisma.medicationScheduleRevision.findUnique,
-    ).mockResolvedValue({
+    vi.mocked(prisma.medicationScheduleRevision.findUnique).mockResolvedValue({
       id: "rev-x",
       medicationId: "other-med",
       source: "MANUAL",
@@ -399,9 +397,7 @@ describe("DELETE /api/medications/[id]/schedule-revisions/[revisionId]", () => {
   });
 
   it("409s for a write-path archive", async () => {
-    vi.mocked(
-      prisma.medicationScheduleRevision.findUnique,
-    ).mockResolvedValue({
+    vi.mocked(prisma.medicationScheduleRevision.findUnique).mockResolvedValue({
       id: "rev-a",
       medicationId: "m1",
       source: "ARCHIVED",
@@ -412,9 +408,7 @@ describe("DELETE /api/medications/[id]/schedule-revisions/[revisionId]", () => {
   });
 
   it("deletes a MANUAL era, restores a superseded original, and enqueues the rollup backfill", async () => {
-    vi.mocked(
-      prisma.medicationScheduleRevision.findUnique,
-    ).mockResolvedValue({
+    vi.mocked(prisma.medicationScheduleRevision.findUnique).mockResolvedValue({
       id: "rev-m",
       medicationId: "m1",
       source: "MANUAL",
@@ -422,9 +416,9 @@ describe("DELETE /api/medications/[id]/schedule-revisions/[revisionId]", () => {
     vi.mocked(prisma.medicationScheduleRevision.delete).mockResolvedValue(
       {} as never,
     );
-    vi.mocked(
-      prisma.medicationScheduleRevision.updateMany,
-    ).mockResolvedValue({ count: 0 } as never);
+    vi.mocked(prisma.medicationScheduleRevision.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
     const res = await DELETE(deleteReq("rev-m"), deleteCtx("rev-m"));
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -452,9 +446,7 @@ describe("PATCH /api/medications/[id]/schedule-revisions/[revisionId]", () => {
   };
 
   function mockTarget(overrides: Record<string, unknown> = {}) {
-    vi.mocked(
-      prisma.medicationScheduleRevision.findUnique,
-    ).mockResolvedValue({
+    vi.mocked(prisma.medicationScheduleRevision.findUnique).mockResolvedValue({
       id: "rev-t",
       medicationId: "m1",
       source: "MANUAL",
@@ -466,20 +458,14 @@ describe("PATCH /api/medications/[id]/schedule-revisions/[revisionId]", () => {
 
   it("404s when the revision belongs to another medication", async () => {
     mockTarget({ medicationId: "other-med" });
-    const res = await PATCH(
-      patchReq("rev-t", PATCH_BODY),
-      deleteCtx("rev-t"),
-    );
+    const res = await PATCH(patchReq("rev-t", PATCH_BODY), deleteCtx("rev-t"));
     expect(res.status).toBe(404);
     expect(prisma.medicationScheduleRevision.update).not.toHaveBeenCalled();
   });
 
   it("409s when the era has already been corrected", async () => {
     mockTarget({ source: "ARCHIVED", supersededByRevisionId: "rev-fix" });
-    const res = await PATCH(
-      patchReq("rev-t", PATCH_BODY),
-      deleteCtx("rev-t"),
-    );
+    const res = await PATCH(patchReq("rev-t", PATCH_BODY), deleteCtx("rev-t"));
     expect(res.status).toBe(409);
     expect(prisma.medicationScheduleRevision.update).not.toHaveBeenCalled();
     expect(prisma.medicationScheduleRevision.create).not.toHaveBeenCalled();
@@ -494,7 +480,10 @@ describe("PATCH /api/medications/[id]/schedule-revisions/[revisionId]", () => {
       },
     ] as never);
     const res = await PATCH(
-      patchReq("rev-t", { ...PATCH_BODY, validUntil: "2025-07-01T00:00:00.000Z" }),
+      patchReq("rev-t", {
+        ...PATCH_BODY,
+        validUntil: "2025-07-01T00:00:00.000Z",
+      }),
       deleteCtx("rev-t"),
     );
     expect(res.status).toBe(422);
@@ -528,17 +517,14 @@ describe("PATCH /api/medications/[id]/schedule-revisions/[revisionId]", () => {
       source: "MANUAL",
     } as never);
 
-    const res = await PATCH(
-      patchReq("rev-t", PATCH_BODY),
-      deleteCtx("rev-t"),
-    );
+    const res = await PATCH(patchReq("rev-t", PATCH_BODY), deleteCtx("rev-t"));
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data.id).toBe("rev-t");
     expect(json.data.entries[0].timesOfDay).toEqual(["08:00", "20:00"]);
 
-    const updateArgs = vi.mocked(prisma.medicationScheduleRevision.update)
-      .mock.calls[0][0] as unknown as {
+    const updateArgs = vi.mocked(prisma.medicationScheduleRevision.update).mock
+      .calls[0][0] as unknown as {
       where: { id: string };
       data: { payload: Array<{ timesOfDay: string[]; rrule: string }> };
     };
@@ -567,10 +553,7 @@ describe("PATCH /api/medications/[id]/schedule-revisions/[revisionId]", () => {
       {} as never,
     );
 
-    const res = await PATCH(
-      patchReq("rev-t", PATCH_BODY),
-      deleteCtx("rev-t"),
-    );
+    const res = await PATCH(patchReq("rev-t", PATCH_BODY), deleteCtx("rev-t"));
     expect(res.status).toBe(200);
     const json = await res.json();
     // The response carries the correction, which now takes the
@@ -578,8 +561,8 @@ describe("PATCH /api/medications/[id]/schedule-revisions/[revisionId]", () => {
     expect(json.data.id).toBe("rev-fix");
     expect(json.data.source).toBe("MANUAL");
 
-    const createArgs = vi.mocked(prisma.medicationScheduleRevision.create)
-      .mock.calls[0][0] as unknown as {
+    const createArgs = vi.mocked(prisma.medicationScheduleRevision.create).mock
+      .calls[0][0] as unknown as {
       data: { source: string; payload: Array<{ timesOfDay: string[] }> };
     };
     expect(createArgs.data.source).toBe("MANUAL");

@@ -228,8 +228,9 @@ export function HealthScoreCard({
   // descending so the biggest contributor sits first. Components with
   // null values sink to the bottom (`weight * 0 === 0`); the tie-break
   // is the alphabetical key order so determinism holds across renders.
-  const provenanceRows = COMPONENT_ORDER
-    .filter((key) => moodEnabled || key !== "mood")
+  const provenanceRows = COMPONENT_ORDER.filter(
+    (key) => moodEnabled || key !== "mood",
+  )
     .map((key) => {
       const c = components[key];
       const inferredSource: HealthScoreComponentSource =
@@ -244,10 +245,7 @@ export function HealthScoreCard({
         effective: c.weight * (c.value !== null ? 1 : 0),
       };
     })
-    .sort(
-      (a, b) =>
-        b.effective - a.effective || a.key.localeCompare(b.key),
-    );
+    .sort((a, b) => b.effective - a.effective || a.key.localeCompare(b.key));
 
   const presentCount = provenanceRows.filter((r) => r.value !== null).length;
   const totalCount = provenanceRows.length;
@@ -273,7 +271,7 @@ export function HealthScoreCard({
         // gutter). The basis values still bias the column generous
         // (~36 % at md, ~40 % at xl) but cede headroom when the parent
         // narrows.
-        "w-full md:basis-[22rem] md:shrink-0 md:grow-0 xl:basis-[26rem]",
+        "w-full md:shrink-0 md:grow-0 md:basis-[22rem] xl:basis-[26rem]",
         // v1.4.28 R3c-Insights — stretch to match the parent's
         // `items-stretch` row height (FB-H1/H2). `h-full` + an inner
         // flex column lets the disclaimer ride to the bottom with
@@ -377,10 +375,7 @@ export function HealthScoreCard({
           ) : (
             <>
               {delta > 0 && (
-                <ArrowUp
-                  className="text-success h-3 w-3"
-                  aria-hidden="true"
-                />
+                <ArrowUp className="text-success h-3 w-3" aria-hidden="true" />
               )}
               {delta < 0 && (
                 <ArrowDown
@@ -580,9 +575,7 @@ export function HealthScoreCard({
                         <div
                           className={cn(
                             "h-full",
-                            isEmpty
-                              ? "bg-muted"
-                              : "bg-info/60",
+                            isEmpty ? "bg-muted" : "bg-info/60",
                           )}
                           style={{
                             width: isEmpty

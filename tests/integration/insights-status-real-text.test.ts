@@ -79,9 +79,8 @@ async function seedRichWeightUser(username: string) {
 describe("status path delivers real provider text", () => {
   it("returns the provider's assessment, not the no-key fallback", async () => {
     const user = await seedRichWeightUser("status-real-text-user");
-    const { generateWeightStatusForUser } = await import(
-      "@/lib/insights/weight-status"
-    );
+    const { generateWeightStatusForUser } =
+      await import("@/lib/insights/weight-status");
 
     const result = await generateWeightStatusForUser(user.id, {
       locale: "en",
@@ -127,9 +126,8 @@ describe("status path delivers real provider text", () => {
       },
     });
 
-    const { generateWeightStatusForUser } = await import(
-      "@/lib/insights/weight-status"
-    );
+    const { generateWeightStatusForUser } =
+      await import("@/lib/insights/weight-status");
 
     const result = await generateWeightStatusForUser(user.id, {
       locale: "en",

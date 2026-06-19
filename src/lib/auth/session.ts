@@ -185,4 +185,3 @@ export async function destroyAllSessions(userId: string): Promise<void> {
     }),
   ]);
 }
-

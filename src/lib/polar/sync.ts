@@ -207,7 +207,9 @@ export async function upsertPolarMeasurements(
       );
     });
   } catch (err) {
-    getEvent()?.addWarning(`polar: rollup recompute failed for ${userId}: ${err}`);
+    getEvent()?.addWarning(
+      `polar: rollup recompute failed for ${userId}: ${err}`,
+    );
   }
 
   return imported;

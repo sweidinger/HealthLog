@@ -30,9 +30,9 @@ describe("glp1-knowledge catalog", () => {
       // imply endorsement of unauthorised use.
       expect(GLP1_DRUGS).not.toHaveProperty("retatrutide");
       for (const record of Object.values(GLP1_DRUGS)) {
-        expect(
-          record.brands.map((b) => b.toLowerCase()),
-        ).not.toContain("retatrutide");
+        expect(record.brands.map((b) => b.toLowerCase())).not.toContain(
+          "retatrutide",
+        );
         expect(record.inn.toLowerCase()).not.toBe("retatrutide");
       }
     });
@@ -40,10 +40,15 @@ describe("glp1-knowledge catalog", () => {
     it("populates every required field for every drug", () => {
       for (const [id, record] of Object.entries(GLP1_DRUGS)) {
         expect(record.inn, `inn missing on ${id}`).toBeTruthy();
-        expect(record.brands.length, `brands empty on ${id}`).toBeGreaterThan(0);
+        expect(record.brands.length, `brands empty on ${id}`).toBeGreaterThan(
+          0,
+        );
         expect(record.route, `route missing on ${id}`).toBeTruthy();
         expect(record.drugClass, `drugClass missing on ${id}`).toBeTruthy();
-        expect(record.pharmacology, `pharmacology missing on ${id}`).toBeTruthy();
+        expect(
+          record.pharmacology,
+          `pharmacology missing on ${id}`,
+        ).toBeTruthy();
         expect(
           record.pharmacology.halfLifeDays,
           `halfLifeDays missing on ${id}`,
@@ -181,7 +186,8 @@ describe("glp1-knowledge catalog", () => {
     it("tops out at maxDoseMg for every drug", () => {
       for (const id of GLP1_DRUG_IDS) {
         const record = GLP1_DRUGS[id];
-        const lastStep = record.titrationStepsMg[record.titrationStepsMg.length - 1];
+        const lastStep =
+          record.titrationStepsMg[record.titrationStepsMg.length - 1];
         expect(lastStep).toBe(record.maxDoseMg);
       }
     });

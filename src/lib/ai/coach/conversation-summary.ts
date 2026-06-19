@@ -84,13 +84,13 @@ export function buildSummaryUserPrompt(
   foldedTurns: SummaryFoldTurn[],
   locale: "de" | "en" = "en",
 ): string {
-  const priorLabel = locale === "de" ? "FRÜHERE ZUSAMMENFASSUNG" : "PRIOR SUMMARY";
+  const priorLabel =
+    locale === "de" ? "FRÜHERE ZUSAMMENFASSUNG" : "PRIOR SUMMARY";
   const turnsLabel = locale === "de" ? "NEUE WORTWECHSEL" : "NEW TURNS";
   const none = locale === "de" ? "(keine)" : "(none)";
 
-  const priorBlock = priorSummary && priorSummary.trim().length > 0
-    ? priorSummary.trim()
-    : none;
+  const priorBlock =
+    priorSummary && priorSummary.trim().length > 0 ? priorSummary.trim() : none;
 
   const turnsBlock = foldedTurns
     .map((t) => `${t.role}: ${t.content}`)
@@ -182,9 +182,7 @@ export async function refreshConversationSummary(
         // fail-closed like every other decrypt in the Coach stack.
         return [];
       }
-      return [
-        { role: m.role === "assistant" ? "assistant" : "user", content },
-      ];
+      return [{ role: m.role === "assistant" ? "assistant" : "user", content }];
     });
 
   // 5. Run the user's provider chain. Best-effort: non-ok leaves the old

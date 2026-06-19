@@ -111,7 +111,10 @@ describe("token exchange + refresh", () => {
 describe("fetchCollection pagination", () => {
   it("walks next_token across pages and concatenates records", async () => {
     const fetchMock = installFetchMock([
-      { status: 200, body: { records: [{ id: 1 }, { id: 2 }], next_token: "t1" } },
+      {
+        status: 200,
+        body: { records: [{ id: 1 }, { id: 2 }], next_token: "t1" },
+      },
       { status: 200, body: { records: [{ id: 3 }], next_token: null } },
     ]);
     const recs = await fetchRecoveries("at");
@@ -187,9 +190,7 @@ describe("single-object endpoints", () => {
   });
 
   it("fetches the basic profile", async () => {
-    installFetchMock([
-      { status: 200, body: { user_id: 42, first_name: "A" } },
-    ]);
+    installFetchMock([{ status: 200, body: { user_id: 42, first_name: "A" } }]);
     const profile = await fetchProfile("at");
     expect(profile.user_id).toBe(42);
   });
@@ -279,7 +280,11 @@ describe("mapRecovery", () => {
   it("omits optional spo2 / skin-temp when absent", () => {
     const rows = mapRecovery({
       ...base,
-      score: { ...base.score!, spo2_percentage: undefined, skin_temp_celsius: undefined },
+      score: {
+        ...base.score!,
+        spo2_percentage: undefined,
+        skin_temp_celsius: undefined,
+      },
     });
     expect(rows.some((r) => r.type === "OXYGEN_SATURATION")).toBe(false);
     expect(rows.some((r) => r.type === "SKIN_TEMPERATURE")).toBe(false);

@@ -54,9 +54,10 @@ vi.mock("@/lib/db-compat", () => ({
 // the success / failure branch shape; the route handler's
 // challenge-lookup + Passkey insertion still runs against real Postgres.
 vi.mock("@/lib/auth/passkey", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/auth/passkey")>(
-    "@/lib/auth/passkey",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/auth/passkey")>(
+      "@/lib/auth/passkey",
+    );
   return {
     ...actual,
     verifyRegistration: vi.fn(),
@@ -99,9 +100,8 @@ afterEach(() => {
 
 describe("Passkey registration (real Postgres)", () => {
   it("register-options persists a challenge and returns the RP-ID from APP_URL", async () => {
-    const { POST } = await import(
-      "@/app/api/auth/passkey/register-options/route"
-    );
+    const { POST } =
+      await import("@/app/api/auth/passkey/register-options/route");
     // The route handler takes no arguments at the TS level (the wrapper
     // ignores the request) — cast to a no-arg callable for clarity.
     const res = await (POST as unknown as () => Promise<Response>)();
@@ -161,9 +161,8 @@ describe("Passkey registration (real Postgres)", () => {
       },
     });
 
-    const { POST } = await import(
-      "@/app/api/auth/passkey/register-verify/route"
-    );
+    const { POST } =
+      await import("@/app/api/auth/passkey/register-verify/route");
     const res = await POST(
       new NextRequest("http://localhost/api/auth/passkey/register-verify", {
         method: "POST",
@@ -213,9 +212,8 @@ describe("Passkey registration (real Postgres)", () => {
       },
     });
 
-    const { POST } = await import(
-      "@/app/api/auth/passkey/register-verify/route"
-    );
+    const { POST } =
+      await import("@/app/api/auth/passkey/register-verify/route");
     const res = await POST(
       new NextRequest("http://localhost/api/auth/passkey/register-verify", {
         method: "POST",
@@ -236,9 +234,8 @@ describe("Passkey registration (real Postgres)", () => {
   });
 
   it("register-verify returns 422 when challengeId is missing", async () => {
-    const { POST } = await import(
-      "@/app/api/auth/passkey/register-verify/route"
-    );
+    const { POST } =
+      await import("@/app/api/auth/passkey/register-verify/route");
     const res = await POST(
       new NextRequest("http://localhost/api/auth/passkey/register-verify", {
         method: "POST",

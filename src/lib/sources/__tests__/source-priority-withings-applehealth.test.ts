@@ -124,12 +124,7 @@ describe("cross-source priority — Withings Activity + Apple Health", () => {
     const userPriority = {
       steps: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
     };
-    const out = pickCanonicalSourceRows(
-      rows,
-      "steps",
-      userPriority,
-      isoDayKey,
-    );
+    const out = pickCanonicalSourceRows(rows, "steps", userPriority, isoDayKey);
     expect(out.canonicalRows).toHaveLength(1);
     expect(out.canonicalRows[0].source).toBe("WITHINGS");
     expect(out.canonicalRows[0].value).toBe(5000);

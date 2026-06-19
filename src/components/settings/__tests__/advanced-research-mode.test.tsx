@@ -16,7 +16,7 @@
  * even when `enabled === true`.
  *
  * The dialog itself is covered by
- * `ResearchModeAcknowledgmentDialog.test.tsx`; we mock it down to a
+ * `research-mode-acknowledgment-dialog.test.tsx`; we mock it down to a
  * marker here so the toggle behaviour is the only contract under
  * test.
  */
@@ -48,7 +48,7 @@ vi.mock("@tanstack/react-query", () => ({
 // import to a transparent marker so we can assert "the toggle ON path
 // renders the dialog with the right props" without re-running the
 // dialog tree.
-vi.mock("@/components/medications/ResearchModeAcknowledgmentDialog", () => ({
+vi.mock("@/components/medications/research-mode-acknowledgment-dialog", () => ({
   ResearchModeAcknowledgmentDialog: ({
     open,
     currentDisclaimerVersion,

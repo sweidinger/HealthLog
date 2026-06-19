@@ -197,10 +197,7 @@ export function ApiTokensRow({
   }, [mintedToken]);
 
   return (
-    <div
-      className="space-y-2"
-      data-slot="medication-detail-api-tokens-row"
-    >
+    <div className="space-y-2" data-slot="medication-detail-api-tokens-row">
       <p className="text-muted-foreground text-xs">
         {t("medications.detail.api.caption", { name: medicationName })}
       </p>
@@ -301,7 +298,10 @@ export function ApiTokensRow({
           )}
         </Button>
         {examplesOpen && (
-          <div className="mt-2 space-y-1.5" data-slot="api-tokens-examples-body">
+          <div
+            className="mt-2 space-y-1.5"
+            data-slot="api-tokens-examples-body"
+          >
             <div className="flex items-center justify-end gap-2">
               <Label className="sr-only">
                 {t("medications.requestExample")}

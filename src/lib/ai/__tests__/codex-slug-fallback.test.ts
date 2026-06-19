@@ -365,7 +365,8 @@ describe("Codex slug fallback chain", () => {
     } finally {
       if (origModel === undefined) delete process.env.CODEX_MODEL;
       else process.env.CODEX_MODEL = origModel;
-      if (origChain === undefined) delete process.env.CODEX_MODEL_FALLBACK_CHAIN;
+      if (origChain === undefined)
+        delete process.env.CODEX_MODEL_FALLBACK_CHAIN;
       else process.env.CODEX_MODEL_FALLBACK_CHAIN = origChain;
     }
   });

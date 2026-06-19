@@ -64,7 +64,12 @@ describe("buildTitrationSteps", () => {
       [
         change("a", "2026-04-01T00:00:00Z", 2.5),
         change("bad", "not-a-date", 5),
-        { id: "nan", effectiveFrom: "2026-05-01T00:00:00Z", doseValue: NaN, doseUnit: "mg" },
+        {
+          id: "nan",
+          effectiveFrom: "2026-05-01T00:00:00Z",
+          doseValue: NaN,
+          doseUnit: "mg",
+        },
       ],
       ASOF,
     );

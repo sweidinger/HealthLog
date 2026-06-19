@@ -1,12 +1,12 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 
-import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
-import { WelcomeCarousel } from "@/components/onboarding/WelcomeCarousel";
-import { GoalsChipPicker } from "@/components/onboarding/GoalsChipPicker";
-import { SourceCardGrid } from "@/components/onboarding/SourceCardGrid";
-import { BaselineForm } from "@/components/onboarding/BaselineForm";
-import { DoneScreen } from "@/components/onboarding/DoneScreen";
+import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
+import { WelcomeCarousel } from "@/components/onboarding/welcome-carousel";
+import { GoalsChipPicker } from "@/components/onboarding/goals-chip-picker";
+import { SourceCardGrid } from "@/components/onboarding/source-card-grid";
+import { BaselineForm } from "@/components/onboarding/baseline-form";
+import { DoneScreen } from "@/components/onboarding/done-screen";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/session";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
@@ -56,7 +56,10 @@ export default async function OnboardingStepPage({ params }: PageProps) {
   const { step: stepParam } = await params;
   const parsedStep = Number.parseInt(stepParam, 10);
 
-  if (!Number.isFinite(parsedStep) || !VALID_STEPS.includes(parsedStep as Step)) {
+  if (
+    !Number.isFinite(parsedStep) ||
+    !VALID_STEPS.includes(parsedStep as Step)
+  ) {
     notFound();
   }
   const requested = parsedStep as Step;

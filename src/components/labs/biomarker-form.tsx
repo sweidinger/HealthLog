@@ -132,7 +132,9 @@ export function BiomarkerForm({
       onSuccess?.(saved);
     } catch (err) {
       const message =
-        err instanceof ApiError ? err.message : t("labs.biomarker.form.saveError");
+        err instanceof ApiError
+          ? err.message
+          : t("labs.biomarker.form.saveError");
       setError(message);
     } finally {
       setSubmitting(false);

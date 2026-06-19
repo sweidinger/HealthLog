@@ -46,8 +46,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
       ? "raw"
       : "night";
 
-  const [measurements, userTz, sourcePriorityJson, profile] =
-    await Promise.all([
+  const [measurements, userTz, sourcePriorityJson, profile] = await Promise.all(
+    [
       prisma.measurement.findMany({
         where,
         orderBy: { measuredAt: "desc" },
@@ -60,7 +60,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
         where: { id: user.id },
         select: { glucoseUnit: true },
       }),
-    ]);
+    ],
+  );
   const glucoseUnit = resolveGlucoseUnit(profile?.glucoseUnit ?? null);
 
   const csv = toCSV(

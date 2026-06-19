@@ -59,13 +59,10 @@ export async function syncUserWorkout(
   // the same window recovery/sleep already use for their late re-scores. The
   // `(userId, WHOOP, externalId)` upsert keeps the re-fetch idempotent and a
   // handful of workouts/day keeps the page count down.
-  const start = incrementalStart(
-    resolveResourceCursor(connection, "workout"),
-    {
-      fullSync: opts.fullSync,
-      overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
-    },
-  );
+  const start = incrementalStart(resolveResourceCursor(connection, "workout"), {
+    fullSync: opts.fullSync,
+    overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
+  });
 
   let records: Awaited<ReturnType<typeof fetchWorkouts>>;
   try {

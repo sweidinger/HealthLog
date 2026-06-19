@@ -18,13 +18,8 @@ vi.mock("@/hooks/use-is-mobile", () => ({
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
-  Sheet: ({
-    children,
-    open,
-  }: {
-    children: React.ReactNode;
-    open: boolean;
-  }) => (open ? <div data-slot="mock-sheet">{children}</div> : null),
+  Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
+    open ? <div data-slot="mock-sheet">{children}</div> : null,
   SheetContent: ({
     children,
     className,
@@ -67,13 +62,8 @@ vi.mock("@/components/ui/sheet", () => ({
 }));
 
 vi.mock("@/components/ui/dialog", () => ({
-  Dialog: ({
-    children,
-    open,
-  }: {
-    children: React.ReactNode;
-    open: boolean;
-  }) => (open ? <div data-slot="mock-dialog">{children}</div> : null),
+  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
+    open ? <div data-slot="mock-dialog">{children}</div> : null,
   DialogContent: ({
     children,
     className,
@@ -209,11 +199,7 @@ describe("<ResponsiveSheet>", () => {
     // Mounted closed — Dialog mock returns null, smoke-only render
     // confirms no throw + the prop wiring round-trips.
     renderToStaticMarkup(
-      <ResponsiveSheet
-        open={false}
-        onOpenChange={onOpenChange}
-        title="closed"
-      >
+      <ResponsiveSheet open={false} onOpenChange={onOpenChange} title="closed">
         <p>body</p>
       </ResponsiveSheet>,
     );

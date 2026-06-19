@@ -34,7 +34,10 @@ export function MoodTagBreakdown({ tags }: { tags: MoodTagRow[] }) {
     <ul className="space-y-2" data-slot="mood-tag-breakdown">
       {tags.map((row) => (
         <li key={row.tag} className="flex items-center gap-2 text-sm">
-          <span className="text-foreground w-28 shrink-0 truncate" title={row.tag}>
+          <span
+            className="text-foreground w-28 shrink-0 truncate"
+            title={row.tag}
+          >
             {row.tag}
           </span>
           <div className="bg-secondary relative h-3 flex-1 overflow-hidden rounded-full">

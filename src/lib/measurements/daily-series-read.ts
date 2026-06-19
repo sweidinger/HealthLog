@@ -17,13 +17,9 @@
  * maxValue? }`).
  */
 import { prisma } from "@/lib/db";
-import {
-  BUCKET_CAP,
-} from "@/lib/measurements/range-aggregation";
+import { BUCKET_CAP } from "@/lib/measurements/range-aggregation";
 import { CUMULATIVE_HK_TYPES } from "@/lib/measurements/apple-health-mapping";
-import {
-  collapseRollupRowsBySource,
-} from "@/lib/rollups/measurement-read";
+import { collapseRollupRowsBySource } from "@/lib/rollups/measurement-read";
 import { recomputeUserRollups } from "@/lib/rollups/measurement-rollups";
 import { buildSourceRankCase } from "@/lib/analytics/source-rank-sql";
 import { annotate } from "@/lib/logging/context";

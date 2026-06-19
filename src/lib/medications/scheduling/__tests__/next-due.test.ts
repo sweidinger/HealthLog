@@ -17,10 +17,7 @@ import {
   toResolvedSlotMark,
   type ResolvedSlotMark,
 } from "../next-due";
-import type {
-  WorkerMedicationRow,
-  WorkerScheduleRow,
-} from "../worker-helpers";
+import type { WorkerMedicationRow, WorkerScheduleRow } from "../worker-helpers";
 
 /** A slot-anchored resolved mark (the write paths' canonical shape). */
 function mark(at: Date): ResolvedSlotMark {
@@ -492,7 +489,9 @@ describe("as-needed (zero schedules) — never due", () => {
   it("computeNextDueAt returns null even with a recent intake", () => {
     const now = new Date();
     const next = computeNextDueAt({
-      medication: makeMedication({ createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) }),
+      medication: makeMedication({
+        createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+      }),
       schedules: [],
       now,
       userTz: BERLIN,
@@ -504,7 +503,9 @@ describe("as-needed (zero schedules) — never due", () => {
   it("computeDisplayDue returns null — no overdue escalation can ever mint", () => {
     const now = new Date();
     const display = computeDisplayDue({
-      medication: makeMedication({ createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) }),
+      medication: makeMedication({
+        createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+      }),
       schedules: [],
       now,
       userTz: BERLIN,

@@ -18,12 +18,7 @@ export const INVITE_MAX_USES_CAP = 50;
 export const inviteCreateSchema = z.object({
   /** Lifetime in days. The admin UI offers 7 / 14 / 30; the API accepts
    * any integer 1–30 so an operator can script shorter invites. */
-  expiresInDays: z
-    .number()
-    .int()
-    .min(1)
-    .max(INVITE_MAX_TTL_DAYS)
-    .default(7),
+  expiresInDays: z.number().int().min(1).max(INVITE_MAX_TTL_DAYS).default(7),
   /** How many signups this invite admits. Default: single-use. */
   maxUses: z.number().int().min(1).max(INVITE_MAX_USES_CAP).default(1),
 });

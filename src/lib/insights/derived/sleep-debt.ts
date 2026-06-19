@@ -119,9 +119,8 @@ export function computeSleepDebt(
   options: SleepDebtOptions = {},
 ): SleepDebtResult {
   const opts = { ...DEFAULTS, ...options };
-  const safeNeed = Number.isFinite(needMinutes) && needMinutes > 0
-    ? needMinutes
-    : 0;
+  const safeNeed =
+    Number.isFinite(needMinutes) && needMinutes > 0 ? needMinutes : 0;
 
   // Take the most recent `windowNights` by wake-day key. Sort ascending so the
   // perNight strip reads oldest → newest like every other trend surface.

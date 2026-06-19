@@ -222,11 +222,7 @@ function AchievementCard({ achievement, t }: AchievementCardProps) {
             value={achievement.progressPercent}
             className="h-1.5"
             aria-label={t("achievements.criterionHint", {
-              current: formatMetric(
-                achievement.format,
-                achievement.current,
-                t,
-              ),
+              current: formatMetric(achievement.format, achievement.current, t),
               target: formatMetric(achievement.format, achievement.target, t),
             })}
           />
@@ -329,8 +325,7 @@ export default function AchievementsPage() {
             {t("achievements.subtitle")}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-        </div>
+        <div className="flex shrink-0 items-center gap-2"></div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

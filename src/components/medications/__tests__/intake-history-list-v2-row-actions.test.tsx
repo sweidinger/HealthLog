@@ -86,10 +86,7 @@ describe("<IntakeHistoryListV2> — F-1 C-2 row actions", () => {
   it("does NOT render the kebab when no callbacks are passed (back-compat)", () => {
     const client = makeClient();
     seed(client, "med-1", [ROW]);
-    const html = render(
-      <IntakeHistoryListV2 medicationId="med-1" />,
-      client,
-    );
+    const html = render(<IntakeHistoryListV2 medicationId="med-1" />, client);
     expect(html).not.toContain("intake-history-row-kebab");
   });
 
@@ -97,10 +94,7 @@ describe("<IntakeHistoryListV2> — F-1 C-2 row actions", () => {
     const client = makeClient();
     seed(client, "med-1", [ROW]);
     const html = render(
-      <IntakeHistoryListV2
-        medicationId="med-1"
-        onEditIntake={() => {}}
-      />,
+      <IntakeHistoryListV2 medicationId="med-1" onEditIntake={() => {}} />,
       client,
     );
     expect(html).toContain("intake-history-row-kebab");
@@ -110,10 +104,7 @@ describe("<IntakeHistoryListV2> — F-1 C-2 row actions", () => {
     const client = makeClient();
     seed(client, "med-1", [ROW]);
     const html = render(
-      <IntakeHistoryListV2
-        medicationId="med-1"
-        onDeleteIntake={() => {}}
-      />,
+      <IntakeHistoryListV2 medicationId="med-1" onDeleteIntake={() => {}} />,
       client,
     );
     expect(html).toContain("intake-history-row-kebab");
@@ -122,10 +113,7 @@ describe("<IntakeHistoryListV2> — F-1 C-2 row actions", () => {
   it("does NOT render the selection column when selection prop is absent", () => {
     const client = makeClient();
     seed(client, "med-1", [ROW]);
-    const html = render(
-      <IntakeHistoryListV2 medicationId="med-1" />,
-      client,
-    );
+    const html = render(<IntakeHistoryListV2 medicationId="med-1" />, client);
     expect(html).not.toContain("intake-history-row-select");
   });
 

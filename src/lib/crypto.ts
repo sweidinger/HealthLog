@@ -59,9 +59,17 @@ function decodeKey(raw: string, label: string): Buffer {
     }
   }
   if (/^[0-9a-fA-F]+$/.test(raw) && raw.length >= 32) {
-    if (process.env.NODE_ENV === "production") {
+    // Fail closed unless we are explicitly in a local dev or test run. The
+    // SHA-256 padding below derives a key the operator never recorded; if a
+    // staging/preview container runs with NODE_ENV unset it would silently
+    // encrypt under that derived key, and rotating to a real key later
+    // orphans those rows (decrypt is fail-closed → undecryptable). Only the
+    // two known throwaway-data environments may take the padding path; every
+    // other case (production AND unset NODE_ENV) throws the same hard error.
+    const env = process.env.NODE_ENV;
+    if (env !== "development" && env !== "test") {
       throw new Error(
-        `Encryption key '${label}' must be 64 hex characters (256 bits) in production. ` +
+        `Encryption key '${label}' must be 64 hex characters (256 bits) outside development/test. ` +
           `Generate one with: openssl rand -hex 32`,
       );
     }

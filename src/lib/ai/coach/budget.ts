@@ -61,6 +61,119 @@ export async function enforceBudget(
   }
 }
 
+/**
+ * v1.18.7 (SENIOR-DEV HIGH) — atomically reserve budget BEFORE the provider
+ * call, closing the read-then-write TOCTOU window.
+ *
+ * `enforceBudget` reads spend, then `recordSpend` bumps it only AFTER a
+ * successful reply, so up to `rate-limit` (20/min) concurrent requests could
+ * each read `spent < cap` before any spend landed and all hit the provider.
+ * This instead does a single atomic SQL upsert that increments the day's
+ * total by an ESTIMATED reservation and returns the new total. The caller
+ * checks the returned total against the cap: if the reservation pushed it
+ * over, the request is refused and the reservation refunded; otherwise the
+ * call proceeds and the actual token count is reconciled afterwards. Mirrors
+ * the `rate-limit.ts` atomic-upsert pattern — multi-instance correctness is
+ * structural, not a hopeful read-then-write.
+ *
+ * The first request of a fresh day still lands cheaply via the upsert
+ * `create` branch; `messageCount` is bumped at reservation time so a
+ * reserved-but-failed turn still counts as an attempt.
+ */
+export interface ReserveBudgetResult {
+  /** True when the reservation kept the day's total within the cap. */
+  allowed: boolean;
+  /** Tokens reserved by this call (refunded/reconciled by the caller). */
+  reserved: number;
+  /** The day's total AFTER this reservation (for observability). */
+  totalAfter: number;
+}
+
+export async function reserveBudget(
+  userId: string,
+  estimatedTokens: number,
+  dateKey: string = buildDateKey(),
+  cap: number = MAX_TOKENS_PER_USER_PER_DAY,
+): Promise<ReserveBudgetResult> {
+  const reserved =
+    Number.isFinite(estimatedTokens) && estimatedTokens > 0
+      ? Math.floor(estimatedTokens)
+      : 0;
+
+  // Single atomic upsert-increment returning the new total. Two concurrent
+  // requests serialise on the row's unique (user_id, date_key) constraint, so
+  // each observes a distinct post-increment total — they cannot both read a
+  // sub-cap value and both proceed.
+  const rows = await prisma.$queryRaw<{ total_tokens: number }[]>`
+    INSERT INTO coach_usage (id, user_id, date_key, total_tokens, message_count, created_at, updated_at)
+    VALUES (gen_random_uuid()::text, ${userId}, ${dateKey}, ${reserved}, 1, NOW(), NOW())
+    ON CONFLICT (user_id, date_key) DO UPDATE SET
+      total_tokens = coach_usage.total_tokens + ${reserved},
+      message_count = coach_usage.message_count + 1,
+      updated_at = NOW()
+    RETURNING total_tokens
+  `;
+  const totalAfter = Number(rows[0]?.total_tokens ?? reserved);
+
+  // The cap is a ceiling on tokens already spent BEFORE this request, matching
+  // the prior `spent >= cap` semantics: a request is allowed when the spend
+  // PRIOR to its reservation was under the cap. So compare `totalAfter -
+  // reserved` (the prior total) against the cap.
+  const priorTotal = totalAfter - reserved;
+  if (priorTotal >= cap) {
+    // Already over before this request — refund the reservation + the
+    // message-count bump and refuse.
+    await refundReservation(userId, reserved, dateKey);
+    return { allowed: false, reserved, totalAfter: priorTotal };
+  }
+
+  return { allowed: true, reserved, totalAfter };
+}
+
+/**
+ * Reconcile a reservation against the actual tokens the provider reported.
+ * `actual - reserved` is applied as a signed delta (clamped so the row never
+ * goes negative). Called after every provider call — including empty /
+ * sentinel / refusal replies, whose upstream tokens were still burned
+ * (SENIOR-DEV MEDIUM: spend undercount).
+ */
+export async function reconcileSpend(
+  userId: string,
+  reserved: number,
+  actualTokens: number,
+  dateKey: string = buildDateKey(),
+): Promise<void> {
+  const actual =
+    Number.isFinite(actualTokens) && actualTokens > 0
+      ? Math.floor(actualTokens)
+      : 0;
+  const delta = actual - reserved;
+  if (delta === 0) return;
+  // Clamp at zero so a smaller-than-reserved actual can't drive the row
+  // negative under a racing reconcile.
+  await prisma.$executeRaw`
+    UPDATE coach_usage
+    SET total_tokens = GREATEST(0, total_tokens + ${delta}),
+        updated_at = NOW()
+    WHERE user_id = ${userId} AND date_key = ${dateKey}
+  `;
+}
+
+/** Refund a reservation (tokens + the message-count bump) on a refusal. */
+async function refundReservation(
+  userId: string,
+  reserved: number,
+  dateKey: string,
+): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE coach_usage
+    SET total_tokens = GREATEST(0, total_tokens - ${reserved}),
+        message_count = GREATEST(0, message_count - 1),
+        updated_at = NOW()
+    WHERE user_id = ${userId} AND date_key = ${dateKey}
+  `;
+}
+
 export interface RecordSpendParams {
   userId: string;
   tokens: number;

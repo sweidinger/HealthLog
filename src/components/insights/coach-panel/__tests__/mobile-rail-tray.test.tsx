@@ -98,11 +98,7 @@ describe("<MobileRailTray>", () => {
     // that contract so the carve-out stays gated on `historyOpen` /
     // `sourcesOpen` and never paints orphan overlays.
     const html = render(
-      <MobileRailTray
-        {...baseProps}
-        historyOpen={false}
-        sourcesOpen={false}
-      />,
+      <MobileRailTray {...baseProps} historyOpen={false} sourcesOpen={false} />,
     );
     expect(html).not.toContain('data-slot="coach-drawer-history-tray"');
     expect(html).not.toContain('data-slot="coach-drawer-sources-tray"');

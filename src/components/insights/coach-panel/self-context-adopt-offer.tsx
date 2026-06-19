@@ -51,7 +51,10 @@ export function SelfContextAdoptOffer({
 
   const adopt = useMutation({
     mutationFn: async () => {
-      return apiPost<{ adopted: boolean }>("/api/coach/about-me/adopt", { question, answer });
+      return apiPost<{ adopted: boolean }>("/api/coach/about-me/adopt", {
+        question,
+        answer,
+      });
     },
     onSuccess: (data) => {
       setSettled(data.adopted ? "adopted" : "duplicate");

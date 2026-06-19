@@ -174,7 +174,14 @@ export async function computeCorrelationHypothesesFastPath(
     // reader so the per-type fan-out doesn't re-query the user 3×.
     const priority = await loadUserSourcePriority(userId);
     const [sysBuckets, pulseBuckets, weightBuckets] = await Promise.all([
-      readRollupBuckets(userId, "BLOOD_PRESSURE_SYS", "DAY", since, now, priority),
+      readRollupBuckets(
+        userId,
+        "BLOOD_PRESSURE_SYS",
+        "DAY",
+        since,
+        now,
+        priority,
+      ),
       readRollupBuckets(userId, "PULSE", "DAY", since, now, priority),
       readRollupBuckets(userId, "WEIGHT", "DAY", since, now, priority),
     ]);

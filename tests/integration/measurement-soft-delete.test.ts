@@ -151,7 +151,13 @@ describe("Measurement.deletedAt — tombstone invisibility (v1.4.40 W-DELETED)",
       data: {
         summaries: Record<
           string,
-          { count: number; latest: number | null; min: number | null; max: number | null; mean: number | null }
+          {
+            count: number;
+            latest: number | null;
+            min: number | null;
+            max: number | null;
+            mean: number | null;
+          }
         >;
       };
     };

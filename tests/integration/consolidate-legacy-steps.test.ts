@@ -94,9 +94,9 @@ describe("consolidateLegacySteps (real Postgres)", () => {
       },
     });
     expect(tombstoned).toHaveLength(3);
-    expect(tombstoned.every((r) => r.externalId?.startsWith("hk-legacy-"))).toBe(
-      true,
-    );
+    expect(
+      tombstoned.every((r) => r.externalId?.startsWith("hk-legacy-")),
+    ).toBe(true);
   });
 
   it("does not double-count when a stats: daily total already exists for the day", async () => {

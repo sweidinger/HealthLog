@@ -85,7 +85,9 @@ const moodTagDto = z
     archived: z
       .boolean()
       .optional()
-      .describe("Custom tags only, present when `include` contains `archived`."),
+      .describe(
+        "Custom tags only, present when `include` contains `archived`.",
+      ),
     usageCount: z
       .number()
       .int()

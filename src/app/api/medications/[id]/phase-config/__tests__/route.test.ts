@@ -109,7 +109,8 @@ describe("PUT /api/medications/[id]/phase-config — F-1 H-4 field-by-field upse
     };
     await PUT(putReq(body), ROUTE_PARAMS);
 
-    const callArg = vi.mocked(prisma.reminderPhaseConfig.upsert).mock.calls[0][0];
+    const callArg = vi.mocked(prisma.reminderPhaseConfig.upsert).mock
+      .calls[0][0];
     // create payload contains exactly the eight enumerated phase fields
     // plus the `medicationId` route binding — nothing else.
     expect(Object.keys(callArg.create).sort()).toEqual([
@@ -150,8 +151,13 @@ describe("PUT /api/medications/[id]/phase-config — F-1 H-4 field-by-field upse
       maliciousField: "owned",
     };
     await PUT(putReq(body), ROUTE_PARAMS);
-    const callArg = vi.mocked(prisma.reminderPhaseConfig.upsert).mock.calls[0][0];
-    expect((callArg.create as Record<string, unknown>).maliciousField).toBeUndefined();
-    expect((callArg.update as Record<string, unknown>).maliciousField).toBeUndefined();
+    const callArg = vi.mocked(prisma.reminderPhaseConfig.upsert).mock
+      .calls[0][0];
+    expect(
+      (callArg.create as Record<string, unknown>).maliciousField,
+    ).toBeUndefined();
+    expect(
+      (callArg.update as Record<string, unknown>).maliciousField,
+    ).toBeUndefined();
   });
 });

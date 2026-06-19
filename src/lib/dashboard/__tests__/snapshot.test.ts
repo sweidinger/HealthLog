@@ -116,7 +116,9 @@ const fakePrisma = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
-function baseUser(overrides: Partial<SnapshotUserInput> = {}): SnapshotUserInput {
+function baseUser(
+  overrides: Partial<SnapshotUserInput> = {},
+): SnapshotUserInput {
   return {
     id: "user-1",
     username: "tester",
@@ -341,11 +343,7 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
     expect(snap.extras).not.toBeNull();
   });
 
-  it.each([
-    ["WEIGHT"],
-    ["BLOOD_PRESSURE_SYS"],
-    ["BLOOD_PRESSURE_DIA"],
-  ])(
+  it.each([["WEIGHT"], ["BLOOD_PRESSURE_SYS"], ["BLOOD_PRESSURE_DIA"]])(
     "an uncovered %s (rows without buckets) keeps the phase cold",
     async (uncoveredType) => {
       const coverage = new Map([
@@ -879,10 +877,18 @@ describe("module gating maps — every toggleable-domain widget is mapped (v1.18
 });
 
 describe("buildDashboardSnapshot — module gating (v1.18.0)", () => {
-  const widget = (snap: { layout: { widgets: { id: string; visible: boolean; tileVisible?: boolean }[] } }, id: string) =>
-    snap.layout.widgets.find((w) => w.id === id);
-  const cat = (snap: { layoutCatalogue: { id: string; visible: boolean }[] }, id: string) =>
-    snap.layoutCatalogue.find((w) => w.id === id);
+  const widget = (
+    snap: {
+      layout: {
+        widgets: { id: string; visible: boolean; tileVisible?: boolean }[];
+      };
+    },
+    id: string,
+  ) => snap.layout.widgets.find((w) => w.id === id);
+  const cat = (
+    snap: { layoutCatalogue: { id: string; visible: boolean }[] },
+    id: string,
+  ) => snap.layoutCatalogue.find((w) => w.id === id);
 
   beforeEach(() => {
     // A warm, data-rich account so every toggleable surface would
@@ -939,7 +945,9 @@ describe("buildDashboardSnapshot — module gating (v1.18.0)", () => {
     expect(snap.tiles.summaries.SLEEP_DURATION).toBeDefined();
     expect(snap.tiles.summaries.BLOOD_GLUCOSE).toBeDefined();
     expect(snap.tiles.mood.entries.length).toBeGreaterThan(0);
-    expect(Object.keys(snap.extras!.glucoseByContext).length).toBeGreaterThan(0);
+    expect(Object.keys(snap.extras!.glucoseByContext).length).toBeGreaterThan(
+      0,
+    );
   });
 
   it("mood disabled: tile hidden + mood block emptied", async () => {
@@ -1000,7 +1008,11 @@ describe("buildDashboardSnapshot — module gating (v1.18.0)", () => {
       fakePrisma,
       baseUser({
         insightsCachedText: JSON.stringify({
-          dailyBriefing: { headline: "x", body: "y", generatedAt: new Date().toISOString() },
+          dailyBriefing: {
+            headline: "x",
+            body: "y",
+            generatedAt: new Date().toISOString(),
+          },
         }),
         insightsCachedAt: new Date(),
       }),

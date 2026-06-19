@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createBiomarkerSchema,
-  updateBiomarkerSchema,
-} from "../biomarkers";
+import { createBiomarkerSchema, updateBiomarkerSchema } from "../biomarkers";
 
 describe("createBiomarkerSchema", () => {
   it("accepts a minimal marker (name + unit only)", () => {

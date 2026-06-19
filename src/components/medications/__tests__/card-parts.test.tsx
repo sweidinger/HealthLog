@@ -45,7 +45,9 @@ function render(node: React.ReactNode, client?: QueryClient) {
   ) : (
     node
   );
-  return renderToStaticMarkup(<I18nProvider initialLocale="en">{tree}</I18nProvider>);
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale="en">{tree}</I18nProvider>,
+  );
 }
 
 describe("medication card-parts — shared presentational components", () => {
@@ -170,7 +172,10 @@ describe("medication card-parts — shared presentational components", () => {
 
   it("intake actions row carries exactly the take + skip buttons", () => {
     const html = render(
-      <MedicationIntakeActions intakeLoading={null} onRecordIntake={() => {}} />,
+      <MedicationIntakeActions
+        intakeLoading={null}
+        onRecordIntake={() => {}}
+      />,
     );
     expect(html).toContain("lucide-check");
     expect(html).toContain("lucide-skip-forward");
@@ -253,7 +258,11 @@ describe("medication cycle status — open-cycle line", () => {
     // The calm on_track "next dose in N days" phrasing duplicates the
     // next-intake slot at the top of the card, so the open-cycle line stays
     // silent for an on-track med; only due / overdue earn a line here.
-    for (const nextDueAt of [inDays(4), inDays(1), new Date(Date.now() + 6 * 60 * 60 * 1000)]) {
+    for (const nextDueAt of [
+      inDays(4),
+      inDays(1),
+      new Date(Date.now() + 6 * 60 * 60 * 1000),
+    ]) {
       const html = render(
         <MedicationCycleStatus
           cycle={{ ...baseCycle, state: "on_track", nextDueAt }}
@@ -429,7 +438,13 @@ describe("medication card body — shared shell + dose-state presentation", () =
         doseStatus={doseStatus}
         nextLine="Tomorrow, 08:00"
         lastLine="Today, 07:30"
-        compliance={{ rate7: 90, rate30: 88, streak: 0, shortDays: 7, longDays: 30 }}
+        compliance={{
+          rate7: 90,
+          rate30: 88,
+          streak: 0,
+          shortDays: 7,
+          longDays: 30,
+        }}
         currentCycle={null}
         intakeLoading={null}
         onRecordIntake={() => {}}

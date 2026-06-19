@@ -11,6 +11,7 @@ import {
   decryptCodexCreds,
 } from "./codex-oauth";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { isLocalAiHostAllowed } from "./local-host-allowlist";
 import { parseProviderChain, type ProviderChainType } from "./provider-chain";
 import type { ProviderChainResolved } from "./provider-runner";
 
@@ -417,10 +418,7 @@ export async function hasAnyConfiguredProvider(
     where: { id: "singleton" },
     select: { adminAiKeyEncrypted: true },
   });
-  return userRowHasProviderCredential(
-    userRow,
-    !!settings?.adminAiKeyEncrypted,
-  );
+  return userRowHasProviderCredential(userRow, !!settings?.adminAiKeyEncrypted);
 }
 
 /**
@@ -668,7 +666,9 @@ export async function resolveProviderForTest(
       if (!baseUrl) {
         throw new AITestConfigError(422, "Local provider requires a base URL");
       }
-      const allowPrivate = process.env.ALLOW_LOCAL_AI_PRIVATE_HOSTS === "true";
+      // v1.18.7 (SECURITY LOW) — host allowlist (`true` = any private host;
+      // a comma-separated host list = only those) replaces the binary flag.
+      const allowPrivate = isLocalAiHostAllowed(baseUrl);
       if (!allowPrivate && !isPublicUrl(baseUrl)) {
         throw new AITestConfigError(
           422,

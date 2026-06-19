@@ -1,15 +1,11 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
-import { useFeatureFlags } from "@/hooks/use-feature-flags";
-import { useDisableCoach } from "@/hooks/use-disable-coach";
 import { useModuleEnabled } from "@/hooks/use-module-enabled";
 import { cn } from "@/lib/utils";
-import { SuggestedPrompts } from "./suggested-prompts";
 import {
   HealthScoreCard,
   type HealthScoreCardProps,
@@ -26,18 +22,15 @@ import type { DailyBriefing as DailyBriefingPayload } from "@/lib/ai/schema";
  *     "Guten Morgen, …") + a narrative subtitle (the briefing
  *     paragraph when one is cached, else a fallback)
  *   - personal-baseline + "Generated <relative-time>" meta row
- *   - action row: single "Ask the coach" affordance
- *     (v1.4.25 W3 dropped the "Re-run analysis" button — the
- *     regenerate affordance moved to `<InsightsTabStrip>`. v1.4.28
- *     retired the weekly-report path, leaving Coach as the sole
- *     hero-row action.)
- *   - <SuggestedPrompts> chip strip below the action band
  *   - Dracula gradient + soft purple glow via the new `.hero-gradient`
  *     + `.glow-purple` utilities in `globals.css`
  *
- * Mobile-first: the action row wraps + the suggested-prompt chips
- * wrap. Right-side Health Score panel is *not* part of B1 — that
- * lands in B5; for B1 the right side just keeps its meta band.
+ * v1.18.7 — the overview "Ask the coach" action row + guided-questions
+ * chip strip were removed from the band. The Coach lives in the
+ * bottom-right drawer (mounted by the insights layout shell); the
+ * overview now leads with the present-focused daily briefing, not a
+ * coach prompt. The hero is greeting + subtitle + baseline meta + the
+ * optional right-side Health Score panel.
  *
  * Pure presentational — the page owns the briefing data.
  */
@@ -54,36 +47,14 @@ interface HeroStripProps {
    */
   userName?: string | null;
   /**
-   * Click handler for the suggested prompts. The Coach drawer (B2b)
-   * routes a chip click into the drawer's input; the parent owns the
-   * drawer state. When omitted the chip click is a no-op.
-   */
-  onPickPrompt?: (prompt: string) => void;
-  /**
-   * Click handler for the "Ask the coach" action button. When supplied,
-   * the button is enabled and the coming-soon tooltip drops; clicking
-   * opens the drawer (B2b). When omitted the button stays disabled —
-   * see the v1.4.20 phase B1 dispatch where the drawer was deferred.
-   *
-   * v1.4.20 phase B5 — the same handler powers the Health Score
-   * panel's "Ask the Coach" button, with an optional `prefill` string
-   * that opens the drawer with a score-aware question. The action-row
-   * button calls it without an argument (drawer opens blank); the HSC
-   * panel calls it with "Why is my health score X out of 100?".
-   */
-  onAskCoach?: (prefill?: string) => void;
-  /**
    * Now() override for tests so the greeting bucket is deterministic.
    * Defaults to `new Date()`. Production callers omit this.
    */
   now?: Date;
   /**
    * v1.4.20 phase B5 — Personal Health Score panel data. When supplied
-   * the right side of the hero band paints the score card. The
-   * `onAskCoach` handler is intentionally re-used from the action-row
-   * "Ask the coach" button — same drawer state, different prefill
-   * string. When the parent omits the field the right side stays empty
-   * (current B1 behaviour).
+   * the right side of the hero band paints the score card. When the
+   * parent omits the field the right side stays empty.
    */
   healthScore?: {
     score: HealthScoreCardProps["score"];
@@ -134,28 +105,11 @@ export function HeroStrip({
   briefing,
   updatedAt,
   userName,
-  onPickPrompt,
-  onAskCoach,
   now,
   healthScore,
   healthScorePending = false,
 }: HeroStripProps) {
   const { t } = useTranslations();
-  // v1.4.37 W5 — operator-level Coach gate. When the global Coach flag
-  // is off every Coach affordance must vanish from this band (the
-  // action-row button, the suggested-prompts chip strip, and the
-  // HealthScoreCard's `onAskCoach` prop). The button and chips both
-  // open the Coach drawer, so leaving them visible while the drawer
-  // mount is suppressed would surface dead controls.
-  const flags = useFeatureFlags();
-  // v1.4.47 W3 — per-user "Hide Coach" toggle joins the operator's
-  // master flag. Either-off resolves to `coachEnabled === false` so
-  // the hero action button + suggested-prompts strip + the
-  // `<HealthScoreCard onAskCoach />` prop all vanish together. The
-  // hook is SSR-safe — returns `false` when the legacy snapshot
-  // tests render the strip without a QueryClient.
-  const disableCoach = useDisableCoach();
-  const coachEnabled = flags.coach && !disableCoach;
   // v1.18.0 R4 — mood-module state so the score card hides its Mood row
   // when the account turned the module off (the server already drops the
   // pillar from the number itself). SSR-safe + default-on, matching the
@@ -168,7 +122,6 @@ export function HeroStrip({
   const generatedLine = updatedAt
     ? t("insights.heroGenerated", { time: formatRelativeTime(updatedAt, t) })
     : null;
-  const comingSoon = t("insights.heroComingSoonTooltip");
 
   return (
     <div
@@ -256,66 +209,14 @@ export function HeroStrip({
           </div>
 
           {/*
-           * v1.4.37 W5 — the action row only carries the Coach button
-           * today (v1.4.28 retired the weekly-report affordance). When
-           * the operator turns the global Coach flag off the whole row
-           * disappears rather than collapsing to an empty flex shell.
+           * v1.18.7 — the overview "Ask the coach" action row + the
+           * guided-questions chip strip were removed from the hero band.
+           * The Coach is the bottom-right drawer (mounted in the insights
+           * layout shell); the overview leads with the present-focused
+           * daily briefing, not a coach prompt. The drawer itself is
+           * untouched — only the hero entry points are gone, so the band
+           * is now greeting + subtitle + baseline meta.
            */}
-          {coachEnabled && (
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {/* B2b wires this into the Coach drawer. The button is
-                enabled whenever the parent supplies an `onAskCoach`
-                handler; older parents that haven't adopted B2b yet
-                still get the disabled "Coming soon" affordance so the
-                hero doesn't break. v1.4.28 retired the weekly-report
-                button, leaving Coach as the only hero-row action. */}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onAskCoach ? () => onAskCoach() : undefined}
-                disabled={!onAskCoach}
-                title={onAskCoach ? undefined : comingSoon}
-                data-slot="insights-hero-strip-action-coach"
-                className="gap-1.5"
-              >
-                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{t("insights.heroActionAskCoach")}</span>
-              </Button>
-              {/*
-               * v1.4.25 W3 — the regenerate button moved to the new
-               * `<InsightsTabStrip>` (icon-only RefreshCw, sticky next
-               * to the pill nav) so the user can re-run the analysis
-               * without scrolling back to the hero band.
-               */}
-            </div>
-          )}
-
-          {coachEnabled && (
-            <div
-              data-slot="insights-hero-strip-prompts"
-              // v1.8.5 W4a — condense the "Coach fragen" band so the left
-              // column stops out-running the Health-Score card on the
-              // right. Tighter top padding (`pt-3` vs `pt-4`) plus a
-              // `mt-auto` push pins the chip strip to the bottom of the
-              // left column, so the recovered slack lands between the meta
-              // row and the prompts instead of stacking the column tall.
-              className="border-border/50 mt-auto border-t pt-3"
-            >
-              {/*
-               * v1.4.20 phase B2b — chip clicks open the Coach drawer
-               * with the localised prompt pre-filled in the composer.
-               * The parent owns drawer state so the chip strip stays
-               * presentational.
-               *
-               * v1.4.37 W5 — the strip is a Coach-only affordance
-               * (every chip seeds a Coach turn), so it is gated on the
-               * same flag as the action-row button above. Without the
-               * gate the chips would still paint while the drawer is
-               * suppressed, leaving inert controls in the band.
-               */}
-              <SuggestedPrompts onPick={onPickPrompt ?? (() => undefined)} />
-            </div>
-          )}
         </div>
 
         {!healthScore && healthScorePending && (
@@ -329,7 +230,7 @@ export function HeroStrip({
             aria-hidden="true"
             className={cn(
               "bg-card/65 border-border/60 rounded-xl border px-4 py-4 shadow-sm backdrop-blur-sm",
-              "w-full md:basis-[22rem] md:shrink-0 md:grow-0 xl:basis-[26rem]",
+              "w-full md:shrink-0 md:grow-0 md:basis-[22rem] xl:basis-[26rem]",
               "flex h-full min-h-64 flex-col gap-3.5",
             )}
           >

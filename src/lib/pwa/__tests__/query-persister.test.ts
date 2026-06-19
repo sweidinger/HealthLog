@@ -175,7 +175,9 @@ describe("persister round-trips through a fake IndexedDB", () => {
 
     const foreignBuild = new QueryClient();
     await restorePersistedQueryCache(foreignBuild, "v9.9.9");
-    expect(foreignBuild.getQueryData(["dashboard", "snapshot"])).toBeUndefined();
+    expect(
+      foreignBuild.getQueryData(["dashboard", "snapshot"]),
+    ).toBeUndefined();
   });
 
   it("never clobbers a query the live cache already holds", async () => {

@@ -106,16 +106,14 @@ describe("resolveOrMintBiomarker", () => {
   it("adopts the race winner on a concurrent unique violation", async () => {
     // First lookup misses; create throws (the other writer won the unique
     // index); the re-lookup finds the winner.
-    db.biomarker.findFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "bm_winner",
-        name: "TSH",
-        unit: "mIU/L",
-        lowerBound: 0.4,
-        upperBound: 4,
-        panel: "thyroid",
-      });
+    db.biomarker.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: "bm_winner",
+      name: "TSH",
+      unit: "mIU/L",
+      lowerBound: 0.4,
+      upperBound: 4,
+      panel: "thyroid",
+    });
     db.biomarker.create.mockRejectedValue(new Error("unique constraint"));
 
     const out = await resolveOrMintBiomarker("u1", {
@@ -134,8 +132,8 @@ describe("resolveOrMintBiomarker", () => {
     db.biomarker.findFirst.mockResolvedValue(null);
     db.biomarker.create.mockRejectedValue(new Error("db down"));
 
-    await expect(
-      resolveOrMintBiomarker("u1", baseInput),
-    ).rejects.toThrow(/Failed to resolve biomarker/);
+    await expect(resolveOrMintBiomarker("u1", baseInput)).rejects.toThrow(
+      /Failed to resolve biomarker/,
+    );
   });
 });

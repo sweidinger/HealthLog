@@ -29,9 +29,7 @@ const source =
 
 describe("reminder-worker — measurement-reminder wiring", () => {
   it("imports the measurement-reminder tick runner", () => {
-    expect(source).toMatch(
-      /from\s*["']@\/lib\/jobs\/measurement-reminder["']/,
-    );
+    expect(source).toMatch(/from\s*["']@\/lib\/jobs\/measurement-reminder["']/);
     expect(source).toMatch(/\brunMeasurementReminderTick\b/);
   });
 
@@ -45,7 +43,9 @@ describe("reminder-worker — measurement-reminder wiring", () => {
   });
 
   it("registers the queue in the allQueues loop", () => {
-    const allQueuesMatch = source.match(/const allQueues\s*=\s*\[([\s\S]*?)\];/);
+    const allQueuesMatch = source.match(
+      /const allQueues\s*=\s*\[([\s\S]*?)\];/,
+    );
     expect(allQueuesMatch).not.toBeNull();
     expect(allQueuesMatch![1]).toMatch(/\bMEASUREMENT_REMINDER_QUEUE\b/);
   });
@@ -73,7 +73,9 @@ describe("reminder-worker — eventful reminder-satisfy wiring (v1.18.1)", () =>
   });
 
   it("registers the satisfy queue in the allQueues loop", () => {
-    const allQueuesMatch = source.match(/const allQueues\s*=\s*\[([\s\S]*?)\];/);
+    const allQueuesMatch = source.match(
+      /const allQueues\s*=\s*\[([\s\S]*?)\];/,
+    );
     expect(allQueuesMatch).not.toBeNull();
     expect(allQueuesMatch![1]).toMatch(/\bREMINDER_SATISFY_QUEUE\b/);
   });

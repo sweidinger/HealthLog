@@ -59,9 +59,7 @@ beforeEach(async () => {
   cookieJar.clear();
   headerJar.clear();
   clearLogBuffer();
-  const { __resetAllCachesForTests } = await import(
-    "@/lib/cache/server-cache"
-  );
+  const { __resetAllCachesForTests } = await import("@/lib/cache/server-cache");
   __resetAllCachesForTests();
 });
 
@@ -129,9 +127,9 @@ describe("GET /api/insights/comprehensive — server cache", () => {
     const { GET } = await import("@/app/api/insights/comprehensive/route");
     const { caches } = await import("@/lib/cache/server-cache");
 
-    const first = await (
-      GET as unknown as (req: Request) => Promise<Response>
-    )(new Request("http://localhost/api/insights/comprehensive"));
+    const first = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/comprehensive"),
+    );
     expect(first.status).toBe(200);
     expect(caches.analytics.stats().misses).toBe(1);
     expect(caches.analytics.stats().hits).toBe(0);
@@ -228,7 +226,8 @@ describe("GET /api/insights/comprehensive — server cache", () => {
       data: Record<string, unknown> & {
         summaries: Record<
           string,
-          { count: number; latest: number | null; mean: number | null } | undefined
+          | { count: number; latest: number | null; mean: number | null }
+          | undefined
         >;
         totalMeasurements: number;
         bpPctInTarget: number | null;

@@ -531,9 +531,7 @@ export async function computeSleepScore(
 
   const { score, subScores } = blendSleepSubScores(raw);
   const presentCount = subScores.filter((s) => s.value !== null).length;
-  const missing = subScores
-    .filter((s) => s.value === null)
-    .map((s) => s.key);
+  const missing = subScores.filter((s) => s.value === null).map((s) => s.key);
 
   const { coverage, confidence } = deriveCoverage({
     // Coverage here is "sub-scores present / total possible" — the

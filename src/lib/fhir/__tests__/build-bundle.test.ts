@@ -70,7 +70,13 @@ function makeData(overrides?: Partial<DoctorReportData>): DoctorReportData {
     },
     stats: {
       WEIGHT: { avg: 79.75, min: 79.5, max: 80, count: 2, latest: 79.5 },
-      BLOOD_PRESSURE_SYS: { avg: 122, min: 118, max: 128, count: 5, latest: 120 },
+      BLOOD_PRESSURE_SYS: {
+        avg: 122,
+        min: 118,
+        max: 128,
+        count: 5,
+        latest: 120,
+      },
       BLOOD_PRESSURE_DIA: { avg: 78, min: 72, max: 82, count: 5, latest: 78 },
       PULSE: { avg: 65, min: 58, max: 72, count: 5, latest: 64 },
     },
@@ -170,9 +176,7 @@ describe("buildFhirDocumentBundle", () => {
     expect(org?.resourceType).toBe("Organization");
     expect(`#${org?.id}`).toBe(payorRef);
     expect(org?.name).toBe("Example Insurer");
-    expect(org?.identifier?.[0].system).toBe(
-      "http://fhir.de/sid/arge-ik/iknr",
-    );
+    expect(org?.identifier?.[0].system).toBe("http://fhir.de/sid/arge-ik/iknr");
     expect(org?.identifier?.[0].value).toBe("101234567");
   });
 
@@ -357,9 +361,7 @@ describe("buildFhirDocumentBundle", () => {
     );
     const observations = bundle.entry
       .map((e) => e.resource)
-      .filter(
-        (r): r is FhirObservation => r.resourceType === "Observation",
-      );
+      .filter((r): r is FhirObservation => r.resourceType === "Observation");
     const weight = observations.find((o) =>
       o.code.coding?.some((c) => c.code === "29463-7"),
     );
@@ -379,9 +381,7 @@ describe("buildFhirDocumentBundle", () => {
     );
     const observations = bundle.entry
       .map((e) => e.resource)
-      .filter(
-        (r): r is FhirObservation => r.resourceType === "Observation",
-      );
+      .filter((r): r is FhirObservation => r.resourceType === "Observation");
     const bp = observations.find((o) =>
       o.code.coding?.some((c) => c.code === "85354-9"),
     );
@@ -406,9 +406,7 @@ describe("buildFhirDocumentBundle", () => {
     );
     const observations = bundle.entry
       .map((e) => e.resource)
-      .filter(
-        (r): r is FhirObservation => r.resourceType === "Observation",
-      );
+      .filter((r): r is FhirObservation => r.resourceType === "Observation");
     const adherence = observations.find((o) =>
       o.code.coding?.some((c) => c.code === "71799-1"),
     );
@@ -762,7 +760,12 @@ describe("buildFhirDocumentBundle", () => {
     const bundle = buildFhirDocumentBundle(
       makeData({
         medications: [
-          { name: "Empagliflozin", dose: "10mg", atcCode: "A10BK03", schedules: [] },
+          {
+            name: "Empagliflozin",
+            dose: "10mg",
+            atcCode: "A10BK03",
+            schedules: [],
+          },
         ],
       }),
       { insuranceNumber: null },
@@ -786,7 +789,12 @@ describe("buildFhirDocumentBundle", () => {
     const bundle = buildFhirDocumentBundle(
       makeData({
         medications: [
-          { name: "Empagliflozin", dose: "10mg", atcCode: "A10BK03", schedules: [] },
+          {
+            name: "Empagliflozin",
+            dose: "10mg",
+            atcCode: "A10BK03",
+            schedules: [],
+          },
         ],
         medicationAdministrations: [
           {
@@ -829,9 +837,7 @@ describe("buildFhirDocumentBundle", () => {
     const adminCoding =
       administrationsOf(bundle)[0].medicationCodeableConcept.coding;
     expect(adminCoding?.[0].system).toBe("http://www.whocc.no/atc");
-    expect(adminCoding?.[1].system).toBe(
-      "http://fhir.de/CodeSystem/bfarm/atc",
-    );
+    expect(adminCoding?.[1].system).toBe("http://fhir.de/CodeSystem/bfarm/atc");
     expect(adminCoding?.[2]).toEqual({
       system: "http://www.nlm.nih.gov/research/umls/rxnorm",
       code: "1545150",
@@ -888,7 +894,12 @@ describe("buildFhirDocumentBundle", () => {
 
   it("emits no Observation for a type with no readings (empty domain)", () => {
     const bundle = buildFhirDocumentBundle(
-      makeData({ measurements: {}, glucoseStats: {}, compliance: {}, bmi: null }),
+      makeData({
+        measurements: {},
+        glucoseStats: {},
+        compliance: {},
+        bmi: null,
+      }),
       { insuranceNumber: null },
       FIXED_NOW,
     );

@@ -20,11 +20,7 @@ import { z } from "zod/v4";
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
-import {
-  apiError,
-  apiSuccess,
-  returnAllZodIssues,
-} from "@/lib/api-response";
+import { apiError, apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { lastNonSkippedTakenAt } from "@/lib/analytics/compliance";
 import type { SlotBand } from "@/lib/medications/scheduling/attribution";

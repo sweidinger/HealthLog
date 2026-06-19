@@ -39,7 +39,12 @@ describe("moodTagLayoutSchema bounds", () => {
     ).toBe(false);
     expect(
       moodTagLayoutSchema.safeParse({
-        placements: { g1: Array.from({ length: MOOD_TAG_LAYOUT_MAX_PLACEMENTS + 1 }, (_, i) => `t${i}`) },
+        placements: {
+          g1: Array.from(
+            { length: MOOD_TAG_LAYOUT_MAX_PLACEMENTS + 1 },
+            (_, i) => `t${i}`,
+          ),
+        },
       }).success,
     ).toBe(false);
     expect(
@@ -56,7 +61,9 @@ describe("parseStoredMoodTagLayout", () => {
     expect(parseStoredMoodTagLayout(null)).toEqual({});
     expect(parseStoredMoodTagLayout(undefined)).toEqual({});
     expect(parseStoredMoodTagLayout("garbage")).toEqual({});
-    expect(parseStoredMoodTagLayout({ groupOrder: "not-an-array" })).toEqual({});
+    expect(parseStoredMoodTagLayout({ groupOrder: "not-an-array" })).toEqual(
+      {},
+    );
     expect(parseStoredMoodTagLayout({ groupOrder: ["a"] })).toEqual({
       groupOrder: ["a"],
     });

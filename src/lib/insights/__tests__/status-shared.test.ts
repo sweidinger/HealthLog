@@ -43,15 +43,15 @@ describe("parseSummaryFromContent", () => {
   });
 
   it("parses a ```json-fenced envelope (no native JSON mode)", () => {
-    expect(
-      parseSummaryFromContent('```json\n{"summary":"hello"}\n```'),
-    ).toBe("hello");
+    expect(parseSummaryFromContent('```json\n{"summary":"hello"}\n```')).toBe(
+      "hello",
+    );
   });
 
   it("parses a sentence-prefixed envelope", () => {
-    expect(
-      parseSummaryFromContent('Sure:\n{"summary":"hello"} — done'),
-    ).toBe("hello");
+    expect(parseSummaryFromContent('Sure:\n{"summary":"hello"} — done')).toBe(
+      "hello",
+    );
   });
 
   it("falls back to the raw content for bare prose", () => {

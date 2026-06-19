@@ -33,6 +33,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MessageCircleHeart } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { apiPatch } from "@/lib/api/api-fetch";
 import { useAuth } from "@/hooks/use-auth";
@@ -94,7 +95,9 @@ export function DisableCoachCard({
   // the activated-state view of it. The SSR default is ON (checked) so the
   // default-on contract holds before the wire value resolves.
   const mounted = useMounted();
-  const activated = mounted ? (optimistic ?? !(user?.disableCoach ?? false)) : true;
+  const activated = mounted
+    ? (optimistic ?? !(user?.disableCoach ?? false))
+    : true;
 
   const mutation = useMutation({
     // `next` is the desired ACTIVATED state; the column stores the inverse.
@@ -140,10 +143,10 @@ export function DisableCoachCard({
   }
 
   return (
-    <section
+    <SettingsCard
+      as="section"
       aria-labelledby="settings-coach-activate-title"
       data-testid="settings-disable-coach-card"
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={MessageCircleHeart}
@@ -173,6 +176,6 @@ export function DisableCoachCard({
           {msg}
         </p>
       )}
-    </section>
+    </SettingsCard>
   );
 }

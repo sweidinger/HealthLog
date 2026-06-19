@@ -104,4 +104,3 @@ export function pearsonCorrelation(
 
   return { r, strength, n };
 }
-

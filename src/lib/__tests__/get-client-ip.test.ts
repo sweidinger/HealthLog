@@ -107,16 +107,12 @@ describe("getClientIp trusted-proxy semantics (V3 audit)", () => {
   // pollute the rate-limit / audit log with non-IP strings; they are
   // now rejected at the helper.
   it("rejects structurally invalid IPv4 candidates (1.2)", () => {
-    const ip = getClientIp(
-      makeRequest({ "x-forwarded-for": "1.2, 5.6.7.8" }),
-    );
+    const ip = getClientIp(makeRequest({ "x-forwarded-for": "1.2, 5.6.7.8" }));
     expect(ip).toBe("5.6.7.8");
   });
 
   it("rejects structurally invalid IPv6 candidates (:::)", () => {
-    const ip = getClientIp(
-      makeRequest({ "x-forwarded-for": ":::, 5.6.7.8" }),
-    );
+    const ip = getClientIp(makeRequest({ "x-forwarded-for": ":::, 5.6.7.8" }));
     expect(ip).toBe("5.6.7.8");
   });
 
@@ -129,9 +125,7 @@ describe("getClientIp trusted-proxy semantics (V3 audit)", () => {
 
   it("accepts well-formed IPv6 addresses", () => {
     process.env.TRUST_PROXY_HOPS = "1";
-    const ip = getClientIp(
-      makeRequest({ "x-forwarded-for": "2001:db8::1" }),
-    );
+    const ip = getClientIp(makeRequest({ "x-forwarded-for": "2001:db8::1" }));
     expect(ip).toBe("2001:db8::1");
   });
 
@@ -294,12 +288,8 @@ describe("getClientIpOrTrustWarning shape (F-6, 2026-05-16)", () => {
     process.env.TRUST_PROXY_HOPS = "2";
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      getClientIpOrTrustWarning(
-        makeRequest({ "x-forwarded-for": "5.6.7.8" }),
-      );
-      getClientIpOrTrustWarning(
-        makeRequest({ "x-forwarded-for": "5.6.7.8" }),
-      );
+      getClientIpOrTrustWarning(makeRequest({ "x-forwarded-for": "5.6.7.8" }));
+      getClientIpOrTrustWarning(makeRequest({ "x-forwarded-for": "5.6.7.8" }));
       expect(warn).toHaveBeenCalledTimes(1);
     } finally {
       warn.mockRestore();

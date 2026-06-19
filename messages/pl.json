@@ -2003,6 +2003,7 @@
     "dailyBriefing": {
       "title": "Briefing dnia",
       "keyFindingsTitle": "Kluczowe wnioski",
+      "signalsTitle": "Sygnały dnia",
       "emptyTitle": "Jeszcze brak briefingu",
       "emptyDescription": "Wygeneruj dzisiejszy briefing, aby zobaczyć podsumowanie trendów.",
       "emptyAction": "Wygeneruj briefing",
@@ -2263,7 +2264,11 @@
       "settingsClustersLabel": "Dane widziane przez Coacha",
       "settingsClustersHint": "Wybierz, które grupy danych Coach może czytać. Więcej danych to bogatsze odpowiedzi i większy prompt.",
       "settingsClusterNoData": "Brak danych",
-      "sourcesMemberCount": "{count} wskaźników"
+      "sourcesMemberCount": "{count} wskaźników",
+      "dictate": "Dyktuj",
+      "dictateStop": "Zatrzymaj dyktowanie",
+      "showConversations": "Pokaż rozmowy",
+      "hideConversations": "Ukryj rozmowy"
     },
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",
@@ -2568,7 +2573,6 @@
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Wciąż poznajemy Twój rytm — {counted} z {total} wolnych nocy. Chronotyp wymaga kilku poranków bez budzika, aby coś znaczył.",
-        "midSleepCaption": "Naturalny środek Twojego snu w dni wolne przypada około {clock}.",
         "advancedToggle": "Zaawansowane",
         "socialJetlagValue": "{hours} godz. {minutes} min jet lagu społecznego",
         "socialJetlagCaption": "Różnica między porą snu w dni robocze i wolne — jak niewielka cotygodniowa zmiana strefy czasowej.",
@@ -2582,7 +2586,7 @@
           "late": "Typ wieczorny",
           "extreme_late": "Wyraźny typ wieczorny"
         },
-        "cornerLabel": "Chronotyp"
+        "midpointHeadline": "Naturalny środek Twojego snu przypada około {clock}."
       },
       "rhythm": {
         "loadError": "Nie udało się teraz wczytać Twojego rytmu snu. Pojawi się ponownie, gdy połączenie się ustabilizuje."
@@ -4021,6 +4025,21 @@
         "description": "Grupy, tagi i zarchiwizowane tagi w wyborze nastroju.",
         "subtitle": "Uporządkuj tagi nastroju, grupy i kolejność wyboru."
       },
+      "labs": {
+        "title": "Wyniki badań",
+        "description": "Widok, sortowanie i biomarkery Twoich wyników badań.",
+        "subtitle": "Zarządzaj widokiem, sortowaniem i biomarkerami."
+      },
+      "illness": {
+        "title": "Dziennik chorób",
+        "description": "Widok i kolejność Twoich epizodów chorobowych.",
+        "subtitle": "Zarządzaj widokiem i kolejnością epizodów."
+      },
+      "vorsorge": {
+        "title": "Profilaktyka",
+        "description": "Widok, kolejność i poszczególne przypomnienia profilaktyczne.",
+        "subtitle": "Zarządzaj widokiem, kolejnością i poszczególnymi przypomnieniami."
+      },
       "modules": {
         "title": "Moduły",
         "saved": "Zapisano.",
@@ -4324,7 +4343,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Połącz swoją wagę i ciśnieniomierze Withings.",
+    "withingsDescription": "Połącz wagę i ciśnieniomierz Withings, aby automatycznie synchronizować wagę, skład ciała i ciśnienie krwi.",
     "withingsCredentials": "Dane logowania API",
     "withingsClientId": "ID klienta",
     "withingsClientSecret": "Sekret klienta",
@@ -4362,10 +4381,8 @@
     "withingsConnect": "Połącz z Withings",
     "withingsNoCredentials": "Najpierw wprowadź powyżej dane logowania API, aby połączyć Withings.",
     "whoop": "WHOOP",
-    "whoopDescription": "Połącz opaskę WHOOP, aby synchronizować regenerację, sen, obciążenie i treningi.",
-    "whoopOverlapNote": "Jeśli WHOOP i inne źródło dostarczają tę samą wartość życiową — tętno spoczynkowe, saturację, temperaturę ciała, częstość oddechów lub fazy snu — możesz widzieć obie wartości, dopóki przyszła aktualizacja nie wybierze jednego preferowanego źródła.",
+    "whoopDescription": "Połącz opaskę WHOOP, aby synchronizować regenerację, sen, obciążenie i treningi prosto do HealthLog.",
     "whoopCredentials": "Dane API",
-    "whoopCredentialsHelp": "Zarejestruj własną aplikację deweloperską WHOOP i wklej tutaj jej Client ID oraz Client Secret.",
     "whoopClientId": "Client ID",
     "whoopClientSecret": "Client Secret",
     "whoopCredentialsSaved": "Dane zapisane",
@@ -4399,12 +4416,9 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit i Pixel",
-    "fitbitDescription": "Połącz Google Health, aby synchronizować dane z Fitbita i Pixel Watch — wagę, tkankę tłuszczową, tętno spoczynkowe, saturację, zmienność rytmu serca i więcej.",
-    "fitbitOverlapNote": "Jeśli Google Health i inne źródło dostarczają ten sam parametr życiowy — tętno spoczynkowe, saturację, temperaturę ciała lub częstość oddechów — możesz widzieć obie wartości, dopóki przyszła aktualizacja nie wybierze jednego preferowanego źródła.",
+    "fitbitDescription": "Połącz Google Health, aby synchronizować dane z Fitbit i Pixel Watch — wagę, tętno i więcej.",
     "fitbitExperimentalBadge": "Eksperymentalne",
-    "fitbitExperimentalNote": "Ta integracja jest w wersji beta — zakres danych i mapowanie pól są wciąż weryfikowane na rzeczywistych kontach Google Health, więc niektóre wartości mogą być niedostępne lub zmienić się w przyszłej aktualizacji.",
     "fitbitCredentials": "Dane uwierzytelniające API",
-    "fitbitCredentialsHelp": "Zarejestruj własny klient OAuth Google Cloud dla interfejsu Google Health API i wklej tutaj jego Client ID oraz Client Secret.",
     "fitbitClientId": "Client ID",
     "fitbitClientSecret": "Client Secret",
     "fitbitCredentialsSaved": "Dane uwierzytelniające zapisane",
@@ -4662,7 +4676,16 @@
       "statusActive": "Aktywny",
       "statusRevoked": "Unieważniony",
       "statusExpired": "Wygasły",
-      "inactiveTitle": "Unieważnione i wygasłe ({count})"
+      "inactiveTitle": "Unieważnione i wygasłe ({count})",
+      "shownOnce": "Wyświetlane tylko raz. Zapisz teraz kod QR i hasło — nie można ich później odzyskać.",
+      "qrLabel": "Kod QR",
+      "qrAlt": "Kod QR zawierający link do udostępniania i hasło",
+      "linkLabel": "Link",
+      "passphraseLabel": "Hasło",
+      "passphraseHint": "Odbiorca potrzebuje linku i tego hasła. Kod QR zawiera oba.",
+      "copyLink": "Kopiuj link",
+      "copyPassphrase": "Kopiuj hasło",
+      "protected": "Hasło"
     },
     "genderOther": "Inna",
     "cycleTracking": {
@@ -4674,9 +4697,8 @@
     },
     "nightscout": "Nightscout",
     "nightscoutTag": "CGM",
-    "nightscoutDescription": "Połącz własną witrynę Nightscout, aby synchronizować ciągłe odczyty glukozy w panelu glukozy.",
+    "nightscoutDescription": "Połącz własną stronę Nightscout, aby synchronizować ciągłe odczyty glukozy w panelu glukozy.",
     "nightscoutViewData": "Zobacz swoją glukozę",
-    "nightscoutHelp": "Wskaż HealthLog na swoją instancję Nightscout. Odczyty są pobierane w tle raz na godzinę.",
     "nightscoutUrl": "Adres URL Nightscout",
     "nightscoutUrlSavedPlaceholder": "Zapisano — wpisz nowy adres URL, aby go zastąpić",
     "nightscoutToken": "Token API",
@@ -4693,11 +4715,10 @@
     "nightscoutDisconnectTitle": "Rozłączyć Nightscout?",
     "nightscoutDisconnectDescription": "Przyszłe synchronizacje zostaną zatrzymane. Już zaimportowane odczyty glukozy pozostaną w historii.",
     "polar": "Polar",
-    "polarDescription": "Połącz konto Polar, aby synchronizować regenerację Nightly Recharge, fazy snu i aktywność dzienną.",
+    "polarDescription": "Połącz konto Polar, aby synchronizować regenerację Nightly Recharge, fazy snu i dzienną aktywność.",
     "polarViewData": "Zobacz sen i regenerację",
     "polarHelp": "Zaloguj się w Polar, aby przyznać dostęp. Dane są pobierane w tle raz na godzinę.",
     "polarCredentials": "Dane API",
-    "polarCredentialsHelp": "Opcjonalnie: zarejestruj własną aplikację Polar AccessLink i wklej tutaj jej Client ID oraz Client Secret. Pozostaw puste, aby użyć współdzielonej aplikacji Polar serwera.",
     "polarClientId": "Client ID",
     "polarClientSecret": "Client Secret",
     "polarCredentialsSaved": "Dane zapisane",
@@ -4721,11 +4742,10 @@
       "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
     },
     "oura": "Oura",
-    "ouraDescription": "Połącz konto Oura, aby synchronizować readiness, fazy snu, HRV i aktywność dzienną.",
+    "ouraDescription": "Połącz konto Oura, aby synchronizować gotowość, fazy snu, zmienność rytmu serca i dzienną aktywność.",
     "ouraViewData": "Zobacz sen i regenerację",
     "ouraHelp": "Zaloguj się w Oura, aby przyznać dostęp. Dane są pobierane w tle raz na godzinę.",
     "ouraCredentials": "Dane API",
-    "ouraCredentialsHelp": "Opcjonalnie: zarejestruj własną aplikację Oura i wklej tutaj jej Client ID oraz Client Secret. Pozostaw puste, aby użyć współdzielonej aplikacji Oura serwera.",
     "ouraClientId": "Client ID",
     "ouraClientSecret": "Client Secret",
     "ouraCredentialsSaved": "Dane zapisane",
@@ -4758,7 +4778,14 @@
         "savedOff": "Coach ukryty.",
         "saveError": "Nie udało się zapisać zmiany. Spróbuj ponownie."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "whoopDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "fitbitDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "polarDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "ouraDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "nightscoutDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej."
   },
   "admin": {
     "title": "Administracja",
@@ -5945,7 +5972,14 @@
       "strain": "Wynik obciążenia",
       "score": "Wynik dobrostanu"
     },
-    "footer": "Udostępnione z HealthLog — samodzielnie hostowanego trackera zdrowia."
+    "footer": "Udostępnione z HealthLog — samodzielnie hostowanego trackera zdrowia.",
+    "unlock": {
+      "title": "Wprowadź hasło",
+      "description": "Ta udostępniona dokumentacja zdrowotna jest chroniona. Wprowadź otrzymane hasło, aby ją wyświetlić.",
+      "label": "Hasło",
+      "error": "To hasło jest nieprawidłowe.",
+      "submit": "Odblokuj"
+    }
   },
   "cycle": {
     "symptomCategory": {
@@ -6404,11 +6438,6 @@
       "onTrack": "Zgodnie z planem",
       "due": "Termin teraz"
     },
-    "settings": {
-      "title": "Dostosuj profilaktykę",
-      "description": "Zarządzaj widokiem, kolejnością i poszczególnymi przypomnieniami.",
-      "back": "Powrót do profilaktyki"
-    },
     "capture": {
       "title": "Zapisz pomiar",
       "description": "Wpisz wartość; przypomnienie zostanie oznaczone jako wykonane."
@@ -6421,6 +6450,14 @@
     "dashboard": {
       "empty": "Brak nadchodzących przypomnień profilaktycznych.",
       "openLink": "Otwórz profilaktykę"
+    },
+    "showMeasurements": "Pokaż pomiary",
+    "trendStrip": {
+      "label": "Ostatnie 7 dni",
+      "summary": "Ostatnia wartość {value}, {direction} w ciągu 7 dni.",
+      "rising": "rosnący",
+      "falling": "malejący",
+      "steady": "stabilny"
     }
   },
   "moduleList": {
@@ -6450,11 +6487,6 @@
     "deleteError": "Nie udało się usunąć wyniku",
     "loadError": "Nie udało się wczytać wyników",
     "customize": "Dostosuj wyniki badań",
-    "settings": {
-      "title": "Dostosuj wyniki badań",
-      "description": "Zarządzaj widokiem, sortowaniem i biomarkerami.",
-      "back": "Powrót do wyników badań"
-    },
     "sort": {
       "heading": "Sortowanie",
       "label": "Kolejność wartości",
@@ -6653,11 +6685,6 @@
     "title": "Dziennik chorób",
     "subtitle": "Retrospektywny zapis Twoich epizodów chorób i dolegliwości.",
     "customize": "Dostosuj dziennik chorób",
-    "settings": {
-      "title": "Dostosuj dziennik chorób",
-      "description": "Zarządzaj widokiem i kolejnością epizodów.",
-      "back": "Powrót do dziennika chorób"
-    },
     "newEpisode": "Nowy epizod",
     "logDay": "Zapisz dzień",
     "markRecovered": "Oznacz jako wyleczone",

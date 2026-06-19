@@ -78,8 +78,7 @@ export function buildHealthScoreBpInputs(
   // 90-day window is itself sparse so a deep-history account survives a quiet
   // quarter, but never grade off a sub-floor 90-day sample.
   const last90Sufficient =
-    current.last90Days !== null &&
-    isWindowSufficient(current.last90Days.pairs);
+    current.last90Days !== null && isWindowSufficient(current.last90Days.pairs);
   const bpInTargetPct = last90Sufficient
     ? (current.last90Days?.pct ?? null)
     : (current.allTime?.pct ?? null);

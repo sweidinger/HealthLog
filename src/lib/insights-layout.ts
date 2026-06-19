@@ -361,9 +361,11 @@ function serializeInsightsSections(
   previous?: InsightsLayout,
 ): InsightsSectionConfig[] {
   if (!sections) {
-    return (previous?.sections ?? DEFAULT_INSIGHTS_LAYOUT.sections).map((s) => ({
-      ...s,
-    }));
+    return (previous?.sections ?? DEFAULT_INSIGHTS_LAYOUT.sections).map(
+      (s) => ({
+        ...s,
+      }),
+    );
   }
 
   const knownIds = new Set<string>(INSIGHTS_SECTION_IDS);

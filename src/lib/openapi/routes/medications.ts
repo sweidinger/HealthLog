@@ -298,13 +298,13 @@ const medicationInventoryItemResource = z
       .number()
       .nullable()
       .describe(
-        "Units the container shipped with (tablets / ampoules / puffs; 1–1000). v1.16.12 — fractional, so a split-pill remainder reads cleanly. Dose-derived readouts divide by the medication's `unitsPerDose`. v1.18.3 (iOS#31) — NULL when the unit count is unknown (a corrupt or legacy row); the client renders \"unknown\", never a fabricated 0.",
+        'Units the container shipped with (tablets / ampoules / puffs; 1–1000). v1.16.12 — fractional, so a split-pill remainder reads cleanly. Dose-derived readouts divide by the medication\'s `unitsPerDose`. v1.18.3 (iOS#31) — NULL when the unit count is unknown (a corrupt or legacy row); the client renders "unknown", never a fabricated 0.',
       ),
     unitsRemaining: z
       .number()
       .nullable()
       .describe(
-        "Units left in the container. v1.16.12 — fractional (a ½-tablet dose leaves 29.5 of 30). Decremented by the intake consumption hook (FEFO with spillover across containers); refunded when a taken dose is skipped, edited away, or deleted. v1.18.3 (iOS#31) — NULL when the count is unknown (a corrupt or legacy row); the client renders \"unknown\", never a fabricated 0 it could decrement into negatives.",
+        'Units left in the container. v1.16.12 — fractional (a ½-tablet dose leaves 29.5 of 30). Decremented by the intake consumption hook (FEFO with spillover across containers); refunded when a taken dose is skipped, edited away, or deleted. v1.18.3 (iOS#31) — NULL when the count is unknown (a corrupt or legacy row); the client renders "unknown", never a fabricated 0 it could decrement into negatives.',
       ),
     firstUseAt: z.iso
       .datetime({ offset: true })
@@ -627,7 +627,9 @@ const scheduleRevisionEntrySummary = z
     dose: z.string().nullable(),
     scheduleType: z
       .string()
-      .describe("Schedule-type discriminator of the archived row (SCHEDULED / PRN / CYCLIC)."),
+      .describe(
+        "Schedule-type discriminator of the archived row (SCHEDULED / PRN / CYCLIC).",
+      ),
   })
   .meta({
     id: "ScheduleRevisionEntry",
@@ -638,12 +640,12 @@ const scheduleRevisionEntrySummary = z
 const scheduleRevisionResource = z
   .object({
     id: z.string(),
-    validFrom: z.iso
-      .datetime()
-      .describe("Inclusive start instant of the era."),
+    validFrom: z.iso.datetime().describe("Inclusive start instant of the era."),
     validUntil: z.iso
       .datetime()
-      .describe("Exclusive end instant of the era — the moment the next plan took over."),
+      .describe(
+        "Exclusive end instant of the era — the moment the next plan took over.",
+      ),
     source: z
       .enum(["ARCHIVED", "MANUAL"])
       .describe(

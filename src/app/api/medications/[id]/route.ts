@@ -369,7 +369,9 @@ export const PUT = apiHandler(
 
       // Invariant 3 — dual-write timesOfDay from windowStart.
       const effectiveTimesOfDay =
-        s.timesOfDay && s.timesOfDay.length > 0 ? s.timesOfDay : [s.windowStart];
+        s.timesOfDay && s.timesOfDay.length > 0
+          ? s.timesOfDay
+          : [s.windowStart];
 
       // Invariant 4 — window / times consistency. See
       // `reconcileScheduleWindow`: a times-only edit that echoes the
@@ -571,11 +573,18 @@ export const PUT = apiHandler(
       // key). Best-effort like every other rollup write-hook: a failure
       // is annotated, never blocks the schedule replace.
       const staleDayKeys = new Set(
-        tombstoned.map((row) => dayKeyForScheduledFor(row.scheduledFor, userTz)),
+        tombstoned.map((row) =>
+          dayKeyForScheduledFor(row.scheduledFor, userTz),
+        ),
       );
       for (const dayKey of staleDayKeys) {
         try {
-          await recomputeMedicationComplianceForDay(user.id, id, dayKey, userTz);
+          await recomputeMedicationComplianceForDay(
+            user.id,
+            id,
+            dayKey,
+            userTz,
+          );
         } catch (err) {
           annotate({
             meta: {

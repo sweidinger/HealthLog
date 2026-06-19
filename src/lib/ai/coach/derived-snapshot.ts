@@ -68,11 +68,17 @@ function summariseValue(
     case "STRESS_SCORE":
     case "STRAIN_SCORE":
       return typeof v.score === "number"
-        ? { value: v.score, band: typeof v.band === "string" ? v.band : undefined }
+        ? {
+            value: v.score,
+            band: typeof v.band === "string" ? v.band : undefined,
+          }
         : null;
     case "HRV_BALANCE":
       return typeof v.recentAvg === "number"
-        ? { value: Math.round(v.recentAvg), band: typeof v.band === "string" ? v.band : undefined }
+        ? {
+            value: Math.round(v.recentAvg),
+            band: typeof v.band === "string" ? v.band : undefined,
+          }
         : null;
     case "FITNESS_AGE":
       return typeof v.vo2Max === "number"
@@ -119,7 +125,10 @@ export async function buildDerivedSnapshotBlock(
   const computed = await Promise.all(
     SNAPSHOT_METRICS.map(async (metric) => {
       try {
-        return { metric, derived: await computeDerivedMetric({ metric, userId, profile, now }) };
+        return {
+          metric,
+          derived: await computeDerivedMetric({ metric, userId, profile, now }),
+        };
       } catch {
         return { metric, derived: null };
       }

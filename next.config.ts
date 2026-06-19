@@ -140,9 +140,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: [
-          { key: "Permissions-Policy", value: "unload=()" },
-        ],
+        headers: [{ key: "Permissions-Policy", value: "unload=()" }],
       },
       {
         source: "/((?!api|_next).*)",

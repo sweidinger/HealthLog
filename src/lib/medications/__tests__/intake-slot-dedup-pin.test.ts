@@ -91,9 +91,7 @@ beforeEach(() => {
   vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValue({
     count: 1,
   } as never);
-  vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
-    {} as never,
-  );
+  vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue({} as never);
 });
 
 describe("dedupeUserIntakeSlots — pin-awareness (v1.16.0)", () => {

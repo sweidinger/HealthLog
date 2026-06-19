@@ -310,7 +310,12 @@ async function computeFromRollups(
   // All-time on the rollup path is bounded to the 395-day read window.
   // Documented above — same trade-off the per-event path makes when the
   // user's history extends beyond 365 days.
-  const allTime = bucketWindow(pairsByDay, threeNinetyFiveDaysAgo, now, targets);
+  const allTime = bucketWindow(
+    pairsByDay,
+    threeNinetyFiveDaysAgo,
+    now,
+    targets,
+  );
   const priorMonth = bucketWindow(
     pairsByDay,
     sixtyDaysAgo,

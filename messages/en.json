@@ -2003,6 +2003,7 @@
     "dailyBriefing": {
       "title": "Daily Briefing",
       "keyFindingsTitle": "Key findings",
+      "signalsTitle": "Signals of the day",
       "emptyTitle": "No briefing yet",
       "emptyDescription": "Generate today's briefing to get a narrative read of your trends.",
       "emptyAction": "Generate briefing",
@@ -2263,7 +2264,11 @@
       "settingsClustersLabel": "Data the Coach sees",
       "settingsClustersHint": "Pick which clusters of your data the Coach can read. More data means richer answers and a larger prompt.",
       "settingsClusterNoData": "No data yet",
-      "sourcesMemberCount": "{count} metrics"
+      "sourcesMemberCount": "{count} metrics",
+      "dictate": "Dictate",
+      "dictateStop": "Stop dictation",
+      "showConversations": "Show conversations",
+      "hideConversations": "Hide conversations"
     },
     "relativeJustNow": "just now",
     "relativeMinutesAgoOne": "{count} minute ago",
@@ -2568,7 +2573,6 @@
       "chronotype": {
         "title": "Chronotype",
         "learning": "Still learning your rhythm — {counted} of {total} free nights. A chronotype needs a few alarm-free mornings before it means anything.",
-        "midSleepCaption": "Your natural sleep midpoint on free days lands around {clock}.",
         "advancedToggle": "Advanced",
         "socialJetlagValue": "{hours}h {minutes}m social jetlag",
         "socialJetlagCaption": "The gap between your work-day and free-day sleep timing — like a small weekly time-zone shift.",
@@ -2582,7 +2586,7 @@
           "late": "Evening type",
           "extreme_late": "Strong evening type"
         },
-        "cornerLabel": "Chronotype"
+        "midpointHeadline": "Your natural sleep midpoint is around {clock}."
       },
       "rhythm": {
         "loadError": "Your sleep rhythm couldn't load just now. It'll reappear once the connection settles."
@@ -4021,6 +4025,21 @@
         "description": "Groups, tags, and archived tags for the mood picker.",
         "subtitle": "Organize your mood tags, groups, and picker order."
       },
+      "labs": {
+        "title": "Labs",
+        "description": "View, sort order, and biomarkers for your labs.",
+        "subtitle": "Manage the view, sort order, and biomarkers."
+      },
+      "illness": {
+        "title": "Illness journal",
+        "description": "View and order of your illness episodes.",
+        "subtitle": "Manage the view and order of episodes."
+      },
+      "vorsorge": {
+        "title": "Preventive care",
+        "description": "View, order, and individual preventive-care reminders.",
+        "subtitle": "Manage the view, order, and individual reminders."
+      },
       "modules": {
         "title": "Modules",
         "saved": "Saved.",
@@ -4324,7 +4343,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Connect your Withings scale and blood pressure monitors.",
+    "withingsDescription": "Connect your Withings scale and blood-pressure monitor to sync weight, body composition, and blood pressure automatically.",
     "withingsCredentials": "API Credentials",
     "withingsClientId": "Client ID",
     "withingsClientSecret": "Client Secret",
@@ -4362,10 +4381,8 @@
     "withingsConnect": "Connect with Withings",
     "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
     "whoop": "WHOOP",
-    "whoopDescription": "Connect your WHOOP strap to sync recovery, sleep, strain and workouts.",
-    "whoopOverlapNote": "If WHOOP and another source both supply a vital — resting heart rate, blood oxygen, body temperature, respiratory rate or sleep stages — you may see both values until a future update settles on a single preferred source.",
+    "whoopDescription": "Connect your WHOOP strap to sync recovery, sleep, strain, and workouts straight into HealthLog.",
     "whoopCredentials": "API Credentials",
-    "whoopCredentialsHelp": "Register your own WHOOP developer app and paste its Client ID and Client Secret here.",
     "whoopClientId": "Client ID",
     "whoopClientSecret": "Client Secret",
     "whoopCredentialsSaved": "Credentials saved",
@@ -4399,12 +4416,9 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit & Pixel",
-    "fitbitDescription": "Connect Google Health to sync your Fitbit and Pixel Watch metrics — weight, body fat, resting heart rate, blood oxygen, heart-rate variability and more.",
-    "fitbitOverlapNote": "If Google Health and another source both supply a vital — resting heart rate, blood oxygen, body temperature or respiratory rate — you may see both values until a future update settles on a single preferred source.",
+    "fitbitDescription": "Connect Google Health to sync your Fitbit and Pixel Watch vitals — weight, heart rate, and more.",
     "fitbitExperimentalBadge": "Experimental",
-    "fitbitExperimentalNote": "This integration is in beta — data coverage and field mapping are still being verified against live Google Health accounts, so some values may be missing or change in a future update.",
     "fitbitCredentials": "API Credentials",
-    "fitbitCredentialsHelp": "Register your own Google Cloud OAuth client for the Google Health API and paste its Client ID and Client Secret here.",
     "fitbitClientId": "Client ID",
     "fitbitClientSecret": "Client Secret",
     "fitbitCredentialsSaved": "Credentials saved",
@@ -4662,7 +4676,16 @@
       "statusActive": "Active",
       "statusRevoked": "Revoked",
       "statusExpired": "Expired",
-      "inactiveTitle": "Revoked and expired ({count})"
+      "inactiveTitle": "Revoked and expired ({count})",
+      "shownOnce": "Shown once only. Capture the QR code and passphrase now — neither can be recovered later.",
+      "qrLabel": "QR code",
+      "qrAlt": "QR code containing the share link and passphrase",
+      "linkLabel": "Link",
+      "passphraseLabel": "Passphrase",
+      "passphraseHint": "The recipient needs both the link and this passphrase. The QR code carries both.",
+      "copyLink": "Copy link",
+      "copyPassphrase": "Copy passphrase",
+      "protected": "Passphrase"
     },
     "genderOther": "Other",
     "cycleTracking": {
@@ -4674,9 +4697,8 @@
     },
     "nightscout": "Nightscout",
     "nightscoutTag": "CGM",
-    "nightscoutDescription": "Connect your own Nightscout site to sync continuous glucose readings for the glucose panel.",
+    "nightscoutDescription": "Connect your own Nightscout site to sync continuous glucose readings into the glucose panel.",
     "nightscoutViewData": "View your glucose",
-    "nightscoutHelp": "Point HealthLog at your Nightscout instance. Readings are pulled in the background once an hour.",
     "nightscoutUrl": "Nightscout URL",
     "nightscoutUrlSavedPlaceholder": "Saved — enter a new URL to replace it",
     "nightscoutToken": "API token",
@@ -4697,7 +4719,6 @@
     "polarViewData": "View your sleep & recovery",
     "polarHelp": "Sign in with Polar to grant access. Data is pulled in the background once an hour.",
     "polarCredentials": "API Credentials",
-    "polarCredentialsHelp": "Optional: register your own Polar AccessLink app and paste its Client ID and Client Secret here. Leave blank to use the server's shared Polar app.",
     "polarClientId": "Client ID",
     "polarClientSecret": "Client Secret",
     "polarCredentialsSaved": "Credentials saved",
@@ -4721,11 +4742,10 @@
       "generic": "Unknown error while connecting. Please start the connection again."
     },
     "oura": "Oura",
-    "ouraDescription": "Connect your Oura account to sync readiness, sleep stages, HRV, and daily activity.",
+    "ouraDescription": "Connect your Oura account to sync readiness, sleep stages, heart-rate variability, and daily activity.",
     "ouraViewData": "View your sleep & recovery",
     "ouraHelp": "Sign in with Oura to grant access. Data is pulled in the background once an hour.",
     "ouraCredentials": "API Credentials",
-    "ouraCredentialsHelp": "Optional: register your own Oura app and paste its Client ID and Client Secret here. Leave blank to use the server's shared Oura app.",
     "ouraClientId": "Client ID",
     "ouraClientSecret": "Client Secret",
     "ouraCredentialsSaved": "Credentials saved",
@@ -4758,7 +4778,14 @@
         "savedOff": "Coach hidden.",
         "saveError": "Could not save the change. Please try again."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "whoopDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "fitbitDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "polarDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "ouraDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "nightscoutDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "integrationCredentialsHint": "Where to find these credentials and how to register your own app is covered in the setup guide above."
   },
   "admin": {
     "title": "Administration",
@@ -5945,7 +5972,14 @@
       "strain": "Strain score",
       "score": "Wellness score"
     },
-    "footer": "Shared from HealthLog — a self-hosted personal health tracker."
+    "footer": "Shared from HealthLog — a self-hosted personal health tracker.",
+    "unlock": {
+      "title": "Enter passphrase",
+      "description": "This shared health record is protected. Enter the passphrase you were given to view it.",
+      "label": "Passphrase",
+      "error": "That passphrase is not correct.",
+      "submit": "Unlock"
+    }
   },
   "cycle": {
     "symptomCategory": {
@@ -6404,11 +6438,6 @@
       "onTrack": "On track",
       "due": "Due now"
     },
-    "settings": {
-      "title": "Customize preventive care",
-      "description": "Manage the view, order, and individual reminders.",
-      "back": "Back to preventive care"
-    },
     "capture": {
       "title": "Log measurement",
       "description": "Enter the reading; the reminder is marked done."
@@ -6421,6 +6450,14 @@
     "dashboard": {
       "empty": "No upcoming preventive-care reminders.",
       "openLink": "Open preventive care"
+    },
+    "showMeasurements": "Show measurements",
+    "trendStrip": {
+      "label": "Last 7 days",
+      "summary": "Latest value {value}, {direction} over 7 days.",
+      "rising": "rising",
+      "falling": "falling",
+      "steady": "steady"
     }
   },
   "moduleList": {
@@ -6450,11 +6487,6 @@
     "deleteError": "Could not delete the result",
     "loadError": "Could not load lab results",
     "customize": "Customize labs",
-    "settings": {
-      "title": "Customize labs",
-      "description": "Manage the view, sort order, and biomarkers.",
-      "back": "Back to labs"
-    },
     "sort": {
       "heading": "Sort order",
       "label": "Order of values",
@@ -6653,11 +6685,6 @@
     "title": "Illness journal",
     "subtitle": "A retrospective log of your illness and condition episodes.",
     "customize": "Customize illness journal",
-    "settings": {
-      "title": "Customize illness journal",
-      "description": "Manage the view and order of episodes.",
-      "back": "Back to the illness journal"
-    },
     "newEpisode": "New episode",
     "logDay": "Log a day",
     "markRecovered": "Mark recovered",

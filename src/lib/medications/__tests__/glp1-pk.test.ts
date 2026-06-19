@@ -23,7 +23,9 @@ describe("RESEARCH_MODE_DISCLAIMER_VERSION", () => {
   });
 
   it("matches the YYYY-MM-DD.N version stamp shape", () => {
-    expect(RESEARCH_MODE_DISCLAIMER_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/);
+    expect(RESEARCH_MODE_DISCLAIMER_VERSION).toMatch(
+      /^\d{4}-\d{2}-\d{2}\.\d+$/,
+    );
   });
 });
 
@@ -59,12 +61,11 @@ describe("computeOneCompartment", () => {
       takenAt: new Date(ASOF.getTime() + 3 * 24 * 60 * 60 * 1000),
       doseMg: 5,
     };
-    const samples = computeOneCompartment(
-      "tirzepatide",
-      [futureDose],
-      ASOF,
-      { windowHoursBefore: 48, windowHoursAfter: 48, stepHours: 6 },
-    );
+    const samples = computeOneCompartment("tirzepatide", [futureDose], ASOF, {
+      windowHoursBefore: 48,
+      windowHoursAfter: 48,
+      stepHours: 6,
+    });
     // All samples in the requested ±48 h window are *before* the
     // 72 h-in-the-future dose, so they must all be 0.
     for (const s of samples) {
@@ -97,8 +98,7 @@ describe("computeOneCompartment", () => {
 
     expect(both).toHaveLength(onlyFirst.length);
     for (let i = 0; i < both.length; i++) {
-      const expected =
-        onlyFirst[i].concentration + onlySecond[i].concentration;
+      const expected = onlyFirst[i].concentration + onlySecond[i].concentration;
       // Tight tolerance — superposition is exact in the math; any
       // drift here is a numerical bug, not a model limitation.
       expect(both[i].concentration).toBeCloseTo(expected, 9);
@@ -107,12 +107,11 @@ describe("computeOneCompartment", () => {
 
   it("respects custom window + step overrides", () => {
     const dose = { takenAt: hoursBefore(ASOF, 24), doseMg: 2.5 };
-    const samples = computeOneCompartment(
-      "tirzepatide",
-      [dose],
-      ASOF,
-      { windowHoursBefore: 24, windowHoursAfter: 12, stepHours: 6 },
-    );
+    const samples = computeOneCompartment("tirzepatide", [dose], ASOF, {
+      windowHoursBefore: 24,
+      windowHoursAfter: 12,
+      stepHours: 6,
+    });
     // -24, -18, -12, -6, 0, 6, 12 → 7 samples
     expect(samples).toHaveLength(7);
     expect(samples[0].tHours).toBe(-24);

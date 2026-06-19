@@ -8,7 +8,10 @@ import { LearningGate } from "@/components/ui/learning-gate";
 import type { SleepDebtDto } from "./use-sleep-rhythm";
 
 /** Whole hours + minutes from a minute total, for the headline figure. */
-function hoursMinutes(totalMinutes: number): { hours: number; minutes: number } {
+function hoursMinutes(totalMinutes: number): {
+  hours: number;
+  minutes: number;
+} {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = Math.round(totalMinutes - hours * 60);
   return { hours, minutes };

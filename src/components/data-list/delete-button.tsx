@@ -62,11 +62,10 @@ export function DeleteButton({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{cancelLabel ?? t("common.cancel")}</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            onClick={onConfirm}
-          >
+          <AlertDialogCancel>
+            {cancelLabel ?? t("common.cancel")}
+          </AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>
             {confirmLabel ?? t("common.delete")}
           </AlertDialogAction>
         </AlertDialogFooter>

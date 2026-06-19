@@ -49,7 +49,9 @@ describe("rovingRadioNextIndex", () => {
   it("skips disabled options when stepping", () => {
     // Middle option disabled: ArrowRight from 0 lands on 2, not 1.
     const middleDisabled = (i: number) => i === 1;
-    expect(rovingRadioNextIndex("ArrowRight", 0, COUNT, middleDisabled)).toBe(2);
+    expect(rovingRadioNextIndex("ArrowRight", 0, COUNT, middleDisabled)).toBe(
+      2,
+    );
     expect(rovingRadioNextIndex("ArrowLeft", 2, COUNT, middleDisabled)).toBe(0);
   });
 
@@ -60,8 +62,6 @@ describe("rovingRadioNextIndex", () => {
   });
 
   it("returns null when every option is disabled", () => {
-    expect(
-      rovingRadioNextIndex("ArrowRight", 0, COUNT, () => true),
-    ).toBeNull();
+    expect(rovingRadioNextIndex("ArrowRight", 0, COUNT, () => true)).toBeNull();
   });
 });

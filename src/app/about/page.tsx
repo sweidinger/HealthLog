@@ -50,7 +50,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="space-y-3 scroll-mt-28">
+    <section id={id} className="scroll-mt-28 space-y-3">
       <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
         {title}
       </h2>
@@ -64,7 +64,7 @@ function Section({
 export default function AboutPage() {
   return (
     <div className="bg-background text-foreground min-h-dvh">
-      <header className="border-border/60 bg-background/80 sticky top-0 z-10 border-b backdrop-blur pt-[env(safe-area-inset-top)]">
+      <header className="border-border/60 bg-background/80 sticky top-0 z-10 border-b pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 md:px-6">
           <Link
             href="/"
@@ -122,8 +122,8 @@ export default function AboutPage() {
         <Section id="credits" title="Credits">
           <p>
             HealthLog stands on a number of open-source libraries and public
-            data sources. The list below covers the third-party assets that
-            ship with the runtime image and whose licences require an explicit
+            data sources. The list below covers the third-party assets that ship
+            with the runtime image and whose licences require an explicit
             attribution.
           </p>
 
@@ -150,23 +150,22 @@ export default function AboutPage() {
               GeoLite2-ASN
             </code>
             ) power the offline IP-to-location and IP-to-carrier lookups that
-            decorate the admin login-overview audit table. They are
-            distributed under the{" "}
+            decorate the admin login-overview audit table. They are distributed
+            under the{" "}
             <a
               href="https://creativecommons.org/licenses/by-sa/4.0/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              Creative Commons Attribution-ShareAlike 4.0 International
-              License
+              Creative Commons Attribution-ShareAlike 4.0 International License
             </a>
             .
           </p>
         </Section>
 
         <footer
-          className="border-border/60 mt-12 border-t pt-6 text-xs text-muted-foreground"
+          className="border-border/60 text-muted-foreground mt-12 border-t pt-6 text-xs"
           data-slot="about-footer"
         >
           <p>

@@ -632,16 +632,12 @@ export const METRIC_STATUS_IDS = Object.keys(
 ) as MetricStatusMetricId[];
 
 /** Type guard narrowing an arbitrary string to a registered metric id. */
-export function isMetricStatusId(
-  value: string,
-): value is MetricStatusMetricId {
+export function isMetricStatusId(value: string): value is MetricStatusMetricId {
   return Object.prototype.hasOwnProperty.call(REGISTRY, value);
 }
 
 /** Resolve the metadata for a metric id, or null when unregistered. */
-export function getMetricStatusMeta(
-  metric: string,
-): MetricStatusMeta | null {
+export function getMetricStatusMeta(metric: string): MetricStatusMeta | null {
   return isMetricStatusId(metric) ? REGISTRY[metric] : null;
 }
 

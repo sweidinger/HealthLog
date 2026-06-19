@@ -104,7 +104,11 @@ export function mergeAvailabilityPatch(
   // Start from the existing persisted blob, keeping only known boolean
   // entries, then overlay the validated patch.
   const merged: Record<string, boolean> = {};
-  if (existing != null && typeof existing === "object" && !Array.isArray(existing)) {
+  if (
+    existing != null &&
+    typeof existing === "object" &&
+    !Array.isArray(existing)
+  ) {
     for (const [k, v] of Object.entries(existing as Record<string, unknown>)) {
       if (isModuleKey(k) && typeof v === "boolean") {
         merged[k] = v;

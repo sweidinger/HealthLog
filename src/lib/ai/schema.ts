@@ -291,6 +291,45 @@ export type DailyBriefingKeyFinding = z.infer<
   typeof dailyBriefingKeyFindingSchema
 >;
 
+/**
+ * v1.18.7 — "Signals of the day".
+ *
+ * The present-focused lead of the rebuilt daily briefing. Each signal is a
+ * short, NOW-anchored read of one metric — what the freshest reading is doing
+ * against the user's own recent baseline — paired with a single concrete,
+ * doable nudge ("you're ~1h short on sleep this week — aim for an earlier
+ * night"). The deterministic `features.signalsOfDay` block hands the model
+ * the comparison already finished (delta, normal-swing verdict, emerging
+ * trend, recent anomaly), so the prose states it rather than re-deriving it.
+ *
+ * Hard cap of 3 so the briefing leads with what actually moved today and the
+ * card stays a glance, not a wall. The block is optional + nullable so cached
+ * payloads from before v1.18.7 round-trip without forcing a regenerate.
+ */
+export const dailyBriefingSignalSchema = z.object({
+  /** Metric the signal is drawn from — same discriminator as keyFindings. */
+  sourceMetric: dailyBriefingKeyFindingSchema.shape.sourceMetric,
+  /**
+   * Tone drives the accent colour, mirroring the keyFinding ladder:
+   *   - "good"  — moving the favourable way / target held
+   *   - "watch" — a deviation worth a gentle nudge
+   *   - "info"  — a neutral present-tense observation
+   */
+  tone: z.enum(["good", "watch", "info"]),
+  /** Present-tense headline — what is happening NOW (the user reads first). */
+  headline: z.string().min(1, "signal.headline required"),
+  /**
+   * One concrete, doable nudge tied to the signal. Empty rejected so a
+   * signal always carries an action the user can take, not just an
+   * observation. Stays inside the data boundary — never a prescription.
+   */
+  nudge: z.string().min(1, "signal.nudge required"),
+  /** Optional delta string — e.g. "+6 mmHg vs your 30-day average". */
+  delta: z.string().nullable(),
+});
+
+export type DailyBriefingSignal = z.infer<typeof dailyBriefingSignalSchema>;
+
 export const dailyBriefingSchema = z.object({
   /**
    * Narrative paragraph — ~80-200 words. Synthesised from the day's
@@ -298,6 +337,17 @@ export const dailyBriefingSchema = z.object({
    * strings are rejected so the briefing card never paints a void.
    */
   paragraph: z.string().min(1, "dailyBriefing.paragraph required"),
+  /**
+   * v1.18.7 — 0-3 present-focused "Signals of the day". The rebuilt
+   * briefing leads with these; `keyFindings` stays the longer-horizon
+   * trend list below. Optional + nullable so pre-v1.18.7 caches round-trip.
+   */
+  signalsOfDay: z
+    .array(dailyBriefingSignalSchema)
+    .min(0)
+    .max(3)
+    .nullable()
+    .optional(),
   /**
    * 0-5 key findings. Empty array is acceptable when the data is
    * truly flat; the hero strip simply hides the row in that case.

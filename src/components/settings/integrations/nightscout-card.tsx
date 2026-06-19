@@ -10,7 +10,14 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Droplet, Link2, Loader2, Save, Unlink } from "lucide-react";
+import {
+  ArrowRight,
+  Droplet,
+  Link2,
+  Loader2,
+  Save,
+  Unlink,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -28,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Switch } from "@/components/ui/switch";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import {
   IntegrationStatusPill,
@@ -36,24 +44,35 @@ import {
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { apiFetchRaw, apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
-import { invalidateKeys, measurementDependentKeys, queryKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  measurementDependentKeys,
+  queryKeys,
+} from "@/lib/query-keys";
 
 import { IntegrationErrorMessage } from "./shared";
-import { IntegrationSetupGuideLink } from "./setup-guide-link";
+import { IntegrationCardDescription } from "./setup-guide-link";
 
 interface NightscoutStatus {
   connected: boolean;
   configured: boolean;
   hasToken?: boolean;
   allowPrivateHost?: boolean;
-  state?: "connected" | "error_transient" | "error_reauth" | "disconnected" | "parked";
+  state?:
+    | "connected"
+    | "error_transient"
+    | "error_reauth"
+    | "disconnected"
+    | "parked";
   lastSuccessAt?: string | null;
   lastAttemptAt?: string | null;
   lastError?: string | null;
 }
 
 /** Map the shared ledger state onto the pill's display state. */
-function pillStateFor(status: NightscoutStatus | undefined): IntegrationPillState {
+function pillStateFor(
+  status: NightscoutStatus | undefined,
+): IntegrationPillState {
   if (!status?.connected) return "disconnected";
   switch (status.state) {
     case "parked":
@@ -158,10 +177,7 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
       : null;
 
   return (
-    <div
-      data-testid="nightscout-card"
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
-    >
+    <SettingsCard data-testid="nightscout-card">
       <SettingsCardHeader
         icon={Droplet}
         title={t("settings.nightscout")}
@@ -170,7 +186,12 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
             {t("settings.nightscoutTag")}
           </span>
         }
-        description={<p>{t("settings.nightscoutDescription")}</p>}
+        description={
+          <IntegrationCardDescription
+            i18nPrefix="settings.nightscout"
+            provider="nightscout"
+          />
+        }
         status={
           <IntegrationStatusPill
             state={pillState}
@@ -219,13 +240,11 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
           </div>
         )}
 
-        <p className="text-muted-foreground text-xs">
-          {t("settings.nightscoutHelp")}
-        </p>
-
         <form ref={formRef} onSubmit={handleConnect} className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="nightscout-url">{t("settings.nightscoutUrl")}</Label>
+            <Label htmlFor="nightscout-url">
+              {t("settings.nightscoutUrl")}
+            </Label>
             <Input
               id="nightscout-url"
               type="url"
@@ -367,9 +386,7 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
             </Link>
           </>
         )}
-
-        <IntegrationSetupGuideLink provider="nightscout" />
       </div>
-    </div>
+    </SettingsCard>
   );
 }

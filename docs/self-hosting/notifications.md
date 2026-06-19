@@ -24,14 +24,14 @@ Apple-platform exclusives the web cannot offer.
 
 ## TL;DR — which channel needs what
 
-| Channel | What it needs | Cost | Where it works |
-| --- | --- | --- | --- |
-| **Web Push** | A VAPID keypair (one command, or paste into the admin panel) | Free | Any modern desktop/Android browser; the installed PWA on iPhone (iOS 16.4+, after *Add to Home Screen*) |
-| **Telegram** | A bot token from @BotFather + each user's chat ID | Free | Anywhere the Telegram app runs |
-| **ntfy** | A topic on `ntfy.sh` or your own ntfy server | Free | The ntfy app (iOS/Android) or any browser |
-| **Webhook** | A URL you own (and optionally one custom header) | Free | Anywhere — you route the POST yourself |
-| **Email** | An SMTP transport you operate or rent | Free–cheap | Any mailbox |
-| **APNs** | An Apple Developer account + a `.p8` push key + your own signed iOS build | Apple Developer Program (paid) | A native iOS app you build and sign |
+| Channel      | What it needs                                                             | Cost                           | Where it works                                                                                          |
+| ------------ | ------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| **Web Push** | A VAPID keypair (one command, or paste into the admin panel)              | Free                           | Any modern desktop/Android browser; the installed PWA on iPhone (iOS 16.4+, after _Add to Home Screen_) |
+| **Telegram** | A bot token from @BotFather + each user's chat ID                         | Free                           | Anywhere the Telegram app runs                                                                          |
+| **ntfy**     | A topic on `ntfy.sh` or your own ntfy server                              | Free                           | The ntfy app (iOS/Android) or any browser                                                               |
+| **Webhook**  | A URL you own (and optionally one custom header)                          | Free                           | Anywhere — you route the POST yourself                                                                  |
+| **Email**    | An SMTP transport you operate or rent                                     | Free–cheap                     | Any mailbox                                                                                             |
+| **APNs**     | An Apple Developer account + a `.p8` push key + your own signed iOS build | Apple Developer Program (paid) | A native iOS app you build and sign                                                                     |
 
 Web Push is the recommended default — it needs no third-party account,
 just a keypair you generate yourself once.
@@ -173,7 +173,7 @@ pub/sub push relay you can use hosted (`ntfy.sh`) or run yourself. You
 subscribe to a **topic** in the ntfy app (iOS/Android) or a browser, and
 HealthLog publishes to that topic.
 
-1. Pick a hard-to-guess topic name (the topic *is* the access control on
+1. Pick a hard-to-guess topic name (the topic _is_ the access control on
    public `ntfy.sh` — anyone who knows the string can read it, so treat
    it like a secret).
 2. Subscribe to that topic in the ntfy app or at `https://ntfy.sh/<topic>`.
@@ -268,14 +268,14 @@ under your own Apple identity. Everything below is that path.
 
 The APNs env vars (`src/lib/notifications/senders/apns.ts`):
 
-| Variable | Purpose |
-| --- | --- |
-| `APNS_KEY_ID` | The `.p8` key's Key ID |
-| `APNS_TEAM_ID` | Your Apple Developer Team ID |
-| `APNS_BUNDLE_ID` | Your app's bundle identifier |
-| `APNS_KEY_B64` | The `.p8` PEM, base64-encoded (recommended key source) |
-| `APNS_KEY` | OR the raw PEM body inline |
-| `APNS_KEY_FILE` | OR a path to the `.p8` file |
+| Variable                    | Purpose                                                                             |
+| --------------------------- | ----------------------------------------------------------------------------------- |
+| `APNS_KEY_ID`               | The `.p8` key's Key ID                                                              |
+| `APNS_TEAM_ID`              | Your Apple Developer Team ID                                                        |
+| `APNS_BUNDLE_ID`            | Your app's bundle identifier                                                        |
+| `APNS_KEY_B64`              | The `.p8` PEM, base64-encoded (recommended key source)                              |
+| `APNS_KEY`                  | OR the raw PEM body inline                                                          |
+| `APNS_KEY_FILE`             | OR a path to the `.p8` file                                                         |
 | `APNS_CRITICAL_ENTITLEMENT` | Optional — set `true` only if Apple grants your app the Critical Alerts entitlement |
 
 APNs is **all-or-none**: either set the three IDs plus exactly one key
@@ -311,14 +311,14 @@ Two gotchas worth knowing before you blame a stale token:
 
 ## Which channel should I pick?
 
-| Your setup | Recommended channel |
-| --- | --- |
-| PWA on Android or desktop | **Web Push** — generate a VAPID keypair, subscribe, done. |
-| PWA on an iPhone | **Web Push**, but install the PWA via *Add to Home Screen* first (iOS 16.4+). Reminders, taken-clears, and the app badge all work; the lock-screen Live Activity needs a native build. |
-| You want the native iOS lock-screen Live Activity | Build and sign **your own** iOS app under your own Apple account and wire up **APNs** (paid), with Web Push as a fallback for any non-iOS device. |
-| Headless / no browser, or you live in chat | **Telegram** or **ntfy** — neither needs a browser, both are free. ntfy is the most self-host-native; Telegram adds inline reminder action buttons. |
-| You already run an automation hub | **Webhook** — POST every event to your own URL and route it however you like. |
-| You want reminders in your inbox | **Email** — set the SMTP transport once as the operator; users add their address. |
+| Your setup                                        | Recommended channel                                                                                                                                                                    |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PWA on Android or desktop                         | **Web Push** — generate a VAPID keypair, subscribe, done.                                                                                                                              |
+| PWA on an iPhone                                  | **Web Push**, but install the PWA via _Add to Home Screen_ first (iOS 16.4+). Reminders, taken-clears, and the app badge all work; the lock-screen Live Activity needs a native build. |
+| You want the native iOS lock-screen Live Activity | Build and sign **your own** iOS app under your own Apple account and wire up **APNs** (paid), with Web Push as a fallback for any non-iOS device.                                      |
+| Headless / no browser, or you live in chat        | **Telegram** or **ntfy** — neither needs a browser, both are free. ntfy is the most self-host-native; Telegram adds inline reminder action buttons.                                    |
+| You already run an automation hub                 | **Webhook** — POST every event to your own URL and route it however you like.                                                                                                          |
+| You want reminders in your inbox                  | **Email** — set the SMTP transport once as the operator; users add their address.                                                                                                      |
 
 Mixing channels is fine and common — e.g. Web Push on the laptop and
 ntfy on the phone. Each user configures their own set from

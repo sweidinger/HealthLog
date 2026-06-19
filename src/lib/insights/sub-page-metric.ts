@@ -211,24 +211,26 @@ export const SUB_PAGE_GROUP: Partial<Record<SubPageSlug, SubPageGroup>> = {
  * popover. The strip iterates `SUB_PAGE_SLUGS`, so a member's position
  * in the popover follows its position in that array.
  */
-export const SUB_PAGE_GROUP_ORDER: Record<SubPageGroup, readonly SubPageSlug[]> =
-  {
-    vitals: SUB_PAGE_SLUGS.filter((slug) => SUB_PAGE_GROUP[slug] === "vitals"),
-    body: SUB_PAGE_SLUGS.filter((slug) => SUB_PAGE_GROUP[slug] === "body"),
-    activity: SUB_PAGE_SLUGS.filter(
-      (slug) => SUB_PAGE_GROUP[slug] === "activity",
-    ),
-    cardiovascular: SUB_PAGE_SLUGS.filter(
-      (slug) => SUB_PAGE_GROUP[slug] === "cardiovascular",
-    ),
-    hearing: SUB_PAGE_SLUGS.filter((slug) => SUB_PAGE_GROUP[slug] === "hearing"),
-    environment: SUB_PAGE_SLUGS.filter(
-      (slug) => SUB_PAGE_GROUP[slug] === "environment",
-    ),
-    metabolic: SUB_PAGE_SLUGS.filter(
-      (slug) => SUB_PAGE_GROUP[slug] === "metabolic",
-    ),
-  };
+export const SUB_PAGE_GROUP_ORDER: Record<
+  SubPageGroup,
+  readonly SubPageSlug[]
+> = {
+  vitals: SUB_PAGE_SLUGS.filter((slug) => SUB_PAGE_GROUP[slug] === "vitals"),
+  body: SUB_PAGE_SLUGS.filter((slug) => SUB_PAGE_GROUP[slug] === "body"),
+  activity: SUB_PAGE_SLUGS.filter(
+    (slug) => SUB_PAGE_GROUP[slug] === "activity",
+  ),
+  cardiovascular: SUB_PAGE_SLUGS.filter(
+    (slug) => SUB_PAGE_GROUP[slug] === "cardiovascular",
+  ),
+  hearing: SUB_PAGE_SLUGS.filter((slug) => SUB_PAGE_GROUP[slug] === "hearing"),
+  environment: SUB_PAGE_SLUGS.filter(
+    (slug) => SUB_PAGE_GROUP[slug] === "environment",
+  ),
+  metabolic: SUB_PAGE_SLUGS.filter(
+    (slug) => SUB_PAGE_GROUP[slug] === "metabolic",
+  ),
+};
 
 /**
  * v1.15.14 W2 — manager grouping for the "Anpassen" → "Detailseiten
@@ -324,4 +326,3 @@ export const SUB_PAGE_MANAGER_GROUP_SLUGS: Record<
  * never have to hard-code the string.
  */
 export const INSIGHTS_OVERVIEW_PATH = "/insights" as const;
-

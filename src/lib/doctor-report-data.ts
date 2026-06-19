@@ -524,7 +524,10 @@ export function sanitisePracticeName(value: unknown): string | null {
   if (typeof value !== "string") return null;
   // Strip ASCII C0 + DEL controls (0x00..0x1F + 0x7F) which jsPDF can't
   // render and which break PDF text streams. Then collapse whitespace + trim.
-  const cleaned = value.replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (cleaned.length === 0) return null;
   return cleaned.slice(0, PRACTICE_NAME_MAX_LENGTH);
 }
@@ -737,8 +740,7 @@ export async function collectDoctorReportData(
   // data for a module you turned off), while leaving the others untouched.
   // Core clinical sections (weight / BP / pulse / medications) have no module
   // key and stay unconditional. Injectable for tests.
-  const moduleMap =
-    options.moduleMap ?? (await resolveModuleMap(userId));
+  const moduleMap = options.moduleMap ?? (await resolveModuleMap(userId));
 
   const sections: DoctorReportPrefs = {
     ...DEFAULT_DOCTOR_REPORT_PREFS,
@@ -763,7 +765,11 @@ export async function collectDoctorReportData(
         // v1.4.41 W-DELETED-2 — exclude soft-deleted measurements from
         // the doctor-report aggregator so deleted rows never leak into
         // the JSON payload or the server-rendered PDF.
-        where: { userId, measuredAt: { gte: start, lte: end }, deletedAt: null },
+        where: {
+          userId,
+          measuredAt: { gte: start, lte: end },
+          deletedAt: null,
+        },
         orderBy: { measuredAt: "asc" },
       }),
       prisma.medication.findMany({
@@ -797,7 +803,11 @@ export async function collectDoctorReportData(
       }),
       prisma.medicationIntakeEvent.findMany({
         // v1.7.0 sync — exclude tombstoned rows from the doctor report.
-        where: { userId, deletedAt: null, scheduledFor: { gte: start, lte: end } },
+        where: {
+          userId,
+          deletedAt: null,
+          scheduledFor: { gte: start, lte: end },
+        },
         include: {
           // v1.9.0 — carry the medication identity + codes + delivery
           // form so the FHIR MedicationAdministration builder can emit a
@@ -823,7 +833,11 @@ export async function collectDoctorReportData(
       sections.mood
         ? prisma.moodEntry.findMany({
             // v1.7.0 sync — exclude tombstoned rows from the doctor report.
-            where: { userId, deletedAt: null, moodLoggedAt: { gte: start, lte: end } },
+            where: {
+              userId,
+              deletedAt: null,
+              moodLoggedAt: { gte: start, lte: end },
+            },
             orderBy: { moodLoggedAt: "asc" },
           })
         : Promise.resolve([]),
@@ -1011,9 +1025,7 @@ export async function collectDoctorReportData(
     // administration event and is omitted entirely.
     const isTaken = event.takenAt !== null;
     if (!isTaken && !event.skipped) continue;
-    const effectiveAt = isTaken
-      ? (event.takenAt as Date)
-      : event.scheduledFor;
+    const effectiveAt = isTaken ? (event.takenAt as Date) : event.scheduledFor;
     medicationAdministrations.push({
       medicationName: event.medication.name,
       effectiveAt: effectiveAt.toISOString(),

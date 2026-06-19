@@ -208,7 +208,10 @@ export function resolveCanonicalSlotInstant(
       // still in the future (beyond a small clock-skew/early-dose grace). A
       // late morning dose must not snap forward onto the evening slot of a
       // twice-daily med and render as "taken" before its time.
-      if (isTakenWrite && slotInstant.getTime() > nowMs + TAKEN_FORWARD_GRACE_MS) {
+      if (
+        isTakenWrite &&
+        slotInstant.getTime() > nowMs + TAKEN_FORWARD_GRACE_MS
+      ) {
         continue;
       }
 

@@ -20,9 +20,7 @@ const source = readFileSync(REGISTRAR_PATH, "utf8");
 
 describe("reminder-worker — mean-consolidation wiring", () => {
   it("imports the queue symbols from the mean-consolidation module", () => {
-    expect(source).toMatch(
-      /from\s*["']@\/lib\/jobs\/mean-consolidation["']/,
-    );
+    expect(source).toMatch(/from\s*["']@\/lib\/jobs\/mean-consolidation["']/);
     expect(source).toMatch(/\bMEAN_CONSOLIDATION_QUEUE\b/);
     expect(source).toMatch(/\brunMeanConsolidationForUser\b/);
     expect(source).toMatch(/\benqueueBootTimeMeanConsolidation\b/);

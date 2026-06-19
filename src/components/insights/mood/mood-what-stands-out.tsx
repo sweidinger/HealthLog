@@ -66,7 +66,10 @@ export function MoodWhatStandsOut({
   return (
     <Card data-slot="mood-what-stands-out">
       <CardHeader className="pb-2">
-        <TileHeader icon={TrendingUp} title={t("insights.mood.narrative.title")} />
+        <TileHeader
+          icon={TrendingUp}
+          title={t("insights.mood.narrative.title")}
+        />
       </CardHeader>
       <CardContent className="space-y-4">
         {hasNarratives && <MoodNarrativeFeed items={narratives} />}

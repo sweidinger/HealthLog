@@ -62,7 +62,10 @@ process.env.NEXT_PUBLIC_APP_URL = "https://app.example";
 function makeReq(nonce: string): NextRequest {
   return {
     url: `https://app.example/api/whoop/callback?code=auth-code&state=${nonce}`,
-    cookies: { get: (name: string) => (name === "whoop_state" ? { value: nonce } : undefined) },
+    cookies: {
+      get: (name: string) =>
+        name === "whoop_state" ? { value: nonce } : undefined,
+    },
   } as unknown as NextRequest;
 }
 

@@ -350,9 +350,9 @@ describe("mapCardioLoad", () => {
     expect(mapped[0]?.unit).toBe("score");
   });
   it("keeps a zero cardio_load and skips a missing one", () => {
-    expect(mapCardioLoad({ date: "2026-06-10", cardio_load: 0 })[0]?.value).toBe(
-      0,
-    );
+    expect(
+      mapCardioLoad({ date: "2026-06-10", cardio_load: 0 })[0]?.value,
+    ).toBe(0);
     expect(mapCardioLoad({ date: "2026-06-10" })).toEqual([]);
   });
 });

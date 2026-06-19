@@ -191,7 +191,9 @@ function todayBounds(now: Date, tz: string): { start: Date; end: Date } {
     );
     return Math.round((asIfUtc - probe.getTime()) / 60_000);
   })();
-  const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - offsetMin * 60_000);
+  const start = new Date(
+    Date.UTC(y, m - 1, d, 0, 0, 0, 0) - offsetMin * 60_000,
+  );
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
   return { start, end };
 }
@@ -305,11 +307,7 @@ describe("monthly RRULE", () => {
     const { schedules, ctx } = await loadCanonical(med.id);
     const [schedule] = schedules;
 
-    const months = [
-      "2026-02-01",
-      "2026-03-01",
-      "2026-04-01",
-    ] as const;
+    const months = ["2026-02-01", "2026-03-01", "2026-04-01"] as const;
     for (const dayStr of months) {
       const b = todayBounds(
         new Date(`${dayStr}T10:00:00.000Z`),
@@ -693,9 +691,9 @@ describe("legacy daysOfWeek fallback", () => {
       new Date("2026-06-03T10:00:00.000Z"),
       "Europe/Berlin",
     );
-    expect(
-      scheduleEmitsInWindow(schedule, ctx, anchor.start, anchor.end),
-    ).toBe(true);
+    expect(scheduleEmitsInWindow(schedule, ctx, anchor.start, anchor.end)).toBe(
+      true,
+    );
     // Off week (Wed 10) — pre-v1.5 worker would have fired (the bug);
     // the legacy path in the engine now honours intervalWeeks.
     const off = todayBounds(

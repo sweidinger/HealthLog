@@ -73,7 +73,9 @@ describe("mood-insights tag × metric crosstab (DB read path)", () => {
         data: {
           userId: TEST_USER_ID,
           type: "ACTIVE_ENERGY_BURNED",
-          value: present ? 600 + (i % 2 === 0 ? 20 : -20) : 350 + (i % 2 === 0 ? 20 : -20),
+          value: present
+            ? 600 + (i % 2 === 0 ? 20 : -20)
+            : 350 + (i % 2 === 0 ? 20 : -20),
           unit: "kcal",
           source: "APPLE_HEALTH",
           measuredAt: ts,
@@ -124,7 +126,9 @@ describe("mood-insights tag × metric crosstab (DB read path)", () => {
           score: present ? 4 : 3,
           source: "WEB",
           moodLoggedAt: ts,
-          ...(present ? { tagLinks: { create: [{ moodTagId: tag!.id }] } } : {}),
+          ...(present
+            ? { tagLinks: { create: [{ moodTagId: tag!.id }] } }
+            : {}),
         },
       });
       const value = present

@@ -41,7 +41,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
   if (!gate.enabled) return gate.response;
 
   const parsed = illnessInsightsQuerySchema.safeParse({
-    windowDays: new URL(request.url).searchParams.get("windowDays") ?? undefined,
+    windowDays:
+      new URL(request.url).searchParams.get("windowDays") ?? undefined,
   });
   if (!parsed.success) {
     return returnAllZodIssues(parsed.error, 422, {
@@ -79,7 +80,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
       limit(async (): Promise<[string, number | null]> => {
         const derived = await computeEpisodeCorrelation(
           user.id,
-          { id: r.id, onsetAt: r.onsetAt, resolvedAt: r.resolvedAt, lifecycle: r.lifecycle },
+          {
+            id: r.id,
+            onsetAt: r.onsetAt,
+            resolvedAt: r.resolvedAt,
+            lifecycle: r.lifecycle,
+          },
           tz,
           now,
         );

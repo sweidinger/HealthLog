@@ -123,7 +123,12 @@ describe("measurement rollups — integration", () => {
   it("backfills with the expected (user × type × granularity × bucket) cardinality", async () => {
     const prisma = getPrismaClient();
     const userIds: string[] = [];
-    const types = ["WEIGHT", "PULSE", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"] as const;
+    const types = [
+      "WEIGHT",
+      "PULSE",
+      "BLOOD_PRESSURE_SYS",
+      "BLOOD_PRESSURE_DIA",
+    ] as const;
 
     // 3 users × 4 types × ~50 rows over ~7 weeks
     for (let u = 0; u < 3; u++) {
@@ -863,7 +868,11 @@ describe("measurement rollups — integration", () => {
 
     // Confirm setup: BP has rollups, WEIGHT does not.
     const bpRollups = await prisma.measurementRollup.count({
-      where: { userId: user.id, type: "BLOOD_PRESSURE_SYS", granularity: "DAY" },
+      where: {
+        userId: user.id,
+        type: "BLOOD_PRESSURE_SYS",
+        granularity: "DAY",
+      },
     });
     const weightRollups = await prisma.measurementRollup.count({
       where: { userId: user.id, type: "WEIGHT", granularity: "DAY" },

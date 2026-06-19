@@ -110,7 +110,10 @@ vi.mock("@/lib/telegram", () => ({
   deleteMessage: hoisted.deleteTelegramMessageMock,
 }));
 
-import { sendViaApns, resetApnsForTesting } from "@/lib/notifications/senders/apns";
+import {
+  sendViaApns,
+  resetApnsForTesting,
+} from "@/lib/notifications/senders/apns";
 import { sendViaWebPush } from "@/lib/notifications/senders/web-push";
 import { sendViaTelegram } from "@/lib/notifications/senders/telegram";
 import { sendViaNtfy } from "@/lib/notifications/senders/ntfy";

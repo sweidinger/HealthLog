@@ -1,10 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import {
-  CoachLaunchProvider,
-  useCoachLaunch,
-} from "../coach-launch-context";
+import { CoachLaunchProvider, useCoachLaunch } from "../coach-launch-context";
 
 /**
  * v1.4.27 R3d MB4 — Coach launch context smoke contract.

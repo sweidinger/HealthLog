@@ -279,7 +279,13 @@ describe("buildBandsForSchedulesWithEras", () => {
           id: "rev-dst",
           validFrom: dstCreated,
           validUntil: dstReplace,
-          payload: [entry({ timesOfDay: ["07:00"], windowStart: "07:00", windowEnd: "07:00" })],
+          payload: [
+            entry({
+              timesOfDay: ["07:00"],
+              windowStart: "07:00",
+              windowEnd: "07:00",
+            }),
+          ],
         },
       ],
       ctx: dstCtx,
@@ -292,12 +298,18 @@ describe("buildBandsForSchedulesWithEras", () => {
     });
     const bands = groups.flatMap((g) => (g.hasExpectedSlots ? g.bands : []));
     // 07:00 Berlin is 06:00 UTC before the transition, 05:00 UTC after.
-    const mar28 = bands.find((b) => b.at.toISOString().startsWith("2026-03-28"));
-    const mar30 = bands.find((b) => b.at.toISOString().startsWith("2026-03-30"));
+    const mar28 = bands.find((b) =>
+      b.at.toISOString().startsWith("2026-03-28"),
+    );
+    const mar30 = bands.find((b) =>
+      b.at.toISOString().startsWith("2026-03-30"),
+    );
     expect(mar28?.at.toISOString()).toBe("2026-03-28T06:00:00.000Z");
     expect(mar30?.at.toISOString()).toBe("2026-03-30T05:00:00.000Z");
     // After the replace the live 09:00/21:00 schedule mints (09:00 = 07:00Z).
-    const apr03 = bands.filter((b) => b.at.toISOString().startsWith("2026-04-03"));
+    const apr03 = bands.filter((b) =>
+      b.at.toISOString().startsWith("2026-04-03"),
+    );
     expect(apr03.map((b) => b.timeOfDay).sort()).toEqual(["09:00", "21:00"]);
   });
 
@@ -335,7 +347,9 @@ describe("buildBandsForSchedulesWithEras", () => {
       now: new Date("2026-06-05T00:00:00.000Z"),
       intakeInstants,
     });
-    const rollingGroup = groups.find((g) => g.scheduleId.startsWith("rev:rev-roll"));
+    const rollingGroup = groups.find((g) =>
+      g.scheduleId.startsWith("rev:rev-roll"),
+    );
     expect(rollingGroup?.family).toBe("weekly");
     // Each logged intake anchors one band inside the old era.
     expect(rollingGroup?.bands.length).toBeGreaterThanOrEqual(3);

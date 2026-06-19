@@ -10,10 +10,7 @@ import { encrypt } from "@/lib/crypto";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { markReconnected } from "@/lib/integrations/status";
 import { SafeFetchError } from "@/lib/safe-fetch";
-import {
-  fetchSgvEntries,
-  NightscoutApiError,
-} from "@/lib/nightscout/client";
+import { fetchSgvEntries, NightscoutApiError } from "@/lib/nightscout/client";
 import { nightscoutConnectSchema } from "@/lib/validations/nightscout";
 
 /**

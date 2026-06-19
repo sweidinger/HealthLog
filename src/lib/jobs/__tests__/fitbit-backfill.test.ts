@@ -76,7 +76,9 @@ describe("enqueueBootTimeFitbitBackfill — discovery", () => {
   });
 
   it("never throws — surfaces a discovery error through the result value", async () => {
-    prismaMock.fitbitConnection.findMany.mockRejectedValue(new Error("db down"));
+    prismaMock.fitbitConnection.findMany.mockRejectedValue(
+      new Error("db down"),
+    );
 
     const result = await enqueueBootTimeFitbitBackfill();
 

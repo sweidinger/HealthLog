@@ -120,7 +120,11 @@ export async function projectTodayIntakesAndRecompute(input: {
       lastIntakeAt = lastIntake?.takenAt ?? null;
     }
 
-    const ctx = buildRecurrenceContext({ medication: med, userTz, lastIntakeAt });
+    const ctx = buildRecurrenceContext({
+      medication: med,
+      userTz,
+      lastIntakeAt,
+    });
 
     for (const schedule of med.schedules) {
       const canonical = buildCanonicalSchedule(schedule);
@@ -172,7 +176,8 @@ export async function projectTodayIntakesAndRecompute(input: {
     existing.map((e) => `${e.medicationId}|${e.scheduledFor.toISOString()}`),
   );
   const missing = projected.filter(
-    (p) => !existingKey.has(`${p.medicationId}|${p.scheduledFor.toISOString()}`),
+    (p) =>
+      !existingKey.has(`${p.medicationId}|${p.scheduledFor.toISOString()}`),
   );
 
   if (missing.length === 0) {

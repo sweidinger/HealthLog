@@ -17,7 +17,10 @@ function clockLabel(minutesOfDay: number): string {
 }
 
 /** Whole hours + minutes from a minute total, for the social-jetlag readout. */
-function hoursMinutes(totalMinutes: number): { hours: number; minutes: number } {
+function hoursMinutes(totalMinutes: number): {
+  hours: number;
+  minutes: number;
+} {
   const t = Math.round(totalMinutes);
   return { hours: Math.floor(t / 60), minutes: t - Math.floor(t / 60) * 60 };
 }
@@ -25,20 +28,21 @@ function hoursMinutes(totalMinutes: number): { hours: number; minutes: number } 
 /**
  * v1.17.0 — chronotype card (MCTQ MSF / MSFsc band + social jetlag).
  *
- * Progressive disclosure: the band + mid-sleep clock time show by default; the
- * social-jetlag detail + the sleep-debt-corrected MSFsc sit behind an
- * "advanced" toggle. While `learning` it shows "still learning your rhythm —
- * N of M nights" and asserts NO type. Warm, grounded copy; mobile-first.
+ * v1.18.7 W-D — reworked from a small corner-label card into the PROMINENT
+ * bottom treatment of the Sleep view: a LARGE band label is the hero, with the
+ * natural sleep-midpoint clock beneath it, and an "advanced" disclosure that
+ * reveals social jetlag + the sleep-debt-corrected MSFsc. While `learning` it
+ * keeps the calm "still learning your rhythm — N of M nights" copy and asserts
+ * NO band. Warm, grounded copy; mobile-first.
  */
 export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
   const { t } = useTranslations();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   if (chronotype.state === "learning" || chronotype.band == null) {
-    const need =
-      chronotype.freeNightsCounted + chronotype.freeNightsUntilReady;
+    const need = chronotype.freeNightsCounted + chronotype.freeNightsUntilReady;
     return (
-      <Card>
+      <Card data-slot="chronotype-card">
         <CardHeader className="pb-0">
           <div className="flex items-center gap-2">
             <Clock className="text-info h-4 w-4" />
@@ -64,40 +68,31 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
     chronotype.msfMinutes != null ? clockLabel(chronotype.msfMinutes) : null;
 
   return (
-    <Card>
+    <Card data-slot="chronotype-card">
       <CardHeader className="pb-0">
-        {/* The resolved chronotype rides the top-right corner as a labelled
-            readout — a small "Chronotyp" label over the band value — rather
-            than a badge buried in the body. The title stays left; the value
-            is the thing the eye should land on first. */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Clock className="text-info h-4 w-4" />
-            <CardTitle className="text-base font-semibold">
-              {t("insights.sleep.chronotype.title")}
-            </CardTitle>
-          </div>
-          <div
-            className="flex flex-col items-end text-right"
-            data-slot="chronotype-corner"
-          >
-            <span className="text-muted-foreground text-[0.625rem] font-medium tracking-wide uppercase">
-              {t("insights.sleep.chronotype.cornerLabel")}
-            </span>
-            <span className="text-foreground text-sm font-semibold">
-              {bandLabel}
-            </span>
-          </div>
+        <div className="flex items-center gap-2">
+          <Clock className="text-info h-4 w-4" />
+          <CardTitle className="text-base font-semibold">
+            {t("insights.sleep.chronotype.title")}
+          </CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {msfClock && (
-          <p className="text-muted-foreground text-xs">
-            {t("insights.sleep.chronotype.midSleepCaption", {
-              clock: msfClock,
-            })}
+      <CardContent className="space-y-4">
+        {/* The band is the hero of the bottom treatment — a large label the
+            eye lands on first, with the natural sleep-midpoint clock as the
+            grounding caption beneath it. */}
+        <div className="space-y-1" data-slot="chronotype-band">
+          <p className="text-foreground text-2xl font-semibold tracking-tight sm:text-3xl">
+            {bandLabel}
           </p>
-        )}
+          {msfClock && (
+            <p className="text-muted-foreground text-sm">
+              {t("insights.sleep.chronotype.midpointHeadline", {
+                clock: msfClock,
+              })}
+            </p>
+          )}
+        </div>
 
         <button
           type="button"

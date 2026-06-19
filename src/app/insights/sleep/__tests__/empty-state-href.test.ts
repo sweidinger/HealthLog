@@ -19,7 +19,10 @@ describe("sleep empty-state CTA href", () => {
       "utf8",
     );
     const match = source.match(/href="\/settings\/([a-z-]+)"/);
-    expect(match, "expected a /settings/<slug> href in the sleep page").not.toBeNull();
+    expect(
+      match,
+      "expected a /settings/<slug> href in the sleep page",
+    ).not.toBeNull();
     const slug = match![1];
     expect(slug).toBe("integrations");
     expect(isSettingsSectionSlug(slug)).toBe(true);

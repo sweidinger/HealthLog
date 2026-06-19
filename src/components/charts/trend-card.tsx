@@ -134,11 +134,7 @@ export function TrendCard({
   // appeared on the same tile because slope30 and trend7Delta could
   // legitimately disagree (30-day downward arc, 7-day uptick).
   const primarySignal: number | null =
-    trend7Delta != null
-      ? trend7Delta
-      : slope30
-        ? slope30.slope * 7
-        : null;
+    trend7Delta != null ? trend7Delta : slope30 ? slope30.slope * 7 : null;
 
   const TrendIcon = ((): typeof ArrowUp => {
     if (primarySignal == null) return Minus;
@@ -233,51 +229,51 @@ export function TrendCard({
           // deterministic height. No unit; the arrow slot below still
           // renders its muted placeholder so the row width stays stable.
           <span
-            className="text-muted-foreground min-w-0 truncate text-base font-medium leading-none"
+            className="text-muted-foreground min-w-0 truncate text-base leading-none font-medium"
             data-slot="trend-card-empty-hint"
           >
             {emptyHint}
           </span>
         ) : (
           <>
-        <span
-          className={cn(
-            "shrink-0 whitespace-nowrap font-semibold tracking-tight tabular-nums",
-            // v1.8.7 — the value NEVER truncates, clips, or wraps
-            // mid-number. The maintainer is emphatic: every digit of
-            // the reading must render in full ("130 mmHg" must read as
-            // "130", never "13" then "3 mmHg"). The headline value span
-            // is `shrink-0 whitespace-nowrap` so it keeps its full
-            // intrinsic width and wins the horizontal-space contest
-            // against the unit. When the strip is dense (many tiles →
-            // narrow column) the UNIT yields — it shrinks (`min-w-0
-            // truncate`) and may ellipsis — rather than losing any
-            // digit of the number. The earlier `min-w-0 truncate` on
-            // this span was the bug: it let the value shrink below its
-            // content width and clip the number.
-            //
-            // v1.4.49.4 — paired values (BP systolic/diastolic) render
-            // as `131/85` and outgrow the `text-3xl` footprint on the
-            // narrowest grid columns. Paired tiles drop one font step
-            // (text-3xl → text-2xl) so the full pair fits; single-value
-            // tiles (weight, pulse, glucose, …) keep text-3xl.
-            secondary ? "text-2xl" : "text-3xl",
-            // `leading-none` must come AFTER the font-size class in the
-            // cn() arg list. Tailwind v4 `text-3xl` / `text-2xl` ship
-            // their own default `line-height`, so `twMerge` would
-            // otherwise drop the explicit `leading-none` per the
-            // last-wins rule and break the W20a across-tile baseline
-            // alignment (digits line up at the same y-coordinate
-            // across every tile in the strip).
-            "leading-none",
-          )}
-          data-slot="trend-card-value"
-        >
-          {latest !== null ? renderPair(latest, secondary?.latest) : "—"}
-        </span>
-        <span className="text-muted-foreground min-w-0 truncate text-sm tabular-nums">
-          {unit}
-        </span>
+            <span
+              className={cn(
+                "shrink-0 font-semibold tracking-tight whitespace-nowrap tabular-nums",
+                // v1.8.7 — the value NEVER truncates, clips, or wraps
+                // mid-number. The maintainer is emphatic: every digit of
+                // the reading must render in full ("130 mmHg" must read as
+                // "130", never "13" then "3 mmHg"). The headline value span
+                // is `shrink-0 whitespace-nowrap` so it keeps its full
+                // intrinsic width and wins the horizontal-space contest
+                // against the unit. When the strip is dense (many tiles →
+                // narrow column) the UNIT yields — it shrinks (`min-w-0
+                // truncate`) and may ellipsis — rather than losing any
+                // digit of the number. The earlier `min-w-0 truncate` on
+                // this span was the bug: it let the value shrink below its
+                // content width and clip the number.
+                //
+                // v1.4.49.4 — paired values (BP systolic/diastolic) render
+                // as `131/85` and outgrow the `text-3xl` footprint on the
+                // narrowest grid columns. Paired tiles drop one font step
+                // (text-3xl → text-2xl) so the full pair fits; single-value
+                // tiles (weight, pulse, glucose, …) keep text-3xl.
+                secondary ? "text-2xl" : "text-3xl",
+                // `leading-none` must come AFTER the font-size class in the
+                // cn() arg list. Tailwind v4 `text-3xl` / `text-2xl` ship
+                // their own default `line-height`, so `twMerge` would
+                // otherwise drop the explicit `leading-none` per the
+                // last-wins rule and break the W20a across-tile baseline
+                // alignment (digits line up at the same y-coordinate
+                // across every tile in the strip).
+                "leading-none",
+              )}
+              data-slot="trend-card-value"
+            >
+              {latest !== null ? renderPair(latest, secondary?.latest) : "—"}
+            </span>
+            <span className="text-muted-foreground min-w-0 truncate text-sm tabular-nums">
+              {unit}
+            </span>
           </>
         )}
         <span

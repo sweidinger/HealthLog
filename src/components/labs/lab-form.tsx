@@ -194,9 +194,7 @@ export function LabForm({
             disabled={!!lockedBiomarkerId || catalogLoading}
           >
             <SelectTrigger id="lab-biomarker" className="w-full">
-              <SelectValue
-                placeholder={t("labs.form.biomarkerPlaceholder")}
-              />
+              <SelectValue placeholder={t("labs.form.biomarkerPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {markers.map((m) => (

@@ -49,7 +49,8 @@ beforeEach(async () => {
       refreshToken: encrypt("refresh-token"),
       // Token valid for an hour — keeps `getValidToken` off the refresh path.
       tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      scope: "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
+      scope:
+        "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
     },
   });
 });

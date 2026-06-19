@@ -147,7 +147,9 @@ describe("clear-on-taken push", () => {
     expect(sendNotificationMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse(sendNotificationMock.mock.calls[0][1] as string);
     expect(body.type).toBe("clear");
-    expect(body.tag).toBe(medicationDoseTag("med-1", "2026-06-18T07:00:00.000Z"));
+    expect(body.tag).toBe(
+      medicationDoseTag("med-1", "2026-06-18T07:00:00.000Z"),
+    );
     expect(body.badge).toBe(1);
   });
 

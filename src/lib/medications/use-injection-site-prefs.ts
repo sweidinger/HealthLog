@@ -20,8 +20,8 @@ export function useGlobalExcludedInjectionSites(): InjectionSiteKey[] {
       const res = await fetch("/api/auth/me/injection-site-prefs");
       if (!res.ok) return [] as InjectionSiteKey[];
       const json = await res.json();
-      return ((json.data?.globalExcludedInjectionSites ??
-        []) as InjectionSiteKey[]);
+      return (json.data?.globalExcludedInjectionSites ??
+        []) as InjectionSiteKey[];
     },
     staleTime: 5 * 60 * 1000,
   });

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { useTranslations } from "@/lib/i18n/context";
@@ -74,7 +75,7 @@ export function EmailCard({ isAuthenticated }: { isAuthenticated: boolean }) {
   if (settings && !settings.smtpConfigured) return null;
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Mail}
         title={t("settings.email")}
@@ -128,7 +129,11 @@ export function EmailCard({ isAuthenticated }: { isAuthenticated: boolean }) {
               endpoint="/api/settings/email/test"
               disabled={!settings?.enabled}
             />
-            <Button type="submit" disabled={save.isPending} className="min-h-11">
+            <Button
+              type="submit"
+              disabled={save.isPending}
+              className="min-h-11"
+            >
               {save.isPending && (
                 <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}
@@ -137,6 +142,6 @@ export function EmailCard({ isAuthenticated }: { isAuthenticated: boolean }) {
           </div>
         </form>
       </div>
-    </div>
+    </SettingsCard>
   );
 }

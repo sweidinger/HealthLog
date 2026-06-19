@@ -62,7 +62,9 @@ export function MetricCorrelationCard({ slug }: MetricCorrelationCardProps) {
   // The query is gated by the hook on `isAuthenticated`, and disabled
   // entirely when this slug owns no correlation so a target-less metric
   // never fires the thick fetch.
-  const { data } = useAnalyticsQuery({ enabled: key != null ? undefined : false });
+  const { data } = useAnalyticsQuery({
+    enabled: key != null ? undefined : false,
+  });
   const analytics = data as AnalyticsWithCorrelations | undefined;
 
   if (!flags.correlations || !key) return null;

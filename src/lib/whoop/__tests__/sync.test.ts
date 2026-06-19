@@ -29,12 +29,8 @@ const {
   },
   refreshAccessTokenMock: vi.fn(),
   fetchRecoveriesMock: vi.fn(),
-  recordSyncFailure: vi.fn<(...a: unknown[]) => Promise<void>>(
-    async () => {},
-  ),
-  recordSyncSuccess: vi.fn<(...a: unknown[]) => Promise<void>>(
-    async () => {},
-  ),
+  recordSyncFailure: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+  recordSyncSuccess: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
   isReauthRequired: vi.fn<(...a: unknown[]) => Promise<boolean>>(
     async () => false,
   ),
@@ -70,9 +66,8 @@ vi.mock("@/lib/integrations/status", () => ({
 }));
 
 vi.mock("@/lib/rollups/measurement-rollups", () => ({
-  collapseToTypeDayKeys: (
-    rows: Array<{ type: string; measuredAt: Date }>,
-  ) => rows.map((r) => ({ type: r.type, measuredAt: r.measuredAt })),
+  collapseToTypeDayKeys: (rows: Array<{ type: string; measuredAt: Date }>) =>
+    rows.map((r) => ({ type: r.type, measuredAt: r.measuredAt })),
   recomputeBucketsForMeasurement: vi.fn(async () => {}),
 }));
 
@@ -170,7 +165,10 @@ describe("getValidToken — rotating refresh", () => {
 
     expect(result).toBeNull();
     expect(recordSyncFailure).toHaveBeenCalledWith(
-      expect.objectContaining({ integration: "whoop", kind: "reauth_required" }),
+      expect.objectContaining({
+        integration: "whoop",
+        kind: "reauth_required",
+      }),
     );
   });
 });
@@ -230,7 +228,10 @@ describe("resolveResourceCursor — per-resource cursor", () => {
   it("falls back to lastSyncedAt for a resource with no cursor key (legacy)", () => {
     const shared = new Date("2026-06-12T00:00:00.000Z");
     const got = resolveResourceCursor(
-      { resourceCursors: { recovery: "2026-06-10T00:00:00.000Z" }, lastSyncedAt: shared },
+      {
+        resourceCursors: { recovery: "2026-06-10T00:00:00.000Z" },
+        lastSyncedAt: shared,
+      },
       "workout",
     );
     expect(got).toEqual(shared);
@@ -239,7 +240,10 @@ describe("resolveResourceCursor — per-resource cursor", () => {
   it("falls back to lastSyncedAt when the column is null", () => {
     const shared = new Date("2026-06-12T00:00:00.000Z");
     expect(
-      resolveResourceCursor({ resourceCursors: null, lastSyncedAt: shared }, "sleep"),
+      resolveResourceCursor(
+        { resourceCursors: null, lastSyncedAt: shared },
+        "sleep",
+      ),
     ).toEqual(shared);
   });
 

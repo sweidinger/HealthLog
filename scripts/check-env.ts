@@ -158,11 +158,7 @@ export function checkEnv(
     // All-or-none groups: surface a synthetic row when the group is
     // partially populated. This catches the v1.4.40 AP-2 pattern even
     // when the group itself is `required: false`.
-    if (
-      group.allOrNone &&
-      presentInGroup > 0 &&
-      absentInGroup > 0
-    ) {
+    if (group.allOrNone && presentInGroup > 0 && absentInGroup > 0) {
       results.push({
         group: group.name,
         variable: "<all-or-none>",
@@ -205,8 +201,7 @@ function renderResults(results: CheckResult[]): {
       );
     } else if (r.required) {
       console.log(
-        `  [MISSING-REQUIRED] ${r.variable}` +
-          (r.note ? ` — ${r.note}` : ""),
+        `  [MISSING-REQUIRED] ${r.variable}` + (r.note ? ` — ${r.note}` : ""),
       );
       missingRequired++;
     } else {

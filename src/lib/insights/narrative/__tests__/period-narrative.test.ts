@@ -34,7 +34,10 @@ function monthInput(
     // current = the most recent 30 days; prior = the 30 before that.
     currentFrom: "2026-04-01",
     priorFrom: "2026-03-02",
-    window: { from: "2026-03-02T00:00:00.000Z", to: "2026-04-30T00:00:00.000Z" },
+    window: {
+      from: "2026-03-02T00:00:00.000Z",
+      to: "2026-04-30T00:00:00.000Z",
+    },
     seriesByMetric,
     discoverySeries,
     computedAt: "2026-04-30T12:00:00.000Z",
@@ -88,10 +91,7 @@ describe("assemblePeriodNarrativeContext — metric deltas", () => {
   it("computes current vs prior period mean, delta and percent", () => {
     const m = new Map<string, DailySeriesPoint[]>();
     // 60 contiguous days: first 30 prior @ 80, last 30 current @ 82.
-    const weight = [
-      ...Array(30).fill(80),
-      ...Array(30).fill(82),
-    ];
+    const weight = [...Array(30).fill(80), ...Array(30).fill(82)];
     m.set("WEIGHT", seriesEndingAt(weight, "2026-04-30"));
     const pulse = [...Array(30).fill(60), ...Array(30).fill(63)];
     m.set("PULSE", seriesEndingAt(pulse, "2026-04-30"));
@@ -128,9 +128,18 @@ describe("assemblePeriodNarrativeContext — band transitions", () => {
     // days centred at 90 — well outside.
     const prior = Array.from({ length: 30 }, (_, i) => 60 + (i % 2));
     const current = Array.from({ length: 30 }, () => 90);
-    m.set("RESTING_HEART_RATE", seriesEndingAt([...prior, ...current], "2026-04-30"));
+    m.set(
+      "RESTING_HEART_RATE",
+      seriesEndingAt([...prior, ...current], "2026-04-30"),
+    );
     // second covered metric to clear the gate
-    m.set("WEIGHT", seriesEndingAt([...Array(30).fill(80), ...Array(30).fill(80)], "2026-04-30"));
+    m.set(
+      "WEIGHT",
+      seriesEndingAt(
+        [...Array(30).fill(80), ...Array(30).fill(80)],
+        "2026-04-30",
+      ),
+    );
 
     const ctx = assertReady(assemblePeriodNarrativeContext(monthInput(m)));
     const t = ctx.bandTransitions.find((b) => b.type === "RESTING_HEART_RATE");
@@ -146,7 +155,13 @@ describe("assemblePeriodNarrativeContext — band transitions", () => {
     const prior = Array.from({ length: 30 }, (_, i) => 60 + (i % 5));
     const current = Array.from({ length: 30 }, (_, i) => 61 + (i % 5));
     m.set("PULSE", seriesEndingAt([...prior, ...current], "2026-04-30"));
-    m.set("WEIGHT", seriesEndingAt([...Array(30).fill(80), ...Array(30).fill(80)], "2026-04-30"));
+    m.set(
+      "WEIGHT",
+      seriesEndingAt(
+        [...Array(30).fill(80), ...Array(30).fill(80)],
+        "2026-04-30",
+      ),
+    );
 
     const ctx = assertReady(assemblePeriodNarrativeContext(monthInput(m)));
     const t = ctx.bandTransitions.find((b) => b.type === "PULSE");
@@ -163,7 +178,13 @@ describe("assemblePeriodNarrativeContext — band transitions", () => {
       ...seriesEndingAt(Array(5).fill(90), "2026-04-30"),
     ];
     m.set("PULSE", pulse);
-    m.set("WEIGHT", seriesEndingAt([...Array(30).fill(80), ...Array(30).fill(80)], "2026-04-30"));
+    m.set(
+      "WEIGHT",
+      seriesEndingAt(
+        [...Array(30).fill(80), ...Array(30).fill(80)],
+        "2026-04-30",
+      ),
+    );
     const ctx = assertReady(assemblePeriodNarrativeContext(monthInput(m)));
     expect(ctx.bandTransitions.find((b) => b.type === "PULSE")).toBeUndefined();
   });
@@ -208,8 +229,20 @@ describe("assemblePeriodNarrativeContext — drivers (FDR-controlled)", () => {
 
   it("emits no drivers when no pair clears FDR", () => {
     const m = new Map<string, DailySeriesPoint[]>();
-    m.set("WEIGHT", seriesEndingAt([...Array(30).fill(80), ...Array(30).fill(80)], "2026-04-30"));
-    m.set("PULSE", seriesEndingAt([...Array(30).fill(60), ...Array(30).fill(60)], "2026-04-30"));
+    m.set(
+      "WEIGHT",
+      seriesEndingAt(
+        [...Array(30).fill(80), ...Array(30).fill(80)],
+        "2026-04-30",
+      ),
+    );
+    m.set(
+      "PULSE",
+      seriesEndingAt(
+        [...Array(30).fill(60), ...Array(30).fill(60)],
+        "2026-04-30",
+      ),
+    );
     const ctx = assertReady(assemblePeriodNarrativeContext(monthInput(m)));
     expect(ctx.drivers).toEqual([]);
   });
@@ -225,8 +258,14 @@ describe("assemblePeriodNarrativeContext — drivers (FDR-controlled)", () => {
     // Two real vitals with current-period coverage so the availability gate
     // (≥ 2 DELTA metrics covered) is satisfied — a factor channel is not a
     // vital delta and does not count toward coverage by design.
-    const weight = seriesEndingAt(Array.from({ length: 31 }, () => 80), "2026-04-30");
-    const steps = seriesEndingAt(Array.from({ length: 31 }, (_, i) => 8000 + i), "2026-04-30");
+    const weight = seriesEndingAt(
+      Array.from({ length: 31 }, () => 80),
+      "2026-04-30",
+    );
+    const steps = seriesEndingAt(
+      Array.from({ length: 31 }, (_, i) => 8000 + i),
+      "2026-04-30",
+    );
     const discoverySeries: NamedSeries[] = [
       { key: "FACTOR:work", role: "behaviour", points: factor },
       { key: "SLEEP_DURATION", role: "outcome", points: sleep },
@@ -263,7 +302,10 @@ describe("assemblePeriodNarrativeContext — coincident flags", () => {
     curP[29] = 120;
     curH[29] = 10;
     m.set("PULSE", seriesEndingAt([...priorP, ...curP], "2026-04-30"));
-    m.set("RESTING_HEART_RATE", seriesEndingAt([...priorH, ...curH], "2026-04-30"));
+    m.set(
+      "RESTING_HEART_RATE",
+      seriesEndingAt([...priorH, ...curH], "2026-04-30"),
+    );
 
     const ctx = assertReady(assemblePeriodNarrativeContext(monthInput(m)));
     expect(ctx.coincidentFlags.length).toBe(1);
@@ -273,7 +315,9 @@ describe("assemblePeriodNarrativeContext — coincident flags", () => {
       "PULSE",
       "RESTING_HEART_RATE",
     ]);
-    expect(flag.vitals.find((v) => v.type === "PULSE")!.direction).toBe("above");
+    expect(flag.vitals.find((v) => v.type === "PULSE")!.direction).toBe(
+      "above",
+    );
     expect(
       flag.vitals.find((v) => v.type === "RESTING_HEART_RATE")!.direction,
     ).toBe("below");
@@ -287,7 +331,10 @@ describe("assemblePeriodNarrativeContext — coincident flags", () => {
     const curH = Array.from({ length: 30 }, () => 50);
     curP[29] = 120; // only one vital deviates
     m.set("PULSE", seriesEndingAt([...priorP, ...curP], "2026-04-30"));
-    m.set("RESTING_HEART_RATE", seriesEndingAt([...priorH, ...curH], "2026-04-30"));
+    m.set(
+      "RESTING_HEART_RATE",
+      seriesEndingAt([...priorH, ...curH], "2026-04-30"),
+    );
     const ctx = assertReady(assemblePeriodNarrativeContext(monthInput(m)));
     expect(ctx.coincidentFlags).toEqual([]);
   });
@@ -296,8 +343,20 @@ describe("assemblePeriodNarrativeContext — coincident flags", () => {
 describe("assemblePeriodNarrativeContext — provenance", () => {
   it("carries window, computedAt and the metrics that backed a beat", () => {
     const m = new Map<string, DailySeriesPoint[]>();
-    m.set("WEIGHT", seriesEndingAt([...Array(30).fill(80), ...Array(30).fill(81)], "2026-04-30"));
-    m.set("PULSE", seriesEndingAt([...Array(30).fill(60), ...Array(30).fill(62)], "2026-04-30"));
+    m.set(
+      "WEIGHT",
+      seriesEndingAt(
+        [...Array(30).fill(80), ...Array(30).fill(81)],
+        "2026-04-30",
+      ),
+    );
+    m.set(
+      "PULSE",
+      seriesEndingAt(
+        [...Array(30).fill(60), ...Array(30).fill(62)],
+        "2026-04-30",
+      ),
+    );
     const ctx = assertReady(assemblePeriodNarrativeContext(monthInput(m)));
     expect(ctx.provenance.computedAt).toBe("2026-04-30T12:00:00.000Z");
     expect(ctx.provenance.window.from).toBe("2026-03-02T00:00:00.000Z");

@@ -62,14 +62,22 @@ describe("resolveCanonicalSlotInstant — multi-time", () => {
 
   it("snaps an exact-07:00 write to the canonical 07:00 slot instant", () => {
     const incoming = new Date("2026-06-15T05:00:00.000Z"); // 07:00 CEST
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     const canonical = localHmAsUtc(incoming, TZ, 7, 0);
     expect(result?.toISOString()).toBe(canonical.toISOString());
   });
 
   it("snaps a +1-minute-drifted 07:00 write to the SAME canonical instant", () => {
     const incoming = new Date("2026-06-15T05:01:00.000Z"); // 07:01 CEST
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     const canonical = localHmAsUtc(
       new Date("2026-06-15T05:00:00.000Z"),
       TZ,
@@ -81,7 +89,11 @@ describe("resolveCanonicalSlotInstant — multi-time", () => {
 
   it("snaps a 19:00 write to the canonical 19:00 slot, not the 07:00 slot", () => {
     const incoming = new Date("2026-06-15T17:02:00.000Z"); // 19:02 CEST
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     const canonical = localHmAsUtc(incoming, TZ, 19, 0);
     expect(result?.toISOString()).toBe(canonical.toISOString());
   });
@@ -224,7 +236,11 @@ describe("resolveCanonicalSlotInstant — multi-time wide window", () => {
 
   it("snaps a 20:00 write to the 20:00 slot, NOT the wide-window 08:00 slot", () => {
     const incoming = new Date("2026-06-15T18:00:00.000Z"); // 20:00 CEST
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     const evening = localHmAsUtc(incoming, TZ, 20, 0);
     const morning = localHmAsUtc(incoming, TZ, 8, 0);
     expect(result?.toISOString()).toBe(evening.toISOString());
@@ -233,7 +249,11 @@ describe("resolveCanonicalSlotInstant — multi-time wide window", () => {
 
   it("snaps an 08:00 write to the 08:00 slot", () => {
     const incoming = new Date("2026-06-15T06:00:00.000Z"); // 08:00 CEST
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     const morning = localHmAsUtc(incoming, TZ, 8, 0);
     expect(result?.toISOString()).toBe(morning.toISOString());
   });
@@ -267,7 +287,11 @@ describe("resolveCanonicalSlotInstant — multi-time wide window", () => {
     // 09:30 local is 1.5h after 08:00, well inside the ±6h capture zone and
     // far from 20:00 — must resolve to the morning slot, not the evening.
     const incoming = new Date("2026-06-15T07:30:00.000Z"); // 09:30 CEST
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     expect(result?.toISOString()).toBe(
       localHmAsUtc(incoming, TZ, 8, 0).toISOString(),
     );
@@ -277,10 +301,18 @@ describe("resolveCanonicalSlotInstant — multi-time wide window", () => {
 describe("resolveCanonicalSlotInstant — single-time", () => {
   it("snaps to the one slot", () => {
     const med = makeMedication([
-      makeSchedule({ timesOfDay: ["08:00"], windowStart: "08:00", windowEnd: "09:00" }),
+      makeSchedule({
+        timesOfDay: ["08:00"],
+        windowStart: "08:00",
+        windowEnd: "09:00",
+      }),
     ]);
     const incoming = new Date("2026-06-15T06:10:00.000Z"); // 08:10 CEST
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     const canonical = localHmAsUtc(incoming, TZ, 8, 0);
     expect(result?.toISOString()).toBe(canonical.toISOString());
   });
@@ -307,7 +339,11 @@ describe("resolveCanonicalSlotInstant — weekly single-dose unchanged", () => {
     // ±6h inter-dose cap a multi-slot schedule would impose, inside the
     // ±7h single-slot half-span.
     const incoming = new Date("2026-06-15T08:30:00.000Z"); // 10:30 CEST
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     expect(result?.toISOString()).toBe(
       localHmAsUtc(incoming, TZ, 8, 0).toISOString(),
     );
@@ -351,10 +387,18 @@ describe("resolveCanonicalSlotInstant — DST spring-forward", () => {
     // 2026-03-29 is the CET→CEST transition. 08:00 local exists (the
     // gap is 02:00→03:00). The canonical instant must match localHmAsUtc.
     const med = makeMedication([
-      makeSchedule({ timesOfDay: ["08:00"], windowStart: "08:00", windowEnd: "09:00" }),
+      makeSchedule({
+        timesOfDay: ["08:00"],
+        windowStart: "08:00",
+        windowEnd: "09:00",
+      }),
     ]);
     const incoming = new Date("2026-03-29T06:05:00.000Z"); // 08:05 CEST
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     const canonical = localHmAsUtc(incoming, TZ, 8, 0);
     expect(result?.toISOString()).toBe(canonical.toISOString());
   });
@@ -374,10 +418,18 @@ describe("resolveCanonicalSlotInstant — DST robustness vs projector mint", () 
     // across the day; the resolver must still equal the projector's
     // localHmAsUtc(day, tz, 8, 0) mint.
     const med = makeMedication([
-      makeSchedule({ timesOfDay: ["08:00"], windowStart: "08:00", windowEnd: "09:00" }),
+      makeSchedule({
+        timesOfDay: ["08:00"],
+        windowStart: "08:00",
+        windowEnd: "09:00",
+      }),
     ]);
     const incoming = new Date("2026-10-25T07:10:00.000Z"); // 08:10 CET
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     // The projector mints with `localHmAsUtc(now, tz, h, m)` where `now`
     // lands on the same local day — assert byte-identity to that mint.
     const projectorMint = localHmAsUtc(incoming, TZ, 8, 0);
@@ -389,10 +441,18 @@ describe("resolveCanonicalSlotInstant — DST robustness vs projector mint", () 
     // boundary that a naive same-UTC-day window could miss it, exercising
     // the resolver's padded-window + same-local-day filter.
     const med = makeMedication([
-      makeSchedule({ timesOfDay: ["06:00"], windowStart: "06:00", windowEnd: "07:00" }),
+      makeSchedule({
+        timesOfDay: ["06:00"],
+        windowStart: "06:00",
+        windowEnd: "07:00",
+      }),
     ]);
     const incoming = new Date("2026-10-25T05:02:00.000Z"); // 06:02 CET
-    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
     const projectorMint = localHmAsUtc(incoming, TZ, 6, 0);
     expect(result?.toISOString()).toBe(projectorMint.toISOString());
   });

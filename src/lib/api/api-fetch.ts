@@ -58,11 +58,7 @@ export class ApiError extends Error {
   /** `meta` object of the error envelope, when the body carried one. */
   readonly meta: Record<string, unknown> | undefined;
 
-  constructor(
-    message: string,
-    status: number,
-    meta?: Record<string, unknown>,
-  ) {
+  constructor(message: string, status: number, meta?: Record<string, unknown>) {
     super(message);
     this.name = "ApiError";
     this.status = status;

@@ -72,7 +72,9 @@ export const GET = apiHandler(async (request?: Request) => {
     // instantly while one background recompute refreshes them, instead
     // of paying the 2-SQL-pass rebuild inline.
     const slim = await cachedSwr(
-      caches.analytics as ServerCache<Awaited<ReturnType<typeof computeSummariesSlice>>>,
+      caches.analytics as ServerCache<
+        Awaited<ReturnType<typeof computeSummariesSlice>>
+      >,
       `${user.id}|summaries`,
       () => computeSummariesSlice(user.id),
       annotate,
@@ -95,7 +97,9 @@ export const GET = apiHandler(async (request?: Request) => {
   // hero score; after a measurement sync the next mount serves the
   // prior body instantly while one background recompute refreshes it.
   const cachedBody = await cachedSwr(
-    caches.analytics as ServerCache<Awaited<ReturnType<typeof buildAnalyticsResponse>>>,
+    caches.analytics as ServerCache<
+      Awaited<ReturnType<typeof buildAnalyticsResponse>>
+    >,
     `${user.id}|default`,
     () => buildAnalyticsResponse(user),
     annotate,
@@ -595,7 +599,6 @@ async function computeSleepStageBreakdown(
 // `src/lib/analytics/correlations-fast-path.ts`. They were only ever
 // used by the weight-weekday + day-key helpers inside the old inline
 // correlation builder.
-
 
 // v1.4.37 W2 — `mapMeasurementSourceToLabel`, `uniqueComponentSources`,
 // and the inline `computeUserHealthScore` body relocated to

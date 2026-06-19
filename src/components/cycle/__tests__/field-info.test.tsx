@@ -29,7 +29,10 @@ describe("<FieldInfo>", () => {
     // Radix renders the tooltip content lazily (portal, on open); the trigger
     // therefore reports a closed state until interacted with.
     const html = render(
-      <FieldInfo label="Cervical mucus" detail="Discharge changes across the cycle." />,
+      <FieldInfo
+        label="Cervical mucus"
+        detail="Discharge changes across the cycle."
+      />,
     );
     expect(html).toContain('data-state="closed"');
   });

@@ -86,7 +86,10 @@ export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <Button onClick={() => setLogOpen(true)} className="min-h-11 sm:min-h-9">
+          <Button
+            onClick={() => setLogOpen(true)}
+            className="min-h-11 sm:min-h-9"
+          >
             {t("illness.logDay")}
           </Button>
           {episode ? (
@@ -94,7 +97,9 @@ export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
               episode={episode}
               onEdit={() => setEditOpen(true)}
               onResolve={
-                active && !isChronic ? () => resolve.mutate(episode.id) : undefined
+                active && !isChronic
+                  ? () => resolve.mutate(episode.id)
+                  : undefined
               }
               resolving={resolve.isPending}
             />
@@ -105,7 +110,7 @@ export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
       {episode?.note ? (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               {t("illness.detail.note")}
             </p>
             <p className="text-foreground mt-1 text-sm whitespace-pre-wrap">

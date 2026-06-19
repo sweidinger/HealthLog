@@ -108,10 +108,7 @@ function makeFakePrisma(state: {
     return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
   }
 
-  function matchesWorkoutWhere(
-    row: FakeWorkoutRow,
-    where: FakeWhere,
-  ): boolean {
+  function matchesWorkoutWhere(row: FakeWorkoutRow, where: FakeWhere): boolean {
     if (where.userId !== undefined && row.userId !== where.userId) return false;
     if (where.sportType !== undefined && row.sportType !== where.sportType)
       return false;
@@ -133,10 +130,7 @@ function makeFakePrisma(state: {
     if (where.userId !== undefined && row.userId !== where.userId) return false;
     if (where.metricType !== undefined && row.metricType !== where.metricType)
       return false;
-    if (
-      where.metricSlot !== undefined &&
-      row.metricSlot !== where.metricSlot
-    )
+    if (where.metricSlot !== undefined && row.metricSlot !== where.metricSlot)
       return false;
     if (
       where.achievedAt !== undefined &&
@@ -180,37 +174,39 @@ function makeFakePrisma(state: {
     }
 
     const sorted = Array.from(byDay.values()).sort((a, b) =>
-      direction === "desc" ? b.day_total - a.day_total : a.day_total - b.day_total,
+      direction === "desc"
+        ? b.day_total - a.day_total
+        : a.day_total - b.day_total,
     );
     return [sorted[0]];
   }
 
   return {
-    $queryRaw: vi.fn(async (sql: { strings: string[]; values: unknown[]; sql?: string }) => {
-      // Prisma.sql flattens nested fragments at construction time —
-      // the ASC/DESC fragment is inlined into `strings`, only the
-      // userId + type land in the bound `values` list. We detect the
-      // cumulative day-sum probe by the SQL preamble and read the
-      // direction off the flattened SQL text.
-      const fullSql = sql.sql ?? sql.strings.join("?");
-      if (!fullSql.includes("date_trunc('day', m.\"measured_at\")")) {
-        throw new Error(
-          `Unhandled $queryRaw in fake Prisma:\n${fullSql}`,
+    $queryRaw: vi.fn(
+      async (sql: { strings: string[]; values: unknown[]; sql?: string }) => {
+        // Prisma.sql flattens nested fragments at construction time —
+        // the ASC/DESC fragment is inlined into `strings`, only the
+        // userId + type land in the bound `values` list. We detect the
+        // cumulative day-sum probe by the SQL preamble and read the
+        // direction off the flattened SQL text.
+        const fullSql = sql.sql ?? sql.strings.join("?");
+        if (!fullSql.includes("date_trunc('day', m.\"measured_at\")")) {
+          throw new Error(`Unhandled $queryRaw in fake Prisma:\n${fullSql}`);
+        }
+        const [userIdVal, typeVal] = sql.values as [string, string];
+        // The ORDER BY direction was interpolated as a literal — recover
+        // it from the flattened SQL so the fake exercises the same
+        // direction the worker asked for.
+        const dirMatch = /ORDER BY day_total\s+(ASC|DESC)/i.exec(fullSql);
+        const direction: "asc" | "desc" =
+          dirMatch?.[1]?.toUpperCase() === "ASC" ? "asc" : "desc";
+        return runCumulativeDaySum(
+          userIdVal,
+          typeVal as MeasurementType,
+          direction,
         );
-      }
-      const [userIdVal, typeVal] = sql.values as [string, string];
-      // The ORDER BY direction was interpolated as a literal — recover
-      // it from the flattened SQL so the fake exercises the same
-      // direction the worker asked for.
-      const dirMatch = /ORDER BY day_total\s+(ASC|DESC)/i.exec(fullSql);
-      const direction: "asc" | "desc" =
-        dirMatch?.[1]?.toUpperCase() === "ASC" ? "asc" : "desc";
-      return runCumulativeDaySum(
-        userIdVal,
-        typeVal as MeasurementType,
-        direction,
-      );
-    }),
+      },
+    ),
     measurement: {
       count: vi.fn(async ({ where }: { where: FakeWhere }) => {
         return state.measurements.filter((r) =>
@@ -377,34 +373,33 @@ describe("detectPersonalRecordsForUser — warm-up gate", () => {
     expect(state.personalRecords).toHaveLength(0);
   });
 
-  it(
-    `writes the first PR once ${PR_DETECTION_WARMUP_THRESHOLD} measurements exist`,
-    async () => {
-      const samples: FakeMeasurementRow[] = [];
-      for (let i = 0; i < PR_DETECTION_WARMUP_THRESHOLD; i++) {
-        samples.push(measurement("ACTIVITY_STEPS", 8000 + i * 100, i + 1, `i${i}`));
-      }
-      // The last sample is the all-time best.
-      samples.push(measurement("ACTIVITY_STEPS", 15000, 0, "best"));
-
-      const state = {
-        measurements: samples,
-        workouts: [],
-        personalRecords: [] as FakePersonalRecordRow[],
-      };
-      const prisma = makeFakePrisma(state);
-
-      const result = await detectPersonalRecordsForUser(USER, { prisma });
-
-      expect(result.inserted).toBeGreaterThanOrEqual(1);
-      const stepsPR = state.personalRecords.find(
-        (r) => r.metricType === "ACTIVITY_STEPS" && r.metricSlot === null,
+  it(`writes the first PR once ${PR_DETECTION_WARMUP_THRESHOLD} measurements exist`, async () => {
+    const samples: FakeMeasurementRow[] = [];
+    for (let i = 0; i < PR_DETECTION_WARMUP_THRESHOLD; i++) {
+      samples.push(
+        measurement("ACTIVITY_STEPS", 8000 + i * 100, i + 1, `i${i}`),
       );
-      expect(stepsPR).toBeDefined();
-      expect(stepsPR?.value).toBe(15000);
-      expect(stepsPR?.direction).toBe(PersonalRecordDirection.MAX);
-    },
-  );
+    }
+    // The last sample is the all-time best.
+    samples.push(measurement("ACTIVITY_STEPS", 15000, 0, "best"));
+
+    const state = {
+      measurements: samples,
+      workouts: [],
+      personalRecords: [] as FakePersonalRecordRow[],
+    };
+    const prisma = makeFakePrisma(state);
+
+    const result = await detectPersonalRecordsForUser(USER, { prisma });
+
+    expect(result.inserted).toBeGreaterThanOrEqual(1);
+    const stepsPR = state.personalRecords.find(
+      (r) => r.metricType === "ACTIVITY_STEPS" && r.metricSlot === null,
+    );
+    expect(stepsPR).toBeDefined();
+    expect(stepsPR?.value).toBe(15000);
+    expect(stepsPR?.direction).toBe(PersonalRecordDirection.MAX);
+  });
 });
 
 describe("detectPersonalRecordsForUser — direction semantics", () => {
@@ -474,9 +469,9 @@ describe("detectPersonalRecordsForUser — direction semantics", () => {
 
     await detectPersonalRecordsForUser(USER, { prisma });
 
-    expect(
-      state.personalRecords.some((r) => r.metricType === "WEIGHT"),
-    ).toBe(false);
+    expect(state.personalRecords.some((r) => r.metricType === "WEIGHT")).toBe(
+      false,
+    );
     expect(
       state.personalRecords.some((r) => r.metricType === "BLOOD_GLUCOSE"),
     ).toBe(false);
@@ -602,7 +597,9 @@ describe("detectPersonalRecordsForUser — workout slots", () => {
   it("longest_run_duration writes a PR once 7 running workouts exist", async () => {
     const runs: FakeWorkoutRow[] = [];
     for (let i = 0; i < PR_DETECTION_WARMUP_THRESHOLD; i++) {
-      runs.push(workout("running", 1800 + i * 60, 5000 + i * 200, i + 2, `r${i}`));
+      runs.push(
+        workout("running", 1800 + i * 60, 5000 + i * 200, i + 2, `r${i}`),
+      );
     }
     runs.push(workout("running", 7200, 18000, 1, "longest"));
 
@@ -653,7 +650,9 @@ describe("detectPersonalRecordsForUser — workout slots", () => {
       runs.push(workout("running", 800, 3000, i + 10, `short-${i}`));
     }
     for (let i = 0; i < PR_DETECTION_WARMUP_THRESHOLD; i++) {
-      runs.push(workout("running", 1800 + i * 30, 5100 + i * 100, i + 2, `5k-${i}`));
+      runs.push(
+        workout("running", 1800 + i * 30, 5100 + i * 100, i + 2, `5k-${i}`),
+      );
     }
     runs.push(workout("running", 1500, 5050, 1, "5k-fastest"));
 
@@ -906,9 +905,9 @@ describe("detectPersonalRecordsForUser — REG-9 cumulative day-sum (v1.4.46)", 
 describe("compareToCurrentBest — pure helper", () => {
   it("classifies improvement / tie / no-improvement for MAX direction", () => {
     const { compareToCurrentBest } = __test__;
-    expect(compareToCurrentBest(100, undefined, PersonalRecordDirection.MAX)).toBe(
-      "improvement",
-    );
+    expect(
+      compareToCurrentBest(100, undefined, PersonalRecordDirection.MAX),
+    ).toBe("improvement");
     expect(compareToCurrentBest(120, 100, PersonalRecordDirection.MAX)).toBe(
       "improvement",
     );
@@ -922,13 +921,15 @@ describe("compareToCurrentBest — pure helper", () => {
 
   it("classifies improvement / tie / no-improvement for MIN direction", () => {
     const { compareToCurrentBest } = __test__;
-    expect(compareToCurrentBest(50, undefined, PersonalRecordDirection.MIN)).toBe(
-      "improvement",
-    );
+    expect(
+      compareToCurrentBest(50, undefined, PersonalRecordDirection.MIN),
+    ).toBe("improvement");
     expect(compareToCurrentBest(45, 50, PersonalRecordDirection.MIN)).toBe(
       "improvement",
     );
-    expect(compareToCurrentBest(50, 50, PersonalRecordDirection.MIN)).toBe("tie");
+    expect(compareToCurrentBest(50, 50, PersonalRecordDirection.MIN)).toBe(
+      "tie",
+    );
     expect(compareToCurrentBest(60, 50, PersonalRecordDirection.MIN)).toBe(
       "no-improvement",
     );

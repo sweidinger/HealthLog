@@ -151,7 +151,11 @@ async function updateCoolifyEnv(
   appUuid: string,
   value: string,
 ): Promise<void> {
-  const list = await coolifyRequest(base, token, `/applications/${appUuid}/envs`);
+  const list = await coolifyRequest(
+    base,
+    token,
+    `/applications/${appUuid}/envs`,
+  );
   if (!list.ok) {
     fail(`Coolify env list failed: HTTP ${list.status} — check token/UUID`);
   }

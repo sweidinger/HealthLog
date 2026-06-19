@@ -42,9 +42,7 @@ describe("proxy.ts DEMO_MODE mutation allowlist", () => {
   });
 
   it("permits the chart-overlay-prefs PUT (above-chart display toggles)", () => {
-    const res = proxy(
-      makeRequest("/api/dashboard/chart-overlay-prefs", "PUT"),
-    );
+    const res = proxy(makeRequest("/api/dashboard/chart-overlay-prefs", "PUT"));
     expect(res.status).not.toBe(403);
   });
 

@@ -18,7 +18,6 @@ import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
 import { LayoutCoachMount } from "@/components/insights/layout-coach-mount";
 import { SuggestedPrompts } from "@/components/insights/suggested-prompts";
-import { HeroStrip } from "@/components/insights/hero-strip";
 
 /**
  * v1.4.47 W3 — per-user "Hide Coach" opt-out invariant.
@@ -182,17 +181,9 @@ const DISABLE_COACH_SURFACES: DisableCoachSurface[] = [
     mount: () => <SuggestedPrompts onPick={() => undefined} />,
     proofWhenVisible: 'data-slot="insights-suggested-prompts"',
   },
-  {
-    name: "HeroStrip action-row Ask the coach",
-    mount: () => (
-      <HeroStrip
-        briefing={null}
-        now={new Date(2026, 4, 10, 9, 0, 0)}
-        onAskCoach={() => undefined}
-      />
-    ),
-    proofWhenVisible: 'data-slot="insights-hero-strip-action-coach"',
-  },
+  // v1.18.7 — the HeroStrip "Ask the coach" action button was removed from
+  // the overview hero. The Coach is the bottom-right drawer; its launcher
+  // surfaces below carry the per-user disable gate.
 ];
 
 describe("Coach per-user disableCoach invariant", () => {
@@ -290,7 +281,9 @@ describe("Coach per-user disableCoach invariant", () => {
     // fixture above; each one calls `useDisableCoach()` and short-
     // circuits to `null` when the per-user flag is on.
     "src/components/insights/coach-launch-button.tsx",
-    "src/components/insights/hero-strip.tsx",
+    // v1.18.7 — hero-strip.tsx no longer gates on the Coach flag: its
+    // action button + suggested-prompt strip were removed, so it dropped
+    // the `useDisableCoach` call entirely.
     "src/components/insights/layout-coach-fab.tsx",
     "src/components/insights/layout-coach-mount.tsx",
     "src/components/insights/suggested-prompts.tsx",

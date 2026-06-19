@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { ResearchModeAcknowledgmentDialog } from "@/components/medications/ResearchModeAcknowledgmentDialog";
+import { ResearchModeAcknowledgmentDialog } from "@/components/medications/research-mode-acknowledgment-dialog";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -139,10 +140,7 @@ function ResearchModeCard() {
   }
 
   return (
-    <div
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
-      data-slot="settings-research-mode-card"
-    >
+    <SettingsCard data-slot="settings-research-mode-card">
       <SettingsCardHeader
         icon={BookOpenCheck}
         title={t("settings.researchMode.sectionTitle")}
@@ -164,7 +162,7 @@ function ResearchModeCard() {
           <Button
             size="sm"
             variant="outline"
-            className="mt-2"
+            className="mt-2 min-h-11 sm:min-h-9"
             onClick={() => setDialogOpen(true)}
             data-slot="settings-research-mode-reprompt-cta"
           >
@@ -211,7 +209,7 @@ function ResearchModeCard() {
         onOpenChange={setDialogOpen}
         currentDisclaimerVersion={status?.currentDisclaimerVersion ?? null}
       />
-    </div>
+    </SettingsCard>
   );
 }
 
@@ -254,10 +252,7 @@ function DataResetCard() {
   }
 
   return (
-    <div
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
-      data-slot="settings-data-reset-card"
-    >
+    <SettingsCard data-slot="settings-data-reset-card">
       {/* v1.4.43 QoL (L5) — dropped the `AlertTriangle` icon and
           neutralised the title colour so the danger-zone shaping is
           GitHub-style (red CTA only) rather than red-on-red-on-red.
@@ -287,7 +282,7 @@ function DataResetCard() {
               variant="destructive"
               size="sm"
               disabled={deleting}
-              className="w-full shrink-0 sm:w-auto"
+              className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
             >
               {deleting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -338,7 +333,7 @@ function DataResetCard() {
           {msg}
         </p>
       )}
-    </div>
+    </SettingsCard>
   );
 }
 
@@ -402,10 +397,7 @@ function AccountDeleteCard() {
   }
 
   return (
-    <div
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
-      data-slot="settings-account-delete-card"
-    >
+    <SettingsCard data-slot="settings-account-delete-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
         <div className="space-y-1">
           <h2 className="text-foreground text-lg font-semibold">
@@ -430,7 +422,7 @@ function AccountDeleteCard() {
               variant="destructive"
               size="sm"
               disabled={deleting}
-              className="w-full shrink-0 sm:w-auto"
+              className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
               data-slot="settings-account-delete-trigger"
             >
               {deleting ? (
@@ -482,6 +474,6 @@ function AccountDeleteCard() {
           {msg}
         </p>
       )}
-    </div>
+    </SettingsCard>
   );
 }

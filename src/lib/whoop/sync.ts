@@ -485,8 +485,7 @@ export async function syncUserWhoop(
   // soft-skipped and nothing imported; leave the status as-is so the
   // "looks-healthy" window closes. A partial cycle (some rows imported, or at
   // least one resource that did not soft-skip) stamps success as normal.
-  const allSoftSkipped =
-    tracker.count >= resources.length && total === 0;
+  const allSoftSkipped = tracker.count >= resources.length && total === 0;
 
   if (!anyFailed && !allSoftSkipped) {
     await recordSyncSuccess(userId, "whoop");

@@ -68,9 +68,7 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-const { AddInventoryDialog } = await import(
-  "../sections/inventory-section"
-);
+const { AddInventoryDialog } = await import("../sections/inventory-section");
 
 function render(node: React.ReactNode, locale: "en" | "de" = "de"): string {
   return renderToStaticMarkup(
@@ -178,7 +176,7 @@ describe("<AddInventoryDialog>", () => {
 
   it("bounds the quantity to 1000 units (dose mode scales the max down)", () => {
     expect(src).toContain("units >= 1 && units <= 1000");
-    expect(src).toContain('Math.floor(1000 / unitsPerDose)');
+    expect(src).toContain("Math.floor(1000 / unitsPerDose)");
   });
 
   it("maps the delivery form onto the register default (PEN for INJECTION, BLISTER for ORAL, OTHER otherwise)", () => {

@@ -107,7 +107,9 @@ export const GET = apiHandler(async () => {
   // Only surface timings on the cache-miss path (the hit path skips the
   // whole builder and leaves `timings` empty).
   if (Object.keys(timings).length > 0) {
-    annotate({ meta: { ...timings, snapshot_extras_present: body.extras !== null } });
+    annotate({
+      meta: { ...timings, snapshot_extras_present: body.extras !== null },
+    });
   }
 
   const response = apiSuccess(body);

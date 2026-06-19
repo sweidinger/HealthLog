@@ -138,18 +138,14 @@ beforeEach(() => {
   // findMany + null findFirst means the slim slice's parity check
   // diverges and falls back to live SQL (preserves the pre-v1.4.35
   // assertions in this file).
-  vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue(
-    [] as never,
-  );
+  vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.measurementRollup.findFirst).mockResolvedValue(
     null as never,
   );
-  vi.mocked(prisma.measurementRollup.deleteMany).mockResolvedValue(
-    { count: 0 } as never,
-  );
-  vi.mocked(prisma.measurementRollup.upsert).mockResolvedValue(
-    {} as never,
-  );
+  vi.mocked(prisma.measurementRollup.deleteMany).mockResolvedValue({
+    count: 0,
+  } as never);
+  vi.mocked(prisma.measurementRollup.upsert).mockResolvedValue({} as never);
   // v1.4.37 W2 — `ensureUserRollupsFresh` reads `measurement.findFirst`;
   // the per-type coverage probe + the rollup-recompute aggregator ride
   // `$queryRaw` / `$queryRawUnsafe`. Default to empty so the route
@@ -318,12 +314,10 @@ describe("GET /api/analytics", () => {
         { type: "WEIGHT", value: 81.8, measured_at: fiveDaysAgo },
       ] as never);
 
-    const req = new Request(
-      "http://localhost/api/analytics?slice=summaries",
+    const req = new Request("http://localhost/api/analytics?slice=summaries");
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      req,
     );
-    const res = await (
-      GET as unknown as (req: Request) => Promise<Response>
-    )(req);
     expect(res.status).toBe(200);
     // v1.4.34 IW-B — bfcache-friendly directive rides on the slim
     // slice too.
@@ -369,17 +363,17 @@ describe("GET /api/analytics", () => {
   // both fields rather than 403-ing the whole core-metrics payload.
   function seedGlucoseRows() {
     const measuredAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
-    vi.mocked(prisma.measurement.findMany).mockImplementation(
-      (async (args: { where?: { type?: string } }) => {
-        if (args?.where?.type === "BLOOD_GLUCOSE") {
-          return [
-            { value: 95, measuredAt, glucoseContext: "FASTING" },
-            { value: 140, measuredAt, glucoseContext: "POSTPRANDIAL" },
-          ];
-        }
-        return [];
-      }) as never,
-    );
+    vi.mocked(prisma.measurement.findMany).mockImplementation((async (args: {
+      where?: { type?: string };
+    }) => {
+      if (args?.where?.type === "BLOOD_GLUCOSE") {
+        return [
+          { value: 95, measuredAt, glucoseContext: "FASTING" },
+          { value: 140, measuredAt, glucoseContext: "POSTPRANDIAL" },
+        ];
+      }
+      return [];
+    }) as never);
   }
 
   it("serves glucose clinical + per-context when glucose enabled", async () => {

@@ -19,10 +19,7 @@
  */
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
-import {
-  apiSuccess,
-  returnAllZodIssues,
-} from "@/lib/api-response";
+import { apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";

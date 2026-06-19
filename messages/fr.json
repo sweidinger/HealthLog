@@ -2003,6 +2003,7 @@
     "dailyBriefing": {
       "title": "Briefing du jour",
       "keyFindingsTitle": "Constats clés",
+      "signalsTitle": "Signaux du jour",
       "emptyTitle": "Pas encore de briefing",
       "emptyDescription": "Génère le briefing du jour pour obtenir un récap de tes tendances.",
       "emptyAction": "Générer le briefing",
@@ -2263,7 +2264,11 @@
       "settingsClustersLabel": "Données vues par le Coach",
       "settingsClustersHint": "Choisissez les groupes de données que le Coach peut lire. Plus de données, des réponses plus riches et un prompt plus grand.",
       "settingsClusterNoData": "Pas encore de données",
-      "sourcesMemberCount": "{count} mesures"
+      "sourcesMemberCount": "{count} mesures",
+      "dictate": "Dicter",
+      "dictateStop": "Arrêter la dictée",
+      "showConversations": "Afficher les conversations",
+      "hideConversations": "Masquer les conversations"
     },
     "relativeJustNow": "à l’instant",
     "relativeMinutesAgoOne": "il y a {count} minute",
@@ -2568,7 +2573,6 @@
       "chronotype": {
         "title": "Chronotype",
         "learning": "Votre rythme est encore en cours d'analyse — {counted} sur {total} nuits libres. Un chronotype a besoin de quelques matins sans réveil pour avoir du sens.",
-        "midSleepCaption": "Le milieu naturel de votre sommeil les jours de repos se situe vers {clock}.",
         "advancedToggle": "Avancé",
         "socialJetlagValue": "{hours} h {minutes} min de jet lag social",
         "socialJetlagCaption": "L'écart entre vos horaires de sommeil les jours travaillés et les jours libres — comme un petit décalage horaire hebdomadaire.",
@@ -2582,7 +2586,7 @@
           "late": "Type du soir",
           "extreme_late": "Type du soir marqué"
         },
-        "cornerLabel": "Chronotype"
+        "midpointHeadline": "Le milieu naturel de votre sommeil se situe vers {clock}."
       },
       "rhythm": {
         "loadError": "Votre rythme de sommeil n'a pas pu se charger pour l'instant. Il réapparaîtra dès que la connexion sera rétablie."
@@ -4021,6 +4025,21 @@
         "description": "Groupes, étiquettes et étiquettes archivées du sélecteur d’humeur.",
         "subtitle": "Organisez vos tags d'humeur, groupes et ordre du sélecteur."
       },
+      "labs": {
+        "title": "Analyses",
+        "description": "Affichage, tri et biomarqueurs de vos analyses.",
+        "subtitle": "Gérez l’affichage, le tri et les biomarqueurs."
+      },
+      "illness": {
+        "title": "Journal de maladie",
+        "description": "Affichage et ordre de vos épisodes de maladie.",
+        "subtitle": "Gérez l’affichage et l’ordre des épisodes."
+      },
+      "vorsorge": {
+        "title": "Prévention",
+        "description": "Affichage, ordre et rappels de prévention individuels.",
+        "subtitle": "Gérez l’affichage, l’ordre et les rappels individuels."
+      },
       "modules": {
         "title": "Modules",
         "saved": "Enregistré.",
@@ -4324,7 +4343,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Connectez votre balance et vos tensiomètres Withings.",
+    "withingsDescription": "Connecte ta balance et ton tensiomètre Withings pour synchroniser automatiquement poids, composition corporelle et tension.",
     "withingsCredentials": "Identifiants API",
     "withingsClientId": "ID client",
     "withingsClientSecret": "Secret client",
@@ -4362,10 +4381,8 @@
     "withingsConnect": "Se connecter avec Withings",
     "withingsNoCredentials": "Saisissez d’abord vos identifiants API ci-dessus pour connecter Withings.",
     "whoop": "WHOOP",
-    "whoopDescription": "Connectez votre bracelet WHOOP pour synchroniser récupération, sommeil, effort et entraînements.",
-    "whoopOverlapNote": "Si WHOOP et une autre source fournissent la même donnée vitale — fréquence cardiaque au repos, oxygène sanguin, température corporelle, fréquence respiratoire ou phases de sommeil —, les deux valeurs peuvent apparaître jusqu'à ce qu'une future mise à jour retienne une seule source préférée.",
+    "whoopDescription": "Connecte ton bracelet WHOOP pour synchroniser récupération, sommeil, charge et entraînements directement dans HealthLog.",
     "whoopCredentials": "Identifiants API",
-    "whoopCredentialsHelp": "Enregistrez votre propre application développeur WHOOP et collez ici son Client ID et son Client Secret.",
     "whoopClientId": "Client ID",
     "whoopClientSecret": "Client Secret",
     "whoopCredentialsSaved": "Identifiants enregistrés",
@@ -4399,12 +4416,9 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit et Pixel",
-    "fitbitDescription": "Connectez Google Health pour synchroniser vos données Fitbit et Pixel Watch : poids, masse grasse, fréquence cardiaque au repos, saturation en oxygène, variabilité de la fréquence cardiaque et plus encore.",
-    "fitbitOverlapNote": "Si Google Health et une autre source fournissent la même constante vitale — fréquence cardiaque au repos, saturation en oxygène, température corporelle ou fréquence respiratoire —, vous pourriez voir les deux valeurs jusqu'à ce qu'une future mise à jour retienne une seule source préférée.",
+    "fitbitDescription": "Connecte Google Health pour synchroniser tes données Fitbit et Pixel Watch — poids, fréquence cardiaque et plus.",
     "fitbitExperimentalBadge": "Expérimental",
-    "fitbitExperimentalNote": "Cette intégration est en bêta : la couverture des données et la correspondance des champs sont encore en cours de vérification avec de vrais comptes Google Health, donc certaines valeurs peuvent manquer ou changer lors d'une future mise à jour.",
     "fitbitCredentials": "Identifiants d'API",
-    "fitbitCredentialsHelp": "Enregistrez votre propre client OAuth Google Cloud pour l'API Google Health et collez ici son Client ID et son Client Secret.",
     "fitbitClientId": "Client ID",
     "fitbitClientSecret": "Client Secret",
     "fitbitCredentialsSaved": "Identifiants enregistrés",
@@ -4662,7 +4676,16 @@
       "statusActive": "Actif",
       "statusRevoked": "Révoqué",
       "statusExpired": "Expiré",
-      "inactiveTitle": "Révoqués et expirés ({count})"
+      "inactiveTitle": "Révoqués et expirés ({count})",
+      "shownOnce": "Affiché une seule fois. Enregistrez le code QR et la phrase secrète maintenant — ils ne pourront pas être récupérés ensuite.",
+      "qrLabel": "Code QR",
+      "qrAlt": "Code QR contenant le lien de partage et la phrase secrète",
+      "linkLabel": "Lien",
+      "passphraseLabel": "Phrase secrète",
+      "passphraseHint": "Le destinataire a besoin du lien et de cette phrase secrète. Le code QR contient les deux.",
+      "copyLink": "Copier le lien",
+      "copyPassphrase": "Copier la phrase secrète",
+      "protected": "Phrase secrète"
     },
     "genderOther": "Autre",
     "cycleTracking": {
@@ -4674,9 +4697,8 @@
     },
     "nightscout": "Nightscout",
     "nightscoutTag": "CGM",
-    "nightscoutDescription": "Connectez votre propre site Nightscout pour synchroniser les mesures de glycémie en continu dans le panneau glucose.",
+    "nightscoutDescription": "Connecte ton propre site Nightscout pour synchroniser les mesures de glucose en continu dans le panneau glucose.",
     "nightscoutViewData": "Voir votre glycémie",
-    "nightscoutHelp": "Pointez HealthLog vers votre instance Nightscout. Les mesures sont récupérées en arrière-plan une fois par heure.",
     "nightscoutUrl": "URL Nightscout",
     "nightscoutUrlSavedPlaceholder": "Enregistré — saisissez une nouvelle URL pour la remplacer",
     "nightscoutToken": "Jeton d'API",
@@ -4693,11 +4715,10 @@
     "nightscoutDisconnectTitle": "Déconnecter Nightscout ?",
     "nightscoutDisconnectDescription": "Les synchronisations futures s'arrêtent. Les mesures de glycémie déjà importées restent dans votre historique.",
     "polar": "Polar",
-    "polarDescription": "Connectez votre compte Polar pour synchroniser la récupération Nightly Recharge, les phases de sommeil et l'activité quotidienne.",
+    "polarDescription": "Connecte ton compte Polar pour synchroniser la récupération Nightly Recharge, les phases de sommeil et l'activité.",
     "polarViewData": "Voir votre sommeil et récupération",
     "polarHelp": "Connectez-vous à Polar pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
     "polarCredentials": "Identifiants API",
-    "polarCredentialsHelp": "Facultatif : enregistrez votre propre application Polar AccessLink et collez ici son Client ID et son Client Secret. Laissez vide pour utiliser l'application Polar partagée du serveur.",
     "polarClientId": "Client ID",
     "polarClientSecret": "Client Secret",
     "polarCredentialsSaved": "Identifiants enregistrés",
@@ -4721,11 +4742,10 @@
       "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
     },
     "oura": "Oura",
-    "ouraDescription": "Connectez votre compte Oura pour synchroniser le readiness, les phases de sommeil, la VFC et l'activité quotidienne.",
+    "ouraDescription": "Connecte ton compte Oura pour synchroniser readiness, phases de sommeil, variabilité cardiaque et activité quotidienne.",
     "ouraViewData": "Voir votre sommeil et récupération",
     "ouraHelp": "Connectez-vous à Oura pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
     "ouraCredentials": "Identifiants API",
-    "ouraCredentialsHelp": "Facultatif : enregistrez votre propre application Oura et collez ici son Client ID et son Client Secret. Laissez vide pour utiliser l'application Oura partagée du serveur.",
     "ouraClientId": "Client ID",
     "ouraClientSecret": "Client Secret",
     "ouraCredentialsSaved": "Identifiants enregistrés",
@@ -4758,7 +4778,14 @@
         "savedOff": "Coach masqué.",
         "saveError": "Impossible d enregistrer la modification. Veuillez réessayer."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "whoopDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "fitbitDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "polarDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "ouraDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "nightscoutDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus."
   },
   "admin": {
     "title": "Administration",
@@ -5945,7 +5972,14 @@
       "strain": "Score de charge",
       "score": "Score de bien-être"
     },
-    "footer": "Partagé depuis HealthLog — un suivi de santé auto-hébergé."
+    "footer": "Partagé depuis HealthLog — un suivi de santé auto-hébergé.",
+    "unlock": {
+      "title": "Saisir la phrase secrète",
+      "description": "Ce dossier de santé partagé est protégé. Saisissez la phrase secrète qui vous a été communiquée pour le consulter.",
+      "label": "Phrase secrète",
+      "error": "Cette phrase secrète est incorrecte.",
+      "submit": "Déverrouiller"
+    }
   },
   "cycle": {
     "symptomCategory": {
@@ -6404,11 +6438,6 @@
       "onTrack": "Dans les temps",
       "due": "À faire maintenant"
     },
-    "settings": {
-      "title": "Personnaliser la prévention",
-      "description": "Gérer l'affichage, l'ordre et les rappels individuels.",
-      "back": "Retour à la prévention"
-    },
     "capture": {
       "title": "Enregistrer une mesure",
       "description": "Saisissez la valeur ; le rappel est marqué comme fait."
@@ -6421,6 +6450,14 @@
     "dashboard": {
       "empty": "Aucun rappel de prévention à venir.",
       "openLink": "Ouvrir la prévention"
+    },
+    "showMeasurements": "Afficher les mesures",
+    "trendStrip": {
+      "label": "7 derniers jours",
+      "summary": "Dernière valeur {value}, {direction} sur 7 jours.",
+      "rising": "en hausse",
+      "falling": "en baisse",
+      "steady": "stable"
     }
   },
   "moduleList": {
@@ -6450,11 +6487,6 @@
     "deleteError": "Impossible de supprimer le résultat",
     "loadError": "Impossible de charger les résultats",
     "customize": "Personnaliser les analyses",
-    "settings": {
-      "title": "Personnaliser les analyses",
-      "description": "Gérer l'affichage, le tri et les biomarqueurs.",
-      "back": "Retour aux analyses"
-    },
     "sort": {
       "heading": "Tri",
       "label": "Ordre des valeurs",
@@ -6653,11 +6685,6 @@
     "title": "Journal de maladie",
     "subtitle": "Un suivi rétrospectif de vos épisodes de maladie et d'affections.",
     "customize": "Personnaliser le journal de maladie",
-    "settings": {
-      "title": "Personnaliser le journal de maladie",
-      "description": "Gérer l'affichage et l'ordre des épisodes.",
-      "back": "Retour au journal de maladie"
-    },
     "newEpisode": "Nouvel épisode",
     "logDay": "Enregistrer un jour",
     "markRecovered": "Marquer comme rétabli",

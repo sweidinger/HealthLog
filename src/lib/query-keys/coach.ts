@@ -13,4 +13,17 @@ export const coachKeys = {
   coachNudgeStatus: () => ["coach-nudge-status"] as const,
   /** v1.18.6 (CCH-03) — mark-Coach-seen mutation (clears the FAB unread dot). */
   coachMarkSeen: () => ["coach-mark-seen"] as const,
+  /**
+   * v1.18.7 — the Coach conversation rail list (`GET /api/insights/chat`).
+   * Previously a hook-local bare `["coachConversations"]`; centralised so
+   * the optimistic delete and the streaming hook's post-turn invalidation
+   * share one factory-routed key.
+   */
+  coachConversations: () => ["coachConversations"] as const,
+  /**
+   * v1.18.7 — one decrypted Coach conversation (`GET /api/insights/chat/[id]`).
+   * Keyed on the conversation id so two open threads never share a cache slot;
+   * the streaming hook invalidates this slot once the persisted twin lands.
+   */
+  coachConversation: (id: string | null) => ["coachConversation", id] as const,
 };

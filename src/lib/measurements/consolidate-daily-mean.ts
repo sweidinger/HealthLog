@@ -398,7 +398,9 @@ export async function consolidateDailyMean(
       summary.totals.daysConsolidated += 1;
       summary.totals.dailyRowsUpserted += 1;
       summary.totals.perSampleRowsSoftDeleted +=
-        outcome?.kind === "written" ? outcome.sourceRowsRemoved : dayRows.length;
+        outcome?.kind === "written"
+          ? outcome.sourceRowsRemoved
+          : dayRows.length;
     },
     onUserComplete: ({ userId, tz, dryRun }) => {
       log(

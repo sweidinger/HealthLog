@@ -107,11 +107,17 @@ describe("fetchReadiness pagination", () => {
     installFetchMock([
       {
         status: 200,
-        body: { data: [{ id: "1", day: "2026-06-09", score: 70 }], next_token: "abc" },
+        body: {
+          data: [{ id: "1", day: "2026-06-09", score: 70 }],
+          next_token: "abc",
+        },
       },
       {
         status: 200,
-        body: { data: [{ id: "2", day: "2026-06-10", score: 80 }], next_token: null },
+        body: {
+          data: [{ id: "2", day: "2026-06-10", score: 80 }],
+          next_token: null,
+        },
       },
     ]);
     const r = await fetchReadiness("tok", {
@@ -140,7 +146,11 @@ describe("mapReadiness", () => {
     };
     const mapped = mapReadiness(r);
     const dev = mapped.find((m) => m.type === "BODY_TEMPERATURE_DEVIATION");
-    expect(dev).toMatchObject({ value: -0.42, unit: "celsius", fieldTag: "temp_deviation" });
+    expect(dev).toMatchObject({
+      value: -0.42,
+      unit: "celsius",
+      fieldTag: "temp_deviation",
+    });
   });
   it("emits the temperature deviation even when the score is absent", () => {
     const mapped = mapReadiness({
@@ -153,7 +163,9 @@ describe("mapReadiness", () => {
     expect(mapped[0].type).toBe("BODY_TEMPERATURE_DEVIATION");
   });
   it("skips a record with no score and no temperature", () => {
-    expect(mapReadiness({ id: "1", day: "2026-06-10", score: null })).toEqual([]);
+    expect(mapReadiness({ id: "1", day: "2026-06-10", score: null })).toEqual(
+      [],
+    );
   });
 });
 
@@ -179,9 +191,9 @@ describe("mapSleep", () => {
     expect(mapped.find((m) => m.type === "RESTING_HEART_RATE")?.value).toBe(49);
     expect(mapped.find((m) => m.type === "RESPIRATORY_RATE")?.value).toBe(14.5);
     // B2 — every sleep row is record-scoped so a nap never overwrites the main.
-    expect(
-      mapped.every((m) => m.externalId?.startsWith("sleep:rec-9:")),
-    ).toBe(true);
+    expect(mapped.every((m) => m.externalId?.startsWith("sleep:rec-9:"))).toBe(
+      true,
+    );
   });
 
   it("emits a real timed timeline from sleep_phase_5_min (reconstructed=false)", () => {
@@ -243,7 +255,11 @@ describe("mapDailyActivity", () => {
       412,
     );
     const dist = mapped.find((m) => m.type === "WALKING_RUNNING_DISTANCE");
-    expect(dist).toMatchObject({ value: 6543, unit: "m", fieldTag: "distance" });
+    expect(dist).toMatchObject({
+      value: 6543,
+      unit: "m",
+      fieldTag: "distance",
+    });
   });
 });
 
@@ -284,7 +300,11 @@ describe("mapDailySpo2", () => {
   });
   it("skips a record with no average", () => {
     expect(
-      mapDailySpo2({ id: "1", day: "2026-06-10", spo2_percentage: { average: null } }),
+      mapDailySpo2({
+        id: "1",
+        day: "2026-06-10",
+        spo2_percentage: { average: null },
+      }),
     ).toEqual([]);
   });
 });

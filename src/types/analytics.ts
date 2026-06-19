@@ -156,4 +156,3 @@ export interface InsightsAnalyticsData {
     delta: number | null;
   } | null;
 }
-

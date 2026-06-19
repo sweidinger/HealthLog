@@ -88,8 +88,9 @@ describe("runDenseIntradayRetention — retention bound", () => {
     // boundary. Without it, in-window intra-day samples would be folded and
     // the Stress engine would lose its shape.
     for (const call of findManyMeasurement.mock.calls) {
-      const where = (call[0] as unknown as { where: { measuredAt?: { lt: Date } } })
-        .where;
+      const where = (
+        call[0] as unknown as { where: { measuredAt?: { lt: Date } } }
+      ).where;
       expect(where.measuredAt?.lt).toBeInstanceOf(Date);
     }
     // The cutoff is ~DENSE_INTRADAY_RETENTION_DAYS in the past.
@@ -108,8 +109,9 @@ describe("runDenseIntradayRetention — retention bound", () => {
     const { mock, findManyMeasurement } = buildPrismaMock({});
     await runDenseIntradayRetention(mock, { retentionDays: 0, log: () => {} });
     for (const call of findManyMeasurement.mock.calls) {
-      const where = (call[0] as unknown as { where: { measuredAt?: { lt: Date } } })
-        .where;
+      const where = (
+        call[0] as unknown as { where: { measuredAt?: { lt: Date } } }
+      ).where;
       // No cutoff predicate → the whole history is in scope.
       expect(where.measuredAt).toBeUndefined();
     }

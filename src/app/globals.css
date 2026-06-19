@@ -235,38 +235,38 @@
   --dose-accent: oklch(0.714 0.203 305.504);
 
   /*
-   * v1.14.0 — wellness-ring per-metric gradients (Dracula dark).
-   * Five DISTINCT single-hue two-stop arcs (from = darker, to = lighter):
-   * readiness green · recovery cyan · sleep purple · stress orange ·
-   * strain pink. Every `to` stop IS the matching Dracula palette colour
-   * and the `from` stop is a hand-darkened tone of the same hue, so the
-   * arcs read as Dracula rather than generic chart colours (the v1.14.0
-   * set leaned indigo/teal/violet, which sat next to the palette instead
-   * of on it). Each `to` doubles as the ring's bloom colour. The Alucard
-   * light set lives on `:root.light`.
+   * v1.18.7 — wellness-ring per-metric arc colours (Dracula dark), CALM pass.
+   * Five DISTINCT but MUTED single-hue arcs: readiness green · recovery cyan ·
+   * sleep purple · stress orange · strain pink. The earlier set ran a
+   * dark→neon two-stop sweep (`to` == the raw Dracula palette colour) plus a
+   * bloom + sheen, which read as glowing/3-D against the flat Recharts charts.
+   * The arc is now a near-flat single tone per hue: `from`/`to` sit a hair
+   * apart for a whisper of depth, both pulled down from the neon palette and
+   * desaturated toward the chart colours, so the ring reads as quiet as a
+   * chart series. The Alucard light set lives on `:root.light`.
    */
-  --ring-readiness-from: #1fa854;
-  --ring-readiness-to: #50fa7b;
+  --ring-readiness-from: #3fb86b;
+  --ring-readiness-to: #46c476;
   --tile-readiness: #50fa7b;
-  --ring-recovery-from: #2fa8c4;
-  --ring-recovery-to: #8be9fd;
+  --ring-recovery-from: #4fb6cc;
+  --ring-recovery-to: #58c0d6;
   --tile-recovery: #8be9fd;
-  --ring-sleep-from: #8655d6;
-  --ring-sleep-to: #bd93f9;
+  --ring-sleep-from: #9a73da;
+  --ring-sleep-to: #a37fe0;
   --tile-sleep: #bd93f9;
-  --ring-stress-from: #d9842e;
-  --ring-stress-to: #ffb86c;
+  --ring-stress-from: #e09a52;
+  --ring-stress-to: #e8a55e;
   --tile-stress: #ffb86c;
-  --ring-strain-from: #d6429b;
-  --ring-strain-to: #ff79c6;
+  --ring-strain-from: #e06aa8;
+  --ring-strain-to: #ea74b1;
   --tile-strain: #ff79c6;
   /* Band fallback (anatomy detail view, no per-metric hue). */
-  --ring-green-from: #1f9d57;
-  --ring-green-to: #5cf08f;
-  --ring-yellow-from: #e0922f;
-  --ring-yellow-to: #ffce6b;
-  --ring-red-from: #c93a2a;
-  --ring-red-to: #ff7a6b;
+  --ring-green-from: #3fb868;
+  --ring-green-to: #48c473;
+  --ring-yellow-from: #e0a050;
+  --ring-yellow-to: #e8ab5c;
+  --ring-red-from: #e0594a;
+  --ring-red-to: #e96456;
 
   /*
    * v1.15.0 — cycle-phase ring hues (Dracula dark). Four calm, distinct
@@ -332,33 +332,35 @@
   --sidebar-ring: #644ac9;
 
   /*
-   * v1.14.0 — wellness-ring per-metric gradients (Alucard light). DEEPER +
-   * more saturated than the dark set so each hue holds AA-grade presence on
-   * the white `--card` (raw Dracula cyan/green wash out on white). Same five
-   * Dracula hue families as the dark set: readiness green · recovery cyan ·
-   * sleep purple · stress orange · strain pink.
+   * v1.18.7 — wellness-ring per-metric arc colours (Alucard light), CALM pass.
+   * Deep + saturated enough to hold AA presence on the white `--card` (raw
+   * Dracula cyan/green wash out on white), but the dark→light two-stop SWEEP
+   * is collapsed to a near-flat single tone (`from`/`to` a hair apart) so the
+   * arc reads as quiet as a chart series rather than a glowing gradient. Same
+   * five hue families as the dark set: readiness green · recovery cyan · sleep
+   * purple · stress orange · strain pink.
    */
-  --ring-readiness-from: #0f7a3a;
-  --ring-readiness-to: #18a34e;
+  --ring-readiness-from: #138043;
+  --ring-readiness-to: #168a48;
   --tile-readiness: #14720a;
-  --ring-recovery-from: #067f96;
-  --ring-recovery-to: #0d95b0;
+  --ring-recovery-from: #07849c;
+  --ring-recovery-to: #098ba3;
   --tile-recovery: #08869e;
-  --ring-sleep-from: #5b2db8;
-  --ring-sleep-to: #7a45d6;
+  --ring-sleep-from: #6638c2;
+  --ring-sleep-to: #6c3fc8;
   --tile-sleep: #6233c0;
-  --ring-stress-from: #b06a16;
-  --ring-stress-to: #c47a1e;
+  --ring-stress-from: #b27018;
+  --ring-stress-to: #b8771c;
   --tile-stress: #a34d14;
-  --ring-strain-from: #ad1e6f;
-  --ring-strain-to: #cc2e88;
+  --ring-strain-from: #b62478;
+  --ring-strain-to: #bd2a7e;
   --tile-strain: #b0277d;
-  --ring-green-from: #0f7a3a;
-  --ring-green-to: #18a34e;
-  --ring-yellow-from: #b06a16;
-  --ring-yellow-to: #d68a2a;
-  --ring-red-from: #a3271a;
-  --ring-red-to: #cb3a2a;
+  --ring-green-from: #138043;
+  --ring-green-to: #168a48;
+  --ring-yellow-from: #b27018;
+  --ring-yellow-to: #bd7a1e;
+  --ring-red-from: #b22e20;
+  --ring-red-to: #ba3526;
 
   /*
    * v1.15.0 — cycle-phase ring hues (Alucard light). Deeper + more
@@ -444,6 +446,21 @@
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/*
+ * `.scroll-touch` — momentum scrolling for horizontal scrollers on iOS
+ * WebKit. `-webkit-overflow-scrolling: touch` restores the inertial
+ * flick the default `overflow-x-auto` row loses on touch; `overscroll-
+ * behavior: contain` keeps a flick that reaches the end of the row from
+ * chaining into the document scroll (the "rubber-band drags the whole
+ * page" paper-cut). Applied to the in-app horizontal pill / tab strips
+ * (insights tab strip, cycle tab list) so the gesture matches the
+ * native feel the bottom-sheet scrollers already get for free.
+ */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* ── Insight card animations ─────────────────────── */
@@ -606,22 +623,13 @@
 }
 
 /*
- * v1.14.0 — the wellness-strip "signature reveal" motion system.
- *
- * The whole moment plays ONCE per session (the strip toggles
- * `data-revealed="true"` once, gated on a sessionStorage flag) so a
- * background Apple-Health-sync refetch never re-triggers it. Three layers:
- *   1. tile rise+fade (staggered left-to-right by an inline animation-delay),
- *   2. the ring's spring-fill arc sweep (in score-ring.tsx, --ring-spring),
- *   3. a conic SHEEN that sweeps the arc once (the "expensive" specular touch).
- * A single prefers-reduced-motion block at the bottom zeroes all of it.
+ * v1.18.7 — the wellness-strip reveal, calmed. What remains is a quiet
+ * left-to-right tile rise+fade (gated once per session via `data-revealed`)
+ * and the arc's spring-fill sweep (in score-ring.tsx, `--ring-spring`). The
+ * conic specular sheen + the bloom + the breathing pulse were removed so the
+ * strip settles as flat as the surrounding charts. A single
+ * prefers-reduced-motion block at the bottom zeroes the tile rise.
  */
-@property --shimmer-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
 :root {
   /* Sampled spring (stiffness ~120, damping ~14): overshoots ~6% then settles
      — the Oura/WHOOP fill feel. Falls back to the browser default on very old
@@ -658,93 +666,26 @@
   }
 }
 
-/* The conic sheen overlay sits over the ring; opacity animates from 0 so a
-   browser without @property support (Safari <16.4 / FF <128) shows nothing
-   rather than a frozen highlight band. */
+/* v1.18.7 — the conic specular SHEEN is retired. It swept a white highlight
+   across the arc once on reveal, which was the most overtly "premium / 3-D"
+   touch and clashed hardest with the flat charts. The class is kept as a
+   no-op so the cycle-ring + score-ring call sites that still render the
+   overlay div simply paint nothing. */
 .wellness-ring-sheen {
-  position: absolute;
-  inset: 6%;
-  border-radius: 50%;
-  opacity: 0;
-  /* A specular highlight must always LIGHTEN. Under mix-blend overlay a
-     near-black light-mode `--card-foreground` would darken the tile into a
-     grey band, so the sheen rides a fixed white in both themes. */
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(255, 255, 255, 0.72) 0%,
-    transparent 70%
-  );
-  mix-blend-mode: overlay;
-  pointer-events: none;
-  -webkit-mask: conic-gradient(
-    from var(--shimmer-angle),
-    transparent 0deg,
-    transparent 38deg,
-    #000 58deg,
-    transparent 80deg,
-    transparent 360deg
-  );
-  mask: conic-gradient(
-    from var(--shimmer-angle),
-    transparent 0deg,
-    transparent 38deg,
-    #000 58deg,
-    transparent 80deg,
-    transparent 360deg
-  );
-}
-[data-revealed="true"] .wellness-ring-sheen {
-  animation: ringSheen 1500ms var(--ring-ease) forwards;
-  animation-delay: calc(var(--reveal-delay, 0ms) + 550ms);
-}
-@keyframes ringSheen {
-  0% {
-    --shimmer-angle: 0deg;
-    opacity: 0;
-  }
-  15% {
-    opacity: 0.5;
-  }
-  85% {
-    opacity: 0.5;
-  }
-  100% {
-    --shimmer-angle: 360deg;
-    opacity: 0;
-  }
+  display: none;
 }
 
-/* Token-tinted bloom behind the progress arc. The breathing pulse runs only
-   on the strongest (green-band) ring so the strip celebrates a good score
-   rather than jittering all five. `--ring-glow` is set inline per ring. */
-.wellness-ring-arc {
-  filter: drop-shadow(
-    0 0 3px color-mix(in srgb, var(--ring-glow) 45%, transparent)
-  );
-}
-/* Flat 2-D arc — no bloom, no pulse. The dashboard hero ring uses this so it
-   reads as calmly as the chart + tile surfaces around it. */
-.wellness-ring-arc--flat {
-  filter: none;
-}
+/* v1.18.7 — the arc is FLAT by default. The earlier treatment painted a
+   token-tinted drop-shadow bloom behind every arc plus a breathing pulse on
+   the green-band ring; against the flat 2-D Recharts charts that read as a
+   glowing 3-D dial. Both are gone — the arc is a plain stroke, the same
+   weight a chart series carries. `.wellness-ring-arc--flat` is kept as an
+   alias so the dashboard-hero call site (and any other) stays valid. */
+.wellness-ring-arc,
+.wellness-ring-arc--flat,
 .wellness-ring-arc--pulse {
-  /* Breathe a few times to celebrate a strong score, then settle — an
-     infinite loop would repaint the (non-compositable) drop-shadow filter
-     forever. Motion happens, then the surface goes calm. */
-  animation: ringGlow 3.4s ease-in-out 2s 3;
-}
-@keyframes ringGlow {
-  0%,
-  100% {
-    filter: drop-shadow(
-      0 0 2px color-mix(in srgb, var(--ring-glow) 40%, transparent)
-    );
-  }
-  50% {
-    filter: drop-shadow(
-      0 0 8px color-mix(in srgb, var(--ring-glow) 65%, transparent)
-    );
-  }
+  filter: none;
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -760,15 +701,6 @@
   [data-revealed="true"] .wellness-tile-rise {
     opacity: 1;
     transform: none;
-    animation: none;
-  }
-  [data-revealed="true"] .wellness-ring-sheen {
-    animation: none;
-    opacity: 0;
-  }
-  .wellness-ring-arc,
-  .wellness-ring-arc--pulse {
-    filter: none;
     animation: none;
   }
 }

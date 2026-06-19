@@ -27,10 +27,7 @@ import type { GradedSeries } from "@/lib/insights/graded-series";
 import type { NormRange } from "@/lib/insights/derived/norms";
 
 /** Favourable-direction framing — mirrors the metric-status registry. */
-export type MetricDirection =
-  | "higher-better"
-  | "lower-better"
-  | "target-band";
+export type MetricDirection = "higher-better" | "lower-better" | "target-band";
 
 /** One contributor to a composite score (the Oura move for per-score cards). */
 export interface MetricSignalContributor {
@@ -179,9 +176,11 @@ export function buildMetricSignal(
   let outsideNormalSwing: boolean | null = null;
   if (baseline !== null) {
     delta = round(current - baseline, 2);
-    deltaPct = baseline !== 0 ? round(((current - baseline) / baseline) * 100, 1) : null;
+    deltaPct =
+      baseline !== 0 ? round(((current - baseline) / baseline) * 100, 1) : null;
     if (spread !== null && spread > 0) {
-      outsideNormalSwing = Math.abs(current - baseline) > NORMAL_SWING_K * spread;
+      outsideNormalSwing =
+        Math.abs(current - baseline) > NORMAL_SWING_K * spread;
     } else {
       // No usable spread (a flat or single-point baseline): a non-zero delta
       // is the only signal we can honestly give — treat any real change as

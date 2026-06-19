@@ -45,12 +45,29 @@ export class AnthropicClient implements AIProvider {
           "x-api-key": this.config.apiKey,
           "anthropic-version": ANTHROPIC_VERSION,
         },
+        // NOTE: Anthropic's Messages API has no `seed` parameter, so
+        // `params.seed` is intentionally not forwarded here — output on this
+        // provider is non-deterministic regardless of the pinned seed.
+        //
+        // v1.18.7 — JSON-reliability prefill. For the structured surfaces
+        // (`responseFormat: "json"`) we seed the assistant turn with a bare
+        // `{`. Anthropic continues from that token, so the first emitted
+        // character is already inside a JSON object — this drops the
+        // first-pass "prose preamble before the JSON" failure the
+        // fence-stripping net otherwise has to catch. We re-prepend the `{`
+        // to the returned text below so the caller sees a complete object.
         body: JSON.stringify({
           model: this.config.model,
           max_tokens: params.maxTokens ?? 1000,
           temperature: params.temperature ?? 0.3,
           system: params.systemPrompt,
-          messages: [{ role: "user", content: wrapForJson(params.userPrompt) }],
+          messages:
+            params.responseFormat === "json"
+              ? [
+                  { role: "user", content: wrapForJson(params.userPrompt) },
+                  { role: "assistant", content: "{" },
+                ]
+              : [{ role: "user", content: wrapForJson(params.userPrompt) }],
         }),
       },
       // 60 s ceiling — see openai-client.ts for the rationale.
@@ -86,11 +103,20 @@ export class AnthropicClient implements AIProvider {
     };
 
     const textBlock = json.content?.find((c) => c.type === "text");
-    const content = textBlock?.text;
+    const rawText = textBlock?.text;
 
-    if (!content) {
+    if (!rawText) {
       throw new Error("Anthropic returned empty content");
     }
+
+    // When we prefilled the assistant turn with `{`, the model continues
+    // from there and its returned text omits that leading brace — re-prepend
+    // it so the caller parses a complete object. Guard against a model that
+    // (rarely) echoes the prefill itself.
+    const content =
+      params.responseFormat === "json" && !rawText.trimStart().startsWith("{")
+        ? `{${rawText}`
+        : rawText;
 
     const inputTokens = json.usage?.input_tokens ?? 0;
     const outputTokens = json.usage?.output_tokens ?? 0;

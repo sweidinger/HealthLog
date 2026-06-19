@@ -109,7 +109,7 @@ function EpisodeCard({
             <Button
               variant="outline"
               size="sm"
-              className="min-h-9"
+              className="min-h-11 sm:min-h-9"
               onClick={() => onLogDay(episode.id)}
             >
               {t("illness.logDay")}
@@ -277,7 +277,7 @@ function EpisodeGroup({
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls={gridId}
-          className="text-muted-foreground hover:text-foreground -mx-1 flex w-fit items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium uppercase tracking-wide transition-colors"
+          className="text-muted-foreground hover:text-foreground -mx-1 flex w-fit items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium tracking-wide uppercase transition-colors"
         >
           <ChevronDown
             className={cn(
@@ -298,7 +298,7 @@ function EpisodeGroup({
 
   return (
     <section className="space-y-3">
-      <h2 className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+      <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
         {title}
       </h2>
       {grid}
@@ -314,7 +314,9 @@ export function IllnessView() {
 
   const today = todayLocal();
   const [newOpen, setNewOpen] = useState(false);
-  const [editEpisode, setEditEpisode] = useState<IllnessEpisodeDTO | null>(null);
+  const [editEpisode, setEditEpisode] = useState<IllnessEpisodeDTO | null>(
+    null,
+  );
   const [logEpisodeId, setLogEpisodeId] = useState<string | null>(null);
 
   const logEpisode = episodes?.find((e) => e.id === logEpisodeId) ?? null;

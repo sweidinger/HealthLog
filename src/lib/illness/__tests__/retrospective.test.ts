@@ -28,7 +28,13 @@ describe("summarizeIllnessRetrospective", () => {
   it("counts episodes, resolved, by-month, by-type", () => {
     const out = summarizeIllnessRetrospective([
       ep({ id: "a", onsetDay: "2026-01-05", type: "INFECTION" }),
-      ep({ id: "b", onsetDay: "2026-11-20", type: "INFECTION", resolved: false, recoveryGapDays: null }),
+      ep({
+        id: "b",
+        onsetDay: "2026-11-20",
+        type: "INFECTION",
+        resolved: false,
+        recoveryGapDays: null,
+      }),
       ep({ id: "c", onsetDay: "2026-11-02", type: "ALLERGY" }),
     ]);
     expect(out.episodeCount).toBe(3);

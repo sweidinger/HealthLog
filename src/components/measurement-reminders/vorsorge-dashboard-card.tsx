@@ -22,9 +22,11 @@ import { useTranslations } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ListRow } from "@/components/ui/list-row";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
+import { VorsorgeTrendStrip } from "@/components/measurement-reminders/vorsorge-trend-strip";
 import {
   useMeasurementReminders,
   useMeasurementReminderMutations,
@@ -63,8 +65,9 @@ export function VorsorgeDashboardCard() {
   const { satisfy } = useMeasurementReminderMutations();
   const [now] = useState(() => Date.now());
   const [capturing, setCapturing] = useState<MeasurementReminder | null>(null);
-  const [captureFooterEl, setCaptureFooterEl] =
-    useState<HTMLDivElement | null>(null);
+  const [captureFooterEl, setCaptureFooterEl] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   // Active reminders only (the manage toggles hide disabled ones from the
   // summary), most-urgent first as the API already sorts them.
@@ -118,38 +121,49 @@ export function VorsorgeDashboardCard() {
               const due = relativeDueKey(reminder.nextDueAt, now);
               const isLinked = reminder.measurementType != null;
               return (
-                <li
+                <ListRow
                   key={reminder.id}
-                  className="flex items-center justify-between gap-3 rounded-md border p-2.5"
+                  asChild
+                  className="flex items-center justify-between gap-3"
                 >
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="truncate text-sm font-medium">
-                      {resolveLabel(reminder, t)}
-                    </p>
-                    <Badge variant="secondary" className="text-xs">
-                      {t(`measurementReminders.${due.key}`, { days: due.days })}
-                    </Badge>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => onPrimaryAction(reminder)}
-                    disabled={satisfy.isPending}
-                  >
-                    {isLinked ? (
-                      <>
-                        <Plus className="h-4 w-4" />
-                        {t("measurementReminders.captureValue")}
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4" />
-                        {t("measurementReminders.markDone")}
-                      </>
-                    )}
-                  </Button>
-                </li>
+                  <li>
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate text-sm font-medium">
+                        {resolveLabel(reminder, t)}
+                      </p>
+                      <Badge variant="secondary" className="text-xs">
+                        {t(`measurementReminders.${due.key}`, {
+                          days: due.days,
+                        })}
+                      </Badge>
+                      {/* v1.18.7 (Wave E) — discreet 7-day strip under the
+                        metric context; renders nothing for a free-text
+                        reminder or a too-thin window. */}
+                      <VorsorgeTrendStrip
+                        measurementType={reminder.measurementType}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="default"
+                      className="min-h-11 shrink-0 sm:min-h-9"
+                      onClick={() => onPrimaryAction(reminder)}
+                      disabled={satisfy.isPending}
+                    >
+                      {isLinked ? (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          {t("measurementReminders.captureValue")}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          {t("measurementReminders.markDone")}
+                        </>
+                      )}
+                    </Button>
+                  </li>
+                </ListRow>
               );
             })}
           </ul>

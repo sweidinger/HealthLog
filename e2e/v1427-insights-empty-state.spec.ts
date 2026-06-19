@@ -148,9 +148,7 @@ test.describe("v1.4.27 — insights empty-state with metric gating", () => {
       // title). Pin on the sub-page slot's h1 so we don't accidentally
       // match a sidebar / nav element.
       await expect(
-        page.locator(
-          '[data-slot="insights-subpage"] #insights-subpage-title',
-        ),
+        page.locator('[data-slot="insights-subpage"] #insights-subpage-title'),
       ).toContainText(headingMatch);
     });
   }

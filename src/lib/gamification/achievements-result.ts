@@ -764,9 +764,15 @@ export async function buildAchievementsResult(
     // days the user was unwell.
     bmiGreenStreak: calculateLongestStreak(freeze(healthSeries.bmi.dayKeys)),
     bpGreenStreak: calculateLongestStreak(freeze(healthSeries.bp.dayKeys)),
-    pulseGreenStreak: calculateLongestStreak(freeze(healthSeries.pulse.dayKeys)),
-    onTimePerfectDayStreak: calculateLongestStreak(freeze(onTimeSeries.dayKeys)),
-    compliance80DayStreak: calculateLongestStreak(freeze(complianceSeries.dayKeys)),
+    pulseGreenStreak: calculateLongestStreak(
+      freeze(healthSeries.pulse.dayKeys),
+    ),
+    onTimePerfectDayStreak: calculateLongestStreak(
+      freeze(onTimeSeries.dayKeys),
+    ),
+    compliance80DayStreak: calculateLongestStreak(
+      freeze(complianceSeries.dayKeys),
+    ),
     passkeyCreatedCount: passkeyCreatedDates.length,
     passkeyLoginCount: passkeyLoginDates.length,
     passwordLoginCount: passwordLoginDates.length,

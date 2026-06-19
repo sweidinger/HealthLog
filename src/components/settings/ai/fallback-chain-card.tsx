@@ -196,6 +196,7 @@ export function FallbackChainCard({
               aria-label={t("settings.ai.providerChain.moveUp")}
               disabled={idx === 0}
               onClick={() => move(idx, -1)}
+              className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
             >
               <ArrowUp className="h-4 w-4" />
             </Button>
@@ -206,6 +207,7 @@ export function FallbackChainCard({
               aria-label={t("settings.ai.providerChain.moveDown")}
               disabled={idx === entries.length - 1}
               onClick={() => move(idx, 1)}
+              className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
             >
               <ArrowDown className="h-4 w-4" />
             </Button>
@@ -214,7 +216,7 @@ export function FallbackChainCard({
               size="sm"
               variant="outline"
               aria-label={t("settings.ai.providerChain.removeFromChain")}
-              className="text-destructive"
+              className="text-destructive min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
               onClick={() => remove(idx)}
               disabled={entries.length <= 1}
             >
@@ -234,6 +236,7 @@ export function FallbackChainCard({
         )}
         <Button
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={() => saveMutation.mutate(entries)}
           disabled={saveMutation.isPending || entries.length === 0}
           data-testid="ai-fallback-chain-save"
@@ -247,7 +250,7 @@ export function FallbackChainCard({
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" className="min-h-11 sm:min-h-9">
               <RotateCcw className="h-4 w-4" />
               {t("settings.ai.providerChain.resetDefaults")}
             </Button>
@@ -308,6 +311,7 @@ function AddProviderControl({
         type="button"
         size="sm"
         variant="outline"
+        className="min-h-11 sm:min-h-9"
         onClick={() => {
           if (isProviderType(picked)) onAdd(picked);
         }}

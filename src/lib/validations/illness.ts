@@ -117,16 +117,12 @@ export const illnessEpisodeResolveSchema = z.object({
   resolvedAt: boundedInstant.optional(),
 });
 
-export type IllnessEpisodeResolve = z.infer<
-  typeof illnessEpisodeResolveSchema
->;
+export type IllnessEpisodeResolve = z.infer<typeof illnessEpisodeResolveSchema>;
 
 /** History/list query — newest-first, bounded. */
 export const illnessEpisodeListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
-  includeResolved: z
-    .union([z.literal("true"), z.literal("false")])
-    .optional(),
+  includeResolved: z.union([z.literal("true"), z.literal("false")]).optional(),
 });
 
 /* ── day-log capture (one row per day of an episode) ─────────────── */

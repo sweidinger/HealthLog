@@ -3,7 +3,9 @@ import { describe, it, expect } from "vitest";
 import { toMeasurementReminderDto } from "@/lib/measurement-reminders/dto";
 import type { MeasurementReminder } from "@/generated/prisma/client";
 
-function row(overrides: Partial<MeasurementReminder> = {}): MeasurementReminder {
+function row(
+  overrides: Partial<MeasurementReminder> = {},
+): MeasurementReminder {
   const now = new Date("2026-06-16T08:00:00.000Z");
   return {
     id: "r1",

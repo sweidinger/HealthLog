@@ -183,10 +183,7 @@ export const measurementSourceEnum = z.enum([
  * POST validates `source` against this set; the batch route mirrors the same
  * exclusion with its own narrower `{APPLE_HEALTH, MANUAL}` allowlist.
  */
-export const WRITABLE_MEASUREMENT_SOURCES = [
-  "MANUAL",
-  "APPLE_HEALTH",
-] as const;
+export const WRITABLE_MEASUREMENT_SOURCES = ["MANUAL", "APPLE_HEALTH"] as const;
 
 /**
  * v1.10.0 QA — the Zod enum the single-entry POST validates `source` against.
@@ -343,7 +340,7 @@ export function getUnitForType(type: string): string {
 }
 
 // Plausible ranges per measurement type
-const VALUE_RANGES: Record<string, { min: number; max: number }> = {
+export const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   WEIGHT: { min: 1, max: 500 },
   BLOOD_PRESSURE_SYS: { min: 40, max: 300 },
   BLOOD_PRESSURE_DIA: { min: 20, max: 200 },
@@ -698,14 +695,11 @@ export const listMeasurementsSchema = z
       // the admin drain route, so a malformed CLI invocation has the
       // same blast radius. Reject the impossible shapes at the
       // validator instead.
-      .refine(
-        (s) => {
-          const parsed = new Date(`${s}T00:00:00Z`);
-          if (Number.isNaN(parsed.getTime())) return false;
-          return s === parsed.toISOString().slice(0, 10);
-        },
-        "dayKey must be a real calendar date (YYYY-MM-DD)",
-      )
+      .refine((s) => {
+        const parsed = new Date(`${s}T00:00:00Z`);
+        if (Number.isNaN(parsed.getTime())) return false;
+        return s === parsed.toISOString().slice(0, 10);
+      }, "dayKey must be a real calendar date (YYYY-MM-DD)")
       .optional(),
   })
   .refine(

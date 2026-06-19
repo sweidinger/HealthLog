@@ -42,10 +42,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
-import {
-  SheetSection,
-  SheetSectionCount,
-} from "@/components/ui/sheet-section";
+import { SheetSection, SheetSectionCount } from "@/components/ui/sheet-section";
 import { useTranslations } from "@/lib/i18n/context";
 import { CUSTOM_SYMPTOM_ICON_ALLOWLIST } from "@/lib/cycle/custom-symptoms-shared";
 import { FieldInfo } from "./field-info";
@@ -509,7 +506,9 @@ export function LogDaySheet({
   const [cervixFirmness, setCervixFirmness] = useState<CervixFirmness | null>(
     null,
   );
-  const [cervixOpening, setCervixOpening] = useState<CervixOpening | null>(null);
+  const [cervixOpening, setCervixOpening] = useState<CervixOpening | null>(
+    null,
+  );
   const [intercourse, setIntercourse] = useState(false);
   const [protectedSex, setProtectedSex] = useState(false);
   const [pregnancyTest, setPregnancyTest] = useState<HomeTestResult | null>(
@@ -884,121 +883,121 @@ export function LogDaySheet({
             />
           }
         >
-        <Input
-          type="number"
-          inputMode="decimal"
-          step="0.01"
-          min={30}
-          max={45}
-          value={bbt}
-          onChange={(e) => setBbt(e.target.value)}
-          placeholder={t("cycle.sheet.temperaturePlaceholder")}
-          className="w-32"
-          aria-label={t("cycle.sheet.temperature")}
-        />
-        <p className="text-muted-foreground text-xs">
-          {t("cycle.sheet.bbtHint")}
-        </p>
-        {resolveBbt(bbt) != null && (
-          <div className="mt-3 flex items-start justify-between gap-3">
-            <div className="flex flex-col">
-              <span className="text-sm">
-                {t("cycle.sheet.temperatureDisturbed")}
-              </span>
-              <span className="text-muted-foreground text-xs">
-                {t("cycle.sheet.temperatureDisturbedHint")}
-              </span>
-            </div>
-            <Switch
-              checked={bbtDisturbed}
-              onCheckedChange={setBbtDisturbed}
-              aria-label={t("cycle.sheet.temperatureDisturbed")}
-            />
-          </div>
-        )}
-      </Field>
-
-      {/* Ovulation test */}
-      <Field
-        label={t("cycle.sheet.ovulationTest")}
-        info={
-          <FieldInfo
-            label={t("cycle.fieldInfo.ovulationTestLabel")}
-            detail={t("cycle.fieldInfo.ovulationTest")}
+          <Input
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            min={30}
+            max={45}
+            value={bbt}
+            onChange={(e) => setBbt(e.target.value)}
+            placeholder={t("cycle.sheet.temperaturePlaceholder")}
+            className="w-32"
+            aria-label={t("cycle.sheet.temperature")}
           />
-        }
-      >
-        <div className="flex flex-wrap gap-2">
-          {OPK_VALUES.map((v) => (
-            <Chip
-              key={v}
-              active={opk === v}
-              onClick={() => setOpk((cur) => (cur === v ? null : v))}
-            >
-              {t(`cycle.ovulationTest.${v}`)}
-            </Chip>
-          ))}
-        </div>
-      </Field>
-
-      {/* Symptothermal secondary symptom: cervical mucus (default) OR the
-          cervix observation, per the user's advanced-settings choice. Only one
-          of the two is offered so the log sheet never overwhelms. */}
-      {showCervix ? (
-        <Field label={t("cycle.sheet.cervix")}>
-          <div className="space-y-3">
-            <CervixRow
-              label={t("cycle.sheet.cervixPosition")}
-              values={CERVIX_POSITION_VALUES}
-              current={cervixPosition}
-              labelFor={(v) => t(`cycle.cervixPosition.${v}`)}
-              onToggle={(v) =>
-                setCervixPosition((cur) => (cur === v ? null : v))
-              }
-            />
-            <CervixRow
-              label={t("cycle.sheet.cervixFirmness")}
-              values={CERVIX_FIRMNESS_VALUES}
-              current={cervixFirmness}
-              labelFor={(v) => t(`cycle.cervixFirmness.${v}`)}
-              onToggle={(v) =>
-                setCervixFirmness((cur) => (cur === v ? null : v))
-              }
-            />
-            <CervixRow
-              label={t("cycle.sheet.cervixOpening")}
-              values={CERVIX_OPENING_VALUES}
-              current={cervixOpening}
-              labelFor={(v) => t(`cycle.cervixOpening.${v}`)}
-              onToggle={(v) =>
-                setCervixOpening((cur) => (cur === v ? null : v))
-              }
-            />
-          </div>
+          <p className="text-muted-foreground text-xs">
+            {t("cycle.sheet.bbtHint")}
+          </p>
+          {resolveBbt(bbt) != null && (
+            <div className="mt-3 flex items-start justify-between gap-3">
+              <div className="flex flex-col">
+                <span className="text-sm">
+                  {t("cycle.sheet.temperatureDisturbed")}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {t("cycle.sheet.temperatureDisturbedHint")}
+                </span>
+              </div>
+              <Switch
+                checked={bbtDisturbed}
+                onCheckedChange={setBbtDisturbed}
+                aria-label={t("cycle.sheet.temperatureDisturbed")}
+              />
+            </div>
+          )}
         </Field>
-      ) : (
+
+        {/* Ovulation test */}
         <Field
-          label={t("cycle.sheet.mucus")}
+          label={t("cycle.sheet.ovulationTest")}
           info={
             <FieldInfo
-              label={t("cycle.fieldInfo.mucusLabel")}
-              detail={t("cycle.fieldInfo.mucus")}
+              label={t("cycle.fieldInfo.ovulationTestLabel")}
+              detail={t("cycle.fieldInfo.ovulationTest")}
             />
           }
         >
           <div className="flex flex-wrap gap-2">
-            {MUCUS_VALUES.map((v) => (
+            {OPK_VALUES.map((v) => (
               <Chip
                 key={v}
-                active={mucus === v}
-                onClick={() => setMucus((cur) => (cur === v ? null : v))}
+                active={opk === v}
+                onClick={() => setOpk((cur) => (cur === v ? null : v))}
               >
-                {t(`cycle.mucus.${v}`)}
+                {t(`cycle.ovulationTest.${v}`)}
               </Chip>
             ))}
           </div>
         </Field>
-      )}
+
+        {/* Symptothermal secondary symptom: cervical mucus (default) OR the
+          cervix observation, per the user's advanced-settings choice. Only one
+          of the two is offered so the log sheet never overwhelms. */}
+        {showCervix ? (
+          <Field label={t("cycle.sheet.cervix")}>
+            <div className="space-y-3">
+              <CervixRow
+                label={t("cycle.sheet.cervixPosition")}
+                values={CERVIX_POSITION_VALUES}
+                current={cervixPosition}
+                labelFor={(v) => t(`cycle.cervixPosition.${v}`)}
+                onToggle={(v) =>
+                  setCervixPosition((cur) => (cur === v ? null : v))
+                }
+              />
+              <CervixRow
+                label={t("cycle.sheet.cervixFirmness")}
+                values={CERVIX_FIRMNESS_VALUES}
+                current={cervixFirmness}
+                labelFor={(v) => t(`cycle.cervixFirmness.${v}`)}
+                onToggle={(v) =>
+                  setCervixFirmness((cur) => (cur === v ? null : v))
+                }
+              />
+              <CervixRow
+                label={t("cycle.sheet.cervixOpening")}
+                values={CERVIX_OPENING_VALUES}
+                current={cervixOpening}
+                labelFor={(v) => t(`cycle.cervixOpening.${v}`)}
+                onToggle={(v) =>
+                  setCervixOpening((cur) => (cur === v ? null : v))
+                }
+              />
+            </div>
+          </Field>
+        ) : (
+          <Field
+            label={t("cycle.sheet.mucus")}
+            info={
+              <FieldInfo
+                label={t("cycle.fieldInfo.mucusLabel")}
+                detail={t("cycle.fieldInfo.mucus")}
+              />
+            }
+          >
+            <div className="flex flex-wrap gap-2">
+              {MUCUS_VALUES.map((v) => (
+                <Chip
+                  key={v}
+                  active={mucus === v}
+                  onClick={() => setMucus((cur) => (cur === v ? null : v))}
+                >
+                  {t(`cycle.mucus.${v}`)}
+                </Chip>
+              ))}
+            </div>
+          </Field>
+        )}
       </SheetSection>
 
       {/* Intimacy & contraception */}
@@ -1008,48 +1007,48 @@ export function LogDaySheet({
       >
         {/* Intercourse + protection */}
         <Field label={t("cycle.sheet.intercourse")}>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <Label
-                htmlFor="cycle-intercourse"
-                className="text-sm font-normal"
-              >
-                {t("cycle.sheet.intercourse")}
-              </Label>
-              <FieldInfo
-                label={t("cycle.fieldInfo.intercourseLabel")}
-                detail={t("cycle.fieldInfo.intercourse")}
-              />
-            </div>
-            <Switch
-              id="cycle-intercourse"
-              checked={intercourse}
-              onCheckedChange={setIntercourse}
-            />
-          </div>
-          {intercourse ? (
+          <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 <Label
-                  htmlFor="cycle-protected"
-                  className="text-muted-foreground text-sm font-normal"
+                  htmlFor="cycle-intercourse"
+                  className="text-sm font-normal"
                 >
-                  {t("cycle.sheet.protected")}
+                  {t("cycle.sheet.intercourse")}
                 </Label>
                 <FieldInfo
-                  label={t("cycle.fieldInfo.protectedLabel")}
-                  detail={t("cycle.fieldInfo.protected")}
+                  label={t("cycle.fieldInfo.intercourseLabel")}
+                  detail={t("cycle.fieldInfo.intercourse")}
                 />
               </div>
               <Switch
-                id="cycle-protected"
-                checked={protectedSex}
-                onCheckedChange={setProtectedSex}
+                id="cycle-intercourse"
+                checked={intercourse}
+                onCheckedChange={setIntercourse}
               />
             </div>
-          ) : null}
-        </div>
+            {intercourse ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Label
+                    htmlFor="cycle-protected"
+                    className="text-muted-foreground text-sm font-normal"
+                  >
+                    {t("cycle.sheet.protected")}
+                  </Label>
+                  <FieldInfo
+                    label={t("cycle.fieldInfo.protectedLabel")}
+                    detail={t("cycle.fieldInfo.protected")}
+                  />
+                </div>
+                <Switch
+                  id="cycle-protected"
+                  checked={protectedSex}
+                  onCheckedChange={setProtectedSex}
+                />
+              </div>
+            ) : null}
+          </div>
         </Field>
 
         {/* Contraceptive */}

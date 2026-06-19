@@ -120,14 +120,14 @@ describe("GET /api/admin/ai-settings", () => {
 
 describe("PUT /api/admin/ai-settings", () => {
   function upsertEcho() {
-    vi.mocked(prisma.appSettings.upsert).mockImplementation(
-      (async (args: { update: Record<string, unknown> }) => ({
-        adminAiKeyEncrypted: null,
-        adminAiModel: "gpt-4o",
-        adminAiBaseUrl: "https://api.openai.com/v1",
-        ...args.update,
-      })) as never,
-    );
+    vi.mocked(prisma.appSettings.upsert).mockImplementation((async (args: {
+      update: Record<string, unknown>;
+    }) => ({
+      adminAiKeyEncrypted: null,
+      adminAiModel: "gpt-4o",
+      adminAiBaseUrl: "https://api.openai.com/v1",
+      ...args.update,
+    })) as never);
   }
 
   it("propagates the admin gate (non-admin cannot write)", async () => {

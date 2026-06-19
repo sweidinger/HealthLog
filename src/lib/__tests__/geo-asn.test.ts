@@ -75,10 +75,8 @@ vi.mock("node:fs", async () => {
     return false;
   };
   const readFileSync = (p: string) => {
-    if (p.endsWith("GeoLite2-City.mmdb"))
-      return Buffer.from("city-mmdb-stub");
-    if (p.endsWith("GeoLite2-ASN.mmdb"))
-      return Buffer.from("asn-mmdb-stub");
+    if (p.endsWith("GeoLite2-City.mmdb")) return Buffer.from("city-mmdb-stub");
+    if (p.endsWith("GeoLite2-ASN.mmdb")) return Buffer.from("asn-mmdb-stub");
     throw new Error(`unexpected read ${p}`);
   };
   return {
@@ -219,7 +217,11 @@ describe("lookupIpLocation — offline-first city resolver (v1.4.27 B3)", () => 
     const fetchSpy = vi.fn().mockResolvedValue(
       new Response(
         new TextEncoder().encode(
-          JSON.stringify({ success: true, city: "Hamburg", country_code: "DE" }),
+          JSON.stringify({
+            success: true,
+            city: "Hamburg",
+            country_code: "DE",
+          }),
         ).buffer as ArrayBuffer,
         {
           status: 200,

@@ -97,7 +97,7 @@ export function ScatterCorrelationChart<T extends Record<string, number>>({
       // shape once layout settles; this floor only prevents the brief
       // zero-height window that fires Recharts' width(-1)/height(-1)
       // console warning when the chart swaps in after the skeleton.
-      className="touch-pan-y aspect-square min-h-[180px] sm:aspect-[3/2] sm:h-auto"
+      className="aspect-square min-h-[180px] touch-pan-y sm:aspect-[3/2] sm:h-auto"
       style={{ height: undefined }}
       data-explicit-height={height}
     >

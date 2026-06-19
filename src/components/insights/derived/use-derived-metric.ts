@@ -85,7 +85,10 @@ export function useDerivedMetric<T>(
       try {
         const params = new URLSearchParams({ metric });
         if (type) params.set("type", type);
-        return apiGet<DerivedMetricResponse<T>>(`/api/insights/derived?${params.toString()}`, { signal: controller.signal });
+        return apiGet<DerivedMetricResponse<T>>(
+          `/api/insights/derived?${params.toString()}`,
+          { signal: controller.signal },
+        );
       } finally {
         clearTimeout(timeoutHandle);
       }
@@ -154,7 +157,10 @@ export function useDerivedBatch(
       );
       try {
         const params = new URLSearchParams({ metrics: wireTokens.join(",") });
-        return apiGet<DerivedBatchResponse>(`/api/insights/derived/batch?${params.toString()}`, { signal: controller.signal });
+        return apiGet<DerivedBatchResponse>(
+          `/api/insights/derived/batch?${params.toString()}`,
+          { signal: controller.signal },
+        );
       } finally {
         clearTimeout(timeoutHandle);
       }

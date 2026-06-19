@@ -99,8 +99,7 @@ async function postToken(
       classification: verdict.classification,
       httpStatus: verdict.httpStatus,
       reason: verdict.reason,
-      upstreamError:
-        typeof json?.error === "string" ? json.error : undefined,
+      upstreamError: typeof json?.error === "string" ? json.error : undefined,
     });
   }
   return json as OuraTokenResponse;
@@ -262,17 +261,16 @@ async function fetchCollection<T>(
         Accept: "application/json",
       },
     });
-    const json = (await res.json().catch(() => null)) as
-      | OuraCollection<T>
-      | null;
+    const json = (await res
+      .json()
+      .catch(() => null)) as OuraCollection<T> | null;
     const verdict = classifyOuraResponse(res.status);
     getEvent()?.addExternalCall({
       service: "oura",
       method: `${verb}(page=${pageCount})`,
       duration_ms: Math.round(performance.now() - pageStart),
       status: res.status,
-      error:
-        verdict.classification === "success" ? undefined : verdict.reason,
+      error: verdict.classification === "success" ? undefined : verdict.reason,
     });
     if (verdict.classification !== "success") {
       throw new OuraApiError({
@@ -429,13 +427,15 @@ export function mapReadiness(r: OuraReadiness): MappedMeasurement[] {
  * reader scores), matching the `light_sleep_duration → CORE` convention the
  * stage-totals path already uses. Re-verify against `cloud.ouraring.com/v2/docs`.
  */
-const HYPNOGRAM_STAGE: Record<string, NonNullable<MappedMeasurement["sleepStage"]>> =
-  {
-    "1": "DEEP",
-    "2": "CORE",
-    "3": "REM",
-    "4": "AWAKE",
-  };
+const HYPNOGRAM_STAGE: Record<
+  string,
+  NonNullable<MappedMeasurement["sleepStage"]>
+> = {
+  "1": "DEEP",
+  "2": "CORE",
+  "3": "REM",
+  "4": "AWAKE",
+};
 
 /** Each hypnogram digit covers 5 minutes. */
 const HYPNOGRAM_INTERVAL_MIN = 5;
@@ -653,4 +653,3 @@ export function mapDailyActivity(a: OuraDailyActivity): MappedMeasurement[] {
   }
   return out;
 }
-

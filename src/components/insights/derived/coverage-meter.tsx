@@ -123,7 +123,7 @@ export function CoverageMeter({
               // 44px hit target via padding while the dots stay optically
               // small; negative margin collapses the row back so the meter
               // doesn't inflate its host row.
-              "inline-flex min-h-11 items-center gap-2 rounded -my-3 px-1 py-3",
+              "-my-3 inline-flex min-h-11 items-center gap-2 rounded px-1 py-3",
               "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
               className,
             )}

@@ -34,8 +34,11 @@ describe("base-system assessment prompt — grounding floor preserved", () => {
 
     it(`${locale}: keeps the filler-phrase ban`, () => {
       const p = getBaseSystemPrompt(locale);
+      // v1.18.7 — the filler ban is now sourced from the single shared
+      // contract fragment ("FORBIDDEN FILLER"); the banned-phrase list is
+      // preserved verbatim.
       if (locale === "en") {
-        expect(p).toMatch(/FORBIDDEN PHRASES/);
+        expect(p).toMatch(/FORBIDDEN FILLER/);
         expect(p).toContain("make sure to get enough sleep");
         expect(p).toContain("consult your doctor");
       } else {

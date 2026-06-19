@@ -81,11 +81,12 @@ describe("/api/whoop/credentials", () => {
 
   it("DELETE clears credentials and connection", async () => {
     userUpdate.mockResolvedValue({});
-    (prisma.whoopConnection.delete as ReturnType<typeof vi.fn>).mockResolvedValue(
-      {},
-    );
-    const res = (await (DELETE as unknown as () => Promise<{ data: unknown }>)())
-      .data as { deleted: boolean };
+    (
+      prisma.whoopConnection.delete as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({});
+    const res = (
+      await (DELETE as unknown as () => Promise<{ data: unknown }>)()
+    ).data as { deleted: boolean };
     expect(res.deleted).toBe(true);
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: "u1" },
@@ -98,9 +99,9 @@ describe("/api/whoop/credentials", () => {
 
   it("DELETE audits the teardown and parks the ledger (04-L1 parity)", async () => {
     userUpdate.mockResolvedValue({});
-    (prisma.whoopConnection.delete as ReturnType<typeof vi.fn>).mockResolvedValue(
-      {},
-    );
+    (
+      prisma.whoopConnection.delete as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({});
     await (DELETE as unknown as () => Promise<unknown>)();
     expect(auditLog).toHaveBeenCalledWith("whoop.credentials.delete", {
       userId: "u1",

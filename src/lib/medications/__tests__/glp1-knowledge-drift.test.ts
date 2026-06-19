@@ -39,7 +39,9 @@ const RESEARCH_PATH = join(
 );
 
 const RESEARCH_AVAILABLE = existsSync(RESEARCH_PATH);
-const RESEARCH_TEXT = RESEARCH_AVAILABLE ? readFileSync(RESEARCH_PATH, "utf8") : "";
+const RESEARCH_TEXT = RESEARCH_AVAILABLE
+  ? readFileSync(RESEARCH_PATH, "utf8")
+  : "";
 
 /** Hard pins — these are the exact values the research file cites
  *  against EMA EPAR / psp4.13099. If you change the TS module, you
@@ -107,11 +109,16 @@ describe("glp1-knowledge drift guard", () => {
 
         if ("bioavailability" in pin) {
           it(`pins bioavailability to ${pin.bioavailability}`, () => {
-            expect(record.pharmacology.bioavailability).toBe(pin.bioavailability);
+            expect(record.pharmacology.bioavailability).toBe(
+              pin.bioavailability,
+            );
           });
         }
 
-        if ("absorptionRateHourlyKa" in pin && pin.absorptionRateHourlyKa !== undefined) {
+        if (
+          "absorptionRateHourlyKa" in pin &&
+          pin.absorptionRateHourlyKa !== undefined
+        ) {
           it(`pins Ka to ${pin.absorptionRateHourlyKa} h⁻¹ (psp4.13099 Table 3)`, () => {
             expect(record.pharmacology.absorptionRateHourlyKa).toBe(
               pin.absorptionRateHourlyKa,
@@ -119,7 +126,10 @@ describe("glp1-knowledge drift guard", () => {
           });
         }
 
-        if ("clearanceLPerHour70kg" in pin && pin.clearanceLPerHour70kg !== undefined) {
+        if (
+          "clearanceLPerHour70kg" in pin &&
+          pin.clearanceLPerHour70kg !== undefined
+        ) {
           it(`pins CL to ${pin.clearanceLPerHour70kg} L/h per 70 kg`, () => {
             expect(record.pharmacology.clearanceLPerHour70kg).toBe(
               pin.clearanceLPerHour70kg,
@@ -129,7 +139,9 @@ describe("glp1-knowledge drift guard", () => {
 
         if ("compartmentModel" in pin && pin.compartmentModel !== undefined) {
           it(`pins compartment model to ${pin.compartmentModel}`, () => {
-            expect(record.pharmacology.compartmentModel).toBe(pin.compartmentModel);
+            expect(record.pharmacology.compartmentModel).toBe(
+              pin.compartmentModel,
+            );
           });
         }
 
@@ -163,71 +175,76 @@ describe("glp1-knowledge drift guard", () => {
   // Local-only soft pins: the research markdown lives under `.planning/`
   // which is untracked, so the block is a no-op on CI. The maintainer's local
   // working copy keeps the file and the assertions run there.
-  describe.skipIf(!RESEARCH_AVAILABLE)("research-file citation presence", () => {
-    it("references the EMA Mounjaro EPAR for tirzepatide", () => {
-      expect(RESEARCH_TEXT).toMatch(/mounjaro-epar-product-information/);
-    });
+  describe.skipIf(!RESEARCH_AVAILABLE)(
+    "research-file citation presence",
+    () => {
+      it("references the EMA Mounjaro EPAR for tirzepatide", () => {
+        expect(RESEARCH_TEXT).toMatch(/mounjaro-epar-product-information/);
+      });
 
-    it("references the Schneck/Urva 2024 paper for tirzepatide PK", () => {
-      expect(RESEARCH_TEXT).toMatch(/Schneck/);
-      expect(RESEARCH_TEXT).toMatch(/psp4\.13099/);
-    });
+      it("references the Schneck/Urva 2024 paper for tirzepatide PK", () => {
+        expect(RESEARCH_TEXT).toMatch(/Schneck/);
+        expect(RESEARCH_TEXT).toMatch(/psp4\.13099/);
+      });
 
-    it("cites tirzepatide Ka 0.0373 h⁻¹ in §1.1 / §2.6", () => {
-      expect(RESEARCH_TEXT).toMatch(/0\.0373/);
-    });
+      it("cites tirzepatide Ka 0.0373 h⁻¹ in §1.1 / §2.6", () => {
+        expect(RESEARCH_TEXT).toMatch(/0\.0373/);
+      });
 
-    it("cites tirzepatide CL 0.0329 L/h in §1.1 / §2.6", () => {
-      expect(RESEARCH_TEXT).toMatch(/0\.0329/);
-    });
+      it("cites tirzepatide CL 0.0329 L/h in §1.1 / §2.6", () => {
+        expect(RESEARCH_TEXT).toMatch(/0\.0329/);
+      });
 
-    it("cites the 30-day in-use KwikPen window in §1.1", () => {
-      expect(RESEARCH_TEXT).toMatch(/30 days/);
-    });
+      it("cites the 30-day in-use KwikPen window in §1.1", () => {
+        expect(RESEARCH_TEXT).toMatch(/30 days/);
+      });
 
-    it("references the Ozempic EPAR for semaglutide", () => {
-      expect(RESEARCH_TEXT).toMatch(/ozempic-epar/);
-    });
+      it("references the Ozempic EPAR for semaglutide", () => {
+        expect(RESEARCH_TEXT).toMatch(/ozempic-epar/);
+      });
 
-    it("references the Saxenda EPAR for liraglutide", () => {
-      expect(RESEARCH_TEXT).toMatch(/saxenda-epar/);
-    });
+      it("references the Saxenda EPAR for liraglutide", () => {
+        expect(RESEARCH_TEXT).toMatch(/saxenda-epar/);
+      });
 
-    it("declares the N7 retatrutide exclusion explicitly", () => {
-      // Two phrasings appear in the research file; either is enough.
-      expect(
-        /retatrutide.*not approved|EMA approval|including it implies endorsement/i.test(
-          RESEARCH_TEXT,
-        ),
-      ).toBe(true);
-    });
-  });
+      it("declares the N7 retatrutide exclusion explicitly", () => {
+        // Two phrasings appear in the research file; either is enough.
+        expect(
+          /retatrutide.*not approved|EMA approval|including it implies endorsement/i.test(
+            RESEARCH_TEXT,
+          ),
+        ).toBe(true);
+      });
+    },
+  );
 
-  describe.skipIf(!RESEARCH_AVAILABLE)("research-file presence checks for module values", () => {
-    it("agrees with the research file on tirzepatide half-life ≈ 5 days", () => {
-      // Research file's §1.1 + §2.6 both say "≈ 5 days" / "5.4 days"
-      // for tirzepatide. TS module pins 5.0. The numbers reconcile
-      // within psp4.13099's IIV (5.4 d journal vs ≈ 5 d EMA EPAR).
-      expect(GLP1_DRUGS.tirzepatide.pharmacology.halfLifeDays).toBeGreaterThanOrEqual(
-        5.0,
-      );
-      expect(GLP1_DRUGS.tirzepatide.pharmacology.halfLifeDays).toBeLessThanOrEqual(
-        5.5,
-      );
-      expect(RESEARCH_TEXT).toMatch(/(≈ 5 d|5 days|5\.4 d|5\.4 days)/);
-    });
+  describe.skipIf(!RESEARCH_AVAILABLE)(
+    "research-file presence checks for module values",
+    () => {
+      it("agrees with the research file on tirzepatide half-life ≈ 5 days", () => {
+        // Research file's §1.1 + §2.6 both say "≈ 5 days" / "5.4 days"
+        // for tirzepatide. TS module pins 5.0. The numbers reconcile
+        // within psp4.13099's IIV (5.4 d journal vs ≈ 5 d EMA EPAR).
+        expect(
+          GLP1_DRUGS.tirzepatide.pharmacology.halfLifeDays,
+        ).toBeGreaterThanOrEqual(5.0);
+        expect(
+          GLP1_DRUGS.tirzepatide.pharmacology.halfLifeDays,
+        ).toBeLessThanOrEqual(5.5);
+        expect(RESEARCH_TEXT).toMatch(/(≈ 5 d|5 days|5\.4 d|5\.4 days)/);
+      });
 
-    it("agrees with the research file on semaglutide half-life ≈ 1 week", () => {
-      expect(GLP1_DRUGS.semaglutide.pharmacology.halfLifeDays).toBe(7);
-      expect(RESEARCH_TEXT).toMatch(/(≈ 1 week|half-life ≈ 1 week|7 days)/);
-    });
+      it("agrees with the research file on semaglutide half-life ≈ 1 week", () => {
+        expect(GLP1_DRUGS.semaglutide.pharmacology.halfLifeDays).toBe(7);
+        expect(RESEARCH_TEXT).toMatch(/(≈ 1 week|half-life ≈ 1 week|7 days)/);
+      });
 
-    it("agrees with the research file on liraglutide half-life ≈ 13 h", () => {
-      expect(GLP1_DRUGS.liraglutide.pharmacology.halfLifeDays * 24).toBeCloseTo(
-        13,
-        1,
-      );
-      expect(RESEARCH_TEXT).toMatch(/(≈ 13 hours|13 h|half-life ≈ 13)/);
-    });
-  });
+      it("agrees with the research file on liraglutide half-life ≈ 13 h", () => {
+        expect(
+          GLP1_DRUGS.liraglutide.pharmacology.halfLifeDays * 24,
+        ).toBeCloseTo(13, 1);
+        expect(RESEARCH_TEXT).toMatch(/(≈ 13 hours|13 h|half-life ≈ 13)/);
+      });
+    },
+  );
 });

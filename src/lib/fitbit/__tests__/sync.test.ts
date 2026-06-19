@@ -15,10 +15,9 @@ const { prismaMock, refreshAccessTokenMock, recordSyncFailure } = vi.hoisted(
         update: vi.fn(),
       },
       measurement: {
-        findMany:
-          vi.fn<(arg: Record<string, unknown>) => Promise<unknown[]>>(
-            async () => [],
-          ),
+        findMany: vi.fn<(arg: Record<string, unknown>) => Promise<unknown[]>>(
+          async () => [],
+        ),
         createMany: vi.fn<
           (arg: Record<string, unknown>) => Promise<{ count: number }>
         >(async (arg) => ({
@@ -30,16 +29,17 @@ const { prismaMock, refreshAccessTokenMock, recordSyncFailure } = vi.hoisted(
       },
     },
     refreshAccessTokenMock: vi.fn(),
-    recordSyncFailure: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+    recordSyncFailure: vi.fn<(...a: unknown[]) => Promise<void>>(
+      async () => {},
+    ),
   }),
 );
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }));
 
 vi.mock("@/lib/rollups/measurement-rollups", () => ({
-  collapseToTypeDayKeys: (
-    rows: Array<{ type: string; measuredAt: Date }>,
-  ) => rows,
+  collapseToTypeDayKeys: (rows: Array<{ type: string; measuredAt: Date }>) =>
+    rows,
   recomputeBucketsForMeasurement: vi.fn(async () => {}),
   recomputeUserRollups: vi.fn(async () => ({ rowsUpserted: 0, durationMs: 0 })),
 }));
@@ -311,8 +311,20 @@ describe("upsertFitbitMeasurements — batched, tombstone-safe write", () => {
     ]);
 
     const { imported } = await upsertFitbitMeasurements("user1", [
-      { type: "WEIGHT", value: 1, unit: "kg", measuredAt, externalId: "live-key" },
-      { type: "WEIGHT", value: 2, unit: "kg", measuredAt, externalId: "fresh-key" },
+      {
+        type: "WEIGHT",
+        value: 1,
+        unit: "kg",
+        measuredAt,
+        externalId: "live-key",
+      },
+      {
+        type: "WEIGHT",
+        value: 2,
+        unit: "kg",
+        measuredAt,
+        externalId: "fresh-key",
+      },
     ]);
 
     expect(imported).toBe(2);
@@ -345,9 +357,8 @@ describe("upsertFitbitMeasurements — batched, tombstone-safe write", () => {
   });
 
   it("defers the rollup hook and returns touched keys when deferRollup is set", async () => {
-    const { recomputeBucketsForMeasurement } = await import(
-      "@/lib/rollups/measurement-rollups"
-    );
+    const { recomputeBucketsForMeasurement } =
+      await import("@/lib/rollups/measurement-rollups");
     const measuredAt = new Date("2026-05-10T07:00:00.000Z");
     prismaMock.measurement.findMany.mockResolvedValue([]);
 

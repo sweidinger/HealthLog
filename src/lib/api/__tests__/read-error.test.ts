@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { readError } from "../read-error";
 
-function makeResponse(body: unknown, status: number, opts?: { invalidJson?: boolean }): Response {
+function makeResponse(
+  body: unknown,
+  status: number,
+  opts?: { invalidJson?: boolean },
+): Response {
   if (opts?.invalidJson) {
     return new Response("<<not json>>", {
       status,

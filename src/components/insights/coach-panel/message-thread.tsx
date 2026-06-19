@@ -135,6 +135,28 @@ export function placeInterleaved(
   return { before, beforeOptimistic, tail };
 }
 
+/**
+ * v1.18.7 — shared thin/rounded/subtle scrollbar styling for the Coach
+ * scroll regions (the message thread + the history list). Kept as a
+ * Tailwind-arbitrary class string so the styling is component-scoped —
+ * the parallel agent owns `globals.css` and we must not touch it.
+ *
+ * Firefox: `scrollbar-width: thin` + a tinted thumb on a transparent
+ * track. WebKit: an 8 px overlay-style thumb with a fully rounded
+ * radius and no arrow buttons, brightening on hover. The Dracula purple
+ * is mixed down so the bar reads as a hairline accent, not a hard edge.
+ */
+export const COACH_SCROLLBAR = cn(
+  "[scrollbar-color:color-mix(in_srgb,var(--dracula-purple)_30%,transparent)_transparent] [scrollbar-width:thin]",
+  "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2",
+  "[&::-webkit-scrollbar-track]:bg-transparent",
+  "[&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-button]:size-0",
+  "[&::-webkit-scrollbar-thumb]:rounded-full",
+  "[&::-webkit-scrollbar-thumb]:border-[3px] [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-content",
+  "[&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--dracula-purple)_30%,transparent)]",
+  "hover:[&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--dracula-purple)_45%,transparent)]",
+);
+
 function isPinnedToBottom(el: HTMLElement, slack = 64): boolean {
   return el.scrollHeight - el.scrollTop - el.clientHeight <= slack;
 }
@@ -365,15 +387,22 @@ export function MessageThread({
         // v1.18.6.1 — `min-h-0 flex-1` (not `h-full`) so the scroll region
         // resolves its height from the flex parent rather than a 100%-of-auto
         // chain that let the thread grow instead of scroll.
-        "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-6",
-        // v1.18.6 (CCH-01) — on the now full-width page surface a thread
-        // stretched edge-to-edge sprawled the prose to an unreadable
-        // measure. Centre the content on a comfortable max width (Claude-
-        // like) via an `mx-auto` inner gutter; the scrollbar still rides
-        // the surface edge. The drawer surface is already narrow, so the
-        // cap only bites on the wide page surface.
-        "[&>*]:mx-auto [&>*]:w-full [&>*]:max-w-3xl",
+        // v1.18.7 — calmer vertical rhythm (gap-6) and more generous top/
+        // bottom breathing room so the conversation reads like a document,
+        // not a chat log packed against the chrome.
+        "flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-6 sm:px-6",
+        // v1.18.6 (CCH-01) / v1.18.7 — on the wide page surface an edge-to-
+        // edge thread sprawled the prose past a readable measure. Centre the
+        // content on a narrower, calmer Claude/ChatGPT-like column
+        // (`max-w-2xl`) via an `mx-auto` inner gutter; the scrollbar still
+        // rides the surface edge. The drawer surface is already narrow, so
+        // the cap only bites on the wide page surface.
+        "[&>*]:mx-auto [&>*]:w-full [&>*]:max-w-2xl",
         "scroll-smooth",
+        // v1.18.7 — thin, rounded, subtle scrollbar (WebKit + Firefox),
+        // component-scoped via Tailwind arbitrary variants so globals.css
+        // stays untouched. Replaces the default boxy/angular track.
+        COACH_SCROLLBAR,
       )}
     >
       {messages.map((m) => {
@@ -418,7 +447,15 @@ export function MessageThread({
         // assistant prose announce as tokens land. aria-relevant=text
         // limits announcements to the streamed content; additions
         // covers the bubble-mount edge case.
-        <div role="log" aria-live="polite" aria-relevant="additions text">
+        <div
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions text"
+          // v1.18.7 — a soft fade/slide-in on the assistant turn so the
+          // hand-off from the "Thinking…" beat to the first streamed
+          // tokens reads as one continuous motion, not a hard swap.
+          className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-300"
+        >
           <ChatBubble
             role="assistant"
             content={streaming.content}
@@ -871,17 +908,28 @@ export function TypingDots({ label }: { label: string }) {
   return (
     <span
       data-slot="coach-typing-indicator"
-      className="inline-flex items-center gap-1 py-1"
+      // v1.18.7 — show the word alongside the dots (Claude/ChatGPT-like
+      // "Thinking…") with a gentle pulse, so the brief pre-stream beat
+      // reads as deliberate rather than a frozen empty bubble. The dots
+      // bounce in sequence; the label keeps the screen-reader text.
+      className="text-muted-foreground inline-flex items-center gap-2 py-0.5"
     >
       <span className="sr-only">{label}</span>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          aria-hidden="true"
-          className="bg-muted-foreground/70 size-1.5 animate-pulse rounded-full motion-reduce:animate-none"
-          style={{ animationDelay: `${i * 250}ms` }}
-        />
-      ))}
+      <span aria-hidden="true" className="inline-flex items-center gap-1">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="bg-dracula-purple/70 size-1.5 animate-bounce rounded-full motion-reduce:animate-none"
+            style={{ animationDelay: `${i * 150}ms`, animationDuration: "1s" }}
+          />
+        ))}
+      </span>
+      <span
+        aria-hidden="true"
+        className="animate-pulse text-xs motion-reduce:animate-none"
+      >
+        {label}
+      </span>
     </span>
   );
 }

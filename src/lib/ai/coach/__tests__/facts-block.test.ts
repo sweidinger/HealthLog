@@ -59,15 +59,22 @@ describe("buildCoachFactsBlock", () => {
     });
 
     expect(block).not.toBeNull();
-    expect(block!.facts.map((f) => f.text)).toEqual(["newer high", "older high", "low"]);
+    expect(block!.facts.map((f) => f.text)).toEqual([
+      "newer high",
+      "older high",
+      "low",
+    ]);
   });
 
   it("takes only the top N", async () => {
-    const seed: SeedRow[] = Array.from({ length: FACTS_INJECT_TOP_N + 4 }, (_, i) => ({
-      text: `fact ${i}`,
-      confidence: 100 - i,
-      updatedAt: new Date(2026, 0, 1 + i),
-    }));
+    const seed: SeedRow[] = Array.from(
+      { length: FACTS_INJECT_TOP_N + 4 },
+      (_, i) => ({
+        text: `fact ${i}`,
+        confidence: 100 - i,
+        updatedAt: new Date(2026, 0, 1 + i),
+      }),
+    );
     const { prisma } = makeFakePrisma(seed);
 
     const block = await buildCoachFactsBlock("user-1", {
@@ -92,8 +99,18 @@ describe("buildCoachFactsBlock", () => {
   it("skips undecryptable rows fault-isolated (never throws)", async () => {
     // One row whose codec throws on decrypt; the helper must skip it.
     const findMany = vi.fn(async () => [
-      { factEncrypted: bytes("good fact"), category: "goal", confidence: 80, updatedAt: new Date() },
-      { factEncrypted: bytes("__throw__"), category: "goal", confidence: 70, updatedAt: new Date() },
+      {
+        factEncrypted: bytes("good fact"),
+        category: "goal",
+        confidence: 80,
+        updatedAt: new Date(),
+      },
+      {
+        factEncrypted: bytes("__throw__"),
+        category: "goal",
+        confidence: 70,
+        updatedAt: new Date(),
+      },
     ]);
     // Re-point the codec mock to throw for the sentinel payload.
     const codec = await import("../bytes-codec");

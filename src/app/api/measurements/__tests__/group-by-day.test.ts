@@ -217,9 +217,7 @@ describe("GET /api/measurements — dayKey drill-down (W7c)", () => {
       },
     ] as never);
 
-    const res = await GET(
-      getRequest("type=ACTIVITY_STEPS&dayKey=2026-05-15"),
-    );
+    const res = await GET(getRequest("type=ACTIVITY_STEPS&dayKey=2026-05-15"));
     expect(res.status).toBe(200);
     const json = (await res.json()) as {
       data: {
@@ -255,9 +253,7 @@ describe("GET /api/measurements — dayKey drill-down (W7c)", () => {
   // hour of `today` on fall-back.
   it("returns a 23-hour window on the Berlin spring-forward day (2025-03-30)", async () => {
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
-    const res = await GET(
-      getRequest("type=ACTIVITY_STEPS&dayKey=2025-03-30"),
-    );
+    const res = await GET(getRequest("type=ACTIVITY_STEPS&dayKey=2025-03-30"));
     expect(res.status).toBe(200);
     const call = vi.mocked(prisma.measurement.findMany).mock.calls[0]?.[0];
     const measuredAt = (call as { where: { measuredAt?: unknown } }).where
@@ -271,9 +267,7 @@ describe("GET /api/measurements — dayKey drill-down (W7c)", () => {
 
   it("returns a 25-hour window on the Berlin fall-back day (2025-10-26)", async () => {
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
-    const res = await GET(
-      getRequest("type=ACTIVITY_STEPS&dayKey=2025-10-26"),
-    );
+    const res = await GET(getRequest("type=ACTIVITY_STEPS&dayKey=2025-10-26"));
     expect(res.status).toBe(200);
     const call = vi.mocked(prisma.measurement.findMany).mock.calls[0]?.[0];
     const measuredAt = (call as { where: { measuredAt?: unknown } }).where
@@ -335,17 +329,13 @@ describe("GET /api/measurements — schema rejections (W10 reconcile)", () => {
   // 2, so the drill-down would point at the wrong day. The validator
   // refine must reject it at parse time.
   it("rejects impossible calendar dates on dayKey (2026-02-30)", async () => {
-    const res = await GET(
-      getRequest("type=ACTIVITY_STEPS&dayKey=2026-02-30"),
-    );
+    const res = await GET(getRequest("type=ACTIVITY_STEPS&dayKey=2026-02-30"));
     expect(res.status).toBe(422);
     expect(prisma.measurement.findMany).not.toHaveBeenCalled();
   });
 
   it("rejects impossible month on dayKey (2026-13-01)", async () => {
-    const res = await GET(
-      getRequest("type=ACTIVITY_STEPS&dayKey=2026-13-01"),
-    );
+    const res = await GET(getRequest("type=ACTIVITY_STEPS&dayKey=2026-13-01"));
     expect(res.status).toBe(422);
     expect(prisma.measurement.findMany).not.toHaveBeenCalled();
   });

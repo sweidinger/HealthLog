@@ -34,11 +34,7 @@ export const POST = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "integrations.withings.resume" } });
 
-  const rl = await checkRateLimit(
-    `withings-resume:${user.id}`,
-    5,
-    60_000,
-  );
+  const rl = await checkRateLimit(`withings-resume:${user.id}`, 5, 60_000);
   if (!rl.allowed) {
     return apiError("Too many resume requests", 429, {
       errorCode: "rate_limited_self",

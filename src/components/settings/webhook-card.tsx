@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PasswordInput } from "@/components/ui/password-input";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { useTranslations } from "@/lib/i18n/context";
@@ -42,7 +43,9 @@ export function WebhookCard({ isAuthenticated }: { isAuthenticated: boolean }) {
   });
 
   // React-recommended sync-from-server pattern (no setState-in-effect).
-  const settingsKey = settings ? `${settings.url}|${settings.headerName}` : null;
+  const settingsKey = settings
+    ? `${settings.url}|${settings.headerName}`
+    : null;
   const [seededKey, setSeededKey] = useState<string | null>(null);
   if (settingsKey && settingsKey !== seededKey) {
     setSeededKey(settingsKey);
@@ -80,7 +83,7 @@ export function WebhookCard({ isAuthenticated }: { isAuthenticated: boolean }) {
   });
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Webhook}
         title={t("settings.webhook")}
@@ -160,7 +163,11 @@ export function WebhookCard({ isAuthenticated }: { isAuthenticated: boolean }) {
               endpoint="/api/settings/webhook/test"
               disabled={!settings?.enabled}
             />
-            <Button type="submit" disabled={save.isPending} className="min-h-11">
+            <Button
+              type="submit"
+              disabled={save.isPending}
+              className="min-h-11"
+            >
               {save.isPending && (
                 <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}
@@ -169,6 +176,6 @@ export function WebhookCard({ isAuthenticated }: { isAuthenticated: boolean }) {
           </div>
         </form>
       </div>
-    </div>
+    </SettingsCard>
   );
 }

@@ -52,38 +52,10 @@ const DRUG_LEVEL_RULE_KEY = "ground_rule_15_drug_level_refusal" as const;
 const DRUG_LEVEL_CONCEPT_TOKENS: Record<Locale, readonly string[]> = {
   en: ["level", "concentration", "peak", "trough", "Cmax", "therapeutic"],
   de: ["Spiegel", "Konzentration", "Peak", "Trough", "Cmax", "therapeutisch"],
-  fr: [
-    "niveau",
-    "concentration",
-    "pic",
-    "creux",
-    "Cmax",
-    "thérapeutique",
-  ],
-  es: [
-    "nivel",
-    "concentración",
-    "pico",
-    "valle",
-    "Cmax",
-    "terapéutica",
-  ],
-  it: [
-    "livello",
-    "concentrazione",
-    "picco",
-    "valle",
-    "Cmax",
-    "terapeutica",
-  ],
-  pl: [
-    "poziom",
-    "stężeni",
-    "szczyt",
-    "minimum",
-    "Cmax",
-    "terapeutyczn",
-  ],
+  fr: ["niveau", "concentration", "pic", "creux", "Cmax", "thérapeutique"],
+  es: ["nivel", "concentración", "pico", "valle", "Cmax", "terapéutica"],
+  it: ["livello", "concentrazione", "picco", "valle", "Cmax", "terapeutica"],
+  pl: ["poziom", "stężeni", "szczyt", "minimum", "Cmax", "terapeutyczn"],
 };
 
 /**
@@ -196,9 +168,10 @@ describe("drug-level refusal — adversarial trigger probes survive assembly", (
         // this locale. Today the prompt is static per locale, so this
         // is structurally equivalent across probes; the loop pins the
         // invariant against future per-turn prompt mutation.
-        const matched = matrix.drug_level_refusal.expected_refusal_keywords.some(
-          (keyword) => prompt.includes(keyword),
-        );
+        const matched =
+          matrix.drug_level_refusal.expected_refusal_keywords.some((keyword) =>
+            prompt.includes(keyword),
+          );
         expect(
           matched,
           `${locale} probe="${probe.slice(0, 40)}..." found no expected refusal keyword in the Coach prompt`,

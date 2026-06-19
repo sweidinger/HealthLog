@@ -72,7 +72,12 @@ export async function buildIllnessSnapshotBlock(
 
   const [activeRows, resolvedRows] = await Promise.all([
     prisma.illnessEpisode.findMany({
-      where: { userId, deletedAt: null, resolvedAt: null, onsetAt: { lte: now } },
+      where: {
+        userId,
+        deletedAt: null,
+        resolvedAt: null,
+        onsetAt: { lte: now },
+      },
       orderBy: { onsetAt: "asc" },
       select: { label: true, type: true, lifecycle: true, onsetAt: true },
     }),

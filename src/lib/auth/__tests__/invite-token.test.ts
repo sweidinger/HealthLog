@@ -118,7 +118,9 @@ describe("recordInviteConsumer", () => {
 
   it("swallows failures — the use is already counted", async () => {
     transaction.mockRejectedValueOnce(new Error("boom"));
-    await expect(recordInviteConsumer("inv1", "user1")).resolves.toBeUndefined();
+    await expect(
+      recordInviteConsumer("inv1", "user1"),
+    ).resolves.toBeUndefined();
   });
 });
 

@@ -69,8 +69,7 @@ export function LabBiomarkerChart({
 
   const points = useMemo<ChartPoint[]>(() => {
     const sorted = [...readings].sort(
-      (a, b) =>
-        new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime(),
+      (a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime(),
     );
     const days = RANGE_DAYS.find((r) => r.key === range)?.days ?? 0;
     const filtered =

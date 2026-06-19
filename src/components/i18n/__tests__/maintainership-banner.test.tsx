@@ -112,16 +112,11 @@ describe("<MaintainershipBanner>", () => {
     };
     for (const [locale, pattern] of Object.entries(machineTranslatedPatterns)) {
       const data = JSON.parse(
-        readFileSync(
-          join(process.cwd(), "messages", `${locale}.json`),
-          "utf8",
-        ),
+        readFileSync(join(process.cwd(), "messages", `${locale}.json`), "utf8"),
       ) as { i18n: { maintainershipBanner: { notice: string } } };
       const notice = data.i18n.maintainershipBanner.notice;
       expect(notice, `${locale} banner notice`).toMatch(pattern);
-      expect(notice, `${locale} banner notice mentions Coach`).toMatch(
-        /Coach/,
-      );
+      expect(notice, `${locale} banner notice mentions Coach`).toMatch(/Coach/);
     }
   });
 });

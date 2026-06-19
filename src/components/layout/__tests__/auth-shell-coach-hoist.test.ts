@@ -17,11 +17,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const AUTH_SHELL_PATH = resolve(
-  __dirname,
-  "..",
-  "auth-shell.tsx",
-);
+const AUTH_SHELL_PATH = resolve(__dirname, "..", "auth-shell.tsx");
 const INSIGHTS_LAYOUT_PATH = resolve(
   __dirname,
   "..",
@@ -35,9 +31,7 @@ const INSIGHTS_LAYOUT_PATH = resolve(
 describe("v1.4.34 IW-B — CoachLaunchProvider hoist", () => {
   it("imports the CoachLaunchProvider in the auth-shell", () => {
     const source = readFileSync(AUTH_SHELL_PATH, "utf8");
-    expect(source).toContain(
-      'from "@/lib/insights/coach-launch-context"',
-    );
+    expect(source).toContain('from "@/lib/insights/coach-launch-context"');
     expect(source).toContain("CoachLaunchProvider");
   });
 
@@ -62,9 +56,7 @@ describe("v1.4.34 IW-B — CoachLaunchProvider hoist", () => {
   it("no longer mounts any Coach surface in the routed insights layout", () => {
     const source = readFileSync(INSIGHTS_LAYOUT_PATH, "utf8");
     // The provider import drops; the drawer mount lives on the shell.
-    expect(source).not.toContain(
-      'from "@/lib/insights/coach-launch-context"',
-    );
+    expect(source).not.toContain('from "@/lib/insights/coach-launch-context"');
     expect(source).not.toContain("import { LayoutCoachMount }");
     // v1.16.8 — the FAB moved to the shell too; the routed layout must
     // not double-mount it. (The docblock may still narrate the move, so

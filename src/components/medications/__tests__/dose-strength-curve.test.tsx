@@ -30,10 +30,7 @@ vi.mock("@tanstack/react-query", () => ({
   },
 }));
 
-import {
-  DoseStrengthCurve,
-  buildCurvePoints,
-} from "../dose-strength-curve";
+import { DoseStrengthCurve, buildCurvePoints } from "../dose-strength-curve";
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
@@ -125,9 +122,7 @@ describe("<DoseStrengthCurve>", () => {
   it("renders the empty state with no current dose for zero rows", () => {
     setQueryResult(KEY, { doseChanges: [] });
 
-    const html = render(
-      <DoseStrengthCurve medicationId="med-1" asOf={ASOF} />,
-    );
+    const html = render(<DoseStrengthCurve medicationId="med-1" asOf={ASOF} />);
 
     expect(html).toContain('data-slot="dose-strength-curve-empty"');
     expect(html).toContain("No dose recorded yet.");
@@ -147,9 +142,7 @@ describe("<DoseStrengthCurve>", () => {
       ],
     });
 
-    const html = render(
-      <DoseStrengthCurve medicationId="med-1" asOf={ASOF} />,
-    );
+    const html = render(<DoseStrengthCurve medicationId="med-1" asOf={ASOF} />);
 
     expect(html).toContain('data-slot="dose-strength-curve-empty"');
     expect(html).toContain("Current dose: 5 mg");
@@ -174,9 +167,7 @@ describe("<DoseStrengthCurve>", () => {
       ],
     });
 
-    const html = render(
-      <DoseStrengthCurve medicationId="med-1" asOf={ASOF} />,
-    );
+    const html = render(<DoseStrengthCurve medicationId="med-1" asOf={ASOF} />);
 
     expect(html).toContain('data-slot="dose-strength-curve-area"');
     expect(html).toContain('data-slot="dose-strength-curve-caption"');

@@ -115,7 +115,12 @@ describe("GET /api/workouts/{id}", () => {
       BASE_ROW as never,
     );
     vi.mocked(prisma.workout.findMany).mockResolvedValueOnce([
-      { id: "w-1", source: "APPLE_HEALTH", startedAt: BASE_ROW.startedAt, sportType: "RUNNING" },
+      {
+        id: "w-1",
+        source: "APPLE_HEALTH",
+        startedAt: BASE_ROW.startedAt,
+        sportType: "RUNNING",
+      },
     ] as never);
 
     const res = await GET(makeRequest(), makeParams("w-1"));
@@ -181,8 +186,18 @@ describe("GET /api/workouts/{id}", () => {
       withingsRow as never,
     );
     vi.mocked(prisma.workout.findMany).mockResolvedValueOnce([
-      { id: "w-apple", source: "APPLE_HEALTH", startedAt: BASE_ROW.startedAt, sportType: "RUNNING" },
-      { id: "w-withings", source: "WITHINGS", startedAt: BASE_ROW.startedAt, sportType: "RUNNING" },
+      {
+        id: "w-apple",
+        source: "APPLE_HEALTH",
+        startedAt: BASE_ROW.startedAt,
+        sportType: "RUNNING",
+      },
+      {
+        id: "w-withings",
+        source: "WITHINGS",
+        startedAt: BASE_ROW.startedAt,
+        sportType: "RUNNING",
+      },
     ] as never);
 
     const res = await GET(makeRequest(), makeParams("w-withings"));
@@ -211,7 +226,12 @@ describe("GET /api/workouts/{id}", () => {
       },
     } as never);
     vi.mocked(prisma.workout.findMany).mockResolvedValueOnce([
-      { id: "w-1", source: "APPLE_HEALTH", startedAt: BASE_ROW.startedAt, sportType: "RUNNING" },
+      {
+        id: "w-1",
+        source: "APPLE_HEALTH",
+        startedAt: BASE_ROW.startedAt,
+        sportType: "RUNNING",
+      },
     ] as never);
 
     const res = await GET(makeRequest(), makeParams("w-1"));

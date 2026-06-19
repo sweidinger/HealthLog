@@ -30,28 +30,28 @@ on both ends** so secret columns can be NULLed and column order is pinned.
 
 ## What moves (FK-parent-first, 20 tables)
 
-| # | Table | Scope predicate |
-|---|---|---|
-| 1 | `users` | `id = demo` (the one row; secrets NULLed, `role='ADMIN'`) |
-| 2 | `measurements` | `user_id = demo AND deleted_at IS NULL` (incl. RECOVERY/STRAIN/STRESS_SCORE rows) |
-| 3 | `cycle_profiles` | `user_id = demo` |
-| 4 | `menstrual_cycles` | `user_id = demo` |
-| 5 | `cycle_day_logs` | `user_id = demo` (encrypted cols NULLed) |
-| 6 | `cycle_symptom_links` | `day_log_id IN (demo's day logs)` |
-| 7 | `mood_entries` | `user_id = demo AND deleted_at IS NULL` |
-| 8 | `mood_entry_tag_links` | `mood_entry_id IN (demo's entries)` — global tags only |
-| 9 | `medications` | `user_id = demo` |
-| 10 | `medication_schedules` | `medication_id IN (demo's meds)` |
-| 11 | `medication_intake_events` | `user_id = demo AND deleted_at IS NULL` |
-| 12 | `medication_dose_changes` | `medication_id IN (demo's meds)` |
-| 13 | `medication_inventory_items` | `user_id = demo` |
-| 14 | `medication_inventory_events` | `medication_id IN (demo's meds)` |
-| 15 | `medication_side_effects` | `user_id = demo` |
-| 16 | `reminder_phase_configs` | `medication_id IN (demo's meds)` |
-| 17 | `personal_records` | `user_id = demo` |
-| 18 | `user_achievements` | `user_id = demo` |
-| 19 | `consent_receipts` | `user_id = demo` (carries the `ai_full` consent) |
-| 20 | `audit_logs` | `user_id = demo AND action LIKE 'insights.%'` (plaintext AI assessments) |
+| #   | Table                         | Scope predicate                                                                   |
+| --- | ----------------------------- | --------------------------------------------------------------------------------- |
+| 1   | `users`                       | `id = demo` (the one row; secrets NULLed, `role='ADMIN'`)                         |
+| 2   | `measurements`                | `user_id = demo AND deleted_at IS NULL` (incl. RECOVERY/STRAIN/STRESS_SCORE rows) |
+| 3   | `cycle_profiles`              | `user_id = demo`                                                                  |
+| 4   | `menstrual_cycles`            | `user_id = demo`                                                                  |
+| 5   | `cycle_day_logs`              | `user_id = demo` (encrypted cols NULLed)                                          |
+| 6   | `cycle_symptom_links`         | `day_log_id IN (demo's day logs)`                                                 |
+| 7   | `mood_entries`                | `user_id = demo AND deleted_at IS NULL`                                           |
+| 8   | `mood_entry_tag_links`        | `mood_entry_id IN (demo's entries)` — global tags only                            |
+| 9   | `medications`                 | `user_id = demo`                                                                  |
+| 10  | `medication_schedules`        | `medication_id IN (demo's meds)`                                                  |
+| 11  | `medication_intake_events`    | `user_id = demo AND deleted_at IS NULL`                                           |
+| 12  | `medication_dose_changes`     | `medication_id IN (demo's meds)`                                                  |
+| 13  | `medication_inventory_items`  | `user_id = demo`                                                                  |
+| 14  | `medication_inventory_events` | `medication_id IN (demo's meds)`                                                  |
+| 15  | `medication_side_effects`     | `user_id = demo`                                                                  |
+| 16  | `reminder_phase_configs`      | `medication_id IN (demo's meds)`                                                  |
+| 17  | `personal_records`            | `user_id = demo`                                                                  |
+| 18  | `user_achievements`           | `user_id = demo`                                                                  |
+| 19  | `consent_receipts`            | `user_id = demo` (carries the `ai_full` consent)                                  |
+| 20  | `audit_logs`                  | `user_id = demo AND action LIKE 'insights.%'` (plaintext AI assessments)          |
 
 ## Secret / credential columns NULLed on the `users` row
 
@@ -142,7 +142,7 @@ be a write-capable admin. Keep DEMO_MODE enabled.
 
 ## Caveats / things to confirm before running
 
-- **`FOREIGN_HITS` assertion** counts *all* non-demo rows in the carried
+- **`FOREIGN_HITS` assertion** counts _all_ non-demo rows in the carried
   tables on edge01, not just what this run inserted. On a clean
   single-demo-user DB it is `0`. If edge01 legitimately hosts other demo-only
   accounts, treat a non-zero value as a warning to inspect, not an automatic

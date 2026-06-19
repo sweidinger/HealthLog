@@ -61,7 +61,9 @@ export async function storePolarClientCredentials(
 }
 
 /** Clear the user's stored Polar OAuth client id/secret. */
-export async function clearPolarClientCredentials(userId: string): Promise<void> {
+export async function clearPolarClientCredentials(
+  userId: string,
+): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
     data: {

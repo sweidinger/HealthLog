@@ -5,7 +5,9 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     auditLog: { create: vi.fn() },
     appSettings: { findUnique: vi.fn().mockResolvedValue(null) },
-    user: { findUnique: vi.fn().mockResolvedValue({ timezone: "Europe/Berlin" }) },
+    user: {
+      findUnique: vi.fn().mockResolvedValue({ timezone: "Europe/Berlin" }),
+    },
     measurement: { findMany: vi.fn().mockResolvedValue([]) },
     moodEntry: { findMany: vi.fn().mockResolvedValue([]) },
   },

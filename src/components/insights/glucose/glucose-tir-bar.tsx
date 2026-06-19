@@ -41,11 +41,31 @@ export function GlucoseTirBar({ distribution }: GlucoseTirBarProps) {
   const veryHigh = distribution.tarLevel2;
 
   const segments: Array<{ key: BandKey; label: string; fraction: number }> = [
-    { key: "veryLow", label: t("insights.bloodGlucose.clinical.tir.veryLow"), fraction: veryLow },
-    { key: "low", label: t("insights.bloodGlucose.clinical.tir.low"), fraction: low },
-    { key: "inRange", label: t("insights.bloodGlucose.clinical.tir.inRange"), fraction: inRange },
-    { key: "high", label: t("insights.bloodGlucose.clinical.tir.high"), fraction: high },
-    { key: "veryHigh", label: t("insights.bloodGlucose.clinical.tir.veryHigh"), fraction: veryHigh },
+    {
+      key: "veryLow",
+      label: t("insights.bloodGlucose.clinical.tir.veryLow"),
+      fraction: veryLow,
+    },
+    {
+      key: "low",
+      label: t("insights.bloodGlucose.clinical.tir.low"),
+      fraction: low,
+    },
+    {
+      key: "inRange",
+      label: t("insights.bloodGlucose.clinical.tir.inRange"),
+      fraction: inRange,
+    },
+    {
+      key: "high",
+      label: t("insights.bloodGlucose.clinical.tir.high"),
+      fraction: high,
+    },
+    {
+      key: "veryHigh",
+      label: t("insights.bloodGlucose.clinical.tir.veryHigh"),
+      fraction: veryHigh,
+    },
   ];
 
   const pct = (f: number) => Math.round(f * 100);
@@ -91,7 +111,7 @@ export function GlucoseTirBar({ distribution }: GlucoseTirBarProps) {
               />
               {s.label}
             </span>
-            <span className="text-foreground tabular-nums font-medium">
+            <span className="text-foreground font-medium tabular-nums">
               {pct(s.fraction)}%
             </span>
           </li>

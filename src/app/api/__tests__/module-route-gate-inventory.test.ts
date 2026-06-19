@@ -268,7 +268,10 @@ function fileHasCall(text: string, needle: string): boolean {
  * parameterised insights routes resolve it from a metric map — those gate
  * dynamically and are accepted as gated without a literal-key assertion).
  */
-function extractModuleKeys(text: string): { hasLiteral: boolean; keys: Set<string> } {
+function extractModuleKeys(text: string): {
+  hasLiteral: boolean;
+  keys: Set<string>;
+} {
   const keys = new Set<string>();
   let hasLiteral = false;
   const re = /requireModuleEnabled\([^,]+,\s*"([a-zA-Z]+)"\s*\)/g;

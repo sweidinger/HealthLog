@@ -8,11 +8,7 @@ describe("promoteRecentTags", () => {
   });
 
   it("moves an already-present key to the front without duplicating", () => {
-    expect(promoteRecentTags(["a", "b", "c"], ["b"])).toEqual([
-      "b",
-      "a",
-      "c",
-    ]);
+    expect(promoteRecentTags(["a", "b", "c"], ["b"])).toEqual(["b", "a", "c"]);
   });
 
   it("keeps the latest of a multi-key use at the front", () => {
@@ -40,18 +36,11 @@ describe("selectQuickTagKeys", () => {
   const catalog = ["a", "b", "c", "d", "e"];
 
   it("returns the MRU keys that still exist in the catalog", () => {
-    expect(selectQuickTagKeys(["c", "a"], catalog, 3)).toEqual([
-      "c",
-      "a",
-      "b",
-    ]);
+    expect(selectQuickTagKeys(["c", "a"], catalog, 3)).toEqual(["c", "a", "b"]);
   });
 
   it("drops MRU keys no longer in the catalog", () => {
-    expect(selectQuickTagKeys(["gone", "b"], catalog, 2)).toEqual([
-      "b",
-      "a",
-    ]);
+    expect(selectQuickTagKeys(["gone", "b"], catalog, 2)).toEqual(["b", "a"]);
   });
 
   it("falls back to the first catalog keys with no history", () => {
@@ -59,10 +48,7 @@ describe("selectQuickTagKeys", () => {
   });
 
   it("respects the limit", () => {
-    expect(selectQuickTagKeys(["e", "d", "c"], catalog, 2)).toEqual([
-      "e",
-      "d",
-    ]);
+    expect(selectQuickTagKeys(["e", "d", "c"], catalog, 2)).toEqual(["e", "d"]);
   });
 
   it("never duplicates when topping up from the catalog", () => {

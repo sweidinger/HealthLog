@@ -122,8 +122,13 @@ export function useCreateEpisode() {
 export function useUpdateEpisode() {
   const invalidate = useInvalidateIllness();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: IllnessEpisodeUpdateInput }) =>
-      apiPatch<IllnessEpisodeDTO>(`/api/illness/episodes/${id}`, input),
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: IllnessEpisodeUpdateInput;
+    }) => apiPatch<IllnessEpisodeDTO>(`/api/illness/episodes/${id}`, input),
     onSuccess: invalidate,
   });
 }
@@ -142,8 +147,7 @@ export function useResolveEpisode() {
 export function useDeleteEpisode() {
   const invalidate = useInvalidateIllness();
   return useMutation({
-    mutationFn: (id: string) =>
-      apiDelete<void>(`/api/illness/episodes/${id}`),
+    mutationFn: (id: string) => apiDelete<void>(`/api/illness/episodes/${id}`),
     onSuccess: invalidate,
   });
 }

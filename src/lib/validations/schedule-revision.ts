@@ -54,7 +54,8 @@ export const scheduleRevisionCreateSchema = z
       ),
   })
   .refine(
-    (body) => new Date(body.validFrom).getTime() < new Date(body.validUntil).getTime(),
+    (body) =>
+      new Date(body.validFrom).getTime() < new Date(body.validUntil).getTime(),
     {
       message: "validFrom must lie before validUntil",
       path: ["validUntil"],
@@ -80,12 +81,11 @@ export type ScheduleRevisionCreateInput = z.infer<
  * row. Field-for-field identical to the create schema — only the meta
  * id differs so the OpenAPI document names the two requests apart.
  */
-export const scheduleRevisionUpdateSchema = scheduleRevisionCreateSchema
-  .meta({
-    id: "UpdateScheduleRevisionRequest",
-    description:
-      "Corrected schedule-era payload: replacement era bounds plus the daily dose times that were live during the era.",
-  });
+export const scheduleRevisionUpdateSchema = scheduleRevisionCreateSchema.meta({
+  id: "UpdateScheduleRevisionRequest",
+  description:
+    "Corrected schedule-era payload: replacement era bounds plus the daily dose times that were live during the era.",
+});
 
 export type ScheduleRevisionUpdateInput = z.infer<
   typeof scheduleRevisionUpdateSchema

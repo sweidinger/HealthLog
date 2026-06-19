@@ -98,7 +98,10 @@ describe("offline-geo runtime detection (v1.4.27 R5)", () => {
   });
 
   it("offlineGeoReady() is true when the City MMDB is present and no marker", async () => {
-    writeFileSync(join(tmpRoot, "GeoLite2-City.mmdb"), Buffer.from("city-stub"));
+    writeFileSync(
+      join(tmpRoot, "GeoLite2-City.mmdb"),
+      Buffer.from("city-stub"),
+    );
     const { offlineGeoReady } = await import("../geo");
     expect(offlineGeoReady()).toBe(true);
   });
@@ -130,7 +133,10 @@ describe("offline-geo runtime detection (v1.4.27 R5)", () => {
   });
 
   it("does NOT fire the notification when the City MMDB is present", async () => {
-    writeFileSync(join(tmpRoot, "GeoLite2-City.mmdb"), Buffer.from("city-stub"));
+    writeFileSync(
+      join(tmpRoot, "GeoLite2-City.mmdb"),
+      Buffer.from("city-stub"),
+    );
     // The stubbed reader returns null for every IP, which is fine — the
     // lookup will still go through the online path, but the offline
     // check sees a healthy directory so the notification stays silent.

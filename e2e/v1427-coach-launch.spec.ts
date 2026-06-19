@@ -138,17 +138,17 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
 
       // CCH-04 — the per-metric inline launch icon is retired; no header
       // launcher renders on the sub-page.
-      await expect(
-        page.locator('[data-slot="coach-launch-icon"]'),
-      ).toHaveCount(0);
+      await expect(page.locator('[data-slot="coach-launch-icon"]')).toHaveCount(
+        0,
+      );
 
       // The FAB is the permanent launcher; with no unread nudge it
       // renders without the unread dot.
       const fab = page.locator('[data-slot="coach-fab"]');
       await expect(fab).toBeVisible({ timeout: 10_000 });
-      await expect(
-        page.locator('[data-slot="coach-fab-unread"]'),
-      ).toHaveCount(0);
+      await expect(page.locator('[data-slot="coach-fab-unread"]')).toHaveCount(
+        0,
+      );
     });
 
     test(`/insights/${slug} mounts the dot-free Coach FAB on Desktop Chrome`, async ({
@@ -161,15 +161,15 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
 
       await page.goto(`/insights/${slug}`, { waitUntil: "domcontentloaded" });
 
-      await expect(
-        page.locator('[data-slot="coach-launch-icon"]'),
-      ).toHaveCount(0);
+      await expect(page.locator('[data-slot="coach-launch-icon"]')).toHaveCount(
+        0,
+      );
 
       const fab = page.locator('[data-slot="coach-fab"]');
       await expect(fab).toBeVisible({ timeout: 10_000 });
-      await expect(
-        page.locator('[data-slot="coach-fab-unread"]'),
-      ).toHaveCount(0);
+      await expect(page.locator('[data-slot="coach-fab-unread"]')).toHaveCount(
+        0,
+      );
     });
   }
 
@@ -255,9 +255,7 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     await expect(fab).toHaveAttribute("data-unread", "true", {
       timeout: 10_000,
     });
-    await expect(
-      page.locator('[data-slot="coach-fab-unread"]'),
-    ).toBeVisible();
+    await expect(page.locator('[data-slot="coach-fab-unread"]')).toBeVisible();
     await fab.click();
 
     // v1.16.11 — the FAB opens the side drawer in place instead of
@@ -274,9 +272,7 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
 
     // Opening the Coach counts as reading the nudge on this device —
     // the dot clears and the unread flag drops off the FAB.
-    await expect(page.locator('[data-slot="coach-fab-unread"]')).toHaveCount(
-      0,
-    );
+    await expect(page.locator('[data-slot="coach-fab-unread"]')).toHaveCount(0);
     await expect(fab).not.toHaveAttribute("data-unread", "true");
   });
 
@@ -318,9 +314,9 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
 
     // No in-panel tray opens — the click navigates to the full view.
     await page.waitForURL("**/coach", { timeout: 10_000 });
-    await expect(
-      page.locator('[data-slot="coach-page"]'),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-slot="coach-page"]')).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(
       page.locator('[data-slot="coach-drawer-history-tray"]'),
     ).toHaveCount(0);

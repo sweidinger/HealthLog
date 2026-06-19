@@ -53,10 +53,7 @@ vi.mock("next/headers", () => ({
 import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { verifyAuthentication } from "@/lib/auth/passkey";
-import {
-  checkRateLimit,
-  checkAuthSurfaceRateLimit,
-} from "@/lib/rate-limit";
+import { checkRateLimit, checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
 
 const FAKE_USER = {
   id: "user-1",

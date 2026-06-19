@@ -47,10 +47,7 @@ import {
   dailyStatsExternalId,
   hkIdentifierForType,
 } from "./apple-health-mapping";
-import {
-  runConsolidation,
-  type DayWriteOutcome,
-} from "./consolidation-base";
+import { runConsolidation, type DayWriteOutcome } from "./consolidation-base";
 import { meanBucketValue } from "./consolidate-daily-mean";
 import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 
@@ -77,7 +74,6 @@ export const DENSE_INTRADAY_RETENTION_DAYS = 14;
 
 /** The daily-stats externalId prefix marks an already-collapsed row. */
 const DAILY_STATS_PREFIX = "stats:";
-
 
 export interface DenseIntradayRetentionSummary {
   dryRun: boolean;
@@ -335,7 +331,9 @@ export async function runDenseIntradayRetention(
       summary.totals.daysConsolidated += 1;
       summary.totals.dailyRowsUpserted += 1;
       summary.totals.perSampleRowsSoftDeleted +=
-        outcome?.kind === "written" ? outcome.sourceRowsRemoved : dayRows.length;
+        outcome?.kind === "written"
+          ? outcome.sourceRowsRemoved
+          : dayRows.length;
     },
     onUserComplete: ({ userId, tz, dryRun }) => {
       log(

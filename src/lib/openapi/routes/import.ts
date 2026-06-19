@@ -34,7 +34,10 @@ const csvImportResponse = z
     inserted: z.number().int(),
     updated: z.number().int(),
     skipped: z.number().int(),
-    total: z.number().int().describe("Total data rows parsed (excludes header)."),
+    total: z
+      .number()
+      .int()
+      .describe("Total data rows parsed (excludes header)."),
     dryRun: z.boolean(),
     rows: z.array(csvImportRowResult),
   })
@@ -78,7 +81,10 @@ export const importPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description: "Per-row import outcome.",
           content: {
             "application/json": {
-              schema: dataEnvelope(csvImportResponse, "CsvImportResponseEnvelope"),
+              schema: dataEnvelope(
+                csvImportResponse,
+                "CsvImportResponseEnvelope",
+              ),
             },
           },
         },

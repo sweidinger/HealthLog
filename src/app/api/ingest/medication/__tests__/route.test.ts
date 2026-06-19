@@ -99,9 +99,7 @@ describe("POST /api/ingest/medication — 422 multi-issue (v1.4.43 W6)", () => {
     // `medicationName=""` (min-1 violation) + `takenAt="not-iso"`
     // forces two issues. idempotencyKey is omitted so we also catch
     // the required-field check.
-    const res = await POST(
-      postReq({ medicationName: "", takenAt: "not-iso" }),
-    );
+    const res = await POST(postReq({ medicationName: "", takenAt: "not-iso" }));
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       data: null;
@@ -311,9 +309,8 @@ describe("POST /api/ingest/medication — slot attribution + convergence (v1.16.
   // ── v1.16.10 — inventory consumption seam ───────────────────────────
 
   it("consumes inventory exactly once on the landed row", async () => {
-    const { consumeForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     wireHappyPath();
     const res = await POST(
       postReq({
@@ -334,9 +331,8 @@ describe("POST /api/ingest/medication — slot attribution + convergence (v1.16.
   });
 
   it("an idempotency replay returns the original row without consuming", async () => {
-    const { consumeForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     wireHappyPath();
     // The replay probe finds the original event.
     vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue({

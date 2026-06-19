@@ -134,16 +134,28 @@ export function SleepQualitySection({ enabled }: { enabled: boolean }) {
 }
 
 /**
- * The quality block's "Einschätzung". The richer AI narrative wins when it
- * exists; until then (or forever, on an account with no AI provider) a
- * deterministic note grounded in the user's own quality averages fills the
- * slot, so the assessment is never the bare "no analysis yet" line.
+ * The quality block's "Einschätzung".
  *
- * Both reads are gated on the headline sleep score having data — the same gate
- * the AI route used — so the assessment only surfaces with a quality series to
- * describe. The grounded note reads the SLEEP_SCORE status query (already
- * warmed by `<MetricStatusCard>`) to know whether the AI text is absent, so it
- * adds no second round-trip and the two never stack.
+ * v1.18.7 W-D — the assessment slot was broken: the previous wiring disabled
+ * the status fetch whenever the AI narrative was absent, so the card could not
+ * read `hasProvider` and fell back to its `hasProvider: false` default — it
+ * showed the "connect an AI provider" CTA even for accounts that HAVE a
+ * provider connected (the text just hadn't been generated yet), AND it stacked
+ * that CTA under the grounded note. Two assessments, one of them wrong.
+ *
+ * The card now stays enabled (gated only on the metric having data), so it
+ * reports the truthful state from the route:
+ *   - no provider          → the route's `hasProvider: false` → the card's own
+ *                            clean "connect an AI provider → AI settings" CTA,
+ *                            ALONE (the grounded note stands down).
+ *   - provider, no text yet → the grounded note fills the slot with a read
+ *                            built from the user's own quality averages, so the
+ *                            block is never the bare "no assessment yet" line.
+ *   - provider, text/prep   → the AI card owns the slot; the grounded note
+ *                            stands down so the two never stack.
+ *
+ * The grounded note reads the SAME SLEEP_SCORE status query the card warmed, so
+ * it adds no second round-trip.
  */
 function SleepQualityAssessmentBlock({
   summaries,
@@ -156,30 +168,35 @@ function SleepQualityAssessmentBlock({
     hasSleepScore,
   );
 
-  // The AI narrative is "present" when there is text OR the worker is actively
-  // assembling one (preparing / revalidating). In those cases the AI card owns
-  // the slot. The grounded note only steps in once the status query has SETTLED
-  // with no narrative — so it never flashes ahead of a warm AI assessment.
-  const aiAbsent =
+  // The grounded note only steps in when a provider IS connected but the AI
+  // narrative has SETTLED with no text (and none is being assembled). When no
+  // provider is configured the AI card owns the slot with its own CTA, so the
+  // note never stacks under it; when the AI text exists or is preparing the AI
+  // card wins. Until the status query settles we show nothing extra, so the
+  // note never flashes ahead of a warm AI assessment.
+  const showGroundedNote =
+    hasSleepScore &&
+    status?.hasProvider === true &&
     !statusLoading &&
     !status?.text &&
     status?.preparing !== true &&
     status?.revalidating !== true;
 
+  // Exactly one block fills the assessment slot, so the two never stack: the
+  // grounded note when a provider is connected but the AI text has settled
+  // empty, otherwise the status card (which owns the no-provider CTA, the
+  // preparing state, and the real text). The card's hook fetched regardless of
+  // which branch renders — it runs at the top of this component — so swapping
+  // its render for the note loses no `hasProvider` knowledge.
+  if (showGroundedNote) {
+    return <SleepQualityGroundedNote summaries={summaries} showWhenAiAbsent />;
+  }
+
   return (
-    <>
-      <MetricStatusCard
-        metric="SLEEP_SCORE"
-        icon={<Moon className="h-5 w-5" />}
-        // Suppress the AI card's static "no analysis yet" / "no provider"
-        // empty states — the grounded note covers that ground with real
-        // content. The AI card still renders its text / preparing states.
-        enabled={hasSleepScore && !aiAbsent}
-      />
-      <SleepQualityGroundedNote
-        summaries={summaries}
-        showWhenAiAbsent={hasSleepScore && aiAbsent}
-      />
-    </>
+    <MetricStatusCard
+      metric="SLEEP_SCORE"
+      icon={<Moon className="h-5 w-5" />}
+      enabled={hasSleepScore}
+    />
   );
 }

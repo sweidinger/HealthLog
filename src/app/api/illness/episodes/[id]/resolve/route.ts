@@ -44,7 +44,11 @@ export const PATCH = apiHandler(
         onsetAt: true,
       },
     });
-    if (!existing || existing.userId !== user.id || existing.deletedAt !== null) {
+    if (
+      !existing ||
+      existing.userId !== user.id ||
+      existing.deletedAt !== null
+    ) {
       return apiError("Episode not found", 404);
     }
     if (existing.lifecycle === "CHRONIC_ONGOING") {

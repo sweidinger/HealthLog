@@ -67,18 +67,16 @@ describe("pinnedPublicDispatcher", () => {
   it("refuses a hostname that resolves to a private IP", async () => {
     // Mock dns.lookup to return 169.254.169.254 (cloud metadata).
     const lookupSpy = vi.spyOn(dns, "lookup");
-    lookupSpy.mockImplementation(
-      ((
-        _hostname: string,
-        _opts: dns.LookupAllOptions,
-        callback: (
-          err: NodeJS.ErrnoException | null,
-          addresses: dns.LookupAddress[],
-        ) => void,
-      ) => {
-        callback(null, [{ address: "169.254.169.254", family: 4 }]);
-      }) as unknown as typeof dns.lookup,
-    );
+    lookupSpy.mockImplementation(((
+      _hostname: string,
+      _opts: dns.LookupAllOptions,
+      callback: (
+        err: NodeJS.ErrnoException | null,
+        addresses: dns.LookupAddress[],
+      ) => void,
+    ) => {
+      callback(null, [{ address: "169.254.169.254", family: 4 }]);
+    }) as unknown as typeof dns.lookup);
 
     const dispatcher = getPinnedPublicDispatcher();
     // Drive the dispatcher through `fetch` so the integration mirrors
@@ -100,18 +98,16 @@ describe("pinnedPublicDispatcher", () => {
     // The expected outcome is therefore NOT ENOTFOUND but a connect
     // failure further down the stack (the IP refuses or times out).
     const lookupSpy = vi.spyOn(dns, "lookup");
-    lookupSpy.mockImplementation(
-      ((
-        _hostname: string,
-        _opts: dns.LookupAllOptions,
-        callback: (
-          err: NodeJS.ErrnoException | null,
-          addresses: dns.LookupAddress[],
-        ) => void,
-      ) => {
-        callback(null, [{ address: "192.0.2.1", family: 4 }]);
-      }) as unknown as typeof dns.lookup,
-    );
+    lookupSpy.mockImplementation(((
+      _hostname: string,
+      _opts: dns.LookupAllOptions,
+      callback: (
+        err: NodeJS.ErrnoException | null,
+        addresses: dns.LookupAddress[],
+      ) => void,
+    ) => {
+      callback(null, [{ address: "192.0.2.1", family: 4 }]);
+    }) as unknown as typeof dns.lookup);
 
     const dispatcher = getPinnedPublicDispatcher();
     let caught: unknown;
@@ -135,21 +131,19 @@ describe("pinnedPublicDispatcher", () => {
     // Mock dns.lookup to return one private + one public address. The
     // dispatcher must drop the private one and pin to the public one.
     const lookupSpy = vi.spyOn(dns, "lookup");
-    lookupSpy.mockImplementation(
-      ((
-        _hostname: string,
-        _opts: dns.LookupAllOptions,
-        callback: (
-          err: NodeJS.ErrnoException | null,
-          addresses: dns.LookupAddress[],
-        ) => void,
-      ) => {
-        callback(null, [
-          { address: "10.0.0.5", family: 4 },
-          { address: "192.0.2.1", family: 4 },
-        ]);
-      }) as unknown as typeof dns.lookup,
-    );
+    lookupSpy.mockImplementation(((
+      _hostname: string,
+      _opts: dns.LookupAllOptions,
+      callback: (
+        err: NodeJS.ErrnoException | null,
+        addresses: dns.LookupAddress[],
+      ) => void,
+    ) => {
+      callback(null, [
+        { address: "10.0.0.5", family: 4 },
+        { address: "192.0.2.1", family: 4 },
+      ]);
+    }) as unknown as typeof dns.lookup);
 
     const dispatcher = getPinnedPublicDispatcher();
     let caught: unknown;

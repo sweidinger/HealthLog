@@ -418,7 +418,12 @@ describe("doctor-report — MedicationAdministration export cap", () => {
       },
     });
     const med = await prisma.medication.create({
-      data: { userId: user.id, name: "Metformin", dose: "500 mg", active: true },
+      data: {
+        userId: user.id,
+        name: "Metformin",
+        dose: "500 mg",
+        active: true,
+      },
     });
 
     // 1001 acted (taken) intakes spread across the window so the cap

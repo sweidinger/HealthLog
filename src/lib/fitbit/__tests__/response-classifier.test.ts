@@ -72,9 +72,9 @@ describe("classifyFitbitError", () => {
   });
 
   it("parses the status out of a legacy message shape", () => {
-    expect(classifyFitbitError(new Error("Fitbit fetchProfile error: 401"))).toBe(
-      "reauth_required",
-    );
+    expect(
+      classifyFitbitError(new Error("Fitbit fetchProfile error: 401")),
+    ).toBe("reauth_required");
     expect(classifyFitbitError(new Error("Fitbit sync error: 500"))).toBe(
       "transient",
     );

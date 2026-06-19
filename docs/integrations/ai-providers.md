@@ -9,12 +9,12 @@ Ollama endpoint can fall back from one to the other automatically.
 
 ## Provider matrix
 
-| Provider | Key acquisition | Default model | Endpoint | Privacy stance |
-| -------- | ---------------- | ------------- | -------- | -------------- |
-| `OPENAI` | <https://platform.openai.com/api-keys> | `gpt-4o` | `https://api.openai.com/v1` | Measurement context sent to OpenAI |
-| `ANTHROPIC` | <https://console.anthropic.com/settings/keys> | `claude-sonnet-4-6` | Anthropic SDK default | Measurement context sent to Anthropic |
-| `LOCAL` | None (your endpoint) | `local-model` | OpenAI-compatible URL you control | Stays on your network |
-| `CHATGPT_OAUTH` | Sign in with your ChatGPT account | Codex-routed | `chatgpt.com/backend-api/codex/responses` | Routed via your ChatGPT subscription |
+| Provider        | Key acquisition                               | Default model       | Endpoint                                  | Privacy stance                        |
+| --------------- | --------------------------------------------- | ------------------- | ----------------------------------------- | ------------------------------------- |
+| `OPENAI`        | <https://platform.openai.com/api-keys>        | `gpt-4o`            | `https://api.openai.com/v1`               | Measurement context sent to OpenAI    |
+| `ANTHROPIC`     | <https://console.anthropic.com/settings/keys> | `claude-sonnet-4-6` | Anthropic SDK default                     | Measurement context sent to Anthropic |
+| `LOCAL`         | None (your endpoint)                          | `local-model`       | OpenAI-compatible URL you control         | Stays on your network                 |
+| `CHATGPT_OAUTH` | Sign in with your ChatGPT account             | Codex-routed        | `chatgpt.com/backend-api/codex/responses` | Routed via your ChatGPT subscription  |
 
 The four spellings above are the canonical `User.aiProvider` enum
 values. Anything else falls through to the admin-shared OpenAI key
@@ -134,11 +134,14 @@ API key at rest like every other provider credential.
 
 **SSRF guard.** Local endpoints route through the same validation
 as every other outbound URL HealthLog hits. The guard rejects
-private-IP-range targets by default — set
-`ALLOW_LOCAL_AI_PRIVATE_HOSTS=true` in the container environment to
-allow `localhost`, RFC1918, and link-local destinations
-(`src/lib/ai/provider.ts:456-462`). Leave it unset on public-facing
-instances unless you specifically run an internal endpoint.
+private-IP-range targets by default. `ALLOW_LOCAL_AI_PRIVATE_HOSTS`
+opens the escape hatch and accepts two forms: a comma-separated host
+allowlist (e.g. `ALLOW_LOCAL_AI_PRIVATE_HOSTS=ollama.lan,10.0.0.5`),
+which permits only those exact hostnames, or the legacy
+`ALLOW_LOCAL_AI_PRIVATE_HOSTS=true`, which permits any private host —
+including the cloud-metadata endpoint, so prefer the host list. Leave
+it unset on public-facing instances unless you specifically run an
+internal endpoint.
 
 **Model sizing.** Roughly: 7-8B for 8 GB GPU / Apple Silicon base
 (briefings fine, deeper Coach reasoning gets terse), 14-24B for
@@ -232,9 +235,11 @@ error.
   provider in `/settings/ai`, or configure an admin-shared OpenAI
   key in the admin panel.
 - **Local endpoint rejected as "internal/private host".** Set
-  `ALLOW_LOCAL_AI_PRIVATE_HOSTS=true` in the container environment.
-  Leave it unset on internet-facing instances unless you specifically
-  want to allow private-range targets.
+  `ALLOW_LOCAL_AI_PRIVATE_HOSTS` to the endpoint's exact hostname
+  (e.g. `ollama.lan`; comma-separate several) in the container
+  environment, or to `true` to allow any private host. Prefer the host
+  list; leave it unset on internet-facing instances unless you
+  specifically want to allow private-range targets.
 - **Codex disconnects after a few weeks of inactivity.** ChatGPT
   refresh tokens lapse after extended idle periods. Reconnect via
   the **Connect ChatGPT** button — HealthLog re-runs the device-code

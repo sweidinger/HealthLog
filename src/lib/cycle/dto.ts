@@ -206,11 +206,17 @@ export function toCyclePredictionDTO(
     // a fertile window the rest of the app refuses to show. `ovulationConfirmed`
     // stays goal-gated only: a confirmed shift is observed data, not a prior.
     fertileWindowStart:
-      goalAllowsFertile && !result.stillLearning ? result.fertileWindowStart : null,
+      goalAllowsFertile && !result.stillLearning
+        ? result.fertileWindowStart
+        : null,
     fertileWindowEnd:
-      goalAllowsFertile && !result.stillLearning ? result.fertileWindowEnd : null,
+      goalAllowsFertile && !result.stillLearning
+        ? result.fertileWindowEnd
+        : null,
     predictedOvulation:
-      goalAllowsFertile && !result.stillLearning ? result.predictedOvulation : null,
+      goalAllowsFertile && !result.stillLearning
+        ? result.predictedOvulation
+        : null,
     ovulationConfirmed: goalAllowsFertile ? result.ovulationConfirmed : false,
     confidence: result.confidence,
     cyclesObserved: result.cyclesObserved,

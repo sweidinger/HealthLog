@@ -42,7 +42,8 @@ vi.mock("@/lib/withings/credentials", () => ({
 
 vi.mock("@/lib/withings/client", () => ({
   getAuthorizationUrl: vi.fn(
-    () => "https://account.withings.com/oauth2_user/authorize2?state=nonce-stub",
+    () =>
+      "https://account.withings.com/oauth2_user/authorize2?state=nonce-stub",
   ),
 }));
 
@@ -78,9 +79,7 @@ beforeEach(() => {
     resetAt: Date.now() + 60_000,
   } as never);
   vi.mocked(prisma.withingsOAuthState.create).mockReset();
-  vi.mocked(prisma.withingsOAuthState.create).mockResolvedValue(
-    {} as never,
-  );
+  vi.mocked(prisma.withingsOAuthState.create).mockResolvedValue({} as never);
   vi.mocked(getUserWithingsCredentials).mockResolvedValue({
     clientId: "client-id",
     clientSecret: "client-secret",

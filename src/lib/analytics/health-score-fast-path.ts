@@ -235,7 +235,9 @@ export async function computeUserHealthScoreFastPath(
         kg: b.mean,
       }));
     weightSeriesPrev30d = dayBuckets
-      .filter((b) => b.bucketStart >= prevSince30d && b.bucketStart <= prevUntil)
+      .filter(
+        (b) => b.bucketStart >= prevSince30d && b.bucketStart <= prevUntil,
+      )
       .map((b) => ({
         date: b.bucketStart.toISOString(),
         kg: b.mean,
@@ -266,7 +268,9 @@ export async function computeUserHealthScoreFastPath(
       select: { measuredAt: true, source: true },
       orderBy: { measuredAt: "asc" },
     });
-    weightSourcesIn30d = uniqueComponentSources(sourceRows.map((r) => r.source));
+    weightSourcesIn30d = uniqueComponentSources(
+      sourceRows.map((r) => r.source),
+    );
     latestWeightAsOf = sourceRows.at(-1)?.measuredAt.toISOString() ?? null;
   } else {
     // Live fallback — raw rows over the 37-day window. Mirrors the
@@ -288,13 +292,13 @@ export async function computeUserHealthScoreFastPath(
       .filter((r) => r.measuredAt >= prevSince30d && r.measuredAt <= prevUntil)
       .map((r) => ({ date: r.measuredAt.toISOString(), kg: r.value }));
     weightSourcesIn30d = uniqueComponentSources(
-      weightRows
-        .filter((r) => r.measuredAt >= since30d)
-        .map((r) => r.source),
+      weightRows.filter((r) => r.measuredAt >= since30d).map((r) => r.source),
     );
     latestWeightAsOf =
-      weightRows.filter((r) => r.measuredAt >= since30d).at(-1)?.measuredAt
-        .toISOString() ?? null;
+      weightRows
+        .filter((r) => r.measuredAt >= since30d)
+        .at(-1)
+        ?.measuredAt.toISOString() ?? null;
   }
 
   // Remaining reads — mood, BP-SYS source attribution, medications +
@@ -327,9 +331,7 @@ export async function computeUserHealthScoreFastPath(
           select: { score: true, moodLoggedAt: true },
           orderBy: { moodLoggedAt: "asc" },
         })
-      : Promise.resolve(
-          [] as Array<{ score: number; moodLoggedAt: Date }>,
-        ),
+      : Promise.resolve([] as Array<{ score: number; moodLoggedAt: Date }>),
     prisma.medication.findMany({
       // v1.16.11 — as-needed (PRN) medications carry no expected doses
       // and are excluded from every compliance rate: they must

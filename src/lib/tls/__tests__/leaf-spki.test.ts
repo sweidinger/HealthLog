@@ -127,7 +127,10 @@ describe("isPinKnown — change detection", () => {
 describe("resolveAppTlsTarget", () => {
   it("prefers APP_URL over NEXT_PUBLIC_APP_URL", () => {
     expect(
-      resolveAppTlsTarget("https://app.example.com", "https://other.example.com"),
+      resolveAppTlsTarget(
+        "https://app.example.com",
+        "https://other.example.com",
+      ),
     ).toEqual({ host: "app.example.com", port: 443 });
   });
 
@@ -139,9 +142,9 @@ describe("resolveAppTlsTarget", () => {
   });
 
   it("honours an explicit https port", () => {
-    expect(resolveAppTlsTarget("https://app.example.com:8443", undefined)).toEqual(
-      { host: "app.example.com", port: 8443 },
-    );
+    expect(
+      resolveAppTlsTarget("https://app.example.com:8443", undefined),
+    ).toEqual({ host: "app.example.com", port: 8443 });
   });
 
   it("skips a plain-HTTP origin (no leaf to pin)", () => {

@@ -100,11 +100,14 @@ const SESSION_OK = {
 const ROUTE_PARAMS = { params: Promise.resolve({ id: "med-1" }) };
 
 function postWithBody(body: unknown): NextRequest {
-  return new NextRequest("http://localhost/api/medications/med-1/intake/bulk-delete", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return new NextRequest(
+    "http://localhost/api/medications/med-1/intake/bulk-delete",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 beforeEach(() => {
@@ -119,7 +122,9 @@ beforeEach(() => {
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     timezone: "Europe/Berlin",
   } as never);
-  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+    [] as never,
+  );
   vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValue({
     count: 0,
   } as never);
@@ -142,10 +147,7 @@ describe("POST /api/medications/[id]/intake/bulk-delete", () => {
     vi.mocked(assertMedicationOwnership).mockResolvedValueOnce(
       new Response(null, { status: 404 }) as never,
     );
-    const res = await POST(
-      postWithBody({ eventIds: ["evt-1"] }),
-      ROUTE_PARAMS,
-    );
+    const res = await POST(postWithBody({ eventIds: ["evt-1"] }), ROUTE_PARAMS);
     expect(res.status).toBe(404);
     expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
   });
@@ -226,10 +228,7 @@ describe("POST /api/medications/[id]/intake/bulk-delete — F-1 H-6 rate limit",
       remaining: 0,
       resetAt: Date.now() + 60_000,
     });
-    const res = await POST(
-      postWithBody({ eventIds: ["evt-a"] }),
-      ROUTE_PARAMS,
-    );
+    const res = await POST(postWithBody({ eventIds: ["evt-a"] }), ROUTE_PARAMS);
     expect(res.status).toBe(429);
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
     expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
@@ -248,9 +247,8 @@ describe("POST /api/medications/[id]/intake/bulk-delete — F-1 H-6 rate limit",
 
 describe("POST /api/medications/[id]/intake/bulk-delete — v1.16.10 inventory refund", () => {
   it("restores each stamped row before the tombstone sweep and ignores unstamped rows", async () => {
-    const { restoreForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { restoreForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     const day1 = new Date(Date.UTC(2026, 4, 27, 8, 0, 0));
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
       {
@@ -275,10 +273,10 @@ describe("POST /api/medications/[id]/intake/bulk-delete — v1.16.10 inventory r
       expect.objectContaining({ userId: "user-1", eventId: "evt-stamped" }),
     );
     // The refund runs BEFORE the soft-delete sweep.
-    const restoreOrder = vi.mocked(restoreForIntake).mock
+    const restoreOrder =
+      vi.mocked(restoreForIntake).mock.invocationCallOrder[0];
+    const sweepOrder = vi.mocked(prisma.medicationIntakeEvent.updateMany).mock
       .invocationCallOrder[0];
-    const sweepOrder = vi.mocked(prisma.medicationIntakeEvent.updateMany)
-      .mock.invocationCallOrder[0];
     expect(restoreOrder).toBeLessThan(sweepOrder);
   });
 });

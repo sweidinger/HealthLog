@@ -324,7 +324,9 @@ describe("sw.js — trimCache", () => {
     store.keysCalls = 0;
 
     const trimCache = (
-      harness.context as { trimCache?: (name: string, max: number) => Promise<void> }
+      harness.context as {
+        trimCache?: (name: string, max: number) => Promise<void>;
+      }
     ).trimCache;
     expect(typeof trimCache).toBe("function");
     await trimCache!(CURRENT_PAGE_CACHE, 5);
@@ -340,10 +342,7 @@ describe("sw.js — trimCache", () => {
 });
 
 // ── push handler (v1.18.4: clear-on-taken tag close + app badge) ─────────────
-async function dispatchPush(
-  harness: SwHarness,
-  data: unknown,
-): Promise<void> {
+async function dispatchPush(harness: SwHarness, data: unknown): Promise<void> {
   let settled: Promise<unknown> = Promise.resolve();
   harness.listeners.get("push")!({
     data: { json: () => data, text: () => JSON.stringify(data) },

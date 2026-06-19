@@ -295,7 +295,10 @@ export async function runMeasurementReminderTick(
       // gated. Checked after the due + window gates so the gate read only
       // fires for reminders that would otherwise dispatch this tick.
       const gatedModule = moduleForMeasurementType(reminder.measurementType);
-      if (gatedModule !== null && !(await moduleGate(reminder.user.id, gatedModule))) {
+      if (
+        gatedModule !== null &&
+        !(await moduleGate(reminder.user.id, gatedModule))
+      ) {
         getEvent()?.addMeta(
           "measurement_reminder.skipped_module_disabled",
           `${reminder.id}:${gatedModule}`,
@@ -309,9 +312,7 @@ export async function runMeasurementReminderTick(
       }
 
       // Per-user client-managed suppression (the medication precedent).
-      if (
-        isMeasurementReminderClientManaged(reminder.user.notificationPrefs)
-      ) {
+      if (isMeasurementReminderClientManaged(reminder.user.notificationPrefs)) {
         getEvent()?.addMeta(
           "measurement_reminder.suppressed_client_managed",
           reminder.id,
@@ -424,10 +425,7 @@ export async function runReminderSatisfyForUser(
       // belongs to a disabled module. Core-vital + free-text reminders map
       // to no module and are never gated.
       const gatedModule = moduleForMeasurementType(reminder.measurementType);
-      if (
-        gatedModule !== null &&
-        !(await moduleGate(userId, gatedModule))
-      ) {
+      if (gatedModule !== null && !(await moduleGate(userId, gatedModule))) {
         summary.skippedModuleDisabled += 1;
         continue;
       }
@@ -446,7 +444,10 @@ export async function runReminderSatisfyForUser(
       );
       if (result.satisfied) {
         summary.satisfied += 1;
-        getEvent()?.addMeta("measurement_reminder.satisfied_eventful", reminder.id);
+        getEvent()?.addMeta(
+          "measurement_reminder.satisfied_eventful",
+          reminder.id,
+        );
       } else {
         // Forward-only no-op — the cron or a prior enqueue already
         // advanced this row past the event.

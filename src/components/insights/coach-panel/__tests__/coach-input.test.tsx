@@ -11,19 +11,29 @@ function render(node: React.ReactNode, locale: "en" | "de" = "en") {
 }
 
 describe("<CoachInput>", () => {
-  it("mounts the textarea + send button slots (mic dropped in W5)", () => {
+  it("mounts the textarea + send button slots", () => {
     // v1.4.22 B4 — the disclaimer moved to the sources rail; the
     // composer no longer renders its own paragraph below the input.
-    // v1.4.25 W5 — the non-functional mic icon was removed.
     const html = render(
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
     );
     expect(html).toContain('data-slot="coach-input"');
     expect(html).toContain('data-slot="coach-input-textarea"');
     expect(html).toContain('data-slot="coach-input-send"');
-    expect(html).not.toContain('data-slot="coach-input-mic"');
     expect(html).not.toContain('data-slot="coach-input-disclaimer"');
     expect(html).not.toContain("Coach replies are generated");
+  });
+
+  it("does not render the mic in SSR markup (Web Speech API is client-only)", () => {
+    // v1.18.7 W-coach C-UI — voice dictation returns, but the mic only
+    // mounts client-side once `SpeechRecognition` is confirmed present
+    // (a post-hydration effect flips support on). The SSR / unsupported
+    // path renders no button so the affordance is never a dead control.
+    const html = render(
+      <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
+    );
+    expect(html).not.toContain('data-slot="coach-input-mic"');
+    expect(html).not.toContain("Voice input arrives with the iOS app");
   });
 
   it("renders the localised placeholder without the retired shortcut hint", () => {
@@ -46,18 +56,6 @@ describe("<CoachInput>", () => {
       "de",
     );
     expect(html).toContain("Frag mich etwas zu deinen Daten");
-  });
-
-  it("no longer renders a mic button (W5 removed the placeholder)", () => {
-    // v1.4.25 W5 — the mic icon used to be rendered + disabled with a
-    // "voice arrives with iOS" tooltip. The maintainer flagged it as a click-
-    // trap: nothing happened on tap. The composer now drops the icon
-    // entirely; voice input remains a v1.5 iOS feature.
-    const html = render(
-      <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
-    );
-    expect(html).not.toMatch(/data-slot="coach-input-mic"/);
-    expect(html).not.toContain("Voice input arrives with the iOS app");
   });
 
   it("disables the send button when the value is empty", () => {
@@ -175,6 +173,39 @@ describe("<CoachInput>", () => {
       "de",
     );
     expect(html).toContain("Stopp");
+  });
+
+  it("sizes the send control to the 44px tap-target floor on phones", () => {
+    // v1.18.7 — the composer controls (send / stop / mic) must clear the
+    // 44px WCAG 2.5.5 floor on phones and condense at `sm:` upward. Guard
+    // the `size-11 sm:size-9` pattern so a future restyle can't quietly
+    // drop the send button back to 36px.
+    const html = render(
+      <CoachInput value="Hi" onChange={() => {}} onSubmit={() => {}} />,
+    );
+    const sendTag = html.match(
+      /<button[^>]*data-slot="coach-input-send"[^>]*>/,
+    );
+    expect(sendTag?.[0]).toMatch(/\bsize-11\b/);
+    expect(sendTag?.[0]).toMatch(/\bsm:size-9\b/);
+  });
+
+  it("sizes the stop control to the 44px tap-target floor on phones", () => {
+    const html = render(
+      <CoachInput
+        value="Hi"
+        onChange={() => {}}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        disabled
+        isStreaming
+      />,
+    );
+    const stopTag = html.match(
+      /<button[^>]*data-slot="coach-input-stop"[^>]*>/,
+    );
+    expect(stopTag?.[0]).toMatch(/\bsize-11\b/);
+    expect(stopTag?.[0]).toMatch(/\bsm:size-9\b/);
   });
 
   it("invokes onChange when the parent passes a controlled handler", () => {

@@ -83,9 +83,7 @@ describe("injection-sites", () => {
     });
 
     it("returns an empty set when the exclusion covers everything", () => {
-      expect(
-        effectiveAllowedSites([], [...INJECTION_SITE_KEYS]),
-      ).toEqual([]);
+      expect(effectiveAllowedSites([], [...INJECTION_SITE_KEYS])).toEqual([]);
     });
   });
 
@@ -133,7 +131,11 @@ describe("injection-sites", () => {
       // Allowed = three thigh/abdomen sites; history used two of them
       // recently, so the LRU/untouched one wins.
       const allowed = ["ABDOMEN_LEFT", "ABDOMEN_RIGHT", "THIGH_LEFT"] as const;
-      const rec = nextInjectionSite(["ABDOMEN_LEFT", "ABDOMEN_RIGHT"], 4, allowed);
+      const rec = nextInjectionSite(
+        ["ABDOMEN_LEFT", "ABDOMEN_RIGHT"],
+        4,
+        allowed,
+      );
       expect(rec).toBe("THIGH_LEFT");
     });
 

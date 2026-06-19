@@ -226,10 +226,7 @@ export const MAX_WORKOUTS_PER_BATCH = 100;
  * workout; an optional nested `route` carries the GeoJSON LineString.
  */
 export const createBatchWorkoutSchema = z.object({
-  workouts: z
-    .array(createWorkoutSchema)
-    .min(1)
-    .max(MAX_WORKOUTS_PER_BATCH),
+  workouts: z.array(createWorkoutSchema).min(1).max(MAX_WORKOUTS_PER_BATCH),
 });
 
 export type CreateBatchWorkoutInput = z.infer<typeof createBatchWorkoutSchema>;

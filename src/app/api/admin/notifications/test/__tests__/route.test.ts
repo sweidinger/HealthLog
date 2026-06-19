@@ -36,8 +36,9 @@ vi.mock("@/lib/api-handler", async () => {
     );
   return {
     ...actual,
-    apiHandler: <T extends (...args: unknown[]) => Promise<Response>>(h: T): T =>
-      h,
+    apiHandler: <T extends (...args: unknown[]) => Promise<Response>>(
+      h: T,
+    ): T => h,
     requireAdmin: vi.fn(),
   };
 });
@@ -149,9 +150,7 @@ describe("POST /api/admin/notifications/test — APNS branch (v1.4.46)", () => {
         eventType: "SYSTEM_ALERT",
       }),
     );
-    expect(body.data.results).toEqual([
-      { channel: "APNS", success: true },
-    ]);
+    expect(body.data.results).toEqual([{ channel: "APNS", success: true }]);
     expect(body.data.sent).toBe(true);
   });
 

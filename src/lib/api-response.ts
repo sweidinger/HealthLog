@@ -188,11 +188,7 @@ export function returnAllZodIssues(
  * key is *not* echoed into the JSON body — it is consumed by the
  * NextResponse constructor and stripped from the meta envelope.
  */
-export function apiError(
-  message: string,
-  status = 400,
-  meta?: ErrorMeta,
-) {
+export function apiError(message: string, status = 400, meta?: ErrorMeta) {
   return buildJsonErrorResponse({ data: null, error: message }, status, meta);
 }
 
@@ -229,10 +225,7 @@ export async function safeJson<T = unknown>(
     }
     if (raw.length > opts.maxBytes) {
       return {
-        error: apiError(
-          `Request body exceeds ${opts.maxBytes} bytes`,
-          413,
-        ),
+        error: apiError(`Request body exceeds ${opts.maxBytes} bytes`, 413),
       };
     }
     try {

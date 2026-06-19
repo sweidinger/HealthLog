@@ -163,11 +163,17 @@
       "required": false,
       "allOrNone": true,
       "variables": [
-        { "name": "BACKUP_S3_ENDPOINT", "purpose": "S3-compatible endpoint URL." },
+        {
+          "name": "BACKUP_S3_ENDPOINT",
+          "purpose": "S3-compatible endpoint URL."
+        },
         { "name": "BACKUP_S3_BUCKET", "purpose": "Bucket name." },
         { "name": "BACKUP_S3_ACCESS_KEY", "purpose": "S3 access key." },
         { "name": "BACKUP_S3_SECRET_KEY", "purpose": "S3 secret key." },
-        { "name": "BACKUP_ENCRYPTION_KEY", "purpose": "Separate AES key for the backup body — MUST NOT match ENCRYPTION_KEY." }
+        {
+          "name": "BACKUP_ENCRYPTION_KEY",
+          "purpose": "Separate AES key for the backup body — MUST NOT match ENCRYPTION_KEY."
+        }
       ]
     }
   ]

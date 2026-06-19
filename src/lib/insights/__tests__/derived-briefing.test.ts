@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/insights/derived", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/insights/derived")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/insights/derived")>();
   return { ...actual, computeDerivedMetric: vi.fn() };
 });
 
@@ -19,15 +20,35 @@ function ok(score: number, band: string, confidence: number) {
   return {
     status: "ok" as const,
     value: { score, band },
-    coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 14, missing: [] },
+    coverage: {
+      requiredInputs: 1,
+      presentInputs: 1,
+      historyDays: 14,
+      missing: [],
+    },
     confidence: { score: confidence, band: "medium" as const },
-    provenance: { inputs: [], source: "DAY" as const, windowDays: 14, computedAt: "x" },
+    provenance: {
+      inputs: [],
+      source: "DAY" as const,
+      windowDays: 14,
+      computedAt: "x",
+    },
   };
 }
 const insufficient = {
   status: "insufficient" as const,
-  coverage: { requiredInputs: 1, presentInputs: 0, historyDays: 0, missing: [] },
-  provenance: { inputs: [], source: "none" as const, windowDays: 0, computedAt: "x" },
+  coverage: {
+    requiredInputs: 1,
+    presentInputs: 0,
+    historyDays: 0,
+    missing: [],
+  },
+  provenance: {
+    inputs: [],
+    source: "none" as const,
+    windowDays: 0,
+    computedAt: "x",
+  },
   reason: "x",
 };
 
@@ -74,7 +95,17 @@ describe("detectDerivedBriefingSignals", () => {
 describe("buildDerivedBriefingPrompt", () => {
   it("renders an EN system-context block citing the value + band", () => {
     const prompt = buildDerivedBriefingPrompt(
-      { signals: [{ sourceMetric: "readiness", label: "readiness", score: 48, band: "yellow", confidence: 70 }] },
+      {
+        signals: [
+          {
+            sourceMetric: "readiness",
+            label: "readiness",
+            score: 48,
+            band: "yellow",
+            confidence: 70,
+          },
+        ],
+      },
       "en",
     );
     expect(prompt).toContain("DERIVED WELLNESS SIGNALS");
@@ -84,7 +115,17 @@ describe("buildDerivedBriefingPrompt", () => {
 
   it("renders a DE block for the de locale", () => {
     const prompt = buildDerivedBriefingPrompt(
-      { signals: [{ sourceMetric: "recovery", label: "recovery", score: 30, band: "red", confidence: 88 }] },
+      {
+        signals: [
+          {
+            sourceMetric: "recovery",
+            label: "recovery",
+            score: 30,
+            band: "red",
+            confidence: 88,
+          },
+        ],
+      },
       "de",
     );
     expect(prompt).toContain("ABGELEITETE WELLNESS-SIGNALE");

@@ -106,7 +106,9 @@ describe("GET /api/measurements — 422 multi-issue (v1.4.43 W6)", () => {
 
   it("surfaces THREE simultaneous validation errors", async () => {
     // bad sortBy + bad sortDir + bad aggregate.
-    const res = await GET(getReq("sortBy=junk&sortDir=upside&aggregate=hourly"));
+    const res = await GET(
+      getReq("sortBy=junk&sortDir=upside&aggregate=hourly"),
+    );
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       details: { issues: Array<{ path: string; code: string }> };
@@ -138,9 +140,7 @@ describe("GET /api/measurements — 422 multi-issue (v1.4.43 W6)", () => {
 describe("POST /api/measurements — single — 422 multi-issue (v1.4.43 W6)", () => {
   it("surfaces TWO simultaneous validation errors", async () => {
     // Missing `type` (required enum) + missing `value` (required number).
-    const res = await POST(
-      postReq({ measuredAt: "not-an-iso-string" }),
-    );
+    const res = await POST(postReq({ measuredAt: "not-an-iso-string" }));
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       data: null;
@@ -235,7 +235,9 @@ describe("POST /api/measurements — batch — 422 multi-issue (v1.4.43 W6)", ()
       data: { userId: string; action: string; details: string };
     };
     expect(call.data.userId).toBe("user-1");
-    expect(call.data.action).toBe("measurements.create.batch.validation-failed");
+    expect(call.data.action).toBe(
+      "measurements.create.batch.validation-failed",
+    );
   });
 
   it("does not block the 422 when the audit-row write rejects", async () => {

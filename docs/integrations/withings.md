@@ -11,14 +11,14 @@ relay.
 The Withings client (`src/lib/withings/client.ts`) maps the following
 metric types into `Measurement` rows tagged `source = WITHINGS`:
 
-| Withings meastype | HealthLog `MeasurementType` |
-| ----------------- | --------------------------- |
-| 1 | `WEIGHT` |
-| 5 | `FAT_FREE_MASS` |
-| 9 | `BLOOD_PRESSURE_DIA` |
-| 10 | `BLOOD_PRESSURE_SYS` |
-| 11 | `PULSE` |
-| 54, 35 | `OXYGEN_SATURATION` (ScanWatch / pulse-ox products) |
+| Withings meastype                                                                                                                              | HealthLog `MeasurementType`                         |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1                                                                                                                                              | `WEIGHT`                                            |
+| 5                                                                                                                                              | `FAT_FREE_MASS`                                     |
+| 9                                                                                                                                              | `BLOOD_PRESSURE_DIA`                                |
+| 10                                                                                                                                             | `BLOOD_PRESSURE_SYS`                                |
+| 11                                                                                                                                             | `PULSE`                                             |
+| 54, 35                                                                                                                                         | `OXYGEN_SATURATION` (ScanWatch / pulse-ox products) |
 | Plus the body-composition family (fat ratio, muscle mass, bone mass, hydration) and sleep / heart-rate variability via the heart-list endpoint |
 
 Activity data (steps, active energy, distance, floors climbed) lands
@@ -136,7 +136,7 @@ Override per-user via the Sources section of `/settings/thresholds`.
 - **`Withings credentials not configured`** — `WITHINGS_CLIENT_ID`
   or `WITHINGS_CLIENT_SECRET` is missing from `.env`. Confirm both
   are set in the container's runtime environment (`docker compose
-  exec app env | grep WITHINGS`).
+exec app env | grep WITHINGS`).
 - **`Callback URI mismatch`** — the URL HealthLog sends to Withings
   must match an entry in the developer-portal app's callback list.
   Add the public URL exactly, including the `https://` scheme and
@@ -183,7 +183,7 @@ The Settings page **Disconnect** button:
    the database — disconnect does not delete data. Re-linking the
    same Withings account merges back onto the same metric
    timeline; the upsert path matches on `(userId, type, measuredAt,
-   source)` so previously-synced rows update in place.
+source)` so previously-synced rows update in place.
 
 ## Admin probe
 

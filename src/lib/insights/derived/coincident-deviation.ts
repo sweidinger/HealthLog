@@ -150,7 +150,10 @@ async function readLatestDayMean(
   const sameDay = rows.filter(
     (r) => r.measuredAt.toISOString().slice(0, 10) === day,
   );
-  return { value: sameDay.reduce((s, r) => s + r.value, 0) / sameDay.length, day };
+  return {
+    value: sameDay.reduce((s, r) => s + r.value, 0) / sameDay.length,
+    day,
+  };
 }
 
 /**

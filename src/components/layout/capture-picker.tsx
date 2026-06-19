@@ -98,14 +98,17 @@ export function CapturePicker({ open, onOpenChange }: CapturePickerProps) {
         title={t("nav.capture.title")}
         description={t("nav.capture.description")}
       >
-        <div className="grid grid-cols-1 gap-2" data-testid="capture-picker-options">
+        <div
+          className="grid grid-cols-1 gap-2"
+          data-testid="capture-picker-options"
+        >
           {options.map((opt) => (
             <button
               key={opt.kind}
               type="button"
               data-testid={`capture-picker-${opt.kind}`}
               onClick={() => chooseKind(opt.kind)}
-              className="border-border hover:bg-accent/40 focus-visible:ring-ring/50 flex min-h-14 items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
+              className="border-border hover:bg-accent/40 focus-visible:ring-ring/50 flex min-h-14 items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
               <span className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
                 <opt.icon className="h-5 w-5" aria-hidden="true" />

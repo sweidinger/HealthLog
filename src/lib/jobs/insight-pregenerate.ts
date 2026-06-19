@@ -58,13 +58,7 @@ import {
   generateComprehensiveInsight,
   type GenerateOutcome,
 } from "@/lib/insights/comprehensive-generate";
-import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
-import { generatePulseStatusForUser } from "@/lib/insights/pulse-status";
-import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
-import { generateBmiStatusForUser } from "@/lib/insights/bmi-status";
-import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
-import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
-import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
+import { generateStatusBatchForUser } from "@/lib/insights/status-batch";
 import { generateMetricStatus } from "@/lib/insights/metric-status";
 import {
   METRIC_STATUS_IDS,
@@ -78,10 +72,7 @@ import {
   type InsightPregeneratePayload,
 } from "@/lib/jobs/insight-pregenerate-shared";
 
-export {
-  INSIGHT_PREGENERATE_QUEUE,
-  enqueueForceWarm,
-};
+export { INSIGHT_PREGENERATE_QUEUE, enqueueForceWarm };
 export type { InsightPregeneratePayload };
 
 /**
@@ -238,24 +229,6 @@ type StatusGenerator = (
 ) => Promise<{ hasProvider: boolean; cached: boolean }>;
 
 /**
- * The seven per-metric status generators the warm pass re-fills after
- * the comprehensive generator evicted them. Each writes its own
- * `insights.<scope>-status.<locale>` cache row on a fresh generation and
- * resolves the user's provider chain internally, so a provider-less
- * account costs one cheap chain-resolve and no LLM call (`hasProvider:
- * false`).
- */
-const DEFAULT_STATUS_GENERATORS: ReadonlyArray<StatusGenerator> = [
-  generateBloodPressureStatusForUser,
-  generatePulseStatusForUser,
-  generateWeightStatusForUser,
-  generateBmiStatusForUser,
-  generateMoodStatusForUser,
-  generateMedicationComplianceStatusForUser,
-  generateGeneralStatusForUser,
-];
-
-/**
  * Re-fill the per-metric assessment caches for one user. Refill-only
  * (`force: false`): a card already generated today short-circuits to its
  * cache row, and a cold card runs its generator — whose content-hash gate
@@ -294,6 +267,40 @@ async function warmPerStatusCaches(
   );
   const results = await Promise.all(tasks);
   return results.reduce((sum: number, n) => sum + n, 0);
+}
+
+/**
+ * v1.18.7 (HIGH-1) — the production warm for the seven specialised status
+ * cards. `generateStatusBatchForUser` builds the seven per-metric snapshots
+ * once and issues ONE provider call for the metrics still needing the LLM,
+ * fanning the response back into the same per-metric cache rows the
+ * standalone generators wrote. Replaces the prior seven independent warm
+ * calls. Returns the count of metrics that got a fresh (batched or
+ * fallback) assessment so the wide-event tally is comparable to the old
+ * per-card count.
+ *
+ * Refill-only (`force: false`): a card already generated today and a card
+ * whose content-hash is unchanged both resolve inside the batch as `served`
+ * (no provider call). A single batch failure degrades each metric to its own
+ * single-card path rather than aborting the warm.
+ */
+async function warmStatusBatch(
+  userId: string,
+  locales: ReadonlyArray<"de" | "en">,
+): Promise<number> {
+  let warmed = 0;
+  for (const locale of locales) {
+    try {
+      const result = await generateStatusBatchForUser(userId, {
+        locale,
+        force: false,
+      });
+      warmed += result.batched + result.fellBack;
+    } catch {
+      // The batch must never throw the cron's user loop off course.
+    }
+  }
+  return warmed;
 }
 
 /**
@@ -444,8 +451,15 @@ export async function runInsightPregenerate(
   const now = options.now ?? new Date();
   const cap = options.cap ?? PREGENERATE_BATCH_CAP;
   const generate = options.generate ?? generateComprehensiveInsight;
-  const statusGenerators =
-    options.statusGenerators ?? DEFAULT_STATUS_GENERATORS;
+  // v1.18.7 (HIGH-1) — when the caller injects its own `statusGenerators`
+  // (the unit tests do), keep the per-card warm so those assertions hold;
+  // production injects nothing, so the seven warm calls collapse into ONE
+  // batched generation. The injected per-card path stays the test seam.
+  const injectedStatusGenerators = options.statusGenerators;
+  const warmStatus = (userId: string, locales: ReadonlyArray<"de" | "en">) =>
+    injectedStatusGenerators
+      ? warmPerStatusCaches(userId, locales, injectedStatusGenerators)
+      : warmStatusBatch(userId, locales);
   const warmGenericMetrics =
     options.warmGenericMetrics ??
     ((userId: string, locales: ReadonlyArray<"de" | "en">) =>
@@ -559,11 +573,7 @@ export async function runInsightPregenerate(
     if (outcome?.status === "skipped" && outcome.reason === "no-provider") {
       continue;
     }
-    result.assessmentsWarmed += await warmPerStatusCaches(
-      candidate.id,
-      [locale],
-      statusGenerators,
-    );
+    result.assessmentsWarmed += await warmStatus(candidate.id, [locale]);
     // v1.8.7.1 — warm the generic per-HealthKit-metric caches too, for
     // the user's data-bearing metrics only (the helper filters via one
     // grouped count, so an empty metric never reaches the provider).
@@ -652,8 +662,13 @@ export async function forceWarmUser(
   } = {},
 ): Promise<ForceWarmResult> {
   const generate = options.generate ?? generateComprehensiveInsight;
-  const statusGenerators =
-    options.statusGenerators ?? DEFAULT_STATUS_GENERATORS;
+  // v1.18.7 (HIGH-1) — batch the seven status warms into ONE provider call
+  // in production; keep the per-card path when a test injects generators.
+  const injectedStatusGenerators = options.statusGenerators;
+  const warmStatus = (userId: string, locales: ReadonlyArray<"de" | "en">) =>
+    injectedStatusGenerators
+      ? warmPerStatusCaches(userId, locales, injectedStatusGenerators)
+      : warmStatusBatch(userId, locales);
   const warmGenericMetrics =
     options.warmGenericMetrics ??
     ((id: string, locales: ReadonlyArray<"de" | "en">) =>
@@ -712,8 +727,10 @@ export async function forceWarmUser(
   //      rolling 24 h, so even a client bug that defeats 1+2 cannot turn
   //      the forced path into an unmetered generation loop.
   if (flags.briefing) {
-    let freshness: { insightsCachedAt: Date | null; insightsWarmFailedAt: Date | null } | null =
-      null;
+    let freshness: {
+      insightsCachedAt: Date | null;
+      insightsWarmFailedAt: Date | null;
+    } | null = null;
     try {
       freshness = await prisma.user.findUnique({
         where: { id: userId },
@@ -727,7 +744,8 @@ export async function forceWarmUser(
     const cachedAt = freshness?.insightsCachedAt ?? null;
     const failedAt = freshness?.insightsWarmFailedAt ?? null;
     const isFresh =
-      cachedAt !== null && now.getTime() - cachedAt.getTime() < FORCE_WARM_FRESH_MS;
+      cachedAt !== null &&
+      now.getTime() - cachedAt.getTime() < FORCE_WARM_FRESH_MS;
     const inBackoff =
       !isFresh &&
       failedAt !== null &&
@@ -761,7 +779,11 @@ export async function forceWarmUser(
         const controller = new AbortController();
         const comprehensive = await withTimeout(
           () =>
-            generate(userId, { locale, force: true, signal: controller.signal }),
+            generate(userId, {
+              locale,
+              force: true,
+              signal: controller.signal,
+            }),
           COMPREHENSIVE_WARM_TIMEOUT_MS,
           null,
           () => controller.abort(),
@@ -814,11 +836,7 @@ export async function forceWarmUser(
     // skips the LLM when the underlying data did not change. There is no
     // force mode left to mirror — the comprehensive write no longer evicts
     // the per-status rows.
-    result.assessmentsWarmed = await warmPerStatusCaches(
-      userId,
-      locales,
-      statusGenerators,
-    );
+    result.assessmentsWarmed = await warmStatus(userId, locales);
     result.metricAssessmentsWarmed = await warmGenericMetrics(userId, locales);
   }
 

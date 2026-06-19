@@ -106,9 +106,9 @@ describe("formatDateOrRelative", () => {
   });
 
   it("accepts a Date instance as well as ISO string", () => {
-    expect(
-      formatDateOrRelative(new Date(NOW - 30 * MINUTE), fakeT, NOW),
-    ).toBe("insights.relativeMinutesAgoOther:count=30");
+    expect(formatDateOrRelative(new Date(NOW - 30 * MINUTE), fakeT, NOW)).toBe(
+      "insights.relativeMinutesAgoOther:count=30",
+    );
   });
 
   // v1.4.49.2 — regression guard. The helper's `t()` calls must dispatch
@@ -121,16 +121,39 @@ describe("formatDateOrRelative", () => {
   it("emits only keys that exist in the translation bundle", async () => {
     const en = await import("../../../messages/en.json");
     const bundleKeysCalled = new Set<string>();
-    const collectingT = (key: string, params?: Record<string, string | number>) => {
+    const collectingT = (
+      key: string,
+      params?: Record<string, string | number>,
+    ) => {
       bundleKeysCalled.add(key);
       return params ? `${key}:${JSON.stringify(params)}` : key;
     };
     // Drive every relative bucket so we hit `t()` on each branch.
-    formatDateOrRelative(new Date(NOW - 30 * SECOND).toISOString(), collectingT, NOW);
-    formatDateOrRelative(new Date(NOW - 1 * MINUTE).toISOString(), collectingT, NOW);
-    formatDateOrRelative(new Date(NOW - 30 * MINUTE).toISOString(), collectingT, NOW);
-    formatDateOrRelative(new Date(NOW - 1 * HOUR).toISOString(), collectingT, NOW);
-    formatDateOrRelative(new Date(NOW - 12 * HOUR).toISOString(), collectingT, NOW);
+    formatDateOrRelative(
+      new Date(NOW - 30 * SECOND).toISOString(),
+      collectingT,
+      NOW,
+    );
+    formatDateOrRelative(
+      new Date(NOW - 1 * MINUTE).toISOString(),
+      collectingT,
+      NOW,
+    );
+    formatDateOrRelative(
+      new Date(NOW - 30 * MINUTE).toISOString(),
+      collectingT,
+      NOW,
+    );
+    formatDateOrRelative(
+      new Date(NOW - 1 * HOUR).toISOString(),
+      collectingT,
+      NOW,
+    );
+    formatDateOrRelative(
+      new Date(NOW - 12 * HOUR).toISOString(),
+      collectingT,
+      NOW,
+    );
     expect(bundleKeysCalled.size).toBeGreaterThan(0);
     // `insights.*` carries a mix of string and nested-object children
     // (e.g. `personalRecord: { badge, tooltip }`), so the bundle type

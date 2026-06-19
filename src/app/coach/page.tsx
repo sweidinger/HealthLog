@@ -91,28 +91,28 @@ export default function CoachPage() {
         data-slot="coach-page-card"
         className="bg-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-y shadow-sm sm:rounded-2xl sm:border"
       >
-      <CoachConversation
-        surface="page"
-        autoFocusComposer
-        renderTitle={(title) => (
-          <h1 className="min-w-0 truncate text-sm font-semibold">{title}</h1>
-        )}
-        leadingHeaderActions={
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={handleMinimize}
-              data-slot="coach-page-minimize"
-              aria-label={t("insights.coach.minimizeAriaLabel")}
-              title={t("insights.coach.minimizeAriaLabel")}
-              className="text-muted-foreground hover:text-foreground size-11 shrink-0"
-            >
-              <Minimize2 className="size-4" aria-hidden="true" />
-            </Button>
-          </>
-        }
+        <CoachConversation
+          surface="page"
+          autoFocusComposer
+          renderTitle={(title) => (
+            <h1 className="min-w-0 truncate text-sm font-semibold">{title}</h1>
+          )}
+          leadingHeaderActions={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleMinimize}
+                data-slot="coach-page-minimize"
+                aria-label={t("insights.coach.minimizeAriaLabel")}
+                title={t("insights.coach.minimizeAriaLabel")}
+                className="text-muted-foreground hover:text-foreground size-11 shrink-0"
+              >
+                <Minimize2 className="size-4" aria-hidden="true" />
+              </Button>
+            </>
+          }
         />
       </div>
     </div>

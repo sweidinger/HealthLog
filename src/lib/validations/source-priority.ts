@@ -51,9 +51,7 @@ import {
 // The server logging module registers the real `annotate` on first import
 // (via `registerSourcePriorityParseObserver`); the browser leaves it as
 // the no-op default and never traces `node:async_hooks`.
-type ParseFailureObserver = (entry: {
-  meta: Record<string, unknown>;
-}) => void;
+type ParseFailureObserver = (entry: { meta: Record<string, unknown> }) => void;
 let parseFailureObserver: ParseFailureObserver = () => {};
 
 /**
@@ -142,10 +140,12 @@ export type SourcePriorityMetricKey =
 // from `SOURCE_PRIORITY_METRIC_KEYS` so the schema and the enum cannot
 // drift. Adding a new metric class is now a single-line constant edit
 // instead of a two-place change that the lint chain doesn't enforce.
-const metricPriorityShape: Record<SourcePriorityMetricKey, typeof metricSourceLadder> =
-  Object.fromEntries(
-    SOURCE_PRIORITY_METRIC_KEYS.map((key) => [key, metricSourceLadder]),
-  ) as Record<SourcePriorityMetricKey, typeof metricSourceLadder>;
+const metricPriorityShape: Record<
+  SourcePriorityMetricKey,
+  typeof metricSourceLadder
+> = Object.fromEntries(
+  SOURCE_PRIORITY_METRIC_KEYS.map((key) => [key, metricSourceLadder]),
+) as Record<SourcePriorityMetricKey, typeof metricSourceLadder>;
 
 const metricPriorityObjectSchema = z.object(metricPriorityShape).partial();
 
@@ -222,7 +222,14 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // steps) but as legitimate sources above MANUAL, so an Oura/Polar-only day
   // is not dropped when another source coexists.
   steps: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "OURA", "POLAR", "MANUAL"],
-  activeEnergy: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "OURA", "POLAR", "MANUAL"],
+  activeEnergy: [
+    "APPLE_HEALTH",
+    "WITHINGS",
+    "FITBIT",
+    "OURA",
+    "POLAR",
+    "MANUAL",
+  ],
   walkingRunningDistance: [
     "APPLE_HEALTH",
     "WITHINGS",
@@ -263,7 +270,15 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // Withings ScanWatch pulse-ox is the primary SpO2 sensor; WHOOP second,
   // Fitbit third, Oura's ring fourth. v1.17.1 — Polar Elixir pulse-ox slots
   // below the established straps and above the iPhone-relay / manual sources.
-  spo2: ["WITHINGS", "WHOOP", "FITBIT", "OURA", "POLAR", "APPLE_HEALTH", "MANUAL"],
+  spo2: [
+    "WITHINGS",
+    "WHOOP",
+    "FITBIT",
+    "OURA",
+    "POLAR",
+    "APPLE_HEALTH",
+    "MANUAL",
+  ],
   vo2Max: ["WITHINGS", "APPLE_HEALTH", "FITBIT", "MANUAL"],
   // v1.11.0 — new WHOOP-overlapping keys. ScanWatch dermal reading is the
   // primary skin-temperature sensor; WHOOP's strap is second, Fitbit third,
@@ -370,7 +385,11 @@ export function parseSourcePriority(raw: unknown): ResolvedSourcePriority {
     deviceTypePriority,
     ...flatMetricLadder
   } = parsed.data;
-  return buildResolved(flatMetricLadder, nested ?? {}, deviceTypePriority ?? {});
+  return buildResolved(
+    flatMetricLadder,
+    nested ?? {},
+    deviceTypePriority ?? {},
+  );
 }
 
 function buildResolved(

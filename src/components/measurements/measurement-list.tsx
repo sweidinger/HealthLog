@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ListRow } from "@/components/ui/list-row";
 import {
   FilterBar,
   FilterBarDateRange,
@@ -179,6 +180,13 @@ interface MeasurementListProps {
    * scoped to this type; the count caption still shows.
    */
   lockedType?: string;
+  /**
+   * v1.18.7 (Wave E) — seed the (still user-editable) type filter from a
+   * `?type=<MEASUREMENT_TYPE>` deep link, e.g. the Vorsorge card's "Show
+   * measurements" action. Unlike `lockedType` the full filter rail stays
+   * visible so the user can widen or change the filter afterwards.
+   */
+  initialType?: string;
 }
 
 const PAGE_SIZE = 25;
@@ -263,6 +271,7 @@ export function MeasurementList({
   onEdit,
   onAddFirst,
   lockedType,
+  initialType,
 }: MeasurementListProps) {
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
@@ -270,7 +279,11 @@ export function MeasurementList({
   const queryClient = useQueryClient();
   // v1.8.5 — when `lockedType` is set the list is pinned to that metric
   // and the type selector is hidden; the filter state seeds from it.
-  const [typeFilter, setTypeFilterRaw] = useState<string>(lockedType ?? "ALL");
+  // v1.18.7 (Wave E) — `initialType` (from a `?type=` deep link) seeds the
+  // same filter but keeps the rail interactive so the user can change it.
+  const [typeFilter, setTypeFilterRaw] = useState<string>(
+    lockedType ?? initialType ?? "ALL",
+  );
   // v1.15.13 — management-list source filter + optional date range.
   // `ALL` clears the source filter; empty date strings clear the bound.
   const [sourceFilter, setSourceFilterRaw] = useState<string>("ALL");
@@ -1068,10 +1081,10 @@ export function MeasurementList({
                 const drilldownId = `drilldown-mobile-${m.dayKey ?? m.id}`;
                 const isSelected = selectedIds.has(m.id);
                 return (
-                  <div
+                  <ListRow
                     key={m.id}
                     data-state={isSelected ? "selected" : undefined}
-                    className="bg-card border-border data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5 rounded-lg border p-3"
+                    className="bg-card border-border data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 overflow-hidden">
@@ -1231,7 +1244,7 @@ export function MeasurementList({
                         />
                       </div>
                     )}
-                  </div>
+                  </ListRow>
                 );
               })}
             </div>
@@ -1496,13 +1509,15 @@ function DayDrillDown({
   const { t, locale } = useTranslations();
   const { isAuthenticated } = useAuth();
   const { data, isLoading, error } = useQuery({
-    queryKey: ["measurement-drilldown", type, dayKey],
+    queryKey: queryKeys.measurementDrilldown(type, dayKey),
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("type", type);
       params.set("dayKey", dayKey);
       params.set("sortDir", "asc");
-      return apiGet<{ measurements: Measurement[] }>(`/api/measurements?${params}`);
+      return apiGet<{ measurements: Measurement[] }>(
+        `/api/measurements?${params}`,
+      );
     },
     enabled: isAuthenticated,
     // The drill-down is per-day — once fetched it rarely needs to

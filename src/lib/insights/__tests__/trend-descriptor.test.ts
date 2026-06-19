@@ -178,7 +178,10 @@ describe("moodDescriptorCopy", () => {
 
   it("maps a within-floor mood move to the stable copy", () => {
     // 0.2 points is inside the 0.3 mood floor.
-    const d = computeTrendDescriptor(series([3.5, 3.7]), MOOD_DESCRIPTOR_CONFIG)!;
+    const d = computeTrendDescriptor(
+      series([3.5, 3.7]),
+      MOOD_DESCRIPTOR_CONFIG,
+    )!;
     expect(d.direction).toBe("stable");
     expect(moodDescriptorCopy(d).key).toBe(
       "insights.trendDescriptor.moodStable",

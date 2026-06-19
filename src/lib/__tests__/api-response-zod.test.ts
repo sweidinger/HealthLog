@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod/v4";
-import {
-  returnAllZodIssues,
-  sanitiseZodIssues,
-} from "../api-response";
+import { returnAllZodIssues, sanitiseZodIssues } from "../api-response";
 
 // v1.4.42 W2 — every Zod-validated route historically returned
 // `parsed.error.issues[0].message`, dropping every issue past the first.
@@ -28,7 +25,9 @@ describe("returnAllZodIssues", () => {
     const body = (await response.json()) as {
       data: null;
       error: string;
-      details: { issues: Array<{ path: string; code: string; message: string }> };
+      details: {
+        issues: Array<{ path: string; code: string; message: string }>;
+      };
     };
     expect(body.data).toBeNull();
     expect(body.error).toBe("Validation failed");

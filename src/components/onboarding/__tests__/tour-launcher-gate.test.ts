@@ -32,8 +32,9 @@ describe("shouldAutoLaunchTour() — v1.4.47 W5 chain-gate", () => {
     expect(
       shouldAutoLaunchTour({
         onboardingTourCompleted: true,
-        onboardingCompletedAt: new Date(NOW - 365 * 24 * ONE_HOUR_MS)
-          .toISOString(),
+        onboardingCompletedAt: new Date(
+          NOW - 365 * 24 * ONE_HOUR_MS,
+        ).toISOString(),
         nowMs: NOW,
       }),
     ).toBe(false);
@@ -143,8 +144,6 @@ describe("tourIncludesAchievements() — v1.18.0 B5 module gate", () => {
   });
 
   it("ignores other disabled modules — only the achievements key matters", () => {
-    expect(
-      tourIncludesAchievements({ sleep: false, mood: false }),
-    ).toBe(true);
+    expect(tourIncludesAchievements({ sleep: false, mood: false })).toBe(true);
   });
 });

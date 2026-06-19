@@ -189,7 +189,9 @@ describe("serializeInsightsLayout — defaults + dense order", () => {
       tiles: [{ id: "overview", visible: true, order: 0 }],
     });
     // Sorted by input order, then re-numbered 0,1,2.
-    expect(serialized.sections.map((s) => ({ id: s.id, order: s.order }))).toEqual([
+    expect(
+      serialized.sections.map((s) => ({ id: s.id, order: s.order })),
+    ).toEqual([
       { id: "trends", order: 0 },
       { id: "vitals", order: 1 },
       { id: "signals", order: 2 },
@@ -333,7 +335,11 @@ describe("orderedVisibleSectionIds — W2 render-order helper", () => {
     const visible = orderedVisibleSectionIds(layout);
     // The three explicit sections lead in their saved order; the rest
     // auto-merge invisible (new-id semantics), so they do NOT appear.
-    expect(visible.slice(0, 3)).toEqual(["trends", "vitals", "wellness-scores"]);
+    expect(visible.slice(0, 3)).toEqual([
+      "trends",
+      "vitals",
+      "wellness-scores",
+    ]);
   });
 });
 

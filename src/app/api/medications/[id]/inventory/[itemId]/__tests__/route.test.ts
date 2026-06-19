@@ -30,7 +30,7 @@ vi.mock("@/lib/medications/inventory/service", () => ({
   // v1.16.12 — the route serialises its Decimal unit columns to numbers
   // on the way out; a passthrough keeps these update-logic assertions
   // focused on the Prisma call, not the response shape.
-  serializeInventoryItem: <T,>(item: T) => item,
+  serializeInventoryItem: <T>(item: T) => item,
 }));
 vi.mock("@/lib/medications/route-guards", () => ({
   assertMedicationOwnership: vi.fn().mockResolvedValue(null),
@@ -63,14 +63,11 @@ const SESSION_OK = {
 };
 
 function patchReq(body: unknown): NextRequest {
-  return new NextRequest(
-    "http://localhost/api/medications/m1/inventory/i1",
-    {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    },
-  );
+  return new NextRequest("http://localhost/api/medications/m1/inventory/i1", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 const ROUTE_CTX = {
@@ -166,7 +163,9 @@ describe("PATCH /api/medications/[id]/inventory/[itemId] — unitsRemaining stoc
     const res = await PATCH(patchReq({ unitsRemaining: 0 }), ROUTE_CTX);
     expect(res.status).toBe(200);
     const update = vi.mocked(prisma.medicationInventoryItem.update).mock
-      .calls[0][0] as unknown as { data: { unitsRemaining: number; state: string } };
+      .calls[0][0] as unknown as {
+      data: { unitsRemaining: number; state: string };
+    };
     expect(update.data.unitsRemaining).toBe(0);
     expect(update.data.state).toBe("USED_UP");
   });

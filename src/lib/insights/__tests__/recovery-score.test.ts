@@ -47,17 +47,37 @@ function okReadiness(score: number): Derived<ReadinessValue> {
   return {
     status: "ok",
     value: { score, band: "green", components: [] },
-    coverage: { requiredInputs: 5, presentInputs: 4, historyDays: 30, missing: [] },
+    coverage: {
+      requiredInputs: 5,
+      presentInputs: 4,
+      historyDays: 30,
+      missing: [],
+    },
     confidence: { score: 80, band: "high" },
-    provenance: { inputs: [], source: "DAY", windowDays: 30, computedAt: NOW.toISOString() },
+    provenance: {
+      inputs: [],
+      source: "DAY",
+      windowDays: 30,
+      computedAt: NOW.toISOString(),
+    },
   };
 }
 
 function insufficientReadiness(): Derived<ReadinessValue> {
   return {
     status: "insufficient",
-    coverage: { requiredInputs: 5, presentInputs: 1, historyDays: 0, missing: ["hrv"] },
-    provenance: { inputs: [], source: "none", windowDays: 30, computedAt: NOW.toISOString() },
+    coverage: {
+      requiredInputs: 5,
+      presentInputs: 1,
+      historyDays: 0,
+      missing: ["hrv"],
+    },
+    provenance: {
+      inputs: [],
+      source: "none",
+      windowDays: 30,
+      computedAt: NOW.toISOString(),
+    },
     reason: "insufficient_components",
   };
 }
@@ -183,8 +203,10 @@ describe("persistRecoveryScore", () => {
     await persistRecoveryScore(prisma, "user-1", NOW);
 
     expect(upsert).toHaveBeenCalledTimes(2);
-    const firstKey = upsert.mock.calls[0][0].where.userId_type_source_externalId;
-    const secondKey = upsert.mock.calls[1][0].where.userId_type_source_externalId;
+    const firstKey =
+      upsert.mock.calls[0][0].where.userId_type_source_externalId;
+    const secondKey =
+      upsert.mock.calls[1][0].where.userId_type_source_externalId;
     expect(secondKey).toEqual(firstKey);
   });
 });

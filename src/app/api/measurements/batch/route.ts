@@ -162,7 +162,10 @@ type EntryStatus = "inserted" | "updated" | "duplicate" | "skipped";
 // the strict insert-only contract.
 const STATS_EXTERNAL_ID_PREFIX = "stats:";
 function isStatsExternalId(externalId: string | null | undefined): boolean {
-  return typeof externalId === "string" && externalId.startsWith(STATS_EXTERNAL_ID_PREFIX);
+  return (
+    typeof externalId === "string" &&
+    externalId.startsWith(STATS_EXTERNAL_ID_PREFIX)
+  );
 }
 interface EntryResult {
   index: number;
@@ -462,7 +465,8 @@ async function postBatch(request: NextRequest): Promise<Response> {
               // v1.8.6 W6 — scope the overwrite to the row's own source
               // so a `stats:*` re-post only touches the matching
               // (type, source, externalId) row.
-              source: p.row.source as Prisma.MeasurementCreateManyInput["source"],
+              source: p.row
+                .source as Prisma.MeasurementCreateManyInput["source"],
               type: p.row.type as MeasurementType,
               externalId: p.row.externalId as string,
             },

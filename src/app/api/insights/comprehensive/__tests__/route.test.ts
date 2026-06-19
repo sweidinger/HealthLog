@@ -35,12 +35,14 @@ vi.mock("@/lib/db", () => ({
 // real recompute against the mocked Prisma. The route fires the
 // warm-up as fire-and-forget; the return value is irrelevant.
 vi.mock("@/lib/rollups/mood-rollups", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/rollups/mood-rollups")>(
-    "@/lib/rollups/mood-rollups",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/rollups/mood-rollups")
+  >("@/lib/rollups/mood-rollups");
   return {
     ...actual,
-    ensureUserMoodRollupsFresh: vi.fn().mockResolvedValue({ recomputed: false }),
+    ensureUserMoodRollupsFresh: vi
+      .fn()
+      .mockResolvedValue({ recomputed: false }),
   };
 });
 
@@ -118,9 +120,9 @@ beforeEach(() => {
     resetAt: Date.now() + 60_000,
   });
   // Default to assistant-on so the gate doesn't 403 every test.
-  (
-    prisma.appSettings.findUnique as ReturnType<typeof vi.fn>
-  ).mockResolvedValue(null);
+  (prisma.appSettings.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+    null,
+  );
   (prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
     heightCm: 180,
     dateOfBirth: new Date("1985-01-01"),
@@ -146,15 +148,15 @@ describe("GET /api/insights/comprehensive — envelope shape", () => {
 
   it("emits every legacy envelope key for an empty user", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    (
-      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
-    ).mockResolvedValue({
-      summaries: {},
-      bpRawRows: { sys: [], dia: [] },
-      dailyByType: {},
-      firstMeasurementAt: null,
-      totalMeasurements: 0,
-    });
+    (buildComprehensiveAggregate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        summaries: {},
+        bpRawRows: { sys: [], dia: [] },
+        dailyByType: {},
+        firstMeasurementAt: null,
+        totalMeasurements: 0,
+      },
+    );
 
     const res = await callGet(makeReq());
     expect(res.status).toBe(200);
@@ -202,31 +204,31 @@ describe("GET /api/insights/comprehensive — envelope shape", () => {
 
   it("computes BMI from aggregate WEIGHT.latest and user heightCm", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    (
-      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
-    ).mockResolvedValue({
-      summaries: {
-        WEIGHT: {
-          count: 1,
-          latest: 81.0,
-          min: 81.0,
-          max: 81.0,
-          mean: 81.0,
-          avg7: 81.0,
-          avg30: 81.0,
-          slope7: null,
-          slope30: null,
-          slope90: null,
-          anomalyCount: 0,
-          avg30LastMonth: null,
-          avg30LastYear: null,
+    (buildComprehensiveAggregate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        summaries: {
+          WEIGHT: {
+            count: 1,
+            latest: 81.0,
+            min: 81.0,
+            max: 81.0,
+            mean: 81.0,
+            avg7: 81.0,
+            avg30: 81.0,
+            slope7: null,
+            slope30: null,
+            slope90: null,
+            anomalyCount: 0,
+            avg30LastMonth: null,
+            avg30LastYear: null,
+          },
         },
+        bpRawRows: { sys: [], dia: [] },
+        dailyByType: {},
+        firstMeasurementAt: new Date(),
+        totalMeasurements: 1,
       },
-      bpRawRows: { sys: [], dia: [] },
-      dailyByType: {},
-      firstMeasurementAt: new Date(),
-      totalMeasurements: 1,
-    });
+    );
 
     const res = await callGet(makeReq());
     const body = (await res.json()) as {
@@ -240,49 +242,49 @@ describe("GET /api/insights/comprehensive — envelope shape", () => {
   it("pairs sys + dia raw rows with 5-min tolerance for bpPctInTarget", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     const at = new Date("2026-05-10T08:00:00Z");
-    (
-      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
-    ).mockResolvedValue({
-      summaries: {
-        BLOOD_PRESSURE_SYS: {
-          count: 1,
-          latest: 125,
-          min: 125,
-          max: 125,
-          mean: 125,
-          avg7: 125,
-          avg30: 125,
-          slope7: null,
-          slope30: null,
-          slope90: null,
-          anomalyCount: 0,
-          avg30LastMonth: null,
-          avg30LastYear: null,
+    (buildComprehensiveAggregate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        summaries: {
+          BLOOD_PRESSURE_SYS: {
+            count: 1,
+            latest: 125,
+            min: 125,
+            max: 125,
+            mean: 125,
+            avg7: 125,
+            avg30: 125,
+            slope7: null,
+            slope30: null,
+            slope90: null,
+            anomalyCount: 0,
+            avg30LastMonth: null,
+            avg30LastYear: null,
+          },
+          BLOOD_PRESSURE_DIA: {
+            count: 1,
+            latest: 75,
+            min: 75,
+            max: 75,
+            mean: 75,
+            avg7: 75,
+            avg30: 75,
+            slope7: null,
+            slope30: null,
+            slope90: null,
+            anomalyCount: 0,
+            avg30LastMonth: null,
+            avg30LastYear: null,
+          },
         },
-        BLOOD_PRESSURE_DIA: {
-          count: 1,
-          latest: 75,
-          min: 75,
-          max: 75,
-          mean: 75,
-          avg7: 75,
-          avg30: 75,
-          slope7: null,
-          slope30: null,
-          slope90: null,
-          anomalyCount: 0,
-          avg30LastMonth: null,
-          avg30LastYear: null,
+        bpRawRows: {
+          sys: [{ measuredAt: at, value: 125 }],
+          dia: [{ measuredAt: at, value: 75 }],
         },
+        dailyByType: {},
+        firstMeasurementAt: at,
+        totalMeasurements: 2,
       },
-      bpRawRows: {
-        sys: [{ measuredAt: at, value: 125 }],
-        dia: [{ measuredAt: at, value: 75 }],
-      },
-      dailyByType: {},
-      firstMeasurementAt: at,
-      totalMeasurements: 2,
-    });
+    );
 
     const res = await callGet(makeReq());
     const body = (await res.json()) as {
@@ -305,15 +307,15 @@ describe("GET /api/insights/comprehensive — envelope shape", () => {
     // mean DataPoints, matching the rollup-tier convention shipped by
     // `/api/mood/analytics` post-v1.4.39.
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    (
-      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
-    ).mockResolvedValue({
-      summaries: {},
-      bpRawRows: { sys: [], dia: [] },
-      dailyByType: {},
-      firstMeasurementAt: new Date(),
-      totalMeasurements: 0,
-    });
+    (buildComprehensiveAggregate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        summaries: {},
+        bpRawRows: { sys: [], dia: [] },
+        dailyByType: {},
+        firstMeasurementAt: new Date(),
+        totalMeasurements: 0,
+      },
+    );
     (
       prisma.moodEntryRollup.findMany as ReturnType<typeof vi.fn>
     ).mockResolvedValue([
@@ -364,15 +366,15 @@ describe("GET /api/insights/comprehensive — envelope shape", () => {
     // supposed to fire fire-and-forget so the next request lands on
     // the rollup tier.
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    (
-      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
-    ).mockResolvedValue({
-      summaries: {},
-      bpRawRows: { sys: [], dia: [] },
-      dailyByType: {},
-      firstMeasurementAt: new Date(),
-      totalMeasurements: 0,
-    });
+    (buildComprehensiveAggregate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        summaries: {},
+        bpRawRows: { sys: [], dia: [] },
+        dailyByType: {},
+        firstMeasurementAt: new Date(),
+        totalMeasurements: 0,
+      },
+    );
     (
       prisma.moodEntryRollup.findMany as ReturnType<typeof vi.fn>
     ).mockResolvedValue([]);
@@ -411,18 +413,21 @@ describe("GET /api/insights/comprehensive — envelope shape", () => {
       "2026-05-04",
       "2026-05-05",
     ];
-    (
-      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
-    ).mockResolvedValue({
-      summaries: {},
-      bpRawRows: { sys: [], dia: [] },
-      dailyByType: {
-        WEIGHT: days.map((d, i) => ({ day: d, value: 80 + i })),
-        BLOOD_PRESSURE_SYS: days.map((d, i) => ({ day: d, value: 120 + i * 2 })),
+    (buildComprehensiveAggregate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        summaries: {},
+        bpRawRows: { sys: [], dia: [] },
+        dailyByType: {
+          WEIGHT: days.map((d, i) => ({ day: d, value: 80 + i })),
+          BLOOD_PRESSURE_SYS: days.map((d, i) => ({
+            day: d,
+            value: 120 + i * 2,
+          })),
+        },
+        firstMeasurementAt: new Date(),
+        totalMeasurements: 10,
       },
-      firstMeasurementAt: new Date(),
-      totalMeasurements: 10,
-    });
+    );
 
     const res = await callGet(makeReq());
     const body = (await res.json()) as {
@@ -454,9 +459,9 @@ describe("GET /api/insights/comprehensive — stale-while-revalidate marker", ()
 
   it("marks a cold (inline-computed) read revalidating: false", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    (
-      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
-    ).mockResolvedValue(EMPTY_AGGREGATE);
+    (buildComprehensiveAggregate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      EMPTY_AGGREGATE,
+    );
 
     const res = await callGet(makeReq());
     expect(res.status).toBe(200);
@@ -466,9 +471,9 @@ describe("GET /api/insights/comprehensive — stale-while-revalidate marker", ()
 
   it("marks a stale-served read revalidating: true and a converged read false again", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    (
-      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
-    ).mockResolvedValue(EMPTY_AGGREGATE);
+    (buildComprehensiveAggregate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      EMPTY_AGGREGATE,
+    );
 
     // Prime the cache entry (cold compute).
     await callGet(makeReq());

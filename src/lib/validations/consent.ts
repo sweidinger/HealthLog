@@ -44,13 +44,10 @@ export const consentPostBody = z.object({
   artefact: z
     .string()
     .min(1, "artefact must not be empty")
-    .refine(
-      (value) => Buffer.byteLength(value, "utf8") <= ARTEFACT_MAX_BYTES,
-      { message: "artefact exceeds 64 KB cap (UTF-8 byte length)" },
-    ),
-  signedAt: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s)),
+    .refine((value) => Buffer.byteLength(value, "utf8") <= ARTEFACT_MAX_BYTES, {
+      message: "artefact exceeds 64 KB cap (UTF-8 byte length)",
+    }),
+  signedAt: z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
 });
 
 export type ConsentPostBody = z.infer<typeof consentPostBody>;

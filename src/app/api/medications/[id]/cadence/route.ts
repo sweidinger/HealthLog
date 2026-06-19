@@ -20,11 +20,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
-import {
-  apiError,
-  apiSuccess,
-  returnAllZodIssues,
-} from "@/lib/api-response";
+import { apiError, apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import {
   buildCadenceTimeline,
   computeNextDose,
@@ -81,7 +77,9 @@ export const GET = apiHandler(
     // Pull intake events covering the window + a small buffer so a dose
     // logged at the edge can still pair with its slot.
     const bufferMs = 24 * 60 * 60 * 1000;
-    const from = new Date(asOf.getTime() - windowDays * 24 * 60 * 60 * 1000 - bufferMs);
+    const from = new Date(
+      asOf.getTime() - windowDays * 24 * 60 * 60 * 1000 - bufferMs,
+    );
     const events = await prisma.medicationIntakeEvent.findMany({
       where: {
         medicationId: id,

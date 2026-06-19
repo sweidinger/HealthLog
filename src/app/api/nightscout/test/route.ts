@@ -69,7 +69,10 @@ export const POST = apiHandler(async () => {
     if (e instanceof NightscoutApiError) {
       const cat = categoriseStatus(e.status);
       annotate({
-        meta: { nightscout_test_status: e.status, nightscout_test_code: cat.code },
+        meta: {
+          nightscout_test_status: e.status,
+          nightscout_test_code: cat.code,
+        },
       });
       return apiError(cat.message, 502, { errorCode: cat.code });
     }
@@ -82,7 +85,9 @@ export const POST = apiHandler(async () => {
         : "connection_failed";
     annotate({ meta: { nightscout_test_code: code } });
     return apiError(
-      isTimeout ? "Nightscout request timed out" : "Nightscout connection failed",
+      isTimeout
+        ? "Nightscout request timed out"
+        : "Nightscout connection failed",
       502,
       { errorCode: code },
     );

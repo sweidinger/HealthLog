@@ -35,11 +35,7 @@ import {
   type PeriodNarrativePayload,
 } from "@/lib/jobs/period-narrative-shared";
 
-export {
-  PERIOD_NARRATIVE_QUEUE,
-  PERIOD_NARRATIVE_CRON,
-  enqueueNarrativeWarm,
-};
+export { PERIOD_NARRATIVE_QUEUE, PERIOD_NARRATIVE_CRON, enqueueNarrativeWarm };
 export type { PeriodNarrativePayload };
 
 /** Per-run cap on the number of users a single tick generates for. */
@@ -68,7 +64,10 @@ export interface NarrativeWarmRunResult {
  *
  * Exported + pure so the cron test can pin the boundary logic without a clock.
  */
-export function periodsForDay(now: Date, tz = "Europe/Berlin"): NarrativePeriod[] {
+export function periodsForDay(
+  now: Date,
+  tz = "Europe/Berlin",
+): NarrativePeriod[] {
   // Resolve the local weekday + day-of-month in the maintenance-window tz so
   // the boundary matches the user-facing calendar, not UTC.
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -119,10 +118,7 @@ export async function findNarrativeCandidates(
     _max: { updatedAt: true },
   });
   const latestByUser = new Map<string, number>(
-    latest.map((row) => [
-      row.userId,
-      row._max.updatedAt?.getTime() ?? 0,
-    ]),
+    latest.map((row) => [row.userId, row._max.updatedAt?.getTime() ?? 0]),
   );
   return [...users]
     .sort(

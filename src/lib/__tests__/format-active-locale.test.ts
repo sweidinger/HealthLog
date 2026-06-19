@@ -10,14 +10,7 @@
  * `window` shape the helper actually reads, so the test runs under
  * the default node environment without pulling in `jsdom`.
  */
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 interface Globals {
   document?: { cookie: string };

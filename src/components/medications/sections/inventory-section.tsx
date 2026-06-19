@@ -37,7 +37,11 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, PackageOpen, Plus } from "lucide-react";
 
@@ -74,6 +78,31 @@ import {
 } from "@/lib/api/api-fetch";
 import { summariseSupply } from "@/lib/medications/inventory/summary";
 
+/**
+ * Invalidate every read key whose payload reflects a medication's supply
+ * after a container write (register / adjust / delete).
+ *
+ * The per-medication inventory read (`medicationInventory`) is the supply
+ * tab's own list. The medications LIST read (`medications`) carries the
+ * dose-derived stock (`stockUnitsRemaining` / `stockDosesRemaining`) that
+ * the card and table render — without invalidating it, the card kept
+ * showing the pre-write stock until an unrelated refetch landed (the
+ * supply-staleness bug). Both keys must drop together.
+ */
+export async function invalidateSupplyQueries(
+  queryClient: QueryClient,
+  medicationId: string,
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.medicationInventory(medicationId),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.medications(),
+    }),
+  ]);
+}
+
 type InventoryState = "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
 
 const CONTAINER_TYPES = [
@@ -101,7 +130,10 @@ interface InventoryResponse {
   meta?: { total: number };
 }
 
-const STATE_BADGE: Record<InventoryState, "secondary" | "outline" | "destructive"> = {
+const STATE_BADGE: Record<
+  InventoryState,
+  "secondary" | "outline" | "destructive"
+> = {
   ACTIVE: "secondary",
   IN_USE: "secondary",
   EXPIRED: "destructive",
@@ -138,9 +170,7 @@ export function InventorySection({
   async function deleteItem(item: InventoryItem) {
     try {
       await apiDelete(`/api/medications/${medicationId}/inventory/${item.id}`);
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.medicationInventory(medicationId),
-      });
+      await invalidateSupplyQueries(queryClient, medicationId);
       toast.success(t("medications.detail.bestand.deleteSuccess"));
     } catch {
       toast.error(t("medications.detail.bestand.deleteFailed"));
@@ -154,7 +184,9 @@ export function InventorySection({
   const { data, isLoading } = useQuery<InventoryResponse>({
     queryKey: queryKeys.medicationInventory(medicationId),
     queryFn: async () => {
-      return apiGet<InventoryResponse>(`/api/medications/${medicationId}/inventory`);
+      return apiGet<InventoryResponse>(
+        `/api/medications/${medicationId}/inventory`,
+      );
     },
     staleTime: 30_000,
     // v1.16.12 (#316) — fresh on every mount so reopening the supply tab
@@ -474,8 +506,7 @@ export function AddInventoryDialog({
 
   const parsed = Number(quantity);
   const effectiveMode = unitsPerDose > 1 ? quantityMode : "units";
-  const units =
-    effectiveMode === "doses" ? parsed * unitsPerDose : parsed;
+  const units = effectiveMode === "doses" ? parsed * unitsPerDose : parsed;
   const quantityValid =
     Number.isInteger(parsed) && parsed >= 1 && units >= 1 && units <= 1000;
 
@@ -492,9 +523,7 @@ export function AddInventoryDialog({
           ? new Date(`${expiry}T00:00:00`).toISOString()
           : null,
       });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.medicationInventory(medicationId),
-      });
+      await invalidateSupplyQueries(queryClient, medicationId);
       toast.success(t("medications.detail.bestand.addSuccess"));
       onClose();
     } catch {
@@ -582,7 +611,11 @@ export function AddInventoryDialog({
               type="number"
               inputMode="numeric"
               min={1}
-              max={effectiveMode === "doses" ? Math.floor(1000 / unitsPerDose) : 1000}
+              max={
+                effectiveMode === "doses"
+                  ? Math.floor(1000 / unitsPerDose)
+                  : 1000
+              }
               step={1}
               required
               autoComplete="off"
@@ -694,9 +727,7 @@ function AdjustInventoryDialog({
         // The wire field carries UNITS (v1.16.10 symmetric naming).
         unitsRemaining: parsed,
       });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.medicationInventory(medicationId),
-      });
+      await invalidateSupplyQueries(queryClient, medicationId);
       toast.success(t("medications.detail.bestand.adjustSuccess"));
       onClose();
     } catch {
@@ -744,8 +775,7 @@ function AdjustInventoryDialog({
             >
               {t("medications.detail.bestand.adjustHelper", {
                 total:
-                  item.unitsTotal ??
-                  t("medications.detail.bestand.unknown"),
+                  item.unitsTotal ?? t("medications.detail.bestand.unknown"),
               })}
             </p>
           </div>
@@ -801,7 +831,9 @@ function PackagingDialog({
 
   const parsedPerDose = Number(perDoseValue);
   const perDoseValid =
-    Number.isInteger(parsedPerDose) && parsedPerDose >= 1 && parsedPerDose <= 100;
+    Number.isInteger(parsedPerDose) &&
+    parsedPerDose >= 1 &&
+    parsedPerDose <= 100;
   const parsedPack = packValue.trim() === "" ? null : Number(packValue);
   const packValid =
     parsedPack === null ||
@@ -910,7 +942,10 @@ function PackagingDialog({
             >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={!perDoseValid || !packValid || busy}>
+            <Button
+              type="submit"
+              disabled={!perDoseValid || !packValid || busy}
+            >
               {busy && (
                 <Loader2
                   aria-hidden="true"

@@ -60,11 +60,7 @@ function deltaColor(delta: number): string {
   return delta >= 0 ? "var(--success)" : "var(--destructive)";
 }
 
-export function MoodTagInfluence({
-  rows,
-}: {
-  rows: MoodTagInfluenceRow[];
-}) {
+export function MoodTagInfluence({ rows }: { rows: MoodTagInfluenceRow[] }) {
   const { t } = useTranslations();
   if (rows.length === 0) return null;
 
@@ -73,8 +69,7 @@ export function MoodTagInfluence({
       <ul className="divide-border divide-y">
         {rows.map((row) => {
           const Icon = row.labelKey ? moodTagIcon(row.icon) : null;
-          const label =
-            row.label ?? (row.labelKey ? t(row.labelKey) : row.tag);
+          const label = row.label ?? (row.labelKey ? t(row.labelKey) : row.tag);
           const up = row.delta >= 0;
           const deltaText = `${up ? "+" : ""}${row.delta.toFixed(1)}`;
           return (

@@ -94,7 +94,9 @@ describe("notifySafetyFloor", () => {
   it("stamps the ledger anchor (keyed by reason) before dispatching", async () => {
     await notifySafetyFloor({ userId: "u9", decision: bpHigh });
     expect(createMock).toHaveBeenCalledTimes(1);
-    expect(createMock.mock.calls[0][0].data.reason).toContain("bp_hypertensive");
+    expect(createMock.mock.calls[0][0].data.reason).toContain(
+      "bp_hypertensive",
+    );
     expect(createMock.mock.calls[0][0].data.eventType).toBe("SYSTEM_ALERT");
   });
 

@@ -76,13 +76,7 @@ export const SIDE_EFFECT_ENTRY_COUNT = 21;
  * sequence. Stable across versions; new categories append.
  */
 export const SIDE_EFFECT_CATEGORY_ORDER: readonly MedicationSideEffectCategory[] =
-  [
-    "GI",
-    "METABOLIC",
-    "INJECTION_SITE",
-    "COGNITIVE",
-    "GLP1_SPECIFIC",
-  ] as const;
+  ["GI", "METABOLIC", "INJECTION_SITE", "COGNITIVE", "GLP1_SPECIFIC"] as const;
 
 /**
  * Entries grouped under each category in picker-UI order. The order
@@ -192,5 +186,7 @@ export const SIDE_EFFECT_SEVERITY_LADDER: readonly SideEffectSeverityLabel[] = [
 export function isSideEffectSeverity(
   value: number,
 ): value is SideEffectSeverity {
-  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5;
+  return (
+    value === 1 || value === 2 || value === 3 || value === 4 || value === 5
+  );
 }

@@ -35,8 +35,7 @@ describe("<InsightsTabStrip> — v1.4.31 memo + availability-stability", () => {
     // React.memo'd components carry the `$$typeof` Memo tag plus a
     // `compare` field. Probing the type tag is the cheapest way to
     // pin the memo contract without spinning a full React tree.
-    const tag = (InsightsTabStrip as unknown as { $$typeof: symbol })
-      .$$typeof;
+    const tag = (InsightsTabStrip as unknown as { $$typeof: symbol }).$$typeof;
     expect(typeof tag).toBe("symbol");
     expect(tag.toString()).toContain("memo");
   });

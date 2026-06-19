@@ -57,7 +57,13 @@ describe("coach clusters", () => {
   it("expands the default clusters to the legacy core sources + additive members", () => {
     const sources = clusterSourcesFromPrefs(undefined);
     // Legacy five domains' sources are all present.
-    for (const core of ["bp", "weight", "pulse", "mood", "compliance"] as const) {
+    for (const core of [
+      "bp",
+      "weight",
+      "pulse",
+      "mood",
+      "compliance",
+    ] as const) {
       expect(sources.has(core)).toBe(true);
     }
     // Additive members ride inside cardio/body.

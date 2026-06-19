@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAdmin } from "@/lib/api-handler";
 import { auditLog } from "@/lib/auth/audit";
-import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { encrypt } from "@/lib/crypto";
 import { invalidateAppSettings } from "@/lib/cache/invalidate";
@@ -68,7 +73,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const alreadyConfigured = Boolean(
     existing?.webPushVapidPublicKey &&
-      existing?.webPushVapidPrivateKeyEncrypted,
+    existing?.webPushVapidPrivateKeyEncrypted,
   );
 
   if (alreadyConfigured && parsed.data.force !== true) {

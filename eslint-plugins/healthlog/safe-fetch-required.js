@@ -81,7 +81,7 @@ const safeFetchRequiredRule = {
     schema: [],
     messages: {
       rawFetch:
-        "Raw fetch() bypasses the safeFetch wrapper's manual-redirect + timeout (and requirePublicHost) defences. Import { safeFetch } from \"@/lib/safe-fetch\" and call it instead.",
+        'Raw fetch() bypasses the safeFetch wrapper\'s manual-redirect + timeout (and requirePublicHost) defences. Import { safeFetch } from "@/lib/safe-fetch" and call it instead.',
     },
   },
   create(context) {

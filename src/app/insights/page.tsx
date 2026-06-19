@@ -24,7 +24,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { HeroStrip } from "@/components/insights/hero-strip";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
-import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import { useDashboardDerived } from "@/components/insights/derived/use-dashboard-derived";
 // v1.4.41 W-ORG — shared shape lives in `src/types/analytics.ts` as
@@ -234,11 +233,11 @@ export default function InsightsPage() {
   useScrollResetOnRoute();
 
   // v1.4.27 R3d MB4 — Coach drawer state lives in the layout-level
-  // `<CoachLaunchProvider>` so every routed sub-page can reach it.
-  // The hero strip + suggested-prompt chips call `askCoach(prefill)`
-  // on the same context, and the drawer itself is mounted next to
-  // the provider in `src/app/insights/layout.tsx`.
-  const coachLaunch = useCoachLaunch();
+  // `<CoachLaunchProvider>`; the drawer is mounted next to the provider in
+  // `src/app/insights/layout.tsx`. v1.18.7 removed the hero-band coach
+  // entry points (the action button + suggested-prompt chips), so the
+  // overview page no longer reads the launch context — the drawer + its
+  // own launcher stay untouched.
   const flags = useFeatureFlags();
 
   // v1.4.36 W1 — drop the page-level `isLoading` gate that used to
@@ -471,14 +470,6 @@ export default function InsightsPage() {
         briefing={briefingPayload}
         updatedAt={heroStripUpdatedAt}
         userName={heroGreetingName}
-        onAskCoach={
-          coachLaunch
-            ? (prefill?: string) => coachLaunch.askCoach(prefill ?? null)
-            : undefined
-        }
-        onPickPrompt={
-          coachLaunch ? (prompt) => coachLaunch.askCoach(prompt) : undefined
-        }
         healthScore={analytics?.healthScore ?? undefined}
         // v1.16.8 — reserve the score card's column while the thick
         // analytics payload is in flight. Every overview query

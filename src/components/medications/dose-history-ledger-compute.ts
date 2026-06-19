@@ -48,7 +48,8 @@ export interface LedgerRow {
  * (+) / before (−) the slot". Sub-minute deltas collapse to "±0 min".
  */
 export function formatSlotDelta(takenAtIso: string, slotAtIso: string): string {
-  const deltaMs = new Date(takenAtIso).getTime() - new Date(slotAtIso).getTime();
+  const deltaMs =
+    new Date(takenAtIso).getTime() - new Date(slotAtIso).getTime();
   const sign = deltaMs < 0 ? "-" : "+";
   const totalMinutes = Math.round(Math.abs(deltaMs) / 60_000);
   if (totalMinutes < 60) return `${sign}${totalMinutes} min`;
@@ -102,7 +103,9 @@ export function complianceFromLedger(rows: LedgerRow[]): LedgerCompliance {
   const taken = takenOnTime + takenLate;
   const denominator = taken + missed;
   const rate =
-    denominator > 0 ? Math.min(100, Math.round((taken / denominator) * 100)) : null;
+    denominator > 0
+      ? Math.min(100, Math.round((taken / denominator) * 100))
+      : null;
   return { rate, takenOnTime, takenLate, missed, denominator };
 }
 
@@ -146,7 +149,9 @@ export function groupLedgerByDay(
     }),
   );
   // Most-recent day first; chronological within the day above.
-  groups.sort((a, b) => (a.dayKey < b.dayKey ? 1 : a.dayKey > b.dayKey ? -1 : 0));
+  groups.sort((a, b) =>
+    a.dayKey < b.dayKey ? 1 : a.dayKey > b.dayKey ? -1 : 0,
+  );
   return groups;
 }
 

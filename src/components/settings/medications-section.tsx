@@ -8,6 +8,7 @@ import {
   type ReorderMedication,
 } from "@/components/medications/medication-order-editor";
 import { MedicationViewToggle } from "@/components/medications/medication-view-toggle";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
 import { useAuth } from "@/hooks/use-auth";
@@ -79,10 +80,7 @@ export function MedicationsSection() {
     <div className="space-y-6">
       {/* View preference — cards vs table. The shared header toggle
           writes optimistically, so there is no Save button here. */}
-      <div
-        id="medications-view"
-        className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
-      >
+      <SettingsCard id="medications-view" className="scroll-mt-28 space-y-4">
         <SettingsCardHeader
           icon={LayoutGrid}
           title={t("medications.viewToggleLabel")}
@@ -97,13 +95,10 @@ export function MedicationsSection() {
             <MedicationViewToggle view={layout.view} onChange={setView} />
           )}
         </div>
-      </div>
+      </SettingsCard>
 
       {/* Manual order — applies to both list views. */}
-      <div
-        id="medications-order"
-        className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
-      >
+      <SettingsCard id="medications-order" className="scroll-mt-28 space-y-4">
         <SettingsCardHeader
           icon={Pill}
           title={t("medications.reorderTitle")}
@@ -117,7 +112,7 @@ export function MedicationsSection() {
         ) : (
           <MedicationOrderEditor medications={ordered} />
         )}
-      </div>
+      </SettingsCard>
 
       {/* v1.18.0 (S5) — injection-site exclusions are a medication setting;
           they moved here from the account profile so all medication-specific

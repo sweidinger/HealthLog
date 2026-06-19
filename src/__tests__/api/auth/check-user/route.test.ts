@@ -62,10 +62,7 @@ vi.mock("next/headers", () => ({
 
 import { POST } from "@/app/api/auth/check-user/route";
 import { prisma } from "@/lib/db";
-import {
-  checkRateLimit,
-  checkAuthSurfaceRateLimit,
-} from "@/lib/rate-limit";
+import { checkRateLimit, checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
 
 interface CheckUserBody {
   data: {

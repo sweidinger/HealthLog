@@ -21,7 +21,12 @@ function ok(value: Record<string, unknown>): Resp {
     metric: "X",
     status: "ok",
     value,
-    coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 30, missing: [] },
+    coverage: {
+      requiredInputs: 1,
+      presentInputs: 1,
+      historyDays: 30,
+      missing: [],
+    },
     confidence: { score: 90, band: "high" },
     provenance: { inputs: [], source: "DAY", windowDays: 30, computedAt: "x" },
     reason: null,
@@ -33,16 +38,21 @@ function absent(): Resp {
     metric: "X",
     status: "insufficient",
     value: null,
-    coverage: { requiredInputs: 1, presentInputs: 0, historyDays: 0, missing: [] },
+    coverage: {
+      requiredInputs: 1,
+      presentInputs: 0,
+      historyDays: 0,
+      missing: [],
+    },
     confidence: null,
     provenance: { inputs: [], source: "none", windowDays: 30, computedAt: "x" },
     reason: "no_readings_in_window",
   };
 }
 
-function readFrom(map: Record<string, Resp>): <T>(
-  token: DerivedBatchToken,
-) => DerivedMetricResponse<T> | null {
+function readFrom(
+  map: Record<string, Resp>,
+): <T>(token: DerivedBatchToken) => DerivedMetricResponse<T> | null {
   return <T,>(token: DerivedBatchToken) =>
     (map[token.metric] ?? absent()) as unknown as DerivedMetricResponse<T>;
 }

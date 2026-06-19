@@ -19,6 +19,7 @@
 import type { Locale } from "@/lib/i18n/config";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/insight-generator";
 import { buildNativeCoachPrompt } from "@/lib/ai/prompts/native-prompts";
+import { learnCatalogPromptBlock } from "./learn-catalog";
 import {
   DEFAULT_COACH_PREFS,
   type CoachPrefs,
@@ -28,6 +29,7 @@ import {
   SELF_REPORT_FENCE_END,
   fenceSelfReport,
 } from "@/lib/ai/coach/self-report-fence";
+import { composeSharedContracts } from "@/lib/ai/prompts/shared-contracts";
 
 const COACH_PROMPT_EN = `You are the HealthLog Coach — the user's warm, motivating advisor. You
 sit alongside them as they look at their own health data — blood pressure,
@@ -223,6 +225,13 @@ ISO-week means.
   available day from the timeline.
 - Older weekday questions (>14 days back) fall back to
   "timeline.weekly" or, if neither has the day, the aggregate.
+- A metric MAY also carry "timeline.coarse" — the longer-horizon tail:
+  "monthly" and "yearly" buckets each as [start, mean, min, max], plus
+  an "anomalies" list of preserved peaks/troughs ({ band, date, kind,
+  value, deltaSd }). Use it for "compared with last year" or "have I
+  ever been this high" questions and to acknowledge a months-old spike
+  the weekly view would hide. Cite the bucket's date; never read a single
+  coarse bucket as a present-day reading.
 - The "scope" object names the user-selected window + sources. When
   the user asks about a metric that isn't listed in scope.sources,
   say it isn't part of this conversation's scope.
@@ -294,6 +303,16 @@ ISO-week means.
   context, DESCRIPTIVE not diagnostic — never restate a "condition" fact
   as a medical finding, and never invent a fact the block does not
   carry. If a fact seems outdated, gently check it rather than assume.
+- The SNAPSHOT MAY carry an "illness" block: { restMode, active[],
+  recentResolved[] }. When "restMode" is true the user has one or more
+  ACTIVE conditions right now (each with a label, type, lifecycle, and
+  onset date) — read an off-band vital or a low recovery as plausibly
+  illness-explained rather than alarming, do not push a heavier
+  measurement cadence, and lean toward rest-and-recover framing. Treat
+  the labels as the user's OWN descriptive context, never a diagnosis;
+  "recentResolved" is light history for "how often do I get sick"
+  questions. When no "illness" block is present, assume nothing about
+  the user's health status.
 
 EVIDENCE BLOCK
 
@@ -659,6 +678,15 @@ ISO-Wochenmittel zusammen.
   nie als medizinischen Befund um und erfinde nie einen Fakt, den der
   Block nicht enthält. Wirkt ein Fakt veraltet, frage behutsam nach,
   statt es anzunehmen.
+- Der SNAPSHOT KANN einen "illness"-Block tragen: { restMode, active[],
+  recentResolved[] }. Ist "restMode" true, hat der Nutzer gerade eine oder
+  mehrere AKTIVE Erkrankungen (je mit Label, Typ, Lebenszyklus, Beginn) —
+  lies einen abweichenden Vitalwert oder eine niedrige Erholung eher als
+  krankheitsbedingt denn als alarmierend, dränge nicht auf eine engere
+  Mess-Kadenz und neige zu einem Ruhe-und-Erholung-Rahmen. Behandle die
+  Labels als die EIGENE beschreibende Angabe des Nutzers, nie als Diagnose;
+  "recentResolved" ist leichte Historie für "wie oft bin ich krank".
+  Fehlt der "illness"-Block, nimm nichts über den Gesundheitszustand an.
 
 EVIDENZ-BLOCK
 
@@ -836,12 +864,31 @@ export function getCoachSystemPrompt(
       base = COACH_PROMPT_EN + LOCALE_REPLY_FOOTER_FALLBACK[locale];
     }
   }
+  // v1.18.7 (HIGH-2) — append the shared cross-surface contracts (canonical
+  // wording, single source of truth in `shared-contracts.ts`) for the
+  // hand-composed de/en bodies. The native FR/ES/IT/PL bodies carry their own
+  // per-locale safety wording from the contract matrix, so they are left as-is.
+  const withContracts =
+    locale === "de" || locale === "en"
+      ? `${base}\n\nSHARED CONTRACTS\n\n${composeSharedContracts(locale, [
+          "grounding",
+          "toneContract",
+          "safetyGlp1",
+          "metricIdentifierBan",
+          "forbiddenFiller",
+        ])}`
+      : base;
   const prefix = buildPrefsPrefix(locale, prefs);
-  const withPrefix = prefix ? `${prefix}\n\n${base}` : base;
+  const withPrefix = prefix ? `${prefix}\n\n${withContracts}` : withContracts;
+  // v1.18.7 — article-awareness: a compact catalog of the public /learn
+  // guides so the Coach can point the user at the relevant deeper read. The
+  // block is locale-independent (English topic labels + URLs) and the model
+  // may only link a slug it lists, so a fabricated /learn URL is impossible.
+  const withLearn = `${withPrefix}\n\n${learnCatalogPromptBlock()}`;
   // v1.15.20 — the user-authored "about me" self-description rides the
   // system prompt as a delimited, user-provided block (Settings → AI).
   const suffix = aboutMe ? buildAboutMeBlock(locale, aboutMe) : "";
-  return suffix ? `${withPrefix}\n\n${suffix}` : withPrefix;
+  return suffix ? `${withLearn}\n\n${suffix}` : withLearn;
 }
 
 /**

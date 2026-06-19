@@ -33,6 +33,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -181,10 +182,11 @@ export function AboutMeSection({
   }
 
   return (
-    <section
+    <SettingsCard
+      as="section"
       aria-labelledby="settings-ai-about-me-title"
       data-testid="settings-about-me-card"
-      className="bg-card border-border space-y-5 rounded-xl border p-4 sm:p-6"
+      className="space-y-5"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SettingsCardHeader
@@ -272,6 +274,7 @@ export function AboutMeSection({
               type="button"
               variant="outline"
               size="sm"
+              className="min-h-11 sm:min-h-9"
               data-testid="settings-about-me-clear"
               disabled={!isAuthenticated || save.isPending}
               onClick={() =>
@@ -290,6 +293,7 @@ export function AboutMeSection({
           <Button
             type="button"
             size="sm"
+            className="min-h-11 sm:min-h-9"
             data-testid="settings-about-me-save"
             disabled={!isAuthenticated || save.isPending || !dirty}
             onClick={() => save.mutate(value)}
@@ -346,6 +350,6 @@ export function AboutMeSection({
       <p className="text-muted-foreground border-border border-t pt-3 pl-7 text-xs">
         {t("settings.ai.aboutMe.hint")} {t("settings.ai.aboutMe.profileHint")}
       </p>
-    </section>
+    </SettingsCard>
   );
 }

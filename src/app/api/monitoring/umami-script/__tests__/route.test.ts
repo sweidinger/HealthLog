@@ -75,9 +75,9 @@ describe("GET /api/monitoring/umami-script — fail-soft observability", () => {
           call[0]?.action?.name === "monitoring.umami_script.fetch_failed",
       );
     expect(failureCall).toBeTruthy();
-    expect(
-      (failureCall?.[0]?.meta as { reason: string }).reason,
-    ).toHaveLength(200);
+    expect((failureCall?.[0]?.meta as { reason: string }).reason).toHaveLength(
+      200,
+    );
   });
 
   it("serves the upstream script untouched on a healthy fetch (no failure action)", async () => {

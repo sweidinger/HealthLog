@@ -147,18 +147,40 @@ async function readCompliance(medicationId: string) {
     scheduledFor: e.scheduledFor,
   }));
   const lastIntakeAt = lastNonSkippedTakenAt(mapped);
-  const ctx = buildComplianceMedicationContext(medication, lastIntakeAt, USER_TZ);
+  const ctx = buildComplianceMedicationContext(
+    medication,
+    lastIntakeAt,
+    USER_TZ,
+  );
   const schedules = medication.schedules as ComplianceSchedule[];
   return {
-    compliance7: calculateCompliance(mapped, schedules, 7, medication.createdAt, {
-      medicationContext: ctx,
-    }),
-    compliance30: calculateCompliance(mapped, schedules, 30, medication.createdAt, {
-      medicationContext: ctx,
-    }),
-    compliance90: calculateCompliance(mapped, schedules, 90, medication.createdAt, {
-      medicationContext: ctx,
-    }),
+    compliance7: calculateCompliance(
+      mapped,
+      schedules,
+      7,
+      medication.createdAt,
+      {
+        medicationContext: ctx,
+      },
+    ),
+    compliance30: calculateCompliance(
+      mapped,
+      schedules,
+      30,
+      medication.createdAt,
+      {
+        medicationContext: ctx,
+      },
+    ),
+    compliance90: calculateCompliance(
+      mapped,
+      schedules,
+      90,
+      medication.createdAt,
+      {
+        medicationContext: ctx,
+      },
+    ),
     display: buildComplianceDisplay(mapped, schedules, ctx),
   };
 }

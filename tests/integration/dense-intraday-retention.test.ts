@@ -22,7 +22,8 @@ const TZ = "Europe/Berlin";
 const DAY_KEY = "2026-05-01";
 // The canonical local-noon instant the fold writes for the seeded day.
 const CANONICAL = canonicalDailyTimestamp(DAY_KEY, TZ);
-const HRV_STATS_ID = "stats:HKQuantityTypeIdentifierHeartRateVariabilitySDNN:2026-05-01";
+const HRV_STATS_ID =
+  "stats:HKQuantityTypeIdentifierHeartRateVariabilitySDNN:2026-05-01";
 
 beforeEach(async () => {
   await truncateAllTables(getPrismaClient());

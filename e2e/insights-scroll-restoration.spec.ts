@@ -24,9 +24,9 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 test.describe("v1.4.28 — insights scroll restoration", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
-  test.fixme(
-    "returning to /insights from a sub-page lands at the top",
-    async ({ page }) => {
+  test.fixme("returning to /insights from a sub-page lands at the top", async ({
+    page,
+  }) => {
     await page.goto("/insights", { waitUntil: "domcontentloaded" });
     // Force the mother page tall enough that scrolling has somewhere
     // to go even on a sparse seed; the rendered Insights overview
@@ -42,10 +42,7 @@ test.describe("v1.4.28 — insights scroll restoration", () => {
     await page.waitForURL(/\/insights\//);
 
     // Back to the mother page via the overview pill (pill index 0).
-    await page
-      .locator("[data-slot='insights-tab-strip-pill']")
-      .first()
-      .click();
+    await page.locator("[data-slot='insights-tab-strip-pill']").first().click();
     await page.waitForURL(/\/insights\/?$/);
 
     // The mother page's mount-effect deferred a `scrollTo(0)` to the
@@ -53,8 +50,7 @@ test.describe("v1.4.28 — insights scroll restoration", () => {
     await page.waitForTimeout(50);
     const y = await page.evaluate(() => window.scrollY);
     expect(y).toBeLessThan(50);
-    },
-  );
+  });
 
   test("the sticky tab strip declares touch-action pan-y so vertical swipes pass through", async ({
     page,
@@ -63,7 +59,9 @@ test.describe("v1.4.28 — insights scroll restoration", () => {
     const nav = page.locator("[data-slot='insights-tab-strip']");
     await expect(nav).toBeVisible();
     const touchAction = await nav.evaluate(
-      (el) => (el as HTMLElement).style.touchAction || getComputedStyle(el).touchAction,
+      (el) =>
+        (el as HTMLElement).style.touchAction ||
+        getComputedStyle(el).touchAction,
     );
     expect(touchAction).toContain("pan-y");
   });

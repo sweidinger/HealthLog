@@ -115,8 +115,7 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   // `.planning/research/v15-insights-blocking-bug.md` fix 2.
   const summaries = analyticsQuery.data?.summaries;
   const hasMood = (comprehensiveQuery.data?.moodSummary?.count ?? 0) > 0;
-  const hasMedication =
-    (comprehensiveQuery.data?.medications?.length ?? 0) > 0;
+  const hasMedication = (comprehensiveQuery.data?.medications?.length ?? 0) > 0;
   const hasWorkouts = (workoutsProbe.data?.workouts.length ?? 0) > 0;
   const availability: InsightInputs | undefined = useMemo(() => {
     if (!isAuthenticated) return undefined;
@@ -138,7 +137,9 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   const visibleTileIds = useMemo(() => {
     if (!layoutSettled) return undefined;
     return new Set(
-      insightsLayout.tiles.filter((tile) => tile.visible).map((tile) => tile.id),
+      insightsLayout.tiles
+        .filter((tile) => tile.visible)
+        .map((tile) => tile.id),
     );
   }, [layoutSettled, insightsLayout]);
   const tileOrder = useMemo(() => {

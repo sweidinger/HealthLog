@@ -39,6 +39,35 @@ describe("OpenAIClient", () => {
     expect(body.model).toBe("gpt-4o-mini");
     expect(body.messages).toHaveLength(2);
     expect(body.response_format).toEqual({ type: "json_object" });
+    // No seed passed → field omitted from the body entirely.
+    expect(body).not.toHaveProperty("seed");
+  });
+
+  it("threads a deterministic seed onto the request body when supplied", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: '{"summary":"x"}' } }],
+          usage: { total_tokens: 5 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+      baseUrl: "https://api.openai.com/v1",
+    });
+
+    await client.generateCompletion({
+      systemPrompt: "test",
+      userPrompt: "test",
+      seed: 1234,
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.seed).toBe(1234);
   });
 
   it("throws on non-ok response", async () => {

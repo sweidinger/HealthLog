@@ -47,18 +47,34 @@ describe("custom-tag helpers", () => {
 
 describe("custom-tag schemas", () => {
   it("accepts a valid create and rejects a bad icon / empty / over-long label", () => {
-    expect(createCustomTagSchema.safeParse({ label: "Date night", icon: "Heart" }).success).toBe(true);
-    expect(createCustomTagSchema.safeParse({ label: "  ok  " }).success).toBe(true);
-    expect(createCustomTagSchema.safeParse({ label: "x", icon: "NotAnIcon" }).success).toBe(false);
+    expect(
+      createCustomTagSchema.safeParse({ label: "Date night", icon: "Heart" })
+        .success,
+    ).toBe(true);
+    expect(createCustomTagSchema.safeParse({ label: "  ok  " }).success).toBe(
+      true,
+    );
+    expect(
+      createCustomTagSchema.safeParse({ label: "x", icon: "NotAnIcon" })
+        .success,
+    ).toBe(false);
     expect(createCustomTagSchema.safeParse({ label: "" }).success).toBe(false);
-    expect(createCustomTagSchema.safeParse({ label: "a".repeat(41) }).success).toBe(false);
+    expect(
+      createCustomTagSchema.safeParse({ label: "a".repeat(41) }).success,
+    ).toBe(false);
   });
 
   it("requires at least one field on update and validates hidden flag", () => {
     expect(updateCustomTagSchema.safeParse({}).success).toBe(false);
-    expect(updateCustomTagSchema.safeParse({ isActive: false }).success).toBe(true);
-    expect(hideCatalogueTagSchema.safeParse({ hidden: true }).success).toBe(true);
-    expect(hideCatalogueTagSchema.safeParse({ hidden: "yes" }).success).toBe(false);
+    expect(updateCustomTagSchema.safeParse({ isActive: false }).success).toBe(
+      true,
+    );
+    expect(hideCatalogueTagSchema.safeParse({ hidden: true }).success).toBe(
+      true,
+    );
+    expect(hideCatalogueTagSchema.safeParse({ hidden: "yes" }).success).toBe(
+      false,
+    );
   });
 
   it("accepts a categoryKey on create + update (v1.17.0) within bounds", () => {
@@ -99,19 +115,27 @@ describe("custom-group helpers + schemas (v1.17.0)", () => {
   });
 
   it("validates group create / update bodies like the tag schemas", () => {
-    expect(createCustomGroupSchema.safeParse({ label: "Hobbies 2" }).success).toBe(true);
     expect(
-      createCustomGroupSchema.safeParse({ label: "x", icon: "Stethoscope" }).success,
+      createCustomGroupSchema.safeParse({ label: "Hobbies 2" }).success,
     ).toBe(true);
     expect(
-      createCustomGroupSchema.safeParse({ label: "x", icon: "NotAnIcon" }).success,
+      createCustomGroupSchema.safeParse({ label: "x", icon: "Stethoscope" })
+        .success,
+    ).toBe(true);
+    expect(
+      createCustomGroupSchema.safeParse({ label: "x", icon: "NotAnIcon" })
+        .success,
     ).toBe(false);
-    expect(createCustomGroupSchema.safeParse({ label: "" }).success).toBe(false);
+    expect(createCustomGroupSchema.safeParse({ label: "" }).success).toBe(
+      false,
+    );
     expect(
       createCustomGroupSchema.safeParse({ label: "a".repeat(41) }).success,
     ).toBe(false);
     expect(updateCustomGroupSchema.safeParse({}).success).toBe(false);
-    expect(updateCustomGroupSchema.safeParse({ isActive: false }).success).toBe(true);
+    expect(updateCustomGroupSchema.safeParse({ isActive: false }).success).toBe(
+      true,
+    );
   });
 });
 
@@ -123,9 +147,28 @@ describe("icon catalog → allowlist seam (v1.17.0)", () => {
     // The v1.13 22-name allowlist must survive — icons already stored on
     // rows keep validating.
     const legacy = [
-      "Tag", "Heart", "Smile", "Frown", "Dumbbell", "Moon", "Sun", "Wine",
-      "Coffee", "House", "Briefcase", "Book", "Music", "Plane", "Car",
-      "Users", "Pill", "Activity", "Brain", "Cloud", "Star", "Zap",
+      "Tag",
+      "Heart",
+      "Smile",
+      "Frown",
+      "Dumbbell",
+      "Moon",
+      "Sun",
+      "Wine",
+      "Coffee",
+      "House",
+      "Briefcase",
+      "Book",
+      "Music",
+      "Plane",
+      "Car",
+      "Users",
+      "Pill",
+      "Activity",
+      "Brain",
+      "Cloud",
+      "Star",
+      "Zap",
     ];
     for (const name of legacy) {
       expect(CUSTOM_TAG_ICON_ALLOWLIST).toContain(name);

@@ -78,10 +78,7 @@ export const medicationExtractionSchema = z
     intervalMonths: z.number().int().min(1).max(12).optional(),
     dayOfMonth: z.number().int().min(1).max(31).optional(),
     rollingIntervalDays: z.number().int().min(1).max(365).optional(),
-    timesOfDay: z
-      .array(z.string().regex(HH_MM_RE, "HH:MM"))
-      .max(12)
-      .optional(),
+    timesOfDay: z.array(z.string().regex(HH_MM_RE, "HH:MM")).max(12).optional(),
     startsOn: z.string().regex(ISO_DATE_RE, "YYYY-MM-DD").optional(),
     endsOn: z.string().regex(ISO_DATE_RE, "YYYY-MM-DD").optional(),
     oneShot: z.boolean().optional(),
@@ -120,7 +117,7 @@ export function buildMedicationExtractionSystemPrompt(): string {
     "Every field is optional — omit a field rather than guess. Keys:",
     "",
     "  name              — medication brand or active substance, verbatim",
-    "  dose              — numeric portion only, as a string: \"5\", \"7.5\"",
+    '  dose              — numeric portion only, as a string: "5", "7.5"',
     "  doseUnit          — one of: mg | ml | iu | tablets | drops | puffs | sprays",
     "  cadenceKind       — one of: daily | weekdays | everyNWeeks |",
     "                      monthly | everyNMonths | yearly | rolling |",
@@ -130,9 +127,9 @@ export function buildMedicationExtractionSystemPrompt(): string {
     "  intervalWeeks     — 1..52, used with everyNWeeks",
     "  intervalMonths    — 1..12, used with everyNMonths",
     "  dayOfMonth        — 1..31, used with monthly / everyNMonths",
-    "  rollingIntervalDays — 1..365, used with rolling (\"every N days",
-    "                      from the last intake\")",
-    "  timesOfDay        — array of \"HH:MM\" wall-clock strings (24h)",
+    '  rollingIntervalDays — 1..365, used with rolling ("every N days',
+    '                      from the last intake")',
+    '  timesOfDay        — array of "HH:MM" wall-clock strings (24h)',
     "  startsOn          — ISO YYYY-MM-DD, course start date",
     "  endsOn            — ISO YYYY-MM-DD, course end date",
     "  oneShot           — true when the user describes a single-time",
@@ -147,26 +144,26 @@ export function buildMedicationExtractionSystemPrompt(): string {
     "     not state a numeric dose, omit `dose` and `doseUnit`.",
     "",
     "  2. Map vague time-of-day words to canonical 24h slots:",
-    "     morning → \"08:00\", noon / midday → \"12:00\",",
-    "     afternoon → \"14:00\", evening → \"18:00\", night → \"22:00\".",
+    '     morning → "08:00", noon / midday → "12:00",',
+    '     afternoon → "14:00", evening → "18:00", night → "22:00".',
     "     Multiple times in one description → emit each as its own entry.",
     "",
-    "  3. \"Every day\" / \"daily\" / \"once a day\" → `cadenceKind:",
-    "     \"daily\"`. \"Twice a day\" / \"3 times a day\" → still",
+    '  3. "Every day" / "daily" / "once a day" → `cadenceKind:',
+    '     "daily"`. "Twice a day" / "3 times a day" → still',
     "     `daily` with the right `timesOfDay[]` count; never invent a",
     "     weekly cadence.",
     "",
-    "  4. \"Every N days from my last injection / dose\" /",
-    "     \"7 days after the previous one\" → `rolling` with",
+    '  4. "Every N days from my last injection / dose" /',
+    '     "7 days after the previous one" → `rolling` with',
     "     `rollingIntervalDays = N`. This is distinct from",
     "     `everyNWeeks` (calendar-anchored).",
     "",
-    "  5. Single-shot wording (\"single flu shot\", \"one-off dose\",",
-    "     \"on October 15 only\") → `oneShot: true` and a `startsOn`",
+    '  5. Single-shot wording ("single flu shot", "one-off dose",',
+    '     "on October 15 only") → `oneShot: true` and a `startsOn`',
     "     date. Do not also emit `cadenceKind`.",
     "",
     "  6. Resolve relative dates against today's date supplied in the",
-    "     CONTEXT block. \"Next Monday\", \"tomorrow\", \"in 2 weeks\"",
+    '     CONTEXT block. "Next Monday", "tomorrow", "in 2 weeks"',
     "     become absolute ISO dates.",
     "",
     "  7. If a field is ambiguous, leave it empty. The wizard prefers",
@@ -206,9 +203,10 @@ export function buildMedicationExtractionUserPrompt(
  * payload without having to glue the two helpers together at every call
  * site.
  */
-export function buildMedicationExtractionPrompt(
-  args: BuildUserPromptArgs,
-): { systemPrompt: string; userPrompt: string } {
+export function buildMedicationExtractionPrompt(args: BuildUserPromptArgs): {
+  systemPrompt: string;
+  userPrompt: string;
+} {
   return {
     systemPrompt: buildMedicationExtractionSystemPrompt(),
     userPrompt: buildMedicationExtractionUserPrompt(args),

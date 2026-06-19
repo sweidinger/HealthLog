@@ -59,7 +59,7 @@ export function MedicationDetailSection({
       <header className="border-border/60 flex items-center justify-between gap-2 border-b pb-3">
         <h2
           id={titleId}
-          className="text-foreground text-base font-semibold leading-6 tracking-tight"
+          className="text-foreground text-base leading-6 font-semibold tracking-tight"
         >
           {title}
         </h2>

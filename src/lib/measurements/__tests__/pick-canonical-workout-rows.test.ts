@@ -115,10 +115,11 @@ describe("pickCanonicalWorkoutRows", () => {
         source: "APPLE_HEALTH",
       },
     ];
-    expect(pickCanonicalWorkoutRows(rows).map((r) => r.id).sort()).toEqual([
-      "cycle",
-      "run",
-    ]);
+    expect(
+      pickCanonicalWorkoutRows(rows)
+        .map((r) => r.id)
+        .sort(),
+    ).toEqual(["cycle", "run"]);
   });
 
   it("preserves input order on the output", () => {

@@ -200,9 +200,7 @@ describe("Withings OAuth nonce ledger (real Postgres)", () => {
     );
     const callbackRes = await callback(callbackReq);
     expect(callbackRes.status).toBe(307);
-    expect(callbackRes.headers.get("location")).toContain(
-      "withings=connected",
-    );
+    expect(callbackRes.headers.get("location")).toContain("withings=connected");
 
     const afterCallback = await prisma.withingsOAuthState.findUnique({
       where: { nonce },
@@ -270,8 +268,15 @@ describe("Withings OAuth nonce ledger (real Postgres)", () => {
       "withings=error&reason=expired",
     );
 
-    // Token endpoint never hit.
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // Token endpoint never hit. Scope the assertion to the token URL so a
+    // prior connection's fire-and-forget webhook subscriptions, which resolve
+    // asynchronously into this spy, cannot make the check flaky.
+    const tokenCalls = fetchSpy.mock.calls.filter(
+      ([input]) =>
+        (typeof input === "string" ? input : (input as Request).url) ===
+        WITHINGS_TOKEN_URL,
+    );
+    expect(tokenCalls).toHaveLength(0);
 
     // The handler stamps out the expired row so a clock-skewed replay
     // can't slip through.

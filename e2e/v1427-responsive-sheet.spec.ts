@@ -58,9 +58,7 @@ test.describe("v1.4.27 — ResponsiveSheet branch", () => {
       waitUntil: "domcontentloaded",
     });
 
-    const content = page.locator(
-      '[data-slot="responsive-sheet-content"]',
-    );
+    const content = page.locator('[data-slot="responsive-sheet-content"]');
     await expect(content).toBeVisible({ timeout: 10_000 });
     await expect(content).toHaveAttribute("data-variant", "sheet");
 
@@ -85,9 +83,7 @@ test.describe("v1.4.27 — ResponsiveSheet branch", () => {
       waitUntil: "domcontentloaded",
     });
 
-    const content = page.locator(
-      '[data-slot="responsive-sheet-content"]',
-    );
+    const content = page.locator('[data-slot="responsive-sheet-content"]');
     await expect(content).toBeVisible({ timeout: 10_000 });
     await expect(content).toHaveAttribute("data-variant", "dialog");
   });

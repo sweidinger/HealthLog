@@ -20,7 +20,9 @@ describe("buildMetricSignal", () => {
     const signal = buildMetricSignal({
       metric: "resting heart rate",
       direction: "lower-better",
-      graded: graded({ monthly: [{ month: "2026-05", min: 60, max: 70, mean: 66, n: 30 }] }),
+      graded: graded({
+        monthly: [{ month: "2026-05", min: 60, max: 70, mean: 66, n: 30 }],
+      }),
     });
     expect(signal).toBeNull();
   });
@@ -68,7 +70,9 @@ describe("buildMetricSignal", () => {
       direction: "higher-better",
       graded: graded({
         recent: [{ date: "d", min: 10, max: 10, mean: 10, n: 1 }],
-        yearly: [{ year: "2025", min: 6, max: 6, mean: 6, n: 100, slope: null }],
+        yearly: [
+          { year: "2025", min: 6, max: 6, mean: 6, n: 100, slope: null },
+        ],
       }),
     });
     expect(yearly!.baseline).toBe(6);
@@ -79,7 +83,9 @@ describe("buildMetricSignal", () => {
     const signal = buildMetricSignal({
       metric: "x",
       direction: "higher-better",
-      graded: graded({ recent: [{ date: "d", min: 10, max: 10, mean: 10, n: 1 }] }),
+      graded: graded({
+        recent: [{ date: "d", min: 10, max: 10, mean: 10, n: 1 }],
+      }),
     });
     expect(signal!.baseline).toBeNull();
     expect(signal!.delta).toBeNull();
@@ -132,7 +138,11 @@ describe("buildMetricSignal", () => {
       normalRange: { low: 60, high: 100 },
       normalRangeSource: "age-sex-adjusted",
     });
-    expect(signal!.normalRange).toEqual({ low: 60, high: 100, source: "age-sex-adjusted" });
+    expect(signal!.normalRange).toEqual({
+      low: 60,
+      high: 100,
+      source: "age-sex-adjusted",
+    });
     expect(signal!.placement).toBe("above band");
   });
 });

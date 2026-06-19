@@ -56,7 +56,9 @@ describe("probeIntegrationStatusNullBuckets", () => {
     const json = evt.toJSON();
 
     expect(json.level).toBe("warn");
-    expect(json.warnings?.[0]).toMatch(/2 row\(s\) still carry consecutiveFailuresByKind=NULL/);
+    expect(json.warnings?.[0]).toMatch(
+      /2 row\(s\) still carry consecutiveFailuresByKind=NULL/,
+    );
     expect(json.meta?.integration_status_null_buckets).toBe(2);
   });
 

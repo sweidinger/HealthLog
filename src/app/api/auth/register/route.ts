@@ -144,7 +144,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
     } else {
       annotate({
         action: { name: "auth.register.invite_rejected" },
-        meta: { reason: consumed.reason, registration_open: registrationEnabled },
+        meta: {
+          reason: consumed.reason,
+          registration_open: registrationEnabled,
+        },
       });
       if (!registrationEnabled) {
         return apiError("Invalid or expired invite", 403);

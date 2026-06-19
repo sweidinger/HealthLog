@@ -336,7 +336,11 @@ export function suggestNearestSlot(
             (sorted[Math.min(idx + 1, sorted.length - 1)].at.getTime() ||
               b.at.getTime()) -
               (sorted[Math.max(idx - 1, 0)].at.getTime() || b.at.getTime()),
-          ) / Math.max(1, Math.min(idx + 1, sorted.length - 1) - Math.max(idx - 1, 0))
+          ) /
+          Math.max(
+            1,
+            Math.min(idx + 1, sorted.length - 1) - Math.max(idx - 1, 0),
+          )
         : reach;
     if (bestAny.dist > reach + gapMs) return null;
   }

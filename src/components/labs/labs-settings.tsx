@@ -81,9 +81,7 @@ export function LabsSettings() {
             <option value="recentAsc">{t("labs.sort.recentAsc")}</option>
             <option value="manual">{t("labs.sort.manual")}</option>
           </NativeSelect>
-          <p className="text-muted-foreground text-xs">
-            {t("labs.sort.hint")}
-          </p>
+          <p className="text-muted-foreground text-xs">{t("labs.sort.hint")}</p>
         </div>
       </section>
 

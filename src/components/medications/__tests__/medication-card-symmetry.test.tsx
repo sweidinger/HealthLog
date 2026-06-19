@@ -185,9 +185,7 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
       expect(html).toContain('aria-label="More options"');
       expect(html).not.toContain("lucide-chevron-right");
       // The card body itself navigates to the detail page.
-      expect(html).toContain(
-        'data-slot="medication-card-header-link"',
-      );
+      expect(html).toContain('data-slot="medication-card-header-link"');
       expect(html).toContain(`href="${href}"`);
     }
   });

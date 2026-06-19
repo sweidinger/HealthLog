@@ -36,7 +36,9 @@ describe("redactSecrets", () => {
     );
     // v1.12.2 — one-time WHOOP connect ticket in the connect URL.
     expect(
-      redactSecrets("GET /api/whoop/connect?ticket=abc_DEF-123&return_scheme=x"),
+      redactSecrets(
+        "GET /api/whoop/connect?ticket=abc_DEF-123&return_scheme=x",
+      ),
     ).toBe("GET /api/whoop/connect?ticket=[REDACTED]&return_scheme=x");
   });
 
@@ -165,9 +167,9 @@ describe("redactSecrets", () => {
     it("preserves query strings after the secret segment", () => {
       // Note: the existing query-string rule then redacts the
       // `?secret=…` payload too; both layers compose.
-      expect(
-        redactSecrets("/api/withings/webhook/test-secret?retries=2"),
-      ).toBe("/api/withings/webhook/[REDACTED]?retries=2");
+      expect(redactSecrets("/api/withings/webhook/test-secret?retries=2")).toBe(
+        "/api/withings/webhook/[REDACTED]?retries=2",
+      );
     });
 
     it("redacts an absolute URL form (origin + path-segment secret)", () => {

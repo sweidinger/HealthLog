@@ -206,7 +206,13 @@ export function InjectionSitePicker({
           strokeOpacity="0.35"
         />
         {/* Navel reference */}
-        <circle cx="50" cy="88" r="0.9" fill="currentColor" fillOpacity="0.45" />
+        <circle
+          cx="50"
+          cy="88"
+          r="0.9"
+          fill="currentColor"
+          fillOpacity="0.45"
+        />
 
         {/* Click targets */}
         {INJECTION_SITE_KEYS.map((site) => {

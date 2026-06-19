@@ -23,7 +23,9 @@ describe("deriveRestingProxyFromPulse", () => {
     // One Berlin day: 10 resting reads ~70, 500 workout reads ~150.
     const samples: PulseSample[] = [];
     for (let i = 0; i < 10; i++) {
-      samples.push(day(`2026-06-01T06:${String(i).padStart(2, "0")}:00`, 68 + i));
+      samples.push(
+        day(`2026-06-01T06:${String(i).padStart(2, "0")}:00`, 68 + i),
+      );
     }
     for (let i = 0; i < 500; i++) {
       samples.push(
@@ -48,7 +50,12 @@ describe("deriveRestingProxyFromPulse", () => {
     // Realistic day: 30 waking/spot reads 70-95, 10 workout reads ~150.
     const samples: PulseSample[] = [];
     for (let i = 0; i < 30; i++) {
-      samples.push(day(`2026-06-02T08:${String(i % 60).padStart(2, "0")}:00`, 70 + (i % 25)));
+      samples.push(
+        day(
+          `2026-06-02T08:${String(i % 60).padStart(2, "0")}:00`,
+          70 + (i % 25),
+        ),
+      );
     }
     for (let i = 0; i < 10; i++) {
       samples.push(day(`2026-06-02T18:${String(i).padStart(2, "0")}:00`, 150));
@@ -107,7 +114,10 @@ describe("deriveRestingProxyFromPulse", () => {
 describe("resolveRestingPulseSeries", () => {
   it("prefers RESTING_HEART_RATE — a clean ~72 series reads as resting", () => {
     const restingSamples: PulseSample[] = Array.from({ length: 30 }, (_v, i) =>
-      day(`2026-06-${String((i % 28) + 1).padStart(2, "0")}T06:00:00`, 70 + (i % 5)),
+      day(
+        `2026-06-${String((i % 28) + 1).padStart(2, "0")}T06:00:00`,
+        70 + (i % 5),
+      ),
     );
     // Workout-polluted PULSE that should be IGNORED in favour of resting.
     const pulseSamples: PulseSample[] = Array.from({ length: 500 }, () =>

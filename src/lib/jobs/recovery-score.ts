@@ -64,7 +64,9 @@ export async function findRecoveryScoreCandidates(
   now: Date,
   cap: number,
 ): Promise<string[]> {
-  const since = new Date(now.getTime() - RECOVERY_SCORE_RECENCY_DAYS * MS_PER_DAY);
+  const since = new Date(
+    now.getTime() - RECOVERY_SCORE_RECENCY_DAYS * MS_PER_DAY,
+  );
   // The input-type set is a closed compile-time list of enum members —
   // splice-free; Prisma binds the `type IN (...)` array as parameters.
   //

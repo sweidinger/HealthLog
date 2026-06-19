@@ -33,6 +33,7 @@ import {
   serializeInventoryItem,
 } from "@/lib/medications/inventory/service";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -133,6 +134,14 @@ export const POST = apiHandler(
       },
       meta: { medication_id: id },
     });
+
+    // A registered container changes the dose-derived stock the
+    // medications-list payload carries (`stockUnitsRemaining` /
+    // `stockDosesRemaining`), which the card and table render. Hard-evict
+    // the per-user medications + compliance buckets so the supply shows on
+    // the very next read — a mark-stale would let the `cachedSwr` list
+    // serve the pre-write stock for the rest of the stale window.
+    invalidateUserMedications(user.id, { evict: true });
 
     return apiSuccess(serializeInventoryItem(created), 201);
   },

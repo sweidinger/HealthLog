@@ -181,7 +181,9 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ data: { id: "evt-am" } }),
-      text: vi.fn().mockResolvedValue(JSON.stringify({ data: { id: "evt-am" } })),
+      text: vi
+        .fn()
+        .mockResolvedValue(JSON.stringify({ data: { id: "evt-am" } })),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -319,7 +321,10 @@ describe("runLogIntake — manual backdated intake from the Add choice", () => {
     expect(url).toBe("/api/medications/med-1/intake");
     const body = JSON.parse((init as RequestInit).body as string);
     // Backdated instant is carried verbatim; no slot → no scheduledFor.
-    expect(body).toEqual({ skipped: false, takenAt: "2026-06-01T08:30:00.000Z" });
+    expect(body).toEqual({
+      skipped: false,
+      takenAt: "2026-06-01T08:30:00.000Z",
+    });
     expect(body).not.toHaveProperty("scheduledFor");
     expect(queryClient.invalidateQueries).toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith(
@@ -381,7 +386,10 @@ describe("runLogIntake — manual backdated intake from the Add choice", () => {
   });
 
   it("surfaces the failure toast and returns false on a non-ok POST", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: vi.fn() }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, json: vi.fn() }),
+    );
     const queryClient = fakeQueryClient();
 
     const ok = await runLogIntake({

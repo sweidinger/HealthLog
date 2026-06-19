@@ -171,9 +171,7 @@ export async function computeHrvBalance(
       baselineHigh: baseline.value.high,
       band,
       sampleDays: baseline.value.sampleDays,
-      series: recent.points
-        .slice(-SPARKLINE_MAX_POINTS)
-        .map((p) => p.mean),
+      series: recent.points.slice(-SPARKLINE_MAX_POINTS).map((p) => p.mean),
     },
     coverage,
     confidence,

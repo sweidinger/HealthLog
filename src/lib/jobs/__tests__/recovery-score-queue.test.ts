@@ -19,12 +19,7 @@ import { describe, expect, it } from "vitest";
 // v1.18.1 — the queue wiring moved out of the 2143-LOC reminder-worker boot
 // file into domain registrars; the recovery-score queue lives in the status
 // registrar. The dead-queue guard follows the wiring there.
-const REGISTRAR_PATH = join(
-  __dirname,
-  "..",
-  "reminder",
-  "register-status.ts",
-);
+const REGISTRAR_PATH = join(__dirname, "..", "reminder", "register-status.ts");
 const workerSource = readFileSync(REGISTRAR_PATH, "utf8");
 
 const BATCH_ROUTE_PATH = join(
@@ -42,9 +37,7 @@ const batchSource = readFileSync(BATCH_ROUTE_PATH, "utf8");
 
 describe("reminder-worker — recovery-score wiring", () => {
   it("imports the queue symbols from the recovery-score module", () => {
-    expect(workerSource).toMatch(
-      /from\s*["']@\/lib\/jobs\/recovery-score["']/,
-    );
+    expect(workerSource).toMatch(/from\s*["']@\/lib\/jobs\/recovery-score["']/);
     expect(workerSource).toMatch(/\bRECOVERY_SCORE_QUEUE\b/);
     expect(workerSource).toMatch(/\bRECOVERY_SCORE_CRON\b/);
     expect(workerSource).toMatch(/\brunRecoveryScore\b/);

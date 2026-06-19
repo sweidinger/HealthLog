@@ -100,7 +100,9 @@ export default function LabsPage() {
         onOpenChange={setDialogOpen}
         title={t("labs.addResult")}
         description={t("labs.addDescription")}
-        footer={<div ref={setAddFooterEl} className="flex w-full justify-end gap-2" />}
+        footer={
+          <div ref={setAddFooterEl} className="flex w-full justify-end gap-2" />
+        }
       >
         <LabForm
           footerSlot={addFooterEl}

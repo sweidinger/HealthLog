@@ -36,6 +36,7 @@ import {
   computeInventoryState,
 } from "@/lib/medications/inventory/state-machine";
 import { serializeInventoryItem } from "@/lib/medications/inventory/service";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 
 type RouteParams = { params: Promise<{ id: string; itemId: string }> };
 
@@ -107,7 +108,10 @@ export const PATCH = apiHandler(
       // state-machine re-run below owns every state consequence (0 ⇒
       // USED_UP, a raise out of 0 re-evaluates against the expiry
       // clocks).
-      nextUnitsRemaining = Math.min(unitsRemaining, Number(existing.unitsTotal));
+      nextUnitsRemaining = Math.min(
+        unitsRemaining,
+        Number(existing.unitsTotal),
+      );
     }
 
     if (markAsUsedUp === true) {
@@ -170,6 +174,12 @@ export const PATCH = apiHandler(
       meta: { medication_id: id, prev: existing.state, next: updated.state },
     });
 
+    // A stock correction / first-use / used-up flip changes the
+    // dose-derived stock the medications-list payload carries, which the
+    // card and table render. Hard-evict so the supply shows on the next
+    // read instead of after the `cachedSwr` stale window.
+    invalidateUserMedications(user.id, { evict: true });
+
     return apiSuccess(serializeInventoryItem(updated));
   },
 );
@@ -203,6 +213,11 @@ export const DELETE = apiHandler(
       },
       meta: { medication_id: id },
     });
+
+    // Removing a container changes the dose-derived stock the
+    // medications-list payload carries. Hard-evict so the card / table
+    // reflect the drop on the very next read.
+    invalidateUserMedications(user.id, { evict: true });
 
     return apiSuccess({ id: itemId, deleted: true });
   },

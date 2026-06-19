@@ -405,7 +405,11 @@ describe("cycle period shortcut", () => {
     expect(replay.status).toBe(200);
 
     const cycles = await prisma.menstrualCycle.count({
-      where: { userId: FEMALE_USER_ID, startDate: "2026-05-10", deletedAt: null },
+      where: {
+        userId: FEMALE_USER_ID,
+        startDate: "2026-05-10",
+        deletedAt: null,
+      },
     });
     expect(cycles).toBe(1);
   });
@@ -515,9 +519,7 @@ describe("cycle-prefs gate flip", () => {
 
   it("defaults secondarySymptom to MUCUS and persists a switch to CERVIX", async () => {
     await loginAs(FEMALE_USER_ID);
-    const { GET, PATCH } = await import(
-      "@/app/api/auth/me/cycle-prefs/route"
-    );
+    const { GET, PATCH } = await import("@/app/api/auth/me/cycle-prefs/route");
 
     const initial = await GET();
     expect((await initial.json()).data.secondarySymptom).toBe("MUCUS");

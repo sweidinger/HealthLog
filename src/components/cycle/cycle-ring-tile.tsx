@@ -114,28 +114,28 @@ export function CycleRingTile({ className }: { className?: string }) {
           className,
         )}
       >
-      <div className="text-foreground flex items-center gap-2">
-        <Droplets className="h-5 w-5 shrink-0" aria-hidden="true" />
-        <span className="truncate text-base leading-none font-semibold">
-          {t("cycle.wellnessRing.label")}
-        </span>
-      </div>
-      <div className="flex flex-col items-center gap-1.5">
-        <CycleRing
-          dayOfCycle={wheel.dayOfCycle}
-          cycleLength={wheel.cycleLength}
-          phase={wheel.phase}
-          spans={wheel.spans}
-          animate={play}
-          size={120}
-        />
-        <span
-          data-slot="wellness-cycle-band-word"
-          className="text-muted-foreground text-center text-xs"
-        >
-          {t(`cycle.phase.${wheel.phase}`)}
-        </span>
-      </div>
+        <div className="text-foreground flex items-center gap-2">
+          <Droplets className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span className="truncate text-base leading-none font-semibold">
+            {t("cycle.wellnessRing.label")}
+          </span>
+        </div>
+        <div className="flex flex-col items-center gap-1.5">
+          <CycleRing
+            dayOfCycle={wheel.dayOfCycle}
+            cycleLength={wheel.cycleLength}
+            phase={wheel.phase}
+            spans={wheel.spans}
+            animate={play}
+            size={120}
+          />
+          <span
+            data-slot="wellness-cycle-band-word"
+            className="text-muted-foreground text-center text-xs"
+          >
+            {t(`cycle.phase.${wheel.phase}`)}
+          </span>
+        </div>
       </Link>
     </div>
   );

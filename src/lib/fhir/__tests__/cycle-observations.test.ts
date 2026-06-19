@@ -77,7 +77,9 @@ describe("fhir/cycle observations", () => {
     );
     expect(lmp?.valueDateTime).toBe("2026-04-20");
 
-    const phase = obs.find((o) => o.code.text === "Current menstrual cycle phase");
+    const phase = obs.find(
+      (o) => o.code.text === "Current menstrual cycle phase",
+    );
     expect(phase?.valueString).toBe("Luteal phase");
 
     // Cycle observations carry their own id sequence, never `obs-N`.
@@ -85,10 +87,9 @@ describe("fhir/cycle observations", () => {
   });
 
   it("adds a 'Menstrual cycle' Composition section to the document bundle", () => {
-    const bundle = buildFhirDocumentBundle(
-      baseData({ cycle: CYCLE_SUMMARY }),
-      { insuranceNumber: null },
-    );
+    const bundle = buildFhirDocumentBundle(baseData({ cycle: CYCLE_SUMMARY }), {
+      insuranceNumber: null,
+    });
     const composition = bundle.entry?.find(
       (e) => e.resource.resourceType === "Composition",
     )?.resource as { section?: Array<{ title: string }> } | undefined;
@@ -97,10 +98,9 @@ describe("fhir/cycle observations", () => {
   });
 
   it("omits the cycle section entirely when the summary is null", () => {
-    const bundle = buildFhirDocumentBundle(
-      baseData({ cycle: null }),
-      { insuranceNumber: null },
-    );
+    const bundle = buildFhirDocumentBundle(baseData({ cycle: null }), {
+      insuranceNumber: null,
+    });
     const composition = bundle.entry?.find(
       (e) => e.resource.resourceType === "Composition",
     )?.resource as { section?: Array<{ title: string }> } | undefined;

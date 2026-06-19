@@ -209,8 +209,10 @@ describe("dashboard.*Short keys exist across all six locales", () => {
       .default;
     const dashboard = messages.dashboard ?? {};
     for (const key of REQUIRED_KEYS) {
-      expect(dashboard[key], `dashboard.${key} missing in ${locale}.json`)
-        .toBeTypeOf("string");
+      expect(
+        dashboard[key],
+        `dashboard.${key} missing in ${locale}.json`,
+      ).toBeTypeOf("string");
       expect(
         (dashboard[key] as string).length,
         `dashboard.${key} empty in ${locale}.json`,

@@ -26,7 +26,10 @@ import type { AggregatedFeatures, RawFeatures } from "./features";
  * means the token gates a substructure inside `context` and is
  * handled inline below.
  */
-const EXCLUDE_TO_FEATURE_KEYS: Record<string, ReadonlyArray<keyof AggregatedFeatures>> = {
+const EXCLUDE_TO_FEATURE_KEYS: Record<
+  string,
+  ReadonlyArray<keyof AggregatedFeatures>
+> = {
   bp: ["bloodPressure"],
   weight: ["weight"],
   pulse: ["pulse"],
@@ -60,7 +63,11 @@ export function applyInsightsExcludeFilter<
         delete next[key as string];
       }
     }
-    if (token === "anthropometrics" && next.context && typeof next.context === "object") {
+    if (
+      token === "anthropometrics" &&
+      next.context &&
+      typeof next.context === "object"
+    ) {
       // Anthropometrics gates the profile sub-fields inside `context`.
       // The rest of context (totals, span days) stays — those are
       // aggregate counts the model needs for narrative coverage even

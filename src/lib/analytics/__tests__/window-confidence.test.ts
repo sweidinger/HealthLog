@@ -6,7 +6,8 @@ import {
 } from "../window-confidence";
 
 const NOW = new Date("2026-06-14T12:00:00.000Z");
-const daysAgo = (n: number) => new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
+const daysAgo = (n: number) =>
+  new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
 
 describe("computeWindowConfidence", () => {
   it("flags a sample below the floor as insufficient", () => {

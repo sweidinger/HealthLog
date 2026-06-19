@@ -53,4 +53,6 @@ const rewritten = sw.replace(fallbackPattern, `$1${JSON.stringify(version)}`);
 if (rewritten !== sw) writeFileSync(swPath, rewritten, "utf8");
 
 // One-line log so the build output shows the version we baked in.
-process.stdout.write(`sw-version.js → ${version} (sw.js fallback re-anchored)\n`);
+process.stdout.write(
+  `sw-version.js → ${version} (sw.js fallback re-anchored)\n`,
+);

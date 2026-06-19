@@ -145,7 +145,9 @@ describe("createReceipt", () => {
     // The prior row's revocation must be stamped "now", never the backdated
     // client value, so the audit chain can't be inverted.
     expect(supersedeArg.data.revokedAt.getTime()).not.toBe(backdated.getTime());
-    expect(supersedeArg.data.revokedAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(supersedeArg.data.revokedAt.getTime()).toBeGreaterThanOrEqual(
+      before,
+    );
     expect(supersedeArg.data.revokedAt.getTime()).toBeLessThanOrEqual(after);
     // The new row still carries the client signedAt.
     const createArg = vi.mocked(prisma.consentReceipt.create).mock.calls[0][0];
@@ -155,7 +157,9 @@ describe("createReceipt", () => {
 
 describe("latestActiveReceipt", () => {
   it("filters by user + kind + revokedAt:null and orders by createdAt desc", async () => {
-    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(row() as never);
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(
+      row() as never,
+    );
 
     const result = await latestActiveReceipt("user-1", "ai_full");
 

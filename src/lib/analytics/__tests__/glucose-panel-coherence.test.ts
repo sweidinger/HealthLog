@@ -38,9 +38,7 @@ function readings() {
 }
 
 /** Coach projection — mirrors `snapshot.glucose.clinical` (asserted branch). */
-function coachProjection(
-  m: ReturnType<typeof computeGlucoseClinicalMetrics>,
-) {
+function coachProjection(m: ReturnType<typeof computeGlucoseClinicalMetrics>) {
   return {
     tirPercent: m.distribution ? Math.round(m.distribution.tir * 100) : null,
     gmi: m.gmi !== null ? Math.round(m.gmi * 10) / 10 : null,
@@ -52,9 +50,7 @@ function coachProjection(
 }
 
 /** Panel projection — mirrors the panel's display rounding. */
-function panelProjection(
-  m: ReturnType<typeof computeGlucoseClinicalMetrics>,
-) {
+function panelProjection(m: ReturnType<typeof computeGlucoseClinicalMetrics>) {
   return {
     tirPercent: m.distribution ? Math.round(m.distribution.tir * 100) : null,
     gmi: m.gmi !== null ? Number(m.gmi.toFixed(1)) : null,

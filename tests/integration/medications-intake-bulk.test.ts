@@ -244,7 +244,11 @@ describe("POST /api/medications/intake/bulk (real Postgres)", () => {
       );
       expect(res.status).toBe(200);
       const json = (await res.json()) as {
-        data: { inserted: number; updated: number; entries: Array<{ status: string }> };
+        data: {
+          inserted: number;
+          updated: number;
+          entries: Array<{ status: string }>;
+        };
       };
       expect(json.data.inserted).toBe(0);
       expect(json.data.updated).toBe(1);
@@ -385,14 +389,22 @@ describe("POST /api/medications/intake/bulk (real Postgres)", () => {
       await POST(
         makeRequest({
           entries: [
-            { medicationId: med.id, scheduledFor: t1.toISOString(), takenAt: t1.toISOString() },
+            {
+              medicationId: med.id,
+              scheduledFor: t1.toISOString(),
+              takenAt: t1.toISOString(),
+            },
           ],
         }),
       );
       const res = await POST(
         makeRequest({
           entries: [
-            { medicationId: med.id, scheduledFor: t2.toISOString(), takenAt: t2.toISOString() },
+            {
+              medicationId: med.id,
+              scheduledFor: t2.toISOString(),
+              takenAt: t2.toISOString(),
+            },
           ],
         }),
       );

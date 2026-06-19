@@ -132,9 +132,10 @@ export const HK_WORKOUT_ACTIVITY_TYPE_MAP: Record<string, WorkoutSportType> = {
  * identifiers outside the table so the call site can increment its
  * `unknownActivityType` counter without losing the row.
  */
-export function resolveHkWorkoutSportType(
-  activityType: string,
-): { sportType: WorkoutSportType; known: boolean } {
+export function resolveHkWorkoutSportType(activityType: string): {
+  sportType: WorkoutSportType;
+  known: boolean;
+} {
   const sportType = HK_WORKOUT_ACTIVITY_TYPE_MAP[activityType];
   if (sportType) return { sportType, known: true };
   return { sportType: "other", known: false };

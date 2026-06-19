@@ -107,10 +107,7 @@ describe("PUT /api/measurements/[id] — 422 multi-issue (v1.4.43 W6)", () => {
   });
 
   it("writes a measurements.update.validation-failed audit row", async () => {
-    const res = await PUT(
-      putReq({ value: -1, measuredAt: "junk" }),
-      ROUTE_CTX,
-    );
+    const res = await PUT(putReq({ value: -1, measuredAt: "junk" }), ROUTE_CTX);
     expect(res.status).toBe(422);
     await new Promise((r) => setTimeout(r, 5));
     expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
@@ -125,10 +122,7 @@ describe("PUT /api/measurements/[id] — 422 multi-issue (v1.4.43 W6)", () => {
     vi.mocked(prisma.auditLog.create).mockRejectedValueOnce(
       new Error("db down"),
     );
-    const res = await PUT(
-      putReq({ value: -1, measuredAt: "junk" }),
-      ROUTE_CTX,
-    );
+    const res = await PUT(putReq({ value: -1, measuredAt: "junk" }), ROUTE_CTX);
     expect(res.status).toBe(422);
   });
 });

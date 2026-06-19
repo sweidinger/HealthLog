@@ -404,8 +404,7 @@ export async function computeStrainScore(
     take: 100,
   });
 
-  const hrMax =
-    profile.ageYears != null ? tanakaHrMax(profile.ageYears) : null;
+  const hrMax = profile.ageYears != null ? tanakaHrMax(profile.ageYears) : null;
   const canTrimp = hrMax != null && hrRest != null && hrMax > hrRest;
 
   let dayTrimp = 0;
@@ -556,9 +555,7 @@ export async function loadStrainAnchorHistory(
     orderBy: { day: "desc" },
   });
 
-  const trainingDayTrimps = rows
-    .map((r) => r.dayTrimp)
-    .filter((t) => t > 0);
+  const trainingDayTrimps = rows.map((r) => r.dayTrimp).filter((t) => t > 0);
   // The prior EWMA = the most recent cached row that actually carried personal
   // training history (`trainingDays > 0`). A row written on a pure rest /
   // energy-only day stores the population seed only to keep the column
@@ -635,8 +632,14 @@ export async function persistStrainScore(
     now,
     anchorHistory,
   );
-  const { score, reason, dayTrimp, anchor, trainingDays, refPersonalToPersist } =
-    result;
+  const {
+    score,
+    reason,
+    dayTrimp,
+    anchor,
+    trainingDays,
+    refPersonalToPersist,
+  } = result;
 
   if (score === null) {
     return { outcome: "insufficient", score: null, reason, anchor };

@@ -53,7 +53,9 @@ const CANDIDATES: Array<{
 const CONFIDENCE_FLOOR = 50;
 /** A signal is notable when it sits outside the comfortable green band. */
 function isNotable(band: string, confidence: number): boolean {
-  return confidence >= CONFIDENCE_FLOOR && (band === "yellow" || band === "red");
+  return (
+    confidence >= CONFIDENCE_FLOOR && (band === "yellow" || band === "red")
+  );
 }
 
 /**

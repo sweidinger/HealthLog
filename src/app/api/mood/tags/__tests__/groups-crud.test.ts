@@ -29,19 +29,27 @@ const db = vi.hoisted(() => {
 
 vi.mock("@/lib/db", () => ({
   prisma: db,
-  toJson: <T,>(v: T) => v,
+  toJson: <T>(v: T) => v,
 }));
 vi.mock("@/lib/crypto", () => ({
   encrypt: (s: string) => `enc:${s}`,
   decrypt: (s: string) => s.replace(/^enc:/, ""),
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
-vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/auth/audit", () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
-vi.mock("@/lib/db-compat", () => ({ ensureDbCompatibility: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
-  cookies: vi.fn(async () => ({ get: () => undefined, set: () => {}, delete: () => {} })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
 }));
 
 import { POST } from "../groups/route";
@@ -115,7 +123,9 @@ describe("POST /api/mood/tags/groups", () => {
 describe("PATCH /api/mood/tags/groups/:key", () => {
   it("404s a seeded category key without touching the DB", async () => {
     const res = await PATCH(
-      jsonReq("http://localhost/api/mood/tags/groups/feelings", "PATCH", { label: "x" }),
+      jsonReq("http://localhost/api/mood/tags/groups/feelings", "PATCH", {
+        label: "x",
+      }),
       params("feelings"),
     );
     expect(res.status).toBe(404);
@@ -125,7 +135,9 @@ describe("PATCH /api/mood/tags/groups/:key", () => {
   it("404s when the key is not the caller's own group", async () => {
     db.moodTagCategory.findFirst.mockResolvedValue(null);
     const res = await PATCH(
-      jsonReq("http://localhost/api/mood/tags/groups/customcat:x", "PATCH", { label: "x" }),
+      jsonReq("http://localhost/api/mood/tags/groups/customcat:x", "PATCH", {
+        label: "x",
+      }),
       params("customcat:x"),
     );
     expect(res.status).toBe(404);
@@ -140,11 +152,15 @@ describe("PATCH /api/mood/tags/groups/:key", () => {
       labelEncrypted: "enc:Neu",
     });
     const res = await PATCH(
-      jsonReq("http://localhost/api/mood/tags/groups/customcat:x", "PATCH", { label: "Neu" }),
+      jsonReq("http://localhost/api/mood/tags/groups/customcat:x", "PATCH", {
+        label: "Neu",
+      }),
       params("customcat:x"),
     );
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: { label: string; isActive: boolean } };
+    const body = (await res.json()) as {
+      data: { label: string; isActive: boolean };
+    };
     expect(body.data).toMatchObject({ label: "Neu", isActive: true });
     expect(db.moodTagCategory.update.mock.calls[0][0].data).toEqual({
       labelEncrypted: "enc:Neu",
@@ -200,7 +216,9 @@ describe("DELETE /api/mood/tags/groups/:key", () => {
 
   it("hard-deletes the emptied group row on ?purge=true", async () => {
     const res = await DELETE(
-      new NextRequest("http://localhost/api/mood/tags/groups/customcat:x?purge=true"),
+      new NextRequest(
+        "http://localhost/api/mood/tags/groups/customcat:x?purge=true",
+      ),
       params("customcat:x"),
     );
     expect(res.status).toBe(200);

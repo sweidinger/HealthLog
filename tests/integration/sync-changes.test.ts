@@ -157,7 +157,9 @@ async function seedMood(n: number): Promise<string[]> {
 }
 
 /** Seed one medication + n live intake events with increasing updatedAt. */
-async function seedIntakes(n: number): Promise<{ medId: string; ids: string[] }> {
+async function seedIntakes(
+  n: number,
+): Promise<{ medId: string; ids: string[] }> {
   const prisma = getPrismaClient();
   const base = new Date("2026-05-20T00:00:00.000Z").getTime();
   const med = await prisma.medication.create({
@@ -258,9 +260,8 @@ describe("GET /api/sync/changes (real Postgres)", () => {
     });
 
     // Soft-delete the first row via the DELETE route (the production path).
-    const { DELETE } = await import(
-      "@/app/api/measurements/by-external-ids/route"
-    );
+    const { DELETE } =
+      await import("@/app/api/measurements/by-external-ids/route");
     const delReq = new NextRequest(
       "http://localhost/api/measurements/by-external-ids",
       {
@@ -499,9 +500,8 @@ describe("GET /api/sync/changes — intake domain (real Postgres)", () => {
   it("surfaces a soft-deleted intake as a tombstone keyed on id, never an upsert", async () => {
     const { medId, ids } = await seedIntakes(2);
     const [delId, keepId] = ids;
-    const { DELETE } = await import(
-      "@/app/api/medications/[id]/intake/[eventId]/route"
-    );
+    const { DELETE } =
+      await import("@/app/api/medications/[id]/intake/[eventId]/route");
     await DELETE(
       new NextRequest(
         `http://localhost/api/medications/${medId}/intake/${delId}`,

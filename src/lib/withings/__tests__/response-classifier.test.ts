@@ -49,15 +49,15 @@ describe("classifyWithingsResponse — transient branch", () => {
   });
 
   it("Withings status 601 (rate-limited) → transient", () => {
-    expect(
-      classifyWithingsResponse(200, { status: 601 }).classification,
-    ).toBe("transient");
+    expect(classifyWithingsResponse(200, { status: 601 }).classification).toBe(
+      "transient",
+    );
   });
 
   it("Withings status 2554 (notify-subscribe transient) → transient", () => {
-    expect(
-      classifyWithingsResponse(200, { status: 2554 }).classification,
-    ).toBe("transient");
+    expect(classifyWithingsResponse(200, { status: 2554 }).classification).toBe(
+      "transient",
+    );
   });
 
   it("off-spec body without a `status` field → transient (one-off CDN page)", () => {
@@ -84,21 +84,21 @@ describe("classifyWithingsResponse — reauth_required branch", () => {
   );
 
   it("Withings 200 (invalid_grant boundary) → reauth_required", () => {
-    expect(
-      classifyWithingsResponse(200, { status: 200 }).classification,
-    ).toBe("reauth_required");
+    expect(classifyWithingsResponse(200, { status: 200 }).classification).toBe(
+      "reauth_required",
+    );
   });
 
   it("Withings 250 (mid-range invalid_grant) → reauth_required", () => {
-    expect(
-      classifyWithingsResponse(200, { status: 250 }).classification,
-    ).toBe("reauth_required");
+    expect(classifyWithingsResponse(200, { status: 250 }).classification).toBe(
+      "reauth_required",
+    );
   });
 
   it("Withings 299 (invalid_grant upper boundary) → reauth_required", () => {
-    expect(
-      classifyWithingsResponse(200, { status: 299 }).classification,
-    ).toBe("reauth_required");
+    expect(classifyWithingsResponse(200, { status: 299 }).classification).toBe(
+      "reauth_required",
+    );
   });
 });
 
@@ -113,9 +113,9 @@ describe("classifyWithingsResponse — persistent branch", () => {
     // 294 is idempotent-success at the subscribeWebhook call-site;
     // the classifier still surfaces it as persistent so any OTHER
     // endpoint that sees 294 is loud about the contract bug.
-    expect(
-      classifyWithingsResponse(200, { status: 294 }).classification,
-    ).toBe("persistent");
+    expect(classifyWithingsResponse(200, { status: 294 }).classification).toBe(
+      "persistent",
+    );
   });
 
   it("HTTP 400 (unexpected from Withings) → persistent", () => {
@@ -207,7 +207,9 @@ describe("classifyError", () => {
   it("falls back to the message regex when the prototype was lost (pg-boss round-trip)", () => {
     // pg-boss serializes job errors to JSON and re-throws as plain Error
     // on retry — the WithingsApiError prototype does NOT survive.
-    const rehydrated = new Error("Withings refresh error: 102 - User does not exist");
+    const rehydrated = new Error(
+      "Withings refresh error: 102 - User does not exist",
+    );
     expect(classifyError(rehydrated)).toBe("reauth_required");
   });
 

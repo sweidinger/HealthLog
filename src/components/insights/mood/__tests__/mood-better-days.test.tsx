@@ -2,10 +2,7 @@ import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider } from "@/lib/i18n/context";
-import {
-  MoodBetterDays,
-  type MoodBetterDayFactor,
-} from "../mood-better-days";
+import { MoodBetterDays, type MoodBetterDayFactor } from "../mood-better-days";
 
 function render(node: React.ReactNode) {
   return renderToStaticMarkup(
@@ -100,16 +97,14 @@ describe("<MoodBetterDays>", () => {
   });
 
   it("renders the description once and no local generic disclaimer", () => {
-    const html = render(
-      <MoodBetterDays factors={[tagFactor, metricFactor]} />,
-    );
+    const html = render(<MoodBetterDays factors={[tagFactor, metricFactor]} />);
     expect((html.match(/ranked by how strongly/g) ?? []).length).toBe(1);
     // The generic "associations only, not causes" disclaimer now lives once
     // in the page-level Insights footer, not on this board.
     expect(html).not.toContain("Associations only");
     // one row per factor
-    expect((html.match(/data-slot="mood-better-day-factor"/g) ?? []).length).toBe(
-      2,
-    );
+    expect(
+      (html.match(/data-slot="mood-better-day-factor"/g) ?? []).length,
+    ).toBe(2);
   });
 });

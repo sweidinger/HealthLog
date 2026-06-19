@@ -2,6 +2,7 @@
 
 import { Archive, Folders, Loader2, Tags } from "lucide-react";
 
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { ArchivedTagsCard } from "@/components/mood/manage/archived-tags-card";
 import { TagGroupsCard } from "@/components/mood/manage/tag-groups-card";
@@ -45,31 +46,22 @@ export function MoodSection() {
   return (
     <div className="space-y-6">
       {/* Groups — picker group order + own groups. */}
-      <div
-        id="mood-groups"
-        className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
-      >
+      <SettingsCard id="mood-groups" className="scroll-mt-28 space-y-4">
         <SettingsCardHeader
           icon={Folders}
           title={t("mood.manage.groupsTitle")}
         />
         {isLoading || !catalog ? loading : <TagGroupsCard catalog={catalog} />}
-      </div>
+      </SettingsCard>
 
       {/* Tags — visibility, order, edit, move, create. */}
-      <div
-        id="mood-tags"
-        className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
-      >
+      <SettingsCard id="mood-tags" className="scroll-mt-28 space-y-4">
         <SettingsCardHeader icon={Tags} title={t("mood.manage.tagsTitle")} />
         {isLoading || !catalog ? loading : <TagManagerCard catalog={catalog} />}
-      </div>
+      </SettingsCard>
 
       {/* Archived custom tags — restore / hard delete. */}
-      <div
-        id="mood-archived"
-        className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
-      >
+      <SettingsCard id="mood-archived" className="scroll-mt-28 space-y-4">
         <SettingsCardHeader
           icon={Archive}
           title={t("mood.manage.archivedTitle")}
@@ -79,7 +71,7 @@ export function MoodSection() {
         ) : (
           <ArchivedTagsCard catalog={catalog} />
         )}
-      </div>
+      </SettingsCard>
     </div>
   );
 }

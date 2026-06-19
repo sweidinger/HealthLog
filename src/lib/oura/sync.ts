@@ -114,18 +114,23 @@ async function fetchAll(
   const query = { startDate: ymd(start), endDate: ymd(now) };
 
   const run = async (token: string): Promise<OuraMeasurementUpsert[]> => {
-    const [readiness, sleeps, activities, dailySleep, spo2] = await Promise.all([
-      fetchReadiness(token, query),
-      fetchSleep(token, query),
-      fetchDailyActivity(token, query),
-      fetchDailySleep(token, query),
-      fetchDailySpo2(token, query),
-    ]);
+    const [readiness, sleeps, activities, dailySleep, spo2] = await Promise.all(
+      [
+        fetchReadiness(token, query),
+        fetchSleep(token, query),
+        fetchDailyActivity(token, query),
+        fetchDailySleep(token, query),
+        fetchDailySpo2(token, query),
+      ],
+    );
     const out: OuraMeasurementUpsert[] = [];
-    for (const r of readiness) out.push(...toUpsert(mapReadiness(r), "readiness"));
+    for (const r of readiness)
+      out.push(...toUpsert(mapReadiness(r), "readiness"));
     for (const s of sleeps) out.push(...toUpsert(mapSleep(s), "sleep"));
-    for (const a of activities) out.push(...toUpsert(mapDailyActivity(a), "activity"));
-    for (const d of dailySleep) out.push(...toUpsert(mapDailySleep(d), "daily_sleep"));
+    for (const a of activities)
+      out.push(...toUpsert(mapDailyActivity(a), "activity"));
+    for (const d of dailySleep)
+      out.push(...toUpsert(mapDailySleep(d), "daily_sleep"));
     for (const s of spo2) out.push(...toUpsert(mapDailySpo2(s), "spo2"));
     return out;
   };
@@ -246,7 +251,9 @@ export async function upsertOuraMeasurements(
       );
     });
   } catch (err) {
-    getEvent()?.addWarning(`oura: rollup recompute failed for ${userId}: ${err}`);
+    getEvent()?.addWarning(
+      `oura: rollup recompute failed for ${userId}: ${err}`,
+    );
   }
 
   return imported;

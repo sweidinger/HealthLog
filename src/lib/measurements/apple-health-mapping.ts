@@ -695,17 +695,18 @@ export const APPLE_HEALTH_TYPE_MAP: Record<string, AppleHealthMapping> = {
  * aggregator. Mirrors the canonical list documented in
  * `.planning/research/v15-r-a-step-aggregation.md` §6.
  */
-export const CUMULATIVE_HK_TYPES: ReadonlySet<MeasurementType> = new Set<MeasurementType>([
-  "ACTIVITY_STEPS",
-  "ACTIVE_ENERGY_BURNED",
-  "FLIGHTS_CLIMBED",
-  "WALKING_RUNNING_DISTANCE",
-  "TIME_IN_DAYLIGHT",
-  // v1.10.0 — hard-fall detections accumulate across the day; the
-  // daily total is the meaningful reduction (SUM), matching the other
-  // cumulative HK counts.
-  "FALL_COUNT",
-]);
+export const CUMULATIVE_HK_TYPES: ReadonlySet<MeasurementType> =
+  new Set<MeasurementType>([
+    "ACTIVITY_STEPS",
+    "ACTIVE_ENERGY_BURNED",
+    "FLIGHTS_CLIMBED",
+    "WALKING_RUNNING_DISTANCE",
+    "TIME_IN_DAYLIGHT",
+    // v1.10.0 — hard-fall detections accumulate across the day; the
+    // daily total is the meaningful reduction (SUM), matching the other
+    // cumulative HK counts.
+    "FALL_COUNT",
+  ]);
 
 /**
  * v1.7.0 — high-frequency *spot* HealthKit metrics that arrive at
@@ -733,30 +734,31 @@ export const CUMULATIVE_HK_TYPES: ReadonlySet<MeasurementType> = new Set<Measure
  * `source = 'APPLE_HEALTH'` only — manual + Withings spot rows for the
  * same type stay untouched.
  */
-export const HIGH_FREQUENCY_MEAN_TYPES: ReadonlySet<MeasurementType> = new Set<MeasurementType>([
-  "RESPIRATORY_RATE",
-  "AUDIO_EXPOSURE_ENV",
-  "AUDIO_EXPOSURE_HEADPHONE",
-  "WALKING_SPEED",
-  "WALKING_STEP_LENGTH",
-  // v1.8.5 — the gait/mobility metrics Apple Health emits at sampling
-  // granularity (asymmetry/double-support per walk, walking heart-rate
-  // average per walk, steadiness as a near-daily rollup). They previously
-  // mapped to `latest` and belonged to no consolidation set, so every
-  // sample piled up raw. MEAN is the correct daily reduction and matches
-  // the Health-app display; all four stay disjoint from
-  // `CUMULATIVE_HK_TYPES`.
-  "WALKING_ASYMMETRY",
-  "WALKING_DOUBLE_SUPPORT",
-  "WALKING_STEADINESS",
-  "WALKING_HEART_RATE_AVERAGE",
-  // v1.10.0 — stair gait speeds arrive per-climb at sampling
-  // granularity; the per-day MEAN is the right consolidation (same
-  // posture as WALKING_SPEED / WALKING_STEP_LENGTH). Disjoint from
-  // CUMULATIVE_HK_TYPES by construction.
-  "STAIR_ASCENT_SPEED",
-  "STAIR_DESCENT_SPEED",
-]);
+export const HIGH_FREQUENCY_MEAN_TYPES: ReadonlySet<MeasurementType> =
+  new Set<MeasurementType>([
+    "RESPIRATORY_RATE",
+    "AUDIO_EXPOSURE_ENV",
+    "AUDIO_EXPOSURE_HEADPHONE",
+    "WALKING_SPEED",
+    "WALKING_STEP_LENGTH",
+    // v1.8.5 — the gait/mobility metrics Apple Health emits at sampling
+    // granularity (asymmetry/double-support per walk, walking heart-rate
+    // average per walk, steadiness as a near-daily rollup). They previously
+    // mapped to `latest` and belonged to no consolidation set, so every
+    // sample piled up raw. MEAN is the correct daily reduction and matches
+    // the Health-app display; all four stay disjoint from
+    // `CUMULATIVE_HK_TYPES`.
+    "WALKING_ASYMMETRY",
+    "WALKING_DOUBLE_SUPPORT",
+    "WALKING_STEADINESS",
+    "WALKING_HEART_RATE_AVERAGE",
+    // v1.10.0 — stair gait speeds arrive per-climb at sampling
+    // granularity; the per-day MEAN is the right consolidation (same
+    // posture as WALKING_SPEED / WALKING_STEP_LENGTH). Disjoint from
+    // CUMULATIVE_HK_TYPES by construction.
+    "STAIR_ASCENT_SPEED",
+    "STAIR_DESCENT_SPEED",
+  ]);
 
 /**
  * v1.4.30 — externalId shape for daily-aggregated cumulative
@@ -805,9 +807,7 @@ export function dailyStatsExternalId(
  * lookup succeeds because `CUMULATIVE_HK_TYPES` is a subset of the
  * HK-mapped types.
  */
-export function hkIdentifierForType(
-  type: MeasurementType,
-): string | null {
+export function hkIdentifierForType(type: MeasurementType): string | null {
   for (const mapping of Object.values(APPLE_HEALTH_TYPE_MAP)) {
     if (mapping.measurementType === type) return mapping.hkIdentifier;
   }

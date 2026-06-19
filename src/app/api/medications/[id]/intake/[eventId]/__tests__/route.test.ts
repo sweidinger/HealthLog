@@ -269,7 +269,12 @@ import { localHmAsUtc } from "@/lib/tz/local-day";
 const TZ = "Europe/Berlin";
 const SESSION_TZ = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "tester", role: "USER" as const, timezone: TZ },
+  user: {
+    id: "user-1",
+    username: "tester",
+    role: "USER" as const,
+    timezone: TZ,
+  },
 };
 const ATTR_DAY = new Date("2026-06-05T12:00:00Z");
 function at(h: number, m: number): Date {
@@ -541,9 +546,7 @@ describe("PUT — v1.15.18 band re-attribution", () => {
     const body = (await res.json()) as {
       meta?: { errorCode?: string };
     };
-    expect(body.meta?.errorCode).toBe(
-      "medications.intake.force_slot.occupied",
-    );
+    expect(body.meta?.errorCode).toBe("medications.intake.force_slot.occupied");
     expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
     expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
   });
@@ -588,9 +591,8 @@ describe("PUT / DELETE — v1.16.10 inventory consumption", () => {
   });
 
   it("an edit into taken consumes on the row (no slot move)", async () => {
-    const { consumeForIntake, restoreForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake, restoreForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     vi.mocked(prisma.medicationIntakeEvent.findFirst)
       // PUT lookup — pending row anchored on the 07:00 slot.
       .mockResolvedValueOnce({
@@ -610,7 +612,10 @@ describe("PUT / DELETE — v1.16.10 inventory consumption", () => {
       skipped: false,
     } as never);
 
-    const res = await PUT(putReq({ takenAt: at(7, 5).toISOString() }), ROUTE_CTX);
+    const res = await PUT(
+      putReq({ takenAt: at(7, 5).toISOString() }),
+      ROUTE_CTX,
+    );
     expect(res.status).toBe(200);
     expect(consumeForIntake).toHaveBeenCalledTimes(1);
     expect(consumeForIntake).toHaveBeenCalledWith(
@@ -624,9 +629,8 @@ describe("PUT / DELETE — v1.16.10 inventory consumption", () => {
   });
 
   it("an in-place time correction on an already-taken row never consumes (pre-stamp legacy rows must not retro-charge)", async () => {
-    const { consumeForIntake, restoreForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake, restoreForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     vi.mocked(prisma.medicationIntakeEvent.findFirst)
       // PUT lookup — a row already taken BEFORE the edit, stamp NULL
       // (pre-v1.16.10: its stock moved through the legacy hook at take
@@ -658,9 +662,8 @@ describe("PUT / DELETE — v1.16.10 inventory consumption", () => {
   });
 
   it("a taken → skipped edit restores the row's stamp and never consumes", async () => {
-    const { consumeForIntake, restoreForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake, restoreForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     vi.mocked(prisma.medicationIntakeEvent.findFirst)
       .mockResolvedValueOnce({
         id: "e1",
@@ -688,9 +691,8 @@ describe("PUT / DELETE — v1.16.10 inventory consumption", () => {
   });
 
   it("a slot-moving taken edit refunds the old row before tombstoning and consumes the converged row — net one", async () => {
-    const { consumeForIntake, restoreForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake, restoreForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     vi.mocked(prisma.medicationIntakeEvent.findFirst)
       .mockResolvedValueOnce({
         id: "e1",
@@ -730,17 +732,16 @@ describe("PUT / DELETE — v1.16.10 inventory consumption", () => {
       expect.objectContaining({ eventId: "e2" }),
     );
     // The refund runs BEFORE the tombstone write.
-    const restoreOrder = vi.mocked(restoreForIntake).mock
+    const restoreOrder =
+      vi.mocked(restoreForIntake).mock.invocationCallOrder[0];
+    const tombstoneOrder = vi.mocked(prisma.medicationIntakeEvent.update).mock
       .invocationCallOrder[0];
-    const tombstoneOrder = vi.mocked(prisma.medicationIntakeEvent.update)
-      .mock.invocationCallOrder[0];
     expect(restoreOrder).toBeLessThan(tombstoneOrder);
   });
 
   it("DELETE refunds the row's stamp before the tombstone", async () => {
-    const { consumeForIntake, restoreForIntake } = await import(
-      "@/lib/medications/inventory/consumption"
-    );
+    const { consumeForIntake, restoreForIntake } =
+      await import("@/lib/medications/inventory/consumption");
     vi.mocked(prisma.medicationIntakeEvent.findUnique).mockResolvedValue({
       id: "e1",
       userId: "user-1",
@@ -768,10 +769,10 @@ describe("PUT / DELETE — v1.16.10 inventory consumption", () => {
       expect.objectContaining({ userId: "user-1", eventId: "e1" }),
     );
     expect(consumeForIntake).not.toHaveBeenCalled();
-    const restoreOrder = vi.mocked(restoreForIntake).mock
+    const restoreOrder =
+      vi.mocked(restoreForIntake).mock.invocationCallOrder[0];
+    const tombstoneOrder = vi.mocked(prisma.medicationIntakeEvent.update).mock
       .invocationCallOrder[0];
-    const tombstoneOrder = vi.mocked(prisma.medicationIntakeEvent.update)
-      .mock.invocationCallOrder[0];
     expect(restoreOrder).toBeLessThan(tombstoneOrder);
   });
 });

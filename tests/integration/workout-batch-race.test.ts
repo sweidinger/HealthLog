@@ -217,9 +217,7 @@ describe("POST /api/workouts/batch — concurrent-write race", () => {
       where: { userId: TEST_USER_ID },
     });
     expect(stored).toHaveLength(3);
-    const sharedRows = stored.filter(
-      (r) => r.externalId === "hk-uuid-shared",
-    );
+    const sharedRows = stored.filter((r) => r.externalId === "hk-uuid-shared");
     expect(sharedRows).toHaveLength(1);
   });
 });

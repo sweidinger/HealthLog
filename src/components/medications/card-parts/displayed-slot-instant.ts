@@ -134,8 +134,12 @@ function parseHm(value: string): { hour: number; minute: number } | null {
 export function resolveDisplayedSlotInstant(
   input: ResolveDisplayedSlotInstantInput,
 ): Date | null {
-  const { currentWindowStatus, nextDueAt, now, timeZone = "Europe/Berlin" } =
-    input;
+  const {
+    currentWindowStatus,
+    nextDueAt,
+    now,
+    timeZone = "Europe/Berlin",
+  } = input;
 
   // The card surfaces the current/overdue dose band — record that band's
   // slot on today's calendar day. The matched band's `timeOfDay` is the

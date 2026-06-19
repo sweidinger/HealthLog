@@ -118,12 +118,10 @@ export interface WorkoutDetailPayload extends WorkoutListEntry {
   elevationM: number | null;
   pauseDurationSec: number | null;
   metadata: unknown;
-  route:
-    | {
-        geometry: unknown;
-        sampleTimestamps: string[] | null;
-      }
-    | null;
+  route: {
+    geometry: unknown;
+    sampleTimestamps: string[] | null;
+  } | null;
   canonicalId: string;
 }
 

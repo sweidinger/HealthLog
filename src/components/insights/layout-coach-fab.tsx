@@ -238,7 +238,7 @@ export function LayoutCoachFab() {
           "[body:has([data-testid=onboarding-tour])_&]:invisible",
         )}
       >
-        <Sparkles className="size-6" aria-hidden="true" />
+        <Sparkles className="size-6 text-white" aria-hidden="true" />
         {unread ? (
           // v1.18.6 (CCH-03) — discreet "the Coach said something" dot.
           // Deliberately NOT an alarming red (the medication-card rule:
@@ -254,11 +254,7 @@ export function LayoutCoachFab() {
       </Button>
       {/* Polite announcement for the unread-nudge arrival — see the
           rising-edge effect above. */}
-      <span
-        data-slot="coach-fab-live"
-        aria-live="polite"
-        className="sr-only"
-      >
+      <span data-slot="coach-fab-live" aria-live="polite" className="sr-only">
         {liveAnnouncement}
       </span>
     </>

@@ -58,19 +58,34 @@ describe("<CoachDrawerBody> — rail-tray strip", () => {
     expect(html).not.toContain('data-slot="coach-drawer-sources"');
   });
 
-  it("mounts an inline history column on lg+ when historyRail is passed (page surface)", () => {
+  it("mounts a collapsible inline history column on lg+ when historyRail is passed (page surface)", () => {
+    // v1.18.7 W-coach C-UI — the inline rail is now collapsible and
+    // collapsed by default; the page surface passes `onToggleHistory`.
+    // The sub-lg tray trigger keeps `lg:hidden` (the bottom tray covers
+    // small viewports); a separate lg+ toggle (`coach-history-toggle`)
+    // shows the rail on desktop.
     const html = render(
-      <CoachDrawerBody {...baseProps} historyRail={<span>history</span>} />,
+      <CoachDrawerBody
+        {...baseProps}
+        historyRail={<span>history</span>}
+        onToggleHistory={() => undefined}
+      />,
     );
     expect(html).toMatch(
       /<aside[^>]*data-slot="coach-drawer-history"[^>]*lg:flex/,
     );
     expect(html).toContain("history");
-    // The strip button collapses on lg+ where the inline column shows.
+    // Sub-lg tray trigger collapses on lg+ (the inline rail covers it).
     const historyTrigger = html.match(
       /<button[^>]*data-slot="coach-drawer-history-tray-trigger"[^>]*>/,
     );
     expect(historyTrigger?.[0]).toContain("lg:hidden");
+    // lg+ inline-rail toggle is present and labelled as a show control.
+    const railToggle = html.match(
+      /<button[^>]*data-slot="coach-history-toggle"[^>]*>/,
+    );
+    expect(railToggle).not.toBeNull();
+    expect(railToggle?.[0]).toContain('aria-expanded="false"');
   });
 
   it("renders the message thread + composer slots without a disclaimer line", () => {

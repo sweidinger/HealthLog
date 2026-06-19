@@ -77,6 +77,8 @@ import {
   handleRateLimitCleanup,
   handleIdempotencyCleanup,
   handleAuditLogCleanup,
+  CoachMessageCleanupPayload,
+  handleCoachMessageCleanup,
 } from "./cleanup-handlers";
 import {
   HostMetricSamplePayload,
@@ -156,6 +158,16 @@ const PUSH_ATTEMPT_CLEANUP_CRON = "35 3 * * *";
 const MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE = "measurement-tombstone-cleanup";
 
 const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
+// v1.18.7 — daily prune for the encrypted Coach conversation history.
+// coach_messages is append-only and grows forever; rows older than the
+// configurable retention window (default 365 days) are hard-deleted.
+// Slots at 03:50 Europe/Berlin after the measurement-tombstone cleanup
+// (03:40) and the cumulative drain (03:45), staying inside the existing
+// 03:xx maintenance window.
+
+const COACH_MESSAGE_CLEANUP_QUEUE = "coach-message-cleanup";
+
+const COACH_MESSAGE_CLEANUP_CRON = "50 3 * * *";
 
 const allQueues = [
   DATA_BACKUP_QUEUE,
@@ -193,6 +205,10 @@ const allQueues = [
   // the daily schedule silently no-ops and pruned-past-retention tombstones
   // pile up forever.
   MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE,
+  // v1.18.7 — Coach conversation-history retention prune. Without this entry
+  // the daily schedule silently no-ops and the encrypted coach_messages
+  // table grows unbounded.
+  COACH_MESSAGE_CLEANUP_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -242,6 +258,8 @@ const schedules: ScheduleEntry[] = [
   // v1.7.0 — daily 03:40 Europe/Berlin prune for expired measurement
   // tombstones.
   [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
+  // v1.18.7 — daily 03:50 Europe/Berlin prune for stale Coach history.
+  [COACH_MESSAGE_CLEANUP_QUEUE, COACH_MESSAGE_CLEANUP_CRON],
 ];
 
 /**
@@ -322,6 +340,14 @@ export async function registerMaintenanceQueues(
     MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleMeasurementTombstoneCleanup,
+  );
+  // v1.18.7 — daily prune of the encrypted Coach conversation history.
+  // Single-flight like every other cleanup queue; two ticks racing on the
+  // same DELETE is wasted work and the second is a no-op.
+  await boss.work<CoachMessageCleanupPayload>(
+    COACH_MESSAGE_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleCoachMessageCleanup,
   );
   await boss.work<PrDetectionPayload>(
     PR_DETECTION_QUEUE,

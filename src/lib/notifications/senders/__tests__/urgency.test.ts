@@ -106,9 +106,11 @@ describe("ntfy urgent mapping", () => {
       { serverUrl: "https://ntfy.example.com", topic: "t" },
       payload(),
     );
-    const headers = (safeFetchMock.mock.calls[0][1] as {
-      headers: Record<string, string>;
-    }).headers;
+    const headers = (
+      safeFetchMock.mock.calls[0][1] as {
+        headers: Record<string, string>;
+      }
+    ).headers;
     expect(headers.Priority).toBe("default");
     expect(headers.Tags).not.toContain("warning");
   });
@@ -119,9 +121,11 @@ describe("ntfy urgent mapping", () => {
       { serverUrl: "https://ntfy.example.com", topic: "t" },
       payload({ urgent: true, discreet: true }),
     );
-    const headers = (safeFetchMock.mock.calls[0][1] as {
-      headers: Record<string, string>;
-    }).headers;
+    const headers = (
+      safeFetchMock.mock.calls[0][1] as {
+        headers: Record<string, string>;
+      }
+    ).headers;
     expect(headers.Priority).toBe("5");
     expect(headers.Tags).toBe("reminder");
   });
@@ -153,7 +157,12 @@ describe("webhook urgent mapping", () => {
 describe("web-push urgent mapping", () => {
   it("urgent → Urgency:high option + requireInteraction in payload", async () => {
     findManyMock.mockResolvedValue([
-      { id: "s1", endpoint: "https://push.example.com/x", p256dh: "a", auth: "b" },
+      {
+        id: "s1",
+        endpoint: "https://push.example.com/x",
+        p256dh: "a",
+        auth: "b",
+      },
     ]);
     sendNotificationMock.mockResolvedValue(undefined);
     await sendViaWebPush("user-1", payload({ urgent: true }));
@@ -164,7 +173,12 @@ describe("web-push urgent mapping", () => {
 
   it("non-urgent → no urgency option, requireInteraction false", async () => {
     findManyMock.mockResolvedValue([
-      { id: "s1", endpoint: "https://push.example.com/x", p256dh: "a", auth: "b" },
+      {
+        id: "s1",
+        endpoint: "https://push.example.com/x",
+        p256dh: "a",
+        auth: "b",
+      },
     ]);
     sendNotificationMock.mockResolvedValue(undefined);
     await sendViaWebPush("user-1", payload());
@@ -180,7 +194,12 @@ describe("APNs-less instance degrades gracefully", () => {
     // that ARE present at their top tier.
     safeFetchMock.mockResolvedValue({ ok: true, status: 200 });
     findManyMock.mockResolvedValue([
-      { id: "s1", endpoint: "https://push.example.com/x", p256dh: "a", auth: "b" },
+      {
+        id: "s1",
+        endpoint: "https://push.example.com/x",
+        p256dh: "a",
+        auth: "b",
+      },
     ]);
     sendNotificationMock.mockResolvedValue(undefined);
 

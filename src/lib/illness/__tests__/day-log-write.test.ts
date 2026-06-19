@@ -114,7 +114,12 @@ describe("upsertIllnessDayLog", () => {
 
   it("reports inserted (existed=false) on a fresh row", async () => {
     db.illnessDayLog.findUnique.mockResolvedValue(null);
-    const result = await upsertIllnessDayLog("u1", "ep1", base, "Europe/Berlin");
+    const result = await upsertIllnessDayLog(
+      "u1",
+      "ep1",
+      base,
+      "Europe/Berlin",
+    );
     expect(result.existed).toBe(false);
     const args = db.illnessDayLog.upsert.mock.calls[0][0];
     expect(args.where).toEqual({
@@ -143,7 +148,12 @@ describe("upsertIllnessDayLog", () => {
       noteEncrypted: null,
     });
     // Only fever supplied — functionalImpact must keep the stored 3.
-    await upsertIllnessDayLog("u1", "ep1", { date: "2026-06-16", feverC: 37 }, null);
+    await upsertIllnessDayLog(
+      "u1",
+      "ep1",
+      { date: "2026-06-16", feverC: 37 },
+      null,
+    );
     const args = db.illnessDayLog.upsert.mock.calls[0][0];
     expect(args.update.functionalImpact).toBe(3);
     expect(args.update.feverC).toBe(37);

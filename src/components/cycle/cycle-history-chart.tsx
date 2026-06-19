@@ -131,9 +131,7 @@ export function CycleHistoryChart({
           {t("cycle.history.chartTitle")}
         </CardTitle>
         {hasData ? (
-          <CardDescription>
-            {t("cycle.history.chartCaption")}
-          </CardDescription>
+          <CardDescription>{t("cycle.history.chartCaption")}</CardDescription>
         ) : null}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -144,7 +142,10 @@ export function CycleHistoryChart({
         ) : (
           <>
             {/* Stat chips — avg / variability / regularity classification. */}
-            <ul className="flex flex-wrap gap-2" data-slot="cycle-history-stats">
+            <ul
+              className="flex flex-wrap gap-2"
+              data-slot="cycle-history-stats"
+            >
               <StatChip
                 hue={REST_HUE}
                 label={t("cycle.history.avgLength")}
@@ -187,9 +188,7 @@ export function CycleHistoryChart({
               })}
               periodLabel={t("cycle.history.legendPeriodSegment")}
               ovulationLabel={t("cycle.calendar.legendOvulationConfirmed")}
-              barTitle={(b) =>
-                t("cycle.history.days", { count: b.lengthDays })
-              }
+              barTitle={(b) => t("cycle.history.days", { count: b.lengthDays })}
             />
 
             {/* Inline legend mirroring the bar segments. */}
@@ -279,8 +278,7 @@ function BarField({
         const x = cx - barW / 2;
         const totalH = scale(b.lengthDays);
         const topY = baseY - totalH;
-        const periodH =
-          b.periodDays != null ? scale(b.periodDays) : 0;
+        const periodH = b.periodDays != null ? scale(b.periodDays) : 0;
         const periodTopY = baseY - periodH;
         const restH = totalH - periodH;
         const ovuY =
@@ -353,9 +351,7 @@ function StatChip({
 } & React.HTMLAttributes<HTMLLIElement>) {
   return (
     <li
-      className={cn(
-        "bg-muted/40 flex items-center gap-2 rounded-md px-3 py-2",
-      )}
+      className={cn("bg-muted/40 flex items-center gap-2 rounded-md px-3 py-2")}
       {...rest}
     >
       <span

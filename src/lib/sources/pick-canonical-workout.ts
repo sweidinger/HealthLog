@@ -152,8 +152,7 @@ export function pickCanonicalWorkout<T extends WorkoutPickerRow>(
     return { canonical: [], clusters: [] };
   }
 
-  const ladder =
-    options.sourcePriority ?? DEFAULT_WORKOUT_SOURCE_PRIORITY;
+  const ladder = options.sourcePriority ?? DEFAULT_WORKOUT_SOURCE_PRIORITY;
   const proximityMinutes =
     options.proximityMinutes ?? DEFAULT_WORKOUT_PROXIMITY_MINUTES;
   const proximityMs = proximityMinutes * 60_000;

@@ -84,7 +84,7 @@ export function SettingsGroup({
       </CollapsiblePrimitive.Trigger>
       <CollapsiblePrimitive.Content
         data-slot="settings-group-content"
-        className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none"
+        className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden motion-reduce:animate-none"
       >
         <div className="divide-border/60 divide-y">{children}</div>
       </CollapsiblePrimitive.Content>

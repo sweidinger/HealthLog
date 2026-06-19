@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import { Moon } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
-import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,9 +14,7 @@ import {
   SleepStageStackedBar,
   type SleepStageBreakdown,
 } from "./sleep-stage-stacked-bar";
-import { SleepHypnogram, type SleepHypnogramSession } from "./sleep-hypnogram";
 import { SleepDurationChart } from "./sleep-duration-chart";
-import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W4c — Sleep insights composition.
@@ -30,8 +26,14 @@ import { apiGet } from "@/lib/api/api-fetch";
  *   1. Headline card with the average nightly total (h / min) and the
  *      number of nights covered.
  *   2. Stage composition stacked bar (REM / Deep / Core / Awake / In
- *      bed / Asleep).
+ *      bed / Asleep) — the canonical sleep-phase distribution.
  *   3. Duration trend chart with chart-cog parity (`chartKey="sleep"`).
+ *
+ * v1.18.7 W-D — the single-night "Last night" hypnogram card was removed:
+ * its per-stage breakdown (time + %) duplicated the phase distribution the
+ * stage stacked bar already shows directly below it. The `/api/sleep/night`
+ * route stays (the dashboard still reads it); only this redundant surface is
+ * gone.
  *
  * Empty state: no SLEEP_DURATION rows yet → render the "Apple Health
  * sync is coming in v1.5" message with a deep-link to Settings →
@@ -83,22 +85,6 @@ export function SleepOverview() {
   const sleepSummary = data?.summaries?.SLEEP_DURATION ?? null;
   const sleepStages = data?.sleepStages ?? null;
   const totalCount = sleepSummary?.count ?? 0;
-
-  // v1.11.5 — last-night hypnogram. Read-only over existing per-stage rows;
-  // gated on the same data-bearing branch so a source-less account never
-  // fetches. Shares the measurement-write invalidation prefix.
-  const nightQuery = useQuery({
-    queryKey: queryKeys.sleepNight(),
-    queryFn: async () => {
-      return apiGet<{
-        night: string | null;
-        main: SleepHypnogramSession | null;
-      }>("/api/sleep/night");
-    },
-    enabled: isAuthenticated && totalCount > 0,
-    staleTime: 60 * 1000,
-  });
-  const lastNight = nightQuery.data?.main ?? null;
 
   if (!isLoading && totalCount === 0) {
     return (
@@ -153,8 +139,6 @@ export function SleepOverview() {
           </div>
         </CardContent>
       </Card>
-
-      {lastNight && <SleepHypnogram session={lastNight} />}
 
       {sleepStages ? (
         <SleepStageStackedBar breakdown={sleepStages} />

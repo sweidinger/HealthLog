@@ -21,8 +21,10 @@ import {
   Bell,
   Blocks,
   Bot,
+  CalendarCheck,
   Download,
   FileHeart,
+  FlaskConical,
   Info,
   KeyRound,
   LayoutDashboard,
@@ -31,9 +33,11 @@ import {
   Pill,
   Radio,
   Settings2,
+  Share2,
   SlidersHorizontal,
   Smile,
   Sparkles,
+  Thermometer,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -160,6 +164,34 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     icon: Smile,
     moduleGate: "mood",
   },
+  // v1.18.7 — Labor: the labs customise surface (view, sort, biomarkers)
+  // becomes a first-class Settings section, gated on the `labs` module. Was
+  // a standalone `ModuleSettingsFrame` page reached from the /labs wrench.
+  {
+    slug: "labs",
+    titleKey: "settings.sections.labs.title",
+    icon: FlaskConical,
+    moduleGate: "labs",
+  },
+  // v1.18.7 — Krankheitstagebuch: the illness-journal customise surface
+  // (view + order of episodes), gated on the `illness` module. Was a
+  // standalone `ModuleSettingsFrame` page reached from the /illness wrench.
+  {
+    slug: "illness",
+    titleKey: "settings.sections.illness.title",
+    icon: Thermometer,
+    moduleGate: "illness",
+  },
+  // v1.18.7 — Vorsorge: the preventive-care reminders customise surface
+  // (view, order, individual reminders). NOT module-gated — preventive-care
+  // reminders are not a toggleable module — so the entry is always shown.
+  // Was a standalone `ModuleSettingsFrame` page reached from the /vorsorge
+  // wrench.
+  {
+    slug: "vorsorge",
+    titleKey: "settings.sections.vorsorge.title",
+    icon: CalendarCheck,
+  },
   {
     slug: "thresholds",
     titleKey: "settings.sections.thresholds.title",
@@ -192,6 +224,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "gesundheitsakte",
     titleKey: "settings.sections.gesundheitsakte.title",
     icon: FileHeart,
+  },
+  // v1.18.7 — clinician share links sit next to the health record: minting a
+  // time-boxed read-only link is a sharing face of the same data. Not
+  // module-gated; the link surface is always available (the public
+  // `/c/[token]` view and the `/api/share-links` lifecycle are unchanged).
+  {
+    slug: "sharing",
+    titleKey: "settings.sections.sharing.title",
+    icon: Share2,
   },
   {
     slug: "export",
@@ -389,7 +430,9 @@ export function SettingsShell({
       {/* v1.18.6.1 — on mobile the heading sits above the chip strip; on
           desktop it is rendered inside the grid (row 1 / content column) so
           it does not paint twice. */}
-      {headingBlock ? <div className="mb-4 md:hidden">{headingBlock}</div> : null}
+      {headingBlock ? (
+        <div className="mb-4 md:hidden">{headingBlock}</div>
+      ) : null}
 
       {/* Mobile section strip — horizontal scroll, hidden on md+.
           `no-scrollbar` (defined in `globals.css`) suppresses the

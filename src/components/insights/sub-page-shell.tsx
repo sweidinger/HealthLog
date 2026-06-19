@@ -315,7 +315,7 @@ export function SubPageShell({
                       data-slot="metric-reference-guidance"
                       className={cn(
                         "text-muted-foreground hover:text-foreground ml-1.5 inline-flex",
-                        "align-middle focus-visible:ring-ring/50 rounded-full",
+                        "focus-visible:ring-ring/50 rounded-full align-middle",
                         "focus-visible:ring-2 focus-visible:outline-none",
                       )}
                       aria-label={t(

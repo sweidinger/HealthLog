@@ -71,7 +71,9 @@ export interface VascularAgeDeltaValue {
  * Place a vascular-age delta in a band. Pure. ≤ −2 yr → green (vascular age
  * comfortably below chronological); within ±2 yr → yellow; ≥ +2 yr → red.
  */
-export function placeVascularBand(deltaYears: number | null): VascularBand | null {
+export function placeVascularBand(
+  deltaYears: number | null,
+): VascularBand | null {
   if (deltaYears == null) return null;
   if (deltaYears <= -NORMAL_BAND_YEARS) return "green";
   if (deltaYears >= NORMAL_BAND_YEARS) return "red";

@@ -34,10 +34,7 @@
  * AI provider is configured anywhere, so clients can stop waiting.
  * The builder NEVER POSTs `/api/insights/generate`.
  */
-import type {
-  PrismaClient,
-  MeasurementType,
-} from "@/generated/prisma/client";
+import type { PrismaClient, MeasurementType } from "@/generated/prisma/client";
 import { computeSummariesSlice } from "@/lib/analytics/summaries-slice";
 import { getUnitForType } from "@/lib/validations/measurement";
 import {
@@ -414,10 +411,8 @@ function enrichLastSeen(
   raw: Record<string, { lastSeenAt: string } | null>,
   nowMs: number,
 ): Record<string, { lastSeenAt: string; daysAgo: number } | null> {
-  const out: Record<
-    string,
-    { lastSeenAt: string; daysAgo: number } | null
-  > = {};
+  const out: Record<string, { lastSeenAt: string; daysAgo: number } | null> =
+    {};
   for (const [type, slot] of Object.entries(raw)) {
     if (slot === null) {
       out[type] = null;
@@ -597,9 +592,7 @@ async function buildExtras(
       const ctxRows = glucoseRows.filter((r) => r.glucoseContext === ctx);
       if (ctxRows.length === 0) continue;
       glucoseByContext[ctx] = summarize(
-        ctxRows.map(
-          (r): DataPoint => ({ date: r.measuredAt, value: r.value }),
-        ),
+        ctxRows.map((r): DataPoint => ({ date: r.measuredAt, value: r.value })),
       );
     }
   }
@@ -630,9 +623,7 @@ async function buildExtras(
 }
 
 /** Parse + validate the cached `dailyBriefing` block; null when unusable. */
-function parseCachedBriefing(
-  cachedText: string | null,
-): DailyBriefing | null {
+function parseCachedBriefing(cachedText: string | null): DailyBriefing | null {
   if (!cachedText) return null;
   try {
     const parsed = JSON.parse(cachedText) as Record<string, unknown>;
@@ -681,8 +672,7 @@ async function liftBriefing(
 
   const cachedAt = user.insightsCachedAt;
   const updatedAt = cachedAt?.toISOString() ?? null;
-  const stale =
-    !cachedAt || Date.now() - cachedAt.getTime() >= BRIEFING_TTL_MS;
+  const stale = !cachedAt || Date.now() - cachedAt.getTime() >= BRIEFING_TTL_MS;
   const cachedBriefing = parseCachedBriefing(user.insightsCachedText);
 
   if (!stale && cachedBriefing) {
@@ -727,9 +717,7 @@ function buildMetricStates(
   lastSeenByType: Record<string, { lastSeenAt: string } | null>,
 ): Record<string, DashboardMetricState> {
   const out: Record<string, DashboardMetricState> = {};
-  for (const [type, metricKindRaw] of Object.entries(
-    METRIC_KIND_RAW_BY_TYPE,
-  )) {
+  for (const [type, metricKindRaw] of Object.entries(METRIC_KIND_RAW_BY_TYPE)) {
     if (!metricKindRaw) continue;
     const summary = summaries[type];
     const lastSeen = lastSeenByType[type];

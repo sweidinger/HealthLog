@@ -75,9 +75,21 @@ describe("GET /api/sync/state (real Postgres)", () => {
         timezone: string;
         lastSyncedAt: string | null;
         serverNow: string;
-        measurements: { lastUpdatedAt: string | null; liveCount: number; tombstonedCount: number };
-        mood: { lastUpdatedAt: string | null; liveCount: number; tombstonedCount: number };
-        intakes: { lastUpdatedAt: string | null; liveCount: number; tombstonedCount: number };
+        measurements: {
+          lastUpdatedAt: string | null;
+          liveCount: number;
+          tombstonedCount: number;
+        };
+        mood: {
+          lastUpdatedAt: string | null;
+          liveCount: number;
+          tombstonedCount: number;
+        };
+        intakes: {
+          lastUpdatedAt: string | null;
+          liveCount: number;
+          tombstonedCount: number;
+        };
       };
     };
     expect(json.data.userId).toBe(TEST_USER_ID);

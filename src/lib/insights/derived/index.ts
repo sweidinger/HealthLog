@@ -87,10 +87,7 @@ export {
   computeSixMinuteWalkBand,
   placeSixMinuteWalkBand,
 } from "./six-minute-walk";
-export type {
-  SixMinuteWalkValue,
-  SixMinuteWalkBand,
-} from "./six-minute-walk";
+export type { SixMinuteWalkValue, SixMinuteWalkBand } from "./six-minute-walk";
 
 export { computeVascularAgeDelta, placeVascularBand } from "./vascular-age";
 export type { VascularAgeDeltaValue, VascularBand } from "./vascular-age";

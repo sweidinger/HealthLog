@@ -46,8 +46,18 @@ describe("computeHrvBalance", () => {
   it("passes the baseline insufficient through verbatim", async () => {
     computeVitalsBaseline.mockResolvedValueOnce({
       status: "insufficient",
-      coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 3, missing: [] },
-      provenance: { inputs: ["HEART_RATE_VARIABILITY"], source: "DAY", windowDays: 30, computedAt: "x" },
+      coverage: {
+        requiredInputs: 1,
+        presentInputs: 1,
+        historyDays: 3,
+        missing: [],
+      },
+      provenance: {
+        inputs: ["HEART_RATE_VARIABILITY"],
+        source: "DAY",
+        windowDays: 30,
+        computedAt: "x",
+      },
       reason: "insufficient_history_for_band",
     });
     const r = await computeHrvBalance("u1", PROFILE, { now: NOW });
@@ -61,10 +71,28 @@ describe("computeHrvBalance", () => {
   it("builds a balanced band when the recent trend sits inside the band", async () => {
     computeVitalsBaseline.mockResolvedValueOnce({
       status: "ok",
-      value: { type: "HEART_RATE_VARIABILITY", center: 60, low: 40, high: 80, spread: 20, sampleDays: 21, k: 3 },
-      coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 21, missing: [] },
+      value: {
+        type: "HEART_RATE_VARIABILITY",
+        center: 60,
+        low: 40,
+        high: 80,
+        spread: 20,
+        sampleDays: 21,
+        k: 3,
+      },
+      coverage: {
+        requiredInputs: 1,
+        presentInputs: 1,
+        historyDays: 21,
+        missing: [],
+      },
       confidence: { score: 70, band: "medium" },
-      provenance: { inputs: ["HEART_RATE_VARIABILITY"], source: "DAY", windowDays: 30, computedAt: "x" },
+      provenance: {
+        inputs: ["HEART_RATE_VARIABILITY"],
+        source: "DAY",
+        windowDays: 30,
+        computedAt: "x",
+      },
     });
     // Recent trend right around the center → balanced.
     readDayMeanSeries.mockResolvedValueOnce(recentSeries([58, 62, 60]));
@@ -87,10 +115,28 @@ describe("computeHrvBalance", () => {
     // Drive a suppressed recent 7-day trend and assert it places "low".
     computeVitalsBaseline.mockResolvedValueOnce({
       status: "ok",
-      value: { type: "HEART_RATE_VARIABILITY", center: 60, low: 40, high: 80, spread: 20, sampleDays: 21, k: 3 },
-      coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 21, missing: [] },
+      value: {
+        type: "HEART_RATE_VARIABILITY",
+        center: 60,
+        low: 40,
+        high: 80,
+        spread: 20,
+        sampleDays: 21,
+        k: 3,
+      },
+      coverage: {
+        requiredInputs: 1,
+        presentInputs: 1,
+        historyDays: 21,
+        missing: [],
+      },
       confidence: { score: 70, band: "medium" },
-      provenance: { inputs: ["HEART_RATE_VARIABILITY"], source: "DAY", windowDays: 30, computedAt: "x" },
+      provenance: {
+        inputs: ["HEART_RATE_VARIABILITY"],
+        source: "DAY",
+        windowDays: 30,
+        computedAt: "x",
+      },
     });
     readDayMeanSeries.mockResolvedValueOnce(recentSeries([30, 28, 32]));
     const r = await computeHrvBalance("u1", PROFILE, { now: NOW });
@@ -104,10 +150,28 @@ describe("computeHrvBalance", () => {
   it("flags 'unbalanced' when the recent trend runs above the band high edge", async () => {
     computeVitalsBaseline.mockResolvedValueOnce({
       status: "ok",
-      value: { type: "HEART_RATE_VARIABILITY", center: 60, low: 40, high: 80, spread: 20, sampleDays: 21, k: 3 },
-      coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 21, missing: [] },
+      value: {
+        type: "HEART_RATE_VARIABILITY",
+        center: 60,
+        low: 40,
+        high: 80,
+        spread: 20,
+        sampleDays: 21,
+        k: 3,
+      },
+      coverage: {
+        requiredInputs: 1,
+        presentInputs: 1,
+        historyDays: 21,
+        missing: [],
+      },
       confidence: { score: 70, band: "medium" },
-      provenance: { inputs: ["HEART_RATE_VARIABILITY"], source: "DAY", windowDays: 30, computedAt: "x" },
+      provenance: {
+        inputs: ["HEART_RATE_VARIABILITY"],
+        source: "DAY",
+        windowDays: 30,
+        computedAt: "x",
+      },
     });
     readDayMeanSeries.mockResolvedValueOnce(recentSeries([95, 100, 98]));
     const r = await computeHrvBalance("u1", PROFILE, { now: NOW });
@@ -121,10 +185,28 @@ describe("computeHrvBalance", () => {
   it("uses only the last ≤ 7 DAY means for the recent trend", async () => {
     computeVitalsBaseline.mockResolvedValueOnce({
       status: "ok",
-      value: { type: "HEART_RATE_VARIABILITY", center: 60, low: 40, high: 80, spread: 20, sampleDays: 21, k: 3 },
-      coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 21, missing: [] },
+      value: {
+        type: "HEART_RATE_VARIABILITY",
+        center: 60,
+        low: 40,
+        high: 80,
+        spread: 20,
+        sampleDays: 21,
+        k: 3,
+      },
+      coverage: {
+        requiredInputs: 1,
+        presentInputs: 1,
+        historyDays: 21,
+        missing: [],
+      },
       confidence: { score: 70, band: "medium" },
-      provenance: { inputs: ["HEART_RATE_VARIABILITY"], source: "DAY", windowDays: 30, computedAt: "x" },
+      provenance: {
+        inputs: ["HEART_RATE_VARIABILITY"],
+        source: "DAY",
+        windowDays: 30,
+        computedAt: "x",
+      },
     });
     // 10 days: the first three (high) must NOT pull the recent mean up — only
     // the last 7 (all ~30) count, so the trend is suppressed → "low".

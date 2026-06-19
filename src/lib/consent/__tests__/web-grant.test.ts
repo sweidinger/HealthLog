@@ -78,7 +78,9 @@ describe("ensureWebAiConsentReceipt", () => {
   });
 
   it("is a no-op when an active ai_full receipt already exists", async () => {
-    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(row() as never);
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(
+      row() as never,
+    );
 
     const result = await ensureWebAiConsentReceipt("user-1");
 
@@ -136,8 +138,9 @@ describe("ensureWebAiConsentReceipt — two concurrent grants", () => {
     // inserts; the second sees the now-filled slot and no-ops.
     let activeRow: ReturnType<typeof row> | null = null;
 
-    vi.mocked(prisma.consentReceipt.findFirst).mockImplementation((async () =>
-      activeRow) as never);
+    vi.mocked(prisma.consentReceipt.findFirst).mockImplementation(
+      (async () => activeRow) as never,
+    );
     vi.mocked(prisma.consentReceipt.create).mockImplementation((async () => {
       activeRow = row();
       return activeRow;

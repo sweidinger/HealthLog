@@ -103,13 +103,14 @@ export function RecentWorkoutsTile() {
   return (
     <div
       data-slot="recent-workouts-tile"
-      className={cn(
-        "bg-card border-border space-y-3 rounded-xl border p-4",
-      )}
+      className={cn("bg-card border-border space-y-3 rounded-xl border p-4")}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Activity className="text-muted-foreground size-4" aria-hidden="true" />
+          <Activity
+            className="text-muted-foreground size-4"
+            aria-hidden="true"
+          />
           <h2 className="text-sm font-semibold">
             {t("dashboard.recentWorkouts.title")}
           </h2>
@@ -134,9 +135,7 @@ export function RecentWorkoutsTile() {
         </p>
       ) : workouts.length === 0 ? (
         <div data-slot="recent-workouts-empty" className="space-y-1">
-          <p className="text-sm">
-            {t("dashboard.recentWorkouts.empty.title")}
-          </p>
+          <p className="text-sm">{t("dashboard.recentWorkouts.empty.title")}</p>
           <p className="text-muted-foreground text-xs">
             {t("dashboard.recentWorkouts.empty.cta")}
           </p>

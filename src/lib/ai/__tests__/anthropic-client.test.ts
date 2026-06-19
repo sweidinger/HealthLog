@@ -53,6 +53,65 @@ describe("AnthropicClient", () => {
     expect(body.messages[0].content.toLowerCase()).toContain("json");
   });
 
+  it("prefills the assistant turn with `{` and re-prepends it for JSON surfaces", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          // Model continues from the prefilled `{`, so its text omits it.
+          content: [{ type: "text", text: '"summary":"ok"}' }],
+          usage: { input_tokens: 5, output_tokens: 5 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new AnthropicClient({
+      apiKey: "sk-ant-test",
+      model: "claude-3-5-sonnet-latest",
+    });
+
+    const result = await client.generateCompletion({
+      systemPrompt: "s",
+      userPrompt: "u",
+      responseFormat: "json",
+    });
+
+    // The returned content is the complete object (the `{` re-prepended).
+    expect(result.content).toBe('{"summary":"ok"}');
+    expect(JSON.parse(result.content)).toEqual({ summary: "ok" });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.messages).toHaveLength(2);
+    expect(body.messages[1]).toEqual({ role: "assistant", content: "{" });
+  });
+
+  it("does NOT prefill for the prose (non-JSON) path", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          content: [{ type: "text", text: "Just some prose." }],
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new AnthropicClient({
+      apiKey: "sk-ant-test",
+      model: "claude-3-5-sonnet-latest",
+    });
+
+    const result = await client.generateCompletion({
+      systemPrompt: "s",
+      userPrompt: "u",
+    });
+
+    expect(result.content).toBe("Just some prose.");
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.messages).toHaveLength(1);
+    expect(body.messages[0].role).toBe("user");
+  });
+
   it("uses custom baseUrl when provided", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,

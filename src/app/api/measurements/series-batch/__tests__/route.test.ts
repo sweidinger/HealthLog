@@ -20,8 +20,7 @@ vi.mock("@/lib/db-compat", () => ({
 }));
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 vi.mock("@/lib/logging/context", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/logging/context")>();
+  const actual = await importOriginal<typeof import("@/lib/logging/context")>();
   return { ...actual, annotate: vi.fn() };
 });
 vi.mock("next/headers", () => ({

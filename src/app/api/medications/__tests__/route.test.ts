@@ -94,9 +94,9 @@ beforeEach(() => {
   // Default happy-path stub: return the data shape the caller passed in
   // so test assertions can inspect what the route actually forwarded
   // to Prisma without re-implementing the create-returning DB.
-  vi.mocked(prisma.medication.create).mockImplementation((async (
-    args: { data: Record<string, unknown> },
-  ) => ({
+  vi.mocked(prisma.medication.create).mockImplementation((async (args: {
+    data: Record<string, unknown>;
+  }) => ({
     id: "med-1",
     userId: "user-1",
     ...args.data,
@@ -463,9 +463,7 @@ describe("POST /api/medications — as-needed (v1.16.11, #316)", () => {
       details: { issues: Array<{ message: string }> };
     };
     expect(
-      body.details.issues.some((i) =>
-        i.message.includes("mutually exclusive"),
-      ),
+      body.details.issues.some((i) => i.message.includes("mutually exclusive")),
     ).toBe(true);
   });
 
@@ -494,8 +492,8 @@ describe("POST /api/medications — as-needed (v1.16.11, #316)", () => {
     const body = (await res.json()) as {
       details: { issues: Array<{ path: string; message: string }> };
     };
-    expect(
-      body.details.issues.some((i) => i.path.includes("schedules")),
-    ).toBe(true);
+    expect(body.details.issues.some((i) => i.path.includes("schedules"))).toBe(
+      true,
+    );
   });
 });

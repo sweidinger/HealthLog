@@ -92,10 +92,7 @@ async function createGroup(label: string, icon?: string): Promise<string> {
   return body.data.key;
 }
 
-async function createTag(
-  label: string,
-  categoryKey?: string,
-): Promise<string> {
+async function createTag(label: string, categoryKey?: string): Promise<string> {
   const { POST } = await import("@/app/api/mood/tags/custom/route");
   const res = await POST(
     jsonReq("http://localhost/api/mood/tags/custom", "POST", {
@@ -161,7 +158,9 @@ describe("custom mood-tag groups (real Postgres)", () => {
     for (let i = 0; i < 12; i++) await createGroup(`G${i}`);
     const { POST } = await import("@/app/api/mood/tags/groups/route");
     const res = await POST(
-      jsonReq("http://localhost/api/mood/tags/groups", "POST", { label: "Nope" }),
+      jsonReq("http://localhost/api/mood/tags/groups", "POST", {
+        label: "Nope",
+      }),
     );
     expect(res.status).toBe(422);
   });
@@ -171,9 +170,8 @@ describe("custom mood-tag groups (real Postgres)", () => {
     const groupKey = await createGroup("Privat");
 
     await actAs(USER_B, "mtg-b");
-    const { PATCH, DELETE } = await import(
-      "@/app/api/mood/tags/groups/[key]/route"
-    );
+    const { PATCH, DELETE } =
+      await import("@/app/api/mood/tags/groups/[key]/route");
     const patch = await PATCH(
       jsonReq(`http://localhost/api/mood/tags/groups/${groupKey}`, "PATCH", {
         label: "Hijack",
@@ -204,9 +202,7 @@ describe("custom mood-tag groups (real Postgres)", () => {
     const tagKey = await createTag("Bouldern", groupKey);
 
     // Seed a layout that references the group.
-    const { PUT: putLayout } = await import(
-      "@/app/api/mood/tags/layout/route"
-    );
+    const { PUT: putLayout } = await import("@/app/api/mood/tags/layout/route");
     const layoutRes = await putLayout(
       jsonReq("http://localhost/api/mood/tags/layout", "PUT", {
         groupOrder: [groupKey, "feelings"],
@@ -264,9 +260,8 @@ describe("custom mood-tag groups (real Postgres)", () => {
     const groupKey = await createGroup("Sport");
     await createTag("Klettern", groupKey);
 
-    const { PUT: putLayout, GET: getLayout } = await import(
-      "@/app/api/mood/tags/layout/route"
-    );
+    const { PUT: putLayout, GET: getLayout } =
+      await import("@/app/api/mood/tags/layout/route");
     // 1st PUT: placements only.
     await putLayout(
       jsonReq("http://localhost/api/mood/tags/layout", "PUT", {

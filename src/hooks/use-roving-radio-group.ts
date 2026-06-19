@@ -70,7 +70,9 @@ export function rovingRadioNextIndex(
   const firstEnabled = firstEnabledIndex(count, enabled);
   if (firstEnabled === null) return null;
   const cursor =
-    current >= 0 && current < count && enabled(current) ? current : firstEnabled;
+    current >= 0 && current < count && enabled(current)
+      ? current
+      : firstEnabled;
 
   switch (key) {
     case "ArrowRight":

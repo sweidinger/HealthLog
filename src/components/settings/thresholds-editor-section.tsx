@@ -19,6 +19,7 @@ import {
   type EffectiveRange,
 } from "@/lib/analytics/effective-range";
 import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
+import { SettingsCard } from "@/components/settings/settings-card";
 
 interface ThresholdsApiResponse {
   effective: Record<ThresholdMetric, EffectiveRange>;
@@ -115,10 +116,7 @@ export function ThresholdsEditorSection({ id }: { id: string }) {
   });
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
-    >
+    <SettingsCard id={id} className="scroll-mt-28 space-y-4">
       {/* v1.4.19 A8 / F-07: page header `settings.sections.thresholds.*`
           already provides the title + description for this route, so the
           card-level title + subtitle were a duplicate of the page header.
@@ -159,7 +157,7 @@ export function ThresholdsEditorSection({ id }: { id: string }) {
           ))}
         </div>
       )}
-    </div>
+    </SettingsCard>
   );
 }
 
@@ -323,6 +321,7 @@ function MetricRow({
                 onClick={() => valid && onSave({ min: minNum, max: maxNum })}
                 disabled={busy || !valid}
                 size="sm"
+                className="min-h-11 sm:min-h-9"
               >
                 {t("common.save")}
               </Button>
@@ -330,6 +329,7 @@ function MetricRow({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="min-h-11 sm:min-h-9"
                   onClick={onReset}
                   disabled={busy}
                 >

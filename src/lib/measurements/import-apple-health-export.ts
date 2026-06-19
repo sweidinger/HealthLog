@@ -26,10 +26,7 @@ import { pipeline } from "node:stream/promises";
 import sax from "sax";
 
 import { Prisma } from "@/generated/prisma/client";
-import type {
-  MeasurementType,
-  PrismaClient,
-} from "@/generated/prisma/client";
+import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
 import {
   APPLE_HEALTH_SLEEP_STAGE_MAP,
   APPLE_HEALTH_TYPE_MAP,
@@ -214,8 +211,11 @@ export function parseRecordValue(
     const minutes = Math.max(0, (end.getTime() - start.getTime()) / 60_000);
     return { value: minutes, sleepStage: stage };
   }
-  if (hkIdentifier === "HKCategoryTypeIdentifierEnvironmentalAudioExposureEvent"
-    || hkIdentifier === "HKCategoryTypeIdentifierHeadphoneAudioExposureEvent") {
+  if (
+    hkIdentifier ===
+      "HKCategoryTypeIdentifierEnvironmentalAudioExposureEvent" ||
+    hkIdentifier === "HKCategoryTypeIdentifierHeadphoneAudioExposureEvent"
+  ) {
     // Apple writes these category-type events with empty / sentinel
     // value strings. `mapAppleHealthEntry()` ignores the inbound
     // number and always converts to a 1.0 count.
@@ -300,9 +300,12 @@ export async function streamParseExportXml(
   // Context for a reproductive `<Record>` whose protection metadata
   // arrives as a following `<MetadataEntry>` child (SexualActivity). Held
   // between the Record open-tag and its close-tag so the child can attach.
-  let currentCycleRecord:
-    | { hkType: string; dayKey: string; rawValue: string | undefined; protectionUsed?: boolean }
-    | null = null;
+  let currentCycleRecord: {
+    hkType: string;
+    dayKey: string;
+    rawValue: string | undefined;
+    protectionUsed?: boolean;
+  } | null = null;
 
   // Cumulative-type fold: type -> dayKey -> running sum.
   const cumulativeBucket = new Map<MeasurementType, Map<string, number>>();
@@ -553,7 +556,9 @@ export async function streamParseExportXml(
           new Date(attrs.endDate ?? attrs.startDate ?? ""),
           userTimezone,
         );
-        currentCycleRecord = Number.isNaN(Date.parse(attrs.endDate ?? attrs.startDate ?? ""))
+        currentCycleRecord = Number.isNaN(
+          Date.parse(attrs.endDate ?? attrs.startDate ?? ""),
+        )
           ? null
           : { hkType, dayKey, rawValue: attrs.value };
         return;
@@ -648,7 +653,10 @@ export async function streamParseExportXml(
 
       const startDate = new Date(attrs.startDate);
       const endDate = new Date(attrs.endDate);
-      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      if (
+        Number.isNaN(startDate.getTime()) ||
+        Number.isNaN(endDate.getTime())
+      ) {
         unknown[`Workout::bad_dates`] =
           (unknown[`Workout::bad_dates`] ?? 0) + 1;
         return;
@@ -709,17 +717,27 @@ export async function streamParseExportXml(
       // Attach the SexualActivity protection flag to the open cycle record.
       // Apple writes `HKMetadataKeySexualActivityProtectionUsed` with a
       // `"0"`/`"1"` (or `"true"`/`"false"`) value.
-      if (currentCycleRecord && attrs.key === HK_SEXUAL_ACTIVITY_PROTECTION_META) {
+      if (
+        currentCycleRecord &&
+        attrs.key === HK_SEXUAL_ACTIVITY_PROTECTION_META
+      ) {
         const v = (attrs.value ?? "").toLowerCase();
-        currentCycleRecord.protectionUsed = v === "1" || v === "true" || v === "yes";
+        currentCycleRecord.protectionUsed =
+          v === "1" || v === "true" || v === "yes";
       }
       return;
     }
 
-    if (name === "ExportDate" || name === "Me" || name === "Correlation"
-        || name === "ActivitySummary"
-        || name === "WorkoutEvent" || name === "WorkoutRoute"
-        || name === "FileReference" || name === "HealthData") {
+    if (
+      name === "ExportDate" ||
+      name === "Me" ||
+      name === "Correlation" ||
+      name === "ActivitySummary" ||
+      name === "WorkoutEvent" ||
+      name === "WorkoutRoute" ||
+      name === "FileReference" ||
+      name === "HealthData"
+    ) {
       // Known elements we intentionally ignore at the open-tag stage.
       // Correlation envelopes flatten naturally because their child
       // `<Record>` elements still fire their own `onopentag`.
@@ -770,22 +788,25 @@ export async function streamParseExportXml(
         }
         // Drain any batches the parser filled to keep memory bounded.
         const shouldFlush =
-          spotBatch.length >= spotBatchSize
-          || workoutBatch.length >= workoutBatchSize;
+          spotBatch.length >= spotBatchSize ||
+          workoutBatch.length >= workoutBatchSize;
         const drain = async (): Promise<void> => {
           if (spotBatch.length >= spotBatchSize) await flushSpotBatch();
-          if (workoutBatch.length >= workoutBatchSize) await flushWorkoutBatch();
+          if (workoutBatch.length >= workoutBatchSize)
+            await flushWorkoutBatch();
           const now = Date.now();
           if (
-            (recordsRead > 0 && recordsRead % PROGRESS_TICK_RECORDS === 0)
-            || now - lastProgressEmitAt > PROGRESS_EMIT_INTERVAL_MS
+            (recordsRead > 0 && recordsRead % PROGRESS_TICK_RECORDS === 0) ||
+            now - lastProgressEmitAt > PROGRESS_EMIT_INTERVAL_MS
           ) {
             lastProgressEmitAt = now;
             await emitProgress("parsing");
           }
         };
         if (shouldFlush || recordsRead % PROGRESS_TICK_RECORDS === 0) {
-          drain().then(() => callback()).catch((err) => callback(err));
+          drain()
+            .then(() => callback())
+            .catch((err) => callback(err));
         } else {
           callback();
         }

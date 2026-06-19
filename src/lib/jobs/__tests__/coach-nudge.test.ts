@@ -167,9 +167,7 @@ describe("evaluateBpTrigger", () => {
 
 describe("evaluateScoreTrigger", () => {
   it("fires on a sharp week-over-week drop", () => {
-    expect(
-      evaluateScoreTrigger([50, 52, 48], [70, 72, 68]),
-    ).toBe(true);
+    expect(evaluateScoreTrigger([50, 52, 48], [70, 72, 68])).toBe(true);
   });
 
   it("stays silent under the drop threshold", () => {
@@ -328,15 +326,13 @@ describe("evaluateWeightTrigger", () => {
   const range = { greenMin: 60, greenMax: 80 };
 
   it("fires when the weekly mean sits outside the range and drifts away", () => {
-    expect(
-      evaluateWeightTrigger([82, 82.5, 83], [81, 81.3, 81.5], range),
-    ).toBe(true);
+    expect(evaluateWeightTrigger([82, 82.5, 83], [81, 81.3, 81.5], range)).toBe(
+      true,
+    );
   });
 
   it("fires for a drift below the range too", () => {
-    expect(evaluateWeightTrigger([57, 57, 57], [59, 59, 59], range)).toBe(
-      true,
-    );
+    expect(evaluateWeightTrigger([57, 57, 57], [59, 59, 59], range)).toBe(true);
   });
 
   it("stays silent inside the range", () => {
@@ -353,9 +349,9 @@ describe("evaluateWeightTrigger", () => {
 
   it("stays silent under the drift floor", () => {
     // 1.3 kg vs 1.0 kg from the range — only 0.3 kg of drift.
-    expect(
-      evaluateWeightTrigger([81.3, 81.3, 81.3], [81, 81, 81], range),
-    ).toBe(false);
+    expect(evaluateWeightTrigger([81.3, 81.3, 81.3], [81, 81, 81], range)).toBe(
+      false,
+    );
   });
 
   it("requires enough readings in both windows", () => {
@@ -364,9 +360,7 @@ describe("evaluateWeightTrigger", () => {
   });
 
   it("never fires without a resolvable range", () => {
-    expect(evaluateWeightTrigger([85, 85, 85], [81, 81, 81], null)).toBe(
-      false,
-    );
+    expect(evaluateWeightTrigger([85, 85, 85], [81, 81, 81], null)).toBe(false);
   });
 });
 
@@ -374,9 +368,7 @@ describe("evaluateSleepDebtTrigger", () => {
   const floor = 7; // effective greenMin; deficit means < 6.5 h.
 
   it("fires when 4 of 5 recorded nights clearly undershoot the floor", () => {
-    expect(
-      evaluateSleepDebtTrigger([6, 6.2, 5.9, 6.4, 7.5], floor),
-    ).toBe(true);
+    expect(evaluateSleepDebtTrigger([6, 6.2, 5.9, 6.4, 7.5], floor)).toBe(true);
   });
 
   it("stays silent with only 3 deficit nights", () => {
@@ -385,9 +377,9 @@ describe("evaluateSleepDebtTrigger", () => {
 
   it("does not count near-misses inside the margin as deficits", () => {
     // 6.6 h against a 7 h floor is within the 0.5 h margin.
-    expect(
-      evaluateSleepDebtTrigger([6.6, 6.6, 6.6, 6.6, 6.6], floor),
-    ).toBe(false);
+    expect(evaluateSleepDebtTrigger([6.6, 6.6, 6.6, 6.6, 6.6], floor)).toBe(
+      false,
+    );
   });
 
   it("requires the minimum number of recorded nights", () => {
@@ -445,10 +437,7 @@ describe("evaluateSelfContextTrigger", () => {
 
   it("never fires without recent Coach activity", () => {
     expect(
-      evaluateSelfContextTrigger(
-        { profile: null, lastCoachUseAt: null },
-        now,
-      ),
+      evaluateSelfContextTrigger({ profile: null, lastCoachUseAt: null }, now),
     ).toBe(false);
     expect(
       evaluateSelfContextTrigger(
@@ -642,9 +631,11 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     await runCoachNudgeTick(prisma as unknown as PrismaClient, now, {
       dispatch: vi.fn(),
     });
-    const arg = vi.mocked(prisma.pushAttempt.findFirst).mock.calls[0]?.[0] as {
-      where: { createdAt: { gte: Date } };
-    } | undefined;
+    const arg = vi.mocked(prisma.pushAttempt.findFirst).mock.calls[0]?.[0] as
+      | {
+          where: { createdAt: { gte: Date } };
+        }
+      | undefined;
     expect(arg?.where.createdAt.gte.getTime()).toBe(
       now.getTime() - 14 * MS_PER_DAY,
     );
@@ -672,13 +663,15 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     expect(dispatch).not.toHaveBeenCalled();
     expect(recordNudge).not.toHaveBeenCalled();
     // The persisted-nudge query honours the same rolling cutoff as the ledger.
-    const arg = vi.mocked(prisma.coachMessage.findFirst).mock.calls[0]?.[0] as {
-      where: {
-        providerType: string;
-        role: string;
-        createdAt: { gte: Date };
-      };
-    } | undefined;
+    const arg = vi.mocked(prisma.coachMessage.findFirst).mock.calls[0]?.[0] as
+      | {
+          where: {
+            providerType: string;
+            role: string;
+            createdAt: { gte: Date };
+          };
+        }
+      | undefined;
     expect(arg?.where.providerType).toBe("nudge");
     expect(arg?.where.role).toBe("assistant");
     expect(arg?.where.createdAt.gte.getTime()).toBe(

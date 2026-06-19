@@ -110,20 +110,20 @@ describe("<ChronotypeCard>", () => {
     expect(html).toContain("04:30");
   });
 
-  it("renders the band as a labelled top-right corner readout, not a badge", () => {
+  it("v1.18.7 W-D — renders the band as the large hero label, not a corner readout", () => {
     const html = render(<ChronotypeCard chronotype={READY_CHRONO} />);
-    // The labelled corner carries both the "Chronotype" label and the value.
-    expect(html).toContain('data-slot="chronotype-corner"');
-    expect(html).toContain("Chronotype");
+    // The reworked bottom treatment leads with a large band label + the
+    // natural-midpoint headline. The retired top-right corner readout is gone.
+    expect(html).not.toContain('data-slot="chronotype-corner"');
+    expect(html).toContain('data-slot="chronotype-band"');
     expect(html).toContain("Intermediate type");
+    expect(html).toContain("text-2xl");
   });
 
-  it("inherits the standard Card rhythm (no compact override)", () => {
+  it("uses the semantic info token, never the raw Dracula cyan", () => {
     const learning = render(<ChronotypeCard chronotype={LEARNING_CHRONO} />);
     const ready = render(<ChronotypeCard chronotype={READY_CHRONO} />);
     for (const html of [learning, ready]) {
-      expect(html).not.toContain("gap-2 py-4 md:gap-2 md:py-4");
-      expect(html).toContain("md:py-6");
       expect(html).toContain("text-info");
       expect(html).not.toContain("text-dracula-cyan");
     }

@@ -56,7 +56,9 @@ export function VorsorgeSettings() {
     <div className="space-y-8">
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">{t("moduleList.viewHeading")}</h2>
+          <h2 className="text-sm font-semibold">
+            {t("moduleList.viewHeading")}
+          </h2>
           <ModuleViewToggle view={prefs.view} onChange={setView} />
         </div>
         <p className="text-muted-foreground text-sm">

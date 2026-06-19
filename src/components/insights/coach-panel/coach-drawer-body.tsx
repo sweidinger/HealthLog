@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronLeft, MessagesSquare } from "lucide-react";
+import { ChevronLeft, MessagesSquare, PanelLeftClose } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
@@ -28,16 +29,37 @@ import { useTranslations } from "@/lib/i18n/context";
  *    (the in-panel left tray kept breaking inside the sheet), while
  *    the page renders the conversation list inline as a left column
  *    on lg+ via the `historyRail` slot (tray below lg).
+ *
+ * v1.18.7 (W-coach C-UI) — the inline history rail on the page surface
+ * is now COLLAPSIBLE and collapsed by default. The maintainer wanted a
+ * calm, prompt-first surface (Claude/ChatGPT-like) rather than a
+ * permanently-open list, and explicitly did not want the old top-left
+ * "open side panel" affordance lingering in fullscreen. The rail folds
+ * away to a zero-width column; a single clean toggle in the rail-tray
+ * strip (lg+) reveals it, and a matching close control sits in the rail
+ * heading. Below lg the conversation list stays a bottom tray.
  */
 export interface CoachDrawerBodyProps {
   thread: React.ReactNode;
   composer: React.ReactNode;
   /**
    * Inline conversation list (page surface only). When set, it renders
-   * as a left column on lg+ and the history button collapses to the
-   * sub-lg tray trigger. The drawer omits it.
+   * as a collapsible left column on lg+ and the history button collapses
+   * to the sub-lg tray trigger. The drawer omits it.
    */
   historyRail?: React.ReactNode;
+  /**
+   * v1.18.7 — page surface only: whether the inline history rail is
+   * expanded (lg+). Defaults to collapsed via the parent. Ignored when
+   * `historyRail` is omitted (the drawer surface).
+   */
+  historyOpen?: boolean;
+  /**
+   * v1.18.7 — page surface only: toggles the inline rail open/closed.
+   * The rail-tray-strip control opens it; the rail-heading control
+   * closes it. Below lg the strip button still opens the bottom tray.
+   */
+  onToggleHistory?: () => void;
   onHistoryClick: () => void;
   onOpenSourcesTray: () => void;
 }
@@ -46,49 +68,78 @@ export function CoachDrawerBody({
   thread,
   composer,
   historyRail,
+  historyOpen = false,
+  onToggleHistory,
   onHistoryClick,
   onOpenSourcesTray,
 }: CoachDrawerBodyProps) {
   const { t } = useTranslations();
+  // The page surface (inline `historyRail`) carries the collapsible
+  // grid; without a rail the body is a single column (drawer surface).
+  const railExpanded = !!historyRail && historyOpen;
   return (
     <div
       data-slot="coach-drawer-body"
-      // v1.18.1 (W-COACH-UI C1/C3) — the inline history rail was a
-      // tight 260 px gutter; widen it to 300 px (lg) / 340 px (xl) so
-      // the conversation list breathes and the centre thread keeps the
-      // remaining width. Without a rail the body is a single column.
-      className={
-        historyRail
-          ? "grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]"
-          : "grid min-h-0 flex-1 grid-cols-1"
+      data-history-open={
+        historyRail ? (historyOpen ? "true" : "false") : undefined
       }
+      // v1.18.7 — the inline rail column animates between 0 and a fixed
+      // width so collapsing it hands the full width back to the thread
+      // without a layout jump. Without a rail the body is a single
+      // column. `transition-[grid-template-columns]` keeps the fold
+      // smooth on the page surface; the thread column is always `1fr`.
+      className={cn(
+        "grid min-h-0 flex-1 grid-cols-1",
+        historyRail &&
+          "lg:grid-cols-[0px_1fr] lg:transition-[grid-template-columns] lg:duration-300 motion-reduce:lg:transition-none",
+        railExpanded && "lg:grid-cols-[320px_1fr]",
+      )}
     >
-      {/* Inline history column — page surface, lg+ only. */}
+      {/* Inline history column — page surface, lg+ only, collapsible. */}
       {historyRail && (
         <aside
           data-slot="coach-drawer-history"
-          className="border-border/70 hidden h-full min-h-0 border-r lg:flex lg:flex-col"
+          data-open={historyOpen ? "true" : "false"}
+          // Collapsed: zero-width + clipped so the list is fully hidden
+          // and non-interactive; expanded: a bordered left column. The
+          // `overflow-hidden` keeps the content from spilling during the
+          // width transition.
+          className={cn(
+            "hidden h-full min-h-0 overflow-hidden lg:flex lg:flex-col",
+            railExpanded
+              ? "border-border/70 border-r opacity-100"
+              : "pointer-events-none opacity-0",
+          )}
+          aria-hidden={!historyOpen}
         >
-          {/* v1.18.1 (W-COACH-UI C4) — the rail heading and the centre
-              column's rail-tray strip share one fixed `h-14` header band
-              with identical `border-b`, so the two dividers land on the
-              same horizontal line across the columns (the asymmetry the
-              maintainer flagged: a `p-3` text heading vs a `py-2` button
-              strip put the lines at different heights). */}
-          <h2 className="border-border/70 text-muted-foreground flex h-14 shrink-0 items-center border-b px-4 text-xs font-medium tracking-wide uppercase">
-            {t("insights.coach.historyTitle")}
-          </h2>
-          {/* v1.18.6 (CCH-01) — the wrapping `overflow-y-auto` div here
-              was the broken left scrollbar: `<HistoryRail>` is itself a
-              `flex h-full flex-col` with its OWN `overflow-y-auto` list,
-              so this nested it inside a second scroll container. The
-              outer container scrolled the whole rail (search field
-              included) against an `h-full` child whose height resolved to
-              its content, leaving the inner list's `flex-1 min-h-0`
-              without a bounded track — the scrollbar rendered against an
-              indeterminate height and read as half-broken. Drop the outer
-              scroll: the rail keeps a fixed search header and its single
-              internal list-scroll is the only scroll region. */}
+          {/* v1.18.7 — the rail heading shares the `h-14` band + `border-b`
+              with the centre column's rail-tray strip so the two dividers
+              land on one horizontal line, and carries the collapse
+              control on its trailing edge. */}
+          <div className="border-border/70 flex h-14 shrink-0 items-center justify-between border-b px-4">
+            <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              {t("insights.coach.historyTitle")}
+            </h2>
+            {onToggleHistory && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onToggleHistory}
+                data-slot="coach-history-collapse"
+                aria-label={t("insights.coach.hideConversations")}
+                aria-expanded={historyOpen}
+                title={t("insights.coach.hideConversations")}
+                className="text-muted-foreground hover:text-foreground -mr-1 size-9 shrink-0"
+              >
+                <PanelLeftClose className="size-4" aria-hidden="true" />
+              </Button>
+            )}
+          </div>
+          {/* v1.18.6 (CCH-01) — `<HistoryRail>` is itself a `flex h-full
+              flex-col` with its OWN `overflow-y-auto` list, so a single
+              bounded flex track here is all it needs; do not nest a
+              second scroll container. */}
           <div className="flex min-h-0 flex-1 flex-col">{historyRail}</div>
         </aside>
       )}
@@ -96,41 +147,72 @@ export function CoachDrawerBody({
       {/* Centre — message thread. */}
       <main
         data-slot="coach-drawer-thread"
-        className="flex h-full min-h-0 flex-col"
+        className="flex h-full min-h-0 min-w-0 flex-col"
       >
         {/* v1.4.27 R3d MB2 — rail-tray triggers lifted out of the
             absolute overlay into a sub-header strip so the buttons
             sit at a 44 px tap target and never overlay the first
             message bubble.
-            v1.18.1 (W-COACH-UI C4) — fixed `h-14` so the strip's
-            bottom border aligns with the history rail heading divider
-            in the adjacent column (one continuous line, no restless
-            two-height split). */}
+            v1.18.7 — fixed `h-14` so the strip's bottom border aligns
+            with the history rail heading divider in the adjacent column.
+            On the page surface the left control is the rail TOGGLE
+            (clean show/hide) on lg+, falling back to the tray trigger
+            below lg; the drawer keeps the plain conversations button. */}
         <div
           data-slot="coach-drawer-rail-tray-strip"
-          // v1.18.1 (W-COACH-UI C4) — match the header band's `px-3 sm:px-4`
-          // inset so the rail-tray strip, the header, and the adjacent
-          // history-rail `<h2>` (px-4) all share the same horizontal divider
-          // line at sm+ rather than stepping in/out by a pixel.
           className="border-border/70 flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3 sm:px-4"
         >
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onHistoryClick}
-            data-slot="coach-drawer-history-tray-trigger"
-            aria-label={t("insights.coach.historyTitle")}
-            // With an inline history column (page surface, lg+) the
-            // button is redundant above lg and hides there.
-            className={
-              historyRail
-                ? "min-h-11 gap-1.5 text-xs lg:hidden"
-                : "min-h-11 gap-1.5 text-xs"
-            }
-          >
-            <MessagesSquare className="size-4" aria-hidden="true" />
-            {t("insights.coach.historyTitle")}
-          </Button>
+          {/* Left control(s). On the page surface (inline rail) the
+              affordance forks by breakpoint: below lg a tray trigger
+              opens the bottom sheet; on lg+ a clean toggle shows/hides
+              the inline rail (and the lg+ toggle hides once the rail is
+              expanded, since the rail heading then owns the close
+              control). Without an inline rail (drawer surface) the
+              single button hands off via `onHistoryClick`. */}
+          {historyRail && onToggleHistory ? (
+            <>
+              {/* Sub-lg: open the bottom tray. */}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onHistoryClick}
+                data-slot="coach-drawer-history-tray-trigger"
+                aria-label={t("insights.coach.historyTitle")}
+                className="text-muted-foreground hover:text-foreground min-h-11 gap-1.5 text-xs lg:hidden"
+              >
+                <MessagesSquare className="size-4" aria-hidden="true" />
+                {t("insights.coach.historyTitle")}
+              </Button>
+              {/* lg+: toggle the inline rail (hidden while expanded). */}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onToggleHistory}
+                data-slot="coach-history-toggle"
+                aria-label={t("insights.coach.showConversations")}
+                aria-expanded={historyOpen}
+                className={cn(
+                  "text-muted-foreground hover:text-foreground hidden min-h-11 gap-1.5 text-xs lg:flex",
+                  railExpanded && "lg:hidden",
+                )}
+              >
+                <MessagesSquare className="size-4" aria-hidden="true" />
+                {t("insights.coach.historyTitle")}
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onHistoryClick}
+              data-slot="coach-drawer-history-tray-trigger"
+              aria-label={t("insights.coach.historyTitle")}
+              className="text-muted-foreground hover:text-foreground min-h-11 gap-1.5 text-xs"
+            >
+              <MessagesSquare className="size-4" aria-hidden="true" />
+              {t("insights.coach.historyTitle")}
+            </Button>
+          )}
           {/* Sources toggle — the rail is hidden by default on every
               viewport and opens as the right-edge tray. */}
           <Button
@@ -147,12 +229,7 @@ export function CoachDrawerBody({
         </div>
 
         {/* v1.18.6.1 — the thread wrapper must be a flex column itself so the
-            `<MessageThread>` scroll region resolves a bounded height. The
-            wrapper used to be a plain block, so the thread's `h-full` resolved
-            against an auto-height parent and the scroll container grew with its
-            content instead of scrolling — pushing the composer off-screen and
-            leaving a stray scrollbar on the page. `flex min-h-0 flex-1 flex-col`
-            gives the thread a definite track to scroll within. */}
+            `<MessageThread>` scroll region resolves a bounded height. */}
         <div className="flex min-h-0 flex-1 flex-col">{thread}</div>
         {/* Composer pinned to the bottom. */}
         <div

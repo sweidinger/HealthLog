@@ -254,7 +254,9 @@ const sleepDebtResource = z.object({
     .number()
     .int()
     .nonnegative()
-    .describe("Nights still needed before the debt is asserted (0 when ready)."),
+    .describe(
+      "Nights still needed before the debt is asserted (0 when ready).",
+    ),
 });
 
 const chronotypeBandEnum = z.enum([
@@ -350,7 +352,9 @@ const seriesQuerySchema = z.object({
 });
 
 const seriesPointSchema = z.object({
-  id: z.string().describe("Measurement row id, or `sleep:<wake-day>` for a sleep night."),
+  id: z
+    .string()
+    .describe("Measurement row id, or `sleep:<wake-day>` for a sleep night."),
   at: z.iso.datetime({ offset: true }).describe("Point timestamp (ISO-8601)."),
   value: z.number().describe("Primary value in the top-level `unit`."),
   secondary: z
@@ -475,7 +479,10 @@ export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description: "Resolved series.",
           content: {
             "application/json": {
-              schema: dataEnvelope(seriesResponse, "GetMeasurementsSeriesResponse"),
+              schema: dataEnvelope(
+                seriesResponse,
+                "GetMeasurementsSeriesResponse",
+              ),
             },
           },
         },

@@ -103,9 +103,7 @@ export function MoodTagMetricCrosstab({
           const deltaText = `${up ? "+" : ""}${fmt(row.delta, row.display)} ${unit}`;
           // Semantic feedback tokens (not raw `--dracula-*`): the delta read-out
           // is COLORED TEXT, so it needs the Alucard light-mode override for AA.
-          const deltaColor = up
-            ? "var(--success)"
-            : "var(--destructive)";
+          const deltaColor = up ? "var(--success)" : "var(--destructive)";
           return (
             <li
               key={`${row.metricKey}:${row.tag}`}

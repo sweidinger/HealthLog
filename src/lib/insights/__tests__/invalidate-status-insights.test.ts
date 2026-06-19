@@ -190,9 +190,7 @@ describe("invalidateStatusInsightsForTypes", () => {
     // `metric:` scope is enqueued.
     await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
     expect(enqueuedScopes()).toEqual(["bmi", "general", "weight"]);
-    expect(
-      enqueuedScopes().some((s) => s.startsWith("metric:")),
-    ).toBe(false);
+    expect(enqueuedScopes().some((s) => s.startsWith("metric:"))).toBe(false);
   });
 
   describe("ingest-invalidation debounce (v1.9.0; a 1 h minimum gap since v1.16.8)", () => {

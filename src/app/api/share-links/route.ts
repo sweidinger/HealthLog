@@ -29,7 +29,30 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 import { createShareLinkSchema } from "@/lib/validations/clinician-share-link";
+import {
+  generatePassphrase,
+  hashPassphrase,
+  normalisePassphrase,
+  PASSPHRASE_FRAGMENT_KEY,
+} from "@/lib/clinician-share/passphrase";
 import type { Prisma } from "@/generated/prisma/client";
+
+/**
+ * The absolute origin to build the public share URL from. Prefers the
+ * forwarded host/proto a reverse proxy sets (the documented self-hosting path
+ * fronts the app with Caddy/Traefik/Nginx), falling back to the request URL's
+ * own origin. The QR payload carries the passphrase in the FRAGMENT only.
+ */
+function resolveOrigin(request: NextRequest): string {
+  const proto =
+    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
+    new URL(request.url).protocol.replace(":", "");
+  const host =
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    request.headers.get("host") ||
+    new URL(request.url).host;
+  return `${proto}://${host}`;
+}
 
 /** Project a stored row to the safe owner-facing shape (never the token). */
 function toSummary(row: {
@@ -39,6 +62,7 @@ function toSummary(row: {
   rangeEnd: Date | null;
   resourceTypes: string[];
   allowFhirApi: boolean;
+  passphraseHash: string | null;
   expiresAt: Date;
   createdAt: Date;
   revokedAt: Date | null;
@@ -52,14 +76,16 @@ function toSummary(row: {
     rangeEnd: row.rangeEnd ? row.rangeEnd.toISOString() : null,
     resourceTypes: row.resourceTypes,
     allowFhirApi: row.allowFhirApi,
+    // v1.18.7 — surface only WHETHER a passphrase guards the link, never the
+    // hash itself. Legacy (null-hash) links read `false` and stay ungated.
+    protected: row.passphraseHash !== null,
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
     lastAccessAt: row.lastAccessAt ? row.lastAccessAt.toISOString() : null,
     accessCount: row.accessCount,
     // Status the UI can render without re-deriving expiry/revocation.
-    active:
-      row.revokedAt === null && row.expiresAt.getTime() > Date.now(),
+    active: row.revokedAt === null && row.expiresAt.getTime() > Date.now(),
   };
 }
 
@@ -67,11 +93,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "share-link.create" } });
 
-  const rl = await checkRateLimit(
-    `share-link:${user.id}`,
-    20,
-    60 * 60 * 1000,
-  );
+  const rl = await checkRateLimit(`share-link:${user.id}`, 20, 60 * 60 * 1000);
   if (!rl.allowed) {
     return apiError("Maximum 20 share-link operations per hour", 429);
   }
@@ -91,12 +113,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const rawToken = `hls_${randomBytes(24).toString("hex")}`;
   const tokenHash = hashToken(rawToken);
 
+  // v1.18.7 — always mint a passphrase second factor; store only its HMAC
+  // hash. The raw passphrase is returned exactly once below. `normalisePassphrase`
+  // is the canonical store form so the grouped (`XXXX-XXXX-…`) display and the
+  // bare fragment value collide to one hash.
+  const rawPassphrase = generatePassphrase();
+  const passphraseHash = hashPassphrase(normalisePassphrase(rawPassphrase)!);
+
   // Field-by-field build — no mass assignment. Scope columns are written
   // exactly once here and never updated.
   const created = await prisma.clinicianShareLink.create({
     data: {
       userId: user.id,
       tokenHash,
+      passphraseHash,
       label: input.label,
       rangeStart: new Date(input.rangeStart),
       rangeEnd: input.rangeEnd ? new Date(input.rangeEnd) : null,
@@ -112,6 +142,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       rangeEnd: true,
       resourceTypes: true,
       allowFhirApi: true,
+      passphraseHash: true,
       expiresAt: true,
       createdAt: true,
       revokedAt: true,
@@ -131,8 +162,23 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   });
 
-  // The raw token is returned exactly once; it is unrecoverable thereafter.
-  return apiSuccess({ ...toSummary(created), token: rawToken }, 201);
+  // The raw token AND raw passphrase are returned exactly once; both are
+  // unrecoverable thereafter. The QR/deep-link payload carries the passphrase
+  // in the URL FRAGMENT (`#k=`) — never the path or query — so it is never
+  // sent to the server, kept out of logs, referrers, and the access record.
+  const origin = resolveOrigin(request);
+  const shareUrl = `${origin}/c/${rawToken}`;
+  const qrUrl = `${shareUrl}#${PASSPHRASE_FRAGMENT_KEY}=${rawPassphrase}`;
+  return apiSuccess(
+    {
+      ...toSummary(created),
+      token: rawToken,
+      passphrase: rawPassphrase,
+      shareUrl,
+      qrUrl,
+    },
+    201,
+  );
 });
 
 export const GET = apiHandler(async () => {
@@ -149,6 +195,7 @@ export const GET = apiHandler(async () => {
       rangeEnd: true,
       resourceTypes: true,
       allowFhirApi: true,
+      passphraseHash: true,
       expiresAt: true,
       createdAt: true,
       revokedAt: true,

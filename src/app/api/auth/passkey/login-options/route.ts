@@ -1,9 +1,6 @@
 import { createAuthenticationOptions } from "@/lib/auth/passkey";
 import { apiSuccess } from "@/lib/api-response";
-import {
-  checkAuthSurfaceRateLimit,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkAuthSurfaceRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";

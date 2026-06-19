@@ -22,7 +22,13 @@ function slotRow(
   status: LedgerRow["status"],
   intake?: LedgerRow["intake"],
 ): LedgerRow {
-  return { kind: "slot", at, timeOfDay: "07:00", status, intake: intake ?? null };
+  return {
+    kind: "slot",
+    at,
+    timeOfDay: "07:00",
+    status,
+    intake: intake ?? null,
+  };
 }
 
 describe("complianceFromLedger", () => {
@@ -156,9 +162,7 @@ describe("applyOptimisticSlotMark", () => {
       "2026-06-01T05:00:00.000Z",
       "taken",
     );
-    const marked = next.rows.find(
-      (r) => r.at === "2026-06-01T05:00:00.000Z",
-    )!;
+    const marked = next.rows.find((r) => r.at === "2026-06-01T05:00:00.000Z")!;
     expect(marked.status).toBe("taken_on_time");
     expect(marked.intake?.takenAt).toBe("2026-06-01T05:00:00.000Z");
     expect(marked.intake?.skipped).toBe(false);
@@ -171,9 +175,7 @@ describe("applyOptimisticSlotMark", () => {
       "2026-06-01T05:00:00.000Z",
       "skipped",
     );
-    const marked = next.rows.find(
-      (r) => r.at === "2026-06-01T05:00:00.000Z",
-    )!;
+    const marked = next.rows.find((r) => r.at === "2026-06-01T05:00:00.000Z")!;
     expect(marked.status).toBe("skipped");
     expect(marked.intake?.skipped).toBe(true);
     // skip excluded → denominator drops to 0 → null rate.

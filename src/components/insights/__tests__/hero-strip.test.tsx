@@ -6,8 +6,9 @@ import type { DailyBriefing as DailyBriefingPayload } from "@/lib/ai/schema";
 
 /**
  * Insights hero strip — pins the slots so future polish can't
- * silently drop the greeting / subtitle / action row / suggested-
- * prompt strip.
+ * silently drop the greeting / subtitle / baseline meta. v1.18.7
+ * removed the coach action row + suggested-prompt strip; the negative
+ * tests below pin their absence.
  */
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
@@ -121,26 +122,12 @@ describe("<HeroStrip>", () => {
     );
   });
 
-  it("renders the ask-the-coach action button as disabled with a 'Coming soon' title when no handler is supplied", () => {
+  // v1.18.7 — the overview "Ask the coach" action button was removed from
+  // the hero band. The Coach lives in the bottom-right drawer (mounted by
+  // the insights layout shell), not as a hero affordance.
+  it("does NOT render an ask-the-coach action button", () => {
     const html = render(<HeroStrip briefing={null} now={morningLocal} />);
-    const coachTag = html.match(
-      /<button[^>]*data-slot="insights-hero-strip-action-coach"[^>]*>/,
-    );
-    expect(coachTag).not.toBeNull();
-    expect(coachTag?.[0]).toMatch(/\sdisabled(=""|\s|>)/);
-    expect(coachTag?.[0]).toContain('title="Coming soon"');
-  });
-
-  it("enables the ask-the-coach button when onAskCoach is supplied (B2b)", () => {
-    const html = render(
-      <HeroStrip briefing={null} now={morningLocal} onAskCoach={() => {}} />,
-    );
-    const coachTag = html.match(
-      /<button[^>]*data-slot="insights-hero-strip-action-coach"[^>]*>/,
-    );
-    expect(coachTag).not.toBeNull();
-    expect(coachTag?.[0]).not.toMatch(/\sdisabled(=""|\s|>)/);
-    expect(coachTag?.[0]).not.toContain('title="Coming soon"');
+    expect(html).not.toContain('data-slot="insights-hero-strip-action-coach"');
   });
 
   // v1.4.25 W3 — the regenerate button moved from the hero action row
@@ -152,20 +139,13 @@ describe("<HeroStrip>", () => {
   });
 
   // ── Suggested prompts strip ────────────────────────────────────────
-  it("mounts the SuggestedPrompts strip below the action band", () => {
+  // v1.18.7 — the guided-questions chip strip ("Try asking …") was removed
+  // from the hero band along with the coach action row.
+  it("does NOT mount the SuggestedPrompts strip in the hero band", () => {
     const html = render(<HeroStrip briefing={null} now={morningLocal} />);
-    expect(html).toMatch(/data-slot="insights-hero-strip-prompts"/);
-    expect(html).toMatch(/data-slot="insights-suggested-prompts"/);
-    expect(html).toContain("Try asking");
-    expect(html).toContain("What should I tell my doctor?");
-  });
-
-  it("forwards onPickPrompt down to the prompt strip without throwing", () => {
-    const html = render(
-      <HeroStrip briefing={null} now={morningLocal} onPickPrompt={() => {}} />,
-    );
-    // The chips render verbatim; SSR doesn't run click handlers.
-    expect(html).toMatch(/data-slot="insights-suggested-prompts-chip"/);
+    expect(html).not.toContain('data-slot="insights-hero-strip-prompts"');
+    expect(html).not.toContain('data-slot="insights-suggested-prompts"');
+    expect(html).not.toContain("What should I tell my doctor?");
   });
 
   // ── Misc ───────────────────────────────────────────────────────────
@@ -229,12 +209,11 @@ describe("<HeroStrip>", () => {
     expect(html).toContain(">86<");
   });
 
-  it("does not render an inline Ask-the-Coach button inside the Health Score card", () => {
-    // v1.4.27 F8 — the inline HSC Ask-the-Coach button retired in
-    // favour of the hero strip's existing action-row button. Even
-    // when `onAskCoach` is supplied, the HSC panel must not surface
-    // its own button. The action-row button at
-    // `insights-hero-strip-action-coach` carries the affordance.
+  it("does not render any Ask-the-Coach affordance in the hero band", () => {
+    // v1.4.27 F8 — the inline HSC Ask-the-Coach button was retired.
+    // v1.18.7 — the hero action-row coach button was removed too; the
+    // Coach is the bottom-right drawer, not a hero affordance. Neither
+    // the score card nor the band surfaces a coach button.
     const html = render(
       <HeroStrip
         briefing={null}
@@ -250,11 +229,10 @@ describe("<HeroStrip>", () => {
           },
           delta: 5,
         }}
-        onAskCoach={() => {}}
       />,
     );
     expect(html).not.toContain('data-slot="health-score-card-ask-coach"');
-    expect(html).toContain('data-slot="insights-hero-strip-action-coach"');
+    expect(html).not.toContain('data-slot="insights-hero-strip-action-coach"');
   });
 
   it("uses the lg row layout when healthScore is supplied (smoke test on container class)", () => {

@@ -64,9 +64,9 @@ vi.mock("next/headers", () => ({
 // AsyncLocalStorage `eventStorage.run` wiring intact (the
 // `apiHandler` opens an event scope inside `run()`).
 vi.mock("@/lib/logging/context", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/lib/logging/context")
-  >("@/lib/logging/context");
+  const actual = await vi.importActual<typeof import("@/lib/logging/context")>(
+    "@/lib/logging/context",
+  );
   return {
     ...actual,
     annotate: vi.fn(actual.annotate),
@@ -153,24 +153,18 @@ beforeEach(async () => {
   // `clearAllMocks()` to wipe call history between tests; `vi.fn()` at
   // module scope only sets the initial implementation, and the slim
   // slice test must observe a resolved value not `undefined`.
-  const { ensureUserRollupsFresh } = await import(
-    "@/lib/rollups/measurement-rollups"
-  );
-  const { probeRollupCoverage } = await import(
-    "@/lib/rollups/measurement-coverage"
-  );
-  const { computeBpInTargetFastPath } = await import(
-    "@/lib/analytics/bp-in-target-fast-path"
-  );
-  const { computeUserHealthScoreFastPath } = await import(
-    "@/lib/analytics/health-score-fast-path"
-  );
-  const { computeCorrelationHypothesesFastPath } = await import(
-    "@/lib/analytics/correlations-fast-path"
-  );
-  const { computeSummariesSlice } = await import(
-    "@/lib/analytics/summaries-slice"
-  );
+  const { ensureUserRollupsFresh } =
+    await import("@/lib/rollups/measurement-rollups");
+  const { probeRollupCoverage } =
+    await import("@/lib/rollups/measurement-coverage");
+  const { computeBpInTargetFastPath } =
+    await import("@/lib/analytics/bp-in-target-fast-path");
+  const { computeUserHealthScoreFastPath } =
+    await import("@/lib/analytics/health-score-fast-path");
+  const { computeCorrelationHypothesesFastPath } =
+    await import("@/lib/analytics/correlations-fast-path");
+  const { computeSummariesSlice } =
+    await import("@/lib/analytics/summaries-slice");
 
   (ensureUserRollupsFresh as ReturnType<typeof vi.fn>).mockResolvedValue(
     undefined,
@@ -185,9 +179,9 @@ beforeEach(async () => {
     priorMonth: null,
     priorYear: null,
   });
-  (computeUserHealthScoreFastPath as ReturnType<typeof vi.fn>).mockResolvedValue(
-    null,
-  );
+  (
+    computeUserHealthScoreFastPath as ReturnType<typeof vi.fn>
+  ).mockResolvedValue(null);
   (
     computeCorrelationHypothesesFastPath as ReturnType<typeof vi.fn>
   ).mockResolvedValue({ hypotheses: [] });

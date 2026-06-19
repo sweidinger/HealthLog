@@ -156,8 +156,10 @@ export function DeviceScoreTile({
   );
 }
 
-export interface ConnectedDeviceScoreTileProps
-  extends Omit<DeviceScoreTileProps, "summary"> {
+export interface ConnectedDeviceScoreTileProps extends Omit<
+  DeviceScoreTileProps,
+  "summary"
+> {
   /** Optional section heading rendered above the tile when it has data. */
   sectionTitle?: string;
   /** Optional Lucide glyph for the section heading. */
@@ -187,9 +189,7 @@ export function ConnectedDeviceScoreTile({
 
   if ((summary?.count ?? 0) === 0) return null;
 
-  const tile = (
-    <DeviceScoreTile type={type} summary={summary} {...tileProps} />
-  );
+  const tile = <DeviceScoreTile type={type} summary={summary} {...tileProps} />;
 
   if (!sectionTitle || !sectionIcon) return tile;
 

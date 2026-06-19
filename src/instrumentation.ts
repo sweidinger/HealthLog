@@ -6,9 +6,8 @@ export async function register() {
     // Every Node process watches its own event loop — web-only
     // containers included; a stall report from the process serving
     // requests is the whole point.
-    const { startEventLoopLagMonitor } = await import(
-      "@/lib/observability/event-loop-lag"
-    );
+    const { startEventLoopLagMonitor } =
+      await import("@/lib/observability/event-loop-lag");
     startEventLoopLagMonitor();
 
     const { shouldRunWorker } = await import("@/lib/process-type");

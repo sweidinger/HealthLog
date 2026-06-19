@@ -22,12 +22,7 @@ export const seriesBatchQuerySchema = z
           .map((t) => t.trim())
           .filter((t) => t.length > 0),
       )
-      .pipe(
-        z
-          .array(measurementTypeEnum)
-          .min(1)
-          .max(SERIES_BATCH_MAX_TYPES),
-      )
+      .pipe(z.array(measurementTypeEnum).min(1).max(SERIES_BATCH_MAX_TYPES))
       .describe(
         "Comma-separated list of MeasurementType values (1.." +
           `${SERIES_BATCH_MAX_TYPES}). Each is read as a daily series through ` +

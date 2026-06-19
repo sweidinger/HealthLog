@@ -111,13 +111,17 @@ describe("computeEpisodeCorrelation — rollup-vs-live parity", () => {
     //    trailing (to == now) episode-window read; the bounded baseline read
     //    goes through measurement.findMany (to != now). ──
     const dayCoverage = onlyRhr(
-      new Map<string, boolean>(ILLNESS_SCAN_TYPES.map((t) => [String(t), t === "RESTING_HEART_RATE"])),
+      new Map<string, boolean>(
+        ILLNESS_SCAN_TYPES.map((t) => [String(t), t === "RESTING_HEART_RATE"]),
+      ),
     );
     rollup.probeRollupCoverage.mockResolvedValue(dayCoverage);
     rollup.readBestGranularityRollups.mockImplementation(
       async (_u: string, type: string, windowDays: number) => {
         if (type !== "RESTING_HEART_RATE") return null;
-        const since = new Date(NOW.getTime() - windowDays * 24 * 60 * 60 * 1000);
+        const since = new Date(
+          NOW.getTime() - windowDays * 24 * 60 * 60 * 1000,
+        );
         const sinceKey = since.toISOString().slice(0, 10);
         const rows = DAILY.filter((d) => d.day >= sinceKey).map((d) => ({
           bucketStart: new Date(`${d.day}T00:00:00Z`),
@@ -133,10 +137,16 @@ describe("computeEpisodeCorrelation — rollup-vs-live parity", () => {
         return rows.length > 0 ? { granularity: "DAY" as const, rows } : null;
       },
     );
-    db.measurement.findMany.mockImplementation(async ({ where }: { where: { type: string; measuredAt: { gte: Date; lt: Date } } }) => {
-      if (where.type !== "RESTING_HEART_RATE") return [];
-      return rawRowsWithin(where.measuredAt.gte, where.measuredAt.lt);
-    });
+    db.measurement.findMany.mockImplementation(
+      async ({
+        where,
+      }: {
+        where: { type: string; measuredAt: { gte: Date; lt: Date } };
+      }) => {
+        if (where.type !== "RESTING_HEART_RATE") return [];
+        return rawRowsWithin(where.measuredAt.gte, where.measuredAt.lt);
+      },
+    );
 
     const dayOut = await computeEpisodeCorrelation("u1", EPISODE, "UTC", NOW);
 
@@ -151,7 +161,11 @@ describe("computeEpisodeCorrelation — rollup-vs-live parity", () => {
     rollup.probeRollupCoverage.mockResolvedValue(noCoverage);
     rollup.readBestGranularityRollups.mockResolvedValue(null);
     db.measurement.findMany.mockImplementation(
-      async ({ where }: { where: { type: string; measuredAt: { gte: Date; lt?: Date } } }) => {
+      async ({
+        where,
+      }: {
+        where: { type: string; measuredAt: { gte: Date; lt?: Date } };
+      }) => {
         if (where.type !== "RESTING_HEART_RATE") return [];
         const from = where.measuredAt.gte;
         const to = where.measuredAt.lt ?? NOW;
@@ -192,7 +206,9 @@ describe("computeEpisodeCorrelation — user-tz day keying", () => {
     // The vital series must key by the user's day so it lines up with the
     // tz-keyed onset/feltBetter markers (the off-by-one this fix closes).
     rollup.probeRollupCoverage.mockResolvedValue(
-      new Map<string, boolean>(ILLNESS_SCAN_TYPES.map((t) => [String(t), false])),
+      new Map<string, boolean>(
+        ILLNESS_SCAN_TYPES.map((t) => [String(t), false]),
+      ),
     );
     rollup.readBestGranularityRollups.mockResolvedValue(null);
 
@@ -203,7 +219,10 @@ describe("computeEpisodeCorrelation — user-tz day keying", () => {
     let cursor = Date.parse("2025-12-20T20:00:00Z");
     const jit = [-2, -1, 0, 1, 2];
     for (let i = 0; i < 20; i++) {
-      rows.push({ value: 55 + jit[i % jit.length], measuredAt: new Date(cursor) });
+      rows.push({
+        value: 55 + jit[i % jit.length],
+        measuredAt: new Date(cursor),
+      });
       cursor += 24 * 60 * 60 * 1000;
     }
     // Episode-span readings, including the boundary-crossing 03:00Z spike.
@@ -215,7 +234,11 @@ describe("computeEpisodeCorrelation — user-tz day keying", () => {
     rows.push({ value: 58, measuredAt: new Date("2026-01-17T20:00:00Z") });
 
     db.measurement.findMany.mockImplementation(
-      async ({ where }: { where: { type: string; measuredAt: { gte: Date; lt?: Date } } }) => {
+      async ({
+        where,
+      }: {
+        where: { type: string; measuredAt: { gte: Date; lt?: Date } };
+      }) => {
         if (where.type !== "RESTING_HEART_RATE") return [];
         const from = where.measuredAt.gte.getTime();
         const to = where.measuredAt.lt?.getTime() ?? NOW.getTime();
@@ -249,12 +272,18 @@ describe("computeEpisodeCorrelation — user-tz day keying", () => {
 describe("computeEpisodeCorrelation — contamination-guard read window", () => {
   it("never queries baseline rows on or after the pre-onset lookback start", async () => {
     rollup.probeRollupCoverage.mockResolvedValue(
-      new Map<string, boolean>(ILLNESS_SCAN_TYPES.map((t) => [String(t), false])),
+      new Map<string, boolean>(
+        ILLNESS_SCAN_TYPES.map((t) => [String(t), false]),
+      ),
     );
     rollup.readBestGranularityRollups.mockResolvedValue(null);
     const seen: Array<{ gte: Date; lt?: Date }> = [];
     db.measurement.findMany.mockImplementation(
-      async ({ where }: { where: { type: string; measuredAt: { gte: Date; lt?: Date } } }) => {
+      async ({
+        where,
+      }: {
+        where: { type: string; measuredAt: { gte: Date; lt?: Date } };
+      }) => {
         if (where.type === "RESTING_HEART_RATE") seen.push(where.measuredAt);
         return [];
       },

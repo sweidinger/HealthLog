@@ -12,17 +12,16 @@ const NOW = Date.parse("2026-06-14T12:00:00.000Z");
 
 describe("isPlausibleEntryInstant", () => {
   it("accepts a recent past instant", () => {
-    expect(
-      isPlausibleEntryInstant(new Date(NOW - 60_000), { now: NOW }),
-    ).toBe(true);
+    expect(isPlausibleEntryInstant(new Date(NOW - 60_000), { now: NOW })).toBe(
+      true,
+    );
   });
 
   it("accepts an instant inside the clock-skew tolerance", () => {
     expect(
-      isPlausibleEntryInstant(
-        new Date(NOW + ENTRY_INSTANT_CLOCK_SKEW_MS - 1),
-        { now: NOW },
-      ),
+      isPlausibleEntryInstant(new Date(NOW + ENTRY_INSTANT_CLOCK_SKEW_MS - 1), {
+        now: NOW,
+      }),
     ).toBe(true);
   });
 
@@ -37,10 +36,9 @@ describe("isPlausibleEntryInstant", () => {
 
   it("rejects an instant before the 1900 far-past floor", () => {
     expect(
-      isPlausibleEntryInstant(
-        new Date(ENTRY_INSTANT_FAR_PAST.getTime() - 1),
-        { now: NOW },
-      ),
+      isPlausibleEntryInstant(new Date(ENTRY_INSTANT_FAR_PAST.getTime() - 1), {
+        now: NOW,
+      }),
     ).toBe(false);
   });
 

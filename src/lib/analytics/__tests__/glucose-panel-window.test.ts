@@ -12,7 +12,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_WINDOW_DAYS, GLUCOSE_PANEL_WINDOW_DAYS } from "../glucose-metrics";
+import {
+  DEFAULT_WINDOW_DAYS,
+  GLUCOSE_PANEL_WINDOW_DAYS,
+} from "../glucose-metrics";
 
 const ROOT = join(__dirname, "..", "..", "..", "..");
 
@@ -43,7 +46,9 @@ describe("glucose panel window constant", () => {
       // It must NOT be a bare `windowDays: 30` glucose literal.
       const usesConstantDirectly = /GLUCOSE_PANEL_WINDOW_DAYS/.test(src);
       const aliasesConstant =
-        /GLUCOSE_CLINICAL_WINDOW_DAYS\s*=\s*GLUCOSE_PANEL_WINDOW_DAYS/.test(src);
+        /GLUCOSE_CLINICAL_WINDOW_DAYS\s*=\s*GLUCOSE_PANEL_WINDOW_DAYS/.test(
+          src,
+        );
       expect(usesConstantDirectly || aliasesConstant).toBe(true);
     },
   );

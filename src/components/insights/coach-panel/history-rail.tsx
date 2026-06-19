@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
 
+import { COACH_SCROLLBAR } from "./message-thread";
 import { useCoachConversations, useDeleteCoachConversation } from "./use-coach";
 
 /**
@@ -115,7 +116,11 @@ export function HistoryRail({
       </div>
       <div
         data-slot="coach-history-list"
-        className="-mx-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-1"
+        className={cn(
+          "-mx-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-1",
+          // v1.18.7 — same thin/rounded/subtle scrollbar as the thread.
+          COACH_SCROLLBAR,
+        )}
       >
         {isLoading && conversations.length === 0 ? (
           <p
@@ -179,8 +184,7 @@ export function HistoryRail({
                   data-confirming={isConfirming ? "true" : undefined}
                   className={cn(
                     "size-11 shrink-0",
-                    isConfirming &&
-                      "text-dracula-red hover:text-dracula-red",
+                    isConfirming && "text-dracula-red hover:text-dracula-red",
                   )}
                 >
                   <Trash2 className="size-4" aria-hidden="true" />

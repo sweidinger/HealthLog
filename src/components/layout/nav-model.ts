@@ -191,7 +191,12 @@ export interface NavUtilityDestination {
 }
 
 export const NAV_UTILITY_DESTINATIONS: ReadonlyArray<NavUtilityDestination> = [
-  { href: "/bugreport", tKey: "nav.bugreport", icon: Bug, bugReportGated: true },
+  {
+    href: "/bugreport",
+    tKey: "nav.bugreport",
+    icon: Bug,
+    bugReportGated: true,
+  },
   { href: "/settings/account", tKey: "nav.settings", icon: Settings },
   { href: "/notifications", tKey: "nav.notifications", icon: Bell },
 ];

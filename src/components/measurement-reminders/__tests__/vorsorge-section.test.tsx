@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { I18nProvider } from "@/lib/i18n/context";
 import type { MeasurementReminder } from "@/hooks/use-measurement-reminders";
@@ -27,8 +28,16 @@ vi.mock("@/hooks/use-measurement-reminders", () => ({
 import { VorsorgeSection } from "../vorsorge-section";
 
 function render(node: React.ReactNode) {
+  // v1.18.7 (Wave E) — a measurement-linked card now mounts the 7-day
+  // trend strip, which reads via TanStack Query; wrap in a client so the
+  // static-markup render resolves (the query stays idle on the server).
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return renderToStaticMarkup(
-    <I18nProvider initialLocale="en">{node}</I18nProvider>,
+    <QueryClientProvider client={queryClient}>
+      <I18nProvider initialLocale="en">{node}</I18nProvider>
+    </QueryClientProvider>,
   );
 }
 

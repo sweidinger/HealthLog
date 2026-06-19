@@ -170,7 +170,10 @@ describe("isSameReadingAcrossSource", () => {
 
   it("does NOT match a different value (two real readings, same minute)", () => {
     expect(
-      isSameReadingAcrossSource(incoming({ value: 81.4 }), candidate({ value: 82.0 })),
+      isSameReadingAcrossSource(
+        incoming({ value: 81.4 }),
+        candidate({ value: 82.0 }),
+      ),
     ).toBe(false);
   });
 

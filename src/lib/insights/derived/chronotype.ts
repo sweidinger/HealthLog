@@ -42,10 +42,7 @@
  * (the caller maps weekday/weekend or a future shift schedule). A modelling
  * assumption, surfaced as such — not hardcoded here.
  */
-import {
-  circularMeanMinutes,
-  circularMinuteDistance,
-} from "./sleep-score";
+import { circularMeanMinutes, circularMinuteDistance } from "./sleep-score";
 
 const MINUTES_PER_DAY = 1440;
 
@@ -101,8 +98,8 @@ export type ChronotypeBand =
 export function bandForMSFsc(msfscMinutes: number): ChronotypeBand {
   // Normalise onto [0,1440) so a value that the correction pushed below 0 or a
   // late-night midpoint past midnight still bands on the wall clock.
-  const m = ((msfscMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) %
-    MINUTES_PER_DAY;
+  const m =
+    ((msfscMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   if (m < 150) return "extreme_early"; // < 02:30
   if (m < 210) return "early"; // < 03:30
   if (m < 300) return "intermediate"; // < 05:00
@@ -183,10 +180,7 @@ export function computeChronotype(
       socialJetlagMinutes,
       freeNightsCounted,
       workNightsCounted,
-      freeNightsUntilReady: Math.max(
-        0,
-        opts.minFreeNights - freeNightsCounted,
-      ),
+      freeNightsUntilReady: Math.max(0, opts.minFreeNights - freeNightsCounted),
     };
   }
 

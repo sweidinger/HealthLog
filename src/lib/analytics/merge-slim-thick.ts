@@ -67,7 +67,9 @@ export interface MergedDashboardAnalytics {
   glucoseByContext: Record<string, unknown> | undefined;
 }
 
-function hasContent(record: Record<string, unknown> | null | undefined): boolean {
+function hasContent(
+  record: Record<string, unknown> | null | undefined,
+): boolean {
   return record != null && Object.keys(record).length > 0;
 }
 
@@ -91,8 +93,8 @@ export function mergeSlimAndThickAnalytics(
   const summaries: Record<string, DataSummary> = slimSummariesHaveContent
     ? (slim!.summaries as Record<string, DataSummary>)
     : ((thick?.summaries as Record<string, DataSummary> | null | undefined) ??
-        (slim?.summaries as Record<string, DataSummary> | null | undefined) ??
-        {});
+      (slim?.summaries as Record<string, DataSummary> | null | undefined) ??
+      {});
 
   const slimFreshnessHasContent = hasContent(slim?.lastSeenByType ?? null);
   const lastSeenByType:

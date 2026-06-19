@@ -34,7 +34,6 @@ import {
   round,
   summarizeSeries,
 } from "@/lib/insights/status-shared";
-import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   readFreshStatusText,
   refreshUnchangedStatusInsight,
@@ -43,9 +42,25 @@ import {
 } from "@/lib/insights/status-cache";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
+import {
+  runPreparedStatusCard,
+  type PreparedStatusCard,
+  type StatusCardResult,
+} from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey, userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import {
+  toBerlinDayKey,
+  userDayKey,
+  DEFAULT_TIMEZONE,
+} from "@/lib/tz/resolver";
 
+/**
+ * Public entry — unchanged signature. Prepares the card (cache-read,
+ * read-only miss, snapshot build, hash gate) then, when the LLM is still
+ * needed, runs ONE completion through the shared single-card path. The
+ * one-call-per-metric behaviour and the timeout / no-provider fallbacks are
+ * byte-for-byte the same as before the prepare split (v1.18.7 HIGH-1).
+ */
 export async function generatePulseStatusForUser(
   userId: string,
   options?: {
@@ -63,6 +78,33 @@ export async function generatePulseStatusForUser(
   /** v1.9.0 — last-good text served while a refresh is in flight; keep polling. */
   revalidating?: boolean;
 }> {
+  const prepared = await preparePulseStatusForUser(userId, options);
+  const result = await runPreparedStatusCard(prepared);
+  return result as {
+    hasProvider: boolean;
+    text: string | null;
+    cached: boolean;
+    updatedAt: string | null;
+    preparing?: boolean;
+    revalidating?: boolean;
+  };
+}
+
+/**
+ * v1.18.7 (HIGH-1) — everything up to (not including) the provider call.
+ * Returns a finished `served` result for every path that never needed the
+ * LLM, or a `pending` descriptor the single-card path and the batch path
+ * both drive. See `status-card-generation.ts` for the contract.
+ */
+export async function preparePulseStatusForUser(
+  userId: string,
+  options?: {
+    locale?: string | null;
+    force?: boolean;
+    /** v1.8.3 — read-only navigation path; see weight-status for the rationale. */
+    readOnly?: boolean;
+  },
+): Promise<PreparedStatusCard> {
   const locale = normalizeLocale(options?.locale);
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
@@ -77,10 +119,13 @@ export async function generatePulseStatusForUser(
   });
   if (cached) {
     return {
-      hasProvider: true,
-      text: cached.text,
-      cached: true,
-      updatedAt: cached.updatedAt,
+      phase: "served",
+      result: {
+        hasProvider: true,
+        text: cached.text,
+        cached: true,
+        updatedAt: cached.updatedAt,
+      },
     };
   }
 
@@ -94,22 +139,28 @@ export async function generatePulseStatusForUser(
     // bmi-status); no enqueue happens for it.
     if (outcome.kind === "no-provider" || outcome.kind === "consent-missing") {
       return {
-        hasProvider: false,
-        text: getNoKeyPulseStatusText(locale),
-        cached: true,
-        updatedAt: null,
+        phase: "served",
+        result: {
+          hasProvider: false,
+          text: getNoKeyPulseStatusText(locale),
+          cached: true,
+          updatedAt: null,
+        },
       };
     }
     // v1.8.7 — stale-while-revalidate: serve the last good assessment (if
     // any) instantly while the worker re-warms the cache; only fall to the
     // empty preparing skeleton when none was ever produced.
     return {
-      hasProvider: true,
-      text: outcome.lastGood?.text ?? null,
-      cached: outcome.lastGood !== null,
-      updatedAt: outcome.lastGood?.updatedAt ?? null,
-      preparing: outcome.lastGood === null,
-      revalidating: outcome.revalidating,
+      phase: "served",
+      result: {
+        hasProvider: true,
+        text: outcome.lastGood?.text ?? null,
+        cached: outcome.lastGood !== null,
+        updatedAt: outcome.lastGood?.updatedAt ?? null,
+        preparing: outcome.lastGood === null,
+        revalidating: outcome.revalidating,
+      },
     };
   }
 
@@ -133,19 +184,21 @@ export async function generatePulseStatusForUser(
   // `applyPayloadBudget` trims further but the unbounded findMany was
   // pulling tens of thousands of rows for Apple-Health-rich accounts
   // before the budget call even started.
-  const measurements = await prisma.measurement.findMany({
-    where: {
-      userId,
-      type: "PULSE",
-      deletedAt: null,
-    },
-    orderBy: { measuredAt: "desc" },
-    take: 365,
-    select: {
-      value: true,
-      measuredAt: true,
-    },
-  }).then((rows) => rows.reverse());
+  const measurements = await prisma.measurement
+    .findMany({
+      where: {
+        userId,
+        type: "PULSE",
+        deletedAt: null,
+      },
+      orderBy: { measuredAt: "desc" },
+      take: 365,
+      select: {
+        value: true,
+        measuredAt: true,
+      },
+    })
+    .then((rows) => rows.reverse());
 
   // v1.15.12 A2 — the RESTING band is judged against the RESTING series,
   // not the raw PULSE stream (Apple fills PULSE with workout HR). Pull
@@ -333,10 +386,13 @@ export async function generatePulseStatusForUser(
   });
   if (unchanged) {
     return {
-      hasProvider: true,
-      text: unchanged.text,
-      cached: true,
-      updatedAt: unchanged.updatedAt,
+      phase: "served",
+      result: {
+        hasProvider: true,
+        text: unchanged.text,
+        cached: true,
+        updatedAt: unchanged.updatedAt,
+      },
     };
   }
 
@@ -368,10 +424,15 @@ export async function generatePulseStatusForUser(
     locale,
   );
 
-  const outcome = await runStatusCompletion({
+  // The provider call is deferred to the caller — the single-card path runs
+  // ONE completion, the batch path folds this prompt into one shared call.
+  // A timeout / error is a transient miss (fallback served, no assessment
+  // persisted); `none` (no provider / no consent) serves the no-key text.
+  return {
+    phase: "pending",
+    metric: "pulse",
     userId,
     cacheAction,
-    consentSurface: "insights",
     systemPrompt: getPulseSystemPrompt(locale),
     userPrompt: getPulseUserPrompt(
       snapshotJson,
@@ -380,51 +441,48 @@ export async function generatePulseStatusForUser(
       previousContextBlock,
       assessmentContextBlock,
     ),
+    snapshotHash,
     // v1.12.7 — match the archetype cards' 0.45.
     temperature: 0.45,
-    maxTokens: 1000,
-  });
-
-  if (outcome.kind === "none") {
-    return {
+    noProvider: {
       hasProvider: false,
       text: getNoKeyPulseStatusText(locale),
       cached: true,
       updatedAt: null,
-    };
-  }
-  if (outcome.kind === "timeout" || outcome.kind === "error") {
-    return returnTimeoutFallback({
-      cacheAction,
-      reason: outcome.kind,
-      userId,
-      todayKey,
-      stubText: getNoKeyPulseStatusText(locale),
-    });
-  }
-
-  const summary = normalizeSummaryText(parseSummaryFromContent(outcome.content));
-  if (!summary) {
-    throw new Error("Pulse-status summary was empty after normalization");
-  }
-
-  const updatedAt = await persistStatusInsight({
-    userId,
-    cacheAction,
-    todayKey,
-    locale,
-    text: summary,
-    providerType: outcome.providerType,
-    model: outcome.model,
-    tokensUsed: outcome.tokensUsed,
-    snapshotHash,
-  });
-
-  return {
-    hasProvider: true,
-    text: summary,
-    cached: false,
-    updatedAt,
+    },
+    timeout: (reason): StatusCardResult =>
+      returnTimeoutFallback({
+        cacheAction,
+        reason,
+        userId,
+        todayKey,
+        stubText: getNoKeyPulseStatusText(locale),
+      }),
+    finalize: async (outcome): Promise<StatusCardResult> => {
+      const summary = normalizeSummaryText(
+        parseSummaryFromContent(outcome.content),
+      );
+      if (!summary) {
+        throw new Error("Pulse-status summary was empty after normalization");
+      }
+      const updatedAt = await persistStatusInsight({
+        userId,
+        cacheAction,
+        todayKey,
+        locale,
+        text: summary,
+        providerType: outcome.providerType,
+        model: outcome.model,
+        tokensUsed: outcome.tokensUsed,
+        snapshotHash,
+      });
+      return {
+        hasProvider: true,
+        text: summary,
+        cached: false,
+        updatedAt,
+      };
+    },
   };
 }
 

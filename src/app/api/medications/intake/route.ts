@@ -695,7 +695,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // outstanding, so it neither clears the reminder nor changes the badge.
   if (status === "taken" || status === "skipped") {
     void (async () => {
-      const badgeCount = await countOutstandingDosesToday(user.id, userTzForHook);
+      const badgeCount = await countOutstandingDosesToday(
+        user.id,
+        userTzForHook,
+      );
       await dispatchMedicationIntakeWebClear({
         userId: user.id,
         medicationId: existing.medicationId,

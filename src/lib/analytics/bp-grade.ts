@@ -51,10 +51,7 @@
  * Pure & deterministic — fully unit-tested in `__tests__/bp-grade.test.ts`.
  */
 import type { BpTargets } from "./bp-targets";
-import {
-  SYS_HYPOTENSION_FLOOR,
-  DIA_HYPOTENSION_FLOOR,
-} from "./bp-in-target";
+import { SYS_HYPOTENSION_FLOOR, DIA_HYPOTENSION_FLOOR } from "./bp-in-target";
 
 /**
  * Offset-from-ceiling → axis-score anchors. Offsets are in mmHg; the

@@ -7,7 +7,7 @@ vi.mock("@/lib/db", () => ({
       update: vi.fn(),
     },
   },
-  toJson: <T,>(v: T) => v,
+  toJson: <T>(v: T) => v,
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));

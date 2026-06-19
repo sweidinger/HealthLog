@@ -125,7 +125,10 @@ export default function InsightsGewichtPage() {
           off the overview onto its metric page). */}
       <MetricCorrelationCard slug="weight" />
 
-      <SlugInsightStatusCard slug="weight" icon={<Scale className="h-5 w-5" />} />
+      <SlugInsightStatusCard
+        slug="weight"
+        icon={<Scale className="h-5 w-5" />}
+      />
     </SubPageShell>
   );
 }

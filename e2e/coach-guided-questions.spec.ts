@@ -243,7 +243,9 @@ test.describe("Coach guided clarifying questions", () => {
     await expect(current).toHaveCount(0);
 
     // Settling the offer (decline via ✕) releases the next question.
-    await adopt.locator('[data-slot="coach-self-context-adopt-dismiss"]').click();
+    await adopt
+      .locator('[data-slot="coach-self-context-adopt-dismiss"]')
+      .click();
     await expect(current).toContainText(QUESTIONS[1], { timeout: 10_000 });
     await expect(
       current.locator('[data-slot="coach-guided-progress"]'),

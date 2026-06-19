@@ -142,7 +142,8 @@ describe("GET /api/medications/[id]/side-effects", () => {
       { params: Promise.resolve({ id: "med-1" }) },
     );
 
-    const call = vi.mocked(prisma.medicationSideEffect.findMany).mock.calls[0][0];
+    const call = vi.mocked(prisma.medicationSideEffect.findMany).mock
+      .calls[0][0];
     expect(call).toMatchObject({
       where: {
         userId: "user-1",

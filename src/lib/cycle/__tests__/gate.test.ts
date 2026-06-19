@@ -5,7 +5,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const isModuleEnabledMock = vi.fn<(userId: string, key: string) => Promise<boolean>>();
+const isModuleEnabledMock =
+  vi.fn<(userId: string, key: string) => Promise<boolean>>();
 const getOrCreateCycleProfileMock = vi.fn();
 
 vi.mock("@/lib/modules/gate", () => ({
@@ -50,7 +51,9 @@ describe("isCycleEnabled", () => {
 
   it("gates on UPPERCASE FEMALE only (server enum spelling)", () => {
     // Lowercase / other spellings never enable by derivation.
-    expect(isCycleEnabled("female", { cycleTrackingEnabled: null })).toBe(false);
+    expect(isCycleEnabled("female", { cycleTrackingEnabled: null })).toBe(
+      false,
+    );
     expect(isCycleEnabled("OTHER", { cycleTrackingEnabled: null })).toBe(false);
   });
 

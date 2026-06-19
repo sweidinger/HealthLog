@@ -107,7 +107,11 @@ describe("buildDayLogInput (new row → omit empties)", () => {
     );
     expect(input.basalBodyTempC).toBe(36.5);
     expect(input.temperatureExcluded).toBe(true);
-    const patch = buildDayLogPatch({ ...blank(), bbt: "36.5", bbtDisturbed: true });
+    const patch = buildDayLogPatch({
+      ...blank(),
+      bbt: "36.5",
+      bbtDisturbed: true,
+    });
     expect(patch.temperatureExcluded).toBe(true);
   });
 
@@ -145,7 +149,13 @@ describe("buildDayLogInput (new row → omit empties)", () => {
 describe("section summary-badge counts (v1.17.0)", () => {
   it("counts each logged symptom", () => {
     expect(symptomsCount(blank())).toBe(0);
-    const s = { ...blank(), symptoms: new Map([["cramps", 2], ["headache", null]]) };
+    const s = {
+      ...blank(),
+      symptoms: new Map([
+        ["cramps", 2],
+        ["headache", null],
+      ]),
+    };
     expect(symptomsCount(s)).toBe(2);
   });
 

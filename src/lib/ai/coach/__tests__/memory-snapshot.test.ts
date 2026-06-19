@@ -93,7 +93,11 @@ describe("buildCoachMemoryBlock", () => {
     expect(block?.priorNarrative?.headline).toContain("Ruhepuls");
     expect(block?.priorNarrative?.drivers).toEqual([]);
     expect(block?.trendMemory).toEqual({
-      HEART_RATE: { priorBand: "in", currentBand: "above", priorPeriod: "month" },
+      HEART_RATE: {
+        priorBand: "in",
+        currentBand: "above",
+        priorPeriod: "month",
+      },
       WEIGHT: { priorBand: "in", currentBand: "in", priorPeriod: "month" },
     });
   });

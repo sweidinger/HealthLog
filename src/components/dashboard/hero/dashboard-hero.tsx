@@ -232,92 +232,94 @@ export function DashboardHero({
       )}
     >
       <div className="flex h-full flex-col gap-4">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0 flex-1 space-y-3">
-          {/* Greeting leads the typographic hierarchy: larger + heavier
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0 flex-1 space-y-3">
+            {/* Greeting leads the typographic hierarchy: larger + heavier
               than the verdict so the personalised line reads first.
               The verdict keeps its medium weight one step down — still
               the content lead, clearly subordinate to the greeting.
               Both stay on the existing foreground token; the band adds
               no new colour. */}
-          <p
-            data-slot="dashboard-hero-greeting"
-            className="text-foreground text-lg font-semibold tracking-tight sm:text-xl"
-          >
-            {welcomeText}
-          </p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <p
-              data-slot="dashboard-hero-verdict"
-              data-verdict-variant={verdict.variant}
-              className="text-foreground/90 text-base font-medium"
+              data-slot="dashboard-hero-greeting"
+              className="text-foreground text-lg font-semibold tracking-tight sm:text-xl"
             >
-              {sentence}
+              {welcomeText}
             </p>
-            {cta !== null && ctaLabelKey ? (
-              cta.kind === "link" ? (
-                <Button
-                  asChild
-                  size="sm"
-                  variant="outline"
-                  data-slot="dashboard-hero-cta"
-                >
-                  <Link href={cta.href}>{t(ctaLabelKey)}</Link>
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  data-slot="dashboard-hero-cta"
-                  onClick={() => onQuickEntry(cta.target)}
-                >
-                  {t(ctaLabelKey)}
-                </Button>
-              )
-            ) : null}
-          </div>
-          <div
-            data-slot="dashboard-hero-doses"
-            className="bg-muted/50 border-border/60 inline-flex max-w-full items-center gap-2 rounded-xl border px-3 py-2"
-          >
-            <Pill
-              className="text-muted-foreground h-4 w-4 shrink-0"
-              aria-hidden="true"
-            />
-            <span className="text-foreground truncate text-sm">
-              {meds.scheduledToday > 0
-                ? t("dashboard.hero.doses.summary", {
-                    taken: meds.takenToday,
-                    scheduled: meds.scheduledToday,
-                  })
-                : t("dashboard.hero.doses.none")}
-            </span>
-            {doseDetail !== null ? (
-              <span className="text-muted-foreground shrink-0 text-sm">
-                · {doseDetail}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p
+                data-slot="dashboard-hero-verdict"
+                data-verdict-variant={verdict.variant}
+                className="text-foreground/90 text-base font-medium"
+              >
+                {sentence}
+              </p>
+              {cta !== null && ctaLabelKey ? (
+                cta.kind === "link" ? (
+                  <Button
+                    asChild
+                    size="default"
+                    variant="outline"
+                    className="min-h-11 sm:min-h-9"
+                    data-slot="dashboard-hero-cta"
+                  >
+                    <Link href={cta.href}>{t(ctaLabelKey)}</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    size="default"
+                    className="min-h-11 sm:min-h-9"
+                    data-slot="dashboard-hero-cta"
+                    onClick={() => onQuickEntry(cta.target)}
+                  >
+                    {t(ctaLabelKey)}
+                  </Button>
+                )
+              ) : null}
+            </div>
+            <div
+              data-slot="dashboard-hero-doses"
+              className="bg-muted/50 border-border/60 inline-flex max-w-full items-center gap-2 rounded-xl border px-3 py-2"
+            >
+              <Pill
+                className="text-muted-foreground h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+              <span className="text-foreground truncate text-sm">
+                {meds.scheduledToday > 0
+                  ? t("dashboard.hero.doses.summary", {
+                      taken: meds.takenToday,
+                      scheduled: meds.scheduledToday,
+                    })
+                  : t("dashboard.hero.doses.none")}
               </span>
-            ) : null}
+              {doseDetail !== null ? (
+                <span className="text-muted-foreground shrink-0 text-sm">
+                  · {doseDetail}
+                </span>
+              ) : null}
+            </div>
           </div>
-        </div>
-        {/* Right column — fixed 120 px ring footprint. A null score
+          {/* Right column — fixed 120 px ring footprint. A null score
             renders the ring's provisional state (aria announces "not
             enough data", never 0) at identical geometry, so the column
             NEVER collapses. */}
-        <div className="flex shrink-0 items-center justify-center md:justify-end">
-          <ScoreRing
-            score={snapshot.healthScore?.score ?? null}
-            band={snapshot.healthScore?.band}
-            size="sm"
-            flat
-            label={
-              snapshot.healthScore
-                ? t("dashboard.hero.scoreLabel")
-                : hasScoreInputs
-                  ? t("dashboard.hero.scoreComputing")
-                  : t("dashboard.hero.scoreProvisional")
-            }
-          />
+          <div className="flex shrink-0 items-center justify-center md:justify-end">
+            <ScoreRing
+              score={snapshot.healthScore?.score ?? null}
+              band={snapshot.healthScore?.band}
+              size="sm"
+              flat
+              label={
+                snapshot.healthScore
+                  ? t("dashboard.hero.scoreLabel")
+                  : hasScoreInputs
+                    ? t("dashboard.hero.scoreComputing")
+                    : t("dashboard.hero.scoreProvisional")
+              }
+            />
+          </div>
         </div>
-      </div>
         {/* v1.18.1 — Rest Mode cue beneath the verdict/score row. Self-gating
             (renders nothing unless an episode is active), value-free, and
             untinted so it frames the score without alarming. Closes the

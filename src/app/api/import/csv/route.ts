@@ -125,7 +125,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
               unit: m.unit,
               measuredAt: m.measuredAt,
               notes: m.notes ?? null,
-              glucoseContext: (m.glucoseContext as GlucoseContext | undefined) ?? null,
+              glucoseContext:
+                (m.glucoseContext as GlucoseContext | undefined) ?? null,
             },
             create: {
               userId,
@@ -136,7 +137,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
               externalId: m.externalId,
               measuredAt: m.measuredAt,
               notes: m.notes ?? null,
-              glucoseContext: (m.glucoseContext as GlucoseContext | undefined) ?? null,
+              glucoseContext:
+                (m.glucoseContext as GlucoseContext | undefined) ?? null,
             },
             select: { createdAt: true, updatedAt: true },
           });
@@ -159,7 +161,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
               source: "IMPORT",
               measuredAt: m.measuredAt,
               notes: m.notes ?? null,
-              glucoseContext: (m.glucoseContext as GlucoseContext | undefined) ?? null,
+              glucoseContext:
+                (m.glucoseContext as GlucoseContext | undefined) ?? null,
             },
           });
           inserted++;
@@ -232,7 +235,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
       }
       const outcome = writeOutcome.get(r.line);
       if (outcome === "duplicate") {
-        return { line: r.line, status: "skipped" as const, reason: "duplicate" };
+        return {
+          line: r.line,
+          status: "skipped" as const,
+          reason: "duplicate",
+        };
       }
       if (outcome === "updated") {
         return { line: r.line, status: "updated" as const };

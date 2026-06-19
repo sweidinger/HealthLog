@@ -97,12 +97,12 @@ they triggered.
 The parser folds four XML element types into the existing HealthLog
 schema (CHANGELOG v1.4.34):
 
-| XML element | Maps to | Notes |
-| ----------- | ------- | ----- |
-| `<Record>` | `Measurement` rows | One row per spot sample. Keyed by `HKMetadataKeyExternalUUID` when present, otherwise a deterministic `sample:<sha256-of-attributes>` fallback so re-imports stay idempotent. |
-| `<Workout>` | `Workout` rows | Activity type + duration + energy + distance. |
-| `<Correlation>` | `Measurement` rows | Compound samples like blood pressure (systolic + diastolic) explode into their per-metric children. |
-| `<ClinicalRecord>` | `Measurement` rows where the type maps | Health-record FHIR snapshots; only the metric-typed fields are ingested. |
+| XML element        | Maps to                                | Notes                                                                                                                                                                         |
+| ------------------ | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<Record>`         | `Measurement` rows                     | One row per spot sample. Keyed by `HKMetadataKeyExternalUUID` when present, otherwise a deterministic `sample:<sha256-of-attributes>` fallback so re-imports stay idempotent. |
+| `<Workout>`        | `Workout` rows                         | Activity type + duration + energy + distance.                                                                                                                                 |
+| `<Correlation>`    | `Measurement` rows                     | Compound samples like blood pressure (systolic + diastolic) explode into their per-metric children.                                                                           |
+| `<ClinicalRecord>` | `Measurement` rows where the type maps | Health-record FHIR snapshots; only the metric-typed fields are ingested.                                                                                                      |
 
 The HK quantity types that map to HealthLog metric types live in
 `src/lib/measurements/apple-health-mapping.ts`. Anything outside the
@@ -187,13 +187,13 @@ Override per-user via the Sources section of `/settings/thresholds`.
 
 ## Failure modes
 
-| Failure | What you see | Recovery |
-| ------- | ------------ | -------- |
-| Archive is missing `apple_health_export/export.xml` | `failureReason: "Archive is missing the apple_health_export/export.xml member"` | Re-export from the iPhone; a partial AirDrop or a renamed archive can lose the canonical entry. |
-| Archive is encrypted | `failureReason: "Encrypted ZIP entries are not supported"` | Apple does not encrypt the export — this means the file was repacked by a third-party tool. Re-export from iOS directly. |
-| Unsupported compression method | `failureReason: "Unsupported ZIP compression method <n> for export.xml"` | Same recovery — re-export from iOS, which always emits method 0 (stored) or method 8 (deflate). |
-| Worker is not running | `503 Background worker is not running` from the kick-off endpoint | The worker process is down. Check `docker compose ps` for the `app-worker` container (or `HEALTHLOG_PROCESS_TYPE=all` mode on the main `app` container) and restart. |
-| Rate-limited | `429 Too many import uploads, try again later` | Wait sixty seconds; the limit is three uploads per minute per user. |
+| Failure                                             | What you see                                                                    | Recovery                                                                                                                                                             |
+| --------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Archive is missing `apple_health_export/export.xml` | `failureReason: "Archive is missing the apple_health_export/export.xml member"` | Re-export from the iPhone; a partial AirDrop or a renamed archive can lose the canonical entry.                                                                      |
+| Archive is encrypted                                | `failureReason: "Encrypted ZIP entries are not supported"`                      | Apple does not encrypt the export — this means the file was repacked by a third-party tool. Re-export from iOS directly.                                             |
+| Unsupported compression method                      | `failureReason: "Unsupported ZIP compression method <n> for export.xml"`        | Same recovery — re-export from iOS, which always emits method 0 (stored) or method 8 (deflate).                                                                      |
+| Worker is not running                               | `503 Background worker is not running` from the kick-off endpoint               | The worker process is down. Check `docker compose ps` for the `app-worker` container (or `HEALTHLOG_PROCESS_TYPE=all` mode on the main `app` container) and restart. |
+| Rate-limited                                        | `429 Too many import uploads, try again later`                                  | Wait sixty seconds; the limit is three uploads per minute per user.                                                                                                  |
 
 The wide-event log line `import.apple-health.kickoff` (or
 `import.apple-health.kickoff.denied` on failure) captures every

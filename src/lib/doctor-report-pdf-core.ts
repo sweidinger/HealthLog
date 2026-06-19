@@ -71,7 +71,10 @@ const WINANSI_REPLACE_RE = new RegExp(
 
 /** Map non-WinAnsi glyphs onto safe equivalents. Pure; exported for tests. */
 export function sanitiseForPdf(text: string): string {
-  return text.replace(WINANSI_REPLACE_RE, (ch) => WINANSI_REPLACEMENTS[ch] ?? ch);
+  return text.replace(
+    WINANSI_REPLACE_RE,
+    (ch) => WINANSI_REPLACEMENTS[ch] ?? ch,
+  );
 }
 
 /**
@@ -106,9 +109,7 @@ function patchPdfTextSanitiser(doc: jsPDF): void {
   ): ReturnType<jsPDF["splitTextToSize"]> {
     const next = [...args] as unknown[];
     next[0] = clean(next[0]);
-    return originalSplit(
-      ...(next as Parameters<jsPDF["splitTextToSize"]>),
-    );
+    return originalSplit(...(next as Parameters<jsPDF["splitTextToSize"]>));
   } as jsPDF["splitTextToSize"];
 }
 
@@ -267,11 +268,7 @@ function getBpClassificationKey(sys: number, dia: number): string {
 }
 
 /** Primary vitals that get a trend sparkline + a summary trend arrow. */
-const SPARKLINE_TYPES = [
-  "WEIGHT",
-  "BLOOD_PRESSURE_SYS",
-  "PULSE",
-] as const;
+const SPARKLINE_TYPES = ["WEIGHT", "BLOOD_PRESSURE_SYS", "PULSE"] as const;
 
 type FormatNum = (value: number, decimals?: number) => string;
 
@@ -281,8 +278,7 @@ function trendArrow(values: number[]): "↑" | "↓" | "→" {
   const mid = Math.floor(values.length / 2);
   const firstHalf = values.slice(0, mid);
   const secondHalf = values.slice(mid);
-  const mean = (arr: number[]) =>
-    arr.reduce((a, b) => a + b, 0) / arr.length;
+  const mean = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
   const delta = mean(secondHalf) - mean(firstHalf);
   // Threshold at ~1% of the first-half mean so flat series read "→".
   const threshold = Math.abs(mean(firstHalf)) * 0.01;
@@ -761,10 +757,22 @@ export function buildDoctorReportPdfDocument(
     const pct = (fraction: number) => `${num(fraction * 100)} %`;
     const clinicalRows: string[][] = [];
     const dist = clinical.distribution;
-    clinicalRows.push([t("doctorReport.glucoseClinical.tirInRange"), pct(dist.tir)]);
-    clinicalRows.push([t("doctorReport.glucoseClinical.tirLow"), pct(dist.tbrLevel1)]);
-    clinicalRows.push([t("doctorReport.glucoseClinical.tirVeryLow"), pct(dist.tbrLevel2)]);
-    clinicalRows.push([t("doctorReport.glucoseClinical.tirHigh"), pct(dist.tarLevel1)]);
+    clinicalRows.push([
+      t("doctorReport.glucoseClinical.tirInRange"),
+      pct(dist.tir),
+    ]);
+    clinicalRows.push([
+      t("doctorReport.glucoseClinical.tirLow"),
+      pct(dist.tbrLevel1),
+    ]);
+    clinicalRows.push([
+      t("doctorReport.glucoseClinical.tirVeryLow"),
+      pct(dist.tbrLevel2),
+    ]);
+    clinicalRows.push([
+      t("doctorReport.glucoseClinical.tirHigh"),
+      pct(dist.tarLevel1),
+    ]);
     clinicalRows.push([
       t("doctorReport.glucoseClinical.tirVeryHigh"),
       pct(dist.tarLevel2),
@@ -776,7 +784,10 @@ export function buildDoctorReportPdfDocument(
       ]);
     }
     if (clinical.gmi !== null) {
-      clinicalRows.push([t("doctorReport.glucoseClinical.gmi"), `${num(clinical.gmi)} %`]);
+      clinicalRows.push([
+        t("doctorReport.glucoseClinical.gmi"),
+        `${num(clinical.gmi)} %`,
+      ]);
     }
     if (clinical.estimatedA1c !== null) {
       clinicalRows.push([
@@ -977,7 +988,10 @@ export function buildDoctorReportPdfDocument(
   if (complianceEntries.length > 0) {
     // Keep the heading with the table header + first row (~6 mm heading +
     // ~9 mm header + ~9 mm row).
-    y = ensureSpace(y, 6 + estimateTableHeight(Math.min(complianceEntries.length, 1)));
+    y = ensureSpace(
+      y,
+      6 + estimateTableHeight(Math.min(complianceEntries.length, 1)),
+    );
 
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");

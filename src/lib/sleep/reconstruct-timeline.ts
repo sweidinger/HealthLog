@@ -91,7 +91,11 @@ export function reconstructContiguousSleepTimeline(
   let cursor = startMs;
   let segIndex = 0;
   for (const { durationMs, stage, fieldTag } of stages) {
-    if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs <= 0) {
+    if (
+      typeof durationMs !== "number" ||
+      !Number.isFinite(durationMs) ||
+      durationMs <= 0
+    ) {
       continue;
     }
     const segEnd = cursor + durationMs;

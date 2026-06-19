@@ -132,9 +132,7 @@ describe("GET /api/analytics — chunked per-type reads (Sr-H1)", () => {
       // i = 0 is the oldest. The chunked helper reads
       // `(measuredAt asc, id asc)` so the latest value is the last
       // entry in the sorted stream — which the test asserts below.
-      measuredAt: new Date(
-        youngestRowAtMs - (ROW_COUNT - 1 - i) * STEP_MS,
-      ),
+      measuredAt: new Date(youngestRowAtMs - (ROW_COUNT - 1 - i) * STEP_MS),
     }));
     // createMany batches efficiently; default Postgres parameter limit
     // accommodates this volume in a single statement.

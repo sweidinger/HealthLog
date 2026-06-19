@@ -173,9 +173,7 @@ describe("GET /api/workouts — canonical dedup", () => {
     // This test pins that the route passes `userId: user-1` so the
     // database layer drops other users' rows before the picker runs.
     const apple = makeRow("w-apple", "APPLE_HEALTH", "2026-05-15T07:00:00Z");
-    vi.mocked(prisma.workout.findMany).mockResolvedValueOnce([
-      apple,
-    ] as never);
+    vi.mocked(prisma.workout.findMany).mockResolvedValueOnce([apple] as never);
 
     await GET(makeRequest());
 
@@ -230,9 +228,7 @@ describe("GET /api/workouts — canonical dedup", () => {
 
   it("exposes iOS-contract field names on each workout row", async () => {
     const apple = makeRow("w-apple", "APPLE_HEALTH", "2026-05-15T07:00:00Z");
-    vi.mocked(prisma.workout.findMany).mockResolvedValueOnce([
-      apple,
-    ] as never);
+    vi.mocked(prisma.workout.findMany).mockResolvedValueOnce([apple] as never);
 
     const res = await GET(makeRequest());
     const body = await res.json();

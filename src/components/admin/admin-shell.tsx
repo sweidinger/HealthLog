@@ -212,7 +212,9 @@ export function AdminShell({ active, children }: AdminShellProps) {
   // with the top of the first card by construction. `/admin` overview
   // (activeSlug === null) shows the console title; each section shows its own.
   const headingTitle =
-    activeSlug === null ? t("admin.title") : t(`admin.section.${activeSlug}.title`);
+    activeSlug === null
+      ? t("admin.title")
+      : t(`admin.section.${activeSlug}.title`);
   const headingSubtitle =
     activeSlug === null
       ? t("admin.subtitle")

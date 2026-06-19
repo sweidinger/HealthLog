@@ -21,7 +21,7 @@ function buildMinimalZip(filename: string, payload: Buffer): Buffer {
     for (let n = 0; n < 256; n++) {
       c = n;
       for (let k = 0; k < 8; k++) {
-        c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
       }
       table[n] = c;
     }
@@ -79,14 +79,7 @@ function buildMinimalZip(filename: string, payload: Buffer): Buffer {
   eocd.writeUInt32LE(30 + nameBuf.length + compressed.length, 16);
   eocd.writeUInt16LE(0, 20); // comment len
 
-  return Buffer.concat([
-    localHeader,
-    nameBuf,
-    compressed,
-    cdh,
-    nameBuf,
-    eocd,
-  ]);
+  return Buffer.concat([localHeader, nameBuf, compressed, cdh, nameBuf, eocd]);
 }
 
 describe("readCentralDirectory", () => {

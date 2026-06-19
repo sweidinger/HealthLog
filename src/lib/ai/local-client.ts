@@ -1,4 +1,5 @@
 import { safeFetch } from "@/lib/safe-fetch";
+import { isLocalAiHostAllowed } from "./local-host-allowlist";
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
 
 interface LocalClientConfig {
@@ -49,9 +50,11 @@ export class LocalOpenAICompatibleClient implements AIProvider {
     // pin (issue #217) extends the same flag with a connect-time
     // resolved-IP check to also defeat DNS rebinding. Operators who
     // legitimately point at a self-hosted Ollama / LM Studio on an
-    // RFC1918 address opt out via `ALLOW_LOCAL_AI_PRIVATE_HOSTS=true`
-    // (also enforced at write-time in /api/user/ai-provider).
-    const allowPrivate = process.env.ALLOW_LOCAL_AI_PRIVATE_HOSTS === "true";
+    // RFC1918 address opt in via `ALLOW_LOCAL_AI_PRIVATE_HOSTS` — either the
+    // legacy `=true` (any private host) or a comma-separated host allowlist
+    // (only those hostnames). Enforced at write-time in /api/user/ai-provider
+    // too. v1.18.7 (SECURITY LOW) — the binary flag became a host allowlist.
+    const allowPrivate = isLocalAiHostAllowed(url);
     const res = await safeFetch(
       url,
       {
@@ -65,6 +68,15 @@ export class LocalOpenAICompatibleClient implements AIProvider {
           ],
           temperature: params.temperature ?? 0.3,
           max_tokens: params.maxTokens ?? 1000,
+          // Deterministic seed for reproducible reference output. Ollama +
+          // most OpenAI-compatible local servers honour it; servers that
+          // ignore it simply disregard the field. Omitted when unset.
+          ...(params.seed !== undefined ? { seed: params.seed } : {}),
+          // v1.18.7 — Ollama's native structured-output switch. The JSON
+          // surfaces opt in via `responseFormat: "json"`; it cuts the
+          // first-pass JSON-failure rate that the fence-stripping safety net
+          // otherwise has to catch. The Coach (prose) leaves it unset.
+          ...(params.responseFormat === "json" ? { format: "json" } : {}),
         }),
       },
       { timeoutMs: 60_000, requirePublicHost: !allowPrivate },

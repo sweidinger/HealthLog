@@ -254,8 +254,7 @@ export function HealthKitMetricPage({
           min: rawSummary.min === null ? null : rawSummary.min * scale,
           max: rawSummary.max === null ? null : rawSummary.max * scale,
           mean: rawSummary.mean === null ? null : rawSummary.mean * scale,
-          median:
-            rawSummary.median === null ? null : rawSummary.median * scale,
+          median: rawSummary.median === null ? null : rawSummary.median * scale,
         }
       : rawSummary;
 

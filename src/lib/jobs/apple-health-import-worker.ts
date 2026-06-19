@@ -114,8 +114,8 @@ export async function handleAppleHealthImport(
   if (!importJob) {
     // No mirror row — log and exit; we cannot surface progress.
     console.warn(
-      `[apple-health-import] No ImportJob row for pgBossJobId=${job.id};`
-      + " creating a stand-in",
+      `[apple-health-import] No ImportJob row for pgBossJobId=${job.id};` +
+        " creating a stand-in",
     );
     importJob = await prisma.importJob.create({
       data: {

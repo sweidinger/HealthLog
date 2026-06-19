@@ -8,8 +8,7 @@ import {
   encryptContextToBytes,
 } from "../biomarker-store";
 
-const KEY =
-  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 describe("biomarker context codec", () => {
   beforeEach(() => {

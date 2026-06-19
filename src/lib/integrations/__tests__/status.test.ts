@@ -388,7 +388,9 @@ describe("recordSyncFailure — persistent (v1.4.42 W6)", () => {
     expect(dispatchNotification).toHaveBeenCalledOnce();
     const payload = vi.mocked(dispatchNotification).mock.calls[0][0];
     expect(payload.message).toContain("persistent error");
-    expect(payload.message).toContain("Action: investigate the upstream contract");
+    expect(payload.message).toContain(
+      "Action: investigate the upstream contract",
+    );
   });
 });
 
@@ -754,7 +756,11 @@ describe("v1.4.47 W1 — down-script restores legacy consecutiveFailures via Mat
    * single source of truth for the recipe.
    */
   function projectLegacyCounter(
-    buckets: { transient: number; reauth_required: number; persistent: number } | null,
+    buckets: {
+      transient: number;
+      reauth_required: number;
+      persistent: number;
+    } | null,
   ): number {
     if (!buckets) return 0;
     return Math.max(

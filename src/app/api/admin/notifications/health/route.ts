@@ -75,7 +75,13 @@ export const GET = apiHandler(async (request) => {
   for (const row of grouped) {
     const existing =
       byChannel.get(row.channel) ??
-      ({ channel: row.channel, ok: 0, error: 0, skipped: 0, total: 0 } satisfies ChannelHealthRow);
+      ({
+        channel: row.channel,
+        ok: 0,
+        error: 0,
+        skipped: 0,
+        total: 0,
+      } satisfies ChannelHealthRow);
     const count = row._count._all;
     if (row.result === "ok") existing.ok += count;
     else if (row.result === "error") existing.error += count;

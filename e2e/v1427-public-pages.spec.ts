@@ -38,14 +38,14 @@ test.describe("v1.4.27 — public pages", () => {
     // No bounce to the login page.
     expect(page.url()).toMatch(/\/about(\?|$)/);
 
-    await expect(page.getByRole("heading", { name: /about/i }).first()).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /about/i }).first(),
+    ).toBeVisible();
 
     // GeoLite2 attribution is the load-bearing reason this page exists.
     await expect(page.getByText(/GeoLite2/)).toBeVisible();
     await expect(page.getByText(/MaxMind/)).toBeVisible();
-    await expect(
-      page.getByText(/Attribution-ShareAlike 4\.0/i),
-    ).toBeVisible();
+    await expect(page.getByText(/Attribution-ShareAlike 4\.0/i)).toBeVisible();
   });
 
   // v1.4.28 backlog: Next.js's `not-found.tsx` may return 200 or 404

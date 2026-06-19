@@ -174,9 +174,7 @@ describe("POST /api/import/csv — write loop + per-row envelope", () => {
     );
 
     const res = await POST(
-      csvRequest(
-        [HEADER, "WEIGHT,80.5,kg,2026-05-01T08:00:00Z,,,"].join("\n"),
-      ),
+      csvRequest([HEADER, "WEIGHT,80.5,kg,2026-05-01T08:00:00Z,,,"].join("\n")),
     );
     const body = (await res.json()) as CsvEnvelope;
     expect(body.data?.inserted).toBe(0);

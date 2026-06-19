@@ -308,10 +308,7 @@ export async function restoreCycleData(
         temperatureExcluded: d.temperatureExcluded ?? false,
         ovulationTest: enumOrNull(d.ovulationTest, OVULATION_TESTS) as never,
         cervicalMucus: enumOrNull(d.cervicalMucus, CERVICAL_MUCUS) as never,
-        cervixPosition: enumOrNull(
-          d.cervixPosition,
-          CERVIX_POSITIONS,
-        ) as never,
+        cervixPosition: enumOrNull(d.cervixPosition, CERVIX_POSITIONS) as never,
         cervixFirmness: enumOrNull(
           d.cervixFirmness,
           CERVIX_FIRMNESSES,

@@ -120,7 +120,9 @@ describe("<HealthScoreCard> — provenance accordion (W8e)", () => {
     // attribute order because additional ARIA attributes (e.g.
     // `aria-labelledby`) may sit between `id` and `data-slot`.
     const panelMatch = html.match(
-      new RegExp(`<section[^>]*\\bid="${id}"[^>]*data-slot="health-score-card-provenance-panel"`),
+      new RegExp(
+        `<section[^>]*\\bid="${id}"[^>]*data-slot="health-score-card-provenance-panel"`,
+      ),
     );
     expect(panelMatch).not.toBeNull();
   });
@@ -265,9 +267,7 @@ describe("<HealthScoreCard> — provenance accordion (W8e)", () => {
         delta={null}
       />,
     );
-    expect(html).toContain(
-      'data-slot="health-score-card-provisional-badge"',
-    );
+    expect(html).toContain('data-slot="health-score-card-provisional-badge"');
     // EN badge copy.
     expect(html).toContain("Provisional");
   });
@@ -370,8 +370,6 @@ describe("<HealthScoreCard> — provenance accordion (W8e)", () => {
         initiallyExpanded
       />,
     );
-    expect(html).toContain(
-      'data-slot="health-score-card-provenance-footnote"',
-    );
+    expect(html).toContain('data-slot="health-score-card-provenance-footnote"');
   });
 });

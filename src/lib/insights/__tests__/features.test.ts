@@ -16,9 +16,9 @@ vi.mock("@/lib/db", () => ({
 // Stub the mood-rollup warm-up so test runs don't fire the real
 // recompute aggregate. The warm-up is fire-and-forget on the route.
 vi.mock("@/lib/rollups/mood-rollups", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/rollups/mood-rollups")>(
-    "@/lib/rollups/mood-rollups",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/rollups/mood-rollups")
+  >("@/lib/rollups/mood-rollups");
   return {
     ...actual,
     ensureUserMoodRollupsFresh: vi

@@ -281,7 +281,7 @@ export function MedicationIntakeQuickAdd({
       // Fan-out to every inline compliance chart key (one per medication)
       // so the detail-page tile refreshes when the user re-enters it.
       await queryClient.invalidateQueries({
-        queryKey: ["compliance-chart-inline"],
+        queryKey: queryKeys.complianceChartInline(),
       });
 
       toast.success(t("common.saved"));

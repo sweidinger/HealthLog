@@ -75,10 +75,9 @@ function liveRow(overrides: Record<string, unknown> = {}) {
 }
 
 function req(): NextRequest {
-  return new NextRequest(
-    "http://localhost/api/illness/episodes/ep-1/restore",
-    { method: "POST" },
-  );
+  return new NextRequest("http://localhost/api/illness/episodes/ep-1/restore", {
+    method: "POST",
+  });
 }
 
 beforeEach(() => {

@@ -12,13 +12,14 @@ describe("getTargetSourceLink", () => {
   it("maps weight + BMI to the WHO obesity fact-sheet", () => {
     const url =
       "https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight";
-    expect(getTargetSourceLink({ type: "WEIGHT", source: "WHO BMI" })).toBe(url);
+    expect(getTargetSourceLink({ type: "WEIGHT", source: "WHO BMI" })).toBe(
+      url,
+    );
     expect(getTargetSourceLink({ type: "BMI", source: "WHO BMI" })).toBe(url);
   });
 
   it("maps blood pressure (and the in-target derivative) to the ESH paper", () => {
-    const url =
-      "https://academic.oup.com/eurheartj/article/39/33/3021/5079119";
+    const url = "https://academic.oup.com/eurheartj/article/39/33/3021/5079119";
     expect(
       getTargetSourceLink({ type: "BLOOD_PRESSURE", source: "ESH 2023" }),
     ).toBe(url);

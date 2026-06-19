@@ -35,14 +35,8 @@ function renderForm(footerSlot: HTMLElement | null = null): string {
   );
 }
 
-const formSrc = readFileSync(
-  resolve(__dirname, "../mood-form.tsx"),
-  "utf8",
-);
-const listSrc = readFileSync(
-  resolve(__dirname, "../mood-list.tsx"),
-  "utf8",
-);
+const formSrc = readFileSync(resolve(__dirname, "../mood-form.tsx"), "utf8");
+const listSrc = readFileSync(resolve(__dirname, "../mood-list.tsx"), "utf8");
 
 describe("MoodForm — 5-face hero (v1.12.0)", () => {
   it("renders the five mood faces as a radiogroup on a pristine form", () => {
@@ -52,13 +46,7 @@ describe("MoodForm — 5-face hero (v1.12.0)", () => {
     expect(html).toContain('data-slot="mood-face-hero"');
     expect(html).toContain("How are you?");
     // Best-on-the-left order: every enum value renders one face button.
-    for (const mood of [
-      "SUPER_GUT",
-      "GUT",
-      "OKAY",
-      "SCHLECHT",
-      "LAUSIG",
-    ]) {
+    for (const mood of ["SUPER_GUT", "GUT", "OKAY", "SCHLECHT", "LAUSIG"]) {
       expect(html).toContain(`data-mood="${mood}"`);
     }
     // The first face is SUPER_GUT (best on the left).
@@ -73,7 +61,7 @@ describe("MoodForm — 5-face hero (v1.12.0)", () => {
     expect(html).not.toContain('data-slot="mood-annotate-panel"');
     expect(html).not.toContain('data-testid="mood-note-counter"');
     // The panel is gated on `moodPicked` (mood !== "").
-    expect(formSrc).toContain("const moodPicked = mood !== \"\"");
+    expect(formSrc).toContain('const moodPicked = mood !== ""');
     expect(formSrc).toMatch(
       /moodPicked &&[\s\S]*data-slot="mood-annotate-panel"/,
     );
@@ -114,7 +102,9 @@ describe("MoodForm — Reset confirm when dirty (v1.11.5)", () => {
       /function requestReset\(\) \{[\s\S]*if \(isDirty\) \{[\s\S]*setResetConfirmOpen\(true\)/,
     );
     // A pristine form resets immediately (nothing to lose).
-    expect(formSrc).toMatch(/if \(isDirty\) \{[\s\S]*\} else \{[\s\S]*resetForm\(\)/);
+    expect(formSrc).toMatch(
+      /if \(isDirty\) \{[\s\S]*\} else \{[\s\S]*resetForm\(\)/,
+    );
   });
 
   it("mounts the confirm AlertDialog wired to resetForm on the destructive action", () => {
@@ -128,7 +118,9 @@ describe("MoodForm — Reset confirm when dirty (v1.11.5)", () => {
 describe("MoodForm — rated factors (v1.12.0)", () => {
   it("lifts a ratedFactors set and threads it to the tag picker", () => {
     expect(formSrc).toContain("const [ratedFactors, setRatedFactors]");
-    expect(formSrc).toMatch(/function rateFactor\(key: string, rating: number \| null\)/);
+    expect(formSrc).toMatch(
+      /function rateFactor\(key: string, rating: number \| null\)/,
+    );
     // The picker receives both the binary toggle and the factor rate
     // callbacks so it can render BINARY chips and RATED controls.
     expect(formSrc).toMatch(

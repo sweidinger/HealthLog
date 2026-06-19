@@ -14,7 +14,11 @@ import { useTranslations } from "@/lib/i18n/context";
 
 import { useIllnessInsights } from "./use-illness";
 
-export function IllnessInsightsCard({ windowDays = 365 }: { windowDays?: number }) {
+export function IllnessInsightsCard({
+  windowDays = 365,
+}: {
+  windowDays?: number;
+}) {
   const { t } = useTranslations();
   const { data, isLoading, isError } = useIllnessInsights(windowDays);
 
@@ -47,7 +51,9 @@ export function IllnessInsightsCard({ windowDays = 365 }: { windowDays?: number 
             <p className="text-foreground">
               {data.episodeCount === 1
                 ? t("illness.insights.countOne")
-                : t("illness.insights.countOther", { count: data.episodeCount })}
+                : t("illness.insights.countOther", {
+                    count: data.episodeCount,
+                  })}
             </p>
             <p className="text-muted-foreground">
               {data.typicalRecoveryGapDays !== null

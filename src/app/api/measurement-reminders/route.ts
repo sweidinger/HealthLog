@@ -42,7 +42,10 @@ export const GET = apiHandler(async () => {
     where: { userId: user.id, deletedAt: null },
     // Most-urgent first; a null next-due (uncomputable / disabled) sinks
     // to the end so the actionable items float to the top.
-    orderBy: [{ nextDueAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+    orderBy: [
+      { nextDueAt: { sort: "asc", nulls: "last" } },
+      { createdAt: "asc" },
+    ],
   });
 
   annotate({
@@ -89,8 +92,7 @@ async function postReminder(request: NextRequest): Promise<Response> {
 
   const timezone = await resolveTimezone(user.id);
   const now = new Date();
-  const anchorDate =
-    data.anchorDate != null ? new Date(data.anchorDate) : null;
+  const anchorDate = data.anchorDate != null ? new Date(data.anchorDate) : null;
 
   // Server-authoritative next-due. No satisfy yet → anchors on
   // anchorDate ?? createdAt (createdAt ≈ now for a fresh row).

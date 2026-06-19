@@ -184,8 +184,7 @@ export async function generateDerivedScoreAssessment(args: {
 
   const signal = buildScoreSignal(args.metric, args.derived.value, locale);
   if (!signal) return;
-  const band =
-    (args.derived.value as { band?: string }).band ?? "yellow";
+  const band = (args.derived.value as { band?: string }).band ?? "yellow";
 
   const scope = derivedScoreScope(args.metric);
   const cacheAction = statusCacheAction(scope, locale);

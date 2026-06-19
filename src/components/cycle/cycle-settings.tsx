@@ -17,11 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { useTranslations } from "@/lib/i18n/context";
-import type {
-  CycleGoal,
-  CycleProfileDTO,
-  SecondarySymptom,
-} from "./types";
+import type { CycleGoal, CycleProfileDTO, SecondarySymptom } from "./types";
 import { useUpdateCyclePrefs } from "./use-cycle";
 
 /**

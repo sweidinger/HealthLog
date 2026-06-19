@@ -12,7 +12,10 @@
  */
 
 /** Toggle a single id in/out of the selection set, returning a new Set. */
-export function toggleId(selected: ReadonlySet<string>, id: string): Set<string> {
+export function toggleId(
+  selected: ReadonlySet<string>,
+  id: string,
+): Set<string> {
   const next = new Set(selected);
   if (next.has(id)) next.delete(id);
   else next.add(id);

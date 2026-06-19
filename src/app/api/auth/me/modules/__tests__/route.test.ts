@@ -87,12 +87,14 @@ function mkPatch(body: unknown): Request {
  * (which writes `modulePreferencesJson`) is reflected by the post-update
  * `resolveModuleMap` re-read — mirroring real DB round-trip semantics.
  */
-function primeUser(over: {
-  gender?: string | null;
-  disableCoach?: boolean;
-  modulePreferencesJson?: unknown;
-  cycleTrackingEnabled?: boolean | null;
-} = {}) {
+function primeUser(
+  over: {
+    gender?: string | null;
+    disableCoach?: boolean;
+    modulePreferencesJson?: unknown;
+    cycleTrackingEnabled?: boolean | null;
+  } = {},
+) {
   const row: {
     gender: string | null;
     disableCoach: boolean;
@@ -102,9 +104,8 @@ function primeUser(over: {
     disableCoach: over.disableCoach ?? false,
     modulePreferencesJson: over.modulePreferencesJson ?? null,
   };
-  vi.mocked(prisma.user.findUnique).mockImplementation(
-    (() => Promise.resolve({ ...row })) as never,
-  );
+  vi.mocked(prisma.user.findUnique).mockImplementation((() =>
+    Promise.resolve({ ...row })) as never);
   vi.mocked(prisma.user.update).mockImplementation(((args: {
     data?: { modulePreferencesJson?: unknown };
   }) => {
@@ -213,7 +214,9 @@ describe("PATCH /api/auth/me/modules", () => {
     // user previously disabled glucose; now disabling sleep too.
     primeUser({ modulePreferencesJson: { glucose: false } });
 
-    await (PATCH as (r: Request) => Promise<Response>)(mkPatch({ sleep: false }));
+    await (PATCH as (r: Request) => Promise<Response>)(
+      mkPatch({ sleep: false }),
+    );
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
@@ -225,7 +228,9 @@ describe("PATCH /api/auth/me/modules", () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     primeUser({ modulePreferencesJson: { glucose: false } });
 
-    await (PATCH as (r: Request) => Promise<Response>)(mkPatch({ glucose: true }));
+    await (PATCH as (r: Request) => Promise<Response>)(
+      mkPatch({ glucose: true }),
+    );
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
@@ -299,7 +304,9 @@ describe("PATCH /api/auth/me/modules", () => {
     // junk in the stored row must not leak into the persisted merge.
     primeUser({ modulePreferencesJson: { mood: "yes", sleep: false } });
 
-    await (PATCH as (r: Request) => Promise<Response>)(mkPatch({ labs: false }));
+    await (PATCH as (r: Request) => Promise<Response>)(
+      mkPatch({ labs: false }),
+    );
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },

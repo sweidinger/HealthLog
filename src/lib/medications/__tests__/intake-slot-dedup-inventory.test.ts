@@ -79,9 +79,7 @@ beforeEach(() => {
   vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValue({
     count: 1,
   } as never);
-  vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
-    {} as never,
-  );
+  vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue({} as never);
 });
 
 describe("dedupeUserIntakeSlots — inventory refunds (v1.16.10)", () => {
@@ -127,10 +125,10 @@ describe("dedupeUserIntakeSlots — inventory refunds (v1.16.10)", () => {
     );
 
     // The refund runs before the loser tombstone sweep.
-    const restoreOrder = vi.mocked(restoreForIntake).mock
+    const restoreOrder =
+      vi.mocked(restoreForIntake).mock.invocationCallOrder[0];
+    const sweepOrder = vi.mocked(prisma.medicationIntakeEvent.updateMany).mock
       .invocationCallOrder[0];
-    const sweepOrder = vi.mocked(prisma.medicationIntakeEvent.updateMany)
-      .mock.invocationCallOrder[0];
     expect(restoreOrder).toBeLessThan(sweepOrder);
   });
 

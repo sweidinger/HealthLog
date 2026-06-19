@@ -144,7 +144,10 @@ export function buildBandsForMedication(
   // we also short-circuit a schedule that describes no cadence at all (no
   // rrule, no rolling, no legacy weekday/time, not one-shot) so a malformed or
   // empty schedule never silently mints a stray daily band.
-  if (schedule.scheduleType === "PRN" || !describesACadence(schedule, medication)) {
+  if (
+    schedule.scheduleType === "PRN" ||
+    !describesACadence(schedule, medication)
+  ) {
     return { bands: [], hasExpectedSlots: false, family: "none" };
   }
 
@@ -183,7 +186,13 @@ export function buildBandsForMedication(
   // field-shape `doseCadenceFamily` heuristic.
   const occurrences = occurrencesBetween(schedule, range.from, range.to, ctx);
   const family = realisedFamily(schedule, ctx, range);
-  const bands = mintBands(occurrences, family, input.windowConfig, userTz, schedule);
+  const bands = mintBands(
+    occurrences,
+    family,
+    input.windowConfig,
+    userTz,
+    schedule,
+  );
   return { bands, hasExpectedSlots: true, family };
 }
 
@@ -303,7 +312,9 @@ function dailyWindow(
         onTimeStart: new Date(
           occ.at.getTime() - w.dailyOnTimeMinutes * MINUTE_MS,
         ),
-        onTimeEnd: new Date(occ.at.getTime() + w.dailyOnTimeMinutes * MINUTE_MS),
+        onTimeEnd: new Date(
+          occ.at.getTime() + w.dailyOnTimeMinutes * MINUTE_MS,
+        ),
       };
   return {
     at: occ.at,
@@ -384,7 +395,10 @@ function weeklyWindow(
     hour,
     minute,
   );
-  const lateGraceMs = Math.max(0, overdueAnchor.getTime() - onTimeEnd.getTime());
+  const lateGraceMs = Math.max(
+    0,
+    overdueAnchor.getTime() - onTimeEnd.getTime(),
+  );
   return {
     at: occ.at,
     timeOfDay: occ.timeOfDay,
@@ -456,9 +470,7 @@ function realisedFamily(
     // an explicit rolling/weekly/monthly shape is day-scale, else daily.
     return fieldShapeFamily(schedule);
   }
-  const times = slots
-    .map((s) => s.at.getTime())
-    .sort((a, b) => a - b);
+  const times = slots.map((s) => s.at.getTime()).sort((a, b) => a - b);
   let minGap = Infinity;
   for (let i = 1; i < times.length; i++) {
     const gap = times[i] - times[i - 1];

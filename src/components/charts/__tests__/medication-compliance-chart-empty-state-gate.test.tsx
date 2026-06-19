@@ -29,7 +29,6 @@ describe("<MedicationComplianceChart> — empty-state gate by raw count", () => 
     vi.resetModules();
   });
 
-
   it("renders need-more-days copy when chartData.length < 3 but rawCount >= 3", async () => {
     const data = [
       { date: "2026-05-19", scheduled: 10, taken: 8 },
@@ -48,9 +47,8 @@ describe("<MedicationComplianceChart> — empty-state gate by raw count", () => 
     }));
 
     const { I18nProvider } = await import("@/lib/i18n/context");
-    const { MedicationComplianceChart } = await import(
-      "../medication-compliance-chart"
-    );
+    const { MedicationComplianceChart } =
+      await import("../medication-compliance-chart");
 
     const html = renderToStaticMarkup(
       <I18nProvider initialLocale="de" initialMessages={deMessages}>
@@ -79,9 +77,8 @@ describe("<MedicationComplianceChart> — empty-state gate by raw count", () => 
     }));
 
     const { I18nProvider } = await import("@/lib/i18n/context");
-    const { MedicationComplianceChart } = await import(
-      "../medication-compliance-chart"
-    );
+    const { MedicationComplianceChart } =
+      await import("../medication-compliance-chart");
 
     const html = renderToStaticMarkup(
       <I18nProvider initialLocale="de" initialMessages={deMessages}>

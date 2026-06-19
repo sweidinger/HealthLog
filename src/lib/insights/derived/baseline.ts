@@ -208,7 +208,11 @@ export async function readDayMeanSeries(
     // which composes exactly. `readBestGranularityRollups` with a
     // window < 91 days resolves to DAY by construction.
     const resolved = await readBestGranularityRollups(userId, type, windowDays);
-    if (resolved && resolved.granularity === "DAY" && resolved.rows.length > 0) {
+    if (
+      resolved &&
+      resolved.granularity === "DAY" &&
+      resolved.rows.length > 0
+    ) {
       const points = resolved.rows.map((row) => ({
         day: row.bucketStart.toISOString().slice(0, 10),
         mean: row.mean,
@@ -292,7 +296,12 @@ export async function computeVitalsBaseline(
     });
     return buildInsufficient<VitalsBaselineValue>({
       coverage: cov,
-      provenance: { inputs: [String(type)], source: "none", windowDays, computedAt },
+      provenance: {
+        inputs: [String(type)],
+        source: "none",
+        windowDays,
+        computedAt,
+      },
       reason: "no_readings_in_window",
     });
   }
@@ -344,9 +353,7 @@ export async function computeVitalsBaseline(
 
   // Trailing per-day mean series for the inline sparkline — the same DAY
   // means the band is built from, capped to the recent window.
-  const series = points
-    .slice(-SPARKLINE_MAX_POINTS)
-    .map((p) => p.mean);
+  const series = points.slice(-SPARKLINE_MAX_POINTS).map((p) => p.mean);
 
   return buildOk<VitalsBaselineValue>({
     value: { type, ...band, series },

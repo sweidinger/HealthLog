@@ -33,8 +33,7 @@ vi.mock("@/lib/db-compat", () => ({
 }));
 
 vi.mock("@/lib/logging/context", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/logging/context")>();
+  const actual = await importOriginal<typeof import("@/lib/logging/context")>();
   return { ...actual, annotate: vi.fn() };
 });
 
@@ -60,7 +59,12 @@ function req(query: string): NextRequest {
   return new NextRequest(`http://localhost/api/sleep/night?${query}`);
 }
 
-function stage(iso: string, s: string, minutes: number, source = "APPLE_HEALTH") {
+function stage(
+  iso: string,
+  s: string,
+  minutes: number,
+  source = "APPLE_HEALTH",
+) {
   return {
     value: minutes,
     measuredAt: new Date(iso),

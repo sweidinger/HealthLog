@@ -15,10 +15,7 @@
  * dropped silently.
  */
 import { prisma } from "@/lib/db";
-import {
-  decryptFromBytes,
-  encryptToBytes,
-} from "@/lib/ai/coach/bytes-codec";
+import { decryptFromBytes, encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import type { IllnessDayLogInput } from "@/lib/validations/illness";
 import { dayLogSymptomInclude, toIllnessDayLogDTO } from "@/lib/illness/dto";
 import type { IllnessDayLogDTO } from "@/lib/illness/dto";

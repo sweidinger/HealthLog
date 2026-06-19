@@ -21,7 +21,9 @@ describe("normaliseDoseWindows", () => {
 
   it("keeps a well-formed entry", () => {
     expect(
-      normaliseDoseWindows([{ timeOfDay: "07:00", start: "07:00", end: "09:00" }]),
+      normaliseDoseWindows([
+        { timeOfDay: "07:00", start: "07:00", end: "09:00" },
+      ]),
     ).toEqual([{ timeOfDay: "07:00", start: "07:00", end: "09:00" }]);
   });
 

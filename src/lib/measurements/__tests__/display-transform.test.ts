@@ -40,7 +40,12 @@ describe("display-transform", () => {
   });
 
   it("returns identity (factor 1) for untransformed types", () => {
-    for (const type of ["PULSE", "WEIGHT", "RESPIRATORY_RATE", "AUDIO_EXPOSURE_ENV"]) {
+    for (const type of [
+      "PULSE",
+      "WEIGHT",
+      "RESPIRATORY_RATE",
+      "AUDIO_EXPOSURE_ENV",
+    ]) {
       const t = getDisplayTransform(type);
       expect(t.factor).toBe(1);
       // identity scale leaves the raw value untouched

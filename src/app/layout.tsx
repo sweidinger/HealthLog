@@ -125,7 +125,10 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <Providers initialLocale={initialLocale} initialMessages={initialMessages}>
+        <Providers
+          initialLocale={initialLocale}
+          initialMessages={initialMessages}
+        >
           <MonitoringBootstrap />
           <WebVitalsReporter />
           {/* `DEMO_MODE` is a server-only env var; the proxy uses it to

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { addDays, dayDiff, isOnOrBefore, isWithin, parseDayMs, roundHalf } from "../day-math";
+import {
+  addDays,
+  dayDiff,
+  isOnOrBefore,
+  isWithin,
+  parseDayMs,
+  roundHalf,
+} from "../day-math";
 
 /**
  * The day-math is the shared substrate iOS re-implements bit-for-bit. These

@@ -170,10 +170,7 @@ describe("PUT /api/medications/[id] — v1.5 scheduling primitives", () => {
     // Re-stub deps the outer beforeEach's resetAllMocks cleared.
     vi.mocked(getMedicationCategories).mockResolvedValue({});
     vi.mocked(auditLog).mockResolvedValue(undefined);
-    const res = await PUT(
-      putReq({ endsOn: "2026-12-31" }),
-      ROUTE_CTX,
-    );
+    const res = await PUT(putReq({ endsOn: "2026-12-31" }), ROUTE_CTX);
     expect(res.status).toBe(200);
     const call = lastUpdateCall();
     expect(call.data.endsOn).toBeInstanceOf(Date);
@@ -251,9 +248,7 @@ describe("PUT /api/medications/[id] — schedule replace archives a revision (v1
     vi.mocked(getMedicationCategories).mockResolvedValue({});
     vi.mocked(auditLog).mockResolvedValue(undefined);
     vi.mocked(dayKeyForScheduledFor).mockReturnValue("2026-06-10");
-    vi.mocked(recomputeMedicationComplianceForDay).mockResolvedValue(
-      undefined,
-    );
+    vi.mocked(recomputeMedicationComplianceForDay).mockResolvedValue(undefined);
     vi.mocked(prisma.medicationSchedule.findMany).mockResolvedValue([
       PREVIOUS_ROW,
     ] as never);
@@ -379,9 +374,7 @@ describe("PUT /api/medications/[id] — schedule replace migrates open slots", (
       skipped: false,
       autoMissed: false,
     });
-    expect(
-      (arg.where.scheduledFor as { gte: Date }).gte,
-    ).toBeInstanceOf(Date);
+    expect((arg.where.scheduledFor as { gte: Date }).gte).toBeInstanceOf(Date);
     expect(arg.data.deletedAt).toBeInstanceOf(Date);
     expect(arg.data.syncVersion).toEqual({ increment: 1 });
   });
@@ -394,8 +387,8 @@ describe("PUT /api/medications/[id] — schedule replace migrates open slots", (
       { scheduledFor: new Date("2026-06-10T18:00:00Z") },
       { scheduledFor: new Date("2026-06-11T06:00:00Z") },
     ] as never);
-    vi.mocked(dayKeyForScheduledFor).mockImplementation(
-      (scheduledFor: Date) => scheduledFor.toISOString().slice(0, 10),
+    vi.mocked(dayKeyForScheduledFor).mockImplementation((scheduledFor: Date) =>
+      scheduledFor.toISOString().slice(0, 10),
     );
 
     const res = await PUT(
@@ -642,17 +635,15 @@ describe("PUT /api/medications/[id] — as-needed (v1.16.11, #316)", () => {
       asNeeded: true,
       schedules: [],
     } as never);
-    const res = await PUT(
-      putReq({ asNeeded: true, schedules: [] }),
-      ROUTE_CTX,
-    );
+    const res = await PUT(putReq({ asNeeded: true, schedules: [] }), ROUTE_CTX);
     expect(res.status).toBe(200);
     // Wholesale replace ran: delete-all, recreate none.
     expect(prisma.medicationSchedule.deleteMany).toHaveBeenCalledWith({
       where: { medicationId: "m1" },
     });
-    const updateData = vi.mocked(prisma.medication.update).mock
-      .calls[0][0] as { data: Record<string, unknown> };
+    const updateData = vi.mocked(prisma.medication.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
     expect(updateData.data.asNeeded).toBe(true);
     expect(updateData.data.schedules).toEqual({ create: [] });
   });
@@ -695,8 +686,9 @@ describe("PUT /api/medications/[id] — as-needed (v1.16.11, #316)", () => {
       ROUTE_CTX,
     );
     expect(res.status).toBe(200);
-    const updateData = vi.mocked(prisma.medication.update).mock
-      .calls[0][0] as { data: Record<string, unknown> };
+    const updateData = vi.mocked(prisma.medication.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
     expect(updateData.data.asNeeded).toBe(false);
   });
 

@@ -99,11 +99,7 @@ export function CompositeScoreAnatomy({
   // the displayed framing honest per-score. `null` (RECOVERY / STRESS, or no
   // cache row yet) renders nothing.
   let anchorLine: string | null = null;
-  if (
-    metric === "STRAIN_SCORE" &&
-    data?.status === "ok" &&
-    data.value
-  ) {
+  if (metric === "STRAIN_SCORE" && data?.status === "ok" && data.value) {
     const anchor = (data.value as WellnessScoreValue).anchor;
     if (anchor === "personal") {
       anchorLine = t("insights.derived.composite.STRAIN_SCORE.anchorPersonal");
@@ -238,10 +234,7 @@ export function CompositeScoreAnatomy({
 
 /** Localised title per metric — composites use their existing copy keys;
  *  the persisted scores reuse the wellness-strip labels. */
-function titleFor(
-  metric: AnatomyMetricId,
-  t: (key: string) => string,
-): string {
+function titleFor(metric: AnatomyMetricId, t: (key: string) => string): string {
   switch (metric) {
     case "SLEEP_SCORE":
     case "READINESS":

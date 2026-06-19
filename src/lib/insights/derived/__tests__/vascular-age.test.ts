@@ -42,11 +42,16 @@ describe("computeVascularAgeDelta", () => {
     findFirst.mockResolvedValueOnce(null);
     const r = await computeVascularAgeDelta("u1", AGE_40, { now: NOW });
     expect(r.status).toBe("insufficient");
-    if (r.status === "insufficient") expect(r.reason).toBe("no_readings_in_window");
+    if (r.status === "insufficient")
+      expect(r.reason).toBe("no_readings_in_window");
   });
 
   it("ok with delta + band + PWV context; trend with ≥3 readings", async () => {
-    findMany.mockResolvedValueOnce([{ value: 36 }, { value: 38 }, { value: 39 }]);
+    findMany.mockResolvedValueOnce([
+      { value: 36 },
+      { value: 38 },
+      { value: 39 },
+    ]);
     findFirst.mockResolvedValueOnce({ value: 7.2 });
     const r = await computeVascularAgeDelta("u1", AGE_40, { now: NOW });
     expect(r.status).toBe("ok");

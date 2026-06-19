@@ -34,6 +34,7 @@ import {
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
 import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import { buildRetryCorrectionMessage } from "@/lib/ai/generate-insight";
 import {
   buildAboutMeInsightBlock,
   getSelfContextTextForUser,
@@ -74,6 +75,7 @@ import {
   metricStatusScope,
 } from "@/lib/insights/metric-status-registry";
 import { annotate } from "@/lib/logging/context";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -132,8 +134,131 @@ export type GenerateOutcome =
    * (GET read, nightly discovery) treat the cache as current.
    */
   | { status: "unchanged" }
+  /**
+   * v1.18.7 — the snapshot was unchanged (findings byte-stable) but the
+   * daily-briefing PARAGRAPH was re-rolled at a higher, seedless
+   * temperature for phrasing variety. At most one re-roll per calendar day.
+   */
+  | { status: "rerolled"; providerType: string }
   | { status: "skipped"; reason: "no-provider" | "no-consent" }
   | { status: "failed"; reason: string };
+
+/** Higher, seedless temperature for the daily-briefing phrasing re-roll. */
+const BRIEFING_REROLL_TEMPERATURE = 0.6;
+
+/** UTC YYYY-MM-DD calendar-day key gating the once-per-day briefing re-roll. */
+function buildRerollDateKey(at: Date = new Date()): string {
+  return at.toISOString().slice(0, 10);
+}
+
+/**
+ * Re-roll ONLY the daily-briefing paragraph on a hash-unchanged hit.
+ *
+ * Runs the same comprehensive prompt at a higher, seedless temperature, then
+ * keeps the cached payload verbatim and swaps in just the freshly-generated
+ * `dailyBriefing.paragraph`. So the structured findings stay byte-stable
+ * (reference assessments, monotony is fine) while the prose the user reads at
+ * the top of /insights varies day-over-day. Returns null on any miss (no
+ * provider success, invalid JSON, no cached/new paragraph) so the caller
+ * falls back to the plain timestamp refresh.
+ */
+async function rerollBriefingParagraph(args: {
+  userId: string;
+  chain: Awaited<ReturnType<typeof resolveProviderChain>>;
+  systemPrompt: string;
+  userPrompt: string;
+  cachedText: string;
+  locale: "de" | "en";
+}): Promise<{ text: string; providerType: string } | null> {
+  let cached: Record<string, unknown>;
+  try {
+    cached = JSON.parse(args.cachedText) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const cachedBriefing = cached.dailyBriefing;
+  // Nothing to re-roll when the cached payload carries no briefing paragraph.
+  if (
+    cachedBriefing === null ||
+    typeof cachedBriefing !== "object" ||
+    typeof (cachedBriefing as { paragraph?: unknown }).paragraph !== "string"
+  ) {
+    return null;
+  }
+
+  let result;
+  let providerType: string;
+  try {
+    const fallback = await runRawCompletionWithFallback({
+      userId: args.userId,
+      providers: args.chain,
+      params: {
+        systemPrompt: args.systemPrompt,
+        userPrompt: args.userPrompt,
+        // Seedless on purpose: the seed would pin the same phrasing, which is
+        // exactly what we are varying. Higher temperature for prose variety.
+        temperature: BRIEFING_REROLL_TEMPERATURE,
+        maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+        responseFormat: "json",
+      },
+    });
+    result = fallback.result;
+    providerType = fallback.workingProvider.providerType;
+  } catch {
+    return null;
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(stripJsonFences(result.content)) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    return null;
+  }
+  const freshBriefing = parsed.dailyBriefing;
+  const freshParagraph =
+    freshBriefing && typeof freshBriefing === "object"
+      ? (freshBriefing as { paragraph?: unknown }).paragraph
+      : undefined;
+  if (
+    typeof freshParagraph !== "string" ||
+    freshParagraph.trim().length === 0
+  ) {
+    return null;
+  }
+
+  // Keep the cached payload verbatim; swap in only the fresh paragraph.
+  const mergedBriefing = {
+    ...(cachedBriefing as Record<string, unknown>),
+    paragraph: freshParagraph,
+  };
+  const merged = { ...cached, dailyBriefing: mergedBriefing };
+  return { text: JSON.stringify(merged), providerType };
+}
+
+/**
+ * Parse + (best-effort) validate a comprehensive provider reply. Returns the
+ * parsed payload (validated when it matches `insightResultSchema`, else the
+ * raw object so the richer optional blocks survive), or null when the reply
+ * is not valid JSON even after fence-stripping. Null signals the caller to
+ * run its one corrective retry.
+ */
+function parseComprehensiveResult(
+  content: string,
+): InsightResult | Record<string, unknown> | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripJsonFences(content));
+  } catch {
+    return null;
+  }
+  const validated = insightResultSchema.safeParse(parsed);
+  return validated.success
+    ? validated.data
+    : (parsed as Record<string, unknown>);
+}
 
 /**
  * Comparison-snapshot builder — shared with the on-demand route. Returns
@@ -531,6 +656,7 @@ export async function generateComprehensiveInsight(
       insightsCachedText: true,
       insightsExcludeMetrics: true,
       insightsSnapshotHash: true,
+      insightsBriefingRerollDate: true,
       // The comparison-baseline setting joins the snapshot fingerprint
       // (see the hash construction below), so it must be readable BEFORE
       // the gate — the comparison snapshot itself is only built after.
@@ -642,20 +768,15 @@ export async function generateComprehensiveInsight(
     comparisonBaseline,
     generationLocale: locale,
   });
-  if (
-    dbUser?.insightsCachedText &&
-    dbUser.insightsSnapshotHash === snapshotHash
-  ) {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { insightsCachedAt: new Date() },
-    });
-    annotate({
-      action: { name: "insights.generate.skipped_unchanged" },
-      meta: { locale },
-    });
-    return { status: "unchanged" };
-  }
+  // v1.12.7 (B5) — the curated SOURCES block for the metrics present, shared
+  // by both the full generation below and the unchanged-data re-roll.
+  const referenceMetrics = metricsFromPresentSections({
+    bloodPressure: features.bloodPressure != null,
+    weight: features.weight != null,
+    pulse: features.pulse != null,
+    mood: features.mood != null,
+    medication: (features.medications?.length ?? 0) > 0,
+  });
 
   const comparisonSnapshot = await buildComparisonSnapshotForUser(userId);
   const plateauContext = await detectGlp1Plateau(userId);
@@ -668,25 +789,75 @@ export async function generateComprehensiveInsight(
   if (plateauContext) {
     userPrompt += buildGlp1PlateauPrompt(plateauContext, locale);
   }
-  // v1.15.20 — fold the user-authored "about me" self-description
-  // (Settings → AI) into the nightly briefing exactly like the
-  // on-demand route. Null (no text / undecryptable) costs nothing.
-  // (Fetched above the hash gate — it is part of the fingerprint.)
   if (aboutMe) {
     userPrompt += buildAboutMeInsightBlock(aboutMe, locale);
   }
+  const systemPrompt = buildSystemPromptWithReferences(
+    locale,
+    referenceMetrics,
+  );
 
-  // v1.12.7 (B5) — inject the curated SOURCES block for the metric sections
-  // this generation actually carries, so a normative claim ("target < 140/90")
-  // can cite a real `referenceId` the schema + UI footnote already support.
-  // Returns the plain prompt unchanged when no applicable metric is present.
-  const referenceMetrics = metricsFromPresentSections({
-    bloodPressure: features.bloodPressure != null,
-    weight: features.weight != null,
-    pulse: features.pulse != null,
-    mood: features.mood != null,
-    medication: (features.medications?.length ?? 0) > 0,
-  });
+  if (
+    dbUser?.insightsCachedText &&
+    dbUser.insightsSnapshotHash === snapshotHash
+  ) {
+    // v1.18.7 (MEDIUM-3) — findings are byte-stable, but re-roll the daily-
+    // briefing PARAGRAPH once per calendar day so the prose reads fresh
+    // day-over-day. Gated on `insightsBriefingRerollDate` so it costs at
+    // most one extra call/day; the higher, seedless temperature varies the
+    // phrasing while the structured findings are preserved verbatim from the
+    // cached payload. Any miss falls through to the plain timestamp refresh.
+    const todayKey = buildRerollDateKey();
+    if (dbUser.insightsBriefingRerollDate !== todayKey) {
+      const rerolled = await rerollBriefingParagraph({
+        userId,
+        chain,
+        systemPrompt,
+        userPrompt,
+        cachedText: dbUser.insightsCachedText,
+        locale,
+      });
+      if (rerolled) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            insightsCachedAt: new Date(),
+            insightsCachedText: rerolled.text,
+            insightsBriefingRerollDate: todayKey,
+          },
+        });
+        invalidateUserInsights(userId);
+        annotate({
+          action: { name: "insights.generate.briefing_rerolled" },
+          meta: { locale, provider: rerolled.providerType },
+        });
+        return { status: "rerolled", providerType: rerolled.providerType };
+      }
+      // A re-roll miss still stamps the day so a persistently failing
+      // provider cannot be re-driven on every page-open; the next day retries.
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          insightsCachedAt: new Date(),
+          insightsBriefingRerollDate: todayKey,
+        },
+      });
+      annotate({
+        action: { name: "insights.generate.skipped_unchanged" },
+        meta: { locale, rerollAttempted: true },
+      });
+      return { status: "unchanged" };
+    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: { insightsCachedAt: new Date() },
+    });
+    annotate({
+      action: { name: "insights.generate.skipped_unchanged" },
+      meta: { locale },
+    });
+    return { status: "unchanged" };
+  }
 
   let result;
   let workingProviderType: string;
@@ -695,10 +866,14 @@ export async function generateComprehensiveInsight(
       userId,
       providers: chain,
       params: {
-        systemPrompt: buildSystemPromptWithReferences(locale, referenceMetrics),
+        systemPrompt,
         userPrompt,
-        temperature: 0.3,
-        maxTokens: 1500,
+        temperature: AI_BUDGETS.comprehensive.temperature,
+        maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+        // v1.18.7 — structured surface: opt the non-OpenAI chains into their
+        // strongest JSON mode (Ollama `format`, Anthropic `{` prefill) so a
+        // first-pass JSON miss is rarer; stripJsonFences stays the net.
+        responseFormat: "json",
       },
     });
     result = fallback.result;
@@ -710,16 +885,45 @@ export async function generateComprehensiveInsight(
     return { status: "failed", reason: "provider-error" };
   }
 
-  let insights: InsightResult | Record<string, unknown>;
-  try {
-    // Anthropic + local have no native JSON mode, so a ```json-fenced or
-    // sentence-prefixed reply would otherwise fail the whole generation.
-    // Strip the fence before parsing; clean JSON passes through unchanged.
-    const parsed = JSON.parse(stripJsonFences(result.content));
-    const validated = insightResultSchema.safeParse(parsed);
-    insights = validated.success ? validated.data : parsed;
-  } catch {
-    return { status: "failed", reason: "invalid-json" };
+  // Anthropic + local have no native JSON mode, so a ```json-fenced or
+  // sentence-prefixed reply would otherwise fail the whole generation.
+  // Strip the fence before parsing; clean JSON passes through unchanged.
+  let insights = parseComprehensiveResult(result.content);
+  if (insights === null) {
+    // v1.18.7 (MEDIUM-5) — one corrective retry before declaring failure,
+    // reusing the same `buildRetryCorrectionMessage` the strict insight
+    // wrapper uses next door. The comprehensive path previously failed cold
+    // to `invalid-json` on a first-pass miss even though the recovery helper
+    // sat right there. The retry appends the correction to the user prompt
+    // and re-runs the chain once.
+    annotate({
+      action: { name: "insights.generate.json_retry" },
+      meta: { locale },
+    });
+    try {
+      const retry = await runRawCompletionWithFallback({
+        userId,
+        providers: chain,
+        params: {
+          systemPrompt,
+          userPrompt: `${userPrompt}\n\n${buildRetryCorrectionMessage(
+            "Response was not valid JSON",
+            "The previous reply could not be parsed as a JSON object.",
+          )}`,
+          temperature: AI_BUDGETS.comprehensive.temperature,
+          maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+          responseFormat: "json",
+        },
+      });
+      result = retry.result;
+      workingProviderType = retry.workingProvider.providerType;
+    } catch {
+      return { status: "failed", reason: "invalid-json" };
+    }
+    insights = parseComprehensiveResult(result.content);
+    if (insights === null) {
+      return { status: "failed", reason: "invalid-json" };
+    }
   }
 
   // v1.9.0 — the caller abandoned this generation (its bounded timeout

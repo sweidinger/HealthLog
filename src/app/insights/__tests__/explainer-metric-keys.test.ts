@@ -135,7 +135,11 @@ function collectSites(): { sites: PropSite[]; dynamic: PropSite[] } {
 function hasLeaf(obj: unknown, dotted: string): boolean {
   let cur: unknown = obj;
   for (const part of dotted.split(".")) {
-    if (cur && typeof cur === "object" && part in (cur as Record<string, unknown>)) {
+    if (
+      cur &&
+      typeof cur === "object" &&
+      part in (cur as Record<string, unknown>)
+    ) {
       cur = (cur as Record<string, unknown>)[part];
     } else {
       return false;

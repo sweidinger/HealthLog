@@ -11,10 +11,17 @@ import {
 
 const dayMs = 24 * 60 * 60 * 1000;
 
-function dailyPoints(days: number, now: Date, value = (i: number) => 80 + (i % 5)) {
+function dailyPoints(
+  days: number,
+  now: Date,
+  value = (i: number) => 80 + (i % 5),
+) {
   const out: Array<{ measuredAt: Date; value: number }> = [];
   for (let i = 0; i < days; i++) {
-    out.push({ measuredAt: new Date(now.getTime() - i * dayMs), value: value(i) });
+    out.push({
+      measuredAt: new Date(now.getTime() - i * dayMs),
+      value: value(i),
+    });
   }
   return out;
 }
@@ -127,12 +134,42 @@ describe("buildGradedSeriesFromPoints", () => {
     // aggregate (480) + granular CORE/DEEP/REM (also 480) + IN_BED + AWAKE.
     // Raw-summed this is ~1490 min (~24.8 h); deduped it is 480 min (8 h).
     const rows: SleepStageRow[] = [
-      { measuredAt: new Date("2026-06-04T06:00:00.000Z"), sleepStage: "ASLEEP", value: 480, source: "APPLE_HEALTH" },
-      { measuredAt: new Date("2026-06-04T02:00:00.000Z"), sleepStage: "CORE", value: 240, source: "APPLE_HEALTH" },
-      { measuredAt: new Date("2026-06-04T04:00:00.000Z"), sleepStage: "DEEP", value: 120, source: "APPLE_HEALTH" },
-      { measuredAt: new Date("2026-06-04T06:00:00.000Z"), sleepStage: "REM", value: 120, source: "APPLE_HEALTH" },
-      { measuredAt: new Date("2026-06-04T06:30:00.000Z"), sleepStage: "IN_BED", value: 470, source: "APPLE_HEALTH" },
-      { measuredAt: new Date("2026-06-04T03:00:00.000Z"), sleepStage: "AWAKE", value: 20, source: "APPLE_HEALTH" },
+      {
+        measuredAt: new Date("2026-06-04T06:00:00.000Z"),
+        sleepStage: "ASLEEP",
+        value: 480,
+        source: "APPLE_HEALTH",
+      },
+      {
+        measuredAt: new Date("2026-06-04T02:00:00.000Z"),
+        sleepStage: "CORE",
+        value: 240,
+        source: "APPLE_HEALTH",
+      },
+      {
+        measuredAt: new Date("2026-06-04T04:00:00.000Z"),
+        sleepStage: "DEEP",
+        value: 120,
+        source: "APPLE_HEALTH",
+      },
+      {
+        measuredAt: new Date("2026-06-04T06:00:00.000Z"),
+        sleepStage: "REM",
+        value: 120,
+        source: "APPLE_HEALTH",
+      },
+      {
+        measuredAt: new Date("2026-06-04T06:30:00.000Z"),
+        sleepStage: "IN_BED",
+        value: 470,
+        source: "APPLE_HEALTH",
+      },
+      {
+        measuredAt: new Date("2026-06-04T03:00:00.000Z"),
+        sleepStage: "AWAKE",
+        value: 20,
+        source: "APPLE_HEALTH",
+      },
     ];
     const points = reconstructSleepNights(rows, "UTC")
       .filter((n) => n.asleepMinutes > 0)

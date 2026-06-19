@@ -20,7 +20,8 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.mock("@/lib/whoop/client", () => ({
   getAuthorizationUrl: vi.fn(
-    (nonce: string) => `https://api.prod.whoop.com/oauth/oauth2/auth?state=${nonce}`,
+    (nonce: string) =>
+      `https://api.prod.whoop.com/oauth/oauth2/auth?state=${nonce}`,
   ),
 }));
 
@@ -55,7 +56,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import type { NextRequest } from "next/server";
 
 const create = prisma.whoopOAuthState.create as ReturnType<typeof vi.fn>;
-const consume = consumeWhoopConnectTicket as unknown as ReturnType<typeof vi.fn>;
+const consume = consumeWhoopConnectTicket as unknown as ReturnType<
+  typeof vi.fn
+>;
 const reqAuth = requireAuth as unknown as ReturnType<typeof vi.fn>;
 
 function makeReq(url: string): NextRequest {
@@ -72,9 +75,7 @@ describe("GET /api/whoop/connect", () => {
   });
 
   it("cookie path: 302s to WHOOP and stores the state row (no scheme)", async () => {
-    const res = await GET(
-      makeReq("https://app.example/api/whoop/connect"),
-    );
+    const res = await GET(makeReq("https://app.example/api/whoop/connect"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain(
       "api.prod.whoop.com/oauth/oauth2/auth",
@@ -127,9 +128,7 @@ describe("GET /api/whoop/connect", () => {
     expect(create.mock.calls[0][0].data.returnScheme).toBeNull();
     create.mockClear();
     await GET(
-      makeReq(
-        "https://app.example/api/whoop/connect?return_scheme=javascript",
-      ),
+      makeReq("https://app.example/api/whoop/connect?return_scheme=javascript"),
     );
     expect(create.mock.calls[0][0].data.returnScheme).toBeNull();
   });

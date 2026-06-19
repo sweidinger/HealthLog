@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -66,7 +67,7 @@ function ApiEndpointsCard() {
   ];
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Key}
         title={t("settings.apiEndpointsTitle")}
@@ -139,7 +140,7 @@ function ApiEndpointsCard() {
           </li>
         ))}
       </ul>
-    </div>
+    </SettingsCard>
   );
 }
 
@@ -229,7 +230,7 @@ function ApiTokensCard() {
   }, null);
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Key}
         title={t("settings.apiTokens")}
@@ -626,6 +627,6 @@ function ApiTokensCard() {
           </div>
         )}
       </div>
-    </div>
+    </SettingsCard>
   );
 }

@@ -165,9 +165,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
             ...(includeHidden && !isCustom
               ? { hidden: hiddenIds.has(t.id) }
               : {}),
-            ...(includeArchived && isCustom
-              ? { archived: !t.isActive }
-              : {}),
+            ...(includeArchived && isCustom ? { archived: !t.isActive } : {}),
             ...(includeUsage
               ? { usageCount: usageByTagId.get(t.id) ?? 0 }
               : {}),

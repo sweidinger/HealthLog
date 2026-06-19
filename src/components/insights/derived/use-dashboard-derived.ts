@@ -2,10 +2,7 @@
 
 import { useMemo } from "react";
 
-import {
-  useDerivedBatch,
-  type DerivedBatchToken,
-} from "./use-derived-metric";
+import { useDerivedBatch, type DerivedBatchToken } from "./use-derived-metric";
 // Type-only — keeps the derived registry's server graph out of the bundle.
 import type { DerivedMetricId } from "@/lib/insights/derived/registry";
 

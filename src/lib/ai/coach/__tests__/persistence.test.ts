@@ -9,8 +9,8 @@ const txCreate = {
 };
 vi.mock("@/lib/db", () => ({
   prisma: {
-    $transaction: vi.fn(
-      async (cb: (tx: typeof txCreate) => Promise<unknown>) => cb(txCreate),
+    $transaction: vi.fn(async (cb: (tx: typeof txCreate) => Promise<unknown>) =>
+      cb(txCreate),
     ),
   },
 }));

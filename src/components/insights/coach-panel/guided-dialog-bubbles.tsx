@@ -67,7 +67,8 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
           className={cn(
             "size-1.5 rounded-full",
             i + 1 < current && "bg-dracula-purple",
-            i + 1 === current && "ring-dracula-purple bg-dracula-purple/40 ring-1",
+            i + 1 === current &&
+              "ring-dracula-purple bg-dracula-purple/40 ring-1",
             i + 1 > current && "bg-muted-foreground/25",
           )}
         />
@@ -203,10 +204,7 @@ export function GuidedSummaryBubble({
   const { t } = useTranslations();
 
   return (
-    <div
-      data-slot="coach-guided-summary"
-      className="flex items-start gap-2.5"
-    >
+    <div data-slot="coach-guided-summary" className="flex items-start gap-2.5">
       <GuidedAvatar icon={ClipboardCheck} />
       <div
         className={cn(
@@ -229,7 +227,7 @@ export function GuidedSummaryBubble({
           data-slot="coach-guided-summary-link"
           className={cn(
             "text-dracula-purple mt-2 inline-flex min-h-8 items-center gap-1 text-xs font-medium",
-            "hover:underline focus-visible:ring-dracula-purple/40 rounded focus-visible:ring-2 focus-visible:outline-none",
+            "focus-visible:ring-dracula-purple/40 rounded hover:underline focus-visible:ring-2 focus-visible:outline-none",
           )}
         >
           {t("insights.coach.guided.summaryLink")}

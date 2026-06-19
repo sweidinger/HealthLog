@@ -3,6 +3,7 @@ import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
 import { prisma } from "@/lib/db";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { isLocalAiHostAllowed } from "@/lib/ai/local-host-allowlist";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { resolveProviderAvailability } from "@/lib/ai/provider";
 import { annotate } from "@/lib/logging/context";
@@ -92,12 +93,14 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
       const trimmed = body.baseUrl.trim();
       // SSRF guard: by default reject private/internal hostnames so a
       // compromised user account cannot point the server at the cloud
-      // metadata endpoint or internal admin panels. Ops can enable local
-      // Ollama / LM Studio on this instance via env flag.
-      const allowPrivate = process.env.ALLOW_LOCAL_AI_PRIVATE_HOSTS === "true";
+      // metadata endpoint or internal admin panels. v1.18.7 (SECURITY LOW) —
+      // ops opt in via `ALLOW_LOCAL_AI_PRIVATE_HOSTS`, now a host allowlist:
+      // `true` permits any private host (legacy), a comma-separated host list
+      // permits only those exact hostnames.
+      const allowPrivate = isLocalAiHostAllowed(trimmed);
       if (!allowPrivate && !isPublicUrl(trimmed)) {
         return apiError(
-          "Base URL points to an internal/private host. Ops must set ALLOW_LOCAL_AI_PRIVATE_HOSTS=true on this instance to allow it (intended for self-hosted Ollama / LM Studio).",
+          "Base URL points to an internal/private host. Ops must allow it on this instance via ALLOW_LOCAL_AI_PRIVATE_HOSTS — set it to the exact host (e.g. ollama.lan) or to true for any private host (intended for self-hosted Ollama / LM Studio).",
           422,
         );
       }

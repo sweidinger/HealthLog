@@ -33,7 +33,10 @@ describe("queryKeys factory", () => {
   });
 
   it("threads the slim slice through queryKeys.analytics", () => {
-    expect(queryKeys.analytics("summaries")).toEqual(["analytics", "summaries"]);
+    expect(queryKeys.analytics("summaries")).toEqual([
+      "analytics",
+      "summaries",
+    ]);
   });
 
   it("keeps the no-arg call byte-identical to the legacy literal", () => {
@@ -238,7 +241,9 @@ describe("dependent-key bundles", () => {
   // (audit-L4).
   it("medicationDependentKeys bundles the dashboard-medication-compliance prefix (v1.4.40)", () => {
     const keyStrings = medicationDependentKeys.map((k) => JSON.stringify(k));
-    expect(keyStrings).toContain(JSON.stringify(["dashboard-medication-compliance"]));
+    expect(keyStrings).toContain(
+      JSON.stringify(["dashboard-medication-compliance"]),
+    );
   });
 
   // v1.5.5 D-3 §10 invariant 20 — the per-medication inline compliance
@@ -334,7 +339,8 @@ describe("queryKey factory enforcement", () => {
   }
 
   it("no guarded file declares a bare-literal `queryKey:` (factory enforcement)", () => {
-    const offenders: Array<{ file: string; line: number; snippet: string }> = [];
+    const offenders: Array<{ file: string; line: number; snippet: string }> =
+      [];
     const files = collect();
     for (const file of files) {
       const text = readFileSync(file, "utf8");

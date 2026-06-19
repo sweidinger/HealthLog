@@ -93,7 +93,7 @@ export const measurementKeys = {
     // byte-identical tuple and the existing cache layout is unchanged.
     readMode: string = "",
   ) =>
-    (readMode
+    readMode
       ? ([
           "chart-data",
           types,
@@ -114,7 +114,7 @@ export const measurementKeys = {
           fromIso,
           toIso,
           valueScale,
-        ] as const)),
+        ] as const),
 
   /**
    * v1.8.5 — bounded recent-timestamp read powering the
@@ -125,6 +125,35 @@ export const measurementKeys = {
    */
   measurementDiversity: (type: string) =>
     ["measurement-diversity", type] as const,
+
+  /**
+   * v1.18.7 — per-day drill-down list for one `MeasurementType`
+   * (`GET /api/measurements?type=&dayKey=`), opened from a values-list
+   * day row. Keyed by `(type, dayKey)` so each expanded day caches its own
+   * slot. Distinct `["measurement-drilldown"]` prefix (not `["measurements"]`)
+   * because the day list is a stable historical slice that the drain has
+   * already settled — it does not need a measurement-write fan-out.
+   */
+  measurementDrilldown: (type: string, dayKey: string) =>
+    ["measurement-drilldown", type, dayKey] as const,
+
+  /**
+   * v1.18.7 — per-metric personal-records read (`GET /api/personal-records`)
+   * backing the decorative PR badge on a metric tile. Per-metric key so two
+   * tiles never share a cache slot; its own `["personal-records"]` prefix.
+   */
+  personalRecordsByMetric: (metric: string) =>
+    ["personal-records", "by-metric", metric] as const,
+
+  /**
+   * v1.18.7 (Wave E) — bounded last-7 readings for one `MeasurementType`,
+   * powering the discreet 7-day trend strip on a Vorsorge card. Rides under
+   * the `["measurements"]` prefix so it lands in `measurementDependentKeys`
+   * and a fresh reading (e.g. satisfying the very reminder) repaints the
+   * strip. Keyed by type so each card caches its own thin window.
+   */
+  measurementRecentValues: (type: string) =>
+    ["measurements", "recent-values", type] as const,
 
   /**
    * v1.18.6 — batched dashboard daily series

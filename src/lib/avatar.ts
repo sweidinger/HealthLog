@@ -35,11 +35,7 @@ export function detectAvatarMimeType(buffer: Buffer): AvatarMime | null {
   if (buffer.length < 12) return null;
 
   // JPEG — FF D8 FF
-  if (
-    buffer[0] === 0xff &&
-    buffer[1] === 0xd8 &&
-    buffer[2] === 0xff
-  ) {
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
     return "image/jpeg";
   }
 
@@ -195,10 +191,8 @@ function readWebpDimensions(buffer: Buffer): AvatarDimensions | null {
     // width-1 + 3-byte canvas height-1 (all little-endian, padded
     // to 24 bits).
     if (buffer.length < 30) return null;
-    const widthMinusOne =
-      buffer[24] | (buffer[25] << 8) | (buffer[26] << 16);
-    const heightMinusOne =
-      buffer[27] | (buffer[28] << 8) | (buffer[29] << 16);
+    const widthMinusOne = buffer[24] | (buffer[25] << 8) | (buffer[26] << 16);
+    const heightMinusOne = buffer[27] | (buffer[28] << 8) | (buffer[29] << 16);
     const width = widthMinusOne + 1;
     const height = heightMinusOne + 1;
     if (width <= 0 || height <= 0) return null;

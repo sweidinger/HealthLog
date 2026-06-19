@@ -551,7 +551,9 @@ async function hasObservedPeriodNearPrediction(
     });
     return candidates.some((c) => {
       const delta = dayDiff(c.startDate, predictedStart);
-      return delta >= -PERIOD_CONFIRM_GRACE_DAYS && delta <= PERIOD_SOON_LEAD_DAYS;
+      return (
+        delta >= -PERIOD_CONFIRM_GRACE_DAYS && delta <= PERIOD_SOON_LEAD_DAYS
+      );
     });
   } catch {
     return false;

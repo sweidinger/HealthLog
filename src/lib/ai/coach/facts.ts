@@ -89,11 +89,7 @@ function extractionSystemPrompt(locale: string | undefined): string {
 
 const rawFactSchema = z.object({
   category: z.enum(COACH_FACT_CATEGORIES),
-  fact: z
-    .string()
-    .trim()
-    .min(1)
-    .max(FACT_MAX_CHARS),
+  fact: z.string().trim().min(1).max(FACT_MAX_CHARS),
   confidence: z.coerce.number().int().min(0).max(100),
 });
 
@@ -110,7 +106,9 @@ interface ParsedFact {
  * top-level JSON is unparseable (the caller then annotates `parse_failed`);
  * individual malformed items are dropped silently, not fatal.
  */
-function parseFacts(content: string): { facts: ParsedFact[]; dropped: number } | null {
+function parseFacts(
+  content: string,
+): { facts: ParsedFact[]; dropped: number } | null {
   let json: unknown;
   try {
     json = JSON.parse(content.trim());
@@ -129,7 +127,10 @@ function parseFacts(content: string): { facts: ParsedFact[]; dropped: number } |
       facts.push({
         category: parsed.data.category,
         fact: parsed.data.fact,
-        confidence: Math.max(0, Math.min(100, Math.round(parsed.data.confidence))),
+        confidence: Math.max(
+          0,
+          Math.min(100, Math.round(parsed.data.confidence)),
+        ),
       });
     } else {
       dropped += 1;
@@ -169,7 +170,8 @@ function isNearDuplicate(candidate: string, existing: string[]): boolean {
   const cNorm = candidate.trim().toLowerCase();
   for (const ex of existing) {
     if (ex.trim().toLowerCase() === cNorm) return true;
-    if (tokenOverlap(cTokens, tokenSet(ex)) >= DEDUP_OVERLAP_THRESHOLD) return true;
+    if (tokenOverlap(cTokens, tokenSet(ex)) >= DEDUP_OVERLAP_THRESHOLD)
+      return true;
   }
   return false;
 }
@@ -197,17 +199,29 @@ interface ActiveFactRow {
 async function loadActiveFacts(
   db: PrismaLike,
   userId: string,
-): Promise<Array<{ id: string; text: string; category: string; confidence: number }>> {
+): Promise<
+  Array<{ id: string; text: string; category: string; confidence: number }>
+> {
   const rows = (await db.coachFact.findMany({
     where: { userId, deletedAt: null },
     select: { id: true, factEncrypted: true, category: true, confidence: true },
   })) as ActiveFactRow[];
 
-  const out: Array<{ id: string; text: string; category: string; confidence: number }> = [];
+  const out: Array<{
+    id: string;
+    text: string;
+    category: string;
+    confidence: number;
+  }> = [];
   for (const r of rows) {
     const text = decryptOrNull(r.factEncrypted);
     if (text === null) continue;
-    out.push({ id: r.id, text, category: r.category, confidence: r.confidence });
+    out.push({
+      id: r.id,
+      text,
+      category: r.category,
+      confidence: r.confidence,
+    });
   }
   return out;
 }
@@ -341,7 +355,9 @@ export async function extractAndStoreFacts(
 
   const toStore: ParsedFact[] = [];
   // Highest-confidence candidates first so a tight cap admits the best.
-  for (const cand of [...accepted].sort((a, b) => b.confidence - a.confidence)) {
+  for (const cand of [...accepted].sort(
+    (a, b) => b.confidence - a.confidence,
+  )) {
     if (remainingCapacity > 0) {
       toStore.push(cand);
       remainingCapacity -= 1;
@@ -529,7 +545,10 @@ const DETERMINISTIC_PATTERNS: DeterministicPattern[] = [
 ];
 
 function cleanCapture(raw: string): string | null {
-  const cleaned = raw.replace(/\s+/g, " ").replace(/[.,;:!?]+$/u, "").trim();
+  const cleaned = raw
+    .replace(/\s+/g, " ")
+    .replace(/[.,;:!?]+$/u, "")
+    .trim();
   if (cleaned.length < 2 || cleaned.length > 60) return null;
   return cleaned;
 }
@@ -653,7 +672,12 @@ export async function buildCoachFactsBlock(
   const rows = (await db.coachFact.findMany({
     where: { userId, deletedAt: null },
     orderBy: [{ confidence: "desc" }, { updatedAt: "desc" }],
-    select: { factEncrypted: true, category: true, confidence: true, updatedAt: true },
+    select: {
+      factEncrypted: true,
+      category: true,
+      confidence: true,
+      updatedAt: true,
+    },
   })) as RankFactRow[];
 
   const facts: Array<{ category: string; text: string }> = [];

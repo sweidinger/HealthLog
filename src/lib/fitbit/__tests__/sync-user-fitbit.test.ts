@@ -202,9 +202,7 @@ describe("syncUserFitbit — single cycle-wide watermark", () => {
     // Every resource receives the identical resolved `start` (lastSyncedAt - 24h
     // overlap). A per-resource read+stamp would have given later resources a
     // start of ~now, dropping the gap after an outage longer than the overlap.
-    const expectedStart = new Date(
-      LAST_SYNCED.getTime() - 24 * 60 * 60 * 1000,
-    );
+    const expectedStart = new Date(LAST_SYNCED.getTime() - 24 * 60 * 60 * 1000);
     for (const fn of [
       syncUserMetrics,
       syncUserActivity,

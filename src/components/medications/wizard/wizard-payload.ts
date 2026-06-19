@@ -43,11 +43,11 @@
  * reads. The mapping table is the single source of truth.
  */
 
-import { encodeCadence } from "@/components/medications/scheduling/CadencePicker";
+import { encodeCadence } from "@/components/medications/scheduling/cadence-picker";
 import {
   dateToIsoString,
   isoStringToDate,
-} from "@/components/medications/scheduling/CourseWindowRow";
+} from "@/components/medications/scheduling/course-window-row";
 import {
   type CadenceKind,
   type CadenceSubControls,
@@ -116,7 +116,10 @@ export const WIZARD_TREATMENT_ROWS: readonly WizardTreatmentRow[] = [
  */
 export const WIZARD_TREATMENT_MAPPING: Record<
   WizardTreatmentRow,
-  { treatmentClass: MedicationTreatmentClass; category: MedicationCategoryValue }
+  {
+    treatmentClass: MedicationTreatmentClass;
+    category: MedicationCategoryValue;
+  }
 > = {
   bloodPressure: { treatmentClass: "GENERIC", category: "BLOOD_PRESSURE" },
   diabetes: { treatmentClass: "GENERIC", category: "DIABETES" },
@@ -696,7 +699,10 @@ export function buildCreateBody(
   const draftsToEmit = isAsNeeded
     ? []
     : isOneShot
-      ? [committed.schedules[committed.activeScheduleIndex] ?? committed.schedules[0]]
+      ? [
+          committed.schedules[committed.activeScheduleIndex] ??
+            committed.schedules[0],
+        ]
       : committed.schedules;
 
   const parsedDosesPerUnit = Number.parseInt(committed.dosesPerUnit, 10);
@@ -738,7 +744,9 @@ export function buildCreateBody(
     }),
     oneShot: isOneShot,
     asNeeded: isAsNeeded,
-    schedules: draftsToEmit.map((draft) => encodeScheduleDraft(draft, isOneShot)),
+    schedules: draftsToEmit.map((draft) =>
+      encodeScheduleDraft(draft, isOneShot),
+    ),
   };
   if (committed.startsOn) {
     body.startsOn = dateToIsoString(committed.startsOn);
@@ -812,7 +820,8 @@ type CadenceShape = Pick<ScheduleDraft, "mode" | "cadence" | "subControls">;
  * summaries can't drift apart.
  */
 function cadenceInterpolationN(shape: CadenceShape): number {
-  if (shape.cadence.kind === "everyNWeeks") return shape.subControls.intervalWeeks;
+  if (shape.cadence.kind === "everyNWeeks")
+    return shape.subControls.intervalWeeks;
   if (shape.cadence.kind === "rolling")
     return shape.cadence.rollingIntervalDays ?? 0;
   return 0;
@@ -974,7 +983,9 @@ export interface MedicationPayload {
 }
 
 /** Coerce a persisted `deliveryForm` string onto the closed enum. */
-function normaliseDeliveryForm(value: string | undefined): MedicationDeliveryForm {
+function normaliseDeliveryForm(
+  value: string | undefined,
+): MedicationDeliveryForm {
   return value === "INJECTION" || value === "OTHER" ? value : "ORAL";
 }
 
@@ -1037,7 +1048,9 @@ function hydrateScheduleDraft(
  * the `(daysOfWeek, intervalWeeks)` pair when the v1.5 `rrule` /
  * `rollingIntervalDays` fields are absent.
  */
-export function hydrateWizardPayload(initial: MedicationPayload): WizardPayload {
+export function hydrateWizardPayload(
+  initial: MedicationPayload,
+): WizardPayload {
   const base = emptyWizardPayload();
   const parsedDose = parseDoseExpression(initial.dose ?? "");
 
@@ -1140,9 +1153,9 @@ function subControlsFromRrule(rrule: string): CadenceSubControls {
   const sub: CadenceSubControls = { ...DEFAULT_SUB_CONTROLS };
   const byday = /BYDAY=([A-Z,]+)/.exec(rrule);
   if (byday) {
-    const tokens = byday[1].split(",").filter((t) =>
-      ["MO", "TU", "WE", "TH", "FR", "SA", "SU"].includes(t),
-    );
+    const tokens = byday[1]
+      .split(",")
+      .filter((t) => ["MO", "TU", "WE", "TH", "FR", "SA", "SU"].includes(t));
     if (tokens.length > 0) {
       sub.weekdays = tokens as CadenceSubControls["weekdays"];
     }

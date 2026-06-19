@@ -242,8 +242,12 @@ describe("DEFAULT_SOURCE_PRIORITY", () => {
       const ladder = DEFAULT_SOURCE_PRIORITY[key];
       expect(ladder).toContain("OURA");
       expect(ladder).toContain("POLAR");
-      expect(ladder.indexOf("OURA")).toBeLessThan(ladder.indexOf("APPLE_HEALTH"));
-      expect(ladder.indexOf("POLAR")).toBeLessThan(ladder.indexOf("APPLE_HEALTH"));
+      expect(ladder.indexOf("OURA")).toBeLessThan(
+        ladder.indexOf("APPLE_HEALTH"),
+      );
+      expect(ladder.indexOf("POLAR")).toBeLessThan(
+        ladder.indexOf("APPLE_HEALTH"),
+      );
       expect(ladder.indexOf("WHOOP")).toBeLessThan(ladder.indexOf("OURA"));
     }
   });
@@ -451,10 +455,7 @@ describe("getSourceLadder + getDeviceTypeLadder helpers", () => {
         WEIGHT: ["scale", "watch"],
       },
     });
-    expect(getDeviceTypeLadder(resolved, "WEIGHT")).toEqual([
-      "scale",
-      "watch",
-    ]);
+    expect(getDeviceTypeLadder(resolved, "WEIGHT")).toEqual(["scale", "watch"]);
   });
 
   it("getDeviceTypeLadder falls back to the user default ladder", () => {
@@ -501,9 +502,9 @@ describe("parseSourcePriority — stored-ladder reconciliation (v1.16.11)", () =
     expect(resolved.metricPriority.sleep).toContain("WHOOP");
     expect(resolved.metricPriority.sleep).toContain("FITBIT");
     expect(resolved.metricPriority.sleep.indexOf("WHOOP")).toBeGreaterThan(3);
-    expect(
-      resolved.metricPriority.sleep.indexOf("WHOOP"),
-    ).toBeLessThan(resolved.metricPriority.sleep.indexOf("FITBIT"));
+    expect(resolved.metricPriority.sleep.indexOf("WHOOP")).toBeLessThan(
+      resolved.metricPriority.sleep.indexOf("FITBIT"),
+    );
   });
 
   it("leaves a complete stored ladder byte-identical", () => {
@@ -529,13 +530,7 @@ describe("parseSourcePriority — duplicate tolerance (v1.16.11)", () => {
   it("collapses duplicates so a resolved ladder can never overflow the schema cap", () => {
     const resolved = parseSourcePriority({
       metricPriority: {
-        weight: [
-          "MANUAL",
-          "MANUAL",
-          "WITHINGS",
-          "MANUAL",
-          "WITHINGS",
-        ],
+        weight: ["MANUAL", "MANUAL", "WITHINGS", "MANUAL", "WITHINGS"],
       },
     });
     const ladder = resolved.metricPriority.weight;

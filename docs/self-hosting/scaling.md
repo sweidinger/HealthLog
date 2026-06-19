@@ -90,7 +90,7 @@ services:
   app:
     image: ghcr.io/mbombeck/healthlog:latest
     environment:
-      DATABASE_POOL_MAX: "12"     # 6 containers × 12 = 72 < 100
+      DATABASE_POOL_MAX: "12" # 6 containers × 12 = 72 < 100
       HEALTHLOG_PROCESS_TYPE: web
 ```
 

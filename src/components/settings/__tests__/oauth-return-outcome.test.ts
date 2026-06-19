@@ -7,10 +7,7 @@
  */
 import { describe, it, expect } from "vitest";
 
-import {
-  parseOAuthOutcome,
-  oauthReasonKey,
-} from "../integrations-section";
+import { parseOAuthOutcome, oauthReasonKey } from "../integrations-section";
 
 describe("parseOAuthOutcome", () => {
   it("reads a connected outcome for every OAuth provider", () => {

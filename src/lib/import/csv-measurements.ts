@@ -188,7 +188,10 @@ function convertToCanonicalUnit(
   // Weight: lb → kg.
   if (
     type === "WEIGHT" &&
-    (lower === "lb" || lower === "lbs" || lower === "pound" || lower === "pounds")
+    (lower === "lb" ||
+      lower === "lbs" ||
+      lower === "pound" ||
+      lower === "pounds")
   ) {
     return { value: value * LB_TO_KG, unit: canonical };
   }

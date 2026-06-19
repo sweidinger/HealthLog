@@ -25,10 +25,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 
-import {
-  caches,
-  __resetAllCachesForTests,
-} from "@/lib/cache/server-cache";
+import { caches, __resetAllCachesForTests } from "@/lib/cache/server-cache";
 import {
   INTAKE_AUTO_SKIP_CRON,
   INTAKE_AUTO_SKIP_GRACE_HOURS,
@@ -97,7 +94,10 @@ function makeFakePrisma(state: {
     medicationIntakeEvent: {
       groupBy: vi.fn(async ({ where }: { where: FakeWhere }) => {
         // Mirrors `by: ["medicationId", "userId"]` — unique pairs.
-        const pairs = new Map<string, { medicationId: string; userId: string }>();
+        const pairs = new Map<
+          string,
+          { medicationId: string; userId: string }
+        >();
         for (const row of state.rows) {
           if (!matches(row, where)) continue;
           pairs.set(`${row.medicationId}|${row.userId}`, {
@@ -141,12 +141,18 @@ const DAY_MS = 24 * HOUR_MS;
 
 const DAILY_MED: FakeMedication = {
   id: "med-daily",
-  schedules: [{ rrule: "FREQ=DAILY", rollingIntervalDays: null, doseWindows: null }],
+  schedules: [
+    { rrule: "FREQ=DAILY", rollingIntervalDays: null, doseWindows: null },
+  ],
 };
 const WEEKLY_MED: FakeMedication = {
   id: "med-weekly",
   schedules: [
-    { rrule: "FREQ=WEEKLY;BYDAY=MO", rollingIntervalDays: null, doseWindows: null },
+    {
+      rrule: "FREQ=WEEKLY;BYDAY=MO",
+      rollingIntervalDays: null,
+      doseWindows: null,
+    },
   ],
 };
 const ROLLING_MED: FakeMedication = {
@@ -282,9 +288,9 @@ describe("runIntakeAutoSkipPass", () => {
     expect(rows.find((r) => r.id === "i-stale-1")?.skipped).toBe(false);
     // A deliberate user skip is left exactly as it was.
     expect(rows.find((r) => r.id === "i-already-skipped")?.skipped).toBe(true);
-    expect(
-      rows.find((r) => r.id === "i-already-skipped")?.autoMissed,
-    ).toBe(false);
+    expect(rows.find((r) => r.id === "i-already-skipped")?.autoMissed).toBe(
+      false,
+    );
   });
 
   it("invalidates the affected users' server caches after a flip (v1.16.1)", async () => {
@@ -368,8 +374,16 @@ describe("runIntakeAutoSkipPass", () => {
   it("applies per-medication cutoffs independently in one pass", async () => {
     const rows = [
       pendingRow("i-daily-old", "med-daily", new Date(NOW_MS - 30 * HOUR_MS)),
-      pendingRow("i-rolling-tail", "med-rolling", new Date(NOW_MS - 3 * DAY_MS)),
-      pendingRow("i-rolling-gone", "med-rolling", new Date(NOW_MS - 8 * DAY_MS)),
+      pendingRow(
+        "i-rolling-tail",
+        "med-rolling",
+        new Date(NOW_MS - 3 * DAY_MS),
+      ),
+      pendingRow(
+        "i-rolling-gone",
+        "med-rolling",
+        new Date(NOW_MS - 8 * DAY_MS),
+      ),
     ];
     const prisma = makeFakePrisma({
       rows,

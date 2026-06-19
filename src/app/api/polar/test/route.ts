@@ -14,9 +14,15 @@ export const dynamic = "force-dynamic";
 const POLAR_USERS_BASE = "https://www.polaraccesslink.com/v3/users";
 const TIMEOUT_MS = 5_000;
 
-function categoriseHttpStatus(status: number): { code: string; message: string } {
+function categoriseHttpStatus(status: number): {
+  code: string;
+  message: string;
+} {
   if (status === 401 || status === 403) {
-    return { code: "credentials_rejected", message: "Polar rejected the token" };
+    return {
+      code: "credentials_rejected",
+      message: "Polar rejected the token",
+    };
   }
   if (status === 429) {
     return { code: "rate_limited", message: "Polar rate-limited the request" };
@@ -40,7 +46,9 @@ export const POST = apiHandler(async () => {
 
   const connection = await getPolarConnection(user.id);
   if (!connection) {
-    return apiError("Polar not connected", 422, { errorCode: "not_configured" });
+    return apiError("Polar not connected", 422, {
+      errorCode: "not_configured",
+    });
   }
 
   const start = performance.now();

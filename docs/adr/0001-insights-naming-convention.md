@@ -32,7 +32,7 @@ Separate the two naming axes cleanly:
 
 - **UI copy is always localised.** Every visible string resolves through an
   i18n `t()` key and is translated across all six locales (`de / en / es / fr /
-  it / pl`). The user never sees a raw identifier.
+it / pl`). The user never sees a raw identifier.
 - **Internal identifiers are English.** Route slugs (`/insights/<slug>`), the
   tile-layout enum (`INSIGHTS_TILE_IDS`), query keys, and the internal
   slug→metric / slug→target maps all use established English terms. English is
@@ -54,7 +54,7 @@ The migration must not break either client-visible boundary:
   navigation keep resolving.
 - **Tile-layout contract.** The layout endpoint keeps **accepting** the legacy
   German tile ids on input. The Zod enum is built from
-  `ACCEPTED_INSIGHTS_TILE_IDS` (canonical English ids *plus* the legacy German
+  `ACCEPTED_INSIGHTS_TILE_IDS` (canonical English ids _plus_ the legacy German
   aliases), so a `PUT` carrying old ids validates rather than tripping a 422.
   `normalizeInsightsTileId` collapses each legacy id onto its canonical English
   replacement; this normalisation runs on **both** the read path

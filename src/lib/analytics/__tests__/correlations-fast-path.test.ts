@@ -40,10 +40,15 @@ import {
   computeCorrelationHypothesesFastPath,
 } from "../correlations-fast-path";
 
-const MEASUREMENT_FIND_MANY = prisma.measurement.findMany as unknown as ReturnType<typeof vi.fn>;
-const ROLLUP_FIND_MANY = prisma.measurementRollup.findMany as unknown as ReturnType<typeof vi.fn>;
-const MOOD_FIND_MANY = prisma.moodEntry.findMany as unknown as ReturnType<typeof vi.fn>;
-const INTAKE_FIND_MANY = prisma.medicationIntakeEvent.findMany as unknown as ReturnType<typeof vi.fn>;
+const MEASUREMENT_FIND_MANY = prisma.measurement
+  .findMany as unknown as ReturnType<typeof vi.fn>;
+const ROLLUP_FIND_MANY = prisma.measurementRollup
+  .findMany as unknown as ReturnType<typeof vi.fn>;
+const MOOD_FIND_MANY = prisma.moodEntry.findMany as unknown as ReturnType<
+  typeof vi.fn
+>;
+const INTAKE_FIND_MANY = prisma.medicationIntakeEvent
+  .findMany as unknown as ReturnType<typeof vi.fn>;
 const PROBE = probeRollupCoverage as unknown as ReturnType<typeof vi.fn>;
 const FULLY_COVERED = isFullyCovered as unknown as ReturnType<typeof vi.fn>;
 const ANNOTATE = annotate as unknown as ReturnType<typeof vi.fn>;
@@ -82,8 +87,7 @@ describe("computeCorrelationHypothesesFastPath", () => {
       FULLY_COVERED.mockReturnValue(true);
       PROBE.mockResolvedValue(coverage);
 
-      ROLLUP_FIND_MANY
-        .mockResolvedValueOnce([]) // SYS buckets
+      ROLLUP_FIND_MANY.mockResolvedValueOnce([]) // SYS buckets
         .mockResolvedValueOnce([]) // PULSE buckets
         .mockResolvedValueOnce([]); // WEIGHT buckets
 
@@ -141,8 +145,7 @@ describe("computeCorrelationHypothesesFastPath", () => {
       FULLY_COVERED.mockReturnValue(false);
       PROBE.mockResolvedValue(coverage);
 
-      MEASUREMENT_FIND_MANY
-        .mockResolvedValueOnce([]) // SYS rows
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]) // SYS rows
         .mockResolvedValueOnce([]) // PULSE rows
         .mockResolvedValueOnce([]); // WEIGHT rows
 
@@ -250,7 +253,9 @@ describe("computeCorrelationHypothesesFastPath", () => {
 
       const calls = ANNOTATE.mock.calls.map((c) => c[0]);
       const corrCall = calls.find((c) => c?.meta?.correlations !== undefined);
-      expect(corrCall?.meta.correlations.tz_guard).toBe("non-utc-live-fallback");
+      expect(corrCall?.meta.correlations.tz_guard).toBe(
+        "non-utc-live-fallback",
+      );
       expect(corrCall?.meta.correlations.path).toBe("live");
     });
 

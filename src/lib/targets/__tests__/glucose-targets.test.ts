@@ -6,10 +6,7 @@
  * derived from a value).
  */
 import { describe, expect, it } from "vitest";
-import {
-  resolveGlucoseTarget,
-  DIABETIC_GOAL_BANDS,
-} from "../glucose-targets";
+import { resolveGlucoseTarget, DIABETIC_GOAL_BANDS } from "../glucose-targets";
 import type { UserProfileForRange } from "@/lib/analytics/effective-range";
 
 const profile: UserProfileForRange = {
@@ -84,7 +81,12 @@ describe("resolveGlucoseTarget", () => {
   });
 
   it("resolves the diabetic goal band identically for every context", () => {
-    for (const ctx of ["FASTING", "POSTPRANDIAL", "RANDOM", "BEDTIME"] as const) {
+    for (const ctx of [
+      "FASTING",
+      "POSTPRANDIAL",
+      "RANDOM",
+      "BEDTIME",
+    ] as const) {
       const r = resolveGlucoseTarget({
         context: ctx,
         hasDiabetes: true,

@@ -171,7 +171,8 @@ export const POST = apiHandler(async (req: Request) => {
       previous: previous ?? null,
       next: {
         ...next,
-        researchModeAcknowledgedAt: next.researchModeAcknowledgedAt.toISOString(),
+        researchModeAcknowledgedAt:
+          next.researchModeAcknowledgedAt.toISOString(),
       },
     },
   });

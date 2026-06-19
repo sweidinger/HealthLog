@@ -23,7 +23,9 @@ vi.mock("@/lib/auth/audit", () => ({
 vi.mock("@/lib/auth/password", () => ({
   verifyPassword: vi.fn().mockResolvedValue(true),
   hashPassword: vi.fn().mockResolvedValue("hashed"),
-  checkPasswordStrength: vi.fn().mockReturnValue({ isAcceptable: true, feedback: [] }),
+  checkPasswordStrength: vi
+    .fn()
+    .mockReturnValue({ isAcceptable: true, feedback: [] }),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -81,9 +83,7 @@ beforeEach(() => {
 describe("POST /api/auth/password — 422 multi-issue (v1.4.43 W6)", () => {
   it("surfaces TWO simultaneous validation errors", async () => {
     // Empty currentPassword + tooShort newPassword.
-    const res = await POST(
-      postReq({ currentPassword: "", newPassword: "x" }),
-    );
+    const res = await POST(postReq({ currentPassword: "", newPassword: "x" }));
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       data: null;
@@ -102,9 +102,7 @@ describe("POST /api/auth/password — 422 multi-issue (v1.4.43 W6)", () => {
 
   it("surfaces THREE simultaneous validation errors", async () => {
     // Both empty + extra invalid type.
-    const res = await POST(
-      postReq({ currentPassword: "", newPassword: 123 }),
-    );
+    const res = await POST(postReq({ currentPassword: "", newPassword: 123 }));
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       details: { issues: Array<unknown> };

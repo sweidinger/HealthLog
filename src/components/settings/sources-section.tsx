@@ -42,6 +42,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -285,7 +286,7 @@ export function SourcesSection() {
   // card, below the ladder.
   return (
     <div className="space-y-6">
-      <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
+      <SettingsCard className="space-y-4">
         <SettingsCardHeader
           icon={Layers}
           title={t("settings.sections.sources.cardTitle")}
@@ -574,7 +575,7 @@ export function SourcesSection() {
             {t("settings.sections.sources.integrationsHintLink")}
           </Link>
         </p>
-      </div>
+      </SettingsCard>
     </div>
   );
 }

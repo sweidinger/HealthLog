@@ -60,7 +60,10 @@ function readyContext(
     fdrQ: 0.1,
     provenance: {
       metrics: ["WEIGHT", "ACTIVITY_STEPS", "SLEEP_DURATION"],
-      window: { from: "2026-05-01T00:00:00.000Z", to: "2026-05-15T00:00:00.000Z" },
+      window: {
+        from: "2026-05-01T00:00:00.000Z",
+        to: "2026-05-15T00:00:00.000Z",
+      },
       computedAt: "2026-05-15T05:00:00.000Z",
     },
     ...over,
@@ -89,14 +92,16 @@ function makePrisma(seedRow?: FakeRow) {
     },
     insightNarrative: {
       findUnique: vi.fn(async () => (row ? { ...row } : null)),
-      upsert: vi.fn(async (args: { create: FakeRow; update: Partial<FakeRow> }) => {
-        if (row) {
-          row = { ...row, ...args.update, updatedAt: new Date() };
-        } else {
-          row = { ...args.create, updatedAt: new Date() };
-        }
-        return { ...row };
-      }),
+      upsert: vi.fn(
+        async (args: { create: FakeRow; update: Partial<FakeRow> }) => {
+          if (row) {
+            row = { ...row, ...args.update, updatedAt: new Date() };
+          } else {
+            row = { ...args.create, updatedAt: new Date() };
+          }
+          return { ...row };
+        },
+      ),
     },
   };
 }

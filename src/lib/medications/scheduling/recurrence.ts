@@ -452,7 +452,7 @@ function expandRolling(
   const nextDue =
     ctx.lastIntakeAt !== null
       ? new Date(ctx.lastIntakeAt.getTime() + n * DAY_MS)
-      : ctx.medication.startsOn ?? ctx.medication.createdAt;
+      : (ctx.medication.startsOn ?? ctx.medication.createdAt);
 
   // endsOn cap.
   if (
@@ -585,7 +585,7 @@ export function expandRollingRetrospective(
   const nextDue =
     lastInstant !== null
       ? new Date(lastInstant.getTime() + cycleMs)
-      : ctx.medication.startsOn ?? ctx.medication.createdAt;
+      : (ctx.medication.startsOn ?? ctx.medication.createdAt);
   if (now.getTime() - nextDue.getTime() > forwardToleranceMs) {
     const at = applyTimeOfDayToDate(nextDue, time, ctx.timeZone);
     // Dedupe: a forward slot already represented by a logged intake (the

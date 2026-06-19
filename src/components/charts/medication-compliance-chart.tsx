@@ -246,7 +246,9 @@ export function MedicationComplianceChart({
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.dashboardMedicationCompliance(days),
     queryFn: async (): Promise<DailyCompliancePoint[]> => {
-      return apiGet<DailyCompliancePoint[]>(`/api/medications/intake?scope=compliance&days=${days}`);
+      return apiGet<DailyCompliancePoint[]>(
+        `/api/medications/intake?scope=compliance&days=${days}`,
+      );
     },
     enabled: isAuthenticated,
   });
@@ -452,7 +454,7 @@ export function MedicationComplianceChart({
           />
         )
       ) : (
-        <div className="h-[var(--chart-height,240px)] md:h-[var(--chart-height-md,280px)] touch-pan-y">
+        <div className="h-[var(--chart-height,240px)] touch-pan-y md:h-[var(--chart-height-md,280px)]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}

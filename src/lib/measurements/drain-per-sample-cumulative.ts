@@ -330,7 +330,9 @@ export async function drainPerSampleCumulative(
       // On a real run, count the rows the transaction actually removed;
       // on dry-run, count the rows that would have been removed.
       summary.totals.perSampleRowsDeleted +=
-        outcome?.kind === "written" ? outcome.sourceRowsRemoved : dayRows.length;
+        outcome?.kind === "written"
+          ? outcome.sourceRowsRemoved
+          : dayRows.length;
       summary.totals.dailyRowsUpserted += 1;
     },
     onUserStart: ({ userId, tz, dryRun }) => {

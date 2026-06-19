@@ -520,9 +520,7 @@ export function OnboardingTour({
   const dimRects = rect
     ? [
         // Top strip — full width above spotlight.
-        rect.top > 0
-          ? { top: 0, left: 0, width: vw, height: rect.top }
-          : null,
+        rect.top > 0 ? { top: 0, left: 0, width: vw, height: rect.top } : null,
         // Bottom strip — full width below spotlight.
         rect.top + rect.height < vh
           ? {
@@ -550,7 +548,12 @@ export function OnboardingTour({
               height: rect.height,
             }
           : null,
-      ].filter((r): r is { top: number; left: number; width: number; height: number } => r !== null)
+      ].filter(
+        (
+          r,
+        ): r is { top: number; left: number; width: number; height: number } =>
+          r !== null,
+      )
     : null;
 
   return (
@@ -589,31 +592,31 @@ export function OnboardingTour({
           fully clickable: the user can drive the Hinzufügen dropdown,
           sidebar links, or header avatar mid-tour and only the
           tooltip-footer Skip / Back / Next buttons drive tour state. */}
-      {dimRects
-        ? dimRects.map((r, idx) => (
-            <div
-              key={idx}
-              aria-hidden="true"
-              data-testid="onboarding-tour-dim"
-              className={backdropClass}
-              style={{
-                top: `${r.top}px`,
-                left: `${r.left}px`,
-                width: `${r.width}px`,
-                height: `${r.height}px`,
-              }}
-            />
-          ))
-        : (
-          // Center-placement fallback — no spotlight target available.
-          // Render a single full-cover dim layer. Still purely visual:
-          // skip / back / next live on the tooltip itself.
+      {dimRects ? (
+        dimRects.map((r, idx) => (
           <div
+            key={idx}
             aria-hidden="true"
             data-testid="onboarding-tour-dim"
-            className={`${backdropClass} inset-0`}
+            className={backdropClass}
+            style={{
+              top: `${r.top}px`,
+              left: `${r.left}px`,
+              width: `${r.width}px`,
+              height: `${r.height}px`,
+            }}
           />
-        )}
+        ))
+      ) : (
+        // Center-placement fallback — no spotlight target available.
+        // Render a single full-cover dim layer. Still purely visual:
+        // skip / back / next live on the tooltip itself.
+        <div
+          aria-hidden="true"
+          data-testid="onboarding-tour-dim"
+          className={`${backdropClass} inset-0`}
+        />
+      )}
 
       {/* Polite live region — announces the current step to screen readers. */}
       <p className="sr-only" aria-live="polite">

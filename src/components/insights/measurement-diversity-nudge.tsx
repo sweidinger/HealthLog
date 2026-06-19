@@ -102,7 +102,7 @@ export function MeasurementDiversityNudge({
             type="button"
             data-slot="measurement-diversity-nudge"
             aria-label={triggerLabel}
-            className="text-dracula-yellow hover:text-dracula-yellow/80 focus-visible:ring-ring/50 -my-3 -mx-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="text-dracula-yellow hover:text-dracula-yellow/80 focus-visible:ring-ring/50 -mx-2 -my-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
             <Lightbulb className="size-4" aria-hidden="true" />
           </button>

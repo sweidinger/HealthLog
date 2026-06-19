@@ -198,7 +198,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
         // save that lands first leaves `count = 0` and the seed is
         // skipped rather than overwriting the user's fresh layout.
         const seeded = await prisma.user.updateMany({
-          where: { id: user.id, dashboardWidgetsJson: { equals: Prisma.JsonNull } },
+          where: {
+            id: user.id,
+            dashboardWidgetsJson: { equals: Prisma.JsonNull },
+          },
           data: { dashboardWidgetsJson: toJson(seededLayout) },
         });
         goalsSeeded = seeded.count === 1;

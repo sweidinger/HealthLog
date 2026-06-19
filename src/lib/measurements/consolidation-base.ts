@@ -72,7 +72,9 @@ export function resolveUserTimezone(timezone: string | null): string {
  * positive `cutoffHours` is supplied (drain everything the caller points
  * at), matching the one-shot / CLI default the drains carry.
  */
-export function resolveCutoffInstant(cutoffHours: number | undefined): Date | null {
+export function resolveCutoffInstant(
+  cutoffHours: number | undefined,
+): Date | null {
   return typeof cutoffHours === "number" && cutoffHours > 0
     ? new Date(Date.now() - cutoffHours * 60 * 60 * 1000)
     : null;
@@ -214,7 +216,11 @@ export interface ConsolidationParams<TType extends MeasurementType> {
     outcome: DayWriteOutcome | null;
   }) => void;
   /** Per-user log line, START — optional. */
-  onUserStart?: (input: { userId: string; tz: string; dryRun: boolean }) => void;
+  onUserStart?: (input: {
+    userId: string;
+    tz: string;
+    dryRun: boolean;
+  }) => void;
   /**
    * Fired once per (user, type) immediately after the rows are bucketed,
    * with the raw scanned-row count and per-day bucket count. Only invoked
@@ -230,7 +236,11 @@ export interface ConsolidationParams<TType extends MeasurementType> {
     dryRun: boolean;
   }) => void;
   /** Per-user log line, COMPLETE — optional. */
-  onUserComplete?: (input: { userId: string; tz: string; dryRun: boolean }) => void;
+  onUserComplete?: (input: {
+    userId: string;
+    tz: string;
+    dryRun: boolean;
+  }) => void;
   /**
    * Per-day failure boundary — optional. When supplied, an error thrown
    * while reducing / writing / recording ONE day bucket is reported here

@@ -166,7 +166,11 @@ const allQueues = [
 
 const schedules: ScheduleEntry[] = [
   [GENERAL_STATUS_QUEUE, GENERAL_STATUS_CRON, insightRetryOptions],
-  [BLOOD_PRESSURE_STATUS_QUEUE, BLOOD_PRESSURE_STATUS_CRON, insightRetryOptions],
+  [
+    BLOOD_PRESSURE_STATUS_QUEUE,
+    BLOOD_PRESSURE_STATUS_CRON,
+    insightRetryOptions,
+  ],
   [WEIGHT_STATUS_QUEUE, WEIGHT_STATUS_CRON, insightRetryOptions],
   [PULSE_STATUS_QUEUE, PULSE_STATUS_CRON, insightRetryOptions],
   [BMI_STATUS_QUEUE, BMI_STATUS_CRON, insightRetryOptions],

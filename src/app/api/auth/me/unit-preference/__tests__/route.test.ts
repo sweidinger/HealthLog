@@ -131,7 +131,10 @@ describe("PATCH /api/auth/me/unit-preference", () => {
       "user.unit-preference.update",
       expect.objectContaining({
         userId: "user-1",
-        details: expect.objectContaining({ previous: "metric", next: "imperial" }),
+        details: expect.objectContaining({
+          previous: "metric",
+          next: "imperial",
+        }),
       }),
     );
   });

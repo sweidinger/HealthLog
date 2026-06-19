@@ -109,9 +109,7 @@ interface DiagnosticEnvelope {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(prisma.device.findMany).mockResolvedValue([] as never);
-  vi.mocked(prisma.notificationChannel.findMany).mockResolvedValue(
-    [] as never,
-  );
+  vi.mocked(prisma.notificationChannel.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.pushAttempt.findMany).mockResolvedValue([] as never);
 });
 

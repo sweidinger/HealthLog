@@ -38,9 +38,7 @@ export interface CareIntakeEventRecord {
  * Feed the result to `calculateLongestStreak` /
  * `findStreakCompletionDate` like every other day series.
  */
-export function getMissFreeDayKeys(
-  events: CareIntakeEventRecord[],
-): string[] {
+export function getMissFreeDayKeys(events: CareIntakeEventRecord[]): string[] {
   const byDay = new Map<string, { resolved: number; missed: number }>();
   for (const event of events) {
     const dayKey = toBerlinDayKey(event.scheduledFor);

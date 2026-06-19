@@ -328,8 +328,13 @@ export function deriveDoseStatus(
  * the 4-day rule); everything denser (daily, intraday multi-dose) is
  * `daily` (minute-scale windows).
  */
-export function doseCadenceFamily(schedule: ComplianceSchedule): DoseCadenceFamily {
-  if (schedule.rollingIntervalDays != null && schedule.rollingIntervalDays >= 2) {
+export function doseCadenceFamily(
+  schedule: ComplianceSchedule,
+): DoseCadenceFamily {
+  if (
+    schedule.rollingIntervalDays != null &&
+    schedule.rollingIntervalDays >= 2
+  ) {
     return "weekly";
   }
   const rrule = schedule.rrule ?? "";
@@ -496,7 +501,9 @@ function rollingIntakeInstants(
   return events
     .filter(
       (e): e is { takenAt: Date; skipped: boolean } =>
-        !e.skipped && e.takenAt !== null && e.takenAt.getTime() <= now.getTime(),
+        !e.skipped &&
+        e.takenAt !== null &&
+        e.takenAt.getTime() <= now.getTime(),
     )
     .map((e) => e.takenAt)
     .sort((a, b) => a.getTime() - b.getTime());
@@ -584,7 +591,9 @@ function intakeInstantsAtOrBefore(
   return intakes
     .filter(
       (e): e is { takenAt: Date; skipped: boolean } =>
-        !e.skipped && e.takenAt !== null && e.takenAt.getTime() <= now.getTime(),
+        !e.skipped &&
+        e.takenAt !== null &&
+        e.takenAt.getTime() <= now.getTime(),
     )
     .map((e) => e.takenAt)
     .sort((a, b) => a.getTime() - b.getTime());
@@ -658,7 +667,13 @@ export function expectedSlotCountForDay(
     ctx.scheduleRevisions ?? [],
     schedules.map((s, i) => toCanonicalSchedule(s, `compliance-daily-${i}`)),
     (schedule, eraFrom, eraTo) =>
-      expandComplianceOccurrences(schedule, recurrenceCtx, eraFrom, eraTo, retro),
+      expandComplianceOccurrences(
+        schedule,
+        recurrenceCtx,
+        eraFrom,
+        eraTo,
+        retro,
+      ),
     { oneShot: ctx.oneShot },
   ).length;
 }
@@ -712,7 +727,13 @@ export function expectedSlotsBetween(
     ctx.scheduleRevisions ?? [],
     schedules.map((s, i) => toCanonicalSchedule(s, `compliance-slots-${i}`)),
     (schedule, eraFrom, eraTo) =>
-      expandComplianceOccurrences(schedule, recurrenceCtx, eraFrom, eraTo, retro),
+      expandComplianceOccurrences(
+        schedule,
+        recurrenceCtx,
+        eraFrom,
+        eraTo,
+        retro,
+      ),
     { oneShot: ctx.oneShot },
   );
 }
@@ -735,12 +756,13 @@ export const MIN_STABLE_DOSES = 4;
  * expected doses to mean something, up to a 12-month long window for very
  * rare meds.
  */
-export const COMPLIANCE_WINDOW_LADDER: ReadonlyArray<readonly [number, number]> =
-  [
-    [7, 30],
-    [30, 90],
-    [90, 365],
-  ];
+export const COMPLIANCE_WINDOW_LADDER: ReadonlyArray<
+  readonly [number, number]
+> = [
+  [7, 30],
+  [30, 90],
+  [90, 365],
+];
 
 /**
  * v1.8.6 — the day-counts of the two compliance windows a medication's
@@ -803,10 +825,7 @@ export function selectComplianceWindows(
   for (const [shortDays, longDays] of COMPLIANCE_WINDOW_LADDER) {
     const expectedShort = expected(shortDays);
     const expectedLong = expected(longDays);
-    if (
-      expectedShort >= MIN_STABLE_DOSES &&
-      expectedLong >= MIN_STABLE_DOSES
-    ) {
+    if (expectedShort >= MIN_STABLE_DOSES && expectedLong >= MIN_STABLE_DOSES) {
       return { shortDays, longDays, expectedShort, expectedLong };
     }
   }
@@ -886,7 +905,13 @@ export interface ComplianceDisplay {
    * `missed` the count counting against the rate. The card can render
    * "26 / 30 · 87%" from `taken` / `expected`.
    */
-  short: { rate: number; taken: number; expected: number; missed: number; streak: number };
+  short: {
+    rate: number;
+    taken: number;
+    expected: number;
+    missed: number;
+    streak: number;
+  };
   /** Compliance percentage + counts over the long window. */
   long: { rate: number; taken: number; expected: number; missed: number };
   /**
@@ -967,8 +992,7 @@ export function buildCurrentCycle(
   const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-cycle");
   const DAY_MS = 24 * 60 * 60 * 1000;
   const allIntakes = intakes ?? [];
-  const lastIntakeAt =
-    lastNonSkippedTakenAt(allIntakes) ?? ctx.lastIntakeAt;
+  const lastIntakeAt = lastNonSkippedTakenAt(allIntakes) ?? ctx.lastIntakeAt;
 
   // The open cycle's due instant + grace, picked as the SOONEST across every
   // schedule. Two paths:
@@ -999,10 +1023,9 @@ export function buildCurrentCycle(
       const anchor =
         lastIntakeAt !== null
           ? new Date(lastIntakeAt.getTime() + n * DAY_MS)
-          : ctx.startsOn ?? ctx.createdAt;
+          : (ctx.startsOn ?? ctx.createdAt);
       if (ctx.endsOn && anchor.getTime() > ctx.endsOn.getTime()) continue;
-      const graceMs =
-        (canonical.reminderGraceMinutes ?? 60) * 60 * 1000;
+      const graceMs = (canonical.reminderGraceMinutes ?? 60) * 60 * 1000;
       consider(anchor, new Date(anchor.getTime() + graceMs));
       continue;
     }
@@ -1032,7 +1055,12 @@ export function buildCurrentCycle(
   const hasClosedCycles = expectedShort > 0;
 
   if (dueAt === null || graceUntil === null) {
-    return { state: "none", nextDueAt: null, graceUntil: null, hasClosedCycles };
+    return {
+      state: "none",
+      nextDueAt: null,
+      graceUntil: null,
+      hasClosedCycles,
+    };
   }
 
   // Narrow the union-mutated locals for the comparisons below.
@@ -1073,10 +1101,16 @@ export function buildComplianceDisplay(
   const { shortDays, longDays, expectedShort, expectedLong } =
     selectComplianceWindows(schedules, ctx, { now, intakes: events });
 
-  const short = calculateCompliance(events, schedules, shortDays, ctx.createdAt, {
-    now,
-    medicationContext: ctx,
-  });
+  const short = calculateCompliance(
+    events,
+    schedules,
+    shortDays,
+    ctx.createdAt,
+    {
+      now,
+      medicationContext: ctx,
+    },
+  );
   const long = calculateCompliance(events, schedules, longDays, ctx.createdAt, {
     now,
     medicationContext: ctx,
@@ -1468,9 +1502,12 @@ export function calculateCompliance(
   // legacy timeline tally byte-stable — they have no engine context to mint
   // bands from.
   const ledgerCtx = options?.medicationContext;
-  let ledgerCounts:
-    | { taken: number; skipped: number; missed: number; rate: number }
-    | null = null;
+  let ledgerCounts: {
+    taken: number;
+    skipped: number;
+    missed: number;
+    rate: number;
+  } | null = null;
   if (ledgerCtx) {
     const tally = tallyComplianceFromLedger(
       events,
@@ -1598,8 +1635,7 @@ export function calculateCompliance(
     // Skipped doses are excluded from the denominator — they represent a
     // deliberate user decision rather than a missed dose.
     const denom = taken + missed;
-    rate =
-      denom > 0 ? Math.min(100, Math.round((taken / denom) * 100)) : 100;
+    rate = denom > 0 ? Math.min(100, Math.round((taken / denom) * 100)) : 100;
   }
 
   const totalExpected = taken + skipped + missed;
@@ -1726,7 +1762,10 @@ export function buildMedicationComplianceBundle(
       1,
       Math.ceil((now.getTime() - effectiveStart.getTime()) / ONE_DAY_MS),
     );
-    const tally = tallyLedgerRows(ledgerRows, { from: effectiveStart, to: now });
+    const tally = tallyLedgerRows(ledgerRows, {
+      from: effectiveStart,
+      to: now,
+    });
     const { current: streak } = streaksFromTimeline(
       timeline,
       now,
@@ -1834,7 +1873,13 @@ export function buildMedicationComplianceBundle(
     currentDose,
   };
 
-  return { compliance7, compliance30, complianceDisplay, ledgerRows, ledgerFrom };
+  return {
+    compliance7,
+    compliance30,
+    complianceDisplay,
+    ledgerRows,
+    ledgerFrom,
+  };
 }
 
 /**

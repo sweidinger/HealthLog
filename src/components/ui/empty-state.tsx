@@ -103,7 +103,7 @@ function EmptyState({
             // existing CTAs that pass a plain `<Button>` (no class
             // overrides) pick up the lift automatically.
             ctaSize === "lg" &&
-              "w-full sm:w-auto [&>a]:min-h-11 [&>a]:w-full [&>button]:min-h-11 [&>button]:w-full sm:[&>a]:w-auto sm:[&>button]:w-auto",
+              "w-full sm:w-auto [&>a]:min-h-11 [&>a]:w-full sm:[&>a]:w-auto [&>button]:min-h-11 [&>button]:w-full sm:[&>button]:w-auto",
           )}
         >
           {action}

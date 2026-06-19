@@ -1,7 +1,10 @@
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
-import { hasMetricData, type InsightMetric } from "@/lib/insights/metric-availability";
+import {
+  hasMetricData,
+  type InsightMetric,
+} from "@/lib/insights/metric-availability";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import type { SubPageAnalyticsData } from "@/types/analytics";
 

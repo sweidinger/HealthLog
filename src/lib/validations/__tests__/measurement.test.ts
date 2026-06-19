@@ -462,7 +462,10 @@ describe("measurement validation", () => {
           const issue = parsed.error.issues.find((i) =>
             i.path.includes("source"),
           );
-          expect(issue, `expected a source-path rejection for ${source}`).toBeDefined();
+          expect(
+            issue,
+            `expected a source-path rejection for ${source}`,
+          ).toBeDefined();
         }
       }
     });

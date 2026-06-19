@@ -23,10 +23,7 @@ import {
   buildBandsForSchedules,
   type BandMinterMedication,
 } from "../band-minter";
-import {
-  type CanonicalSchedule,
-  type RecurrenceContext,
-} from "../recurrence";
+import { type CanonicalSchedule, type RecurrenceContext } from "../recurrence";
 import { attributeIntakeToSlot } from "../attribution";
 import { localHmAsUtc } from "@/lib/tz/local-day";
 
@@ -113,14 +110,20 @@ describe("daily multi-time (07:00 / 19:00)", () => {
 
   it("uses a minute-scale on-time band (±60min default)", () => {
     const morning = out.bands[0];
-    expect(morning.onTimeStart.getTime()).toBe(at(day, 7, 0).getTime() - 60 * MIN);
-    expect(morning.onTimeEnd.getTime()).toBe(at(day, 7, 0).getTime() + 60 * MIN);
+    expect(morning.onTimeStart.getTime()).toBe(
+      at(day, 7, 0).getTime() - 60 * MIN,
+    );
+    expect(morning.onTimeEnd.getTime()).toBe(
+      at(day, 7, 0).getTime() + 60 * MIN,
+    );
   });
 
   it("applies a daily late tail (180min default) capped before the next slot", () => {
     const morning = out.bands[0];
     // 07:00 + 60 on-time + 180 tail = 10:00, well before 19:00 → not capped.
-    expect(morning.overdueEnd.getTime()).toBe(at(day, 7, 0).getTime() + (60 + 180) * MIN);
+    expect(morning.overdueEnd.getTime()).toBe(
+      at(day, 7, 0).getTime() + (60 + 180) * MIN,
+    );
   });
 
   it("DST-correct anchors: 07:00 Berlin summer is 05:00Z", () => {
@@ -171,7 +174,9 @@ describe("fixed weekdays Mon/Thu via legacy daysOfWeek", () => {
     const thu = out.bands[1];
     // Mon on-time-end + 4d would overrun Thu's on-time start (Thu − 1d), so it
     // is capped there.
-    expect(mon.overdueEnd.getTime()).toBeLessThanOrEqual(thu.onTimeStart.getTime());
+    expect(mon.overdueEnd.getTime()).toBeLessThanOrEqual(
+      thu.onTimeStart.getTime(),
+    );
   });
 });
 
@@ -214,9 +219,14 @@ describe("rolling GLP-1 (every 7 days) — retrospective bands", () => {
   it("each shot's own injection time falls inside its band (on-time)", () => {
     for (const shot of intakeInstants) {
       const owning = out.bands.find(
-        (b) => shot.getTime() >= b.onTimeStart.getTime() && shot.getTime() <= b.onTimeEnd.getTime(),
+        (b) =>
+          shot.getTime() >= b.onTimeStart.getTime() &&
+          shot.getTime() <= b.onTimeEnd.getTime(),
       );
-      expect(owning, `shot ${shot.toISOString()} should anchor a band`).toBeDefined();
+      expect(
+        owning,
+        `shot ${shot.toISOString()} should anchor a band`,
+      ).toBeDefined();
     }
   });
 
@@ -318,8 +328,12 @@ describe("one-shot — single wide whole-day on-time band", () => {
   it("the on-time band spans the whole local day", () => {
     const b = out.bands[0];
     // Whole-day on-time → start at local midnight, end at next local midnight.
-    expect(b.onTimeStart.getTime()).toBeLessThanOrEqual(at(day, 0, 0).getTime());
-    expect(b.onTimeEnd.getTime()).toBeGreaterThanOrEqual(at(day, 23, 59).getTime());
+    expect(b.onTimeStart.getTime()).toBeLessThanOrEqual(
+      at(day, 0, 0).getTime(),
+    );
+    expect(b.onTimeEnd.getTime()).toBeGreaterThanOrEqual(
+      at(day, 23, 59).getTime(),
+    );
   });
 
   it("a take any time that day is on-time (a 23:00 take still counts)", () => {
@@ -428,7 +442,11 @@ describe("multi-schedule — bands built PER SCHEDULE (no cross-clip)", () => {
   // clipped by the next daily 08:00 anchor. Per-schedule banding keeps the
   // weekly tail intact.
   const m = med({ startsOn: new Date("2026-06-01T00:00:00Z") });
-  const daily = schedule({ id: "daily", timesOfDay: ["08:00"], daysOfWeek: null });
+  const daily = schedule({
+    id: "daily",
+    timesOfDay: ["08:00"],
+    daysOfWeek: null,
+  });
   const weekly = schedule({
     id: "weekly",
     rrule: "FREQ=WEEKLY;BYDAY=SU",
@@ -507,8 +525,12 @@ describe("explicit per-dose window from schedule.doseWindows", () => {
   });
 
   it("a dose with no entry keeps the symmetric ±60min default", () => {
-    expect(evening.onTimeStart.getTime()).toBe(at(day, 19, 0).getTime() - 60 * MIN);
-    expect(evening.onTimeEnd.getTime()).toBe(at(day, 19, 0).getTime() + 60 * MIN);
+    expect(evening.onTimeStart.getTime()).toBe(
+      at(day, 19, 0).getTime() - 60 * MIN,
+    );
+    expect(evening.onTimeEnd.getTime()).toBe(
+      at(day, 19, 0).getTime() + 60 * MIN,
+    );
   });
 
   it("under the DEFAULT (no doseWindows) the same 11:29 take is ad-hoc", () => {

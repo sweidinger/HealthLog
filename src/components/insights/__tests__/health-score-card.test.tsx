@@ -208,7 +208,6 @@ describe("<HealthScoreCard>", () => {
     expect(html).not.toContain('data-slot="health-score-card-ask-coach"');
   });
 
-
   it("renders German strings", () => {
     const html = ssr(
       <HealthScoreCard
@@ -274,9 +273,7 @@ describe("<HealthScoreCard>", () => {
         delta={null}
       />,
     );
-    const cardOpen = html.match(
-      /<div[^>]*data-slot="health-score-card"[^>]*>/,
-    );
+    const cardOpen = html.match(/<div[^>]*data-slot="health-score-card"[^>]*>/);
     expect(cardOpen).not.toBeNull();
     expect(cardOpen?.[0]).toContain("h-full");
     expect(cardOpen?.[0]).toContain("flex");

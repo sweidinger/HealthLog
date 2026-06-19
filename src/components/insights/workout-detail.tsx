@@ -75,14 +75,22 @@ function formatDistanceKm(meters: number, locale: string): string {
   }).format(km);
 }
 
-function formatNumber(value: number, locale: string, fractionDigits = 0): string {
+function formatNumber(
+  value: number,
+  locale: string,
+  fractionDigits = 0,
+): string {
   return new Intl.NumberFormat(locale, {
     maximumFractionDigits: fractionDigits,
     minimumFractionDigits: fractionDigits,
   }).format(value);
 }
 
-function formatPaceMinPerKm(durationSec: number, meters: number, locale: string): string {
+function formatPaceMinPerKm(
+  durationSec: number,
+  meters: number,
+  locale: string,
+): string {
   // Pace is the seconds-per-kilometre value. Only meaningful for
   // run / walk / hike. The caller already gated on `meters > 0`.
   const secPerKm = (durationSec / meters) * 1000;
@@ -91,7 +99,11 @@ function formatPaceMinPerKm(durationSec: number, meters: number, locale: string)
   return `${m}:${s.toString().padStart(2, "0")} ${locale === "en" ? "/km" : "/km"}`;
 }
 
-function formatDateRange(startedAt: string, endedAt: string, locale: string): string {
+function formatDateRange(
+  startedAt: string,
+  endedAt: string,
+  locale: string,
+): string {
   const start = new Date(startedAt);
   const end = new Date(endedAt);
   const dateFmt = new Intl.DateTimeFormat(locale, {
@@ -139,7 +151,7 @@ export function WorkoutDetailHeader({ workout }: WorkoutDetailHeaderProps) {
     >
       {renderSportIconBadge(workout.sportType)}
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
+        <p className="text-muted-foreground text-xs tracking-wide uppercase">
           {workout.source}
         </p>
         <h2 className="truncate text-lg font-semibold sm:text-xl">
@@ -262,12 +274,7 @@ export function WorkoutDetailStats({ workout }: WorkoutDetailStatsProps) {
   // it when the workout has both a distance and a sport with a
   // canonical pace unit; the fallback covers the long-tail HK enum
   // values without lighting up a misleading number.
-  const PACE_SPORTS = new Set([
-    "walking",
-    "running",
-    "hiking",
-    "cycling",
-  ]);
+  const PACE_SPORTS = new Set(["walking", "running", "hiking", "cycling"]);
   if (
     workout.distanceM != null &&
     workout.distanceM > 100 &&
@@ -401,7 +408,11 @@ export function WorkoutDetailRoute({ workout }: WorkoutDetailRouteProps) {
 
 // ── Heart-rate chart ─────────────────────────────────────────────────
 
-export function WorkoutDetailHRChart({ workout }: { workout: WorkoutDetailPayload }) {
+export function WorkoutDetailHRChart({
+  workout,
+}: {
+  workout: WorkoutDetailPayload;
+}) {
   const { t } = useTranslations();
 
   // Per-second HR samples are not persisted on the Workout row today —

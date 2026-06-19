@@ -97,7 +97,10 @@ describe("PUT /api/admin/users/[id]", () => {
 
   it("returns 404 when target user does not exist", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
-    const res = await PUT(jsonReq({ username: "testuser" }), params("u-missing"));
+    const res = await PUT(
+      jsonReq({ username: "testuser" }),
+      params("u-missing"),
+    );
     expect(res.status).toBe(404);
     expect(vi.mocked(prisma.user.update)).not.toHaveBeenCalled();
   });

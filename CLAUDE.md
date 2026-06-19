@@ -32,19 +32,19 @@ Prefer patch bumps. A release dominated by bug fixes plus additive features with
 
 ## Tech stack at a glance
 
-| Layer | Tech | Notes |
-|---|---|---|
-| Runtime | Node 22 (Alpine) + pnpm 10.31 | Node version fixed only by the Dockerfile base image; no `.nvmrc` or `engines`. |
-| Framework | Next.js 16.2.6 — App Router, `output: "standalone"` | SWC strips `console.*` in prod except `error/warn`. |
-| Language | TypeScript 6, `strict: true`, `moduleResolution: "bundler"` | Path alias `@/*` → `./src/*`. `scripts/` excluded from typecheck. |
-| UI | React 19 (exact pin), Tailwind 4, shadcn/ui (new-york style, zinc base), Radix, Lucide | Recharts 3 for charts — stays; replacement requires explicit approval. |
-| Persistence | PostgreSQL 16 + Prisma 7.8 — 80 models | Generated client at `src/generated/prisma`. Production image ships a separate `/opt/prisma-cli` install + `/opt/pg-boss` runtime install (see `Dockerfile:93-100`). |
-| Queue | pg-boss 12.18 | Cron + retry semantics live in Postgres tables; workers under `src/lib/jobs/`. |
-| Auth | `@simplewebauthn/server` 13, `@node-rs/argon2` 2 | Passkey + Argon2id password, server-side sessions in Postgres. |
-| Notifications | `@parse/node-apn` 8 (APNs), `web-push` 3 (VAPID), raw fetch for Telegram + ntfy | Per-channel `recordPushAttempt` row, hard-reject classification. |
-| Forms / validation | `react-hook-form` 7 + `zod` 4 + `@hookform/resolvers` + `zod-openapi` 5 | The Zod registry is the source of truth for `docs/api/openapi.yaml`. |
-| Testing | Vitest 4 (unit + integration), Playwright 1.60 (e2e), `@axe-core/playwright` | Integration runs against a `testcontainers/postgresql` Postgres 16. |
-| Container | Multi-stage Alpine Dockerfile, GHCR multi-arch (`amd64` + `arm64`) | `pull_policy: always` in `docker-compose.yml` is load-bearing — without it Docker re-uses the stale `:latest` digest. |
+| Layer              | Tech                                                                                   | Notes                                                                                                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime            | Node 22 (Alpine) + pnpm 10.31                                                          | Node version fixed only by the Dockerfile base image; no `.nvmrc` or `engines`.                                                                                     |
+| Framework          | Next.js 16.2.6 — App Router, `output: "standalone"`                                    | SWC strips `console.*` in prod except `error/warn`.                                                                                                                 |
+| Language           | TypeScript 6, `strict: true`, `moduleResolution: "bundler"`                            | Path alias `@/*` → `./src/*`. `scripts/` excluded from typecheck.                                                                                                   |
+| UI                 | React 19 (exact pin), Tailwind 4, shadcn/ui (new-york style, zinc base), Radix, Lucide | Recharts 3 for charts — stays; replacement requires explicit approval.                                                                                              |
+| Persistence        | PostgreSQL 16 + Prisma 7.8 — 80 models                                                 | Generated client at `src/generated/prisma`. Production image ships a separate `/opt/prisma-cli` install + `/opt/pg-boss` runtime install (see `Dockerfile:93-100`). |
+| Queue              | pg-boss 12.18                                                                          | Cron + retry semantics live in Postgres tables; workers under `src/lib/jobs/`.                                                                                      |
+| Auth               | `@simplewebauthn/server` 13, `@node-rs/argon2` 2                                       | Passkey + Argon2id password, server-side sessions in Postgres.                                                                                                      |
+| Notifications      | `@parse/node-apn` 8 (APNs), `web-push` 3 (VAPID), raw fetch for Telegram + ntfy        | Per-channel `recordPushAttempt` row, hard-reject classification.                                                                                                    |
+| Forms / validation | `react-hook-form` 7 + `zod` 4 + `@hookform/resolvers` + `zod-openapi` 5                | The Zod registry is the source of truth for `docs/api/openapi.yaml`.                                                                                                |
+| Testing            | Vitest 4 (unit + integration), Playwright 1.60 (e2e), `@axe-core/playwright`           | Integration runs against a `testcontainers/postgresql` Postgres 16.                                                                                                 |
+| Container          | Multi-stage Alpine Dockerfile, GHCR multi-arch (`amd64` + `arm64`)                     | `pull_policy: always` in `docker-compose.yml` is load-bearing — without it Docker re-uses the stale `:latest` digest.                                               |
 
 More detail in `.planning/codebase/tech.md`, generated as part of the v1.5.2 codebase audit.
 
@@ -110,23 +110,23 @@ The architecture map in `.planning/codebase/arch.md` walks each layer with file:
 
 ## Critical-files map
 
-| Concern | File | What it owns |
-|---|---|---|
-| HTTP edge | `src/proxy.ts` | Public-path allowlist, demo-mode block, onboarding redirect, request-id + CSP nonce, every security header, worker-only refusal. |
-| API kit | `src/lib/api-handler.ts` | `apiHandler` wrapper, `requireAuth` / `requireAdmin`, idempotency plumbing, GlitchTip forwarder. |
-| Response envelope | `src/lib/api-response.ts` | `apiSuccess` / `apiError`, `safeJson` (now with opt-in `maxBytes`), trusted-proxy IP resolver, `returnAllZodIssues` + `sanitiseZodIssues`. |
-| Crypto at rest | `src/lib/crypto.ts` | AES-256-GCM with versioned key ids, `extractKeyId`, fail-closed loader, rotation primitives. Rotation CLI: `scripts/rotate-encryption-key.ts`. |
-| Session | `src/lib/auth/session.ts` + `src/lib/auth/secure-cookie.ts` | Postgres-backed sessions, sliding 30-day expiry, `shouldEmitSecureCookie()` the one source of truth for the `Secure` flag (every cookie setter routes through it). |
-| Refresh tokens | `src/lib/auth/refresh-token.ts` | Per-device one-time-use rotation with reuse-detection that revokes the device's token family. |
-| Bearer tokens | `src/lib/auth/hmac.ts` + `src/lib/auth/issue-token.ts` | HMAC-SHA256 hashing under `API_TOKEN_HMAC_KEY`; no plaintext path; `lastUsedAt` updated fire-and-forget. |
-| Rollup tier | `src/lib/rollups/` | DAY / WEEK / MONTH / YEAR pre-aggregations. Read-swap pattern: try the rollup, fall back to live SQL only on coverage miss. Boot-time `rollup-full-backfill` queue handles new accounts. |
-| Compliance | `src/lib/analytics/compliance.ts` | Cadence-aware medication compliance — daysOfWeek + intervalWeeks honoured across the eight call sites that surface a rate (Coach prompt, BP-status gate, dashboard pillar, …). |
-| AI providers | `src/lib/ai/provider.ts` (`resolveProvider`) + `src/lib/ai/provider-chain.ts` (`PROVIDER_CHAIN_TYPES`) + `src/lib/ai/{openai,anthropic,local,codex,mock}-client.ts` | Five providers, hand-rolled fetch over the documented wire (no vendor SDKs). Mock is excluded structurally by the `PROVIDER_CHAIN_TYPES` allowlist — production cannot reach it. |
-| Notification dispatcher | `src/lib/notifications/dispatcher.ts` + `src/lib/notifications/senders/` | APNs → Telegram → ntfy → Web Push cascade, hard-reject classification, `push_attempts` ledger with 90-day retention. |
-| Coach | `src/app/api/insights/chat/route.ts` + `src/lib/ai/coach/` | SSE stream, budget gate + per-user rate gate, refusal detector, snapshot builder, message persistence with `encryptedContent` Bytes column. |
-| OpenAPI | `src/lib/openapi/registry.ts` + `src/lib/openapi/routes/` (23 modules, `index.ts` barrel) | Source of truth for `docs/api/openapi.yaml`. |
-| Schema | `prisma/schema.prisma` (80 models) | `cuid()` PKs, `snake_case` columns via `@map`, encrypted columns mostly under `*Encrypted` (search the file). |
-| Compose | `docker-compose.yml` | `app` + `db`. Env-var whitelist under `environment:` — vars not listed never reach the container. `pull_policy: always` is load-bearing. |
+| Concern                 | File                                                                                                                                                                | What it owns                                                                                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP edge               | `src/proxy.ts`                                                                                                                                                      | Public-path allowlist, demo-mode block, onboarding redirect, request-id + CSP nonce, every security header, worker-only refusal.                                                         |
+| API kit                 | `src/lib/api-handler.ts`                                                                                                                                            | `apiHandler` wrapper, `requireAuth` / `requireAdmin`, idempotency plumbing, GlitchTip forwarder.                                                                                         |
+| Response envelope       | `src/lib/api-response.ts`                                                                                                                                           | `apiSuccess` / `apiError`, `safeJson` (now with opt-in `maxBytes`), trusted-proxy IP resolver, `returnAllZodIssues` + `sanitiseZodIssues`.                                               |
+| Crypto at rest          | `src/lib/crypto.ts`                                                                                                                                                 | AES-256-GCM with versioned key ids, `extractKeyId`, fail-closed loader, rotation primitives. Rotation CLI: `scripts/rotate-encryption-key.ts`.                                           |
+| Session                 | `src/lib/auth/session.ts` + `src/lib/auth/secure-cookie.ts`                                                                                                         | Postgres-backed sessions, sliding 30-day expiry, `shouldEmitSecureCookie()` the one source of truth for the `Secure` flag (every cookie setter routes through it).                       |
+| Refresh tokens          | `src/lib/auth/refresh-token.ts`                                                                                                                                     | Per-device one-time-use rotation with reuse-detection that revokes the device's token family.                                                                                            |
+| Bearer tokens           | `src/lib/auth/hmac.ts` + `src/lib/auth/issue-token.ts`                                                                                                              | HMAC-SHA256 hashing under `API_TOKEN_HMAC_KEY`; no plaintext path; `lastUsedAt` updated fire-and-forget.                                                                                 |
+| Rollup tier             | `src/lib/rollups/`                                                                                                                                                  | DAY / WEEK / MONTH / YEAR pre-aggregations. Read-swap pattern: try the rollup, fall back to live SQL only on coverage miss. Boot-time `rollup-full-backfill` queue handles new accounts. |
+| Compliance              | `src/lib/analytics/compliance.ts`                                                                                                                                   | Cadence-aware medication compliance — daysOfWeek + intervalWeeks honoured across the eight call sites that surface a rate (Coach prompt, BP-status gate, dashboard pillar, …).           |
+| AI providers            | `src/lib/ai/provider.ts` (`resolveProvider`) + `src/lib/ai/provider-chain.ts` (`PROVIDER_CHAIN_TYPES`) + `src/lib/ai/{openai,anthropic,local,codex,mock}-client.ts` | Five providers, hand-rolled fetch over the documented wire (no vendor SDKs). Mock is excluded structurally by the `PROVIDER_CHAIN_TYPES` allowlist — production cannot reach it.         |
+| Notification dispatcher | `src/lib/notifications/dispatcher.ts` + `src/lib/notifications/senders/`                                                                                            | APNs → Telegram → ntfy → Web Push cascade, hard-reject classification, `push_attempts` ledger with 90-day retention.                                                                     |
+| Coach                   | `src/app/api/insights/chat/route.ts` + `src/lib/ai/coach/`                                                                                                          | SSE stream, budget gate + per-user rate gate, refusal detector, snapshot builder, message persistence with `encryptedContent` Bytes column.                                              |
+| OpenAPI                 | `src/lib/openapi/registry.ts` + `src/lib/openapi/routes/` (23 modules, `index.ts` barrel)                                                                           | Source of truth for `docs/api/openapi.yaml`.                                                                                                                                             |
+| Schema                  | `prisma/schema.prisma` (80 models)                                                                                                                                  | `cuid()` PKs, `snake_case` columns via `@map`, encrypted columns mostly under `*Encrypted` (search the file).                                                                            |
+| Compose                 | `docker-compose.yml`                                                                                                                                                | `app` + `db`. Env-var whitelist under `environment:` — vars not listed never reach the container. `pull_policy: always` is load-bearing.                                                 |
 
 `.planning/codebase/arch.md` carries the full annotated walk for every section.
 
@@ -181,21 +181,22 @@ The native SwiftUI client lives in a separate repository and rides public beta v
 
 ## Pointers
 
-| What | Where |
-|---|---|
-| Public face | `README.md` |
-| Release history | `CHANGELOG.md` |
-| Codebase audit (v1.5.2) | `.planning/codebase/{tech,arch,quality,concerns}.md` |
-| Security audit (v1.5.2) | `.planning/security-audit-v1.5.2.md` + `.planning/security-audit-findings/*` |
-| Operator runbooks | `docs/ops/` (deploy, encryption-key-rotation, env-check, backup-restore, migrations) |
-| Self-hosting guide | `docs/self-hosting/` |
-| Public API contract | `docs/api/openapi.yaml` |
-| Architecture diagrams | `docs/diagrams/` (rendered through `docs.healthlog.dev`) |
-| iOS coordination notes | `.planning/ios-coord/` |
-| Maintainer working notes | `.planning/PROJECT.md`, `.planning/ROADMAP.md`, `.planning/STATE.md` (gitignored release scratch lives alongside; the patterns are in `.gitignore`) |
-| Personal preferences + collaboration memory | `~/.claude/projects/-Users-marc-Projects-HealthLog/memory/MEMORY.md` (local to the maintainer's working copy; not in the repo) |
+| What                                        | Where                                                                                                                                               |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public face                                 | `README.md`                                                                                                                                         |
+| Release history                             | `CHANGELOG.md`                                                                                                                                      |
+| Codebase audit (v1.5.2)                     | `.planning/codebase/{tech,arch,quality,concerns}.md`                                                                                                |
+| Security audit (v1.5.2)                     | `.planning/security-audit-v1.5.2.md` + `.planning/security-audit-findings/*`                                                                        |
+| Operator runbooks                           | `docs/ops/` (deploy, encryption-key-rotation, env-check, backup-restore, migrations)                                                                |
+| Self-hosting guide                          | `docs/self-hosting/`                                                                                                                                |
+| Public API contract                         | `docs/api/openapi.yaml`                                                                                                                             |
+| Architecture diagrams                       | `docs/diagrams/` (rendered through `docs.healthlog.dev`)                                                                                            |
+| iOS coordination notes                      | `.planning/ios-coord/`                                                                                                                              |
+| Maintainer working notes                    | `.planning/PROJECT.md`, `.planning/ROADMAP.md`, `.planning/STATE.md` (gitignored release scratch lives alongside; the patterns are in `.gitignore`) |
+| Personal preferences + collaboration memory | `~/.claude/projects/-Users-marc-Projects-HealthLog/memory/MEMORY.md` (local to the maintainer's working copy; not in the repo)                      |
 
 ## Agent context hygiene (ECONNRESET / oversized-request prevention)
-- **NEVER read `src/generated/**`** — Prisma-generated client (~9 MB, 83 files incl. a 224 KB+ inline schema). Reading/grepping it explodes the request context → 10-min "cogitations" + `ECONNRESET` on large turns. Regenerate via `pnpm prisma generate` if needed; never open it. (Enforced via `.claude/settings.local.json` Read-deny.)
+
+- **NEVER read `src/generated/**`** — Prisma-generated client (~9 MB, 83 files incl. a 224 KB+ inline schema). Reading/grepping it explodes the request context → 10-min "cogitations" + `ECONNRESET`on large turns. Regenerate via`pnpm prisma generate`if needed; never open it. (Enforced via`.claude/settings.local.json` Read-deny.)
 - Avoid bulk-reading other large artifacts: `pnpm-lock.yaml`, `CHANGELOG.md`, `messages/*.json`, `docs/api/openapi.yaml` — grep narrowly instead of full reads.
 - For very large multi-agent actions: cap concurrent sub-agents (many simultaneous streaming requests + big context is the worst combo for connection resets). When on a VPN (Tailscale MTU 1280 / iCloud Private Relay), large requests can hit MTU black-holes — disable the tunnel for heavy sessions.

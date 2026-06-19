@@ -207,7 +207,11 @@ async function main() {
       ),
     );
     results.push(
-      await rotateStringColumn("WhoopConnection", field, prisma.whoopConnection),
+      await rotateStringColumn(
+        "WhoopConnection",
+        field,
+        prisma.whoopConnection,
+      ),
     );
     results.push(
       await rotateStringColumn(
@@ -349,11 +353,7 @@ async function main() {
     await rotateBytesColumn("LabResult", "noteEncrypted", prisma.labResult),
   );
   results.push(
-    await rotateBytesColumn(
-      "Biomarker",
-      "contextEncrypted",
-      prisma.biomarker,
-    ),
+    await rotateBytesColumn("Biomarker", "contextEncrypted", prisma.biomarker),
   );
   results.push(
     await rotateBytesColumn(

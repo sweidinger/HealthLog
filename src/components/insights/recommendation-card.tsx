@@ -30,10 +30,8 @@ import { ConfidenceMeter } from "./confidence-meter";
 
 const SEVERITY_BADGE_STYLES: Record<string, string> = {
   info: "bg-info/10 text-info border border-info/25",
-  suggestion:
-    "bg-dose-accent/10 text-dose-accent border border-dose-accent/25",
-  important:
-    "bg-warning/10 text-warning border border-warning/25",
+  suggestion: "bg-dose-accent/10 text-dose-accent border border-dose-accent/25",
+  important: "bg-warning/10 text-warning border border-warning/25",
   urgent: "bg-destructive/10 text-destructive border border-destructive/25",
 };
 

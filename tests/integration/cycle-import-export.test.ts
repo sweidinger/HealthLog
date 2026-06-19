@@ -129,7 +129,9 @@ describe("cycle import — reproductive HK samples route to CycleDayLog", () => 
 
     expect(second.cycle.daysUpserted).toBe(1);
     expect(second.cycle.daysInserted).toBe(0); // already existed
-    const count = await prisma.cycleDayLog.count({ where: { userId: USER_ID } });
+    const count = await prisma.cycleDayLog.count({
+      where: { userId: USER_ID },
+    });
     expect(count).toBe(1);
   });
 
@@ -152,7 +154,9 @@ describe("cycle import — reproductive HK samples route to CycleDayLog", () => 
 
     // Sample was bucketed but the gate suppressed the flush.
     expect(result.cycle.daysUpserted).toBe(0);
-    const count = await prisma.cycleDayLog.count({ where: { userId: USER_ID } });
+    const count = await prisma.cycleDayLog.count({
+      where: { userId: USER_ID },
+    });
     expect(count).toBe(0);
   });
 });
