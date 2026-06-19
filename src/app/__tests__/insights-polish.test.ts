@@ -86,15 +86,15 @@ describe("v1.4.27 R3d MB4 — the layout mounts the Coach drawer", () => {
     expect(layout).toContain("LayoutCoachFab");
   });
 
-  it("hero strip's onAskCoach handler calls the launch context", () => {
+  it("the overview no longer wires the inline ask-the-Coach affordance", () => {
     const src = load(INSIGHTS_PATH);
-    // The hero supplies onAskCoach which now delegates to
-    // `coachLaunch.askCoach(prefill)` from the layout-level provider
-    // instead of toggling local state.
-    expect(src).toMatch(/<HeroStrip[\s\S]*?onAskCoach=\{/);
-    expect(src).toMatch(/<HeroStrip[\s\S]*?onPickPrompt=\{/);
-    expect(src).toContain("useCoachLaunch");
-    expect(src).toMatch(/coachLaunch\.askCoach/);
+    // v1.18.7 — the inline "ask the Coach / suggested questions" block was
+    // removed from the overview hero. The Coach is reached via the FAB +
+    // bottom-right drawer, so the hero no longer carries onAskCoach/onPickPrompt
+    // and the page no longer pulls the launch context.
+    expect(src).not.toMatch(/<HeroStrip[\s\S]*?onAskCoach=\{/);
+    expect(src).not.toMatch(/<HeroStrip[\s\S]*?onPickPrompt=\{/);
+    expect(src).not.toContain("useCoachLaunch");
   });
 
   it("the page no longer owns coachOpen + coachPrefill local state", () => {
