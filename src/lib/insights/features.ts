@@ -188,7 +188,7 @@ export interface AggregatedFeatures {
    * v1.18.7 — "Signals of the day": the present-focused read the daily
    * briefing leads with. Each entry compares the freshest reading against
    * the user's own trailing-7d / 30d windows, flags an emerging slope, and
-   * surfaces a recent anomaly — ranked by clinical priority, ≤5 entries.
+   * surfaces a recent anomaly — ranked by clinical priority, ≤3 entries.
    *
    * Recomputed every day: the freshest reading, the 7/30d windows, and the
    * recency move daily, so a flat 30/90d mean no longer pins the briefing.
@@ -213,7 +213,7 @@ export interface SignalOfDay {
     | "mood"
     | "sleep"
     | "resting_hr"
-    | "steps";
+    | "glucose";
   /** Natural-language label (no enum leak into prose). */
   label: string;
   /** Unit string when the metric carries one. */
@@ -240,7 +240,7 @@ export interface SignalOfDay {
   recentAnomaly: {
     kind: "peak" | "trough";
     value: number;
-    daysAgo: number;
+    anomalyDaysAgo: number;
   } | null;
 }
 
@@ -419,17 +419,16 @@ function computeHistoricalComparison(
 
 /**
  * v1.18.7 — clinical priority order for the signals block. BP / glucose
- * lead, then resting HR / pulse, then weight, then mood / sleep / activity.
- * Lower index = higher priority; the briefing surfaces the top ≤5.
+ * lead, then resting HR / pulse, then weight, then mood.
+ * Lower index = higher priority; the briefing surfaces the top ≤3.
  */
 const SIGNAL_PRIORITY: SignalOfDay["metric"][] = [
   "bp",
+  "glucose",
   "resting_hr",
   "pulse",
   "weight",
-  "sleep",
   "mood",
-  "steps",
 ];
 
 /** Round helper local to the signals builder. */
@@ -472,7 +471,7 @@ function buildSignal(
       ? Math.abs(newest.value - avg30) > spread30
       : false;
 
-  const slope = trendSlope(toDataPoints(records), 30);
+  const slope = trendSlope(toDataPoints(records), 30, now);
   const emergingTrend: SignalOfDay["emergingTrend"] = slope
     ? slope.direction === "up"
       ? "rising"
@@ -483,6 +482,9 @@ function buildSignal(
 
   // Recent anomaly: an extreme inside the last 14 days vs the 30d mean ± 2 SD.
   let recentAnomaly: SignalOfDay["recentAnomaly"] = null;
+  // Track the RAW extreme magnitude — comparing against the already-r2()
+  // rounded stored value can drop a genuinely larger anomaly.
+  let bestAbs = 0;
   if (avg30 !== null && spread30 !== null && spread30 > 0) {
     const recent = records.filter(
       (rec) => rec.measuredAt.getTime() >= now - 14 * 24 * 60 * 60 * 1000,
@@ -490,21 +492,16 @@ function buildSignal(
     for (const rec of recent) {
       const sd = (rec.value - avg30) / spread30;
       if (Math.abs(sd) >= 2) {
-        const daysAgo = Math.round(
-          (now - rec.measuredAt.getTime()) / (24 * 60 * 60 * 1000),
-        );
-        const candidate = {
-          kind: (sd > 0 ? "peak" : "trough") as "peak" | "trough",
-          value: r2(rec.value),
-          daysAgo,
-        };
-        // Keep the single most extreme anomaly in the window.
-        if (
-          recentAnomaly === null ||
-          Math.abs(rec.value - avg30) >
-            Math.abs(recentAnomaly.value - avg30)
-        ) {
-          recentAnomaly = candidate;
+        const abs = Math.abs(rec.value - avg30);
+        if (recentAnomaly === null || abs > bestAbs) {
+          bestAbs = abs;
+          recentAnomaly = {
+            kind: (sd > 0 ? "peak" : "trough") as "peak" | "trough",
+            value: r2(rec.value),
+            anomalyDaysAgo: Math.round(
+              (now - rec.measuredAt.getTime()) / (24 * 60 * 60 * 1000),
+            ),
+          };
         }
       }
     }
@@ -531,7 +528,7 @@ function buildSignal(
  * v1.18.7 — assemble the present-focused "Signals of the day" block from the
  * in-memory measurement set (no extra DB round-trip). Computes today-vs-7d/30d
  * deltas, an emerging slope, and a recent anomaly per salient metric, then
- * returns the top ≤5 ranked by clinical priority. Salient signals
+ * returns the top ≤3 ranked by clinical priority. Salient signals
  * (outside-normal-swing or a recent anomaly) bubble above quiet ones inside
  * each priority tier so the briefing leads with what actually moved.
  */
@@ -546,13 +543,16 @@ function computeSignalsOfDay(
 
   // Systolic carries the BP signal (the headline number clinicians read first).
   push(buildSignal("bp", "blood pressure (systolic)", byType("BLOOD_PRESSURE_SYS"), now, "mmHg"));
+  // Glucose uses the canonical stored value (the model reads the snapshot,
+  // not display units); absent data simply produces no signal.
+  push(buildSignal("glucose", "blood glucose", byType("BLOOD_GLUCOSE"), now));
   push(buildSignal("resting_hr", "resting heart rate", byType("RESTING_HEART_RATE"), now, "bpm"));
   push(buildSignal("pulse", "pulse", byType("PULSE"), now, "bpm"));
   push(buildSignal("weight", "weight", byType("WEIGHT"), now, "kg"));
   // Sleep is stored one row per stage per night, so a raw "latest" point
-  // would mis-sum; the sleep aggregates carry that signal already. Steps are
-  // daily totals — a clean per-day point.
-  push(buildSignal("steps", "daily steps", byType("ACTIVITY_STEPS"), now));
+  // would mis-sum; the sleep aggregates carry that signal already. Steps
+  // ingest as many intraday `stats:`-prefixed samples, so the newest raw row
+  // is a partial-day fragment, not a daily total — excluded like sleep.
 
   const priorityIndex = (m: SignalOfDay["metric"]) => {
     const idx = SIGNAL_PRIORITY.indexOf(m);
@@ -567,7 +567,7 @@ function computeSignalsOfDay(
       if (sal !== 0) return sal;
       return priorityIndex(a.metric) - priorityIndex(b.metric);
     })
-    .slice(0, 5);
+    .slice(0, 3);
 }
 
 export async function extractFeatures(
