@@ -124,6 +124,16 @@ export interface BuildTieredSeriesOptions {
    * MONTH/YEAR bands + anomaly envelope; avoids a duplicate raw round-trip.
    */
   skipRecentDaily?: boolean;
+  /**
+   * v1.18.7 — skip the raw 0–14d read AND the DAY (14–30d) / WEEK (30–90d)
+   * band reads, returning only the MONTH / YEAR bands plus the anomaly
+   * envelope. For the Coach's `buildCoarseTimelineTail`, which consumes only
+   * month/year + anomalies; the skipped near-term bands would otherwise be
+   * read and discarded. The anomaly window-stats then span the coarse bands
+   * only, which is the right baseline for the deep-history tail. Implies
+   * `skipRecentDaily`.
+   */
+  coarseOnly?: boolean;
 }
 
 interface RollupBucket {
@@ -280,13 +290,19 @@ export async function buildTieredSeries(
     await ensureUserRollupsFresh(userId);
   }
 
+  const coarseOnly = options.coarseOnly ?? false;
+  const emptyBand = Promise.resolve<RollupBucket[]>([]);
   const [recentDaily, dayBand, weekBand, monthBand, yearBand] =
     await Promise.all([
-      options.skipRecentDaily
+      options.skipRecentDaily || coarseOnly
         ? Promise.resolve<TieredRawPoint[]>([])
         : readRecentDaily(userId, type, now),
-      readBand(userId, type, "DAY", TIERED_BANDS.dayUntil, TIERED_BANDS.rawDays, now),
-      readBand(userId, type, "WEEK", TIERED_BANDS.weekUntil, TIERED_BANDS.dayUntil, now),
+      coarseOnly
+        ? emptyBand
+        : readBand(userId, type, "DAY", TIERED_BANDS.dayUntil, TIERED_BANDS.rawDays, now),
+      coarseOnly
+        ? emptyBand
+        : readBand(userId, type, "WEEK", TIERED_BANDS.weekUntil, TIERED_BANDS.dayUntil, now),
       readBand(userId, type, "MONTH", TIERED_BANDS.monthUntil, TIERED_BANDS.weekUntil, now),
       readBand(userId, type, "YEAR", TIERED_BANDS.yearUntil, TIERED_BANDS.monthUntil, now),
     ]);

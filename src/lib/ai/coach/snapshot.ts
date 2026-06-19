@@ -408,12 +408,13 @@ async function buildCoarseTimelineTail(
   // "fall back on miss" contract the rest of the snapshot honours).
   let series: Awaited<ReturnType<typeof buildTieredSeries>>;
   try {
-    // `skipRecentDaily` — the snapshot already holds the raw 0–14d rows from
-    // its own window read, so the tiered builder skips that duplicate raw
-    // round-trip and returns only the coarse MONTH/YEAR bands + anomalies.
+    // `coarseOnly` — the snapshot already holds the raw 0–14d rows from its
+    // own window read and this tail consumes only the MONTH/YEAR bands +
+    // anomaly envelope, so the builder skips the raw read AND the DAY/WEEK
+    // band reads it would otherwise discard.
     series = await buildTieredSeries(userId, type, {
       now: now.getTime(),
-      skipRecentDaily: true,
+      coarseOnly: true,
     });
   } catch {
     return undefined;

@@ -100,11 +100,16 @@ export const LEARN_GUIDES: readonly LearnGuide[] = [
  */
 export function learnCatalogPromptBlock(): string {
   const lines = LEARN_GUIDES.map((g) => `- ${g.topic}: ${g.url}`).join("\n");
+  // Look the example guide up by slug, not by array index, so reordering the
+  // catalog above cannot silently change the prompt example.
+  const exampleGuide =
+    LEARN_GUIDES.find((g) => g.slug === "resting-heart-rate") ??
+    LEARN_GUIDES[0];
   return [
     "LEARN GUIDES (public articles you MAY link when genuinely helpful):",
     lines,
     "Only link a URL from this list — never invent a /learn URL or article",
     "content. Reference at most one guide, and only when it adds real value,",
-    'e.g. "more on this: ' + LEARN_GUIDES[1].url + '".',
+    'e.g. "more on this: ' + exampleGuide.url + '".',
   ].join("\n");
 }
