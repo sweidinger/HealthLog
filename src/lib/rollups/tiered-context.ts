@@ -117,6 +117,13 @@ export interface BuildTieredSeriesOptions {
    * `|deltaSd|` before the cap.
    */
   maxAnomalies?: number;
+  /**
+   * v1.18.7 — skip the raw 0–14d `Measurement` read and return an empty
+   * `recentDaily`. For callers (the Coach snapshot) that already hold the
+   * recent daily rows from their own query and only need the coarser
+   * MONTH/YEAR bands + anomaly envelope; avoids a duplicate raw round-trip.
+   */
+  skipRecentDaily?: boolean;
 }
 
 interface RollupBucket {
@@ -275,7 +282,9 @@ export async function buildTieredSeries(
 
   const [recentDaily, dayBand, weekBand, monthBand, yearBand] =
     await Promise.all([
-      readRecentDaily(userId, type, now),
+      options.skipRecentDaily
+        ? Promise.resolve<TieredRawPoint[]>([])
+        : readRecentDaily(userId, type, now),
       readBand(userId, type, "DAY", TIERED_BANDS.dayUntil, TIERED_BANDS.rawDays, now),
       readBand(userId, type, "WEEK", TIERED_BANDS.weekUntil, TIERED_BANDS.dayUntil, now),
       readBand(userId, type, "MONTH", TIERED_BANDS.monthUntil, TIERED_BANDS.weekUntil, now),
