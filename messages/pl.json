@@ -6422,6 +6422,10 @@
     "dashboard": {
       "empty": "Brak nadchodzących przypomnień profilaktycznych.",
       "openLink": "Otwórz profilaktykę"
+    },
+    "showMeasurements": "Pokaż pomiary",
+    "trendStrip": {
+      "label": "Ostatnie 7 dni"
     }
   },
   "moduleList": {

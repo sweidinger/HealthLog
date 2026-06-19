@@ -65,12 +65,13 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { LineChart, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Progress } from "@/components/ui/progress";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
+import { VorsorgeTrendStrip } from "@/components/measurement-reminders/vorsorge-trend-strip";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
 import {
   useMeasurementReminders,
@@ -805,6 +806,21 @@ function VorsorgeCard({
           <Pencil className="mr-2 h-4 w-4" />
           {t("measurementReminders.edit")}
         </DropdownMenuItem>
+        {/* v1.18.7 (Wave E) — jump to the measurements list pre-filtered to
+            this reminder's type. Only for measurement-linked reminders; a
+            free-text reminder has no readings to show. */}
+        {isLinked && (
+          <DropdownMenuItem asChild>
+            <Link
+              href={`/measurements?type=${encodeURIComponent(
+                reminder.measurementType as string,
+              )}`}
+            >
+              <LineChart className="mr-2 h-4 w-4" />
+              {t("measurementReminders.showMeasurements")}
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
@@ -958,6 +974,12 @@ function VorsorgeCard({
         />
         <CardContent className="flex h-full flex-col space-y-3.5">
           {nextLastSlot}
+
+          {/* v1.18.7 (Wave E) — discreet 7-day strip of the metric's last
+              readings, sitting under the metric context like the dashboard
+              tiles. Renders nothing for a free-text reminder or a too-thin
+              window, so the card height stays stable when absent. */}
+          <VorsorgeTrendStrip measurementType={reminder.measurementType} />
 
           {/* v1.18.6 (MOD-06) — light gamification: progress through the
               current interval toward next-due, reusing the medication card's

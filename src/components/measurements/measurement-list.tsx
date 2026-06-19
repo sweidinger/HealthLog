@@ -179,6 +179,13 @@ interface MeasurementListProps {
    * scoped to this type; the count caption still shows.
    */
   lockedType?: string;
+  /**
+   * v1.18.7 (Wave E) — seed the (still user-editable) type filter from a
+   * `?type=<MEASUREMENT_TYPE>` deep link, e.g. the Vorsorge card's "Show
+   * measurements" action. Unlike `lockedType` the full filter rail stays
+   * visible so the user can widen or change the filter afterwards.
+   */
+  initialType?: string;
 }
 
 const PAGE_SIZE = 25;
@@ -263,6 +270,7 @@ export function MeasurementList({
   onEdit,
   onAddFirst,
   lockedType,
+  initialType,
 }: MeasurementListProps) {
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
@@ -270,7 +278,11 @@ export function MeasurementList({
   const queryClient = useQueryClient();
   // v1.8.5 — when `lockedType` is set the list is pinned to that metric
   // and the type selector is hidden; the filter state seeds from it.
-  const [typeFilter, setTypeFilterRaw] = useState<string>(lockedType ?? "ALL");
+  // v1.18.7 (Wave E) — `initialType` (from a `?type=` deep link) seeds the
+  // same filter but keeps the rail interactive so the user can change it.
+  const [typeFilter, setTypeFilterRaw] = useState<string>(
+    lockedType ?? initialType ?? "ALL",
+  );
   // v1.15.13 — management-list source filter + optional date range.
   // `ALL` clears the source filter; empty date strings clear the bound.
   const [sourceFilter, setSourceFilterRaw] = useState<string>("ALL");

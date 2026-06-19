@@ -6422,6 +6422,10 @@
     "dashboard": {
       "empty": "No upcoming preventive-care reminders.",
       "openLink": "Open preventive care"
+    },
+    "showMeasurements": "Show measurements",
+    "trendStrip": {
+      "label": "Last 7 days"
     }
   },
   "moduleList": {
