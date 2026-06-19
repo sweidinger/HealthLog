@@ -24,6 +24,7 @@ import { VorsorgeSection } from "@/components/settings/vorsorge-section";
 // v1.18.1 (D4) — `channels` and `sources` are standalone left-side entries
 // again (split out of the Integrations sub-tabs).
 import { ChannelsSection } from "@/components/settings/channels-section";
+import { SharingSection } from "@/components/settings/sharing-section";
 import { SourcesSection } from "@/components/settings/sources-section";
 import { ThresholdsSection } from "@/components/settings/thresholds-section";
 import {
@@ -73,6 +74,7 @@ const SECTION_COMPONENTS: Record<
   thresholds: ThresholdsSection,
   api: ApiSection,
   gesundheitsakte: GesundheitsakteSection,
+  sharing: SharingSection,
   export: ExportSection,
   advanced: AdvancedSection,
 };

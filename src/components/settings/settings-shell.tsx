@@ -33,6 +33,7 @@ import {
   Pill,
   Radio,
   Settings2,
+  Share2,
   SlidersHorizontal,
   Smile,
   Sparkles,
@@ -223,6 +224,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "gesundheitsakte",
     titleKey: "settings.sections.gesundheitsakte.title",
     icon: FileHeart,
+  },
+  // v1.18.7 — clinician share links sit next to the health record: minting a
+  // time-boxed read-only link is a sharing face of the same data. Not
+  // module-gated; the link surface is always available (the public
+  // `/c/[token]` view and the `/api/share-links` lifecycle are unchanged).
+  {
+    slug: "sharing",
+    titleKey: "settings.sections.sharing.title",
+    icon: Share2,
   },
   {
     slug: "export",
