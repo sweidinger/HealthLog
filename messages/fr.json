@@ -4676,7 +4676,16 @@
       "statusActive": "Actif",
       "statusRevoked": "Révoqué",
       "statusExpired": "Expiré",
-      "inactiveTitle": "Révoqués et expirés ({count})"
+      "inactiveTitle": "Révoqués et expirés ({count})",
+      "shownOnce": "Affiché une seule fois. Enregistrez le code QR et la phrase secrète maintenant — ils ne pourront pas être récupérés ensuite.",
+      "qrLabel": "Code QR",
+      "qrAlt": "Code QR contenant le lien de partage et la phrase secrète",
+      "linkLabel": "Lien",
+      "passphraseLabel": "Phrase secrète",
+      "passphraseHint": "Le destinataire a besoin du lien et de cette phrase secrète. Le code QR contient les deux.",
+      "copyLink": "Copier le lien",
+      "copyPassphrase": "Copier la phrase secrète",
+      "protected": "Phrase secrète"
     },
     "genderOther": "Autre",
     "cycleTracking": {
@@ -5963,7 +5972,14 @@
       "strain": "Score de charge",
       "score": "Score de bien-être"
     },
-    "footer": "Partagé depuis HealthLog — un suivi de santé auto-hébergé."
+    "footer": "Partagé depuis HealthLog — un suivi de santé auto-hébergé.",
+    "unlock": {
+      "title": "Saisir la phrase secrète",
+      "description": "Ce dossier de santé partagé est protégé. Saisissez la phrase secrète qui vous a été communiquée pour le consulter.",
+      "label": "Phrase secrète",
+      "error": "Cette phrase secrète est incorrecte.",
+      "submit": "Déverrouiller"
+    }
   },
   "cycle": {
     "symptomCategory": {

@@ -4676,7 +4676,16 @@
       "statusActive": "Active",
       "statusRevoked": "Revoked",
       "statusExpired": "Expired",
-      "inactiveTitle": "Revoked and expired ({count})"
+      "inactiveTitle": "Revoked and expired ({count})",
+      "shownOnce": "Shown once only. Capture the QR code and passphrase now — neither can be recovered later.",
+      "qrLabel": "QR code",
+      "qrAlt": "QR code containing the share link and passphrase",
+      "linkLabel": "Link",
+      "passphraseLabel": "Passphrase",
+      "passphraseHint": "The recipient needs both the link and this passphrase. The QR code carries both.",
+      "copyLink": "Copy link",
+      "copyPassphrase": "Copy passphrase",
+      "protected": "Passphrase"
     },
     "genderOther": "Other",
     "cycleTracking": {
@@ -5963,7 +5972,14 @@
       "strain": "Strain score",
       "score": "Wellness score"
     },
-    "footer": "Shared from HealthLog — a self-hosted personal health tracker."
+    "footer": "Shared from HealthLog — a self-hosted personal health tracker.",
+    "unlock": {
+      "title": "Enter passphrase",
+      "description": "This shared health record is protected. Enter the passphrase you were given to view it.",
+      "label": "Passphrase",
+      "error": "That passphrase is not correct.",
+      "submit": "Unlock"
+    }
   },
   "cycle": {
     "symptomCategory": {

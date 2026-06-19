@@ -4676,7 +4676,16 @@
       "statusActive": "Aktiv",
       "statusRevoked": "Widerrufen",
       "statusExpired": "Abgelaufen",
-      "inactiveTitle": "Widerrufen und abgelaufen ({count})"
+      "inactiveTitle": "Widerrufen und abgelaufen ({count})",
+      "shownOnce": "Nur einmal sichtbar. Erfassen Sie QR-Code und Passphrase jetzt — beide lassen sich später nicht wiederherstellen.",
+      "qrLabel": "QR-Code",
+      "qrAlt": "QR-Code mit Freigabelink und Passphrase",
+      "linkLabel": "Link",
+      "passphraseLabel": "Passphrase",
+      "passphraseHint": "Die Empfängerin oder der Empfänger benötigt Link und Passphrase. Der QR-Code enthält beides.",
+      "copyLink": "Link kopieren",
+      "copyPassphrase": "Passphrase kopieren",
+      "protected": "Passphrase"
     },
     "genderOther": "Divers",
     "cycleTracking": {
@@ -5963,7 +5972,14 @@
       "strain": "Belastungswert",
       "score": "Wellness-Wert"
     },
-    "footer": "Geteilt aus HealthLog — einem selbst gehosteten Gesundheits-Tracker."
+    "footer": "Geteilt aus HealthLog — einem selbst gehosteten Gesundheits-Tracker.",
+    "unlock": {
+      "title": "Passphrase eingeben",
+      "description": "Diese geteilte Gesundheitsakte ist geschützt. Geben Sie die erhaltene Passphrase ein, um sie anzuzeigen.",
+      "label": "Passphrase",
+      "error": "Diese Passphrase ist nicht korrekt.",
+      "submit": "Entsperren"
+    }
   },
   "cycle": {
     "symptomCategory": {

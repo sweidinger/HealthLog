@@ -4676,7 +4676,16 @@
       "statusActive": "Aktywny",
       "statusRevoked": "Unieważniony",
       "statusExpired": "Wygasły",
-      "inactiveTitle": "Unieważnione i wygasłe ({count})"
+      "inactiveTitle": "Unieważnione i wygasłe ({count})",
+      "shownOnce": "Wyświetlane tylko raz. Zapisz teraz kod QR i hasło — nie można ich później odzyskać.",
+      "qrLabel": "Kod QR",
+      "qrAlt": "Kod QR zawierający link do udostępniania i hasło",
+      "linkLabel": "Link",
+      "passphraseLabel": "Hasło",
+      "passphraseHint": "Odbiorca potrzebuje linku i tego hasła. Kod QR zawiera oba.",
+      "copyLink": "Kopiuj link",
+      "copyPassphrase": "Kopiuj hasło",
+      "protected": "Hasło"
     },
     "genderOther": "Inna",
     "cycleTracking": {
@@ -5963,7 +5972,14 @@
       "strain": "Wynik obciążenia",
       "score": "Wynik dobrostanu"
     },
-    "footer": "Udostępnione z HealthLog — samodzielnie hostowanego trackera zdrowia."
+    "footer": "Udostępnione z HealthLog — samodzielnie hostowanego trackera zdrowia.",
+    "unlock": {
+      "title": "Wprowadź hasło",
+      "description": "Ta udostępniona dokumentacja zdrowotna jest chroniona. Wprowadź otrzymane hasło, aby ją wyświetlić.",
+      "label": "Hasło",
+      "error": "To hasło jest nieprawidłowe.",
+      "submit": "Odblokuj"
+    }
   },
   "cycle": {
     "symptomCategory": {

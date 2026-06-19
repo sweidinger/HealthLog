@@ -21,9 +21,10 @@
  * the share-links card. Cards paint through `<SettingsCard>` so the surface
  * matches every sibling section 1:1.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Loader2, Share2, Trash2 } from "lucide-react";
+import QRCode from "qrcode";
+import { Copy, KeyRound, Loader2, Share2, Trash2 } from "lucide-react";
 
 import {
   AlertDialog,
@@ -71,12 +72,26 @@ interface ShareLinkSummary {
   rangeEnd: string | null;
   resourceTypes: string[];
   allowFhirApi: boolean;
+  /** v1.18.7 — whether a passphrase second factor guards this link. */
+  protected: boolean;
   expiresAt: string;
   createdAt: string;
   revokedAt: string | null;
   lastAccessAt: string | null;
   accessCount: number;
   active: boolean;
+}
+
+/**
+ * v1.18.7 — the create response. The token, passphrase, and URLs are returned
+ * EXACTLY ONCE here; the list query never carries them (the server stores only
+ * hashes). `qrUrl` carries the passphrase in the URL fragment (`#k=`).
+ */
+interface ShareLinkCreated extends ShareLinkSummary {
+  token: string;
+  passphrase: string;
+  shareUrl: string;
+  qrUrl: string;
 }
 
 export function SharingSection() {
@@ -106,10 +121,33 @@ function ShareLinksCard() {
     "Patient",
     "Observation",
   ]);
-  const [newToken, setNewToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [created, setCreated] = useState<ShareLinkCreated | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"link" | "passphrase" | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [showRevoked, setShowRevoked] = useState(false);
+
+  // Render the QR from the `#k=` deep link once a link is created. The fragment
+  // carries the passphrase, so the QR alone opens the record — it is shown
+  // exactly once alongside the passphrase text. The QR is keyed off `qrUrl` so
+  // a re-create swaps it; the effect only WRITES on async completion (never a
+  // synchronous reset), so it does not trigger a cascading render.
+  const qrUrl = created?.qrUrl ?? null;
+  useEffect(() => {
+    if (!qrUrl) return;
+    let cancelled = false;
+    QRCode.toDataURL(qrUrl, { margin: 1, width: 220 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        /* clipboard/QR can fail in some contexts; the link + passphrase text
+           are still shown so the owner can share them by hand */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [qrUrl]);
 
   const { data: links } = useQuery({
     queryKey: queryKeys.shareLinks(),
@@ -128,27 +166,26 @@ function ShareLinksCard() {
       if (expiryDays < 1 || expiryDays > MAX_DAYS) {
         return Promise.reject(new Error("EXPIRY_RANGE"));
       }
-      return apiPost<ShareLinkSummary & { token: string }>(
-        "/api/share-links",
-        {
-          label: trimmed,
-          rangeStart: isoDaysFromNow(-rangeDays),
-          rangeEnd: null,
-          resourceTypes,
-          allowFhirApi,
-          expiresAt: isoDaysFromNow(expiryDays),
-        },
-      );
+      return apiPost<ShareLinkCreated>("/api/share-links", {
+        label: trimmed,
+        rangeStart: isoDaysFromNow(-rangeDays),
+        rangeEnd: null,
+        resourceTypes,
+        allowFhirApi,
+        expiresAt: isoDaysFromNow(expiryDays),
+      });
     },
-    onSuccess: (created) => {
-      setNewToken(created.token);
-      setCopied(false);
+    onSuccess: (result) => {
+      // Clear any stale QR before the effect renders the new one.
+      setQrDataUrl(null);
+      setCreated(result);
+      setCopied(null);
       setLabel("");
       setFormError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.shareLinks() });
     },
     onError: (err: Error) => {
-      setNewToken(null);
+      setCreated(null);
       setFormError(
         err.message === "EXPIRY_RANGE"
           ? t("settings.sharing.expiryInvalid", { max: MAX_DAYS })
@@ -170,15 +207,13 @@ function ShareLinksCard() {
     );
   }
 
-  async function copyToken() {
-    if (!newToken) return;
+  async function copyValue(value: string, which: "link" | "passphrase") {
     try {
-      const origin = window.location.origin;
-      await navigator.clipboard.writeText(`${origin}/c/${newToken}`);
-      setCopied(true);
+      await navigator.clipboard.writeText(value);
+      setCopied(which);
     } catch {
-      // Clipboard can be unavailable (insecure context); the token stays
-      // visible in the card so the owner can copy it by hand.
+      // Clipboard can be unavailable (insecure context); the values stay
+      // visible in the card so the owner can copy them by hand.
     }
   }
 
@@ -313,37 +348,97 @@ function ShareLinksCard() {
         </Button>
       </form>
 
-      {newToken && (
+      {created && (
         <div
-          className="bg-success/10 space-y-2 rounded-lg p-3 text-sm"
+          className="bg-success/10 space-y-3 rounded-lg p-3 text-sm"
           data-testid="share-token-reveal"
         >
           <p className="text-success font-medium">
             {t("settings.sharing.tokenCreated")}
           </p>
           <p className="text-muted-foreground text-[11px]">
-            {t("settings.sharing.tokenOnce")}
+            {t("settings.sharing.shownOnce")}
           </p>
-          <div className="flex items-center gap-2">
-            <code className="bg-muted block flex-1 rounded p-2 font-mono text-xs break-all">
-              {`${typeof window !== "undefined" ? window.location.origin : ""}/c/${newToken}`}
-            </code>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="min-h-11 min-w-11 shrink-0 sm:h-9 sm:w-9"
-              onClick={copyToken}
-              aria-label={t("settings.sharing.copy")}
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-          {copied && (
-            <p className="text-success text-[11px]">
-              {t("settings.sharing.copied")}
-            </p>
+
+          {/* QR — carries the passphrase in the URL fragment, so scanning it
+              opens the record. Shown exactly once with the passphrase text. */}
+          {qrDataUrl && (
+            <div className="space-y-1">
+              <p className="text-foreground text-[11px] font-medium">
+                {t("settings.sharing.qrLabel")}
+              </p>
+              {/* The QR is a transient secret render, not stored content. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrDataUrl}
+                alt={t("settings.sharing.qrAlt")}
+                width={220}
+                height={220}
+                className="bg-background rounded border p-2"
+              />
+            </div>
           )}
+
+          {/* The link (no passphrase). On its own it cannot open the record. */}
+          <div className="space-y-1">
+            <p className="text-foreground text-[11px] font-medium">
+              {t("settings.sharing.linkLabel")}
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="bg-muted block flex-1 rounded p-2 font-mono text-xs break-all">
+                {created.shareUrl}
+              </code>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="min-h-11 min-w-11 shrink-0 sm:h-9 sm:w-9"
+                onClick={() => copyValue(created.shareUrl, "link")}
+                aria-label={t("settings.sharing.copyLink")}
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            {copied === "link" && (
+              <p className="text-success text-[11px]">
+                {t("settings.sharing.copied")}
+              </p>
+            )}
+          </div>
+
+          {/* The passphrase — the second factor. Shown once; only its hash is
+              stored, so it cannot be recovered. */}
+          <div className="space-y-1">
+            <p className="text-foreground text-[11px] font-medium">
+              {t("settings.sharing.passphraseLabel")}
+            </p>
+            <div className="flex items-center gap-2">
+              <code
+                className="bg-muted block flex-1 rounded p-2 font-mono text-xs break-all"
+                data-testid="share-passphrase"
+              >
+                {created.passphrase}
+              </code>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="min-h-11 min-w-11 shrink-0 sm:h-9 sm:w-9"
+                onClick={() => copyValue(created.passphrase, "passphrase")}
+                aria-label={t("settings.sharing.copyPassphrase")}
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            {copied === "passphrase" && (
+              <p className="text-success text-[11px]">
+                {t("settings.sharing.copied")}
+              </p>
+            )}
+            <p className="text-muted-foreground text-[11px]">
+              {t("settings.sharing.passphraseHint")}
+            </p>
+          </div>
         </div>
       )}
 
@@ -373,6 +468,16 @@ function ShareLinksCard() {
                     <Badge className="bg-success/15 text-success text-[10px]">
                       {t("settings.sharing.statusActive")}
                     </Badge>
+                    {link.protected && (
+                      <Badge
+                        variant="outline"
+                        className="gap-1 text-[10px]"
+                        data-testid="share-protected-badge"
+                      >
+                        <KeyRound className="h-2.5 w-2.5" />
+                        {t("settings.sharing.protected")}
+                      </Badge>
+                    )}
                     {link.allowFhirApi && (
                       <Badge variant="outline" className="text-[10px]">
                         FHIR
