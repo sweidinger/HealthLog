@@ -119,6 +119,13 @@ export interface CompletionParams {
   userPrompt: string;
   temperature?: number;
   maxTokens?: number;
+  /**
+   * Optional deterministic seed. Threaded onto the OpenAI and local
+   * (Ollama / OpenAI-compatible) request bodies for reproducible output on
+   * the reference surfaces (status cards + period narrative). Anthropic's
+   * Messages API has no seed knob, so the Anthropic client ignores it.
+   */
+  seed?: number;
 }
 
 export interface CompletionResult {

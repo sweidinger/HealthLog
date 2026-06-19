@@ -29,7 +29,7 @@ import { prisma as defaultPrisma } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { annotate } from "@/lib/logging/context";
-import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
+import { AI_BUDGETS, REFERENCE_AI_SEED } from "@/lib/ai/ai-budgets";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   buildPeriodNarrativeContext,
@@ -264,6 +264,9 @@ export async function generatePeriodNarrative(
     userPrompt: buildNarrativeUserPrompt(context, locale),
     temperature: AI_BUDGETS.narrative.temperature,
     maxTokens: AI_BUDGETS.narrative.maxTokens,
+    // v1.18.7 — reference surface: pin a deterministic seed so a prompt
+    // change is diff-able against a stable baseline (MEDIUM-4).
+    seed: REFERENCE_AI_SEED,
   });
 
   // A provider error / timeout is non-fatal — the last good row stays as-is
@@ -316,7 +319,7 @@ export async function generatePeriodNarrative(
     });
     annotate({
       action: { name: "insights.narrative.generated" },
-      meta: { period, locale, provider: providerType },
+      meta: { period, locale, provider: providerType, seed: REFERENCE_AI_SEED },
     });
   };
 

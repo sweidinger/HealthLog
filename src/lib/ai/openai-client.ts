@@ -48,6 +48,10 @@ export class OpenAIClient implements AIProvider {
           temperature: params.temperature ?? 0.3,
           max_tokens: params.maxTokens ?? 1000,
           response_format: { type: "json_object" },
+          // Deterministic seed for reproducible reference output; omitted
+          // (undefined → dropped by JSON.stringify) when the caller does
+          // not pin one (e.g. the seedless daily-briefing re-roll).
+          ...(params.seed !== undefined ? { seed: params.seed } : {}),
         }),
       },
       // 60 s ceiling so a tar-pit upstream cannot pin a worker

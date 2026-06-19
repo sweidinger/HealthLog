@@ -65,6 +65,10 @@ export class LocalOpenAICompatibleClient implements AIProvider {
           ],
           temperature: params.temperature ?? 0.3,
           max_tokens: params.maxTokens ?? 1000,
+          // Deterministic seed for reproducible reference output. Ollama +
+          // most OpenAI-compatible local servers honour it; servers that
+          // ignore it simply disregard the field. Omitted when unset.
+          ...(params.seed !== undefined ? { seed: params.seed } : {}),
         }),
       },
       { timeoutMs: 60_000, requirePublicHost: !allowPrivate },

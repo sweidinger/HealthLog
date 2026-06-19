@@ -10,7 +10,7 @@ import {
   type ConsentSurface,
 } from "@/lib/ai/consent-guard";
 import { annotate } from "@/lib/logging/context";
-import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
+import { AI_BUDGETS, REFERENCE_AI_SEED } from "@/lib/ai/ai-budgets";
 import { STATUS_PROVIDER_TIMEOUT_MS, withTimeout } from "./with-timeout";
 
 /**
@@ -51,6 +51,12 @@ interface RunStatusCompletionArgs {
   userPrompt: string;
   temperature?: number;
   maxTokens?: number;
+  /**
+   * v1.18.7 — optional deterministic seed override. Defaults to
+   * `REFERENCE_AI_SEED` for every status/reference surface (reproducible
+   * QA); the period narrative passes the same constant explicitly.
+   */
+  seed?: number;
   /**
    * v1.12.1 — which AI surface this generation serves, for the consent gate.
    * `insights` for the per-metric status cards + period narrative; `coach`
@@ -164,6 +170,9 @@ export async function runStatusCompletion(
           userPrompt,
           temperature: args.temperature ?? AI_BUDGETS.status.temperature,
           maxTokens: args.maxTokens ?? AI_BUDGETS.status.maxTokens,
+          // v1.18.7 — status/reference output is reproducible: pin the
+          // deterministic seed unless a caller overrides it.
+          seed: args.seed ?? REFERENCE_AI_SEED,
         },
       }),
     STATUS_PROVIDER_TIMEOUT_MS,

@@ -45,6 +45,9 @@ export class AnthropicClient implements AIProvider {
           "x-api-key": this.config.apiKey,
           "anthropic-version": ANTHROPIC_VERSION,
         },
+        // NOTE: Anthropic's Messages API has no `seed` parameter, so
+        // `params.seed` is intentionally not forwarded here — output on this
+        // provider is non-deterministic regardless of the pinned seed.
         body: JSON.stringify({
           model: this.config.model,
           max_tokens: params.maxTokens ?? 1000,
