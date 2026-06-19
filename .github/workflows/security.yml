@@ -33,6 +33,12 @@ jobs:
       - name: ESLint
         run: pnpm lint
 
+      # Prettier formatting gate. The format pass excludes generator-owned
+      # artifacts via .prettierignore (notably docs/api/openapi.yaml, which
+      # the OpenAPI drift check below enforces byte-for-byte).
+      - name: Prettier format check
+        run: pnpm format:check
+
       - name: TypeScript strict check
         run: pnpm typecheck
 
