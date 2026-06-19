@@ -154,6 +154,7 @@ export function CoachMemorySection({
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="min-h-11 sm:min-h-9"
                   data-testid="settings-coach-memory-forget-all"
                   disabled={!isAuthenticated || forgetAll.isPending}
                 >
@@ -245,6 +246,7 @@ export function CoachMemorySection({
                       type="button"
                       variant="ghost"
                       size="sm"
+                      className="min-h-11 sm:min-h-9"
                       data-testid="settings-coach-memory-forget"
                       aria-label={t("settings.ai.coachMemory.forgetAria")}
                       // v1.11.2 — per-id pending: only the row being

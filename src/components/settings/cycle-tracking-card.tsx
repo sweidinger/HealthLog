@@ -80,7 +80,12 @@ export function CycleTrackingCard({
           />
         </div>
         {enabled ? (
-          <Button variant="outline" size="sm" asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-11 sm:min-h-9"
+            asChild
+          >
             <Link href="/cycle">{t("settings.cycleTracking.manage")}</Link>
           </Button>
         ) : null}

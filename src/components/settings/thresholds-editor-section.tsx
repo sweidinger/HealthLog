@@ -324,6 +324,7 @@ function MetricRow({
                 onClick={() => valid && onSave({ min: minNum, max: maxNum })}
                 disabled={busy || !valid}
                 size="sm"
+                className="min-h-11 sm:min-h-9"
               >
                 {t("common.save")}
               </Button>
@@ -331,6 +332,7 @@ function MetricRow({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="min-h-11 sm:min-h-9"
                   onClick={onReset}
                   disabled={busy}
                 >

@@ -366,6 +366,7 @@ function AppleHealthImportCard() {
           type="button"
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           disabled={busy}
           onClick={() => fileInputRef.current?.click()}
           data-testid="import-action-apple-health"
@@ -615,6 +616,7 @@ function JsonImportCard() {
           type="button"
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={() => fileInputRef.current?.click()}
           data-testid="import-json-choose-file"
         >
@@ -625,6 +627,7 @@ function JsonImportCard() {
           type="button"
           variant="ghost"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={downloadExample}
           data-testid="import-json-download-example"
         >
@@ -634,6 +637,7 @@ function JsonImportCard() {
         <Button
           type="button"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           disabled={busy || text.trim().length === 0}
           onClick={handleImport}
           data-testid="import-action-json"
@@ -863,6 +867,7 @@ function CsvImportCard() {
           type="button"
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={() => fileInputRef.current?.click()}
           data-testid="import-csv-choose-file"
         >
@@ -873,6 +878,7 @@ function CsvImportCard() {
           type="button"
           variant="ghost"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={downloadExample}
           data-testid="import-csv-download-example"
         >
@@ -883,6 +889,7 @@ function CsvImportCard() {
           type="button"
           variant="secondary"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           disabled={busy || text.trim().length === 0}
           onClick={() => void send(true)}
           data-testid="import-csv-preview"
@@ -895,6 +902,7 @@ function CsvImportCard() {
         <Button
           type="button"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           disabled={busy || text.trim().length === 0}
           onClick={() => void send(false)}
           data-testid="import-action-csv"

@@ -164,7 +164,7 @@ function ResearchModeCard() {
           <Button
             size="sm"
             variant="outline"
-            className="mt-2"
+            className="mt-2 min-h-11 sm:min-h-9"
             onClick={() => setDialogOpen(true)}
             data-slot="settings-research-mode-reprompt-cta"
           >
@@ -286,7 +286,7 @@ function DataResetCard() {
               variant="destructive"
               size="sm"
               disabled={deleting}
-              className="w-full shrink-0 sm:w-auto"
+              className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
             >
               {deleting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -428,7 +428,7 @@ function AccountDeleteCard() {
               variant="destructive"
               size="sm"
               disabled={deleting}
-              className="w-full shrink-0 sm:w-auto"
+              className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
               data-slot="settings-account-delete-trigger"
             >
               {deleting ? (

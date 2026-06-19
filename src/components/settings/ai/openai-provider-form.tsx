@@ -186,6 +186,7 @@ export function OpenAIProviderForm({
       <div className="flex flex-wrap gap-2">
         <Button
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}
         >

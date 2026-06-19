@@ -337,7 +337,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           size="sm"
           onClick={() => resetMutation.mutate()}
           disabled={resetMutation.isPending}
-          className="self-end sm:self-auto"
+          className="min-h-11 self-end sm:min-h-9 sm:self-auto"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           {t("dashboard.layoutReset")}
@@ -551,6 +551,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           <Button
             variant="outline"
             size="sm"
+            className="min-h-11 sm:min-h-9"
             onClick={() => setDraft(null)}
             disabled={saveMutation.isPending}
           >
@@ -558,6 +559,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           </Button>
           <Button
             size="sm"
+            className="min-h-11 sm:min-h-9"
             onClick={() => layout && saveMutation.mutate(layout)}
             disabled={saveMutation.isPending}
           >

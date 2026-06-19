@@ -208,7 +208,7 @@ export function CodexProviderForm({
         <Button
           variant="outline"
           size="sm"
-          className="text-destructive shrink-0"
+          className="text-destructive min-h-11 shrink-0 sm:min-h-9"
           onClick={handleDisconnect}
           disabled={disconnecting}
         >
@@ -274,7 +274,7 @@ export function CodexProviderForm({
           variant="outline"
           onClick={handleConnect}
           disabled={devicePolling}
-          className="w-full sm:w-auto"
+          className="min-h-11 w-full sm:min-h-9 sm:w-auto"
         >
           {devicePolling ? (
             <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />

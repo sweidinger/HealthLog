@@ -694,7 +694,7 @@ export function AccountSection() {
           </DialogHeader>
 
           <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="current-password">
                   {t("settings.currentPassword")}
@@ -1123,6 +1123,7 @@ function AvatarSection() {
           />
           <Button
             variant="outline"
+            className="min-h-11 sm:min-h-9"
             disabled={busy}
             onClick={() => fileInputRef.current?.click()}
           >
@@ -1138,7 +1139,7 @@ function AvatarSection() {
           {avatarUrl && (
             <Button
               variant="ghost"
-              className="text-destructive"
+              className="text-destructive min-h-11 sm:min-h-9"
               disabled={busy}
               onClick={() => {
                 setMsg(null);

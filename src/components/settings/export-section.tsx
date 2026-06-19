@@ -267,6 +267,7 @@ function CsvCard({
           data-testid={actionTestId}
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={handleDownload}
           disabled={busy}
         >
@@ -354,6 +355,7 @@ function MedicationsCsvCard() {
           data-testid="export-action-medications-csv"
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={handleDownload}
           disabled={busy}
         >
@@ -443,6 +445,7 @@ function FullBackupCard() {
           data-testid="export-action-full-backup"
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={handleDownload}
           disabled={busy}
         >
@@ -552,6 +555,7 @@ function CycleExportCard() {
           data-testid="export-action-cycle"
           variant="outline"
           size="sm"
+          className="min-h-11 sm:min-h-9"
           onClick={handleGenerate}
           disabled={busy}
         >

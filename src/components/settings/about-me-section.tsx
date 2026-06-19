@@ -274,6 +274,7 @@ export function AboutMeSection({
               type="button"
               variant="outline"
               size="sm"
+              className="min-h-11 sm:min-h-9"
               data-testid="settings-about-me-clear"
               disabled={!isAuthenticated || save.isPending}
               onClick={() =>
@@ -292,6 +293,7 @@ export function AboutMeSection({
           <Button
             type="button"
             size="sm"
+            className="min-h-11 sm:min-h-9"
             data-testid="settings-about-me-save"
             disabled={!isAuthenticated || save.isPending || !dirty}
             onClick={() => save.mutate(value)}

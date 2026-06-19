@@ -72,7 +72,7 @@ export function InjectionSitesCard({
         title={t("settings.globalExcludedInjectionSitesLabel")}
         description={t("settings.globalExcludedInjectionSitesHint")}
       />
-      <div className="mt-3 grid grid-cols-2 gap-2 pl-7">
+      <div className="mt-3 grid grid-cols-1 gap-2 pl-7 sm:grid-cols-2">
         {INJECTION_SITE_KEYS.map((site) => (
           <label key={site} className="flex items-center gap-2 text-sm">
             <Checkbox

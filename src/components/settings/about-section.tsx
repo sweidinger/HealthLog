@@ -269,7 +269,12 @@ export function AboutSection() {
             className="mb-4"
           />
           <div className="flex flex-col gap-2 pl-7 sm:flex-row sm:flex-wrap">
-            <Button asChild variant="outline" size="sm">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="min-h-11 sm:min-h-9"
+            >
               <a
                 href={version.repository}
                 target="_blank"
@@ -280,7 +285,12 @@ export function AboutSection() {
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </Button>
-            <Button asChild variant="outline" size="sm">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="min-h-11 sm:min-h-9"
+            >
               <a
                 href={version.changelog}
                 target="_blank"
@@ -291,7 +301,12 @@ export function AboutSection() {
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </Button>
-            <Button asChild variant="outline" size="sm">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="min-h-11 sm:min-h-9"
+            >
               <a href={version.docs} target="_blank" rel="noopener noreferrer">
                 <BookOpen className="h-4 w-4" />
                 {t("settings.about.docs")}
