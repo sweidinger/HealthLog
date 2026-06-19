@@ -31,6 +31,10 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 
+vi.mock("@/lib/cache/invalidate", () => ({
+  invalidateUserMedications: vi.fn(),
+}));
+
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
@@ -49,6 +53,7 @@ import { PATCH, DELETE } from "../[itemId]/route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -173,6 +178,13 @@ describe("POST /api/medications/[id]/inventory", () => {
         expiresAt: new Date(printed),
       }),
     });
+    // Staleness regression: the dose-derived stock the medications-list
+    // payload carries must hard-evict on a registration so the card / table
+    // reflect the new supply on the very next read (not after the SWR
+    // stale window). Mark-stale would serve the pre-write stock.
+    expect(invalidateUserMedications).toHaveBeenCalledWith("user-1", {
+      evict: true,
+    });
   });
 
   it("returns 429 when the rate limit is exceeded", async () => {
@@ -271,6 +283,11 @@ describe("PATCH /api/medications/[id]/inventory/[itemId]", () => {
       state: "USED_UP",
       unitsRemaining: 0,
     });
+    // Staleness regression: a stock-affecting correction must hard-evict
+    // the medications-list bucket so the card reflects the change next read.
+    expect(invalidateUserMedications).toHaveBeenCalledWith("user-1", {
+      evict: true,
+    });
   });
 
   it("flips ACTIVE → EXPIRED when markAsFirstUseAt is more than 30 days back-dated", async () => {
@@ -351,6 +368,11 @@ describe("DELETE /api/medications/[id]/inventory/[itemId]", () => {
     expect(res.status).toBe(200);
     expect(prisma.medicationInventoryItem.delete).toHaveBeenCalledWith({
       where: { id: "inv-1" },
+    });
+    // Staleness regression: removing a container drops the dose-derived
+    // stock the list payload reports — hard-evict so it reflects next read.
+    expect(invalidateUserMedications).toHaveBeenCalledWith("user-1", {
+      evict: true,
     });
   });
 });
