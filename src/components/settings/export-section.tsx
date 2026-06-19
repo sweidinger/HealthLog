@@ -39,7 +39,9 @@ import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { cn } from "@/lib/utils";
 import { ImportPanel } from "@/components/settings/import-panel";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
@@ -135,9 +137,9 @@ function ExportCardShell({
   outerClassName,
 }: ExportCardShellProps) {
   return (
-    <div
+    <SettingsCard
       data-testid={testId}
-      className={`bg-card border-border flex h-full flex-col rounded-xl border p-4 sm:p-6${outerClassName ? ` ${outerClassName}` : ""}`}
+      className={cn("flex h-full flex-col", outerClassName)}
     >
       <SettingsCardHeader
         icon={Icon}
@@ -151,7 +153,7 @@ function ExportCardShell({
       />
       {children && <div className="mt-3 space-y-3">{children}</div>}
       <div className="mt-4 flex flex-wrap items-center gap-3">{footer}</div>
-    </div>
+    </SettingsCard>
   );
 }
 

@@ -41,6 +41,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { Textarea } from "@/components/ui/textarea";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
@@ -102,9 +103,9 @@ function ImportCardShell({
   children,
 }: ImportCardShellProps) {
   return (
-    <div
+    <SettingsCard
       data-testid={testId}
-      className="bg-card border-border flex h-full flex-col rounded-xl border p-4 sm:p-6"
+      className="flex h-full flex-col"
     >
       <div className="flex items-center gap-2">
         <Icon
@@ -115,7 +116,7 @@ function ImportCardShell({
       </div>
       <p className="text-muted-foreground mt-1 text-xs">{description}</p>
       <div className="mt-3 flex flex-1 flex-col gap-3">{children}</div>
-    </div>
+    </SettingsCard>
   );
 }
 
