@@ -53,6 +53,18 @@ const NEVER_SKIP: ReadonlySet<ProviderChainType> = new Set(["local"]);
  * across workers — when scaling out we'd move this to Redis, but for
  * v1.4.16 the per-worker cache is enough to absorb the typical
  * "polling reload" pattern.
+ *
+ * v1.18.7 (LOW-8) — DECISION: the volatile per-worker hint is left
+ * in-process and NOT folded into the durable Postgres health ledger. The
+ * ledger already shares the load-bearing signal across workers (the
+ * skip-hint reorder in `resolveChainOrder` pushes a dead-credential /
+ * backoff provider to the chain tail for every worker), so the only thing
+ * uncoordinated is a soft "tried this one last, put it first" reorder whose
+ * worst case is a single redundant first-hop per worker per hour — exactly
+ * the bound the v1.18.7 AI audit deemed acceptable at single-maintainer
+ * scale. Promoting the hint to a per-request ledger write would add write
+ * amplification on the hot path for a negligible saving; revisit only if a
+ * multi-worker deploy shows measurable redundant-hop cost.
  */
 
 const LAST_WORKING_TTL_MS = 60 * 60 * 1000; // 1h

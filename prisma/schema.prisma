@@ -71,6 +71,13 @@ model User {
   // so a persistently broken provider chain cannot be re-driven into a
   // full generation attempt by every page-open.
   insightsWarmFailedAt       DateTime? @map("insights_warm_failed_at")
+  // v1.18.7 — UTC YYYY-MM-DD of the last daily-briefing phrasing re-roll.
+  // The content-hash gate keeps the FINDINGS byte-stable on unchanged data,
+  // but the daily-briefing PARAGRAPH is re-rolled once per calendar day at a
+  // higher, seedless temperature so the prose reads fresh day-over-day
+  // without re-paying for the findings. This stamps the day a re-roll ran so
+  // the gate stays at most one extra call per day.
+  insightsBriefingRerollDate String?   @map("insights_briefing_reroll_date")
   // v1.4.36 W3 T3 — per-user AI Insights exclude-metrics list, mirrors
   // `coachPrefsJson.excludeMetrics`. The /api/insights/generate route
   // filters matching keys off `features` before JSON.stringify so the

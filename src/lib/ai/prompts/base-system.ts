@@ -1,4 +1,11 @@
 import type { Locale } from "@/lib/i18n/config";
+import {
+  grounding,
+  toneContract,
+  safetyGlp1,
+  metricIdentifierBan,
+  forbiddenFiller,
+} from "./shared-contracts";
 
 /**
  * Version of the per-metric assessment base prompt + its signal contract.
@@ -151,13 +158,24 @@ const ASSESSMENT_SECTIONS: readonly AssessmentSection[] = [
 - Jüngste Messung deutlich älter als ~7 Tage (dataCoverage.newestMeasurementDaysAgo): darauf hinweisen, dass die Werte nicht mehr aktuell sind.
 - Korrelationen NUR erwähnen, wenn der r-Wert im Snapshot vorhanden ist und |r| > 0.4 ist. Fehlt das Feld, keine Korrelation interpretieren oder erfinden. Immer als "Zusammenhang" formulieren, nie als "Ursache".`,
   },
+  // v1.18.7 (HIGH-2) — sourced from the single shared-contract fragment so a
+  // forbidden-filler edit lands on every surface at once.
+  { id: "forbidden", en: forbiddenFiller.en, de: forbiddenFiller.de },
+  // v1.18.7 (HIGH-2) — the shared metric-identifier ban + the GLP-1 dose
+  // safety contract. The status cards can surface a named medication via the
+  // medication-compliance snapshot, so the dose-safety contract (previously
+  // absent from this surface) now applies here too.
   {
-    id: "forbidden",
-    en: `FORBIDDEN PHRASES (they signal ungrounded filler — never emit, except in the disclaimer):
-"make sure to get enough sleep", "drink enough water", "regular exercise", "consult your doctor".`,
-    de: `VERBOTENE FLOSKELN (signalisieren ungegroundeten Fülltext — nie ausgeben, außer im disclaimer):
-"achte auf ausreichend Schlaf", "trinke genug Wasser", "regelmäßige Bewegung", "ärztlicher Rat empfohlen".`,
+    id: "metricIdentifierBan",
+    en: metricIdentifierBan.en,
+    de: metricIdentifierBan.de,
   },
+  { id: "safetyGlp1", en: safetyGlp1.en, de: safetyGlp1.de },
+  // v1.18.7 (HIGH-2) — the shared grounding + tone contracts, canonical
+  // wording. The metric-specific build/tone sections above stay; these pin
+  // the cross-surface wording so an edit lands here and everywhere at once.
+  { id: "sharedGrounding", en: grounding.en, de: grounding.de },
+  { id: "sharedTone", en: toneContract.en, de: toneContract.de },
   {
     id: "examples",
     en: `EXAMPLES (they illustrate form and grounding — do not copy them verbatim; every assessment uses the real snapshot numbers):

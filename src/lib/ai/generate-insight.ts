@@ -46,7 +46,10 @@ export interface GenerateInsightOutcome {
  * what went wrong on the first attempt. Includes the violated zod
  * issues verbatim (truncated to 1KB) so the model can self-correct.
  */
-function buildRetryCorrectionMessage(reason: string, details: string): string {
+export function buildRetryCorrectionMessage(
+  reason: string,
+  details: string,
+): string {
   return `
 Your previous response did not satisfy the required JSON schema.
 Reason: ${reason}
