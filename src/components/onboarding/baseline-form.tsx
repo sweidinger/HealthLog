@@ -25,7 +25,7 @@ import {
   AnamnesisCard,
   buildAnamnesisAboutMeBody,
   type AnamnesisValue,
-} from "@/components/onboarding/AnamnesisCard";
+} from "@/components/onboarding/anamnesis-card";
 
 /**
  * v1.4.25 W14b-Content — onboarding step 3 (baseline).

@@ -14,7 +14,7 @@ import { I18nProvider } from "@/lib/i18n/context";
 import {
   AnamnesisCard,
   buildAnamnesisAboutMeBody,
-} from "../AnamnesisCard";
+} from "../anamnesis-card";
 
 describe("buildAnamnesisAboutMeBody", () => {
   const empty = { conditions: "", allergies: "" };
