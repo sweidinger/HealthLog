@@ -904,6 +904,10 @@ const IOS_METADATA_ALLOWLIST = new Set([
   "url",
   "runwayDays",
   "thresholdDays",
+  // v1.18.7 — MEASUREMENT_REMINDER carries the reminder's id so a
+  // foreground / handled notification can POST the completion directly
+  // instead of routing through the capture deep link.
+  "reminderId",
 ]);
 
 function pickIosMetadata(

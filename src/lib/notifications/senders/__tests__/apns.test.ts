@@ -590,6 +590,25 @@ describe("sendViaApns — dispatcher fan-out", () => {
     expect(note.payload.eventType).toBe("MEDICATION_REMINDER");
   });
 
+  it("forwards reminderId on MEASUREMENT_REMINDER and strips unlisted keys", async () => {
+    // The iOS "Erledigt" action POSTs the reminder completion directly
+    // from a foreground / handled notification, so the reminder's id must
+    // ride the APNs payload; channel-specific extras stay stripped.
+    vi.mocked(prisma.device.findMany).mockResolvedValueOnce([
+      { id: "d1", apnsToken: "tok-a", apnsEnvironment: "sandbox" },
+    ] as never);
+    sendMock.mockResolvedValueOnce({ sent: [{ device: "tok-a" }], failed: [] });
+    await sendViaApns("u-1", {
+      title: "t",
+      message: "m",
+      eventType: "MEASUREMENT_REMINDER",
+      metadata: { reminderId: "rem-1", replyMarkup: { inline: true } },
+    });
+    const note = sendMock.mock.calls[0][0];
+    expect(note.payload.reminderId).toBe("rem-1");
+    expect(note.payload.replyMarkup).toBeUndefined();
+  });
+
   it("forwards MOOD_REMINDER eventType as aps.category too", async () => {
     // SR-2 contract: the mood-reminder daily job emits this event-type;
     // the iOS app registers a `MOOD_REMINDER` category whose only
