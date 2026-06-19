@@ -4367,9 +4367,7 @@
     "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
     "whoop": "WHOOP",
     "whoopDescription": "Connect your WHOOP strap to sync recovery, sleep, strain, and workouts straight into HealthLog.",
-    "whoopOverlapNote": "If WHOOP and another source both supply a vital — resting heart rate, blood oxygen, body temperature, respiratory rate or sleep stages — you may see both values until a future update settles on a single preferred source.",
     "whoopCredentials": "API Credentials",
-    "whoopCredentialsHelp": "Register your own WHOOP developer app and paste its Client ID and Client Secret here.",
     "whoopClientId": "Client ID",
     "whoopClientSecret": "Client Secret",
     "whoopCredentialsSaved": "Credentials saved",
@@ -4404,11 +4402,8 @@
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit & Pixel",
     "fitbitDescription": "Connect Google Health to sync your Fitbit and Pixel Watch vitals — weight, heart rate, and more.",
-    "fitbitOverlapNote": "If Google Health and another source both supply a vital — resting heart rate, blood oxygen, body temperature or respiratory rate — you may see both values until a future update settles on a single preferred source.",
     "fitbitExperimentalBadge": "Experimental",
-    "fitbitExperimentalNote": "This integration is in beta — data coverage and field mapping are still being verified against live Google Health accounts, so some values may be missing or change in a future update.",
     "fitbitCredentials": "API Credentials",
-    "fitbitCredentialsHelp": "Register your own Google Cloud OAuth client for the Google Health API and paste its Client ID and Client Secret here.",
     "fitbitClientId": "Client ID",
     "fitbitClientSecret": "Client Secret",
     "fitbitCredentialsSaved": "Credentials saved",
@@ -4680,7 +4675,6 @@
     "nightscoutTag": "CGM",
     "nightscoutDescription": "Connect your own Nightscout site to sync continuous glucose readings into the glucose panel.",
     "nightscoutViewData": "View your glucose",
-    "nightscoutHelp": "Point HealthLog at your Nightscout instance. Readings are pulled in the background once an hour.",
     "nightscoutUrl": "Nightscout URL",
     "nightscoutUrlSavedPlaceholder": "Saved — enter a new URL to replace it",
     "nightscoutToken": "API token",
@@ -4701,7 +4695,6 @@
     "polarViewData": "View your sleep & recovery",
     "polarHelp": "Sign in with Polar to grant access. Data is pulled in the background once an hour.",
     "polarCredentials": "API Credentials",
-    "polarCredentialsHelp": "Optional: register your own Polar AccessLink app and paste its Client ID and Client Secret here. Leave blank to use the server's shared Polar app.",
     "polarClientId": "Client ID",
     "polarClientSecret": "Client Secret",
     "polarCredentialsSaved": "Credentials saved",
@@ -4729,7 +4722,6 @@
     "ouraViewData": "View your sleep & recovery",
     "ouraHelp": "Sign in with Oura to grant access. Data is pulled in the background once an hour.",
     "ouraCredentials": "API Credentials",
-    "ouraCredentialsHelp": "Optional: register your own Oura app and paste its Client ID and Client Secret here. Leave blank to use the server's shared Oura app.",
     "ouraClientId": "Client ID",
     "ouraClientSecret": "Client Secret",
     "ouraCredentialsSaved": "Credentials saved",
@@ -6435,7 +6427,11 @@
     },
     "showMeasurements": "Show measurements",
     "trendStrip": {
-      "label": "Last 7 days"
+      "label": "Last 7 days",
+      "summary": "Latest value {value}, {direction} over 7 days.",
+      "rising": "rising",
+      "falling": "falling",
+      "steady": "steady"
     }
   },
   "moduleList": {

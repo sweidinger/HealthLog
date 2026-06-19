@@ -4367,9 +4367,7 @@
     "withingsNoCredentials": "Saisissez d’abord vos identifiants API ci-dessus pour connecter Withings.",
     "whoop": "WHOOP",
     "whoopDescription": "Connecte ton bracelet WHOOP pour synchroniser récupération, sommeil, charge et entraînements directement dans HealthLog.",
-    "whoopOverlapNote": "Si WHOOP et une autre source fournissent la même donnée vitale — fréquence cardiaque au repos, oxygène sanguin, température corporelle, fréquence respiratoire ou phases de sommeil —, les deux valeurs peuvent apparaître jusqu'à ce qu'une future mise à jour retienne une seule source préférée.",
     "whoopCredentials": "Identifiants API",
-    "whoopCredentialsHelp": "Enregistrez votre propre application développeur WHOOP et collez ici son Client ID et son Client Secret.",
     "whoopClientId": "Client ID",
     "whoopClientSecret": "Client Secret",
     "whoopCredentialsSaved": "Identifiants enregistrés",
@@ -4404,11 +4402,8 @@
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit et Pixel",
     "fitbitDescription": "Connecte Google Health pour synchroniser tes données Fitbit et Pixel Watch — poids, fréquence cardiaque et plus.",
-    "fitbitOverlapNote": "Si Google Health et une autre source fournissent la même constante vitale — fréquence cardiaque au repos, saturation en oxygène, température corporelle ou fréquence respiratoire —, vous pourriez voir les deux valeurs jusqu'à ce qu'une future mise à jour retienne une seule source préférée.",
     "fitbitExperimentalBadge": "Expérimental",
-    "fitbitExperimentalNote": "Cette intégration est en bêta : la couverture des données et la correspondance des champs sont encore en cours de vérification avec de vrais comptes Google Health, donc certaines valeurs peuvent manquer ou changer lors d'une future mise à jour.",
     "fitbitCredentials": "Identifiants d'API",
-    "fitbitCredentialsHelp": "Enregistrez votre propre client OAuth Google Cloud pour l'API Google Health et collez ici son Client ID et son Client Secret.",
     "fitbitClientId": "Client ID",
     "fitbitClientSecret": "Client Secret",
     "fitbitCredentialsSaved": "Identifiants enregistrés",
@@ -4680,7 +4675,6 @@
     "nightscoutTag": "CGM",
     "nightscoutDescription": "Connecte ton propre site Nightscout pour synchroniser les mesures de glucose en continu dans le panneau glucose.",
     "nightscoutViewData": "Voir votre glycémie",
-    "nightscoutHelp": "Pointez HealthLog vers votre instance Nightscout. Les mesures sont récupérées en arrière-plan une fois par heure.",
     "nightscoutUrl": "URL Nightscout",
     "nightscoutUrlSavedPlaceholder": "Enregistré — saisissez une nouvelle URL pour la remplacer",
     "nightscoutToken": "Jeton d'API",
@@ -4701,7 +4695,6 @@
     "polarViewData": "Voir votre sommeil et récupération",
     "polarHelp": "Connectez-vous à Polar pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
     "polarCredentials": "Identifiants API",
-    "polarCredentialsHelp": "Facultatif : enregistrez votre propre application Polar AccessLink et collez ici son Client ID et son Client Secret. Laissez vide pour utiliser l'application Polar partagée du serveur.",
     "polarClientId": "Client ID",
     "polarClientSecret": "Client Secret",
     "polarCredentialsSaved": "Identifiants enregistrés",
@@ -4729,7 +4722,6 @@
     "ouraViewData": "Voir votre sommeil et récupération",
     "ouraHelp": "Connectez-vous à Oura pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
     "ouraCredentials": "Identifiants API",
-    "ouraCredentialsHelp": "Facultatif : enregistrez votre propre application Oura et collez ici son Client ID et son Client Secret. Laissez vide pour utiliser l'application Oura partagée du serveur.",
     "ouraClientId": "Client ID",
     "ouraClientSecret": "Client Secret",
     "ouraCredentialsSaved": "Identifiants enregistrés",
@@ -6435,7 +6427,11 @@
     },
     "showMeasurements": "Afficher les mesures",
     "trendStrip": {
-      "label": "7 derniers jours"
+      "label": "7 derniers jours",
+      "summary": "Dernière valeur {value}, {direction} sur 7 jours.",
+      "rising": "en hausse",
+      "falling": "en baisse",
+      "steady": "stable"
     }
   },
   "moduleList": {

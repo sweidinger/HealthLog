@@ -4367,9 +4367,7 @@
     "withingsNoCredentials": "Introduce primero tus credenciales de API arriba para conectar Withings.",
     "whoop": "WHOOP",
     "whoopDescription": "Conecta tu banda WHOOP para sincronizar recuperación, sueño, esfuerzo y entrenamientos directamente en HealthLog.",
-    "whoopOverlapNote": "Si WHOOP y otra fuente proporcionan el mismo valor vital —frecuencia cardíaca en reposo, oxígeno en sangre, temperatura corporal, frecuencia respiratoria o fases del sueño—, es posible que veas ambos valores hasta que una futura actualización elija una única fuente preferida.",
     "whoopCredentials": "Credenciales de API",
-    "whoopCredentialsHelp": "Registra tu propia app de desarrollador de WHOOP y pega aquí su Client ID y Client Secret.",
     "whoopClientId": "Client ID",
     "whoopClientSecret": "Client Secret",
     "whoopCredentialsSaved": "Credenciales guardadas",
@@ -4404,11 +4402,8 @@
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit y Pixel",
     "fitbitDescription": "Conecta Google Health para sincronizar tus datos de Fitbit y Pixel Watch — peso, frecuencia cardíaca y más.",
-    "fitbitOverlapNote": "Si Google Health y otra fuente proporcionan la misma constante vital —frecuencia cardíaca en reposo, saturación de oxígeno, temperatura corporal o frecuencia respiratoria—, es posible que veas ambos valores hasta que una actualización futura defina una única fuente preferida.",
     "fitbitExperimentalBadge": "Experimental",
-    "fitbitExperimentalNote": "Esta integración está en fase beta: la cobertura de datos y la asignación de campos aún se están verificando con cuentas reales de Google Health, por lo que algunos valores pueden faltar o cambiar en una actualización futura.",
     "fitbitCredentials": "Credenciales de API",
-    "fitbitCredentialsHelp": "Registra tu propio cliente OAuth de Google Cloud para la API de Google Health y pega aquí su Client ID y Client Secret.",
     "fitbitClientId": "Client ID",
     "fitbitClientSecret": "Client Secret",
     "fitbitCredentialsSaved": "Credenciales guardadas",
@@ -4680,7 +4675,6 @@
     "nightscoutTag": "CGM",
     "nightscoutDescription": "Conecta tu propio sitio Nightscout para sincronizar lecturas continuas de glucosa en el panel de glucosa.",
     "nightscoutViewData": "Ver tu glucosa",
-    "nightscoutHelp": "Apunta HealthLog a tu instancia de Nightscout. Las lecturas se obtienen en segundo plano una vez por hora.",
     "nightscoutUrl": "URL de Nightscout",
     "nightscoutUrlSavedPlaceholder": "Guardado: introduce una URL nueva para reemplazarla",
     "nightscoutToken": "Token de API",
@@ -4701,7 +4695,6 @@
     "polarViewData": "Ver tu sueño y recuperación",
     "polarHelp": "Inicia sesión en Polar para conceder acceso. Los datos se obtienen en segundo plano una vez por hora.",
     "polarCredentials": "Credenciales de API",
-    "polarCredentialsHelp": "Opcional: registra tu propia app de Polar AccessLink y pega aquí su Client ID y Client Secret. Déjalo en blanco para usar la app compartida del servidor.",
     "polarClientId": "Client ID",
     "polarClientSecret": "Client Secret",
     "polarCredentialsSaved": "Credenciales guardadas",
@@ -4729,7 +4722,6 @@
     "ouraViewData": "Ver tu sueño y recuperación",
     "ouraHelp": "Inicia sesión en Oura para conceder acceso. Los datos se obtienen en segundo plano una vez por hora.",
     "ouraCredentials": "Credenciales de API",
-    "ouraCredentialsHelp": "Opcional: registra tu propia app de Oura y pega aquí su Client ID y Client Secret. Déjalo en blanco para usar la app compartida del servidor.",
     "ouraClientId": "Client ID",
     "ouraClientSecret": "Client Secret",
     "ouraCredentialsSaved": "Credenciales guardadas",
@@ -6435,7 +6427,11 @@
     },
     "showMeasurements": "Ver mediciones",
     "trendStrip": {
-      "label": "Últimos 7 días"
+      "label": "Últimos 7 días",
+      "summary": "Último valor {value}, {direction} en 7 días.",
+      "rising": "en aumento",
+      "falling": "en descenso",
+      "steady": "estable"
     }
   },
   "moduleList": {
