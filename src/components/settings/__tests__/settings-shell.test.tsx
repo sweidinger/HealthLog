@@ -94,6 +94,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // v1.18.7 — `labs`, `illness`, `vorsorge` move into the shell as
     // first-class sections, right after `mood` (the three were standalone
     // `ModuleSettingsFrame` pages).
+    // v1.18.7 — `sharing` (clinician share links) sits directly after
+    // `gesundheitsakte`, before `export`: minting a read-only link to the
+    // health record belongs next to the health-record export.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "modules",
@@ -114,6 +117,7 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "coach",
       "api",
       "gesundheitsakte",
+      "sharing",
       "export",
       "advanced",
       "about",

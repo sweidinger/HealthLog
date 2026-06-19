@@ -74,6 +74,13 @@ export const SETTINGS_SECTION_SLUGS = [
   "coach",
   "api",
   "gesundheitsakte",
+  // v1.18.7 — `sharing` (clinician share links) sits directly after
+  // `gesundheitsakte`, before `export`: minting a time-boxed read-only link
+  // to the health record belongs next to the health-record export. Always
+  // available (no module gate), like account / export. The backing model,
+  // the `/api/share-links` routes, and the public `/c/[token]` view are
+  // unchanged — this restores only the owner Settings surface.
+  "sharing",
   "export",
   "advanced",
   "about",
