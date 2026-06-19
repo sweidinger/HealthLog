@@ -721,6 +721,9 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  // v1.18.7 — the sliding-30-day session reaper sweeps on `expiresAt`; without
+  // this index the cleanup degrades to a sequential scan on a busy instance.
+  @@index([expiresAt])
   @@map("sessions")
 }
 
@@ -735,6 +738,9 @@ model AuthChallenge {
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  // v1.18.7 — challenges are swept by expiry; index the column the reaper
+  // filters on so the cleanup stays index-backed.
+  @@index([expiresAt])
   @@map("auth_challenges")
 }
 
