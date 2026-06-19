@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { apiPost } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * Onboarding step 2 (source).
@@ -105,7 +106,7 @@ export function SourceCardGrid() {
     setAdvancing(true);
     try {
       await apiPost("/api/onboarding/step", { step: 3 });
-      await queryClient.invalidateQueries({ queryKey: ["auth"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
       router.push("/onboarding/3");
     } catch (err) {
       const message =

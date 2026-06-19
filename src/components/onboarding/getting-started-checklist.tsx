@@ -239,7 +239,7 @@ export function GettingStartedChecklist() {
   });
 
   const { data: notificationsData } = useQuery<NotificationsPreferences>({
-    queryKey: ["notifications", "preferences"],
+    queryKey: queryKeys.notificationsPreferences(),
     queryFn: async () => {
       return apiGet("/api/notifications/preferences");
     },

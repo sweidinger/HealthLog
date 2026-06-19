@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { apiPost } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * v1.4.25 W14b-Content — onboarding step 1 (goals).
@@ -127,7 +128,7 @@ export function GoalsChipPicker({ userId: _userId }: GoalsChipPickerProps) {
         step: 2,
         goals: Array.from(selected),
       });
-      await queryClient.invalidateQueries({ queryKey: ["auth"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
       router.push("/onboarding/2");
     } catch (err) {
       const message =

@@ -9,6 +9,22 @@ export const medicationKeys = {
   medicationComplianceChart: (medicationId: string) =>
     ["compliance-chart-inline", medicationId] as const,
   /**
+   * v1.18.7 — the bare `["compliance-chart-inline"]` prefix, for fan-out
+   * invalidation across every per-medication inline compliance tile in one
+   * tick (e.g. a dashboard quick-add intake). `medicationComplianceChart(id)`
+   * above keys an individual tile; this routes the parent prefix through the
+   * factory so the fan-out is not a bare array at the call site.
+   */
+  complianceChartInline: () => ["compliance-chart-inline"] as const,
+  /**
+   * v1.18.7 — per-medication side-effects list, last 30 days
+   * (`GET /api/medications/[id]/side-effects`). Rides under the
+   * `["medications", id, …]` prefix so a CRUD mutation reaches it through
+   * `medicationDependentKeys`.
+   */
+  medicationSideEffects: (medicationId: string) =>
+    ["medications", medicationId, "side-effects", "list"] as const,
+  /**
    * v1.4.42 W3-QUERYKEY-LONGTAIL — per-medication compliance KPI used
    * by `medication-card` + `glp1-medication-card`. Centralising lets
    * the intake mutation invalidate every compliance read through the

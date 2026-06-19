@@ -22,6 +22,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { scrollBehaviorForUser } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { apiPost } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 import { DISCLAIMER_VERSION } from "@/lib/onboarding/disclaimer";
 
 /**
@@ -152,7 +153,7 @@ export function WelcomeCarousel() {
         });
       }
       await apiPost("/api/onboarding/step", { step: 1 });
-      await queryClient.invalidateQueries({ queryKey: ["auth"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
       router.push("/onboarding/1");
     } catch (err) {
       const message =

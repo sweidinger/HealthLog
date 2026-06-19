@@ -45,6 +45,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { apiPost } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 import { OnboardingTour } from "./tour";
 
 const POST_WIZARD_GRACE_MS = 1500;
@@ -371,7 +372,7 @@ export function TourLauncher({ ready = true }: TourLauncherProps) {
         if (user?.id) writeSessionDismissed(user.id);
         try {
           await apiPost("/api/onboarding/tour", { completed: true, outcome });
-          await queryClient.invalidateQueries({ queryKey: ["auth"] });
+          await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
         } catch {
           // Swallow — the session-dismiss flag prevents a re-open.
           // Next visit will retry via the same code path.

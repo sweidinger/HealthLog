@@ -1508,7 +1508,7 @@ function DayDrillDown({
   const { t, locale } = useTranslations();
   const { isAuthenticated } = useAuth();
   const { data, isLoading, error } = useQuery({
-    queryKey: ["measurement-drilldown", type, dayKey],
+    queryKey: queryKeys.measurementDrilldown(type, dayKey),
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("type", type);
