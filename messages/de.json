@@ -4328,7 +4328,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Verbinde deine Withings-Waage und Blutdruckmessgeräte.",
+    "withingsDescription": "Verbinde deine Withings-Waage und dein Blutdruckmessgerät, um Gewicht, Körperzusammensetzung und Blutdruck automatisch zu synchronisieren.",
     "withingsCredentials": "API-Zugangsdaten",
     "withingsClientId": "Client-ID",
     "withingsClientSecret": "Client-Secret",
@@ -4366,7 +4366,7 @@
     "withingsConnect": "Mit Withings verbinden",
     "withingsNoCredentials": "Bitte zuerst die API-Zugangsdaten oben eingeben, um Withings zu verbinden.",
     "whoop": "WHOOP",
-    "whoopDescription": "Verbinde dein WHOOP-Band, um Erholung, Schlaf, Belastung und Workouts zu synchronisieren.",
+    "whoopDescription": "Verbinde dein WHOOP-Band, um Erholung, Schlaf, Belastung und Workouts direkt in HealthLog zu synchronisieren.",
     "whoopOverlapNote": "Wenn WHOOP und eine weitere Quelle denselben Vitalwert liefern – Ruhepuls, Blutsauerstoff, Körpertemperatur, Atemfrequenz oder Schlafphasen –, können beide Werte angezeigt werden, bis sich ein künftiges Update auf eine bevorzugte Quelle festlegt.",
     "whoopCredentials": "API-Zugangsdaten",
     "whoopCredentialsHelp": "Registriere deine eigene WHOOP-Entwickler-App und füge hier Client ID und Client Secret ein.",
@@ -4403,7 +4403,7 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit & Pixel",
-    "fitbitDescription": "Verbinde Google Health, um deine Fitbit- und Pixel-Watch-Werte zu synchronisieren — Gewicht, Körperfett, Ruhepuls, Sauerstoffsättigung, Herzfrequenzvariabilität und mehr.",
+    "fitbitDescription": "Verbinde Google Health, um deine Fitbit- und Pixel-Watch-Werte zu synchronisieren — Gewicht, Herzfrequenz und mehr.",
     "fitbitOverlapNote": "Wenn Google Health und eine andere Quelle denselben Vitalwert liefern — Ruhepuls, Sauerstoffsättigung, Körpertemperatur oder Atemfrequenz —, siehst du möglicherweise beide Werte, bis sich ein künftiges Update auf eine bevorzugte Quelle festlegt.",
     "fitbitExperimentalBadge": "Experimentell",
     "fitbitExperimentalNote": "Diese Integration befindet sich in der Beta — die Datenabdeckung und die Feldzuordnung werden noch gegen echte Google-Health-Konten geprüft, daher können einzelne Werte fehlen oder sich in einem künftigen Update ändern.",
@@ -4678,7 +4678,7 @@
     },
     "nightscout": "Nightscout",
     "nightscoutTag": "CGM",
-    "nightscoutDescription": "Verbinde deine eigene Nightscout-Seite, um kontinuierliche Glukosewerte für das Glukose-Panel zu synchronisieren.",
+    "nightscoutDescription": "Verbinde deine eigene Nightscout-Seite, um kontinuierliche Glukosewerte ins Glukose-Panel zu synchronisieren.",
     "nightscoutViewData": "Glukose ansehen",
     "nightscoutHelp": "Richte HealthLog auf deine Nightscout-Instanz aus. Werte werden stündlich im Hintergrund abgerufen.",
     "nightscoutUrl": "Nightscout-URL",
@@ -4697,7 +4697,7 @@
     "nightscoutDisconnectTitle": "Nightscout trennen?",
     "nightscoutDisconnectDescription": "Künftige Synchronisierungen stoppen. Bereits importierte Glukosewerte bleiben in deinem Verlauf.",
     "polar": "Polar",
-    "polarDescription": "Verbinde dein Polar-Konto, um Nightly-Recharge-Erholung, Schlafphasen und Tagesaktivität zu synchronisieren.",
+    "polarDescription": "Verbinde dein Polar-Konto, um Nightly-Recharge-Erholung, Schlafphasen und tägliche Aktivität zu synchronisieren.",
     "polarViewData": "Schlaf & Erholung ansehen",
     "polarHelp": "Melde dich bei Polar an, um den Zugriff zu erlauben. Daten werden stündlich im Hintergrund abgerufen.",
     "polarCredentials": "API-Zugangsdaten",
@@ -4725,7 +4725,7 @@
       "generic": "Unbekannter Fehler bei der Verbindung. Bitte starte die Verbindung erneut."
     },
     "oura": "Oura",
-    "ouraDescription": "Verbinde dein Oura-Konto, um Readiness, Schlafphasen, HRV und Tagesaktivität zu synchronisieren.",
+    "ouraDescription": "Verbinde dein Oura-Konto, um Readiness, Schlafphasen, Herzfrequenzvariabilität und tägliche Aktivität zu synchronisieren.",
     "ouraViewData": "Schlaf & Erholung ansehen",
     "ouraHelp": "Melde dich bei Oura an, um den Zugriff zu erlauben. Daten werden stündlich im Hintergrund abgerufen.",
     "ouraCredentials": "API-Zugangsdaten",
@@ -4762,7 +4762,14 @@
         "savedOff": "Coach ist ausgeblendet.",
         "saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "whoopDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "fitbitDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "polarDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "ouraDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "nightscoutDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
+    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben."
   },
   "admin": {
     "title": "Administration",

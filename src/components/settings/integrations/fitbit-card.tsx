@@ -51,7 +51,7 @@ import {
   pillStateFor,
   type IntegrationStatusViewModel,
 } from "./shared";
-import { IntegrationSetupGuideLink } from "./setup-guide-link";
+import { IntegrationCardDescription } from "./setup-guide-link";
 
 export function FitbitCard({
   viewModel,
@@ -210,18 +210,10 @@ export function FitbitCard({
           </>
         }
         description={
-          <>
-            <p>{t("settings.fitbitDescription")}</p>
-            <p
-              data-testid="fitbit-experimental-note"
-              className="text-muted-foreground/80"
-            >
-              {t("settings.fitbitExperimentalNote")}
-            </p>
-            <p className="text-muted-foreground/80">
-              {t("settings.fitbitOverlapNote")}
-            </p>
-          </>
+          <IntegrationCardDescription
+            i18nPrefix="settings.fitbit"
+            provider="fitbit"
+          />
         }
         status={
           <IntegrationStatusPill
@@ -293,9 +285,6 @@ export function FitbitCard({
           <h3 className="text-sm font-semibold">
             {t("settings.fitbitCredentials")}
           </h3>
-          <p className="text-muted-foreground text-xs">
-            {t("settings.fitbitCredentialsHelp")}
-          </p>
           <form onSubmit={handleSaveCredentials} className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -341,6 +330,9 @@ export function FitbitCard({
                 />
               </div>
             </div>
+            <p className="text-muted-foreground/80 text-xs">
+              {t("settings.integrationCredentialsHint")}
+            </p>
             <div className="flex justify-end">
               <Button
                 type="submit"
@@ -485,8 +477,6 @@ export function FitbitCard({
             {t("settings.fitbitNoCredentials")}
           </div>
         )}
-
-        <IntegrationSetupGuideLink provider="fitbit" />
       </div>
     </div>
   );

@@ -36,7 +36,7 @@ import {
   pillStateFor,
   type IntegrationStatusViewModel,
 } from "./shared";
-import { IntegrationSetupGuideLink } from "./setup-guide-link";
+import { IntegrationCardDescription } from "./setup-guide-link";
 
 export function WithingsCard({
   viewModel,
@@ -194,7 +194,12 @@ export function WithingsCard({
       <SettingsCardHeader
         icon={Link2}
         title={t("settings.withings")}
-        description={t("settings.withingsDescription")}
+        description={
+          <IntegrationCardDescription
+            i18nPrefix="settings.withings"
+            provider="withings"
+          />
+        }
         status={
           <IntegrationStatusPill
             state={pillState}
@@ -347,6 +352,9 @@ export function WithingsCard({
                 />
               </div>
             </div>
+            <p className="text-muted-foreground/80 text-xs">
+              {t("settings.integrationCredentialsHint")}
+            </p>
             <div className="flex justify-end">
               <Button
                 type="submit"
@@ -492,8 +500,6 @@ export function WithingsCard({
             {t("settings.withingsNoCredentials")}
           </div>
         )}
-
-        <IntegrationSetupGuideLink provider="withings" />
       </div>
     </div>
   );

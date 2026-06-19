@@ -4328,7 +4328,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Connect your Withings scale and blood pressure monitors.",
+    "withingsDescription": "Connect your Withings scale and blood-pressure monitor to sync weight, body composition, and blood pressure automatically.",
     "withingsCredentials": "API Credentials",
     "withingsClientId": "Client ID",
     "withingsClientSecret": "Client Secret",
@@ -4366,7 +4366,7 @@
     "withingsConnect": "Connect with Withings",
     "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
     "whoop": "WHOOP",
-    "whoopDescription": "Connect your WHOOP strap to sync recovery, sleep, strain and workouts.",
+    "whoopDescription": "Connect your WHOOP strap to sync recovery, sleep, strain, and workouts straight into HealthLog.",
     "whoopOverlapNote": "If WHOOP and another source both supply a vital — resting heart rate, blood oxygen, body temperature, respiratory rate or sleep stages — you may see both values until a future update settles on a single preferred source.",
     "whoopCredentials": "API Credentials",
     "whoopCredentialsHelp": "Register your own WHOOP developer app and paste its Client ID and Client Secret here.",
@@ -4403,7 +4403,7 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit & Pixel",
-    "fitbitDescription": "Connect Google Health to sync your Fitbit and Pixel Watch metrics — weight, body fat, resting heart rate, blood oxygen, heart-rate variability and more.",
+    "fitbitDescription": "Connect Google Health to sync your Fitbit and Pixel Watch vitals — weight, heart rate, and more.",
     "fitbitOverlapNote": "If Google Health and another source both supply a vital — resting heart rate, blood oxygen, body temperature or respiratory rate — you may see both values until a future update settles on a single preferred source.",
     "fitbitExperimentalBadge": "Experimental",
     "fitbitExperimentalNote": "This integration is in beta — data coverage and field mapping are still being verified against live Google Health accounts, so some values may be missing or change in a future update.",
@@ -4678,7 +4678,7 @@
     },
     "nightscout": "Nightscout",
     "nightscoutTag": "CGM",
-    "nightscoutDescription": "Connect your own Nightscout site to sync continuous glucose readings for the glucose panel.",
+    "nightscoutDescription": "Connect your own Nightscout site to sync continuous glucose readings into the glucose panel.",
     "nightscoutViewData": "View your glucose",
     "nightscoutHelp": "Point HealthLog at your Nightscout instance. Readings are pulled in the background once an hour.",
     "nightscoutUrl": "Nightscout URL",
@@ -4725,7 +4725,7 @@
       "generic": "Unknown error while connecting. Please start the connection again."
     },
     "oura": "Oura",
-    "ouraDescription": "Connect your Oura account to sync readiness, sleep stages, HRV, and daily activity.",
+    "ouraDescription": "Connect your Oura account to sync readiness, sleep stages, heart-rate variability, and daily activity.",
     "ouraViewData": "View your sleep & recovery",
     "ouraHelp": "Sign in with Oura to grant access. Data is pulled in the background once an hour.",
     "ouraCredentials": "API Credentials",
@@ -4762,7 +4762,14 @@
         "savedOff": "Coach hidden.",
         "saveError": "Could not save the change. Please try again."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "whoopDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "fitbitDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "polarDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "ouraDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "nightscoutDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
+    "integrationCredentialsHint": "Where to find these credentials and how to register your own app is covered in the setup guide above."
   },
   "admin": {
     "title": "Administration",

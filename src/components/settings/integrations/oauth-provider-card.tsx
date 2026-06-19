@@ -41,7 +41,10 @@ import {
   measurementDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
-import { IntegrationSetupGuideLink } from "./setup-guide-link";
+import {
+  IntegrationCardDescription,
+  type IntegrationDocsProvider,
+} from "./setup-guide-link";
 
 export interface OAuthProviderStatus {
   connected: boolean;
@@ -205,7 +208,12 @@ export function OAuthProviderCard({
       <SettingsCardHeader
         icon={icon}
         title={t(`${i18nPrefix}`)}
-        description={<p>{t(`${i18nPrefix}Description`)}</p>}
+        description={
+          <IntegrationCardDescription
+            i18nPrefix={i18nPrefix}
+            provider={provider as IntegrationDocsProvider}
+          />
+        }
         status={
           <IntegrationStatusPill
             state={pillState}
@@ -257,18 +265,11 @@ export function OAuthProviderCard({
           </div>
         )}
 
-        <p className="text-muted-foreground text-xs">
-          {t(`${i18nPrefix}Help`)}
-        </p>
-
         {credentials && (
           <div className="space-y-3" data-testid={`${provider}-credentials`}>
             <h3 className="text-sm font-semibold">
               {t(`${i18nPrefix}Credentials`)}
             </h3>
-            <p className="text-muted-foreground text-xs">
-              {t(`${i18nPrefix}CredentialsHelp`)}
-            </p>
             <form onSubmit={handleSaveCredentials} className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -314,6 +315,9 @@ export function OAuthProviderCard({
                   />
                 </div>
               </div>
+              <p className="text-muted-foreground/80 text-xs">
+                {t("settings.integrationCredentialsHint")}
+              </p>
               <div className="flex justify-end">
                 <Button
                   type="submit"
@@ -424,8 +428,6 @@ export function OAuthProviderCard({
             {msg}
           </p>
         )}
-
-        <IntegrationSetupGuideLink provider={provider} />
       </div>
     </div>
   );
