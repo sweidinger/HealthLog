@@ -10,6 +10,7 @@ import {
   type ConsentSurface,
 } from "@/lib/ai/consent-guard";
 import { annotate } from "@/lib/logging/context";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import { STATUS_PROVIDER_TIMEOUT_MS, withTimeout } from "./with-timeout";
 
 /**
@@ -161,8 +162,8 @@ export async function runStatusCompletion(
         params: {
           systemPrompt,
           userPrompt,
-          temperature: args.temperature ?? 0.3,
-          maxTokens: args.maxTokens ?? 1000,
+          temperature: args.temperature ?? AI_BUDGETS.status.temperature,
+          maxTokens: args.maxTokens ?? AI_BUDGETS.status.maxTokens,
         },
       }),
     STATUS_PROVIDER_TIMEOUT_MS,

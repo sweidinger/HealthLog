@@ -74,6 +74,7 @@ import {
   metricStatusScope,
 } from "@/lib/insights/metric-status-registry";
 import { annotate } from "@/lib/logging/context";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -697,8 +698,8 @@ export async function generateComprehensiveInsight(
       params: {
         systemPrompt: buildSystemPromptWithReferences(locale, referenceMetrics),
         userPrompt,
-        temperature: 0.3,
-        maxTokens: 1500,
+        temperature: AI_BUDGETS.comprehensive.temperature,
+        maxTokens: AI_BUDGETS.comprehensive.maxTokens,
       },
     });
     result = fallback.result;

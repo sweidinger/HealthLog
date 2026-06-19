@@ -46,6 +46,7 @@ import { resolveProviderChain, resolveProvider } from "@/lib/ai/provider";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
 import type { CompletionResult } from "@/lib/ai/types";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/insight-generator";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 
 import {
   coachChatRequestSchema,
@@ -439,8 +440,8 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       params: {
         systemPrompt,
         userPrompt,
-        temperature: 0.4,
-        maxTokens: 600,
+        temperature: AI_BUDGETS.coach.temperature,
+        maxTokens: AI_BUDGETS.coach.maxTokens,
       },
     });
     result = fallback.result;

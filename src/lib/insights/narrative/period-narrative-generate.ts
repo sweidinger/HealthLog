@@ -29,6 +29,7 @@ import { prisma as defaultPrisma } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { annotate } from "@/lib/logging/context";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   buildPeriodNarrativeContext,
@@ -261,8 +262,8 @@ export async function generatePeriodNarrative(
     consentSurface: "insights",
     systemPrompt: locale === "de" ? SYSTEM_PROMPT_DE : SYSTEM_PROMPT_EN,
     userPrompt: buildNarrativeUserPrompt(context, locale),
-    temperature: 0.3,
-    maxTokens: 400,
+    temperature: AI_BUDGETS.narrative.temperature,
+    maxTokens: AI_BUDGETS.narrative.maxTokens,
   });
 
   // A provider error / timeout is non-fatal — the last good row stays as-is
