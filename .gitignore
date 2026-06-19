@@ -46,8 +46,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma generated
-/src/generated/prisma
+# prisma generated — ignore the whole path so a stray symlink at
+# `src/generated` (e.g. from a worktree) can never be committed
+/src/generated
 
 # v1.4.43 QoL (L3) — generated at build time by
 # scripts/generate-sw-version.mjs; loaded by public/sw.js to key
