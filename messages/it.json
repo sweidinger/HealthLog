@@ -4328,7 +4328,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Collega la tua bilancia e i misuratori di pressione Withings.",
+    "withingsDescription": "Collega la bilancia e il misuratore di pressione Withings per sincronizzare peso, composizione corporea e pressione automaticamente.",
     "withingsCredentials": "Credenziali API",
     "withingsClientId": "ID client",
     "withingsClientSecret": "Secret client",
@@ -4366,7 +4366,7 @@
     "withingsConnect": "Connetti con Withings",
     "withingsNoCredentials": "Inserisci prima le tue credenziali API qui sopra per collegare Withings.",
     "whoop": "WHOOP",
-    "whoopDescription": "Collega la tua fascia WHOOP per sincronizzare recupero, sonno, sforzo e allenamenti.",
+    "whoopDescription": "Collega la fascia WHOOP per sincronizzare recupero, sonno, sforzo e allenamenti direttamente in HealthLog.",
     "whoopOverlapNote": "Se WHOOP e un'altra fonte forniscono lo stesso valore vitale — frequenza cardiaca a riposo, ossigeno nel sangue, temperatura corporea, frequenza respiratoria o fasi del sonno —, potresti vedere entrambi i valori finché un futuro aggiornamento non sceglierà un'unica fonte preferita.",
     "whoopCredentials": "Credenziali API",
     "whoopCredentialsHelp": "Registra la tua app sviluppatore WHOOP e incolla qui il suo Client ID e Client Secret.",
@@ -4403,7 +4403,7 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit e Pixel",
-    "fitbitDescription": "Collega Google Health per sincronizzare i dati di Fitbit e Pixel Watch: peso, massa grassa, frequenza cardiaca a riposo, saturazione di ossigeno, variabilità della frequenza cardiaca e altro.",
+    "fitbitDescription": "Collega Google Health per sincronizzare i dati di Fitbit e Pixel Watch — peso, frequenza cardiaca e altro.",
     "fitbitOverlapNote": "Se Google Health e un'altra fonte forniscono lo stesso parametro vitale — frequenza cardiaca a riposo, saturazione di ossigeno, temperatura corporea o frequenza respiratoria —, potresti vedere entrambi i valori finché un futuro aggiornamento non sceglierà un'unica fonte preferita.",
     "fitbitExperimentalBadge": "Sperimentale",
     "fitbitExperimentalNote": "Questa integrazione è in versione beta: la copertura dei dati e la mappatura dei campi sono ancora in fase di verifica con account Google Health reali, quindi alcuni valori potrebbero mancare o cambiare in un futuro aggiornamento.",
@@ -4678,7 +4678,7 @@
     },
     "nightscout": "Nightscout",
     "nightscoutTag": "CGM",
-    "nightscoutDescription": "Collega il tuo sito Nightscout per sincronizzare le letture continue della glicemia nel pannello glicemia.",
+    "nightscoutDescription": "Collega il tuo sito Nightscout per sincronizzare le letture continue del glucosio nel pannello glucosio.",
     "nightscoutViewData": "Vedi la tua glicemia",
     "nightscoutHelp": "Punta HealthLog alla tua istanza Nightscout. Le letture vengono recuperate in background una volta all'ora.",
     "nightscoutUrl": "URL Nightscout",
@@ -4725,7 +4725,7 @@
       "generic": "Errore sconosciuto durante la connessione. Riavvia la connessione."
     },
     "oura": "Oura",
-    "ouraDescription": "Collega il tuo account Oura per sincronizzare readiness, fasi del sonno, HRV e attività giornaliera.",
+    "ouraDescription": "Collega il tuo account Oura per sincronizzare prontezza, fasi del sonno, variabilità cardiaca e attività giornaliera.",
     "ouraViewData": "Vedi sonno e recupero",
     "ouraHelp": "Accedi a Oura per concedere l'accesso. I dati vengono recuperati in background una volta all'ora.",
     "ouraCredentials": "Credenziali API",
@@ -4762,7 +4762,14 @@
         "savedOff": "Coach nascosto.",
         "saveError": "Impossibile salvare la modifica. Riprova."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
+    "whoopDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
+    "fitbitDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
+    "polarDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
+    "ouraDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
+    "nightscoutDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
+    "integrationCredentialsHint": "Dove trovare queste credenziali e come registrare la tua app è spiegato nella guida alla configurazione qui sopra."
   },
   "admin": {
     "title": "Administration",

@@ -4328,7 +4328,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Connectez votre balance et vos tensiomètres Withings.",
+    "withingsDescription": "Connecte ta balance et ton tensiomètre Withings pour synchroniser automatiquement poids, composition corporelle et tension.",
     "withingsCredentials": "Identifiants API",
     "withingsClientId": "ID client",
     "withingsClientSecret": "Secret client",
@@ -4366,7 +4366,7 @@
     "withingsConnect": "Se connecter avec Withings",
     "withingsNoCredentials": "Saisissez d’abord vos identifiants API ci-dessus pour connecter Withings.",
     "whoop": "WHOOP",
-    "whoopDescription": "Connectez votre bracelet WHOOP pour synchroniser récupération, sommeil, effort et entraînements.",
+    "whoopDescription": "Connecte ton bracelet WHOOP pour synchroniser récupération, sommeil, charge et entraînements directement dans HealthLog.",
     "whoopOverlapNote": "Si WHOOP et une autre source fournissent la même donnée vitale — fréquence cardiaque au repos, oxygène sanguin, température corporelle, fréquence respiratoire ou phases de sommeil —, les deux valeurs peuvent apparaître jusqu'à ce qu'une future mise à jour retienne une seule source préférée.",
     "whoopCredentials": "Identifiants API",
     "whoopCredentialsHelp": "Enregistrez votre propre application développeur WHOOP et collez ici son Client ID et son Client Secret.",
@@ -4403,7 +4403,7 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit et Pixel",
-    "fitbitDescription": "Connectez Google Health pour synchroniser vos données Fitbit et Pixel Watch : poids, masse grasse, fréquence cardiaque au repos, saturation en oxygène, variabilité de la fréquence cardiaque et plus encore.",
+    "fitbitDescription": "Connecte Google Health pour synchroniser tes données Fitbit et Pixel Watch — poids, fréquence cardiaque et plus.",
     "fitbitOverlapNote": "Si Google Health et une autre source fournissent la même constante vitale — fréquence cardiaque au repos, saturation en oxygène, température corporelle ou fréquence respiratoire —, vous pourriez voir les deux valeurs jusqu'à ce qu'une future mise à jour retienne une seule source préférée.",
     "fitbitExperimentalBadge": "Expérimental",
     "fitbitExperimentalNote": "Cette intégration est en bêta : la couverture des données et la correspondance des champs sont encore en cours de vérification avec de vrais comptes Google Health, donc certaines valeurs peuvent manquer ou changer lors d'une future mise à jour.",
@@ -4678,7 +4678,7 @@
     },
     "nightscout": "Nightscout",
     "nightscoutTag": "CGM",
-    "nightscoutDescription": "Connectez votre propre site Nightscout pour synchroniser les mesures de glycémie en continu dans le panneau glucose.",
+    "nightscoutDescription": "Connecte ton propre site Nightscout pour synchroniser les mesures de glucose en continu dans le panneau glucose.",
     "nightscoutViewData": "Voir votre glycémie",
     "nightscoutHelp": "Pointez HealthLog vers votre instance Nightscout. Les mesures sont récupérées en arrière-plan une fois par heure.",
     "nightscoutUrl": "URL Nightscout",
@@ -4697,7 +4697,7 @@
     "nightscoutDisconnectTitle": "Déconnecter Nightscout ?",
     "nightscoutDisconnectDescription": "Les synchronisations futures s'arrêtent. Les mesures de glycémie déjà importées restent dans votre historique.",
     "polar": "Polar",
-    "polarDescription": "Connectez votre compte Polar pour synchroniser la récupération Nightly Recharge, les phases de sommeil et l'activité quotidienne.",
+    "polarDescription": "Connecte ton compte Polar pour synchroniser la récupération Nightly Recharge, les phases de sommeil et l'activité.",
     "polarViewData": "Voir votre sommeil et récupération",
     "polarHelp": "Connectez-vous à Polar pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
     "polarCredentials": "Identifiants API",
@@ -4725,7 +4725,7 @@
       "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
     },
     "oura": "Oura",
-    "ouraDescription": "Connectez votre compte Oura pour synchroniser le readiness, les phases de sommeil, la VFC et l'activité quotidienne.",
+    "ouraDescription": "Connecte ton compte Oura pour synchroniser readiness, phases de sommeil, variabilité cardiaque et activité quotidienne.",
     "ouraViewData": "Voir votre sommeil et récupération",
     "ouraHelp": "Connectez-vous à Oura pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
     "ouraCredentials": "Identifiants API",
@@ -4762,7 +4762,14 @@
         "savedOff": "Coach masqué.",
         "saveError": "Impossible d enregistrer la modification. Veuillez réessayer."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "whoopDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "fitbitDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "polarDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "ouraDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "nightscoutDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
+    "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus."
   },
   "admin": {
     "title": "Administration",

@@ -4328,7 +4328,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Połącz swoją wagę i ciśnieniomierze Withings.",
+    "withingsDescription": "Połącz wagę i ciśnieniomierz Withings, aby automatycznie synchronizować wagę, skład ciała i ciśnienie krwi.",
     "withingsCredentials": "Dane logowania API",
     "withingsClientId": "ID klienta",
     "withingsClientSecret": "Sekret klienta",
@@ -4366,7 +4366,7 @@
     "withingsConnect": "Połącz z Withings",
     "withingsNoCredentials": "Najpierw wprowadź powyżej dane logowania API, aby połączyć Withings.",
     "whoop": "WHOOP",
-    "whoopDescription": "Połącz opaskę WHOOP, aby synchronizować regenerację, sen, obciążenie i treningi.",
+    "whoopDescription": "Połącz opaskę WHOOP, aby synchronizować regenerację, sen, obciążenie i treningi prosto do HealthLog.",
     "whoopOverlapNote": "Jeśli WHOOP i inne źródło dostarczają tę samą wartość życiową — tętno spoczynkowe, saturację, temperaturę ciała, częstość oddechów lub fazy snu — możesz widzieć obie wartości, dopóki przyszła aktualizacja nie wybierze jednego preferowanego źródła.",
     "whoopCredentials": "Dane API",
     "whoopCredentialsHelp": "Zarejestruj własną aplikację deweloperską WHOOP i wklej tutaj jej Client ID oraz Client Secret.",
@@ -4403,7 +4403,7 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit i Pixel",
-    "fitbitDescription": "Połącz Google Health, aby synchronizować dane z Fitbita i Pixel Watch — wagę, tkankę tłuszczową, tętno spoczynkowe, saturację, zmienność rytmu serca i więcej.",
+    "fitbitDescription": "Połącz Google Health, aby synchronizować dane z Fitbit i Pixel Watch — wagę, tętno i więcej.",
     "fitbitOverlapNote": "Jeśli Google Health i inne źródło dostarczają ten sam parametr życiowy — tętno spoczynkowe, saturację, temperaturę ciała lub częstość oddechów — możesz widzieć obie wartości, dopóki przyszła aktualizacja nie wybierze jednego preferowanego źródła.",
     "fitbitExperimentalBadge": "Eksperymentalne",
     "fitbitExperimentalNote": "Ta integracja jest w wersji beta — zakres danych i mapowanie pól są wciąż weryfikowane na rzeczywistych kontach Google Health, więc niektóre wartości mogą być niedostępne lub zmienić się w przyszłej aktualizacji.",
@@ -4678,7 +4678,7 @@
     },
     "nightscout": "Nightscout",
     "nightscoutTag": "CGM",
-    "nightscoutDescription": "Połącz własną witrynę Nightscout, aby synchronizować ciągłe odczyty glukozy w panelu glukozy.",
+    "nightscoutDescription": "Połącz własną stronę Nightscout, aby synchronizować ciągłe odczyty glukozy w panelu glukozy.",
     "nightscoutViewData": "Zobacz swoją glukozę",
     "nightscoutHelp": "Wskaż HealthLog na swoją instancję Nightscout. Odczyty są pobierane w tle raz na godzinę.",
     "nightscoutUrl": "Adres URL Nightscout",
@@ -4697,7 +4697,7 @@
     "nightscoutDisconnectTitle": "Rozłączyć Nightscout?",
     "nightscoutDisconnectDescription": "Przyszłe synchronizacje zostaną zatrzymane. Już zaimportowane odczyty glukozy pozostaną w historii.",
     "polar": "Polar",
-    "polarDescription": "Połącz konto Polar, aby synchronizować regenerację Nightly Recharge, fazy snu i aktywność dzienną.",
+    "polarDescription": "Połącz konto Polar, aby synchronizować regenerację Nightly Recharge, fazy snu i dzienną aktywność.",
     "polarViewData": "Zobacz sen i regenerację",
     "polarHelp": "Zaloguj się w Polar, aby przyznać dostęp. Dane są pobierane w tle raz na godzinę.",
     "polarCredentials": "Dane API",
@@ -4725,7 +4725,7 @@
       "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
     },
     "oura": "Oura",
-    "ouraDescription": "Połącz konto Oura, aby synchronizować readiness, fazy snu, HRV i aktywność dzienną.",
+    "ouraDescription": "Połącz konto Oura, aby synchronizować gotowość, fazy snu, zmienność rytmu serca i dzienną aktywność.",
     "ouraViewData": "Zobacz sen i regenerację",
     "ouraHelp": "Zaloguj się w Oura, aby przyznać dostęp. Dane są pobierane w tle raz na godzinę.",
     "ouraCredentials": "Dane API",
@@ -4762,7 +4762,14 @@
         "savedOff": "Coach ukryty.",
         "saveError": "Nie udało się zapisać zmiany. Spróbuj ponownie."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "whoopDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "fitbitDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "polarDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "ouraDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "nightscoutDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
+    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej."
   },
   "admin": {
     "title": "Administracja",

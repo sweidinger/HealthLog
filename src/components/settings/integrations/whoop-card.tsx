@@ -43,7 +43,7 @@ import {
   pillStateFor,
   type IntegrationStatusViewModel,
 } from "./shared";
-import { IntegrationSetupGuideLink } from "./setup-guide-link";
+import { IntegrationCardDescription } from "./setup-guide-link";
 
 export function WhoopCard({
   viewModel,
@@ -187,12 +187,10 @@ export function WhoopCard({
         icon={Activity}
         title={t("settings.whoop")}
         description={
-          <>
-            <p>{t("settings.whoopDescription")}</p>
-            <p className="text-muted-foreground/80">
-              {t("settings.whoopOverlapNote")}
-            </p>
-          </>
+          <IntegrationCardDescription
+            i18nPrefix="settings.whoop"
+            provider="whoop"
+          />
         }
         status={
           <IntegrationStatusPill
@@ -265,9 +263,6 @@ export function WhoopCard({
           <h3 className="text-sm font-semibold">
             {t("settings.whoopCredentials")}
           </h3>
-          <p className="text-muted-foreground text-xs">
-            {t("settings.whoopCredentialsHelp")}
-          </p>
           <form onSubmit={handleSaveCredentials} className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -313,6 +308,9 @@ export function WhoopCard({
                 />
               </div>
             </div>
+            <p className="text-muted-foreground/80 text-xs">
+              {t("settings.integrationCredentialsHint")}
+            </p>
             <div className="flex justify-end">
               <Button
                 type="submit"
@@ -457,8 +455,6 @@ export function WhoopCard({
             {t("settings.whoopNoCredentials")}
           </div>
         )}
-
-        <IntegrationSetupGuideLink provider="whoop" />
       </div>
     </div>
   );

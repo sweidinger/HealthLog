@@ -35,23 +35,38 @@ export function integrationDocsHref(provider: IntegrationDocsProvider): string {
   return `${INTEGRATION_DOCS_BASE}/${provider}`;
 }
 
-export function IntegrationSetupGuideLink({
+/**
+ * v1.18.7 (Wave F) — the one description skeleton every integration card paints:
+ * a WHITE primary sentence (`${i18nPrefix}Description`), then a GREY secondary
+ * sentence (`${i18nPrefix}DescriptionSecondary`) that ends with the setup-guide
+ * link rendered INLINE at the very end of the grey copy — not a standalone
+ * bottom-of-card element. Single-sourced so all six cards read as one family.
+ */
+export function IntegrationCardDescription({
+  i18nPrefix,
   provider,
 }: {
+  i18nPrefix: string;
   provider: IntegrationDocsProvider;
 }) {
   const { t } = useTranslations();
   return (
-    <a
-      href={integrationDocsHref(provider)}
-      target="_blank"
-      rel="noopener noreferrer"
-      data-testid={`${provider}-setup-guide`}
-      data-slot="integration-setup-guide"
-      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
-    >
-      {t("settings.integrationSetupGuide")}
-      <ExternalLink className="h-3 w-3" aria-hidden="true" />
-    </a>
+    <>
+      <p className="text-foreground">{t(`${i18nPrefix}Description`)}</p>
+      <p className="text-muted-foreground/80">
+        {t(`${i18nPrefix}DescriptionSecondary`)}{" "}
+        <a
+          href={integrationDocsHref(provider)}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid={`${provider}-setup-guide`}
+          data-slot="integration-setup-guide"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+        >
+          {t("settings.integrationSetupGuide")}
+          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+        </a>
+      </p>
+    </>
   );
 }

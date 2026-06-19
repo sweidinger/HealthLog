@@ -4328,7 +4328,7 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Conecta tu báscula y tensiómetros Withings.",
+    "withingsDescription": "Conecta tu báscula y tensiómetro Withings para sincronizar peso, composición corporal y tensión arterial automáticamente.",
     "withingsCredentials": "Credenciales de API",
     "withingsClientId": "ID de cliente",
     "withingsClientSecret": "Secreto de cliente",
@@ -4366,7 +4366,7 @@
     "withingsConnect": "Conectar con Withings",
     "withingsNoCredentials": "Introduce primero tus credenciales de API arriba para conectar Withings.",
     "whoop": "WHOOP",
-    "whoopDescription": "Conecta tu banda WHOOP para sincronizar recuperación, sueño, esfuerzo y entrenamientos.",
+    "whoopDescription": "Conecta tu banda WHOOP para sincronizar recuperación, sueño, esfuerzo y entrenamientos directamente en HealthLog.",
     "whoopOverlapNote": "Si WHOOP y otra fuente proporcionan el mismo valor vital —frecuencia cardíaca en reposo, oxígeno en sangre, temperatura corporal, frecuencia respiratoria o fases del sueño—, es posible que veas ambos valores hasta que una futura actualización elija una única fuente preferida.",
     "whoopCredentials": "Credenciales de API",
     "whoopCredentialsHelp": "Registra tu propia app de desarrollador de WHOOP y pega aquí su Client ID y Client Secret.",
@@ -4403,7 +4403,7 @@
     },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit y Pixel",
-    "fitbitDescription": "Conecta Google Health para sincronizar tus métricas de Fitbit y Pixel Watch: peso, grasa corporal, frecuencia cardíaca en reposo, saturación de oxígeno, variabilidad de la frecuencia cardíaca y más.",
+    "fitbitDescription": "Conecta Google Health para sincronizar tus datos de Fitbit y Pixel Watch — peso, frecuencia cardíaca y más.",
     "fitbitOverlapNote": "Si Google Health y otra fuente proporcionan la misma constante vital —frecuencia cardíaca en reposo, saturación de oxígeno, temperatura corporal o frecuencia respiratoria—, es posible que veas ambos valores hasta que una actualización futura defina una única fuente preferida.",
     "fitbitExperimentalBadge": "Experimental",
     "fitbitExperimentalNote": "Esta integración está en fase beta: la cobertura de datos y la asignación de campos aún se están verificando con cuentas reales de Google Health, por lo que algunos valores pueden faltar o cambiar en una actualización futura.",
@@ -4697,7 +4697,7 @@
     "nightscoutDisconnectTitle": "¿Desconectar Nightscout?",
     "nightscoutDisconnectDescription": "Las sincronizaciones futuras se detienen. Las lecturas de glucosa ya importadas permanecen en tu historial.",
     "polar": "Polar",
-    "polarDescription": "Conecta tu cuenta de Polar para sincronizar la recuperación Nightly Recharge, las fases de sueño y la actividad diaria.",
+    "polarDescription": "Conecta tu cuenta de Polar para sincronizar la recuperación Nightly Recharge, fases de sueño y actividad diaria.",
     "polarViewData": "Ver tu sueño y recuperación",
     "polarHelp": "Inicia sesión en Polar para conceder acceso. Los datos se obtienen en segundo plano una vez por hora.",
     "polarCredentials": "Credenciales de API",
@@ -4725,7 +4725,7 @@
       "generic": "Error desconocido al conectar. Inicia la conexión de nuevo."
     },
     "oura": "Oura",
-    "ouraDescription": "Conecta tu cuenta de Oura para sincronizar readiness, fases de sueño, VFC y actividad diaria.",
+    "ouraDescription": "Conecta tu cuenta de Oura para sincronizar disposición, fases de sueño, variabilidad cardíaca y actividad diaria.",
     "ouraViewData": "Ver tu sueño y recuperación",
     "ouraHelp": "Inicia sesión en Oura para conceder acceso. Los datos se obtienen en segundo plano una vez por hora.",
     "ouraCredentials": "Credenciales de API",
@@ -4762,7 +4762,14 @@
         "savedOff": "Coach oculto.",
         "saveError": "No se pudo guardar el cambio. Inténtalo de nuevo."
       }
-    }
+    },
+    "withingsDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
+    "whoopDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
+    "fitbitDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
+    "polarDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
+    "ouraDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
+    "nightscoutDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
+    "integrationCredentialsHint": "Dónde encontrar estas credenciales y cómo registrar tu propia aplicación se explica en la guía de configuración de arriba."
   },
   "admin": {
     "title": "Administration",

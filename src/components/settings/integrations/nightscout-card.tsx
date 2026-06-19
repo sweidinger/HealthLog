@@ -39,7 +39,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys, queryKeys } from "@/lib/query-keys";
 
 import { IntegrationErrorMessage } from "./shared";
-import { IntegrationSetupGuideLink } from "./setup-guide-link";
+import { IntegrationCardDescription } from "./setup-guide-link";
 
 interface NightscoutStatus {
   connected: boolean;
@@ -170,7 +170,12 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
             {t("settings.nightscoutTag")}
           </span>
         }
-        description={<p>{t("settings.nightscoutDescription")}</p>}
+        description={
+          <IntegrationCardDescription
+            i18nPrefix="settings.nightscout"
+            provider="nightscout"
+          />
+        }
         status={
           <IntegrationStatusPill
             state={pillState}
@@ -218,10 +223,6 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
             </Button>
           </div>
         )}
-
-        <p className="text-muted-foreground text-xs">
-          {t("settings.nightscoutHelp")}
-        </p>
 
         <form ref={formRef} onSubmit={handleConnect} className="space-y-3">
           <div className="space-y-1.5">
@@ -367,8 +368,6 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
             </Link>
           </>
         )}
-
-        <IntegrationSetupGuideLink provider="nightscout" />
       </div>
     </div>
   );
