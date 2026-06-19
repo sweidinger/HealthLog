@@ -89,6 +89,20 @@ function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+// The day key the insight read paths compare against. The per-metric status
+// cards stamp `dateKey = toBerlinDayKey(now)` (src/lib/tz/resolver.ts) and the
+// read serves a row only when its `dateKey` equals today's Berlin key. The
+// demo user is Europe/Berlin, so we mint the same key here so the baked cards
+// always read as "today" on every re-seed, never stale.
+function berlinDayKey(d: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
 // Smooth random walk with mean reversion
 function randomWalk(
   start: number,
@@ -124,6 +138,7 @@ async function seed() {
     console.log("Cleaning existing data...");
     await client.query("DELETE FROM coach_messages");
     await client.query("DELETE FROM coach_conversations");
+    await client.query("DELETE FROM insight_narratives");
     await client.query("DELETE FROM illness_episodes");
     await client.query("DELETE FROM lab_results");
     await client.query("DELETE FROM measurement_reminders");
@@ -1038,6 +1053,398 @@ async function seed() {
       );
     }
 
+    // ── Baked AI insight texts ────────────────
+    // The public demo has no live AI provider (the seeded key is a
+    // placeholder ciphertext), so the Insights / daily-briefing / per-metric
+    // status surfaces would otherwise render empty or a "connect a provider"
+    // prompt. We bake realistic, grounded English prose straight into the
+    // same cache rows a real generation would have written, so the demo shows
+    // finished AI output that survives every re-seed and never calls out.
+    //
+    // The prose follows the real generators' voice (src/lib/ai/prompts/
+    // base-system.ts): second person, warm, grounded in the seeded numbers,
+    // autonomy-supporting, never diagnostic, no banned positivity openers.
+    // The numbers quoted below match the seeded targets (weight ~82 kg,
+    // BP settling ~118/76, resting HR ~58, BMI ~24.7, mood improving,
+    // compliance ~96%+).
+    console.log("Creating baked AI insight texts...");
+
+    const todayKey = berlinDayKey();
+    // A real-looking provider/model pair so the read path treats the row as a
+    // genuine assessment (NOT a `model: "timeout-stub"`, which the cache-read
+    // rejects). The text is what renders; provider/model are provenance only.
+    const bakedProvider = "anthropic";
+    const bakedModel = "claude-3-5-sonnet";
+
+    // ── Comprehensive insight + daily briefing ──
+    // Stored on users.insights_cached_text (JSON). The GET read parses it and
+    // returns it as-is; setting insights_cached_at = NOW() keeps it inside the
+    // 24 h freshness window for the dashboard-snapshot briefing path. The shape
+    // is the union of insightResultSchema (summary / findings / correlations /
+    // recommendations / dataQuality / disclaimer / classification) and the
+    // richer optional blocks the dashboard validates (dailyBriefing with
+    // paragraph + signalsOfDay + keyFindings, trendAnnotations).
+    const comprehensiveInsight = {
+      insightType: "comprehensive",
+      summary:
+        "Your numbers have moved the right way across the board this quarter. " +
+        "Blood pressure has settled into the optimal band, your weight is " +
+        "down to a steady place, resting heart rate is low, and your sleep " +
+        "and mood have both been climbing. The consistency in your daily " +
+        "logging is doing a lot of the work here.",
+      classification: "optimal",
+      classificationLabel: "On track",
+      findings: [
+        {
+          label: "Blood pressure",
+          value: "~118/76 mmHg",
+          assessment: "positive",
+          guideline: "ESH 2023 optimal range",
+        },
+        {
+          label: "Weight",
+          value: "~82 kg (BMI ~24.7)",
+          assessment: "positive",
+        },
+        {
+          label: "Resting heart rate",
+          value: "~58 bpm",
+          assessment: "positive",
+        },
+        {
+          label: "Medication adherence",
+          value: "96%+ over 90 days",
+          assessment: "positive",
+        },
+        {
+          label: "Mood",
+          value: "trending up to ~4.4 / 5",
+          assessment: "positive",
+        },
+      ],
+      correlations: [
+        {
+          factor: "Sleep duration and resting heart rate",
+          effect:
+            "Longer, more consistent nights line up with your lower resting " +
+            "heart rate readings.",
+          confidence: "mittel",
+        },
+      ],
+      primaryRecommendation:
+        "Keep the morning measurement habit going — the steadier the cadence, " +
+        "the easier your trends are to read.",
+      recommendations: [
+        {
+          text:
+            "Your morning blood-pressure readings are the clearest signal " +
+            "you have. Keeping them at a consistent time each day will keep " +
+            "the trend easy to interpret.",
+          severity: "suggestion",
+          rationale: {
+            dataWindow: "last30days",
+            comparedTo: "your own 90-day baseline",
+            deviation: "systolic down ~10 mmHg from the start of the window",
+          },
+        },
+        {
+          text:
+            "Sleep has been trending toward a healthy 7.5 hours. Protecting " +
+            "that window on busier evenings is worth a little planning.",
+          severity: "info",
+          rationale: {
+            dataWindow: "last30days",
+            comparedTo: "your earlier nights this quarter",
+            deviation: "about 45 minutes longer on average",
+          },
+        },
+      ],
+      dataQuality: {
+        coverage: "90 days of daily measurements across every core metric",
+        gaps: [],
+        confidence: "hoch",
+      },
+      disclaimer:
+        "This is a reasoned observation of your own data, not medical advice " +
+        "or a diagnosis. Discuss any concerns with your doctor.",
+      dailyBriefing: {
+        paragraph:
+          "Good morning. Today's picture is a calm one: your most recent " +
+          "blood pressure sits comfortably in the optimal band, resting heart " +
+          "rate is low, and last night's sleep landed right around your " +
+          "target. Weight is holding at its new steady place and your mood " +
+          "has been on a quiet upward run all week. There is nothing here " +
+          "that needs fixing — the work now is simply keeping the rhythm " +
+          "you have built, logging each morning and protecting your sleep " +
+          "window. Small, consistent days are exactly what these trends are " +
+          "made of.",
+        signalsOfDay: [
+          {
+            sourceMetric: "bp",
+            tone: "good",
+            headline:
+              "Your latest blood pressure is sitting in the optimal band.",
+            nudge:
+              "Take tomorrow's reading at the same morning time to keep the " +
+              "trend clean.",
+            delta: "↓ ~10 mmHg systolic vs the start of the window",
+          },
+          {
+            sourceMetric: "sleep",
+            tone: "good",
+            headline: "Last night came in close to your 7.5-hour target.",
+            nudge: "Aim for the same lights-out time tonight.",
+            delta: null,
+          },
+          {
+            sourceMetric: "resting_hr",
+            tone: "info",
+            headline: "Resting heart rate is steady around 58 bpm.",
+            nudge: "Keep the daily movement going — it shows up here.",
+            delta: null,
+          },
+        ],
+        keyFindings: [
+          {
+            tone: "good",
+            headline: "Blood pressure has settled into the optimal range.",
+            detail:
+              "Your 30-day average is well inside the optimal band and lower " +
+              "than where the quarter began.",
+            delta: "↓ ~10 mmHg",
+            sourceWindow: "30d",
+            sourceMetric: "bp",
+          },
+          {
+            tone: "good",
+            headline: "Weight is holding at a healthy, steady place.",
+            detail:
+              "After trending down earlier in the quarter, your weight has " +
+              "levelled off at a BMI of about 24.7.",
+            delta: null,
+            sourceWindow: "90d",
+            sourceMetric: "weight",
+          },
+          {
+            tone: "good",
+            headline: "Medication adherence has stayed above 96%.",
+            detail:
+              "You have logged your doses on time across nearly the entire " +
+              "90-day window.",
+            delta: null,
+            sourceWindow: "90d",
+            sourceMetric: "compliance",
+          },
+          {
+            tone: "info",
+            headline: "Mood has drifted gently upward.",
+            detail:
+              "Your entries have climbed from the mid-threes toward the " +
+              "low-fours over the quarter.",
+            delta: null,
+            sourceWindow: "90d",
+            sourceMetric: "mood",
+          },
+        ],
+      },
+      trendAnnotations: {
+        bp: "Your systolic is trending down into the optimal band — a pattern worth keeping.",
+        weight:
+          "Weight has levelled off after an earlier decline — a stable, healthy place to hold.",
+        mood: "Mood has been on a quiet upward run across the quarter.",
+        sleep:
+          "Nights have lengthened toward a steady 7.5 hours over the window.",
+        resting_hr:
+          "Resting heart rate has eased lower as your activity has held up.",
+      },
+    };
+
+    await client.query(
+      `UPDATE users
+         SET insights_cached_text = $2,
+             insights_cached_at = NOW(),
+             insights_snapshot_hash = $3,
+             insights_briefing_reroll_date = $4
+       WHERE id = $1`,
+      [
+        userId,
+        JSON.stringify(comprehensiveInsight),
+        // A stable fingerprint. The 24 h cache window keeps the row fresh on
+        // its own; this value just has to be present + non-null so a
+        // hypothetical regeneration would treat the snapshot as known. The
+        // demo provider can never succeed, so the baked text always survives.
+        "demo-baked-comprehensive-snapshot",
+        // Mark today's briefing re-roll as already done so the once-per-day
+        // re-roll path is a no-op (it would fail against the placeholder key).
+        todayKey,
+      ],
+    );
+
+    // ── Per-metric status cards ──
+    // Each card is an audit_logs row keyed `insights.<scope>-status.<locale>`
+    // whose details JSON is { dateKey, locale, text, providerType, model,
+    // tokensUsed, snapshotHash }. The read serves a row only when its dateKey
+    // equals today's Berlin key and the model is not the timeout-stub
+    // sentinel. We stamp today's key + a real model name so every card reads
+    // as a current assessment. `text` is the rendered field. 2-4 sentences
+    // each, grounded in the seeded data, in the base-system advisor voice.
+    const statusCards: Array<{ scope: string; text: string }> = [
+      {
+        scope: "blood-pressure",
+        text:
+          "Your blood pressure is averaging about 118/76 over the last few " +
+          "weeks — down roughly 10 mmHg systolic from where this quarter " +
+          "started, and now comfortably inside the optimal band. That is a " +
+          "real, earned shift, not day-to-day noise. Keeping the morning " +
+          "readings on a steady schedule will make the trend even easier to " +
+          "follow.",
+      },
+      {
+        scope: "pulse",
+        text:
+          "Your resting heart rate is sitting around 58 bpm this week, a few " +
+          "beats below your monthly mean and among your lowest readings in " +
+          "the window. That tracks with the steady daily movement you have " +
+          "kept up. Nothing to change here — just keep the rhythm going.",
+      },
+      {
+        scope: "weight",
+        text:
+          "Your weight has settled at about 82 kg after trending down earlier " +
+          "in the quarter — a stable, healthy place rather than a continuing " +
+          "decline. Holding here is exactly the right goal. Weighing in at a " +
+          "consistent time keeps the reading clean.",
+      },
+      {
+        scope: "bmi",
+        text:
+          "Your BMI is right around 24.7, near the top of the healthy range " +
+          "and steady over the last month. With your weight holding, this is " +
+          "a good place to maintain. No action needed beyond keeping your " +
+          "current routine.",
+      },
+      {
+        scope: "mood",
+        text:
+          "Your mood entries have drifted upward over the quarter, from the " +
+          "mid-threes toward the low-fours, and the recent run has been your " +
+          "most positive yet. The consistency of your logging makes that " +
+          "trend trustworthy. Worth noticing what has been going well and " +
+          "leaning into it.",
+      },
+      {
+        scope: "medication-compliance",
+        text:
+          "Your adherence has stayed above 96% across the last 90 days, with " +
+          "today's morning doses already taken and the evening one not yet " +
+          "due. That is a strong, durable streak. Keeping your reminders " +
+          "where they are should be enough to hold it.",
+      },
+      {
+        scope: "general",
+        text:
+          "Across the board your numbers are in a good place: blood pressure " +
+          "in the optimal band, weight steady, resting heart rate low, and " +
+          "sleep and mood both trending up. The throughline is your " +
+          "consistency — daily logging is what makes all of this readable. " +
+          "Keep the cadence and the picture stays clear.",
+      },
+    ];
+
+    for (const card of statusCards) {
+      const action = `insights.${card.scope}-status.en`;
+      await client.query(
+        `INSERT INTO audit_logs (id, user_id, action, details, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [
+          cuid(),
+          userId,
+          action,
+          JSON.stringify({
+            dateKey: todayKey,
+            locale: "en",
+            text: card.text,
+            providerType: bakedProvider,
+            model: bakedModel,
+            tokensUsed: null,
+            snapshotHash: `demo-baked-${card.scope}`,
+          }),
+        ],
+      );
+    }
+
+    // ── Period narratives (week + month) ──
+    // insight_narratives rows, one per (period, locale). The read path is pure
+    // stale-while-revalidate: it returns whatever was last written regardless
+    // of age, decrypting encrypted_content with the app's AES-256-GCM codec
+    // (encrypt() → utf8 bytes, mirroring the CoachMessage/narrative helper).
+    // provenance_json carries the labels-only envelope the UI renders.
+    const nowIso = new Date().toISOString();
+    const narrativeWindowFrom = daysAgo(30).toISOString();
+    const periodNarratives: Array<{
+      period: string;
+      text: string;
+      window: { from: string; to: string };
+    }> = [
+      {
+        period: "week",
+        text:
+          "This week held the steady line you have been building. Your blood " +
+          "pressure stayed in the optimal band every morning, resting heart " +
+          "rate hovered near its low, and your nights landed close to 7.5 " +
+          "hours. Adherence was perfect, and your mood entries were among " +
+          "the brightest of the month. There is no single thing to fix here " +
+          "— the value is in how repeatable the week was. Carrying the same " +
+          "sleep and movement routine into next week is all it takes to keep " +
+          "the trend intact.",
+        window: { from: daysAgo(7).toISOString(), to: nowIso },
+      },
+      {
+        period: "month",
+        text:
+          "Over the past month the gains from earlier in the quarter have " +
+          "become your new normal. Blood pressure has held in the optimal " +
+          "band rather than just dipping into it, weight has stabilised at a " +
+          "healthy point, and resting heart rate has stayed low alongside " +
+          "consistent daily activity. Sleep lengthened and steadied, and " +
+          "your mood trend continued its quiet climb. The month reads less " +
+          "like a change in progress and more like a routine that is paying " +
+          "off — worth protecting exactly as it stands.",
+        window: { from: narrativeWindowFrom, to: nowIso },
+      },
+    ];
+
+    for (const narrative of periodNarratives) {
+      const encryptedContent = Buffer.from(encrypt(narrative.text), "utf8");
+      const provenance = {
+        metrics: [
+          "BLOOD_PRESSURE_SYS",
+          "RESTING_HEART_RATE",
+          "SLEEP_DURATION",
+          "WEIGHT",
+          "MOOD",
+        ],
+        window: narrative.window,
+        pairsTested: 0,
+        fdrQ: 0.1,
+        computedAt: nowIso,
+      };
+      await client.query(
+        `INSERT INTO insight_narratives (id, user_id, period, locale, date_key, encrypted_content, provenance_json, provider_type, prompt_version, created_at, updated_at)
+         VALUES ($1, $2, $3, 'en', $4, $5, $6, $7, $8, NOW(), NOW())`,
+        [
+          cuid(),
+          userId,
+          narrative.period,
+          todayKey,
+          encryptedContent,
+          JSON.stringify(provenance),
+          bakedProvider,
+          "demo",
+        ],
+      );
+    }
+
     // ── App Settings ─────────────────────────
     console.log("Creating app settings...");
     await client.query(
@@ -1087,6 +1494,9 @@ async function seed() {
     console.log(`  Lab panel: ${labResults.length} biomarkers`);
     console.log(`  Illness: 1 resolved episode`);
     console.log(`  Coach: 1 conversation (${coachTurns.length} messages)`);
+    console.log(
+      `  Baked AI texts: comprehensive + daily briefing, ${statusCards.length} status cards, ${periodNarratives.length} period narratives (en)`,
+    );
     console.log(`  Achievements: ${achievements.length}`);
   } catch (err) {
     await client.query("ROLLBACK");
