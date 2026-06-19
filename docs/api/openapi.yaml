@@ -1155,10 +1155,10 @@ paths:
       tags:
         - Export
       summary: Verify a share-link passphrase (v1.18.7, public)
-      description: "Anonymous, no-session passphrase gate for a protected share link. The raw path token plus the submitted
-        passphrase are the only credentials. On success the server sets a short-lived (30 min), token-scoped,
-        httpOnly cookie so `/c/<token>` renders the record. Rate-limited (`share-unlock:<tokenHash>:<ip>`); every
-        failure class (bad token, no passphrase set, wrong passphrase) answers one blunt 401."
+      description: Anonymous, no-session passphrase gate for a protected share link. The raw path token plus the submitted
+        passphrase are the only credentials. On success the server sets a short-lived (30 min), token-scoped, httpOnly
+        cookie so `/c/<token>` renders the record. Rate-limited (`share-unlock:<tokenHash>:<ip>`); every failure class
+        (bad token, no passphrase set, wrong passphrase) answers one blunt 401.
       parameters:
         - in: path
           name: token
@@ -9918,8 +9918,7 @@ components:
           properties:
             unlocked:
               type: boolean
-              enum:
-                - true
+              const: true
           required:
             - unlocked
           additionalProperties: false
