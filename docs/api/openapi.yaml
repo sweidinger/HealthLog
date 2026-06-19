@@ -989,7 +989,9 @@ paths:
         - Export
       summary: Create a clinician share link (v1.11.0)
       description: "Owner-only. Mints an `hls_` token (192-bit), stores only its HMAC hash, and returns the raw token EXACTLY
-        ONCE in the response. Every scope column (window, sections, FHIR resource types, API toggle) is frozen
+        ONCE in the response. v1.18.7 also mints a passphrase second factor (returned once as `passphrase`, with
+        `shareUrl` and a `qrUrl` carrying the passphrase in the URL fragment); a leaked URL without the passphrase
+        cannot open the record. Every scope column (window, sections, FHIR resource types, API toggle) is frozen
         write-once. `expiresAt` is required and capped at 90 days. Auth via cookie or Bearer; rate-limited
         (`share-link:<userId>`, 20/h). Strict: unknown keys 422."
       requestBody:
@@ -1142,6 +1144,50 @@ paths:
         "401": *a1
         "404":
           description: Link not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/c/{token}/unlock:
+    post:
+      tags:
+        - Export
+      summary: Verify a share-link passphrase (v1.18.7, public)
+      description: "Anonymous, no-session passphrase gate for a protected share link. The raw path token plus the submitted
+        passphrase are the only credentials. On success the server sets a short-lived (30 min), token-scoped,
+        httpOnly cookie so `/c/<token>` renders the record. Rate-limited (`share-unlock:<tokenHash>:<ip>`); every
+        failure class (bad token, no passphrase set, wrong passphrase) answers one blunt 401."
+      parameters:
+        - in: path
+          name: token
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                passphrase:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+              required:
+                - passphrase
+              additionalProperties: false
+      responses:
+        "200":
+          description: Passphrase accepted; short-lived token-scoped unlock cookie set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLinkUnlock"
+        "401":
+          description: Invalid passphrase (blunt — no failure detail leaked).
           content:
             application/json:
               schema:
@@ -9701,6 +9747,8 @@ components:
                 type: string
             allowFhirApi:
               type: boolean
+            protected:
+              type: boolean
             expiresAt:
               type: string
             createdAt:
@@ -9720,6 +9768,16 @@ components:
             token:
               type: string
               description: Raw `hls_` token — returned ONCE and unrecoverable thereafter.
+            passphrase:
+              type: string
+              description: Raw passphrase second factor — returned ONCE; stored only as an HMAC hash, unrecoverable.
+            shareUrl:
+              type: string
+              description: Absolute `/c/<token>` URL (no passphrase).
+            qrUrl:
+              type: string
+              description: Absolute share URL with the passphrase in the URL FRAGMENT (`#k=<passphrase>`). Encode this as the QR
+                payload; the fragment is never sent to the server.
           required:
             - id
             - label
@@ -9727,6 +9785,7 @@ components:
             - rangeEnd
             - resourceTypes
             - allowFhirApi
+            - protected
             - expiresAt
             - createdAt
             - revokedAt
@@ -9734,6 +9793,9 @@ components:
             - accessCount
             - active
             - token
+            - passphrase
+            - shareUrl
+            - qrUrl
           additionalProperties: false
         error:
           type: "null"
@@ -9774,6 +9836,8 @@ components:
                       type: string
                   allowFhirApi:
                     type: boolean
+                  protected:
+                    type: boolean
                   expiresAt:
                     type: string
                   createdAt:
@@ -9797,6 +9861,7 @@ components:
                   - rangeEnd
                   - resourceTypes
                   - allowFhirApi
+                  - protected
                   - expiresAt
                   - createdAt
                   - revokedAt
@@ -9832,6 +9897,31 @@ components:
           required:
             - id
             - revoked
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ShareLinkUnlock:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            unlocked:
+              type: boolean
+              enum:
+                - true
+          required:
+            - unlocked
           additionalProperties: false
         error:
           type: "null"

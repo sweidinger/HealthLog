@@ -19,8 +19,15 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { resolveShareToken } from "@/lib/clinician-share/resolve-share-token";
+import {
+  resolveShareGateState,
+  resolveShareToken,
+} from "@/lib/clinician-share/resolve-share-token";
 import { loadShareViewData } from "@/lib/clinician-share/share-view-data";
+import {
+  unlockCookieName,
+  verifyUnlockValue,
+} from "@/lib/clinician-share/unlock-cookie";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import {
   defaultLocale,
@@ -29,6 +36,7 @@ import {
 } from "@/lib/i18n/config";
 import { parseLocaleFromAcceptLanguage } from "@/lib/format-locale";
 import { ClinicianView } from "@/components/clinician/clinician-view";
+import { ShareUnlockGate } from "@/components/clinician/share-unlock-gate";
 
 // Never cache a scoped health view — `no-store` end to end.
 export const dynamic = "force-dynamic";
@@ -61,9 +69,29 @@ export default async function ClinicianSharePage({
 }) {
   const { token } = await params;
 
-  // The ONE trust boundary. No session is read; this proves only that the raw
-  // path token hashes to a live, in-window share link and yields the owner
-  // scope. Any failure → null → flat 404.
+  // v1.18.7 — gate check first, WITHOUT bumping access counters. Resolves a
+  // malformed / unknown / revoked / expired token to null → the same flat 404
+  // the full read would. A legacy link (no passphrase) falls straight through.
+  const gate = await resolveShareGateState(token);
+  if (!gate) notFound();
+
+  if (gate.passphraseHash !== null) {
+    // Protected link: render nothing of the record until the short-lived,
+    // token-scoped unlock cookie is present and valid. Verifying the cookie is
+    // constant-time; an invalid / expired / cross-token value shows the gate.
+    const cookieStore = await cookies();
+    const unlockValue = cookieStore.get(unlockCookieName(gate.tokenHash))?.value;
+    if (!verifyUnlockValue(unlockValue, gate.tokenHash)) {
+      const locale = await resolveLocale();
+      const { t } = getServerTranslator(locale);
+      return <ShareUnlockGate t={(key, vars) => t(key, vars)} token={token} />;
+    }
+  }
+
+  // The ONE trust boundary for the full read. No session is read; this proves
+  // only that the raw path token hashes to a live, in-window share link and
+  // yields the owner scope. Any failure → null → flat 404. The access counter
+  // is bumped here (on a real record render), not on a gate-blocked hit.
   const context = await resolveShareToken(token);
   if (!context) notFound();
 

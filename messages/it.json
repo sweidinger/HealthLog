@@ -4676,7 +4676,16 @@
       "statusActive": "Attivo",
       "statusRevoked": "Revocato",
       "statusExpired": "Scaduto",
-      "inactiveTitle": "Revocati e scaduti ({count})"
+      "inactiveTitle": "Revocati e scaduti ({count})",
+      "shownOnce": "Mostrato una sola volta. Salva ora il codice QR e la passphrase — non potranno essere recuperati in seguito.",
+      "qrLabel": "Codice QR",
+      "qrAlt": "Codice QR contenente il link di condivisione e la passphrase",
+      "linkLabel": "Link",
+      "passphraseLabel": "Passphrase",
+      "passphraseHint": "Il destinatario ha bisogno del link e di questa passphrase. Il codice QR contiene entrambi.",
+      "copyLink": "Copia link",
+      "copyPassphrase": "Copia passphrase",
+      "protected": "Passphrase"
     },
     "genderOther": "Altro",
     "cycleTracking": {
@@ -5963,7 +5972,14 @@
       "strain": "Punteggio di sforzo",
       "score": "Punteggio di benessere"
     },
-    "footer": "Condiviso da HealthLog — un tracker della salute self-hosted."
+    "footer": "Condiviso da HealthLog — un tracker della salute self-hosted.",
+    "unlock": {
+      "title": "Inserisci la passphrase",
+      "description": "Questo referto sanitario condiviso è protetto. Inserisci la passphrase che hai ricevuto per visualizzarlo.",
+      "label": "Passphrase",
+      "error": "La passphrase non è corretta.",
+      "submit": "Sblocca"
+    }
   },
   "cycle": {
     "symptomCategory": {

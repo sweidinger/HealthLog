@@ -27,7 +27,7 @@ import { hashToken } from "@/lib/auth/hmac";
 import { prisma } from "@/lib/db";
 
 /** The `hls_<48 hex>` shape the lifecycle route mints (192-bit body). */
-const SHARE_TOKEN_PATTERN = /^hls_[0-9a-f]{48}$/;
+export const SHARE_TOKEN_PATTERN = /^hls_[0-9a-f]{48}$/;
 
 /**
  * The scoped read context a resolved share token yields. It is intentionally a
@@ -116,4 +116,35 @@ export async function resolveShareToken(
     allowFhirApi: row.allowFhirApi,
     expiresAt: row.expiresAt,
   };
+}
+
+/**
+ * v1.18.7 — the live-gate state for a raw token, WITHOUT bumping access
+ * counters. Used by the public page (decide gate vs render) and the unlock
+ * route (verify a passphrase). It deliberately resolves a malformed / unknown /
+ * revoked / expired token to `null` — the same blunt nothing the view returns —
+ * so the unlock surface leaks no more than the page does. It carries the stored
+ * `passphraseHash` and the `tokenHash` (for cookie scoping + rate-limit keying)
+ * but never the owner scope; the full read still flows through
+ * {@link resolveShareToken}.
+ */
+export interface ShareGateState {
+  tokenHash: string;
+  /** `null` for a legacy link minted before the passphrase gate. */
+  passphraseHash: string | null;
+}
+
+export async function resolveShareGateState(
+  rawToken: string | null | undefined,
+): Promise<ShareGateState | null> {
+  if (!rawToken || !SHARE_TOKEN_PATTERN.test(rawToken)) return null;
+  const tokenHash = hashToken(rawToken);
+  const row = await prisma.clinicianShareLink.findUnique({
+    where: { tokenHash },
+    select: { passphraseHash: true, revokedAt: true, expiresAt: true },
+  });
+  if (!row) return null;
+  if (row.revokedAt !== null) return null;
+  if (row.expiresAt.getTime() <= Date.now()) return null;
+  return { tokenHash, passphraseHash: row.passphraseHash };
 }

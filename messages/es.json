@@ -4676,7 +4676,16 @@
       "statusActive": "Activo",
       "statusRevoked": "Revocado",
       "statusExpired": "Caducado",
-      "inactiveTitle": "Revocados y caducados ({count})"
+      "inactiveTitle": "Revocados y caducados ({count})",
+      "shownOnce": "Se muestra una sola vez. Guarde ahora el código QR y la frase de acceso — no se pueden recuperar después.",
+      "qrLabel": "Código QR",
+      "qrAlt": "Código QR con el enlace para compartir y la frase de acceso",
+      "linkLabel": "Enlace",
+      "passphraseLabel": "Frase de acceso",
+      "passphraseHint": "El destinatario necesita el enlace y esta frase de acceso. El código QR contiene ambos.",
+      "copyLink": "Copiar enlace",
+      "copyPassphrase": "Copiar frase de acceso",
+      "protected": "Frase de acceso"
     },
     "genderOther": "Otro",
     "cycleTracking": {
@@ -5963,7 +5972,14 @@
       "strain": "Puntuación de esfuerzo",
       "score": "Puntuación de bienestar"
     },
-    "footer": "Compartido desde HealthLog — un registro de salud autoalojado."
+    "footer": "Compartido desde HealthLog — un registro de salud autoalojado.",
+    "unlock": {
+      "title": "Introduzca la frase de acceso",
+      "description": "Este registro de salud compartido está protegido. Introduzca la frase de acceso que recibió para verlo.",
+      "label": "Frase de acceso",
+      "error": "Esa frase de acceso no es correcta.",
+      "submit": "Desbloquear"
+    }
   },
   "cycle": {
     "symptomCategory": {
