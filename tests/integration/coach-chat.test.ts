@@ -214,7 +214,12 @@ describe("POST /api/insights/chat — integration", () => {
     expect(usage?.messageCount).toBe(1);
   });
 
-  it("returns 429 when daily token budget is exhausted", async () => {
+  it("refuses with a budget-exceeded error frame when the daily cap is spent", async () => {
+    // v1.18.7 — the cap is now enforced by an atomic reservation right
+    // before the provider call. An over-budget request surfaces the
+    // structured `coach.budget.exceeded` code as an SSE `error` frame
+    // (HTTP 200, like every other coach error) rather than a JSON 429, and
+    // the reservation is refunded so the ledger stays at the cap.
     const { userId } = await seedUserWithSession();
     const prisma = getPrismaClient();
     const dateKey = new Date().toISOString().slice(0, 10);
@@ -237,10 +242,16 @@ describe("POST /api/insights/chat — integration", () => {
         }),
       }),
     );
-    expect(res.status).toBe(429);
-    const env = (await res.json()) as { error: string };
-    expect(env.error).toBe("coach.budget.exceeded");
+    expect(res.status).toBe(200);
+    const body = await readStream(res);
+    expect(body).toContain("coach.budget.exceeded");
     expect(runProviderMock).not.toHaveBeenCalled();
+
+    // The refused reservation was refunded — the ledger holds at the cap.
+    const usage = await prisma.coachUsage.findUnique({
+      where: { userId_dateKey: { userId, dateKey } },
+    });
+    expect(usage?.totalTokens).toBe(MAX_TOKENS_PER_USER_PER_DAY);
   });
 
   it("returns 404 (not 403) when conversationId belongs to another user", async () => {

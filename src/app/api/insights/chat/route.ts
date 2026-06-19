@@ -62,8 +62,8 @@ import { enqueueCoachMemoryRefresh } from "@/lib/ai/coach/coach-memory-shared";
 import { storeDeterministicFacts } from "@/lib/ai/coach/facts";
 import {
   buildDateKey,
-  enforceBudget,
-  recordSpend,
+  reserveBudget,
+  reconcileSpend,
 } from "@/lib/ai/coach/budget";
 import { detectRefusal } from "@/lib/ai/coach/refusal";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
@@ -215,7 +215,10 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
     return apiError("Too many Coach requests, please wait a moment", 429);
   }
 
-  await enforceBudget(userId);
+  // v1.18.7 (SENIOR-DEV HIGH) — the daily token cap is enforced atomically
+  // by reserving budget BEFORE the provider call (see the reservation right
+  // before `runRawCompletionWithFallback`), not by a read-then-write here.
+  // The old read-before-call gate let concurrent requests all pass the cap.
 
   const locale = await resolveServerLocale({
     request,
@@ -431,6 +434,27 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // ConsentRequiredError → apiHandler returns 403 + `consent.ai.required`.
   await assertConsentForChain({ userId, chain, surface: "coach" });
 
+  // v1.18.7 (SENIOR-DEV HIGH) — atomically RESERVE the day's budget before
+  // the provider call. The reservation increments the day's total by the
+  // per-call ceiling (`maxTokens`) in one upsert and returns the new total;
+  // concurrent requests serialise on the row so they cannot all pass the cap.
+  // Over-cap → 429 refusal frame, reservation already refunded. The actual
+  // token count is reconciled against this reservation after the call,
+  // including on empty / sentinel replies (their tokens were still burned).
+  const reqDateKey = buildDateKey();
+  const reservation = await reserveBudget(
+    userId,
+    AI_BUDGETS.coach.maxTokens,
+    reqDateKey,
+  );
+  if (!reservation.allowed) {
+    annotate({
+      action: { name: "coach.budget.exceeded" },
+      meta: { totalAfter: reservation.totalAfter },
+    });
+    return streamProviderError({ code: "coach.budget.exceeded" });
+  }
+
   let result: CompletionResult;
   let workingProviderType: string;
   try {
@@ -447,6 +471,11 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     result = fallback.result;
     workingProviderType = fallback.workingProvider.providerType;
   } catch (err) {
+    // The provider chain failed outright — no tokens were billed, so refund
+    // the full reservation before surfacing the error frame.
+    await reconcileSpend(userId, reservation.reserved, 0, reqDateKey).catch(
+      () => {},
+    );
     if (err instanceof AllProvidersFailedError) {
       annotate({
         action: { name: "insights.coach.providerFailed" },
@@ -483,6 +512,21 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     }
     throw err;
   }
+
+  // v1.18.7 (SENIOR-DEV MEDIUM) — the provider call returned, so its tokens
+  // were billed regardless of reply quality. Reconcile the reservation
+  // against the actual count NOW, before any empty/sentinel short-circuit, so
+  // an empty or sentinel-only reply still records its burned cost (the old
+  // post-hoc `recordSpend` ran only on the happy path, undercounting these).
+  await reconcileSpend(
+    userId,
+    reservation.reserved,
+    result.tokensUsed ?? 0,
+    reqDateKey,
+  ).catch(() => {
+    // Ledger reconcile is best-effort; a failure leaves the conservative
+    // reservation in place (never an undercount) and never breaks the turn.
+  });
 
   const rawReply = (result.content ?? "").trim();
   if (!rawReply) {
@@ -611,13 +655,10 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     promptVersion: PROMPT_VERSION,
   });
 
-  // Bump the day's spend ledger AFTER persistence so a retried request
-  // doesn't double-count when the persistence layer rolled back.
-  await recordSpend({
-    userId,
-    tokens: result.tokensUsed ?? 0,
-    dateKey: buildDateKey(),
-  });
+  // v1.18.7 — the day's spend was already reconciled against the
+  // reservation immediately after the provider returned (above), so there is
+  // no post-persistence ledger bump here. The reservation guarantees the
+  // tokens are counted even if persistence or streaming fails afterwards.
 
   annotate({
     action: { name: "insights.coach.replied" },
