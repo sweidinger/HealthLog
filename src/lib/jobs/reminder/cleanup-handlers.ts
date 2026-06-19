@@ -12,6 +12,7 @@ import {
 } from "@/lib/jobs/whoop-oauth-state-cleanup";
 import { cleanupExpiredIdempotencyKeys } from "@/lib/jobs/idempotency-cleanup";
 import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
+import { cleanupOldCoachMessages } from "@/lib/jobs/coach-message-cleanup";
 import { cleanupExpiredWithingsOAuthStates } from "@/lib/jobs/withings-oauth-state-cleanup";
 import {
   cleanupExpiredMeasurementTombstones,
@@ -46,6 +47,10 @@ export interface IdempotencyCleanupPayload {
 }
 
 export interface AuditLogCleanupPayload {
+  triggeredAt: string;
+}
+
+export interface CoachMessageCleanupPayload {
   triggeredAt: string;
 }
 
@@ -197,6 +202,21 @@ export async function handleAuditLogCleanup(
       evt.addMeta("audit_log_cleanup_deleted", deleted);
     } catch (err) {
       evt.addWarning(`audit-log-cleanup failed: ${err}`);
+    }
+  });
+}
+
+export async function handleCoachMessageCleanup(
+  jobs: Job<CoachMessageCleanupPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.coach_message_cleanup", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const deleted = await cleanupOldCoachMessages(p);
+      evt.addMeta("coach_message_cleanup_deleted", deleted);
+    } catch (err) {
+      evt.addWarning(`coach-message-cleanup failed: ${err}`);
     }
   });
 }
