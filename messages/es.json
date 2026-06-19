@@ -6422,6 +6422,10 @@
     "dashboard": {
       "empty": "No hay recordatorios de prevención próximos.",
       "openLink": "Abrir prevención"
+    },
+    "showMeasurements": "Ver mediciones",
+    "trendStrip": {
+      "label": "Últimos 7 días"
     }
   },
   "moduleList": {

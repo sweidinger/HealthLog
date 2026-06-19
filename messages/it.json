@@ -6422,6 +6422,10 @@
     "dashboard": {
       "empty": "Nessun promemoria di prevenzione in arrivo.",
       "openLink": "Apri prevenzione"
+    },
+    "showMeasurements": "Mostra le misurazioni",
+    "trendStrip": {
+      "label": "Ultimi 7 giorni"
     }
   },
   "moduleList": {

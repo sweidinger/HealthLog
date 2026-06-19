@@ -6422,6 +6422,10 @@
     "dashboard": {
       "empty": "Aucun rappel de prévention à venir.",
       "openLink": "Ouvrir la prévention"
+    },
+    "showMeasurements": "Afficher les mesures",
+    "trendStrip": {
+      "label": "7 derniers jours"
     }
   },
   "moduleList": {

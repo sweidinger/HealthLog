@@ -6422,6 +6422,10 @@
     "dashboard": {
       "empty": "Keine anstehenden Vorsorge-Erinnerungen.",
       "openLink": "Vorsorge öffnen"
+    },
+    "showMeasurements": "Messergebnisse anzeigen",
+    "trendStrip": {
+      "label": "Verlauf der letzten 7 Tage"
     }
   },
   "moduleList": {
