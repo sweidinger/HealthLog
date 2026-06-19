@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [1.18.7] — 2026-06-19 — dashboard, Coach and insights polish
+
+A UI and insights patch. No migration; the Coach context and daily briefing change internally, but the API contract is unchanged.
+
+### Added
+
+- The daily briefing surfaces "signals of the day" — today's readings against your 7- and 30-day trend, emerging slopes and recent outliers — and leads with one concrete, present-focused nudge.
+- Preventive-care cards show a quiet seven-day strip of the metric, and their menu jumps straight to the measurement history filtered to that type.
+- The Coach reads your active illness state and Rest Mode, can point you to the relevant in-depth guide, and draws on a tiered view of your history (recent days in full, older periods progressively summarised with peaks preserved).
+- Dictate to the Coach by voice.
+
+### Changed
+
+- The daily briefing regenerates every day and reads warmer and more motivating.
+- The Coach interface is rebuilt around a calm, centred reading column with a collapsible conversation list, a thinking indicator that hands off to streaming, and a quieter scrollbar.
+- The health-score rings are flattened to match the chart style — the glow, sheen and pulse are gone.
+- Sleep drops the redundant "last night" card; the chronotype reads as a prominent summary with your natural sleep midpoint and an expandable detail.
+- Every integration card follows one layout — a short description ending in an inline setup-guide link, with the credential hint above the save button.
+
+### Fixed
+
+- The daily briefing no longer goes stale: a fresh daily signal forces regeneration instead of re-stamping an unchanged narrative.
+- The sleep assessment no longer shows the "connect an AI provider" prompt when a provider is already connected.
+
 ## [1.18.6.1] — 2026-06-18 — settings and Coach UI follow-ups
 
 A small UI and settings patch on top of v1.18.6. No migration, no API contract change.
