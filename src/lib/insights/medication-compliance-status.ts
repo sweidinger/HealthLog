@@ -32,7 +32,6 @@ import {
   parseSummaryFromContent,
   round,
 } from "@/lib/insights/status-shared";
-import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   isTimeoutStub,
   resolveReadOnlyStatusMiss,
@@ -40,6 +39,10 @@ import {
 } from "@/lib/insights/status-cache";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
+import {
+  runPreparedStatusCard,
+  type PreparedStatusCard,
+} from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 
@@ -52,7 +55,49 @@ interface MedicationSummaryItem {
   text: string;
 }
 
+/**
+ * The richer compliance result envelope (`summary` + per-medication
+ * `medications`) the cards read — distinct from the standard `text`-only
+ * status result. It flows through the shared `PreparedStatusCard` union via
+ * the open index signature on `StatusCardResult`.
+ */
+interface MedicationComplianceResult {
+  hasProvider: boolean;
+  summary: string | null;
+  medications: MedicationSummaryItem[];
+  cached: boolean;
+  updatedAt: string | null;
+  preparing?: boolean;
+  revalidating?: boolean;
+}
+
+/**
+ * Public entry — unchanged signature. Prepares the card then runs ONE
+ * completion through the shared single-card path when the LLM is still
+ * needed (v1.18.7 HIGH-1).
+ */
 export async function generateMedicationComplianceStatusForUser(
+  userId: string,
+  options?: {
+    locale?: string | null;
+    force?: boolean;
+    readOnly?: boolean;
+  },
+): Promise<MedicationComplianceResult> {
+  const prepared = await prepareMedicationComplianceStatusForUser(
+    userId,
+    options,
+  );
+  const result = await runPreparedStatusCard(prepared);
+  return result as unknown as MedicationComplianceResult;
+}
+
+/**
+ * v1.18.7 (HIGH-1) — everything up to (not including) the provider call.
+ * Carries the richer `{ summary, medications }` result through the shared
+ * prepare/run/finalize contract. See `status-card-generation.ts`.
+ */
+export async function prepareMedicationComplianceStatusForUser(
   userId: string,
   options?: {
     locale?: string | null;
@@ -60,16 +105,7 @@ export async function generateMedicationComplianceStatusForUser(
     /** v1.8.3 — read-only navigation path; see weight-status for the rationale. */
     readOnly?: boolean;
   },
-): Promise<{
-  hasProvider: boolean;
-  summary: string | null;
-  medications: MedicationSummaryItem[];
-  cached: boolean;
-  updatedAt: string | null;
-  preparing?: boolean;
-  /** v1.9.0 — last-good text served while a refresh is in flight; keep polling. */
-  revalidating?: boolean;
-}> {
+): Promise<PreparedStatusCard> {
   const locale = normalizeLocale(options?.locale);
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
@@ -105,16 +141,19 @@ export async function generateMedicationComplianceStatusForUser(
           Array.isArray(parsed.medications)
         ) {
           return {
-            hasProvider: true,
-            summary: parsed.summary,
-            medications: parsed.medications.filter(
-              (entry): entry is MedicationSummaryItem =>
-                typeof entry?.medicationId === "string" &&
-                typeof entry?.text === "string" &&
-                entry.text.trim().length > 0,
-            ),
-            cached: true,
-            updatedAt: latestCache.createdAt.toISOString(),
+            phase: "served",
+            result: {
+              hasProvider: true,
+              summary: parsed.summary,
+              medications: parsed.medications.filter(
+                (entry): entry is MedicationSummaryItem =>
+                  typeof entry?.medicationId === "string" &&
+                  typeof entry?.text === "string" &&
+                  entry.text.trim().length > 0,
+              ),
+              cached: true,
+              updatedAt: latestCache.createdAt.toISOString(),
+            },
           };
         }
       } catch {
@@ -135,24 +174,30 @@ export async function generateMedicationComplianceStatusForUser(
     // bmi-status); no enqueue happens for it.
     if (outcome.kind === "no-provider" || outcome.kind === "consent-missing") {
       return {
-        hasProvider: false,
-        summary: getNoKeyMedicationComplianceStatusText(locale),
-        medications: [],
-        cached: true,
-        updatedAt: null,
+        phase: "served",
+        result: {
+          hasProvider: false,
+          summary: getNoKeyMedicationComplianceStatusText(locale),
+          medications: [],
+          cached: true,
+          updatedAt: null,
+        },
       };
     }
     // v1.8.7 — stale-while-revalidate: serve the last good narrative (if
     // any) while the worker re-warms; only show the empty preparing
     // skeleton when none was ever produced.
     return {
-      hasProvider: true,
-      summary: outcome.lastGood?.text ?? null,
-      medications: [],
-      cached: outcome.lastGood !== null,
-      updatedAt: outcome.lastGood?.updatedAt ?? null,
-      preparing: outcome.lastGood === null,
-      revalidating: outcome.revalidating,
+      phase: "served",
+      result: {
+        hasProvider: true,
+        summary: outcome.lastGood?.text ?? null,
+        medications: [],
+        cached: outcome.lastGood !== null,
+        updatedAt: outcome.lastGood?.updatedAt ?? null,
+        preparing: outcome.lastGood === null,
+        revalidating: outcome.revalidating,
+      },
     };
   }
 
@@ -172,14 +217,17 @@ export async function generateMedicationComplianceStatusForUser(
 
   if (medications.length === 0) {
     return {
-      hasProvider: true,
-      summary:
-        locale === "de"
-          ? "Aktuell sind keine aktiven Medikamente hinterlegt."
-          : "There are currently no active medications configured.",
-      medications: [],
-      cached: true,
-      updatedAt: null,
+      phase: "served",
+      result: {
+        hasProvider: true,
+        summary:
+          locale === "de"
+            ? "Aktuell sind keine aktiven Medikamente hinterlegt."
+            : "There are currently no active medications configured.",
+        medications: [],
+        cached: true,
+        updatedAt: null,
+      },
     };
   }
 
@@ -379,11 +427,14 @@ export async function generateMedicationComplianceStatusForUser(
           meta: { cache_action: cacheAction },
         });
         return {
-          hasProvider: true,
-          summary: parsed.summary,
-          medications: parsed.medications,
-          cached: true,
-          updatedAt: refreshed.createdAt.toISOString(),
+          phase: "served",
+          result: {
+            hasProvider: true,
+            summary: parsed.summary,
+            medications: parsed.medications,
+            cached: true,
+            updatedAt: refreshed.createdAt.toISOString(),
+          },
         };
       }
     } catch {
@@ -425,56 +476,10 @@ export async function generateMedicationComplianceStatusForUser(
     locale,
   );
 
-  const outcome = await runStatusCompletion({
-    userId,
-    cacheAction,
-    consentSurface: "insights",
-    systemPrompt: getMedicationComplianceSystemPrompt(locale),
-    userPrompt: getMedicationComplianceUserPrompt(
-      snapshotJson,
-      todayKey,
-      locale,
-      previousContextBlock,
-      assessmentContextBlock,
-    ),
-    // v1.12.7 — match the archetype cards' 0.45.
-    temperature: 0.45,
-    maxTokens: 1000,
-  });
-
-  if (outcome.kind === "none") {
-    return {
-      hasProvider: false,
-      summary: getNoKeyMedicationComplianceStatusText(locale),
-      medications: [],
-      cached: true,
-      updatedAt: null,
-    };
-  }
-  if (outcome.kind === "timeout" || outcome.kind === "error") {
-    // Transient miss — serve the fallback for this render without
-    // persisting it, so the next mount re-attempts a real generation.
-    returnTimeoutFallback({
-      cacheAction,
-      reason: outcome.kind,
-      userId,
-      todayKey,
-      stubText: getNoKeyMedicationComplianceStatusText(locale),
-    });
-    return {
-      hasProvider: true,
-      summary: getNoKeyMedicationComplianceStatusText(locale),
-      medications: [],
-      cached: true,
-      updatedAt: null,
-    };
-  }
-
-  // The compliance prompt returns a single `{ summary }` envelope — it
-  // does not emit per-medication text. The per-medication cards carry a
-  // placeholder so the UI surfaces a row per active medication; the
-  // overall `summary` is the model-authored assessment.
-  const summary = normalizeSummaryText(parseSummaryFromContent(outcome.content));
+  // The per-medication placeholder rows the UI surfaces alongside the
+  // model-authored overall `summary`. Computed here so both `finalize`
+  // (success) reuses them; the model's compliance prompt returns only the
+  // single `{ summary }` envelope.
   const medicationSummaries: MedicationSummaryItem[] = medicationSnapshots.map(
     (medication) => ({
       medicationId: medication.medicationId,
@@ -486,36 +491,88 @@ export async function generateMedicationComplianceStatusForUser(
     }),
   );
 
-  if (!summary) {
-    throw new Error(
-      "Medication-compliance-status summary was empty after normalization",
-    );
-  }
-
-  const created = await prisma.auditLog.create({
-    data: {
-      userId,
-      action: cacheAction,
-      details: JSON.stringify({
-        dateKey: todayKey,
-        locale,
+  // The provider call is deferred to the caller — single-card path runs ONE
+  // completion; the batch path folds this prompt into one shared call.
+  return {
+    phase: "pending",
+    metric: "medication-compliance",
+    userId,
+    cacheAction,
+    systemPrompt: getMedicationComplianceSystemPrompt(locale),
+    userPrompt: getMedicationComplianceUserPrompt(
+      snapshotJson,
+      todayKey,
+      locale,
+      previousContextBlock,
+      assessmentContextBlock,
+    ),
+    snapshotHash,
+    // v1.12.7 — match the archetype cards' 0.45.
+    temperature: 0.45,
+    noProvider: {
+      hasProvider: false,
+      summary: getNoKeyMedicationComplianceStatusText(locale),
+      medications: [],
+      cached: true,
+      updatedAt: null,
+    },
+    timeout: (reason) => {
+      // Transient miss — write the short-TTL negative stub (so the read-only
+      // route does not re-enqueue while the provider is degraded) and serve
+      // the fallback for this render without persisting an assessment.
+      returnTimeoutFallback({
+        cacheAction,
+        reason,
+        userId,
+        todayKey,
+        stubText: getNoKeyMedicationComplianceStatusText(locale),
+      });
+      return {
+        hasProvider: true,
+        summary: getNoKeyMedicationComplianceStatusText(locale),
+        medications: [],
+        cached: true,
+        updatedAt: null,
+      };
+    },
+    finalize: async (outcome) => {
+      // The compliance prompt returns a single `{ summary }` envelope — it
+      // does not emit per-medication text. The per-medication cards carry a
+      // placeholder so the UI surfaces a row per active medication; the
+      // overall `summary` is the model-authored assessment.
+      const summary = normalizeSummaryText(
+        parseSummaryFromContent(outcome.content),
+      );
+      if (!summary) {
+        throw new Error(
+          "Medication-compliance-status summary was empty after normalization",
+        );
+      }
+      const created = await prisma.auditLog.create({
+        data: {
+          userId,
+          action: cacheAction,
+          details: JSON.stringify({
+            dateKey: todayKey,
+            locale,
+            summary,
+            medications: medicationSummaries,
+            providerType: outcome.providerType,
+            model: outcome.model,
+            tokensUsed: outcome.tokensUsed,
+            snapshotHash,
+          }),
+        },
+        select: { createdAt: true },
+      });
+      return {
+        hasProvider: true,
         summary,
         medications: medicationSummaries,
-        providerType: outcome.providerType,
-        model: outcome.model,
-        tokensUsed: outcome.tokensUsed,
-        snapshotHash,
-      }),
+        cached: false,
+        updatedAt: created.createdAt.toISOString(),
+      };
     },
-    select: { createdAt: true },
-  });
-
-  return {
-    hasProvider: true,
-    summary,
-    medications: medicationSummaries,
-    cached: false,
-    updatedAt: created.createdAt.toISOString(),
   };
 }
 
