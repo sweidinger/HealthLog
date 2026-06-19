@@ -10,9 +10,12 @@
  *
  * The LOCAL AI client is the deliberate exception: it stays CONDITIONAL
  * (`requirePublicHost: !allowPrivate`) so an operator can opt into LAN hosts
- * via `ALLOW_LOCAL_AI_PRIVATE_HOSTS`. We assert it keeps that conditional
- * shape — never an unconditional `true` (which would break LAN local models)
- * and never absent (which would re-open it for the default case).
+ * via `ALLOW_LOCAL_AI_PRIVATE_HOSTS`. v1.18.7 (SECURITY LOW) — that flag is
+ * now a host ALLOWLIST (`true` = any private host; a comma-separated list =
+ * only those), resolved by `isLocalAiHostAllowed`. We assert the client keeps
+ * the conditional shape AND derives `allowPrivate` from the allowlist helper
+ * (not a raw `=== "true"` binary), never an unconditional `true` (which would
+ * break LAN local models) and never absent (which would re-open the default).
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -59,5 +62,9 @@ describe("SSRF requirePublicHost pin inventory", () => {
     // … and must NOT be hardened to an unconditional true (that would break
     // a deliberately-private LAN local model).
     expect(src).not.toMatch(/requirePublicHost:\s*true/);
+    // … and `allowPrivate` must come from the host-allowlist helper, not a
+    // raw binary `=== "true"` (v1.18.7 — the flag became an allowlist).
+    expect(src).toMatch(/allowPrivate\s*=\s*isLocalAiHostAllowed\(/);
+    expect(src).not.toMatch(/ALLOW_LOCAL_AI_PRIVATE_HOSTS\s*===\s*"true"/);
   });
 });
