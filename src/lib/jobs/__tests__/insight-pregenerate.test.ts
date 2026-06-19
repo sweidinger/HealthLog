@@ -54,6 +54,18 @@ vi.mock("@/lib/insights/medication-compliance-status", () => ({
 vi.mock("@/lib/insights/general-status", () => ({
   generateGeneralStatusForUser: vi.fn(),
 }));
+// v1.18.7 (HIGH-1) — the batched status warm is the production default;
+// every test here injects its own `statusGenerators`, so the batch is never
+// exercised. Stub the module so its transitive `prepare*` imports of the
+// mocked status modules above don't trip an incomplete-mock load error.
+vi.mock("@/lib/insights/status-batch", () => ({
+  generateStatusBatchForUser: vi.fn(async () => ({
+    served: 0,
+    batched: 0,
+    fellBack: 0,
+    batchCallMade: false,
+  })),
+}));
 // v1.8.7.1 — the generic metric generator also imports the provider
 // chain transitively; stub it so the default generic warm pass never
 // touches a live provider when the test does not inject its own.
