@@ -75,6 +75,7 @@ function storedRow(overrides: Record<string, unknown> = {}) {
     rangeEnd: null,
     resourceTypes: ["Observation"],
     allowFhirApi: true,
+    passphraseHash: "hash(STORED)",
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     createdAt: new Date(),
     revokedAt: null,
@@ -117,6 +118,44 @@ describe("POST /api/share-links — create", () => {
     expect(JSON.stringify(rest)).not.toContain(body.data.token);
     // userId is narrowed from the session, never the body.
     expect(createArg.data.userId).toBe("user-1");
+  });
+
+  it("returns the raw passphrase once and persists ONLY its hash", async () => {
+    vi.mocked(prisma.clinicianShareLink.create).mockResolvedValue(
+      storedRow({ passphraseHash: "hash(STORED)" }) as never,
+    );
+
+    const res = await POST(postReq(validBody()));
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      data: {
+        passphrase: string;
+        token: string;
+        shareUrl: string;
+        qrUrl: string;
+        protected: boolean;
+      };
+    };
+
+    // The raw passphrase is returned exactly once in the grouped form.
+    expect(body.data.passphrase).toMatch(
+      /^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/,
+    );
+
+    // Stored as a hash (the mock wraps the NORMALISED bare form), never raw.
+    const createArg = vi.mocked(prisma.clinicianShareLink.create).mock
+      .calls[0][0];
+    const bare = body.data.passphrase.replace(/-/g, "");
+    expect(createArg.data.passphraseHash).toBe(`hash(${bare})`);
+    expect(createArg.data.passphraseHash).not.toContain(body.data.passphrase);
+
+    // The QR payload carries the passphrase ONLY in the URL fragment (`#k=`),
+    // never the path or query — and the bare share URL never carries it.
+    expect(body.data.qrUrl).toContain(`#k=${body.data.passphrase}`);
+    expect(body.data.shareUrl).not.toContain(body.data.passphrase);
+    expect(body.data.shareUrl).toContain(`/c/${body.data.token}`);
+    // Summary reports the link as passphrase-protected.
+    expect(body.data.protected).toBe(true);
   });
 
   it("rejects an expiry beyond the cap (422)", async () => {

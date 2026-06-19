@@ -64,3 +64,16 @@ export const createShareLinkSchema = z
   );
 
 export type CreateShareLinkInput = z.infer<typeof createShareLinkSchema>;
+
+/**
+ * v1.18.7 — public unlock payload. A clinician submits the passphrase second
+ * factor (grouped or bare form). Bounded so a junk body cannot pin the hasher;
+ * the route normalises + constant-time compares against the stored hash.
+ */
+export const unlockShareLinkSchema = z
+  .object({
+    passphrase: z.string().trim().min(1).max(64),
+  })
+  .strict();
+
+export type UnlockShareLinkInput = z.infer<typeof unlockShareLinkSchema>;
