@@ -13,6 +13,7 @@ import type {
   CoachSuggestion,
 } from "@/lib/ai/coach/types";
 import { apiDelete, apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * v1.4.20 phase B2b — TanStack Query + SSE client for the AI Coach
@@ -32,8 +33,8 @@ import { apiDelete, apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
  */
 
 const QUERY_KEYS = {
-  list: () => ["coachConversations"] as const,
-  one: (id: string) => ["coachConversation", id] as const,
+  list: () => queryKeys.coachConversations(),
+  one: (id: string) => queryKeys.coachConversation(id),
 };
 
 /**
@@ -74,7 +75,7 @@ export function useCoachConversation(id: string | null) {
     // never fires when `id` is null. Key directly on `id` (TanStack
     // Query accepts `null` in the array) — the previous "null"
     // placeholder branch was structurally equivalent dead code.
-    queryKey: ["coachConversation", id] as const,
+    queryKey: queryKeys.coachConversation(id),
     queryFn: async (): Promise<CoachConversationDetailDTO> => {
       if (!id) throw new Error("missing id");
       return apiGet<CoachConversationDetailDTO>(`/api/insights/chat/${id}`, {

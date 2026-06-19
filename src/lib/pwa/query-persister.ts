@@ -32,6 +32,8 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 
+import { queryKeys } from "@/lib/query-keys";
+
 const DB_NAME = "healthlog-query-cache";
 const STORE = "kv";
 const KEY = "react-query";
@@ -143,7 +145,9 @@ interface PersistedPayload {
 
 /** Read the current account id from the live `["auth","me"]` cache entry. */
 function currentUserId(queryClient: QueryClient): string | null {
-  const me = queryClient.getQueryData<{ id?: string } | null>(["auth", "me"]);
+  const me = queryClient.getQueryData<{ id?: string } | null>(
+    queryKeys.authMe(),
+  );
   return me?.id ?? null;
 }
 

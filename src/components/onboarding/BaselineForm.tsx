@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 import {
   AnamnesisCard,
   buildAnamnesisAboutMeBody,
@@ -141,7 +142,7 @@ export function BaselineForm() {
         }
       }
       await apiPost("/api/onboarding/step", { step: 4 });
-      await queryClient.invalidateQueries({ queryKey: ["auth"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
       router.push("/onboarding/4");
     } catch (err) {
       const message =

@@ -33,6 +33,7 @@ import {
 } from "@/lib/medications/side-effects/taxonomy";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 import { apiDelete, apiPost } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * v1.4.25 W19d — GLP-1 side-effect section for the medication detail
@@ -114,12 +115,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
   const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
   const formId = useId();
 
-  const listKey = [
-    "medications",
-    medicationId,
-    "side-effects",
-    "list",
-  ] as const;
+  const listKey = queryKeys.medicationSideEffects(medicationId);
 
   const { data, isLoading } = useQuery({
     queryKey: listKey,

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { apiGet } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { cn } from "@/lib/utils";
 
@@ -75,7 +76,7 @@ export function PersonalRecordBadge({
     // Per-metric queryKey so two tiles for two different metrics never
     // share a cache slot (HealthLog convention — see
     // `feedback_react_query_key_collision`).
-    queryKey: ["personal-records", "by-metric", metricType],
+    queryKey: queryKeys.personalRecordsByMetric(metricType),
     queryFn: async () => {
       try {
         const data = await apiGet<PersonalRecordRow[] | null>(

@@ -127,6 +127,25 @@ export const measurementKeys = {
     ["measurement-diversity", type] as const,
 
   /**
+   * v1.18.7 — per-day drill-down list for one `MeasurementType`
+   * (`GET /api/measurements?type=&dayKey=`), opened from a values-list
+   * day row. Keyed by `(type, dayKey)` so each expanded day caches its own
+   * slot. Distinct `["measurement-drilldown"]` prefix (not `["measurements"]`)
+   * because the day list is a stable historical slice that the drain has
+   * already settled — it does not need a measurement-write fan-out.
+   */
+  measurementDrilldown: (type: string, dayKey: string) =>
+    ["measurement-drilldown", type, dayKey] as const,
+
+  /**
+   * v1.18.7 — per-metric personal-records read (`GET /api/personal-records`)
+   * backing the decorative PR badge on a metric tile. Per-metric key so two
+   * tiles never share a cache slot; its own `["personal-records"]` prefix.
+   */
+  personalRecordsByMetric: (metric: string) =>
+    ["personal-records", "by-metric", metric] as const,
+
+  /**
    * v1.18.7 (Wave E) — bounded last-7 readings for one `MeasurementType`,
    * powering the discreet 7-day trend strip on a Vorsorge card. Rides under
    * the `["measurements"]` prefix so it lands in `measurementDependentKeys`

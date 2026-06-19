@@ -144,7 +144,7 @@ function TargetEditSheetBody({
   // tone vs. the persisted override). The body only mounts when the
   // dialog is open, so we don't need a separate `enabled` flag.
   const { data: thresholdsData } = useQuery({
-    queryKey: ["user", "thresholds"],
+    queryKey: queryKeys.userThresholds(),
     queryFn: async () => {
       return apiGet<ThresholdsApiResponse>("/api/user/thresholds");
     },
@@ -227,10 +227,10 @@ function TargetEditSheetBody({
       await apiPut("/api/user/thresholds", payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user", "thresholds"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.userThresholds() });
       queryClient.invalidateQueries({ queryKey: queryKeys.insightsTargets() });
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics() });
-      queryClient.invalidateQueries({ queryKey: ["insights"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot() });
       toast.success(t("targets.edit.saveSuccess"));
       onOpenChange(false);
     },
@@ -253,10 +253,10 @@ function TargetEditSheetBody({
       await apiDelete(`/api/user/thresholds?metric=${metric}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user", "thresholds"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.userThresholds() });
       queryClient.invalidateQueries({ queryKey: queryKeys.insightsTargets() });
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics() });
-      queryClient.invalidateQueries({ queryKey: ["insights"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot() });
       toast.success(t("targets.edit.resetSuccess"));
       onOpenChange(false);
     },
