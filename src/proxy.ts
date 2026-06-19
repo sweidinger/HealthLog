@@ -42,6 +42,12 @@ const PUBLIC_PATHS = [
   // by a session cookie, so it must reach the page without an auth gate.
   // The page renders a flat 404 for any unknown / revoked / expired token.
   "/c/",
+  // v1.18.7 — `/api/c/<token>/unlock` is the public passphrase-gate verifier
+  // for a protected share link. Like the view it carries no session — the raw
+  // path token plus the submitted passphrase are the only credentials — so it
+  // must reach the route handler without an auth gate. It is rate-limited and
+  // answers one blunt error for every failure class.
+  "/api/c/",
   // v1.17.0 — `/invite/<hlv_token>` is the invite universal-link landing
   // (iOS #16). It is a thin shape-validated redirect onto
   // `/auth/register?invite=…`, carries no session, touches no database,
