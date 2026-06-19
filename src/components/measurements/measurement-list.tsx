@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ListRow } from "@/components/ui/list-row";
 import {
   FilterBar,
   FilterBarDateRange,
@@ -1080,10 +1081,10 @@ export function MeasurementList({
                 const drilldownId = `drilldown-mobile-${m.dayKey ?? m.id}`;
                 const isSelected = selectedIds.has(m.id);
                 return (
-                  <div
+                  <ListRow
                     key={m.id}
                     data-state={isSelected ? "selected" : undefined}
-                    className="bg-card border-border data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5 rounded-lg border p-3"
+                    className="bg-card border-border data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 overflow-hidden">
@@ -1243,7 +1244,7 @@ export function MeasurementList({
                         />
                       </div>
                     )}
-                  </div>
+                  </ListRow>
                 );
               })}
             </div>

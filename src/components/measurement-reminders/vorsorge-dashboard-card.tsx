@@ -22,6 +22,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ListRow } from "@/components/ui/list-row";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
@@ -119,10 +120,12 @@ export function VorsorgeDashboardCard() {
               const due = relativeDueKey(reminder.nextDueAt, now);
               const isLinked = reminder.measurementType != null;
               return (
-                <li
+                <ListRow
                   key={reminder.id}
-                  className="flex items-center justify-between gap-3 rounded-md border p-2.5"
+                  asChild
+                  className="flex items-center justify-between gap-3"
                 >
+                  <li>
                   <div className="min-w-0 space-y-1">
                     <p className="truncate text-sm font-medium">
                       {resolveLabel(reminder, t)}
@@ -139,8 +142,8 @@ export function VorsorgeDashboardCard() {
                   </div>
                   <Button
                     type="button"
-                    size="sm"
-                    className="shrink-0"
+                    size="default"
+                    className="min-h-11 shrink-0 sm:min-h-9"
                     onClick={() => onPrimaryAction(reminder)}
                     disabled={satisfy.isPending}
                   >
@@ -156,7 +159,8 @@ export function VorsorgeDashboardCard() {
                       </>
                     )}
                   </Button>
-                </li>
+                  </li>
+                </ListRow>
               );
             })}
           </ul>
