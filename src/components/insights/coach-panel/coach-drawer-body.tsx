@@ -126,6 +126,7 @@ export function CoachDrawerBody({
                 onClick={onToggleHistory}
                 data-slot="coach-history-collapse"
                 aria-label={t("insights.coach.hideConversations")}
+                aria-expanded={historyOpen}
                 title={t("insights.coach.hideConversations")}
                 className="text-muted-foreground hover:text-foreground -mr-1 size-9 shrink-0"
               >

@@ -43,10 +43,7 @@ function useRecentValues(measurementType: string | null, enabled: boolean) {
       const res = await apiGet<{ measurements: RecentMeasurement[] }>(
         `/api/measurements?${params}`,
       );
-      return res.measurements
-        .slice()
-        .reverse()
-        .map((m) => m.value);
+      return res.measurements.slice().reverse();
     },
     enabled: enabled && measurementType != null,
   });
@@ -64,12 +61,25 @@ export function VorsorgeTrendStrip({
 
   // Nothing to show for a free-text reminder or a too-thin window.
   if (measurementType == null) return null;
-  const values = data ?? [];
-  if (values.length < 2) return null;
+  const readings = data ?? [];
+  if (readings.length < 2) return null;
 
+  const values = readings.map((r) => r.value);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
+
+  // 7-day direction from first → last reading in the window. Latest value
+  // and direction feed the sr-only summary so a screen reader gets the
+  // trend, not just the generic "Last 7 days" label.
+  const latest = values[values.length - 1];
+  const delta = latest - values[0];
+  const direction =
+    delta > 0
+      ? t("measurementReminders.trendStrip.rising")
+      : delta < 0
+        ? t("measurementReminders.trendStrip.falling")
+        : t("measurementReminders.trendStrip.steady");
 
   return (
     <div
@@ -77,14 +87,22 @@ export function VorsorgeTrendStrip({
       role="img"
       aria-label={t("measurementReminders.trendStrip.label")}
     >
-      {values.map((v, i) => {
+      <span className="sr-only">
+        {t("measurementReminders.trendStrip.summary", {
+          value: latest,
+          direction,
+        })}
+      </span>
+      {readings.map((r, i) => {
         // Floor at ~18% so a flat series still reads as bars, not a line.
-        const pct = 0.18 + ((v - min) / span) * 0.82;
+        const pct = 0.18 + ((r.value - min) / span) * 0.82;
         return (
           <span
-            key={i}
+            key={r.measuredAt}
+            data-index={i}
             className="bg-muted-foreground/30 w-1.5 rounded-sm"
             style={{ height: `${Math.round(pct * 100)}%` }}
+            aria-hidden="true"
           />
         );
       })}
