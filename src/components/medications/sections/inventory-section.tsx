@@ -37,7 +37,11 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, PackageOpen, Plus } from "lucide-react";
 
@@ -73,6 +77,31 @@ import {
   apiPut,
 } from "@/lib/api/api-fetch";
 import { summariseSupply } from "@/lib/medications/inventory/summary";
+
+/**
+ * Invalidate every read key whose payload reflects a medication's supply
+ * after a container write (register / adjust / delete).
+ *
+ * The per-medication inventory read (`medicationInventory`) is the supply
+ * tab's own list. The medications LIST read (`medications`) carries the
+ * dose-derived stock (`stockUnitsRemaining` / `stockDosesRemaining`) that
+ * the card and table render — without invalidating it, the card kept
+ * showing the pre-write stock until an unrelated refetch landed (the
+ * supply-staleness bug). Both keys must drop together.
+ */
+export async function invalidateSupplyQueries(
+  queryClient: QueryClient,
+  medicationId: string,
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.medicationInventory(medicationId),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.medications(),
+    }),
+  ]);
+}
 
 type InventoryState = "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
 
@@ -138,9 +167,7 @@ export function InventorySection({
   async function deleteItem(item: InventoryItem) {
     try {
       await apiDelete(`/api/medications/${medicationId}/inventory/${item.id}`);
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.medicationInventory(medicationId),
-      });
+      await invalidateSupplyQueries(queryClient, medicationId);
       toast.success(t("medications.detail.bestand.deleteSuccess"));
     } catch {
       toast.error(t("medications.detail.bestand.deleteFailed"));
@@ -492,9 +519,7 @@ export function AddInventoryDialog({
           ? new Date(`${expiry}T00:00:00`).toISOString()
           : null,
       });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.medicationInventory(medicationId),
-      });
+      await invalidateSupplyQueries(queryClient, medicationId);
       toast.success(t("medications.detail.bestand.addSuccess"));
       onClose();
     } catch {
@@ -694,9 +719,7 @@ function AdjustInventoryDialog({
         // The wire field carries UNITS (v1.16.10 symmetric naming).
         unitsRemaining: parsed,
       });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.medicationInventory(medicationId),
-      });
+      await invalidateSupplyQueries(queryClient, medicationId);
       toast.success(t("medications.detail.bestand.adjustSuccess"));
       onClose();
     } catch {
