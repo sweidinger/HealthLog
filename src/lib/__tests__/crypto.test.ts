@@ -132,4 +132,40 @@ describe("crypto (AES-256-GCM, key versioning)", () => {
     _resetCryptoCacheForTests();
     expect(() => encrypt("test")).toThrow(/no matching entry/);
   });
+
+  // A 40-char hex string is too short for a 256-bit key but long enough to
+  // reach the dev-only SHA-256 padding branch (base64-decodes to 30 bytes, so
+  // it falls through to the >=32-hex path). It must only pad in development /
+  // test and otherwise fail closed.
+  const SHORT_HEX_KEY = "0123456789abcdef0123456789abcdef01234567";
+
+  it("fails closed when NODE_ENV is unset and only a short hex key is set", () => {
+    vi.stubEnv("NODE_ENV", undefined);
+    vi.stubEnv("ENCRYPTION_KEYS", "");
+    vi.stubEnv("ENCRYPTION_ACTIVE_KEY_ID", "");
+    vi.stubEnv("ENCRYPTION_KEY", SHORT_HEX_KEY);
+    _resetCryptoCacheForTests();
+    expect(() => encrypt("test")).toThrow(
+      /must be 64 hex characters .* outside development\/test/,
+    );
+  });
+
+  it("fails closed for a short hex key in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ENCRYPTION_KEYS", "");
+    vi.stubEnv("ENCRYPTION_ACTIVE_KEY_ID", "");
+    vi.stubEnv("ENCRYPTION_KEY", SHORT_HEX_KEY);
+    _resetCryptoCacheForTests();
+    expect(() => encrypt("test")).toThrow(/outside development\/test/);
+  });
+
+  it("still pads a short hex key in development/test for local use", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("ENCRYPTION_KEYS", "");
+    vi.stubEnv("ENCRYPTION_ACTIVE_KEY_ID", "");
+    vi.stubEnv("ENCRYPTION_KEY", SHORT_HEX_KEY);
+    _resetCryptoCacheForTests();
+    const ct = encrypt("dev-secret");
+    expect(decrypt(ct)).toBe("dev-secret");
+  });
 });
