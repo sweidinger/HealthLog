@@ -2573,7 +2573,6 @@
       "chronotype": {
         "title": "Chronotype",
         "learning": "Still learning your rhythm — {counted} of {total} free nights. A chronotype needs a few alarm-free mornings before it means anything.",
-        "midSleepCaption": "Your natural sleep midpoint on free days lands around {clock}.",
         "advancedToggle": "Advanced",
         "socialJetlagValue": "{hours}h {minutes}m social jetlag",
         "socialJetlagCaption": "The gap between your work-day and free-day sleep timing — like a small weekly time-zone shift.",
@@ -2587,7 +2586,7 @@
           "late": "Evening type",
           "extreme_late": "Strong evening type"
         },
-        "cornerLabel": "Chronotype"
+        "midpointHeadline": "Your natural sleep midpoint is around {clock}."
       },
       "rhythm": {
         "loadError": "Your sleep rhythm couldn't load just now. It'll reappear once the connection settles."

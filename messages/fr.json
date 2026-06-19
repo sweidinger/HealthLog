@@ -2573,7 +2573,6 @@
       "chronotype": {
         "title": "Chronotype",
         "learning": "Votre rythme est encore en cours d'analyse — {counted} sur {total} nuits libres. Un chronotype a besoin de quelques matins sans réveil pour avoir du sens.",
-        "midSleepCaption": "Le milieu naturel de votre sommeil les jours de repos se situe vers {clock}.",
         "advancedToggle": "Avancé",
         "socialJetlagValue": "{hours} h {minutes} min de jet lag social",
         "socialJetlagCaption": "L'écart entre vos horaires de sommeil les jours travaillés et les jours libres — comme un petit décalage horaire hebdomadaire.",
@@ -2587,7 +2586,7 @@
           "late": "Type du soir",
           "extreme_late": "Type du soir marqué"
         },
-        "cornerLabel": "Chronotype"
+        "midpointHeadline": "Le milieu naturel de votre sommeil se situe vers {clock}."
       },
       "rhythm": {
         "loadError": "Votre rythme de sommeil n'a pas pu se charger pour l'instant. Il réapparaîtra dès que la connexion sera rétablie."

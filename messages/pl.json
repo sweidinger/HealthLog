@@ -2573,7 +2573,6 @@
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Wciąż poznajemy Twój rytm — {counted} z {total} wolnych nocy. Chronotyp wymaga kilku poranków bez budzika, aby coś znaczył.",
-        "midSleepCaption": "Naturalny środek Twojego snu w dni wolne przypada około {clock}.",
         "advancedToggle": "Zaawansowane",
         "socialJetlagValue": "{hours} godz. {minutes} min jet lagu społecznego",
         "socialJetlagCaption": "Różnica między porą snu w dni robocze i wolne — jak niewielka cotygodniowa zmiana strefy czasowej.",
@@ -2587,7 +2586,7 @@
           "late": "Typ wieczorny",
           "extreme_late": "Wyraźny typ wieczorny"
         },
-        "cornerLabel": "Chronotyp"
+        "midpointHeadline": "Naturalny środek Twojego snu przypada około {clock}."
       },
       "rhythm": {
         "loadError": "Nie udało się teraz wczytać Twojego rytmu snu. Pojawi się ponownie, gdy połączenie się ustabilizuje."

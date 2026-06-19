@@ -2573,7 +2573,6 @@
       "chronotype": {
         "title": "Cronotipo",
         "learning": "Aún estamos aprendiendo tu ritmo — {counted} de {total} noches libres. Un cronotipo necesita varias mañanas sin despertador para tener sentido.",
-        "midSleepCaption": "El punto medio natural de tu sueño en días libres ronda las {clock}.",
         "advancedToggle": "Avanzado",
         "socialJetlagValue": "{hours} h {minutes} min de jet lag social",
         "socialJetlagCaption": "La diferencia entre el horario de sueño laboral y el de los días libres — como un pequeño cambio de huso horario semanal.",
@@ -2587,7 +2586,7 @@
           "late": "Vespertino",
           "extreme_late": "Vespertino marcado"
         },
-        "cornerLabel": "Cronotipo"
+        "midpointHeadline": "El punto medio natural de tu sueño ronda las {clock}."
       },
       "rhythm": {
         "loadError": "Tu ritmo de sueño no pudo cargarse ahora mismo. Reaparecerá en cuanto se estabilice la conexión."
