@@ -179,40 +179,51 @@ function DeltaBadge({
   );
 }
 
-function KeyFindingRow({ finding }: { finding: DailyBriefingKeyFinding }) {
-  const Icon = METRIC_ICON[finding.sourceMetric];
-  const href = METRIC_HREF[finding.sourceMetric];
-  // v1.4.27 MB7 / CF-68 — when the briefing's `sourceMetric` maps to
-  // a routed sub-page, wrap the entire row in a `<Link>` so the
-  // whole card is tappable on mobile instead of the user having to
-  // hit the small headline text. Hover + focus paint a subtle bg
-  // shift; metrics that don't have a sub-page yet render the
-  // original static row.
+/**
+ * v1.18.7 — shared row layout for the key-finding row and the signal-of-the-day
+ * row. Both render the same tone bar + metric icon + headline/body/delta and
+ * the same "wrap in a `<Link>` when the metric owns a sub-page" behaviour; the
+ * two only differ in their `data-slot` and the body copy they pass.
+ */
+function BriefingRow({
+  sourceMetric,
+  tone,
+  headline,
+  body,
+  delta,
+  dataSlot,
+}: {
+  sourceMetric: DailyBriefingKeyFinding["sourceMetric"];
+  tone: DailyBriefingKeyFinding["tone"];
+  headline: string;
+  body: string;
+  delta: string | null;
+  dataSlot: "daily-briefing-finding" | "daily-briefing-signal";
+}) {
+  const Icon = METRIC_ICON[sourceMetric];
+  const href = METRIC_HREF[sourceMetric];
   const rowContent = (
     <>
       <span
         aria-hidden="true"
         className={cn(
           "absolute top-3 bottom-3 left-0 w-[3px] rounded-r",
-          TONE_BAR_CLASSNAME[finding.tone],
+          TONE_BAR_CLASSNAME[tone],
         )}
       />
       <Icon
-        className={cn(
-          "mt-0.5 h-4 w-4 shrink-0",
-          TONE_TEXT_CLASSNAME[finding.tone],
-        )}
+        className={cn("mt-0.5 h-4 w-4 shrink-0", TONE_TEXT_CLASSNAME[tone])}
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm leading-snug font-medium">
-            {stripChartTokens(finding.headline)}
+            {stripChartTokens(headline)}
           </p>
-          <DeltaBadge delta={finding.delta} tone={finding.tone} />
+          <DeltaBadge delta={delta} tone={tone} />
         </div>
         <p className="text-muted-foreground text-xs leading-snug">
-          {stripChartTokens(finding.detail)}
+          {stripChartTokens(body)}
         </p>
       </div>
     </>
@@ -221,8 +232,8 @@ function KeyFindingRow({ finding }: { finding: DailyBriefingKeyFinding }) {
     return (
       <Link
         href={href}
-        data-slot="daily-briefing-finding"
-        data-metric={finding.sourceMetric}
+        data-slot={dataSlot}
+        data-metric={sourceMetric}
         className={cn(
           "border-border/60 bg-card/40 relative flex items-start gap-3 rounded-md border p-3",
           "hover:bg-accent/40 transition-colors",
@@ -235,8 +246,8 @@ function KeyFindingRow({ finding }: { finding: DailyBriefingKeyFinding }) {
   }
   return (
     <div
-      data-slot="daily-briefing-finding"
-      data-metric={finding.sourceMetric}
+      data-slot={dataSlot}
+      data-metric={sourceMetric}
       className="border-border/60 bg-card/40 relative flex items-start gap-3 rounded-md border p-3"
     >
       {rowContent}
@@ -244,70 +255,36 @@ function KeyFindingRow({ finding }: { finding: DailyBriefingKeyFinding }) {
   );
 }
 
+// v1.4.27 MB7 / CF-68 — the whole row is tappable on mobile (wrapped in a
+// `<Link>` by `BriefingRow`) so the user need not hit the small headline text.
+function KeyFindingRow({ finding }: { finding: DailyBriefingKeyFinding }) {
+  return (
+    <BriefingRow
+      sourceMetric={finding.sourceMetric}
+      tone={finding.tone}
+      headline={finding.headline}
+      body={finding.detail}
+      delta={finding.delta}
+      dataSlot="daily-briefing-finding"
+    />
+  );
+}
+
 /**
  * v1.18.7 — "Signals of the day" row. The present-focused lead of the
  * briefing: a NOW-anchored headline + a concrete nudge the user can act on.
- * Shares the tone bar + metric icon visual language of the key-finding row,
- * and pins the same type/route mapping so a signal is tappable when its
- * metric owns a sub-page. Typography matches the key-finding row (the rest of
- * the insight cards): `text-sm` headline, `text-xs` muted body.
+ * Shares `BriefingRow` with the key-finding row.
  */
 function SignalRow({ signal }: { signal: DailyBriefingSignal }) {
-  const Icon = METRIC_ICON[signal.sourceMetric];
-  const href = METRIC_HREF[signal.sourceMetric];
-  const rowContent = (
-    <>
-      <span
-        aria-hidden="true"
-        className={cn(
-          "absolute top-3 bottom-3 left-0 w-[3px] rounded-r",
-          TONE_BAR_CLASSNAME[signal.tone],
-        )}
-      />
-      <Icon
-        className={cn(
-          "mt-0.5 h-4 w-4 shrink-0",
-          TONE_TEXT_CLASSNAME[signal.tone],
-        )}
-        aria-hidden="true"
-      />
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-sm leading-snug font-medium">
-            {stripChartTokens(signal.headline)}
-          </p>
-          <DeltaBadge delta={signal.delta} tone={signal.tone} />
-        </div>
-        <p className="text-muted-foreground text-xs leading-snug">
-          {stripChartTokens(signal.nudge)}
-        </p>
-      </div>
-    </>
-  );
-  if (href) {
-    return (
-      <Link
-        href={href}
-        data-slot="daily-briefing-signal"
-        data-metric={signal.sourceMetric}
-        className={cn(
-          "border-border/60 bg-card/40 relative flex items-start gap-3 rounded-md border p-3",
-          "hover:bg-accent/40 transition-colors",
-          "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
-        )}
-      >
-        {rowContent}
-      </Link>
-    );
-  }
   return (
-    <div
-      data-slot="daily-briefing-signal"
-      data-metric={signal.sourceMetric}
-      className="border-border/60 bg-card/40 relative flex items-start gap-3 rounded-md border p-3"
-    >
-      {rowContent}
-    </div>
+    <BriefingRow
+      sourceMetric={signal.sourceMetric}
+      tone={signal.tone}
+      headline={signal.headline}
+      body={signal.nudge}
+      delta={signal.delta}
+      dataSlot="daily-briefing-signal"
+    />
   );
 }
 
