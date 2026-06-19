@@ -69,6 +69,11 @@ export class LocalOpenAICompatibleClient implements AIProvider {
           // most OpenAI-compatible local servers honour it; servers that
           // ignore it simply disregard the field. Omitted when unset.
           ...(params.seed !== undefined ? { seed: params.seed } : {}),
+          // v1.18.7 — Ollama's native structured-output switch. The JSON
+          // surfaces opt in via `responseFormat: "json"`; it cuts the
+          // first-pass JSON-failure rate that the fence-stripping safety net
+          // otherwise has to catch. The Coach (prose) leaves it unset.
+          ...(params.responseFormat === "json" ? { format: "json" } : {}),
         }),
       },
       { timeoutMs: 60_000, requirePublicHost: !allowPrivate },

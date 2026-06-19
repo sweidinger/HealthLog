@@ -267,6 +267,9 @@ export async function generatePeriodNarrative(
     // v1.18.7 — reference surface: pin a deterministic seed so a prompt
     // change is diff-able against a stable baseline (MEDIUM-4).
     seed: REFERENCE_AI_SEED,
+    // The narrative output is PLAIN TEXT (no markdown, no JSON), so suppress
+    // the JSON-mode opt-in the status cards default into.
+    responseFormat: "text",
   });
 
   // A provider error / timeout is non-fatal — the last good row stays as-is

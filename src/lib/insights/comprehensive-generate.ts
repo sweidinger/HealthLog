@@ -700,6 +700,10 @@ export async function generateComprehensiveInsight(
         userPrompt,
         temperature: AI_BUDGETS.comprehensive.temperature,
         maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+        // v1.18.7 — structured surface: opt the non-OpenAI chains into their
+        // strongest JSON mode (Ollama `format`, Anthropic `{` prefill) so a
+        // first-pass JSON miss is rarer; stripJsonFences stays the net.
+        responseFormat: "json",
       },
     });
     result = fallback.result;

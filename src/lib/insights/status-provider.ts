@@ -58,6 +58,13 @@ interface RunStatusCompletionArgs {
    */
   seed?: number;
   /**
+   * v1.18.7 — output contract of this generation. The per-metric status
+   * cards return a JSON `{ "summary": ... }` (the default), so they opt the
+   * non-OpenAI chains into their strongest JSON mode. The period narrative
+   * returns PLAIN TEXT and passes `"text"` to suppress that.
+   */
+  responseFormat?: "json" | "text";
+  /**
    * v1.12.1 — which AI surface this generation serves, for the consent gate.
    * `insights` for the per-metric status cards + period narrative; `coach`
    * for the off-budget Coach memory workers (rolling summary + fact
@@ -173,6 +180,9 @@ export async function runStatusCompletion(
           // v1.18.7 — status/reference output is reproducible: pin the
           // deterministic seed unless a caller overrides it.
           seed: args.seed ?? REFERENCE_AI_SEED,
+          // Status cards are JSON by default; the narrative opts out via
+          // `"text"`.
+          responseFormat: args.responseFormat === "text" ? undefined : "json",
         },
       }),
     STATUS_PROVIDER_TIMEOUT_MS,

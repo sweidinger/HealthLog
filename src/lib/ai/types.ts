@@ -126,6 +126,17 @@ export interface CompletionParams {
    * Messages API has no seed knob, so the Anthropic client ignores it.
    */
   seed?: number;
+  /**
+   * v1.18.7 — opt the structured (JSON) surfaces into the provider's
+   * strongest JSON-reliability mode. When `"json"`:
+   *   - local (Ollama / OpenAI-compatible): adds `format: "json"`.
+   *   - Anthropic: prefills the assistant turn with `{` so the first token
+   *     is forced into a JSON object.
+   * The OpenAI client already pins `response_format: json_object`
+   * unconditionally and is unaffected. The Coach (prose, NOT JSON) leaves
+   * this unset, so its streaming path is untouched.
+   */
+  responseFormat?: "json";
 }
 
 export interface CompletionResult {

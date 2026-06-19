@@ -55,6 +55,37 @@ describe("LocalOpenAICompatibleClient", () => {
 
     // CRUCIAL: do not send response_format because many local servers reject it.
     expect(body).not.toHaveProperty("response_format");
+    // No JSON opt-in → no `format` field.
+    expect(body).not.toHaveProperty("format");
+  });
+
+  it("sends Ollama `format: json` only when the caller opts into JSON", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: '{"summary":"x"}' } }],
+          usage: { total_tokens: 3 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new LocalOpenAICompatibleClient({
+      apiKey: null,
+      model: "llama3:8b",
+      baseUrl: "http://localhost:11434/v1",
+    });
+
+    await client.generateCompletion({
+      systemPrompt: "s",
+      userPrompt: "u",
+      responseFormat: "json",
+      seed: 99,
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.format).toBe("json");
+    expect(body.seed).toBe(99);
   });
 
   it("omits Authorization header when no API key is provided", async () => {
