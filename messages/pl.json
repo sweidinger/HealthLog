@@ -2268,6 +2268,8 @@
       "sourcesMemberCount": "{count} wskaźników",
       "dictate": "Dyktuj",
       "dictateStop": "Zatrzymaj dyktowanie",
+      "voiceUnsupported": "Wprowadzanie głosowe nie jest obsługiwane w tej przeglądarce",
+      "dictateError": "Nie udało się uruchomić wprowadzania głosowego. Sprawdź uprawnienia mikrofonu i spróbuj ponownie.",
       "showConversations": "Pokaż rozmowy",
       "hideConversations": "Ukryj rozmowy",
       "heroGreeting": "W czym mogę pomóc?",

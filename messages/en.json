@@ -2268,6 +2268,8 @@
       "sourcesMemberCount": "{count} metrics",
       "dictate": "Dictate",
       "dictateStop": "Stop dictation",
+      "voiceUnsupported": "Voice input is not supported in this browser",
+      "dictateError": "Could not start voice input. Check microphone permission and try again.",
       "showConversations": "Show conversations",
       "hideConversations": "Hide conversations",
       "heroGreeting": "How can I help you?",

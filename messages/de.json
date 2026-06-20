@@ -2268,6 +2268,8 @@
       "sourcesMemberCount": "{count} Werte",
       "dictate": "Diktieren",
       "dictateStop": "Diktat beenden",
+      "voiceUnsupported": "Spracheingabe wird in diesem Browser nicht unterstützt",
+      "dictateError": "Spracheingabe konnte nicht gestartet werden. Prüfe die Mikrofonberechtigung und versuche es erneut.",
       "showConversations": "Unterhaltungen anzeigen",
       "hideConversations": "Unterhaltungen ausblenden",
       "heroGreeting": "Wie kann ich dir helfen?",

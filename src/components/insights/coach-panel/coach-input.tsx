@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Loader2, Mic, Send, Square } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -35,11 +36,14 @@ import { useTranslations } from "@/lib/i18n/context";
  * v1.18.7 (W-coach C-UI): voice dictation returns to the web composer.
  * The earlier placeholder mic was dropped in v1.4.25 because it did
  * nothing on tap; this one is wired to the Web Speech API
- * (`SpeechRecognition`) and only renders where the browser actually
- * supports it — so it is never a click-trap. While the user dictates,
- * interim + final transcripts append into the controlled `value`; the
- * button toggles listening on/off and is fully keyboard- and
- * screen-reader-accessible.
+ * (`SpeechRecognition`). While the user dictates, interim + final
+ * transcripts append into the controlled `value`; the button toggles
+ * listening on/off and is fully keyboard- and screen-reader-accessible.
+ *
+ * v1.18.10 (W4): the mic always renders so the affordance is discoverable.
+ * On a browser without the Web Speech API (or during SSR) it renders
+ * DISABLED with an explanatory tooltip rather than vanishing or sitting as
+ * a dead control that silently does nothing on tap.
  */
 export interface CoachInputProps {
   value: string;
@@ -125,9 +129,10 @@ type SpeechRecognitionLike = {
   stop: () => void;
   abort: () => void;
   onresult: ((event: SpeechRecognitionResultEventLike) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
 };
+type SpeechRecognitionErrorEventLike = { error?: string };
 type SpeechRecognitionResultEventLike = {
   resultIndex: number;
   results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
@@ -271,7 +276,18 @@ export function CoachInput({
       const joiner = base && !base.endsWith(" ") ? " " : "";
       onChangeRef.current(`${base}${joiner}${spoken}`);
     };
-    recognition.onerror = () => setListening(false);
+    recognition.onerror = (event) => {
+      setListening(false);
+      // v1.18.10 (W4) — surface a quiet toast on a real failure so a tap
+      // that "does nothing" (denied mic permission, an insecure-context
+      // self-host, or no network for the recogniser) gives feedback rather
+      // than silently resetting. `aborted` / `no-speech` are the benign
+      // codes that fire on a normal stop or a quiet pause — stay silent.
+      const code = event?.error;
+      if (code && code !== "aborted" && code !== "no-speech") {
+        toast.error(t("insights.coach.dictateError"));
+      }
+    };
     recognition.onend = () => {
       setListening(false);
       recognitionRef.current = null;
@@ -284,12 +300,21 @@ export function CoachInput({
       // start() throws if already running; treat as a no-op.
       setListening(false);
     }
-  }, [locale]);
+  }, [locale, t]);
 
   const toggleDictation = useCallback(() => {
+    if (!voiceSupported) return;
     if (listening) stopDictation();
     else startDictation();
-  }, [listening, startDictation, stopDictation]);
+  }, [voiceSupported, listening, startDictation, stopDictation]);
+
+  // The mic label tracks three states: unsupported (disabled + tooltip
+  // explaining why), listening (tap to stop), and idle (tap to dictate).
+  const micLabel = !voiceSupported
+    ? t("insights.coach.voiceUnsupported")
+    : listening
+      ? t("insights.coach.dictateStop")
+      : t("insights.coach.dictate");
 
   const canSubmit = !disabled && value.trim().length > 0;
 
@@ -329,42 +354,37 @@ export function CoachInput({
           "focus-within:border-dracula-purple/50 focus-within:ring-dracula-purple/15 focus-within:bg-background focus-within:ring-2",
         )}
       >
-        {voiceSupported && (
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            onClick={toggleDictation}
-            disabled={disabled}
-            data-slot="coach-input-mic"
-            data-listening={listening ? "true" : undefined}
-            aria-label={
-              listening
-                ? t("insights.coach.dictateStop")
-                : t("insights.coach.dictate")
-            }
-            aria-pressed={listening}
-            title={
-              listening
-                ? t("insights.coach.dictateStop")
-                : t("insights.coach.dictate")
-            }
+        {/* v1.18.10 (W4) — the mic always renders so it stays discoverable.
+            When the browser lacks the Web Speech API (or during SSR) it is
+            DISABLED with an explanatory tooltip rather than vanishing or
+            sitting as a dead control that does nothing on tap. */}
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={toggleDictation}
+          disabled={disabled || !voiceSupported}
+          data-slot="coach-input-mic"
+          data-listening={listening ? "true" : undefined}
+          data-unsupported={!voiceSupported ? "true" : undefined}
+          aria-label={micLabel}
+          aria-pressed={voiceSupported ? listening : undefined}
+          title={micLabel}
+          className={cn(
+            "size-11 shrink-0 rounded-xl transition-colors sm:size-9",
+            listening
+              ? "text-dracula-pink bg-dracula-pink/10 hover:text-dracula-pink"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Mic
             className={cn(
-              "size-11 shrink-0 rounded-xl transition-colors sm:size-9",
-              listening
-                ? "text-dracula-pink bg-dracula-pink/10 hover:text-dracula-pink"
-                : "text-muted-foreground hover:text-foreground",
+              "size-4",
+              listening && "animate-pulse motion-reduce:animate-none",
             )}
-          >
-            <Mic
-              className={cn(
-                "size-4",
-                listening && "animate-pulse motion-reduce:animate-none",
-              )}
-              aria-hidden="true"
-            />
-          </Button>
-        )}
+            aria-hidden="true"
+          />
+        </Button>
         <textarea
           id={inputId}
           ref={textareaRef}
