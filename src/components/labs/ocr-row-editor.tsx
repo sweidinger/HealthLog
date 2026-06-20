@@ -46,15 +46,25 @@ export function OcrRowEditor({
   return (
     <div className="space-y-3 rounded-lg border p-3">
       <div className="flex items-start gap-3">
-        <Checkbox
-          id={`${fieldId}-confirm`}
-          checked={row.confirmed}
-          onCheckedChange={(checked) =>
-            onChange({ ...row, confirmed: checked === true })
-          }
-          className="mt-1 min-h-5 min-w-5"
-          aria-label={t("labs.ocr.confirmRow")}
-        />
+        {/* The checkbox is the PRIMARY per-row confirm on a touch-first OCR
+            review screen, so it needs a ≥44px hit area on coarse pointers. The
+            wrapping label supplies the touch target (and forwards the click to
+            the control) without enlarging the 20px glyph or bloating the row on
+            desktop, where the negative margins collapse the padding back. */}
+        <label
+          htmlFor={`${fieldId}-confirm`}
+          className="-m-3 flex min-h-11 min-w-11 cursor-pointer items-start justify-center p-3 sm:m-0 sm:min-h-0 sm:min-w-0 sm:p-0"
+        >
+          <Checkbox
+            id={`${fieldId}-confirm`}
+            checked={row.confirmed}
+            onCheckedChange={(checked) =>
+              onChange({ ...row, confirmed: checked === true })
+            }
+            className="mt-0.5 min-h-5 min-w-5 sm:mt-1"
+            aria-label={t("labs.ocr.confirmRow")}
+          />
+        </label>
         <div className="min-w-0 flex-1 space-y-1">
           <Input
             value={row.analyte}
