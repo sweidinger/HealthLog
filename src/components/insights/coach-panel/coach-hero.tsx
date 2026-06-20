@@ -110,16 +110,20 @@ export function CoachHero({ composer, prompts, onPickPrompt }: CoachHeroProps) {
                 type="button"
                 onClick={() => onPickPrompt(prompt)}
                 data-slot="coach-hero-chip"
+                title={prompt}
                 className={cn(
                   "border-dracula-purple/20 hover:border-dracula-purple/45 hover:text-foreground",
-                  "text-muted-foreground inline-flex min-h-11 items-center gap-1.5 sm:min-h-9",
+                  "text-muted-foreground inline-flex min-h-11 max-w-full items-center gap-1.5 sm:min-h-9 sm:max-w-[18rem]",
                   "rounded-full border bg-transparent px-3.5 py-1.5 text-xs sm:text-sm",
                   "transition-colors focus-visible:ring-2 focus-visible:outline-none",
                   "focus-visible:ring-dracula-purple/50",
                 )}
               >
                 <Quote className="size-3 shrink-0" aria-hidden="true" />
-                <span>{prompt}</span>
+                {/* Cap the chip to a tidy single line — long localized prompts
+                    (notably DE) otherwise wrap to ragged multi-line pills on a
+                    narrow viewport. The full prompt stays available via title. */}
+                <span className="truncate">{prompt}</span>
               </button>
             ))}
           </div>
