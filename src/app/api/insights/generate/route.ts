@@ -50,6 +50,11 @@ import {
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
+import {
+  findUngroundedBriefingNumbers,
+  readBriefingBlock,
+  buildBriefingGroundingCorrection,
+} from "@/lib/ai/briefing-grounding";
 import { isLegacyInsightPayload } from "@/lib/ai/legacy-payload";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
@@ -727,6 +732,65 @@ export const POST = apiHandler(async (request: NextRequest) => {
     // so the React Query mutation can read the JSON body and surface a
     // readable message. Same fix pattern as v1.4.5 ai/test.
     return apiError("AI response was not valid JSON", 422);
+  }
+
+  // v1.18.10 (HIGH-1) — daily-briefing number-grounding gate, mirroring the
+  // recommendations citation cross-check next door. The schema only checks the
+  // briefing's SHAPE; this asserts every number the briefing prose restates
+  // traces to a `features.signalsOfDay` figure. On a miss: one corrective
+  // retry, then drop the briefing block rather than ship a fabricated number.
+  {
+    const signals = features.signalsOfDay ?? null;
+    let ungrounded = findUngroundedBriefingNumbers(
+      readBriefingBlock(insights),
+      signals,
+    );
+    if (ungrounded.length > 0) {
+      annotate({
+        action: { name: "insights.generate.briefing_grounding_retry" },
+        meta: { ungroundedCount: ungrounded.length },
+      });
+      try {
+        const retry = await runRawCompletionWithFallback({
+          userId,
+          providers: chain,
+          params: {
+            systemPrompt: buildSystemPromptWithReferences(
+              locale,
+              referenceMetrics,
+            ),
+            userPrompt: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
+            temperature: 0.3,
+            maxTokens: 1500,
+          },
+        });
+        const parsedRetry = JSON.parse(retry.result.content);
+        const validatedRetry = insightResultSchema.safeParse(parsedRetry);
+        const retryInsights = validatedRetry.success
+          ? validatedRetry.data
+          : parsedRetry;
+        ungrounded = findUngroundedBriefingNumbers(
+          readBriefingBlock(retryInsights),
+          signals,
+        );
+        if (ungrounded.length === 0) {
+          insights = retryInsights;
+          result = retry.result;
+          workingProviderType = retry.workingProvider.providerType;
+        }
+      } catch {
+        // Retry failed to produce parseable JSON — fall through to the strip.
+      }
+    }
+    // Still ungrounded after the retry: strip the briefing rather than ship a
+    // fabricated figure. The structured recommendations/citations stay.
+    if (ungrounded.length > 0 && insights && typeof insights === "object") {
+      (insights as Record<string, unknown>).dailyBriefing = null;
+      annotate({
+        action: { name: "insights.generate.briefing_grounding_stripped" },
+        meta: { ungroundedCount: ungrounded.length },
+      });
+    }
   }
 
   await prisma.user.update({
