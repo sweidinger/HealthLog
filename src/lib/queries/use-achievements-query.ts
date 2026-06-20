@@ -3,6 +3,7 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
+import { apiGet } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   AchievementMetrics,
@@ -65,13 +66,8 @@ export interface UseAchievementsQueryOptions {
   refetchInterval?: number | false;
 }
 
-async function fetchAchievements(): Promise<AchievementsPayload> {
-  const res = await fetch("/api/gamification/achievements");
-  if (!res.ok) {
-    throw new Error(`Failed to load achievements (${res.status})`);
-  }
-  const json = (await res.json()) as { data: AchievementsPayload };
-  return json.data;
+function fetchAchievements(): Promise<AchievementsPayload> {
+  return apiGet<AchievementsPayload>("/api/gamification/achievements");
 }
 
 /**

@@ -43,8 +43,16 @@ const EXEMPT_FILES = ["src/lib/api/api-fetch.ts"];
 // server-side lib code never self-calls `/api/` routes, and the
 // safe-fetch rule already covers its outbound calls. `src/hooks/` is
 // client-only by construction (v1.16.4) — its `/api/` reads route
-// through the wrapper like every component.
-const ENFORCED_ROOTS = ["src/components/", "src/app/", "src/hooks/"];
+// through the wrapper like every component. `src/lib/queries/` is the
+// one `src/lib/` exception: it holds client-only TanStack-Query hooks
+// (every file is `"use client"`), so its `/api/` reads route through the
+// wrapper too.
+const ENFORCED_ROOTS = [
+  "src/components/",
+  "src/app/",
+  "src/hooks/",
+  "src/lib/queries/",
+];
 
 function toPosix(filename) {
   return filename.replace(/\\/g, "/");
