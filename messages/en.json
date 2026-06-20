@@ -2010,7 +2010,8 @@
       "loadingLabel": "Synthesising today's briefing",
       "noProviderTitle": "No AI provider connected",
       "noProviderDescription": "The daily briefing turns your readings into plain-language summary. HealthLog needs an AI provider for that — use your own key (OpenAI, Anthropic) or a local model. Your data stays with you.",
-      "noProviderAction": "Open AI settings"
+      "noProviderAction": "Open AI settings",
+      "staleNoProviderHint": "This briefing can't refresh — no AI provider is connected."
     },
     "trendsRow": {
       "title": "Trends",

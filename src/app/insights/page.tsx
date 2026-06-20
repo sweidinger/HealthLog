@@ -426,6 +426,12 @@ export default function InsightsPage() {
         // as its own outcome; swap the futile regenerate CTA for a quiet
         // Settings → AI hint instead of an eternal "preparing" loop.
         noProvider={advisor.readOutcome === "no-provider"}
+        // v1.18.9 (#4) — a (stale) cached briefing is shown but no provider
+        // is connected, so it can never refresh. Pair the relative-age
+        // footer with a discreet connect-provider hint. Only fires when a
+        // briefing is actually rendered (the empty-state path owns the
+        // `noProvider` branch above).
+        noProviderStale={briefingPayload !== null && !advisor.hasProvider}
       />
     ) : null,
     vitals: <VitalsDashboard batch={dashboardDerived} layout={layout} />,
@@ -480,6 +486,11 @@ export default function InsightsPage() {
         // settles false on success AND error, so a no-score account
         // collapses the column exactly once.
         healthScorePending={analyticsQuery.isPending && !analytics}
+        // v1.18.9 (#4) — the hero subtitle is the cached briefing paragraph;
+        // when it can never refresh (no AI provider) pair the "Generated
+        // <relative>" line with a discreet connect-provider hint, matching
+        // the briefing card footer. Only when a briefing is actually shown.
+        noProviderStale={briefingPayload !== null && !advisor.hasProvider}
       />
 
       {/* v1.15.18 — the inline "Anpassen" toggle was removed. Customising the

@@ -2010,7 +2010,8 @@
       "loadingLabel": "Preparazione del briefing",
       "noProviderTitle": "Nessun provider IA collegato",
       "noProviderDescription": "Il briefing giornaliero riassume le tue misurazioni in linguaggio chiaro. HealthLog ha bisogno di un provider IA per questo: usa la tua chiave (OpenAI, Anthropic) o un modello locale. I tuoi dati restano tuoi.",
-      "noProviderAction": "Apri impostazioni IA"
+      "noProviderAction": "Apri impostazioni IA",
+      "staleNoProviderHint": "Questo briefing non può aggiornarsi: nessun provider IA è collegato."
     },
     "trendsRow": {
       "title": "Tendenze",

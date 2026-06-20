@@ -61,6 +61,16 @@ export interface InsightAdvisorPayload {
    * instead of waiting for the next mount.
    */
   revalidating?: boolean;
+  /**
+   * v1.18.9 (#4) — false when no AI provider is configured anywhere. The
+   * read path serves the last cached briefing regardless (no provider is
+   * needed to READ the cache), so a provider-less account keeps seeing a
+   * days-old briefing presented as current. When this is false the
+   * surfaces pair the briefing's honest relative age with a discreet
+   * "connect a provider" affordance. Undefined on a cached payload that
+   * predates the field — treated as "provider present" (no hint).
+   */
+  hasProvider?: boolean;
 }
 
 /**
@@ -259,6 +269,16 @@ export interface UseInsightsAdvisorResult {
    * regenerate CTA.
    */
   readOutcome: AdvisorFetchOutcome | null;
+  /**
+   * v1.18.9 (#4) — false when the GET reported no usable AI provider. The
+   * read path still serves the last cached briefing (no provider is
+   * needed to read the cache), so this is the ONLY honest signal that a
+   * shown-but-stale briefing can never refresh. Surfaces pair it with the
+   * relative-age line to add a discreet connect-provider hint. Defaults
+   * true (no hint) when the field is absent — a pre-field cached payload
+   * or an unsettled query.
+   */
+  hasProvider: boolean;
 }
 
 /**
@@ -331,5 +351,9 @@ export function useInsightsAdvisorQuery(
     regenerateError: (mutation.error as Error | null) ?? null,
     regenerateOutcome: mutation.data?.outcome ?? null,
     readOutcome: query.data?.outcome ?? null,
+    // Absent field (pre-v1.18.9 cached payload, or query still settling) →
+    // assume a provider is present so a transient unknown never flashes a
+    // false "no provider" hint.
+    hasProvider: query.data?.payload?.hasProvider ?? true,
   };
 }

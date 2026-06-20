@@ -2010,7 +2010,8 @@
       "loadingLabel": "Briefing wird zusammengestellt",
       "noProviderTitle": "Kein KI-Anbieter verbunden",
       "noProviderDescription": "Das Tagesbriefing fasst deine Werte in Klartext zusammen. Dafür braucht HealthLog einen KI-Anbieter — nutze deinen eigenen Schlüssel (OpenAI, Anthropic) oder ein lokales Modell. Deine Daten bleiben dabei bei dir.",
-      "noProviderAction": "Zu den KI-Einstellungen"
+      "noProviderAction": "Zu den KI-Einstellungen",
+      "staleNoProviderHint": "Dieses Briefing kann nicht aktualisiert werden — es ist kein KI-Anbieter verbunden."
     },
     "trendsRow": {
       "title": "Trends",

@@ -109,6 +109,15 @@ interface DailyBriefingProps {
    */
   noProvider?: boolean;
   /**
+   * v1.18.9 (#4) — no AI provider configured WHILE a (stale) cached
+   * briefing is still shown. The read path serves the last good briefing
+   * regardless of provider state, so a provider-less account keeps seeing
+   * a days-old briefing. When true, the footer pairs the honest relative
+   * age with a discreet "this can't refresh — connect a provider" hint so
+   * the staleness reads as intentional, not as a live report.
+   */
+  noProviderStale?: boolean;
+  /**
    * Optional slot for a meta control mounted in the card header — the
    * comparison toggle migrates here from the hero in commit 5.
    */
@@ -323,6 +332,7 @@ export function DailyBriefing({
   onRegenerate,
   regenerating = false,
   noProvider = false,
+  noProviderStale = false,
   metaSlot,
 }: DailyBriefingProps) {
   const { t } = useTranslations();
@@ -407,15 +417,40 @@ export function DailyBriefing({
                   </div>
                 </div>
               )}
-              {updatedAt && (
-                <p
-                  data-slot="daily-briefing-updated"
-                  className="text-muted-foreground border-border/60 border-t pt-3 text-right text-xs"
-                >
-                  {t("insights.heroGenerated", {
-                    time: formatRelativeTime(updatedAt, t),
-                  })}
-                </p>
+              {(updatedAt || noProviderStale) && (
+                <div className="border-border/60 space-y-1.5 border-t pt-3">
+                  {updatedAt && (
+                    <p
+                      data-slot="daily-briefing-updated"
+                      className="text-muted-foreground text-right text-[11px]"
+                    >
+                      {t("insights.heroGenerated", {
+                        time: formatRelativeTime(updatedAt, t),
+                      })}
+                    </p>
+                  )}
+                  {/* v1.18.9 (#4) — a stale briefing that can never refresh
+                      because no AI provider is connected. State that plainly
+                      and point at Settings → AI, so the days-old read is
+                      understood as held, not presented as current. */}
+                  {noProviderStale && (
+                    <p
+                      data-slot="daily-briefing-stale-no-provider"
+                      className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-right text-[11px]"
+                    >
+                      <span>
+                        {t("insights.dailyBriefing.staleNoProviderHint")}
+                      </span>
+                      <Link
+                        href="/settings/ai"
+                        data-slot="daily-briefing-stale-no-provider-link"
+                        className="text-foreground/80 hover:text-foreground underline underline-offset-2"
+                      >
+                        {t("insights.dailyBriefing.noProviderAction")}
+                      </Link>
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           ) : noProvider ? (
