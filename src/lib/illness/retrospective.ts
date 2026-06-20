@@ -15,8 +15,35 @@
  */
 import { median } from "@/lib/insights/derived/baseline";
 
-/** Minimum resolved-with-gap episodes before a "typical gap" is asserted. */
+/**
+ * Minimum episodes that each clear the per-episode signal floor before a
+ * "typical recovery gap" is asserted. A gap is only honest once several
+ * episodes independently back it, so one or two coincidental gaps never
+ * become a "typical" claim.
+ */
 export const MIN_EPISODES_FOR_TYPICAL_GAP = 3;
+
+/**
+ * Minimum distinct episode days carrying a real measurement before an
+ * episode's recovery-gap may feed the typical-gap median. Below this an
+ * episode's window holds too few genuine vitals for its computed gap to mean
+ * anything — a couple of readings happening to surround the onset/recovery
+ * markers produce a spurious gap. The correlation engine's own
+ * `MIN_EPISODE_COVERAGE_DAYS` floor (4) is the engine-side gate; this is the
+ * aggregate-side reinforcement so a barely-covered episode does not tip the
+ * median. Sourced from `Derived.coverage.historyDays`.
+ */
+export const MIN_GAP_MEASUREMENT_DAYS = 4;
+
+/**
+ * Minimum absolute magnitude (days) the typical gap must reach before it is
+ * surfaced. A median gap of 0 — and the ±1-day jitter around it — is the
+ * dominant outcome of coincidental data (numbers and feeling settle on the
+ * same day), so it carries no signal worth a headline. Only a gap that
+ * genuinely separates the felt-better marker from the physiological return
+ * is shown.
+ */
+export const MIN_TYPICAL_GAP_MAGNITUDE_DAYS = 2;
 
 /** One episode's contribution to the summary. */
 export interface RetrospectiveEpisode {
@@ -28,6 +55,13 @@ export interface RetrospectiveEpisode {
   resolved: boolean;
   /** The computed recovery-gap in days, or null when ungated/unavailable. */
   recoveryGapDays: number | null;
+  /**
+   * Distinct episode days that carried a real measurement (the correlation
+   * engine's coverage `historyDays`). Drives the per-episode signal floor:
+   * an episode below `MIN_GAP_MEASUREMENT_DAYS` contributes no gap even if
+   * the engine computed one. Absent/0 → does not qualify.
+   */
+  gapMeasurementDays?: number;
   /** Lifecycle — CHRONIC_ONGOING never contributes a gap. */
   lifecycle: string;
 }
@@ -56,9 +90,17 @@ export interface IllnessRetrospectiveSummary {
 }
 
 /**
- * Aggregate the per-episode figures into the retrospective summary. Pure. The
- * typical-gap is withheld (null) below the min-sample floor so a single
- * episode never becomes a "typical" claim.
+ * Aggregate the per-episode figures into the retrospective summary. Pure.
+ *
+ * The typical-gap is withheld (null) unless ALL THREE signal-density gates
+ * hold, so coincidental data never surfaces a speculative "Erholungslücke":
+ *   1. each contributing episode cleared the per-episode measurement floor
+ *      (`gapMeasurementDays >= MIN_GAP_MEASUREMENT_DAYS`),
+ *   2. at least `MIN_EPISODES_FOR_TYPICAL_GAP` such episodes qualify, and
+ *   3. the resulting median magnitude reaches
+ *      `MIN_TYPICAL_GAP_MAGNITUDE_DAYS` (a 0/±1-day gap is noise).
+ * `gapSampleSize` reports the count of episodes that cleared gates 1–2 (the
+ * transparency figure), independent of the magnitude gate.
  */
 export function summarizeIllnessRetrospective(
   episodes: RetrospectiveEpisode[],
@@ -76,15 +118,25 @@ export function summarizeIllnessRetrospective(
     if (
       e.lifecycle !== "CHRONIC_ONGOING" &&
       e.recoveryGapDays !== null &&
-      Number.isFinite(e.recoveryGapDays)
+      Number.isFinite(e.recoveryGapDays) &&
+      // Per-episode signal floor: a barely-covered episode contributes no
+      // gap even if the engine computed one.
+      (e.gapMeasurementDays ?? 0) >= MIN_GAP_MEASUREMENT_DAYS
     ) {
       gaps.push(e.recoveryGapDays);
     }
   }
 
-  const typicalRecoveryGapDays =
+  const medianGap =
     gaps.length >= MIN_EPISODES_FOR_TYPICAL_GAP
       ? Math.round(median(gaps))
+      : null;
+
+  // Magnitude gate: a 0/±1-day gap is the coincidental-data baseline and
+  // carries no signal worth a headline.
+  const typicalRecoveryGapDays =
+    medianGap !== null && Math.abs(medianGap) >= MIN_TYPICAL_GAP_MAGNITUDE_DAYS
+      ? medianGap
       : null;
 
   return {

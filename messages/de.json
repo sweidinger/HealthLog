@@ -6685,6 +6685,10 @@
   "illness": {
     "title": "Krankheitstagebuch",
     "subtitle": "Ein rückblickendes Protokoll deiner Krankheits- und Beschwerde-Episoden.",
+    "settings": {
+      "viewDescription": "Wähle, ob Episoden als Karten oder als kompakte Liste erscheinen.",
+      "orderDescription": "Ziehe deine Episoden in die gewünschte Reihenfolge."
+    },
     "customize": "Krankheitstagebuch anpassen",
     "newEpisode": "Neue Episode",
     "logDay": "Tag erfassen",
@@ -6785,7 +6789,8 @@
       "countOther": "Du hast in diesem Zeitraum {count} Episoden erfasst.",
       "typicalGap": "Typische Erholungslücke: {days} Tage zwischen Besserung und normalisierten Werten.",
       "typicalGapLearning": "Noch ein paar abgeschlossene Episoden und hier erscheint eine typische Erholungslücke.",
-      "none": "In diesem Zeitraum keine Episoden erfasst."
+      "none": "In diesem Zeitraum keine Episoden erfasst.",
+      "analyze": "Erholungslücke analysieren"
     },
     "section": {
       "active": "Aktiv",

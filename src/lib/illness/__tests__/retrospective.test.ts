@@ -2,13 +2,17 @@
  * v1.18.1 P3 — illness retrospective summary aggregation.
  *
  * Asserts the count/byMonth/byType tallies, the CHRONIC_ONGOING gap exclusion,
- * and the thin-data gate: the "typical recovery gap" is WITHHELD below the
- * min-sample floor (never a "typical" claim from one episode).
+ * and the v1.18.9 signal-density gates: the "typical recovery gap" is WITHHELD
+ * unless enough episodes EACH clear the per-episode measurement floor AND the
+ * resulting median magnitude is non-trivial (a 0/±1-day gap is coincidental
+ * noise, not a finding).
  */
 import { describe, expect, it } from "vitest";
 import {
   summarizeIllnessRetrospective,
   MIN_EPISODES_FOR_TYPICAL_GAP,
+  MIN_GAP_MEASUREMENT_DAYS,
+  MIN_TYPICAL_GAP_MAGNITUDE_DAYS,
   type RetrospectiveEpisode,
 } from "../retrospective";
 
@@ -19,6 +23,9 @@ function ep(over: Partial<RetrospectiveEpisode>): RetrospectiveEpisode {
     onsetDay: "2026-01-10",
     resolved: true,
     recoveryGapDays: 2,
+    // Default to a well-covered episode so the gap-magnitude / sample-count
+    // tests aren't masked by the per-episode measurement floor.
+    gapMeasurementDays: MIN_GAP_MEASUREMENT_DAYS + 2,
     lifecycle: "ACUTE",
     ...over,
   };
@@ -75,5 +82,61 @@ describe("summarizeIllnessRetrospective", () => {
     ]);
     expect(out.gapSampleSize).toBe(3);
     expect(out.typicalRecoveryGapDays).toBe(4);
+  });
+
+  it("drops episodes below the per-episode measurement floor", () => {
+    // Three computed gaps, but only one episode is well-covered — the other
+    // two ride on a couple of coincidental readings and must not count.
+    const out = summarizeIllnessRetrospective([
+      ep({ id: "a", recoveryGapDays: 4, gapMeasurementDays: 8 }),
+      ep({
+        id: "b",
+        recoveryGapDays: 5,
+        gapMeasurementDays: MIN_GAP_MEASUREMENT_DAYS - 1,
+      }),
+      ep({ id: "c", recoveryGapDays: 6, gapMeasurementDays: 0 }),
+    ]);
+    expect(out.gapSampleSize).toBe(1);
+    expect(out.typicalRecoveryGapDays).toBeNull();
+  });
+
+  it("treats a missing gapMeasurementDays as non-qualifying", () => {
+    const bare = (id: string): RetrospectiveEpisode => ({
+      id,
+      type: "INFECTION",
+      onsetDay: "2026-01-10",
+      resolved: true,
+      recoveryGapDays: 4,
+      lifecycle: "ACUTE",
+    });
+    const out = summarizeIllnessRetrospective([
+      bare("a"),
+      bare("b"),
+      bare("c"),
+    ]);
+    expect(out.gapSampleSize).toBe(0);
+    expect(out.typicalRecoveryGapDays).toBeNull();
+  });
+
+  it("withholds a trivial (sub-threshold) median gap as noise", () => {
+    // Enough well-covered episodes, but the gaps cluster at 0/±1 — the
+    // coincidental-data baseline. No speculative gap is surfaced.
+    const out = summarizeIllnessRetrospective([
+      ep({ id: "a", recoveryGapDays: 0 }),
+      ep({ id: "b", recoveryGapDays: 1 }),
+      ep({ id: "c", recoveryGapDays: -1 }),
+    ]);
+    expect(MIN_TYPICAL_GAP_MAGNITUDE_DAYS).toBe(2);
+    expect(out.gapSampleSize).toBe(3); // they qualified on coverage…
+    expect(out.typicalRecoveryGapDays).toBeNull(); // …but the magnitude is noise
+  });
+
+  it("surfaces a negative gap once its magnitude clears the floor", () => {
+    const out = summarizeIllnessRetrospective([
+      ep({ id: "a", recoveryGapDays: -2 }),
+      ep({ id: "b", recoveryGapDays: -3 }),
+      ep({ id: "c", recoveryGapDays: -4 }),
+    ]);
+    expect(out.typicalRecoveryGapDays).toBe(-3);
   });
 });

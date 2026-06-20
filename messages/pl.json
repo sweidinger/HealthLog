@@ -6685,6 +6685,10 @@
   "illness": {
     "title": "Dziennik chorób",
     "subtitle": "Retrospektywny zapis Twoich epizodów chorób i dolegliwości.",
+    "settings": {
+      "viewDescription": "Wybierz, czy epizody mają być wyświetlane jako karty czy zwarta lista.",
+      "orderDescription": "Przeciągnij epizody w kolejność, w jakiej chcesz je widzieć."
+    },
     "customize": "Dostosuj dziennik chorób",
     "newEpisode": "Nowy epizod",
     "logDay": "Zapisz dzień",
@@ -6785,7 +6789,8 @@
       "countOther": "W tym okresie zapisałeś {count} epizodów.",
       "typicalGap": "Typowa luka rekonwalescencji: {days} dni między poprawą a ustabilizowaniem wartości.",
       "typicalGapLearning": "Jeszcze kilka zakończonych epizodów i pojawi się tu typowa luka rekonwalescencji.",
-      "none": "Brak epizodów zapisanych w tym okresie."
+      "none": "Brak epizodów zapisanych w tym okresie.",
+      "analyze": "Przeanalizuj lukę rekonwalescencji"
     },
     "section": {
       "active": "Aktywne",

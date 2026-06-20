@@ -6685,6 +6685,10 @@
   "illness": {
     "title": "Diario delle malattie",
     "subtitle": "Un registro retrospettivo dei tuoi episodi di malattia e disturbi.",
+    "settings": {
+      "viewDescription": "Scegli se gli episodi appaiono come schede o come elenco compatto.",
+      "orderDescription": "Trascina i tuoi episodi nell'ordine in cui vuoi vederli."
+    },
     "customize": "Personalizza diario delle malattie",
     "newEpisode": "Nuovo episodio",
     "logDay": "Registra un giorno",
@@ -6785,7 +6789,8 @@
       "countOther": "Hai registrato {count} episodi in questo periodo.",
       "typicalGap": "Divario di recupero tipico: {days} giorni tra il sentirti meglio e la stabilizzazione dei valori.",
       "typicalGapLearning": "Ancora qualche episodio risolto e qui apparirà un divario di recupero tipico.",
-      "none": "Nessun episodio registrato in questo periodo."
+      "none": "Nessun episodio registrato in questo periodo.",
+      "analyze": "Analizza il divario di recupero"
     },
     "section": {
       "active": "Attivi",

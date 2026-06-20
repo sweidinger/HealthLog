@@ -6904,6 +6904,13 @@ paths:
             type: integer
             minimum: 30
             maximum: 1095
+        - in: query
+          name: includeRecoveryGap
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
       responses:
         "200":
           description: The cross-episode retrospective summary.

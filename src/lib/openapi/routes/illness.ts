@@ -93,7 +93,7 @@ const illnessDayLogGetQuery = z
 illnessInsightsQuerySchema.meta({
   id: "IllnessInsightsQuery",
   description:
-    "Cross-episode retrospective window query: optional `windowDays` (30–1095, default 365). Retrospective only — the engine summarises past episodes, never forecasts.",
+    "Cross-episode retrospective window query: optional `windowDays` (30–1095, default 365) and optional `includeRecoveryGap` (default false). With `includeRecoveryGap` off the response carries the count breakdown and a null typical recovery gap on a single fast query; set it true to pay for the per-episode correlation that computes the recovery gap. Retrospective only — the engine summarises past episodes, never forecasts.",
 });
 
 const illnessSymptom = z

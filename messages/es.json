@@ -6685,6 +6685,10 @@
   "illness": {
     "title": "Diario de enfermedad",
     "subtitle": "Un registro retrospectivo de tus episodios de enfermedad y dolencias.",
+    "settings": {
+      "viewDescription": "Elige si los episodios se muestran como tarjetas o como lista compacta.",
+      "orderDescription": "Arrastra tus episodios al orden en que quieres verlos."
+    },
     "customize": "Personalizar diario de enfermedad",
     "newEpisode": "Nuevo episodio",
     "logDay": "Registrar un día",
@@ -6785,7 +6789,8 @@
       "countOther": "Registraste {count} episodios en este período.",
       "typicalGap": "Brecha de recuperación típica: {days} días entre sentirte mejor y la estabilización de tus valores.",
       "typicalGapLearning": "Con unos pocos episodios resueltos más aparecerá aquí una brecha de recuperación típica.",
-      "none": "Sin episodios registrados en este período."
+      "none": "Sin episodios registrados en este período.",
+      "analyze": "Analizar la brecha de recuperación"
     },
     "section": {
       "active": "Activos",
