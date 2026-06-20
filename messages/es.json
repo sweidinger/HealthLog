@@ -6792,7 +6792,8 @@
       "countOther": "Registraste {count} episodios en este período.",
       "typicalGap": "Brecha de recuperación típica: {days} días entre sentirte mejor y la estabilización de tus valores.",
       "typicalGapLearning": "Con unos pocos episodios resueltos más aparecerá aquí una brecha de recuperación típica.",
-      "none": "Sin episodios registrados en este período."
+      "none": "Sin episodios registrados en este período.",
+      "analyze": "Analizar la brecha de recuperación"
     },
     "section": {
       "active": "Activos",

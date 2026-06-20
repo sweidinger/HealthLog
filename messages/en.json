@@ -6792,7 +6792,8 @@
       "countOther": "You logged {count} episodes in this period.",
       "typicalGap": "Typical recovery gap: {days} days between feeling better and your numbers settling.",
       "typicalGapLearning": "A few more resolved episodes and a typical recovery gap will appear here.",
-      "none": "No episodes logged in this period."
+      "none": "No episodes logged in this period.",
+      "analyze": "Analyse the recovery gap"
     },
     "section": {
       "active": "Active",

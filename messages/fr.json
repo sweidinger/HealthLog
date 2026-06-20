@@ -6792,7 +6792,8 @@
       "countOther": "Tu as enregistré {count} épisodes sur cette période.",
       "typicalGap": "Écart de récupération typique : {days} jours entre le mieux-être et la stabilisation de tes valeurs.",
       "typicalGapLearning": "Encore quelques épisodes résolus et un écart de récupération typique apparaîtra ici.",
-      "none": "Aucun épisode enregistré sur cette période."
+      "none": "Aucun épisode enregistré sur cette période.",
+      "analyze": "Analyser l'écart de récupération"
     },
     "section": {
       "active": "Actifs",

@@ -6792,7 +6792,8 @@
       "countOther": "Hai registrato {count} episodi in questo periodo.",
       "typicalGap": "Divario di recupero tipico: {days} giorni tra il sentirti meglio e la stabilizzazione dei valori.",
       "typicalGapLearning": "Ancora qualche episodio risolto e qui apparirà un divario di recupero tipico.",
-      "none": "Nessun episodio registrato in questo periodo."
+      "none": "Nessun episodio registrato in questo periodo.",
+      "analyze": "Analizza il divario di recupero"
     },
     "section": {
       "active": "Attivi",

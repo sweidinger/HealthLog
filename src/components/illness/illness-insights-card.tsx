@@ -2,12 +2,18 @@
 
 /**
  * v1.18.1 P3 — the cross-episode retrospective summary card ("Your illness
- * history"): how many episodes in the window + the typical recovery gap, with
- * a calm "still learning" line until enough resolved episodes back the figure.
- * Retrospective only — a count of the past, never a forecast.
+ * history"): how many episodes in the window, and — on demand — the typical
+ * recovery gap. Retrospective only — a count of the past, never a forecast.
+ *
+ * v1.18.9 — the card paints instantly on a single count query
+ * (`includeRecoveryGap` off). The recovery gap is the only expensive figure
+ * (a bounded per-episode correlation fan-out), so it is computed LAZILY: it
+ * runs only when the user opens the "Analyse" expansion, never on list load.
  */
+import { useState } from "react";
 import { History } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
@@ -20,7 +26,18 @@ export function IllnessInsightsCard({
   windowDays?: number;
 }) {
   const { t } = useTranslations();
-  const { data, isLoading, isError } = useIllnessInsights(windowDays);
+  // Lightweight count read — fires on mount, no recovery-gap fan-out.
+  const counts = useIllnessInsights(windowDays);
+
+  // The heavy recovery-gap read stays disabled until the user opens it.
+  const [analyzeOpen, setAnalyzeOpen] = useState(false);
+  const gap = useIllnessInsights(windowDays, {
+    includeRecoveryGap: true,
+    enabled: analyzeOpen,
+  });
+
+  const data = counts.data;
+  const hasEpisodes = !counts.isError && !!data && data.episodeCount > 0;
 
   return (
     <Card>
@@ -33,35 +50,52 @@ export function IllnessInsightsCard({
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {counts.isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-4 w-1/2" />
           </div>
-        ) : isError || !data ? (
-          <p className="text-muted-foreground text-sm">
-            {t("illness.insights.none")}
-          </p>
-        ) : data.episodeCount === 0 ? (
+        ) : !hasEpisodes ? (
           <p className="text-muted-foreground text-sm">
             {t("illness.insights.none")}
           </p>
         ) : (
-          <div className="space-y-2 text-sm">
+          <div className="space-y-4 text-sm">
             <p className="text-foreground">
-              {data.episodeCount === 1
+              {data!.episodeCount === 1
                 ? t("illness.insights.countOne")
                 : t("illness.insights.countOther", {
-                    count: data.episodeCount,
+                    count: data!.episodeCount,
                   })}
             </p>
-            <p className="text-muted-foreground">
-              {data.typicalRecoveryGapDays !== null
-                ? t("illness.insights.typicalGap", {
-                    days: data.typicalRecoveryGapDays,
-                  })
-                : t("illness.insights.typicalGapLearning")}
-            </p>
+
+            {/* The recovery gap is computed only when the user asks for it. */}
+            {!analyzeOpen ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-9"
+                onClick={() => setAnalyzeOpen(true)}
+              >
+                {t("illness.insights.analyze")}
+              </Button>
+            ) : gap.isLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ) : gap.isError || !gap.data ? (
+              <p className="text-muted-foreground">
+                {t("illness.insights.typicalGapLearning")}
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                {gap.data.typicalRecoveryGapDays !== null
+                  ? t("illness.insights.typicalGap", {
+                      days: gap.data.typicalRecoveryGapDays,
+                    })
+                  : t("illness.insights.typicalGapLearning")}
+              </p>
+            )}
           </div>
         )}
       </CardContent>

@@ -182,7 +182,17 @@ export type IllnessDayLogListQuery = z.infer<
  * The retrospective-insight window query: `GET /api/illness/insights?
  * windowDays=365`. Bounded 30..1095 days; defaults to a trailing year.
  * Retrospective only — the engine summarises past episodes, never forecasts.
+ *
+ * `includeRecoveryGap` (default false) gates the EXPENSIVE per-episode
+ * correlation fan-out. The illness LIST loads with it off so the page paints
+ * on a single fast count query; only the explicit "Analyse" expansion sets it
+ * true and pays for the recovery-gap computation. Withholding it leaves the
+ * typical-gap null (the surface shows the calm "still learning" line).
  */
 export const illnessInsightsQuerySchema = z.object({
   windowDays: z.coerce.number().int().min(30).max(1095).optional(),
+  includeRecoveryGap: z
+    .enum(["true", "false"])
+    .transform((v) => v === "true")
+    .optional(),
 });

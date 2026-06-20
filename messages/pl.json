@@ -6792,7 +6792,8 @@
       "countOther": "W tym okresie zapisałeś {count} epizodów.",
       "typicalGap": "Typowa luka rekonwalescencji: {days} dni między poprawą a ustabilizowaniem wartości.",
       "typicalGapLearning": "Jeszcze kilka zakończonych epizodów i pojawi się tu typowa luka rekonwalescencji.",
-      "none": "Brak epizodów zapisanych w tym okresie."
+      "none": "Brak epizodów zapisanych w tym okresie.",
+      "analyze": "Przeanalizuj lukę rekonwalescencji"
     },
     "section": {
       "active": "Aktywne",
