@@ -14,6 +14,7 @@ vi.mock("@/lib/db", () => ({
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      upsert: vi.fn(),
     },
     withingsConnection: { findUnique: vi.fn() },
   },
@@ -69,6 +70,7 @@ import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollup
 import {
   fetchWithingsSleep,
   mapWithingsSleepState,
+  mapWithingsSleepSummary,
   syncUserSleep,
 } from "../sync-sleep";
 
@@ -105,6 +107,71 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+/**
+ * v1.18.10 P0 — fetch mock that returns the per-segment series on the first
+ * call (`action=get`) and the per-night summary series on the second
+ * (`action=getsummary`). Lets the sync exercise both the stage path and the
+ * nightly-vital path in one round-trip.
+ */
+function installSegmentThenSummaryFetch(
+  segments: FakeSegment[],
+  summaries: Array<{
+    id?: number;
+    startdate: number;
+    enddate: number;
+    data?: Record<string, number | null>;
+  }>,
+) {
+  let call = 0;
+  const fetchMock = vi.fn(async () => {
+    const body = call === 0 ? { series: segments } : { series: summaries };
+    call++;
+    return { status: 200, json: async () => ({ status: 0, body }) };
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+describe("mapWithingsSleepSummary", () => {
+  it("maps the canonical nightly vitals to existing enums", () => {
+    const rows = mapWithingsSleepSummary({
+      hr_average: 58,
+      rr_average: 14,
+      sdnn_1: 65,
+      spo2_average: 96,
+      sleep_score: 82,
+    });
+    const byType = Object.fromEntries(rows.map((r) => [r.type, r.value]));
+    expect(byType).toEqual({
+      RESTING_HEART_RATE: 58,
+      RESPIRATORY_RATE: 14,
+      HEART_RATE_VARIABILITY: 65,
+      OXYGEN_SATURATION: 96,
+      SLEEP_SCORE: 82,
+    });
+  });
+
+  it("normalises a fractional SpO2 (0..1) to percent", () => {
+    const rows = mapWithingsSleepSummary({ spo2_average: 0.97 });
+    const spo2 = rows.find((r) => r.type === "OXYGEN_SATURATION");
+    expect(spo2?.value).toBeCloseTo(97, 5);
+  });
+
+  it("skips omitted / non-finite fields", () => {
+    const rows = mapWithingsSleepSummary({
+      hr_average: 60,
+      rr_average: null,
+      sdnn_1: undefined as unknown as number,
+      sleep_score: Number.NaN,
+    });
+    expect(rows.map((r) => r.type)).toEqual(["RESTING_HEART_RATE"]);
+  });
+
+  it("returns nothing for an absent data block", () => {
+    expect(mapWithingsSleepSummary(undefined)).toEqual([]);
+  });
 });
 
 describe("mapWithingsSleepState", () => {
@@ -268,6 +335,98 @@ describe("syncUserSleep — segment writes + idempotency", () => {
   it("calls recordSyncSuccess after a clean round-trip", async () => {
     installFetchMock([]);
     await syncUserSleep("user-1");
+    expect(recordSyncSuccess).toHaveBeenCalledWith("user-1", "withings");
+  });
+
+  it("upserts nightly vitals with stable per-vital externalIds (v1.18.10 P0)", async () => {
+    const nightEnd = Math.floor(Date.UTC(2026, 4, 13, 6) / 1000);
+    installSegmentThenSummaryFetch(
+      [],
+      [
+        {
+          id: 555,
+          startdate: nightEnd - 8 * 3600,
+          enddate: nightEnd,
+          data: {
+            hr_average: 57,
+            rr_average: 13,
+            sdnn_1: 70,
+            spo2_average: 95,
+            sleep_score: 88,
+          },
+        },
+      ],
+    );
+    vi.mocked(prisma.measurement.upsert).mockResolvedValue({} as never);
+
+    const imported = await syncUserSleep("user-1");
+    // Five vitals upserted (no stage segments in this fixture).
+    expect(imported).toBe(5);
+
+    const calls = vi.mocked(prisma.measurement.upsert).mock.calls;
+    const byType = new Map(
+      calls.map((c) => {
+        const w = c[0] as {
+          where: {
+            userId_type_source_externalId: { type: string; externalId: string };
+          };
+          create: { value: number };
+        };
+        return [
+          w.where.userId_type_source_externalId.type,
+          {
+            externalId: w.where.userId_type_source_externalId.externalId,
+            value: w.create.value,
+          },
+        ];
+      }),
+    );
+    expect(byType.get("RESTING_HEART_RATE")).toEqual({
+      externalId: "withings:sleep:user-1:555:hr",
+      value: 57,
+    });
+    expect(byType.get("SLEEP_SCORE")).toEqual({
+      externalId: "withings:sleep:user-1:555:score",
+      value: 88,
+    });
+    expect(byType.get("OXYGEN_SATURATION")?.value).toBe(95);
+  });
+
+  it("keeps stage segments when the summary fetch fails (v1.18.10 P0)", async () => {
+    let call = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        const isSummary = call > 0;
+        call++;
+        return {
+          status: 200,
+          json: async () =>
+            isSummary
+              ? { status: 293 } // summary errors
+              : {
+                  status: 0,
+                  body: {
+                    series: [
+                      {
+                        startdate: 1715000000,
+                        enddate: 1715003600,
+                        state: 2,
+                        id: 1,
+                      },
+                    ],
+                  },
+                },
+        };
+      }),
+    );
+    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+
+    const imported = await syncUserSleep("user-1");
+    // The one stage segment is still written; the summary failure is swallowed.
+    expect(imported).toBe(1);
+    expect(prisma.measurement.create).toHaveBeenCalledTimes(1);
     expect(recordSyncSuccess).toHaveBeenCalledWith("user-1", "withings");
   });
 
