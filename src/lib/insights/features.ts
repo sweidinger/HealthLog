@@ -283,6 +283,69 @@ export interface RawFeatures extends AggregatedFeatures {
  */
 export const FEATURES_MAX_BYTES = 5 * 1024 * 1024;
 
+/**
+ * v1.18.11 P1 — default bounded read window for the comprehensive briefing.
+ *
+ * The briefing's prose only ever cites 7 / 30 / 90-day windows plus all-time
+ * extremes; the unbounded `measurement.findMany` it used to run materialised
+ * the entire history (tens to hundreds of thousands of rows for multi-year
+ * Withings / Apple imports) into JS on every generation, only to trim the
+ * payload after the fact through the 5 MB downgrade ladder. 400 days captures
+ * full history for the overwhelming majority of accounts while keeping the
+ * seasonal-BP contrast (winter vs summer, needs >180 d) intact; the genuinely
+ * long-horizon all-time min/max/avg figures are sourced separately from a
+ * single grouped aggregation over the whole history (see
+ * `readAllTimeExtremes`), so bounding the bulk read does not silently relabel a
+ * 400-day extreme as "all-time". Mirrors the Coach's 90-day bound
+ * (`coach/snapshot.ts`), just wider because the briefing narrates longer trends.
+ */
+export const BRIEFING_FEATURE_WINDOW_DAYS = 400;
+
+/** All-time aggregate (full history) for one measurement type. */
+interface AllTimeExtremes {
+  mean: number | null;
+  min: number | null;
+  max: number | null;
+}
+
+/**
+ * v1.18.11 P1 — full-history min / max / mean per measurement type via ONE
+ * grouped SQL aggregation, with NO row materialisation in JS. Used to fill the
+ * `allTime*` feature fields honestly when the bulk feature read is bounded to a
+ * recent window: the windowed `summarize()` covers trends + recent windows, and
+ * this covers the long-horizon extremes the prompt labels "allTime".
+ *
+ * Only the four types that expose `allTime*` fields are aggregated (weight,
+ * systolic, diastolic, pulse). Returns a map keyed by `MeasurementType`; a type
+ * with no rows is simply absent.
+ */
+async function readAllTimeExtremes(
+  userId: string,
+  types: readonly MeasurementType[],
+): Promise<Map<MeasurementType, AllTimeExtremes>> {
+  const rows = await prisma.measurement.groupBy({
+    by: ["type"],
+    where: { userId, deletedAt: null, type: { in: [...types] } },
+    _avg: { value: true },
+    _min: { value: true },
+    _max: { value: true },
+  });
+  const out = new Map<MeasurementType, AllTimeExtremes>();
+  for (const r of rows) {
+    out.set(r.type, {
+      mean: r._avg.value ?? null,
+      min: r._min.value ?? null,
+      max: r._max.value ?? null,
+    });
+  }
+  return out;
+}
+
+/** Round an all-time mean to 1 decimal, matching the windowed `summarize` mean. */
+function roundMean(v: number | null): number | null {
+  return v === null ? null : Math.round(v * 10) / 10;
+}
+
 export class FeaturesPayloadTooLargeError extends Error {
   readonly code = "FEATURES_PAYLOAD_TOO_LARGE";
   readonly sizeBytes: number;
@@ -620,6 +683,21 @@ export async function extractFeatures(
     orderBy: { measuredAt: "asc" },
   });
 
+  // v1.18.11 P1 — when the bulk read is bounded to a recent window, the
+  // windowed `summarize()` no longer covers the full history, so the `allTime*`
+  // fields would silently become "last `sinceDays` days" extremes. Source the
+  // genuine full-history min / max / mean from one grouped aggregation (no row
+  // materialisation) so the labels stay honest. Unbounded reads (sinceCutoff
+  // null) already see the whole history and skip the extra query.
+  const allTimeExtremes = sinceCutoff
+    ? await readAllTimeExtremes(userId, [
+        "WEIGHT",
+        "BLOOD_PRESSURE_SYS",
+        "BLOOD_PRESSURE_DIA",
+        "PULSE",
+      ])
+    : null;
+
   const byType = (type: string) => measurements.filter((m) => m.type === type);
 
   const bpTargets = getBpTargets(user?.dateOfBirth ?? null);
@@ -686,9 +764,23 @@ export async function extractFeatures(
       avg7: summary.avg7,
       avg30: summary.avg30,
       avg90: avgInWindow(weightData, now, 90),
-      allTimeAvg: summary.count > 0 ? summary.mean : null,
-      allTimeMin: summary.count > 0 ? summary.min : null,
-      allTimeMax: summary.count > 0 ? summary.max : null,
+      // v1.18.11 P1 — full-history extremes from the grouped aggregation when
+      // the bulk read is windowed; the in-window summary otherwise.
+      allTimeAvg: allTimeExtremes
+        ? roundMean(allTimeExtremes.get("WEIGHT")?.mean ?? null)
+        : summary.count > 0
+          ? summary.mean
+          : null,
+      allTimeMin: allTimeExtremes
+        ? (allTimeExtremes.get("WEIGHT")?.min ?? null)
+        : summary.count > 0
+          ? summary.min
+          : null,
+      allTimeMax: allTimeExtremes
+        ? (allTimeExtremes.get("WEIGHT")?.max ?? null)
+        : summary.count > 0
+          ? summary.max
+          : null,
       slope30: summary.slope30?.slope ?? null,
       outlierCount: summary.anomalyCount,
       bmi,
@@ -733,12 +825,37 @@ export async function extractFeatures(
       avgDia30: diaSummary?.avg30 ?? null,
       avgSys90: sysData.length > 0 ? avgInWindow(sysData, now, 90) : null,
       avgDia90: diaData.length > 0 ? avgInWindow(diaData, now, 90) : null,
-      allTimeAvgSys: sysSummary?.count ? sysSummary.mean : null,
-      allTimeAvgDia: diaSummary?.count ? diaSummary.mean : null,
-      allTimeMinSys: sysSummary?.count ? sysSummary.min : null,
-      allTimeMaxSys: sysSummary?.count ? sysSummary.max : null,
-      allTimeMinDia: diaSummary?.count ? diaSummary.min : null,
-      allTimeMaxDia: diaSummary?.count ? diaSummary.max : null,
+      // v1.18.11 P1 — full-history extremes when the bulk read is windowed.
+      allTimeAvgSys: allTimeExtremes
+        ? roundMean(allTimeExtremes.get("BLOOD_PRESSURE_SYS")?.mean ?? null)
+        : sysSummary?.count
+          ? sysSummary.mean
+          : null,
+      allTimeAvgDia: allTimeExtremes
+        ? roundMean(allTimeExtremes.get("BLOOD_PRESSURE_DIA")?.mean ?? null)
+        : diaSummary?.count
+          ? diaSummary.mean
+          : null,
+      allTimeMinSys: allTimeExtremes
+        ? (allTimeExtremes.get("BLOOD_PRESSURE_SYS")?.min ?? null)
+        : sysSummary?.count
+          ? sysSummary.min
+          : null,
+      allTimeMaxSys: allTimeExtremes
+        ? (allTimeExtremes.get("BLOOD_PRESSURE_SYS")?.max ?? null)
+        : sysSummary?.count
+          ? sysSummary.max
+          : null,
+      allTimeMinDia: allTimeExtremes
+        ? (allTimeExtremes.get("BLOOD_PRESSURE_DIA")?.min ?? null)
+        : diaSummary?.count
+          ? diaSummary.min
+          : null,
+      allTimeMaxDia: allTimeExtremes
+        ? (allTimeExtremes.get("BLOOD_PRESSURE_DIA")?.max ?? null)
+        : diaSummary?.count
+          ? diaSummary.max
+          : null,
       slopeSys30: sysSummary?.slope30?.slope ?? null,
       slopeDia30: diaSummary?.slope30?.slope ?? null,
       sdSys30: (() => {
@@ -779,9 +896,22 @@ export async function extractFeatures(
       avg7: summary.avg7,
       avg30: summary.avg30,
       avg90: avgInWindow(pulseData, now, 90),
-      allTimeAvg: summary.count > 0 ? summary.mean : null,
-      allTimeMin: summary.count > 0 ? summary.min : null,
-      allTimeMax: summary.count > 0 ? summary.max : null,
+      // v1.18.11 P1 — full-history extremes when the bulk read is windowed.
+      allTimeAvg: allTimeExtremes
+        ? roundMean(allTimeExtremes.get("PULSE")?.mean ?? null)
+        : summary.count > 0
+          ? summary.mean
+          : null,
+      allTimeMin: allTimeExtremes
+        ? (allTimeExtremes.get("PULSE")?.min ?? null)
+        : summary.count > 0
+          ? summary.min
+          : null,
+      allTimeMax: allTimeExtremes
+        ? (allTimeExtremes.get("PULSE")?.max ?? null)
+        : summary.count > 0
+          ? summary.max
+          : null,
       slope30: summary.slope30?.slope ?? null,
       anomalyCount: summary.anomalyCount,
       coverage: computeCoverage(pulseData, now),

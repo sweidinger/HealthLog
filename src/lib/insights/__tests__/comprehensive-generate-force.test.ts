@@ -50,6 +50,11 @@ vi.mock("@/lib/insights/features", () => ({
     sizeBytes = 0;
   },
   extractFeatures: (...a: unknown[]) => extractFeatures(...a),
+  BRIEFING_FEATURE_WINDOW_DAYS: 400,
+}));
+vi.mock("@/lib/insights/illness-cycle-briefing", () => ({
+  buildBriefingIllnessCycleContext: vi.fn().mockResolvedValue(null),
+  buildBriefingIllnessCyclePrompt: vi.fn().mockReturnValue(""),
 }));
 // The post-gate prompt assembly reads GLP-1 + about-me context from the
 // DB; stub both so the changed-hash path stays DB-free in this test.
