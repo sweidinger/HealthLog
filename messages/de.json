@@ -4934,6 +4934,8 @@
     "bugReportGithubDescription": "Hinterlege GitHub-Issue-Token und Repository für eingehende Bugreports.",
     "bugReportEnabledLabel": "Bug-Reports aktiviert",
     "bugReportEnabledDescription": "Wenn deaktiviert, ist der Report-Button im Frontend nicht mehr sichtbar — Token und Repository bleiben gespeichert.",
+    "bugReportDeprecatedBadge": "Veraltet",
+    "bugReportDeprecatedNote": "Diese Funktion ist veraltet und wird in einer künftigen Version entfernt.",
     "assistant": {
       "title": "Assistenz-Oberflächen",
       "description": "Jeder Toggle versteckt eine modellgestützte Oberfläche app-weit, ohne die Provider-Konfiguration zu entfernen. Der Hauptschalter erzwingt jede Unter-Option aus.",
@@ -6473,6 +6475,7 @@
     "viewDescription": "Lege fest, ob die Einträge als Karten oder als kompakte Liste angezeigt werden.",
     "reorder": {
       "heading": "Reihenfolge",
+      "description": "Ziehe die Einträge, um ihre Reihenfolge festzulegen.",
       "empty": "Noch keine Einträge zum Sortieren."
     }
   },

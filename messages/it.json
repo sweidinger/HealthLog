@@ -4934,6 +4934,8 @@
     "bugReportGithubDescription": "Configura il token delle issue di GitHub e il repository per le segnalazioni di bug in arrivo.",
     "bugReportEnabledLabel": "Segnalazioni di bug attive",
     "bugReportEnabledDescription": "Se disattivato, il pulsante di segnalazione nell'app viene nascosto: token e repository restano configurati.",
+    "bugReportDeprecatedBadge": "Obsoleto",
+    "bugReportDeprecatedNote": "Questa funzione è obsoleta e verrà rimossa in una versione futura.",
     "assistant": {
       "title": "Superfici dell'assistente",
       "description": "Ogni interruttore nasconde una superficie guidata dal modello in tutta l'app senza rimuovere la configurazione del provider. Il master forza ogni opzione secondaria su off.",
@@ -6473,6 +6475,7 @@
     "viewDescription": "Scegli se le voci appaiono come schede o come elenco compatto.",
     "reorder": {
       "heading": "Ordine",
+      "description": "Trascina le voci per definire l'ordine in cui appaiono.",
       "empty": "Nessuna voce da riordinare."
     }
   },

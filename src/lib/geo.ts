@@ -1,19 +1,18 @@
 /**
  * IP geolocation lookup for audit-log enrichment.
  *
- * v1.15.12 E2: online-first resolver. The baseline that always works is
- * the `ipwho.is` HTTPS lookup (free, no key) — every self-host resolves
- * a location out of the box with no MaxMind licence configured. The
+ * v1.18.10 (W7): online-first resolver. The `ipwho.is` HTTPS lookup
+ * (free, no key) is the DEFAULT path — every self-host resolves a
+ * location out of the box with no MaxMind licence configured. The
  * bundled MaxMind GeoLite2-City MMDB at `/opt/geolite2/GeoLite2-City.mmdb`
- * is an OPTIONAL upgrade: when the offline databases are present
- * (`offlineGeoReady()`), the resolver prefers the microsecond-scale
- * local read for both speed and zero egress; when they are absent it
- * goes straight online.
+ * is an OPTIONAL fallback (perspective: removed later): it is consulted
+ * only when the online lookup misses (provider down / rate-limited) or
+ * when egress is disabled via `IP_GEO_LOOKUP_DISABLED=1`.
  *
  *   1. Private / loopback / opt-out → null (no lookup).
  *   2. Per-IP cache hit → return immediately.
- *   3. Offline MMDB present → local read; on a miss fall through online.
- *   4. Otherwise → online `ipwho.is` lookup.
+ *   3. Online `ipwho.is` lookup → return on success.
+ *   4. Offline MMDB present → local read fallback on an online miss.
  *
  * The legacy contract still holds: `lookupIpLocation` returns a
  * `"City, CC"` string or `null`, never throws. `lookupIpAsn` is the
@@ -369,31 +368,39 @@ export async function lookupIpLocation(
   const cached = getCachedLocation(ip);
   if (cached) return cached.value;
 
-  // v1.15.12 E2 — online-first precedence. The optional MaxMind offline
-  // tier is preferred ONLY when its databases are actually present
-  // (`offlineGeoReady()`): a local hit is faster and egress-free. When
-  // the offline DBs are absent — the default for a self-host with no
-  // `MAXMIND_LICENSE_KEY` — we skip straight to the online provider,
-  // which is the baseline that always resolves a location.
+  // v1.18.10 (W7) — online-first by default. The `ipwho.is` HTTPS lookup
+  // is now the primary resolver for every self-host: it needs no MaxMind
+  // licence and resolves a location out of the box. The bundled GeoLite2
+  // offline tier is an OPTIONAL fallback kept only for the egress-disabled
+  // case (`IP_GEO_LOOKUP_DISABLED=1`) or for an online miss when the DBs
+  // happen to be present — it is no longer the default path, and a missing
+  // offline tier is the expected baseline rather than a gap to alert on.
+  const online = await lookupIpLocationOnline(ip);
+  if (online) {
+    setCachedLocation(ip, online);
+    return online;
+  }
+
+  // Online missed (provider down, rate-limited, or egress disabled). Fall
+  // back to the offline MMDB if the operator configured one.
   if (offlineGeoReady()) {
     const offline = lookupIpLocationOffline(ip);
     if (offline) {
       setCachedLocation(ip, offline);
       return offline;
     }
-    // Offline DBs present but this IP missed (freshly-allocated range
-    // lagging the monthly GeoLite2 roll) → fall through to online.
   } else {
-    // No offline tier configured — fire the one-shot admin alert so the
-    // maintainer can wire `MAXMIND_LICENSE_KEY` for the offline upgrade
-    // when convenient. Online still resolves; the alert is informational.
-    // Fire-and-forget so the audit-log path stays fast.
+    // Neither resolver produced a location: the online lookup missed (or
+    // egress is disabled) AND no offline tier is configured. That is the
+    // only genuine "no resolver at all" gap — fire the one-shot admin alert
+    // so the maintainer can wire `MAXMIND_LICENSE_KEY` or re-enable egress.
+    // The happy path (ipwho.is resolving by default) never reaches here, so
+    // a self-host without the offline DBs is not nagged on every lookup.
     void notifyOfflineGeoUnavailable();
   }
 
-  const online = await lookupIpLocationOnline(ip);
-  setCachedLocation(ip, online);
-  return online;
+  setCachedLocation(ip, null);
+  return null;
 }
 
 /**

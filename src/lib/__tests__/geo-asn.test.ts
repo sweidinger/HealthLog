@@ -16,7 +16,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
  *   - Reader throws are swallowed (the helper is called from a
  *     fire-and-forget audit-log path; a thrown error would surface as
  *     an unhandled rejection).
- *   - The offline-first `lookupIpLocation` path picks the German city
+ *   - The online-first `lookupIpLocation` path (v1.18.10 W7) resolves via
+ *     `ipwho.is` by default and only consults the offline MMDB as a
+ *     fallback (online miss or egress disabled), picking the German city
  *     name first, English second, with the country ISO code from
  *     `country` or `registered_country`.
  *
@@ -171,57 +173,29 @@ describe("lookupIpAsn — offline ASN resolver (v1.4.27 B3)", () => {
   });
 });
 
-describe("lookupIpLocation — offline-first city resolver (v1.4.27 B3)", () => {
-  it("prefers the German exonym from the MMDB Names record", async () => {
+// v1.18.10 (W7) — online-first resolver. The `ipwho.is` HTTPS lookup is the
+// DEFAULT path; the bundled GeoLite2 offline tier is an OPTIONAL fallback
+// consulted only when the online lookup misses (provider down / non-ok) or
+// when egress is disabled via `IP_GEO_LOOKUP_DISABLED=1`.
+describe("lookupIpLocation — online-first city resolver (v1.18.10 W7)", () => {
+  // Helper: a non-ok online response forces the offline fallback to run.
+  function onlineMiss(): Response {
+    return new Response("", {
+      status: 503,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  it("prefers the online provider even when the offline DB is present", async () => {
     readerState.cityExists = true;
     readerState.city = () => ({
       city: { names: { de: "München", en: "Munich" } },
       country: { iso_code: "DE" },
     });
-    const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
-    const { lookupIpLocation } = await import("../geo");
-
-    expect(await lookupIpLocation("85.214.0.1")).toBe("München, DE");
-    // Offline hit — no online fallback was needed.
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it("falls back to the English city name when the German exonym is absent", async () => {
-    readerState.cityExists = true;
-    readerState.city = () => ({
-      city: { names: { en: "Birmingham" } },
-      country: { iso_code: "GB" },
-    });
-    const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
-    const { lookupIpLocation } = await import("../geo");
-
-    expect(await lookupIpLocation("212.58.224.1")).toBe("Birmingham, GB");
-  });
-
-  it("accepts the registered_country ISO when country is absent", async () => {
-    readerState.cityExists = true;
-    readerState.city = () => ({
-      city: { names: { en: "Geneva" } },
-      registered_country: { iso_code: "CH" },
-    });
-    const { lookupIpLocation } = await import("../geo");
-
-    expect(await lookupIpLocation("194.158.0.1")).toBe("Geneva, CH");
-  });
-
-  it("falls back to the online provider when the offline DB has no city/country", async () => {
-    readerState.cityExists = true;
-    readerState.city = () => ({ city: { names: {} } });
     const fetchSpy = vi.fn().mockResolvedValue(
       new Response(
         new TextEncoder().encode(
-          JSON.stringify({
-            success: true,
-            city: "Hamburg",
-            country_code: "DE",
-          }),
+          JSON.stringify({ success: true, city: "Berlin", country_code: "DE" }),
         ).buffer as ArrayBuffer,
         {
           status: 200,
@@ -232,11 +206,64 @@ describe("lookupIpLocation — offline-first city resolver (v1.4.27 B3)", () => 
     vi.stubGlobal("fetch", fetchSpy);
     const { lookupIpLocation } = await import("../geo");
 
-    expect(await lookupIpLocation("8.8.8.8")).toBe("Hamburg, DE");
+    // Online wins by default; the offline München record is not consulted.
+    expect(await lookupIpLocation("85.214.0.1")).toBe("Berlin, DE");
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to the online provider when the offline DB is missing entirely", async () => {
+  it("falls back to the offline German exonym when the online lookup misses", async () => {
+    readerState.cityExists = true;
+    readerState.city = () => ({
+      city: { names: { de: "München", en: "Munich" } },
+      country: { iso_code: "DE" },
+    });
+    const fetchSpy = vi.fn().mockResolvedValue(onlineMiss());
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpLocation } = await import("../geo");
+
+    expect(await lookupIpLocation("85.214.0.1")).toBe("München, DE");
+    // Online was tried first (and missed), then the offline tier resolved.
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("offline fallback uses the English city name when the German exonym is absent", async () => {
+    readerState.cityExists = true;
+    readerState.city = () => ({
+      city: { names: { en: "Birmingham" } },
+      country: { iso_code: "GB" },
+    });
+    const fetchSpy = vi.fn().mockResolvedValue(onlineMiss());
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpLocation } = await import("../geo");
+
+    expect(await lookupIpLocation("212.58.224.1")).toBe("Birmingham, GB");
+  });
+
+  it("offline fallback accepts the registered_country ISO when country is absent", async () => {
+    readerState.cityExists = true;
+    readerState.city = () => ({
+      city: { names: { en: "Geneva" } },
+      registered_country: { iso_code: "CH" },
+    });
+    const fetchSpy = vi.fn().mockResolvedValue(onlineMiss());
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpLocation } = await import("../geo");
+
+    expect(await lookupIpLocation("194.158.0.1")).toBe("Geneva, CH");
+  });
+
+  it("returns null when both online and the offline DB miss", async () => {
+    readerState.cityExists = true;
+    readerState.city = () => ({ city: { names: {} } });
+    const fetchSpy = vi.fn().mockResolvedValue(onlineMiss());
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpLocation } = await import("../geo");
+
+    expect(await lookupIpLocation("8.8.8.8")).toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves online when the offline DB is missing entirely", async () => {
     readerState.cityExists = false;
     const fetchSpy = vi.fn().mockResolvedValue(
       new Response(
@@ -256,7 +283,24 @@ describe("lookupIpLocation — offline-first city resolver (v1.4.27 B3)", () => 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("skips the online fallback when IP_GEO_LOOKUP_DISABLED=1 and offline misses", async () => {
+  it("uses the offline tier when IP_GEO_LOOKUP_DISABLED=1 and the offline DB is present", async () => {
+    process.env.IP_GEO_LOOKUP_DISABLED = "1";
+    readerState.cityExists = true;
+    readerState.city = () => ({
+      city: { names: { de: "München" } },
+      country: { iso_code: "DE" },
+    });
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpLocation } = await import("../geo");
+
+    // Egress disabled → online short-circuits to null without a request, then
+    // the offline tier resolves.
+    expect(await lookupIpLocation("85.214.0.1")).toBe("München, DE");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns null when IP_GEO_LOOKUP_DISABLED=1 and the offline DB is missing", async () => {
     process.env.IP_GEO_LOOKUP_DISABLED = "1";
     readerState.cityExists = false;
     const fetchSpy = vi.fn();

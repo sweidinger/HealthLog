@@ -4934,6 +4934,8 @@
     "bugReportGithubDescription": "Configure GitHub issue token and repository for incoming bug reports.",
     "bugReportEnabledLabel": "Bug reports enabled",
     "bugReportEnabledDescription": "When off, the in-app report button hides — token and repository stay configured.",
+    "bugReportDeprecatedBadge": "Deprecated",
+    "bugReportDeprecatedNote": "This feature is deprecated and will be removed in a future version.",
     "assistant": {
       "title": "Assistant Surfaces",
       "description": "Each toggle hides a model-driven surface app-wide without removing the provider configuration. The master kills every sub-flag at once.",
@@ -6473,6 +6475,7 @@
     "viewDescription": "Choose whether entries show as cards or as a compact list.",
     "reorder": {
       "heading": "Order",
+      "description": "Drag the entries to set the order they appear in.",
       "empty": "No entries to reorder yet."
     }
   },

@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiDelete } from "@/lib/api/api-fetch";
@@ -83,13 +84,13 @@ export function DangerZoneSection() {
   });
 
   return (
-    // v1.18.1 E4 — adopt the shared card shape (rounded-xl border + the
-    // `SettingsCardHeader` icon/title/description/status layout) so the
-    // Danger Zone reads like every other admin section. The destructive
-    // tint + AlertTriangle icon keep it visually flagged as dangerous;
-    // the delete affordance now sits in the header status slot, properly
-    // aligned beside its label rather than floating below a lone icon.
-    <div className="bg-destructive/5 border-destructive/30 rounded-xl border p-4 sm:p-6">
+    // v1.18.10 (W7) — the card SURFACE is neutral like every other admin /
+    // settings section (`SettingsCard`: bg-card + border-border): a red card
+    // edge reads as alarming, not premium. The danger signal lives ONLY in
+    // the destructive delete button + its typed-confirmation dialog, which
+    // are alarm enough. The header keeps the `AlertTriangle` icon so the
+    // section still flags its intent.
+    <SettingsCard>
       <SettingsCardHeader
         icon={AlertTriangle}
         title={t("admin.deleteAllData")}
@@ -176,6 +177,6 @@ export function DangerZoneSection() {
           {wipeMsg}
         </p>
       )}
-    </div>
+    </SettingsCard>
   );
 }
