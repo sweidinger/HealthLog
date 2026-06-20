@@ -1113,6 +1113,12 @@ model Measurement {
   // — see migration 0108. It accelerates the v1.10.0 dense intra-day
   // retention drain's discovery + per-user scan. Same Prisma-can't-
   // express-a-partial-predicate reason it is omitted here.
+  // `measurements_live_covering_idx` is a covering partial index over
+  // `(user_id, type, measured_at DESC) WHERE deleted_at IS NULL` — see
+  // migration 0183 (v1.18.10 P-5). It serves the DISTINCT-ON-latest, list,
+  // and series reads for every type NOT covered by the two partials above
+  // and removes the `deleted_at` heap re-check. Same Prisma-can't-express-a-
+  // partial-predicate reason it is omitted here.
   @@map("measurements")
 }
 
