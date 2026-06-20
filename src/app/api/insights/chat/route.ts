@@ -66,6 +66,10 @@ import {
   reconcileSpend,
 } from "@/lib/ai/coach/budget";
 import { detectRefusal } from "@/lib/ai/coach/refusal";
+import {
+  screenCoachReply,
+  coachOutboundFallback,
+} from "@/lib/ai/coach/outbound-guard";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
 import { getSelfContextTextForUser } from "@/lib/ai/coach/about-me";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
@@ -564,9 +568,33 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // + dismissal memory + cooldown + dedup against a live COACH reminder).
   // A suppressed proposal leaves the prose unchanged and emits no card.
   const suggestParse = parseSuggestReminder(proseAfterStrip);
-  const replyText = suggestParse.prose.trim() || proseAfterStrip;
+  let replyText = suggestParse.prose.trim() || proseAfterStrip;
+
+  // v1.18.10 (HIGH-2) — OUTBOUND safety screen on the assembled assistant
+  // reply, before persistence and streaming. The inbound `detectRefusal`
+  // guards the user's message; this guards the model's reply for a
+  // dose-prescription or a fabricated clinical risk score that slipped past
+  // the system-prompt GLP-1/grounding contracts. On a trip the turn is
+  // replaced with a calm, grounded fallback and any reminder suggestion /
+  // key-value provenance is dropped — the user never sees the unsafe text.
+  const outbound = screenCoachReply(replyText);
+  if (outbound.block && outbound.reason) {
+    replyText = coachOutboundFallback(outbound.reason, locale);
+    annotate({
+      action: { name: "insights.coach.outbound_blocked" },
+      meta: { reason: outbound.reason, promptVersion: PROMPT_VERSION },
+    });
+    await auditLog("insights.coach.outbound_blocked", {
+      userId,
+      details: {
+        conversationId: workingConversationId,
+        reason: outbound.reason,
+      },
+    });
+  }
+
   let surfacedSuggestion: CoachSuggestion | null = null;
-  if (suggestParse.cadence) {
+  if (!outbound.block && suggestParse.cadence) {
     const decision = await gateSuggestion({
       prisma,
       userId,
@@ -614,7 +642,11 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   }
   const enrichedProvenance: typeof snapshot.provenance = {
     ...snapshot.provenance,
-    ...(sentinel.keyValues.length > 0 ? { keyValues: sentinel.keyValues } : {}),
+    // v1.18.10 (HIGH-2) — a blocked turn carries the fallback prose, so the
+    // key-values from the discarded reply must not ride along as provenance.
+    ...(!outbound.block && sentinel.keyValues.length > 0
+      ? { keyValues: sentinel.keyValues }
+      : {}),
     ...(surfacedSuggestion ? { suggestion: surfacedSuggestion } : {}),
   };
   if (sentinel.malformed) {
@@ -692,9 +724,14 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // pace).
   const stream = createSseStream(async (controller) => {
     for (const tok of tokeniseForStreaming(replyText)) {
+      // v1.18.10 (A-2) — stop tokenising the moment the client disconnects;
+      // the cancel handler flips this signal, so we don't pace frames into a
+      // closed connection.
+      if (controller.signal.aborted) return;
       controller.enqueue(encodeFrame({ type: "token", token: tok }));
       await flushTick();
     }
+    if (controller.signal.aborted) return;
     controller.enqueue(
       encodeFrame({
         type: "provenance",
