@@ -126,8 +126,7 @@ function berlinHmAsUtc(hour: number, minute = 0, ref: Date = new Date()): Date {
     Number(parts.minute),
     Number(parts.second),
   );
-  const offsetMs =
-    Math.round((localNowAsUtc - ref.getTime()) / 60000) * 60000;
+  const offsetMs = Math.round((localNowAsUtc - ref.getTime()) / 60000) * 60000;
   return new Date(localTargetAsUtc - offsetMs);
 }
 
@@ -801,7 +800,9 @@ async function seed() {
       const takeMed1 = Math.random() > 0.02;
       if (takeMed1) {
         const takenTime = new Date(morningSlotFor);
-        takenTime.setMinutes(takenTime.getMinutes() + Math.floor(Math.random() * 45) + 1);
+        takenTime.setMinutes(
+          takenTime.getMinutes() + Math.floor(Math.random() * 45) + 1,
+        );
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
@@ -819,7 +820,9 @@ async function seed() {
       const takeMed2 = Math.random() > 0.05;
       if (takeMed2) {
         const takenTime = new Date(morningSlotFor);
-        takenTime.setMinutes(takenTime.getMinutes() + Math.floor(5 + Math.random() * 50) + 1);
+        takenTime.setMinutes(
+          takenTime.getMinutes() + Math.floor(5 + Math.random() * 50) + 1,
+        );
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
@@ -838,7 +841,9 @@ async function seed() {
         const takeMed3 = Math.random() > 0.06;
         if (takeMed3) {
           const takenTime = new Date(eveningSlotFor);
-          takenTime.setMinutes(takenTime.getMinutes() + Math.floor(Math.random() * 60) + 1);
+          takenTime.setMinutes(
+            takenTime.getMinutes() + Math.floor(Math.random() * 60) + 1,
+          );
           await client.query(
             `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
