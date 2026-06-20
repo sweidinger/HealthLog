@@ -37,7 +37,11 @@ import { MobileRailTray } from "./mobile-rail-tray";
 import { SelfContextAdoptOffer } from "./self-context-adopt-offer";
 import { SourcesRail } from "./sources-rail";
 import { useResettableValue } from "./use-resettable-value";
-import { useCoachConversation, useSendCoachMessage } from "./use-coach";
+import {
+  useCoachConversation,
+  useCoachConversations,
+  useSendCoachMessage,
+} from "./use-coach";
 
 /**
  * v1.12.0 (Coach v2 #6) — shared chat surface for both the Coach drawer
@@ -112,6 +116,27 @@ export interface CoachConversationProps {
   className?: string;
   /** data-variant on the root, surfaced for e2e + styling hooks. */
   surface: "drawer" | "page";
+  /**
+   * v1.18.11 (W11, #67) — open a specific conversation on mount. The page
+   * surface reads it from the `?c=` deep-link the dashboard Coach entry
+   * carries, so a tap lands the user directly in that thread instead of a
+   * blank new chat. Seeds the same `currentConversationId` the history
+   * drawer drives, so the drawer's selection stays the single source of
+   * truth; the URL param is just one more way to set it. Null/undefined
+   * leaves the selection alone (new-chat, or auto-most-recent below).
+   */
+  initialConversationId?: string | null;
+  /**
+   * v1.18.11 (W11, #67) — when no `initialConversationId` is given, open
+   * the user's MOST-RECENT conversation once the shared rail list resolves.
+   * This is what makes the dashboard Coach entry land the user IN their
+   * conversation cross-device: "most recent" is the server-authoritative
+   * `updatedAt desc` head of `GET /api/insights/chat`, identical on web and
+   * mobile — no client-only state. An account with no conversations falls
+   * through to the new-chat hero. Resolves exactly once per mount so a later
+   * "new chat" or thread switch is never overridden.
+   */
+  autoOpenMostRecent?: boolean;
 }
 
 export function CoachConversation({
@@ -125,12 +150,14 @@ export function CoachConversation({
   onRequestFullView,
   className,
   surface,
+  initialConversationId,
+  autoOpenMostRecent = false,
 }: CoachConversationProps) {
   const { t } = useTranslations();
 
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
-  >(null);
+  >(initialConversationId ?? null);
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
   // v1.18.11 (W11) — page surface only: conversation history is a LEFT
@@ -186,6 +213,26 @@ export function CoachConversation({
       setCurrentConversationId(resolvedId);
     },
   });
+
+  // v1.18.11 (W11, #67) — auto-open the most-recent conversation when the
+  // surface mounts with no explicit selection. Only fetches the rail list
+  // when the behaviour is requested AND no deep-linked id was supplied, so
+  // the drawer's default new-chat mount pays nothing for it.
+  const autoOpenEnabled = autoOpenMostRecent && !initialConversationId;
+  const { conversations: railConversations } =
+    useCoachConversations(autoOpenEnabled);
+  // Resolve once per mount via the in-render setState pattern (the
+  // `react-hooks/set-state-in-effect` rule rejects setState inside an effect
+  // when the source is a query result; see `coach-prefs-section.tsx`). The
+  // latch flips the first time the rail list arrives so a subsequent "new
+  // chat" or thread switch is never clobbered by a late list refetch.
+  const [autoOpenResolved, setAutoOpenResolved] = useState(false);
+  if (autoOpenEnabled && !autoOpenResolved && railConversations.length > 0) {
+    setAutoOpenResolved(true);
+    // Server-authoritative `updatedAt desc` head = the same thread the rail
+    // shows first, identical on every device.
+    setCurrentConversationId(railConversations[0].id);
+  }
 
   // Hand the chrome an imperative reset so the drawer can abort the
   // in-flight SSE stream + clear the thread on close. Re-registered when
