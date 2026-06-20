@@ -5,14 +5,20 @@
  * (real per-segment hypnogram timeline when present, else per-stage totals;
  * efficiency, HRV, RHR, respiratory rate), daily activity (steps, active
  * energy, equivalent walking distance), the daily Sleep Score (→ SLEEP_SCORE),
- * daily SpO2 (→ OXYGEN_SATURATION), and the dedicated vO2_max collection (→
- * VO2_MAX) for one connected user, mapping each into `Measurement` rows tagged
- * `source = OURA`.
+ * daily SpO2 (→ OXYGEN_SATURATION), the dedicated vO2_max collection (→
+ * VO2_MAX), and the daily cardiovascular-age estimate (→ VASCULAR_AGE) for one
+ * connected user, mapping each into `Measurement` rows tagged `source = OURA`.
  *
  * daily_stress → STRESS_SCORE is deferred: STRESS_SCORE already has an
  * HRV-derived COMPUTED producer that is not yet wired into the source-priority
  * ladder or the weekly graded-series collapse, so a second producer here would
  * double-count nondeterministically. Re-add once STRESS_SCORE is laddered.
+ *
+ * daily_resilience is deferred: resilience is a categorical level (limited /
+ * adequate / solid / strong / exceptional), not a numeric metric, and HealthLog
+ * has no categorical enum + column for it. Capturing it faithfully needs a new
+ * MeasurementType plus a categorical context column + CHECK constraint (a
+ * migration) — out of scope for this migration-free release.
  *
  * Token model: Oura uses refresh tokens. The merged schema has no expiry
  * column, so the sync refreshes REACTIVELY — the first read that 401s triggers
@@ -43,12 +49,14 @@ import {
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
+  fetchCardiovascularAge,
   fetchDailyActivity,
   fetchDailySleep,
   fetchDailySpo2,
   fetchReadiness,
   fetchSleep,
   fetchVo2Max,
+  mapCardiovascularAge,
   mapDailyActivity,
   mapDailySleep,
   mapDailySpo2,
@@ -122,7 +130,7 @@ async function fetchAll(
   const query = { startDate: ymd(start), endDate: ymd(now) };
 
   const run = async (token: string): Promise<OuraMeasurementUpsert[]> => {
-    const [readiness, sleeps, activities, dailySleep, spo2, vo2max] =
+    const [readiness, sleeps, activities, dailySleep, spo2, vo2max, cardioAge] =
       await Promise.all([
         fetchReadiness(token, query),
         fetchSleep(token, query),
@@ -130,6 +138,7 @@ async function fetchAll(
         fetchDailySleep(token, query),
         fetchDailySpo2(token, query),
         fetchVo2Max(token, query),
+        fetchCardiovascularAge(token, query),
       ]);
     const out: OuraMeasurementUpsert[] = [];
     for (const r of readiness)
@@ -141,6 +150,8 @@ async function fetchAll(
       out.push(...toUpsert(mapDailySleep(d), "daily_sleep"));
     for (const s of spo2) out.push(...toUpsert(mapDailySpo2(s), "spo2"));
     for (const v of vo2max) out.push(...toUpsert(mapVo2Max(v), "vo2max"));
+    for (const c of cardioAge)
+      out.push(...toUpsert(mapCardiovascularAge(c), "cardio_age"));
     return out;
   };
 

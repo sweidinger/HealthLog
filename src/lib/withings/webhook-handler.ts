@@ -155,6 +155,22 @@ export async function processWithingsNotification(
         "Sync failed for user " + connection.userId + ": " + err,
       );
     });
+    // v1.18.11 — ECG / AFib capture rides the measure path. The Heart List
+    // endpoint shares the `user.metrics` scope with the measure family, so a
+    // measure-family notification (which is what a ScanWatch ECG recording
+    // delivers) is the right trigger. Fire it non-blocking and lazy-loaded so
+    // the webhook response stays fast and the cold path doesn't pull the ECG
+    // module in until a measure notification actually lands.
+    void (async () => {
+      try {
+        const { syncUserEcg } = await import("./sync-ecg");
+        await syncUserEcg(connection.userId);
+      } catch (err) {
+        getEvent()?.addWarning(
+          "ECG sync failed for user " + connection.userId + ": " + err,
+        );
+      }
+    })();
   }
 
   return NextResponse.json({ status: "ok" }, { status: 200 });

@@ -301,6 +301,10 @@
         "viewSleep": "Ver sueño",
         "logMeasurement": "Registrar medición",
         "viewInsights": "Abrir Insights"
+      },
+      "briefing": {
+        "title": "Resumen de hoy",
+        "viewAll": "Abrir Insights"
       }
     },
     "greetingSalutation": "Hola, {name}",

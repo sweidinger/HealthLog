@@ -48,6 +48,7 @@ import { Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScoreRing } from "@/components/insights/derived/score-ring";
 import { RestModeBanner } from "@/components/insights/rest-mode-banner";
+import { BriefingSpotlight } from "@/components/dashboard/hero/briefing-spotlight";
 import {
   resolveDashboardVerdict,
   type DashboardVerdictVariant,
@@ -325,6 +326,18 @@ export function DashboardHero({
             untinted so it frames the score without alarming. Closes the
             web↔iOS parity gap: iOS already mirrors `score.restMode`. */}
         <RestModeBanner annotation={snapshot.healthScore?.restMode ?? null} />
+        {/* v1.18.11 — briefing spotlight. Lifts the fresh briefing's own
+            signals onto the hero so the daily read is always above the
+            fold, not buried behind the rung-8 verdict. Self-gating: renders
+            nothing unless a fresh (ready, non-stale) briefing carries
+            content. The rung-8 `briefing` verdict above still fires when no
+            higher rung claims the verdict line; this band is additive and
+            does not change which sentence the verdict shows. */}
+        <BriefingSpotlight
+          briefing={snapshot.briefing}
+          briefingState={snapshot.briefingState}
+          briefingStale={snapshot.briefingStale}
+        />
       </div>
     </section>
   );

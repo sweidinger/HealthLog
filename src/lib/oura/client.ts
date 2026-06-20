@@ -226,6 +226,19 @@ export interface OuraVo2Max {
   vo2_max?: number | null;
 }
 
+/**
+ * Oura `daily_cardiovascular_age` — Oura's estimate of how the user's
+ * cardiovascular system is ageing relative to chronological age, in years.
+ * Maps cleanly onto the existing `VASCULAR_AGE` enum (the same years-unit
+ * arterial-age concept Withings' Body Scan reports under meastype 155).
+ */
+export interface OuraCardiovascularAge {
+  id?: string;
+  day: string;
+  /** Estimated vascular age in years. */
+  vascular_age?: number | null;
+}
+
 export interface OuraDailyActivity {
   id: string;
   day: string;
@@ -374,6 +387,26 @@ export function fetchVo2Max(
     query,
   );
 }
+
+export function fetchCardiovascularAge(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraCardiovascularAge[]> {
+  return fetchCollection<OuraCardiovascularAge>(
+    "/v2/usercollection/daily_cardiovascular_age",
+    accessToken,
+    "fetchCardiovascularAge",
+    query,
+  );
+}
+
+// Oura `daily_resilience` → no fitting enum. Resilience is a categorical level
+// (limited / adequate / solid / strong / exceptional), not a numeric metric;
+// HealthLog has no categorical enum + column for it (RECOVERY_SCORE / ANS_CHARGE
+// are numeric scores, not a resilience band). Capturing it faithfully would
+// need a new MeasurementType plus a categorical context column + CHECK
+// constraint (a migration). Deferred until a migration lands — see the v1.18.11
+// backlog report.
 
 // ─── Field → Measurement mapping ───────────────────────────────
 
@@ -697,6 +730,29 @@ export function mapVo2Max(v: OuraVo2Max): MappedMeasurement[] {
       unit: "mL/(kg·min)",
       measuredAt,
       fieldTag: "vo2_max",
+    },
+  ];
+}
+
+/**
+ * Map one Oura `daily_cardiovascular_age` record → `VASCULAR_AGE` (years, the
+ * canonical DB unit — no conversion). Skips a record with no positive value.
+ * Shares the `VASCULAR_AGE` bucket with Withings' Body Scan arterial-age, kept
+ * distinct from the two vendors only by `source`.
+ */
+export function mapCardiovascularAge(
+  c: OuraCardiovascularAge,
+): MappedMeasurement[] {
+  if (typeof c.vascular_age !== "number" || c.vascular_age <= 0) return [];
+  const measuredAt = dayAnchor(c.day);
+  if (!measuredAt) return [];
+  return [
+    {
+      type: "VASCULAR_AGE",
+      value: round2(c.vascular_age),
+      unit: "years",
+      measuredAt,
+      fieldTag: "vascular_age",
     },
   ];
 }

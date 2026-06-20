@@ -301,6 +301,10 @@
         "viewSleep": "View sleep",
         "logMeasurement": "Log measurement",
         "viewInsights": "Open Insights"
+      },
+      "briefing": {
+        "title": "Today’s briefing",
+        "viewAll": "Open Insights"
       }
     },
     "greetingSalutation": "Hi, {name}",
