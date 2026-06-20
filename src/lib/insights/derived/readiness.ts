@@ -40,6 +40,8 @@ import {
   type RollupCoverageMap,
 } from "@/lib/rollups/measurement-coverage";
 import { computeMoodStability } from "@/lib/insights/mood-aggregates";
+import { MS_PER_DAY } from "@/lib/time-constants";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
 import {
   buildInsufficient,
   buildOk,
@@ -50,7 +52,6 @@ import { computeVitalsBaseline, type BaselineProfile } from "./baseline";
 import { computeSleepScore } from "./sleep-score";
 import type { Derived, DerivedProvenanceSource } from "./types";
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
 /**
  * Row cap for the latest-day mean read. A dense intra-day day (high-frequency
@@ -171,6 +172,7 @@ async function readLatestDayMean(
   type: MeasurementType,
   windowDays: number,
   now: Date,
+  tz: string,
 ): Promise<number | null> {
   const since = new Date(now.getTime() - windowDays * MS_PER_DAY);
   const rows = await prisma.measurement.findMany({
@@ -181,13 +183,15 @@ async function readLatestDayMean(
   });
   if (rows.length === 0) return null;
   // Derive the most-recent day defensively (do not assume the DB ordering).
+  // Day-keys are minted in the user's timezone so a 23:30-local reading lands
+  // on the right "today" bucket regardless of UTC offset.
   let latestDay = "";
   for (const r of rows) {
-    const d = r.measuredAt.toISOString().slice(0, 10);
+    const d = userDayKey(r.measuredAt, tz);
     if (d > latestDay) latestDay = d;
   }
   const sameDay = rows.filter(
-    (r) => r.measuredAt.toISOString().slice(0, 10) === latestDay,
+    (r) => userDayKey(r.measuredAt, tz) === latestDay,
   );
   return sameDay.reduce((s, r) => s + r.value, 0) / sameDay.length;
 }
@@ -216,6 +220,7 @@ async function scoreVitalDeviation(
   windowDays: number,
   now: Date,
   coverage: RollupCoverageMap,
+  tz: string,
 ): Promise<{
   value: number | null;
   source: DerivedProvenanceSource;
@@ -235,7 +240,7 @@ async function scoreVitalDeviation(
       historyDays: baseline.coverage.historyDays,
     };
   }
-  const today = await readLatestDayMean(userId, type, windowDays, now);
+  const today = await readLatestDayMean(userId, type, windowDays, now, tz);
   // No recent reading, or a non-finite baseline center / today value: there
   // is no scorable deviation. Return null (hidden) rather than letting a NaN
   // fall through `scoreDeviation` → `clamp100`, which would surface a
@@ -271,6 +276,13 @@ export interface ReadinessOpts {
   now?: Date;
   /** Pre-probed coverage (shared across metrics in one request). */
   coverage?: RollupCoverageMap;
+  /**
+   * IANA timezone the "same day" grouping is keyed in, so a 23:30-local
+   * reading lands on the correct readiness day. Defaults to `Europe/Berlin`
+   * (the canonical tenant zone) when the caller has not resolved the user's
+   * zone.
+   */
+  tz?: string;
 }
 
 /**
@@ -284,6 +296,7 @@ export async function computeReadiness(
 ): Promise<Derived<ReadinessValue>> {
   const windowDays = opts.windowDays ?? DEFAULT_WINDOW_DAYS;
   const now = opts.now ?? new Date();
+  const tz = opts.tz ?? DEFAULT_TIMEZONE;
   const computedAt = nowProvenanceTimestamp(now);
   const coverage = opts.coverage ?? (await probeRollupCoverage(userId));
 
@@ -305,6 +318,7 @@ export async function computeReadiness(
       windowDays,
       now,
       coverage,
+      tz,
     ),
     scoreVitalDeviation(
       userId,
@@ -314,6 +328,7 @@ export async function computeReadiness(
       windowDays,
       now,
       coverage,
+      tz,
     ),
     scoreVitalDeviation(
       userId,
@@ -323,6 +338,7 @@ export async function computeReadiness(
       windowDays,
       now,
       coverage,
+      tz,
     ),
   ]);
 

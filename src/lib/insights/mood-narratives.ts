@@ -16,6 +16,8 @@
 
 import { dayOffsetToBerlinDayKey } from "@/lib/insights/bucket-series";
 import { round } from "@/lib/insights/status-shared";
+import { MS_PER_DAY } from "@/lib/time-constants";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
 import type {
   StructuredTagRow,
   TagSummaryRow,
@@ -80,6 +82,13 @@ export interface MoodNarrativeInput {
   /** Day keys (YYYY-MM-DD) the user logged a mood on. */
   loggedDayKeys: string[];
   now: Date;
+  /**
+   * IANA timezone the streak anchor + day-walk are keyed in, so the "today"
+   * key matches the tz-anchored `loggedDayKeys` for a logger east/west of
+   * UTC near midnight. Defaults to `Europe/Berlin` when the caller has not
+   * resolved the user's zone.
+   */
+  tz?: string;
 }
 
 /** i18n label keys for each part-of-day bucket. */
@@ -99,8 +108,6 @@ const WEEKDAY_LABEL_KEYS = [
   "charts.weekdaysFull.sat",
   "charts.weekdaysFull.sun",
 ] as const;
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function mean(values: number[]): number | null {
   if (values.length === 0) return null;
@@ -349,22 +356,29 @@ function inTargetNarrative(input: MoodNarrativeInput): MoodNarrative | null {
 function streakNarrative(input: MoodNarrativeInput): MoodNarrative | null {
   if (input.loggedDayKeys.length === 0) return null;
 
+  const tz = input.tz ?? DEFAULT_TIMEZONE;
   const keys = new Set(input.loggedDayKeys);
-  const todayKey = input.now.toISOString().slice(0, 10);
-  const todayMs = Date.parse(todayKey + "T00:00:00Z");
+  // Anchor "today" in the user's timezone so the key matches the tz-anchored
+  // `loggedDayKeys` for a late-evening logger east/west of UTC.
+  const todayKey = userDayKey(input.now, tz);
+  // Walk the cursor from a NOON-UTC anchor of the day key: ±12h covers every
+  // IANA offset, so `new Date(cursor)` always re-derives the same calendar day
+  // in the user's zone regardless of whether they are east or west of UTC.
+  const noonMs = (key: string) => Date.parse(key + "T12:00:00Z");
+  const todayMs = noonMs(todayKey);
 
   // Anchor the streak at today if logged, else the most recent logged day.
   let anchorMs = todayMs;
   if (!keys.has(todayKey)) {
     const sorted = [...keys].sort().reverse();
-    anchorMs = Date.parse(sorted[0] + "T00:00:00Z");
+    anchorMs = noonMs(sorted[0]);
     // A streak that does not include today is stale — don't congratulate.
     if (anchorMs !== todayMs) return null;
   }
 
   let run = 0;
   let cursor = anchorMs;
-  while (keys.has(new Date(cursor).toISOString().slice(0, 10))) {
+  while (keys.has(userDayKey(new Date(cursor), tz))) {
     run += 1;
     cursor -= MS_PER_DAY;
   }
