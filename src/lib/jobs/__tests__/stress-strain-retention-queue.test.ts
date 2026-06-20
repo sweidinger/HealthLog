@@ -140,4 +140,11 @@ describe("reminder-worker — dense intra-day retention wiring", () => {
     // same tick as the cumulative + mean drains.
     expect(source).toMatch(/runDenseIntradayRetention\(\s*getWorkerPrisma\(\)/);
   });
+
+  it("surfaces the iOS#34 derived-resting count in the per-user worker log", () => {
+    // The PULSE facet mints derived RESTING_HEART_RATE rows for proxy users;
+    // the per-user handler returns the count and the worker logs it so the
+    // signal-preservation is observable in production.
+    expect(source).toMatch(/derivedRestingRowsUpserted/);
+  });
 });
