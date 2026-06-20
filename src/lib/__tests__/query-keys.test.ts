@@ -219,6 +219,16 @@ describe("dependent-key bundles", () => {
     expect(keyStrings).toContain(JSON.stringify(["chart-data"]));
   });
 
+  // v1.18.9 (#38) — the dashboard snapshot must ride the measurement
+  // bundle too. The hero band / score ring / tile strip read ONE snapshot
+  // query with refetch-on-mount/focus options that otherwise leave an
+  // in-app-added reading invisible on the Startseite until the 120 s poll
+  // or a hard reload. Mirror the v1.16.11 medication-bundle fix.
+  it("measurementDependentKeys bundles the dashboard snapshot (v1.18.9)", () => {
+    const keyStrings = measurementDependentKeys.map((k) => JSON.stringify(k));
+    expect(keyStrings).toContain(JSON.stringify(["dashboard", "snapshot"]));
+  });
+
   it("moodDependentKeys bundle covers mood + analytics + targets", () => {
     const keyStrings = moodDependentKeys.map((k) => JSON.stringify(k));
     expect(keyStrings).toContain(JSON.stringify(["mood-entries"]));
