@@ -6,8 +6,10 @@ import {
   CUMULATIVE_DAY_SUM_TYPES,
   cumulativeMetricKey,
   isCumulativeDaySumType,
+  metricKeyForType,
   pickCumulativeDaySum,
 } from "../cumulative-day-sum";
+import { RANKED_TYPES } from "@/lib/analytics/source-rank-sql";
 
 /**
  * v1.4.36 W4c — pickCumulativeDaySum unit tests.
@@ -154,5 +156,24 @@ describe("cumulativeMetricKey", () => {
 
   it("returns null for TIME_IN_DAYLIGHT (no clinical competitor today)", () => {
     expect(cumulativeMetricKey("TIME_IN_DAYLIGHT")).toBeNull();
+  });
+});
+
+describe("metricKeyForType — source-priority ladder coverage (v1.18.10 I-5)", () => {
+  // Every type in RANKED_TYPES drives the SQL source-collapse CASE
+  // (`buildSourceRankCase` skips a type whose `metricKeyForType` is null).
+  // A ranked type that resolves to null would make `collapseRollupRowsBySource`
+  // fall to the alphabetical rank-90 tiebreak — nondeterministic the instant a
+  // second producer for that type is enabled. Pin the contract so a future
+  // ranked type cannot ship without its metric key.
+  it("resolves every RANKED_TYPES member to a non-null SourcePriorityMetricKey", () => {
+    for (const type of RANKED_TYPES) {
+      expect(metricKeyForType(type)).not.toBeNull();
+    }
+  });
+
+  it("ladders STRESS_SCORE so the COMPUTED-vs-device producer is deterministic", () => {
+    expect(metricKeyForType("STRESS_SCORE")).toBe("stress");
+    expect(RANKED_TYPES).toContain("STRESS_SCORE");
   });
 });

@@ -55,6 +55,10 @@ import { annotate } from "@/lib/logging/context";
 import { readRollupBuckets } from "@/lib/rollups/measurement-rollups";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import {
+  buildSourceRankCase,
+  canonicalMeasurementsFrom,
+} from "@/lib/analytics/source-rank-sql";
+import {
   probeRollupCoverage,
   type RollupCoverageMap,
 } from "@/lib/rollups/measurement-coverage";
@@ -454,9 +458,33 @@ async function computeFromLive(
   const DAY_MS = 24 * 60 * 60 * 1000;
   const bpInTargetSince = new Date(now.getTime() - 365 * DAY_MS);
 
+  // v1.18.10 I-1 — collapse overlapping sources before windowing. BP is a
+  // multi-source metric (a Withings reading mirrored into Apple Health is two
+  // rows for one event). Without the collapse the live/cold path double-counts
+  // the shared reading in both the in-target denominator and the
+  // recency-weighted grade, returning a different number than the rollup/warm
+  // path (which reads source-collapsed `measurement_rollups`). Pick the
+  // ladder-winning source per (type, day) so cold == warm (web↔iOS parity).
+  const priorityJson = await loadUserSourcePriority(userId);
+  const rankUnqualified = buildSourceRankCase(
+    priorityJson,
+    '"type"',
+    '"source"',
+  );
+
   const [sysData, diaData] = await Promise.all([
-    fetchSeriesChunked(userId, "BLOOD_PRESSURE_SYS", bpInTargetSince),
-    fetchSeriesChunked(userId, "BLOOD_PRESSURE_DIA", bpInTargetSince),
+    fetchSeriesChunked(
+      userId,
+      "BLOOD_PRESSURE_SYS",
+      bpInTargetSince,
+      rankUnqualified,
+    ),
+    fetchSeriesChunked(
+      userId,
+      "BLOOD_PRESSURE_DIA",
+      bpInTargetSince,
+      rankUnqualified,
+    ),
   ]);
 
   const rowCount = sysData.length + diaData.length;
@@ -499,34 +527,40 @@ async function computeFromLive(
 }
 
 /**
- * Cursor-paged read of one BP type. Mirrors the route's
- * `fetchMeasurementSeriesChunked` shape but pruned to the only two
- * fields the in-target helper consumes (`measuredAt` + `value`) so the
- * Prisma round-trip stays minimal on the cold fallback path.
+ * Source-collapsed read of one BP type over the trailing 365 days.
+ *
+ * v1.18.10 I-1 — routes through `canonicalMeasurementsFrom` so a reading that
+ * exists under two sources (Withings + its Apple-Health mirror) is counted
+ * once per (type, day), matching the rollup fast-path. Pruned to the two
+ * fields the in-target helper consumes (`measuredAt` + `value`). Per-event
+ * rows of the winning source survive the collapse, so the downstream ±5-min
+ * pairing still sees individual readings. BP is low-volume even on multi-year
+ * accounts, so one source-collapsed query replaces the prior cursor paging.
  */
-const CHUNK = 5000;
-
 async function fetchSeriesChunked(
   userId: string,
   type: "BLOOD_PRESSURE_SYS" | "BLOOD_PRESSURE_DIA",
+  // The 365-day window is expressed as a SQL interval inside the canonical
+  // subquery; the bound `Date` arg is retained for call-site symmetry.
   since: Date,
+  rankUnqualified: string,
 ): Promise<BpReading[]> {
-  const out: BpReading[] = [];
-  let cursorId: string | undefined;
-  for (let page = 0; page < 1000; page++) {
-    const chunk = await prisma.measurement.findMany({
-      where: { userId, type, measuredAt: { gte: since }, deletedAt: null },
-      orderBy: [{ measuredAt: "asc" }, { id: "asc" }],
-      select: { id: true, measuredAt: true, value: true },
-      take: CHUNK,
-      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-    });
-    if (chunk.length === 0) break;
-    for (const row of chunk) {
-      out.push({ measuredAt: row.measuredAt, value: row.value });
-    }
-    if (chunk.length < CHUNK) break;
-    cursorId = chunk[chunk.length - 1].id;
-  }
-  return out;
+  void since;
+  const rows = await prisma.$queryRawUnsafe<
+    Array<{ measured_at: Date; value: number }>
+  >(
+    `
+      SELECT
+        m."measured_at"              AS measured_at,
+        m."value"::double precision  AS value
+      FROM ${canonicalMeasurementsFrom(rankUnqualified, "365 days")}
+      WHERE m."type" = '${type}'
+      ORDER BY m."measured_at" ASC
+    `,
+    userId,
+  );
+  return rows.map((r) => ({
+    measuredAt: new Date(r.measured_at),
+    value: Number(r.value),
+  }));
 }

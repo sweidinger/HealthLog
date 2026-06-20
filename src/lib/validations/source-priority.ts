@@ -131,6 +131,13 @@ export const SOURCE_PRIORITY_METRIC_KEYS = [
   // `RECOVERY_SCORE` rows distinguished by source — this ladder lets the
   // same picker resolve native-above-proxy without a second engine.
   "recovery",
+  // v1.18.10 I-5 — native-vs-derived stress. HealthLog computes a COMPUTED
+  // HRV-derived `STRESS_SCORE` proxy; a device-native producer (Oura
+  // `daily_stress`) is the deferred second source. Laddering it now makes the
+  // picker deterministic the instant a second producer is enabled, instead of
+  // collapsing to the alphabetical rank-90 tiebreak. Single-producer today,
+  // so the ladder is a no-op until the second producer lands.
+  "stress",
 ] as const;
 
 export type SourcePriorityMetricKey =
@@ -297,6 +304,11 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // fallback for users without a strap. v1.17.0 — Oura readiness + Polar
   // nightly recovery slot below WHOOP and above the computed proxy.
   recovery: ["WHOOP", "OURA", "POLAR", "COMPUTED"],
+  // v1.18.10 I-5 — native-vs-derived stress. Oura's device-native
+  // `daily_stress` (the deferred second producer) outranks HealthLog's
+  // COMPUTED HRV-derived proxy; the proxy is the fallback for users without a
+  // device-native stress signal. Single-producer today.
+  stress: ["OURA", "COMPUTED"],
 };
 
 /**

@@ -3872,7 +3872,8 @@
           "vo2Max": "VO2 max",
           "skinTemperature": "Temperatura cutanea",
           "respiratoryRate": "Frequenza respiratoria",
-          "recovery": "Recupero"
+          "recovery": "Recupero",
+          "stress": "Stress"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",

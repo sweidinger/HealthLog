@@ -3606,6 +3606,22 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                stress:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                      - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 metricPriority:
                   type: object
                   properties:
@@ -3866,6 +3882,22 @@ paths:
                           - POLAR
                           - OURA
                     recovery:
+                      maxItems: 8
+                      type: array
+                      items:
+                        type: string
+                        enum:
+                          - MANUAL
+                          - WITHINGS
+                          - IMPORT
+                          - APPLE_HEALTH
+                          - COMPUTED
+                          - WHOOP
+                          - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
+                    stress:
                       maxItems: 8
                       type: array
                       items:
@@ -14424,6 +14456,22 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+            stress:
+              maxItems: 8
+              type: array
+              items:
+                type: string
+                enum:
+                  - MANUAL
+                  - WITHINGS
+                  - IMPORT
+                  - APPLE_HEALTH
+                  - COMPUTED
+                  - WHOOP
+                  - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             metricPriority:
               type: object
               properties:
@@ -14684,6 +14732,22 @@ components:
                       - POLAR
                       - OURA
                 recovery:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                      - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
+                stress:
                   maxItems: 8
                   type: array
                   items:
@@ -15020,6 +15084,22 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+            stress:
+              maxItems: 8
+              type: array
+              items:
+                type: string
+                enum:
+                  - MANUAL
+                  - WITHINGS
+                  - IMPORT
+                  - APPLE_HEALTH
+                  - COMPUTED
+                  - WHOOP
+                  - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             metricPriority:
               type: object
               properties:
@@ -15280,6 +15360,22 @@ components:
                       - POLAR
                       - OURA
                 recovery:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                      - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
+                stress:
                   maxItems: 8
                   type: array
                   items:
