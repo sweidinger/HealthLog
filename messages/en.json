@@ -2082,6 +2082,7 @@
       "errorCredentialExpired": "Your AI provider connection has expired. Reconnect it in Settings to keep the Coach running.",
       "tagline": "Personal health coach, grounded in your data.",
       "newChat": "New chat",
+      "actionsMenu": "Actions",
       "maximizeAriaLabel": "Open in full page",
       "minimizeAriaLabel": "Back to the drawer",
       "send": "Send",

@@ -7,6 +7,12 @@ import { Plus, Settings, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -127,10 +133,12 @@ export function CoachConversation({
   >(null);
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
-  // v1.18.7 (W-coach C-UI) — page surface only: the inline conversation
-  // rail is collapsed by default for a calm, prompt-first surface. The
-  // rail-tray-strip toggle (lg+) opens it; the rail heading closes it.
-  const [historyRailOpen, setHistoryRailOpen] = useState(false);
+  // v1.18.11 (W11) — page surface only: conversation history is a LEFT
+  // slide-in drawer (overlay on every viewport, ChatGPT-style), opened from
+  // the composer's `+` actions menu. Replaces the old inline collapsible
+  // rail + top rail-tray strip; the top header bar is gone entirely on the
+  // page so the composer is the single control hub.
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
   // v1.16.4 — self-context backflow: `pendingAdopt` raises a quiet
   // offer to fold a clarifying-question answer back into the
@@ -288,6 +296,11 @@ export function CoachConversation({
   // hero (centred) OR docked at the bottom of the conversation without
   // forking any composer logic (dictation, auto-grow, send/stop, the
   // guided-question placeholder all behave identically in both spots).
+  //
+  // v1.18.11 (W11) — on the page surface the composer is the control hub:
+  // it grows a leading `+` actions menu (new chat + open conversations) and
+  // a settings deep-link. The drawer keeps its own header for those, so the
+  // hub is page-only.
   const composerNode = (
     <CoachInput
       value={inputValue}
@@ -302,6 +315,9 @@ export function CoachConversation({
           ? t("insights.coach.guided.answerPlaceholder")
           : undefined
       }
+      showHub={surface === "page"}
+      onNewChat={handleNewChat}
+      onOpenHistory={() => setHistoryDrawerOpen(true)}
     />
   );
 
@@ -322,6 +338,132 @@ export function CoachConversation({
     guided.phase === "idle" &&
     pendingQuestions.length === 0 &&
     !pendingAdopt;
+
+  // v1.18.11 (W11) — the docked composer column: the quiet adopt offer and
+  // the guided-questions entry card stack above the live composer. Shared by
+  // the drawer body (via `CoachDrawerBody`) and the page surface (rendered
+  // directly), so the two surfaces stay byte-identical above the composer.
+  const composerStack = (
+    <div>
+      {/* v1.16.4 — quiet adopt-into-self-context offer once a clarifying
+          question has been answered. Self-removes after settle; v1.16.5
+          reports the outcome back into the guided machine for the closing
+          summary. */}
+      {pendingAdopt && !send.isStreaming ? (
+        <SelfContextAdoptOffer
+          question={pendingAdopt.question}
+          answer={pendingAdopt.answer}
+          onDismiss={() => setPendingAdopt(null)}
+          onSettled={(adoption) =>
+            dispatchGuided({
+              type: "ADOPTION_SETTLED",
+              index: pendingAdopt.guidedIndex,
+              adoption,
+            })
+          }
+        />
+      ) : null}
+      {/* v1.16.5 — guided clarifying-questions entry card (V2 of the
+          v1.16.0 chips). Offers the in-chat sequence while questions pend
+          and the flow hasn't started. */}
+      {guided.phase === "idle" && pendingQuestions.length > 0 ? (
+        <GuidedQuestionsCard
+          count={pendingQuestions.length}
+          disabled={send.isStreaming || dismissQuestions.isPending}
+          onStart={() =>
+            dispatchGuided({
+              type: "START",
+              questions: pendingQuestions,
+            })
+          }
+          onLater={() => dispatchGuided({ type: "LATER" })}
+          onDismissAll={() =>
+            dismissQuestions.mutate(undefined, {
+              onSuccess: () => dispatchGuided({ type: "LATER" }),
+            })
+          }
+        />
+      ) : null}
+      {composerNode}
+    </div>
+  );
+
+  // v1.18.11 (W11) — page surface: the conversation history is a LEFT
+  // slide-in drawer (overlay on every viewport), opened from the composer's
+  // `+` actions menu. Reuses the shared `<HistoryRail>` + conversation-list
+  // query; respects `prefers-reduced-motion` (the Sheet primitive disables
+  // its slide there). Selecting a conversation closes the drawer.
+  const historyDrawer = (
+    <Sheet open={historyDrawerOpen} onOpenChange={setHistoryDrawerOpen}>
+      <SheetContent
+        side="left"
+        data-slot="coach-history-drawer"
+        className="w-[88vw] max-w-[340px] p-0"
+      >
+        <SheetHeader className="border-border/70 border-b p-3">
+          <SheetTitle className="text-sm">
+            {t("insights.coach.historyTitle")}
+          </SheetTitle>
+        </SheetHeader>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <HistoryRail
+            activeId={currentConversationId}
+            hideHeading
+            onSelect={(id) => {
+              // v1.16.5 — switching conversations drops the guided session;
+              // unanswered questions stay pending.
+              setCurrentConversationId(id);
+              setHistoryDrawerOpen(false);
+              setPendingAdopt(null);
+              dispatchGuided({ type: "RESET" });
+            }}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
+  // v1.18.11 (W11) — the PAGE surface drops the top header bar and the
+  // rail-tray strip entirely. The composer is the single control hub; the
+  // thread (`[&>*]:max-w-2xl` inner gutter) and the docked composer
+  // (`mx-auto max-w-2xl`) share ONE centred, max-width-capped column so the
+  // composer never changes width between the new-chat hero and an active
+  // conversation. The drawer surface keeps its own header + body chrome
+  // (handled below) untouched.
+  if (surface === "page") {
+    return (
+      <div
+        data-slot="coach-conversation"
+        data-variant={surface}
+        className={cn("flex min-h-0 flex-1 flex-col", className)}
+      >
+        {heroActive ? (
+          <CoachHero composer={composerNode} />
+        ) : (
+          <>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <MessageThread
+                conversation={conversation ?? null}
+                streaming={send.streaming}
+                optimisticUser={send.optimisticUser}
+                interleaved={interleaved}
+              />
+            </div>
+            {/* Docked composer — the SAME centred, capped column as the
+                thread (and the hero composer), so the width is constant
+                across the new-chat → conversation transition. */}
+            <div
+              data-slot="coach-page-composer"
+              className="shrink-0 px-4 pt-2 pb-3 sm:px-6 sm:pb-4"
+            >
+              <div className="mx-auto w-full max-w-2xl">{composerStack}</div>
+            </div>
+          </>
+        )}
+        {historyDrawer}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -398,94 +540,24 @@ export function CoachConversation({
         {trailingHeaderActions}
       </header>
 
-      {heroActive ? (
-        <CoachHero composer={composerNode} />
-      ) : (
-        <CoachDrawerBody
-          historyOpen={historyRailOpen}
-          onToggleHistory={
-            surface === "page"
-              ? () => setHistoryRailOpen((open) => !open)
-              : undefined
-          }
-          historyRail={
-            surface === "page" ? (
-              <HistoryRail
-                activeId={currentConversationId}
-                // v1.18.1 — the `<aside>` band already renders the
-                // "Conversations" <h2>; suppress the rail's own <h3> so the
-                // heading is not stacked twice on the page surface.
-                hideHeading
-                onSelect={(id) => {
-                  // v1.16.5 — switching conversations drops the guided
-                  // session; unanswered questions stay pending.
-                  setCurrentConversationId(id);
-                  setPendingAdopt(null);
-                  dispatchGuided({ type: "RESET" });
-                }}
-              />
-            ) : undefined
-          }
-          thread={
-            <MessageThread
-              conversation={conversation ?? null}
-              streaming={send.streaming}
-              optimisticUser={send.optimisticUser}
-              interleaved={interleaved}
-            />
-          }
-          composer={
-            <div>
-              {/* v1.16.4 — quiet adopt-into-self-context offer once a
-                clarifying question has been answered. Self-removes
-                after settle; v1.16.5 reports the outcome back into the
-                guided machine for the closing summary. */}
-              {pendingAdopt && !send.isStreaming ? (
-                <SelfContextAdoptOffer
-                  question={pendingAdopt.question}
-                  answer={pendingAdopt.answer}
-                  onDismiss={() => setPendingAdopt(null)}
-                  onSettled={(adoption) =>
-                    dispatchGuided({
-                      type: "ADOPTION_SETTLED",
-                      index: pendingAdopt.guidedIndex,
-                      adoption,
-                    })
-                  }
-                />
-              ) : null}
-              {/* v1.16.5 — guided clarifying-questions entry card (V2 of
-                the v1.16.0 chips). Offers the in-chat sequence while
-                questions pend and the flow hasn't started. */}
-              {guided.phase === "idle" && pendingQuestions.length > 0 ? (
-                <GuidedQuestionsCard
-                  count={pendingQuestions.length}
-                  disabled={send.isStreaming || dismissQuestions.isPending}
-                  onStart={() =>
-                    dispatchGuided({
-                      type: "START",
-                      questions: pendingQuestions,
-                    })
-                  }
-                  onLater={() => dispatchGuided({ type: "LATER" })}
-                  onDismissAll={() =>
-                    dismissQuestions.mutate(undefined, {
-                      onSuccess: () => dispatchGuided({ type: "LATER" }),
-                    })
-                  }
-                />
-              ) : null}
-              {composerNode}
-            </div>
-          }
-          onHistoryClick={
-            surface === "drawer" && onRequestFullView
-              ? onRequestFullView
-              : () => setHistoryTrayOpen(true)
-          }
-          onOpenSourcesTray={() => setSourcesTrayOpen(true)}
-        />
-      )}
+      {/* Drawer surface keeps its existing body chrome: thread + rail-tray
+          strip + docked composer, with the conversation list + sources as
+          mobile trays. The "Conversations" affordance hands off to the
+          full-page route (in-panel left tray kept breaking inside the
+          sheet). The page surface is handled above and never reaches here. */}
+      <CoachDrawerBody
+        thread={
+          <MessageThread
+            conversation={conversation ?? null}
+            streaming={send.streaming}
+            optimisticUser={send.optimisticUser}
+            interleaved={interleaved}
+          />
+        }
+        composer={composerStack}
+        onHistoryClick={onRequestFullView ?? (() => setHistoryTrayOpen(true))}
+        onOpenSourcesTray={() => setSourcesTrayOpen(true)}
+      />
 
       <MobileRailTray
         historyOpen={historyTrayOpen}

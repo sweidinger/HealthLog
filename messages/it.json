@@ -2082,6 +2082,7 @@
       "errorCredentialExpired": "La connessione al provider di IA è scaduta. Riconnettila nelle Impostazioni per mantenere attivo il Coach.",
       "tagline": "Coach personale di salute, basato sui tuoi dati.",
       "newChat": "Nuova chat",
+      "actionsMenu": "Azioni",
       "maximizeAriaLabel": "Apri a pagina intera",
       "minimizeAriaLabel": "Torna al pannello",
       "send": "Invia",
