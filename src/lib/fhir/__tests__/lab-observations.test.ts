@@ -161,3 +161,88 @@ describe("lab-result FHIR Observations", () => {
     expect(labObs).toHaveLength(0);
   });
 });
+
+describe("lab-result LOINC + canonical UCUM coding (v1.18.8)", () => {
+  function labOf(type: string, unit: string, value = 5.4) {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        labResults: [
+          {
+            panel: null,
+            analyte: type,
+            value,
+            unit,
+            referenceLow: null,
+            referenceHigh: null,
+            takenAt: "2026-04-20T08:00:00.000Z",
+            count: 1,
+          },
+        ],
+      }),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
+    return observationsOf(bundle).find((o) => o.code.text?.startsWith(type));
+  }
+
+  it("emits a LOINC coding alongside code.text for a mapped analyte", () => {
+    const o = labOf("HbA1c", "%");
+    expect(o?.code.text).toBe("HbA1c");
+    expect(o?.code.coding?.[0].system).toBe("http://loinc.org");
+    expect(o?.code.coding?.[0].code).toBe("4548-4");
+    expect(o?.code.coding?.[0].display).toContain("Hemoglobin A1c");
+  });
+
+  it("stamps the canonical UCUM code when the unit matches", () => {
+    const o = labOf("LDL", "mg/dL", 110);
+    expect(o?.code.coding?.[0].code).toBe("18262-6");
+    expect(o?.valueQuantity?.system).toBe("http://unitsofmeasure.org");
+    expect(o?.valueQuantity?.code).toBe("mg/dL");
+    expect(o?.valueQuantity?.unit).toBe("mg/dL");
+  });
+
+  it("resolves analyte aliases to the same canonical LOINC", () => {
+    // "LDL", "LDL-C", "LDL Cholesterol" all fold to 18262-6.
+    for (const name of ["LDL-C", "LDL Cholesterol", "ldl_c"]) {
+      const o = labOf(name, "mg/dL", 110);
+      expect(o?.code.coding?.[0].code).toBe("18262-6");
+    }
+    // German alias for total cholesterol.
+    const chol = labOf("Gesamtcholesterin", "mg/dL", 180);
+    expect(chol?.code.coding?.[0].code).toBe("2093-3");
+    // German alias for creatinine.
+    const krea = labOf("Kreatinin", "mg/dL", 0.9);
+    expect(krea?.code.coding?.[0].code).toBe("2160-0");
+  });
+
+  it("normalises equivalent unit spellings to the canonical UCUM symbol", () => {
+    // "mg/dl" (lower-case L) normalises to canonical "mg/dL".
+    const o = labOf("HDL", "mg/dl", 55);
+    expect(o?.code.coding?.[0].code).toBe("2085-9");
+    expect(o?.valueQuantity?.code).toBe("mg/dL");
+    // TSH recorded in mIU/L canonicalises to UCUM m[IU]/L.
+    const tsh = labOf("TSH", "mIU/L", 2.1);
+    expect(tsh?.code.coding?.[0].code).toBe("3016-3");
+    expect(tsh?.valueQuantity?.code).toBe("m[IU]/L");
+  });
+
+  it("omits the UCUM code when the unit does not match the mapped canonical", () => {
+    // HbA1c mapped (LOINC present) but recorded in an mmol/mol unit we don't
+    // canonicalise → keep the LOINC coding, drop the UCUM code, keep display.
+    const o = labOf("HbA1c", "mmol/mol", 36);
+    expect(o?.code.coding?.[0].code).toBe("4548-4");
+    expect(o?.valueQuantity?.system).toBe("http://unitsofmeasure.org");
+    expect(o?.valueQuantity?.code).toBeUndefined();
+    expect(o?.valueQuantity?.unit).toBe("mmol/mol");
+  });
+
+  it("keeps an unmapped analyte text-only with no fabricated coding", () => {
+    const o = labOf("Selenium", "ug/L", 95);
+    expect(o?.code.text).toBe("Selenium");
+    expect(o?.code.coding).toBeUndefined();
+    // Display unit stays; no coerced UCUM code is invented.
+    expect(o?.valueQuantity?.unit).toBe("ug/L");
+    expect(o?.valueQuantity?.code).toBeUndefined();
+    expect(o?.valueQuantity?.system).toBe("http://unitsofmeasure.org");
+  });
+});

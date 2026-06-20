@@ -1232,10 +1232,11 @@ describe("buildFhirDocumentBundle — illness episodes (v1.18.1 P4)", () => {
     expect(conditions).toHaveLength(1);
     const c = conditions[0];
     if (c.resourceType !== "Condition") throw new Error("not a Condition");
-    // The user's label rides code.text; the code is the generic disease root
-    // (never a fabricated diagnosis).
+    // The user's label rides code.text; the code is the BROAD SNOMED category
+    // for the type (INFECTION → 40733004 "Infectious disease"), never a
+    // fabricated specific diagnosis.
     expect(c.code.text).toBe("Erkältung");
-    expect(c.code.coding?.[0].code).toBe("64572001");
+    expect(c.code.coding?.[0].code).toBe("40733004");
     expect(c.onsetDateTime).toBe("2026-04-01T00:00:00.000Z");
     expect(c.abatementDateTime).toBe("2026-04-10T00:00:00.000Z");
     expect(c.clinicalStatus?.coding?.[0].code).toBe("resolved");
@@ -1278,6 +1279,8 @@ describe("buildFhirDocumentBundle — illness episodes (v1.18.1 P4)", () => {
     const c = conditionsOf(bundle)[0];
     if (c.resourceType !== "Condition") throw new Error("not a Condition");
     expect(c.clinicalStatus?.coding?.[0].code).toBe("active");
+    // CHRONIC → 27624003 "Chronic disease" (broad category, not a diagnosis).
+    expect(c.code.coding?.[0].code).toBe("27624003");
     expect(c.abatementDateTime).toBeUndefined();
     const enc = encountersOf(bundle)[0];
     if (enc.resourceType !== "Encounter") throw new Error("not an Encounter");
