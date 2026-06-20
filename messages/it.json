@@ -301,6 +301,10 @@
         "viewSleep": "Vedi sonno",
         "logMeasurement": "Registra misurazione",
         "viewInsights": "Apri Insights"
+      },
+      "briefing": {
+        "title": "Briefing di oggi",
+        "viewAll": "Apri Insights"
       }
     },
     "greetingSalutation": "Ciao, {name}",

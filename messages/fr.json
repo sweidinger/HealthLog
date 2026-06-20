@@ -301,6 +301,10 @@
         "viewSleep": "Voir le sommeil",
         "logMeasurement": "Saisir une mesure",
         "viewInsights": "Ouvrir Insights"
+      },
+      "briefing": {
+        "title": "Briefing du jour",
+        "viewAll": "Ouvrir Insights"
       }
     },
     "greetingSalutation": "Bonjour, {name}",
