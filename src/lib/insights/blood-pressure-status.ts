@@ -39,6 +39,7 @@ import {
   buildGradedSeriesWithRollups,
   degradeStatusSnapshotToBudget,
 } from "@/lib/insights/graded-series";
+import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import {
   type SupportedLocale,
   normalizeLocale,
@@ -505,6 +506,31 @@ export async function prepareBloodPressureStatusForUser(
       )
     : null;
 
+  // v1.18.10 (HIGH-4) — hand the model the finished recent-vs-baseline
+  // comparison + normal-swing verdict per channel instead of asking it to
+  // derive them. BP needs two signals; the user's own targets are the coarse
+  // band anchor when present.
+  const sysSignal = buildMetricSignal({
+    metric: locale === "en" ? "your systolic" : "deine Systole",
+    unit: "mmHg",
+    direction: "lower-better",
+    graded: sysGraded,
+    normalRange: bpTargets
+      ? { low: bpTargets.sysLow, high: bpTargets.sysHigh }
+      : null,
+    newestDaysAgo: newestMeasurementDaysAgo,
+  });
+  const diaSignal = buildMetricSignal({
+    metric: locale === "en" ? "your diastolic" : "deine Diastole",
+    unit: "mmHg",
+    direction: "lower-better",
+    graded: diaGraded,
+    normalRange: bpTargets
+      ? { low: bpTargets.diaLow, high: bpTargets.diaHigh }
+      : null,
+    newestDaysAgo: newestMeasurementDaysAgo,
+  });
+
   const snapshot = {
     locale,
     generatedForDay: todayKey,
@@ -516,12 +542,14 @@ export async function prepareBloodPressureStatusForUser(
     },
     bloodPressure: {
       systolic: {
+        ...(sysSignal ? { signal: sysSignal } : {}),
         summary: summarizeSeries(
           sysSeries.daily.map((bucket) => ({ value: bucket.value })),
         ),
         series: sysGraded,
       },
       diastolic: {
+        ...(diaSignal ? { signal: diaSignal } : {}),
         summary: summarizeSeries(
           diaSeries.daily.map((bucket) => ({ value: bucket.value })),
         ),

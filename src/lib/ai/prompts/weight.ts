@@ -2,9 +2,9 @@ import type { Locale } from "@/lib/i18n/config";
 import { getBaseSystemPrompt } from "./base-system";
 
 const WEIGHT_SECTION_DE = `METRIK — GEWICHT:
-- Der Snapshot trägt weight.summary + weight.series (graded). weight.latestDayFocus zeigt den jüngsten Tageswert, den Schritt zum vorherigen Messtag und ggf. den Blutdruck desselben Tages.
+- Der Snapshot trägt weight.signal (der fertige Vergleich) + weight.summary + weight.series (graded). weight.latestDayFocus zeigt den jüngsten Tageswert, den Schritt zum vorherigen Messtag und ggf. den Blutdruck desselben Tages.
 - Fokus dieser Karte ist der kontinuierliche TREND und das TEMPO über die Zeit (kg/Woche, Plateaus, Meilensteine), nicht die WHO-Band-Einordnung — die trägt die BMI-Karte. Den BMI-Wert nur als Nebenbezug nennen, nie das Band als zentrale Aussage hier.
-- Wochen-/Monatstrend zählt, nicht der Einzelwert: Vergleiche das recent-Mittel mit dem weekly/monthly-Mittel der Person. Tageschwankungen von 1-2 kg (Wasser, Tageszeit) sind normal und kein Befund.
+- Wochen-/Monatstrend zählt, nicht der Einzelwert: Führe mit weight.signal — current, delta gegenüber baselineLabel und outsideNormalSwing sind bereits berechnet. NENNE sie, rechne sie NICHT neu. Tageschwankungen von 1-2 kg (Wasser, Tageszeit) sind normal und kein Befund.
 - Plateau: Verändert sich das Mittel über > ~2 Wochen um < 0.5 kg, ist das ein Plateau — bei einem Abnehmenden ehrlich benennen, ohne zu entmutigen.
 - Tempo: Nachhaltiger Verlust liegt bei ~0.5-1.0 kg/Woche (DGE). Anhaltend > 1 kg/Woche ist eher Wasser/Muskel als Fett — vorsichtig einordnen.
 - Meilensteine gegen das eigene Maximum: ~5 % Verlust vom höchsten Wert (series-Max) bringt bereits metabolischen Nutzen, ~10 % einen deutlichen — wenn erreicht, ausdrücklich anerkennen.
@@ -13,9 +13,9 @@ const WEIGHT_SECTION_DE = `METRIK — GEWICHT:
 - Eine Botschaft: Schließe NUR DANN mit EINEM machbaren Schritt, wenn der Befund einen nahelegt (z.B. bei einem Plateau zur selben Tageszeit wiegen, um den echten Trend zu sehen, statt am Tagesrauschen zu hängen). Ist der Trend stabil und gibt es nichts Sinnvolles zu tun, erkenne das ehrlich an und nenne stattdessen einen Punkt, den man im Auge behalten kann, statt einen Schritt zu erzwingen.`;
 
 const WEIGHT_SECTION_EN = `METRIC — WEIGHT:
-- The snapshot carries weight.summary + weight.series (graded). weight.latestDayFocus shows the latest daily value, the step from the previous measured day and, where present, the same-day blood pressure.
+- The snapshot carries weight.signal (the finished comparison) + weight.summary + weight.series (graded). weight.latestDayFocus shows the latest daily value, the step from the previous measured day and, where present, the same-day blood pressure.
 - This card's focus is the continuous TREND and PACE over time (kg/week, plateaus, milestones), not WHO-band placement — the BMI card carries that. Mention the BMI value only as a side reference, never make the band the central message here.
-- The weekly/monthly trend matters, not the single value: compare the recent mean with the person's weekly/monthly mean. Day-to-day swings of 1-2 kg (water, time of day) are normal and not a finding.
+- The weekly/monthly trend matters, not the single value: lead from weight.signal — current, delta vs baselineLabel and outsideNormalSwing are already computed. STATE them, do NOT recompute. Day-to-day swings of 1-2 kg (water, time of day) are normal and not a finding.
 - Plateau: if the mean moves < 0.5 kg over > ~2 weeks, that is a plateau — name it honestly for someone who is losing, without discouraging.
 - Pace: sustainable loss is ~0.5-1.0 kg/week (DGE). Sustained > 1 kg/week is more likely water/muscle than fat — frame cautiously.
 - Milestones against their own maximum: ~5% loss from the highest value (series max) already brings metabolic benefit, ~10% a substantial one — acknowledge explicitly when reached.

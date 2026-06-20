@@ -108,7 +108,16 @@ describe("generateBloodPressureStatusForUser — graded payload", () => {
     expect(sys).toHaveProperty("recent");
     expect(sys).toHaveProperty("weekly");
     expect(sys).toHaveProperty("monthly");
-    expect(sys).toHaveProperty("yearly");
+    // v1.18.10 (HIGH-4) — the per-channel SIGNAL block (the finished
+    // recent-vs-baseline comparison) now rides the snapshot so the model
+    // states the trend rather than re-deriving it.
+    expect(snapshot.bloodPressure.systolic.signal).toHaveProperty("current");
+    expect(snapshot.bloodPressure.systolic.signal).toHaveProperty(
+      "outsideNormalSwing",
+    );
+    // `yearly` is the lowest-signal slice and the FIRST the budget degrader
+    // sheds; on this deliberately-large 1000-day fixture it may be dropped to
+    // make room. The recent/weekly/monthly core + the signal block stay.
     expect(sys.recent.length).toBeLessThanOrEqual(21);
     expect(sys.recent[0]).toHaveProperty("date");
     expect(sys.recent[0]).toHaveProperty("mean");
