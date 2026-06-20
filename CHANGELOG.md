@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.18.8] — 2026-06-20 — coded condition and lab terminology in the health-record export
+
+An additive export-only release: the FHIR R4 health record now carries standard terminology codes where it can assert them honestly. No migration, no API contract change.
+
+### Changed
+
+- Condition resources for journal entries carry a SNOMED CT category coding per illness type (infection, allergy, injury, mental health, autoimmune, chronic, other) alongside the user's free-text label. These stay broad categories, not diagnoses — the patient-reported, unconfirmed guard rails are unchanged.
+- Lab Observations now emit a LOINC code and a canonical UCUM unit for the common biomarkers (HbA1c, lipid panel, ferritin, TSH, vitamin D, creatinine, eGFR, liver enzymes, CRP, fasting glucose, hemoglobin), resolved through an analyte alias table. An unrecognised analyte, or a unit that does not match the canonical UCUM symbol, keeps the honest text-only behaviour rather than asserting a code it cannot validate.
+
 ## [1.18.7] — 2026-06-19 — dashboard, Coach and insights polish
 
 A broad UI, insights, and AI-efficiency release. It ships database migrations (see the migration note below) and two client-facing contract changes: Coach budget responses now arrive as a stream error rather than a 429, and the measurement-reminder push carries the reminder id.
