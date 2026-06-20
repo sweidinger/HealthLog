@@ -6451,14 +6451,7 @@
       "empty": "Keine anstehenden Vorsorge-Erinnerungen.",
       "openLink": "Vorsorge öffnen"
     },
-    "showMeasurements": "Messergebnisse anzeigen",
-    "trendStrip": {
-      "label": "Verlauf der letzten 7 Tage",
-      "summary": "Letzter Wert {value}, {direction} über 7 Tage.",
-      "rising": "steigend",
-      "falling": "fallend",
-      "steady": "stabil"
-    }
+    "showMeasurements": "Messergebnisse anzeigen"
   },
   "moduleList": {
     "viewToggleLabel": "Ansicht",

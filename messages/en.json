@@ -6451,14 +6451,7 @@
       "empty": "No upcoming preventive-care reminders.",
       "openLink": "Open preventive care"
     },
-    "showMeasurements": "Show measurements",
-    "trendStrip": {
-      "label": "Last 7 days",
-      "summary": "Latest value {value}, {direction} over 7 days.",
-      "rising": "rising",
-      "falling": "falling",
-      "steady": "steady"
-    }
+    "showMeasurements": "Show measurements"
   },
   "moduleList": {
     "viewToggleLabel": "View",

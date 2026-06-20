@@ -26,7 +26,6 @@ import { ListRow } from "@/components/ui/list-row";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
-import { VorsorgeTrendStrip } from "@/components/measurement-reminders/vorsorge-trend-strip";
 import {
   useMeasurementReminders,
   useMeasurementReminderMutations,
@@ -136,12 +135,6 @@ export function VorsorgeDashboardCard() {
                           days: due.days,
                         })}
                       </Badge>
-                      {/* v1.18.7 (Wave E) — discreet 7-day strip under the
-                        metric context; renders nothing for a free-text
-                        reminder or a too-thin window. */}
-                      <VorsorgeTrendStrip
-                        measurementType={reminder.measurementType}
-                      />
                     </div>
                     <Button
                       type="button"

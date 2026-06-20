@@ -146,16 +146,6 @@ export const measurementKeys = {
     ["personal-records", "by-metric", metric] as const,
 
   /**
-   * v1.18.7 (Wave E) — bounded last-7 readings for one `MeasurementType`,
-   * powering the discreet 7-day trend strip on a Vorsorge card. Rides under
-   * the `["measurements"]` prefix so it lands in `measurementDependentKeys`
-   * and a fresh reading (e.g. satisfying the very reminder) repaints the
-   * strip. Keyed by type so each card caches its own thin window.
-   */
-  measurementRecentValues: (type: string) =>
-    ["measurements", "recent-values", type] as const,
-
-  /**
    * v1.18.6 — batched dashboard daily series
    * (`GET /api/measurements/series-batch`). Shares the `chart-data`
    * prefix so a fresh measurement evicts it alongside the per-chart
