@@ -39,6 +39,8 @@ import {
   summarizeSeries,
 } from "@/lib/insights/status-shared";
 import {
+  computeStatusInputFingerprint,
+  gateUnchangedStatusInput,
   readFreshStatusText,
   refreshUnchangedStatusInsight,
   resolveReadOnlyStatusMiss,
@@ -210,6 +212,40 @@ export async function prepareWeightStatusForUser(
         revalidating: outcome.revalidating,
       },
     };
+  }
+
+  // v1.18.11 (P6) — input gate for this slow-moving metric. A cheap grouped
+  // probe over the salient inputs (weight + BP channels + mood) fingerprints
+  // what the snapshot would read. On a non-forced run with an unchanged
+  // fingerprint the cached assessment is re-stamped under today's key and the
+  // whole heavy build below (bounded findMany + per-series rollup reads +
+  // correlation math + the provider call) is skipped. A forced run never
+  // gates — but still computes the fingerprint so the persisted row carries a
+  // current one for the next day's gate.
+  const inputHash = await computeStatusInputFingerprint({
+    userId,
+    types: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"],
+    includeMood: true,
+  });
+  if (!force) {
+    const unchangedInput = await gateUnchangedStatusInput({
+      userId,
+      cacheAction,
+      todayKey,
+      inputHash,
+      force,
+    });
+    if (unchangedInput) {
+      return {
+        phase: "served",
+        result: {
+          hasProvider: true,
+          text: unchangedInput.text,
+          cached: true,
+          updatedAt: unchangedInput.updatedAt,
+        },
+      };
+    }
   }
 
   // v1.4.28 FB-D2 — cap the snapshot input. BP captures three types
@@ -591,6 +627,9 @@ export async function prepareWeightStatusForUser(
         model: outcome.model,
         tokensUsed: outcome.tokensUsed,
         snapshotHash,
+        // v1.18.11 (P6) — persist the input fingerprint so tomorrow's input
+        // gate can skip the rebuild when nothing salient changed.
+        inputHash,
       });
       return {
         hasProvider: true,

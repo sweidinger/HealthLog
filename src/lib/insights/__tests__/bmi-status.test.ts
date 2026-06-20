@@ -4,7 +4,8 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
-    measurement: { findMany: vi.fn() },
+    // v1.18.11 (P6) — the input gate probes salient inputs via groupBy.
+    measurement: { findMany: vi.fn(), groupBy: vi.fn() },
     measurementRollup: { findMany: vi.fn() },
   },
 }));
@@ -50,6 +51,10 @@ beforeEach(() => {
   // Cold rollup tier: the BMI graded series scales the WEIGHT tier, which
   // folds from the full-history `measurement.findMany` fallback on a miss.
   vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
+  // v1.18.11 (P6) — input-gate probe default: empty groups so the fingerprint
+  // is computed but, with no cached `inputHash`, the gate misses and fixtures
+  // build normally. The forced fixtures skip the gate entirely.
+  vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
 });
 
 describe("generateBmiStatusForUser — graded payload", () => {

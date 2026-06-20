@@ -28,6 +28,8 @@ import {
   summarizeSeries,
 } from "@/lib/insights/status-shared";
 import {
+  computeStatusInputFingerprint,
+  gateUnchangedStatusInput,
   readFreshStatusText,
   refreshUnchangedStatusInsight,
   resolveReadOnlyStatusMiss,
@@ -174,6 +176,38 @@ export async function prepareBmiStatusForUser(
         updatedAt: null,
       },
     };
+  }
+
+  // v1.18.11 (P6) — input gate for this slow-moving metric. The snapshot
+  // derives from WEIGHT rows and the profile heightCm; a cheap probe over
+  // both fingerprints the inputs, so a non-forced unchanged week re-stamps
+  // the cached assessment and skips the whole build (findMany + BMI series +
+  // provider). A forced run never gates but still records a current
+  // fingerprint for the next day's gate.
+  const inputHash = await computeStatusInputFingerprint({
+    userId,
+    types: ["WEIGHT"],
+    extra: { heightCm: user.heightCm },
+  });
+  if (!force) {
+    const unchangedInput = await gateUnchangedStatusInput({
+      userId,
+      cacheAction,
+      todayKey,
+      inputHash,
+      force,
+    });
+    if (unchangedInput) {
+      return {
+        phase: "served",
+        result: {
+          hasProvider: true,
+          text: unchangedInput.text,
+          cached: true,
+          updatedAt: unchangedInput.updatedAt,
+        },
+      };
+    }
   }
 
   // v1.4.28 FB-D2 — cap the snapshot input (weight runs at most once
@@ -404,6 +438,8 @@ export async function prepareBmiStatusForUser(
         model: outcome.model,
         tokensUsed: outcome.tokensUsed,
         snapshotHash,
+        // v1.18.11 (P6) — persist the input fingerprint for tomorrow's gate.
+        inputHash,
       });
       return {
         hasProvider: true,

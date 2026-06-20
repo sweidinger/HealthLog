@@ -173,6 +173,15 @@ export async function persistStatusInsight(args: {
    * provider call when nothing changed.
    */
   snapshotHash?: string;
+  /**
+   * v1.18.11 (P6) — cheap fingerprint of the SALIENT INPUTS (per-type
+   * count + newest measuredAt) for slow-moving metrics. The input gate
+   * compares a freshly probed fingerprint against this BEFORE the heavy
+   * snapshot build, so a no-change day for weight/BMI skips the whole
+   * gather (not just the provider call). Absent on metrics that don't
+   * opt into the input gate.
+   */
+  inputHash?: string;
 }): Promise<string> {
   const created = await prisma.auditLog.create({
     data: {
@@ -186,6 +195,7 @@ export async function persistStatusInsight(args: {
         model: args.model,
         tokensUsed: args.tokensUsed,
         ...(args.snapshotHash ? { snapshotHash: args.snapshotHash } : {}),
+        ...(args.inputHash ? { inputHash: args.inputHash } : {}),
       }),
     },
     select: { createdAt: true },
