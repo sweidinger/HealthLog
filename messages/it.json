@@ -4933,6 +4933,8 @@
     "bugReportGithubDescription": "Configura il token delle issue di GitHub e il repository per le segnalazioni di bug in arrivo.",
     "bugReportEnabledLabel": "Segnalazioni di bug attive",
     "bugReportEnabledDescription": "Se disattivato, il pulsante di segnalazione nell'app viene nascosto: token e repository restano configurati.",
+    "bugReportDeprecatedBadge": "Obsoleto",
+    "bugReportDeprecatedNote": "Questa funzione è obsoleta e verrà rimossa in una versione futura.",
     "assistant": {
       "title": "Superfici dell'assistente",
       "description": "Ogni interruttore nasconde una superficie guidata dal modello in tutta l'app senza rimuovere la configurazione del provider. Il master forza ogni opzione secondaria su off.",

@@ -4933,6 +4933,8 @@
     "bugReportGithubDescription": "Configurez le jeton d'issues GitHub et le dépôt pour les rapports de bug entrants.",
     "bugReportEnabledLabel": "Rapports de bug activés",
     "bugReportEnabledDescription": "Lorsque cette option est désactivée, le bouton de signalement dans l'app est masqué — le jeton et le dépôt restent configurés.",
+    "bugReportDeprecatedBadge": "Obsolète",
+    "bugReportDeprecatedNote": "Cette fonctionnalité est obsolète et sera supprimée dans une version future.",
     "assistant": {
       "title": "Surfaces d'assistance",
       "description": "Chaque bascule masque une surface pilotée par le modèle dans toute l'application sans retirer la configuration du fournisseur. Le commutateur principal force chaque option secondaire à off.",

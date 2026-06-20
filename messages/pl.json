@@ -4933,6 +4933,8 @@
     "bugReportGithubDescription": "Skonfiguruj token zgłoszeń GitHub i repozytorium dla przychodzących zgłoszeń błędów.",
     "bugReportEnabledLabel": "Zgłaszanie błędów włączone",
     "bugReportEnabledDescription": "Gdy wyłączone, przycisk zgłaszania w aplikacji jest ukryty — token i repozytorium pozostają skonfigurowane.",
+    "bugReportDeprecatedBadge": "Wycofane",
+    "bugReportDeprecatedNote": "Ta funkcja jest wycofywana i zostanie usunięta w przyszłej wersji.",
     "assistant": {
       "title": "Powierzchnie asystenta",
       "description": "Każdy przełącznik ukrywa powierzchnię opartą na modelu w całej aplikacji bez usuwania konfiguracji dostawcy. Główny wyłącznik wymusza wyłączenie każdej opcji podrzędnej.",
