@@ -69,7 +69,15 @@ export default function CoachPage() {
       // `<CoachConversation>` paints directly onto the page so it reads as
       // one continuous conversation, not a window inside a window. The
       // separate bottom-right FAB/overlay drawer stays the compact surface.
-      className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-4rem)] min-h-[32rem] flex-col overflow-hidden md:-mx-6"
+      //
+      // v1.18.10 (W10) — height is mobile-aware. The fixed `<BottomNav>`
+      // (64px + iOS home-indicator inset) is mobile-only; the desktop
+      // full-bleed layout has no bottom nav. On mobile the page must subtract
+      // the TopBar (`4rem`) AND the BottomNav band (`4rem` +
+      // `env(safe-area-inset-bottom)`) so the docked composer / Stop control
+      // always clears the nav instead of sitting under it. On `md+` the nav
+      // is hidden, so the page reclaims the full height below the TopBar.
+      className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-8rem-env(safe-area-inset-bottom,0px))] min-h-[32rem] flex-col overflow-hidden md:-mx-6 md:h-[calc(100dvh-4rem)]"
     >
       <CoachConversation
         surface="page"

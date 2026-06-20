@@ -165,10 +165,15 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
           />
           <Button
             onClick={() => setAddOpen(true)}
-            className="min-h-11 shrink-0 sm:min-h-9"
+            // v1.18.10 (W10) — on the narrowest phones the h1 + Edit + Delete +
+            // text "Add" button crowd the row and truncate the title hard.
+            // Drop the Add button to icon-only under `sm` (label kept for
+            // screen readers via `aria-label`); the full text returns at `sm+`.
+            className="min-h-11 min-w-11 shrink-0 sm:min-h-9 sm:min-w-0"
+            aria-label={t("labs.addResult")}
           >
             <Plus className="h-4 w-4" />
-            {t("labs.addResult")}
+            <span className="hidden sm:inline">{t("labs.addResult")}</span>
           </Button>
         </div>
       </div>

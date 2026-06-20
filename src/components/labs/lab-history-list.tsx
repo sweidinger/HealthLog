@@ -228,7 +228,9 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
               <Button
                 size="icon"
                 variant="ghost"
-                className="size-9"
+                // v1.18.10 (W10) — 44px touch target on mobile (WCAG 2.5.5),
+                // compact 36px on desktop. The primary edit control for a row.
+                className="size-11 sm:size-9"
                 onClick={() => void openEdit(r)}
                 aria-label={t("labs.editReading")}
               >
@@ -239,7 +241,7 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
                 title={t("labs.deleteConfirmTitle")}
                 description={t("labs.deleteConfirmDescription")}
                 confirmLabel={t("labs.deleteReading")}
-                className="size-9"
+                className="size-11 sm:size-9"
                 iconClassName="h-4 w-4"
               />
             </div>
