@@ -49,6 +49,7 @@ import { buildCoachMemoryBlock } from "./memory-snapshot";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import { buildCycleSnapshotBlock } from "./cycle-snapshot";
 import { buildIllnessSnapshotBlock } from "./illness-snapshot";
+import { buildLabsSnapshotBlock } from "./labs-snapshot";
 import {
   buildReferenceGroundingBlock,
   type GroundingMetricInput,
@@ -1255,6 +1256,14 @@ async function buildCoachSnapshotImpl(
   // degrader never sheds it — the Coach needs to know about Rest Mode.
   const illnessBlockPromise = buildIllnessSnapshotBlock(userId, now);
 
+  // v1.18.11 (#65) — lab-result context. Like illness it is CONTEXT, not a
+  // scope-gated metric: attached without a `registerBlock` so the budget
+  // degrader never sheds it, and Labs is intentionally not module-gated (the
+  // helper reads owner-scoped rows directly, mirroring `/api/labs`). The block
+  // carries the most-recent resolved reading per biomarker (last 12 months,
+  // capped) so the Coach can answer "what was my LDL" without re-deriving.
+  const labsBlockPromise = buildLabsSnapshotBlock(userId, now);
+
   const [
     moodRows,
     complianceMeds,
@@ -1269,6 +1278,7 @@ async function buildCoachSnapshotImpl(
     memoryBlock,
     cycleBlock,
     illnessBlock,
+    labsBlock,
   ] = await Promise.all([
     moodRowsPromise,
     complianceMedsPromise,
@@ -1283,6 +1293,7 @@ async function buildCoachSnapshotImpl(
     memoryBlockPromise,
     cycleBlockPromise,
     illnessBlockPromise,
+    labsBlockPromise,
   ]);
 
   const byType = (t: string) =>
@@ -2271,6 +2282,15 @@ async function buildCoachSnapshotImpl(
   // in Rest Mode. Labels + lifecycle + dates only — no decrypted note.
   if (illnessBlock) {
     snapshot.illness = illnessBlock;
+  }
+
+  // v1.18.11 (#65) — lab-result context. Attached WITHOUT a cluster
+  // registration (like illness/scope): the budget degrader never sheds it, so
+  // the Coach can always answer a lab question from the user's own readings.
+  // Server-authoritative + grounded — resolved name/value/unit/range per
+  // biomarker, never the decrypted note.
+  if (labsBlock) {
+    snapshot.labs = labsBlock;
   }
 
   if (Object.keys(snapshot).length === 0) {
