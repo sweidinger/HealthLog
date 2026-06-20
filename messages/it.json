@@ -6485,6 +6485,8 @@
       "label": "Ordine dei valori",
       "recentDesc": "Misurazione più recente prima",
       "recentAsc": "Misurazione più vecchia prima",
+      "alphaAsc": "Nome (A–Z)",
+      "alphaDesc": "Nome (Z–A)",
       "manual": "Ordina manualmente",
       "hint": "Con l'ordinamento manuale puoi trascinare i biomarcatori qui sotto nel tuo ordine."
     },

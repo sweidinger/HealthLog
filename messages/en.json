@@ -6485,6 +6485,8 @@
       "label": "Order of values",
       "recentDesc": "Most recent reading first",
       "recentAsc": "Oldest reading first",
+      "alphaAsc": "Name (A–Z)",
+      "alphaDesc": "Name (Z–A)",
       "manual": "Sort manually",
       "hint": "With manual sorting you can drag the biomarkers below into your own order."
     },
