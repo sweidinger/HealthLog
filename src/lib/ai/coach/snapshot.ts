@@ -112,6 +112,19 @@ const DAILY_TIMELINE_DAYS = 14;
 const DEFAULT_WINDOW: CoachScopeWindow = "last30days";
 
 /**
+ * v1.18.10 (P-2) — newest-first cap on the single multi-type measurement read
+ * that feeds the Coach snapshot timelines. The window read can reach 365 days
+ * (`lastYear` / `allTime`) across high-frequency types (PULSE / glucose are
+ * 200k-row-class), but the prompt only renders ~21 daily + ~10 weekly buckets
+ * per metric, so an uncapped read loaded a year of rows to discard almost all
+ * of them. 6000 keeps the recent-daily + weekly window exact even with several
+ * dense types active (≈ a year of multi-daily readings on one type, or a
+ * handful of types at a few readings/day) while bounding the worst case; the
+ * coarse MONTH/YEAR tail comes from the rollup tier, not this read.
+ */
+const SNAPSHOT_MEASUREMENT_ROW_CAP = 6000;
+
+/**
  * v1.17.0 — the glucose clinical panel is a fixed trailing-30-day artifact,
  * identical across the insights panel, the dashboard snapshot, the doctor
  * report, and (here) the coach. Pinned independently of the coach's variable
@@ -965,24 +978,39 @@ async function buildCoachSnapshotImpl(
 
   const measurementRowsPromise =
     wantedTypes.length > 0
-      ? prisma.measurement.findMany({
-          where: {
-            userId,
-            type: { in: wantedTypes as never[] },
-            measuredAt: { gte: cutoff },
-            deletedAt: null,
-          },
-          orderBy: { measuredAt: "asc" },
-          // v1.7.0 — `glucoseContext` rides along so the glucose block
-          // can split fasting / postprandial / random / bedtime without
-          // a second query. NULL on every non-glucose row.
-          select: {
-            type: true,
-            value: true,
-            measuredAt: true,
-            glucoseContext: true,
-          },
-        })
+      ? prisma.measurement
+          .findMany({
+            where: {
+              userId,
+              type: { in: wantedTypes as never[] },
+              measuredAt: { gte: cutoff },
+              deletedAt: null,
+            },
+            // v1.18.10 (P-2) — read NEWEST-first + cap. PULSE / glucose are
+            // 200k-row-class types and the window can reach 365 days
+            // (lastYear / allTime), so an uncapped read pulled the entire
+            // year of high-frequency rows into memory just to fold them into
+            // ~21 daily + ~10 weekly buckets the prompt actually shows. The
+            // newest-first cap keeps the recent-daily timeline exact and only
+            // sheds the deepest weekly buckets on an extreme-volume account;
+            // the coarse MONTH/YEAR tail is read separately from the rollup
+            // tier (`buildCoarseTimelineTail`), so deep history survives.
+            orderBy: { measuredAt: "desc" },
+            take: SNAPSHOT_MEASUREMENT_ROW_CAP,
+            // v1.7.0 — `glucoseContext` rides along so the glucose block
+            // can split fasting / postprandial / random / bedtime without
+            // a second query. NULL on every non-glucose row.
+            select: {
+              type: true,
+              value: true,
+              measuredAt: true,
+              glucoseContext: true,
+            },
+          })
+          // Downstream bucketers re-sort/group internally, but restore
+          // ascending order so any order-sensitive consumer sees the same
+          // shape as before the cap.
+          .then((rows) => rows.reverse())
       : Promise.resolve([]);
 
   // v1.11.3 — `extractFeatures` and the shared measurement read are

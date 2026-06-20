@@ -24,6 +24,7 @@ import {
 } from "@/lib/insights/assessment-context";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import { buildGradedSeriesFromPoints } from "@/lib/insights/graded-series";
+import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import { degradeStatusSnapshotToBudget } from "@/lib/insights/graded-series";
 import {
   type SupportedLocale,
@@ -307,6 +308,24 @@ export async function prepareMedicationComplianceStatusForUser(
     const dailySeries = buildGradedSeriesFromPoints(perDayRecords, now);
     const latestDay = dailyBudgeted.daily[0] ?? null;
 
+    // v1.18.10 (HIGH-4) — the finished recent-vs-baseline adherence comparison
+    // + normal-swing verdict, computed from the canonical per-day rate series
+    // so the model states the trend rather than deriving it. The compliance %
+    // itself stays server-computed (compliance7/30 above); this adds only the
+    // trend signal. Adherence reads higher-better; the band is 0–100%.
+    const signal = buildMetricSignal({
+      metric:
+        locale === "en"
+          ? `adherence for ${sanitizeForPrompt(medication.name)}`
+          : `Einnahmetreue für ${sanitizeForPrompt(medication.name)}`,
+      unit: "%",
+      direction: "higher-better",
+      graded: dailySeries,
+      // Recency is surfaced separately via dataCoverage.newestMeasurementDaysAgo
+      // (computed after this map); the per-med signal leaves it null.
+      newestDaysAgo: null,
+    });
+
     return {
       medicationId: medication.id,
       name: sanitizeForPrompt(medication.name),
@@ -319,6 +338,7 @@ export async function prepareMedicationComplianceStatusForUser(
       taken7: compliance7.taken,
       skipped7: compliance7.skipped,
       missed7: compliance7.missed,
+      ...(signal ? { signal } : {}),
       dailySeries,
       latestDay,
     };
