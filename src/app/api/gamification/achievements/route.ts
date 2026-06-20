@@ -3,7 +3,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { requireModuleEnabled, resolveModuleMap } from "@/lib/modules/gate";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
-import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import {
   buildAchievementsResult,
   type AchievementsResult,
@@ -72,7 +72,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // a toggle change is reflected on the next read.
   const moduleMap = await resolveModuleMap(user.id);
 
-  const result = await cached(
+  // v1.18.11 (W5 perf) — read via `cachedSwr`. The bucket carries a
+  // 10-minute stale window; the app-wide `AchievementUnlockNotifier` polls
+  // every 2 minutes, so a hard-TTL read always missed and re-paid the cold
+  // build. SWR serves the prior payload instantly and warms one background
+  // recompute. Persistence of `pendingUnlocks` stays OUTSIDE this read (see
+  // below), so a stale-served body never skips an unlock write.
+  const result = await cachedSwr(
     caches.achievements as ServerCache<AchievementsResult>,
     user.id,
     () => buildAchievementsResult(user, moduleMap),

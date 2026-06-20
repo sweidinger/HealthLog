@@ -484,10 +484,27 @@ export const caches = {
     ttlMs: 60_000,
     staleTtlMs: 600_000,
   }),
+  /**
+   * v1.18.11 (W5 perf) — stale-while-revalidate window. The
+   * `AchievementUnlockNotifier` is mounted on every authenticated page and
+   * polls this endpoint every 2 minutes. Against a 60 s hard-TTL bucket
+   * that poll always landed on an expired entry, firing a cold ~400 ms
+   * rebuild on every session every 2 minutes. With a stale window the poll
+   * (and the inline `/achievements` page mount) serves the prior payload
+   * instantly while one coalesced background recompute refreshes it.
+   *
+   * SWR is safe here: the route persists `pendingUnlocks` OUTSIDE the
+   * cached factory (idempotent `createMany({ skipDuplicates: true })`), so
+   * serving a stale body never skips an unlock write. The 10-minute window
+   * mirrors the `medications` bucket; measurement / mood / medication /
+   * intake writes invalidate the `${userId}|` prefix so a user's own
+   * action still surfaces on the next read.
+   */
   achievements: new ServerCache<unknown>({
     name: "achievements",
     maxEntries: 1000,
     ttlMs: 60_000,
+    staleTtlMs: 600_000,
   }),
   dashboardWidgets: new ServerCache<unknown>({
     name: "dashboardWidgets",

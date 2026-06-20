@@ -55,7 +55,7 @@ import { CUMULATIVE_HK_TYPES } from "@/lib/measurements/apple-health-mapping";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
-import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { buildMedsTodayBlock } from "@/lib/dashboard/meds-today";
 import {
   summarizeSleepNights,
@@ -328,12 +328,23 @@ export const GET = apiHandler(async () => {
   // it).
   const userTz = user.timezone ?? DEFAULT_TIMEZONE;
 
-  // v1.4.38 W-F — wrap the whole response in the 60 s analytics LRU.
+  // v1.4.38 W-F — wrap the whole response in the analytics LRU.
   // Subsequent iOS polls inside the TTL hit memory; measurement /
   // mood / medication writes invalidate the user-bucket via the
   // existing `invalidateUserMeasurements` + the v1.4.38-extended
   // `invalidateUserMedications` hooks.
-  const body = await cached(
+  //
+  // v1.18.11 (W5 perf) — read via `cachedSwr`. The `analytics` bucket
+  // already provisions a 1 h `staleTtlMs` window, but this endpoint read
+  // through plain `cached` and so ignored it: the iOS client polls every
+  // 60 s, and a plain read past the 60 s fresh TTL re-paid the full cold
+  // rebuild on every poll. `cachedSwr` serves the prior body instantly
+  // inside the stale window and warms one background recompute instead.
+  // Writes still mark/evict the bucket, so a user's own action is
+  // reflected on the very next read — the window only bounds wall-clock
+  // drift (the same self-correcting `nextDueOverdue`/tally drift the
+  // snapshot read already tolerates).
+  const body = await cachedSwr(
     caches.analytics as ServerCache<
       Awaited<ReturnType<typeof buildDashboardSummary>>
     >,

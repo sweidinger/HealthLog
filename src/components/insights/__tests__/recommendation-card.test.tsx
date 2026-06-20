@@ -33,6 +33,29 @@ vi.mock("@/components/charts/mood-chart", () => ({
   ),
 }));
 
+// v1.18.11 (W5 perf) — the rationale charts now route through `next/dynamic`
+// so recharts is off the insights first-load JS. Under `renderToStaticMarkup`
+// a `dynamic(..., { ssr:false })` boundary paints its loading skeleton (it
+// never resolves the lazy chunk synchronously). For the chart-SELECTION
+// assertions below we stub `next/dynamic` to a passthrough that renders the
+// (already-mocked) underlying chart component eagerly, so the test still
+// verifies the card picks the right chart kind for a metric. Production keeps
+// the real lazy boundary + skeleton.
+vi.mock("next/dynamic", async () => {
+  const health = await import("@/components/charts/health-chart");
+  const mood = await import("@/components/charts/mood-chart");
+  return {
+    default: (loader: unknown) => {
+      // Identify which chart the loader targets by its source text.
+      const src = String(loader);
+      const Comp = (
+        src.includes("mood-chart") ? mood.MoodChart : health.HealthChart
+      ) as React.ComponentType<Record<string, unknown>>;
+      return (props: Record<string, unknown>) => <Comp {...props} />;
+    },
+  };
+});
+
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: null, isLoading: false }),
   useMutation: () => ({
