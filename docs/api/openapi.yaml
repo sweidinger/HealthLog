@@ -6264,6 +6264,123 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/labs/ocr/capability:
+    get:
+      tags:
+        - Labs
+      summary: Probe Lab-OCR availability
+      description: Cheap probe (no provider call) the Labs UI uses to decide whether to show the scan affordance. Reports
+        whether the caller's configured AI provider can read images, why not, and whether PDFs are accepted.
+      responses:
+        "200":
+          description: Capability flags.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OcrCapabilityEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/labs/ocr/extract:
+    post:
+      tags:
+        - Labs
+      summary: Extract lab readings from a photo or PDF
+      description: Read-only (NOT idempotent) vision extraction. Accepts a multipart `file` (JPEG/PNG/WebP, or PDF on an
+        Anthropic vision provider; ≤ 12 MiB). Gated by AI consent, a 6/hour rate bucket, and the per-day token budget.
+        The raw upload lives in memory only and is never persisted or logged. Returns proposed rows for the mandatory
+        human review screen — nothing is written. Extracted text is treated as untrusted (prompt-injection); the review
+        step is the safety boundary.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The lab-report image or PDF. Validated by magic-byte MIME sniff, not the wire Content-Type.
+              required:
+                - file
+      responses:
+        "200":
+          description: Proposed rows for review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OcrExtractEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/labs/ocr/commit:
+    post:
+      tags:
+        - Labs
+      summary: Commit confirmed Lab-OCR rows
+      description: 'Writes ONLY the rows the human confirmed on the review screen. Each row resolves-or-mints a user-scoped
+        biomarker and creates a `LabResult` with `source: "OCR"`; a row that duplicates a live reading is skipped.
+        Idempotent (Idempotency-Key). Audits as `labs.ocr.commit`. `userId` is narrowed from the session, never a body
+        field.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rows:
+                  minItems: 1
+                  maxItems: 100
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      analyte:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                      panel:
+                        anyOf:
+                          - type: string
+                            minLength: 1
+                            maxLength: 120
+                          - type: string
+                            const: ""
+                      value:
+                        type: number
+                      valueText:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                      unit:
+                        type: string
+                        minLength: 1
+                        maxLength: 40
+                      referenceLow:
+                        type: number
+                      referenceHigh:
+                        type: number
+                      takenAt:
+                        type: string
+                        format: date-time
+                        pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                    required:
+                      - analyte
+                      - takenAt
+              required:
+                - rows
+      responses:
+        "200":
+          description: Inserted + skipped rows.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OcrCommitEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/biomarkers:
     get:
       tags:
@@ -19094,6 +19211,264 @@ components:
       required:
         - data
         - error
+      additionalProperties: false
+    OcrCapabilityEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/OcrCapabilityResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    OcrCapabilityResponse:
+      type: object
+      properties:
+        available:
+          type: boolean
+        reason:
+          anyOf:
+            - type: string
+              enum:
+                - no-provider
+                - text-only-model
+            - type: "null"
+        pdfSupported:
+          type: boolean
+      required:
+        - available
+        - reason
+        - pdfSupported
+      additionalProperties: false
+      description: Whether the caller's configured AI provider can read images (drives the UI's scan affordance). `reason`
+        explains an unavailable state; `pdfSupported` is true only for an Anthropic vision provider (native PDF). No
+        provider call is made.
+    OcrExtractEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/OcrExtractResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    OcrExtractResponse:
+      type: object
+      properties:
+        reportDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        providerType:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/OcrExtractedRow"
+      required:
+        - reportDate
+        - providerType
+        - rows
+      additionalProperties: false
+      description: The proposed rows for the human review screen. NEVER written to the database — extraction is read-only and
+        the raw upload is held in memory only.
+    OcrExtractedRow:
+      type: object
+      properties:
+        analyte:
+          type: string
+        value:
+          anyOf:
+            - type: number
+            - type: "null"
+        valueText:
+          anyOf:
+            - type: string
+            - type: "null"
+        unit:
+          anyOf:
+            - type: string
+            - type: "null"
+        referenceLow:
+          anyOf:
+            - type: number
+            - type: "null"
+        referenceHigh:
+          anyOf:
+            - type: number
+            - type: "null"
+        takenAt:
+          anyOf:
+            - type: string
+            - type: "null"
+        confidence:
+          type: object
+          properties:
+            analyte:
+              type: number
+            value:
+              type: number
+            unit:
+              type: number
+            range:
+              type: number
+          required:
+            - analyte
+            - value
+            - unit
+            - range
+          additionalProperties: false
+        biomarkerMatch:
+          type: string
+          enum:
+            - new
+            - existing
+        duplicateOf:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - analyte
+        - value
+        - valueText
+        - unit
+        - referenceLow
+        - referenceHigh
+        - takenAt
+        - confidence
+        - biomarkerMatch
+        - duplicateOf
+      additionalProperties: false
+      description: "One proposed reading transcribed from the upload. UNTRUSTED model output annotated server-side:
+        `biomarkerMatch` flags whether the analyte links an existing catalog marker; `duplicateOf` is the id of a live
+        reading this row likely duplicates (the review row defaults to unchecked when set); `confidence` is the model's
+        per-field self-score (low fields are flagged for the human). Nothing is written until the commit route
+        confirms."
+    OcrCommitEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/OcrCommitResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    OcrCommitResponse:
+      type: object
+      properties:
+        inserted:
+          type: array
+          items:
+            $ref: "#/components/schemas/OcrCommittedLabResult"
+        skipped:
+          type: array
+          items:
+            type: object
+            properties:
+              analyte:
+                type: string
+              reason:
+                type: string
+                const: duplicate
+            required:
+              - analyte
+              - reason
+            additionalProperties: false
+      required:
+        - inserted
+        - skipped
+      additionalProperties: false
+      description: 'The rows written (`source: "OCR"`) and those skipped as commit-time duplicates.'
+    OcrCommittedLabResult:
+      type: object
+      properties:
+        id:
+          type: string
+        biomarkerId:
+          anyOf:
+            - type: string
+            - type: "null"
+        panel:
+          anyOf:
+            - type: string
+            - type: "null"
+        analyte:
+          type: string
+        value:
+          anyOf:
+            - type: number
+            - type: "null"
+        valueText:
+          anyOf:
+            - type: string
+            - type: "null"
+        unit:
+          type: string
+        referenceLow:
+          anyOf:
+            - type: number
+            - type: "null"
+        referenceHigh:
+          anyOf:
+            - type: number
+            - type: "null"
+        takenAt:
+          type: string
+        source:
+          type: string
+        hasNote:
+          type: boolean
+        rangeStatus:
+          type: string
+          enum:
+            - in-range
+            - below
+            - above
+            - unknown
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - biomarkerId
+        - panel
+        - analyte
+        - value
+        - valueText
+        - unit
+        - referenceLow
+        - referenceHigh
+        - takenAt
+        - source
+        - hasNote
+        - rangeStatus
+        - createdAt
+        - updatedAt
       additionalProperties: false
     ListBiomarkersEnvelope:
       type: object

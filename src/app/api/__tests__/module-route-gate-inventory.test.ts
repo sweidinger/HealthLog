@@ -158,6 +158,16 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   "src/app/api/labs/restore/route.ts",
   "src/app/api/biomarkers/route.ts",
   "src/app/api/biomarkers/[id]/route.ts",
+  // v1.18.9 — the Lab-OCR ingestion routes share the LabResult data-layer
+  // reasoning: the labs module gates the SURFACE (the Labs page + scan
+  // affordance), not the row store. The extract route is read-only vision
+  // assistance, the commit route writes the user's own confirmed lab rows,
+  // and the capability probe is an infra availability check carrying no
+  // module data. All three are owner-scoped and AI-gated (consent / budget /
+  // rate); the module toggle hiding the surface does not need to wedge them.
+  "src/app/api/labs/ocr/capability/route.ts",
+  "src/app/api/labs/ocr/extract/route.ts",
+  "src/app/api/labs/ocr/commit/route.ts",
   // ── DATA LAYER (medications) ──────────────────────────────────────
   // v1.18.1 (D3) — medications graduated from CORE to a toggleable module,
   // but it is SURFACE-gated (nav / dashboard widget / settings entry), not

@@ -1,0 +1,190 @@
+/**
+ * OpenAPI route table for Lab-OCR ingestion (`/api/labs/ocr/*`).
+ *
+ * Part of the OpenAPI route table; aggregated in `./index.ts`. The commit
+ * request reuses the runtime `ocrCommitSchema` from
+ * `@/lib/validations/labs-ocr` so the wire contract stays single-source. The
+ * extract upload is a `multipart/form-data` binary body (documented inline);
+ * the response shapes are declared here.
+ *
+ * iOS coordination: server-authoritative — the iOS client consumes the
+ * committed `LabResult` rows and never re-OCRs. A future native capture would
+ * POST this same extract/commit contract. `source` carries the new value
+ * `"OCR"` on rows written through the commit route.
+ */
+import type { ZodOpenApiObject } from "zod-openapi";
+import { z } from "zod/v4";
+
+import { ocrCommitSchema } from "@/lib/validations/labs-ocr";
+
+import { dataEnvelope, stdResponses } from "./shared";
+
+ocrCommitSchema.meta({
+  id: "OcrCommitRequest",
+  description:
+    "The rows a human confirmed on the Lab-OCR review screen. Each row is EITHER numeric (`value` + `unit`, optional reference bounds) OR qualitative (`valueText`) — exactly one. `analyte` drives a resolve-or-mint of the user-scoped biomarker; `takenAt` is a backdatable ISO instant. No `userId` field — it is narrowed from the session. 1..100 rows. The route skips a row that duplicates a live reading (same analyte + day + value).",
+});
+
+const capabilityResponse = z
+  .object({
+    available: z.boolean(),
+    reason: z.enum(["no-provider", "text-only-model"]).nullable(),
+    pdfSupported: z.boolean(),
+  })
+  .meta({
+    id: "OcrCapabilityResponse",
+    description:
+      "Whether the caller's configured AI provider can read images (drives the UI's scan affordance). `reason` explains an unavailable state; `pdfSupported` is true only for an Anthropic vision provider (native PDF). No provider call is made.",
+  });
+
+const extractConfidence = z.object({
+  analyte: z.number(),
+  value: z.number(),
+  unit: z.number(),
+  range: z.number(),
+});
+
+const extractedRow = z
+  .object({
+    analyte: z.string(),
+    value: z.number().nullable(),
+    valueText: z.string().nullable(),
+    unit: z.string().nullable(),
+    referenceLow: z.number().nullable(),
+    referenceHigh: z.number().nullable(),
+    takenAt: z.string().nullable(),
+    confidence: extractConfidence,
+    biomarkerMatch: z.enum(["new", "existing"]),
+    duplicateOf: z.string().nullable(),
+  })
+  .meta({
+    id: "OcrExtractedRow",
+    description:
+      "One proposed reading transcribed from the upload. UNTRUSTED model output annotated server-side: `biomarkerMatch` flags whether the analyte links an existing catalog marker; `duplicateOf` is the id of a live reading this row likely duplicates (the review row defaults to unchecked when set); `confidence` is the model's per-field self-score (low fields are flagged for the human). Nothing is written until the commit route confirms.",
+  });
+
+const extractResponse = z
+  .object({
+    reportDate: z.string().nullable(),
+    providerType: z.string(),
+    rows: z.array(extractedRow),
+  })
+  .meta({
+    id: "OcrExtractResponse",
+    description:
+      "The proposed rows for the human review screen. NEVER written to the database — extraction is read-only and the raw upload is held in memory only.",
+  });
+
+const committedRow = z
+  .object({
+    id: z.string(),
+    biomarkerId: z.string().nullable(),
+    panel: z.string().nullable(),
+    analyte: z.string(),
+    value: z.number().nullable(),
+    valueText: z.string().nullable(),
+    unit: z.string(),
+    referenceLow: z.number().nullable(),
+    referenceHigh: z.number().nullable(),
+    takenAt: z.string(),
+    source: z.string(),
+    hasNote: z.boolean(),
+    rangeStatus: z.enum(["in-range", "below", "above", "unknown"]),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .meta({ id: "OcrCommittedLabResult" });
+
+const commitResponse = z
+  .object({
+    inserted: z.array(committedRow),
+    skipped: z.array(
+      z.object({
+        analyte: z.string(),
+        reason: z.literal("duplicate"),
+      }),
+    ),
+  })
+  .meta({
+    id: "OcrCommitResponse",
+    description:
+      'The rows written (`source: "OCR"`) and those skipped as commit-time duplicates.',
+  });
+
+export const ocrPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/labs/ocr/capability": {
+    get: {
+      tags: ["Labs"],
+      summary: "Probe Lab-OCR availability",
+      description:
+        "Cheap probe (no provider call) the Labs UI uses to decide whether to show the scan affordance. Reports whether the caller's configured AI provider can read images, why not, and whether PDFs are accepted.",
+      responses: {
+        "200": {
+          description: "Capability flags.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(capabilityResponse, "OcrCapabilityEnvelope"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/labs/ocr/extract": {
+    post: {
+      tags: ["Labs"],
+      summary: "Extract lab readings from a photo or PDF",
+      description:
+        "Read-only (NOT idempotent) vision extraction. Accepts a multipart `file` (JPEG/PNG/WebP, or PDF on an Anthropic vision provider; ≤ 12 MiB). Gated by AI consent, a 6/hour rate bucket, and the per-day token budget. The raw upload lives in memory only and is never persisted or logged. Returns proposed rows for the mandatory human review screen — nothing is written. Extracted text is treated as untrusted (prompt-injection); the review step is the safety boundary.",
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: z.object({
+              file: z.string().meta({
+                format: "binary",
+                description:
+                  "The lab-report image or PDF. Validated by magic-byte MIME sniff, not the wire Content-Type.",
+              }),
+            }),
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Proposed rows for review.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(extractResponse, "OcrExtractEnvelope"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/labs/ocr/commit": {
+    post: {
+      tags: ["Labs"],
+      summary: "Commit confirmed Lab-OCR rows",
+      description:
+        'Writes ONLY the rows the human confirmed on the review screen. Each row resolves-or-mints a user-scoped biomarker and creates a `LabResult` with `source: "OCR"`; a row that duplicates a live reading is skipped. Idempotent (Idempotency-Key). Audits as `labs.ocr.commit`. `userId` is narrowed from the session, never a body field.',
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: ocrCommitSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Inserted + skipped rows.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(commitResponse, "OcrCommitEnvelope"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+};

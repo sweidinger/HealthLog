@@ -1,0 +1,207 @@
+"use client";
+
+/**
+ * v1.18.9 — a single proposed Lab-OCR row on the review screen.
+ *
+ * Mandatory human review: each row is shown for per-row confirm/edit/discard.
+ * The checkbox confirms; the inline fields edit analyte / value-or-valueText /
+ * unit / reference range / date. Server-computed hints surface as calm badges:
+ * a new-vs-existing-biomarker hint, a duplicate warning (the row defaults to
+ * unchecked when flagged), and a low-confidence flag per the model's self-score.
+ *
+ * The no-alarming-colour ethos holds: an out-of-range or duplicate row is not
+ * painted red — these are informative `secondary`/`outline` badges, same weight
+ * as the in-range state.
+ */
+import { useId } from "react";
+
+import { AlertCircle, FilePlus2, Link2, TriangleAlert } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useTranslations } from "@/lib/i18n/context";
+
+import type { OcrReviewRow } from "./ocr-review-types";
+
+/** Below this per-field confidence the field is flagged for a second look. */
+const CONFIDENCE_THRESHOLD = 0.6;
+
+export function OcrRowEditor({
+  row,
+  onChange,
+}: {
+  row: OcrReviewRow;
+  onChange: (next: OcrReviewRow) => void;
+}) {
+  const { t } = useTranslations();
+  const fieldId = useId();
+
+  const isQualitative = row.valueText !== null && row.valueText !== undefined;
+  const lowValueConfidence =
+    !isQualitative && row.confidence.value < CONFIDENCE_THRESHOLD;
+  const valueUnreadable = !isQualitative && row.value === null;
+
+  return (
+    <div className="space-y-3 rounded-lg border p-3">
+      <div className="flex items-start gap-3">
+        <Checkbox
+          id={`${fieldId}-confirm`}
+          checked={row.confirmed}
+          onCheckedChange={(checked) =>
+            onChange({ ...row, confirmed: checked === true })
+          }
+          className="mt-1 min-h-5 min-w-5"
+          aria-label={t("labs.ocr.confirmRow")}
+        />
+        <div className="min-w-0 flex-1 space-y-1">
+          <Input
+            value={row.analyte}
+            onChange={(e) => onChange({ ...row, analyte: e.target.value })}
+            aria-label={t("labs.ocr.analyteLabel")}
+            className="font-medium"
+          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {row.biomarkerMatch === "existing" ? (
+              <Badge variant="outline" className="text-muted-foreground">
+                <Link2 aria-hidden />
+                {t("labs.ocr.linksExisting", { name: row.analyte })}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                <FilePlus2 aria-hidden />
+                {t("labs.ocr.newBiomarker")}
+              </Badge>
+            )}
+            {row.duplicateOf ? (
+              <Badge variant="secondary">
+                <TriangleAlert aria-hidden />
+                {t("labs.ocr.duplicateWarning")}
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {isQualitative ? (
+          <div className="col-span-2 space-y-1 sm:col-span-3">
+            <Label htmlFor={`${fieldId}-vt`} className="text-xs">
+              {t("labs.ocr.resultLabel")}
+            </Label>
+            <Input
+              id={`${fieldId}-vt`}
+              value={row.valueText ?? ""}
+              onChange={(e) => onChange({ ...row, valueText: e.target.value })}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="space-y-1">
+              <Label htmlFor={`${fieldId}-val`} className="text-xs">
+                {t("labs.ocr.valueLabel")}
+              </Label>
+              <Input
+                id={`${fieldId}-val`}
+                inputMode="decimal"
+                value={row.value === null ? "" : String(row.value)}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  const parsed = raw === "" ? null : Number(raw);
+                  onChange({
+                    ...row,
+                    value:
+                      parsed !== null && Number.isFinite(parsed)
+                        ? parsed
+                        : null,
+                  });
+                }}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`${fieldId}-unit`} className="text-xs">
+                {t("labs.ocr.unitLabel")}
+              </Label>
+              <Input
+                id={`${fieldId}-unit`}
+                value={row.unit ?? ""}
+                onChange={(e) => onChange({ ...row, unit: e.target.value })}
+              />
+            </div>
+          </>
+        )}
+        <div className="space-y-1">
+          <Label htmlFor={`${fieldId}-date`} className="text-xs">
+            {t("labs.ocr.dateLabel")}
+          </Label>
+          <Input
+            id={`${fieldId}-date`}
+            type="date"
+            value={row.takenAt ?? ""}
+            onChange={(e) =>
+              onChange({ ...row, takenAt: e.target.value || null })
+            }
+          />
+        </div>
+      </div>
+
+      {!isQualitative ? (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor={`${fieldId}-lo`} className="text-xs">
+              {t("labs.ocr.refLowLabel")}
+            </Label>
+            <Input
+              id={`${fieldId}-lo`}
+              inputMode="decimal"
+              value={row.referenceLow === null ? "" : String(row.referenceLow)}
+              onChange={(e) => {
+                const raw = e.target.value.trim();
+                const parsed = raw === "" ? null : Number(raw);
+                onChange({
+                  ...row,
+                  referenceLow:
+                    parsed !== null && Number.isFinite(parsed) ? parsed : null,
+                });
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`${fieldId}-hi`} className="text-xs">
+              {t("labs.ocr.refHighLabel")}
+            </Label>
+            <Input
+              id={`${fieldId}-hi`}
+              inputMode="decimal"
+              value={
+                row.referenceHigh === null ? "" : String(row.referenceHigh)
+              }
+              onChange={(e) => {
+                const raw = e.target.value.trim();
+                const parsed = raw === "" ? null : Number(raw);
+                onChange({
+                  ...row,
+                  referenceHigh:
+                    parsed !== null && Number.isFinite(parsed) ? parsed : null,
+                });
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {valueUnreadable ? (
+        <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+          <AlertCircle aria-hidden className="h-3.5 w-3.5" />
+          {t("labs.ocr.valueUnreadable")}
+        </p>
+      ) : lowValueConfidence ? (
+        <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+          <AlertCircle aria-hidden className="h-3.5 w-3.5" />
+          {t("labs.ocr.lowConfidence")}
+        </p>
+      ) : null}
+    </div>
+  );
+}

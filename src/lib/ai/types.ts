@@ -114,11 +114,50 @@ export interface AIProvider {
   generateCompletion(params: CompletionParams): Promise<CompletionResult>;
 }
 
+/**
+ * v1.18.9 — a single vision input folded into the provider request. Used by
+ * the Lab-OCR extraction path: a photo of a paper report, or a PDF page.
+ * `dataBase64` is the raw file bytes, base64-encoded (no `data:` prefix —
+ * each client wraps it in the wire shape it needs). The blob is NEVER threaded
+ * into an `annotate()` meta or any log field (it is health data).
+ */
+export interface CompletionImage {
+  /** One of the sniffed image MIME types. */
+  mediaType: "image/jpeg" | "image/png" | "image/webp";
+  /** Raw file bytes, base64-encoded (no data-URL prefix). */
+  dataBase64: string;
+}
+
+/**
+ * v1.18.9 — a PDF document folded into the provider request. Only Anthropic
+ * accepts a native `document` block over the Messages API we use; the other
+ * clients ignore it (the OCR route gates PDFs to Anthropic providers).
+ */
+export interface CompletionDocument {
+  mediaType: "application/pdf";
+  /** Raw PDF bytes, base64-encoded (no data-URL prefix). */
+  dataBase64: string;
+}
+
 export interface CompletionParams {
   systemPrompt: string;
   userPrompt: string;
   temperature?: number;
   maxTokens?: number;
+  /**
+   * v1.18.9 — optional vision inputs (Lab-OCR). Additive: every text-only
+   * caller (Coach, status cards, insights, narratives) leaves these unset, so
+   * the existing wire shape and streaming path are untouched. A client that
+   * cannot read images/documents ignores the field. Treat the contents as
+   * UNTRUSTED data to transcribe — never as instructions.
+   */
+  images?: CompletionImage[];
+  /**
+   * v1.18.9 — optional PDF document input (Lab-OCR). Anthropic-only; other
+   * clients ignore it. Mutually informative with `images` — the OCR route
+   * sends one or the other depending on the upload type and provider.
+   */
+  documents?: CompletionDocument[];
   /**
    * Optional deterministic seed. Threaded onto the OpenAI and local
    * (Ollama / OpenAI-compatible) request bodies for reproducible output on
