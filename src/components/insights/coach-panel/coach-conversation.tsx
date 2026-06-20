@@ -13,6 +13,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
+import { CoachHero } from "./coach-hero";
 import { CoachInput } from "./coach-input";
 import {
   GuidedQuestionBubble,
@@ -283,6 +284,53 @@ export function CoachConversation({
     }),
   );
 
+  // v1.18.9 — the live composer, lifted so it can mount in the new-chat
+  // hero (centred) OR docked at the bottom of the conversation without
+  // forking any composer logic (dictation, auto-grow, send/stop, the
+  // guided-question placeholder all behave identically in both spots).
+  const composerNode = (
+    <CoachInput
+      value={inputValue}
+      onChange={setInputValue}
+      onSubmit={() => handleSubmit(inputValue)}
+      onCancel={send.cancel}
+      disabled={send.isStreaming}
+      isStreaming={send.isStreaming}
+      autoFocusOnOpen={autoFocusComposer}
+      placeholder={
+        guided.phase === "asking"
+          ? t("insights.coach.guided.answerPlaceholder")
+          : undefined
+      }
+    />
+  );
+
+  // v1.18.9 — the centred new-chat hero replaces the cramped empty thread
+  // on the PAGE surface only. It shows exactly when the surface is a fresh,
+  // untouched new chat: no selected conversation, nothing streaming or
+  // optimistic, no error, and none of the guided / adopt / pending-question
+  // affordances in play (those belong in the docked conversation flow). The
+  // first send flips `send.isStreaming` / `send.optimisticUser`, so the hero
+  // unmounts and the docked thread + bottom composer take over.
+  const heroActive =
+    surface === "page" &&
+    currentConversationId === null &&
+    !send.isStreaming &&
+    !send.streaming.content &&
+    !send.streaming.errorCode &&
+    !send.optimisticUser &&
+    guided.phase === "idle" &&
+    pendingQuestions.length === 0 &&
+    !pendingAdopt;
+
+  // The Coach's own starter questions seed the hero chips (NOT generic
+  // "create an image" prompts). Same two openers the suggested-prompt strip
+  // uses elsewhere, resolved here so the hero stays locale-agnostic.
+  const heroPrompts = [
+    t("insights.suggestedPrompts.tellMyDoctor"),
+    t("insights.suggestedPrompts.medicationWorking"),
+  ];
+
   return (
     <div
       data-slot="coach-conversation"
@@ -358,100 +406,98 @@ export function CoachConversation({
         {trailingHeaderActions}
       </header>
 
-      <CoachDrawerBody
-        historyOpen={historyRailOpen}
-        onToggleHistory={
-          surface === "page"
-            ? () => setHistoryRailOpen((open) => !open)
-            : undefined
-        }
-        historyRail={
-          surface === "page" ? (
-            <HistoryRail
-              activeId={currentConversationId}
-              // v1.18.1 — the `<aside>` band already renders the
-              // "Conversations" <h2>; suppress the rail's own <h3> so the
-              // heading is not stacked twice on the page surface.
-              hideHeading
-              onSelect={(id) => {
-                // v1.16.5 — switching conversations drops the guided
-                // session; unanswered questions stay pending.
-                setCurrentConversationId(id);
-                setPendingAdopt(null);
-                dispatchGuided({ type: "RESET" });
-              }}
+      {heroActive ? (
+        <CoachHero
+          composer={composerNode}
+          prompts={heroPrompts}
+          onPickPrompt={(prompt) => handleSubmit(prompt)}
+        />
+      ) : (
+        <CoachDrawerBody
+          historyOpen={historyRailOpen}
+          onToggleHistory={
+            surface === "page"
+              ? () => setHistoryRailOpen((open) => !open)
+              : undefined
+          }
+          historyRail={
+            surface === "page" ? (
+              <HistoryRail
+                activeId={currentConversationId}
+                // v1.18.1 — the `<aside>` band already renders the
+                // "Conversations" <h2>; suppress the rail's own <h3> so the
+                // heading is not stacked twice on the page surface.
+                hideHeading
+                onSelect={(id) => {
+                  // v1.16.5 — switching conversations drops the guided
+                  // session; unanswered questions stay pending.
+                  setCurrentConversationId(id);
+                  setPendingAdopt(null);
+                  dispatchGuided({ type: "RESET" });
+                }}
+              />
+            ) : undefined
+          }
+          thread={
+            <MessageThread
+              conversation={conversation ?? null}
+              streaming={send.streaming}
+              optimisticUser={send.optimisticUser}
+              interleaved={interleaved}
             />
-          ) : undefined
-        }
-        thread={
-          <MessageThread
-            conversation={conversation ?? null}
-            streaming={send.streaming}
-            optimisticUser={send.optimisticUser}
-            interleaved={interleaved}
-          />
-        }
-        composer={
-          <div>
-            {/* v1.16.4 — quiet adopt-into-self-context offer once a
+          }
+          composer={
+            <div>
+              {/* v1.16.4 — quiet adopt-into-self-context offer once a
                 clarifying question has been answered. Self-removes
                 after settle; v1.16.5 reports the outcome back into the
                 guided machine for the closing summary. */}
-            {pendingAdopt && !send.isStreaming ? (
-              <SelfContextAdoptOffer
-                question={pendingAdopt.question}
-                answer={pendingAdopt.answer}
-                onDismiss={() => setPendingAdopt(null)}
-                onSettled={(adoption) =>
-                  dispatchGuided({
-                    type: "ADOPTION_SETTLED",
-                    index: pendingAdopt.guidedIndex,
-                    adoption,
-                  })
-                }
-              />
-            ) : null}
-            {/* v1.16.5 — guided clarifying-questions entry card (V2 of
+              {pendingAdopt && !send.isStreaming ? (
+                <SelfContextAdoptOffer
+                  question={pendingAdopt.question}
+                  answer={pendingAdopt.answer}
+                  onDismiss={() => setPendingAdopt(null)}
+                  onSettled={(adoption) =>
+                    dispatchGuided({
+                      type: "ADOPTION_SETTLED",
+                      index: pendingAdopt.guidedIndex,
+                      adoption,
+                    })
+                  }
+                />
+              ) : null}
+              {/* v1.16.5 — guided clarifying-questions entry card (V2 of
                 the v1.16.0 chips). Offers the in-chat sequence while
                 questions pend and the flow hasn't started. */}
-            {guided.phase === "idle" && pendingQuestions.length > 0 ? (
-              <GuidedQuestionsCard
-                count={pendingQuestions.length}
-                disabled={send.isStreaming || dismissQuestions.isPending}
-                onStart={() =>
-                  dispatchGuided({ type: "START", questions: pendingQuestions })
-                }
-                onLater={() => dispatchGuided({ type: "LATER" })}
-                onDismissAll={() =>
-                  dismissQuestions.mutate(undefined, {
-                    onSuccess: () => dispatchGuided({ type: "LATER" }),
-                  })
-                }
-              />
-            ) : null}
-            <CoachInput
-              value={inputValue}
-              onChange={setInputValue}
-              onSubmit={() => handleSubmit(inputValue)}
-              onCancel={send.cancel}
-              disabled={send.isStreaming}
-              isStreaming={send.isStreaming}
-              autoFocusOnOpen={autoFocusComposer}
-              placeholder={
-                guided.phase === "asking"
-                  ? t("insights.coach.guided.answerPlaceholder")
-                  : undefined
-              }
-            />
-          </div>
-        }
-        onHistoryClick={
-          surface === "drawer" && onRequestFullView
-            ? onRequestFullView
-            : () => setHistoryTrayOpen(true)
-        }
-        onOpenSourcesTray={() => setSourcesTrayOpen(true)}
-      />
+              {guided.phase === "idle" && pendingQuestions.length > 0 ? (
+                <GuidedQuestionsCard
+                  count={pendingQuestions.length}
+                  disabled={send.isStreaming || dismissQuestions.isPending}
+                  onStart={() =>
+                    dispatchGuided({
+                      type: "START",
+                      questions: pendingQuestions,
+                    })
+                  }
+                  onLater={() => dispatchGuided({ type: "LATER" })}
+                  onDismissAll={() =>
+                    dismissQuestions.mutate(undefined, {
+                      onSuccess: () => dispatchGuided({ type: "LATER" }),
+                    })
+                  }
+                />
+              ) : null}
+              {composerNode}
+            </div>
+          }
+          onHistoryClick={
+            surface === "drawer" && onRequestFullView
+              ? onRequestFullView
+              : () => setHistoryTrayOpen(true)
+          }
+          onOpenSourcesTray={() => setSourcesTrayOpen(true)}
+        />
+      )}
 
       <MobileRailTray
         historyOpen={historyTrayOpen}
