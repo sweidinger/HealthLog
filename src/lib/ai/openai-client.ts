@@ -31,6 +31,26 @@ export class OpenAIClient implements AIProvider {
   ): Promise<CompletionResult> {
     const url = `${this.config.baseUrl.replace(/\/$/, "")}/chat/completions`;
 
+    // v1.18.9 — fold vision inputs (Lab-OCR) into the user turn when present.
+    // The text-only path keeps the bare-string content; the vision path sends
+    // the multimodal `image_url` content array `gpt-4o`-class models accept
+    // (a data-URL per image). PDFs are NOT handled here (the OCR route gates
+    // PDF uploads to Anthropic); only `params.images` is consumed. The image
+    // is framed as untrusted DATA by the system prompt.
+    const images = params.images ?? [];
+    const userContent =
+      images.length > 0
+        ? [
+            { type: "text" as const, text: params.userPrompt },
+            ...images.map((img) => ({
+              type: "image_url" as const,
+              image_url: {
+                url: `data:${img.mediaType};base64,${img.dataBase64}`,
+              },
+            })),
+          ]
+        : params.userPrompt;
+
     const res = await safeFetch(
       url,
       {
@@ -43,7 +63,7 @@ export class OpenAIClient implements AIProvider {
           model: this.config.model,
           messages: [
             { role: "system", content: params.systemPrompt },
-            { role: "user", content: params.userPrompt },
+            { role: "user", content: userContent },
           ],
           temperature: params.temperature ?? 0.3,
           max_tokens: params.maxTokens ?? 1000,

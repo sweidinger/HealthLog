@@ -1,6 +1,63 @@
 import { safeFetch } from "@/lib/safe-fetch";
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
 
+/**
+ * v1.18.9 — Anthropic Messages API content blocks. The text-only path sends a
+ * bare string; the vision path (Lab-OCR) sends an array of typed blocks. The
+ * uploaded image / PDF is framed strictly as DATA to transcribe by the system
+ * prompt — never as instructions (prompt-injection backstop is the human
+ * review screen downstream).
+ */
+type AnthropicContentBlock =
+  | { type: "text"; text: string }
+  | {
+      type: "image";
+      source: { type: "base64"; media_type: string; data: string };
+    }
+  | {
+      type: "document";
+      source: { type: "base64"; media_type: "application/pdf"; data: string };
+    };
+
+/**
+ * Build the user-turn content for a vision request: the image / document
+ * blocks first (so the model reads the report before the instruction), then
+ * the JSON-wrapped instruction text. Returns null when there is nothing to
+ * attach, so the caller keeps the bare-string text path unchanged.
+ */
+function buildVisionContent(
+  params: CompletionParams,
+  text: string,
+): AnthropicContentBlock[] | null {
+  const images = params.images ?? [];
+  const documents = params.documents ?? [];
+  if (images.length === 0 && documents.length === 0) return null;
+
+  const blocks: AnthropicContentBlock[] = [];
+  for (const img of images) {
+    blocks.push({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: img.mediaType,
+        data: img.dataBase64,
+      },
+    });
+  }
+  for (const doc of documents) {
+    blocks.push({
+      type: "document",
+      source: {
+        type: "base64",
+        media_type: "application/pdf",
+        data: doc.dataBase64,
+      },
+    });
+  }
+  blocks.push({ type: "text", text });
+  return blocks;
+}
+
 interface AnthropicClientConfig {
   apiKey: string;
   model: string;
@@ -36,6 +93,15 @@ export class AnthropicClient implements AIProvider {
     );
     const url = `${baseUrl}/messages`;
 
+    // v1.18.9 — fold vision inputs (Lab-OCR) into the user turn when present.
+    // The text-only path keeps a bare-string content; the vision path sends a
+    // typed content array (image / document blocks + the instruction text).
+    // The `{`-prefill JSON trick works after either shape.
+    const wrappedText = wrapForJson(params.userPrompt);
+    const visionContent = buildVisionContent(params, wrappedText);
+    const userContent: AnthropicContentBlock[] | string =
+      visionContent ?? wrappedText;
+
     const res = await safeFetch(
       url,
       {
@@ -64,10 +130,10 @@ export class AnthropicClient implements AIProvider {
           messages:
             params.responseFormat === "json"
               ? [
-                  { role: "user", content: wrapForJson(params.userPrompt) },
+                  { role: "user", content: userContent },
                   { role: "assistant", content: "{" },
                 ]
-              : [{ role: "user", content: wrapForJson(params.userPrompt) }],
+              : [{ role: "user", content: userContent }],
         }),
       },
       // 60 s ceiling — see openai-client.ts for the rationale.
