@@ -3,9 +3,11 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 vi.mock("@/lib/db", () => ({
   prisma: {
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
-    measurement: { findMany: vi.fn() },
+    // v1.18.11 (P6) — the input gate probes salient inputs via groupBy +
+    // moodEntry.aggregate before the heavy findMany build.
+    measurement: { findMany: vi.fn(), groupBy: vi.fn() },
     measurementRollup: { findMany: vi.fn() },
-    moodEntry: { findMany: vi.fn() },
+    moodEntry: { findMany: vi.fn(), aggregate: vi.fn() },
     // v1.11.1 — the rollup readers lazy-load the user's
     // `sourcePriorityJson` via `loadUserSourcePriority`. `null` here →
     // default rank ladders.
@@ -55,6 +57,15 @@ beforeEach(() => {
   vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
   // v1.11.1 — null source-priority blob → default rank ladders.
   vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
+  // v1.18.11 (P6) — input-gate probe. Default to empty groups + zero mood so
+  // the fingerprint is computed but, with no cached `inputHash`, the gate
+  // misses and every fixture proceeds to its normal build. Tests that
+  // exercise the gate set these explicitly.
+  vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
+  vi.mocked(prisma.moodEntry.aggregate).mockResolvedValue({
+    _count: { _all: 0 },
+    _max: { moodLoggedAt: null },
+  } as never);
 });
 
 describe("generateWeightStatusForUser — graded payload", () => {
