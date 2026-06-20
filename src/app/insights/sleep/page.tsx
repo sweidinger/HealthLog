@@ -117,13 +117,16 @@ export default function InsightsSchlafPage() {
       />
 
       {/*
-        v1.17.0 — sleep-debt headline. Server-authoritative (the same DTO iOS
-        renders), gated on the data-bearing branch so a source-less account
-        never fetches. v1.18.7 W-D — the chronotype moved out to the prominent
-        bottom block (`<ChronotypeSection>` below); this section is the
-        sleep-debt headline alone.
+        v1.17.0 — sleep-debt headline + v1.18.7 W-D chronotype, paired in one
+        shared row. Both read the same server-authoritative `["sleep-rhythm"]`
+        cache (one fetch), so the grid adds no round-trip. They stack on narrow
+        viewports and sit side-by-side from `sm` up; each card keeps its own
+        internals (the debt headline and the chronotype band treatment).
       */}
-      <SleepRhythmSection enabled={!isEmpty} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SleepRhythmSection enabled={!isEmpty} />
+        <ChronotypeSection enabled={!isEmpty} />
+      </div>
 
       {/*
         v1.17.1 — "Sleep quality" block. Surfaces the WHOOP / Oura nightly
@@ -137,15 +140,6 @@ export default function InsightsSchlafPage() {
       <SleepQualitySection enabled={!isEmpty} />
 
       <MetricTargetSummary slug="sleep" />
-
-      {/*
-        v1.18.7 W-D — chronotype as the PROMINENT bottom treatment of the
-        Sleep view (maintainer directive): a large band label with the natural
-        sleep-midpoint clock beneath it and an expandable disclosure for social
-        jetlag + MSFsc. Reads the same `["sleep-rhythm"]` cache the debt section
-        warmed, so it adds no round-trip; gated on the data-bearing branch.
-      */}
-      <ChronotypeSection enabled={!isEmpty} />
     </SubPageShell>
   );
 }
