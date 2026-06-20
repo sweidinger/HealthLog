@@ -11,6 +11,7 @@
  */
 import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
+import { resolveCodexVisionSlug } from "@/lib/ai/codex-client";
 import { prisma } from "@/lib/db";
 import {
   supportsPdfForProvider,
@@ -31,6 +32,10 @@ function modelForEntry(
   providerType: ProviderChainResolved["providerType"],
   ctx: ModelContext,
 ): string | null {
+  // Codex resolves its working slug at request time from the OAuth slug
+  // fallback chain — NOT from the user's `aiModel`. Use the cached/chain-head
+  // slug so the codex vision gate tests the model that actually runs.
+  if (providerType === "codex") return resolveCodexVisionSlug();
   return providerType === "admin-openai" ? ctx.adminModel : ctx.userModel;
 }
 
