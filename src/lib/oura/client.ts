@@ -218,24 +218,6 @@ export interface OuraDailySpo2 {
   spo2_percentage?: { average?: number | null } | null;
 }
 
-/**
- * Oura `daily_stress` — minutes spent in high stress vs. high recovery for the
- * day (mutually exclusive). The collection carries no headline 0–100 score; the
- * actionable scalars are the two durations plus a categorical `day_summary`
- * (`restored` | `normal` | `stressed`), which has no enum and is dropped.
- */
-export interface OuraDailyStress {
-  id: string;
-  day: string;
-  timestamp?: string;
-  /** Minutes spent in high stress. */
-  stress_high?: number | null;
-  /** Minutes spent in high recovery. */
-  recovery_high?: number | null;
-  /** `restored` | `normal` | `stressed` — categorical; no enum, not mapped. */
-  day_summary?: string | null;
-}
-
 /** Oura `vO2_max` — the dedicated cardio-fitness collection, mL/(kg·min). */
 export interface OuraVo2Max {
   id: string;
@@ -374,17 +356,10 @@ export function fetchDailySpo2(
   );
 }
 
-export function fetchDailyStress(
-  accessToken: string,
-  query: DateRangeQuery,
-): Promise<OuraDailyStress[]> {
-  return fetchCollection<OuraDailyStress>(
-    "/v2/usercollection/daily_stress",
-    accessToken,
-    "fetchDailyStress",
-    query,
-  );
-}
+// Oura `daily_stress` → STRESS_SCORE is deferred pending STRESS_SCORE
+// source-priority + graded-series wiring (an HRV-derived COMPUTED producer
+// already exists; a second producer here would double-count). The mapping is
+// withdrawn until the ladder is in place.
 
 export function fetchVo2Max(
   accessToken: string,
@@ -722,34 +697,6 @@ export function mapVo2Max(v: OuraVo2Max): MappedMeasurement[] {
       unit: "mL/(kg·min)",
       measuredAt,
       fieldTag: "vo2_max",
-    },
-  ];
-}
-
-/**
- * Map one Oura `daily_stress` record → `STRESS_SCORE`. Oura exposes no headline
- * 0–100 stress number — only minutes spent in high stress vs. high recovery.
- * We derive a bounded 0–100 score from the share of the day's "charged" time
- * (stress + recovery minutes) spent in high stress, which keeps the canonical
- * `STRESS_SCORE` contract (0–100, unit "score", higher = more stress) and lines
- * up with how RECOVERY_SCORE is stored. A day with no charged minutes carries
- * no signal and is skipped; the categorical `day_summary` has no enum and is
- * dropped.
- */
-export function mapDailyStress(s: OuraDailyStress): MappedMeasurement[] {
-  const stress = typeof s.stress_high === "number" ? s.stress_high : 0;
-  const recovery = typeof s.recovery_high === "number" ? s.recovery_high : 0;
-  const charged = stress + recovery;
-  if (charged <= 0) return [];
-  const measuredAt = dayAnchor(s.day, s.timestamp);
-  if (!measuredAt) return [];
-  return [
-    {
-      type: "STRESS_SCORE",
-      value: Math.round((stress / charged) * 100),
-      unit: "score",
-      measuredAt,
-      fieldTag: "stress",
     },
   ];
 }

@@ -9,7 +9,6 @@ const {
   fetchActivityMock,
   fetchDailySleepMock,
   fetchSpo2Mock,
-  fetchStressMock,
   fetchVo2MaxMock,
   refreshMock,
   upsertMock,
@@ -26,7 +25,6 @@ const {
   fetchActivityMock: vi.fn(),
   fetchDailySleepMock: vi.fn(),
   fetchSpo2Mock: vi.fn(),
-  fetchStressMock: vi.fn(),
   fetchVo2MaxMock: vi.fn(),
   refreshMock: vi.fn(),
   upsertMock: vi.fn(),
@@ -71,7 +69,6 @@ vi.mock("../client", async (importOriginal) => {
     fetchDailyActivity: fetchActivityMock,
     fetchDailySleep: fetchDailySleepMock,
     fetchDailySpo2: fetchSpo2Mock,
-    fetchDailyStress: fetchStressMock,
     fetchVo2Max: fetchVo2MaxMock,
     refreshAccessToken: refreshMock,
   };
@@ -93,7 +90,6 @@ beforeEach(() => {
   fetchActivityMock.mockReset().mockResolvedValue([]);
   fetchDailySleepMock.mockReset().mockResolvedValue([]);
   fetchSpo2Mock.mockReset().mockResolvedValue([]);
-  fetchStressMock.mockReset().mockResolvedValue([]);
   fetchVo2MaxMock.mockReset().mockResolvedValue([]);
   refreshMock.mockReset();
   upsertMock.mockReset().mockResolvedValue({});
@@ -218,13 +214,10 @@ describe("syncUserOura", () => {
     });
   });
 
-  it("writes VO2_MAX and STRESS_SCORE from the new collections", async () => {
+  it("writes VO2_MAX from the dedicated collection", async () => {
     getConnMock.mockResolvedValue(CONN);
     fetchVo2MaxMock.mockResolvedValue([
       { id: "v", day: "2026-06-10", vo2_max: 47.3 },
-    ]);
-    fetchStressMock.mockResolvedValue([
-      { id: "s", day: "2026-06-10", stress_high: 90, recovery_high: 30 },
     ]);
     await syncUserOura("u1");
     const written = upsertMock.mock.calls.map((c) => ({
@@ -237,11 +230,8 @@ describe("syncUserOura", () => {
       externalId: "vo2max:2026-06-10:vo2_max",
       value: 47.3,
     });
-    expect(written).toContainEqual({
-      type: "STRESS_SCORE",
-      externalId: "stress:2026-06-10:stress",
-      value: 75,
-    });
+    // daily_stress → STRESS_SCORE is withdrawn pending ladder wiring.
+    expect(written.some((w) => w.type === "STRESS_SCORE")).toBe(false);
   });
 
   it("does NOT refresh on a 403 (not an expiry case)", async () => {
