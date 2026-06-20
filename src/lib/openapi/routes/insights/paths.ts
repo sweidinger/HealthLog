@@ -1,0 +1,375 @@
+/**
+ * OpenAPI path table — dashboard snapshot, comprehensive insights, analytics range, metric status, derived metrics, correlations.
+ *
+ * Schema declarations live in `./schemas`; this module is the path orchestrator.
+ */
+import type { ZodOpenApiObject } from "zod-openapi";
+import { consentRequiredResponse, dataEnvelope, stdResponses } from "../shared";
+import {
+  insightsComprehensiveResponse,
+  metricStatusQuery,
+  metricStatusResponse,
+  derivedMetricQuery,
+  derivedMetricResponse,
+  derivedBatchQuery,
+  derivedBatchResponse,
+  correlationDiscoveryResponse,
+  insightStatusQuery,
+  insightStatusResponse,
+  medicationComplianceStatusResponse,
+  analyticsRangeQuery,
+  analyticsRangeResponse,
+  insightsPregenerateRequest,
+  insightsPregenerateResponse,
+  dashboardSnapshotResponse,
+} from "./schemas";
+
+export const insightsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/dashboard/snapshot": {
+    get: {
+      tags: ["Dashboard"],
+      summary: "Unified dashboard first-paint snapshot",
+      description:
+        "Assembles every above-the-fold tile field in one round-trip from the rollup / mood / widget helpers plus a read-only lift of the pre-generated daily briefing. Two-phase: `tiles` always present, `extras` nullable on a rollup-coverage miss. No LLM is reachable from this path. Cookie or Bearer auth.",
+      responses: {
+        "200": {
+          description: "Dashboard snapshot.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                dashboardSnapshotResponse,
+                "DashboardSnapshotResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/comprehensive": {
+    get: {
+      tags: ["Insights"],
+      summary: "Comprehensive AI insights bundle",
+      description:
+        "Full Insights surface — daily briefing, recommendations with rationale, optional weekly report + storyboard annotations. Strict-schema validated server-side. Requires an active ConsentReceipt when the resolved provider chain egresses via the operator's server-managed key (see POST /api/consent/ai).",
+      responses: {
+        "200": {
+          description: "Insights bundle.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightsComprehensiveResponse,
+                "InsightsComprehensiveResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+        ...consentRequiredResponse,
+      },
+    },
+  },
+  "/api/insights/pregenerate": {
+    post: {
+      tags: ["Insights"],
+      summary: "Warm all AI assessments for the calling user",
+      description:
+        "v1.8.7.1 — enqueue a full warm of every AI assessment for the authenticated user (comprehensive insight + the seven specialised status cards + every data-bearing generic metric assessment) in the active locale, so the read-only status GETs serve cached text instantly. Returns immediately; the generation runs out of band on the worker. Empty metrics and provider-less accounts never trigger an LLM call. Short anti-spam bucket (`insights-warm:<userId>`, one warm per 3 minutes) → 429 on a tight loop. Auth via cookie or Bearer; `userId` is taken from the session, never the body.",
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": { schema: insightsPregenerateRequest },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Warm accepted and enqueued. The work runs on the worker; poll the read-only status routes for the text.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightsPregenerateResponse,
+                "InsightsPregenerateResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/analytics/range": {
+    get: {
+      tags: ["Analytics"],
+      summary: "Single-metric period-over-period range delta",
+      description:
+        "v1.9.0 — returns the current-window aggregate, the previous comparable window, and the composed delta for ONE metric type over a `7d` / `30d` / `90d` / `1y` range. Single-type by construction (the metric page is single-metric), so the read is one rollup-tier call covering the trailing 2N days sliced into the two halves — no per-type fan-out. Additive route; the `/api/analytics` envelope is unchanged. Auth via cookie or Bearer.",
+      requestParams: {
+        query: analyticsRangeQuery,
+      },
+      responses: {
+        "200": {
+          description: "Current + previous window aggregates and the delta.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                analyticsRangeResponse,
+                "AnalyticsRangeResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/blood-pressure-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Blood-pressure assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent blood-pressure readings. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "BloodPressureStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/pulse-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Pulse assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent resting-pulse readings. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "PulseStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/weight-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Weight assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent weight trend. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "WeightStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/bmi-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "BMI assessment",
+      description:
+        "Data-driven plain-language assessment of the user's body-mass index. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "BmiStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/mood-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Mood assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent mood entries. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "MoodStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/medication-compliance-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Medication-compliance assessment",
+      description:
+        "Data-driven plain-language assessment of the user's medication compliance — an overall `summary` plus a per-medication note array. Read-only: a cache miss warms a generation out of band and serves the last-good envelope meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description:
+            "Compliance assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationComplianceStatusResponse,
+                "MedicationComplianceStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/metric-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Generic per-HealthKit-metric assessment",
+      description:
+        "v1.8.7.1 — data-driven plain-language assessment for any registered HealthKit metric (resting heart rate, sleep, glucose, body composition, gait, audio exposure, …). One generic route covering ~30 metric pages via archetype prompt templates + per-metric metadata. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). An unknown `metric` 422s against the closed registry enum. Auth via cookie or Bearer.",
+      requestParams: {
+        query: metricStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                metricStatusResponse,
+                "MetricStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/derived": {
+    get: {
+      tags: ["Insights"],
+      summary: "Derived wellness metric (compute-once)",
+      description:
+        "v1.10.0 — the compute-once `Derived<T>` value for any registered derived wellness metric (personal typical-range vitals baseline, cardio-fitness band, vascular-age delta, sleep score, readiness, coincident-deviation flag). One generic route over a closed registry enum; an unknown `metric` 422s. Pure compute over the rollup tier with a per-type live fallback on a coverage miss — no LLM call, no narrative, no cache table. Returns the flat `Derived<T>` union so the native client can decode one stable shape and combine values across metrics. Auth via cookie or Bearer.",
+      requestParams: {
+        query: derivedMetricQuery,
+      },
+      responses: {
+        "200": {
+          description: "The flat derived-metric value (ok or insufficient).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                derivedMetricResponse,
+                "DerivedMetricResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/derived/batch": {
+    get: {
+      tags: ["Insights"],
+      summary: "Derived wellness metrics (batched compute-once)",
+      description:
+        "v1.10.0 — resolve several derived wellness metrics in ONE request. The `metrics` CSV names the metrics (a `metric:type` token sub-targets a VITALS_BASELINE vital); the server fans out under a bounded limiter with the profile loaded once and returns a map keyed by the per-request token. Collapses the Insights cold-mount fan-out of 14+ independent single-metric requests — the pool-starvation class that surfaces as a hang-then-recover. The single-metric route stays for the per-score detail pages. Auth via cookie or Bearer.",
+      requestParams: {
+        query: derivedBatchQuery,
+      },
+      responses: {
+        "200": {
+          description: "The map of derived-metric values, keyed by token.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                derivedBatchResponse,
+                "DerivedBatchResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/correlations": {
+    get: {
+      tags: ["Insights"],
+      summary: "Correlation discovery (FDR-controlled)",
+      description:
+        "v1.10.0 — scans a curated behaviour × outcome matrix (daylight / mood / glucose / BP / steps × sleep / HRV / resting HR / weight), lag-joins each behaviour day to the next day's outcome, runs Pearson with the exact Student-t p-value, and applies Benjamini-Hochberg FDR control across every tested pair. Only statistically-defensible pairs surface, each carrying n, r, p, and the BH-adjusted q. Descriptive, never causal. Gated by the operator `correlations` assistant surface. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description: "The discovered correlations + the tested-pair count.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                correlationDiscoveryResponse,
+                "CorrelationDiscoveryResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+};
