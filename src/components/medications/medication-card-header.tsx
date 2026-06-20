@@ -43,6 +43,15 @@ export interface MedicationCardHeaderProps {
    * from `stateBadges` (which ride their own row below the category).
    */
   nameChip?: ReactNode;
+  /**
+   * v1.18.10 — inline text rendered DIRECTLY beside the category label on
+   * line 2 (e.g. the Vorsorge cadence "alle 7 Tage"). Unlike `nameChip`
+   * (a chip on the title line) this reads as part of the metric row itself,
+   * inheriting the muted line's weight/colour rather than a shaded pill, so
+   * the cadence sits next to the metric name without an alarming grey
+   * background.
+   */
+  metricMeta?: ReactNode;
   stateBadges?: ReactNode;
   actions?: ReactNode;
   /**
@@ -60,6 +69,7 @@ export function MedicationCardHeader({
   dose,
   categoryLabel,
   nameChip,
+  metricMeta,
   stateBadges,
   actions,
   href,
@@ -81,10 +91,16 @@ export function MedicationCardHeader({
           State badges now ride their own row below the category
           badge so the canonical row stays two lines on narrow
           viewports. */}
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
         <Badge variant="outline" className="text-xs">
           {categoryLabel}
         </Badge>
+        {/* v1.18.10 — cadence (and any future metric meta) reads as part of
+            the metric line itself: same muted weight/colour as the row, no
+            shaded pill. */}
+        {metricMeta ? (
+          <span className="text-muted-foreground text-xs">{metricMeta}</span>
+        ) : null}
       </div>
       {stateBadges ? (
         <div

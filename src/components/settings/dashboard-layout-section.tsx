@@ -204,6 +204,15 @@ export function DashboardLayoutSection({ id }: { id: string }) {
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
+      // v1.18.10 — the Startseite reads its layout (tile/chart visibility,
+      // order, comparison baseline, hero toggle) from the dashboard
+      // SNAPSHOT, not from this `dashboardWidgets` key. Without an
+      // invalidation the snapshot keeps its cached layout and the dashboard
+      // looks stale until a manual reload. Invalidate the snapshot so the
+      // next visit (or open tab) re-reads the saved layout immediately.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboardSnapshot(),
+      });
       setDraft(null);
       toast.success(t("dashboard.layoutSaveSuccess"));
     },
@@ -216,6 +225,11 @@ export function DashboardLayoutSection({ id }: { id: string }) {
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
+      // v1.18.10 — same snapshot invalidation as the save path so a reset
+      // to defaults reflects on the Startseite without a manual reload.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboardSnapshot(),
+      });
       setDraft(null);
       toast.success(t("dashboard.layoutResetSuccess"));
     },
