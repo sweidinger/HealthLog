@@ -4,13 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, ScanLine, Wrench } from "lucide-react";
+import { Loader2, Pencil, Plus, ScanLine, Wrench } from "lucide-react";
 
 import { LabForm } from "@/components/labs/lab-form";
 import { LabList } from "@/components/labs/lab-list";
 import { OcrReviewDialog } from "@/components/labs/ocr-review-dialog";
 import { useOcrCapability } from "@/components/labs/use-ocr-extract";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useAuth } from "@/hooks/use-auth";
@@ -73,19 +79,6 @@ export default function LabsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {/* v1.18.9 — "Scan a report" Lab-OCR entry. Shown only when the
-              capability probe reports a vision-capable provider is configured,
-              so the surface stays dark for codex-only / text-only-model users. */}
-          {ocrCapability.data?.available ? (
-            <Button
-              variant="outline"
-              onClick={() => setScanOpen(true)}
-              className="min-h-11 sm:min-h-9"
-            >
-              <ScanLine className="h-4 w-4" />
-              {t("labs.ocr.scanButton")}
-            </Button>
-          ) : null}
           {/* v1.18.6 (MOD-01) — the wrench is the module's customize entry
               point, left of the primary Add and linking to the Labs settings
               page (view, sort order, biomarker CRUD + reorder). Mirrors the
@@ -104,13 +97,40 @@ export default function LabsPage() {
               <Wrench className="h-4 w-4" aria-hidden="true" />
             </Link>
           </Button>
-          <Button
-            onClick={() => setDialogOpen(true)}
-            className="min-h-11 sm:min-h-9"
-          >
-            <Plus className="h-4 w-4" />
-            {t("common.add")}
-          </Button>
+          {/* v1.18.10 — the "Add" action is a CHOICE when scanning is
+              available: scan a document (OCR) or add a value by hand. The scan
+              option only appears when the capability probe reports a usable
+              mode (vision, or local OCR opted-in for text-only providers), so
+              the surface stays simple for everyone else. When scanning is
+              unavailable, Add opens the manual form directly. */}
+          {ocrCapability.data?.available ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="min-h-11 sm:min-h-9">
+                  <Plus className="h-4 w-4" />
+                  {t("common.add")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setScanOpen(true)}>
+                  <ScanLine className="h-4 w-4" aria-hidden="true" />
+                  {t("labs.ocr.addScan")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDialogOpen(true)}>
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                  {t("labs.ocr.addManual")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="min-h-11 sm:min-h-9"
+            >
+              <Plus className="h-4 w-4" />
+              {t("common.add")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -135,10 +155,11 @@ export default function LabsPage() {
         />
       </ResponsiveSheet>
 
-      {ocrCapability.data?.available ? (
+      {ocrCapability.data?.available && ocrCapability.data.mode ? (
         <OcrReviewDialog
           open={scanOpen}
           onOpenChange={setScanOpen}
+          mode={ocrCapability.data.mode}
           pdfSupported={ocrCapability.data.pdfSupported}
           onCommitted={() => {
             queryClient.invalidateQueries({

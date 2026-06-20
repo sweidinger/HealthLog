@@ -15,7 +15,13 @@
  */
 import { useId } from "react";
 
-import { AlertCircle, FilePlus2, Link2, TriangleAlert } from "lucide-react";
+import {
+  AlertCircle,
+  FilePlus2,
+  Link2,
+  Ruler,
+  TriangleAlert,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,6 +48,16 @@ export function OcrRowEditor({
   const lowValueConfidence =
     !isQualitative && row.confidence.value < CONFIDENCE_THRESHOLD;
   const valueUnreadable = !isQualitative && row.value === null;
+
+  // v1.18.10 (#5) — a NEW numeric biomarker mints its catalog reference range
+  // from THIS extracted row. The range is therefore load-bearing and worth a
+  // second look. Surface the range confidence prominently for new numeric
+  // markers, and call it out explicitly when the model was unsure (or set no
+  // bounds at all) so the user verifies the range it will be judged against.
+  const isNewNumericMarker = !isQualitative && row.biomarkerMatch === "new";
+  const lowRangeConfidence = row.confidence.range < CONFIDENCE_THRESHOLD;
+  const hasBounds = row.referenceLow !== null || row.referenceHigh !== null;
+  const flagRange = isNewNumericMarker && (lowRangeConfidence || !hasBounds);
 
   return (
     <div className="space-y-3 rounded-lg border p-3">
@@ -155,6 +171,21 @@ export function OcrRowEditor({
           />
         </div>
       </div>
+
+      {/* v1.18.10 (#5) — for a NEW numeric biomarker the reference range below
+          becomes the marker's catalog range. Make that consequence visible, and
+          flag low range-confidence / a missing range so the user verifies it
+          before saving. A calm `secondary` badge, not an alarm. */}
+      {isNewNumericMarker ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant={flagRange ? "secondary" : "outline"}>
+            <Ruler aria-hidden />
+            {flagRange
+              ? t("labs.ocr.rangeVerify")
+              : t("labs.ocr.rangeFromScan")}
+          </Badge>
+        </div>
+      ) : null}
 
       {!isQualitative ? (
         <div className="grid grid-cols-2 gap-2">

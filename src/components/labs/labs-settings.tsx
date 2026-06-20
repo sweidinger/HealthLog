@@ -19,6 +19,7 @@ import {
   FlaskConical,
   LayoutGrid,
   ListOrdered,
+  ScanText,
 } from "lucide-react";
 
 import { SettingsCard } from "@/components/settings/settings-card";
@@ -26,6 +27,7 @@ import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -42,10 +44,17 @@ import {
 
 import { BiomarkerManager } from "./biomarker-manager";
 import type { BiomarkerDto, BiomarkerListResponse } from "./types";
+import { useLabsLocalOcr, useUpdateLabsLocalOcr } from "./use-ocr-extract";
 
 export function LabsSettings() {
   const { t } = useTranslations();
   const { prefs, setView, setOrder, setSortDir } = useModuleListPrefs("labs");
+
+  // v1.18.10 — local (in-browser) OCR opt-in. Lets a user whose AI provider
+  // can't read images still scan a report: the image is OCR'd on-device and
+  // only the extracted text is sent to the text-only provider.
+  const localOcr = useLabsLocalOcr();
+  const updateLocalOcr = useUpdateLabsLocalOcr();
 
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.biomarkers(),
@@ -119,6 +128,23 @@ export function LabsSettings() {
           )}
         </SettingsCard>
       ) : null}
+
+      {/* v1.18.10 — local (in-browser) OCR opt-in for lab scans. */}
+      <SettingsCard id="labs-local-ocr" className="scroll-mt-28 space-y-4">
+        <SettingsCardHeader
+          icon={ScanText}
+          title={t("labs.localOcr.heading")}
+          description={t("labs.localOcr.description")}
+          status={
+            <Switch
+              checked={localOcr.data?.labsLocalOcrEnabled ?? false}
+              disabled={localOcr.isLoading || updateLocalOcr.isPending}
+              onCheckedChange={(checked) => updateLocalOcr.mutate(checked)}
+              aria-label={t("labs.localOcr.heading")}
+            />
+          }
+        />
+      </SettingsCard>
 
       {/* Biomarker catalog — define / edit / delete. */}
       <SettingsCard id="labs-biomarkers" className="scroll-mt-28 space-y-4">

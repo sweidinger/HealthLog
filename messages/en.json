@@ -6489,6 +6489,10 @@
     "deleteError": "Could not delete the result",
     "loadError": "Could not load lab results",
     "customize": "Customize labs",
+    "localOcr": {
+      "heading": "Read scans on this device",
+      "description": "Lets you scan a lab report even when your AI provider can't read images: the photo is read on your device and only the extracted text is sent to your provider. Less accurate — review every value before saving."
+    },
     "sort": {
       "heading": "Sort order",
       "label": "Order of values",
@@ -6640,10 +6644,16 @@
     "showingLatestOf": "Showing the latest {shown} of {total} readings",
     "ocr": {
       "scanButton": "Scan a report",
+      "addScan": "Scan a document",
+      "addManual": "Add a value manually",
       "uploadHint": "Upload a photo or PDF of a lab report",
       "acceptWithPdf": "JPEG, PNG, WebP, or PDF",
       "acceptImageOnly": "JPEG, PNG, or WebP",
       "extracting": "Reading your report…",
+      "readingOnDevice": "Reading on your device…",
+      "localModeHint": "Read on your device, then sent as text. Less accurate — review every value.",
+      "rangeFromScan": "Reference range taken from the scan",
+      "rangeVerify": "Verify the reference range",
       "reviewTitle": "Review before saving",
       "reviewHint": "Check each reading, then save the ones you want to keep.",
       "foundCount": "{count} readings found",
