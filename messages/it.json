@@ -2268,6 +2268,8 @@
       "sourcesMemberCount": "{count} metriche",
       "dictate": "Detta",
       "dictateStop": "Interrompi dettatura",
+      "voiceUnsupported": "L'inserimento vocale non è supportato in questo browser",
+      "dictateError": "Impossibile avviare l'inserimento vocale. Controlla l'autorizzazione del microfono e riprova.",
       "showConversations": "Mostra conversazioni",
       "hideConversations": "Nascondi conversazioni",
       "heroGreeting": "Come posso aiutarti?",

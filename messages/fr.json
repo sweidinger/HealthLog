@@ -2268,6 +2268,8 @@
       "sourcesMemberCount": "{count} mesures",
       "dictate": "Dicter",
       "dictateStop": "Arrêter la dictée",
+      "voiceUnsupported": "La saisie vocale n'est pas prise en charge par ce navigateur",
+      "dictateError": "Impossible de démarrer la saisie vocale. Vérifiez l'autorisation du microphone et réessayez.",
       "showConversations": "Afficher les conversations",
       "hideConversations": "Masquer les conversations",
       "heroGreeting": "Comment puis-je t'aider ?",

@@ -24,16 +24,21 @@ describe("<CoachInput>", () => {
     expect(html).not.toContain("Coach replies are generated");
   });
 
-  it("does not render the mic in SSR markup (Web Speech API is client-only)", () => {
-    // v1.18.7 W-coach C-UI — voice dictation returns, but the mic only
-    // mounts client-side once `SpeechRecognition` is confirmed present
-    // (a post-hydration effect flips support on). The SSR / unsupported
-    // path renders no button so the affordance is never a dead control.
+  it("renders the mic disabled with an unsupported tooltip in SSR markup", () => {
+    // v1.18.10 (W4) — the mic always renders so the affordance stays
+    // discoverable. SSR (and any browser without the Web Speech API) shows
+    // it DISABLED with an explanatory tooltip rather than vanishing or
+    // sitting as a dead control. A post-hydration effect re-enables it once
+    // `SpeechRecognition` is confirmed present.
     const html = render(
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
     );
-    expect(html).not.toContain('data-slot="coach-input-mic"');
-    expect(html).not.toContain("Voice input arrives with the iOS app");
+    const micTag = html.match(/<button[^>]*data-slot="coach-input-mic"[^>]*>/);
+    expect(micTag).not.toBeNull();
+    expect(micTag?.[0]).toMatch(/\sdisabled(=""|\s|>)/);
+    expect(micTag?.[0]).toContain('data-unsupported="true"');
+    // Tooltip explains why it is inert, sourced from i18n.
+    expect(html).toContain("Voice input is not supported in this browser");
   });
 
   it("renders the localised placeholder without the retired shortcut hint", () => {
