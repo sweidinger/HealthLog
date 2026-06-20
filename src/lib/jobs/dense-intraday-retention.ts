@@ -89,11 +89,19 @@ export interface DenseIntradayRetentionPayload {
  */
 export async function runDenseIntradayRetentionForUser(
   userId: string,
-): Promise<{ daysConsolidated: number; perSampleRowsSoftDeleted: number }> {
+): Promise<{
+  daysConsolidated: number;
+  perSampleRowsSoftDeleted: number;
+  derivedRestingRowsUpserted: number;
+}> {
   // Kill-switch: when an operator opts out, no-op so any already-queued
   // backlog completes cleanly (drains the queue) instead of running the fold.
   if (!DENSE_INTRADAY_RETENTION_ENABLED) {
-    return { daysConsolidated: 0, perSampleRowsSoftDeleted: 0 };
+    return {
+      daysConsolidated: 0,
+      perSampleRowsSoftDeleted: 0,
+      derivedRestingRowsUpserted: 0,
+    };
   }
   const summary = await runDenseIntradayRetention(prisma, {
     userId,
@@ -108,12 +116,17 @@ export async function runDenseIntradayRetentionForUser(
         days: summary.totals.daysConsolidated,
         per_sample_rows_soft_deleted: summary.totals.perSampleRowsSoftDeleted,
         daily_rows_upserted: summary.totals.dailyRowsUpserted,
+        // iOS#34 — derived RESTING_HEART_RATE rows minted from folded PULSE
+        // days for proxy users, preserving the resting signal post-fold.
+        derived_resting_rows_upserted:
+          summary.totals.derivedRestingRowsUpserted,
       },
     },
   });
   return {
     daysConsolidated: summary.totals.daysConsolidated,
     perSampleRowsSoftDeleted: summary.totals.perSampleRowsSoftDeleted,
+    derivedRestingRowsUpserted: summary.totals.derivedRestingRowsUpserted,
   };
 }
 

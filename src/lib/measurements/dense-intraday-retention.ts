@@ -50,6 +50,53 @@ import {
 import { runConsolidation, type DayWriteOutcome } from "./consolidation-base";
 import { meanBucketValue } from "./consolidate-daily-mean";
 import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
+import { percentile } from "@/lib/insights/strain-score";
+import type { PerSampleRow } from "./drain-per-sample-cumulative";
+
+/**
+ * iOS#34 / #69 — heart-rate (PULSE) is the densest spot signal after
+ * walking-distance: ~16k raw rows per Apple-Health user. Collapsing a
+ * folded PULSE day to a single MEAN row (the plain dense-tier fold) keeps
+ * the chart mean + bounds the bloat, but it would erase the two
+ * clinically-meaningful daily figures the rest of the app derives from the
+ * raw stream:
+ *
+ *   1. **Resting HR.** `resolveRestingPulseSeries`
+ *      (`src/lib/analytics/resting-pulse.ts`) prefers a native
+ *      `RESTING_HEART_RATE` series and, for users who have none, falls back
+ *      to the 20th-percentile-of-each-day's-raw-PULSE proxy (the day's
+ *      floor, excluding the workout burst in the upper tail). Once the raw
+ *      PULSE rows are folded that proxy can no longer be computed — a
+ *      single mean row is `n = 1` and is skipped by the proxy's
+ *      `RESTING_PROXY_MIN_DAILY_SAMPLES` floor. So for a proxy user the
+ *      resting tile would silently lose every folded day.
+ *   2. **Daily min / max.** The persistent `MeasurementRollup` DAY bucket
+ *      stores `min_value` / `max_value` / `mean`, but it aggregates LIVE
+ *      `deleted_at IS NULL` rows — recomputing it AFTER the fold collapses
+ *      min == max == mean.
+ *
+ * The PULSE facet of this drain therefore preserves the full daily signal
+ * WITHOUT polluting the PULSE read path (the rollup tier averages every
+ * live PULSE row, so extra min/max rows of type PULSE would corrupt the
+ * mean):
+ *
+ *   - Recompute the DAY rollup from the RAW rows BEFORE the fold, so the
+ *     persistent tier keeps the true intraday min / max / mean, then SKIP
+ *     the post-fold PULSE-DAY recompute that would collapse them.
+ *   - Fold the raw PULSE day to one MEAN `stats:` PULSE row — the chart +
+ *     rollup-mean read path is unchanged (AVG over one row == the mean).
+ *   - For a PROXY user (zero native `RESTING_HEART_RATE` rows), mint one
+ *     derived `RESTING_HEART_RATE` row per folded day from the day's
+ *     20th-percentile floor, sourced `COMPUTED` so it never collides with
+ *     Apple's own resting rows and reads back as the clean resting series
+ *     the resolver prefers. Users WITH native resting rows already have the
+ *     clean signal; minting alongside would double-count, so they are
+ *     skipped.
+ *
+ * HRV keeps the plain mean-only fold — out-of-window HRV has no resting /
+ * min / max consumer (the Stress engine reads the IN-window shape, which
+ * this drain never folds).
+ */
 
 /**
  * The dense-tier types. These are the daytime intra-day signals the Stress
@@ -75,6 +122,54 @@ export const DENSE_INTRADAY_RETENTION_DAYS = 14;
 /** The daily-stats externalId prefix marks an already-collapsed row. */
 const DAILY_STATS_PREFIX = "stats:";
 
+/**
+ * The HealthKit identifier the derived resting row mints its `stats:`
+ * externalId under. It is the SAME identifier `RESTING_HEART_RATE` maps to
+ * in `apple-health-mapping.ts`, so the row reads back as a canonical daily
+ * resting figure; the `COMPUTED` source keeps it distinct from Apple's own
+ * `RESTING_HEART_RATE` rows on both unique indexes.
+ */
+const RESTING_HK_IDENTIFIER = "HKQuantityTypeIdentifierRestingHeartRate";
+
+/**
+ * Percentile of a day's raw PULSE samples used as that day's resting
+ * estimate. Mirrors `RESTING_PROXY_DAILY_PERCENTILE` in
+ * `src/lib/analytics/resting-pulse.ts` — the 20th percentile is the day's
+ * low band (above the rare sleeping-bradycardia outlier, below the bulk of
+ * waking + workout HR), so it tracks resting HR without being pulled up by a
+ * dense workout burst. Kept in lockstep with the read-path proxy so the
+ * resting figure a folded day persists equals the figure the proxy would
+ * have produced from the now-deleted raw rows.
+ */
+const RESTING_DERIVE_PERCENTILE = 20;
+
+/**
+ * Minimum PULSE samples a day needs before it contributes a derived resting
+ * row. Mirrors `RESTING_PROXY_MIN_DAILY_SAMPLES` — a one/two-sample day
+ * cannot distinguish a resting floor from a lone workout reading, so it is
+ * skipped rather than persisting a workout-level number as "resting".
+ */
+const RESTING_DERIVE_MIN_DAILY_SAMPLES = 3;
+
+/**
+ * Derive the resting estimate for a single folded PULSE day from its raw
+ * samples — the rounded 20th percentile, or `null` when the day has too few
+ * samples to tell a resting floor from a lone reading. Pure; exported for
+ * unit testing without Prisma. Kept value-for-value in step with
+ * `deriveRestingProxyFromPulse`.
+ */
+export function deriveDailyRestingFromPulse(
+  rows: readonly PerSampleRow[],
+): number | null {
+  if (rows.length < RESTING_DERIVE_MIN_DAILY_SAMPLES) return null;
+  return Math.round(
+    percentile(
+      rows.map((r) => r.value),
+      RESTING_DERIVE_PERCENTILE,
+    ),
+  );
+}
+
 export interface DenseIntradayRetentionSummary {
   dryRun: boolean;
   totals: {
@@ -82,6 +177,12 @@ export interface DenseIntradayRetentionSummary {
     daysConsolidated: number;
     perSampleRowsSoftDeleted: number;
     dailyRowsUpserted: number;
+    /**
+     * Derived `RESTING_HEART_RATE` rows minted from folded PULSE days for
+     * proxy users (zero native resting rows). iOS#34 — preserves the
+     * resting signal the raw-PULSE proxy can no longer compute after fold.
+     */
+    derivedRestingRowsUpserted: number;
   };
 }
 
@@ -132,8 +233,29 @@ export async function runDenseIntradayRetention(
       daysConsolidated: 0,
       perSampleRowsSoftDeleted: 0,
       dailyRowsUpserted: 0,
+      derivedRestingRowsUpserted: 0,
     },
   };
+
+  // iOS#34 — per-user memo of whether the user has ANY native
+  // `RESTING_HEART_RATE` row. The read-path resolver
+  // (`resolveRestingPulseSeries`) is all-or-nothing: a single native
+  // resting row makes it ignore the PULSE proxy entirely. So the derived
+  // resting row is minted ONLY for proxy users (zero native rows) — minting
+  // alongside native rows would double-count. Memoised so the per-day fold
+  // does not re-query, and cleared per user at the start of the walk.
+  const nativeRestingByUser = new Map<string, boolean>();
+  async function userHasNativeResting(userId: string): Promise<boolean> {
+    const cached = nativeRestingByUser.get(userId);
+    if (cached !== undefined) return cached;
+    const native = await prismaClient.measurement.findFirst({
+      where: { userId, type: "RESTING_HEART_RATE", deletedAt: null },
+      select: { id: true },
+    });
+    const has = native !== null;
+    nativeRestingByUser.set(userId, has);
+    return has;
+  }
 
   const { usersScanned } = await runConsolidation<MeasurementType>({
     prismaClient,
@@ -179,6 +301,18 @@ export async function runDenseIntradayRetention(
       sourceRowIds,
     }): Promise<DayWriteOutcome> => {
       const unit = dayRows[0]?.unit ?? "unknown";
+      const isPulse = type === "PULSE";
+
+      // iOS#34 — PULSE min/max preservation. The persistent `MeasurementRollup`
+      // DAY bucket stores min/max/mean but aggregates LIVE rows; recomputing it
+      // AFTER the fold (one mean row) collapses min == max == mean. So for
+      // PULSE, recompute the DAY bucket from the RAW rows BEFORE the fold,
+      // while they are still live — the bucket then keeps the TRUE intraday
+      // min/max/mean — and the post-fold recompute is SKIPPED below. (HRV has
+      // no min/max consumer, so it keeps the simpler post-fold recompute.)
+      if (isPulse && !options.dryRun) {
+        await recomputeBucketsForMeasurement(userId, type, canonicalTimestamp);
+      }
 
       // Fold the day to one canonical daily-mean row at local-noon.
       //
@@ -319,11 +453,70 @@ export async function runDenseIntradayRetention(
         removed = await foldOnce();
       }
 
+      // iOS#34 — preserve the resting signal for PROXY users. For a user
+      // with zero native `RESTING_HEART_RATE` rows, the read-path resolver
+      // derives resting from the 20th-percentile of each day's RAW PULSE; the
+      // fold has just deleted those rows, so that day's resting figure would
+      // vanish. Mint one derived `RESTING_HEART_RATE` row from the same
+      // percentile, sourced `COMPUTED` (distinct from Apple's own resting
+      // rows on both unique indexes), so the day reads back as the clean
+      // resting series the resolver prefers. Skipped for users WITH native
+      // resting rows (the resolver ignores the proxy entirely for them, so a
+      // derived row would only double-count).
+      if (isPulse) {
+        const restingValue = deriveDailyRestingFromPulse(dayRows);
+        if (restingValue !== null && !(await userHasNativeResting(userId))) {
+          const restingExternalId = dailyStatsExternalId(
+            RESTING_HK_IDENTIFIER,
+            // The fold's canonical timestamp is local-noon of the day; reuse
+            // its UTC date for the resting row's `stats:` key so a re-run
+            // upserts the same row instead of minting a sibling.
+            canonicalTimestamp.toISOString().slice(0, 10),
+          );
+          await pc.measurement.upsert({
+            where: {
+              userId_type_source_externalId: {
+                userId,
+                type: "RESTING_HEART_RATE",
+                source: "COMPUTED",
+                externalId: restingExternalId,
+              },
+            },
+            create: {
+              userId,
+              type: "RESTING_HEART_RATE",
+              value: restingValue,
+              unit: "bpm",
+              source: "COMPUTED",
+              measuredAt: canonicalTimestamp,
+              externalId: restingExternalId,
+            },
+            update: { value: restingValue, deletedAt: null },
+          });
+          summary.totals.derivedRestingRowsUpserted += 1;
+          // The derived row is its own (type, day); recompute its DAY bucket
+          // so the rollup tier serves it on a covered read.
+          await recomputeBucketsForMeasurement(
+            userId,
+            "RESTING_HEART_RATE",
+            canonicalTimestamp,
+          );
+        }
+      }
+
       // Recompute the affected (user, type, day) rollup buckets after the
       // fold commits — the rollup tier reads only `deleted_at IS NULL`, so
       // the stale DAY bucket must re-aggregate against the single
       // consolidated row, exactly as the mean-consolidation drain does.
-      await recomputeBucketsForMeasurement(userId, type, canonicalTimestamp);
+      //
+      // iOS#34 — for PULSE this would COLLAPSE the true intraday min/max the
+      // pre-fold recompute above just captured (the single folded row makes
+      // min == max == mean), so the PULSE DAY bucket is left as the pre-fold
+      // recompute set it. HRV (no min/max consumer) keeps the post-fold
+      // recompute against its single mean row.
+      if (!isPulse) {
+        await recomputeBucketsForMeasurement(userId, type, canonicalTimestamp);
+      }
 
       return { kind: "written", sourceRowsRemoved: removed };
     },
@@ -340,12 +533,26 @@ export async function runDenseIntradayRetention(
         `[dense-intraday-retention] user=${userId} tz=${tz}${dryRun ? " (dry-run)" : ""}`,
       );
     },
+    // Per-day failure boundary (v1.18.10 lesson). A day whose fold throws —
+    // e.g. a residual unique-index collision the adopt-in-place path could
+    // not absorb, or a derived-resting upsert that races a native row — is
+    // logged and STEPPED OVER so the global walk keeps draining every other
+    // user / type / day. The failed day keeps its raw rows live (the fold
+    // soft-deletes only on a committed transaction), so the next nightly run
+    // retries it. Without this, one poisoned day aborted the whole walk and
+    // stranded every later account.
+    onBucketError: ({ userId, type, dateKey, error }) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      log(
+        `[dense-intraday-retention] user=${userId} type=${type} day=${dateKey} failed — ${reason}; continuing with the next bucket`,
+      );
+    },
   });
 
   summary.totals.usersScanned = usersScanned;
 
   log(
-    `[dense-intraday-retention] done — usersScanned=${summary.totals.usersScanned} daysConsolidated=${summary.totals.daysConsolidated} perSampleRowsSoftDeleted=${summary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${summary.totals.dailyRowsUpserted}${options.dryRun ? " (dry-run)" : ""}`,
+    `[dense-intraday-retention] done — usersScanned=${summary.totals.usersScanned} daysConsolidated=${summary.totals.daysConsolidated} perSampleRowsSoftDeleted=${summary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${summary.totals.dailyRowsUpserted} derivedRestingRowsUpserted=${summary.totals.derivedRestingRowsUpserted}${options.dryRun ? " (dry-run)" : ""}`,
   );
 
   return summary;
