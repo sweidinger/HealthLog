@@ -48,11 +48,9 @@ vi.mock("@/lib/logging/context", () => ({
 // aggregator's plumbing — path selection, bpRaw threading, dailyByType
 // composition — is exercised without coupling the unit test to the rank
 // builder's enum-whitelist internals.
-vi.mock("@/lib/analytics/source-rank-sql", () => ({
-  buildSourceRankCase: vi.fn(() => "90"),
-  canonicalMeasurementsFrom: vi.fn(
-    (_rank: string, sinceInterval?: string) =>
-      `(
+vi.mock("@/lib/analytics/source-rank-sql", () => {
+  const cte = (_rank: string, sinceInterval?: string) =>
+    `
         SELECT mm.*
         FROM measurements mm
         WHERE mm."user_id" = $1
@@ -61,10 +59,19 @@ vi.mock("@/lib/analytics/source-rank-sql", () => ({
             sinceInterval
               ? `AND mm."measured_at" >= NOW() - INTERVAL '${sinceInterval}'`
               : ""
-          }
+          }`;
+  return {
+    buildSourceRankCase: vi.fn(() => "90"),
+    // v1.18.11 perf#3a — the aggregator now folds the canonical-source
+    // self-join into a single `WITH cm AS (…)` CTE referenced twice, so the
+    // unit mock must expose both the CTE body and the alias-wrapped form.
+    canonicalMeasurementsCte: vi.fn(cte),
+    canonicalMeasurementsFrom: vi.fn(
+      (rank: string, sinceInterval?: string) => `(${cte(rank, sinceInterval)}
       ) m`,
-  ),
-}));
+    ),
+  };
+});
 
 import { prisma } from "@/lib/db";
 import { buildComprehensiveAggregate } from "../comprehensive-aggregator";

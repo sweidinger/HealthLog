@@ -112,6 +112,7 @@ import {
 } from "@/lib/rollups/measurement-read";
 import {
   buildSourceRankCase,
+  canonicalMeasurementsCte,
   canonicalMeasurementsFrom,
 } from "@/lib/analytics/source-rank-sql";
 import {
@@ -398,12 +399,18 @@ async function buildFromRollups(
       timeSubquery(timings, "narrow", () =>
         prisma.$queryRawUnsafe<NarrowAggregateRow[]>(
           `
-      WITH window_stats AS (
+      -- v1.18.11 perf#3a — the canonical-source self-join is the dominant
+      -- cost; bind it ONCE as a CTE and reference it from both window_stats
+      -- and the outer aggregate so the DISTINCT-ON pick runs a single time
+      -- instead of twice per rebuild. Output is identical.
+      WITH cm AS (${canonicalMeasurementsCte(rankUnqualified, "90 days")}
+      ),
+      window_stats AS (
         SELECT
           m."type",
           AVG(m."value") AS mean_value,
           STDDEV_POP(m."value") AS stddev_value
-        FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
+        FROM cm m
         GROUP BY m."type"
       )
       SELECT
@@ -466,7 +473,7 @@ async function buildFromRollups(
         ) FILTER (
           WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
         )::double precision                                           AS r2_90
-      FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
+      FROM cm m
       JOIN window_stats ws ON ws."type" = m."type"
       GROUP BY m."type", ws.stddev_value
     `,
@@ -617,12 +624,17 @@ async function buildFromLiveAggregate(
     timeSubquery(timings, "heavy", () =>
       prisma.$queryRawUnsafe<HeavyAggregateRow[]>(
         `
-      WITH window_stats AS (
+      -- v1.18.11 perf#3a — bind the canonical-source self-join once (see the
+      -- warm narrow query). window_stats + the outer aggregate both read cm,
+      -- so the DISTINCT-ON pick runs once. Output is identical.
+      WITH cm AS (${canonicalMeasurementsCte(rankUnqualified, "90 days")}
+      ),
+      window_stats AS (
         SELECT
           m."type",
           AVG(m."value") AS mean_value,
           STDDEV_POP(m."value") AS stddev_value
-        FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
+        FROM cm m
         GROUP BY m."type"
       )
       SELECT
@@ -685,7 +697,7 @@ async function buildFromLiveAggregate(
         ) FILTER (
           WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
         )::double precision                                           AS r2_90
-      FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
+      FROM cm m
       JOIN window_stats ws ON ws."type" = m."type"
       GROUP BY m."type", ws.stddev_value
     `,

@@ -107,19 +107,25 @@ function assertInterval(value: string): string {
 }
 
 /**
- * Build a FROM-clause subquery (aliased `m`) that restricts raw `measurements`
- * to the canonical-source rows per (type, day): the inner `DISTINCT ON` picks
- * the ladder-winning source for each day, and the join keeps only that source's
- * readings. Use it in place of `FROM measurements m` so a live aggregate over
- * an overlapping vital never blends two devices — the same collapse the rollup
- * readers apply, kept in lockstep for live/rollup parity.
+ * Build the canonical-source SELECT body — the raw `measurements` rows
+ * restricted to the ladder-winning source per (type, day) — WITHOUT the
+ * outer `( … ) m` alias wrapper. The inner `DISTINCT ON` picks the
+ * canonical source for each day and the join keeps only that source's
+ * readings.
+ *
+ * Use this when the same canonical set must be referenced more than once in
+ * one statement (e.g. a `window_stats` CTE plus the outer aggregate): bind it
+ * once via `WITH cm AS (${canonicalMeasurementsCte(...)})` and select
+ * `FROM cm m` everywhere, so the expensive DISTINCT-ON self-join runs once
+ * rather than per reference. For the single-reference case use
+ * `canonicalMeasurementsFrom`, which wraps this body in the alias.
  *
  * The user id is bound as `$1`. `rankUnqualified` must be a CASE built with
  * unqualified `"type"`/`"source"` columns. `sinceInterval` (e.g. `"90 days"`)
  * is whitelisted and, when given, scopes both the inner pick and the outer
  * filter to a trailing window.
  */
-export function canonicalMeasurementsFrom(
+export function canonicalMeasurementsCte(
   rankUnqualified: string,
   sinceInterval?: string,
 ): string {
@@ -129,7 +135,7 @@ export function canonicalMeasurementsFrom(
   const sinceOuter = sinceInterval
     ? `AND mm."measured_at" >= NOW() - INTERVAL '${assertInterval(sinceInterval)}'`
     : "";
-  return `(
+  return `
         SELECT mm.*
         FROM measurements mm
         JOIN (
@@ -148,6 +154,26 @@ export function canonicalMeasurementsFrom(
           AND c.canon = mm."source"
         WHERE mm."user_id" = $1
           AND mm."deleted_at" IS NULL
-          ${sinceOuter}
+          ${sinceOuter}`;
+}
+
+/**
+ * Build a FROM-clause subquery (aliased `m`) that restricts raw `measurements`
+ * to the canonical-source rows per (type, day): the inner `DISTINCT ON` picks
+ * the ladder-winning source for each day, and the join keeps only that source's
+ * readings. Use it in place of `FROM measurements m` so a live aggregate over
+ * an overlapping vital never blends two devices — the same collapse the rollup
+ * readers apply, kept in lockstep for live/rollup parity.
+ *
+ * The user id is bound as `$1`. `rankUnqualified` must be a CASE built with
+ * unqualified `"type"`/`"source"` columns. `sinceInterval` (e.g. `"90 days"`)
+ * is whitelisted and, when given, scopes both the inner pick and the outer
+ * filter to a trailing window.
+ */
+export function canonicalMeasurementsFrom(
+  rankUnqualified: string,
+  sinceInterval?: string,
+): string {
+  return `(${canonicalMeasurementsCte(rankUnqualified, sinceInterval)}
       ) m`;
 }
