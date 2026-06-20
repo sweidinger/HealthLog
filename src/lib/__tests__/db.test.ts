@@ -80,8 +80,8 @@ describe("getStatementTimeoutMs", () => {
     }
   });
 
-  it("defaults to 15000ms when the env var is unset", () => {
-    expect(getStatementTimeoutMs()).toBe(15_000);
+  it("defaults to 60000ms when the env var is unset", () => {
+    expect(getStatementTimeoutMs()).toBe(60_000);
   });
 
   it("honours a positive override", () => {
@@ -96,9 +96,9 @@ describe("getStatementTimeoutMs", () => {
 
   it("falls back to the default on a malformed or negative value", () => {
     process.env.DATABASE_STATEMENT_TIMEOUT_MS = "not-a-number";
-    expect(getStatementTimeoutMs()).toBe(15_000);
+    expect(getStatementTimeoutMs()).toBe(60_000);
     process.env.DATABASE_STATEMENT_TIMEOUT_MS = "-5";
-    expect(getStatementTimeoutMs()).toBe(15_000);
+    expect(getStatementTimeoutMs()).toBe(60_000);
   });
 });
 
@@ -116,8 +116,8 @@ describe("buildSessionOptions", () => {
   it("emits both session timeouts as libpq startup options by default", () => {
     delete process.env.DATABASE_STATEMENT_TIMEOUT_MS;
     const opts = buildSessionOptions();
-    expect(opts).toContain("-c statement_timeout=15000");
-    expect(opts).toContain("-c idle_in_transaction_session_timeout=15000");
+    expect(opts).toContain("-c statement_timeout=60000");
+    expect(opts).toContain("-c idle_in_transaction_session_timeout=60000");
   });
 
   it("returns undefined (no options) when the timeout is disabled", () => {

@@ -48,10 +48,11 @@ export function getPoolMax(): number {
  * pooled session inherits them.
  *
  * Env-overridable via `DATABASE_STATEMENT_TIMEOUT_MS`. Set to `0` to disable
- * (legacy unbounded behaviour). Default 15 s — generous for the rollup-backed
- * read paths while still bounding a runaway query well before it can starve the
- * pool. Heavy admin one-shots (drain/backfill) run on the worker, not the web
- * pool, and can dial their own timeout if needed.
+ * (legacy unbounded behaviour). Default 60 s — bounds a genuinely runaway query
+ * (the A-1 goal: never hold a pool slot forever) while leaving ample headroom
+ * for the heaviest legitimate read, the live-aggregate analytics fallback on a
+ * coverage miss over a large account, which can run well past 15 s. Heavy admin
+ * one-shots (drain/backfill) can still dial their own timeout if needed.
  */
 export function getStatementTimeoutMs(): number {
   const raw = process.env.DATABASE_STATEMENT_TIMEOUT_MS;
@@ -59,7 +60,7 @@ export function getStatementTimeoutMs(): number {
     const parsed = Number.parseInt(raw, 10);
     if (Number.isFinite(parsed) && parsed >= 0) return parsed;
   }
-  return 15_000;
+  return 60_000;
 }
 
 /**
