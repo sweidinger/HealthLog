@@ -6472,6 +6472,7 @@
     "viewDescription": "Scegli se le voci appaiono come schede o come elenco compatto.",
     "reorder": {
       "heading": "Ordine",
+      "description": "Trascina le voci per definire l'ordine in cui appaiono.",
       "empty": "Nessuna voce da riordinare."
     }
   },

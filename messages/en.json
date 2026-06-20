@@ -6472,6 +6472,7 @@
     "viewDescription": "Choose whether entries show as cards or as a compact list.",
     "reorder": {
       "heading": "Order",
+      "description": "Drag the entries to set the order they appear in.",
       "empty": "No entries to reorder yet."
     }
   },

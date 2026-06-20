@@ -6472,6 +6472,7 @@
     "viewDescription": "Wybierz, czy pozycje mają być pokazywane jako karty czy jako zwarta lista.",
     "reorder": {
       "heading": "Kolejność",
+      "description": "Przeciągnij pozycje, aby ustawić kolejność ich wyświetlania.",
       "empty": "Brak pozycji do uporządkowania."
     }
   },

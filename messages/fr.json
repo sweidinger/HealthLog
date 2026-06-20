@@ -6472,6 +6472,7 @@
     "viewDescription": "Choisissez si les entrées s'affichent en cartes ou en liste compacte.",
     "reorder": {
       "heading": "Ordre",
+      "description": "Faites glisser les entrées pour définir leur ordre d'affichage.",
       "empty": "Aucune entrée à réordonner pour l'instant."
     }
   },

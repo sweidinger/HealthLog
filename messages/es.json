@@ -6472,6 +6472,7 @@
     "viewDescription": "Elige si las entradas se muestran como tarjetas o como lista compacta.",
     "reorder": {
       "heading": "Orden",
+      "description": "Arrastra las entradas para definir el orden en que aparecen.",
       "empty": "Aún no hay entradas para ordenar."
     }
   },
