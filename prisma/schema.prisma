@@ -3643,6 +3643,11 @@ model CoachMessage {
   metricSourceJson String?  @map("metric_source_json")
   providerType     String?  @map("provider_type")
   promptVersion    String?  @map("prompt_version")
+  // v1.18.9 — per-turn token usage + model, persisted so the quiet
+  // per-message token footer survives a conversation reload. Both
+  // nullable: user turns, refusals, and pre-feature rows carry NULL.
+  tokensUsed       Int?     @map("tokens_used")
+  model            String?
   createdAt        DateTime @default(now()) @map("created_at")
 
   conversation CoachConversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)

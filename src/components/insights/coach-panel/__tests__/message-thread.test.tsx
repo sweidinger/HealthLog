@@ -60,6 +60,28 @@ import {
   type InterleavedThreadItem,
 } from "../message-thread";
 import type { CoachConversationDetailDTO } from "@/lib/ai/coach/types";
+import type { CoachStreamingMessage } from "../use-coach";
+
+// v1.18.9 — `CoachStreamingMessage` gained `usage` / `startedAt` /
+// `reasoning` (per-message token footer + thinking disclosure). The
+// fixtures below predate those fields; this builder fills the defaults so
+// each test only spells out the fields it cares about.
+function streaming(
+  partial: Partial<CoachStreamingMessage>,
+): CoachStreamingMessage {
+  return {
+    content: "",
+    metricSource: null,
+    suggestion: null,
+    inProgress: false,
+    messageId: null,
+    errorCode: null,
+    usage: null,
+    startedAt: null,
+    reasoning: "",
+    ...partial,
+  };
+}
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
@@ -82,6 +104,8 @@ const baseConversation: CoachConversationDetailDTO = {
       metricSource: null,
       providerType: null,
       promptVersion: null,
+      tokensUsed: null,
+      model: null,
     },
     {
       id: "m2",
@@ -96,6 +120,8 @@ const baseConversation: CoachConversationDetailDTO = {
       },
       providerType: "admin-openai",
       promptVersion: "4.20.0",
+      tokensUsed: 312,
+      model: "gpt-4o",
     },
   ],
 };
@@ -143,14 +169,14 @@ describe("<MessageThread>", () => {
     const html = render(
       <MessageThread
         conversation={baseConversation}
-        streaming={{
+        streaming={streaming({
           content: "Looking at your data ",
           metricSource: null,
           suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
-        }}
+        })}
       />,
     );
     // 1 persisted user + 1 persisted assistant + 1 streaming assistant.
@@ -168,14 +194,14 @@ describe("<MessageThread>", () => {
     const html = render(
       <MessageThread
         conversation={null}
-        streaming={{
+        streaming={streaming({
           content: "Drafting…",
           metricSource: null,
           suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
-        }}
+        })}
       />,
     );
     expect(html).toContain("Drafting…");
@@ -186,14 +212,14 @@ describe("<MessageThread>", () => {
     const html = render(
       <MessageThread
         conversation={null}
-        streaming={{
+        streaming={streaming({
           content: "",
           metricSource: null,
           suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
-        }}
+        })}
       />,
     );
     expect(html).toContain("Thinking");
@@ -203,14 +229,14 @@ describe("<MessageThread>", () => {
     const html = render(
       <MessageThread
         conversation={null}
-        streaming={{
+        streaming={streaming({
           content: "",
           metricSource: null,
           suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: "errorProvider",
-        }}
+        })}
       />,
     );
     // v1.4.33 IW7 — copy rewritten from "AI provider" to "Insights
@@ -237,6 +263,8 @@ describe("<MessageThread>", () => {
           metricSource: null,
           providerType: "admin-openai",
           promptVersion: "4.20.0",
+          tokensUsed: null,
+          model: null,
         },
       ],
     };
@@ -244,14 +272,14 @@ describe("<MessageThread>", () => {
     const html = render(
       <MessageThread
         conversation={conv}
-        streaming={{
+        streaming={streaming({
           content: "Looking at your data ",
           metricSource: null,
           suggestion: null,
           inProgress: false,
           messageId: "m3-streaming",
           errorCode: null,
-        }}
+        })}
       />,
     );
     // 1 persisted user + 2 persisted assistant + 0 streaming → 2.
@@ -271,14 +299,14 @@ describe("<MessageThread>", () => {
     const html = render(
       <MessageThread
         conversation={baseConversation}
-        streaming={{
+        streaming={streaming({
           content: "Looking at your data ",
           metricSource: null,
           suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
-        }}
+        })}
       />,
     );
     const assistantBubbles = (
@@ -470,14 +498,14 @@ describe("<MessageThread>", () => {
           content: "Wie ist mein Blutdruck letzte Woche?",
           conversationId: null,
         }}
-        streaming={{
+        streaming={streaming({
           content: "",
           metricSource: null,
           suggestion: null,
           inProgress: true,
           messageId: null,
           errorCode: null,
-        }}
+        })}
       />,
     );
     expect(html).toContain("Wie ist mein Blutdruck letzte Woche?");
@@ -577,14 +605,14 @@ describe("<MessageThread>", () => {
     const html = render(
       <MessageThread
         conversation={null}
-        streaming={{
+        streaming={streaming({
           content: "",
           metricSource: null,
           suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: "coach.budget.exceeded",
-        }}
+        })}
       />,
     );
     expect(html).toContain("Daily limit reached; resets at 00:00 UTC.");
@@ -598,14 +626,14 @@ describe("<MessageThread>", () => {
     const html = render(
       <MessageThread
         conversation={null}
-        streaming={{
+        streaming={streaming({
           content: "",
           metricSource: null,
           suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: "coach.provider.rate_limited",
-        }}
+        })}
       />,
     );
     expect(html).toContain(
@@ -627,14 +655,14 @@ describe("<MessageThread>", () => {
           content: "Why was BP higher on Monday?",
           conversationId: "conv-1",
         }}
-        streaming={{
+        streaming={streaming({
           content: "",
           metricSource: null,
           suggestion: null,
           inProgress: false,
           messageId: null,
           errorCode: null,
-        }}
+        })}
       />,
     );
     const userBubbles = (html.match(/data-slot="coach-bubble-user"/g) ?? [])
