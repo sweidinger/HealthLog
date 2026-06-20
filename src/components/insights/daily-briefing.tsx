@@ -302,7 +302,7 @@ function BriefingSkeleton() {
   return (
     <div
       data-slot="daily-briefing-skeleton"
-      className="space-y-4 motion-reduce:animate-none"
+      className="space-y-3 motion-reduce:animate-none"
       aria-hidden="true"
     >
       <div className="space-y-2">
@@ -367,7 +367,12 @@ export function DailyBriefing({
               <BriefingSkeleton />
             </>
           ) : briefing ? (
-            <div className="space-y-4">
+            // v1.18.10 — body block rhythm matches the sibling insights cards
+            // (`correlation-card` uses `space-y-3` between its chart /
+            // interpretation / source blocks). The briefing card carried a
+            // looser `space-y-4`, which read as taller than its neighbours on
+            // the overview. One token, no new spacing scale.
+            <div className="space-y-3">
               {/* v1.4.27 B1 — the leading narrative paragraph dropped.
                 The hero strip subtitle on `/insights` already renders
                 the same `briefing.paragraph` text directly above this
