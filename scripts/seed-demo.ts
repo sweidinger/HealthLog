@@ -89,6 +89,48 @@ function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+// The UTC instant of `hh:mm` Europe/Berlin local on the Berlin calendar day
+// that contains `ref`. This mirrors `localHmAsUtc` (src/lib/tz/local-day.ts):
+// the medication scheduling engine mints today's dose-slot anchor as the UTC
+// instant of the schedule's window_start in the user's timezone (the demo
+// user is Europe/Berlin). The dashboard's slot-resolution matches a taken
+// intake row to a slot only when the row's `scheduled_for` sits on (or, for a
+// slot-anchored row, within ±6h of) that canonical instant. We must compute
+// the same instant here — independent of the seed host's own clock zone — so
+// today's taken rows satisfy the 08:00 slot rather than floating beside it.
+function berlinHmAsUtc(hour: number, minute = 0, ref: Date = new Date()): Date {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = Object.fromEntries(
+    fmt.formatToParts(ref).map((p) => [p.type, p.value]),
+  );
+  const y = Number(parts.year);
+  const mo = Number(parts.month);
+  const d = Number(parts.day);
+  // `hour` can come back as "24" at midnight in some runtimes; normalise.
+  const refHour = Number(parts.hour) % 24;
+  const localTargetAsUtc = Date.UTC(y, mo - 1, d, hour, minute, 0, 0);
+  const localNowAsUtc = Date.UTC(
+    y,
+    mo - 1,
+    d,
+    refHour,
+    Number(parts.minute),
+    Number(parts.second),
+  );
+  const offsetMs =
+    Math.round((localNowAsUtc - ref.getTime()) / 60000) * 60000;
+  return new Date(localTargetAsUtc - offsetMs);
+}
+
 // The day key the insight read paths compare against. The per-metric status
 // cards stamp `dateKey = toBerlinDayKey(now)` (src/lib/tz/resolver.ts) and the
 // read serves a row only when its `dateKey` equals today's Berlin key. The
@@ -138,6 +180,7 @@ async function seed() {
     console.log("Cleaning existing data...");
     await client.query("DELETE FROM coach_messages");
     await client.query("DELETE FROM coach_conversations");
+    await client.query("DELETE FROM consent_receipts");
     await client.query("DELETE FROM insight_narratives");
     await client.query("DELETE FROM illness_episodes");
     await client.query("DELETE FROM lab_results");
@@ -744,40 +787,49 @@ async function seed() {
 
     for (let i = 0; i < days; i++) {
       const date = daysAgo(days - i);
+      // Anchor each historical intake's scheduled_for on its med's canonical
+      // Berlin dose-slot for that day (08:00 morning, 20:00 evening) — the
+      // same instant the scheduling engine attributes a take to — so taken
+      // rows are slot-anchored (scheduled_for ≠ taken_at, resolved within the
+      // ±6h radius) and skips land exactly on the slot. Anchoring on the slot
+      // rather than a random morning hour keeps the compliance rollups and the
+      // overdue search reading these past days as resolved.
+      const morningSlotFor = berlinHmAsUtc(8, 0, date);
+      const eveningSlotFor = berlinHmAsUtc(20, 0, date);
 
       // Ramipril: 98% compliance (miss ~1 every 50 days)
       const takeMed1 = Math.random() > 0.02;
       if (takeMed1) {
-        const takenTime = new Date(date);
-        takenTime.setHours(8, Math.floor(Math.random() * 45), 0);
+        const takenTime = new Date(morningSlotFor);
+        takenTime.setMinutes(takenTime.getMinutes() + Math.floor(Math.random() * 45) + 1);
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
-          [cuid(), userId, med1Id, date, takenTime],
+          [cuid(), userId, med1Id, morningSlotFor, takenTime],
         );
       } else {
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
            VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4, $4)`,
-          [cuid(), userId, med1Id, date],
+          [cuid(), userId, med1Id, morningSlotFor],
         );
       }
 
       // Vitamin D3: 95% compliance
       const takeMed2 = Math.random() > 0.05;
       if (takeMed2) {
-        const takenTime = new Date(date);
-        takenTime.setHours(8, Math.floor(5 + Math.random() * 50), 0);
+        const takenTime = new Date(morningSlotFor);
+        takenTime.setMinutes(takenTime.getMinutes() + Math.floor(5 + Math.random() * 50) + 1);
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
-          [cuid(), userId, med2Id, date, takenTime],
+          [cuid(), userId, med2Id, morningSlotFor, takenTime],
         );
       } else {
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
            VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4, $4)`,
-          [cuid(), userId, med2Id, date],
+          [cuid(), userId, med2Id, morningSlotFor],
         );
       }
 
@@ -785,46 +837,81 @@ async function seed() {
       if (i >= 30) {
         const takeMed3 = Math.random() > 0.06;
         if (takeMed3) {
-          const takenTime = new Date(date);
-          takenTime.setHours(20, Math.floor(Math.random() * 60), 0);
+          const takenTime = new Date(eveningSlotFor);
+          takenTime.setMinutes(takenTime.getMinutes() + Math.floor(Math.random() * 60) + 1);
           await client.query(
             `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
-            [cuid(), userId, med3Id, date, takenTime],
+            [cuid(), userId, med3Id, eveningSlotFor, takenTime],
           );
         } else {
           await client.query(
             `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
              VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4, $4)`,
-            [cuid(), userId, med3Id, date],
+            [cuid(), userId, med3Id, eveningSlotFor],
           );
         }
       }
     }
 
     // ── Today's doses (on-track, no overdue) ──
-    // Morning meds: taken inside their 08:00–10:00 window. Evening Magnesium:
-    // a pending row anchored on tonight's 20:00 slot, never auto-missed — it
-    // reads as "not yet due" regardless of the seed wall-clock, and the
-    // compliance engine excludes a plain pending row from the denominator, so
-    // "today" never shows 0% or an overdue dose.
+    // The dashboard today-tile attributes a taken intake to a computed dose
+    // slot, where the slot's canonical instant is the schedule's window_start
+    // in the user's timezone (08:00 Europe/Berlin for the morning meds). A
+    // taken row only RESOLVES that slot when it is "slot-anchored"
+    // (scheduled_for ≠ taken_at — then a ±6h radius applies); a row whose
+    // scheduled_for equals taken_at to the millisecond is treated as an
+    // ad-hoc take that only resolves a slot within ±60s, so an 08:30 ad-hoc
+    // row leaves the 08:00 slot reading "overdue" while the take floats beside
+    // it (the "2/6 today · overdue" screenshot). We therefore anchor
+    // scheduled_for on the EXACT canonical slot instant (08:00 Berlin) and set
+    // taken_at slightly later (08:30) so the row is slot-anchored and resolves
+    // the morning slot cleanly. Both morning meds taken; evening Magnesium is
+    // a pending row anchored on tonight's 20:00 Berlin slot — its anchor is in
+    // the future until 20:00 local, so the overdue search never fires on it
+    // and the compliance engine excludes a plain pending row from the
+    // denominator. The result reads on-track at any daytime screenshot clock.
     console.log("Creating today's on-track doses...");
-    const todayMorning = daysAgoAt(0, 8, 30);
+    const morningSlot = berlinHmAsUtc(8, 0); // canonical 08:00 slot instant
+    const morningTaken = berlinHmAsUtc(8, 30); // taken inside the window
     await client.query(
       `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $4, false, 'WEB', $4, $4)`,
-      [cuid(), userId, med1Id, todayMorning],
+       VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
+      [cuid(), userId, med1Id, morningSlot, morningTaken],
     );
     await client.query(
       `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $4, false, 'WEB', $4, $4)`,
-      [cuid(), userId, med2Id, todayMorning],
+       VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
+      [cuid(), userId, med2Id, morningSlot, morningTaken],
     );
-    const todayEvening = daysAgoAt(0, 20, 0);
+    const eveningSlot = berlinHmAsUtc(20, 0); // canonical 20:00 slot instant
     await client.query(
       `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, auto_missed, source, created_at, updated_at)
        VALUES ($1, $2, $3, $4, NULL, false, false, 'WEB', $4, $4)`,
-      [cuid(), userId, med3Id, todayEvening],
+      [cuid(), userId, med3Id, eveningSlot],
+    );
+
+    // ── AI-processing consent receipt ─────────
+    // The Coach surface is gated behind an active AI-consent receipt whenever
+    // the deployment resolves a server-managed (operator-key) provider chain.
+    // The read path (`latestActiveReceipt`, src/lib/consent/receipts.ts)
+    // filters only on { user_id, kind, revoked_at IS NULL } and never parses
+    // the artefact, so a single active `ai_full` row — the master grant that
+    // satisfies both the Coach and Insights surfaces — is enough to render the
+    // seeded conversation on the read-only demo with no client-side accept
+    // (which the read-only tenant would reject). The partial unique index
+    // consent_receipts_user_id_kind_active_key allows exactly one active row
+    // per (user, kind); we seed one. artefact is a clearly-labelled demo
+    // placeholder (any non-empty value satisfies the gate).
+    console.log("Creating AI-processing consent receipt...");
+    await client.query(
+      `INSERT INTO consent_receipts (id, user_id, kind, artefact, signed_at, revoked_at, created_at)
+       VALUES ($1, $2, 'ai_full', $3, NOW(), NULL, NOW())`,
+      [
+        cuid(),
+        userId,
+        JSON.stringify({ source: "demo-seed", scope: "ai_full" }),
+      ],
     );
 
     // ── Mood Entries ─────────────────────────
