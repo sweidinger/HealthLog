@@ -6692,6 +6692,10 @@
   "illness": {
     "title": "Krankheitstagebuch",
     "subtitle": "Ein rückblickendes Protokoll deiner Krankheits- und Beschwerde-Episoden.",
+    "settings": {
+      "viewDescription": "Wähle, ob Episoden als Karten oder als kompakte Liste erscheinen.",
+      "orderDescription": "Ziehe deine Episoden in die gewünschte Reihenfolge."
+    },
     "customize": "Krankheitstagebuch anpassen",
     "newEpisode": "Neue Episode",
     "logDay": "Tag erfassen",

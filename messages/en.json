@@ -6692,6 +6692,10 @@
   "illness": {
     "title": "Illness journal",
     "subtitle": "A retrospective log of your illness and condition episodes.",
+    "settings": {
+      "viewDescription": "Choose whether episodes show as cards or as a compact list.",
+      "orderDescription": "Drag your episodes into the order you want to see them in."
+    },
     "customize": "Customize illness journal",
     "newEpisode": "New episode",
     "logDay": "Log a day",

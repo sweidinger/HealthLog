@@ -6692,6 +6692,10 @@
   "illness": {
     "title": "Dziennik chorób",
     "subtitle": "Retrospektywny zapis Twoich epizodów chorób i dolegliwości.",
+    "settings": {
+      "viewDescription": "Wybierz, czy epizody mają być wyświetlane jako karty czy zwarta lista.",
+      "orderDescription": "Przeciągnij epizody w kolejność, w jakiej chcesz je widzieć."
+    },
     "customize": "Dostosuj dziennik chorób",
     "newEpisode": "Nowy epizod",
     "logDay": "Zapisz dzień",

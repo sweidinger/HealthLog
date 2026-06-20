@@ -6692,6 +6692,10 @@
   "illness": {
     "title": "Diario de enfermedad",
     "subtitle": "Un registro retrospectivo de tus episodios de enfermedad y dolencias.",
+    "settings": {
+      "viewDescription": "Elige si los episodios se muestran como tarjetas o como lista compacta.",
+      "orderDescription": "Arrastra tus episodios al orden en que quieres verlos."
+    },
     "customize": "Personalizar diario de enfermedad",
     "newEpisode": "Nuevo episodio",
     "logDay": "Registrar un día",
