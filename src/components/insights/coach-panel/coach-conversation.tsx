@@ -323,14 +323,6 @@ export function CoachConversation({
     pendingQuestions.length === 0 &&
     !pendingAdopt;
 
-  // The Coach's own starter questions seed the hero chips (NOT generic
-  // "create an image" prompts). Same two openers the suggested-prompt strip
-  // uses elsewhere, resolved here so the hero stays locale-agnostic.
-  const heroPrompts = [
-    t("insights.suggestedPrompts.tellMyDoctor"),
-    t("insights.suggestedPrompts.medicationWorking"),
-  ];
-
   return (
     <div
       data-slot="coach-conversation"
@@ -407,11 +399,7 @@ export function CoachConversation({
       </header>
 
       {heroActive ? (
-        <CoachHero
-          composer={composerNode}
-          prompts={heroPrompts}
-          onPickPrompt={(prompt) => handleSubmit(prompt)}
-        />
+        <CoachHero composer={composerNode} />
       ) : (
         <CoachDrawerBody
           historyOpen={historyRailOpen}
