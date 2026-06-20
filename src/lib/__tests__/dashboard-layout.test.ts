@@ -154,6 +154,21 @@ describe("DEFAULT_DASHBOARD_LAYOUT contract", () => {
     expect(widget?.tileVisible).toBe(true);
   });
 
+  it("ships the vo2Max strip tile default-on, chart row default-off (v1.18.9)", () => {
+    // VO2max is ingested from Withings / Apple Health / Fitbit / Oura but
+    // the tile used to be opt-in, so accounts that already synced a sample
+    // saw nothing on the dashboard. The strip tile is now on by default
+    // (it still self-gates on having a VO2_MAX sample in page.tsx), while
+    // the chart row stays off because VO2max charts live on the
+    // /insights/cardio-fitness sub-page.
+    const widget = DEFAULT_DASHBOARD_LAYOUT.widgets.find(
+      (w) => w.id === "vo2Max",
+    );
+    expect(widget).toBeDefined();
+    expect(widget?.tileVisible).toBe(true);
+    expect(widget?.visible).toBe(false);
+  });
+
   it("does NOT advertise a retired insightsPreview widget (v1.4.27 B1)", () => {
     // v1.4.27 B1 retired the standalone dashboard preview because it
     // duplicated the much-richer `/insights` advisor surface. The

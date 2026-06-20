@@ -29,11 +29,12 @@ export const DASHBOARD_WIDGET_IDS = [
   "bpInTarget",
   "oxygenSaturation",
   "achievements",
-  // v1.4.25 W8d — VO2 max trend tile (opt-in, secondary-metric pattern).
-  // Self-gates on having any VO2_MAX sample; default-invisible so
-  // existing dashboards stay unchanged until the user enables it in
-  // Settings → Dashboard. Only the tile-strip surface; chart row
-  // lands alongside the iOS-app body-composition sub-page in v1.5.
+  // v1.4.25 W8d — VO2 max trend tile (secondary-metric pattern). The
+  // strip tile is on by default and self-gates on having any VO2_MAX
+  // sample, so accounts that sync cardio fitness see it without enabling
+  // it in Settings → Dashboard, while empty accounts get a clean tile
+  // strip. Only the tile-strip surface; the chart row lives on the
+  // /insights/cardio-fitness sub-page.
   "vo2Max",
   // v1.4.32 — "Recent workouts" tile. Surfaces the three most-recent
   // canonical workouts; self-gates on at least one row. Default-on
@@ -379,11 +380,14 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     // `tileVisible` is forced false because there is no tile surface
     // for this widget; only the chart-row card.
     { id: "achievements", visible: true, tileVisible: false, order: 13 },
-    // v1.4.25 W8d — VO2 max trend tile. Default-invisible on both
-    // surfaces; opt-in via Settings → Dashboard. Only the tile-strip
-    // representation today (`visible` stays false so the chart-row
-    // gate never fires; the chart card lands in v1.5).
-    { id: "vo2Max", visible: false, tileVisible: false, order: 14 },
+    // v1.4.25 W8d — VO2 max trend tile. The strip tile is on by default
+    // (`tileVisible: true`) so accounts that already sync a VO2max sample
+    // see cardio fitness without hunting through Settings → Dashboard; the
+    // tile self-gates on having any VO2_MAX sample (see `showVo2Tile` in
+    // page.tsx), so accounts with no sample still get a clean dashboard.
+    // The chart row stays off (`visible: false`) — VO2max charts live on
+    // the /insights/cardio-fitness and /insights/pulse sub-pages.
+    { id: "vo2Max", visible: false, tileVisible: true, order: 14 },
     // v1.4.32 — Recent workouts dashboard tile. Default-visible so
     // brand-new accounts discover the workout surface without
     // hunting through Settings; the tile self-gates on a non-empty

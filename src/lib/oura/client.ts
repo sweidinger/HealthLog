@@ -218,6 +218,32 @@ export interface OuraDailySpo2 {
   spo2_percentage?: { average?: number | null } | null;
 }
 
+/**
+ * Oura `daily_stress` — minutes spent in high stress vs. high recovery for the
+ * day (mutually exclusive). The collection carries no headline 0–100 score; the
+ * actionable scalars are the two durations plus a categorical `day_summary`
+ * (`restored` | `normal` | `stressed`), which has no enum and is dropped.
+ */
+export interface OuraDailyStress {
+  id: string;
+  day: string;
+  timestamp?: string;
+  /** Minutes spent in high stress. */
+  stress_high?: number | null;
+  /** Minutes spent in high recovery. */
+  recovery_high?: number | null;
+  /** `restored` | `normal` | `stressed` — categorical; no enum, not mapped. */
+  day_summary?: string | null;
+}
+
+/** Oura `vO2_max` — the dedicated cardio-fitness collection, mL/(kg·min). */
+export interface OuraVo2Max {
+  id: string;
+  day: string;
+  timestamp?: string;
+  vo2_max?: number | null;
+}
+
 export interface OuraDailyActivity {
   id: string;
   day: string;
@@ -344,6 +370,32 @@ export function fetchDailySpo2(
     "/v2/usercollection/daily_spo2",
     accessToken,
     "fetchDailySpo2",
+    query,
+  );
+}
+
+export function fetchDailyStress(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraDailyStress[]> {
+  return fetchCollection<OuraDailyStress>(
+    "/v2/usercollection/daily_stress",
+    accessToken,
+    "fetchDailyStress",
+    query,
+  );
+}
+
+export function fetchVo2Max(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraVo2Max[]> {
+  // Oura camel-cases this path segment (`vO2_max`); every other collection is
+  // snake_case. Matched verbatim against cloud.ouraring.com/v2/docs.
+  return fetchCollection<OuraVo2Max>(
+    "/v2/usercollection/vO2_max",
+    accessToken,
+    "fetchVo2Max",
     query,
   );
 }
@@ -652,4 +704,52 @@ export function mapDailyActivity(a: OuraDailyActivity): MappedMeasurement[] {
     });
   }
   return out;
+}
+
+/**
+ * Map one Oura `vO2_max` record: the dedicated cardio-fitness collection →
+ * `VO2_MAX` (mL/(kg·min), the canonical DB unit — no conversion). Skips a
+ * record with no positive value.
+ */
+export function mapVo2Max(v: OuraVo2Max): MappedMeasurement[] {
+  if (typeof v.vo2_max !== "number" || v.vo2_max <= 0) return [];
+  const measuredAt = dayAnchor(v.day, v.timestamp);
+  if (!measuredAt) return [];
+  return [
+    {
+      type: "VO2_MAX",
+      value: round2(v.vo2_max),
+      unit: "mL/(kg·min)",
+      measuredAt,
+      fieldTag: "vo2_max",
+    },
+  ];
+}
+
+/**
+ * Map one Oura `daily_stress` record → `STRESS_SCORE`. Oura exposes no headline
+ * 0–100 stress number — only minutes spent in high stress vs. high recovery.
+ * We derive a bounded 0–100 score from the share of the day's "charged" time
+ * (stress + recovery minutes) spent in high stress, which keeps the canonical
+ * `STRESS_SCORE` contract (0–100, unit "score", higher = more stress) and lines
+ * up with how RECOVERY_SCORE is stored. A day with no charged minutes carries
+ * no signal and is skipped; the categorical `day_summary` has no enum and is
+ * dropped.
+ */
+export function mapDailyStress(s: OuraDailyStress): MappedMeasurement[] {
+  const stress = typeof s.stress_high === "number" ? s.stress_high : 0;
+  const recovery = typeof s.recovery_high === "number" ? s.recovery_high : 0;
+  const charged = stress + recovery;
+  if (charged <= 0) return [];
+  const measuredAt = dayAnchor(s.day, s.timestamp);
+  if (!measuredAt) return [];
+  return [
+    {
+      type: "STRESS_SCORE",
+      value: Math.round((stress / charged) * 100),
+      unit: "score",
+      measuredAt,
+      fieldTag: "stress",
+    },
+  ];
 }
