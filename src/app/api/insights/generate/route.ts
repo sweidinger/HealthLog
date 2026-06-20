@@ -9,8 +9,13 @@ import {
 import {
   extractFeatures,
   FeaturesPayloadTooLargeError,
+  BRIEFING_FEATURE_WINDOW_DAYS,
 } from "@/lib/insights/features";
 import { applyInsightsExcludeFilter } from "@/lib/insights/exclude-filter";
+import {
+  buildBriefingIllnessCycleContext,
+  buildBriefingIllnessCyclePrompt,
+} from "@/lib/insights/illness-cycle-briefing";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import {
   detectGlp1Plateau,
@@ -475,14 +480,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
     "resting_hr",
   ];
   let payloadHardDowngraded = false;
+  // v1.18.11 P1 — bound the briefing's bulk feature read to a recent window
+  // (all-time extremes are sourced separately, see features.ts). The downgrade
+  // ladder below stays as the safety net for the rare oversize payload.
+  const featureWindow = { sinceDays: BRIEFING_FEATURE_WINDOW_DAYS };
   try {
-    features = await extractFeatures(userId, includeRaw);
+    features = await extractFeatures(userId, includeRaw, featureWindow);
   } catch (err) {
     if (err instanceof FeaturesPayloadTooLargeError) {
       payloadDowngraded = true;
       payloadOversizeBytes = err.sizeBytes;
       try {
-        features = await extractFeatures(userId, false);
+        features = await extractFeatures(userId, false, featureWindow);
       } catch (retryErr) {
         if (retryErr instanceof FeaturesPayloadTooLargeError) {
           // Aggregated shape ALSO crossed the ceiling. Drop optional
@@ -492,7 +501,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
           payloadHardDowngraded = true;
           payloadOversizeBytes = retryErr.sizeBytes;
           try {
-            const aggregated = await extractFeatures(userId, false);
+            const aggregated = await extractFeatures(
+              userId,
+              false,
+              featureWindow,
+            );
             features = applyInsightsExcludeFilter(
               aggregated,
               MAX_DOWNGRADE_TOKENS,
@@ -590,6 +603,19 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
   if (derivedBriefing) {
     userPrompt += buildDerivedBriefingPrompt(derivedBriefing, locale);
+  }
+
+  // v1.18.11 P5 — fold illness-episode + cycle state into the briefing so a
+  // mid-illness or mid-cycle user gets context-aware prose. Reuses the same
+  // server-authoritative builders the Coach assembles; both are module-gated
+  // and short-circuit to null (zero token cost) for users without them.
+  const illnessCycleCtx = await buildBriefingIllnessCycleContext(
+    userId,
+    dbUser?.gender ?? null,
+    await resolveUserTimezone(userId),
+  );
+  if (illnessCycleCtx) {
+    userPrompt += buildBriefingIllnessCyclePrompt(illnessCycleCtx, locale);
   }
 
   // v1.12.7 (B5) — inject the curated SOURCES block for the metric sections
