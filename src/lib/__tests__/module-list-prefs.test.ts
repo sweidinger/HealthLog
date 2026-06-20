@@ -38,6 +38,27 @@ describe("module-list-prefs", () => {
         order: ["x"],
       });
     });
+
+    it("accepts the alphabetical sort directions (#43)", () => {
+      for (const sortDir of ["alphaAsc", "alphaDesc"]) {
+        const parsed = parseModuleListPrefs(JSON.stringify({ sortDir }));
+        expect(parsed.sortDir).toBe(sortDir);
+      }
+    });
+
+    it("applies a per-call default when no blob is stored (Labs list view, #40)", () => {
+      const labsDefaults = {
+        view: "list" as const,
+        order: [],
+        sortDir: "recentDesc" as const,
+      };
+      expect(parseModuleListPrefs(null, labsDefaults)).toEqual(labsDefaults);
+      // A stored view still wins over the default.
+      expect(
+        parseModuleListPrefs(JSON.stringify({ view: "cards" }), labsDefaults)
+          .view,
+      ).toBe("cards");
+    });
   });
 
   describe("applyOrder", () => {
