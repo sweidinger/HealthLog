@@ -172,6 +172,12 @@ export function metricKeyForType(
       return "vo2Max";
     case "RECOVERY_SCORE":
       return "recovery";
+    case "STRESS_SCORE":
+      // v1.18.10 I-5 — ladder the COMPUTED-vs-device stress producer so the
+      // rollup source collapse is deterministic the instant a second producer
+      // (Oura `daily_stress`) is enabled, rather than falling to the
+      // alphabetical rank-90 tiebreak in `collapseRollupRowsBySource`.
+      return "stress";
     case "SLEEP_DURATION":
       return "sleep";
     default:

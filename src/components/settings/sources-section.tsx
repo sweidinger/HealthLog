@@ -87,6 +87,8 @@ const METRIC_LABEL_KEYS: Record<SourcePriorityMetricKey, string> = {
   skinTemperature: "settings.sections.sources.metrics.skinTemperature",
   respiratoryRate: "settings.sections.sources.metrics.respiratoryRate",
   recovery: "settings.sections.sources.metrics.recovery",
+  // v1.18.10 I-5 — native-vs-derived stress ladder.
+  stress: "settings.sections.sources.metrics.stress",
 };
 
 const SOURCE_LABEL_KEYS: Record<string, string> = {
