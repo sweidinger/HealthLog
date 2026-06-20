@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Bug, Loader2 } from "lucide-react";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,7 +55,26 @@ export function BugReportSection() {
       <SettingsCardHeader
         icon={Bug}
         title={t("admin.bugReportGithub")}
-        description={t("admin.bugReportGithubDescription")}
+        titleAccessory={
+          // v1.18.10 (W7) — the feedback / bug-report feature is deprecated.
+          // The badge + note signal the upcoming removal without pulling the
+          // functionality yet, so existing operators keep the surface working.
+          <Badge
+            variant="outline"
+            data-testid="bug-report-deprecated-badge"
+            className="border-amber-500/50 text-amber-600 dark:text-amber-400"
+          >
+            {t("admin.bugReportDeprecatedBadge")}
+          </Badge>
+        }
+        description={
+          <>
+            <p>{t("admin.bugReportGithubDescription")}</p>
+            <p className="text-amber-600 dark:text-amber-400">
+              {t("admin.bugReportDeprecatedNote")}
+            </p>
+          </>
+        }
         status={configured ? <ConfiguredBadge /> : null}
       />
 

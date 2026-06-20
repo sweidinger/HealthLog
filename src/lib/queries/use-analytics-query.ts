@@ -3,6 +3,7 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
+import { apiGet } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
 import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
 import type { DataSummary } from "@/lib/analytics/trends";
@@ -114,18 +115,10 @@ export interface UseAnalyticsQueryOptions {
   enabled?: boolean;
 }
 
-async function fetchAnalytics(
-  slice: AnalyticsSlice,
-): Promise<AnalyticsRawPayload> {
-  const res =
-    slice === "summaries"
-      ? await fetch("/api/analytics?slice=summaries")
-      : await fetch("/api/analytics");
-  if (!res.ok) {
-    throw new Error(`Failed to load analytics (${res.status})`);
-  }
-  const json = (await res.json()) as { data: AnalyticsRawPayload };
-  return json.data;
+function fetchAnalytics(slice: AnalyticsSlice): Promise<AnalyticsRawPayload> {
+  return apiGet<AnalyticsRawPayload>(
+    slice === "summaries" ? "/api/analytics?slice=summaries" : "/api/analytics",
+  );
 }
 
 /**

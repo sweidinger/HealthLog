@@ -302,38 +302,67 @@ function timeSubquery<T>(
   });
 }
 
+interface BpRawRow {
+  type: string;
+  measured_at: Date;
+  value: number;
+}
+
 /**
  * v1.4.38 W-F — fetch the trailing-90d sys + dia raw rows in a single
- * `findMany` (`type: { in: [...] }`) rather than two parallel queries.
- * Saves one round-trip + lets Postgres consolidate the index scan.
- * Partitioning by type in JS preserves the byte-shape of the legacy
- * sys / dia arrays (ASC by measuredAt — already enforced by the SQL
- * ORDER BY).
+ * round-trip rather than two parallel queries.
+ *
+ * v1.18.10 I-1 — collapse overlapping sources before returning. BP is a
+ * multi-source metric (a Withings reading mirrored into Apple Health is two
+ * rows for one event). The legacy `findMany` returned every source's row, so
+ * `computeBpInTargetPct` and the recency-weighted grade double-counted the
+ * shared reading — and a rollup-warm account (which reads source-collapsed
+ * `measurement_rollups` via `bp-in-target-fast-path`) returned a different
+ * BP percentage / grade than a rollup-cold account on identical data. Routing
+ * both raw pulls through `canonicalMeasurementsFrom` picks the ladder-winning
+ * source per (type, day) so the cold/live path matches the warm/rollup path
+ * (web↔iOS parity). `BLOOD_PRESSURE_SYS/DIA` are already in `RANKED_TYPES`.
+ *
+ * Per-event rows survive the collapse (the subquery keeps every reading of the
+ * winning source per day, not a daily mean), so the downstream ±5-min pairing
+ * still sees individual readings. Partitioning by type in JS preserves the
+ * byte-shape of the legacy sys / dia arrays (ASC by measuredAt).
  */
 async function fetchBpRawRows(
   userId: string,
+  // The 90-day window is expressed as a SQL interval inside the canonical
+  // subquery (parity with the rollup fast-path's `"90 days"`); the bound
+  // `Date` arg is retained for call-site symmetry and is exactly 90 days.
   ninetyDaysAgo: Date,
+  // The source-rank CASE built once by the caller (over unqualified
+  // `"type"`/`"source"` columns) — reused so the BP pull doesn't re-load the
+  // user's source-priority blob the caller already resolved.
+  rankUnqualified: string,
 ): Promise<{
   sys: Array<{ measuredAt: Date; value: number }>;
   dia: Array<{ measuredAt: Date; value: number }>;
 }> {
-  const rows = await prisma.measurement.findMany({
-    where: {
-      userId,
-      type: { in: ["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"] },
-      measuredAt: { gte: ninetyDaysAgo },
-      deletedAt: null,
-    },
-    orderBy: { measuredAt: "asc" },
-    select: { type: true, measuredAt: true, value: true },
-  });
+  void ninetyDaysAgo;
+  const rows = await prisma.$queryRawUnsafe<BpRawRow[]>(
+    `
+      SELECT
+        m."type"::text                  AS type,
+        m."measured_at"                 AS measured_at,
+        m."value"::double precision     AS value
+      FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
+      WHERE m."type" IN ('BLOOD_PRESSURE_SYS', 'BLOOD_PRESSURE_DIA')
+      ORDER BY m."measured_at" ASC
+    `,
+    userId,
+  );
   const sys: Array<{ measuredAt: Date; value: number }> = [];
   const dia: Array<{ measuredAt: Date; value: number }> = [];
   for (const r of rows) {
+    const measuredAt = new Date(r.measured_at);
     if (r.type === "BLOOD_PRESSURE_SYS") {
-      sys.push({ measuredAt: r.measuredAt, value: r.value });
+      sys.push({ measuredAt, value: Number(r.value) });
     } else if (r.type === "BLOOD_PRESSURE_DIA") {
-      dia.push({ measuredAt: r.measuredAt, value: r.value });
+      dia.push({ measuredAt, value: Number(r.value) });
     }
   }
   return { sys, dia };
@@ -481,7 +510,7 @@ async function buildFromRollups(
       // readings; the per-type partition in `fetchBpRawRows` preserves
       // the legacy `bpRawRows.sys` / `bpRawRows.dia` byte-shape.
       timeSubquery(timings, "bpRaw", () =>
-        fetchBpRawRows(userId, ninetyDaysAgo),
+        fetchBpRawRows(userId, ninetyDaysAgo, rankUnqualified),
       ),
       timeSubquery(
         timings,
@@ -694,7 +723,9 @@ async function buildFromLiveAggregate(
       }),
     ),
     // v1.4.38 W-F — bp sys + dia in one round-trip (see `fetchBpRawRows`).
-    timeSubquery(timings, "bpRaw", () => fetchBpRawRows(userId, ninetyDaysAgo)),
+    timeSubquery(timings, "bpRaw", () =>
+      fetchBpRawRows(userId, ninetyDaysAgo, rankUnqualified),
+    ),
   ]);
 
   const latestByType = new Map<string, { value: number; measuredAt: Date }>();

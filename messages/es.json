@@ -2268,6 +2268,8 @@
       "sourcesMemberCount": "{count} métricas",
       "dictate": "Dictar",
       "dictateStop": "Detener el dictado",
+      "voiceUnsupported": "La entrada de voz no es compatible con este navegador",
+      "dictateError": "No se pudo iniciar la entrada de voz. Comprueba el permiso del micrófono e inténtalo de nuevo.",
       "showConversations": "Mostrar conversaciones",
       "hideConversations": "Ocultar conversaciones",
       "heroGreeting": "¿En qué puedo ayudarte?",
@@ -3870,7 +3872,8 @@
           "vo2Max": "VO2 máx.",
           "skinTemperature": "Temperatura de la piel",
           "respiratoryRate": "Frecuencia respiratoria",
-          "recovery": "Recuperación"
+          "recovery": "Recuperación",
+          "stress": "Estrés"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
@@ -4931,6 +4934,8 @@
     "bugReportGithubDescription": "Configura el token de issues de GitHub y el repositorio para los informes de errores entrantes.",
     "bugReportEnabledLabel": "Informes de errores activados",
     "bugReportEnabledDescription": "Cuando está desactivado, el botón de informe en la app se oculta; el token y el repositorio permanecen configurados.",
+    "bugReportDeprecatedBadge": "Obsoleto",
+    "bugReportDeprecatedNote": "Esta función está obsoleta y se eliminará en una versión futura.",
     "assistant": {
       "title": "Superficies del asistente",
       "description": "Cada conmutador oculta una superficie impulsada por el modelo en toda la aplicación sin retirar la configuración del proveedor. El interruptor maestro fuerza cada opción secundaria a off.",
@@ -6470,6 +6475,7 @@
     "viewDescription": "Elige si las entradas se muestran como tarjetas o como lista compacta.",
     "reorder": {
       "heading": "Orden",
+      "description": "Arrastra las entradas para definir el orden en que aparecen.",
       "empty": "Aún no hay entradas para ordenar."
     }
   },
@@ -6489,6 +6495,10 @@
     "deleteError": "No se pudo eliminar el resultado",
     "loadError": "No se pudieron cargar los resultados",
     "customize": "Personalizar laboratorio",
+    "localOcr": {
+      "heading": "Leer escaneos en este dispositivo",
+      "description": "Permite escanear un informe de laboratorio aunque tu proveedor de IA no pueda leer imágenes: la foto se lee en tu dispositivo y solo se envía el texto extraído a tu proveedor. Menos preciso: revisa cada valor antes de guardar."
+    },
     "sort": {
       "heading": "Orden",
       "label": "Orden de los valores",
@@ -6640,10 +6650,16 @@
     "showingLatestOf": "Mostrando los {shown} resultados más recientes de {total}",
     "ocr": {
       "scanButton": "Escanear un informe",
+      "addScan": "Escanear un documento",
+      "addManual": "Añadir un valor manualmente",
       "uploadHint": "Sube una foto o un PDF de un informe de laboratorio",
       "acceptWithPdf": "JPEG, PNG, WebP o PDF",
       "acceptImageOnly": "JPEG, PNG o WebP",
       "extracting": "Leyendo tu informe…",
+      "readingOnDevice": "Leyendo en tu dispositivo…",
+      "localModeHint": "Se lee en tu dispositivo y se envía como texto. Menos preciso: revisa cada valor.",
+      "rangeFromScan": "Intervalo de referencia tomado del escaneo",
+      "rangeVerify": "Verifica el intervalo de referencia",
       "reviewTitle": "Revisar antes de guardar",
       "reviewHint": "Revisa cada valor y guarda los que quieras conservar.",
       "foundCount": "{count} valores encontrados",

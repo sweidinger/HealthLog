@@ -330,6 +330,15 @@ export function useInsightsAdvisorQuery(
       // their query subtree so the per-section text below the advisor card
       // re-fetches.
       queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot() });
+      // v1.18.10 — the dashboard hero surfaces the briefing headline from the
+      // SNAPSHOT (server-lifted `User.insightsCachedText`), not from this
+      // advisor cache. A regenerate rewrites that server cache, so invalidate
+      // the snapshot too — otherwise returning to the Startseite shows the
+      // previous briefing under the greeting until the snapshot's own stale
+      // window lapses. Closes "the briefing doesn't update" on the dashboard.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboardSnapshot(),
+      });
     },
   });
 

@@ -22,17 +22,33 @@ import type { ReferenceRangeStatus } from "@/lib/validations/labs";
  */
 export function ReferenceRangeBadge({
   status,
+  compact = false,
 }: {
   status: ReferenceRangeStatus;
+  /**
+   * v1.18.10 (#4) — a quieter, smaller treatment for the labs overview, where
+   * the badge sits beside the analyte heading and must not compete with it.
+   * The hero/detail view keeps the default (un-compact) size.
+   */
+  compact?: boolean;
 }) {
   const { t } = useTranslations();
 
   if (status === "unknown") return null;
 
+  // Compact: drop the icon, shrink the text and padding so the badge reads as a
+  // subtle qualifier of the heading rather than a second focal point.
+  const compactClass = compact
+    ? "h-auto gap-0.5 px-1.5 py-0 text-[0.625rem] font-normal [&>svg]:size-2.5"
+    : "";
+
   if (status === "in-range") {
     return (
-      <Badge variant="outline" className="text-muted-foreground">
-        <Minus aria-hidden />
+      <Badge
+        variant="outline"
+        className={`text-muted-foreground ${compactClass}`.trim()}
+      >
+        {compact ? null : <Minus aria-hidden />}
         {t("labs.range.inRange")}
       </Badge>
     );
@@ -44,7 +60,7 @@ export function ReferenceRangeBadge({
   const label =
     status === "below" ? t("labs.range.below") : t("labs.range.above");
   return (
-    <Badge variant="secondary">
+    <Badge variant="secondary" className={compactClass || undefined}>
       <Icon aria-hidden />
       {label}
     </Badge>

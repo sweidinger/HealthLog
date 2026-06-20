@@ -82,10 +82,21 @@ import { resolveUserTimezone } from "@/lib/tz/resolver";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * v1.18.10 P-7 — upper bound on the cold-fallback `allTime` aggregate's
+ * scan window. Sits far beyond any real account's history (the earliest prod
+ * measurements are < 10 years old) so it never changes a real all-time
+ * count / min / max / mean; it exists purely so a coverage-miss cold read
+ * can't trigger an unbounded full-partition scan. Whitelisted by
+ * `canonicalMeasurementsFrom`'s interval regex (`<N> years`).
+ */
+const ALL_TIME_LIVE_CAP_INTERVAL = "15 years" as const;
+
+/**
  * v1.4.48 — all-time aggregate row used on the cold-mount fallback
  * path. Holds the linearly composable columns (`count / min / max /
  * mean`) that must reflect every row the user has ever logged for
- * that type, so this query intentionally has no `measured_at` cap.
+ * that type, capped at `ALL_TIME_LIVE_CAP_INTERVAL` (v1.18.10 P-7) as a
+ * scan-DoS floor.
  */
 interface AllTimeAggregateRow {
   type: string;
@@ -608,9 +619,13 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
  * v1.4.48 — split into two parallel queries:
  *
  *   1. `allTime` — the linearly composable columns (`count / min /
- *      max / mean`) keep the full-partition scan because they must
- *      reflect every row the user has ever logged. No `measured_at`
- *      cap.
+ *      max / mean`). v1.18.10 P-7 caps this at `ALL_TIME_LIVE_CAP_INTERVAL`
+ *      (15 years) so an un-windowed cold-fallback read on a coverage-miss
+ *      tenant can never scan an unbounded partition. The cap is a scan-DoS
+ *      floor, not a semantic change: it sits far beyond any real account's
+ *      history (the earliest prod rows are < 10 years old) and the steady
+ *      state is rollup-backed anyway, so it only ever bounds the cold path.
+ *
  *
  *   2. `windowed` — `avg7 / avg30` and the slope/r² tuples are all
  *      already filtered to a 7/30/90 day window inside the SELECT.
@@ -648,7 +663,7 @@ async function computeFromLiveAggregate(
         MIN(m."value")::double precision                              AS min_value,
         MAX(m."value")::double precision                              AS max_value,
         AVG(m."value")::double precision                              AS mean_value
-      FROM ${canonicalMeasurementsFrom(rankUnqualified)}
+      FROM ${canonicalMeasurementsFrom(rankUnqualified, ALL_TIME_LIVE_CAP_INTERVAL)}
       GROUP BY m."type"
     `,
       userId,

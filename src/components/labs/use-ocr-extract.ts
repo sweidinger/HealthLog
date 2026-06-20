@@ -13,7 +13,8 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiFetch, apiPost } from "@/lib/api/api-fetch";
+import { apiFetch, apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
+import { ocrImageToText } from "@/lib/labs/local-ocr";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   OcrCapabilityDto,
@@ -49,7 +50,7 @@ export function useOcrCapability(enabled: boolean) {
   });
 }
 
-/** Upload + extract. Resolves with the proposed rows for the review screen. */
+/** Upload + extract (VISION mode). Resolves with the proposed review rows. */
 export function useOcrExtract() {
   return useMutation<OcrExtractResponseDto, Error, File>({
     mutationFn: (file: File) => {
@@ -61,6 +62,55 @@ export function useOcrExtract() {
         // Vision extraction is slow; a generous ceiling beats the 15 s default.
         signal: AbortSignal.timeout(90_000),
       });
+    },
+  });
+}
+
+/**
+ * TEXT mode (v1.18.10) — OCR the image IN THE BROWSER (tesseract.js), then POST
+ * only the extracted text. The raw image never leaves the device. Resolves with
+ * the same proposed-rows DTO the vision path returns, so the review/commit flow
+ * is shared verbatim.
+ */
+export function useOcrTextExtract() {
+  return useMutation<OcrExtractResponseDto, Error, File>({
+    mutationFn: async (file: File) => {
+      const text = await ocrImageToText(file);
+      return apiPost<OcrExtractResponseDto>("/api/labs/ocr/extract", {
+        mode: "text",
+        text,
+      });
+    },
+  });
+}
+
+/** The local-OCR opt-in preference (read + toggle). */
+export interface LabsLocalOcrPref {
+  labsLocalOcrEnabled: boolean;
+}
+
+/** Read the current local-OCR opt-in flag. */
+export function useLabsLocalOcr(enabled = true) {
+  return useQuery<LabsLocalOcrPref>({
+    queryKey: queryKeys.labsLocalOcr(),
+    queryFn: () => apiGet<LabsLocalOcrPref>("/api/auth/me/labs-local-ocr"),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/** Toggle the local-OCR opt-in; invalidates the flag + the capability probe. */
+export function useUpdateLabsLocalOcr() {
+  const queryClient = useQueryClient();
+  return useMutation<LabsLocalOcrPref, Error, boolean>({
+    mutationFn: (labsLocalOcrEnabled: boolean) =>
+      apiPatch<LabsLocalOcrPref>("/api/auth/me/labs-local-ocr", {
+        labsLocalOcrEnabled,
+      }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.labsLocalOcr(), data);
+      // The toggle changes whether text-mode scanning is available.
+      queryClient.invalidateQueries({ queryKey: queryKeys.ocrCapability() });
     },
   });
 }

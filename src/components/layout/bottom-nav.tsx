@@ -247,15 +247,20 @@ export function BottomNav() {
                   )}
                 >
                   <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  {/* v1.18.0 — the label must stay inside the tile across all
-                      six locales. The longest single-word label (German
-                      "Benachrichtigungen") has no natural break opportunity, so
-                      `min-w-0` alone is not enough — the unbroken word forces the
-                      span past the grid track and overflows the tile. `min-w-0`
-                      lets the flex child shrink below its content width,
-                      `break-words` introduces a break inside the long word, and
-                      the auto-height tile (`min-h-14`) absorbs the second line. */}
-                  <span className="min-w-0 text-sm leading-tight font-medium break-words">
+                  {/* v1.18.10 (W10) — show the FULL label, never an ellipsis
+                      that hides meaning. The W7 `truncate` clipped long words
+                      ("Benachrichtigungen" → "Benachrichtigun…"); the goal is a
+                      readable label, not a balanced tile. Shrink the type to
+                      `text-xs` so long single-word locales (de/es/fr/it) fit on
+                      one line at ~110px, and allow a 2-line `line-clamp-2`
+                      fallback (with `[overflow-wrap:anywhere]` so a long word
+                      breaks rather than overflowing) for the rare label that
+                      still cannot fit one line. `min-w-0` lets the flex child
+                      shrink below its content width. */}
+                  <span
+                    className="line-clamp-2 min-w-0 text-xs leading-tight font-medium [overflow-wrap:anywhere]"
+                    title={t(item.tKey)}
+                  >
                     {t(item.tKey)}
                   </span>
                 </Link>

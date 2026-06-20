@@ -1,0 +1,112 @@
+import { describe, it, expect } from "vitest";
+
+import {
+  findUngroundedBriefingNumbers,
+  readBriefingBlock,
+  buildBriefingGroundingCorrection,
+  extractNumbers,
+} from "@/lib/ai/briefing-grounding";
+import type { SignalOfDay } from "@/lib/insights/features";
+
+function signal(partial: Partial<SignalOfDay>): SignalOfDay {
+  return {
+    metric: "weight",
+    label: "Weight",
+    latest: 82,
+    latestDaysAgo: 0,
+    avg7: 83,
+    avg30: 84,
+    deltaVs7: -1,
+    deltaVs30: -2,
+    spread30: 0.5,
+    outsideNormalSwing: true,
+    emergingTrend: "falling",
+    recentAnomaly: null,
+    ...partial,
+  };
+}
+
+describe("extractNumbers", () => {
+  it("parses signed, decimal, and comma-decimal numbers", () => {
+    expect(
+      extractNumbers("dropped 2.5 kg, +1,2 and -3").map((n) => n.value),
+    ).toEqual([2.5, 1.2, -3]);
+  });
+});
+
+describe("findUngroundedBriefingNumbers", () => {
+  const signals = [signal({})];
+
+  it("returns nothing when there are no signals to grade against", () => {
+    const out = findUngroundedBriefingNumbers(
+      { paragraph: "your weight dropped 9.9 kg" },
+      null,
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("passes a paragraph whose numbers match the signal figures", () => {
+    const out = findUngroundedBriefingNumbers(
+      {
+        paragraph: "Your weight is 82 kg, down 2 kg from your monthly average.",
+      },
+      signals,
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("flags a fabricated delta that no signal supports", () => {
+    const out = findUngroundedBriefingNumbers(
+      {
+        paragraph: "Your weight dropped 6.4 kg this week.",
+        signalsOfDay: [
+          { headline: "down 6.4 kg", nudge: "keep going", delta: "-6.4 kg" },
+        ],
+      },
+      signals,
+    );
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.some((f) => f.value === 6.4)).toBe(true);
+  });
+
+  it("tolerates rounding within the band", () => {
+    const out = findUngroundedBriefingNumbers(
+      { paragraph: "down 2.1 kg vs your 84.0 average" },
+      [signal({ avg30: 84, deltaVs30: -2 })],
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("does not flag structural integers like a 7-day window or 3 signals", () => {
+    const out = findUngroundedBriefingNumbers(
+      { paragraph: "Over the last 7 days, your 3 readings held steady." },
+      signals,
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("returns nothing when the briefing is absent", () => {
+    expect(findUngroundedBriefingNumbers(null, signals)).toEqual([]);
+  });
+});
+
+describe("readBriefingBlock", () => {
+  it("reads the dailyBriefing block off a parsed payload", () => {
+    const block = readBriefingBlock({ dailyBriefing: { paragraph: "hi" } });
+    expect(block?.paragraph).toBe("hi");
+  });
+  it("returns null when no briefing is present", () => {
+    expect(readBriefingBlock({ summary: "x" })).toBeNull();
+    expect(readBriefingBlock(null)).toBeNull();
+  });
+});
+
+describe("buildBriefingGroundingCorrection", () => {
+  it("names the offending numbers and asks for a re-write", () => {
+    const msg = buildBriefingGroundingCorrection([
+      { field: "paragraph", value: 7, source: "7 kg" },
+    ]);
+    expect(msg).toContain("7 kg");
+    expect(msg.toLowerCase()).toContain("signalsofday");
+  });
+});

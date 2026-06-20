@@ -1,25 +1,34 @@
 /**
- * v1.18.9 — POST /api/labs/ocr/extract
+ * v1.18.9 / v1.18.10 — POST /api/labs/ocr/extract
  *
- * Read-only (NOT idempotent) vision extraction of a paper lab report. Accepts
- * a multipart photo / PDF, runs it through the user's vision-capable AI
- * provider, and returns STRUCTURED proposed rows for the mandatory human
- * review screen. Nothing is written to the database here; the raw upload lives
- * in memory only and is never persisted or logged.
+ * Read-only (NOT idempotent) extraction of a paper lab report into STRUCTURED
+ * proposed rows for the mandatory human-review screen. Nothing is written to
+ * the database here; the raw upload is never persisted or logged.
  *
- * Guards, in order (mirrors the Coach's discipline):
- *   requireAuth → resolve vision provider (422 if none) → assertConsentForChain
- *   → rate-limit (6/h) → reserveBudget → bounded body read → mime sniff →
- *   PDF/provider gate → runOcrExtraction → reconcile budget.
+ * Two modes, dispatched on the request content-type:
  *
- * The extracted text is UNTRUSTED (prompt-injection): the server never acts on
- * an instruction inside the document — the human review step is the safety
+ *   - VISION (multipart/form-data): a photo / PDF is uploaded and run through
+ *     the user's vision-capable provider. The image transits server memory
+ *     ephemerally.
+ *   - TEXT (application/json, v1.18.10): the browser OCR's the image
+ *     (tesseract.js) and POSTs only the extracted TEXT here. Any configured
+ *     provider can structure it — no vision required — so a text-only provider
+ *     (ChatGPT-OAuth/Codex, a text-only model) reaches the SAME review/commit
+ *     flow. The raw image never reaches the server. Gated by the opt-in
+ *     `labsLocalOcrEnabled` preference.
+ *
+ * Guards mirror the Coach's discipline in both modes:
+ *   requireAuth → resolve provider → assertConsentForChain → rate-limit (6/h)
+ *   → reserveBudget → run extraction → reconcile budget.
+ *
+ * Extracted text is UNTRUSTED (prompt-injection): the server never acts on an
+ * instruction inside the document — the human review step is the safety
  * boundary, and the commit route is the only write path.
  */
 import { Buffer } from "node:buffer";
 
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiError, apiSuccess } from "@/lib/api-response";
+import { apiError, apiSuccess, safeJson } from "@/lib/api-response";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
 import {
@@ -27,7 +36,11 @@ import {
   reconcileSpend,
   reserveBudget,
 } from "@/lib/ai/coach/budget";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
+import { prisma } from "@/lib/db";
+import {
+  resolveTextProvider,
+  resolveVisionProvider,
+} from "@/lib/labs/ocr-capability";
 import { OcrExtractError, runOcrExtraction } from "@/lib/labs/ocr-extract";
 import {
   BodyTooLargeError,
@@ -37,18 +50,158 @@ import {
 } from "@/lib/labs/ocr-upload";
 import { annotate } from "@/lib/logging/context";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { ocrTextExtractSchema } from "@/lib/validations/labs-ocr";
 
 export const dynamic = "force-dynamic";
 
-/** 6 vision calls per hour — they are expensive. */
+/** 6 extraction calls per hour — they are expensive (vision) / metered (text). */
 const EXTRACT_LIMIT_PER_HOUR = 6;
 const EXTRACT_WINDOW_MS = 60 * 60 * 1000;
+
+/** OCR'd text is bounded in the schema; cap the JSON body proportionally. */
+const TEXT_BODY_MAX_BYTES = 512 * 1024;
 
 export const POST = apiHandler(async (request: Request) => {
   const { user } = await requireAuth();
 
+  // Dispatch on the body shape: a JSON body is the local-OCR text mode; a
+  // multipart body is the native-vision image/PDF mode.
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    return handleTextExtract(request, user.id);
+  }
+  return handleVisionExtract(request, user.id);
+});
+
+/**
+ * TEXT mode (v1.18.10) — structure in-browser-OCR'd text via any configured
+ * provider. No image bytes reach the server; the raw image stayed on-device.
+ */
+async function handleTextExtract(
+  request: Request,
+  userId: string,
+): Promise<Response> {
+  // The opt-in toggle must be on. Re-checked server-side so the surface cannot
+  // be reached by a client that ignored the capability probe.
+  const row = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { labsLocalOcrEnabled: true },
+  });
+  if (!row?.labsLocalOcrEnabled) {
+    annotate({ action: { name: "labs.ocr.providerUnsupported" } });
+    return apiError("Local OCR is not enabled", 422, {
+      errorCode: "labs.ocr.localOcrDisabled",
+    });
+  }
+
+  // Any configured provider can structure the text.
+  const { chain, pick } = await resolveTextProvider(userId);
+  if (!pick) {
+    annotate({
+      action: { name: "labs.ocr.providerUnsupported" },
+      meta: { chainLength: chain.length, mode: "text" },
+    });
+    return apiError("No AI provider is configured", 422, {
+      errorCode: "labs.ocr.providerUnsupported",
+    });
+  }
+
+  // Consent gate — only the server-managed key trips this; BYOK / local / codex
+  // egress is the user's own act (the toggle is the consent for local OCR).
+  await assertConsentForChain({ userId, chain, surface: "insights" });
+
+  const rl = await checkRateLimit(
+    `labs-ocr:${userId}`,
+    EXTRACT_LIMIT_PER_HOUR,
+    EXTRACT_WINDOW_MS,
+  );
+  if (!rl.allowed) {
+    annotate({ action: { name: "labs.ocr.rateLimited" } });
+    const response = apiError("Too many scans. Try again later.", 429, {
+      errorCode: "labs.ocr.rateLimited",
+    });
+    for (const [k, v] of Object.entries(rateLimitHeaders(rl))) {
+      response.headers.set(k, v);
+    }
+    return response;
+  }
+
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: TEXT_BODY_MAX_BYTES,
+  });
+  if (jsonError) return jsonError;
+
+  const parsed = ocrTextExtractSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError("Invalid OCR text payload", 422, {
+      errorCode: "labs.ocr.extractFailed",
+    });
+  }
+
+  // Budget (text is cheaper than vision; reuse the same ceiling as the upper
+  // bound — a text-only structuring call always spends at most this).
+  const dateKey = buildDateKey();
+  const reservation = await reserveBudget(
+    userId,
+    AI_BUDGETS.ocrExtract.maxTokens,
+    dateKey,
+  );
+  if (!reservation.allowed) {
+    annotate({
+      action: { name: "labs.ocr.budget.exceeded" },
+      meta: { totalAfter: reservation.totalAfter, mode: "text" },
+    });
+    return apiError("Your AI usage budget for today is reached.", 429, {
+      errorCode: "labs.ocr.budgetExceeded",
+    });
+  }
+
+  try {
+    const result = await runOcrExtraction({
+      userId,
+      provider: pick.entry.instance,
+      providerType: pick.providerType,
+      ocrText: parsed.data.text,
+    });
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      reservation.reserved,
+      dateKey,
+    );
+    return apiSuccess(result);
+  } catch (err) {
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      reservation.reserved,
+      dateKey,
+    );
+    if (err instanceof OcrExtractError) {
+      return apiError("Couldn't read the report. Try a clearer photo.", 422, {
+        errorCode: "labs.ocr.extractFailed",
+      });
+    }
+    annotate({
+      action: { name: "labs.ocr.extractFailed" },
+      meta: { reason: "provider_error", mode: "text" },
+    });
+    return apiError("Couldn't read the report. Try a clearer photo.", 502, {
+      errorCode: "labs.ocr.extractFailed",
+    });
+  }
+}
+
+/**
+ * VISION mode — run a multipart photo / PDF through the user's vision-capable
+ * provider. The image transits server memory ephemerally and is never stored.
+ */
+async function handleVisionExtract(
+  request: Request,
+  userId: string,
+): Promise<Response> {
   // 1. Resolve a vision-capable provider. 422 when none is configured.
-  const { chain, pick } = await resolveVisionProvider(user.id);
+  const { chain, pick } = await resolveVisionProvider(userId);
   if (!pick) {
     annotate({
       action: { name: "labs.ocr.providerUnsupported" },
@@ -60,11 +213,11 @@ export const POST = apiHandler(async (request: Request) => {
   }
 
   // 2. Consent gate — server-managed egress of health data requires a receipt.
-  await assertConsentForChain({ userId: user.id, chain, surface: "insights" });
+  await assertConsentForChain({ userId, chain, surface: "insights" });
 
   // 3. Rate-limit (vision calls are costly).
   const rl = await checkRateLimit(
-    `labs-ocr:${user.id}`,
+    `labs-ocr:${userId}`,
     EXTRACT_LIMIT_PER_HOUR,
     EXTRACT_WINDOW_MS,
   );
@@ -82,7 +235,7 @@ export const POST = apiHandler(async (request: Request) => {
   // 4. Reserve the day's budget BEFORE the provider call (atomic, TOCTOU-safe).
   const dateKey = buildDateKey();
   const reservation = await reserveBudget(
-    user.id,
+    userId,
     AI_BUDGETS.ocrExtract.maxTokens,
     dateKey,
   );
@@ -107,7 +260,7 @@ export const POST = apiHandler(async (request: Request) => {
         action: { name: "labs.ocr.fileRejected" },
         meta: { reason: "content_length_exceeded" },
       });
-      await reconcileSpend(user.id, reservation.reserved, 0, dateKey);
+      await reconcileSpend(userId, reservation.reserved, 0, dateKey);
       return apiError("File is too large (max 12 MB).", 413, {
         errorCode: "labs.ocr.fileTooLarge",
       });
@@ -120,7 +273,7 @@ export const POST = apiHandler(async (request: Request) => {
         headers: { "content-type": request.headers.get("content-type") ?? "" },
       }).formData();
     } catch (err) {
-      await reconcileSpend(user.id, reservation.reserved, 0, dateKey);
+      await reconcileSpend(userId, reservation.reserved, 0, dateKey);
       if (err instanceof BodyTooLargeError) {
         annotate({
           action: { name: "labs.ocr.fileRejected" },
@@ -135,7 +288,7 @@ export const POST = apiHandler(async (request: Request) => {
 
     const file = formData.get("file");
     if (!(file instanceof File)) {
-      await reconcileSpend(user.id, reservation.reserved, 0, dateKey);
+      await reconcileSpend(userId, reservation.reserved, 0, dateKey);
       return apiError("Field 'file' must be a file", 422);
     }
 
@@ -143,7 +296,7 @@ export const POST = apiHandler(async (request: Request) => {
     try {
       buffer = Buffer.from(await file.arrayBuffer());
     } catch {
-      await reconcileSpend(user.id, reservation.reserved, 0, dateKey);
+      await reconcileSpend(userId, reservation.reserved, 0, dateKey);
       return apiError("Failed to read uploaded file", 400);
     }
 
@@ -154,7 +307,7 @@ export const POST = apiHandler(async (request: Request) => {
         action: { name: "labs.ocr.fileRejected" },
         meta: { reason: "unsupported_mime" },
       });
-      await reconcileSpend(user.id, reservation.reserved, 0, dateKey);
+      await reconcileSpend(userId, reservation.reserved, 0, dateKey);
       return apiError("Upload a JPEG, PNG, WebP, or PDF.", 415, {
         errorCode: "labs.ocr.fileType",
       });
@@ -166,7 +319,7 @@ export const POST = apiHandler(async (request: Request) => {
         action: { name: "labs.ocr.fileRejected" },
         meta: { reason: "pdf_provider_unsupported" },
       });
-      await reconcileSpend(user.id, reservation.reserved, 0, dateKey);
+      await reconcileSpend(userId, reservation.reserved, 0, dateKey);
       return apiError(
         "PDF scanning needs a Claude vision provider; upload a photo instead.",
         422,
@@ -186,7 +339,7 @@ export const POST = apiHandler(async (request: Request) => {
     let actualTokens = 0;
     try {
       const result = await runOcrExtraction({
-        userId: user.id,
+        userId,
         provider: pick.entry.instance,
         providerType: pick.providerType,
         images,
@@ -195,22 +348,12 @@ export const POST = apiHandler(async (request: Request) => {
       // The orchestration does not surface token counts; reconcile against the
       // reserved estimate as the spend ceiling (the provider already billed it).
       actualTokens = reservation.reserved;
-      await reconcileSpend(
-        user.id,
-        reservation.reserved,
-        actualTokens,
-        dateKey,
-      );
+      await reconcileSpend(userId, reservation.reserved, actualTokens, dateKey);
       return apiSuccess(result);
     } catch (err) {
       // Provider/extraction failure — the call may still have burned tokens, so
       // reconcile against the reserved estimate rather than refunding in full.
-      await reconcileSpend(
-        user.id,
-        reservation.reserved,
-        actualTokens,
-        dateKey,
-      );
+      await reconcileSpend(userId, reservation.reserved, actualTokens, dateKey);
       if (err instanceof OcrExtractError) {
         return apiError("Couldn't read the report. Try a clearer photo.", 422, {
           errorCode: "labs.ocr.extractFailed",
@@ -226,9 +369,9 @@ export const POST = apiHandler(async (request: Request) => {
     }
   } catch (err) {
     // A guard threw after the reservation (e.g. consent races) — refund fully.
-    await reconcileSpend(user.id, reservation.reserved, 0, dateKey).catch(
+    await reconcileSpend(userId, reservation.reserved, 0, dateKey).catch(
       () => {},
     );
     throw err;
   }
-});
+}

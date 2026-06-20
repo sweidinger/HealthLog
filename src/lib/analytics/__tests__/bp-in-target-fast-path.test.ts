@@ -15,6 +15,10 @@ vi.mock("@/lib/db", () => ({
     // v1.11.1 — readRollupBuckets lazy-loads the source-priority blob; null
     // (default findUnique) falls back to the default ladders.
     user: { findUnique: vi.fn() },
+    // v1.18.10 I-1 — the live BP fallback now reads source-collapsed rows via
+    // `$queryRawUnsafe` (`canonicalMeasurementsFrom`) instead of a chunked
+    // `findMany`, so cold == warm. Mock it to feed the SYS / DIA series.
+    $queryRawUnsafe: vi.fn(),
   },
 }));
 
@@ -39,6 +43,7 @@ const MEASUREMENT_FIND_MANY = prisma.measurement
   .findMany as unknown as ReturnType<typeof vi.fn>;
 const ROLLUP_FIND_MANY = prisma.measurementRollup
   .findMany as unknown as ReturnType<typeof vi.fn>;
+const QUERY_RAW = prisma.$queryRawUnsafe as unknown as ReturnType<typeof vi.fn>;
 const PROBE = probeRollupCoverage as unknown as ReturnType<typeof vi.fn>;
 const FULLY_COVERED = isFullyCovered as unknown as ReturnType<typeof vi.fn>;
 const ANNOTATE = annotate as unknown as ReturnType<typeof vi.fn>;
@@ -53,6 +58,7 @@ const TARGETS_UNDER_65 = {
 beforeEach(() => {
   MEASUREMENT_FIND_MANY.mockReset();
   ROLLUP_FIND_MANY.mockReset();
+  QUERY_RAW.mockReset();
   PROBE.mockReset();
   FULLY_COVERED.mockReset();
   ANNOTATE.mockReset();
@@ -215,7 +221,7 @@ describe("computeBpInTargetFastPath", () => {
   });
 
   describe("live fallback — partial or no coverage", () => {
-    it("falls back to the chunked findMany when SYS bucket coverage is missing", async () => {
+    it("falls back to the source-collapsed live read when SYS bucket coverage is missing", async () => {
       const coverage = new Map<string, boolean>([
         ["BLOOD_PRESSURE_SYS", false],
         ["BLOOD_PRESSURE_DIA", true],
@@ -223,17 +229,16 @@ describe("computeBpInTargetFastPath", () => {
       FULLY_COVERED.mockReturnValue(false);
       PROBE.mockResolvedValue(coverage);
 
-      // First findMany = SYS rows, second = DIA rows.
-      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([
+      // First raw query = SYS rows, second = DIA rows. Rows arrive in the raw
+      // SQL snake_case shape (`measured_at` + `value`).
+      QUERY_RAW.mockResolvedValueOnce([
         {
-          id: "1",
-          measuredAt: new Date("2026-05-15T08:00:00.000Z"),
+          measured_at: new Date("2026-05-15T08:00:00.000Z"),
           value: 122,
         },
       ]).mockResolvedValueOnce([
         {
-          id: "2",
-          measuredAt: new Date("2026-05-15T08:00:00.000Z"),
+          measured_at: new Date("2026-05-15T08:00:00.000Z"),
           value: 76,
         },
       ]);
@@ -249,7 +254,8 @@ describe("computeBpInTargetFastPath", () => {
       // One paired in-target reading.
       expect(result.last30Days).toEqual({ pct: 100, pairs: 1 });
       expect(ROLLUP_FIND_MANY).not.toHaveBeenCalled();
-      expect(MEASUREMENT_FIND_MANY).toHaveBeenCalledTimes(2);
+      expect(MEASUREMENT_FIND_MANY).not.toHaveBeenCalled();
+      expect(QUERY_RAW).toHaveBeenCalledTimes(2);
     });
 
     it("pins the path:live annotate", async () => {
@@ -259,7 +265,7 @@ describe("computeBpInTargetFastPath", () => {
       ]);
       FULLY_COVERED.mockReturnValue(false);
       PROBE.mockResolvedValue(coverage);
-      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      QUERY_RAW.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
       await computeBpInTargetFastPath({
         userId: "user-partial",
@@ -275,11 +281,51 @@ describe("computeBpInTargetFastPath", () => {
       expect(bpCall).toBeDefined();
     });
 
+    it("collapses overlapping sources on the live path (v1.18.10 I-1 — cold == warm)", async () => {
+      // Two sources mirror the SAME reading on the same day (Withings + its
+      // Apple-Health mirror). The source-collapse picks one canonical source
+      // per (type, day) BEFORE pairing, so the in-target denominator counts the
+      // shared reading once — matching the rollup path. The collapse runs in
+      // SQL (`canonicalMeasurementsFrom`), so the mock just confirms the live
+      // query routes through it and the result reflects ONE pair, not two.
+      const coverage = new Map<string, boolean>([
+        ["BLOOD_PRESSURE_SYS", false],
+        ["BLOOD_PRESSURE_DIA", false],
+      ]);
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+      // The canonical subquery has already collapsed the duplicate source — it
+      // returns ONE SYS row and ONE DIA row for the day.
+      QUERY_RAW.mockResolvedValueOnce([
+        { measured_at: new Date("2026-05-15T08:00:00.000Z"), value: 122 },
+      ]).mockResolvedValueOnce([
+        { measured_at: new Date("2026-05-15T08:00:00.000Z"), value: 76 },
+      ]);
+
+      const result = await computeBpInTargetFastPath({
+        userId: "user-dual-source",
+        targets: TARGETS_UNDER_65,
+        now: new Date("2026-05-17T12:00:00.000Z"),
+        coverage,
+      });
+
+      expect(result.path).toBe("live");
+      expect(result.last30Days).toEqual({ pct: 100, pairs: 1 });
+      // Both live reads must route through the canonical-source subquery so the
+      // collapse fires in SQL — pin the marker so a regression that reverts to
+      // a raw `findMany` (double-counting) fails here.
+      for (const call of QUERY_RAW.mock.calls) {
+        const sql = String(call[0]);
+        expect(sql).toContain("DISTINCT ON");
+        expect(sql).toContain("date_trunc('day'");
+      }
+    });
+
     it("probes coverage when the caller omits the map", async () => {
       const coverage = new Map<string, boolean>([]);
       FULLY_COVERED.mockReturnValue(false);
       PROBE.mockResolvedValue(coverage);
-      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      QUERY_RAW.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
       const result = await computeBpInTargetFastPath({
         userId: "user-fresh",
@@ -331,7 +377,7 @@ describe("computeBpInTargetFastPath", () => {
       ]);
       FULLY_COVERED.mockReturnValue(true);
       PROBE.mockResolvedValue(coverage);
-      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      QUERY_RAW.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
       const result = await computeBpInTargetFastPath({
         userId: "user-honolulu",
@@ -343,7 +389,7 @@ describe("computeBpInTargetFastPath", () => {
 
       expect(result.path).toBe("live");
       expect(ROLLUP_FIND_MANY).not.toHaveBeenCalled();
-      expect(MEASUREMENT_FIND_MANY).toHaveBeenCalledTimes(2);
+      expect(QUERY_RAW).toHaveBeenCalledTimes(2);
 
       const calls = ANNOTATE.mock.calls.map((c) => c[0]);
       const bpCall = calls.find(
@@ -362,7 +408,7 @@ describe("computeBpInTargetFastPath", () => {
       ]);
       FULLY_COVERED.mockReturnValue(true);
       PROBE.mockResolvedValue(coverage);
-      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      QUERY_RAW.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
       const result = await computeBpInTargetFastPath({
         userId: "user-tokyo",

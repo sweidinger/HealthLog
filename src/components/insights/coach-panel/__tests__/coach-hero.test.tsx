@@ -12,13 +12,9 @@ function render(node: React.ReactNode, locale: "en" | "de" = "en") {
 }
 
 describe("<CoachHero>", () => {
-  it("renders the centred greeting, the composer slot, and the chips", () => {
+  it("renders the centred greeting and the composer slot", () => {
     const html = render(
-      <CoachHero
-        composer={<div data-slot="test-composer">composer</div>}
-        prompts={["What should I tell my doctor?", "Is my medication working?"]}
-        onPickPrompt={() => {}}
-      />,
+      <CoachHero composer={<div data-slot="test-composer">composer</div>} />,
     );
     expect(html).toContain('data-slot="coach-hero"');
     // Greeting copy from insights.coach.heroGreeting.
@@ -26,26 +22,19 @@ describe("<CoachHero>", () => {
     // The composer is re-parented into the hero, not forked.
     expect(html).toContain('data-slot="coach-hero-composer"');
     expect(html).toContain('data-slot="test-composer"');
-    // Both starter-question chips render.
-    const chips = (html.match(/data-slot="coach-hero-chip"/g) ?? []).length;
-    expect(chips).toBe(2);
-    expect(html).toContain("What should I tell my doctor?");
-    expect(html).toContain("Is my medication working?");
   });
 
   it("renders the German greeting under the de locale", () => {
-    const html = render(
-      <CoachHero composer={null} prompts={[]} onPickPrompt={() => {}} />,
-      "de",
-    );
+    const html = render(<CoachHero composer={null} />, "de");
     expect(html).toContain("Wie kann ich dir helfen?");
   });
 
-  it("omits the chip row when no prompts are supplied", () => {
-    const html = render(
-      <CoachHero composer={null} prompts={[]} onPickPrompt={() => {}} />,
-    );
+  it("does not render starter-question suggestion chips", () => {
+    // v1.18.10 (W4) — the two starter chips below the composer were
+    // removed; the hero is greeting + composer only.
+    const html = render(<CoachHero composer={null} />);
     expect(html).not.toContain('data-slot="coach-hero-chips"');
+    expect(html).not.toContain('data-slot="coach-hero-chip"');
   });
 });
 

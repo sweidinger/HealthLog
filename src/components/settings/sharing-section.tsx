@@ -23,7 +23,6 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import QRCode from "qrcode";
 import { Copy, KeyRound, Loader2, Share2, Trash2 } from "lucide-react";
 
 import {
@@ -136,7 +135,13 @@ function ShareLinksCard() {
   useEffect(() => {
     if (!qrUrl) return;
     let cancelled = false;
-    QRCode.toDataURL(qrUrl, { margin: 1, width: 220 })
+    // Dynamic import so `qrcode` code-splits out of the settings chunk — the
+    // QR is only ever rendered after a link is created, so the library never
+    // needs to ship eagerly.
+    import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toDataURL(qrUrl, { margin: 1, width: 220 }),
+      )
       .then((url) => {
         if (!cancelled) setQrDataUrl(url);
       })

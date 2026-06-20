@@ -207,6 +207,14 @@ model User {
   // diagnosis — purely a user-declared preference that selects which target
   // band the user is judged against. Default `false`.
   hasDiabetes             Boolean @default(false) @map("has_diabetes")
+  // v1.18.10 — opt-in local (in-browser) OCR for lab-report scans. When `true`,
+  // a user whose AI provider cannot read images (e.g. ChatGPT-OAuth/Codex, a
+  // text-only model) can still scan a report: the image is OCR'd in the browser
+  // via tesseract.js and only the extracted TEXT is sent to the text-only
+  // provider for structuring. Less accurate than native vision — the mandatory
+  // review screen remains the safety backstop. Default `false`; vision-capable
+  // users keep the higher-accuracy native path and never pay the WASM download.
+  labsLocalOcrEnabled     Boolean @default(false) @map("labs_local_ocr_enabled")
   // v1.7.0 unit pref — global metric/imperial display preference.
   // Canonical storage stays SI; this only selects the display-time
   // transform branch (km/h vs mph, km vs mi). Null = default "metric".
@@ -1113,6 +1121,12 @@ model Measurement {
   // — see migration 0108. It accelerates the v1.10.0 dense intra-day
   // retention drain's discovery + per-user scan. Same Prisma-can't-
   // express-a-partial-predicate reason it is omitted here.
+  // `measurements_live_covering_idx` is a covering partial index over
+  // `(user_id, type, measured_at DESC) WHERE deleted_at IS NULL` — see
+  // migration 0183 (v1.18.10 P-5). It serves the DISTINCT-ON-latest, list,
+  // and series reads for every type NOT covered by the two partials above
+  // and removes the `deleted_at` heap re-check. Same Prisma-can't-express-a-
+  // partial-predicate reason it is omitted here.
   @@map("measurements")
 }
 

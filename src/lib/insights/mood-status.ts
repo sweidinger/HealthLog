@@ -36,6 +36,7 @@ import {
   buildGradedSeriesFromPoints,
   degradeStatusSnapshotToBudget,
 } from "@/lib/insights/graded-series";
+import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import {
   type SupportedLocale,
   normalizeLocale,
@@ -496,6 +497,18 @@ export async function prepareMoodStatusForUser(
     now,
   });
 
+  // v1.18.10 (HIGH-4) — hand the model the finished recent-vs-baseline
+  // comparison + normal-swing verdict instead of asking it to derive them.
+  // Mood reads higher-better against the green band.
+  const moodSignal = buildMetricSignal({
+    metric: locale === "en" ? "your mood" : "deine Stimmung",
+    unit: "/5",
+    direction: "higher-better",
+    graded: moodGraded,
+    normalRange: { low: greenMin, high: greenMax },
+    newestDaysAgo: newestEntryDaysAgo,
+  });
+
   const snapshot = {
     locale,
     generatedForDay: todayKey,
@@ -506,6 +519,7 @@ export async function prepareMoodStatusForUser(
       newestEntryDaysAgo,
     },
     mood: {
+      ...(moodSignal ? { signal: moodSignal } : {}),
       summary: moodSummary,
       series: moodGraded,
       latestDayFocus: latestMood

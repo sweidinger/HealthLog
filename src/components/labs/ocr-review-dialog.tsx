@@ -24,12 +24,17 @@ import { seedReviewRows, type OcrReviewRow } from "./ocr-review-types";
 import {
   useOcrCommit,
   useOcrExtract,
+  useOcrTextExtract,
   type OcrCommitRowInput,
 } from "./use-ocr-extract";
 
 type Stage = "pick" | "review";
 
+/** How the scan runs: native vision vs in-browser (local) OCR. */
+export type OcrMode = "vision" | "text";
+
 const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
+const ACCEPT_IMAGE_ONLY = "image/jpeg,image/png,image/webp";
 
 /** Map a confirmed review row to the commit payload, or null when invalid. */
 function toCommitRow(row: OcrReviewRow): OcrCommitRowInput | null {
@@ -88,11 +93,14 @@ function extractErrorMessage(err: unknown, t: (key: string) => string): string {
 export function OcrReviewDialog({
   open,
   onOpenChange,
+  mode,
   pdfSupported,
   onCommitted,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Native vision vs in-browser local OCR. Text mode is image-only. */
+  mode: OcrMode;
   pdfSupported: boolean;
   onCommitted: () => void;
 }) {
@@ -101,8 +109,14 @@ export function OcrReviewDialog({
   const [stage, setStage] = useState<Stage>("pick");
   const [rows, setRows] = useState<OcrReviewRow[]>([]);
 
-  const extract = useOcrExtract();
+  // Text mode OCR's the image in the browser then POSTs the text; vision mode
+  // uploads the image. Both resolve with the same proposed-rows DTO.
+  const visionExtract = useOcrExtract();
+  const textExtract = useOcrTextExtract();
+  const extract = mode === "text" ? textExtract : visionExtract;
   const commit = useOcrCommit();
+  // Text mode never accepts PDFs (tesseract.js can't read them).
+  const allowPdf = mode === "vision" && pdfSupported;
 
   const confirmedCount = useMemo(
     () => rows.filter((r) => r.confirmed).length,
@@ -197,7 +211,7 @@ export function OcrReviewDialog({
           <input
             ref={inputRef}
             type="file"
-            accept={pdfSupported ? ACCEPT : "image/jpeg,image/png,image/webp"}
+            accept={allowPdf ? ACCEPT : ACCEPT_IMAGE_ONLY}
             className="sr-only"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -216,7 +230,12 @@ export function OcrReviewDialog({
               <>
                 <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
                 <span className="text-muted-foreground text-sm">
-                  {t("labs.ocr.extracting")}
+                  {/* Text mode runs OCR on-device first, then structures it —
+                      the first run also downloads the OCR engine, so the copy
+                      sets the "this is reading on your device" expectation. */}
+                  {mode === "text"
+                    ? t("labs.ocr.readingOnDevice")
+                    : t("labs.ocr.extracting")}
                 </span>
               </>
             ) : (
@@ -230,10 +249,16 @@ export function OcrReviewDialog({
                 </span>
                 <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
                   <Upload className="h-3.5 w-3.5" aria-hidden />
-                  {pdfSupported
+                  {allowPdf
                     ? t("labs.ocr.acceptWithPdf")
                     : t("labs.ocr.acceptImageOnly")}
                 </span>
+                {/* Honest accuracy caveat for the local-OCR fallback. */}
+                {mode === "text" ? (
+                  <span className="text-muted-foreground max-w-xs text-xs">
+                    {t("labs.ocr.localModeHint")}
+                  </span>
+                ) : null}
               </>
             )}
           </button>

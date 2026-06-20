@@ -25,6 +25,7 @@ import {
   buildGradedSeriesWithRollups,
   degradeStatusSnapshotToBudget,
 } from "@/lib/insights/graded-series";
+import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import {
   type SupportedLocale,
   normalizeLocale,
@@ -321,6 +322,19 @@ export async function preparePulseStatusForUser(
       )
     : null;
 
+  // v1.18.10 (HIGH-4) — feed the model the finished recent-vs-baseline
+  // comparison + normal-swing verdict instead of asking it to derive them from
+  // the raw buckets (the "model computes a number" pattern the mandate bans).
+  // Resting pulse reads lower-better; the green band is the coarse anchor.
+  const pulseSignal = buildMetricSignal({
+    metric: locale === "en" ? "your resting pulse" : "dein Ruhepuls",
+    unit: "bpm",
+    direction: "lower-better",
+    graded: pulseGraded,
+    normalRange: { low: pulseTarget.greenMin, high: pulseTarget.greenMax },
+    newestDaysAgo: newestMeasurementDaysAgo,
+  });
+
   const snapshot = {
     locale,
     generatedForDay: todayKey,
@@ -331,6 +345,7 @@ export async function preparePulseStatusForUser(
       newestMeasurementDaysAgo,
     },
     pulse: {
+      ...(pulseSignal ? { signal: pulseSignal } : {}),
       summary: pulseSummary,
       series: pulseGraded,
       latestDayFocus: latestPulse

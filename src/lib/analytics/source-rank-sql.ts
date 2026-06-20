@@ -31,7 +31,7 @@ import {
  * absent: they only ever have one source per (type, day), so the collapse is
  * a no-op for them and they fall into the CASE's ELSE branch.
  */
-const RANKED_TYPES: readonly MeasurementType[] = [
+export const RANKED_TYPES: readonly MeasurementType[] = [
   "RESTING_HEART_RATE",
   "HEART_RATE_VARIABILITY",
   "RESPIRATORY_RATE",
@@ -45,6 +45,10 @@ const RANKED_TYPES: readonly MeasurementType[] = [
   "PULSE",
   "VO2_MAX",
   "RECOVERY_SCORE",
+  // v1.18.10 I-5 — STRESS_SCORE carries a source-priority ladder (`stress`)
+  // so the SQL collapse ranks a future device-native producer above the
+  // COMPUTED proxy deterministically. No-op until a second producer lands.
+  "STRESS_SCORE",
   "SLEEP_DURATION",
   "ACTIVITY_STEPS",
   "ACTIVE_ENERGY_BURNED",

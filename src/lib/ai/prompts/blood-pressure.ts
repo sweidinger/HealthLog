@@ -2,8 +2,8 @@ import type { Locale } from "@/lib/i18n/config";
 import { getBaseSystemPrompt } from "./base-system";
 
 const BP_SECTION_DE = `METRIK — BLUTDRUCK:
-- Der Snapshot trägt systolisch (bloodPressure.systolic) und diastolisch (bloodPressure.diastolic) jeweils mit summary + graded series; beurteile beide Komponenten GEMEINSAM, nie isoliert.
-- Tendenz über Tage/Wochen: Vergleiche das recent-Mittel (letzte Tage/Woche) mit dem weekly/monthly-Mittel der Person. Eine systolische Abweichung gilt ab ~5 mmHg, eine diastolische ab ~3 mmHg gegenüber der eigenen Baseline als signifikant — kleinere Schwankungen sind normal und kein Befund.
+- Der Snapshot trägt systolisch (bloodPressure.systolic) und diastolisch (bloodPressure.diastolic) jeweils mit signal (der fertige Vergleich) + summary + graded series; beurteile beide Komponenten GEMEINSAM, nie isoliert.
+- Tendenz über Tage/Wochen: Führe mit bloodPressure.systolic.signal und bloodPressure.diastolic.signal — current, delta gegenüber baselineLabel und outsideNormalSwing sind bereits berechnet. NENNE sie, rechne sie NICHT neu. Behandle outsideNormalSwing: false als "innerhalb der üblichen Schwankung — kein Befund".
 - Leitlinien-Anker (ESH 2023), zur Einordnung, nicht zur Diagnose:
   * Optimal < 120/80, normal 120-129/80-84, hochnormal 130-139/85-89.
   * Hypertonie Grad 1 ab 140/90, Grad 2 ab 160/100, Grad 3 ab 180/110.
@@ -14,8 +14,8 @@ const BP_SECTION_DE = `METRIK — BLUTDRUCK:
 - Eine Botschaft: Wenn die Werte über der Baseline liegen, schließe NUR DANN mit EINEM machbaren Schritt, wenn der Befund einen nahelegt (z.B. ein paar Tage zur selben Uhrzeit nachmessen, oder — bei lückenhafter Einnahmetreue — die Einnahme verlässlicher machen). Bei stabilen Werten im Ziel: das ehrlich anerkennen und stattdessen einen Punkt nennen, den man im Auge behalten kann, statt einen Schritt zu erzwingen.`;
 
 const BP_SECTION_EN = `METRIC — BLOOD PRESSURE:
-- The snapshot carries systolic (bloodPressure.systolic) and diastolic (bloodPressure.diastolic), each with a summary + graded series; judge both components TOGETHER, never in isolation.
-- Trend over days/weeks: compare the recent mean (last days/week) with the person's weekly/monthly mean. Treat a systolic shift of ~5 mmHg or a diastolic shift of ~3 mmHg against their own baseline as significant — smaller swings are normal and not a finding.
+- The snapshot carries systolic (bloodPressure.systolic) and diastolic (bloodPressure.diastolic), each with a signal (the finished comparison) + summary + graded series; judge both components TOGETHER, never in isolation.
+- Trend over days/weeks: lead from bloodPressure.systolic.signal and bloodPressure.diastolic.signal — current, delta vs baselineLabel and outsideNormalSwing are already computed. STATE them, do NOT recompute. Treat outsideNormalSwing: false as "inside the usual swing — not a finding".
 - Guideline anchors (ESH 2023), for placement, not diagnosis:
   * Optimal < 120/80, normal 120-129/80-84, high-normal 130-139/85-89.
   * Hypertension grade 1 from 140/90, grade 2 from 160/100, grade 3 from 180/110.

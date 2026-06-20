@@ -62,6 +62,87 @@ import {
 const WITHINGS_SLEEP_URL = "https://wbsapi.withings.net/v2/sleep";
 
 /**
+ * v1.18.10 P0 — nightly sleep vitals from `action=getsummary`.
+ *
+ * The per-segment `action=get` series carries only the stage timeline; the
+ * per-night summary carries the physiological vitals (average HR, respiratory
+ * rate, SDNN-based HRV, average SpO2, the Withings sleep score). These were
+ * previously dropped at the fetch even though the canonical enums exist. Each
+ * vital maps to an EXISTING `MeasurementType` so there is no migration and no
+ * iOS-contract change — the rows simply flow to `/api/sync/changes` under the
+ * `WITHINGS` source like every other server-side fetch.
+ *
+ * Field set requested via `data_fields`. Withings nests the requested fields
+ * under each night's `data` object. Only the fields with a canonical enum are
+ * requested; snoring / breathing-disturbance intensity have no enum and are
+ * deliberately left out (no home to store them).
+ */
+const SLEEP_SUMMARY_DATA_FIELDS =
+  "hr_average,rr_average,sdnn_1,spo2_average,sleep_score";
+
+/**
+ * One nightly summary row from `POST /v2/sleep?action=getsummary`. The vitals
+ * live under `data`; `id` is the per-night session id (stable across re-syncs,
+ * the same id the segment series carries) so the externalId reconciles.
+ */
+export interface WithingsSleepSummary {
+  id?: number;
+  startdate: number;
+  enddate: number;
+  data?: {
+    hr_average?: number | null;
+    rr_average?: number | null;
+    sdnn_1?: number | null;
+    spo2_average?: number | null;
+    sleep_score?: number | null;
+  };
+}
+
+/**
+ * One nightly vital extracted from a summary, ready to upsert. The
+ * `measuredAt` is the night's END (`enddate`) so the vital sorts under the
+ * same night as the END-stamped stage segments.
+ */
+interface SleepVitalRow {
+  type: MeasurementType;
+  value: number;
+  /** Stable per-vital externalId suffix; combined with the session id. */
+  fieldTag: string;
+}
+
+/**
+ * Map a nightly summary's `data` block to the canonical vital rows. Skips any
+ * field Withings omitted or returned as a non-finite value. `spo2_average`
+ * arrives as a fraction (0..1) on some firmware and a percent (0..100) on
+ * others — normalise the fraction form to percent so it shares the
+ * `OXYGEN_SATURATION` bucket with the meastype-54 spot reading.
+ */
+export function mapWithingsSleepSummary(
+  data: WithingsSleepSummary["data"] | undefined,
+): SleepVitalRow[] {
+  if (!data) return [];
+  const rows: SleepVitalRow[] = [];
+  const push = (type: MeasurementType, value: unknown, fieldTag: string) => {
+    if (typeof value !== "number" || !Number.isFinite(value)) return;
+    rows.push({ type, value, fieldTag });
+  };
+  // Average HR over the sleep window → RESTING_HEART_RATE (one nightly sample,
+  // distinct from spot PULSE — same convention the HealthKit nightly RHR uses).
+  push("RESTING_HEART_RATE", data.hr_average, "hr");
+  push("RESPIRATORY_RATE", data.rr_average, "rr");
+  // sdnn_1 is the SDNN-based HRV estimator — the same estimator the
+  // HEART_RATE_VARIABILITY enum documents (kept distinct from WHOOP's RMSSD).
+  push("HEART_RATE_VARIABILITY", data.sdnn_1, "hrv");
+  let spo2 = data.spo2_average;
+  if (typeof spo2 === "number" && Number.isFinite(spo2) && spo2 <= 1) {
+    spo2 = spo2 * 100;
+  }
+  push("OXYGEN_SATURATION", spo2, "spo2");
+  push("SLEEP_SCORE", data.sleep_score, "score");
+  return rows;
+}
+
+/**
  * Default backfill window for the first sleep sync of a connection.
  * Matches every other Withings ingest path so a reconnect lights up
  * 30 days of stage data.
@@ -81,6 +162,16 @@ export interface WithingsSleepSegment {
   // the externalId so a future re-sync can reconcile against the
   // original write.
   id?: number;
+}
+
+/**
+ * Format a Date as `YYYY-MM-DD` in UTC for the summary endpoint's
+ * `startdateymd` / `enddateymd` params. The summary window is day-grained;
+ * UTC keeps it deterministic and matches the unix-second window the segment
+ * fetch derives from the same `start` / `now` Dates.
+ */
+function ymdUtc(d: Date): string {
+  return d.toISOString().slice(0, 10);
 }
 
 /**
@@ -150,6 +241,56 @@ export async function fetchWithingsSleep(
     });
   }
   const series: WithingsSleepSegment[] = json.body?.series ?? [];
+  return series;
+}
+
+/**
+ * v1.18.10 P0 — fetch the per-night sleep summaries (with vitals) for the
+ * given window. `action=getsummary` keys by `lastupdate`/`startdateymd`; we
+ * use the same unix-second window the segment fetch uses, expressed as the
+ * `YYYY-MM-DD` form the summary endpoint expects. Returns the raw summaries
+ * (no DB write) so the caller composes the upsert step.
+ */
+export async function fetchWithingsSleepSummary(
+  accessToken: string,
+  startymd: string,
+  endymd: string,
+): Promise<WithingsSleepSummary[]> {
+  const params = new URLSearchParams({
+    action: "getsummary",
+    startdateymd: startymd,
+    enddateymd: endymd,
+    data_fields: SLEEP_SUMMARY_DATA_FIELDS,
+  });
+
+  const pageStart = performance.now();
+  const res = await safeFetch(WITHINGS_SLEEP_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: params.toString(),
+  });
+  const json = await res.json();
+  const verdict = classifyWithingsResponse(res.status, json);
+  getEvent()?.addExternalCall({
+    service: "withings",
+    method: "fetchWithingsSleepSummary",
+    duration_ms: Math.round(performance.now() - pageStart),
+    status: res.status,
+    error: verdict.classification === "success" ? undefined : verdict.reason,
+  });
+  if (verdict.classification !== "success") {
+    throw new WithingsApiError({
+      verb: "sleep",
+      classification: verdict.classification,
+      withingsStatus: verdict.withingsStatus,
+      reason: verdict.reason,
+      upstreamError: typeof json?.error === "string" ? json.error : undefined,
+    });
+  }
+  const series: WithingsSleepSummary[] = json.body?.series ?? [];
   return series;
 }
 
@@ -317,6 +458,66 @@ export async function syncUserSleep(
       );
     }
     segmentIndex++;
+  }
+
+  // v1.18.10 P0 — nightly sleep vitals (avg HR / respiratory rate / SDNN HRV
+  // / avg SpO2 / sleep score) from the per-night summary. A summary-fetch
+  // failure must not lose the stage segments already written, so it runs in
+  // its own try/catch and only annotates on error. Each vital upserts on the
+  // stable `(userId, type, source, externalId)` composite so a re-sync
+  // overwrites the night's value rather than inserting a duplicate.
+  try {
+    const startYmd = ymdUtc(start);
+    const endYmd = ymdUtc(now);
+    const summaries = await fetchWithingsSleepSummary(
+      tokenInfo.accessToken,
+      startYmd,
+      endYmd,
+    );
+    for (const summary of summaries) {
+      const measuredAt = new Date(summary.enddate * 1000);
+      const sessionId = summary.id ?? "no-id";
+      const vitals = mapWithingsSleepSummary(summary.data);
+      for (const vital of vitals) {
+        const externalId = `withings:sleep:${userId}:${sessionId}:${vital.fieldTag}`;
+        try {
+          await prisma.measurement.upsert({
+            where: {
+              userId_type_source_externalId: {
+                userId,
+                type: vital.type,
+                source: "WITHINGS",
+                externalId,
+              },
+            },
+            create: {
+              userId,
+              type: vital.type,
+              value: vital.value,
+              unit: getUnitForType(vital.type),
+              measuredAt,
+              source: "WITHINGS",
+              externalId,
+            },
+            update: {
+              value: vital.value,
+              measuredAt,
+              syncVersion: { increment: 1 },
+            },
+          });
+          touched.push({ type: vital.type, measuredAt });
+          imported++;
+        } catch (err) {
+          getEvent()?.addWarning(
+            `withings sleep: failed to upsert vital (${vital.type}, ${measuredAt.toISOString()}): ${err}`,
+          );
+        }
+      }
+    }
+  } catch (err) {
+    getEvent()?.addWarning(
+      `withings sleep: summary fetch failed for ${userId}: ${err}`,
+    );
   }
 
   // v1.4.39.1 — refresh the persistent rollup table for every distinct

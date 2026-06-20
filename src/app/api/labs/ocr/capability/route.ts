@@ -22,6 +22,7 @@ export const GET = apiHandler(async () => {
     action: { name: "labs.ocr.capability" },
     meta: {
       available: capability.available,
+      mode: capability.mode,
       reason: capability.reason,
       pdfSupported: capability.pdfSupported,
     },

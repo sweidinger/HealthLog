@@ -28,6 +28,7 @@ import {
   buildGradedSeriesWithRollups,
   degradeStatusSnapshotToBudget,
 } from "@/lib/insights/graded-series";
+import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import {
   type SupportedLocale,
   normalizeLocale,
@@ -382,6 +383,18 @@ export async function prepareWeightStatusForUser(
       )
     : null;
 
+  // v1.18.10 (HIGH-4) — hand the model the finished recent-vs-baseline
+  // comparison + normal-swing verdict instead of asking it to derive them.
+  // Weight has no universal favourable direction or population band, so the
+  // signal carries the neutral "target-band" framing and no normalRange.
+  const weightSignal = buildMetricSignal({
+    metric: locale === "en" ? "your weight" : "dein Gewicht",
+    unit: "kg",
+    direction: "target-band",
+    graded: weightGraded,
+    newestDaysAgo: newestMeasurementDaysAgo,
+  });
+
   const snapshot = {
     locale,
     generatedForDay: todayKey,
@@ -392,6 +405,7 @@ export async function prepareWeightStatusForUser(
       newestMeasurementDaysAgo,
     },
     weight: {
+      ...(weightSignal ? { signal: weightSignal } : {}),
       summary: summarizeSeries(
         weightSeries.daily.map((bucket) => ({ value: bucket.value })),
       ),

@@ -2268,6 +2268,8 @@
       "sourcesMemberCount": "{count} metriche",
       "dictate": "Detta",
       "dictateStop": "Interrompi dettatura",
+      "voiceUnsupported": "L'inserimento vocale non è supportato in questo browser",
+      "dictateError": "Impossibile avviare l'inserimento vocale. Controlla l'autorizzazione del microfono e riprova.",
       "showConversations": "Mostra conversazioni",
       "hideConversations": "Nascondi conversazioni",
       "heroGreeting": "Come posso aiutarti?",
@@ -3870,7 +3872,8 @@
           "vo2Max": "VO2 max",
           "skinTemperature": "Temperatura cutanea",
           "respiratoryRate": "Frequenza respiratoria",
-          "recovery": "Recupero"
+          "recovery": "Recupero",
+          "stress": "Stress"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
@@ -4931,6 +4934,8 @@
     "bugReportGithubDescription": "Configura il token delle issue di GitHub e il repository per le segnalazioni di bug in arrivo.",
     "bugReportEnabledLabel": "Segnalazioni di bug attive",
     "bugReportEnabledDescription": "Se disattivato, il pulsante di segnalazione nell'app viene nascosto: token e repository restano configurati.",
+    "bugReportDeprecatedBadge": "Obsoleto",
+    "bugReportDeprecatedNote": "Questa funzione è obsoleta e verrà rimossa in una versione futura.",
     "assistant": {
       "title": "Superfici dell'assistente",
       "description": "Ogni interruttore nasconde una superficie guidata dal modello in tutta l'app senza rimuovere la configurazione del provider. Il master forza ogni opzione secondaria su off.",
@@ -6470,6 +6475,7 @@
     "viewDescription": "Scegli se le voci appaiono come schede o come elenco compatto.",
     "reorder": {
       "heading": "Ordine",
+      "description": "Trascina le voci per definire l'ordine in cui appaiono.",
       "empty": "Nessuna voce da riordinare."
     }
   },
@@ -6489,6 +6495,10 @@
     "deleteError": "Impossibile eliminare il risultato",
     "loadError": "Impossibile caricare i risultati",
     "customize": "Personalizza esami",
+    "localOcr": {
+      "heading": "Leggi le scansioni su questo dispositivo",
+      "description": "Consente di scansionare un referto di laboratorio anche se il tuo provider di IA non può leggere le immagini: la foto viene letta sul tuo dispositivo e al provider viene inviato solo il testo estratto. Meno preciso: controlla ogni valore prima di salvare."
+    },
     "sort": {
       "heading": "Ordinamento",
       "label": "Ordine dei valori",
@@ -6640,10 +6650,16 @@
     "showingLatestOf": "Visualizzazione degli ultimi {shown} risultati su {total}",
     "ocr": {
       "scanButton": "Scansiona un referto",
+      "addScan": "Scansiona un documento",
+      "addManual": "Aggiungi un valore manualmente",
       "uploadHint": "Carica una foto o un PDF di un referto di laboratorio",
       "acceptWithPdf": "JPEG, PNG, WebP o PDF",
       "acceptImageOnly": "JPEG, PNG o WebP",
       "extracting": "Lettura del referto…",
+      "readingOnDevice": "Lettura sul tuo dispositivo…",
+      "localModeHint": "Letto sul tuo dispositivo e inviato come testo. Meno preciso: controlla ogni valore.",
+      "rangeFromScan": "Intervallo di riferimento ricavato dalla scansione",
+      "rangeVerify": "Verifica l'intervallo di riferimento",
       "reviewTitle": "Controlla prima di salvare",
       "reviewHint": "Controlla ogni valore, poi salva quelli da conservare.",
       "foundCount": "{count} valori trovati",

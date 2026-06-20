@@ -22,7 +22,13 @@ import { prisma } from "@/lib/db";
 import {
   extractFeatures,
   FeaturesPayloadTooLargeError,
+  type SignalOfDay,
 } from "@/lib/insights/features";
+import {
+  findUngroundedBriefingNumbers,
+  readBriefingBlock,
+  buildBriefingGroundingCorrection,
+} from "@/lib/ai/briefing-grounding";
 import { applyInsightsExcludeFilter } from "@/lib/insights/exclude-filter";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import {
@@ -169,6 +175,14 @@ async function rerollBriefingParagraph(args: {
   userPrompt: string;
   cachedText: string;
   locale: "de" | "en";
+  /**
+   * v1.18.10 (MEDIUM-3) — the pre-computed signals the briefing must match.
+   * The reroll runs at a higher, seedless temperature for phrasing variety,
+   * which is exactly the path most prone to drifting a restated number; the
+   * fresh paragraph is rejected (caller keeps the cached one) when a number in
+   * it does not trace to one of these figures.
+   */
+  signals: readonly SignalOfDay[] | null;
 }): Promise<{ text: string; providerType: string } | null> {
   let cached: Record<string, unknown>;
   try {
@@ -226,6 +240,18 @@ async function rerollBriefingParagraph(args: {
     typeof freshParagraph !== "string" ||
     freshParagraph.trim().length === 0
   ) {
+    return null;
+  }
+
+  // v1.18.10 (MEDIUM-3) — grounding gate on the rerolled paragraph. The higher
+  // seedless temperature can drift a restated figure ("+1.2 kg" → "+1.3 kg");
+  // reject the reroll on any ungrounded number so the caller keeps the cached
+  // (already-grounded) paragraph rather than swapping in a fabricated one.
+  const rerollUngrounded = findUngroundedBriefingNumbers(
+    { paragraph: freshParagraph },
+    args.signals,
+  );
+  if (rerollUngrounded.length > 0) {
     return null;
   }
 
@@ -816,6 +842,7 @@ export async function generateComprehensiveInsight(
         userPrompt,
         cachedText: dbUser.insightsCachedText,
         locale,
+        signals: features.signalsOfDay ?? null,
       });
       if (rerolled) {
         await prisma.user.update({
@@ -923,6 +950,60 @@ export async function generateComprehensiveInsight(
     insights = parseComprehensiveResult(result.content);
     if (insights === null) {
       return { status: "failed", reason: "invalid-json" };
+    }
+  }
+
+  // v1.18.10 (HIGH-1) — daily-briefing number-grounding gate. The cron +
+  // force-warm path produces the same briefing the POST route does, so it
+  // enforces the same cross-check: every number the briefing restates must
+  // trace to a `features.signalsOfDay` figure. One corrective retry, then strip
+  // the briefing rather than persist a fabricated number.
+  {
+    const signals = features.signalsOfDay ?? null;
+    let ungrounded = findUngroundedBriefingNumbers(
+      readBriefingBlock(insights),
+      signals,
+    );
+    if (ungrounded.length > 0) {
+      annotate({
+        action: { name: "insights.generate.briefing_grounding_retry" },
+        meta: { locale, ungroundedCount: ungrounded.length },
+      });
+      try {
+        const retry = await runRawCompletionWithFallback({
+          userId,
+          providers: chain,
+          params: {
+            systemPrompt,
+            userPrompt: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
+            temperature: AI_BUDGETS.comprehensive.temperature,
+            maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+            responseFormat: "json",
+          },
+        });
+        const retryInsights = parseComprehensiveResult(retry.result.content);
+        const retryUngrounded = findUngroundedBriefingNumbers(
+          readBriefingBlock(retryInsights),
+          signals,
+        );
+        if (retryInsights !== null && retryUngrounded.length === 0) {
+          insights = retryInsights;
+          result = retry.result;
+          workingProviderType = retry.workingProvider.providerType;
+          ungrounded = [];
+        } else {
+          ungrounded = retryUngrounded;
+        }
+      } catch {
+        // Retry failed — fall through to the strip below.
+      }
+    }
+    if (ungrounded.length > 0 && insights && typeof insights === "object") {
+      (insights as Record<string, unknown>).dailyBriefing = null;
+      annotate({
+        action: { name: "insights.generate.briefing_grounding_stripped" },
+        meta: { locale, ungroundedCount: ungrounded.length },
+      });
     }
   }
 

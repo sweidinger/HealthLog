@@ -592,15 +592,18 @@ describe("computeSummariesSlice", () => {
       // 90-day cap to `canonicalMeasurementsFrom(rank, "90 days")`. The
       // helper lives in `@/lib/analytics/source-rank-sql` (stubbed
       // above), so pin the contract at the call boundary: the slice
-      // must ask for the 90-day window. The `allTime` aggregate
-      // deliberately calls it WITHOUT an interval (no cap — all-time
-      // count/min/max/mean must scan every row).
+      // must ask for the 90-day window.
       expect(canonicalMeasurementsFrom).toHaveBeenCalledWith(
         expect.any(String),
         "90 days",
       );
+      // v1.18.10 P-7 — the `allTime` aggregate is now capped at a generous
+      // 15-year scan-DoS floor (far beyond any real history) so a
+      // coverage-miss cold read can't trigger an unbounded full-partition
+      // scan. It no longer calls the helper without an interval.
       expect(canonicalMeasurementsFrom).toHaveBeenCalledWith(
         expect.any(String),
+        "15 years",
       );
     });
   });

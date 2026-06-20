@@ -17,6 +17,7 @@ import {
   scaleGradedSeries,
   degradeStatusSnapshotToBudget,
 } from "@/lib/insights/graded-series";
+import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import {
   type SupportedLocale,
   normalizeLocale,
@@ -244,6 +245,17 @@ export async function prepareBmiStatusForUser(
       )
     : null;
 
+  // v1.18.10 (HIGH-4) — hand the model the finished recent-vs-baseline
+  // comparison + normal-swing verdict instead of asking it to derive them.
+  // BMI reads against the WHO healthy band; "target-band" framing.
+  const bmiSignal = buildMetricSignal({
+    metric: locale === "en" ? "your BMI" : "dein BMI",
+    direction: "target-band",
+    graded: bmiGraded,
+    normalRange: { low: 18.5, high: 24.9 },
+    newestDaysAgo: newestMeasurementDaysAgo,
+  });
+
   const snapshot = {
     locale,
     generatedForDay: todayKey,
@@ -254,6 +266,7 @@ export async function prepareBmiStatusForUser(
       newestMeasurementDaysAgo,
     },
     bmi: {
+      ...(bmiSignal ? { signal: bmiSignal } : {}),
       summary: summarizeSeries(
         bmiSeries.daily.map((bucket) => ({ value: bucket.value })),
       ),

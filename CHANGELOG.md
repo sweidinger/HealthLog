@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+## [1.18.10] — 2026-06-20 — data-loss fix, measurement consolidation, grounding, and the full-page Coach
+
+A correctness-and-polish release. It closes a silent data-loss path and a stalled measurement-consolidation job, hardens AI output grounding, and acts on a broad round of UI feedback. Two additive migrations (a covering index and a labs setting); no breaking changes.
+
+### Fixed
+
+- Editing one field of a cycle or condition-journal day entry no longer wipes an encrypted note that cannot be decrypted with the current key — the stored value is preserved untouched unless that field is explicitly changed.
+- The nightly consolidation of cumulative metrics (walking/running distance, flights climbed, active energy) no longer aborts on the first conflicting day, so raw per-sample history collapses to daily values as intended. A one-time compaction of the existing backlog runs after deploy.
+- The daily briefing refreshes when regenerated, and the home screen reflects a saved tile layout without a manual reload.
+- The Coach dictation button reports when speech input is unavailable instead of doing nothing.
+
+### Added
+
+- The Coach has a full-width page (no panel-within-a-panel), reachable conversation history, and a clean new-chat start.
+- Scan a lab report without a vision model: optional on-device OCR (off by default) reads the image in the browser and sends only the extracted text to the configured AI provider, then the same mandatory per-row review applies. The labs "Add" action now offers "scan a document" or "add a value manually".
+- Withings sleep now records heart rate, respiratory rate, blood oxygen, sleep HRV, and the sleep score (previously discarded at sync).
+- Oura VO2max is recorded, and the VO2max tile is shown on the dashboard by default.
+
+### Changed
+
+- Preventive-care cards show the cadence on the metric row rather than beside the heading, and the heading opens the measurement history filtered to that metric.
+- The danger zone and the daily-briefing card match the rest of the surface; the feedback tool is marked deprecated; the preventive-care and labs settings follow the standard section layout.
+- Lab values: delete moved to the value's detail view, the overview tags are quieter, and the reference-range confidence is surfaced when a new biomarker is created.
+- Location lookups default to the online resolver; the offline database is optional.
+- Mobile: the full-page Coach composer stays clear of the bottom navigation, long navigation labels stay readable, and touch targets meet 44 px.
+
+### Performance and integrity
+
+- Blood-pressure in-target and grade read identically whether served warm or cold (one canonical source per day).
+- A per-session statement timeout stops a single stuck query from holding a connection; a soft-delete-aware measurements index; the all-time fallback scan is bounded.
+
+### Security
+
+- Daily-briefing numbers are checked against the underlying signals; the Coach reply is screened for fabricated values or dose instructions; the period narrative is grounded before it is stored; the metric status cards state precomputed trends rather than re-deriving them.
+
+### API
+
+- The labs OCR capability response carries a `mode` (vision or text) and a new local-OCR preference; additional measurement types are recorded server-side. All additive and back-compatible.
+
 ## [1.18.9] — 2026-06-20 — Coach surface, lab-report scanning, and fresher dashboards
 
 A broad UI and data release. It adds two migrations (both additive and nullable — qualitative lab results and Coach token columns) and three additive, back-compatible API changes (see the note below).

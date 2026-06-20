@@ -170,12 +170,10 @@ describe("buildComprehensiveAggregate", () => {
         },
       ]);
 
-      // v1.4.38 W-F — sys + dia merged into a single `findMany`
-      // (`type: { in: [...] }`) → one mock call carrying both rows
-      // (empty here since the rollup-fresh fixture doesn't exercise
-      // the BP pairing). The aggregator partitions by type in JS so
-      // the bpRawRows.sys / .dia byte-shape is preserved.
-      FIND_MANY.mockResolvedValueOnce([]);
+      // v1.18.10 I-1 — bpRawRows now reads source-collapsed rows via
+      // `$queryRawUnsafe` (3rd UNSAFE call: narrow, latests, bpRaw). Empty
+      // here since the rollup-fresh fixture doesn't exercise BP pairing.
+      UNSAFE.mockResolvedValueOnce([]);
 
       const result = await buildComprehensiveAggregate("user-rollup-fresh");
       const weight = result.summaries.WEIGHT;
@@ -210,9 +208,10 @@ describe("buildComprehensiveAggregate", () => {
       // DISTINCT-ON latest moved to `$queryRawUnsafe` (2 calls). Neither
       // path runs the legacy heavy COUNT/MIN/MAX/AVG query.
       expect(RAW).toHaveBeenCalledTimes(2);
-      expect(UNSAFE).toHaveBeenCalledTimes(2);
-      // v1.4.38 W-F — sys + dia merged into a single round-trip.
-      expect(FIND_MANY).toHaveBeenCalledTimes(1);
+      // v1.18.10 I-1 — narrow + latests + bpRaw all run on `$queryRawUnsafe`.
+      expect(UNSAFE).toHaveBeenCalledTimes(3);
+      // bpRawRows no longer uses `measurement.findMany`.
+      expect(FIND_MANY).not.toHaveBeenCalled();
       expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(1);
     });
   });
@@ -226,9 +225,10 @@ describe("buildComprehensiveAggregate", () => {
       //         2. latests — empty.
       // No firstMeasurementAt query when totalMeasurements === 0.
       RAW.mockResolvedValueOnce([]);
-      UNSAFE.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
-      // v1.4.38 W-F — sys + dia merged into one `findMany`.
-      FIND_MANY.mockResolvedValueOnce([]);
+      // heavy, latests, bpRaw — all empty.
+      UNSAFE.mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
 
       const result = await buildComprehensiveAggregate("user-empty");
 
@@ -239,9 +239,9 @@ describe("buildComprehensiveAggregate", () => {
       expect(result.firstMeasurementAt).toBeNull();
       expect(result.totalMeasurements).toBe(0);
       expect(RAW).toHaveBeenCalledTimes(1);
-      expect(UNSAFE).toHaveBeenCalledTimes(2);
-      // v1.4.38 W-F — sys + dia merged → single findMany.
-      expect(FIND_MANY).toHaveBeenCalledTimes(1);
+      // v1.18.10 I-1 — heavy + latests + bpRaw all on `$queryRawUnsafe`.
+      expect(UNSAFE).toHaveBeenCalledTimes(3);
+      expect(FIND_MANY).not.toHaveBeenCalled();
       // The cold path's rollup.findMany still fires (in case some
       // buckets exist for a subset of types post-race), but returns [].
       expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(1);
@@ -280,11 +280,12 @@ describe("buildComprehensiveAggregate", () => {
           slope90: 0.001,
           r2_90: 0.12,
         },
-      ]).mockResolvedValueOnce([
-        { type: "WEIGHT", value: 81.4, measured_at: now },
-      ]);
-      // v1.4.38 W-F — sys + dia merged into one round-trip.
-      FIND_MANY.mockResolvedValueOnce([]);
+      ])
+        .mockResolvedValueOnce([
+          { type: "WEIGHT", value: 81.4, measured_at: now },
+        ])
+        // v1.18.10 I-1 — bpRaw (empty) is the 3rd UNSAFE call.
+        .mockResolvedValueOnce([]);
 
       const result = await buildComprehensiveAggregate("user-cold");
       const weight = result.summaries.WEIGHT;
@@ -352,23 +353,34 @@ describe("buildComprehensiveAggregate", () => {
         slope90: null,
         r2_90: null,
       },
-    ]).mockResolvedValueOnce([
-      {
-        type: "BLOOD_PRESSURE_SYS",
-        value: 120,
-        measured_at: measuredAt,
-      },
-    ]);
-    // v1.4.38 W-F — single merged `findMany` returning both sys + dia
-    // rows tagged by `type`. The aggregator partitions in JS, so the
-    // bpRawRows.sys / .dia shape stays byte-identical.
-    FIND_MANY.mockResolvedValueOnce([
-      { type: "BLOOD_PRESSURE_SYS", measuredAt, value: 120 },
-      { type: "BLOOD_PRESSURE_DIA", measuredAt, value: 80 },
-    ]);
+    ])
+      .mockResolvedValueOnce([
+        {
+          type: "BLOOD_PRESSURE_SYS",
+          value: 120,
+          measured_at: measuredAt,
+        },
+      ])
+      // v1.18.10 I-1 — bpRaw runs on `$queryRawUnsafe` through the
+      // source-collapsed canonical subquery. The query returns the
+      // already-collapsed sys + dia rows in raw SQL snake_case shape; the
+      // aggregator partitions by type in JS so the bpRawRows.sys / .dia
+      // byte-shape stays identical.
+      .mockResolvedValueOnce([
+        { type: "BLOOD_PRESSURE_SYS", measured_at: measuredAt, value: 120 },
+        { type: "BLOOD_PRESSURE_DIA", measured_at: measuredAt, value: 80 },
+      ]);
 
     const result = await buildComprehensiveAggregate("user-bp");
     expect(result.bpRawRows.sys).toEqual([{ measuredAt, value: 120 }]);
     expect(result.bpRawRows.dia).toEqual([{ measuredAt, value: 80 }]);
+    // The BP pull must route through the canonical-source subquery (the
+    // collapse fires in SQL); pin the marker so a revert to a plain findMany
+    // (double-counting overlapping sources) fails here.
+    const bpSql = UNSAFE.mock.calls
+      .map((c) => String(c[0]))
+      .find((sql) => sql.includes("BLOOD_PRESSURE_SYS"));
+    expect(bpSql).toContain("user_id");
+    expect(FIND_MANY).not.toHaveBeenCalled();
   });
 });

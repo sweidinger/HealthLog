@@ -10,10 +10,14 @@
  * `useModuleListPrefs("vorsorge")`; the toggles persist through the existing
  * reminder PATCH route.
  */
+import { ArrowUpDown, LayoutGrid, ListChecks } from "lucide-react";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
+import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { ModuleViewToggle } from "@/components/module-list/module-view-toggle";
 import {
   ModuleOrderEditor,
@@ -52,82 +56,89 @@ export function VorsorgeSettings() {
       : t("measurementReminders.selfPlanned"),
   }));
 
+  // v1.18.10 (W7) — the three Vorsorge settings groups adopt the shared
+  // `SettingsCard` + `SettingsCardHeader` contract (rounded-xl bordered
+  // surface, neutral muted icon, `text-lg` title, short muted description)
+  // so this surface reads like every other Settings section instead of bare
+  // `<section>` blocks with `text-sm` headings.
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">
-            {t("moduleList.viewHeading")}
-          </h2>
-          <ModuleViewToggle view={prefs.view} onChange={setView} />
-        </div>
-        <p className="text-muted-foreground text-sm">
-          {t("moduleList.viewDescription")}
-        </p>
-      </section>
+    <div className="space-y-6">
+      <SettingsCard>
+        <SettingsCardHeader
+          icon={LayoutGrid}
+          title={t("moduleList.viewHeading")}
+          description={t("moduleList.viewDescription")}
+          status={<ModuleViewToggle view={prefs.view} onChange={setView} />}
+        />
+      </SettingsCard>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold">
-          {t("moduleList.reorder.heading")}
-        </h2>
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }, (_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        ) : (
-          <ModuleOrderEditor items={reorderItems} onChange={setOrder} />
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold">
-          {t("measurementReminders.manage.title")}
-        </h2>
-        <p className="text-muted-foreground text-sm">
-          {t("measurementReminders.manage.description")}
-        </p>
-        {isLoading ? (
-          <Skeleton className="h-24 w-full" />
-        ) : (reminders?.length ?? 0) === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("measurementReminders.manage.empty")}
-          </p>
-        ) : (
-          <Card>
-            <CardContent className="divide-border divide-y p-0">
-              {ordered.map((reminder) => (
-                <div
-                  key={reminder.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3"
-                >
-                  <span
-                    id={`vorsorge-reminder-label-${reminder.id}`}
-                    className="min-w-0 truncate text-sm"
-                  >
-                    {resolveLabel(reminder, t)}
-                  </span>
-                  <Switch
-                    checked={reminder.enabled}
-                    onCheckedChange={(next) =>
-                      update.mutate({
-                        id: reminder.id,
-                        body: { enabled: next },
-                      })
-                    }
-                    disabled={update.isPending}
-                    // L3 — label each row's Switch by its own name span so SR
-                    // users hear the reminder name (plus the switch role's
-                    // on/off state) instead of N identical generic labels.
-                    aria-labelledby={`vorsorge-reminder-label-${reminder.id}`}
-                  />
-                </div>
+      <SettingsCard>
+        <SettingsCardHeader
+          icon={ArrowUpDown}
+          title={t("moduleList.reorder.heading")}
+          description={t("moduleList.reorder.description")}
+        />
+        <div className="mt-4 pl-7">
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }, (_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
-            </CardContent>
-          </Card>
-        )}
-      </section>
+            </div>
+          ) : (
+            <ModuleOrderEditor items={reorderItems} onChange={setOrder} />
+          )}
+        </div>
+      </SettingsCard>
+
+      <SettingsCard>
+        <SettingsCardHeader
+          icon={ListChecks}
+          title={t("measurementReminders.manage.title")}
+          description={t("measurementReminders.manage.description")}
+        />
+        <div className="mt-4 pl-7">
+          {isLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : (reminders?.length ?? 0) === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              {t("measurementReminders.manage.empty")}
+            </p>
+          ) : (
+            <Card>
+              <CardContent className="divide-border divide-y p-0">
+                {ordered.map((reminder) => (
+                  <div
+                    key={reminder.id}
+                    className="flex items-center justify-between gap-3 px-4 py-3"
+                  >
+                    <span
+                      id={`vorsorge-reminder-label-${reminder.id}`}
+                      className="min-w-0 truncate text-sm"
+                    >
+                      {resolveLabel(reminder, t)}
+                    </span>
+                    <Switch
+                      checked={reminder.enabled}
+                      onCheckedChange={(next) =>
+                        update.mutate({
+                          id: reminder.id,
+                          body: { enabled: next },
+                        })
+                      }
+                      disabled={update.isPending}
+                      // L3 — label each row's Switch by its own name span so SR
+                      // users hear the reminder name (plus the switch role's
+                      // on/off state) instead of N identical generic labels.
+                      aria-labelledby={`vorsorge-reminder-label-${reminder.id}`}
+                    />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </SettingsCard>
     </div>
   );
 }

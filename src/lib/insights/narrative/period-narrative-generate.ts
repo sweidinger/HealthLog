@@ -41,6 +41,10 @@ import {
   DETERMINISTIC_PROVIDER_TYPE,
 } from "@/lib/insights/narrative/period-narrative-deterministic";
 import { composeSharedContracts } from "@/lib/ai/prompts/shared-contracts";
+import {
+  validateNarrativeText,
+  buildNarrativeCorrection,
+} from "@/lib/insights/narrative/narrative-grounding";
 
 /**
  * Stable identifier for the narrative prompt revision. Bumped whenever the
@@ -350,10 +354,61 @@ export async function generatePeriodNarrative(
     return { status: "generated", providerType: DETERMINISTIC_PROVIDER_TYPE };
   }
 
-  const text = completion.content.trim();
+  let text = completion.content.trim();
   if (text.length === 0) {
     return { status: "failed", reason: "empty" };
   }
+
+  // v1.18.10 (HIGH-3) — grounding gate on the AI prose, matching the rejecting
+  // gate Comprehensive Insights already has. Flag causal phrasing and any
+  // number absent from the context; on a trip, retry ONCE with a corrective
+  // suffix, then fall back to writing NOTHING (last good row stays) rather than
+  // persisting an ungrounded or causal story.
+  let findings = validateNarrativeText(text, context);
+  if (findings.length > 0) {
+    annotate({
+      action: { name: "insights.narrative.grounding_retry" },
+      meta: {
+        period,
+        locale,
+        causal: findings.some((f) => f.reason === "causal_language"),
+        ungroundedNumbers: findings.filter(
+          (f) => f.reason === "ungrounded_number",
+        ).length,
+      },
+    });
+    const retry = await runCompletion({
+      userId,
+      cacheAction: `insights.narrative.${period}.${locale}`,
+      consentSurface: "insights",
+      systemPrompt: locale === "de" ? SYSTEM_PROMPT_DE : SYSTEM_PROMPT_EN,
+      userPrompt:
+        buildNarrativeUserPrompt(context, locale) +
+        buildNarrativeCorrection(findings, locale),
+      temperature: AI_BUDGETS.narrative.temperature,
+      maxTokens: AI_BUDGETS.narrative.maxTokens,
+      seed: REFERENCE_AI_SEED,
+      responseFormat: "text",
+    });
+    if (retry.kind === "ok") {
+      const retryText = retry.content.trim();
+      const retryFindings = validateNarrativeText(retryText, context);
+      if (retryText.length > 0 && retryFindings.length === 0) {
+        text = retryText;
+        findings = [];
+      } else {
+        findings = retryFindings;
+      }
+    }
+    if (findings.length > 0) {
+      annotate({
+        action: { name: "insights.narrative.grounding_rejected" },
+        meta: { period, locale },
+      });
+      return { status: "failed", reason: "ungrounded" };
+    }
+  }
+
   await persist(text, completion.providerType);
   return { status: "generated", providerType: completion.providerType };
 }

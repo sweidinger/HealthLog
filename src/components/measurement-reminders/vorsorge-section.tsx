@@ -770,11 +770,19 @@ function VorsorgeCard({
     ? t(`measurementReminders.types.${reminder.measurementType}`)
     : t("measurementReminders.selfPlanned");
 
-  // v1.18.6.1 — the cadence renders as a chip DIRECTLY to the right of the
-  // metric name (the med-card convention: cadence sits next to the name).
-  const cadenceChip = cadence ? (
-    <Badge variant="secondary">{cadence}</Badge>
-  ) : null;
+  // v1.18.10 — the cadence reads as part of the METRIC ROW (the category
+  // line), styled like the metric label itself — same muted weight/colour,
+  // no shaded pill. The card heading stays clean (nothing beside it); the
+  // cadence rides next to "Blutdruck" et al. via `metricMeta` below.
+  const cadenceText = cadence || null;
+
+  // v1.18.10 — a measurement-linked reminder's heading links to the
+  // measurements history pre-filtered to its type (the same target the
+  // "Messergebnisse anzeigen" kebab item uses). A free-text reminder has no
+  // readings to show, so it stays a plain (non-linking) heading.
+  const measurementsHref = isLinked
+    ? `/measurements?type=${encodeURIComponent(reminder.measurementType as string)}`
+    : undefined;
 
   // Provenance / disabled state badges keep their own row below the category.
   // Omit the row entirely when neither applies (don't render an empty band).
@@ -900,13 +908,15 @@ function VorsorgeCard({
                 <span className="truncate font-medium">
                   {resolveReminderLabel(reminder, t)}
                 </span>
-                {cadenceChip}
               </div>
+              {/* v1.18.10 — cadence rides on the metric line, styled like the
+                  metric text (no shaded pill). */}
               <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                 <span className="text-foreground">
                   {t(`measurementReminders.${due.key}`, { days: due.days })}
                 </span>
                 <span>{categoryLabel}</span>
+                {cadenceText ? <span>{cadenceText}</span> : null}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -991,7 +1001,13 @@ function VorsorgeCard({
           name={resolveReminderLabel(reminder, t)}
           dose=""
           categoryLabel={categoryLabel}
-          nameChip={cadenceChip}
+          metricMeta={cadenceText}
+          href={measurementsHref}
+          linkLabel={
+            measurementsHref
+              ? t("measurementReminders.showMeasurements")
+              : undefined
+          }
           stateBadges={stateBadges}
           actions={headerActions}
         />
