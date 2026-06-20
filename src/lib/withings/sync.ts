@@ -29,6 +29,7 @@ import {
   recomputeBucketsForMeasurement,
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+import { invalidateUserDashboardSnapshot } from "@/lib/cache/invalidate";
 
 /**
  * Build the callback URL handed to Withings at `Notify.subscribe` time.
@@ -264,6 +265,15 @@ export async function syncUserMeasurements(
         `withings: status-insight invalidate failed for ${userId}: ${err}`,
       );
     });
+
+    // v1.18.9 (#38) — hard-evict the dashboard snapshot so a focus-refetch
+    // after this server-side sync returns the freshly-imported readings.
+    // The server-side Withings path produces no client mutation event, so
+    // without this the snapshot's `cachedSwr` entry kept serving the
+    // pre-sync body until its ~180 s TTL lapsed.
+    if (keys.length > 0) {
+      invalidateUserDashboardSnapshot(userId);
+    }
   } catch (err) {
     getEvent()?.addWarning(
       `withings: rollup recompute failed for ${userId}: ${err}`,
