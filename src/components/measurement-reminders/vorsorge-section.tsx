@@ -40,6 +40,7 @@ import {
 
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { relativeCalendarDate } from "@/lib/i18n/relative-time";
+import { startOfLocalDayInTz } from "@/lib/tz/local-day";
 import { cn } from "@/lib/utils";
 import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
@@ -124,9 +125,17 @@ function relativeDueKey(
   now: number,
 ): { key: string; days: number } {
   if (!nextDueAt) return { key: "nextDue.none", days: 0 };
-  const due = new Date(nextDueAt).getTime();
-  // Compare calendar-day deltas so "today" / "in 1 day" read cleanly.
-  const deltaDays = Math.round((due - now) / DAY_MS);
+  const due = new Date(nextDueAt);
+  if (Number.isNaN(due.getTime())) return { key: "nextDue.none", days: 0 };
+  // v1.18.9 (recon) — compare CALENDAR-day deltas in the user's local zone,
+  // not a rolling-24h delta. A reminder due at 09:00 viewed the same evening
+  // at 20:00 must still read "heute", and one whose due calendar-day is before
+  // today must read "überfällig" — a raw `(due - now) / DAY_MS` round would
+  // mis-bucket both. Floor each instant to its local day start (host-local zone
+  // = the browser user's zone for this client component) before differencing.
+  const dueDay = startOfLocalDayInTz(due, undefined).getTime();
+  const nowDay = startOfLocalDayInTz(new Date(now), undefined).getTime();
+  const deltaDays = Math.round((dueDay - nowDay) / DAY_MS);
   if (deltaDays < 0) return { key: "overdueByDays", days: Math.abs(deltaDays) };
   if (deltaDays === 0) return { key: "nextDue.today", days: 0 };
   if (deltaDays === 1) return { key: "nextDue.tomorrow", days: 1 };
