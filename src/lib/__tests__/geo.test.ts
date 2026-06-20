@@ -1,11 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+// v1.18.11 (W3): capture wide-event warnings so the non-ok-status path can
+// be asserted. `getEvent()` returns null outside a request context, so
+// without this mock the `getEvent()?.addWarning(...)` call is a silent
+// no-op and there is nothing to assert against.
+const addWarningSpy = vi.fn();
+vi.mock("@/lib/logging/context", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/logging/context")>();
+  return {
+    ...actual,
+    getEvent: () => ({ addWarning: addWarningSpy }),
+  };
+});
+
 const ORIGINAL_ENV = { ...process.env };
 
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
   delete process.env.IP_GEO_LOOKUP_URL;
   delete process.env.IP_GEO_LOOKUP_DISABLED;
+  addWarningSpy.mockClear();
   vi.resetModules();
 });
 
@@ -55,11 +69,14 @@ describe("lookupIpLocation IP-geolocation HTTPS guard", () => {
     );
   }
 
-  it("uses HTTPS by default (ipwho.is)", async () => {
+  it("uses the ip-api.com HTTPS endpoint by default", async () => {
+    // v1.18.11 (W3): default provider is ip-api.com (ipwho.is 403s on
+    // datacentre egress). The wire URL must be the ip-api.com JSON path
+    // and the parser must accept its `status`/`countryCode` shape.
     const fetchSpy = vi
       .fn()
       .mockResolvedValue(
-        jsonOk({ success: true, city: "Berlin", country_code: "DE" }),
+        jsonOk({ status: "success", city: "Berlin", countryCode: "DE" }),
       );
     vi.stubGlobal("fetch", fetchSpy);
     const { lookupIpLocation } = await import("../geo");
@@ -67,6 +84,7 @@ describe("lookupIpLocation IP-geolocation HTTPS guard", () => {
     expect(await lookupIpLocation("8.8.8.8")).toBe("Berlin, DE");
     const url = fetchSpy.mock.calls[0]?.[0] as string;
     expect(url.startsWith("https://")).toBe(true);
+    expect(url).toBe("https://ip-api.com/json/8.8.8.8");
   });
 
   it("refuses to call non-HTTPS configured providers", async () => {
@@ -101,6 +119,51 @@ describe("lookupIpLocation IP-geolocation HTTPS guard", () => {
     const { lookupIpLocation } = await import("../geo");
 
     expect(await lookupIpLocation("8.8.8.8")).toBe("Hamburg, DE");
+  });
+});
+
+// v1.18.11 (W3): a non-ok HTTP status (403 free-plan/CORS rejection, 429
+// rate-limit, 5xx) must surface a wide-event warning instead of being
+// swallowed as a clean miss. The ipwho.is 403 that produced the prod "—"
+// never emitted a single signal; this guards against that regression.
+describe("lookupIpLocation non-ok status warning (v1.18.11 W3)", () => {
+  function nonOk(status: number): Response {
+    return new Response("", {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  for (const status of [403, 429, 503]) {
+    it(`returns null and warns on HTTP ${status}`, async () => {
+      const fetchSpy = vi.fn().mockResolvedValue(nonOk(status));
+      vi.stubGlobal("fetch", fetchSpy);
+      const { lookupIpLocation } = await import("../geo");
+
+      expect(await lookupIpLocation("8.8.8.8")).toBeNull();
+      expect(addWarningSpy).toHaveBeenCalledTimes(1);
+      expect(addWarningSpy.mock.calls[0]?.[0]).toContain(String(status));
+    });
+  }
+
+  it("does not warn on a clean 200 success", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(
+        new TextEncoder().encode(
+          JSON.stringify({
+            status: "success",
+            city: "Berlin",
+            countryCode: "DE",
+          }),
+        ).buffer as ArrayBuffer,
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpLocation } = await import("../geo");
+
+    expect(await lookupIpLocation("8.8.8.8")).toBe("Berlin, DE");
+    expect(addWarningSpy).not.toHaveBeenCalled();
   });
 });
 

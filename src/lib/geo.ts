@@ -30,11 +30,14 @@
  * skip the offline tier — local dev without the MMDBs still works and
  * falls straight back to the online provider.
  *
- * Default provider for the online lookup is ipwho.is (HTTPS, free,
- * no key). Both the response shape from ipwho.is and the fallback
- * ip-api.com pro endpoint are accepted, so swapping providers via
- * `IP_GEO_LOOKUP_URL` only requires matching one of those response
- * shapes.
+ * Default provider for the online lookup is ip-api.com (HTTPS JSON
+ * endpoint). ipwho.is was the v1.18.10 default but rejects datacentre /
+ * free-plan server egress with a 403, so it never resolved on prod. Both
+ * the ipwho.is shape (`success`/`country_code`) and the ip-api.com shape
+ * (`status`/`countryCode`) are accepted, so swapping providers via
+ * `IP_GEO_LOOKUP_URL` only requires matching one of those response shapes.
+ * A non-ok HTTP status (403/429/5xx) is surfaced on the wide event rather
+ * than swallowed, so a future provider rejection is visible.
  *
  * Setting `IP_GEO_LOOKUP_DISABLED=1` disables the online lookup
  * entirely — used by deployments that do not want any IP egress to a
@@ -87,7 +90,16 @@ type GeoResponse = IpwhoIsResponse & IpApiProResponse;
 const PRIVATE_IP =
   /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1|fc|fd|fe80|localhost|unknown)/;
 
-const DEFAULT_GEO_URL = "https://ipwho.is";
+// v1.18.11 (W3) — the default online provider is ip-api.com, not ipwho.is.
+// ipwho.is rejects datacentre / free-plan server egress with a 403
+// ("CORS is not supported on the Free plan"), which silently produced the
+// "—" location on prod (every server-side lookup failed). The base is
+// `https://ip-api.com/json`; `buildLookupUrl` appends `/<ip>` so the wire
+// URL is `https://ip-api.com/json/<ip>`. The parser already accepts the
+// ip-api.com shape (`status:"success"` + `countryCode`). Operators who need
+// a different / keyed provider override via `IP_GEO_LOOKUP_URL`; the HTTPS
+// egress guard in `buildLookupUrl` still applies to any override.
+const DEFAULT_GEO_URL = "https://ip-api.com/json";
 
 function geoLiteDir(): string {
   return process.env.GEOLITE2_DIR ?? "/opt/geolite2";
@@ -341,7 +353,19 @@ async function lookupIpLocationOnline(ip: string): Promise<string | null> {
       // resolves null and drops the location (the "—" symptom on apps01).
       { timeoutMs: 2_500, requirePublicHost: true },
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // v1.18.11 (W3) — a non-ok response (403 free-plan/CORS rejection,
+      // 429 rate-limit, 5xx) is not a clean "this IP has no location": it is
+      // a provider-level failure that, left silent, renders as "—" with no
+      // signal anywhere. Surface it on the wide event so the next provider
+      // rejection is visible instead of swallowed (the ipwho.is 403 that
+      // caused the prod "—" never produced a single log line). Still return
+      // null so the offline fallback / negative-cache path runs unchanged.
+      getEvent()?.addWarning(
+        `geo: online lookup returned HTTP ${res.status} — location not resolved`,
+      );
+      return null;
+    }
 
     const data = (await readUtf8Json(res)) as GeoResponse;
     const ok =
