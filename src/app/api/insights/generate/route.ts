@@ -257,12 +257,22 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const isFresh =
     cachedAt !== null && Date.now() - cachedAt.getTime() < BRIEFING_FRESH_MS;
 
+  // v1.18.9 (#4) — resolve provider availability once, up front. The
+  // read path never blocks on or generates through the provider, but it
+  // must REPORT whether one exists: a provider-less account's cached
+  // briefing freezes at the last successful generation (the pregenerate
+  // cron can't refill it), and the UI presented that stale text as
+  // current. Surfacing `hasProvider: false` lets the insights surfaces
+  // pair the honest "Stand: vor X Tagen" age with a discreet
+  // connect-an-AI-provider hint instead of implying the read is live.
+  const hasProvider = await hasUsableStatusProvider(userId);
+
   // Read-only: never block on the provider. Warm out of band only when the
   // cached briefing is stale / missing AND a provider is configured (a
   // provider-less account costs one cheap chain-resolve and shows the
   // empty / connect-AI state instead of a wasted enqueue).
   let revalidating = false;
-  if (!isFresh && (await hasUsableStatusProvider(userId))) {
+  if (!isFresh && hasProvider) {
     // Resolve the locale the caller is actually reading (cookie /
     // Accept-Language fall-back when `User.locale` is unset) and narrow
     // non-German to English — the same convention the nightly's
@@ -285,7 +295,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       const legacyPayload = isLegacyInsightPayload(cached);
       annotate({
         action: { name: "insights.generate.read" },
-        meta: { cached: true, legacyPayload, revalidating },
+        meta: { cached: true, legacyPayload, revalidating, hasProvider },
       });
       return apiSuccess({
         insights: cached,
@@ -297,6 +307,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
         // briefing lands instead of sitting on the stale payload for the
         // rest of the session.
         revalidating,
+        // v1.18.9 (#4) — false when no AI provider is configured anywhere:
+        // the served briefing can never refresh, so the UI pairs its age
+        // with a connect-provider affordance.
+        hasProvider,
       });
     } catch {
       // Invalid cache row — fall through to the empty payload below. The
@@ -307,13 +321,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   annotate({
     action: { name: "insights.generate.read" },
-    meta: { cached: false, revalidating },
+    meta: { cached: false, revalidating, hasProvider },
   });
   return apiSuccess({
     insights: null,
     cached: false,
     legacyPayload: false,
     revalidating,
+    // v1.18.9 (#4) — see the cached branch above.
+    hasProvider,
   });
 });
 

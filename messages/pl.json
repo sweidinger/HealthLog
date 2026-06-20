@@ -2010,7 +2010,8 @@
       "loadingLabel": "Przygotowanie briefingu",
       "noProviderTitle": "Brak połączonego dostawcy AI",
       "noProviderDescription": "Codzienny briefing podsumowuje Twoje pomiary prostym językiem. HealthLog potrzebuje do tego dostawcy AI — użyj własnego klucza (OpenAI, Anthropic) lub modelu lokalnego. Twoje dane pozostają u Ciebie.",
-      "noProviderAction": "Otwórz ustawienia AI"
+      "noProviderAction": "Otwórz ustawienia AI",
+      "staleNoProviderHint": "Tego briefingu nie można odświeżyć — nie połączono żadnego dostawcy AI."
     },
     "trendsRow": {
       "title": "Trendy",

@@ -2010,7 +2010,8 @@
       "loadingLabel": "Preparando el resumen",
       "noProviderTitle": "Ningún proveedor de IA conectado",
       "noProviderDescription": "El briefing diario resume tus lecturas en lenguaje claro. HealthLog necesita un proveedor de IA para ello: usa tu propia clave (OpenAI, Anthropic) o un modelo local. Tus datos siguen siendo tuyos.",
-      "noProviderAction": "Abrir ajustes de IA"
+      "noProviderAction": "Abrir ajustes de IA",
+      "staleNoProviderHint": "Este briefing no puede actualizarse: no hay ningún proveedor de IA conectado."
     },
     "trendsRow": {
       "title": "Tendencias",
