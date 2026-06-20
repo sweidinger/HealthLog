@@ -1,0 +1,135 @@
+/**
+ * v1.18.9 — POST /api/labs/ocr/commit.
+ *
+ * Focus: dedup correctness. A row that duplicates a live reading is skipped,
+ * and — the regression this guards — two identical rows inside ONE confirmed
+ * document collapse to a single write even though neither is yet visible to a
+ * live query. The in-memory seen-set makes in-batch dedup independent of DB
+ * visibility, rather than relying on the prior row autocommitting first.
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    labResult: {
+      findMany: vi.fn(),
+      create: vi.fn(),
+    },
+    auditLog: { create: vi.fn() },
+  },
+}));
+
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/auth/audit", () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/idempotency", () => ({
+  withIdempotency:
+    <Args extends unknown[]>(fn: (...args: Args) => Promise<Response>) =>
+    (...args: Args) =>
+      fn(...args),
+}));
+vi.mock("@/lib/jobs/reminder-satisfy", () => ({
+  enqueueReminderSatisfy: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/labs/biomarker-store", () => ({
+  resolveOrMintBiomarker: vi.fn(),
+}));
+vi.mock("@/lib/labs/serialise", () => ({
+  serialiseLabResult: (created: { id: string }) => ({ id: created.id }),
+}));
+vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => ({ get: () => null })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
+}));
+
+import { POST } from "../route";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth/session";
+import { resolveOrMintBiomarker } from "@/lib/labs/biomarker-store";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
+
+const SESSION_OK = {
+  session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
+  user: { id: "user-1", username: "tester", role: "USER" as const },
+};
+
+const TAKEN_AT = "2026-06-10T08:00:00.000Z";
+
+function numericRow(value: number) {
+  return {
+    analyte: "Glucose",
+    value,
+    unit: "mg/dL",
+    takenAt: TAKEN_AT,
+  };
+}
+
+function postReq(body: unknown): NextRequest {
+  return new NextRequest("http://localhost/api/labs/ocr/commit", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  vi.mocked(enqueueReminderSatisfy).mockResolvedValue(undefined as never);
+  vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
+  // No live reading collides at commit time — the in-batch path is what's
+  // under test, so the DB-visibility check returns empty for every row.
+  vi.mocked(prisma.labResult.findMany).mockResolvedValue([] as never);
+  let nextId = 0;
+  vi.mocked(prisma.labResult.create).mockImplementation((() =>
+    Promise.resolve({ id: `lr-${++nextId}` })) as never);
+  vi.mocked(resolveOrMintBiomarker).mockResolvedValue({
+    id: "bm-1",
+    name: "Glucose",
+    unit: "mg/dL",
+    panel: null,
+    lowerBound: null,
+    upperBound: null,
+  } as never);
+});
+
+describe("POST /api/labs/ocr/commit dedup", () => {
+  it("collapses identical in-document rows to a single write", async () => {
+    const res = await POST(postReq({ rows: [numericRow(95), numericRow(95)] }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { inserted: unknown[]; skipped: Array<{ reason: string }> };
+    };
+
+    // Only the first row writes; the second is skipped as an in-batch
+    // duplicate even though the first never became visible to a live query.
+    expect(prisma.labResult.create).toHaveBeenCalledTimes(1);
+    expect(body.data.inserted).toHaveLength(1);
+    expect(body.data.skipped).toEqual([
+      { analyte: "Glucose", reason: "duplicate" },
+    ]);
+  });
+
+  it("writes distinct values for the same analyte and day", async () => {
+    const res = await POST(
+      postReq({ rows: [numericRow(95), numericRow(110)] }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { inserted: unknown[]; skipped: unknown[] };
+    };
+    expect(prisma.labResult.create).toHaveBeenCalledTimes(2);
+    expect(body.data.inserted).toHaveLength(2);
+    expect(body.data.skipped).toHaveLength(0);
+  });
+});
