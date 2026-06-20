@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   OURA_OAUTH_SCOPE,
   exchangeCode,
+  fetchCardiovascularAge,
   fetchReadiness,
   fetchVo2Max,
   getAuthorizationUrl,
   getOuraCredentials,
+  mapCardiovascularAge,
   mapDailyActivity,
   mapDailySleep,
   mapDailySpo2,
@@ -14,6 +16,7 @@ import {
   mapSleep,
   mapVo2Max,
   refreshAccessToken,
+  type OuraCardiovascularAge,
   type OuraDailyActivity,
   type OuraDailySleep,
   type OuraDailySpo2,
@@ -350,6 +353,49 @@ describe("mapVo2Max", () => {
     expect(mapVo2Max({ id: "1", day: "2026-06-10", vo2_max: null })).toEqual(
       [],
     );
+  });
+});
+
+describe("fetchCardiovascularAge", () => {
+  it("reads the daily_cardiovascular_age collection path", async () => {
+    const fetchMock = installFetchMock([
+      {
+        status: 200,
+        body: {
+          data: [{ id: "1", day: "2026-06-10", vascular_age: 39 }],
+          next_token: null,
+        },
+      },
+    ]);
+    const r = await fetchCardiovascularAge("tok", {
+      startDate: "2026-06-01",
+      endDate: "2026-06-10",
+    });
+    expect(r).toHaveLength(1);
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url).toContain("/v2/usercollection/daily_cardiovascular_age");
+  });
+});
+
+describe("mapCardiovascularAge", () => {
+  it("maps vascular_age -> VASCULAR_AGE (years)", () => {
+    const c: OuraCardiovascularAge = { day: "2026-06-10", vascular_age: 39 };
+    const mapped = mapCardiovascularAge(c);
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0]).toMatchObject({
+      type: "VASCULAR_AGE",
+      value: 39,
+      unit: "years",
+      fieldTag: "vascular_age",
+    });
+  });
+  it("skips a record with no positive value", () => {
+    expect(
+      mapCardiovascularAge({ day: "2026-06-10", vascular_age: 0 }),
+    ).toEqual([]);
+    expect(
+      mapCardiovascularAge({ day: "2026-06-10", vascular_age: null }),
+    ).toEqual([]);
   });
 });
 

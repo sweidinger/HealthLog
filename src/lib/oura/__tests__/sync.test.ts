@@ -10,6 +10,7 @@ const {
   fetchDailySleepMock,
   fetchSpo2Mock,
   fetchVo2MaxMock,
+  fetchCardioAgeMock,
   refreshMock,
   upsertMock,
   recordSuccessMock,
@@ -26,6 +27,7 @@ const {
   fetchDailySleepMock: vi.fn(),
   fetchSpo2Mock: vi.fn(),
   fetchVo2MaxMock: vi.fn(),
+  fetchCardioAgeMock: vi.fn(),
   refreshMock: vi.fn(),
   upsertMock: vi.fn(),
   recordSuccessMock: vi.fn(),
@@ -70,6 +72,7 @@ vi.mock("../client", async (importOriginal) => {
     fetchDailySleep: fetchDailySleepMock,
     fetchDailySpo2: fetchSpo2Mock,
     fetchVo2Max: fetchVo2MaxMock,
+    fetchCardiovascularAge: fetchCardioAgeMock,
     refreshAccessToken: refreshMock,
   };
 });
@@ -91,6 +94,7 @@ beforeEach(() => {
   fetchDailySleepMock.mockReset().mockResolvedValue([]);
   fetchSpo2Mock.mockReset().mockResolvedValue([]);
   fetchVo2MaxMock.mockReset().mockResolvedValue([]);
+  fetchCardioAgeMock.mockReset().mockResolvedValue([]);
   refreshMock.mockReset();
   upsertMock.mockReset().mockResolvedValue({});
   recordSuccessMock.mockReset().mockResolvedValue(undefined);
