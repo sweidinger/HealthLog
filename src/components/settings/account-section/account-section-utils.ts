@@ -1,0 +1,58 @@
+import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
+
+/**
+ * v1.4.37 — silent browser-zone auto-seed for the timezone picker.
+ *
+ * Until v1.4.37 the picker carried a "Browser-Zeitzone übernehmen" /
+ * "Use browser timezone" button so the user could overwrite the
+ * Europe/Berlin seed with their detected zone on demand. The button
+ * was visually noisy next to the picker on mobile and almost every
+ * user wants the browser zone anyway, so the affordance retired and
+ * the bootstrap effect seeds the form for them.
+ *
+ * Rules:
+ *
+ *   - If the stored value is anything other than the Europe/Berlin
+ *     default, respect it. The user explicitly picked it.
+ *   - If the stored value is the Europe/Berlin default but the
+ *     browser actually IS in Berlin, leave it alone — the picker
+ *     stays on Berlin and the next save is a no-op.
+ *   - If the stored value is the default AND the browser reports a
+ *     non-Berlin zone, pre-fill the picker with the detected zone.
+ *     The form's existing submit handler persists the change on the
+ *     next save; no toast, no banner, no opt-in.
+ *
+ * The bootstrap deliberately runs inline during render (the strict
+ * `react-hooks/set-state-in-effect` rule outlaws setState in an
+ * effect for this hydration shape), so this helper has to stay
+ * pure — no DOM access, no `useState`. The detected browser zone is
+ * passed in by the caller via `detectBrowserTimezone()`.
+ */
+export function resolveInitialTimezone(
+  storedTimezone: string | null | undefined,
+  detectedBrowserTimezone: string,
+): string {
+  const stored = storedTimezone || DEFAULT_TIMEZONE;
+  const shouldAutoSeed =
+    stored === DEFAULT_TIMEZONE &&
+    detectedBrowserTimezone.length > 0 &&
+    detectedBrowserTimezone !== DEFAULT_TIMEZONE;
+  return shouldAutoSeed ? detectedBrowserTimezone : stored;
+}
+
+/**
+ * v1.16.4 — settings status hints store the i18n KEY (+ params), not
+ * the translated string: a locale switch re-renders the hint in the
+ * new language instead of freezing the old-language snapshot. Server-
+ * provided error text (which has no key) rides `text` verbatim.
+ */
+export type StatusMessage =
+  | { key: string; params?: Record<string, string | number> }
+  | { text: string };
+
+export function statusText(
+  msg: StatusMessage,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  return "key" in msg ? t(msg.key, msg.params) : msg.text;
+}
