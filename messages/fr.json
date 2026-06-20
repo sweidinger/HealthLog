@@ -6491,6 +6491,10 @@
     "deleteError": "Impossible de supprimer le résultat",
     "loadError": "Impossible de charger les résultats",
     "customize": "Personnaliser les analyses",
+    "localOcr": {
+      "heading": "Lire les scans sur cet appareil",
+      "description": "Permet de scanner un compte rendu de laboratoire même si votre fournisseur d'IA ne peut pas lire les images : la photo est lue sur votre appareil et seul le texte extrait est envoyé à votre fournisseur. Moins précis — vérifiez chaque valeur avant d'enregistrer."
+    },
     "sort": {
       "heading": "Tri",
       "label": "Ordre des valeurs",
@@ -6642,10 +6646,16 @@
     "showingLatestOf": "Affichage des {shown} derniers résultats sur {total}",
     "ocr": {
       "scanButton": "Scanner un compte rendu",
+      "addScan": "Scanner un document",
+      "addManual": "Ajouter une valeur manuellement",
       "uploadHint": "Importez une photo ou un PDF d'un compte rendu de laboratoire",
       "acceptWithPdf": "JPEG, PNG, WebP ou PDF",
       "acceptImageOnly": "JPEG, PNG ou WebP",
       "extracting": "Lecture de votre compte rendu…",
+      "readingOnDevice": "Lecture sur votre appareil…",
+      "localModeHint": "Lu sur votre appareil, puis envoyé sous forme de texte. Moins précis — vérifiez chaque valeur.",
+      "rangeFromScan": "Valeurs de référence issues du scan",
+      "rangeVerify": "Vérifiez les valeurs de référence",
       "reviewTitle": "Vérifier avant d'enregistrer",
       "reviewHint": "Vérifiez chaque valeur, puis enregistrez celles à conserver.",
       "foundCount": "{count} valeurs trouvées",

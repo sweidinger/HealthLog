@@ -28,13 +28,16 @@ ocrCommitSchema.meta({
 const capabilityResponse = z
   .object({
     available: z.boolean(),
-    reason: z.enum(["no-provider", "text-only-model"]).nullable(),
+    mode: z.enum(["vision", "text"]).nullable(),
+    reason: z
+      .enum(["no-provider", "text-only-model", "enable-local-ocr"])
+      .nullable(),
     pdfSupported: z.boolean(),
   })
   .meta({
     id: "OcrCapabilityResponse",
     description:
-      "Whether the caller's configured AI provider can read images (drives the UI's scan affordance). `reason` explains an unavailable state; `pdfSupported` is true only for an Anthropic vision provider (native PDF). No provider call is made.",
+      "Whether the caller's configured AI provider can ingest a lab report (drives the UI's scan affordance). `mode` is `vision` when the provider reads the image directly, `text` when the image is OCR'd in-browser and only the extracted text is sent (opt-in local OCR for text-only providers), or null when unavailable. `reason` explains an unavailable state; `pdfSupported` is true only for an Anthropic vision provider (native PDF). No provider call is made.",
   });
 
 const extractConfidence = z.object({
@@ -134,9 +137,9 @@ export const ocrPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/labs/ocr/extract": {
     post: {
       tags: ["Labs"],
-      summary: "Extract lab readings from a photo or PDF",
+      summary: "Extract lab readings from a photo, PDF, or OCR'd text",
       description:
-        "Read-only (NOT idempotent) vision extraction. Accepts a multipart `file` (JPEG/PNG/WebP, or PDF on an Anthropic vision provider; ≤ 12 MiB). Gated by AI consent, a 6/hour rate bucket, and the per-day token budget. The raw upload lives in memory only and is never persisted or logged. Returns proposed rows for the mandatory human review screen — nothing is written. Extracted text is treated as untrusted (prompt-injection); the review step is the safety boundary.",
+        "Read-only (NOT idempotent) extraction. Two modes by content-type. VISION (`multipart/form-data`): a `file` (JPEG/PNG/WebP, or PDF on an Anthropic vision provider; ≤ 12 MiB) is run through the user's vision-capable provider; the upload lives in memory only and is never persisted or logged. TEXT (`application/json`, opt-in local OCR): the browser OCR's the image (tesseract.js) and POSTs `{ mode: \"text\", text }` — only the extracted text reaches the server, so a text-only provider (e.g. ChatGPT-OAuth) reaches the same review/commit flow. Both modes are gated by AI consent, a 6/hour rate bucket, and the per-day token budget, and return proposed rows for the mandatory human review screen — nothing is written. Extracted content is treated as untrusted (prompt-injection); the review step is the safety boundary.",
       requestBody: {
         required: true,
         content: {
@@ -148,6 +151,17 @@ export const ocrPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                   "The lab-report image or PDF. Validated by magic-byte MIME sniff, not the wire Content-Type.",
               }),
             }),
+          },
+          "application/json": {
+            schema: z
+              .object({
+                mode: z.literal("text"),
+                text: z.string().meta({
+                  description:
+                    "The in-browser-OCR'd lab-report text. The raw image never reaches the server in this mode.",
+                }),
+              })
+              .meta({ id: "OcrTextExtractRequest" }),
           },
         },
       },

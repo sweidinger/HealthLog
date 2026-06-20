@@ -197,8 +197,32 @@ export interface OcrCommitResponseDto {
 /** The capability-probe response (drives whether the UI shows the scan entry). */
 export interface OcrCapabilityDto {
   available: boolean;
+  /**
+   * How the scan runs when available:
+   *   - "vision": the provider reads the image directly (higher accuracy).
+   *   - "text": the image is OCR'd in the browser (tesseract.js) and only the
+   *     extracted text is sent to a text-only provider (less accurate; opt-in
+   *     via `labsLocalOcrEnabled`). The UI loads the WASM only for this mode.
+   *   - null: scanning is unavailable (see `reason`).
+   */
+  mode: "vision" | "text" | null;
   /** Why scanning is unavailable, when it is. */
-  reason: "no-provider" | "text-only-model" | null;
-  /** Whether PDF uploads are accepted (Anthropic-only in v1). */
+  reason: "no-provider" | "text-only-model" | "enable-local-ocr" | null;
+  /** Whether PDF uploads are accepted (Anthropic vision provider only). */
   pdfSupported: boolean;
 }
+
+/**
+ * The body of a TEXT-mode extract call. The browser OCR's the image and POSTs
+ * the extracted text here (no image bytes ever reach the server). The route
+ * forwards the text to the text-only provider for structuring, reusing the
+ * exact review + commit flow the vision path uses.
+ */
+const OCR_TEXT_MAX_CHARS = 200_000;
+
+export const ocrTextExtractSchema = z.object({
+  mode: z.literal("text"),
+  text: z.string().trim().min(1).max(OCR_TEXT_MAX_CHARS),
+});
+
+export type OcrTextExtractInput = z.infer<typeof ocrTextExtractSchema>;

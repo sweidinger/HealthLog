@@ -6491,6 +6491,10 @@
     "deleteError": "No se pudo eliminar el resultado",
     "loadError": "No se pudieron cargar los resultados",
     "customize": "Personalizar laboratorio",
+    "localOcr": {
+      "heading": "Leer escaneos en este dispositivo",
+      "description": "Permite escanear un informe de laboratorio aunque tu proveedor de IA no pueda leer imágenes: la foto se lee en tu dispositivo y solo se envía el texto extraído a tu proveedor. Menos preciso: revisa cada valor antes de guardar."
+    },
     "sort": {
       "heading": "Orden",
       "label": "Orden de los valores",
@@ -6642,10 +6646,16 @@
     "showingLatestOf": "Mostrando los {shown} resultados más recientes de {total}",
     "ocr": {
       "scanButton": "Escanear un informe",
+      "addScan": "Escanear un documento",
+      "addManual": "Añadir un valor manualmente",
       "uploadHint": "Sube una foto o un PDF de un informe de laboratorio",
       "acceptWithPdf": "JPEG, PNG, WebP o PDF",
       "acceptImageOnly": "JPEG, PNG o WebP",
       "extracting": "Leyendo tu informe…",
+      "readingOnDevice": "Leyendo en tu dispositivo…",
+      "localModeHint": "Se lee en tu dispositivo y se envía como texto. Menos preciso: revisa cada valor.",
+      "rangeFromScan": "Intervalo de referencia tomado del escaneo",
+      "rangeVerify": "Verifica el intervalo de referencia",
       "reviewTitle": "Revisar antes de guardar",
       "reviewHint": "Revisa cada valor y guarda los que quieras conservar.",
       "foundCount": "{count} valores encontrados",

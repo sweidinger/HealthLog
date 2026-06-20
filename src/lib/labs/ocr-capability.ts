@@ -44,6 +44,8 @@ export interface VisionProviderPick {
     providerType: VisionProviderType;
     pdfSupported: boolean;
   } | null;
+  /** Whether the user opted into local (in-browser) OCR for text-only providers. */
+  localOcrEnabled: boolean;
 }
 
 /**
@@ -57,7 +59,7 @@ export async function resolveVisionProvider(
 ): Promise<VisionProviderPick> {
   const userRow = await prisma.user.findUnique({
     where: { id: userId },
-    select: { aiModel: true },
+    select: { aiModel: true, labsLocalOcrEnabled: true },
   });
   const settings = await prisma.appSettings.findUnique({
     where: { id: "singleton" },
@@ -67,6 +69,8 @@ export async function resolveVisionProvider(
     userModel: userRow?.aiModel ?? null,
     adminModel: settings?.adminAiModel ?? null,
   };
+
+  const localOcrEnabled = userRow?.labsLocalOcrEnabled ?? false;
 
   const chain = await resolveProviderChain(userId);
   if (chain.length === 0) {
@@ -84,6 +88,7 @@ export async function resolveVisionProvider(
     if (supportsVisionForConfig(providerType, model)) {
       return {
         chain,
+        localOcrEnabled,
         pick: {
           entry,
           providerType,
@@ -93,7 +98,31 @@ export async function resolveVisionProvider(
     }
   }
 
-  return { chain, pick: null };
+  return { chain, localOcrEnabled, pick: null };
+}
+
+/**
+ * Resolve the provider chain for a TEXT-mode (local-OCR) extract. There is no
+ * vision requirement here — ANY configured provider can structure OCR'd text —
+ * so this returns the whole chain plus the first entry to drive the structuring
+ * call. Returns `null` when nothing is configured.
+ */
+export async function resolveTextProvider(userId: string): Promise<{
+  chain: ProviderChainResolved[];
+  pick: { entry: ProviderChainResolved; providerType: string } | null;
+}> {
+  const chain = await resolveProviderChain(userId);
+  if (chain.length === 0) {
+    const legacy = await resolveProvider(userId);
+    if (legacy.type !== "none") {
+      chain.push({ providerType: "admin-openai", instance: legacy });
+    }
+  }
+  const entry = chain[0];
+  return {
+    chain,
+    pick: entry ? { entry, providerType: entry.providerType } : null,
+  };
 }
 
 /**
@@ -105,12 +134,49 @@ export async function resolveVisionProvider(
 export async function resolveOcrCapability(
   userId: string,
 ): Promise<OcrCapabilityDto> {
-  const { chain, pick } = await resolveVisionProvider(userId);
+  const { chain, pick, localOcrEnabled } = await resolveVisionProvider(userId);
+
+  // Prefer the native vision path whenever it is available — it is more
+  // accurate and the client does not download the OCR WASM.
   if (pick) {
-    return { available: true, reason: null, pdfSupported: pick.pdfSupported };
+    return {
+      available: true,
+      mode: "vision",
+      reason: null,
+      pdfSupported: pick.pdfSupported,
+    };
   }
-  // No vision pick. Distinguish "nothing configured" from "a provider is
-  // configured but its model is text-only" so the UI can phrase it.
-  const reason = chain.length === 0 ? "no-provider" : "text-only-model";
-  return { available: false, reason, pdfSupported: false };
+
+  // No vision pick. Nothing configured at all → no-provider, regardless of the
+  // toggle (there is no provider to structure the OCR text).
+  if (chain.length === 0) {
+    return {
+      available: false,
+      mode: null,
+      reason: "no-provider",
+      pdfSupported: false,
+    };
+  }
+
+  // A provider IS configured but it can't read images. Local OCR is the
+  // text-only fallback: in-browser OCR → text → the configured provider. It is
+  // available only when the user opted in.
+  if (localOcrEnabled) {
+    // Text mode is image-only (tesseract.js can't read PDFs).
+    return {
+      available: true,
+      mode: "text",
+      reason: null,
+      pdfSupported: false,
+    };
+  }
+
+  // A text-only provider is configured but the user has not enabled local OCR —
+  // surface the actionable reason so the UI can point at the toggle.
+  return {
+    available: false,
+    mode: null,
+    reason: "enable-local-ocr",
+    pdfSupported: false,
+  };
 }

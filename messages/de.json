@@ -6491,6 +6491,10 @@
     "deleteError": "Wert konnte nicht gelöscht werden",
     "loadError": "Laborwerte konnten nicht geladen werden",
     "customize": "Laborwerte anpassen",
+    "localOcr": {
+      "heading": "Scans auf diesem Gerät lesen",
+      "description": "Ermöglicht das Scannen eines Laborbefunds, auch wenn dein KI-Anbieter keine Bilder lesen kann: Das Foto wird auf deinem Gerät gelesen und nur der erkannte Text an deinen Anbieter gesendet. Weniger genau – prüfe jeden Wert vor dem Speichern."
+    },
     "sort": {
       "heading": "Sortierung",
       "label": "Reihenfolge der Werte",
@@ -6642,10 +6646,16 @@
     "showingLatestOf": "Die neuesten {shown} von {total} Messwerten werden angezeigt",
     "ocr": {
       "scanButton": "Befund scannen",
+      "addScan": "Dokument scannen",
+      "addManual": "Wert manuell hinzufügen",
       "uploadHint": "Foto oder PDF eines Laborbefunds hochladen",
       "acceptWithPdf": "JPEG, PNG, WebP oder PDF",
       "acceptImageOnly": "JPEG, PNG oder WebP",
       "extracting": "Befund wird gelesen…",
+      "readingOnDevice": "Wird auf deinem Gerät gelesen…",
+      "localModeHint": "Wird auf deinem Gerät gelesen und als Text gesendet. Weniger genau – prüfe jeden Wert.",
+      "rangeFromScan": "Referenzbereich aus dem Scan übernommen",
+      "rangeVerify": "Referenzbereich prüfen",
       "reviewTitle": "Vor dem Speichern prüfen",
       "reviewHint": "Prüfe jeden Wert und speichere die gewünschten Einträge.",
       "foundCount": "{count} Werte gefunden",

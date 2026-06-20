@@ -6491,6 +6491,10 @@
     "deleteError": "Nie udało się usunąć wyniku",
     "loadError": "Nie udało się wczytać wyników",
     "customize": "Dostosuj wyniki badań",
+    "localOcr": {
+      "heading": "Odczytuj skany na tym urządzeniu",
+      "description": "Pozwala zeskanować wynik laboratoryjny nawet wtedy, gdy Twój dostawca AI nie potrafi odczytywać obrazów: zdjęcie jest odczytywane na Twoim urządzeniu, a do dostawcy wysyłany jest tylko wyodrębniony tekst. Mniej dokładne — sprawdź każdą wartość przed zapisaniem."
+    },
     "sort": {
       "heading": "Sortowanie",
       "label": "Kolejność wartości",
@@ -6642,10 +6646,16 @@
     "showingLatestOf": "Wyświetlanie najnowszych {shown} z {total} wyników",
     "ocr": {
       "scanButton": "Zeskanuj wynik",
+      "addScan": "Zeskanuj dokument",
+      "addManual": "Dodaj wartość ręcznie",
       "uploadHint": "Prześlij zdjęcie lub PDF wyniku laboratoryjnego",
       "acceptWithPdf": "JPEG, PNG, WebP lub PDF",
       "acceptImageOnly": "JPEG, PNG lub WebP",
       "extracting": "Odczytywanie wyniku…",
+      "readingOnDevice": "Odczytywanie na Twoim urządzeniu…",
+      "localModeHint": "Odczytywane na Twoim urządzeniu i wysyłane jako tekst. Mniej dokładne — sprawdź każdą wartość.",
+      "rangeFromScan": "Zakres referencyjny pobrany ze skanu",
+      "rangeVerify": "Zweryfikuj zakres referencyjny",
       "reviewTitle": "Sprawdź przed zapisaniem",
       "reviewHint": "Sprawdź każdy wynik, a następnie zapisz te, które chcesz zachować.",
       "foundCount": "Znaleziono {count} wyników",
