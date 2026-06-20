@@ -33,6 +33,7 @@
  */
 import { Prisma } from "@/generated/prisma/client";
 import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
+import { isP2002 as isUniqueConstraintViolation } from "@/lib/prisma-errors";
 
 import {
   CUMULATIVE_HK_TYPES,
@@ -113,6 +114,12 @@ export interface DrainSummary {
     bucketsCollapsed: number;
     perSampleRowsDeleted: number;
     dailyRowsUpserted: number;
+    /**
+     * Day buckets whose write threw a non-recoverable error and were stepped
+     * over by the per-day boundary. A single poisoned day no longer aborts the
+     * whole global walk — every other day still collapses.
+     */
+    daysFailed: number;
   };
 }
 
@@ -186,6 +193,7 @@ export async function drainPerSampleCumulative(
       bucketsCollapsed: 0,
       perSampleRowsDeleted: 0,
       dailyRowsUpserted: 0,
+      daysFailed: 0,
     },
   };
 
@@ -226,85 +234,127 @@ export async function drainPerSampleCumulative(
       dayRows,
       sourceRowIds,
     }): Promise<DayWriteOutcome> => {
-      let removed = 0;
-      await pc.$transaction(async (tx) => {
-        // Fold late per-sample rows INTO an existing collapsed daily
-        // total rather than overwriting it. `bucketRowsByDay` strips
-        // already-collapsed `stats:` rows from the bucket, so when a day
-        // was collapsed on an earlier run and fresh per-sample rows
-        // arrive late (a trailing watch sync after the day's total was
-        // already minted), this bucket holds ONLY those late samples.
-        // A blind `update: { value: reducedValue }` would replace the
-        // full day total with just the partial late sum — and the
-        // original contributing samples were already hard-deleted, so
-        // the lost count is unrecoverable.
-        //
-        // The probe runs inside the same transaction as the upsert +
-        // delete so the read-modify-write of the total is atomic against
-        // a concurrent drain. The late samples are genuine additional
-        // readings (unlike the legacy-step pass, where the existing
-        // total is HealthKit's own aggregate and the legacy rows would
-        // double-count — so that sibling deliberately does NOT fold),
-        // therefore the correct merge is `existing + late sum`. The
-        // per-sample rows are hard-deleted either way so a re-run cannot
-        // re-accumulate them.
-        const existing = await tx.measurement.findUnique({
-          where: {
-            userId_type_source_externalId: {
+      // Adopt-in-place canonical-noon resolution + a single P2002 retry,
+      // mirroring `dense-intraday-retention.ts`. Two unique indexes can
+      // collide when minting the daily-stats row:
+      //   A) `(userId, type, source, externalId)` — a row already carrying
+      //      the target `stats:` externalId (a prior collapse of this day).
+      //   B) `(userId, type, measuredAt, source, sleepStage)` NULLS NOT
+      //      DISTINCT — ANY row sitting on the canonical local-noon instant,
+      //      which may carry a DIFFERENT externalId (a per-sample row that
+      //      happened at local noon and is in this very bucket, or a manual
+      //      daily row). A blind `create` against index B aborts the whole
+      //      transaction, and — before the per-day error boundary below — the
+      //      first colliding day aborted the ENTIRE global walk (3 s die-early,
+      //      0 collapsed). Resolve the canonical row by index A first (it IS
+      //      the daily row by construction), else the index-B slot row, and
+      //      adopt it in place instead of colliding.
+      const foldOnce = async (): Promise<number> => {
+        let removed = 0;
+        await pc.$transaction(async (tx) => {
+          // Index-A row: already carries the target `stats:` externalId. When
+          // present, this is the existing collapsed daily total.
+          const eidRow = await tx.measurement.findFirst({
+            where: { userId, type, source: "APPLE_HEALTH", externalId },
+            select: { id: true, value: true },
+            orderBy: { id: "asc" },
+          });
+          // Index-B row: occupies the canonical local-noon instant
+          // (`sleepStage` is NULL for these cumulative types). At most one.
+          const slotRow = await tx.measurement.findFirst({
+            where: {
               userId,
               type,
               source: "APPLE_HEALTH",
-              externalId,
+              measuredAt: canonicalTimestamp,
+              sleepStage: null,
             },
-          },
-          select: { value: true },
-        });
-        const mergedValue =
-          existing !== null ? existing.value + reducedValue : reducedValue;
+            select: { id: true },
+            orderBy: { id: "asc" },
+          });
 
-        // Upsert the daily-aggregated row first, then drop the
-        // per-sample rows. The unique index
-        // (userId, type, source, externalId) makes the upsert
-        // idempotent across re-runs.
-        await tx.measurement.upsert({
-          where: {
-            userId_type_source_externalId: {
-              userId,
-              type,
-              source: "APPLE_HEALTH",
-              externalId,
-            },
-          },
-          create: {
-            userId,
-            type,
-            value: reducedValue,
-            // pick the canonical unit from an existing row; the
-            // per-sample rows all carry the same unit on a given type.
-            // dayRows always has ≥1 row (empty buckets are skipped).
-            unit:
-              dayRows[0]?.value !== undefined
-                ? await resolveCanonicalUnit(tx, userId, type)
-                : "count",
-            source: "APPLE_HEALTH",
-            measuredAt: canonicalTimestamp,
-            externalId,
-          },
-          update: {
-            value: mergedValue,
-            measuredAt: canonicalTimestamp,
-          },
-        });
+          // Prefer the externalId-carrying row (index A) — adopting a sibling
+          // and stamping the target externalId onto it would collide with it.
+          const adoptTarget = eidRow ?? slotRow;
 
-        // Delete the per-sample rows that contributed to the sum.
-        // Using `id IN (...)` is bounded by the per-bucket cap (the
-        // largest cumulative bucket in real data is a ~1 440-row
-        // stepCount day on a phone-only user).
-        const del = await tx.measurement.deleteMany({
-          where: { id: { in: sourceRowIds } },
+          // Fold semantics. When the index-A `stats:` total already exists,
+          // late per-sample rows are GENUINE additional readings, so the
+          // correct merge is `existing + late sum` (a blind overwrite with the
+          // partial late sum would shrink the day — the original samples are
+          // already hard-deleted). When adopting a NON-stats slot row (a
+          // per-sample row that fell on local noon, itself part of this
+          // bucket), its value is already inside `reducedValue`, so the merged
+          // value is just `reducedValue`. A fresh day mints `reducedValue`.
+          const mergedValue =
+            eidRow !== null ? eidRow.value + reducedValue : reducedValue;
+
+          let canonicalRowId: string;
+          if (adoptTarget) {
+            // Pin the adopted row to local-noon only when the canonical slot
+            // is free or already this row — a DIFFERENT row occupying the slot
+            // would otherwise collide on index B. In that rare case (a tz/DST
+            // shift between mints) the row keeps its existing instant; the
+            // `stats:` externalId is the identity, measuredAt is secondary.
+            const slotIsFreeForTarget =
+              slotRow === null || slotRow.id === adoptTarget.id;
+            await tx.measurement.update({
+              where: { id: adoptTarget.id },
+              data: {
+                value: mergedValue,
+                externalId,
+                deletedAt: null,
+                ...(slotIsFreeForTarget
+                  ? { measuredAt: canonicalTimestamp }
+                  : {}),
+              },
+            });
+            canonicalRowId = adoptTarget.id;
+          } else {
+            const created = await tx.measurement.create({
+              data: {
+                userId,
+                type,
+                value: reducedValue,
+                // pick the canonical unit from an existing row; the per-sample
+                // rows all carry the same unit on a given type. dayRows always
+                // has ≥1 row (empty buckets are skipped).
+                unit:
+                  dayRows[0]?.value !== undefined
+                    ? await resolveCanonicalUnit(tx, userId, type)
+                    : "count",
+                source: "APPLE_HEALTH",
+                measuredAt: canonicalTimestamp,
+                externalId,
+              },
+              select: { id: true },
+            });
+            canonicalRowId = created.id;
+          }
+
+          // Hard-delete the per-sample rows that contributed to the sum.
+          // EXCLUDE the adopted canonical row: a per-sample row that fell on
+          // local-noon may be the row we just adopted as the daily total, so
+          // deleting it would erase the fold. `id IN (...)` is bounded by the
+          // per-bucket cap (largest real bucket is a ~1 440-row stepCount day).
+          const del = await tx.measurement.deleteMany({
+            where: { id: { in: sourceRowIds, not: canonicalRowId } },
+          });
+          removed = del.count;
         });
-        removed = del.count;
-      });
+        return removed;
+      };
+
+      let removed: number;
+      try {
+        removed = await foldOnce();
+      } catch (err) {
+        // A concurrent writer won the canonical slot mid-transaction. Retry
+        // once: the deterministic lookup now resolves the winning row and
+        // adopts it, so this pass cannot create a duplicate. Non-P2002 errors
+        // propagate to the per-day `onBucketError` boundary below.
+        if (!isUniqueConstraintViolation(err)) throw err;
+        removed = await foldOnce();
+      }
       return { kind: "written", sourceRowsRemoved: removed };
     },
     recordBucket: ({
@@ -335,6 +385,18 @@ export async function drainPerSampleCumulative(
           : dayRows.length;
       summary.totals.dailyRowsUpserted += 1;
     },
+    // Per-day failure boundary. A day whose write throws (e.g. a residual
+    // unique-index collision the adopt-in-place path could not absorb) is
+    // logged and STEPPED OVER so the global walk keeps draining every other
+    // user / type / day — the historical behaviour aborted the whole run on
+    // the first poisoned day (3 s die-early, 0 collapsed).
+    onBucketError: ({ userId, type, dateKey, error }) => {
+      summary.totals.daysFailed += 1;
+      const message = error instanceof Error ? error.message : String(error);
+      log(
+        `[drain] user=${userId} type=${type} day=${dateKey} skipped — write failed: ${message}`,
+      );
+    },
     onUserStart: ({ userId, tz, dryRun }) => {
       log(`[drain] user=${userId} tz=${tz}${dryRun ? " (dry-run)" : ""}`);
       beforeBucketsCollapsed = summary.totals.bucketsCollapsed;
@@ -360,7 +422,7 @@ export async function drainPerSampleCumulative(
   summary.totals.usersScanned = usersScanned;
 
   log(
-    `[drain] done — usersScanned=${summary.totals.usersScanned} bucketsCollapsed=${summary.totals.bucketsCollapsed} perSampleRowsDeleted=${summary.totals.perSampleRowsDeleted} dailyRowsUpserted=${summary.totals.dailyRowsUpserted}${options.dryRun ? " (dry-run)" : ""}`,
+    `[drain] done — usersScanned=${summary.totals.usersScanned} bucketsCollapsed=${summary.totals.bucketsCollapsed} perSampleRowsDeleted=${summary.totals.perSampleRowsDeleted} dailyRowsUpserted=${summary.totals.dailyRowsUpserted} daysFailed=${summary.totals.daysFailed}${options.dryRun ? " (dry-run)" : ""}`,
   );
   return summary;
 }

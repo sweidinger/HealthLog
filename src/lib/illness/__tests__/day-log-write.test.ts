@@ -25,10 +25,17 @@ const db = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/db", () => ({ prisma: db }));
+// `decryptFromBytes` throws on any ciphertext NOT minted by this mock's
+// `encryptToBytes` — simulating an undecryptable column (rotation gap / GCM
+// corruption). The write path must never call it (it preserves ciphertext
+// verbatim), so a throw here that reaches the column write is a regression.
 vi.mock("@/lib/ai/coach/bytes-codec", () => ({
   encryptToBytes: (s: string) => new Uint8Array(Buffer.from(`enc:${s}`)),
-  decryptFromBytes: (b: Uint8Array) =>
-    Buffer.from(b).toString("utf8").replace(/^enc:/, ""),
+  decryptFromBytes: (b: Uint8Array) => {
+    const s = Buffer.from(b).toString("utf8");
+    if (!s.startsWith("enc:")) throw new Error("undecryptable");
+    return s.replace(/^enc:/, "");
+  },
 }));
 
 import {
@@ -187,5 +194,30 @@ describe("upsertIllnessDayLog", () => {
     const args = db.illnessDayLog.upsert.mock.calls[0][0];
     expect(args.create.noteEncrypted).toBeInstanceOf(Uint8Array);
     expect(db.illnessSymptomLink.deleteMany).not.toHaveBeenCalled();
+  });
+
+  // C-1 data-loss regression: editing an unrelated field on a row whose
+  // encrypted note CANNOT be decrypted must preserve the existing ciphertext
+  // byte-for-byte — never null it from a failed soft-decrypt.
+  it("preserves an undecryptable note byte-for-byte when an unrelated field is edited", async () => {
+    const corrupt = new Uint8Array(Buffer.from("CORRUPT-CIPHERTEXT"));
+    db.illnessDayLog.findUnique.mockResolvedValue({
+      id: "dl-1",
+      functionalImpact: 1,
+      feverC: null,
+      noteEncrypted: corrupt,
+    });
+    // Only fever is supplied; `note` is omitted.
+    await upsertIllnessDayLog(
+      "u1",
+      "ep1",
+      { date: "2026-06-16", feverC: 38 },
+      null,
+    );
+    const args = db.illnessDayLog.upsert.mock.calls[0][0];
+    // The stored ciphertext is carried through verbatim, never decrypted+
+    // re-encrypted and never nulled.
+    expect(args.update.noteEncrypted).toBe(corrupt);
+    expect(args.update.feverC).toBe(38);
   });
 });

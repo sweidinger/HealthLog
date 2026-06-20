@@ -114,13 +114,22 @@ export async function replaceSymptomLinks(
   }
 }
 
-/** Decrypt the sensitive envelope fail-soft (null on missing / undecryptable). */
-function decryptSensitive(envelope: string | null): Partial<SensitiveFields> {
-  if (!envelope) return {};
+/**
+ * Decrypt the sensitive envelope fail-soft. Returns `{ ok: true, values }` on a
+ * clean decrypt, `{ ok: false }` when an envelope is present but undecryptable
+ * (rotation gap, GCM corruption). The caller MUST treat `ok: false` as
+ * "do not re-write this column" — never as "the field is empty".
+ */
+function decryptSensitive(
+  envelope: string,
+): { ok: true; values: Partial<SensitiveFields> } | { ok: false } {
   try {
-    return JSON.parse(decrypt(envelope)) as Partial<SensitiveFields>;
+    return {
+      ok: true,
+      values: JSON.parse(decrypt(envelope)) as Partial<SensitiveFields>,
+    };
   } catch {
-    return {};
+    return { ok: false };
   }
 }
 
@@ -259,21 +268,31 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
 
   // Decrypt the existing note (fail-soft) for the change/duplicate split —
   // re-encrypting the same plaintext yields a different ciphertext (random
-  // GCM IV), so a ciphertext compare would always read "changed".
+  // GCM IV), so a ciphertext compare would always read "changed". This is a
+  // DISPLAY-ONLY read (a `null` here only affects the change flag, never the
+  // written column — see the note-write below), so soft-decrypt is safe.
   const existingNote = decryptNoteSoft(existing?.notesEncrypted ?? null);
 
   // The resolved plaintext sensitive values for THIS write, after partial
   // merge against what's already stored (decrypted from the envelope when
-  // the stored row was encrypted).
-  const storedSensitive: SensitiveFields = existing
+  // the stored row was encrypted). `storedDecryptable` is false when the
+  // existing envelope could not be decrypted — in that case the merged
+  // values are DEFAULTS, not the real stored data, so they must never be
+  // re-encrypted back over the column (that would wipe the envelope).
+  const merged = existing
     ? mergeStoredSensitive(existing)
     : {
-        sexualActivity: false,
-        protectedSex: null,
-        pregnancyTest: null,
-        progesteroneTest: null,
-        contraceptive: null,
+        values: {
+          sexualActivity: false,
+          protectedSex: null,
+          pregnancyTest: null,
+          progesteroneTest: null,
+          contraceptive: null,
+        },
+        decryptable: true,
       };
+  const storedSensitive: SensitiveFields = merged.values;
+  const storedSensitiveDecryptable = merged.decryptable;
 
   const resolvedSensitive: SensitiveFields = {
     sexualActivity:
@@ -298,13 +317,29 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
         : storedSensitive.contraceptive,
   };
 
-  // Note resolution with partial merge: an omitted `note` keeps the stored
-  // value; an explicit null clears it.
-  const incomingNote =
+  // Note resolution with partial merge. When `note` is supplied, encrypt it
+  // (an explicit empty/null clears the column). When `note` is OMITTED, the
+  // existing ciphertext is preserved VERBATIM — never decrypt→re-encrypt, and
+  // never collapse an undecryptable existing value to null. A soft-decrypt that
+  // returns null on an undecryptable column (rotation gap, GCM corruption) must
+  // not be allowed to permanently wipe the stored note when an unrelated field
+  // is the only thing being edited (mirrors the v1.18.1 53-column rotation fix:
+  // a write path never re-writes an `*Encrypted` column from a soft-decrypt
+  // result).
+  const notesEncrypted: string | null =
     entry.note !== undefined
-      ? (entry.note ?? null)
-      : decryptNoteSoft(existing?.notesEncrypted ?? null);
-  const notesEncrypted = incomingNote ? encrypt(incomingNote) : null;
+      ? entry.note
+        ? encrypt(entry.note)
+        : null
+      : (existing?.notesEncrypted ?? null);
+
+  // Note change detection for the `changed`/`duplicate` split. An omitted
+  // `note` preserves the column verbatim, so it can never count as a change.
+  // A supplied `note` is compared against the soft-decrypted existing value
+  // (display-only) — a ciphertext compare would always read "changed" (random
+  // GCM IV).
+  const incomingNote = entry.note !== undefined ? (entry.note ?? null) : null;
+  const noteChanged = entry.note !== undefined && incomingNote !== existingNote;
 
   // Non-sensitive fields, partial-merged against the stored row.
   const flow =
@@ -342,11 +377,35 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
       ? (entry.cervixOpening ?? null)
       : (existing?.cervixOpening ?? null);
 
+  // Was any of the five sensitive fields actually supplied in THIS update?
+  // Used to decide whether an undecryptable existing envelope may be preserved
+  // verbatim (an unrelated-field edit) or must be rewritten (the user is
+  // explicitly setting sensitive data).
+  const sensitiveFieldSupplied =
+    entry.sexualActivity !== undefined ||
+    entry.protectedSex !== undefined ||
+    entry.pregnancyTest !== undefined ||
+    entry.progesteroneTest !== undefined ||
+    entry.contraceptive !== undefined;
+
   // Split the sensitive fields between plaintext columns and the envelope
   // depending on the flag. When encrypting, the plaintext columns are NULL
   // (drop out of rollup/correlation) and the envelope carries the JSON.
+  //
+  // Data-loss guard: when the stored envelope could NOT be decrypted, the
+  // merged `resolvedSensitive` carries DEFAULTS, not the real stored values.
+  // Re-encrypting them over the column would permanently wipe the user's
+  // sensitive data on an edit of an unrelated field. So when encrypting, the
+  // existing envelope is undecryptable, and no sensitive field is supplied in
+  // this update, preserve the existing ciphertext VERBATIM (mirrors the
+  // v1.18.1 53-column rotation fix). An explicit sensitive-field write still
+  // re-encrypts the user's intent.
+  const preserveExistingEnvelope =
+    encryptSensitive && !storedSensitiveDecryptable && !sensitiveFieldSupplied;
   const sensitiveEncrypted = encryptSensitive
-    ? encrypt(JSON.stringify(resolvedSensitive))
+    ? preserveExistingEnvelope
+      ? (existing?.sensitiveEncrypted ?? null)
+      : encrypt(JSON.stringify(resolvedSensitive))
     : null;
   const sensitivePlaintext = encryptSensitive
     ? {
@@ -391,12 +450,18 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
       (existing.cervixPosition ?? null) !== cervixPosition ||
       (existing.cervixFirmness ?? null) !== cervixFirmness ||
       (existing.cervixOpening ?? null) !== cervixOpening ||
-      storedSensitive.sexualActivity !== resolvedSensitive.sexualActivity ||
-      storedSensitive.protectedSex !== resolvedSensitive.protectedSex ||
-      storedSensitive.pregnancyTest !== resolvedSensitive.pregnancyTest ||
-      storedSensitive.progesteroneTest !== resolvedSensitive.progesteroneTest ||
-      storedSensitive.contraceptive !== resolvedSensitive.contraceptive ||
-      existingNote !== incomingNote ||
+      // When the stored envelope was undecryptable and we preserve it
+      // verbatim (no sensitive field supplied), the sensitive values cannot
+      // be compared meaningfully — skip them. An explicit sensitive write
+      // compares the resolved values against the (default) stored ones.
+      (!preserveExistingEnvelope &&
+        (storedSensitive.sexualActivity !== resolvedSensitive.sexualActivity ||
+          storedSensitive.protectedSex !== resolvedSensitive.protectedSex ||
+          storedSensitive.pregnancyTest !== resolvedSensitive.pregnancyTest ||
+          storedSensitive.progesteroneTest !==
+            resolvedSensitive.progesteroneTest ||
+          storedSensitive.contraceptive !== resolvedSensitive.contraceptive)) ||
+      noteChanged ||
       existing.deletedAt !== null ||
       (Boolean(entry.externalId) && existing.date !== entry.date);
   }
@@ -492,23 +557,49 @@ function isUniqueViolation(err: unknown): boolean {
   );
 }
 
-/** Resolve the stored plaintext sensitive fields (envelope OR columns). */
-function mergeStoredSensitive(existing: ExistingRow): SensitiveFields {
+/**
+ * Resolve the stored plaintext sensitive fields (envelope OR columns).
+ * `decryptable` is false ONLY when an envelope is present but could not be
+ * decrypted — the returned `values` are then DEFAULTS and the caller must not
+ * re-encrypt them back over the column.
+ */
+function mergeStoredSensitive(existing: ExistingRow): {
+  values: SensitiveFields;
+  decryptable: boolean;
+} {
   if (existing.sensitiveEncrypted) {
     const dec = decryptSensitive(existing.sensitiveEncrypted);
+    if (!dec.ok) {
+      return {
+        values: {
+          sexualActivity: false,
+          protectedSex: null,
+          pregnancyTest: null,
+          progesteroneTest: null,
+          contraceptive: null,
+        },
+        decryptable: false,
+      };
+    }
     return {
-      sexualActivity: dec.sexualActivity ?? false,
-      protectedSex: dec.protectedSex ?? null,
-      pregnancyTest: dec.pregnancyTest ?? null,
-      progesteroneTest: dec.progesteroneTest ?? null,
-      contraceptive: dec.contraceptive ?? null,
+      values: {
+        sexualActivity: dec.values.sexualActivity ?? false,
+        protectedSex: dec.values.protectedSex ?? null,
+        pregnancyTest: dec.values.pregnancyTest ?? null,
+        progesteroneTest: dec.values.progesteroneTest ?? null,
+        contraceptive: dec.values.contraceptive ?? null,
+      },
+      decryptable: true,
     };
   }
   return {
-    sexualActivity: existing.sexualActivity,
-    protectedSex: existing.protectedSex,
-    pregnancyTest: existing.pregnancyTest,
-    progesteroneTest: existing.progesteroneTest,
-    contraceptive: existing.contraceptive,
+    values: {
+      sexualActivity: existing.sexualActivity,
+      protectedSex: existing.protectedSex,
+      pregnancyTest: existing.pregnancyTest,
+      progesteroneTest: existing.progesteroneTest,
+      contraceptive: existing.contraceptive,
+    },
+    decryptable: true,
   };
 }

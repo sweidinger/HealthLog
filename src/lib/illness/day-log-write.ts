@@ -15,7 +15,7 @@
  * dropped silently.
  */
 import { prisma } from "@/lib/db";
-import { decryptFromBytes, encryptToBytes } from "@/lib/ai/coach/bytes-codec";
+import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import type { IllnessDayLogInput } from "@/lib/validations/illness";
 import { dayLogSymptomInclude, toIllnessDayLogDTO } from "@/lib/illness/dto";
 import type { IllnessDayLogDTO } from "@/lib/illness/dto";
@@ -88,16 +88,6 @@ export async function replaceIllnessSymptomLinks(
   }
 }
 
-/** Decrypt a Bytes note fail-soft (null on missing / undecryptable). */
-function decryptNoteSoft(noteEncrypted: Uint8Array | null): string | null {
-  if (!noteEncrypted || noteEncrypted.byteLength === 0) return null;
-  try {
-    return decryptFromBytes(noteEncrypted);
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Upsert one illness day-log on the `(episodeId, date)` key. The caller is
  * responsible for verifying the episode is owned + live before calling.
@@ -136,11 +126,21 @@ export async function upsertIllnessDayLog(
         ? (entry.feverC ?? null)
         : (existing?.feverC ?? null);
 
-    const incomingNote =
+    // Note resolution with partial merge. When `note` is supplied, encrypt it
+    // (an explicit empty/null clears the column). When `note` is OMITTED, the
+    // existing ciphertext is preserved BYTE-FOR-BYTE — never decrypt→re-encrypt,
+    // and never collapse an undecryptable existing value to null. A soft-decrypt
+    // that returns null on an undecryptable column (rotation gap, GCM
+    // corruption) must not be allowed to permanently wipe the stored note when
+    // an unrelated field is the only thing being edited (mirrors the v1.18.1
+    // 53-column rotation fix: a write path never re-writes an `*Encrypted`
+    // column from a soft-decrypt result).
+    const noteEncrypted =
       entry.note !== undefined
-        ? (entry.note ?? null)
-        : decryptNoteSoft(existing?.noteEncrypted ?? null);
-    const noteEncrypted = incomingNote ? encryptToBytes(incomingNote) : null;
+        ? entry.note
+          ? encryptToBytes(entry.note)
+          : null
+        : (existing?.noteEncrypted ?? null);
 
     const upserted = await tx.illnessDayLog.upsert({
       where,
