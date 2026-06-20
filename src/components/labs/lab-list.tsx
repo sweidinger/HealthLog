@@ -2,17 +2,15 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, FlaskConical } from "lucide-react";
-import { toast } from "sonner";
 
-import { DeleteButton } from "@/components/data-list";
 import { MedicationCardHeader } from "@/components/medications/medication-card-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiDelete, apiGet } from "@/lib/api/api-fetch";
+import { apiGet } from "@/lib/api/api-fetch";
 import { formatDate } from "@/lib/format";
 import { formatReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabReading, formatLabValue } from "@/lib/labs/format-value";
@@ -77,21 +75,7 @@ function groupReadings(results: LabResultDto[]): MarkerGroup[] {
 
 export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   const { t } = useTranslations();
-  const queryClient = useQueryClient();
   const { prefs } = useModuleListPrefs("labs");
-
-  // Delete a biomarker directly from the list (#41/#3). The endpoint's
-  // `onDelete: SetNull` FK keeps the readings and unlinks them; both the
-  // catalog and the result list invalidate so the row drops in the same tick.
-  const deleteBiomarker = useMutation({
-    mutationFn: (id: string) => apiDelete(`/api/biomarkers/${id}`),
-    onSuccess: () => {
-      toast.success(t("labs.biomarker.deletedToast"));
-      queryClient.invalidateQueries({ queryKey: queryKeys.biomarkers() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
-    },
-    onError: () => toast.error(t("labs.biomarker.deleteError")),
-  });
 
   const listKey = queryKeys.labResultsList({
     biomarkerId: undefined,
@@ -181,23 +165,9 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
     );
   }
 
-  // Per-group biomarker delete (#41/#3), surfaced on both views. Only
-  // catalog-linked groups carry an id the endpoint can delete; legacy
-  // un-linked rows have no biomarker to remove.
-  function biomarkerDelete(group: MarkerGroup) {
-    if (!group.biomarkerId) return null;
-    const id = group.biomarkerId;
-    return (
-      <DeleteButton
-        onConfirm={() => deleteBiomarker.mutate(id)}
-        title={t("labs.biomarker.deleteConfirmTitle")}
-        description={t("labs.biomarker.deleteConfirmDescription")}
-        confirmLabel={t("labs.biomarker.delete")}
-        className="size-9"
-        iconClassName="h-4 w-4"
-      />
-    );
-  }
+  // v1.18.10 (#3) — delete lives ONLY on the value detail view (next to Edit),
+  // not on these overview rows. The list/tile rows navigate; the trash icon was
+  // removed here so a stray tap can't delete a biomarker from the overview.
 
   // v1.18.6 (MOD-03) — compact list view: one bordered card holding tight
   // divided rows instead of a card per biomarker. This is the default view
@@ -219,7 +189,10 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                     <span className="truncate font-medium">
                       {group.analyte}
                     </span>
-                    <ReferenceRangeBadge status={group.latest.rangeStatus} />
+                    <ReferenceRangeBadge
+                      status={group.latest.rangeStatus}
+                      compact
+                    />
                   </div>
                   <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                     <span className="text-foreground font-semibold tabular-nums">
@@ -229,8 +202,7 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                   </div>
                 </div>
               );
-              // The delete control + chevron sit OUTSIDE the navigating Link
-              // so the delete confirm never also deep-links into the detail.
+              // The whole row navigates into the detail (where delete lives).
               return (
                 <div
                   key={group.key}
@@ -255,7 +227,6 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                       />
                     </div>
                   )}
-                  {biomarkerDelete(group)}
                 </div>
               );
             })}
@@ -268,9 +239,8 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   // v1.18.9 (#40) — card/tile view. The tile reuses the medication module's
   // `MedicationCardHeader` so a lab tile reads identically to a medication or
   // Vorsorge tile side-by-side: name on line 1, the reference-range badge as
-  // the line-1 chip, the panel as the category badge, and the delete control
-  // in the header's `actions` slot (a sibling of the header Link, so deleting
-  // never also deep-links).
+  // the line-1 chip, the panel as the category badge. v1.18.10 (#3) — no delete
+  // control on the tile; the trash icon lives only on the value detail view.
   return (
     <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">
       {truncated ? (
@@ -288,13 +258,15 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
               dose=""
               categoryLabel={group.panel ?? group.unit}
               nameChip={
-                <ReferenceRangeBadge status={group.latest.rangeStatus} />
+                <ReferenceRangeBadge
+                  status={group.latest.rangeStatus}
+                  compact
+                />
               }
               href={
                 group.biomarkerId ? `/labs/${group.biomarkerId}` : undefined
               }
               linkLabel={group.analyte}
-              actions={biomarkerDelete(group)}
             />
             <CardContent>
               <div className="flex items-center justify-between gap-3">
