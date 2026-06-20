@@ -43,6 +43,8 @@ import {
   PERIOD_LENGTH_LOINC,
   type LoincMapping,
 } from "@/lib/fhir/loinc-map";
+import { ILLNESS_TYPE_SNOMED } from "@/lib/fhir/illness-snomed";
+import { resolveLabCoding } from "@/lib/fhir/lab-loinc";
 import type {
   FhirCodeableConcept,
   FhirObservation,
@@ -627,13 +629,15 @@ export function observationsFromReportData(
     }
   }
 
-  // --- Lab-result Observations (v1.17.1) ---------------------------------
-  // One `laboratory` Observation per recorded analyte. `analyte` + `unit`
-  // are user-recorded free text (no closed LOINC enum), so the code is a
-  // text-only `CodeableConcept` — honest about what we have rather than
-  // asserting a LOINC mapping we can't validate. The lab's reference bounds
-  // map onto R4 `referenceRange`. UCUM `code` is omitted (the free-text
-  // unit can't be asserted as a UCUM symbol); `unit` carries the display.
+  // --- Lab-result Observations (v1.17.1; LOINC + UCUM v1.18.8) -----------
+  // One `laboratory` Observation per recorded analyte. `analyte` + `unit` are
+  // user-recorded free text (no closed LOINC enum). v1.18.8 — a curated
+  // analyte→LOINC map (`resolveLabCoding`) adds a real LOINC `coding` ALONGSIDE
+  // the user's `code.text` for the common biomarkers, and stamps the canonical
+  // UCUM `code` on the value WHEN the recorded unit matches the mapped
+  // canonical symbol. An analyte that does NOT resolve keeps the honest
+  // text-only `code` + display-only `unit` (no fabricated terminology). The
+  // lab's reference bounds map onto R4 `referenceRange`.
   for (const lab of data.labResults ?? []) {
     obsSeq += 1;
     const referenceRange =
@@ -649,20 +653,33 @@ export function observationsFromReportData(
             },
           ]
         : undefined;
+    // Forward-compat: when the v1.19.0 Biomarker catalog lands and the DTO
+    // carries a resolved canonical analyte name, thread it as the third arg so
+    // the catalog name wins over the free-text `analyte`. Absent today.
+    const coding = resolveLabCoding(lab.analyte, lab.unit);
+    const text = lab.panel ? `${lab.analyte} (${lab.panel})` : lab.analyte;
     push({
       resourceType: "Observation",
       id: `obs-${obsSeq}`,
       status: "final",
       category: [categoryConcept("laboratory")],
-      code: {
-        text: lab.panel ? `${lab.analyte} (${lab.panel})` : lab.analyte,
-      },
+      code: coding
+        ? {
+            coding: [
+              { system: LOINC_SYSTEM, code: coding.loinc, display: coding.display },
+            ],
+            text,
+          }
+        : { text },
       subject: patientRef,
       effectiveDateTime: lab.takenAt,
       valueQuantity: {
         value: lab.value,
         unit: lab.unit,
         system: UCUM_SYSTEM,
+        // Canonical UCUM `code` only when the recorded unit matches; otherwise
+        // the display `unit` stands alone (no coerced symbol).
+        ...(coding?.ucum ? { code: coding.ucum } : {}),
       },
       ...(referenceRange ? { referenceRange } : {}),
     });
@@ -899,9 +916,12 @@ export function cycleObservationsFromReportData(
  * SNOMED CT "Disease (disorder)" — the generic, non-diagnostic root concept.
  * HealthLog records a patient-kept condition journal; it is NOT a diagnosing
  * device and asserts no specific ICD/SNOMED diagnosis. The user's own label
- * rides `code.text` and the broad class is a `category`; the coded `code`
- * stays this safe root so a downstream system never reads a fabricated
- * diagnosis off the export.
+ * rides `code.text`. v1.18.8 — the coded `code` now carries the BROAD SNOMED
+ * CT category concept for the episode's `IllnessType` (see
+ * `ILLNESS_TYPE_SNOMED`); an unknown / future type falls back to this generic
+ * root so a downstream system never reads a fabricated SPECIFIC diagnosis off
+ * the export. The `verificationStatus: unconfirmed` + "patient-reported"
+ * guard rails stay on every Condition.
  */
 const DISEASE_SNOMED = { code: "64572001", display: "Disease" } as const;
 
@@ -969,11 +989,14 @@ export function conditionsFromReportData(data: DoctorReportData): {
         },
       ],
       code: {
+        // Broad SNOMED CT category for the journal type; the generic "Disease"
+        // root is the honest fallback for an unknown / future type. NEVER a
+        // specific diagnosis — the user's own label stays on `.text`.
         coding: [
           {
             system: SNOMED_SYSTEM,
-            code: DISEASE_SNOMED.code,
-            display: DISEASE_SNOMED.display,
+            code: (ILLNESS_TYPE_SNOMED[ep.type] ?? DISEASE_SNOMED).code,
+            display: (ILLNESS_TYPE_SNOMED[ep.type] ?? DISEASE_SNOMED).display,
           },
         ],
         text: ep.label,
