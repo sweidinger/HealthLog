@@ -20,12 +20,14 @@ import { cn } from "@/lib/utils";
 import { scrollBehaviorForUser } from "@/lib/motion";
 import { useTranslations } from "@/lib/i18n/context";
 import { ApiError, apiPost } from "@/lib/api/api-fetch";
-import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { useAuth } from "@/hooks/use-auth";
 import { ABOUT_ME_FIELD_MAX_CHARS } from "@/lib/validations/about-me";
 
 import { SourceChips } from "./source-chips";
 import { ReminderSuggestionCard } from "./reminder-suggestion-card";
+import { StreamedProse } from "./streamed-prose";
+import { ThinkingDisclosure } from "./thinking-disclosure";
+import { MessageTokenFooter } from "./message-token-footer";
 import type {
   CoachConversationDetailDTO,
   CoachOptimisticUserMessage,
@@ -422,6 +424,8 @@ export function MessageThread({
               metricSource={m.metricSource}
               providerType={m.providerType}
               messageId={m.id}
+              tokensUsed={m.tokensUsed}
+              model={m.model}
             />
           </Fragment>
         );
@@ -452,8 +456,10 @@ export function MessageThread({
           aria-live="polite"
           aria-relevant="additions text"
           // v1.18.7 — a soft fade/slide-in on the assistant turn so the
-          // hand-off from the "Thinking…" beat to the first streamed
-          // tokens reads as one continuous motion, not a hard swap.
+          // hand-off from the thinking beat to the first streamed tokens
+          // reads as one continuous motion, not a hard swap. v1.18.9 — the
+          // per-word fade now lives in <StreamedProse>; this stays a light
+          // container fade for the disclosure → prose transition.
           className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-300"
         >
           <ChatBubble
@@ -464,6 +470,12 @@ export function MessageThread({
             providerType={streaming.inProgress ? "streaming" : null}
             inProgress={streaming.inProgress}
             errorCode={streaming.errorCode}
+            // v1.18.9 — live word-fade + the elapsed-time thinking
+            // disclosure + the just-landed token footer.
+            streaming
+            startedAt={streaming.startedAt}
+            reasoning={streaming.reasoning}
+            usage={streaming.usage}
           />
         </div>
       )}
@@ -495,6 +507,35 @@ interface ChatBubbleProps {
    * user can't rate before the message lands on disk.
    */
   messageId?: string;
+  /**
+   * v1.18.9 — true for the live streaming assistant turn. Drives the
+   * word-by-word prose fade (`<StreamedProse>`); persisted bubbles render
+   * settled plain text.
+   */
+  streaming?: boolean;
+  /**
+   * v1.18.9 — send-anchored timestamp (epoch ms) for the streaming turn,
+   * feeding the thinking disclosure's elapsed timer. Null on persisted
+   * bubbles.
+   */
+  startedAt?: number | null;
+  /**
+   * v1.18.9 — reasoning-summary text from the additive `reasoning` SSE
+   * frame, shown inside the thinking disclosure when present.
+   */
+  reasoning?: string;
+  /**
+   * v1.18.9 — per-turn token usage for the just-finished streaming bubble
+   * (from `done.usage`). Persisted bubbles read `tokensUsed` / `model`
+   * instead.
+   */
+  usage?: import("./use-coach").CoachUsage | null;
+  /**
+   * v1.18.9 — persisted per-message token count + model, for the quiet
+   * token footer on reload. Null on user turns, refusals, and older rows.
+   */
+  tokensUsed?: number | null;
+  model?: string | null;
 }
 
 function ChatBubble({
@@ -506,6 +547,12 @@ function ChatBubble({
   inProgress,
   errorCode,
   messageId,
+  streaming,
+  startedAt,
+  reasoning,
+  usage,
+  tokensUsed,
+  model,
 }: ChatBubbleProps) {
   const { t } = useTranslations();
   const { user } = useAuth();
@@ -631,38 +678,53 @@ function ChatBubble({
         )}
       </div>
       <div className="flex max-w-[calc(80%-2.625rem)] flex-col gap-2">
-        <div
-          className={cn(
-            "border-border/60 bg-muted/40 text-foreground",
-            "rounded-xl rounded-tl-sm border px-3.5 py-2.5",
-            "text-sm leading-relaxed whitespace-pre-wrap",
-          )}
-        >
-          {/* v1.4.25 W5b — strip stray Metric/enum leak tokens from
-              the assistant prose before it lands in the bubble. The
-              raw `content` is the streamed Coach reply (or the
-              persisted twin after `done` fires); both paths are AI-
-              authored so they share the same leak surface as the
-              insight prose elsewhere.
-
-              v1.16.1 — before the first token lands, the bubble shows
-              a classic typing indicator (three pulsing dots) instead
-              of the old whole-bubble pulse + "Thinking…" prose. The
-              prose stays as the screen-reader announcement. */}
-          {/* v1.16.4 — a failed turn with no streamed prose renders the
-              error copy INSIDE the bubble instead of an empty bubble
-              with a caption below it. With partial prose the prose
-              keeps the bubble and the error stays a caption. */}
-          {content ? (
-            stripChartTokens(content)
-          ) : inProgress ? (
-            <TypingDots label={t("insights.coach.thinking")} />
-          ) : safeError ? (
-            <span className="text-warning/90">{safeError}</span>
-          ) : (
-            ""
-          )}
-        </div>
+        {/* v1.18.9 — the single thinking indicator (live elapsed-time line,
+            then an auto-collapsed past-tense disclosure). Renders only for
+            the live streaming turn — persisted bubbles pass no `startedAt`,
+            so the disclosure returns null and history stays settled. This
+            replaces the old <TypingDots> dots-plus-word combo: there is
+            never a three-dots indicator AND a "Thinking" word at once. */}
+        {streaming && startedAt != null && (
+          <ThinkingDisclosure
+            startedAt={startedAt}
+            inProgress={!!inProgress}
+            hasContent={!!content}
+            reasoning={reasoning}
+          />
+        )}
+        {/* The prose bubble. Skipped while the live turn is still thinking
+            with no prose (the disclosure carries the live state above), so
+            the user never sees an empty bubble under the indicator. The
+            `<TypingDots>` fallback below only fires when there is no live
+            disclosure (e.g. a defensive null `startedAt`). */}
+        {(content ||
+          safeError ||
+          (inProgress && !(streaming && startedAt != null))) && (
+          <div
+            className={cn(
+              "border-border/60 bg-muted/40 text-foreground",
+              "rounded-xl rounded-tl-sm border px-3.5 py-2.5",
+              "text-sm leading-relaxed whitespace-pre-wrap",
+            )}
+          >
+            {/* v1.4.25 W5b — strip stray Metric/enum leak tokens from the
+                assistant prose. v1.18.9 — the live turn streams in
+                word-by-word with a soft fade (<StreamedProse>); a settled
+                / persisted turn renders as plain text. */}
+            {/* v1.16.4 — a failed turn with no streamed prose renders the
+                error copy INSIDE the bubble; with partial prose the prose
+                keeps the bubble and the error stays a caption. */}
+            {content ? (
+              <StreamedProse content={content} streaming={!!streaming} />
+            ) : inProgress ? (
+              <TypingDots label={t("insights.coach.thinking")} />
+            ) : safeError ? (
+              <span className="text-warning/90">{safeError}</span>
+            ) : (
+              ""
+            )}
+          </div>
+        )}
         {safeError && content && (
           <p className="text-warning/90 text-xs">{safeError}</p>
         )}
@@ -784,6 +846,16 @@ function ChatBubble({
             const sug = suggestion ?? metricSource?.suggestion ?? null;
             return sug ? <ReminderSuggestionCard suggestion={sug} /> : null;
           })()}
+        {/* v1.18.9 — quiet per-message token footer. The just-finished
+            streaming turn reads the `done.usage` envelope; a persisted /
+            reloaded turn reads the message's own `tokensUsed` + `model`.
+            Skipped on in-flight, errored, and refusal turns. */}
+        {!inProgress && !errorCode && providerType !== "refusal" && (
+          <MessageTokenFooter
+            tokens={usage?.totalTokens ?? tokensUsed}
+            model={usage?.model ?? model}
+          />
+        )}
         {/* v1.4.23 H7 — per-message thumbs feedback. Only persisted
             assistant messages get the row (skipped for refusals,
             errors, in-flight stream bubbles). The aggregator buckets

@@ -2268,7 +2268,15 @@
       "dictate": "Dictar",
       "dictateStop": "Detener el dictado",
       "showConversations": "Mostrar conversaciones",
-      "hideConversations": "Ocultar conversaciones"
+      "hideConversations": "Ocultar conversaciones",
+      "heroGreeting": "¿En qué puedo ayudarte?",
+      "heroSubline": "Pregunta por tus tendencias, medicamentos o mediciones.",
+      "thinkingElapsed": "{seconds}s",
+      "thinkingDuration": "Pensó durante {seconds}s",
+      "thinkingExpandAria": "Mostrar lo que el Coach tuvo en cuenta",
+      "thinkingDetail": "Respondido a partir de tu resumen de salud.",
+      "tokensUsed": "{count} tokens",
+      "tokensUsedWithModel": "{count} tokens · {model}"
     },
     "relativeJustNow": "ahora mismo",
     "relativeMinutesAgoOne": "hace {count} minuto",

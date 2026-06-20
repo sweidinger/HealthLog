@@ -187,7 +187,12 @@ describe("<MessageThread>", () => {
     ).length;
     expect(userBubbles).toBe(1);
     expect(assistantBubbles).toBe(2);
-    expect(html).toContain("Looking at your data");
+    // v1.18.9 — the live streaming turn renders each word in its own
+    // fade-in <span> (`<StreamedProse>`), so the prose is no longer one
+    // contiguous text node; assert each word is present span-wrapped.
+    for (const word of ["Looking ", "at ", "your ", "data"]) {
+      expect(html).toContain(`>${word}</span>`);
+    }
   });
 
   it("shows the streaming-only bubble when no conversation is loaded yet", () => {
