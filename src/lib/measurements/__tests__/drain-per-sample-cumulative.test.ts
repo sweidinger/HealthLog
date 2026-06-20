@@ -342,16 +342,18 @@ describe("drainPerSampleCumulative — cutoffHours", () => {
 
 // A1 — a late watch sync after a day's total was already collapsed must
 // FOLD the new per-sample rows into the existing total, never overwrite
-// it with just the partial late sum (the original samples are gone).
+// it with just the partial late sum (the original samples are gone). The
+// adopt-in-place write resolves the canonical row by the index-A `stats:`
+// externalId first, then adopts it in place (`update`) or mints a fresh row
+// (`create`).
 describe("drainPerSampleCumulative — late-sync fold into existing total", () => {
-  function buildFoldMock(existingValue: number | null) {
+  function buildFoldMock(existingTotal: number | null) {
     const findManyUser = vi
       .fn()
       .mockResolvedValue([{ id: "user-1", timezone: "Europe/Berlin" }]);
 
     // Only ACTIVITY_STEPS yields the late per-sample rows; every other
-    // cumulative type returns an empty scan so the run stays a single
-    // bucket.
+    // cumulative type returns an empty scan so the run stays a single bucket.
     const findManyMeasurement = vi.fn(
       async (args: { where: { type: string } }) => {
         if (args.where.type === "ACTIVITY_STEPS") {
@@ -376,18 +378,32 @@ describe("drainPerSampleCumulative — late-sync fold into existing total", () =
       },
     );
 
-    const upsert = vi.fn().mockResolvedValue({});
+    const update = vi.fn().mockResolvedValue({ id: "stats-row" });
+    const create = vi.fn().mockResolvedValue({ id: "stats-row-new" });
     const deleteMany = vi.fn().mockResolvedValue({ count: 2 });
-    const findUnique = vi
-      .fn()
-      .mockResolvedValue(
-        existingValue === null ? null : { value: existingValue },
-      );
-    const findFirst = vi.fn().mockResolvedValue({ unit: "count" });
 
-    const tx = {
-      measurement: { upsert, deleteMany, findUnique, findFirst },
-    };
+    // `findFirst` serves three roles inside `writeDay`:
+    //   1. index-A lookup (filters on `externalId`) → the existing collapsed
+    //      total when one exists.
+    //   2. index-B slot lookup (filters on `measuredAt`) → null here (no row
+    //      sits on the canonical instant).
+    //   3. `resolveCanonicalUnit` (filters on neither, selects `unit`) → unit.
+    const findFirst = vi.fn(
+      async (args: {
+        where: Record<string, unknown>;
+        select?: Record<string, unknown>;
+      }) => {
+        if ("externalId" in args.where) {
+          return existingTotal === null
+            ? null
+            : { id: "stats-row", value: existingTotal };
+        }
+        if ("measuredAt" in args.where) return null; // no index-B collision
+        return { unit: "count" }; // resolveCanonicalUnit
+      },
+    );
+
+    const tx = { measurement: { update, create, deleteMany, findFirst } };
 
     return {
       prisma: {
@@ -397,39 +413,173 @@ describe("drainPerSampleCumulative — late-sync fold into existing total", () =
           cb(tx),
         ),
       } as unknown as PrismaClient,
-      upsert,
-      findUnique,
+      update,
+      create,
     };
   }
 
   it("folds late samples into a pre-existing collapsed total (no shrink)", async () => {
     // Day already collapsed to 9000 on an earlier run; a late sync of
     // 300 + 200 = 500 must take the row to 9500, not down to 500.
-    const { prisma, upsert, findUnique } = buildFoldMock(9000);
+    const { prisma, update, create } = buildFoldMock(9000);
 
     await drainPerSampleCumulative(prisma, { log: () => {} });
 
-    expect(findUnique).toHaveBeenCalledTimes(1);
-    expect(upsert).toHaveBeenCalledTimes(1);
-    const upsertArg = upsert.mock.calls[0]?.[0] as {
-      update: { value: number };
-    };
-    expect(upsertArg.update.value).toBe(9500);
+    // The index-A row is adopted in place — updated, never re-created.
+    expect(create).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(1);
+    const updateArg = update.mock.calls[0]?.[0] as { data: { value: number } };
+    expect(updateArg.data.value).toBe(9500);
   });
 
   it("mints the partial sum when no collapsed total exists yet", async () => {
-    const { prisma, upsert } = buildFoldMock(null);
+    const { prisma, update, create } = buildFoldMock(null);
 
     await drainPerSampleCumulative(prisma, { log: () => {} });
 
-    const upsertArg = upsert.mock.calls[0]?.[0] as {
-      create: { value: number };
-      update: { value: number };
+    // Fresh day: no canonical row to adopt → a new row is created with the
+    // raw sum.
+    expect(update).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(1);
+    const createArg = create.mock.calls[0]?.[0] as { data: { value: number } };
+    expect(createArg.data.value).toBe(500);
+  });
+});
+
+// Root cause of the v1.18.10 bloat: a single day whose mint collided with the
+// canonical-noon unique index threw and aborted the ENTIRE global walk (3 s
+// die-early, 0 collapsed). The per-day error boundary must step the poisoned
+// day over so every other day still collapses; the adopt-in-place path must
+// absorb an index-B slot collision rather than throw at all.
+describe("drainPerSampleCumulative — colliding day does not abort the walk", () => {
+  it("steps over a poisoned day and still collapses the others", async () => {
+    const findManyUser = vi
+      .fn()
+      .mockResolvedValue([{ id: "user-1", timezone: "Europe/Berlin" }]);
+
+    // Two ACTIVITY_STEPS days: 2026-05-16 (poison) and 2026-05-17 (clean).
+    const findManyMeasurement = vi.fn(
+      async (args: { where: { type: string } }) => {
+        if (args.where.type === "ACTIVITY_STEPS") {
+          return [
+            {
+              id: "d16-a",
+              type: "ACTIVITY_STEPS",
+              value: 1000,
+              measuredAt: new Date("2026-05-16T09:00:00.000Z"),
+              externalId: "hk-uuid-16a",
+            },
+            {
+              id: "d17-a",
+              type: "ACTIVITY_STEPS",
+              value: 2000,
+              measuredAt: new Date("2026-05-17T09:00:00.000Z"),
+              externalId: "hk-uuid-17a",
+            },
+          ];
+        }
+        return [];
+      },
+    );
+
+    const create = vi.fn(async (args: { data: { measuredAt: Date } }) => {
+      // The 2026-05-16 day mint throws a NON-P2002 error on every attempt —
+      // a genuinely poisoned day the adopt path can't recover. Berlin local
+      // noon on 2026-05-16 (CEST) is 10:00 UTC.
+      const iso = args.data.measuredAt.toISOString();
+      if (iso === "2026-05-16T10:00:00.000Z") {
+        throw new Error("simulated poison-day write failure");
+      }
+      return { id: "stats-row-new" };
+    });
+    const update = vi.fn().mockResolvedValue({ id: "stats-row" });
+    const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
+    const findFirst = vi.fn(
+      async (args: { where: Record<string, unknown> }) => {
+        if ("externalId" in args.where) return null; // no existing total
+        if ("measuredAt" in args.where) return null; // no index-B collision
+        return { unit: "count" };
+      },
+    );
+
+    const tx = { measurement: { update, create, deleteMany, findFirst } };
+    const prisma = {
+      user: { findMany: findManyUser },
+      measurement: { findMany: findManyMeasurement },
+      $transaction: vi.fn(async (cb: (t: typeof tx) => Promise<unknown>) =>
+        cb(tx),
+      ),
+    } as unknown as PrismaClient;
+
+    const summary = await drainPerSampleCumulative(prisma, { log: () => {} });
+
+    // The poisoned day is stepped over, NOT rethrown; the clean day collapses.
+    expect(summary.totals.daysFailed).toBe(1);
+    expect(summary.totals.bucketsCollapsed).toBe(1);
+    expect(summary.totals.usersScanned).toBe(1);
+    // The clean 2026-05-17 mint went through.
+    expect(create).toHaveBeenCalledTimes(2); // both days attempt a create
+  });
+
+  it("adopts an index-B canonical-noon row in place instead of colliding", async () => {
+    const findManyUser = vi
+      .fn()
+      .mockResolvedValue([{ id: "user-1", timezone: "Europe/Berlin" }]);
+
+    const findManyMeasurement = vi.fn(
+      async (args: { where: { type: string } }) => {
+        if (args.where.type === "ACTIVITY_STEPS") {
+          return [
+            {
+              id: "samp-1",
+              type: "ACTIVITY_STEPS",
+              value: 1500,
+              measuredAt: new Date("2026-05-16T09:00:00.000Z"),
+              externalId: "hk-uuid-1",
+            },
+          ];
+        }
+        return [];
+      },
+    );
+
+    const update = vi.fn().mockResolvedValue({ id: "slot-row" });
+    const create = vi.fn().mockResolvedValue({ id: "should-not-be-called" });
+    const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
+    // No index-A stats row, but a DIFFERENT row already sits on the canonical
+    // local-noon instant (index B) — e.g. a manual daily entry. The drain must
+    // adopt it in place, never `create` (which would P2002 against index B).
+    const findFirst = vi.fn(
+      async (args: { where: Record<string, unknown> }) => {
+        if ("externalId" in args.where) return null;
+        if ("measuredAt" in args.where) return { id: "slot-row" };
+        return { unit: "count" };
+      },
+    );
+
+    const tx = { measurement: { update, create, deleteMany, findFirst } };
+    const prisma = {
+      user: { findMany: findManyUser },
+      measurement: { findMany: findManyMeasurement },
+      $transaction: vi.fn(async (cb: (t: typeof tx) => Promise<unknown>) =>
+        cb(tx),
+      ),
+    } as unknown as PrismaClient;
+
+    const summary = await drainPerSampleCumulative(prisma, { log: () => {} });
+
+    expect(create).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(1);
+    const updateArg = update.mock.calls[0]?.[0] as {
+      where: { id: string };
+      data: { externalId: string; value: number };
     };
-    // Fresh day: create branch carries the raw sum; update branch (taken
-    // on an idempotent re-run with no prior total) also resolves to the
-    // raw sum since `existing` was null.
-    expect(upsertArg.create.value).toBe(500);
-    expect(upsertArg.update.value).toBe(500);
+    // The slot row is adopted: stamped with the target stats externalId and
+    // the bucket's value, no collision, no throw.
+    expect(updateArg.where.id).toBe("slot-row");
+    expect(updateArg.data.value).toBe(1500);
+    expect(updateArg.data.externalId).toContain("stats:");
+    expect(summary.totals.daysFailed).toBe(0);
+    expect(summary.totals.bucketsCollapsed).toBe(1);
   });
 });
