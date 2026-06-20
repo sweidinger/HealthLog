@@ -252,7 +252,7 @@ const UNIT_NORMALISATION: Record<string, string> = {
   "µiu/ml": "m[IU]/L",
   "uiu/ml": "m[IU]/L",
   // eGFR rate
-  "mlmin173m2": "mL/min/{1.73_m2}",
+  mlmin173m2: "mL/min/{1.73_m2}",
   "ml/min/1.73m2": "mL/min/{1.73_m2}",
   "ml/min/1.73sqm": "mL/min/{1.73_m2}",
 };
@@ -297,7 +297,8 @@ export function resolveLabCoding(
   unit: string,
   canonicalName?: string | null,
 ): ResolvedLabCoding | null {
-  const source = canonicalName && canonicalName.length > 0 ? canonicalName : analyte;
+  const source =
+    canonicalName && canonicalName.length > 0 ? canonicalName : analyte;
   const key = normaliseLabKey(source);
   const resolvedKey = LAB_LOINC_BY_KEY[key] ? key : LAB_ALIASES[key];
   if (!resolvedKey) return null;

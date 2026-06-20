@@ -666,7 +666,11 @@ export function observationsFromReportData(
       code: coding
         ? {
             coding: [
-              { system: LOINC_SYSTEM, code: coding.loinc, display: coding.display },
+              {
+                system: LOINC_SYSTEM,
+                code: coding.loinc,
+                display: coding.display,
+              },
             ],
             text,
           }
