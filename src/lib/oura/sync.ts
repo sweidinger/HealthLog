@@ -5,9 +5,14 @@
  * (real per-segment hypnogram timeline when present, else per-stage totals;
  * efficiency, HRV, RHR, respiratory rate), daily activity (steps, active
  * energy, equivalent walking distance), the daily Sleep Score (→ SLEEP_SCORE),
- * daily SpO2 (→ OXYGEN_SATURATION), daily stress (→ STRESS_SCORE), and the
- * dedicated vO2_max collection (→ VO2_MAX) for one connected user, mapping each
- * into `Measurement` rows tagged `source = OURA`.
+ * daily SpO2 (→ OXYGEN_SATURATION), and the dedicated vO2_max collection (→
+ * VO2_MAX) for one connected user, mapping each into `Measurement` rows tagged
+ * `source = OURA`.
+ *
+ * daily_stress → STRESS_SCORE is deferred: STRESS_SCORE already has an
+ * HRV-derived COMPUTED producer that is not yet wired into the source-priority
+ * ladder or the weekly graded-series collapse, so a second producer here would
+ * double-count nondeterministically. Re-add once STRESS_SCORE is laddered.
  *
  * Token model: Oura uses refresh tokens. The merged schema has no expiry
  * column, so the sync refreshes REACTIVELY — the first read that 401s triggers
@@ -41,14 +46,12 @@ import {
   fetchDailyActivity,
   fetchDailySleep,
   fetchDailySpo2,
-  fetchDailyStress,
   fetchReadiness,
   fetchSleep,
   fetchVo2Max,
   mapDailyActivity,
   mapDailySleep,
   mapDailySpo2,
-  mapDailyStress,
   mapReadiness,
   mapSleep,
   mapVo2Max,
@@ -119,14 +122,13 @@ async function fetchAll(
   const query = { startDate: ymd(start), endDate: ymd(now) };
 
   const run = async (token: string): Promise<OuraMeasurementUpsert[]> => {
-    const [readiness, sleeps, activities, dailySleep, spo2, stress, vo2max] =
+    const [readiness, sleeps, activities, dailySleep, spo2, vo2max] =
       await Promise.all([
         fetchReadiness(token, query),
         fetchSleep(token, query),
         fetchDailyActivity(token, query),
         fetchDailySleep(token, query),
         fetchDailySpo2(token, query),
-        fetchDailyStress(token, query),
         fetchVo2Max(token, query),
       ]);
     const out: OuraMeasurementUpsert[] = [];
@@ -138,7 +140,6 @@ async function fetchAll(
     for (const d of dailySleep)
       out.push(...toUpsert(mapDailySleep(d), "daily_sleep"));
     for (const s of spo2) out.push(...toUpsert(mapDailySpo2(s), "spo2"));
-    for (const s of stress) out.push(...toUpsert(mapDailyStress(s), "stress"));
     for (const v of vo2max) out.push(...toUpsert(mapVo2Max(v), "vo2max"));
     return out;
   };

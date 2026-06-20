@@ -15,12 +15,19 @@
 
 /**
  * Anthropic vision models. The Messages API `image` + `document` blocks are
- * accepted by the Claude 3.5+ / 3.7 / 4 families. An older `claude-2*` /
- * `claude-instant*` pin is text-only.
+ * accepted by the whole Claude 3 family (3 / 3.5 / 3.7) and the Claude 4
+ * family. An older `claude-2*` / `claude-instant*` pin is text-only.
+ *
+ * The bare `claude-3-opus` / `claude-3-sonnet` / `claude-3-haiku` prefixes are
+ * listed explicitly: a self-hoster pinned to e.g. `claude-3-opus-20240229`
+ * reads images, but the `claude-3-5` prefix does not match it.
  */
 function anthropicSupportsVision(model: string): boolean {
   const m = model.toLowerCase();
   return (
+    m.startsWith("claude-3-opus") ||
+    m.startsWith("claude-3-sonnet") ||
+    m.startsWith("claude-3-haiku") ||
     m.startsWith("claude-3-5") ||
     m.startsWith("claude-3.5") ||
     m.startsWith("claude-3-7") ||

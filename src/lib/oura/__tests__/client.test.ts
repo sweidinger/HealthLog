@@ -10,7 +10,6 @@ import {
   mapDailyActivity,
   mapDailySleep,
   mapDailySpo2,
-  mapDailyStress,
   mapReadiness,
   mapSleep,
   mapVo2Max,
@@ -18,7 +17,6 @@ import {
   type OuraDailyActivity,
   type OuraDailySleep,
   type OuraDailySpo2,
-  type OuraDailyStress,
   type OuraReadiness,
   type OuraSleep,
   type OuraVo2Max,
@@ -352,44 +350,6 @@ describe("mapVo2Max", () => {
     expect(mapVo2Max({ id: "1", day: "2026-06-10", vo2_max: null })).toEqual(
       [],
     );
-  });
-});
-
-describe("mapDailyStress", () => {
-  it("derives a 0-100 STRESS_SCORE from the high-stress share of charged time", () => {
-    const s: OuraDailyStress = {
-      id: "1",
-      day: "2026-06-10",
-      stress_high: 90,
-      recovery_high: 30,
-    };
-    const mapped = mapDailyStress(s);
-    expect(mapped).toHaveLength(1);
-    // 90 / (90 + 30) = 75 %.
-    expect(mapped[0]).toMatchObject({
-      type: "STRESS_SCORE",
-      value: 75,
-      unit: "score",
-      fieldTag: "stress",
-    });
-  });
-  it("treats a missing recovery field as zero recovery", () => {
-    const mapped = mapDailyStress({
-      id: "1",
-      day: "2026-06-10",
-      stress_high: 60,
-    });
-    expect(mapped[0]?.value).toBe(100);
-  });
-  it("skips a day with no charged minutes (no signal)", () => {
-    expect(
-      mapDailyStress({
-        id: "1",
-        day: "2026-06-10",
-        stress_high: 0,
-        recovery_high: 0,
-      }),
-    ).toEqual([]);
   });
 });
 

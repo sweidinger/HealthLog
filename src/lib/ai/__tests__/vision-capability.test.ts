@@ -6,8 +6,11 @@ import {
 } from "../vision-capability";
 
 describe("supportsVisionForConfig", () => {
-  it("accepts Claude 3.5+/4 family models for anthropic", () => {
+  it("accepts the Claude 3 / 3.5 / 3.7 / 4 families for anthropic", () => {
     for (const model of [
+      "claude-3-opus-20240229",
+      "claude-3-sonnet-20240229",
+      "claude-3-haiku-20240307",
       "claude-3-5-sonnet-latest",
       "claude-3-7-sonnet",
       "claude-sonnet-4-6",

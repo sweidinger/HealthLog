@@ -70,6 +70,25 @@ async function isDuplicate(
   return false;
 }
 
+/**
+ * Stable in-batch dedup key for a confirmed row: analyte (lower+trim) + UTC day
+ * + the value dimension that `isDuplicate` matches on. Two rows in ONE document
+ * that resolve to the same key are the same reading; only the first is written.
+ * Mirrors the `isDuplicate` match semantics so in-batch dedup no longer depends
+ * on a prior row autocommitting before the next row's live query runs.
+ */
+function inBatchKey(row: OcrCommitRow): string {
+  const analyte = row.analyte.trim().toLowerCase();
+  const dayKey = new Date(row.takenAt).toISOString().slice(0, 10);
+  const valuePart =
+    row.value !== undefined
+      ? `n:${row.value}`
+      : row.valueText !== undefined
+        ? `t:${row.valueText.trim().toLowerCase()}`
+        : "∅";
+  return `${analyte}|${dayKey}|${valuePart}`;
+}
+
 async function commitOcrRows(request: NextRequest) {
   const { user } = await requireAuth();
 
@@ -102,9 +121,15 @@ async function commitOcrRows(request: NextRequest) {
 
   const inserted: ReturnType<typeof serialiseLabResult>[] = [];
   const skipped: OcrSkippedRowDto[] = [];
+  // Tracks the keys already written in THIS request so an in-document duplicate
+  // is caught even before the prior row is visible to a live query. The
+  // mint-then-create on a mid-row failure can leave an orphan biomarker, which
+  // is benign and self-healing — the manual lab-write path mints the same way.
+  const writtenInBatch = new Set<string>();
 
   for (const row of parsed.data.rows) {
-    if (await isDuplicate(user.id, row)) {
+    const key = inBatchKey(row);
+    if (writtenInBatch.has(key) || (await isDuplicate(user.id, row))) {
       skipped.push({ analyte: row.analyte.trim(), reason: "duplicate" });
       continue;
     }
@@ -138,6 +163,7 @@ async function commitOcrRows(request: NextRequest) {
       },
     });
 
+    writtenInBatch.add(key);
     inserted.push(serialiseLabResult(created, biomarker));
   }
 

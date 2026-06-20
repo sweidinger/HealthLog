@@ -24,11 +24,12 @@
  *     returning to the tab after a sync surfaces the new readings within
  *     a frame. The `staleTime: 60_000` gate makes rapid focus toggles
  *     cheap (a refetch fires only once the slot is stale), and the warm
- *     60 s server SWR cache keeps the focus refetch sub-cost.
+ *     server SWR cache (~180 s fresh TTL, `DASHBOARD_REFETCH_INTERVAL_MS
+ *     + 60_000`) keeps the focus refetch sub-cost.
  *   - `refetchInterval: 120_000` + `refetchIntervalInBackground: false`
  *     keep an open dashboard live: an idle tab polls the snapshot every
  *     two minutes so freshly-synced Withings / HealthKit readings appear
- *     without a manual reload. The poll hits the warm 60 s server cache
+ *     without a manual reload. The poll hits the warm ~180 s server cache
  *     cheaply and only triggers a sub-second rollup rebuild when the
  *     underlying data actually changed — never the LLM surfaces, which
  *     stay daily / pre-generated. The interval pauses while the tab is
