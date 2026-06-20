@@ -1,0 +1,725 @@
+/**
+ * OpenAPI route table — medications CRUD, intake, cadence, compliance, AI extraction.
+ *
+ * Part of the OpenAPI route table; aggregated in `./index.ts`.
+ * Schemas come from `src/lib/validations/*` where shared with the
+ * runtime request parsing, so the wire contract stays single-source.
+ */
+import { z } from "zod/v4";
+import {
+  MEDICATION_CATEGORY_VALUES,
+  MEDICATION_CONTAINER_TYPE_VALUES,
+  MEDICATION_TREATMENT_CLASS_VALUES,
+} from "@/lib/validations/medication";
+import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
+import {
+  MEDICATION_LIST_VIEWS,
+  MEDICATION_ORDER_ID_MAX_LENGTH,
+  MEDICATION_ORDER_MAX_ENTRIES,
+} from "@/lib/medication-list-layout";
+
+// ── Medications (v1.5 scheduling) ────────────────────────────────────
+//
+// The Medication + MedicationSchedule resource shapes documented below
+// follow the wire envelope the seven routes registered at the bottom of
+// this file emit. `windowStart` / `windowEnd` / `daysOfWeek` /
+// `intervalWeeks` are the legacy primitives kept for backwards
+// compatibility through the v1.5.x line; `timesOfDay`, `rrule`,
+// `rollingIntervalDays`, and `reminderGraceMinutes` are the v1.5
+// first-class primitives the wizard + iOS cadence picker write. The
+// XOR between `rrule` and `rollingIntervalDays` is documented at the
+// schema description AND enforced by the route + a DB CHECK constraint
+// so iOS code-gen surfaces the mutual exclusion.
+
+export const medicationCategoryEnum = z.enum(MEDICATION_CATEGORY_VALUES).meta({
+  id: "MedicationCategory",
+  description:
+    "Clinical taxonomy stored in the `medication_categories` side-table. Orthogonal to `MedicationTreatmentClass`.",
+});
+
+export const medicationTreatmentClassEnum = z
+  .enum(MEDICATION_TREATMENT_CLASS_VALUES)
+  .meta({
+    id: "MedicationTreatmentClass",
+    description:
+      "Prisma-level treatment-class discriminator. `GLP1` unlocks the GLP-1 specialist surfaces (injection-site rotation, titration history, pen inventory, GLP-1-aware Coach).",
+  });
+
+export const medicationScheduleResource = z
+  .object({
+    id: z.string(),
+    medicationId: z.string(),
+    windowStart: z
+      .string()
+      .describe(
+        "Legacy single-time-of-intake (HH:mm, user local). Preserved for backwards compatibility; the new `timesOfDay` array supersedes it.",
+      ),
+    windowEnd: z
+      .string()
+      .describe(
+        "Legacy reminder-window upper bound (HH:mm). Used to derive the late-classification grace span when `reminderGraceMinutes` is null.",
+      ),
+    label: z.string().nullable(),
+    dose: z
+      .string()
+      .nullable()
+      .describe(
+        "Per-schedule dose override. NULL means the schedule inherits `Medication.dose`.",
+      ),
+    daysOfWeek: z
+      .string()
+      .nullable()
+      .describe(
+        "Legacy persisted recurrence encoding (`null` | `1,3,5` | `i2;1,3,5`). v1.5 readers consult `rrule` first; the field is kept for pre-v1.5 rows. v1.6.0 drops the column.",
+      ),
+    timesOfDay: z
+      .array(z.string())
+      .describe(
+        "v1.5 first-class points-in-time the dose is taken (HH:mm, user local). Backfilled to `[windowStart]` for every pre-v1.5 row.",
+      ),
+    reminderGraceMinutes: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "Reminder grace window in minutes. NULL falls back to the legacy `windowEnd - windowStart` span.",
+      ),
+    rrule: z
+      .string()
+      .nullable()
+      .describe(
+        "RFC 5545 RRULE string (subset). Used for calendar-anchored cadences. **Mutually exclusive with `rollingIntervalDays`** — exactly one of the two is non-null on any v1.5+ schedule (or both are null on legacy rows that haven't been touched since the migration).",
+      ),
+    rollingIntervalDays: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "Flexible-rolling interval in days, counted forward from the latest `MedicationIntakeEvent.takenAt`. **Mutually exclusive with `rrule`.**",
+      ),
+    scheduleType: z
+      .enum(["SCHEDULED", "PRN", "CYCLIC"])
+      .describe(
+        "v1.7.0 schedule-type discriminator. SCHEDULED = rrule / rolling / legacy cadence. PRN = as-needed (never projected, reminded, or counted in compliance expected; still loggable via the intake route). CYCLIC = N weeks on / M weeks off, gating whichever inner cadence the rrule / legacy fields describe.",
+      ),
+    cyclicOnWeeks: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        'v1.7.0 cyclic "on" weeks. Only meaningful when `scheduleType` is CYCLIC; null otherwise.',
+      ),
+    cyclicOffWeeks: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        'v1.7.0 cyclic "off" weeks. Only meaningful when `scheduleType` is CYCLIC; null otherwise.',
+      ),
+  })
+  .meta({
+    id: "MedicationSchedule",
+    description:
+      "Schedule entry attached to a medication. v1.5 promotes `timesOfDay` to first-class and introduces `rrule` (calendar-anchored cadences) and `rollingIntervalDays` (flexible-rolling cadences). The two recurrence primitives are mutually exclusive — enforced by the Zod refine on writes, the route layer, and a DB CHECK constraint (`medication_schedules_rrule_xor_rolling`). v1.7.0 adds `scheduleType` (SCHEDULED / PRN / CYCLIC) and the cyclic on/off-week fields.",
+  });
+
+export const medicationResource = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    dose: z.string(),
+    treatmentClass: medicationTreatmentClassEnum,
+    dosesPerUnit: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "Doses per pen / vial for inventory tracking. NULL = inventory tracking off.",
+      ),
+    unitsPerDose: z
+      .number()
+      .describe(
+        "v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). v1.16.12 — may be a split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾); thirds carry as ≈0.3333 / 0.6667. Default 1. The intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.",
+      ),
+    reorderLeadDays: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "v1.17.0 — optional per-medication reorder lead time in days (0–60). The low-stock alert widens its trigger by this lead plus one dose-interval so a refill arrives before the last dose. null = inherit the user-level notificationPrefs.medication.reorderLeadDays default (10).",
+      ),
+    active: z.boolean(),
+    notificationsEnabled: z.boolean(),
+    liveActivityEnabled: z
+      .boolean()
+      .describe(
+        "v1.7.0 iOS Live Activity opt-in for this medication's reminders. Default false. The iOS client owns the ActivityKit lifecycle; the server only stores + echoes the flag.",
+      ),
+    criticalAlarmEnabled: z
+      .boolean()
+      .describe(
+        "v1.7.0 iOS 26 AlarmKit critical-reminder opt-in. Default false. Critical alarms bypass the device mute switch / Focus; the server stores the preference only.",
+      ),
+    atcCode: z
+      .string()
+      .nullable()
+      .describe(
+        "v1.9.0 optional WHO ATC classification code (active-substance class, e.g. `A10BX10`). User/clinician-asserted; never machine-guessed. Emitted on the FHIR `medicationCodeableConcept` under `http://www.whocc.no/atc`. NULL = no code captured.",
+      ),
+    rxNormCode: z
+      .string()
+      .nullable()
+      .describe(
+        "v1.9.0 optional RxNorm RxCUI (numeric, US identifier, e.g. `2601723`). Secondary FHIR coding under `http://www.nlm.nih.gov/research/umls/rxnorm`, alongside any ATC code. NULL = no code captured.",
+      ),
+    pausedAt: z.iso.datetime({ offset: true }).nullable(),
+    snoozedUntil: z.iso.datetime({ offset: true }).nullable(),
+    nextDueAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "v1.7.0 server-computed next due instant across all the medication's schedules (earliest `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). v1.16.4 — when an unresolved slot's anchor has passed but the catch-up band is still open (`anchor < now <= overdueEnd`, current schedule era), this carries THAT slot (a past instant) with `nextDueOverdue: true` instead of jumping to the next future slot. The list GET is cached 60 s, so a 60 s staleness is accepted.",
+      ),
+    nextDueOverdue: z
+      .boolean()
+      .describe(
+        "v1.16.4 — true when `nextDueAt` is an OPEN overdue slot: its anchor has passed, `now` is still inside the slot's catch-up band, and no taken / skipped / auto-missed row resolves it. False for a regular future next-due (and when `nextDueAt` is null). Read-only — computed, not stored.",
+      ),
+    startsOn: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "v1.5 course start (ISO date). Anchors RRULE BYDAY / BYMONTHDAY patterns and the rolling-interval countdown's first window. NULL means active from creation.",
+      ),
+    endsOn: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "v1.5 course end (ISO date). NULL means chronic. Equals `startsOn` when `oneShot` is true.",
+      ),
+    oneShot: z
+      .boolean()
+      .describe(
+        "v1.5 single-administration flag. When true the medication has at most one schedule (no `rrule` / `rollingIntervalDays`), and `active` auto-flips to false once the dose is logged.",
+      ),
+    asNeeded: z
+      .boolean()
+      .describe(
+        "v1.16.11 as-needed (PRN) flag. When true the medication carries ZERO schedules (the write routes 422 on any schedule entry alongside the flag): it is never due (`nextDueAt` stays null), never reminded, and excluded from every compliance rate/streak — but intakes still log as ad-hoc rows, inventory still consumes per `unitsPerDose`, and the history renders. Stays active indefinitely. Mutually exclusive with `oneShot`.",
+      ),
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+    schedules: z.array(medicationScheduleResource),
+  })
+  .meta({
+    id: "Medication",
+    description:
+      "Server-shaped medication row returned by GET / POST / PUT endpoints. Carries the v1.5 course-window fields (`startsOn`, `endsOn`, `oneShot`) at the medication level and the per-schedule cadence fields on the nested `schedules` array.",
+  });
+
+export const medicationListEntry = medicationResource
+  .extend({
+    category: medicationCategoryEnum,
+    lastTakenAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "Latest non-skipped `MedicationIntakeEvent.takenAt` for the medication. Drives the rolling-cadence countdown surface.",
+      ),
+    todayEventCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Number of ACTIONED intake events for today (user-local day window): rows with a recorded `takenAt` or an explicit skip. Pending projector-minted rows do not count — the card overdue-pill suppression compares this against the passed-dose count, and a pending mint must not read as covered.",
+      ),
+    stockUnitsRemaining: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "v1.16.10 — usable inventory units left across the medication's containers (sum of `unitsRemaining` over ACTIVE / IN_USE items with units left). NULL = inventory tracking off (no items ever registered); 0 = tracking on, supply ran out. Read-only — aggregated, not stored.",
+      ),
+    stockDosesRemaining: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "v1.16.10 — dose-derived stock: `floor(stockUnitsRemaining / unitsPerDose)`, where `unitsPerDose` may be a fraction (½ tablet ⇒ twice the doses). Stays a whole-dose count. NULL when inventory tracking is off. Drives the table view's Bestand column. Read-only — aggregated, not stored.",
+      ),
+  })
+  .meta({
+    id: "MedicationListEntry",
+    description:
+      "List-row variant of the medication resource enriched with the joined `category`, `lastTakenAt`, `todayEventCount`, and the v1.16.10 aggregated stock fields (`stockUnitsRemaining`, `stockDosesRemaining`) the dashboard + iOS client consume. The base medication fields (`id`, `name`, `dose`, `treatmentClass`, `dosesPerUnit`, `active`, `notificationsEnabled`, `pausedAt`, `snoozedUntil`, `startsOn`, `endsOn`, `oneShot`, `createdAt`, `updatedAt`, `schedules`) are inlined; see the `Medication` component for their semantics.",
+  });
+
+export const medicationDetailEntry = medicationResource
+  .extend({
+    category: medicationCategoryEnum,
+  })
+  .meta({
+    id: "MedicationDetail",
+    description:
+      "Detail variant of the medication resource enriched with the joined `category`. The base medication fields are inlined; see the `Medication` component for their semantics.",
+  });
+
+// v1.16.10 — per-container inventory entity (pen / blister pack /
+// bottle). Counts UNITS; the medication's `unitsPerDose` maps units to
+// doses. The intake consumption hook decrements `unitsRemaining` per
+// taken dose and stamps the intake event with what it consumed.
+export const medicationInventoryItemResource = z
+  .object({
+    id: z.string(),
+    userId: z.string(),
+    medicationId: z.string(),
+    state: z
+      .enum(["ACTIVE", "IN_USE", "EXPIRED", "USED_UP"])
+      .describe(
+        "Container lifecycle state. ACTIVE = unopened; IN_USE = opened (30-day in-use clock running); EXPIRED = printed expiry or in-use window lapsed with units left; USED_UP = drained (terminal).",
+      ),
+    containerType: z
+      .enum(MEDICATION_CONTAINER_TYPE_VALUES)
+      .describe(
+        "Kind of physical container (PEN / AMPOULE / BLISTER / INHALER / BOTTLE / OTHER). Display-level classification; defaults to OTHER.",
+      ),
+    unitsTotal: z
+      .number()
+      .nullable()
+      .describe(
+        'Units the container shipped with (tablets / ampoules / puffs; 1–1000). v1.16.12 — fractional, so a split-pill remainder reads cleanly. Dose-derived readouts divide by the medication\'s `unitsPerDose`. v1.18.3 (iOS#31) — NULL when the unit count is unknown (a corrupt or legacy row); the client renders "unknown", never a fabricated 0.',
+      ),
+    unitsRemaining: z
+      .number()
+      .nullable()
+      .describe(
+        'Units left in the container. v1.16.12 — fractional (a ½-tablet dose leaves 29.5 of 30). Decremented by the intake consumption hook (FEFO with spillover across containers); refunded when a taken dose is skipped, edited away, or deleted. v1.18.3 (iOS#31) — NULL when the count is unknown (a corrupt or legacy row); the client renders "unknown", never a fabricated 0 it could decrement into negatives.',
+      ),
+    firstUseAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "Instant the container was first used. NULL until opened; starts the 30-day in-use clock.",
+      ),
+    expiresAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "Persisted MIN(firstUseAt + 30 days, printedExpiry). NULL when neither clock has started.",
+      ),
+    printedExpiry: z.iso.datetime({ offset: true }).nullable(),
+    purchasedAt: z.iso.datetime({ offset: true }).nullable(),
+    notes: z.string().nullable(),
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({
+    id: "MedicationInventoryItem",
+    description:
+      "One supply container (pen / blister pack / bottle) of a medication. Counts UNITS — the medication's `unitsPerDose` maps units to doses. The intake write paths consume from the open container first, then first-expiry-first-out over unopened stock.",
+  });
+
+export const medicationIntakeEventResource = z
+  .object({
+    id: z.string(),
+    userId: z.string(),
+    medicationId: z.string(),
+    scheduledFor: z.iso.datetime({ offset: true }),
+    takenAt: z.iso.datetime({ offset: true }).nullable(),
+    skipped: z.boolean(),
+    source: z.enum(["WEB", "API", "REMINDER", "IMPORT"]),
+    idempotencyKey: z.string().nullable(),
+    createdAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({
+    id: "MedicationIntakeEvent",
+    description:
+      "Single dose log row. `takenAt` is non-null for confirmed intakes; `skipped:true` represents a deliberately-missed dose (no inventory consumption).",
+  });
+
+export const medicationCadenceTimelinePoint = z
+  .object({
+    day: z.iso.datetime({ offset: true }),
+    windowStart: z.iso.datetime({ offset: true }),
+    windowEnd: z.iso.datetime({ offset: true }),
+    scheduleIndex: z.number().int().nonnegative(),
+    status: z.string(),
+  })
+  .meta({
+    id: "MedicationCadenceTimelinePoint",
+    description:
+      "One expected-vs-actual dose slot for the cadence timeline chart. `status` is one of `taken | skipped | missed | pending | future` and drives the chip colour.",
+  });
+
+export const medicationCadenceChips = z
+  .object({
+    adherenceRate: z.number(),
+    streakDays: z.number().int().nonnegative(),
+    expectedSlots: z.number().int().nonnegative(),
+    actualDoses: z.number().int().nonnegative(),
+  })
+  .meta({
+    id: "MedicationCadenceChips",
+    description:
+      "Four compliance summary values for the medication detail page chip row.",
+  });
+
+export const medicationCadenceResponse = z
+  .object({
+    windowDays: z.number().int().positive(),
+    anchorIso: z.iso.datetime({ offset: true }),
+    next: z
+      .object({
+        windowStart: z.iso.datetime({ offset: true }),
+        windowEnd: z.iso.datetime({ offset: true }),
+        scheduleIndex: z.number().int().nonnegative(),
+      })
+      .nullable(),
+    chips: medicationCadenceChips,
+    timeline: z.array(medicationCadenceTimelinePoint),
+  })
+  .meta({
+    id: "MedicationCadenceResponse",
+    description:
+      "Cadence + compliance read for a single medication. `next` is the upcoming-dose envelope (null when the course has ended or the rolling clock has no pinning intake yet); `timeline` walks the requested `windowDays` worth of slots in ascending time order.",
+  });
+
+export const complianceResult = z
+  .object({
+    totalExpected: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Full denominator over the window: `taken + skipped + missed`. Cadence-aware and clamped to the medication's `createdAt`.",
+      ),
+    taken: z.number().int().nonnegative(),
+    skipped: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Doses the user explicitly skipped — excluded from the `rate` denominator.",
+      ),
+    missed: z.number().int().nonnegative(),
+    rate: z
+      .number()
+      .int()
+      .min(0)
+      .max(100)
+      .describe(
+        "Adherence percentage `round(taken / (taken + missed) * 100)` — `skipped` is excluded from the denominator.",
+      ),
+    streak: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("Consecutive days with every due dose taken."),
+  })
+  .meta({
+    id: "ComplianceResult",
+    description:
+      "Rolling-window adherence summary. `compliance30` is the authoritative 'last 30 days, taken vs expected' read — clients should display `rate` and use `totalExpected` as the denominator rather than re-deriving it from the daily map.",
+  });
+
+export const dailyComplianceEntry = z
+  .object({
+    expected: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Engine-computed due-slot count for the day. Equals `expectedCount`; kept for existing consumers.",
+      ),
+    expectedCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "True due-slot count for the day (additive field clients key off so they don't infer due-ness from `expected`).",
+      ),
+    due: z
+      .boolean()
+      .describe(
+        "`expectedCount > 0`. Paint a per-day glyph as expected/missed ONLY when `due === true`; off-cadence / pre-creation / PRN days are not misses.",
+      ),
+    taken: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+    onTime: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Doses taken in the on-time band, including the `early` bucket (early counts as compliant).",
+      ),
+    late: z.number().int().nonnegative(),
+    veryLate: z.number().int().nonnegative(),
+    early: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe(
+        "Doses taken before the on-time band's grace start; already folded into `onTime`, surfaced separately for consumers that differentiate.",
+      ),
+  })
+  .meta({
+    id: "DailyComplianceEntry",
+    description:
+      "Per-day compliance cell with the timing breakdown that drives the history glyph track.",
+  });
+
+export const complianceDisplay = z
+  .object({
+    shortDays: z.number().int().positive(),
+    longDays: z.number().int().positive(),
+    expectedShort: z.number().int().nonnegative(),
+    expectedLong: z.number().int().nonnegative(),
+    minStableDoses: z.number().int().nonnegative(),
+    short: z.object({
+      rate: z.number().int().min(0).max(100),
+      taken: z.number().int().nonnegative(),
+      expected: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe(
+          "v1.15.9 rate denominator over the short window (`taken + missed`); user skips are excluded. Render `taken / expected · rate%`.",
+        ),
+      missed: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe(
+          "v1.15.9 doses counted against the rate over the short window — includes forgotten doses the auto-miss cron flipped.",
+        ),
+      streak: z.number().int().nonnegative(),
+    }),
+    long: z.object({
+      rate: z.number().int().min(0).max(100),
+      taken: z.number().int().nonnegative(),
+      expected: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe(
+          "v1.15.9 rate denominator over the long window (`taken + missed`).",
+        ),
+      missed: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe(
+          "v1.15.9 doses counted against the rate over the long window.",
+        ),
+    }),
+    currentCycle: z
+      .object({
+        state: z
+          .enum(["on_track", "due", "missed", "none"])
+          .describe(
+            "Open-cycle state, decoupled from the percentage rows: `on_track` = next dose not yet due; `due` = due now / in grace; `missed` = past grace with no logged intake (the only red state); `none` = no projected next dose (PRN / paused / ended).",
+          ),
+        nextDueAt: z.iso
+          .datetime({ offset: true })
+          .nullable()
+          .describe(
+            "The open cycle's due instant. Null when `state` is `none`.",
+          ),
+        graceUntil: z.iso
+          .datetime({ offset: true })
+          .nullable()
+          .describe(
+            "End of the due slot's grace window. Null when `state` is `none`.",
+          ),
+        hasClosedCycles: z
+          .boolean()
+          .describe(
+            "False for a brand-new sparse med with zero closed dose cycles — the percentage rows are vacuous and the card should show a neutral 'not enough data yet' state.",
+          ),
+      })
+      .describe(
+        "v1.13.x — the current (open) dose cycle, surfaced so a between-doses sparse med renders a neutral 'next dose in N days' line instead of a scary red 0%. The percentage rows above already exclude the open forward cycle from their denominator.",
+      ),
+    currentDose: z
+      .object({
+        status: z
+          .enum([
+            "upcoming",
+            "on_time_window",
+            "overdue",
+            "missed",
+            "taken_on_time",
+            "taken_late",
+            "skipped",
+          ])
+          .describe(
+            "Per-dose state of the open cycle, server-derived from the window model so the card renders the take-window (green) / overdue / heavily-overdue escalation from one authority. `upcoming` when no dose is open (PRN / paused / ended).",
+          ),
+        targetAt: z.iso
+          .datetime({ offset: true })
+          .nullable()
+          .describe(
+            "Target instant of the open dose. Null when no dose is open.",
+          ),
+      })
+      .describe(
+        "v1.15.9 — the open dose's per-dose status + target, so the card highlights the actionable take-window green and escalates an overdue dose without re-deriving the window math client-side.",
+      ),
+  })
+  .meta({
+    id: "ComplianceDisplay",
+    description:
+      "The two-row card block whose windows scale with dosing cadence (dense meds keep 7 / 30 days, sparse meds step both windows up). NOT the 30-day denominator — read `compliance30.totalExpected` for that.",
+  });
+
+export const medicationComplianceResponse = z
+  .object({
+    compliance7: complianceResult,
+    compliance30: complianceResult,
+    dailyCompliance: z
+      .record(z.string(), dailyComplianceEntry)
+      .describe(
+        "Flat per-day map keyed `YYYY-MM-DD` in the user timezone, one entry per day for up to 90 days back, clamped to the medication's `createdAt` (so a recently-created med has fewer entries). No weekly/monthly collapse — this is the raw daily grid.",
+      ),
+    complianceDisplay,
+  })
+  .meta({
+    id: "MedicationComplianceResponse",
+    description:
+      "Adherence read for a single medication. `compliance30` is the authoritative 30-day taken-vs-expected summary; `dailyCompliance` is the per-day grid for the history glyph track. The graded raw→week→month→year series used elsewhere for AI prompts does NOT apply here — this response is never downsampled.",
+  });
+
+export const medicationComplianceSummaryEntry = z
+  .object({
+    medicationId: z.string(),
+    compliance7: complianceResult,
+    compliance30: complianceResult,
+    complianceDisplay,
+  })
+  .meta({
+    id: "MedicationComplianceSummaryEntry",
+    description:
+      "Compact per-medication adherence row for the batched card read: the 7-/30-day summaries plus the cadence-scaled display block. The per-day `dailyCompliance` grid is NOT on this shape — read the per-medication `/compliance` endpoint for the history glyph track.",
+  });
+
+// v1.16.5 — schedule-era management (the Zeitplan-tab history timeline).
+// Archived eras come from two provenances: the wholesale-replace write
+// path (`ARCHIVED`, immutable) and the user-entered pre-tracking flow
+// (`MANUAL`, deletable through the `[revisionId]` DELETE).
+export const scheduleRevisionEntrySummary = z
+  .object({
+    timesOfDay: z
+      .array(z.string())
+      .describe("Daily dose times (HH:mm, user local) the era ran at."),
+    label: z.string().nullable(),
+    dose: z.string().nullable(),
+    scheduleType: z
+      .string()
+      .describe(
+        "Schedule-type discriminator of the archived row (SCHEDULED / PRN / CYCLIC).",
+      ),
+  })
+  .meta({
+    id: "ScheduleRevisionEntry",
+    description:
+      "Display summary of one archived schedule row inside an era. The full snapshot (windows, rrule, doseWindows, …) stays server-side; this projection carries what the timeline renders.",
+  });
+
+export const scheduleRevisionResource = z
+  .object({
+    id: z.string(),
+    validFrom: z.iso.datetime().describe("Inclusive start instant of the era."),
+    validUntil: z.iso
+      .datetime()
+      .describe(
+        "Exclusive end instant of the era — the moment the next plan took over.",
+      ),
+    source: z
+      .enum(["ARCHIVED", "MANUAL"])
+      .describe(
+        "Provenance. ARCHIVED = minted by the schedule-replace write path (immutable). MANUAL = user-entered pre-tracking era (deletable).",
+      ),
+    entries: z.array(scheduleRevisionEntrySummary),
+  })
+  .meta({
+    id: "MedicationScheduleRevision",
+    description:
+      "One archived schedule era covering `[validFrom, validUntil)`. The dose-history ledger, compliance tallies, and cadence chips mint past days against the era that was live then.",
+  });
+
+export const scheduleRevisionListResponse = z.object({
+  currentSince: z.iso
+    .datetime()
+    .describe(
+      "Instant the LIVE plan took over: the newest revision's `validUntil`, or the medication's `createdAt` when no era has been archived.",
+    ),
+  revisions: z
+    .array(scheduleRevisionResource)
+    .describe("Archived eras, newest first."),
+});
+
+// v1.5.0 — natural-language medication extraction route. The wizard's
+// optional "Beschreiben" overlay POSTs a free-text description and
+// receives a partial structured payload the form merges onto whatever
+// the user already typed. Citation-guarded (`name` and `dose` are
+// dropped when not substring-matched in the original text) and
+// closed-enum-validated.
+export const medicationExtractRequest = z
+  .object({
+    text: z
+      .string()
+      .min(1)
+      .max(2000)
+      .describe(
+        "Free-text medication description (any locale). Up to 2 000 characters. The model never echoes the text back into another tenant — it is only used to produce the structured fields.",
+      ),
+    locale: z
+      .enum(["en", "de", "es", "fr", "it", "pl"])
+      .optional()
+      .describe("Optional UI locale hint for the model."),
+    today: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional()
+      .describe(
+        'Optional override of the reference date used to resolve relative phrases ("tomorrow", "next Monday"). Format: `YYYY-MM-DD`. Defaults to the server\'s UTC day.',
+      ),
+  })
+  .meta({
+    id: "MedicationExtractRequest",
+    description:
+      "Free-text medication description payload. The route runs the text through the Coach provider chain and returns a partial structured payload the wizard merges. Rate-limited 10 requests / 5 minutes / user; budget-gated against the daily Coach token ceiling.",
+  });
+
+medicationExtractionSchema.meta({
+  id: "MedicationExtractionResult",
+  description:
+    "Citation-guarded partial extraction of medication scheduling fields. Every field is optional; the wizard merges what is present onto the form state and leaves the rest blank. `name` and `dose` are post-validated against the original free-text and dropped when not substring-matched, so the wizard cannot silently land a hallucinated brand or dose. `cadenceKind` / `doseUnit` / `weekdays` are closed enums; numeric fields are clamped to the wizard's wire bounds.",
+});
+
+// v1.16.10 — medications list presentation (cards/table view + manual
+// order), persisted per user in its own `User` column following the
+// dashboard-widgets / insights-layout per-surface convention.
+export const medicationListLayoutSchema = z
+  .object({
+    version: z.literal(1),
+    view: z
+      .enum(MEDICATION_LIST_VIEWS)
+      .optional()
+      .describe(
+        'Which presentation /medications renders in. Default "cards". Optional on PUT — when omitted the stored value is preserved (preserve-when-absent, like `heroVisible` on the dashboard layout). Always present on responses.',
+      ),
+    order: z
+      .array(z.string().min(1).max(MEDICATION_ORDER_ID_MAX_LENGTH))
+      .max(MEDICATION_ORDER_MAX_ENTRIES)
+      .optional()
+      .describe(
+        "User-defined manual medication order (medication ids, first = top), shared by both views. Display-only — unknown / deleted ids are ignored at render time, never 422. Optional on PUT (preserve-when-absent); always present on responses.",
+      ),
+  })
+  .meta({
+    id: "MedicationListLayout",
+    description:
+      "Per-user /medications presentation: the card/table view choice plus the manual medication order shared by both views. Mirrors the dashboard-widgets / insights-layout contract.",
+  });
