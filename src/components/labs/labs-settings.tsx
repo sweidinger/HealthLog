@@ -14,7 +14,15 @@
  * View / sort / order persist client-side via `useModuleListPrefs("labs")`.
  */
 import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowDownUp,
+  FlaskConical,
+  LayoutGrid,
+  ListOrdered,
+} from "lucide-react";
 
+import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,22 +62,30 @@ export function LabsSettings() {
 
   const manual = prefs.sortDir === "manual";
 
+  // v1.18.9 (#44) — the Labs settings sub-page now follows the canonical
+  // Settings dialect: every block is a `<SettingsCard>` with a
+  // `<SettingsCardHeader>` (neutral icon + title + short description), the
+  // same shape as Stimmung / AI / Mitteilungen, instead of bare `<section>` +
+  // `text-sm` headings.
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">
-            {t("moduleList.viewHeading")}
-          </h2>
-          <ModuleViewToggle view={prefs.view} onChange={setView} />
-        </div>
-        <p className="text-muted-foreground text-sm">
-          {t("moduleList.viewDescription")}
-        </p>
-      </section>
+    <div className="space-y-6">
+      {/* View — card vs compact list. */}
+      <SettingsCard id="labs-view" className="scroll-mt-28 space-y-4">
+        <SettingsCardHeader
+          icon={LayoutGrid}
+          title={t("moduleList.viewHeading")}
+          description={t("moduleList.viewDescription")}
+          status={<ModuleViewToggle view={prefs.view} onChange={setView} />}
+        />
+      </SettingsCard>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold">{t("labs.sort.heading")}</h2>
+      {/* Sort order — recency, alphabetical, or manual. */}
+      <SettingsCard id="labs-sort-card" className="scroll-mt-28 space-y-4">
+        <SettingsCardHeader
+          icon={ArrowDownUp}
+          title={t("labs.sort.heading")}
+          description={t("labs.sort.hint")}
+        />
         <div className="space-y-2">
           <Label htmlFor="labs-sort">{t("labs.sort.label")}</Label>
           <NativeSelect
@@ -79,17 +95,19 @@ export function LabsSettings() {
           >
             <option value="recentDesc">{t("labs.sort.recentDesc")}</option>
             <option value="recentAsc">{t("labs.sort.recentAsc")}</option>
+            <option value="alphaAsc">{t("labs.sort.alphaAsc")}</option>
+            <option value="alphaDesc">{t("labs.sort.alphaDesc")}</option>
             <option value="manual">{t("labs.sort.manual")}</option>
           </NativeSelect>
-          <p className="text-muted-foreground text-xs">{t("labs.sort.hint")}</p>
         </div>
-      </section>
+      </SettingsCard>
 
       {manual ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold">
-            {t("moduleList.reorder.heading")}
-          </h2>
+        <SettingsCard id="labs-order" className="scroll-mt-28 space-y-4">
+          <SettingsCardHeader
+            icon={ListOrdered}
+            title={t("moduleList.reorder.heading")}
+          />
           {isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }, (_, i) => (
@@ -99,15 +117,17 @@ export function LabsSettings() {
           ) : (
             <ModuleOrderEditor items={reorderItems} onChange={setOrder} />
           )}
-        </section>
+        </SettingsCard>
       ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold">
-          {t("labs.biomarker.manageTitle")}
-        </h2>
+      {/* Biomarker catalog — define / edit / delete. */}
+      <SettingsCard id="labs-biomarkers" className="scroll-mt-28 space-y-4">
+        <SettingsCardHeader
+          icon={FlaskConical}
+          title={t("labs.biomarker.manageTitle")}
+        />
         <BiomarkerManager />
-      </section>
+      </SettingsCard>
     </div>
   );
 }

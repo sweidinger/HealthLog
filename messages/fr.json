@@ -6492,6 +6492,8 @@
       "label": "Ordre des valeurs",
       "recentDesc": "Mesure la plus récente d'abord",
       "recentAsc": "Mesure la plus ancienne d'abord",
+      "alphaAsc": "Nom (A–Z)",
+      "alphaDesc": "Nom (Z–A)",
       "manual": "Trier manuellement",
       "hint": "En tri manuel, vous pouvez glisser les biomarqueurs ci-dessous dans votre propre ordre."
     },

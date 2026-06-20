@@ -6492,6 +6492,8 @@
       "label": "Kolejność wartości",
       "recentDesc": "Najnowszy pomiar najpierw",
       "recentAsc": "Najstarszy pomiar najpierw",
+      "alphaAsc": "Nazwa (A–Z)",
+      "alphaDesc": "Nazwa (Z–A)",
       "manual": "Sortuj ręcznie",
       "hint": "Przy sortowaniu ręcznym możesz przeciągnąć biomarkery poniżej we własnej kolejności."
     },
