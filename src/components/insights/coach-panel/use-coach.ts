@@ -515,10 +515,12 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
                 // v1.18.9 — additive reasoning-summary frame. Append so
                 // multiple chunks accumulate; the disclosure renders it
                 // when present, else falls back to the elapsed-time label.
-                collectedReasoning += evt.text;
+                // Guard the text: a `reasoning` frame with no `text` must not
+                // append a literal "undefined".
+                collectedReasoning += evt.text ?? "";
                 setStreaming((prev) => ({
                   ...prev,
-                  reasoning: prev.reasoning + evt.text,
+                  reasoning: prev.reasoning + (evt.text ?? ""),
                 }));
                 break;
               case "done":
@@ -543,7 +545,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           } else if (evt.type === "error") {
             lastError = evt.code;
           } else if (evt.type === "reasoning") {
-            collectedReasoning += evt.text;
+            collectedReasoning += evt.text ?? "";
           }
         }
       } catch (err) {
