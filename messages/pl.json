@@ -2082,6 +2082,7 @@
       "errorCredentialExpired": "Połączenie z dostawcą AI wygasło. Połącz je ponownie w Ustawieniach, aby Coach działał dalej.",
       "tagline": "Osobisty coach zdrowia, oparty na twoich danych.",
       "newChat": "Nowa rozmowa",
+      "actionsMenu": "Działania",
       "maximizeAriaLabel": "Otwórz na pełnej stronie",
       "minimizeAriaLabel": "Powrót do panelu",
       "send": "Wyślij",

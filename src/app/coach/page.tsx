@@ -31,6 +31,15 @@ import { useDisableCoach } from "@/hooks/use-disable-coach";
  * drawer" minimize control is removed (pointless on the dedicated page —
  * the separate bottom-right FAB drawer is the compact surface). The chat
  * claims the full content width and the viewport height below the top bar.
+ *
+ * v1.18.11 (W11) — ChatGPT-style IA: the page drops its own header bar
+ * AND the top conversation-history strip entirely. The composer is the
+ * single control hub (leading `+` actions menu = new chat + open
+ * conversations, settings deep-link, mic, send); conversation history is a
+ * left slide-in drawer opened from that menu. The composer keeps one
+ * constant, centred, max-width-capped column across the new-chat hero and
+ * the active conversation. All of that lives in `<CoachConversation>`'s
+ * page branch, so the page stays a thin gating + sizing wrapper.
  */
 export default function CoachPage() {
   const router = useRouter();
@@ -79,13 +88,7 @@ export default function CoachPage() {
       // is hidden, so the page reclaims the full height below the TopBar.
       className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-8rem-env(safe-area-inset-bottom,0px))] min-h-[32rem] flex-col overflow-hidden md:-mx-6 md:h-[calc(100dvh-4rem)]"
     >
-      <CoachConversation
-        surface="page"
-        autoFocusComposer
-        renderTitle={(title) => (
-          <h1 className="min-w-0 truncate text-sm font-semibold">{title}</h1>
-        )}
-      />
+      <CoachConversation surface="page" autoFocusComposer />
     </div>
   );
 }

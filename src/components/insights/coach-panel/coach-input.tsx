@@ -9,10 +9,25 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Loader2, Mic, Send, Square } from "lucide-react";
+import Link from "next/link";
+import {
+  Loader2,
+  MessagesSquare,
+  Mic,
+  Plus,
+  Send,
+  Settings,
+  Square,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -44,6 +59,15 @@ import { useTranslations } from "@/lib/i18n/context";
  * On a browser without the Web Speech API (or during SSR) it renders
  * DISABLED with an explanatory tooltip rather than vanishing or sitting as
  * a dead control that silently does nothing on tap.
+ *
+ * v1.18.11 (W11): the composer is the conversation's control hub on the
+ * full-page Coach surface — ChatGPT-style. When `showHub` is set it grows a
+ * second action row INSIDE the rounded field: a leading `+` actions menu
+ * (new chat + open conversations), a settings deep-link, the dictation mic,
+ * and the send / stop control on the same baseline. The drawer surface omits
+ * `showHub` and keeps the single-row composer (its own header carries new
+ * chat + settings), so this is purely additive — the existing composer
+ * behaviour and markup are untouched when the hub is off.
  */
 export interface CoachInputProps {
   value: string;
@@ -76,6 +100,22 @@ export interface CoachInputProps {
    * while a question is live. Falls back to the stock composer copy.
    */
   placeholder?: string;
+  /**
+   * v1.18.11 — mount the control-hub action row (leading `+` menu +
+   * settings link) inside the composer card. The page surface sets this;
+   * the drawer leaves it off and keeps the single-row composer.
+   */
+  showHub?: boolean;
+  /**
+   * v1.18.11 — start a fresh conversation. Wired into the `+` actions
+   * menu. Required when `showHub` is set.
+   */
+  onNewChat?: () => void;
+  /**
+   * v1.18.11 — open the left conversation-history drawer. Wired into the
+   * `+` actions menu. Required when `showHub` is set.
+   */
+  onOpenHistory?: () => void;
 }
 
 /**
@@ -172,6 +212,9 @@ export function CoachInput({
   inputId = "coach-composer-textarea",
   autoFocusOnOpen = false,
   placeholder,
+  showHub = false,
+  onNewChat,
+  onOpenHistory,
 }: CoachInputProps) {
   const { t, locale } = useTranslations();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -336,6 +379,79 @@ export function CoachInput({
     [canSubmit, onSubmit],
   );
 
+  // v1.18.11 — the dictation mic. Lifted to a const so it can sit in the
+  // single-row composer (drawer) OR in the hub action row (page) without
+  // duplicating the wiring.
+  const micButton = (
+    <Button
+      type="button"
+      size="icon"
+      variant="ghost"
+      onClick={toggleDictation}
+      disabled={disabled || !voiceSupported}
+      data-slot="coach-input-mic"
+      data-listening={listening ? "true" : undefined}
+      data-unsupported={!voiceSupported ? "true" : undefined}
+      aria-label={micLabel}
+      aria-pressed={voiceSupported ? listening : undefined}
+      title={micLabel}
+      className={cn(
+        "size-11 shrink-0 rounded-xl transition-colors sm:size-9",
+        listening
+          ? "text-dracula-pink bg-dracula-pink/10 hover:text-dracula-pink"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <Mic
+        className={cn(
+          "size-4",
+          listening && "animate-pulse motion-reduce:animate-none",
+        )}
+        aria-hidden="true"
+      />
+    </Button>
+  );
+
+  // v1.18.11 — the send / stop control. Same const-lift rationale as the
+  // mic: one definition, two mount points.
+  const sendButton =
+    isStreaming && onCancel ? (
+      // While a reply streams, swap the send button for a Stop control bound
+      // to the abort handler so the user can interrupt a long or off-track
+      // reply instead of waiting it out.
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        onClick={onCancel}
+        data-slot="coach-input-stop"
+        aria-label={t("insights.coach.stop")}
+        title={t("insights.coach.stop")}
+        className="size-11 shrink-0 rounded-xl sm:size-9"
+      >
+        <Square className="size-3.5 fill-current" aria-hidden="true" />
+      </Button>
+    ) : (
+      <Button
+        type="submit"
+        size="icon"
+        disabled={!canSubmit}
+        data-slot="coach-input-send"
+        aria-label={t("insights.coach.send")}
+        title={t("insights.coach.send")}
+        className="size-11 shrink-0 rounded-xl sm:size-9"
+      >
+        {isStreaming ? (
+          <Loader2
+            className="size-4 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+        ) : (
+          <Send className="size-4" aria-hidden="true" />
+        )}
+      </Button>
+    );
+
   return (
     <form
       data-slot="coach-input"
@@ -343,48 +459,26 @@ export function CoachInput({
       className="flex flex-col"
     >
       {/* v1.16.1 / v1.18.7 — modern chat-app composer: a single rounded
-          field with the textarea flanked by a dictation mic (left) and
-          the send / stop control (right) on the same baseline.
-          `items-end` keeps the controls pinned to the input's last line
-          as it grows. Enter sends, Shift+Enter inserts a newline. */}
+          field. The drawer surface keeps the textarea flanked by the mic
+          (left) and send / stop (right) on one baseline. The page surface
+          (`showHub`) stacks the textarea over a control-hub action row so
+          the composer carries the conversation controls ChatGPT-style.
+          `items-end` keeps the single-row controls pinned to the input's
+          last line as it grows. Enter sends, Shift+Enter inserts a newline. */}
       <div
         className={cn(
           "border-border/60 bg-muted/40 group rounded-2xl border",
-          "flex items-end gap-1.5 p-1.5 shadow-sm transition-colors",
+          "shadow-sm transition-colors",
           "focus-within:border-dracula-purple/50 focus-within:ring-dracula-purple/15 focus-within:bg-background focus-within:ring-2",
+          showHub ? "flex flex-col gap-1 p-2" : "flex items-end gap-1.5 p-1.5",
         )}
       >
         {/* v1.18.10 (W4) — the mic always renders so it stays discoverable.
             When the browser lacks the Web Speech API (or during SSR) it is
             DISABLED with an explanatory tooltip rather than vanishing or
-            sitting as a dead control that does nothing on tap. */}
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          onClick={toggleDictation}
-          disabled={disabled || !voiceSupported}
-          data-slot="coach-input-mic"
-          data-listening={listening ? "true" : undefined}
-          data-unsupported={!voiceSupported ? "true" : undefined}
-          aria-label={micLabel}
-          aria-pressed={voiceSupported ? listening : undefined}
-          title={micLabel}
-          className={cn(
-            "size-11 shrink-0 rounded-xl transition-colors sm:size-9",
-            listening
-              ? "text-dracula-pink bg-dracula-pink/10 hover:text-dracula-pink"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <Mic
-            className={cn(
-              "size-4",
-              listening && "animate-pulse motion-reduce:animate-none",
-            )}
-            aria-hidden="true"
-          />
-        </Button>
+            sitting as a dead control that does nothing on tap. In the hub
+            layout the mic moves into the action row below the textarea. */}
+        {!showHub && micButton}
         <textarea
           id={inputId}
           ref={textareaRef}
@@ -416,7 +510,7 @@ export function CoachInput({
             "min-w-0 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none sm:text-sm",
             // Centre the single-line state against the send button so
             // the placeholder and the icon share a baseline.
-            "px-2 py-1.5",
+            showHub ? "px-2 pt-1.5 pb-0.5" : "px-2 py-1.5",
             "max-h-[9.5rem] overflow-auto",
             // v1.18.7 — calm, thin scrollbar inside the composer when
             // dictation overruns 6 lines (see also the thread/history
@@ -425,42 +519,68 @@ export function CoachInput({
             "placeholder:text-muted-foreground disabled:opacity-60",
           )}
         />
-        {isStreaming && onCancel ? (
-          // While a reply streams, swap the send button for a Stop
-          // control bound to the abort handler so the user can
-          // interrupt a long or off-track reply instead of waiting it
-          // out.
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            onClick={onCancel}
-            data-slot="coach-input-stop"
-            aria-label={t("insights.coach.stop")}
-            title={t("insights.coach.stop")}
-            className="size-11 shrink-0 rounded-xl sm:size-9"
-          >
-            <Square className="size-3.5 fill-current" aria-hidden="true" />
-          </Button>
+        {showHub ? (
+          // v1.18.11 — the control-hub action row (page surface). Leading
+          // `+` actions menu (new chat + open conversations) and a settings
+          // deep-link on the left; the mic + send / stop on the right —
+          // all on one baseline, ChatGPT-style.
+          <div data-slot="coach-input-hub" className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  disabled={disabled}
+                  data-slot="coach-input-actions"
+                  aria-label={t("insights.coach.actionsMenu")}
+                  title={t("insights.coach.actionsMenu")}
+                  className="text-muted-foreground hover:text-foreground size-11 shrink-0 rounded-xl sm:size-9"
+                >
+                  <Plus className="size-5 sm:size-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" className="w-52">
+                <DropdownMenuItem
+                  data-slot="coach-input-action-new-chat"
+                  onSelect={() => onNewChat?.()}
+                >
+                  <Plus className="size-4" aria-hidden="true" />
+                  {t("insights.coach.newChat")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  data-slot="coach-input-action-history"
+                  onSelect={() => onOpenHistory?.()}
+                >
+                  <MessagesSquare className="size-4" aria-hidden="true" />
+                  {t("insights.coach.historyTitle")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* The Coach preferences live in Settings → AI (one place for
+                model + behaviour); the gear deep-links there. */}
+            <Button
+              asChild
+              size="icon"
+              variant="ghost"
+              data-slot="coach-input-settings"
+              className="text-muted-foreground hover:text-foreground size-11 shrink-0 rounded-xl sm:size-9"
+            >
+              <Link
+                href="/settings/ai"
+                aria-label={t("insights.coach.settingsAriaLabel")}
+                title={t("insights.coach.settingsAriaLabel")}
+              >
+                <Settings className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+            <div className="ml-auto flex items-center gap-1">
+              {micButton}
+              {sendButton}
+            </div>
+          </div>
         ) : (
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!canSubmit}
-            data-slot="coach-input-send"
-            aria-label={t("insights.coach.send")}
-            title={t("insights.coach.send")}
-            className="size-11 shrink-0 rounded-xl sm:size-9"
-          >
-            {isStreaming ? (
-              <Loader2
-                className="size-4 animate-spin motion-reduce:animate-none"
-                aria-hidden="true"
-              />
-            ) : (
-              <Send className="size-4" aria-hidden="true" />
-            )}
-          </Button>
+          sendButton
         )}
       </div>
     </form>
