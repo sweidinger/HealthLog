@@ -45,6 +45,7 @@ import {
 } from "@/lib/fhir/loinc-map";
 import { ILLNESS_TYPE_SNOMED } from "@/lib/fhir/illness-snomed";
 import { resolveLabCoding } from "@/lib/fhir/lab-loinc";
+import { qualitativeValueConcept } from "@/lib/fhir/lab-qualitative";
 import type {
   FhirCodeableConcept,
   FhirObservation,
@@ -640,6 +641,43 @@ export function observationsFromReportData(
   // lab's reference bounds map onto R4 `referenceRange`.
   for (const lab of data.labResults ?? []) {
     obsSeq += 1;
+    // Forward-compat: when the v1.19.0 Biomarker catalog lands and the DTO
+    // carries a resolved canonical analyte name, thread it as the third arg so
+    // the catalog name wins over the free-text `analyte`. Absent today.
+    const coding = resolveLabCoding(lab.analyte, lab.unit);
+    const text = lab.panel ? `${lab.analyte} (${lab.panel})` : lab.analyte;
+    const code = coding
+      ? {
+          coding: [
+            {
+              system: LOINC_SYSTEM,
+              code: coding.loinc,
+              display: coding.display,
+            },
+          ],
+          text,
+        }
+      : { text };
+
+    // v1.18.9 — a qualitative result (`value === null`) emits a
+    // `valueCodeableConcept` (SNOMED qualifier value when confidently known,
+    // else text-only) and NO `valueQuantity` / `referenceRange` — bounds are
+    // meaningless for it. A numeric result keeps the established
+    // valueQuantity + LOINC/UCUM path unchanged.
+    if (lab.value === null) {
+      push({
+        resourceType: "Observation",
+        id: `obs-${obsSeq}`,
+        status: "final",
+        category: [categoryConcept("laboratory")],
+        code,
+        subject: patientRef,
+        effectiveDateTime: lab.takenAt,
+        valueCodeableConcept: qualitativeValueConcept(lab.valueText ?? ""),
+      });
+      continue;
+    }
+
     const referenceRange =
       lab.referenceLow !== null || lab.referenceHigh !== null
         ? [
@@ -653,28 +691,12 @@ export function observationsFromReportData(
             },
           ]
         : undefined;
-    // Forward-compat: when the v1.19.0 Biomarker catalog lands and the DTO
-    // carries a resolved canonical analyte name, thread it as the third arg so
-    // the catalog name wins over the free-text `analyte`. Absent today.
-    const coding = resolveLabCoding(lab.analyte, lab.unit);
-    const text = lab.panel ? `${lab.analyte} (${lab.panel})` : lab.analyte;
     push({
       resourceType: "Observation",
       id: `obs-${obsSeq}`,
       status: "final",
       category: [categoryConcept("laboratory")],
-      code: coding
-        ? {
-            coding: [
-              {
-                system: LOINC_SYSTEM,
-                code: coding.loinc,
-                display: coding.display,
-              },
-            ],
-            text,
-          }
-        : { text },
+      code,
       subject: patientRef,
       effectiveDateTime: lab.takenAt,
       valueQuantity: {

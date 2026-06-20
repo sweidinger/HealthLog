@@ -277,8 +277,16 @@ export interface DoctorReportData {
     panel: string | null;
     /** Biomarker name as the user recorded it. */
     analyte: string;
-    /** Latest recorded value for this analyte over the window. */
-    value: number;
+    /**
+     * Latest numeric value for this analyte over the window; null for a
+     * qualitative reading (see `valueText`). v1.18.9.
+     */
+    value: number | null;
+    /**
+     * v1.18.9 — qualitative result text ("negativ" / "positiv" / …); null for a
+     * numeric reading. Exactly one of `value` / `valueText` is set.
+     */
+    valueText: string | null;
     unit: string;
     referenceLow: number | null;
     referenceHigh: number | null;
@@ -1329,6 +1337,7 @@ export async function collectDoctorReportData(
         panel: true,
         analyte: true,
         value: true,
+        valueText: true,
         unit: true,
         referenceLow: true,
         referenceHigh: true,
@@ -1348,6 +1357,7 @@ export async function collectDoctorReportData(
         panel: r.panel,
         analyte: r.analyte,
         value: r.value,
+        valueText: r.valueText,
         unit: r.unit,
         referenceLow: r.referenceLow,
         referenceHigh: r.referenceHigh,

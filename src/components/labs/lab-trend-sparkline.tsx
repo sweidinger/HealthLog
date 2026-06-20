@@ -13,21 +13,24 @@
  * polyline vs Recharts) is used by the doctor-report PDF. The two are not
  * drift; do not unify them.
  *
- * Rendered only when an analyte has ≥ 2 readings. Stroke uses the neutral
- * `currentColor` so it inherits the calm muted-foreground tone of its row —
- * no status colour, in keeping with the no-alarming-colour ethos.
+ * Rendered only when an analyte has ≥ 2 NUMERIC readings. Stroke uses the
+ * neutral `currentColor` so it inherits the calm muted-foreground tone of its
+ * row — no status colour, in keeping with the no-alarming-colour ethos.
  *
- * `values` are passed oldest → newest.
+ * `values` are passed oldest → newest. v1.18.9 — qualitative readings carry no
+ * number (`null`); they are filtered out here so a series with qualitative
+ * entries plots only its numeric points and never a NaN.
  */
 export function LabTrendSparkline({
-  values,
+  values: rawValues,
   width = 72,
   height = 20,
 }: {
-  values: number[];
+  values: (number | null)[];
   width?: number;
   height?: number;
 }) {
+  const values = rawValues.filter((v): v is number => v !== null);
   if (values.length < 2) return null;
 
   const min = Math.min(...values);

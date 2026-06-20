@@ -13,6 +13,7 @@ const baseRow: LabRow = {
   panel: "Legacy panel",
   analyte: "ldl", // lowercase legacy spelling
   value: 130,
+  valueText: null,
   unit: "mg/dl", // lowercase legacy unit
   referenceLow: null,
   referenceHigh: 100, // stale per-row bound
@@ -92,5 +93,46 @@ describe("serialiseLabResultDetail", () => {
     expect(dto.note).toBe("fasting sample");
     expect(dto).not.toHaveProperty("hasNote");
     expect(dto.unit).toBe("mg/dL");
+  });
+});
+
+describe("qualitative readings (v1.18.9)", () => {
+  const qualRow: LabRow = {
+    ...baseRow,
+    id: "lr_q",
+    analyte: "Hepatitis Bs-Antigen",
+    value: null,
+    valueText: "negativ",
+    unit: "",
+    referenceLow: null,
+    referenceHigh: null,
+    biomarkerId: null,
+  };
+
+  it("serialises valueText and a null numeric value", () => {
+    const dto = serialiseLabResult(qualRow, null);
+    expect(dto.value).toBeNull();
+    expect(dto.valueText).toBe("negativ");
+  });
+
+  it("reports an 'unknown' range verdict for a qualitative row (no comparison)", () => {
+    // Even if the linked marker carried numeric bounds, a null value cannot be
+    // compared — the verdict must stay the neutral 'unknown'.
+    const dto = serialiseLabResult(
+      { ...qualRow, biomarkerId: "bm_1" },
+      {
+        ...biomarker,
+        lowerBound: 0,
+        upperBound: 1,
+      },
+    );
+    expect(dto.rangeStatus).toBe("unknown");
+  });
+
+  it("carries valueText through the detail serialiser", () => {
+    const dto = serialiseLabResultDetail(qualRow, null, null);
+    expect(dto.value).toBeNull();
+    expect(dto.valueText).toBe("negativ");
+    expect(dto.rangeStatus).toBe("unknown");
   });
 });

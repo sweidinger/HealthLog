@@ -1489,13 +1489,22 @@ export function buildDoctorReportPdfDocument(
       }
     };
 
-    const labRows = data.labResults.map((lr) => [
-      lr.panel ? `${lr.analyte} (${lr.panel})` : lr.analyte,
-      `${num(lr.value)} ${lr.unit}`.trim(),
-      rangeText(lr.referenceLow, lr.referenceHigh),
-      statusGlyph(lr.value, lr.referenceLow, lr.referenceHigh),
-      fmtDate(lr.takenAt),
-    ]);
+    const labRows = data.labResults.map((lr) => {
+      // v1.18.9 — a qualitative reading (`value === null`) prints its result
+      // text in the value column and has no numeric range / status glyph.
+      const isQualitative = lr.value === null;
+      return [
+        lr.panel ? `${lr.analyte} (${lr.panel})` : lr.analyte,
+        isQualitative
+          ? (lr.valueText ?? "")
+          : `${num(lr.value as number)} ${lr.unit}`.trim(),
+        isQualitative ? "—" : rangeText(lr.referenceLow, lr.referenceHigh),
+        isQualitative
+          ? ""
+          : statusGlyph(lr.value as number, lr.referenceLow, lr.referenceHigh),
+        fmtDate(lr.takenAt),
+      ];
+    });
 
     autoTable(doc, {
       startY: y,

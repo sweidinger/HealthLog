@@ -6081,6 +6081,10 @@ paths:
                   maxLength: 120
                 value:
                   type: number
+                valueText:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
                 unit:
                   type: string
                   minLength: 1
@@ -6100,7 +6104,6 @@ paths:
                     - type: string
                       const: ""
               required:
-                - value
                 - takenAt
       responses:
         "201":
@@ -6174,6 +6177,10 @@ paths:
                   maxLength: 120
                 value:
                   type: number
+                valueText:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
                 unit:
                   type: string
                   minLength: 1
@@ -18838,7 +18845,13 @@ components:
         analyte:
           type: string
         value:
-          type: number
+          anyOf:
+            - type: number
+            - type: "null"
+        valueText:
+          anyOf:
+            - type: string
+            - type: "null"
         unit:
           type: string
         referenceLow:
@@ -18867,6 +18880,7 @@ components:
         - panel
         - analyte
         - value
+        - valueText
         - unit
         - referenceLow
         - referenceHigh
@@ -18877,10 +18891,12 @@ components:
         - createdAt
         - updatedAt
       additionalProperties: false
-      description: A stored lab result. `biomarkerId` links the user-scoped catalog marker (null for legacy free-text rows);
-        when linked, `analyte` / `unit` / `referenceLow` / `referenceHigh` are RESOLVED server-side from the Biomarker —
-        the client renders them and never recomputes the range. The encrypted note is never echoed in list rows;
-        `hasNote` flags its presence and the single-resource GET returns the decrypted `note`.
+      description: A stored lab result. Exactly one of `value` (numeric) or `valueText` (qualitative, e.g. "negativ") is
+        non-null; `rangeStatus` is always `unknown` for a qualitative row (no number to classify). `biomarkerId` links
+        the user-scoped catalog marker (null for legacy free-text rows); when linked, `analyte` / `unit` /
+        `referenceLow` / `referenceHigh` are RESOLVED server-side from the Biomarker — the client renders them and never
+        recomputes the range. The encrypted note is never echoed in list rows; `hasNote` flags its presence and the
+        single-resource GET returns the decrypted `note`.
     LabReferenceRangeStatus:
       type: string
       enum:
@@ -18941,7 +18957,13 @@ components:
         analyte:
           type: string
         value:
-          type: number
+          anyOf:
+            - type: number
+            - type: "null"
+        valueText:
+          anyOf:
+            - type: string
+            - type: "null"
         unit:
           type: string
         referenceLow:
@@ -18972,6 +18994,7 @@ components:
         - panel
         - analyte
         - value
+        - valueText
         - unit
         - referenceLow
         - referenceHigh

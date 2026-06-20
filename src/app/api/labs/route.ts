@@ -173,12 +173,17 @@ async function postLabResult(request: NextRequest) {
     panel,
     analyte,
     value,
+    valueText,
     unit,
     referenceLow,
     referenceHigh,
     takenAt,
     note,
   } = parsed.data;
+
+  // v1.18.9 — a qualitative reading carries `valueText` ("negativ" / …) instead
+  // of a number. The Zod refine guarantees exactly one of the two is present.
+  const isQualitative = valueText !== undefined;
 
   // Every row links a catalog marker — no `LabResult` ever persists unlinked
   // (v1.18.1 High). Two paths converge on a `biomarker`:
@@ -207,9 +212,12 @@ async function postLabResult(request: NextRequest) {
   } else {
     biomarker = await resolveOrMintBiomarker(user.id, {
       analyte: analyte as string,
-      unit: unit as string,
-      referenceLow: referenceLow ?? null,
-      referenceHigh: referenceHigh ?? null,
+      // A qualitative reading has no numeric unit / range — mint the catalog
+      // marker with an empty unit label and no bounds. A numeric reading
+      // supplies its unit (Zod requires it on the free-text numeric path).
+      unit: isQualitative ? (unit ?? "") : (unit as string),
+      referenceLow: isQualitative ? null : (referenceLow ?? null),
+      referenceHigh: isQualitative ? null : (referenceHigh ?? null),
       panel: panel ?? null,
     });
   }
@@ -224,7 +232,9 @@ async function postLabResult(request: NextRequest) {
       biomarkerId: biomarker.id,
       panel: biomarker.panel,
       analyte: biomarker.name,
-      value,
+      // Exactly one of value / valueText is set (the Zod XOR refine).
+      value: value ?? null,
+      valueText: valueText ?? null,
       unit: biomarker.unit,
       referenceLow: biomarker.lowerBound,
       referenceHigh: biomarker.upperBound,

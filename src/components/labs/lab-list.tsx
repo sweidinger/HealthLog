@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/api-fetch";
 import { formatDate } from "@/lib/format";
 import { formatReferenceRange } from "@/lib/labs/reference-range";
-import { formatLabValue } from "@/lib/labs/format-value";
+import { formatLabReading, formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
@@ -178,7 +178,7 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                     </div>
                     <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                       <span className="text-foreground font-semibold tabular-nums">
-                        {formatLabValue(group.latest.value)} {group.latest.unit}
+                        {formatLabReading(group.latest)}
                       </span>
                       <span>{formatDate(group.latest.takenAt)}</span>
                     </div>
@@ -236,10 +236,11 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
                   <span className="text-foreground font-semibold tabular-nums">
-                    {formatLabValue(group.latest.value)} {group.latest.unit}
+                    {formatLabReading(group.latest)}
                   </span>
-                  {group.latest.referenceLow !== null ||
-                  group.latest.referenceHigh !== null ? (
+                  {group.latest.value !== null &&
+                  (group.latest.referenceLow !== null ||
+                    group.latest.referenceHigh !== null) ? (
                     <span className="text-xs">
                       {t("labs.referenceLabel")}{" "}
                       {formatReferenceRange(

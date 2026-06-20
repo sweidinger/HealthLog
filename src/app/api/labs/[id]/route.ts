@@ -150,6 +150,24 @@ export const PUT = apiHandler(
       );
     }
 
+    // v1.18.9 — a row keeps its type. Editing `value` on a qualitative row or
+    // `valueText` on a numeric row would either leave both columns populated or
+    // strand the row in an ambiguous state. Reject the cross-type edit with a
+    // 422 — switch types by deleting and re-adding.
+    const rowIsQualitative = existing.valueText !== null;
+    if (rowIsQualitative && d.value !== undefined) {
+      return apiError(
+        "This is a qualitative reading — edit its result text, not a numeric value",
+        422,
+      );
+    }
+    if (!rowIsQualitative && d.valueText !== undefined) {
+      return apiError(
+        "This is a numeric reading — edit its value, not a qualitative result",
+        422,
+      );
+    }
+
     // Build `data` field-by-field. `undefined` → leave the column untouched;
     // an explicit `null` on `panel` / `note` / a reference bound clears it.
     // A reading linked to a catalog marker is edited via VALUE / takenAt /
@@ -158,6 +176,10 @@ export const PUT = apiHandler(
     if (d.panel !== undefined) data.panel = d.panel;
     if (d.analyte !== undefined) data.analyte = d.analyte;
     if (d.value !== undefined) data.value = d.value;
+    // v1.18.9 — qualitative edit. A row stays single-typed: editing `value` on a
+    // qualitative row (or `valueText` on a numeric row) crosses the row's type
+    // and is rejected below. An edit of the matching field updates in place.
+    if (d.valueText !== undefined) data.valueText = d.valueText;
     if (d.unit !== undefined) data.unit = d.unit;
     if (d.referenceLow !== undefined) data.referenceLow = d.referenceLow;
     if (d.referenceHigh !== undefined) data.referenceHigh = d.referenceHigh;

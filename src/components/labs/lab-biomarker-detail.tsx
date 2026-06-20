@@ -101,13 +101,15 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     );
   }
 
-  const latestStatus = latest
-    ? classifyReferenceRange(
-        latest.value,
-        marker?.lowerBound ?? null,
-        marker?.upperBound ?? null,
-      )
-    : "unknown";
+  // A qualitative latest reading (numeric value null) has no range verdict.
+  const latestStatus =
+    latest && latest.value !== null
+      ? classifyReferenceRange(
+          latest.value,
+          marker?.lowerBound ?? null,
+          marker?.upperBound ?? null,
+        )
+      : "unknown";
 
   return (
     <div className="space-y-6">
@@ -147,10 +149,17 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
       {latest ? (
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="text-2xl font-bold tabular-nums">
-            {formatLabValue(latest.value)}{" "}
-            <span className="text-muted-foreground text-base font-normal">
-              {marker?.unit ?? latest.unit}
-            </span>
+            {latest.value !== null ? (
+              <>
+                {formatLabValue(latest.value)}{" "}
+                <span className="text-muted-foreground text-base font-normal">
+                  {marker?.unit ?? latest.unit}
+                </span>
+              </>
+            ) : (
+              // Qualitative latest reading — show the result text, no unit.
+              (latest.valueText ?? "")
+            )}
           </span>
           <ReferenceRangeBadge status={latestStatus} />
         </div>

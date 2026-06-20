@@ -20,7 +20,7 @@ import {
   apiPut,
 } from "@/lib/api/api-fetch";
 import { formatDateShort } from "@/lib/format";
-import { formatLabValue } from "@/lib/labs/format-value";
+import { formatLabReading } from "@/lib/labs/format-value";
 import { resolveNoteForUpdate } from "@/lib/labs/note-update";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -57,6 +57,10 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  // v1.18.9 — true when the row being edited is a qualitative reading; the
+  // editor then shows a text field and the PUT carries `valueText`.
+  const [editIsQualitative, setEditIsQualitative] = useState(false);
+  const [editValueText, setEditValueText] = useState("");
   const [editTakenAt, setEditTakenAt] = useState("");
   const [editNote, setEditNote] = useState("");
   const [editLoading, setEditLoading] = useState(false);
@@ -99,14 +103,17 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
   const updateMutation = useMutation({
     mutationFn: (body: {
       id: string;
-      value: number;
+      // Exactly one of value / valueText is set, matching the row's type.
+      value: number | null;
+      valueText: string | null;
       takenAt: string;
       // `undefined` → omit `note` from the PUT (leave the stored note
       // untouched); `null` → clear it; a string → set it.
       note: string | null | undefined;
     }) =>
       apiPut<LabResultDto>(`/api/labs/${body.id}`, {
-        value: body.value,
+        ...(body.value !== null ? { value: body.value } : {}),
+        ...(body.valueText !== null ? { valueText: body.valueText } : {}),
         takenAt: body.takenAt,
         ...(body.note === undefined ? {} : { note: body.note }),
       }),
@@ -122,7 +129,10 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
 
   async function openEdit(reading: LabResultDto) {
     setEditingId(reading.id);
-    setEditValue(String(reading.value));
+    const qualitative = reading.value === null;
+    setEditIsQualitative(qualitative);
+    setEditValue(reading.value !== null ? String(reading.value) : "");
+    setEditValueText(reading.valueText ?? "");
     setEditTakenAt(toDateTimeLocal(reading.takenAt));
     setEditNote("");
     setEditError(null);
@@ -154,10 +164,21 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
   function submitEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editingId) return;
-    const numericValue = parseDecimal(editValue);
-    if (numericValue === null) {
-      setEditError(t("labs.form.requiredError"));
-      return;
+    let numericValue: number | null = null;
+    let qualitativeValue: string | null = null;
+    if (editIsQualitative) {
+      const trimmed = editValueText.trim();
+      if (trimmed === "") {
+        setEditError(t("labs.form.requiredError"));
+        return;
+      }
+      qualitativeValue = trimmed;
+    } else {
+      numericValue = parseDecimal(editValue);
+      if (numericValue === null) {
+        setEditError(t("labs.form.requiredError"));
+        return;
+      }
     }
     const takenDate = new Date(editTakenAt);
     if (Number.isNaN(takenDate.getTime())) {
@@ -167,6 +188,7 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
     updateMutation.mutate({
       id: editingId,
       value: numericValue,
+      valueText: qualitativeValue,
       takenAt: takenDate.toISOString(),
       // `undefined` → omit `note` (server preserves the stored note when its
       // decrypted load failed); `null` → clear; text → set.
@@ -193,7 +215,7 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-2">
                 <span className="text-foreground font-semibold tabular-nums">
-                  {formatLabValue(r.value)} {r.unit}
+                  {formatLabReading(r)}
                 </span>
                 <ReferenceRangeBadge status={r.rangeStatus} />
               </div>
@@ -236,14 +258,28 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
         <form onSubmit={submitEdit} className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="lab-edit-value">{t("labs.form.value")}</Label>
-              <Input
-                id="lab-edit-value"
-                inputMode="decimal"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                required
-              />
+              <Label htmlFor="lab-edit-value">
+                {editIsQualitative
+                  ? t("labs.form.qualitativeResult")
+                  : t("labs.form.value")}
+              </Label>
+              {editIsQualitative ? (
+                <Input
+                  id="lab-edit-value"
+                  value={editValueText}
+                  onChange={(e) => setEditValueText(e.target.value)}
+                  maxLength={120}
+                  required
+                />
+              ) : (
+                <Input
+                  id="lab-edit-value"
+                  inputMode="decimal"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  required
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="lab-edit-takenAt">{t("labs.form.takenAt")}</Label>

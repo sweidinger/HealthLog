@@ -3391,7 +3391,14 @@ model LabResult {
   panel         String?
   /// The biomarker name, e.g. "LDL", "HbA1c", "Ferritin".
   analyte       String
-  value         Float
+  /// Numeric reading. NULL for a qualitative result (see `valueText`). Exactly
+  /// one of `value` / `valueText` is set per row: `value IS NOT NULL` marks a
+  /// quantitative reading, `valueText IS NOT NULL` a qualitative one.
+  value         Float?
+  /// v1.18.9 — qualitative result as free text, e.g. "negativ" / "positiv" /
+  /// "grenzwertig" / "nicht nachweisbar". NULL for a numeric reading. The
+  /// reference bounds + range verdict are meaningless for a qualitative row.
+  valueText     String?   @map("value_text")
   unit          String
   /// Optional reference-range bounds as reported by the lab.
   referenceLow  Float?    @map("reference_low")

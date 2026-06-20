@@ -50,6 +50,7 @@ describe("lab-result FHIR Observations", () => {
       panel: "Lipid panel",
       analyte: "LDL",
       value: 110,
+      valueText: null,
       unit: "mg/dL",
       referenceLow: null,
       referenceHigh: 116,
@@ -60,6 +61,7 @@ describe("lab-result FHIR Observations", () => {
       panel: null,
       analyte: "HbA1c",
       value: 5.4,
+      valueText: null,
       unit: "%",
       referenceLow: 4,
       referenceHigh: 5.6,
@@ -131,6 +133,7 @@ describe("lab-result FHIR Observations", () => {
             panel: null,
             analyte: "CRP",
             value: 2.1,
+            valueText: null,
             unit: "mg/L",
             referenceLow: null,
             referenceHigh: null,
@@ -171,6 +174,7 @@ describe("lab-result LOINC + canonical UCUM coding (v1.18.8)", () => {
             panel: null,
             analyte: type,
             value,
+            valueText: null,
             unit,
             referenceLow: null,
             referenceHigh: null,
@@ -244,5 +248,68 @@ describe("lab-result LOINC + canonical UCUM coding (v1.18.8)", () => {
     expect(o?.valueQuantity?.unit).toBe("ug/L");
     expect(o?.valueQuantity?.code).toBeUndefined();
     expect(o?.valueQuantity?.system).toBe("http://unitsofmeasure.org");
+  });
+});
+
+describe("qualitative lab-result FHIR Observations (v1.18.9)", () => {
+  function qualOf(analyte: string, valueText: string) {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        labResults: [
+          {
+            panel: null,
+            analyte,
+            value: null,
+            valueText,
+            unit: "",
+            referenceLow: null,
+            referenceHigh: null,
+            takenAt: "2026-04-20T08:00:00.000Z",
+            count: 1,
+          },
+        ],
+      }),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
+    return observationsOf(bundle).find((o) => o.code.text === analyte);
+  }
+
+  it("emits valueCodeableConcept (not valueQuantity) for a negative result", () => {
+    const o = qualOf("Hepatitis Bs-Antigen", "negativ");
+    expect(o?.valueQuantity).toBeUndefined();
+    expect(o?.valueCodeableConcept?.coding?.[0].system).toBe(
+      "http://snomed.info/sct",
+    );
+    expect(o?.valueCodeableConcept?.coding?.[0].code).toBe("260385009");
+    expect(o?.valueCodeableConcept?.coding?.[0].display).toBe("Negative");
+    // The raw recorded text always rides .text.
+    expect(o?.valueCodeableConcept?.text).toBe("negativ");
+    // No numeric reference range on a qualitative observation.
+    expect(o?.referenceRange).toBeUndefined();
+  });
+
+  it("maps a positive (English) result to the Positive SNOMED concept", () => {
+    const o = qualOf("HIV Ab", "positive");
+    expect(o?.valueCodeableConcept?.coding?.[0].code).toBe("10828004");
+    expect(o?.valueCodeableConcept?.text).toBe("positive");
+  });
+
+  it("maps 'nicht nachweisbar' to the Not detected SNOMED concept", () => {
+    const o = qualOf("HCV RNA", "nicht nachweisbar");
+    expect(o?.valueCodeableConcept?.coding?.[0].code).toBe("260415000");
+  });
+
+  it("keeps borderline / grenzwertig text-only (no fabricated code)", () => {
+    const o = qualOf("Some Serology", "grenzwertig");
+    expect(o?.valueCodeableConcept?.coding).toBeUndefined();
+    expect(o?.valueCodeableConcept?.text).toBe("grenzwertig");
+  });
+
+  it("keeps an unrecognised qualitative term text-only", () => {
+    const o = qualOf("Some Serology", "schwach reaktiv");
+    expect(o?.valueCodeableConcept?.coding).toBeUndefined();
+    expect(o?.valueCodeableConcept?.text).toBe("schwach reaktiv");
+    expect(o?.valueQuantity).toBeUndefined();
   });
 });

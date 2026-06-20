@@ -6513,7 +6513,15 @@
       "biomarkerPlaceholder": "Biomarker auswählen",
       "defineNew": "+ Neuen Biomarker anlegen",
       "noBiomarkersHint": "Lege zuerst einen Biomarker an, um einen Wert zu erfassen.",
-      "pickBiomarkerError": "Bitte zuerst einen Biomarker auswählen."
+      "pickBiomarkerError": "Bitte zuerst einen Biomarker auswählen.",
+      "resultType": "Ergebnistyp",
+      "numeric": "Numerisch",
+      "qualitative": "Qualitativ",
+      "qualitativeResult": "Ergebnis",
+      "qualitativePlaceholder": "z. B. negativ",
+      "qualNegative": "negativ",
+      "qualPositive": "positiv",
+      "qualBorderline": "grenzwertig"
     },
     "backToLabs": "Zurück zu den Laborwerten",
     "hasNote": "Notiz",

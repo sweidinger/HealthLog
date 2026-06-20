@@ -6513,7 +6513,15 @@
       "biomarkerPlaceholder": "Pick a biomarker",
       "defineNew": "+ Define new biomarker",
       "noBiomarkersHint": "Define a biomarker first to record a value against it.",
-      "pickBiomarkerError": "Pick a biomarker first."
+      "pickBiomarkerError": "Pick a biomarker first.",
+      "resultType": "Result type",
+      "numeric": "Numeric",
+      "qualitative": "Qualitative",
+      "qualitativeResult": "Result",
+      "qualitativePlaceholder": "e.g. negative",
+      "qualNegative": "negative",
+      "qualPositive": "positive",
+      "qualBorderline": "borderline"
     },
     "backToLabs": "Back to lab results",
     "hasNote": "Note",

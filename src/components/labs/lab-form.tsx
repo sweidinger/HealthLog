@@ -93,7 +93,14 @@ export function LabForm({
   const [biomarkerId, setBiomarkerId] = useState<string>(
     lockedBiomarkerId ?? "",
   );
+  // v1.18.9 — numeric vs qualitative result mode. Numeric mode enters a number
+  // against the marker's unit/range; qualitative mode enters a result text
+  // ("negativ" / "positiv" / "grenzwertig" / free text) and hides unit/range.
+  const [resultType, setResultType] = useState<"numeric" | "qualitative">(
+    "numeric",
+  );
   const [value, setValue] = useState("");
+  const [valueText, setValueText] = useState("");
   const [takenAt, setTakenAt] = useState(defaultTakenAtValue);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -125,21 +132,36 @@ export function LabForm({
     e.preventDefault();
     setError(null);
 
-    const numericValue = parseDecimal(value);
     if (!biomarkerId) {
       setError(t("labs.form.pickBiomarkerError"));
       return;
     }
-    if (numericValue === null) {
-      setError(t("labs.form.requiredError"));
-      return;
+
+    const isQualitative = resultType === "qualitative";
+    let numericValue: number | null = null;
+    let qualitativeValue: string | null = null;
+    if (isQualitative) {
+      const trimmed = valueText.trim();
+      if (trimmed === "") {
+        setError(t("labs.form.requiredError"));
+        return;
+      }
+      qualitativeValue = trimmed;
+    } else {
+      numericValue = parseDecimal(value);
+      if (numericValue === null) {
+        setError(t("labs.form.requiredError"));
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
       const created = await apiPost<LabResultDto>("/api/labs", {
         biomarkerId,
-        value: numericValue,
+        ...(isQualitative
+          ? { valueText: qualitativeValue }
+          : { value: numericValue }),
         takenAt: new Date(takenAt).toISOString(),
         ...(note.trim() ? { note: note.trim() } : {}),
       });
@@ -216,25 +238,75 @@ export function LabForm({
           ) : null}
         </div>
 
+        <div className="space-y-1.5">
+          <Label>{t("labs.form.resultType")}</Label>
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={resultType === "numeric" ? "secondary" : "ghost"}
+              className="h-8 flex-1"
+              onClick={() => setResultType("numeric")}
+              aria-pressed={resultType === "numeric"}
+            >
+              {t("labs.form.numeric")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={resultType === "qualitative" ? "secondary" : "ghost"}
+              className="h-8 flex-1"
+              onClick={() => setResultType("qualitative")}
+              aria-pressed={resultType === "qualitative"}
+            >
+              {t("labs.form.qualitative")}
+            </Button>
+          </div>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="lab-value">
-              {t("labs.form.value")}
-              {selected ? (
-                <span className="text-muted-foreground font-normal">
-                  {" "}
-                  ({selected.unit})
-                </span>
-              ) : null}
-            </Label>
-            <Input
-              id="lab-value"
-              inputMode="decimal"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="0.0"
-              required
-            />
+            {resultType === "numeric" ? (
+              <>
+                <Label htmlFor="lab-value">
+                  {t("labs.form.value")}
+                  {selected ? (
+                    <span className="text-muted-foreground font-normal">
+                      {" "}
+                      ({selected.unit})
+                    </span>
+                  ) : null}
+                </Label>
+                <Input
+                  id="lab-value"
+                  inputMode="decimal"
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder="0.0"
+                  required
+                />
+              </>
+            ) : (
+              <>
+                <Label htmlFor="lab-valueText">
+                  {t("labs.form.qualitativeResult")}
+                </Label>
+                <Input
+                  id="lab-valueText"
+                  list="lab-qualitative-options"
+                  value={valueText}
+                  onChange={(e) => setValueText(e.target.value)}
+                  placeholder={t("labs.form.qualitativePlaceholder")}
+                  maxLength={120}
+                  required
+                />
+                <datalist id="lab-qualitative-options">
+                  <option value={t("labs.form.qualNegative")} />
+                  <option value={t("labs.form.qualPositive")} />
+                  <option value={t("labs.form.qualBorderline")} />
+                </datalist>
+              </>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="lab-takenAt">{t("labs.form.takenAt")}</Label>
@@ -248,7 +320,7 @@ export function LabForm({
           </div>
         </div>
 
-        {selected && referenceText ? (
+        {resultType === "numeric" && selected && referenceText ? (
           <p className="text-muted-foreground text-xs">
             {t("labs.referenceLabel")} {referenceText} {selected.unit}
           </p>

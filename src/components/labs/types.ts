@@ -7,7 +7,10 @@ export interface LabResultDto {
   biomarkerId: string | null;
   panel: string | null;
   analyte: string;
-  value: number;
+  /** Numeric reading; null for a qualitative row (see `valueText`). v1.18.9. */
+  value: number | null;
+  /** v1.18.9 — qualitative result text ("negativ" / …); null for a numeric row. */
+  valueText: string | null;
   unit: string;
   referenceLow: number | null;
   referenceHigh: number | null;

@@ -68,9 +68,14 @@ export function LabBiomarkerChart({
   const [nowMs] = useState(() => Date.now());
 
   const points = useMemo<ChartPoint[]>(() => {
-    const sorted = [...readings].sort(
-      (a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime(),
-    );
+    // v1.18.9 — qualitative readings (numeric value null) have nothing to plot;
+    // drop them so the line never renders a NaN / zero point. A series of only
+    // qualitative readings yields no points → the honest empty state below.
+    const sorted = [...readings]
+      .filter((r): r is LabResultDto & { value: number } => r.value !== null)
+      .sort(
+        (a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime(),
+      );
     const days = RANGE_DAYS.find((r) => r.key === range)?.days ?? 0;
     const filtered =
       days > 0
