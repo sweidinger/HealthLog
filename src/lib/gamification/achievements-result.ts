@@ -197,6 +197,11 @@ function getEventDaySeries(dates: Date[]): {
 function getHealthGreenDaySeries(
   measurements: MeasurementRecord[],
   heightCm: number | null,
+  // v1.18.11 (W5 perf) — Berlin day-keys precomputed once per vitals row by
+  // the caller and passed in parallel to `measurements`. Falls back to a
+  // per-row `toBerlinDayKey` when absent so the standalone callers / tests
+  // keep working; the result is byte-identical either way.
+  dayKeys?: string[],
 ) {
   const dayStats = new Map<
     string,
@@ -208,8 +213,9 @@ function getHealthGreenDaySeries(
     }
   >();
 
-  for (const measurement of measurements) {
-    const dayKey = toBerlinDayKey(measurement.measuredAt);
+  for (let i = 0; i < measurements.length; i++) {
+    const measurement = measurements[i];
+    const dayKey = dayKeys?.[i] ?? toBerlinDayKey(measurement.measuredAt);
     const bucket = dayStats.get(dayKey) ?? {
       weight: [],
       bpSys: [],
@@ -702,9 +708,20 @@ export async function buildAchievementsResult(
     ...passwordLoginDates,
   ]);
 
+  // v1.18.11 (W5 perf) — the vitals array runs through several independent
+  // full-array passes, each previously re-deriving a Berlin day-key per row
+  // via `Intl.DateTimeFormat.formatToParts` (~16.8k rows × ~3 passes on a
+  // power-user account dominated the cold build). Compute each row's day-key
+  // ONCE here and thread the parallel array into every consumer; the values
+  // are identical to the per-pass derivation, so the output is byte-identical.
+  const vitalsDayKeys = (measurements as MeasurementRecord[]).map((m) =>
+    toBerlinDayKey(m.measuredAt),
+  );
+
   const healthSeries = getHealthGreenDaySeries(
     measurements as MeasurementRecord[],
     user.heightCm,
+    vitalsDayKeys,
   );
   const onTimeSeries = getOnTimePerfectDaySeries(
     intakeEvents,
@@ -725,7 +742,9 @@ export async function buildAchievementsResult(
     sleepMeasurements.map((m) => m.measuredAt),
   );
   const weeklyConsistency = getWeeklyConsistency(
-    measurements.map((m) => toBerlinDayKey(m.measuredAt)),
+    // v1.18.11 (W5 perf) — reuse the day-keys computed once above instead of
+    // a fresh per-row `toBerlinDayKey` pass over the full vitals array.
+    vitalsDayKeys,
     MEASUREMENT_CONSISTENCY_MIN_DAYS_PER_WEEK,
     MEASUREMENT_CONSISTENCY_TARGET_WEEKS,
   );
@@ -743,6 +762,10 @@ export async function buildAchievementsResult(
     moodEntries,
     intakeEvents,
     auditEvents,
+    // v1.18.11 (W5 perf) — reuse the vitals day-keys computed once above so
+    // the engagement + hidden passes don't re-walk the full vitals array
+    // through `Intl.DateTimeFormat` a second and third time.
+    measurementDayKeys: vitalsDayKeys,
   });
   const earnability = getEarnabilityFlags({
     hasMedication: medications.length > 0,

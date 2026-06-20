@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/lib/i18n/context";
@@ -9,8 +9,10 @@ import type {
   InsightRecommendation,
   InsightRecommendationRationale,
 } from "@/lib/ai/types";
-import { HealthChart } from "@/components/charts/health-chart";
-import { MoodChart } from "@/components/charts/mood-chart";
+import dynamic from "next/dynamic";
+import { ChartErrorBoundary } from "@/components/charts/chart-error-state";
+import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { importWithRetry } from "@/lib/retry-import";
 import { getMedicalReferenceById } from "@/lib/ai/medical-references";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import type { Locale } from "@/lib/i18n/config";
@@ -20,6 +22,40 @@ import {
   type RecommendationFeedbackTimeRange,
 } from "./recommendation-feedback";
 import { ConfidenceMeter } from "./confidence-meter";
+
+/**
+ * v1.18.11 (W5 perf) — route both rationale mini-charts through
+ * `next/dynamic` so recharts no longer rides the main insights surface's
+ * first-load JS. Each chart only paints inside an expanded rationale block,
+ * so deferring it costs nothing visible and matches the loading skeleton
+ * the canonical `health-chart-dynamic.tsx` boundary uses (`mini` here,
+ * since both charts render with the `mini` prop in the rationale card).
+ */
+const HealthChartLazy = dynamic(
+  () =>
+    importWithRetry(() => import("@/components/charts/health-chart")).then(
+      (mod) => ({ default: mod.HealthChart }),
+    ),
+  { ssr: false, loading: () => <ChartSkeleton mini /> },
+);
+const HealthChart = (props: ComponentProps<typeof HealthChartLazy>) => (
+  <ChartErrorBoundary>
+    <HealthChartLazy {...props} />
+  </ChartErrorBoundary>
+);
+
+const MoodChartLazy = dynamic(
+  () =>
+    importWithRetry(() => import("@/components/charts/mood-chart")).then(
+      (mod) => ({ default: mod.MoodChart }),
+    ),
+  { ssr: false, loading: () => <ChartSkeleton mini /> },
+);
+const MoodChart = (props: ComponentProps<typeof MoodChartLazy>) => (
+  <ChartErrorBoundary>
+    <MoodChartLazy {...props} />
+  </ChartErrorBoundary>
+);
 
 /**
  * Collapsible recommendation card with severity badge, confidence
