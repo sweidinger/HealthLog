@@ -245,7 +245,7 @@ export function LabForm({
               type="button"
               size="sm"
               variant={resultType === "numeric" ? "secondary" : "ghost"}
-              className="h-8 flex-1"
+              className="min-h-11 flex-1 sm:min-h-9"
               onClick={() => setResultType("numeric")}
               aria-pressed={resultType === "numeric"}
             >
@@ -255,7 +255,7 @@ export function LabForm({
               type="button"
               size="sm"
               variant={resultType === "qualitative" ? "secondary" : "ghost"}
-              className="h-8 flex-1"
+              className="min-h-11 flex-1 sm:min-h-9"
               onClick={() => setResultType("qualitative")}
               aria-pressed={resultType === "qualitative"}
             >
