@@ -103,6 +103,20 @@ vi.mock("@/lib/insights/comprehensive-generate", () => ({
 
 vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
+  // The briefing illness/cycle context resolves module gates through
+  // `memoizePerRequest`, which reads the active wide-event via `getEvent`.
+  // Returning no event makes the per-request cache fall through to the
+  // factory, exercising the real gate path without a request scope.
+  getEvent: vi.fn(() => undefined),
+}));
+
+// The briefing's illness/cycle context (v1.18.11 P5) is module-gated and
+// server-authoritative with its own gate tests; these cases exercise the
+// provider/cache path, so stub it to no context to keep the route isolated
+// from the cycle/illness DB queries.
+vi.mock("@/lib/insights/illness-cycle-briefing", () => ({
+  buildBriefingIllnessCycleContext: vi.fn(async () => null),
+  buildBriefingIllnessCyclePrompt: vi.fn(() => ""),
 }));
 
 vi.mock("@/lib/insights/features", async () => {
