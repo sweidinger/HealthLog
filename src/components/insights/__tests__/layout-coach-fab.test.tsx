@@ -71,7 +71,7 @@ describe("<LayoutCoachFab>", () => {
     expect(html).not.toContain("lg:bottom-6");
   });
 
-  it("paints a white glyph + offset focus ring on the gradient", () => {
+  it("paints the on-accent glyph + offset focus ring on the gradient", () => {
     mockPathname = "/";
     const html = render(
       <CoachLaunchProvider>
@@ -79,10 +79,11 @@ describe("<LayoutCoachFab>", () => {
       </CoachLaunchProvider>,
     );
     // The glyph is decorative (aria-hidden) and the button carries its own
-    // accessible name, so the text-contrast rule does not gate it; the
-    // white glyph reads as a clean mark on the gradient. The button still
-    // sets text-background for any non-glyph text it might hold.
-    expect(html).toContain("text-white");
+    // accessible name, so the text-contrast rule does not gate it; the glyph
+    // shares the button's own on-accent token (text-background) rather than a
+    // harsh pure white, so it reads as a softer mark on the gradient.
+    expect(html).not.toContain("text-white");
+    expect(html).toMatch(/lucide-sparkles[^"]*text-background/);
     // The offset ring draws a visible halo around the gradient circle and
     // provides the non-text UI-component contrast against the page.
     expect(html).toContain("focus-visible:ring-offset-2");
