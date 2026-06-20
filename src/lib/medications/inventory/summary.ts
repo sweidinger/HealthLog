@@ -12,7 +12,23 @@
  * The Übersicht supply row and the Bestand summary both render from
  * this helper, so the surfaces cannot disagree about what "remaining"
  * means.
+ *
+ * v1.18.11 (#31) — this is also the single canonical sanity gate for
+ * the surfaced stock. A self-hoster reported the headline Bestand going
+ * nonsensically NEGATIVE. The container write paths floor at zero
+ * structurally (consumption never over-decrements, the stock-correction
+ * route clamps at `.min(0)` and re-runs the state machine), and the
+ * legacy running-sum ledger reads are clamped with `Math.max(0, …)` at
+ * their two call sites — but nothing guaranteed the POOLED figure this
+ * helper returns could not go negative from a single corrupt / legacy
+ * row carrying a negative `unitsRemaining` (or `unitsTotal`). Rather
+ * than leave each surface to re-clamp, the floor lives HERE, at the one
+ * point every readout flows through, and a raw-negative pool emits a
+ * `medication.inventory.underflow` wide-event so the underlying bug is
+ * observable if it ever recurs.
  */
+
+import { annotate } from "@/lib/logging/context";
 
 export type SupplyItemState = "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
 
@@ -51,14 +67,47 @@ export function summariseSupply(
   // per dose) must stay fractional, else the dose-derived counts halve.
   const perDose = unitsPerDose > 0 ? unitsPerDose : 1;
   const available = items.filter(isAvailableSupply);
-  const unitsRemaining = available.reduce(
+  const rawUnitsRemaining = available.reduce(
     (sum, item) => sum + item.unitsRemaining,
     0,
   );
-  const unitsTotal = available.reduce((sum, item) => sum + item.unitsTotal, 0);
-  const expiredUnits = items
-    .filter((item) => item.state === "EXPIRED")
-    .reduce((sum, item) => sum + item.unitsRemaining, 0);
+  const rawUnitsTotal = available.reduce(
+    (sum, item) => sum + item.unitsTotal,
+    0,
+  );
+  const expiredUnits = clampNonNegative(
+    items
+      .filter((item) => item.state === "EXPIRED")
+      .reduce((sum, item) => sum + item.unitsRemaining, 0),
+  );
+
+  // v1.18.11 (#31) — central sanity gate. A NaN / negative pool can only
+  // come from a corrupt or legacy row that slipped past the per-row
+  // availability predicate; never surface it. Clamp to zero (the dose
+  // ran out) and emit an underflow wide-event so the data defect stays
+  // observable — `annotate` is a no-op outside a request context, so the
+  // pure helper stays safe to call from a server component.
+  const unitsRemaining = clampNonNegative(rawUnitsRemaining);
+  const unitsTotal = clampNonNegative(rawUnitsTotal);
+  if (
+    !Number.isFinite(rawUnitsRemaining) ||
+    rawUnitsRemaining < 0 ||
+    !Number.isFinite(rawUnitsTotal) ||
+    rawUnitsTotal < 0
+  ) {
+    annotate({
+      action: { name: "medication.inventory.underflow" },
+      meta: {
+        raw_units_remaining: Number.isFinite(rawUnitsRemaining)
+          ? rawUnitsRemaining
+          : null,
+        raw_units_total: Number.isFinite(rawUnitsTotal) ? rawUnitsTotal : null,
+        clamped_units_remaining: unitsRemaining,
+        available_count: available.length,
+      },
+    });
+  }
+
   return {
     unitsRemaining,
     unitsTotal,
@@ -66,4 +115,10 @@ export function summariseSupply(
     dosesTotal: Math.floor(unitsTotal / perDose),
     expiredUnits,
   };
+}
+
+/** Floor a pooled figure at zero, treating a non-finite value as zero
+ *  too — a corrupt row must never surface as `NaN` or a negative. */
+function clampNonNegative(value: number): number {
+  return Number.isFinite(value) && value > 0 ? value : 0;
 }

@@ -10,8 +10,13 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/logging/context", () => ({
+  annotate: vi.fn(),
+}));
+
+import { annotate } from "@/lib/logging/context";
 import {
   isAvailableSupply,
   summariseSupply,
@@ -82,6 +87,68 @@ describe("summariseSupply — expired stock is visible but never available", () 
     expect(
       isAvailableSupply({ state: "ACTIVE", unitsTotal: 4, unitsRemaining: 0 }),
     ).toBe(false);
+  });
+});
+
+describe("summariseSupply — central negative-stock sanity gate (#31)", () => {
+  afterEach(() => {
+    vi.mocked(annotate).mockClear();
+  });
+
+  it("RCA: an available row whose capacity is NaN (corrupt Decimal) would surface a NaN headline pre-fix — now clamped to 0 + annotated", () => {
+    // The per-row availability predicate gates only on `unitsRemaining >
+    // 0`, so a row with a real remaining but a corrupt / legacy
+    // `unitsTotal` (a Decimal that deserialised to NaN) DOES pool in. The
+    // pre-fix `reduce` then produced a NaN `unitsTotal` / `dosesTotal`
+    // headline — the nonsensical Bestand the report described. The gate
+    // floors it to 0 and fires the underflow event.
+    const out = summariseSupply(
+      [{ state: "IN_USE", unitsTotal: Number.NaN, unitsRemaining: 3 }],
+      1,
+    );
+    expect(out.unitsRemaining).toBe(3);
+    expect(out.unitsTotal).toBe(0);
+    expect(out.dosesTotal).toBe(0);
+    expect(annotate).toHaveBeenCalledWith({
+      action: { name: "medication.inventory.underflow" },
+      meta: {
+        raw_units_remaining: 3,
+        raw_units_total: null,
+        clamped_units_remaining: 3,
+        available_count: 1,
+      },
+    });
+  });
+
+  it("sanity gate: a corrupt remaining (NaN) on an EXPIRED-suffix path floors the expired figure too", () => {
+    // The expired suffix is also pooled; a corrupt EXPIRED row must not
+    // surface a NaN suffix. EXPIRED never reaches the available pool, so
+    // no underflow event fires for it — but the expired figure floors.
+    const out = summariseSupply(
+      [{ state: "EXPIRED", unitsTotal: 4, unitsRemaining: Number.NaN }],
+      1,
+    );
+    expect(out.expiredUnits).toBe(0);
+    expect(out.unitsRemaining).toBe(0);
+    expect(annotate).not.toHaveBeenCalled();
+  });
+
+  it("fix: a healthy mixed inventory yields the correct pooled figure and never annotates", () => {
+    const out = summariseSupply(
+      [
+        { state: "IN_USE", unitsTotal: 4, unitsRemaining: 3 },
+        { state: "ACTIVE", unitsTotal: 4, unitsRemaining: 4 },
+      ],
+      2,
+    );
+    expect(out).toEqual({
+      unitsRemaining: 7,
+      unitsTotal: 8,
+      dosesRemaining: 3,
+      dosesTotal: 4,
+      expiredUnits: 0,
+    });
+    expect(annotate).not.toHaveBeenCalled();
   });
 });
 
