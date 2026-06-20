@@ -4,10 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Wrench } from "lucide-react";
+import { Loader2, Plus, ScanLine, Wrench } from "lucide-react";
 
 import { LabForm } from "@/components/labs/lab-form";
 import { LabList } from "@/components/labs/lab-list";
+import { OcrReviewDialog } from "@/components/labs/ocr-review-dialog";
+import { useOcrCapability } from "@/components/labs/use-ocr-extract";
 import { Button } from "@/components/ui/button";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
@@ -27,6 +29,10 @@ export default function LabsPage() {
   // Sticky-footer slot element for the add-result sheet (filled by the
   // ResponsiveSheet `footer` ref so the form portals its action row there).
   const [addFooterEl, setAddFooterEl] = useState<HTMLDivElement | null>(null);
+  // v1.18.9 — Lab-OCR "Scan a report" dialog. The scan affordance only shows
+  // when the user's configured AI provider can read images (capability probe).
+  const [scanOpen, setScanOpen] = useState(false);
+  const ocrCapability = useOcrCapability(isAuthenticated);
 
   const refreshVisible = useCallback(
     () => queryClient.invalidateQueries({ type: "active" }),
@@ -67,6 +73,19 @@ export default function LabsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {/* v1.18.9 — "Scan a report" Lab-OCR entry. Shown only when the
+              capability probe reports a vision-capable provider is configured,
+              so the surface stays dark for codex-only / text-only-model users. */}
+          {ocrCapability.data?.available ? (
+            <Button
+              variant="outline"
+              onClick={() => setScanOpen(true)}
+              className="min-h-11 sm:min-h-9"
+            >
+              <ScanLine className="h-4 w-4" />
+              {t("labs.ocr.scanButton")}
+            </Button>
+          ) : null}
           {/* v1.18.6 (MOD-01) — the wrench is the module's customize entry
               point, left of the primary Add and linking to the Labs settings
               page (view, sort order, biomarker CRUD + reorder). Mirrors the
@@ -115,6 +134,22 @@ export default function LabsPage() {
           onCancel={() => setDialogOpen(false)}
         />
       </ResponsiveSheet>
+
+      {ocrCapability.data?.available ? (
+        <OcrReviewDialog
+          open={scanOpen}
+          onOpenChange={setScanOpen}
+          pdfSupported={ocrCapability.data.pdfSupported}
+          onCommitted={() => {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.labResults(),
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.biomarkers(),
+            });
+          }}
+        />
+      ) : null}
 
       <LabList onAddFirst={() => setDialogOpen(true)} />
     </div>

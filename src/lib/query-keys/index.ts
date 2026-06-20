@@ -58,6 +58,16 @@ export const queryKeys = {
  * TanStack's hierarchical-prefix semantics — adding a measurement now
  * refreshes the tile strip *and* the chart row in lockstep instead of
  * leaving the chart row 60 s stale (audit C2).
+ *
+ * v1.18.9 — `dashboardSnapshot` joins the bundle, mirroring the
+ * v1.16.11 medication fix. The dashboard hero band, score ring, and
+ * tile strip all read ONE snapshot query configured with
+ * refetchOnMount/WindowFocus off and a 120 s poll; without the key here
+ * a blood-pressure (or any) reading added in-app stayed invisible on the
+ * Startseite until the poll ticked or a hard reload — the reported #38
+ * stale-read. The manual create / update / delete routes already
+ * hard-evict the server snapshot bucket (`{ evict: true }`), so the
+ * refetch this invalidation triggers returns post-write data at once.
  */
 export const measurementDependentKeys = [
   queryKeys.measurements(),
@@ -65,6 +75,7 @@ export const measurementDependentKeys = [
   queryKeys.insightsRoot(),
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),
+  queryKeys.dashboardSnapshot(),
   ["chart-data"] as const,
   // v1.8.5 — re-run the diversity-nudge clustering when readings change.
   ["measurement-diversity"] as const,

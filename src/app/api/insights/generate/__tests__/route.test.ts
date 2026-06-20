@@ -565,4 +565,50 @@ describe("GET /api/insights/generate — read-only advisor read", () => {
     // No warm enqueued → no convergence poll for the client to run.
     expect(body.data.revalidating).toBe(false);
   });
+
+  // v1.18.9 (#4) — the read path reports provider availability so the
+  // insights surfaces can pair a stale cached briefing's honest age with
+  // a connect-provider hint. The cache is served regardless of provider
+  // state, so `hasProvider: false` is the only honest "can never refresh"
+  // signal the client has.
+  it("reports hasProvider: false alongside a served stale briefing", async () => {
+    vi.mocked(hasUsableStatusProvider).mockResolvedValueOnce(false);
+    const stale = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const cached = { dailyBriefing: { paragraph: "old", keyFindings: [] } };
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsCachedAt: stale,
+      insightsCachedText: JSON.stringify(cached),
+      locale: "en",
+    } as never);
+
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { cached: boolean; hasProvider: boolean; revalidating: boolean };
+    };
+    // The stale briefing is still delivered (no provider needed to read).
+    expect(body.data.cached).toBe(true);
+    // But it can never refresh — no warm enqueued, hasProvider flagged.
+    expect(body.data.hasProvider).toBe(false);
+    expect(enqueueForceWarm).not.toHaveBeenCalled();
+    expect(body.data.revalidating).toBe(false);
+  });
+
+  it("reports hasProvider: true on a normal cached read", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsCachedAt: new Date(),
+      insightsCachedText: JSON.stringify({
+        dailyBriefing: { paragraph: "ok", keyFindings: [] },
+      }),
+      locale: "en",
+    } as never);
+
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
+    const body = (await res.json()) as { data: { hasProvider: boolean } };
+    expect(body.data.hasProvider).toBe(true);
+  });
 });

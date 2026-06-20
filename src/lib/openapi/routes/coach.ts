@@ -307,6 +307,19 @@ const coachMessageSchema = z
       .describe(
         "Coach prompt version that produced the reply; null for user turns.",
       ),
+    tokensUsed: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "v1.18.9 — total tokens this assistant turn cost, persisted so the per-message token footer survives a reload. Null on user turns, refusals, and pre-feature rows.",
+      ),
+    model: z
+      .string()
+      .nullable()
+      .describe(
+        "v1.18.9 — the provider model that produced the reply (e.g. gpt-4o). Null when unknown (user turns, refusals, older rows).",
+      ),
   })
   .meta({
     id: "CoachMessage",
@@ -425,7 +438,7 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Insights"],
       summary: "Send a Coach turn (streaming reply)",
       description:
-        "v1.18.0 — sends a user turn and streams the assistant reply as Server-Sent Events. The response is `text/event-stream`, not JSON: one `data: <json>\\n\\n` frame per event. Frame `type` is one of `token` (a chunk of reply text: `{ type, token }`), `provenance` (the evidence envelope: `{ type, metricSource }`), `done` (`{ type, conversationId, messageId }`), or `error` (`{ type, code, message }`). The HTTP status is 200 even for a provider/refusal outcome — clients dispatch on the `error` frame, not the status. Clients ignore unknown frame types (additive evolution). Omitting `conversationId` starts a new conversation. Coach-gated; budget- and rate-limited. Auth via cookie or Bearer.",
+        "v1.18.0 — sends a user turn and streams the assistant reply as Server-Sent Events. The response is `text/event-stream`, not JSON: one `data: <json>\\n\\n` frame per event. Frame `type` is one of `token` (a chunk of reply text: `{ type, token }`), `provenance` (the evidence envelope: `{ type, metricSource }`), `suggestion` (a cadence-suggestion card: `{ type, suggestion }`), `reasoning` (v1.18.9, optional reasoning-summary text: `{ type, text }` — emitted only by reasoning-capable providers; absent otherwise), `done` (`{ type, conversationId, messageId, usage? }` — v1.18.9 adds the optional `usage` envelope `{ totalTokens, promptTokens?, completionTokens?, model? }`, server-authoritative; clients display it, never recompute), or `error` (`{ type, code, message }`). The HTTP status is 200 even for a provider/refusal outcome — clients dispatch on the `error` frame, not the status. Clients ignore unknown frame types (additive evolution). Omitting `conversationId` starts a new conversation. Coach-gated; budget- and rate-limited. Auth via cookie or Bearer.",
       requestBody: {
         required: true,
         content: {

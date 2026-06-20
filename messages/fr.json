@@ -2010,7 +2010,8 @@
       "loadingLabel": "Préparation du briefing",
       "noProviderTitle": "Aucun fournisseur d'IA connecté",
       "noProviderDescription": "Le briefing quotidien résume tes mesures en langage clair. HealthLog a besoin d'un fournisseur d'IA pour cela : utilise ta propre clé (OpenAI, Anthropic) ou un modèle local. Tes données restent chez toi.",
-      "noProviderAction": "Ouvrir les réglages IA"
+      "noProviderAction": "Ouvrir les réglages IA",
+      "staleNoProviderHint": "Ce briefing ne peut pas être actualisé — aucun fournisseur d'IA n'est connecté."
     },
     "trendsRow": {
       "title": "Tendances",
@@ -2268,7 +2269,15 @@
       "dictate": "Dicter",
       "dictateStop": "Arrêter la dictée",
       "showConversations": "Afficher les conversations",
-      "hideConversations": "Masquer les conversations"
+      "hideConversations": "Masquer les conversations",
+      "heroGreeting": "Comment puis-je t'aider ?",
+      "heroSubline": "Pose une question sur tes tendances, médicaments ou mesures.",
+      "thinkingElapsed": "{seconds}s",
+      "thinkingDuration": "A réfléchi pendant {seconds}s",
+      "thinkingExpandAria": "Montrer ce que le Coach a pris en compte",
+      "thinkingDetail": "Réponse établie à partir de ton aperçu santé.",
+      "tokensUsed": "{count} jetons",
+      "tokensUsedWithModel": "{count} jetons · {model}"
     },
     "relativeJustNow": "à l’instant",
     "relativeMinutesAgoOne": "il y a {count} minute",
@@ -6451,14 +6460,7 @@
       "empty": "Aucun rappel de prévention à venir.",
       "openLink": "Ouvrir la prévention"
     },
-    "showMeasurements": "Afficher les mesures",
-    "trendStrip": {
-      "label": "7 derniers jours",
-      "summary": "Dernière valeur {value}, {direction} sur 7 jours.",
-      "rising": "en hausse",
-      "falling": "en baisse",
-      "steady": "stable"
-    }
+    "showMeasurements": "Afficher les mesures"
   },
   "moduleList": {
     "viewToggleLabel": "Affichage",
@@ -6492,6 +6494,8 @@
       "label": "Ordre des valeurs",
       "recentDesc": "Mesure la plus récente d'abord",
       "recentAsc": "Mesure la plus ancienne d'abord",
+      "alphaAsc": "Nom (A–Z)",
+      "alphaDesc": "Nom (Z–A)",
       "manual": "Trier manuellement",
       "hint": "En tri manuel, vous pouvez glisser les biomarqueurs ci-dessous dans votre propre ordre."
     },
@@ -6513,7 +6517,15 @@
       "biomarkerPlaceholder": "Choisir un biomarqueur",
       "defineNew": "+ Définir un nouveau biomarqueur",
       "noBiomarkersHint": "Définissez d'abord un biomarqueur pour enregistrer une valeur.",
-      "pickBiomarkerError": "Choisissez d'abord un biomarqueur."
+      "pickBiomarkerError": "Choisissez d'abord un biomarqueur.",
+      "resultType": "Type de résultat",
+      "numeric": "Numérique",
+      "qualitative": "Qualitatif",
+      "qualitativeResult": "Résultat",
+      "qualitativePlaceholder": "p. ex. négatif",
+      "qualNegative": "négatif",
+      "qualPositive": "positif",
+      "qualBorderline": "limite"
     },
     "backToLabs": "Retour aux résultats",
     "hasNote": "Note",
@@ -6625,7 +6637,44 @@
       }
     },
     "noteLoadFailed": "La note n’a pas pu être chargée ; elle restera inchangée à l’enregistrement.",
-    "showingLatestOf": "Affichage des {shown} derniers résultats sur {total}"
+    "showingLatestOf": "Affichage des {shown} derniers résultats sur {total}",
+    "ocr": {
+      "scanButton": "Scanner un compte rendu",
+      "uploadHint": "Importez une photo ou un PDF d'un compte rendu de laboratoire",
+      "acceptWithPdf": "JPEG, PNG, WebP ou PDF",
+      "acceptImageOnly": "JPEG, PNG ou WebP",
+      "extracting": "Lecture de votre compte rendu…",
+      "reviewTitle": "Vérifier avant d'enregistrer",
+      "reviewHint": "Vérifiez chaque valeur, puis enregistrez celles à conserver.",
+      "foundCount": "{count} valeurs trouvées",
+      "confirmRow": "Inclure cette valeur",
+      "analyteLabel": "Nom de l'analyse",
+      "resultLabel": "Résultat",
+      "valueLabel": "Valeur",
+      "unitLabel": "Unité",
+      "dateLabel": "Date",
+      "refLowLabel": "Référence basse",
+      "refHighLabel": "Référence haute",
+      "newBiomarker": "Nouveau biomarqueur — sera créé",
+      "linksExisting": "Lié au {name} existant",
+      "duplicateWarning": "Une valeur correspondante existe déjà",
+      "lowConfidence": "Veuillez vérifier cette valeur",
+      "valueUnreadable": "Valeur illisible — saisissez-la manuellement",
+      "saveSelected": "Enregistrer {count} sélectionnées",
+      "discardAll": "Tout abandonner",
+      "savedToast": "{count} résultats de laboratoire enregistrés",
+      "noRows": "Aucune valeur n'a pu être trouvée dans ce compte rendu.",
+      "nothingToSave": "Sélectionnez au moins une valeur à enregistrer.",
+      "saveFailed": "Impossible d'enregistrer les valeurs. Veuillez réessayer.",
+      "providerUnsupported": "Votre fournisseur d'IA ne peut pas lire les images. Configurez un modèle capable de vision.",
+      "consentRequired": "Le consentement au traitement par IA est requis pour scanner un compte rendu.",
+      "rateLimited": "Trop de scans. Réessayez plus tard.",
+      "budgetExceeded": "Votre budget d'utilisation de l'IA pour aujourd'hui est atteint.",
+      "fileTooLarge": "Le fichier est trop volumineux (max. 12 Mo).",
+      "fileType": "Importez un JPEG, PNG, WebP ou PDF.",
+      "extractFailed": "Impossible de lire le compte rendu. Essayez une photo plus nette.",
+      "pdfNeedsAnthropic": "Le scan PDF nécessite un fournisseur de vision Claude ; importez plutôt une photo."
+    }
   },
   "modules": {
     "cycle": {
@@ -6684,6 +6733,10 @@
   "illness": {
     "title": "Journal de maladie",
     "subtitle": "Un suivi rétrospectif de vos épisodes de maladie et d'affections.",
+    "settings": {
+      "viewDescription": "Choisis si les épisodes s'affichent en cartes ou en liste compacte.",
+      "orderDescription": "Fais glisser tes épisodes dans l'ordre où tu veux les voir."
+    },
     "customize": "Personnaliser le journal de maladie",
     "newEpisode": "Nouvel épisode",
     "logDay": "Enregistrer un jour",
@@ -6784,7 +6837,8 @@
       "countOther": "Tu as enregistré {count} épisodes sur cette période.",
       "typicalGap": "Écart de récupération typique : {days} jours entre le mieux-être et la stabilisation de tes valeurs.",
       "typicalGapLearning": "Encore quelques épisodes résolus et un écart de récupération typique apparaîtra ici.",
-      "none": "Aucun épisode enregistré sur cette période."
+      "none": "Aucun épisode enregistré sur cette période.",
+      "analyze": "Analyser l'écart de récupération"
     },
     "section": {
       "active": "Actifs",

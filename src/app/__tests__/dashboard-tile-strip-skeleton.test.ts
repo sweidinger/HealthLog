@@ -104,11 +104,11 @@ describe("resolveDashboardFirstPaintGate", () => {
 
 describe("resolveConfiguredTileCount (v1.16.8)", () => {
   it("counts only widgets that paint a strip tile, with bp counting double", () => {
-    // Default layout: weight, bp, pulse, bodyFat, mood, bpInTarget are
-    // tile-visible AND tile-capable; medications + recentWorkouts are
+    // Default layout: weight, bp, pulse, bodyFat, mood, bpInTarget, vo2Max
+    // are tile-visible AND tile-capable; medications + recentWorkouts are
     // tile-visible in the stored layout but paint NO strip tile, so
     // they must not inflate the silhouette. bp paints sys + dia = 2.
-    expect(resolveConfiguredTileCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(7);
+    expect(resolveConfiguredTileCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(8);
   });
 
   it("ignores chart-only and iOS-pin-only widget ids", () => {

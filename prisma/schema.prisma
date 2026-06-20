@@ -3391,7 +3391,14 @@ model LabResult {
   panel         String?
   /// The biomarker name, e.g. "LDL", "HbA1c", "Ferritin".
   analyte       String
-  value         Float
+  /// Numeric reading. NULL for a qualitative result (see `valueText`). Exactly
+  /// one of `value` / `valueText` is set per row: `value IS NOT NULL` marks a
+  /// quantitative reading, `valueText IS NOT NULL` a qualitative one.
+  value         Float?
+  /// v1.18.9 — qualitative result as free text, e.g. "negativ" / "positiv" /
+  /// "grenzwertig" / "nicht nachweisbar". NULL for a numeric reading. The
+  /// reference bounds + range verdict are meaningless for a qualitative row.
+  valueText     String?   @map("value_text")
   unit          String
   /// Optional reference-range bounds as reported by the lab.
   referenceLow  Float?    @map("reference_low")
@@ -3636,6 +3643,11 @@ model CoachMessage {
   metricSourceJson String?  @map("metric_source_json")
   providerType     String?  @map("provider_type")
   promptVersion    String?  @map("prompt_version")
+  // v1.18.9 — per-turn token usage + model, persisted so the quiet
+  // per-message token footer survives a conversation reload. Both
+  // nullable: user turns, refusals, and pre-feature rows carry NULL.
+  tokensUsed       Int?     @map("tokens_used")
+  model            String?
   createdAt        DateTime @default(now()) @map("created_at")
 
   conversation CoachConversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)

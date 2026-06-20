@@ -11,3 +11,20 @@ export function formatLabValue(value: number): string {
     ? String(value)
     : String(Number(value.toFixed(2)));
 }
+
+/**
+ * v1.18.9 — render a reading's display value: a qualitative row (numeric
+ * `value` is null) shows its `valueText` verbatim; a numeric row shows the
+ * formatted number plus its unit. One helper so the list card, the history
+ * rows, and the detail header stay consistent.
+ */
+export function formatLabReading(reading: {
+  value: number | null;
+  valueText: string | null;
+  unit: string;
+}): string {
+  if (reading.value === null) {
+    return reading.valueText ?? "";
+  }
+  return `${formatLabValue(reading.value)} ${reading.unit}`.trim();
+}

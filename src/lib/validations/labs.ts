@@ -72,12 +72,22 @@ const referenceHigh = z.number().finite().optional();
  */
 const biomarkerId = z.string().trim().min(1).max(64).optional();
 
+/**
+ * v1.18.9 — a qualitative reading ("negativ" / "positiv" / "grenzwertig" /
+ * "nicht nachweisbar"). Trimmed, non-empty, sensibly capped. Mutually
+ * exclusive with the numeric `value` (see the create/update refinements).
+ */
+const valueText = requiredText(120).optional();
+
 export const createLabResultSchema = z
   .object({
     biomarkerId,
     panel: optionalPanel,
     analyte: requiredText(120).optional(),
-    value: z.number().finite(),
+    // v1.18.9 — `value` is no longer required: a reading is EITHER numeric
+    // (`value`) OR qualitative (`valueText`), never both, never neither.
+    value: z.number().finite().optional(),
+    valueText,
     unit: requiredText(40).optional(),
     referenceLow,
     referenceHigh,
@@ -89,14 +99,31 @@ export const createLabResultSchema = z
     message: "Either biomarkerId or analyte is required",
     path: ["analyte"],
   })
-  // Without a catalog link the unit is required (the catalog otherwise
-  // supplies it server-side).
-  .refine((d) => d.biomarkerId !== undefined || d.unit !== undefined, {
-    message: "unit is required when no biomarkerId is given",
-    path: ["unit"],
+  // Numeric XOR qualitative: exactly one of `value` / `valueText` is set.
+  .refine((d) => (d.value !== undefined) !== (d.valueText !== undefined), {
+    message:
+      "Provide exactly one of value (numeric) or valueText (qualitative)",
+    path: ["value"],
   })
+  // A numeric reading without a catalog link still needs a unit (the catalog
+  // otherwise supplies it server-side). A qualitative reading needs no unit —
+  // its result is the text, and a unit/range is meaningless for it.
   .refine(
     (d) =>
+      d.valueText !== undefined ||
+      d.biomarkerId !== undefined ||
+      d.unit !== undefined,
+    {
+      message:
+        "unit is required for a numeric reading when no biomarkerId is given",
+      path: ["unit"],
+    },
+  )
+  // Reference bounds apply to the numeric path only; skip them entirely for a
+  // qualitative reading.
+  .refine(
+    (d) =>
+      d.valueText !== undefined ||
       d.referenceLow === undefined ||
       d.referenceHigh === undefined ||
       d.referenceLow <= d.referenceHigh,
@@ -118,11 +145,21 @@ export const updateLabResultSchema = z
     panel: optionalPanel.or(z.null()),
     analyte: requiredText(120).optional(),
     value: z.number().finite().optional(),
+    // v1.18.9 — edit the qualitative result. A row stays single-typed: a PUT
+    // must not set BOTH `value` and `valueText` (the refine below). Switching a
+    // row's type (numeric ↔ qualitative) is intentionally not supported here —
+    // delete and re-add — so an omitted key leaves the row's existing type.
+    valueText: requiredText(120).optional(),
     unit: requiredText(40).optional(),
     referenceLow: referenceLow.or(z.null()),
     referenceHigh: referenceHigh.or(z.null()),
     takenAt: takenAtField.optional(),
     note: optionalNote.or(z.null()),
+  })
+  // A single edit never carries both a numeric and a qualitative value.
+  .refine((d) => d.value === undefined || d.valueText === undefined, {
+    message: "Provide value (numeric) or valueText (qualitative), not both",
+    path: ["value"],
   })
   .refine(
     (d) =>

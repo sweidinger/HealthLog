@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
 
+import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiGet } from "@/lib/api/api-fetch";
+import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
@@ -34,6 +37,7 @@ import type {
  */
 export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   const { t } = useTranslations();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   // Sticky-footer slot for the add-value sheet (the form portals here).
@@ -93,6 +97,21 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
   }
 
+  // v1.18.9 (#41/#3) — delete the biomarker directly from its detail page so
+  // a stray marker is removable without a Settings detour. `onDelete: SetNull`
+  // keeps the readings and unlinks them. On success, invalidate the catalog +
+  // result list and return to the labs surface.
+  const deleteMarker = useMutation({
+    mutationFn: () => apiDelete(`/api/biomarkers/${biomarkerId}`),
+    onSuccess: () => {
+      toast.success(t("labs.biomarker.deletedToast"));
+      queryClient.invalidateQueries({ queryKey: queryKeys.biomarkers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
+      router.push("/labs");
+    },
+    onError: () => toast.error(t("labs.biomarker.deleteError")),
+  });
+
   if (markerError || listError) {
     return (
       <p className="text-destructive py-8 text-center text-sm">
@@ -101,13 +120,15 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     );
   }
 
-  const latestStatus = latest
-    ? classifyReferenceRange(
-        latest.value,
-        marker?.lowerBound ?? null,
-        marker?.upperBound ?? null,
-      )
-    : "unknown";
+  // A qualitative latest reading (numeric value null) has no range verdict.
+  const latestStatus =
+    latest && latest.value !== null
+      ? classifyReferenceRange(
+          latest.value,
+          marker?.lowerBound ?? null,
+          marker?.upperBound ?? null,
+        )
+      : "unknown";
 
   return (
     <div className="space-y-6">
@@ -134,6 +155,14 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
           >
             <Pencil className="h-4 w-4" />
           </Button>
+          <DeleteButton
+            onConfirm={() => deleteMarker.mutate()}
+            title={t("labs.biomarker.deleteConfirmTitle")}
+            description={t("labs.biomarker.deleteConfirmDescription")}
+            confirmLabel={t("labs.biomarker.delete")}
+            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+            iconClassName="h-4 w-4"
+          />
           <Button
             onClick={() => setAddOpen(true)}
             className="min-h-11 shrink-0 sm:min-h-9"
@@ -147,10 +176,17 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
       {latest ? (
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="text-2xl font-bold tabular-nums">
-            {formatLabValue(latest.value)}{" "}
-            <span className="text-muted-foreground text-base font-normal">
-              {marker?.unit ?? latest.unit}
-            </span>
+            {latest.value !== null ? (
+              <>
+                {formatLabValue(latest.value)}{" "}
+                <span className="text-muted-foreground text-base font-normal">
+                  {marker?.unit ?? latest.unit}
+                </span>
+              </>
+            ) : (
+              // Qualitative latest reading — show the result text, no unit.
+              (latest.valueText ?? "")
+            )}
           </span>
           <ReferenceRangeBadge status={latestStatus} />
         </div>

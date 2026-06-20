@@ -179,6 +179,72 @@ describe("AnthropicClient", () => {
     expect(err.bodyExcerpt).not.toContain("supersecretkey");
   });
 
+  it("folds image + document blocks into the user turn for vision (Lab-OCR)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          content: [{ type: "text", text: '"rows":[]}' }],
+          usage: { input_tokens: 100, output_tokens: 10 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new AnthropicClient({
+      apiKey: "sk-ant-x",
+      model: "claude-sonnet-4-6",
+    });
+
+    await client.generateCompletion({
+      systemPrompt: "Transcribe this report.",
+      userPrompt: "Extract the readings.",
+      responseFormat: "json",
+      images: [{ mediaType: "image/jpeg", dataBase64: "aW1n" }],
+      documents: [{ mediaType: "application/pdf", dataBase64: "cGRm" }],
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    // First message is the user turn; its content is now a typed array.
+    const content = body.messages[0].content;
+    expect(Array.isArray(content)).toBe(true);
+    const types = content.map((b: { type: string }) => b.type);
+    expect(types).toContain("image");
+    expect(types).toContain("document");
+    // The instruction text comes last, after the data blocks.
+    expect(content[content.length - 1].type).toBe("text");
+    const image = content.find((b: { type: string }) => b.type === "image");
+    expect(image.source).toEqual({
+      type: "base64",
+      media_type: "image/jpeg",
+      data: "aW1n",
+    });
+    const doc = content.find((b: { type: string }) => b.type === "document");
+    expect(doc.source.media_type).toBe("application/pdf");
+    // The assistant `{`-prefill still rides after the array content.
+    expect(body.messages[1]).toEqual({ role: "assistant", content: "{" });
+  });
+
+  it("keeps a bare-string user content when no vision input is present", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          content: [{ type: "text", text: "{}" }],
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new AnthropicClient({
+      apiKey: "sk-ant-x",
+      model: "claude-sonnet-4-6",
+    });
+
+    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(typeof body.messages[0].content).toBe("string");
+  });
+
   it("throws when content is empty", async () => {
     vi.stubGlobal(
       "fetch",

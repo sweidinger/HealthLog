@@ -9,6 +9,7 @@ const {
   fetchActivityMock,
   fetchDailySleepMock,
   fetchSpo2Mock,
+  fetchVo2MaxMock,
   refreshMock,
   upsertMock,
   recordSuccessMock,
@@ -24,6 +25,7 @@ const {
   fetchActivityMock: vi.fn(),
   fetchDailySleepMock: vi.fn(),
   fetchSpo2Mock: vi.fn(),
+  fetchVo2MaxMock: vi.fn(),
   refreshMock: vi.fn(),
   upsertMock: vi.fn(),
   recordSuccessMock: vi.fn(),
@@ -67,6 +69,7 @@ vi.mock("../client", async (importOriginal) => {
     fetchDailyActivity: fetchActivityMock,
     fetchDailySleep: fetchDailySleepMock,
     fetchDailySpo2: fetchSpo2Mock,
+    fetchVo2Max: fetchVo2MaxMock,
     refreshAccessToken: refreshMock,
   };
 });
@@ -87,6 +90,7 @@ beforeEach(() => {
   fetchActivityMock.mockReset().mockResolvedValue([]);
   fetchDailySleepMock.mockReset().mockResolvedValue([]);
   fetchSpo2Mock.mockReset().mockResolvedValue([]);
+  fetchVo2MaxMock.mockReset().mockResolvedValue([]);
   refreshMock.mockReset();
   upsertMock.mockReset().mockResolvedValue({});
   recordSuccessMock.mockReset().mockResolvedValue(undefined);
@@ -208,6 +212,26 @@ describe("syncUserOura", () => {
       externalId: "spo2:2026-06-10:spo2",
       value: 97,
     });
+  });
+
+  it("writes VO2_MAX from the dedicated collection", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchVo2MaxMock.mockResolvedValue([
+      { id: "v", day: "2026-06-10", vo2_max: 47.3 },
+    ]);
+    await syncUserOura("u1");
+    const written = upsertMock.mock.calls.map((c) => ({
+      type: c[0].where.userId_type_source_externalId.type,
+      externalId: c[0].where.userId_type_source_externalId.externalId,
+      value: c[0].create.value,
+    }));
+    expect(written).toContainEqual({
+      type: "VO2_MAX",
+      externalId: "vo2max:2026-06-10:vo2_max",
+      value: 47.3,
+    });
+    // daily_stress → STRESS_SCORE is withdrawn pending ladder wiring.
+    expect(written.some((w) => w.type === "STRESS_SCORE")).toBe(false);
   });
 
   it("does NOT refresh on a 403 (not an expiry case)", async () => {

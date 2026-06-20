@@ -61,13 +61,26 @@ export function useIllnessCorrelation(episodeId: string | null) {
   });
 }
 
-/** The cross-episode retrospective summary over a trailing window in days. */
-export function useIllnessInsights(windowDays = 365) {
+/**
+ * The cross-episode retrospective summary over a trailing window in days.
+ *
+ * `includeRecoveryGap` is OFF by default: the count breakdown is served by a
+ * single fast query and the recovery-gap stays null. The illness list mounts
+ * this lightweight read; only the explicit "Analyse" expansion opts into the
+ * expensive per-episode correlation (`includeRecoveryGap: true`), which caches
+ * under its own key. `enabled` lets a caller defer the heavy read until opened.
+ */
+export function useIllnessInsights(
+  windowDays = 365,
+  options: { includeRecoveryGap?: boolean; enabled?: boolean } = {},
+) {
+  const includeRecoveryGap = options.includeRecoveryGap ?? false;
   return useQuery({
-    queryKey: queryKeys.illnessInsights(windowDays),
+    queryKey: queryKeys.illnessInsights(windowDays, includeRecoveryGap),
+    enabled: options.enabled ?? true,
     queryFn: () =>
       apiGet<IllnessInsightsResponse>(
-        `/api/illness/insights?windowDays=${windowDays}`,
+        `/api/illness/insights?windowDays=${windowDays}&includeRecoveryGap=${includeRecoveryGap}`,
       ),
   });
 }

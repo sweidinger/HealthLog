@@ -97,4 +97,16 @@ export const AI_BUDGETS = {
    * questions. Temperature only; the caller pins its own token const.
    */
   selfContext: { temperature: 0.4 },
+
+  /**
+   * v1.18.9 — Lab-OCR structured extraction. ONE vision call transcribes a
+   * photo / PDF of a paper lab report into a JSON array of analyte rows
+   * (analyte + value/valueText + unit + reference range + date + per-field
+   * confidence). A full panel is a dozen-plus rows of compact JSON; 4000
+   * tokens covers a dense report plus the envelope. Temperature 0 — the task
+   * is faithful transcription, not generation, so the lowest setting minimises
+   * invented values. Vision input tokens are expensive, so the route also
+   * gates with a tight 6/hour rate bucket + reserveBudget + upload-size cap.
+   */
+  ocrExtract: { temperature: 0, maxTokens: 4000 },
 } as const satisfies Record<string, AiBudget>;

@@ -39,6 +39,8 @@ import {
 } from "lucide-react";
 
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import { relativeCalendarDate } from "@/lib/i18n/relative-time";
+import { startOfLocalDayInTz } from "@/lib/tz/local-day";
 import { cn } from "@/lib/utils";
 import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
@@ -71,7 +73,6 @@ import { Progress } from "@/components/ui/progress";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
-import { VorsorgeTrendStrip } from "@/components/measurement-reminders/vorsorge-trend-strip";
 import { MedicationCardHeader } from "@/components/medications/medication-card-header";
 import {
   useMeasurementReminders,
@@ -124,9 +125,17 @@ function relativeDueKey(
   now: number,
 ): { key: string; days: number } {
   if (!nextDueAt) return { key: "nextDue.none", days: 0 };
-  const due = new Date(nextDueAt).getTime();
-  // Compare calendar-day deltas so "today" / "in 1 day" read cleanly.
-  const deltaDays = Math.round((due - now) / DAY_MS);
+  const due = new Date(nextDueAt);
+  if (Number.isNaN(due.getTime())) return { key: "nextDue.none", days: 0 };
+  // v1.18.9 (recon) — compare CALENDAR-day deltas in the user's local zone,
+  // not a rolling-24h delta. A reminder due at 09:00 viewed the same evening
+  // at 20:00 must still read "heute", and one whose due calendar-day is before
+  // today must read "überfällig" — a raw `(due - now) / DAY_MS` round would
+  // mis-bucket both. Floor each instant to its local day start (host-local zone
+  // = the browser user's zone for this client component) before differencing.
+  const dueDay = startOfLocalDayInTz(due, undefined).getTime();
+  const nowDay = startOfLocalDayInTz(new Date(now), undefined).getTime();
+  const deltaDays = Math.round((dueDay - nowDay) / DAY_MS);
   if (deltaDays < 0) return { key: "overdueByDays", days: Math.abs(deltaDays) };
   if (deltaDays === 0) return { key: "nextDue.today", days: 0 };
   if (deltaDays === 1) return { key: "nextDue.tomorrow", days: 1 };
@@ -929,20 +938,37 @@ function VorsorgeCard({
   // (MOD-06: never "Einnahme" / intake — a measurement is not an intake). The
   // "next" value carries the discreet neutral due badge; the "last" value is
   // the last satisfied date.
-  // v1.18.6.1 — the due/overdue status renders as plain TEXT (not a chip),
-  // and the "zuletzt erledigt" line ALWAYS renders, falling back to "—" when
-  // there is no last-done value — mirroring the medication card's next/last
-  // text rows.
+  // v1.18.9 (#39) — "zuletzt erledigt" reads as a RELATIVE date in the
+  // medication-card grammar (today → "Heute", yesterday → "Gestern", else the
+  // absolute date) through the shared `relativeCalendarDate` helper, reusing
+  // the same `medications.today` / `medications.yesterday` keys the medication
+  // card renders. Falls back to "—" when there is no last-done value.
   const lastValue = reminder.lastSatisfiedAt
-    ? fmt.date(new Date(reminder.lastSatisfiedAt))
+    ? relativeCalendarDate(reminder.lastSatisfiedAt, t, (d) => fmt.date(d))
     : "—";
+
+  // v1.18.9 (#39) — the next-due status reads as DISCREET COLOURED TEXT (never
+  // a card-background tint): due today → green, overdue → orange, otherwise the
+  // normal muted-resolved date. The card surface stays neutral per the house
+  // rule; only this inline label carries the status hue.
+  const dueIsToday = due.key === "nextDue.today";
+  const dueIsOverdue = due.key === "overdueByDays";
   const nextLastSlot = (
     <div className="min-h-[2.75rem] space-y-1.5 text-sm">
       <div className="text-muted-foreground flex items-baseline justify-between gap-3">
         <span className="min-w-0 flex-shrink truncate font-medium">
           {t("measurementReminders.nextDueLabel")}
         </span>
-        <span className="text-foreground text-right">
+        <span
+          className={cn(
+            "text-right",
+            dueIsToday
+              ? "text-success font-medium"
+              : dueIsOverdue
+                ? "text-warning font-medium"
+                : "text-foreground",
+          )}
+        >
           {t(`measurementReminders.${due.key}`, { days: due.days })}
         </span>
       </div>
@@ -971,12 +997,6 @@ function VorsorgeCard({
         />
         <CardContent className="flex h-full flex-col space-y-3.5">
           {nextLastSlot}
-
-          {/* v1.18.7 (Wave E) — discreet 7-day strip of the metric's last
-              readings, sitting under the metric context like the dashboard
-              tiles. Renders nothing for a free-text reminder or a too-thin
-              window, so the card height stays stable when absent. */}
-          <VorsorgeTrendStrip measurementType={reminder.measurementType} />
 
           {/* v1.18.6 (MOD-06) — light gamification: progress through the
               current interval toward next-due, reusing the medication card's

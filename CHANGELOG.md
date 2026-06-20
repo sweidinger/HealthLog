@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [1.18.9] — 2026-06-20 — Coach surface, lab-report scanning, and fresher dashboards
+
+A broad UI and data release. It adds two migrations (both additive and nullable — qualitative lab results and Coach token columns) and three additive, back-compatible API changes (see the note below).
+
+### Added
+
+- Coach opens on a calm new-chat surface: a centred greeting and a single composer, then each answer streams in word by word with a soft fade, a collapsible thinking disclosure, and a quiet per-message footer showing the tokens used and the model. The quick-access drawer is unchanged.
+- Scan a paper lab report. With an AI provider connected, upload a photo or PDF and the reader proposes the measurements and biomarkers it finds. Every row goes through a mandatory review — confirm, edit, or discard each one, with duplicate and reference-range hints — and only what you confirm is saved. The uploaded file is held in memory for the read alone and is never stored.
+- Record a qualitative lab result — positive/negative or another text value — where a number does not apply.
+- Sort lab values alphabetically, and delete a biomarker directly from the labs list and detail views.
+- VO2max shows on the dashboard by default, and Oura's VO2max reading is now ingested alongside the existing sources.
+
+### Changed
+
+- The labs surface defaults to the list view, and its tiles share the medication-card layout. The labs and condition-journal settings now follow the same section pattern as the rest of Settings.
+- Preventive-care cards read the last-completed date as "today"/"yesterday" and the next due date as a discreet "today" (green) or "overdue" (orange), and drop the small trend strip.
+- Sleep-debt and chronotype sit side by side, and the daily-briefing card aligns with the surrounding type.
+
+### Fixed
+
+- The dashboard reflects new readings without a hard refresh: an added or background-synced measurement now refreshes the home snapshot — including on Withings and Apple Health sync, and on returning to the tab.
+- The condition journal opens quickly again. The cross-episode correlation runs only when an entry's analysis is opened, and the typical-recovery-gap insight appears only when there is enough real data to support it.
+- The latest-report area shows its age and, when no AI provider is connected, points to where to connect one, instead of presenting an old report as current.
+- The Coach quick-access icon uses a softer tone.
+
+### API
+
+- The Coach stream's `done` frame now carries an optional token `usage`, and a Coach message can carry `tokensUsed` and `model`; an optional `reasoning` frame is reserved. New `GET/POST /api/labs/ocr/{capability,extract,commit}` endpoints; rows committed from a scan carry `source: "OCR"`. All additive and back-compatible.
+
 ## [1.18.8] — 2026-06-20 — coded condition and lab terminology in the health-record export
 
 An additive export-only release: the FHIR R4 health record now carries standard terminology codes where it can assert them honestly. No migration, no API contract change.

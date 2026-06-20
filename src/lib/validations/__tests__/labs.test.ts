@@ -122,6 +122,72 @@ describe("createLabResultSchema", () => {
     });
     expect(r.success).toBe(false);
   });
+
+  // ── qualitative readings (v1.18.9) ────────────────────────────────
+  it("accepts a qualitative reading (valueText, no numeric value/unit)", () => {
+    const r = createLabResultSchema.safeParse({
+      analyte: "Hepatitis Bs-Antigen",
+      valueText: "negativ",
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepts a qualitative reading against a catalog biomarker", () => {
+    const r = createLabResultSchema.safeParse({
+      biomarkerId: "bm_123",
+      valueText: "positiv",
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects a reading carrying BOTH value and valueText", () => {
+    const r = createLabResultSchema.safeParse({
+      analyte: "LDL",
+      value: 110,
+      unit: "mg/dL",
+      valueText: "negativ",
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a reading carrying NEITHER value nor valueText", () => {
+    const r = createLabResultSchema.safeParse({
+      analyte: "LDL",
+      unit: "mg/dL",
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects an empty qualitative valueText", () => {
+    const r = createLabResultSchema.safeParse({
+      analyte: "Serology",
+      valueText: "   ",
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects an over-long valueText (> 120 chars)", () => {
+    const r = createLabResultSchema.safeParse({
+      analyte: "Serology",
+      valueText: "x".repeat(121),
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("does not require a unit for a qualitative reading", () => {
+    const r = createLabResultSchema.safeParse({
+      analyte: "Serology",
+      valueText: "negativ",
+      takenAt: RECENT,
+    });
+    expect(r.success).toBe(true);
+  });
 });
 
 describe("updateLabResultSchema", () => {
@@ -137,6 +203,19 @@ describe("updateLabResultSchema", () => {
   it("accepts a partial value-only edit", () => {
     const r = updateLabResultSchema.safeParse({ value: 5.6 });
     expect(r.success).toBe(true);
+  });
+
+  it("accepts a partial valueText-only edit (v1.18.9)", () => {
+    const r = updateLabResultSchema.safeParse({ valueText: "positiv" });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects an edit carrying both value and valueText", () => {
+    const r = updateLabResultSchema.safeParse({
+      value: 5.6,
+      valueText: "negativ",
+    });
+    expect(r.success).toBe(false);
   });
 
   it("still enforces the range order when both bounds are supplied", () => {

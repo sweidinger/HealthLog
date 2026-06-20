@@ -4,6 +4,7 @@ import {
   OURA_OAUTH_SCOPE,
   exchangeCode,
   fetchReadiness,
+  fetchVo2Max,
   getAuthorizationUrl,
   getOuraCredentials,
   mapDailyActivity,
@@ -11,12 +12,14 @@ import {
   mapDailySpo2,
   mapReadiness,
   mapSleep,
+  mapVo2Max,
   refreshAccessToken,
   type OuraDailyActivity,
   type OuraDailySleep,
   type OuraDailySpo2,
   type OuraReadiness,
   type OuraSleep,
+  type OuraVo2Max,
 } from "../client";
 import { OuraApiError } from "../response-classifier";
 
@@ -306,6 +309,47 @@ describe("mapDailySpo2", () => {
         spo2_percentage: { average: null },
       }),
     ).toEqual([]);
+  });
+});
+
+describe("fetchVo2Max", () => {
+  it("reads the camel-cased vO2_max collection path", async () => {
+    const fetchMock = installFetchMock([
+      {
+        status: 200,
+        body: {
+          data: [{ id: "1", day: "2026-06-10", vo2_max: 47.3 }],
+          next_token: null,
+        },
+      },
+    ]);
+    const r = await fetchVo2Max("tok", {
+      startDate: "2026-06-01",
+      endDate: "2026-06-10",
+    });
+    expect(r).toHaveLength(1);
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url).toContain("/v2/usercollection/vO2_max");
+  });
+});
+
+describe("mapVo2Max", () => {
+  it("maps vo2_max -> VO2_MAX (mL/(kg·min))", () => {
+    const v: OuraVo2Max = { id: "1", day: "2026-06-10", vo2_max: 47.3 };
+    const mapped = mapVo2Max(v);
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0]).toMatchObject({
+      type: "VO2_MAX",
+      value: 47.3,
+      unit: "mL/(kg·min)",
+      fieldTag: "vo2_max",
+    });
+  });
+  it("skips a record with no positive value", () => {
+    expect(mapVo2Max({ id: "1", day: "2026-06-10", vo2_max: 0 })).toEqual([]);
+    expect(mapVo2Max({ id: "1", day: "2026-06-10", vo2_max: null })).toEqual(
+      [],
+    );
   });
 });
 

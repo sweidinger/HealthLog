@@ -2010,7 +2010,8 @@
       "loadingLabel": "Preparazione del briefing",
       "noProviderTitle": "Nessun provider IA collegato",
       "noProviderDescription": "Il briefing giornaliero riassume le tue misurazioni in linguaggio chiaro. HealthLog ha bisogno di un provider IA per questo: usa la tua chiave (OpenAI, Anthropic) o un modello locale. I tuoi dati restano tuoi.",
-      "noProviderAction": "Apri impostazioni IA"
+      "noProviderAction": "Apri impostazioni IA",
+      "staleNoProviderHint": "Questo briefing non può aggiornarsi: nessun provider IA è collegato."
     },
     "trendsRow": {
       "title": "Tendenze",
@@ -2268,7 +2269,15 @@
       "dictate": "Detta",
       "dictateStop": "Interrompi dettatura",
       "showConversations": "Mostra conversazioni",
-      "hideConversations": "Nascondi conversazioni"
+      "hideConversations": "Nascondi conversazioni",
+      "heroGreeting": "Come posso aiutarti?",
+      "heroSubline": "Chiedi dei tuoi andamenti, farmaci o misurazioni.",
+      "thinkingElapsed": "{seconds}s",
+      "thinkingDuration": "Ha riflettuto per {seconds}s",
+      "thinkingExpandAria": "Mostra cosa ha considerato il Coach",
+      "thinkingDetail": "Risposta basata sul tuo riepilogo di salute.",
+      "tokensUsed": "{count} token",
+      "tokensUsedWithModel": "{count} token · {model}"
     },
     "relativeJustNow": "proprio ora",
     "relativeMinutesAgoOne": "{count} minuto fa",
@@ -6451,14 +6460,7 @@
       "empty": "Nessun promemoria di prevenzione in arrivo.",
       "openLink": "Apri prevenzione"
     },
-    "showMeasurements": "Mostra le misurazioni",
-    "trendStrip": {
-      "label": "Ultimi 7 giorni",
-      "summary": "Ultimo valore {value}, {direction} su 7 giorni.",
-      "rising": "in aumento",
-      "falling": "in calo",
-      "steady": "stabile"
-    }
+    "showMeasurements": "Mostra le misurazioni"
   },
   "moduleList": {
     "viewToggleLabel": "Vista",
@@ -6492,6 +6494,8 @@
       "label": "Ordine dei valori",
       "recentDesc": "Misurazione più recente prima",
       "recentAsc": "Misurazione più vecchia prima",
+      "alphaAsc": "Nome (A–Z)",
+      "alphaDesc": "Nome (Z–A)",
       "manual": "Ordina manualmente",
       "hint": "Con l'ordinamento manuale puoi trascinare i biomarcatori qui sotto nel tuo ordine."
     },
@@ -6513,7 +6517,15 @@
       "biomarkerPlaceholder": "Scegli un biomarcatore",
       "defineNew": "+ Definisci nuovo biomarcatore",
       "noBiomarkersHint": "Definisci prima un biomarcatore per registrare un valore.",
-      "pickBiomarkerError": "Scegli prima un biomarcatore."
+      "pickBiomarkerError": "Scegli prima un biomarcatore.",
+      "resultType": "Tipo di risultato",
+      "numeric": "Numerico",
+      "qualitative": "Qualitativo",
+      "qualitativeResult": "Risultato",
+      "qualitativePlaceholder": "es. negativo",
+      "qualNegative": "negativo",
+      "qualPositive": "positivo",
+      "qualBorderline": "borderline"
     },
     "backToLabs": "Torna ai risultati",
     "hasNote": "Nota",
@@ -6625,7 +6637,44 @@
       }
     },
     "noteLoadFailed": "Impossibile caricare la nota; resterà invariata al salvataggio.",
-    "showingLatestOf": "Visualizzazione degli ultimi {shown} risultati su {total}"
+    "showingLatestOf": "Visualizzazione degli ultimi {shown} risultati su {total}",
+    "ocr": {
+      "scanButton": "Scansiona un referto",
+      "uploadHint": "Carica una foto o un PDF di un referto di laboratorio",
+      "acceptWithPdf": "JPEG, PNG, WebP o PDF",
+      "acceptImageOnly": "JPEG, PNG o WebP",
+      "extracting": "Lettura del referto…",
+      "reviewTitle": "Controlla prima di salvare",
+      "reviewHint": "Controlla ogni valore, poi salva quelli da conservare.",
+      "foundCount": "{count} valori trovati",
+      "confirmRow": "Includi questo valore",
+      "analyteLabel": "Nome dell'esame",
+      "resultLabel": "Risultato",
+      "valueLabel": "Valore",
+      "unitLabel": "Unità",
+      "dateLabel": "Data",
+      "refLowLabel": "Riferimento inferiore",
+      "refHighLabel": "Riferimento superiore",
+      "newBiomarker": "Nuovo biomarcatore — verrà creato",
+      "linksExisting": "Collegato a {name} esistente",
+      "duplicateWarning": "Esiste già un valore corrispondente",
+      "lowConfidence": "Controlla questo valore",
+      "valueUnreadable": "Valore illeggibile — inseriscilo manualmente",
+      "saveSelected": "Salva {count} selezionati",
+      "discardAll": "Scarta tutto",
+      "savedToast": "{count} risultati di laboratorio salvati",
+      "noRows": "Nessun valore trovato in questo referto.",
+      "nothingToSave": "Seleziona almeno un valore da salvare.",
+      "saveFailed": "Impossibile salvare i valori. Riprova.",
+      "providerUnsupported": "Il tuo provider IA non può leggere le immagini. Configura un modello con visione.",
+      "consentRequired": "Per scansionare un referto è richiesto il consenso al trattamento tramite IA.",
+      "rateLimited": "Troppe scansioni. Riprova più tardi.",
+      "budgetExceeded": "Hai raggiunto il budget di utilizzo IA di oggi.",
+      "fileTooLarge": "Il file è troppo grande (max 12 MB).",
+      "fileType": "Carica un JPEG, PNG, WebP o PDF.",
+      "extractFailed": "Impossibile leggere il referto. Prova con una foto più nitida.",
+      "pdfNeedsAnthropic": "La scansione PDF richiede un provider di visione Claude; carica invece una foto."
+    }
   },
   "modules": {
     "cycle": {
@@ -6684,6 +6733,10 @@
   "illness": {
     "title": "Diario delle malattie",
     "subtitle": "Un registro retrospettivo dei tuoi episodi di malattia e disturbi.",
+    "settings": {
+      "viewDescription": "Scegli se gli episodi appaiono come schede o come elenco compatto.",
+      "orderDescription": "Trascina i tuoi episodi nell'ordine in cui vuoi vederli."
+    },
     "customize": "Personalizza diario delle malattie",
     "newEpisode": "Nuovo episodio",
     "logDay": "Registra un giorno",
@@ -6784,7 +6837,8 @@
       "countOther": "Hai registrato {count} episodi in questo periodo.",
       "typicalGap": "Divario di recupero tipico: {days} giorni tra il sentirti meglio e la stabilizzazione dei valori.",
       "typicalGapLearning": "Ancora qualche episodio risolto e qui apparirà un divario di recupero tipico.",
-      "none": "Nessun episodio registrato in questo periodo."
+      "none": "Nessun episodio registrato in questo periodo.",
+      "analyze": "Analizza il divario di recupero"
     },
     "section": {
       "active": "Attivi",

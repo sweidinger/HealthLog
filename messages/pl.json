@@ -2010,7 +2010,8 @@
       "loadingLabel": "Przygotowanie briefingu",
       "noProviderTitle": "Brak połączonego dostawcy AI",
       "noProviderDescription": "Codzienny briefing podsumowuje Twoje pomiary prostym językiem. HealthLog potrzebuje do tego dostawcy AI — użyj własnego klucza (OpenAI, Anthropic) lub modelu lokalnego. Twoje dane pozostają u Ciebie.",
-      "noProviderAction": "Otwórz ustawienia AI"
+      "noProviderAction": "Otwórz ustawienia AI",
+      "staleNoProviderHint": "Tego briefingu nie można odświeżyć — nie połączono żadnego dostawcy AI."
     },
     "trendsRow": {
       "title": "Trendy",
@@ -2268,7 +2269,15 @@
       "dictate": "Dyktuj",
       "dictateStop": "Zatrzymaj dyktowanie",
       "showConversations": "Pokaż rozmowy",
-      "hideConversations": "Ukryj rozmowy"
+      "hideConversations": "Ukryj rozmowy",
+      "heroGreeting": "W czym mogę pomóc?",
+      "heroSubline": "Zapytaj o swoje trendy, leki lub pomiary.",
+      "thinkingElapsed": "{seconds}s",
+      "thinkingDuration": "Myślał przez {seconds}s",
+      "thinkingExpandAria": "Pokaż, co Coach wziął pod uwagę",
+      "thinkingDetail": "Odpowiedź na podstawie Twojego podsumowania zdrowia.",
+      "tokensUsed": "{count} tokenów",
+      "tokensUsedWithModel": "{count} tokenów · {model}"
     },
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",
@@ -6451,14 +6460,7 @@
       "empty": "Brak nadchodzących przypomnień profilaktycznych.",
       "openLink": "Otwórz profilaktykę"
     },
-    "showMeasurements": "Pokaż pomiary",
-    "trendStrip": {
-      "label": "Ostatnie 7 dni",
-      "summary": "Ostatnia wartość {value}, {direction} w ciągu 7 dni.",
-      "rising": "rosnący",
-      "falling": "malejący",
-      "steady": "stabilny"
-    }
+    "showMeasurements": "Pokaż pomiary"
   },
   "moduleList": {
     "viewToggleLabel": "Widok",
@@ -6492,6 +6494,8 @@
       "label": "Kolejność wartości",
       "recentDesc": "Najnowszy pomiar najpierw",
       "recentAsc": "Najstarszy pomiar najpierw",
+      "alphaAsc": "Nazwa (A–Z)",
+      "alphaDesc": "Nazwa (Z–A)",
       "manual": "Sortuj ręcznie",
       "hint": "Przy sortowaniu ręcznym możesz przeciągnąć biomarkery poniżej we własnej kolejności."
     },
@@ -6513,7 +6517,15 @@
       "biomarkerPlaceholder": "Wybierz biomarker",
       "defineNew": "+ Zdefiniuj nowy biomarker",
       "noBiomarkersHint": "Najpierw zdefiniuj biomarker, aby zapisać wartość.",
-      "pickBiomarkerError": "Najpierw wybierz biomarker."
+      "pickBiomarkerError": "Najpierw wybierz biomarker.",
+      "resultType": "Typ wyniku",
+      "numeric": "Liczbowy",
+      "qualitative": "Jakościowy",
+      "qualitativeResult": "Wynik",
+      "qualitativePlaceholder": "np. ujemny",
+      "qualNegative": "ujemny",
+      "qualPositive": "dodatni",
+      "qualBorderline": "graniczny"
     },
     "backToLabs": "Wróć do wyników",
     "hasNote": "Notatka",
@@ -6625,7 +6637,44 @@
       }
     },
     "noteLoadFailed": "Nie udało się wczytać notatki; pozostanie niezmieniona po zapisaniu.",
-    "showingLatestOf": "Wyświetlanie najnowszych {shown} z {total} wyników"
+    "showingLatestOf": "Wyświetlanie najnowszych {shown} z {total} wyników",
+    "ocr": {
+      "scanButton": "Zeskanuj wynik",
+      "uploadHint": "Prześlij zdjęcie lub PDF wyniku laboratoryjnego",
+      "acceptWithPdf": "JPEG, PNG, WebP lub PDF",
+      "acceptImageOnly": "JPEG, PNG lub WebP",
+      "extracting": "Odczytywanie wyniku…",
+      "reviewTitle": "Sprawdź przed zapisaniem",
+      "reviewHint": "Sprawdź każdy wynik, a następnie zapisz te, które chcesz zachować.",
+      "foundCount": "Znaleziono {count} wyników",
+      "confirmRow": "Uwzględnij ten wynik",
+      "analyteLabel": "Nazwa badania",
+      "resultLabel": "Wynik",
+      "valueLabel": "Wartość",
+      "unitLabel": "Jednostka",
+      "dateLabel": "Data",
+      "refLowLabel": "Dolna granica",
+      "refHighLabel": "Górna granica",
+      "newBiomarker": "Nowy biomarker — zostanie utworzony",
+      "linksExisting": "Łączy z istniejącym {name}",
+      "duplicateWarning": "Pasujący wynik już istnieje",
+      "lowConfidence": "Sprawdź tę wartość",
+      "valueUnreadable": "Wartość nieczytelna — wprowadź ją ręcznie",
+      "saveSelected": "Zapisz {count} wybranych",
+      "discardAll": "Odrzuć wszystko",
+      "savedToast": "Zapisano {count} wyników laboratoryjnych",
+      "noRows": "W tym wyniku nie znaleziono żadnych wartości.",
+      "nothingToSave": "Wybierz co najmniej jeden wynik do zapisania.",
+      "saveFailed": "Nie udało się zapisać wyników. Spróbuj ponownie.",
+      "providerUnsupported": "Twój dostawca AI nie może odczytywać obrazów. Skonfiguruj model z obsługą obrazu.",
+      "consentRequired": "Do zeskanowania wyniku wymagana jest zgoda na przetwarzanie przez AI.",
+      "rateLimited": "Zbyt wiele skanów. Spróbuj ponownie później.",
+      "budgetExceeded": "Osiągnięto dzienny limit użycia AI.",
+      "fileTooLarge": "Plik jest za duży (maks. 12 MB).",
+      "fileType": "Prześlij plik JPEG, PNG, WebP lub PDF.",
+      "extractFailed": "Nie udało się odczytać wyniku. Spróbuj wyraźniejszego zdjęcia.",
+      "pdfNeedsAnthropic": "Skanowanie PDF wymaga dostawcy wizji Claude; prześlij zamiast tego zdjęcie."
+    }
   },
   "modules": {
     "cycle": {
@@ -6684,6 +6733,10 @@
   "illness": {
     "title": "Dziennik chorób",
     "subtitle": "Retrospektywny zapis Twoich epizodów chorób i dolegliwości.",
+    "settings": {
+      "viewDescription": "Wybierz, czy epizody mają być wyświetlane jako karty czy zwarta lista.",
+      "orderDescription": "Przeciągnij epizody w kolejność, w jakiej chcesz je widzieć."
+    },
     "customize": "Dostosuj dziennik chorób",
     "newEpisode": "Nowy epizod",
     "logDay": "Zapisz dzień",
@@ -6784,7 +6837,8 @@
       "countOther": "W tym okresie zapisałeś {count} epizodów.",
       "typicalGap": "Typowa luka rekonwalescencji: {days} dni między poprawą a ustabilizowaniem wartości.",
       "typicalGapLearning": "Jeszcze kilka zakończonych epizodów i pojawi się tu typowa luka rekonwalescencji.",
-      "none": "Brak epizodów zapisanych w tym okresie."
+      "none": "Brak epizodów zapisanych w tym okresie.",
+      "analyze": "Przeanalizuj lukę rekonwalescencji"
     },
     "section": {
       "active": "Aktywne",

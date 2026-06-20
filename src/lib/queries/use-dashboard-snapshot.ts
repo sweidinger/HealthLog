@@ -14,13 +14,22 @@
  *     already passed the auth / onboarding redirect. Firing un-gated
  *     removes the `/api/auth/me` round-trip from the cold critical path
  *     (R-firstpaint §1a — the single biggest first-byte win).
- *   - `staleTime: 60_000` + `refetchOnMount: false` +
- *     `refetchOnWindowFocus: false` mirror `DASHBOARD_QUERY_OPTS` so a
- *     return-to-dashboard within a minute is a free cache hit.
+ *   - `staleTime: 60_000` + `refetchOnMount: false` keep a
+ *     return-to-dashboard within a minute a free cache hit.
+ *   - `refetchOnWindowFocus: true` (v1.18.9) closes the background-sync
+ *     freshness gap behind #38: a Withings / Apple-Health / iOS batch
+ *     sync writes the user's data with NO client-side mutation event, so
+ *     the snapshot keys are never invalidated and the dashboard only
+ *     updated on the 120 s poll or a hard reload. Refetch-on-focus means
+ *     returning to the tab after a sync surfaces the new readings within
+ *     a frame. The `staleTime: 60_000` gate makes rapid focus toggles
+ *     cheap (a refetch fires only once the slot is stale), and the warm
+ *     server SWR cache (~180 s fresh TTL, `DASHBOARD_REFETCH_INTERVAL_MS
+ *     + 60_000`) keeps the focus refetch sub-cost.
  *   - `refetchInterval: 120_000` + `refetchIntervalInBackground: false`
  *     keep an open dashboard live: an idle tab polls the snapshot every
  *     two minutes so freshly-synced Withings / HealthKit readings appear
- *     without a manual reload. The poll hits the warm 60 s server cache
+ *     without a manual reload. The poll hits the warm ~180 s server cache
  *     cheaply and only triggers a sub-second rollup rebuild when the
  *     underlying data actually changed — never the LLM surfaces, which
  *     stay daily / pre-generated. The interval pauses while the tab is
@@ -162,7 +171,11 @@ export function useDashboardSnapshot(enabled = true) {
     enabled,
     staleTime: 60_000,
     refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    // v1.18.9 (#38) — refetch on focus so a background sync (Withings /
+    // Apple Health / iOS batch), which produces no client mutation event,
+    // surfaces on return-to-tab. Gated by the 60 s `staleTime` above so a
+    // rapid focus toggle within the window is still a free cache hit.
+    refetchOnWindowFocus: true,
     refetchInterval: DASHBOARD_REFETCH_INTERVAL_MS,
     refetchIntervalInBackground: false,
     // v1.16.8 — one retry on network errors / 5xx (never 401/403). A

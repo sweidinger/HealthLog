@@ -35,7 +35,13 @@ export const illnessKeys = {
   /**
    * v1.18.1 P3 — the cross-episode retrospective summary ("sick N times ·
    * typical recovery gap X days") over a trailing window in days.
+   *
+   * v1.18.9 — `includeRecoveryGap` is part of the key: the lightweight
+   * count-only read (list load) and the heavy recovery-gap read (the
+   * "Analyse" expansion) hit the same endpoint with a different response
+   * shape, so they MUST cache under distinct keys (same-key + different
+   * payload silently poisons the cache).
    */
-  illnessInsights: (windowDays: number) =>
-    ["illness", "insights", windowDays] as const,
+  illnessInsights: (windowDays: number, includeRecoveryGap: boolean) =>
+    ["illness", "insights", windowDays, includeRecoveryGap] as const,
 };

@@ -21,13 +21,13 @@ import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 createLabResultSchema.meta({
   id: "CreateLabResultRequest",
   description:
-    "Record a single biomarker reading (HbA1c, LDL, ferritin, TSH, …). `analyte` + `unit` are free-form (a lab prints its own naming). Reference bounds are independently optional; when both are present `referenceLow` must not exceed `referenceHigh`. `takenAt` is a backdatable ISO instant (no future, ≤ 50 years past). The optional `note` is encrypted at rest.",
+    'Record a single biomarker reading (HbA1c, LDL, ferritin, TSH, …). A reading is EITHER numeric (`value` + `unit`, optional reference bounds) OR qualitative (`valueText`, e.g. "negativ" / "positiv") — exactly one, never both, never neither. `analyte` + `unit` are free-form (a lab prints its own naming); a qualitative reading needs no unit / bounds. When both numeric bounds are present `referenceLow` must not exceed `referenceHigh`. `takenAt` is a backdatable ISO instant (no future, ≤ 50 years past). The optional `note` is encrypted at rest.',
 });
 
 updateLabResultSchema.meta({
   id: "UpdateLabResultRequest",
   description:
-    "Partial edit of a lab result. An omitted key leaves the column untouched; an explicit `null` on `panel` / `note` / a reference bound clears it.",
+    "Partial edit of a lab result. An omitted key leaves the column untouched; an explicit `null` on `panel` / `note` / a reference bound clears it. Edit the matching value field for the row's type — `value` for a numeric row, `valueText` for a qualitative one; a request must not carry both, and a cross-type edit (the wrong field for the row) is rejected.",
 });
 
 listLabResultsSchema.meta({
@@ -48,7 +48,10 @@ const labResultRow = z
     biomarkerId: z.string().nullable(),
     panel: z.string().nullable(),
     analyte: z.string(),
-    value: z.number(),
+    // v1.18.9 — `value` is null for a qualitative reading (`valueText` set);
+    // exactly one of the two is non-null per row.
+    value: z.number().nullable(),
+    valueText: z.string().nullable(),
     unit: z.string(),
     referenceLow: z.number().nullable(),
     referenceHigh: z.number().nullable(),
@@ -62,7 +65,7 @@ const labResultRow = z
   .meta({
     id: "LabResult",
     description:
-      "A stored lab result. `biomarkerId` links the user-scoped catalog marker (null for legacy free-text rows); when linked, `analyte` / `unit` / `referenceLow` / `referenceHigh` are RESOLVED server-side from the Biomarker — the client renders them and never recomputes the range. The encrypted note is never echoed in list rows; `hasNote` flags its presence and the single-resource GET returns the decrypted `note`.",
+      'A stored lab result. Exactly one of `value` (numeric) or `valueText` (qualitative, e.g. "negativ") is non-null; `rangeStatus` is always `unknown` for a qualitative row (no number to classify). `biomarkerId` links the user-scoped catalog marker (null for legacy free-text rows); when linked, `analyte` / `unit` / `referenceLow` / `referenceHigh` are RESOLVED server-side from the Biomarker — the client renders them and never recomputes the range. The encrypted note is never echoed in list rows; `hasNote` flags its presence and the single-resource GET returns the decrypted `note`.',
   });
 
 const labResultDetail = labResultRow

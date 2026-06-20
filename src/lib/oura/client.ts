@@ -218,6 +218,14 @@ export interface OuraDailySpo2 {
   spo2_percentage?: { average?: number | null } | null;
 }
 
+/** Oura `vO2_max` — the dedicated cardio-fitness collection, mL/(kg·min). */
+export interface OuraVo2Max {
+  id: string;
+  day: string;
+  timestamp?: string;
+  vo2_max?: number | null;
+}
+
 export interface OuraDailyActivity {
   id: string;
   day: string;
@@ -344,6 +352,25 @@ export function fetchDailySpo2(
     "/v2/usercollection/daily_spo2",
     accessToken,
     "fetchDailySpo2",
+    query,
+  );
+}
+
+// Oura `daily_stress` → STRESS_SCORE is deferred pending STRESS_SCORE
+// source-priority + graded-series wiring (an HRV-derived COMPUTED producer
+// already exists; a second producer here would double-count). The mapping is
+// withdrawn until the ladder is in place.
+
+export function fetchVo2Max(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraVo2Max[]> {
+  // Oura camel-cases this path segment (`vO2_max`); every other collection is
+  // snake_case. Matched verbatim against cloud.ouraring.com/v2/docs.
+  return fetchCollection<OuraVo2Max>(
+    "/v2/usercollection/vO2_max",
+    accessToken,
+    "fetchVo2Max",
     query,
   );
 }
@@ -652,4 +679,24 @@ export function mapDailyActivity(a: OuraDailyActivity): MappedMeasurement[] {
     });
   }
   return out;
+}
+
+/**
+ * Map one Oura `vO2_max` record: the dedicated cardio-fitness collection →
+ * `VO2_MAX` (mL/(kg·min), the canonical DB unit — no conversion). Skips a
+ * record with no positive value.
+ */
+export function mapVo2Max(v: OuraVo2Max): MappedMeasurement[] {
+  if (typeof v.vo2_max !== "number" || v.vo2_max <= 0) return [];
+  const measuredAt = dayAnchor(v.day, v.timestamp);
+  if (!measuredAt) return [];
+  return [
+    {
+      type: "VO2_MAX",
+      value: round2(v.vo2_max),
+      unit: "mL/(kg·min)",
+      measuredAt,
+      fieldTag: "vo2_max",
+    },
+  ];
 }

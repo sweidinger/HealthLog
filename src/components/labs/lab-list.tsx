@@ -2,17 +2,20 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, FlaskConical } from "lucide-react";
+import { toast } from "sonner";
 
+import { DeleteButton } from "@/components/data-list";
+import { MedicationCardHeader } from "@/components/medications/medication-card-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiGet } from "@/lib/api/api-fetch";
+import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 import { formatDate } from "@/lib/format";
 import { formatReferenceRange } from "@/lib/labs/reference-range";
-import { formatLabValue } from "@/lib/labs/format-value";
+import { formatLabReading, formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
@@ -74,7 +77,21 @@ function groupReadings(results: LabResultDto[]): MarkerGroup[] {
 
 export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   const { t } = useTranslations();
+  const queryClient = useQueryClient();
   const { prefs } = useModuleListPrefs("labs");
+
+  // Delete a biomarker directly from the list (#41/#3). The endpoint's
+  // `onDelete: SetNull` FK keeps the readings and unlinks them; both the
+  // catalog and the result list invalidate so the row drops in the same tick.
+  const deleteBiomarker = useMutation({
+    mutationFn: (id: string) => apiDelete(`/api/biomarkers/${id}`),
+    onSuccess: () => {
+      toast.success(t("labs.biomarker.deletedToast"));
+      queryClient.invalidateQueries({ queryKey: queryKeys.biomarkers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
+    },
+    onError: () => toast.error(t("labs.biomarker.deleteError")),
+  });
 
   const listKey = queryKeys.labResultsList({
     biomarkerId: undefined,
@@ -95,10 +112,21 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   const groups = useMemo(() => {
     const base = groupReadings(data?.results ?? []);
     // v1.18.6 (MOD-04) — honour the user's Labs sort choice. `groupReadings`
-    // already returns most-recent-first; `recentAsc` reverses, and `manual`
-    // applies the persisted biomarker order (legacy un-linked groups, which
-    // carry no biomarkerId, sort after the ordered block).
+    // already returns most-recent-first; `recentAsc` reverses, the alpha
+    // options sort by analyte name (#43), and `manual` applies the persisted
+    // biomarker order (legacy un-linked groups, which carry no biomarkerId,
+    // sort after the ordered block).
     if (prefs.sortDir === "recentAsc") return [...base].reverse();
+    if (prefs.sortDir === "alphaAsc" || prefs.sortDir === "alphaDesc") {
+      const dir = prefs.sortDir === "alphaAsc" ? 1 : -1;
+      return [...base].sort(
+        (a, b) =>
+          dir *
+          a.analyte.localeCompare(b.analyte, undefined, {
+            sensitivity: "base",
+          }),
+      );
+    }
     if (prefs.sortDir === "manual") {
       return applyOrder(base, prefs.order, (g) => g.biomarkerId ?? g.key);
     }
@@ -153,9 +181,27 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
     );
   }
 
+  // Per-group biomarker delete (#41/#3), surfaced on both views. Only
+  // catalog-linked groups carry an id the endpoint can delete; legacy
+  // un-linked rows have no biomarker to remove.
+  function biomarkerDelete(group: MarkerGroup) {
+    if (!group.biomarkerId) return null;
+    const id = group.biomarkerId;
+    return (
+      <DeleteButton
+        onConfirm={() => deleteBiomarker.mutate(id)}
+        title={t("labs.biomarker.deleteConfirmTitle")}
+        description={t("labs.biomarker.deleteConfirmDescription")}
+        confirmLabel={t("labs.biomarker.delete")}
+        className="size-9"
+        iconClassName="h-4 w-4"
+      />
+    );
+  }
+
   // v1.18.6 (MOD-03) — compact list view: one bordered card holding tight
-  // divided rows instead of a card per biomarker. The card view stays the
-  // default; this is the denser alternative the settings toggle selects.
+  // divided rows instead of a card per biomarker. This is the default view
+  // (#40); the card/tile view is the alternative the settings toggle selects.
   if (prefs.view === "list") {
     return (
       <div className="space-y-3">
@@ -167,42 +213,50 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
         <Card>
           <CardContent className="divide-border divide-y p-0">
             {groups.map((group) => {
-              const row = (
-                <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <div className="min-w-0 space-y-0.5">
-                    <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                      <span className="truncate font-medium">
-                        {group.analyte}
-                      </span>
-                      <ReferenceRangeBadge status={group.latest.rangeStatus} />
-                    </div>
-                    <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
-                      <span className="text-foreground font-semibold tabular-nums">
-                        {formatLabValue(group.latest.value)} {group.latest.unit}
-                      </span>
-                      <span>{formatDate(group.latest.takenAt)}</span>
-                    </div>
+              const inner = (
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                    <span className="truncate font-medium">
+                      {group.analyte}
+                    </span>
+                    <ReferenceRangeBadge status={group.latest.rangeStatus} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <LabTrendSparkline
-                      values={group.readings.map((r) => r.value)}
-                    />
-                    {group.biomarkerId ? (
-                      <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
-                    ) : null}
+                  <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+                    <span className="text-foreground font-semibold tabular-nums">
+                      {formatLabReading(group.latest)}
+                    </span>
+                    <span>{formatDate(group.latest.takenAt)}</span>
                   </div>
                 </div>
               );
-              return group.biomarkerId ? (
-                <Link
+              // The delete control + chevron sit OUTSIDE the navigating Link
+              // so the delete confirm never also deep-links into the detail.
+              return (
+                <div
                   key={group.key}
-                  href={`/labs/${group.biomarkerId}`}
-                  className="hover:bg-muted/40 block transition-colors"
+                  className="flex items-center justify-between gap-2 px-4 py-2.5"
                 >
-                  {row}
-                </Link>
-              ) : (
-                <div key={group.key}>{row}</div>
+                  {group.biomarkerId ? (
+                    <Link
+                      href={`/labs/${group.biomarkerId}`}
+                      className="hover:bg-muted/40 -m-1 flex min-w-0 flex-1 items-center gap-3 rounded-md p-1 transition-colors"
+                    >
+                      {inner}
+                      <LabTrendSparkline
+                        values={group.readings.map((r) => r.value)}
+                      />
+                      <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
+                    </Link>
+                  ) : (
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      {inner}
+                      <LabTrendSparkline
+                        values={group.readings.map((r) => r.value)}
+                      />
+                    </div>
+                  )}
+                  {biomarkerDelete(group)}
+                </div>
               );
             })}
           </CardContent>
@@ -211,35 +265,46 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
     );
   }
 
+  // v1.18.9 (#40) — card/tile view. The tile reuses the medication module's
+  // `MedicationCardHeader` so a lab tile reads identically to a medication or
+  // Vorsorge tile side-by-side: name on line 1, the reference-range badge as
+  // the line-1 chip, the panel as the category badge, and the delete control
+  // in the header's `actions` slot (a sibling of the header Link, so deleting
+  // never also deep-links).
   return (
-    <div className="space-y-3">
+    <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">
       {truncated ? (
-        <p className="text-muted-foreground text-xs">
-          {t("labs.showingLatestOf", { shown, total })}
-        </p>
+        <li className="sm:col-span-2">
+          <p className="text-muted-foreground text-xs">
+            {t("labs.showingLatestOf", { shown, total })}
+          </p>
+        </li>
       ) : null}
-      {groups.map((group) => {
-        const body = (
-          <>
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
-                <span className="font-medium">{group.analyte}</span>
-                {group.panel ? (
-                  <span className="text-muted-foreground text-xs font-normal">
-                    {group.panel}
-                  </span>
-                ) : null}
+      {groups.map((group) => (
+        <li key={group.key} className="contents">
+          <Card className="h-full gap-3">
+            <MedicationCardHeader
+              name={group.analyte}
+              dose=""
+              categoryLabel={group.panel ?? group.unit}
+              nameChip={
                 <ReferenceRangeBadge status={group.latest.rangeStatus} />
-              </CardTitle>
-            </CardHeader>
+              }
+              href={
+                group.biomarkerId ? `/labs/${group.biomarkerId}` : undefined
+              }
+              linkLabel={group.analyte}
+              actions={biomarkerDelete(group)}
+            />
             <CardContent>
               <div className="flex items-center justify-between gap-3">
                 <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
                   <span className="text-foreground font-semibold tabular-nums">
-                    {formatLabValue(group.latest.value)} {group.latest.unit}
+                    {formatLabReading(group.latest)}
                   </span>
-                  {group.latest.referenceLow !== null ||
-                  group.latest.referenceHigh !== null ? (
+                  {group.latest.value !== null &&
+                  (group.latest.referenceLow !== null ||
+                    group.latest.referenceHigh !== null) ? (
                     <span className="text-xs">
                       {t("labs.referenceLabel")}{" "}
                       {formatReferenceRange(
@@ -260,34 +325,14 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                     </span>
                   ) : null}
                 </div>
-                <div className="flex items-center gap-2">
-                  <LabTrendSparkline
-                    values={group.readings.map((r) => r.value)}
-                  />
-                  {group.biomarkerId ? (
-                    <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
-                  ) : null}
-                </div>
+                <LabTrendSparkline
+                  values={group.readings.map((r) => r.value)}
+                />
               </div>
             </CardContent>
-          </>
-        );
-
-        // Catalog-linked groups deep-link to the per-biomarker detail chart.
-        // Legacy un-linked groups render as a plain card until the backfill
-        // links them (or the user re-adds via the structured path).
-        return group.biomarkerId ? (
-          <Link
-            key={group.key}
-            href={`/labs/${group.biomarkerId}`}
-            className="block"
-          >
-            <Card className="hover:bg-muted/40 transition-colors">{body}</Card>
-          </Link>
-        ) : (
-          <Card key={group.key}>{body}</Card>
-        );
-      })}
-    </div>
+          </Card>
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -279,7 +279,7 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
     "APPLE_HEALTH",
     "MANUAL",
   ],
-  vo2Max: ["WITHINGS", "APPLE_HEALTH", "FITBIT", "MANUAL"],
+  vo2Max: ["WITHINGS", "APPLE_HEALTH", "FITBIT", "OURA", "MANUAL"],
   // v1.11.0 — new WHOOP-overlapping keys. ScanWatch dermal reading is the
   // primary skin-temperature sensor; WHOOP's strap is second, Fitbit third,
   // Oura's ring fourth.

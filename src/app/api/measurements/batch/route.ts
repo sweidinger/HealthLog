@@ -648,7 +648,12 @@ async function postBatch(request: NextRequest): Promise<Response> {
   // and must invalidate every consumer that reads through this user's
   // measurements.
   if (insertedCount > 0 || updatedCount > 0) {
-    invalidateUserMeasurements(user.id);
+    // v1.18.9 (#38) — hard-evict so a focus-refetch after a background
+    // iOS / Apple-Health batch sync returns post-sync data. A mark-stale
+    // would let the `cachedSwr` snapshot serve the pre-batch body on the
+    // very next read, leaving the dashboard up to ~180 s stale; the manual
+    // measurement routes already pass `{ evict: true }` for the same reason.
+    invalidateUserMeasurements(user.id, { evict: true });
 
     // v1.5.0 — refresh the persistent rollup table for every distinct
     // (type, day) the batch touched. We use the `prepared` rows

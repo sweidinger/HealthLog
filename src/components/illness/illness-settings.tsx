@@ -6,8 +6,18 @@
  * Reached from the wrench beside the page's "hinzufügen" button. Lets the
  * user reorder conditions/episodes + pick the card-vs-list page view. Order
  * + view persist client-side via `useModuleListPrefs("illness")`.
+ *
+ * v1.18.9 — restructured onto the canonical Settings pattern: each block is a
+ * `<SettingsCard>` with a `<SettingsCardHeader>` (neutral icon + `text-lg`
+ * title + a short muted description), matching the Stimmung / Medikamente
+ * sections rather than the bespoke bare-`<section>` headings it carried
+ * before.
  */
+import { Eye, ListOrdered } from "lucide-react";
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { ModuleViewToggle } from "@/components/module-list/module-view-toggle";
 import {
@@ -37,23 +47,22 @@ export function IllnessSettings() {
   }));
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">
-            {t("moduleList.viewHeading")}
-          </h2>
-          <ModuleViewToggle view={prefs.view} onChange={setView} />
-        </div>
-        <p className="text-muted-foreground text-sm">
-          {t("moduleList.viewDescription")}
-        </p>
-      </section>
+    <div className="space-y-6">
+      <SettingsCard id="illness-view" className="scroll-mt-28 space-y-4">
+        <SettingsCardHeader
+          icon={Eye}
+          title={t("moduleList.viewHeading")}
+          description={t("illness.settings.viewDescription")}
+          status={<ModuleViewToggle view={prefs.view} onChange={setView} />}
+        />
+      </SettingsCard>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold">
-          {t("moduleList.reorder.heading")}
-        </h2>
+      <SettingsCard id="illness-order" className="scroll-mt-28 space-y-4">
+        <SettingsCardHeader
+          icon={ListOrdered}
+          title={t("moduleList.reorder.heading")}
+          description={t("illness.settings.orderDescription")}
+        />
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 3 }, (_, i) => (
@@ -63,7 +72,7 @@ export function IllnessSettings() {
         ) : (
           <ModuleOrderEditor items={reorderItems} onChange={setOrder} />
         )}
-      </section>
+      </SettingsCard>
     </div>
   );
 }

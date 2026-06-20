@@ -40,6 +40,25 @@ export class LocalOpenAICompatibleClient implements AIProvider {
 
     const userPrompt = `Return strict JSON only, no markdown, no commentary.\n\n${params.userPrompt}`;
 
+    // v1.18.9 — fold vision inputs (Lab-OCR) into the user turn when present,
+    // using the OpenAI-compatible `image_url` content array that llava /
+    // llama-vision models accept over the same endpoint. PDFs are not handled
+    // here (the OCR route gates PDF to Anthropic); only `params.images` is
+    // consumed. The image is framed as untrusted DATA by the system prompt.
+    const images = params.images ?? [];
+    const userContent =
+      images.length > 0
+        ? [
+            { type: "text" as const, text: userPrompt },
+            ...images.map((img) => ({
+              type: "image_url" as const,
+              image_url: {
+                url: `data:${img.mediaType};base64,${img.dataBase64}`,
+              },
+            })),
+          ]
+        : userPrompt;
+
     // safeFetch defaults: no redirect-follow (the local endpoint is the
     // most exploitable on this surface — a user-controlled baseUrl that
     // 302s to 169.254.169.254 would otherwise leak the bearer on the
@@ -64,7 +83,7 @@ export class LocalOpenAICompatibleClient implements AIProvider {
           model: this.config.model,
           messages: [
             { role: "system", content: params.systemPrompt },
-            { role: "user", content: userPrompt },
+            { role: "user", content: userContent },
           ],
           temperature: params.temperature ?? 0.3,
           max_tokens: params.maxTokens ?? 1000,

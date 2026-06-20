@@ -33,7 +33,10 @@ export interface LabRow {
   id: string;
   panel: string | null;
   analyte: string;
-  value: number;
+  /** Numeric reading; null for a qualitative row (see `valueText`). */
+  value: number | null;
+  /** v1.18.9 — qualitative result text; null for a numeric row. */
+  valueText: string | null;
   unit: string;
   referenceLow: number | null;
   referenceHigh: number | null;
@@ -87,6 +90,21 @@ export function resolveLabFields(
 }
 
 /**
+ * v1.18.9 — the reference-range verdict for a row. A qualitative row (no
+ * numeric `value`) has nothing to compare against the bounds, so it always
+ * reports `"unknown"` — the neutral, no-verdict state — never a fabricated
+ * in/out classification. A numeric row classifies against the resolved bounds.
+ */
+function rowRangeStatus(
+  value: number | null,
+  referenceLow: number | null,
+  referenceHigh: number | null,
+) {
+  if (value === null) return "unknown" as const;
+  return classifyReferenceRange(value, referenceLow, referenceHigh);
+}
+
+/**
  * Serialise a lab row to the list DTO — never echoes the encrypted note bytes
  * (only the `hasNote` flag) and resolves name/unit/range server-side.
  */
@@ -101,13 +119,14 @@ export function serialiseLabResult(
     panel: resolved.panel,
     analyte: resolved.analyte,
     value: row.value,
+    valueText: row.valueText,
     unit: resolved.unit,
     referenceLow: resolved.referenceLow,
     referenceHigh: resolved.referenceHigh,
     takenAt: row.takenAt.toISOString(),
     source: row.source,
     hasNote: row.noteEncrypted !== null,
-    rangeStatus: classifyReferenceRange(
+    rangeStatus: rowRangeStatus(
       row.value,
       resolved.referenceLow,
       resolved.referenceHigh,
@@ -133,13 +152,14 @@ export function serialiseLabResultDetail(
     panel: resolved.panel,
     analyte: resolved.analyte,
     value: row.value,
+    valueText: row.valueText,
     unit: resolved.unit,
     referenceLow: resolved.referenceLow,
     referenceHigh: resolved.referenceHigh,
     takenAt: row.takenAt.toISOString(),
     source: row.source,
     note,
-    rangeStatus: classifyReferenceRange(
+    rangeStatus: rowRangeStatus(
       row.value,
       resolved.referenceLow,
       resolved.referenceHigh,

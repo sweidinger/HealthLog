@@ -2010,7 +2010,8 @@
       "loadingLabel": "Briefing wird zusammengestellt",
       "noProviderTitle": "Kein KI-Anbieter verbunden",
       "noProviderDescription": "Das Tagesbriefing fasst deine Werte in Klartext zusammen. Dafür braucht HealthLog einen KI-Anbieter — nutze deinen eigenen Schlüssel (OpenAI, Anthropic) oder ein lokales Modell. Deine Daten bleiben dabei bei dir.",
-      "noProviderAction": "Zu den KI-Einstellungen"
+      "noProviderAction": "Zu den KI-Einstellungen",
+      "staleNoProviderHint": "Dieses Briefing kann nicht aktualisiert werden — es ist kein KI-Anbieter verbunden."
     },
     "trendsRow": {
       "title": "Trends",
@@ -2268,7 +2269,15 @@
       "dictate": "Diktieren",
       "dictateStop": "Diktat beenden",
       "showConversations": "Unterhaltungen anzeigen",
-      "hideConversations": "Unterhaltungen ausblenden"
+      "hideConversations": "Unterhaltungen ausblenden",
+      "heroGreeting": "Wie kann ich dir helfen?",
+      "heroSubline": "Frag nach deinen Verläufen, Medikamenten oder Messwerten.",
+      "thinkingElapsed": "{seconds}s",
+      "thinkingDuration": "Nachgedacht für {seconds}s",
+      "thinkingExpandAria": "Zeigen, was der Coach berücksichtigt hat",
+      "thinkingDetail": "Beantwortet aus deinem Gesundheits-Snapshot.",
+      "tokensUsed": "{count} Tokens",
+      "tokensUsedWithModel": "{count} Tokens · {model}"
     },
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",
@@ -6451,14 +6460,7 @@
       "empty": "Keine anstehenden Vorsorge-Erinnerungen.",
       "openLink": "Vorsorge öffnen"
     },
-    "showMeasurements": "Messergebnisse anzeigen",
-    "trendStrip": {
-      "label": "Verlauf der letzten 7 Tage",
-      "summary": "Letzter Wert {value}, {direction} über 7 Tage.",
-      "rising": "steigend",
-      "falling": "fallend",
-      "steady": "stabil"
-    }
+    "showMeasurements": "Messergebnisse anzeigen"
   },
   "moduleList": {
     "viewToggleLabel": "Ansicht",
@@ -6492,6 +6494,8 @@
       "label": "Reihenfolge der Werte",
       "recentDesc": "Neueste Messung zuerst",
       "recentAsc": "Älteste Messung zuerst",
+      "alphaAsc": "Name (A–Z)",
+      "alphaDesc": "Name (Z–A)",
       "manual": "Manuell sortieren",
       "hint": "Bei manueller Sortierung kannst du die Biomarker unten in deine eigene Reihenfolge bringen."
     },
@@ -6513,7 +6517,15 @@
       "biomarkerPlaceholder": "Biomarker auswählen",
       "defineNew": "+ Neuen Biomarker anlegen",
       "noBiomarkersHint": "Lege zuerst einen Biomarker an, um einen Wert zu erfassen.",
-      "pickBiomarkerError": "Bitte zuerst einen Biomarker auswählen."
+      "pickBiomarkerError": "Bitte zuerst einen Biomarker auswählen.",
+      "resultType": "Ergebnistyp",
+      "numeric": "Numerisch",
+      "qualitative": "Qualitativ",
+      "qualitativeResult": "Ergebnis",
+      "qualitativePlaceholder": "z. B. negativ",
+      "qualNegative": "negativ",
+      "qualPositive": "positiv",
+      "qualBorderline": "grenzwertig"
     },
     "backToLabs": "Zurück zu den Laborwerten",
     "hasNote": "Notiz",
@@ -6625,7 +6637,44 @@
       }
     },
     "noteLoadFailed": "Notiz konnte nicht geladen werden; sie bleibt beim Speichern unverändert.",
-    "showingLatestOf": "Die neuesten {shown} von {total} Messwerten werden angezeigt"
+    "showingLatestOf": "Die neuesten {shown} von {total} Messwerten werden angezeigt",
+    "ocr": {
+      "scanButton": "Befund scannen",
+      "uploadHint": "Foto oder PDF eines Laborbefunds hochladen",
+      "acceptWithPdf": "JPEG, PNG, WebP oder PDF",
+      "acceptImageOnly": "JPEG, PNG oder WebP",
+      "extracting": "Befund wird gelesen…",
+      "reviewTitle": "Vor dem Speichern prüfen",
+      "reviewHint": "Prüfe jeden Wert und speichere die gewünschten Einträge.",
+      "foundCount": "{count} Werte gefunden",
+      "confirmRow": "Diesen Wert übernehmen",
+      "analyteLabel": "Bezeichnung",
+      "resultLabel": "Ergebnis",
+      "valueLabel": "Wert",
+      "unitLabel": "Einheit",
+      "dateLabel": "Datum",
+      "refLowLabel": "Referenz unten",
+      "refHighLabel": "Referenz oben",
+      "newBiomarker": "Neuer Biomarker — wird angelegt",
+      "linksExisting": "Verknüpft mit vorhandenem {name}",
+      "duplicateWarning": "Ein passender Wert existiert bereits",
+      "lowConfidence": "Bitte diesen Wert überprüfen",
+      "valueUnreadable": "Wert unleserlich — bitte manuell eingeben",
+      "saveSelected": "{count} ausgewählte speichern",
+      "discardAll": "Alle verwerfen",
+      "savedToast": "{count} Laborwerte gespeichert",
+      "noRows": "In diesem Befund konnten keine Werte gefunden werden.",
+      "nothingToSave": "Wähle mindestens einen Wert zum Speichern aus.",
+      "saveFailed": "Werte konnten nicht gespeichert werden. Bitte erneut versuchen.",
+      "providerUnsupported": "Dein KI-Anbieter kann keine Bilder lesen. Konfiguriere ein Modell mit Bildverständnis.",
+      "consentRequired": "Für das Scannen eines Befunds ist die Einwilligung zur KI-Verarbeitung erforderlich.",
+      "rateLimited": "Zu viele Scans. Bitte später erneut versuchen.",
+      "budgetExceeded": "Dein KI-Nutzungsbudget für heute ist erreicht.",
+      "fileTooLarge": "Datei ist zu groß (max. 12 MB).",
+      "fileType": "Lade ein JPEG, PNG, WebP oder PDF hoch.",
+      "extractFailed": "Der Befund konnte nicht gelesen werden. Versuche ein schärferes Foto.",
+      "pdfNeedsAnthropic": "PDF-Scannen benötigt einen Claude-Bildanbieter; lade stattdessen ein Foto hoch."
+    }
   },
   "modules": {
     "cycle": {
@@ -6684,6 +6733,10 @@
   "illness": {
     "title": "Krankheitstagebuch",
     "subtitle": "Ein rückblickendes Protokoll deiner Krankheits- und Beschwerde-Episoden.",
+    "settings": {
+      "viewDescription": "Wähle, ob Episoden als Karten oder als kompakte Liste erscheinen.",
+      "orderDescription": "Ziehe deine Episoden in die gewünschte Reihenfolge."
+    },
     "customize": "Krankheitstagebuch anpassen",
     "newEpisode": "Neue Episode",
     "logDay": "Tag erfassen",
@@ -6784,7 +6837,8 @@
       "countOther": "Du hast in diesem Zeitraum {count} Episoden erfasst.",
       "typicalGap": "Typische Erholungslücke: {days} Tage zwischen Besserung und normalisierten Werten.",
       "typicalGapLearning": "Noch ein paar abgeschlossene Episoden und hier erscheint eine typische Erholungslücke.",
-      "none": "In diesem Zeitraum keine Episoden erfasst."
+      "none": "In diesem Zeitraum keine Episoden erfasst.",
+      "analyze": "Erholungslücke analysieren"
     },
     "section": {
       "active": "Aktiv",

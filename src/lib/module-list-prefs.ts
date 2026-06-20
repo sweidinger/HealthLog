@@ -28,10 +28,16 @@ export type ModuleListKey = "vorsorge" | "illness" | "labs";
 
 /**
  * Sort choice for the Labs surface (MOD-04): order biomarker groups by the
- * recency of their most-recent reading. `manual` defers to the persisted
- * `order` array instead.
+ * recency of their most-recent reading, alphabetically by analyte name
+ * (#43), or `manual`, which defers to the persisted `order` array.
  */
-export const MODULE_SORT_DIRS = ["recentDesc", "recentAsc", "manual"] as const;
+export const MODULE_SORT_DIRS = [
+  "recentDesc",
+  "recentAsc",
+  "alphaAsc",
+  "alphaDesc",
+  "manual",
+] as const;
 export type ModuleSortDir = (typeof MODULE_SORT_DIRS)[number];
 
 export interface ModuleListPrefs {
@@ -46,6 +52,21 @@ const DEFAULT_PREFS: ModuleListPrefs = {
   order: [],
   sortDir: "recentDesc",
 };
+
+/**
+ * Per-module default overrides applied when no preference blob is stored yet.
+ * Labs defaults to the compact list view (#40) so the dense reading table is
+ * the first thing the user sees; Vorsorge and Illness keep the card grid.
+ */
+const MODULE_DEFAULTS: Partial<
+  Record<ModuleListKey, Partial<ModuleListPrefs>>
+> = {
+  labs: { view: "list" },
+};
+
+function defaultsFor(module: ModuleListKey): ModuleListPrefs {
+  return { ...DEFAULT_PREFS, ...MODULE_DEFAULTS[module] };
+}
 
 function storageKey(module: ModuleListKey): string {
   return `healthlog:module-list-prefs:${module}`;
@@ -65,20 +86,21 @@ function isSortDir(value: unknown): value is ModuleSortDir {
   );
 }
 
-export function parseModuleListPrefs(raw: string | null): ModuleListPrefs {
-  if (!raw) return DEFAULT_PREFS;
+export function parseModuleListPrefs(
+  raw: string | null,
+  defaults: ModuleListPrefs = DEFAULT_PREFS,
+): ModuleListPrefs {
+  if (!raw) return defaults;
   try {
     const blob = JSON.parse(raw) as Record<string, unknown>;
-    const view = isView(blob.view) ? blob.view : DEFAULT_PREFS.view;
+    const view = isView(blob.view) ? blob.view : defaults.view;
     const order = Array.isArray(blob.order)
       ? blob.order.filter((v): v is string => typeof v === "string")
       : [];
-    const sortDir = isSortDir(blob.sortDir)
-      ? blob.sortDir
-      : DEFAULT_PREFS.sortDir;
+    const sortDir = isSortDir(blob.sortDir) ? blob.sortDir : defaults.sortDir;
     return { view, order, sortDir };
   } catch {
-    return DEFAULT_PREFS;
+    return defaults;
   }
 }
 
@@ -124,6 +146,7 @@ export function useModuleListPrefs(module: ModuleListKey): {
   setSortDir: (sortDir: ModuleSortDir) => void;
 } {
   const key = storageKey(module);
+  const defaults = useMemo(() => defaultsFor(module), [module]);
 
   const subscribe = useCallback(
     (onChange: () => void) => {
@@ -154,7 +177,10 @@ export function useModuleListPrefs(module: ModuleListKey): {
   // changed, so keying the parse on it gives downstream `applyOrder`
   // memoisation a stable `prefs` reference instead of a fresh object + a
   // JSON.parse on every render.
-  const prefs = useMemo(() => parseModuleListPrefs(raw), [raw]);
+  const prefs = useMemo(
+    () => parseModuleListPrefs(raw, defaults),
+    [raw, defaults],
+  );
 
   const write = useCallback(
     (next: ModuleListPrefs) => {
@@ -167,18 +193,18 @@ export function useModuleListPrefs(module: ModuleListKey): {
 
   const setView = useCallback(
     (view: ModuleListView) =>
-      write({ ...parseModuleListPrefs(getSnapshot()), view }),
-    [write, getSnapshot],
+      write({ ...parseModuleListPrefs(getSnapshot(), defaults), view }),
+    [write, getSnapshot, defaults],
   );
   const setOrder = useCallback(
     (order: string[]) =>
-      write({ ...parseModuleListPrefs(getSnapshot()), order }),
-    [write, getSnapshot],
+      write({ ...parseModuleListPrefs(getSnapshot(), defaults), order }),
+    [write, getSnapshot, defaults],
   );
   const setSortDir = useCallback(
     (sortDir: ModuleSortDir) =>
-      write({ ...parseModuleListPrefs(getSnapshot()), sortDir }),
-    [write, getSnapshot],
+      write({ ...parseModuleListPrefs(getSnapshot(), defaults), sortDir }),
+    [write, getSnapshot, defaults],
   );
 
   return { prefs, setView, setOrder, setSortDir };
