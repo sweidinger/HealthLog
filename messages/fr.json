@@ -6451,14 +6451,7 @@
       "empty": "Aucun rappel de prévention à venir.",
       "openLink": "Ouvrir la prévention"
     },
-    "showMeasurements": "Afficher les mesures",
-    "trendStrip": {
-      "label": "7 derniers jours",
-      "summary": "Dernière valeur {value}, {direction} sur 7 jours.",
-      "rising": "en hausse",
-      "falling": "en baisse",
-      "steady": "stable"
-    }
+    "showMeasurements": "Afficher les mesures"
   },
   "moduleList": {
     "viewToggleLabel": "Affichage",

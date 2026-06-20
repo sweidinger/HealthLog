@@ -6451,14 +6451,7 @@
       "empty": "Nessun promemoria di prevenzione in arrivo.",
       "openLink": "Apri prevenzione"
     },
-    "showMeasurements": "Mostra le misurazioni",
-    "trendStrip": {
-      "label": "Ultimi 7 giorni",
-      "summary": "Ultimo valore {value}, {direction} su 7 giorni.",
-      "rising": "in aumento",
-      "falling": "in calo",
-      "steady": "stabile"
-    }
+    "showMeasurements": "Mostra le misurazioni"
   },
   "moduleList": {
     "viewToggleLabel": "Vista",

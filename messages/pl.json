@@ -6451,14 +6451,7 @@
       "empty": "Brak nadchodzących przypomnień profilaktycznych.",
       "openLink": "Otwórz profilaktykę"
     },
-    "showMeasurements": "Pokaż pomiary",
-    "trendStrip": {
-      "label": "Ostatnie 7 dni",
-      "summary": "Ostatnia wartość {value}, {direction} w ciągu 7 dni.",
-      "rising": "rosnący",
-      "falling": "malejący",
-      "steady": "stabilny"
-    }
+    "showMeasurements": "Pokaż pomiary"
   },
   "moduleList": {
     "viewToggleLabel": "Widok",
