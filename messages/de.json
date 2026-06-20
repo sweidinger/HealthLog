@@ -2269,7 +2269,15 @@
       "dictate": "Diktieren",
       "dictateStop": "Diktat beenden",
       "showConversations": "Unterhaltungen anzeigen",
-      "hideConversations": "Unterhaltungen ausblenden"
+      "hideConversations": "Unterhaltungen ausblenden",
+      "heroGreeting": "Wie kann ich dir helfen?",
+      "heroSubline": "Frag nach deinen Verläufen, Medikamenten oder Messwerten.",
+      "thinkingElapsed": "{seconds}s",
+      "thinkingDuration": "Nachgedacht für {seconds}s",
+      "thinkingExpandAria": "Zeigen, was der Coach berücksichtigt hat",
+      "thinkingDetail": "Beantwortet aus deinem Gesundheits-Snapshot.",
+      "tokensUsed": "{count} Tokens",
+      "tokensUsedWithModel": "{count} Tokens · {model}"
     },
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",

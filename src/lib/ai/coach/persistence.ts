@@ -128,6 +128,13 @@ export interface AppendMessageParams {
   metricSource?: CoachProvenance | null;
   providerType?: string | null;
   promptVersion?: string | null;
+  /**
+   * v1.18.9 — per-turn token count + model the reply was produced with,
+   * persisted so the quiet token footer survives a reload. Omitted on
+   * user turns and refusals (no token count to record).
+   */
+  tokensUsed?: number | null;
+  model?: string | null;
 }
 
 /**
@@ -168,6 +175,8 @@ export async function appendMessage(
         metricSourceJson: provenanceToJson(params.metricSource ?? null),
         providerType: params.providerType ?? null,
         promptVersion: params.promptVersion ?? null,
+        tokensUsed: params.tokensUsed ?? null,
+        model: params.model ?? null,
       },
     });
     await tx.coachConversation.update({
@@ -185,6 +194,8 @@ export async function appendMessage(
     metricSource: provenanceFromJson(result.metricSourceJson),
     providerType: result.providerType,
     promptVersion: result.promptVersion,
+    tokensUsed: result.tokensUsed,
+    model: result.model,
   };
 }
 
@@ -270,6 +281,8 @@ export async function fetchConversationWithMessages(
     metricSource: provenanceFromJson(m.metricSourceJson),
     providerType: m.providerType,
     promptVersion: m.promptVersion,
+    tokensUsed: m.tokensUsed,
+    model: m.model,
   }));
 
   // v1.11.1 — decrypt the rolling conversation summary (fail-closed: an

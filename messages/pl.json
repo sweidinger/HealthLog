@@ -2269,7 +2269,15 @@
       "dictate": "Dyktuj",
       "dictateStop": "Zatrzymaj dyktowanie",
       "showConversations": "Pokaż rozmowy",
-      "hideConversations": "Ukryj rozmowy"
+      "hideConversations": "Ukryj rozmowy",
+      "heroGreeting": "W czym mogę pomóc?",
+      "heroSubline": "Zapytaj o swoje trendy, leki lub pomiary.",
+      "thinkingElapsed": "{seconds}s",
+      "thinkingDuration": "Myślał przez {seconds}s",
+      "thinkingExpandAria": "Pokaż, co Coach wziął pod uwagę",
+      "thinkingDetail": "Odpowiedź na podstawie Twojego podsumowania zdrowia.",
+      "tokensUsed": "{count} tokenów",
+      "tokensUsedWithModel": "{count} tokenów · {model}"
     },
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",

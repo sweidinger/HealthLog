@@ -166,6 +166,21 @@ export interface CoachSuggestion {
 }
 
 /**
+ * v1.18.9 — per-turn token-usage envelope carried on the `done` frame
+ * (and persisted onto the assistant message). Server-authoritative: the
+ * client renders these numbers, never recomputes them. `totalTokens` is
+ * the headline count surfaced in the quiet per-message footer; the
+ * prompt / completion split is optional (not every provider returns it)
+ * and `model` names the provider model that produced the reply.
+ */
+export interface CoachUsage {
+  totalTokens: number | null;
+  promptTokens?: number | null;
+  completionTokens?: number | null;
+  model?: string | null;
+}
+
+/**
  * SSE event shapes emitted by the streaming endpoint.
  *
  * The route writes one `data: <json>\n\n` frame per event. Clients
@@ -173,6 +188,15 @@ export interface CoachSuggestion {
  * The `suggestion` frame (v1.18.1) is additive: older web + iOS clients
  * that don't know it drop it on the floor (the parser keeps only frames
  * whose `type` it handles), so the chat stays backwards-compatible.
+ *
+ * v1.18.9 — two additive shapes:
+ *   - `done.usage` carries the per-turn `CoachUsage` (tokens + model) so
+ *     the client can paint the quiet per-message footer the instant the
+ *     stream closes; older clients ignore the extra key.
+ *   - `reasoning` is an optional frame whose `text` the client renders
+ *     inside the thinking disclosure when a reasoning-capable provider
+ *     emits a cheap reasoning summary. Providers without reasoning emit
+ *     none, and the disclosure falls back to its elapsed-time label.
  */
 export type CoachStreamEvent =
   | { type: "token"; token: string }
@@ -181,7 +205,13 @@ export type CoachStreamEvent =
       metricSource: CoachProvenance;
     }
   | { type: "suggestion"; suggestion: CoachSuggestion }
-  | { type: "done"; conversationId: string; messageId: string }
+  | { type: "reasoning"; text: string }
+  | {
+      type: "done";
+      conversationId: string;
+      messageId: string;
+      usage?: CoachUsage;
+    }
   | { type: "error"; code: string; message: string };
 
 /**
@@ -335,6 +365,19 @@ export interface CoachMessageDTO {
   metricSource: CoachProvenance | null;
   providerType: string | null;
   promptVersion: string | null;
+  /**
+   * v1.18.9 — total tokens the assistant turn cost, persisted so the
+   * quiet per-message footer survives a conversation reload. Null on
+   * older messages (pre-feature) and on user turns / refusals where no
+   * token count was recorded.
+   */
+  tokensUsed: number | null;
+  /**
+   * v1.18.9 — the provider model that produced the reply (e.g.
+   * `gpt-4o`), persisted alongside `tokensUsed` for the footer. Null
+   * when unknown (user turns, refusals, older rows).
+   */
+  model: string | null;
 }
 
 export interface CoachConversationDetailDTO extends CoachConversationDTO {

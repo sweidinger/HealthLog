@@ -652,6 +652,11 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     metricSource: enrichedProvenance,
     providerType: workingProviderType,
     promptVersion: PROMPT_VERSION,
+    // v1.18.9 — persist the per-turn token count + model so the quiet
+    // token footer survives a conversation reload. The live turn paints
+    // from the `done.usage` SSE frame below; reloads read these columns.
+    tokensUsed: result.tokensUsed ?? null,
+    model: result.model ?? null,
   });
 
   // v1.18.7 — the day's spend was already reconciled against the
@@ -703,11 +708,19 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
         encodeFrame({ type: "suggestion", suggestion: surfacedSuggestion }),
       );
     }
+    // v1.18.9 — additive `usage` envelope on the `done` frame so the client
+    // can paint the quiet per-message token footer the instant the stream
+    // closes. Server-authoritative: the client renders these numbers, never
+    // recomputes them. Older clients drop the unknown key.
     controller.enqueue(
       encodeFrame({
         type: "done",
         conversationId: workingConversationId,
         messageId: assistantMessage.id,
+        usage: {
+          totalTokens: result.tokensUsed ?? null,
+          model: result.model ?? null,
+        },
       }),
     );
   });

@@ -2269,7 +2269,15 @@
       "dictate": "Dicter",
       "dictateStop": "Arrêter la dictée",
       "showConversations": "Afficher les conversations",
-      "hideConversations": "Masquer les conversations"
+      "hideConversations": "Masquer les conversations",
+      "heroGreeting": "Comment puis-je t'aider ?",
+      "heroSubline": "Pose une question sur tes tendances, médicaments ou mesures.",
+      "thinkingElapsed": "{seconds}s",
+      "thinkingDuration": "A réfléchi pendant {seconds}s",
+      "thinkingExpandAria": "Montrer ce que le Coach a pris en compte",
+      "thinkingDetail": "Réponse établie à partir de ton aperçu santé.",
+      "tokensUsed": "{count} jetons",
+      "tokensUsedWithModel": "{count} jetons · {model}"
     },
     "relativeJustNow": "à l’instant",
     "relativeMinutesAgoOne": "il y a {count} minute",
