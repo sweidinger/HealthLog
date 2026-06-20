@@ -37,4 +37,7 @@ export const labKeys = {
   // v1.18.9 — Lab-OCR capability probe (drives whether the "Scan a report"
   // affordance shows). Cheap GET; the dialog refetches it on open.
   ocrCapability: () => ["lab-ocr", "capability"] as const,
+
+  // v1.18.10 — local (in-browser) OCR opt-in flag for text-only providers.
+  labsLocalOcr: () => ["labs", "local-ocr"] as const,
 };
