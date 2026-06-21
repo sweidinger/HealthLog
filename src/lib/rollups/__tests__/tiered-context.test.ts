@@ -77,7 +77,7 @@ describe("buildTieredSeries", () => {
   });
 
   it("routes each band to the correct granularity over the right window", async () => {
-    await buildTieredSeries("u1", "WEIGHT", { now: NOW });
+    await buildTieredSeries("u1", "WEIGHT", { now: NOW, tz: "Europe/Berlin" });
     const grans = mocks.readRollupBuckets.mock.calls.map(
       (c) => c[2] as RollupGranularity,
     );
@@ -90,7 +90,10 @@ describe("buildTieredSeries", () => {
       { value: 82, measuredAt: new Date("2026-06-18T20:00:00.000Z") },
       { value: 79, measuredAt: new Date("2026-06-17T07:00:00.000Z") },
     ]);
-    const series = await buildTieredSeries("u1", "WEIGHT", { now: NOW });
+    const series = await buildTieredSeries("u1", "WEIGHT", {
+      now: NOW,
+      tz: "Europe/Berlin",
+    });
     expect(series.recentDaily).toHaveLength(2);
     const day18 = series.recentDaily.find((p) => p.date === "2026-06-18");
     expect(day18?.value).toBe(81); // (80 + 82) / 2
@@ -113,7 +116,10 @@ describe("buildTieredSeries", () => {
         return [];
       },
     );
-    const series = await buildTieredSeries("u1", "WEIGHT", { now: NOW });
+    const series = await buildTieredSeries("u1", "WEIGHT", {
+      now: NOW,
+      tz: "Europe/Berlin",
+    });
     expect(series.anomalies.length).toBeGreaterThanOrEqual(1);
     const peak = series.anomalies.find((a) => a.kind === "peak");
     expect(peak?.value).toBe(140);
@@ -136,7 +142,10 @@ describe("buildTieredSeries", () => {
         return [];
       },
     );
-    const series = await buildTieredSeries("u1", "WEIGHT", { now: NOW });
+    const series = await buildTieredSeries("u1", "WEIGHT", {
+      now: NOW,
+      tz: "Europe/Berlin",
+    });
     expect(series.anomalies).toHaveLength(0);
   });
 
@@ -147,7 +156,90 @@ describe("buildTieredSeries", () => {
         ["PULSE", true],
       ]),
     );
-    await buildTieredSeriesForTypes("u1", ["WEIGHT", "PULSE"], { now: NOW });
+    await buildTieredSeriesForTypes("u1", ["WEIGHT", "PULSE"], {
+      now: NOW,
+      tz: "Europe/Berlin",
+    });
     expect(mocks.ensureUserRollupsFresh).toHaveBeenCalledTimes(1);
+  });
+
+  describe("user-tz day-keying for the raw 0-14d band", () => {
+    it("folds a late-evening reading onto its LOCAL day, not the UTC day", async () => {
+      // 23:30 local in Berlin (CEST, +02:00) on 2026-06-15 is
+      // 21:30Z on the same date — UTC and local agree here. The
+      // partner reading at 00:30 local on 2026-06-16 (CEST) is
+      // 22:30Z on 2026-06-15: a naive UTC key would mis-fold it onto
+      // the 15th. The tz-aware key keeps it on the 16th.
+      mocks.measurementFindMany.mockResolvedValue([
+        { value: 70, measuredAt: new Date("2026-06-15T21:30:00.000Z") },
+        { value: 90, measuredAt: new Date("2026-06-15T22:30:00.000Z") },
+      ]);
+      const series = await buildTieredSeries("u1", "WEIGHT", {
+        now: new Date("2026-06-20T00:00:00.000Z").getTime(),
+        tz: "Europe/Berlin",
+      });
+      const days = series.recentDaily.map((p) => p.date).sort();
+      expect(days).toEqual(["2026-06-15", "2026-06-16"]);
+      expect(
+        series.recentDaily.find((p) => p.date === "2026-06-16")?.value,
+      ).toBe(90);
+    });
+
+    it("buckets a fall-back DST-night reading on the correct local day", async () => {
+      // Germany falls back 2026-10-25 03:00 CEST → 02:00 CET. A reading
+      // at 23:30 local that night is 21:30Z and must key to 2026-10-25
+      // (local), which it does in both offsets; the partner reading at
+      // 01:00 local the next morning (2026-10-26, after the fall-back,
+      // CET +01:00) is 00:00Z on 2026-10-26 — same date by luck. Pick a
+      // reading that exposes the offset: 00:30 local on 2026-10-26 CET
+      // is 23:30Z on 2026-10-25; a UTC key drops it onto the 25th, the
+      // tz-aware key keeps it on the 26th.
+      mocks.measurementFindMany.mockResolvedValue([
+        { value: 10, measuredAt: new Date("2026-10-25T21:30:00.000Z") }, // 23:30 CEST, 25th
+        { value: 20, measuredAt: new Date("2026-10-25T23:30:00.000Z") }, // 00:30 CET, 26th
+      ]);
+      const series = await buildTieredSeries("u1", "WEIGHT", {
+        now: new Date("2026-10-30T00:00:00.000Z").getTime(),
+        tz: "Europe/Berlin",
+      });
+      const days = series.recentDaily.map((p) => p.date).sort();
+      expect(days).toEqual(["2026-10-25", "2026-10-26"]);
+    });
+
+    it("buckets a spring-forward DST-night reading on the correct local day", async () => {
+      // Germany springs forward 2026-03-29 02:00 CET → 03:00 CEST. A
+      // 00:30-local reading that morning (CET +01:00) is 23:30Z on
+      // 2026-03-28; the UTC key mis-folds it to the 28th, the tz-aware
+      // key keeps it on the 29th. A 23:30-local reading later that day
+      // (CEST +02:00) is 21:30Z on 2026-03-29 — correct in both.
+      mocks.measurementFindMany.mockResolvedValue([
+        { value: 5, measuredAt: new Date("2026-03-28T23:30:00.000Z") }, // 00:30 CET, 29th
+        { value: 15, measuredAt: new Date("2026-03-29T21:30:00.000Z") }, // 23:30 CEST, 29th
+      ]);
+      const series = await buildTieredSeries("u1", "WEIGHT", {
+        now: new Date("2026-04-02T00:00:00.000Z").getTime(),
+        tz: "Europe/Berlin",
+      });
+      // Both readings fold onto 2026-03-29 in local time.
+      expect(series.recentDaily).toHaveLength(1);
+      expect(series.recentDaily[0].date).toBe("2026-03-29");
+      expect(series.recentDaily[0].count).toBe(2);
+      expect(series.recentDaily[0].value).toBe(10); // (5 + 15) / 2
+    });
+
+    it("keys west-of-UTC users on their own local day", async () => {
+      // 22:00 local in Honolulu (HST, -10:00) on 2026-06-15 is 08:00Z
+      // on 2026-06-16: a UTC key lands it on the 16th, the tz-aware key
+      // keeps it on the user's local 15th.
+      mocks.measurementFindMany.mockResolvedValue([
+        { value: 42, measuredAt: new Date("2026-06-16T08:00:00.000Z") },
+      ]);
+      const series = await buildTieredSeries("u1", "WEIGHT", {
+        now: new Date("2026-06-20T00:00:00.000Z").getTime(),
+        tz: "Pacific/Honolulu",
+      });
+      expect(series.recentDaily).toHaveLength(1);
+      expect(series.recentDaily[0].date).toBe("2026-06-15");
+    });
   });
 });
