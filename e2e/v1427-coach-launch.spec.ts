@@ -280,8 +280,8 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     page,
   }, testInfo) => {
     // The in-panel history tray is gone from the drawer; the button
-    // navigates to `/coach` where the conversation list
-    // renders inline on lg+.
+    // navigates to `/coach?view=conversations`, where the full page opens
+    // the conversation list on arrival instead of a blank pane.
     test.skip(
       testInfo.project.name !== "chromium-desktop",
       "exercises the desktop drawer layout",
@@ -312,8 +312,9 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     await expect(historyButton).toBeVisible({ timeout: 10_000 });
     await historyButton.click();
 
-    // No in-panel tray opens — the click navigates to the full view.
-    await page.waitForURL("**/coach", { timeout: 10_000 });
+    // No in-panel tray opens — the click navigates to the full view, which
+    // carries the `view=conversations` handoff so the list opens on arrival.
+    await page.waitForURL(/\/coach(\?|$)/, { timeout: 10_000 });
     await expect(page.locator('[data-slot="coach-page"]')).toBeVisible({
       timeout: 10_000,
     });
