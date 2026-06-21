@@ -18,8 +18,13 @@ import { formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
+import dynamic from "next/dynamic";
+import type { ComponentProps } from "react";
+import { ChartErrorBoundary } from "@/components/charts/chart-error-state";
+import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { importWithRetry } from "@/lib/retry-import";
+
 import { BiomarkerForm } from "./biomarker-form";
-import { LabBiomarkerChart } from "./lab-biomarker-chart";
 import { LabForm } from "./lab-form";
 import { LabHistoryList } from "./lab-history-list";
 import { ReferenceRangeBadge } from "./reference-range-badge";
@@ -28,6 +33,27 @@ import type {
   LabResultDto,
   LabResultListResponse,
 } from "./types";
+
+// v1.18.11 (W5 perf) — defer the recharts biomarker chart through
+// `next/dynamic` so recharts is off `/labs/[biomarkerId]`'s first-load JS.
+// The chart only paints once the reading list resolves; the `<ChartSkeleton>`
+// loading shell matches the in-card chart footprint so the layout is stable.
+const LabBiomarkerChartLazy = dynamic(
+  () =>
+    importWithRetry(() => import("./lab-biomarker-chart")).then((mod) => ({
+      default: mod.LabBiomarkerChart,
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> },
+);
+function LabBiomarkerChart(
+  props: ComponentProps<typeof LabBiomarkerChartLazy>,
+) {
+  return (
+    <ChartErrorBoundary>
+      <LabBiomarkerChartLazy {...props} />
+    </ChartErrorBoundary>
+  );
+}
 
 /**
  * v1.18.1 — per-biomarker detail: heading + current-value badge, the proper

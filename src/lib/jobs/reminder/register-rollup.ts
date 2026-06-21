@@ -238,11 +238,14 @@ export async function registerRollupQueues(
       for (const job of jobs) {
         const { userId } = job.data;
         try {
-          const { daysConsolidated, perSampleRowsSoftDeleted } =
-            await runDenseIntradayRetentionForUser(userId);
+          const {
+            daysConsolidated,
+            perSampleRowsSoftDeleted,
+            derivedRestingRowsUpserted,
+          } = await runDenseIntradayRetentionForUser(userId);
           workerLog(
             "info",
-            `[dense-intraday-retention] user=${userId} days=${daysConsolidated} perSampleRowsSoftDeleted=${perSampleRowsSoftDeleted}`,
+            `[dense-intraday-retention] user=${userId} days=${daysConsolidated} perSampleRowsSoftDeleted=${perSampleRowsSoftDeleted} derivedRestingRowsUpserted=${derivedRestingRowsUpserted}`,
           );
         } catch (err) {
           recordError();

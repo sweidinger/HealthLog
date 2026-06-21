@@ -189,6 +189,11 @@ export function getPRDirection(
     // goal axis, so both stay null like the rest of the derived/homeostatic set.
     case "SLEEP_SCORE":
     case "BODY_TEMPERATURE_DEVIATION":
+    // v1.19.0 — Oura resilience. An ordinal-encoded categorical band
+    // (limited=1 … exceptional=5) recomputed daily from recovery / stress
+    // inputs — a derived composite with no clean goal axis, so it stays null
+    // like the other device-derived scores.
+    case "RESILIENCE":
       return null;
   }
 }

@@ -54,8 +54,27 @@ describe("supportsVisionForConfig", () => {
     expect(supportsVisionForConfig("local", null)).toBe(true);
   });
 
-  it("never reports vision for codex or none", () => {
-    expect(supportsVisionForConfig("codex", "gpt-4o")).toBe(false);
+  it("reports vision for codex only on multimodal slugs", () => {
+    for (const model of [
+      "gpt-5.5",
+      "gpt-5.4",
+      "gpt-5.4-mini",
+      "gpt-4o",
+      "gpt-4.1",
+      "o1",
+    ]) {
+      expect(supportsVisionForConfig("codex", model)).toBe(true);
+    }
+    // Non-multimodal / unknown slugs and a missing slug → false.
+    expect(supportsVisionForConfig("codex", "gpt-4")).toBe(false);
+    expect(supportsVisionForConfig("codex", "gpt-3.5-turbo")).toBe(false);
+    expect(supportsVisionForConfig("codex", null)).toBe(false);
+    // The `-codex` specialist slugs are text-only despite the gpt-5 prefix.
+    expect(supportsVisionForConfig("codex", "gpt-5-codex")).toBe(false);
+    expect(supportsVisionForConfig("codex", "gpt-5.1-codex-mini")).toBe(false);
+  });
+
+  it("never reports vision for none", () => {
     expect(supportsVisionForConfig("none", "gpt-4o")).toBe(false);
   });
 });

@@ -132,10 +132,12 @@ describe("GET /api/sleep/rhythm", () => {
     const res = await callGet(req());
     const body = await res.json();
     expect(body.data.sleepDebt.state).toBe("ready");
-    expect(body.data.sleepDebt.nightsCounted).toBe(10);
+    // v1.19.0 — the rolling balance counts the most recent 5-night window.
+    expect(body.data.sleepDebt.nightsCounted).toBe(5);
     expect(body.data.sleepDebt.nightsUntilReady).toBe(0);
-    // 10 nights × 60-min deficit = 600 min cumulative debt.
-    expect(body.data.sleepDebt.debtMinutes).toBe(600);
+    // 5-night window × 60-min nightly deficit (all short, no catch-up) = 300 min
+    // running balance.
+    expect(body.data.sleepDebt.debtMinutes).toBe(300);
     expect(body.data.sleepDebt.needMinutes).toBe(420);
   });
 });

@@ -41,11 +41,10 @@ export function MoodTagBreakdown({ tags }: { tags: MoodTagRow[] }) {
             {row.tag}
           </span>
           <div className="bg-secondary relative h-3 flex-1 overflow-hidden rounded-full">
-            {/* v1.16.8 — `opacity-55` matches the `fillOpacity={0.55}`
-                the mood Recharts bars carry (distribution / weekday /
-                time-of-day), so the tag bars read equally matte. */}
+            {/* v1.19.0 — full-saturation fill, matching the mood Recharts
+                bars (the earlier muted tint read as a rendering glitch). */}
             <div
-              className="absolute inset-y-0 left-0 rounded-full opacity-55"
+              className="absolute inset-y-0 left-0 rounded-full"
               style={{
                 width: `${(row.count / maxCount) * 100}%`,
                 backgroundColor: colorForScore(row.avgScore),

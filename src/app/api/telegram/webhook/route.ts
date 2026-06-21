@@ -27,6 +27,12 @@ import {
 import { localHmAsUtc } from "@/lib/tz/local-day";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
+import {
+  logTelegramMood,
+  attachTelegramMoodNote,
+} from "@/lib/mood/create-from-telegram";
+import { scheduleTelegramAutoDelete } from "@/lib/telegram-cleanup";
+import { satisfyReminder } from "@/lib/measurement-reminders/satisfy";
 
 interface TelegramUpdate {
   update_id: number;
@@ -34,6 +40,9 @@ interface TelegramUpdate {
     message_id?: number;
     text?: string;
     chat?: { id: number | string };
+    reply_to_message?: {
+      message_id?: number;
+    };
   };
   callback_query?: {
     id: string;
@@ -96,26 +105,15 @@ async function cleanupReminderTracking(medicationId: string): Promise<void> {
   }
 }
 
-const AUTO_DELETE_DELAY_MS = 60 * 60 * 1000; // 1 hour
-
+// v1.19.0 — the auto-delete window dropped from 1 h to ~30 min and moved to
+// the shared `scheduleTelegramAutoDelete` helper so the inbound (free-text)
+// and outbound (unanswered prompt) paths agree on the window.
 async function scheduleAutoDelete(
   userId: string,
   chatId: string,
   messageIds: number[],
 ): Promise<void> {
-  const deleteAfter = new Date(Date.now() + AUTO_DELETE_DELAY_MS);
-  try {
-    await prisma.telegramScheduledDeletion.createMany({
-      data: messageIds.map((messageId) => ({
-        userId,
-        chatId,
-        messageId,
-        deleteAfter,
-      })),
-    });
-  } catch {
-    // Best-effort
-  }
+  await scheduleTelegramAutoDelete(userId, chatId, messageIds);
 }
 
 async function findTelegramUser(chatId: string) {
@@ -677,6 +675,183 @@ async function handleCallback(update: TelegramUpdate) {
       callback.id,
       t("telegram.cancelled"),
     );
+  } else if (data.startsWith("mood:")) {
+    // v1.19.0 — log a mood entry 1–5 from a MOOD_REMINDER prompt tap.
+    // The score is the ONLY accepted value; the userId is resolved from
+    // the linked chat above, never from the payload. Confirmation is a
+    // calm callback toast — no chat echo (restraint).
+    const score = parseInt(data.slice("mood:".length).trim(), 10);
+    if (!Number.isInteger(score) || score < 1 || score > 5) {
+      await answerTelegramCallbackQuery(
+        botToken,
+        callback.id,
+        t("telegram.errorInvalidAction"),
+      );
+      return;
+    }
+
+    const msgId = messageId ?? "na";
+    // Stable per-tap dedup id (Telegram redelivers non-200 updates). The
+    // mood-create helper upserts on `(userId, source, externalId)`.
+    const externalId = `telegram:mood:${chatId}:${msgId}:${score}`.slice(
+      0,
+      120,
+    );
+
+    const moodResult = await logTelegramMood({
+      userId: user.id,
+      score,
+      tz: user.timezone,
+      externalId,
+    });
+
+    await answerTelegramCallbackQuery(
+      botToken,
+      callback.id,
+      t("telegram.moodLogged", { score: String(score) }),
+    );
+    // Delete the prompt immediately on a tap; the unanswered-prompt
+    // scheduled deletion (written at send time) is then a harmless no-op.
+    if (messageId) {
+      await deleteMessage(botToken, chatId, messageId);
+    }
+
+    // Offer an optional note via force_reply. The reply (when it arrives)
+    // is correlated back to this mood entry through TelegramPromptContext.
+    const notePrompt = await sendTelegramMessage(
+      botToken,
+      chatId,
+      t("telegram.moodNotePrompt"),
+      {
+        replyMarkup: {
+          force_reply: true,
+          input_field_placeholder: t("telegram.buttonMoodNote"),
+        },
+      },
+    );
+    if (notePrompt.ok && notePrompt.messageId) {
+      try {
+        await prisma.telegramPromptContext.create({
+          data: {
+            userId: user.id,
+            chatId,
+            promptMsgId: notePrompt.messageId,
+            kind: "mood_note",
+            refId: moodResult.moodEntryId,
+            // Force-reply context lifespan: the same ~30-min window as the
+            // deletion sweep. A reply after this is treated as expired.
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          },
+        });
+      } catch {
+        // Best-effort — without the context row the note simply can't bind.
+      }
+      // The note prompt itself self-cleans on the ~30-min sweep whether or
+      // not the user replies.
+      await scheduleAutoDelete(user.id, chatId, [notePrompt.messageId]);
+    }
+  } else if (data.startsWith("mood_later")) {
+    // v1.19.0 — restrained "remind me later" for the mood nudge. Clears
+    // today's dispatch ledger so the next cron tick (inside the user's
+    // reminder-hour window) re-fires the prompt, mirroring how the
+    // medication snooze lets the tick re-remind. The prompt is deleted now.
+    const tz = user.timezone || DEFAULT_TIMEZONE;
+    const parts = wallClockInTz(new Date(), tz);
+    const localDate = `${parts.year.toString().padStart(4, "0")}-${parts.month
+      .toString()
+      .padStart(2, "0")}-${parts.day.toString().padStart(2, "0")}`;
+    try {
+      await prisma.moodReminderDispatch.deleteMany({
+        where: { userId: user.id, date: localDate },
+      });
+    } catch {
+      // Best-effort — a failure just means the day's nudge isn't re-armed.
+    }
+    await answerTelegramCallbackQuery(
+      botToken,
+      callback.id,
+      t("telegram.remindLater", { duration: t("telegram.snoozeOneHour") }),
+    );
+    if (messageId) {
+      await deleteMessage(botToken, chatId, messageId);
+    }
+  } else if (data.startsWith("measure_done:")) {
+    // v1.19.0 — mark a Vorsorge/measurement reminder done. No value
+    // capture (restraint) — satisfy the cadence via the shared primitive.
+    const reminderId = data.slice("measure_done:".length).trim();
+    const reminder = await prisma.measurementReminder.findFirst({
+      where: { id: reminderId, userId: user.id, deletedAt: null },
+      select: {
+        id: true,
+        intervalDays: true,
+        rrule: true,
+        anchorDate: true,
+        notifyHour: true,
+        lastSatisfiedAt: true,
+        createdAt: true,
+      },
+    });
+    if (!reminder) {
+      await answerTelegramCallbackQuery(
+        botToken,
+        callback.id,
+        t("telegram.measurementNotFound"),
+      );
+      return;
+    }
+    const tz = user.timezone || DEFAULT_TIMEZONE;
+    await satisfyReminder(prisma, reminder, tz, new Date());
+    await answerTelegramCallbackQuery(
+      botToken,
+      callback.id,
+      t("telegram.measurementDone"),
+    );
+    if (messageId) {
+      await deleteMessage(botToken, chatId, messageId);
+    }
+  } else if (data.startsWith("measure_later:")) {
+    // v1.19.0 — postpone a measurement reminder by N minutes (one-shot
+    // nudge). Pushes `nextDueAt` forward; the cron re-fires once due AND in
+    // the user's notify-hour window. Mirrors the medication snooze.
+    const parts = data.split(":");
+    const reminderId = parts[1];
+    const minutes = parseInt(parts[2] ?? "180", 10);
+    if (!reminderId || !Number.isFinite(minutes)) {
+      await answerTelegramCallbackQuery(
+        botToken,
+        callback.id,
+        t("telegram.errorInvalidAction"),
+      );
+      return;
+    }
+    const reminder = await prisma.measurementReminder.findFirst({
+      where: { id: reminderId, userId: user.id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!reminder) {
+      await answerTelegramCallbackQuery(
+        botToken,
+        callback.id,
+        t("telegram.measurementNotFound"),
+      );
+      return;
+    }
+    await prisma.measurementReminder.update({
+      where: { id: reminder.id },
+      data: { nextDueAt: new Date(Date.now() + minutes * 60000) },
+    });
+    const duration =
+      minutes <= 60
+        ? t("telegram.snoozeOneHour")
+        : t("telegram.snoozeThreeHours");
+    await answerTelegramCallbackQuery(
+      botToken,
+      callback.id,
+      t("telegram.remindLater", { duration }),
+    );
+    if (messageId) {
+      await deleteMessage(botToken, chatId, messageId);
+    }
   } else {
     await answerTelegramCallbackQuery(
       botToken,
@@ -697,6 +872,69 @@ async function handleTextMessage(update: TelegramUpdate) {
   const botToken = decrypt(user.telegramBotToken);
   const locale = resolveBotLocale(user.locale);
   const { t } = getServerTranslator(locale);
+
+  // v1.19.0 — force-reply note capture. When this message replies to a
+  // tracked mood-note prompt, attach the text to the just-logged mood entry
+  // and clean up both messages. The context row is keyed on
+  // `(chatId, promptMsgId)` and scoped to THIS user, so a reply can only
+  // ever attach to that user's own entry.
+  const replyToId = message?.reply_to_message?.message_id;
+  if (replyToId !== undefined) {
+    const context = await prisma.telegramPromptContext.findUnique({
+      where: {
+        chatId_promptMsgId: { chatId, promptMsgId: replyToId },
+      },
+      select: {
+        id: true,
+        userId: true,
+        kind: true,
+        refId: true,
+        expiresAt: true,
+      },
+    });
+    if (context && context.userId === user.id && context.kind === "mood_note") {
+      // Consume the context row regardless of outcome so a reply can't be
+      // replayed onto the entry twice.
+      await prisma.telegramPromptContext
+        .delete({ where: { id: context.id } })
+        .catch(() => {});
+      const userMsgId = message?.message_id;
+      if (context.expiresAt.getTime() < Date.now()) {
+        const resp = await sendTelegramMessage(
+          botToken,
+          chatId,
+          t("telegram.moodNoteExpired"),
+        );
+        const toDelete = [userMsgId, replyToId, resp.messageId].filter(
+          (id): id is number => id != null,
+        );
+        if (toDelete.length > 0) {
+          await scheduleAutoDelete(user.id, chatId, toDelete);
+        }
+        return;
+      }
+      const attached = await attachTelegramMoodNote({
+        userId: user.id,
+        moodEntryId: context.refId,
+        note: text,
+      });
+      const resp = await sendTelegramMessage(
+        botToken,
+        chatId,
+        attached
+          ? t("telegram.moodNoteSaved")
+          : t("telegram.errorInvalidAction"),
+      );
+      // Self-clean the note, the prompt, and the confirmation in ~30 min.
+      const toDelete = [userMsgId, replyToId, resp.messageId].filter(
+        (id): id is number => id != null,
+      );
+      if (toDelete.length > 0) {
+        await scheduleAutoDelete(user.id, chatId, toDelete);
+      }
+      return;
+    }
+  }
 
   // "Help" / start: accept English + German keyword aliases independent of locale
   if (

@@ -301,6 +301,10 @@
         "viewSleep": "Voir le sommeil",
         "logMeasurement": "Saisir une mesure",
         "viewInsights": "Ouvrir Insights"
+      },
+      "briefing": {
+        "title": "Briefing du jour",
+        "viewAll": "Ouvrir Insights"
       }
     },
     "greetingSalutation": "Bonjour, {name}",
@@ -540,6 +544,7 @@
     "typeCardioLoad": "Charge cardio",
     "typeSleepScore": "Score de sommeil",
     "typeBodyTemperatureDeviation": "Écart de température corporelle",
+    "typeResilience": "Résilience",
     "sourceComputed": "Calculé",
     "sourceWhoop": "WHOOP",
     "sourceFitbit": "Fitbit",
@@ -2082,6 +2087,7 @@
       "errorCredentialExpired": "Ta connexion au fournisseur d'IA a expiré. Reconnecte-la dans les Réglages pour que le Coach continue de fonctionner.",
       "tagline": "Coach personnel de santé, ancré sur tes données.",
       "newChat": "Nouvelle conversation",
+      "actionsMenu": "Actions",
       "maximizeAriaLabel": "Ouvrir en pleine page",
       "minimizeAriaLabel": "Revenir au panneau",
       "send": "Envoyer",
@@ -2484,21 +2490,21 @@
         "skinTemperatureTitle": "Température cutanée",
         "skinTemperatureBody": "La température cutanée correspond ici à la petite variation nocturne de la température de votre poignet par rapport à votre propre référence, et non à une mesure absolue de fièvre. Les variations peuvent suivre le sommeil, l'environnement, une maladie ou la phase du cycle menstruel.",
         "cardioFitnessTitle": "Capacité cardio (VO₂ max)",
-        "cardioFitnessBody": "Le VO₂ max correspond à la quantité d'oxygène que votre corps peut utiliser à l'effort maximal. C'est le meilleur marqueur de laboratoire de la forme aérobie, et une valeur plus élevée ou en hausse est un bon signe de santé cardiovasculaire.",
+        "cardioFitnessBody": "Le VO₂ max correspond à la quantité d'oxygène que votre corps peut utiliser à l'effort maximal — le meilleur indice de laboratoire de la forme aérobie, que les wearables estiment de façon indirecte. À titre indicatif, la condition physique est un prédicteur graduel de survie : chaque MET supplémentaire (environ 3,5 ml/kg/min) est associé à une mortalité inférieure d'environ 10 à 25 % (AHA, Circulation 2016). Une tendance plus élevée ou en hausse est un fort signe de santé cardiovasculaire.",
         "cardioRecoveryTitle": "Récupération cardiaque",
         "cardioRecoveryBody": "La récupération cardiaque correspond au nombre de battements par minute dont votre fréquence cardiaque diminue dans la première minute après l'arrêt d'un effort intense. Une baisse plus forte signifie que votre cœur se calme plus vite, signe d'une bonne condition physique.",
         "wristTemperatureTitle": "Température du poignet",
-        "wristTemperatureBody": "La température du poignet est mesurée pendant votre sommeil. Apple l'affiche comme l'écart par rapport à votre valeur de référence ; une valeur stable est normale, tandis qu'une hausse durable peut signaler une maladie, un entraînement intense ou un changement de cycle.",
+        "wristTemperatureBody": "La température du poignet est mesurée pendant votre sommeil et indiquée comme l'écart par rapport à votre valeur de référence, et non comme une valeur absolue. Une valeur stable est normale, tandis qu'une hausse durable peut signaler une maladie, un entraînement intense ou un changement de cycle.",
         "fallsTitle": "Chutes",
-        "fallsBody": "Ceci compte les chutes lourdes détectées par votre Apple Watch. L'objectif est zéro ; un nombre en hausse est un signal de risque de mobilité à évoquer avec un professionnel, surtout pour les personnes âgées.",
+        "fallsBody": "Ceci compte les chutes lourdes détectées par votre wearable. L'objectif est zéro ; un nombre en hausse est un signal de risque de mobilité à évoquer avec un professionnel, surtout pour les personnes âgées.",
         "sixMinuteWalkTitle": "Distance de marche de 6 minutes",
-        "sixMinuteWalkBody": "C'est l'estimation d'Apple de la distance que vous pourriez parcourir en six minutes, un test clinique classique de mobilité et d'endurance cardiopulmonaire. Une distance stable ou en hausse est un bon signe.",
+        "sixMinuteWalkBody": "C'est une estimation de la distance que vous pourriez parcourir en six minutes, un test clinique classique de mobilité et d'endurance cardiopulmonaire. La valeur du wearable est une approximation, pas le test clinique encadré ; c'est la tendance stable ou en hausse qui compte.",
         "stairAscentSpeedTitle": "Vitesse en montée d'escaliers",
         "stairAscentSpeedBody": "C'est la vitesse à laquelle vous montez une volée de marches. C'est un marqueur sensible de la force des jambes et de la mobilité : un rythme stable ou en hausse est bon signe, un rythme en baisse mérite attention.",
         "stairDescentSpeedTitle": "Vitesse en descente d'escaliers",
         "stairDescentSpeedBody": "C'est la vitesse à laquelle vous descendez une volée de marches. Avec la vitesse de montée, elle reflète le contrôle des jambes et l'équilibre : un rythme stable est bon signe, un rythme en baisse mérite attention.",
         "breathingDisturbancesTitle": "Troubles respiratoires du sommeil",
-        "breathingDisturbancesBody": "Votre Apple Watch peut estimer à quelle fréquence votre respiration a été interrompue pendant le sommeil. Un indice plus bas est préférable ; un niveau qu'Apple signale comme élevé, surtout sur plusieurs nuits, mérite d'être évoqué avec un professionnel.",
+        "breathingDisturbancesBody": "Un wearable peut estimer à quelle fréquence votre respiration a été interrompue pendant le sommeil. Un indice plus bas est préférable ; un niveau signalé comme élevé, surtout sur plusieurs nuits, mérite d'être évoqué avec un professionnel. C'est une approximation de dépistage, pas un diagnostic d'apnée du sommeil.",
         "stepsTitle": "Pas",
         "stepsBody": "Le nombre de pas correspond au total de pas que vous faites chaque jour. C'est la mesure la plus simple de l'activité quotidienne : un total journalier plus élevé reflète généralement un mode de vie plus actif, et une habitude régulière compte plus qu'une seule grosse journée.",
         "readinessBody": "La forme du jour est une lecture quotidienne unique de la disposition de votre corps à affronter la journée, mêlant fréquence cardiaque au repos, variabilité de la fréquence cardiaque, sommeil et régularité de vos dernières nuits. Un score élevé signifie que votre organisme paraît récupéré et disponible ; un score plus bas est une invitation douce à lever le pied.",
@@ -4703,6 +4709,7 @@
     "cycleTracking": {
       "title": "Suivi du cycle",
       "description": "Suivez votre cycle menstruel, les prédictions, les symptômes et les analyses de phases. Activé par défaut pour les comptes définis comme féminins ; disponible pour tous.",
+      "disclaimer": "Les prévisions et les phases sont des estimations descriptives issues de tes données enregistrées : ce ne sont ni un avis médical ni une méthode de contraception. Elles n'indiquent jamais qu'un rapport non protégé est sans risque. La précision s'améliore à mesure que tu enregistres plus de cycles. Pour la contraception ou toute décision médicale, consulte un professionnel de santé.",
       "enable": "Activer le suivi du cycle",
       "manage": "Ouvrir le suivi du cycle",
       "error": "Impossible de mettre à jour le suivi du cycle."
@@ -5682,8 +5689,6 @@
   },
   "notifications": {
     "title": "Notifications",
-    "breadcrumbInbox": "Notifications",
-    "breadcrumbChannels": "Canaux de notification",
     "eventColumn": "Événement",
     "subtitle": "Choisis quelles notifications tu reçois et par quel canal.",
     "loadError": "Impossible de charger les paramètres de notification.",
@@ -5780,7 +5785,13 @@
     "eventCycleFertileSoon": "Fenêtre fertile à venir",
     "eventCycleFertileSoonDesc": "Envoyé quelques jours avant votre fenêtre fertile estimée lorsque votre objectif est de concevoir.",
     "eventMedicationLowStock": "Stock de médicament faible",
-    "eventMedicationLowStockDesc": "Quand un stock suivi couvre moins de jours que votre seuil de stock"
+    "eventMedicationLowStockDesc": "Quand un stock suivi couvre moins de jours que votre seuil de stock",
+    "eventCoachNudge": "Rappel du Coach",
+    "eventCoachNudgeDesc": "Message ponctuel de votre Coach quand vos tendances récentes justifient un point.",
+    "eventMeasurementReminder": "Rappel de mesure",
+    "eventMeasurementReminderDesc": "Envoyé lorsqu'une mesure suivie est due.",
+    "eventMedicationIntakeSync": "Synchronisation des prises",
+    "eventMedicationIntakeSyncDesc": "Mise à jour entre appareils quand une dose est enregistrée, prise ou ignorée."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5906,6 +5917,16 @@
     "confirmed": "{name} confirmé.",
     "genericConfirmed": "Confirmé.",
     "cancelled": "Annulé.",
+    "moodLogged": "Enregistré : {score}/5",
+    "moodNotePrompt": "Ajoutez une note brève (facultatif).",
+    "moodNoteSaved": "Note enregistrée.",
+    "moodNoteExpired": "Cette invite a expiré.",
+    "remindLater": "Rappel reporté de {duration}.",
+    "measurementDone": "Marqué comme fait.",
+    "measurementNotFound": "Rappel introuvable.",
+    "buttonMoodNote": "Note…",
+    "buttonLater": "Plus tard",
+    "buttonDone": "Fait",
     "noActiveMedications": "Aucun médicament actif trouvé.",
     "whichMedication": "<b>Quel médicament as-tu pris ?</b>",
     "cancelButton": "Annuler",
@@ -6271,6 +6292,7 @@
       "rawChartModeDescription": "Affiche uniquement tes données enregistrées, sans prévision ni interprétation.",
       "secondarySymptomLabel": "Deuxième signe de fertilité",
       "secondarySymptomDescription": "Le deuxième signe associé à ta température pour la double vérification sympto-thermique. La plupart des personnes observent la glaire cervicale ; passe à l'observation du col de l'utérus si tu préfères.",
+      "secondarySymptomCitation": "En savoir plus sur la méthode (étude)",
       "secondarySymptom": {
         "MUCUS": "Glaire cervicale",
         "CERVIX": "Col de l'utérus"

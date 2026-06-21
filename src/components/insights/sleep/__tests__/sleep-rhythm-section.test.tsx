@@ -42,10 +42,10 @@ function render(node: React.ReactNode, locale: "en" | "de" = "en") {
 const READY_DTO: SleepRhythmDto = {
   sleepDebt: {
     state: "ready",
-    debtMinutes: 600,
+    debtMinutes: 60,
     needMinutes: 420,
-    nightsCounted: 10,
-    windowNights: 14,
+    nightsCounted: 5,
+    windowNights: 5,
     nightsUntilReady: 0,
   },
   chronotype: {
@@ -97,8 +97,8 @@ describe("<SleepRhythmSection>", () => {
       isError: false,
     });
     const html = render(<SleepRhythmSection enabled />);
-    expect(html).toContain("10h 0m short");
-    // The chronotype band lives in the separate bottom section now, never here.
+    expect(html).toContain("1h 0m short");
+    // The chronotype band lives in the separate sibling tile, never here.
     expect(html).not.toContain("Intermediate type");
     expect(html).not.toContain('data-slot="chronotype-band"');
   });

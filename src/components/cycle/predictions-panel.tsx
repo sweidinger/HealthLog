@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/lib/i18n/context";
-import { CycleDisclaimer } from "./cycle-disclaimer";
 import { FERTILE_HUE, FLOW_HUE, OVULATION_HUE } from "./phase-tokens";
 import type { CyclePrediction, CycleHistoryResponse } from "./types";
 
@@ -21,8 +20,9 @@ import type { CyclePrediction, CycleHistoryResponse } from "./types";
  * Shows the next-period RANGE (a window, with a confidence pill), the fertile
  * window (already goal-gated server-side — the API nulls it unless TTC, so we
  * just render what is present), the "still learning" state for < 3 cycles or
- * raw-chart mode, the cycle-history stats, and the fixed non-medical
- * disclaimer. Never a single dated next-period claim — always the range.
+ * raw-chart mode, and the cycle-history stats. Never a single dated next-period
+ * claim — always the range. The non-medical disclaimer is set once at the
+ * cycle-tracking on-ramp, not repeated beneath every prediction surface.
  */
 
 function formatDate(d: string): string {
@@ -51,31 +51,14 @@ export interface PredictionsPanelProps {
   prediction: CyclePrediction | null;
   rawChartMode: boolean;
   history: CycleHistoryResponse | undefined;
-  /** Fallback disclaimer when no prediction carries one. */
-  fallbackDisclaimer?: string;
-  /** The active cycle goal — only AVOID_PREGNANCY surfaces the (deliberate)
-   *  contraceptive-safety caveat here; every other goal drops the generic
-   *  "predictions are estimates" line so it does not repeat under every graph. */
-  goal?: string;
 }
 
 export function PredictionsPanel({
   prediction,
   rawChartMode,
   history,
-  fallbackDisclaimer,
-  goal,
 }: PredictionsPanelProps) {
   const { t } = useTranslations();
-
-  // Only the AVOID_PREGNANCY goal shows a disclaimer here: it surfaces the
-  // fertile window, so the stronger "not a contraceptive method" caveat is a
-  // deliberate medical safety note. For all other goals the generic
-  // estimate-caveat is suppressed (it already lives once with the data).
-  const disclaimer =
-    goal === "AVOID_PREGNANCY"
-      ? (prediction?.disclaimer ?? fallbackDisclaimer ?? "")
-      : "";
 
   return (
     <div className="space-y-4">
@@ -129,8 +112,6 @@ export function PredictionsPanel({
               ) : null}
             </>
           )}
-
-          {disclaimer ? <CycleDisclaimer text={disclaimer} /> : null}
         </CardContent>
       </Card>
 

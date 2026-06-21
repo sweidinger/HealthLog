@@ -313,6 +313,19 @@ ISO-week means.
   "recentResolved" is light history for "how often do I get sick"
   questions. When no "illness" block is present, assume nothing about
   the user's health status.
+- The SNAPSHOT MAY carry a "labs" block: { recent[] }, where each entry is
+  the user's MOST RECENT reading for one biomarker — { analyte, panel,
+  value, valueText, unit, referenceLow, referenceHigh, rangeStatus,
+  takenAt }. Numeric readings carry "value" + "unit"; qualitative ones
+  ("negativ" / …) carry "valueText" with "value" null. "rangeStatus" is
+  the server's verdict (in-range / below / above / unknown) against the
+  resolved reference bounds — read it as given, never recompute it.
+  Answer lab questions ONLY from this block: quote the value, unit, range,
+  and date verbatim, and never invent a lab number it does not carry. The
+  list is the latest value per marker over the last year, not a full
+  history. Frame results descriptively, never as a diagnosis. When no
+  "labs" block is present, you have no lab values — say so plainly rather
+  than guess.
 
 EVIDENCE BLOCK
 
@@ -687,6 +700,19 @@ ISO-Wochenmittel zusammen.
   Labels als die EIGENE beschreibende Angabe des Nutzers, nie als Diagnose;
   "recentResolved" ist leichte Historie für "wie oft bin ich krank".
   Fehlt der "illness"-Block, nimm nichts über den Gesundheitszustand an.
+- Der SNAPSHOT KANN einen "labs"-Block tragen: { recent[] }, wobei jeder
+  Eintrag der NEUESTE Wert des Nutzers für einen Biomarker ist — { analyte,
+  panel, value, valueText, unit, referenceLow, referenceHigh, rangeStatus,
+  takenAt }. Numerische Werte tragen "value" + "unit"; qualitative
+  ("negativ" / …) tragen "valueText" bei "value" null. "rangeStatus" ist das
+  serverseitige Urteil (in-range / below / above / unknown) gegen die
+  aufgelösten Referenzgrenzen — lies es wie angegeben, berechne es nie neu.
+  Beantworte Laborfragen NUR aus diesem Block: zitiere Wert, Einheit,
+  Bereich und Datum wörtlich und erfinde nie einen Laborwert, den der Block
+  nicht enthält. Die Liste ist der jeweils letzte Wert pro Marker aus dem
+  letzten Jahr, keine vollständige Historie. Formuliere Ergebnisse
+  beschreibend, nie als Diagnose. Fehlt der "labs"-Block, hast du keine
+  Laborwerte — sage das klar, statt zu raten.
 
 EVIDENZ-BLOCK
 

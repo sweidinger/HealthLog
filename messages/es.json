@@ -301,6 +301,10 @@
         "viewSleep": "Ver sueño",
         "logMeasurement": "Registrar medición",
         "viewInsights": "Abrir Insights"
+      },
+      "briefing": {
+        "title": "Resumen de hoy",
+        "viewAll": "Abrir Insights"
       }
     },
     "greetingSalutation": "Hola, {name}",
@@ -540,6 +544,7 @@
     "typeCardioLoad": "Carga cardio",
     "typeSleepScore": "Puntuación de sueño",
     "typeBodyTemperatureDeviation": "Desviación de temperatura corporal",
+    "typeResilience": "Resiliencia",
     "sourceComputed": "Calculado",
     "sourceWhoop": "WHOOP",
     "sourceFitbit": "Fitbit",
@@ -2082,6 +2087,7 @@
       "errorCredentialExpired": "Tu conexión con el proveedor de IA ha caducado. Vuelve a conectarla en Ajustes para que el Coach siga funcionando.",
       "tagline": "Coach personal de salud, apoyado en tus datos.",
       "newChat": "Nueva conversación",
+      "actionsMenu": "Acciones",
       "maximizeAriaLabel": "Abrir en pantalla completa",
       "minimizeAriaLabel": "Volver al panel",
       "send": "Enviar",
@@ -2484,21 +2490,21 @@
         "skinTemperatureTitle": "Temperatura de la piel",
         "skinTemperatureBody": "La temperatura de la piel aquí es el pequeño cambio nocturno de la temperatura de tu muñeca respecto a tu propio valor de referencia, no una medición absoluta de fiebre. Las variaciones pueden seguir el sueño, el entorno, una enfermedad o la fase del ciclo menstrual.",
         "cardioFitnessTitle": "Condición cardiovascular (VO₂ máx)",
-        "cardioFitnessBody": "El VO₂ máx es la cantidad de oxígeno que tu cuerpo puede usar al máximo esfuerzo. Es el mejor marcador de laboratorio de la forma aeróbica, y un valor más alto o en aumento es una buena señal de salud cardiovascular.",
+        "cardioFitnessBody": "El VO₂ máx es la cantidad de oxígeno que tu cuerpo puede usar al máximo esfuerzo: el mejor índice de laboratorio de la forma aeróbica, que los wearables estiman de forma indirecta. Como orientación general, la forma física es un predictor gradual de supervivencia: cada MET adicional (unos 3,5 ml/kg/min) se asocia a una mortalidad entre un 10 % y un 25 % menor (AHA, Circulation 2016). Una tendencia más alta o en aumento es una fuerte señal de salud cardiovascular.",
         "cardioRecoveryTitle": "Recuperación cardiaca",
         "cardioRecoveryBody": "La recuperación cardiaca es cuántas pulsaciones por minuto baja tu frecuencia cardiaca en el primer minuto tras parar un ejercicio intenso. Una caída mayor significa que tu corazón se calma más rápido, señal de buena forma física.",
         "wristTemperatureTitle": "Temperatura de muñeca",
-        "wristTemperatureBody": "La temperatura de muñeca se mide mientras duermes. Apple la muestra como la diferencia respecto a tu valor de referencia; un valor estable es normal, mientras que una subida sostenida puede indicar enfermedad, entrenamiento intenso o un cambio del ciclo.",
+        "wristTemperatureBody": "La temperatura de muñeca se mide mientras duermes y se indica como la diferencia respecto a tu valor de referencia, no como un valor absoluto. Un valor estable es normal, mientras que una subida sostenida puede indicar enfermedad, entrenamiento intenso o un cambio del ciclo.",
         "fallsTitle": "Caídas",
-        "fallsBody": "Esto cuenta las caídas fuertes que detecta tu Apple Watch. El objetivo es cero; un número creciente es una señal de riesgo de movilidad que conviene comentar con un profesional, sobre todo en personas mayores.",
+        "fallsBody": "Esto cuenta las caídas fuertes que detecta tu wearable. El objetivo es cero; un número creciente es una señal de riesgo de movilidad que conviene comentar con un profesional, sobre todo en personas mayores.",
         "sixMinuteWalkTitle": "Distancia en marcha de 6 minutos",
-        "sixMinuteWalkBody": "Es la estimación de Apple de cuánto podrías caminar en seis minutos, una prueba clínica clásica de movilidad y resistencia cardiopulmonar. Una distancia estable o en aumento es una buena señal.",
+        "sixMinuteWalkBody": "Es una estimación de cuánto podrías caminar en seis minutos, una prueba clínica clásica de movilidad y resistencia cardiopulmonar. El valor del wearable es una aproximación, no la prueba clínica supervisada; lo útil es la tendencia estable o en aumento.",
         "stairAscentSpeedTitle": "Velocidad subiendo escaleras",
         "stairAscentSpeedBody": "Es lo rápido que subes un tramo de escaleras. Es un marcador sensible de fuerza de piernas y movilidad: un ritmo estable o en aumento es buena señal y uno que baja conviene vigilar.",
         "stairDescentSpeedTitle": "Velocidad bajando escaleras",
         "stairDescentSpeedBody": "Es lo rápido que bajas un tramo de escaleras. Junto con la velocidad de subida refleja el control de piernas y el equilibrio: un ritmo estable es buena señal y uno que baja conviene vigilar.",
         "breathingDisturbancesTitle": "Alteraciones respiratorias del sueño",
-        "breathingDisturbancesBody": "Tu Apple Watch puede estimar con qué frecuencia se interrumpió tu respiración mientras dormías. Un índice más bajo es mejor; un nivel que Apple marca como elevado, sobre todo durante muchas noches, conviene comentarlo con un profesional.",
+        "breathingDisturbancesBody": "Un wearable puede estimar con qué frecuencia se interrumpió tu respiración mientras dormías. Un índice más bajo es mejor; un nivel marcado como elevado, sobre todo durante muchas noches, conviene comentarlo con un profesional. Es una aproximación de cribado, no un diagnóstico de apnea del sueño.",
         "stepsTitle": "Pasos",
         "stepsBody": "El recuento de pasos es el número total de pasos que das cada día. Es la medida más sencilla del movimiento cotidiano: un recuento diario más alto suele reflejar un estilo de vida más activo, y un hábito constante importa más que un único día destacado.",
         "readinessBody": "La preparación es una lectura diaria de lo listo que está tu cuerpo para afrontar el día, combinando la frecuencia cardíaca en reposo, la variabilidad de la frecuencia cardíaca, el sueño y la regularidad de tus últimas noches. Una puntuación más alta indica que tu organismo se ve recuperado y con recursos; una más baja es un aviso suave para bajar el ritmo.",
@@ -4703,6 +4709,7 @@
     "cycleTracking": {
       "title": "Seguimiento del ciclo",
       "description": "Registra tu ciclo menstrual, predicciones, síntomas e información de fases. Activado por defecto en cuentas configuradas como femeninas; disponible para todos.",
+      "disclaimer": "Las predicciones y las fases son estimaciones descriptivas a partir de tus datos registrados, no son consejo médico ni un método anticonceptivo. Nunca indican que sea seguro tener relaciones sin protección. La precisión mejora a medida que registras más ciclos. Para la anticoncepción o cualquier decisión médica, consulta a un profesional sanitario.",
       "enable": "Activar el seguimiento del ciclo",
       "manage": "Abrir seguimiento del ciclo",
       "error": "No se pudo actualizar el seguimiento del ciclo."
@@ -5682,8 +5689,6 @@
   },
   "notifications": {
     "title": "Notificaciones",
-    "breadcrumbInbox": "Notificaciones",
-    "breadcrumbChannels": "Canales de notificación",
     "eventColumn": "Evento",
     "subtitle": "Elige qué notificaciones recibes y por qué canal.",
     "loadError": "No se han podido cargar los ajustes de notificación.",
@@ -5780,7 +5785,13 @@
     "eventCycleFertileSoon": "Ventana fértil próxima",
     "eventCycleFertileSoonDesc": "Se envía unos días antes de tu ventana fértil estimada cuando tu objetivo es concebir.",
     "eventMedicationLowStock": "Existencias de medicación bajas",
-    "eventMedicationLowStockDesc": "Cuando unas existencias registradas cubren menos días que tu umbral de existencias"
+    "eventMedicationLowStockDesc": "Cuando unas existencias registradas cubren menos días que tu umbral de existencias",
+    "eventCoachNudge": "Aviso del Coach",
+    "eventCoachNudgeDesc": "Aviso ocasional de tu Coach cuando tus tendencias recientes justifican una revisión.",
+    "eventMeasurementReminder": "Recordatorio de medición",
+    "eventMeasurementReminderDesc": "Se envía cuando una medición registrada está pendiente.",
+    "eventMedicationIntakeSync": "Sincronización de tomas",
+    "eventMedicationIntakeSyncDesc": "Actualización entre dispositivos cuando se registra, toma u omite una dosis."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5906,6 +5917,16 @@
     "confirmed": "{name} confirmado.",
     "genericConfirmed": "Confirmado.",
     "cancelled": "Cancelado.",
+    "moodLogged": "Registrado: {score}/5",
+    "moodNotePrompt": "Añade una nota breve (opcional).",
+    "moodNoteSaved": "Nota guardada.",
+    "moodNoteExpired": "Esa solicitud ha caducado.",
+    "remindLater": "Recordatorio pospuesto {duration}.",
+    "measurementDone": "Marcado como hecho.",
+    "measurementNotFound": "Recordatorio no encontrado.",
+    "buttonMoodNote": "Nota…",
+    "buttonLater": "Más tarde",
+    "buttonDone": "Hecho",
     "noActiveMedications": "No se han encontrado medicamentos activos.",
     "whichMedication": "<b>¿Qué medicamento has tomado?</b>",
     "cancelButton": "Cancelar",
@@ -6271,6 +6292,7 @@
       "rawChartModeDescription": "Muestra solo tus datos registrados, sin predicciones ni interpretación.",
       "secondarySymptomLabel": "Segundo signo de fertilidad",
       "secondarySymptomDescription": "El segundo signo que se combina con tu temperatura para la doble comprobación sintotérmica. La mayoría observa el moco cervical; cambia a la observación del cuello uterino si lo prefieres.",
+      "secondarySymptomCitation": "Más sobre el método (estudio)",
       "secondarySymptom": {
         "MUCUS": "Moco cervical",
         "CERVIX": "Cuello uterino"

@@ -2,22 +2,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   OURA_OAUTH_SCOPE,
+  RESILIENCE_LEVELS,
   exchangeCode,
+  fetchCardiovascularAge,
   fetchReadiness,
+  fetchResilience,
   fetchVo2Max,
   getAuthorizationUrl,
   getOuraCredentials,
+  mapCardiovascularAge,
   mapDailyActivity,
   mapDailySleep,
   mapDailySpo2,
   mapReadiness,
+  mapResilience,
   mapSleep,
   mapVo2Max,
   refreshAccessToken,
+  type OuraCardiovascularAge,
   type OuraDailyActivity,
   type OuraDailySleep,
   type OuraDailySpo2,
   type OuraReadiness,
+  type OuraResilience,
   type OuraSleep,
   type OuraVo2Max,
 } from "../client";
@@ -349,6 +356,127 @@ describe("mapVo2Max", () => {
     expect(mapVo2Max({ id: "1", day: "2026-06-10", vo2_max: 0 })).toEqual([]);
     expect(mapVo2Max({ id: "1", day: "2026-06-10", vo2_max: null })).toEqual(
       [],
+    );
+  });
+});
+
+describe("fetchCardiovascularAge", () => {
+  it("reads the daily_cardiovascular_age collection path", async () => {
+    const fetchMock = installFetchMock([
+      {
+        status: 200,
+        body: {
+          data: [{ id: "1", day: "2026-06-10", vascular_age: 39 }],
+          next_token: null,
+        },
+      },
+    ]);
+    const r = await fetchCardiovascularAge("tok", {
+      startDate: "2026-06-01",
+      endDate: "2026-06-10",
+    });
+    expect(r).toHaveLength(1);
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url).toContain("/v2/usercollection/daily_cardiovascular_age");
+  });
+});
+
+describe("mapCardiovascularAge", () => {
+  it("maps vascular_age -> VASCULAR_AGE (years)", () => {
+    const c: OuraCardiovascularAge = { day: "2026-06-10", vascular_age: 39 };
+    const mapped = mapCardiovascularAge(c);
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0]).toMatchObject({
+      type: "VASCULAR_AGE",
+      value: 39,
+      unit: "years",
+      fieldTag: "vascular_age",
+    });
+  });
+  it("skips a record with no positive value", () => {
+    expect(
+      mapCardiovascularAge({ day: "2026-06-10", vascular_age: 0 }),
+    ).toEqual([]);
+    expect(
+      mapCardiovascularAge({ day: "2026-06-10", vascular_age: null }),
+    ).toEqual([]);
+  });
+});
+
+describe("fetchResilience", () => {
+  it("reads the daily_resilience collection path", async () => {
+    const fetchMock = installFetchMock([
+      {
+        status: 200,
+        body: {
+          data: [{ id: "1", day: "2026-06-10", level: "solid" }],
+          next_token: null,
+        },
+      },
+    ]);
+    const r = await fetchResilience("tok", {
+      startDate: "2026-06-01",
+      endDate: "2026-06-10",
+    });
+    expect(r).toHaveLength(1);
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url).toContain("/v2/usercollection/daily_resilience");
+  });
+});
+
+describe("mapResilience", () => {
+  it("ordinal-encodes all five levels (limited=1 … exceptional=5)", () => {
+    const expected: Array<[string, number]> = [
+      ["limited", 1],
+      ["adequate", 2],
+      ["solid", 3],
+      ["strong", 4],
+      ["exceptional", 5],
+    ];
+    for (const [level, ordinal] of expected) {
+      const mapped = mapResilience({ day: "2026-06-10", level });
+      expect(mapped).toHaveLength(1);
+      expect(mapped[0]).toMatchObject({
+        type: "RESILIENCE",
+        value: ordinal,
+        unit: "level",
+        fieldTag: "resilience",
+      });
+    }
+  });
+
+  it("RESILIENCE_LEVELS is the source of truth for the encoding", () => {
+    expect(RESILIENCE_LEVELS).toEqual({
+      limited: 1,
+      adequate: 2,
+      solid: 3,
+      strong: 4,
+      exceptional: 5,
+    });
+  });
+
+  it("is case-insensitive on the level string", () => {
+    const mapped = mapResilience({ day: "2026-06-10", level: "STRONG" });
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0]).toMatchObject({ type: "RESILIENCE", value: 4 });
+  });
+
+  it("skips an unknown / missing level (no row, never coerced to 0)", () => {
+    const cases: OuraResilience[] = [
+      { day: "2026-06-10", level: "extraordinary" },
+      { day: "2026-06-10", level: "" },
+      { day: "2026-06-10", level: null },
+      { day: "2026-06-10" },
+    ];
+    for (const c of cases) {
+      expect(mapResilience(c)).toEqual([]);
+    }
+  });
+
+  it("anchors the row at the day's UTC midnight", () => {
+    const mapped = mapResilience({ day: "2026-06-10", level: "adequate" });
+    expect(mapped[0]?.measuredAt.toISOString()).toBe(
+      "2026-06-10T00:00:00.000Z",
     );
   });
 });

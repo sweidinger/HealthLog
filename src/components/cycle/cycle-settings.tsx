@@ -194,7 +194,18 @@ export function CycleSettings({ profile }: { profile: CycleProfileDTO }) {
             ))}
           </NativeSelect>
           <p className="text-muted-foreground text-sm">
-            {t("cycle.settings.secondarySymptomDescription")}
+            {t("cycle.settings.secondarySymptomDescription")}{" "}
+            {/* Primary source for the symptothermal double-check method: the
+                German NFP prospective cohort (Frank-Herrmann et al., Human
+                Reproduction 2007). Plain anchor — no markdown renderer. */}
+            <a
+              href="https://pubmed.ncbi.nlm.nih.gov/17314078/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground/80 hover:text-foreground underline underline-offset-2"
+            >
+              {t("cycle.settings.secondarySymptomCitation")}
+            </a>
           </p>
         </div>
 
@@ -220,21 +231,11 @@ export function CycleSettings({ profile }: { profile: CycleProfileDTO }) {
 
         {/* Reminders — the per-channel toggles live on the notifications page;
             point users there rather than duplicating the toggle state here. */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-0.5">
-            <p className="text-sm font-medium">
-              {t("cycle.settings.reminders")}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {t("cycle.settings.remindersDescription")}
-            </p>
-          </div>
-          <Button variant="outline" size="sm" asChild className="shrink-0">
-            <Link href="/notifications">
-              {t("cycle.settings.remindersLink")}
-            </Link>
-          </Button>
-        </div>
+        <LinkRow
+          title={t("cycle.settings.reminders")}
+          description={t("cycle.settings.remindersDescription")}
+          linkLabel={t("cycle.settings.remindersLink")}
+        />
 
         {/* Fertile-window reminder — surfaced ONLY under the conception goal.
             The toggle itself is the default-OFF per-channel CYCLE_FERTILE_SOON
@@ -242,21 +243,11 @@ export function CycleSettings({ profile }: { profile: CycleProfileDTO }) {
             it, so the affordance never appears (and fertile language never
             shows) for the other goals (the inclusive-framing rule). */}
         {goal === "TRYING_TO_CONCEIVE" ? (
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium">
-                {t("cycle.settings.fertileReminder")}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {t("cycle.settings.fertileReminderDescription")}
-              </p>
-            </div>
-            <Button variant="outline" size="sm" asChild className="shrink-0">
-              <Link href="/notifications">
-                {t("cycle.settings.remindersLink")}
-              </Link>
-            </Button>
-          </div>
+          <LinkRow
+            title={t("cycle.settings.fertileReminder")}
+            description={t("cycle.settings.fertileReminderDescription")}
+            linkLabel={t("cycle.settings.remindersLink")}
+          />
         ) : null}
 
         {/* Cycle data export + delete live with the main Settings → Export and
@@ -306,7 +297,7 @@ function ToggleRow({
         <Label htmlFor={id} className="text-sm">
           {label}
         </Label>
-        <p className="text-muted-foreground text-xs">{description}</p>
+        <p className="text-muted-foreground text-sm">{description}</p>
       </div>
       <Switch
         id={id}
@@ -314,6 +305,40 @@ function ToggleRow({
         onCheckedChange={onChange}
         className="mt-0.5 shrink-0"
       />
+    </div>
+  );
+}
+
+/**
+ * A "label + description → go to notifications" row. The long fertile-window
+ * label collided with its button when both shared one tight flex line; here the
+ * row stacks on the narrowest screens (button on its own line, full-width tap
+ * target) and reflows to a clean inline layout from `sm` up, where the text
+ * column can wrap freely while the button stays top-aligned and never shrinks.
+ */
+function LinkRow({
+  title,
+  description,
+  linkLabel,
+}: {
+  title: string;
+  description: string;
+  linkLabel: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <div className="min-w-0 space-y-0.5">
+        <p className="text-sm font-medium">{title}</p>
+        <p className="text-muted-foreground text-sm">{description}</p>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        asChild
+        className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
+      >
+        <Link href="/notifications">{linkLabel}</Link>
+      </Button>
     </div>
   );
 }

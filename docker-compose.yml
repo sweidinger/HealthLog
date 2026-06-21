@@ -1,3 +1,22 @@
+# HealthLog — two-container stack (app + Postgres 16).
+#
+# First run (clean host):
+#   cp .env.example .env
+#   echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)"   >> .env
+#   echo "ENCRYPTION_KEY=$(openssl rand -hex 32)"       >> .env
+#   echo "API_TOKEN_HMAC_KEY=$(openssl rand -hex 32)"   >> .env
+#   docker compose up -d
+#   # then open http://<host>:3000 — the first registered user becomes admin.
+#
+# LAN / plain-HTTP self-hosts (NAS, homelab, Tailscale): set
+#   SESSION_COOKIE_SECURE=false
+# in .env, otherwise the session cookie carries the `Secure` flag over HTTP
+# and login silently fails. This is the single most common self-host snag.
+# Leave it unset (or true) only when a TLS reverse proxy serves HTTPS.
+#
+# Persistent state lives in exactly one named volume (`pgdata`, Postgres'
+# data dir). The app container is stateless — GeoLite2 MMDBs are baked into
+# the image — so a backup of the database is a backup of everything.
 services:
   # Single-container default (HEALTHLOG_PROCESS_TYPE=all). Existing
   # self-host deployments stay working with `docker compose up`.
@@ -39,19 +58,39 @@ services:
       # a free connection before erroring.
       DATABASE_URL: "postgresql://healthlog:${POSTGRES_PASSWORD}@db:5432/healthlog?schema=public&connection_limit=${DB_CONNECTION_LIMIT:-20}&pool_timeout=${DB_POOL_TIMEOUT:-20}"
       NODE_ENV: production
+      # Encryption at rest (AES-256-GCM). Generate each secret with
+      # `openssl rand -hex 32` (a 64-char hex string = 32 bytes). ENCRYPTION_KEY
+      # is the single-key path and is all most self-hosts need. The map form
+      # (ENCRYPTION_KEYS={"v1":"<hex>","v2":"<hex>"} + ENCRYPTION_ACTIVE_KEY_ID=v2)
+      # is for key rotation — see docs/ops/encryption-key-rotation.md. Keep these
+      # values stable and backed up: lose them and the encrypted columns are
+      # unrecoverable.
       ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
       ENCRYPTION_KEYS: "${ENCRYPTION_KEYS:-}"
       ENCRYPTION_ACTIVE_KEY_ID: "${ENCRYPTION_ACTIVE_KEY_ID:-}"
       API_TOKEN_HMAC_KEY: "${API_TOKEN_HMAC_KEY}"
       NEXT_PUBLIC_APP_URL: "${NEXT_PUBLIC_APP_URL:-http://localhost:3000}"
       APP_URL: "${APP_URL:-http://localhost:3000}"
-      # v1.5.1 session-cookie Secure-flag opt-out. Forwarded explicitly so
-      # an operator setting SESSION_COOKIE_SECURE=false in .env actually
-      # reaches the Node process (the compose `environment:` block is a
-      # whitelist — vars not listed here don't propagate from .env into
-      # the container, even though docker-compose reads .env for
-      # `${VAR}` substitution at compose-up time).
+      # Session-cookie Secure-flag opt-out. SET THIS TO false FOR LAN / plain-HTTP
+      # self-hosts (http://<host>:3000 with no TLS reverse proxy) — otherwise the
+      # session cookie carries the `Secure` flag, the browser drops it over HTTP,
+      # and login silently fails. Unset → the flag tracks NODE_ENV=production
+      # (i.e. on); set to true to force it. Forwarded explicitly so an operator
+      # value in .env reaches the Node process (the `environment:` block is a
+      # whitelist — vars not listed here don't propagate even though
+      # docker-compose reads .env for `${VAR}` substitution at compose-up time).
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-}"
+      # v1.18.11 (W3) — client-IP resolution + geo lookup. Behind Cloudflare
+      # the real visitor IP is in `cf-connecting-ip`; set
+      # TRUST_CF_CONNECTING_IP=1 ONLY when Cloudflare is in front (off by
+      # default — a direct-exposed host must not trust a forgeable header).
+      # IP_GEO_LOOKUP_URL overrides the default ip-api.com provider (HTTPS
+      # only); IP_GEO_LOOKUP_DISABLED=1 stops all third-party IP egress.
+      # Listed here so operator values in .env reach the container (the
+      # `environment:` block is a whitelist — vars not listed never propagate).
+      TRUST_CF_CONNECTING_IP: "${TRUST_CF_CONNECTING_IP:-}"
+      IP_GEO_LOOKUP_URL: "${IP_GEO_LOOKUP_URL:-}"
+      IP_GEO_LOOKUP_DISABLED: "${IP_GEO_LOOKUP_DISABLED:-}"
       # all = bundle web + worker in this container (default, single-host)
       # web = serve HTTP only; pair with a separate app-worker service
       HEALTHLOG_PROCESS_TYPE: "${HEALTHLOG_PROCESS_TYPE:-all}"

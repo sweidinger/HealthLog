@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ComponentProps } from "react";
 import { Moon } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -10,11 +11,34 @@ import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  SleepStageStackedBar,
-  type SleepStageBreakdown,
-} from "./sleep-stage-stacked-bar";
+import dynamic from "next/dynamic";
+import { ChartErrorBoundary } from "@/components/charts/chart-error-state";
+import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { importWithRetry } from "@/lib/retry-import";
+import type { SleepStageBreakdown } from "./sleep-stage-stacked-bar";
 import { SleepDurationChart } from "./sleep-duration-chart";
+
+// v1.18.11 (W5 perf) — the stage stacked bar is the only recharts consumer
+// on this page (the duration chart already routes through
+// `health-chart-dynamic`). Defer it through `next/dynamic` so recharts is
+// off `/insights/sleep`'s first-load JS; the `<ChartSkeleton>` loading shell
+// matches the card the bar paints so the layout stays stable.
+const SleepStageStackedBarLazy = dynamic(
+  () =>
+    importWithRetry(() => import("./sleep-stage-stacked-bar")).then((mod) => ({
+      default: mod.SleepStageStackedBar,
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> },
+);
+function SleepStageStackedBar(
+  props: ComponentProps<typeof SleepStageStackedBarLazy>,
+) {
+  return (
+    <ChartErrorBoundary>
+      <SleepStageStackedBarLazy {...props} />
+    </ChartErrorBoundary>
+  );
+}
 
 /**
  * v1.4.25 W4c — Sleep insights composition.

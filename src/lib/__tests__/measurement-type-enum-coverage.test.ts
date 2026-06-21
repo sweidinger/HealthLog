@@ -96,10 +96,12 @@ const EXPECTED_TYPES = [
   // ── v1.17.1 — Oura coverage completion ──
   "SLEEP_SCORE",
   "BODY_TEMPERATURE_DEVIATION",
+  // ── v1.19.0 — Oura resilience (ordinal-encoded level) ──
+  "RESILIENCE",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 65 canonical measurement types", () => {
+  it("exposes the 66 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -236,6 +238,12 @@ describe("measurementTypeEnum coverage", () => {
     // doctor-report-pdf-core.ts for the matching exclusion rationale.
     "SLEEP_SCORE",
     "BODY_TEMPERATURE_DEVIATION",
+    // v1.19.0 — Oura resilience. The resilience level is an ordinal-encoded
+    // categorical band (limited=1 … exceptional=5), a derived recovery
+    // composite, not a measured clinical vital — it surfaces on the
+    // Insights / measurement-list surfaces and never belongs in the clinical
+    // vitals PDF. See doctor-report-pdf-core.ts for the matching rationale.
+    "RESILIENCE",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

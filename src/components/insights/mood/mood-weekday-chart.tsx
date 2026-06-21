@@ -136,11 +136,9 @@ export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
                 ];
               }}
             />
-            {/* v1.15.14 — soften the saturated mood hues to a muted tint
-                (the level semantics still distinguish the bars; the fill no
-                longer shouts). Scoped here — the shared `--dracula-*` mood
-                tokens used by the heatmap/legend stay untouched. */}
-            <Bar dataKey="value" radius={[3, 3, 0, 0]} fillOpacity={0.55}>
+            {/* v1.19.0 — bars paint at full saturation in their level colour;
+                the earlier muted tint read as a rendering glitch. */}
+            <Bar dataKey="value" radius={[3, 3, 0, 0]}>
               {data.map((row) => (
                 <Cell
                   key={row.weekday}

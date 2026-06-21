@@ -52,6 +52,20 @@ const DEFAULT_SLUG_FALLBACK_CHAIN = [
   "gpt-5.2", // legacy floor
 ] as const;
 
+/**
+ * The slug the codex vision gate reasons about *before* a request runs: the
+ * cached working slug if one is live, else the first chain entry. Lets the
+ * Lab-OCR capability resolver decide whether codex can read images without
+ * standing up a client or making a network call. Best-effort — the actual
+ * routed slug may differ once the chain walk runs, which the runtime probe +
+ * graceful fallback (text/local OCR) covers.
+ */
+export function resolveCodexVisionSlug(): string | null {
+  const cached = getCachedCodexSlug();
+  if (cached) return cached;
+  return loadFallbackChain()[0] ?? null;
+}
+
 function loadFallbackChain(): string[] {
   const envChain = process.env.CODEX_MODEL_FALLBACK_CHAIN?.trim();
   const fromEnv = envChain
@@ -291,6 +305,31 @@ export class CodexClient implements AIProvider {
   ): Promise<Response> {
     const sessionId = randomUUID();
     const threadId = randomUUID();
+
+    // v1.18.11 — fold vision inputs (Lab-OCR) into the user turn when present.
+    // The Codex/ChatGPT-OAuth backend accepts the `input_image` content block
+    // on this same `codex/responses` endpoint (docs/codex-protocol-spec.md
+    // §2b: `image_url` accepts a `data:<mime>;base64,...` URL, `detail`
+    // defaults to "high"). Image INPUT consumes the ChatGPT plan allocation —
+    // no API key is required (an API key only matters for image GENERATION).
+    // When no images are present the content is byte-identical to the prior
+    // text-only wire, so every text caller (Coach, insights, status cards) is
+    // untouched. The image is UNTRUSTED data to transcribe, framed as such by
+    // the system prompt. Documents (PDF) are NOT folded in — `input_image` is
+    // image-only; the OCR route gates PDFs to Anthropic.
+    const images = params.images ?? [];
+    const content: Array<
+      | { type: "input_text"; text: string }
+      | { type: "input_image"; image_url: string; detail: "high" }
+    > = [{ type: "input_text", text: params.userPrompt }];
+    for (const img of images) {
+      content.push({
+        type: "input_image",
+        image_url: `data:${img.mediaType};base64,${img.dataBase64}`,
+        detail: "high",
+      });
+    }
+
     return safeFetch(
       CODEX_ENDPOINT,
       {
@@ -314,7 +353,7 @@ export class CodexClient implements AIProvider {
             {
               type: "message",
               role: "user",
-              content: [{ type: "input_text", text: params.userPrompt }],
+              content,
             },
           ],
           tools: [],

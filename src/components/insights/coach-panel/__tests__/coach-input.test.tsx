@@ -222,6 +222,65 @@ describe("<CoachInput>", () => {
     expect(handler).toHaveBeenCalledWith("typed");
   });
 
+  it("omits the control-hub action row by default (drawer composer)", () => {
+    // v1.18.11 (W11) — the hub is page-only; without `showHub` the composer
+    // stays the single-row drawer layout (mic + send on one baseline) and
+    // grows no actions menu or settings deep-link.
+    const html = render(
+      <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
+    );
+    expect(html).not.toContain('data-slot="coach-input-hub"');
+    expect(html).not.toContain('data-slot="coach-input-actions"');
+    expect(html).not.toContain('data-slot="coach-input-settings"');
+    // Mic + send still render in the single-row layout.
+    expect(html).toContain('data-slot="coach-input-mic"');
+    expect(html).toContain('data-slot="coach-input-send"');
+  });
+
+  it("renders the control-hub action row with showHub (page composer)", () => {
+    // v1.18.11 (W11) — the page composer is the control hub: a `+` actions
+    // menu (new chat + open conversations) and a settings deep-link sit on
+    // the action row alongside the mic + send.
+    const html = render(
+      <CoachInput
+        value=""
+        onChange={() => {}}
+        onSubmit={() => {}}
+        showHub
+        onNewChat={() => {}}
+        onOpenHistory={() => {}}
+      />,
+    );
+    expect(html).toContain('data-slot="coach-input-hub"');
+    expect(html).toContain('data-slot="coach-input-actions"');
+    // The settings gear deep-links to Settings → AI (not an in-chat sheet).
+    const settings = html.match(
+      /<a[^>]*data-slot="coach-input-settings"[^>]*>/,
+    );
+    expect(settings?.[0]).toContain('href="/settings/ai"');
+    // Mic + send remain present in the hub layout.
+    expect(html).toContain('data-slot="coach-input-mic"');
+    expect(html).toContain('data-slot="coach-input-send"');
+  });
+
+  it("sizes the hub actions trigger to the 44px tap-target floor on phones", () => {
+    const html = render(
+      <CoachInput
+        value=""
+        onChange={() => {}}
+        onSubmit={() => {}}
+        showHub
+        onNewChat={() => {}}
+        onOpenHistory={() => {}}
+      />,
+    );
+    const actions = html.match(
+      /<button[^>]*data-slot="coach-input-actions"[^>]*>/,
+    );
+    expect(actions?.[0]).toMatch(/\bsize-11\b/);
+    expect(actions?.[0]).toMatch(/\bsm:size-9\b/);
+  });
+
   it("renders the textarea at rows=1 initial state (W5 auto-grow baseline)", () => {
     // v1.4.25 W5 — Claude-web-style auto-grow. SSR baseline is a
     // single-line textarea; the client-side `useEffect` measures

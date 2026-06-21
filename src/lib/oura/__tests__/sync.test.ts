@@ -10,6 +10,8 @@ const {
   fetchDailySleepMock,
   fetchSpo2Mock,
   fetchVo2MaxMock,
+  fetchCardioAgeMock,
+  fetchResilienceMock,
   refreshMock,
   upsertMock,
   recordSuccessMock,
@@ -26,6 +28,8 @@ const {
   fetchDailySleepMock: vi.fn(),
   fetchSpo2Mock: vi.fn(),
   fetchVo2MaxMock: vi.fn(),
+  fetchCardioAgeMock: vi.fn(),
+  fetchResilienceMock: vi.fn(),
   refreshMock: vi.fn(),
   upsertMock: vi.fn(),
   recordSuccessMock: vi.fn(),
@@ -70,6 +74,8 @@ vi.mock("../client", async (importOriginal) => {
     fetchDailySleep: fetchDailySleepMock,
     fetchDailySpo2: fetchSpo2Mock,
     fetchVo2Max: fetchVo2MaxMock,
+    fetchCardiovascularAge: fetchCardioAgeMock,
+    fetchResilience: fetchResilienceMock,
     refreshAccessToken: refreshMock,
   };
 });
@@ -91,6 +97,8 @@ beforeEach(() => {
   fetchDailySleepMock.mockReset().mockResolvedValue([]);
   fetchSpo2Mock.mockReset().mockResolvedValue([]);
   fetchVo2MaxMock.mockReset().mockResolvedValue([]);
+  fetchCardioAgeMock.mockReset().mockResolvedValue([]);
+  fetchResilienceMock.mockReset().mockResolvedValue([]);
   refreshMock.mockReset();
   upsertMock.mockReset().mockResolvedValue({});
   recordSuccessMock.mockReset().mockResolvedValue(undefined);
@@ -232,6 +240,57 @@ describe("syncUserOura", () => {
     });
     // daily_stress → STRESS_SCORE is withdrawn pending ladder wiring.
     expect(written.some((w) => w.type === "STRESS_SCORE")).toBe(false);
+  });
+
+  it("writes RESILIENCE ordinal-encoded from the daily_resilience collection", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchResilienceMock.mockResolvedValue([
+      { id: "r", day: "2026-06-10", level: "strong" },
+    ]);
+    const imported = await syncUserOura("u1");
+    expect(imported).toBe(1);
+    const arg = upsertMock.mock.calls[0]![0];
+    expect(arg.where.userId_type_source_externalId).toMatchObject({
+      type: "RESILIENCE",
+      source: "OURA",
+      externalId: "resilience:2026-06-10:resilience",
+    });
+    expect(arg.create.value).toBe(4);
+    expect(arg.create.unit).toBe("level");
+  });
+
+  it("skips an unrecognised resilience level (no row)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchResilienceMock.mockResolvedValue([
+      { id: "r", day: "2026-06-10", level: "godlike" },
+    ]);
+    const imported = await syncUserOura("u1");
+    expect(imported).toBe(0);
+    expect(upsertMock).not.toHaveBeenCalled();
+  });
+
+  it("re-sync of the same day upserts RESILIENCE in place (overwrite, not duplicate)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    // Oura finalises a day's level after the night; a re-fetch reports a
+    // different level on the SAME day → the day-keyed externalId stays stable
+    // so the upsert update branch overwrites in place.
+    fetchResilienceMock
+      .mockResolvedValueOnce([
+        { id: "r", day: "2026-06-10", level: "adequate" },
+      ])
+      .mockResolvedValueOnce([{ id: "r", day: "2026-06-10", level: "solid" }]);
+    await syncUserOura("u1");
+    await syncUserOura("u1");
+    const keys = upsertMock.mock.calls.map(
+      (c) => c[0].where.userId_type_source_externalId.externalId,
+    );
+    expect(keys).toEqual([
+      "resilience:2026-06-10:resilience",
+      "resilience:2026-06-10:resilience",
+    ]);
+    // The second sync carries the re-scored value through the update branch.
+    expect(upsertMock.mock.calls[0]![0].create.value).toBe(2);
+    expect(upsertMock.mock.calls[1]![0].update.value).toBe(3);
   });
 
   it("does NOT refresh on a 403 (not an expiry case)", async () => {

@@ -21,16 +21,16 @@ const PARTIAL_DEBT: SleepDebtDto = {
   debtMinutes: 0,
   needMinutes: 420,
   nightsCounted: 3,
-  windowNights: 14,
-  nightsUntilReady: 4,
+  windowNights: 5,
+  nightsUntilReady: 1,
 };
 
 const READY_DEBT: SleepDebtDto = {
   state: "ready",
-  debtMinutes: 600,
+  debtMinutes: 60,
   needMinutes: 420,
-  nightsCounted: 10,
-  windowNights: 14,
+  nightsCounted: 5,
+  windowNights: 5,
   nightsUntilReady: 0,
 };
 
@@ -65,11 +65,11 @@ describe("<SleepDebtCard>", () => {
     expect(html).not.toContain("short");
   });
 
-  it("asserts the cumulative debt in the ready state", () => {
+  it("asserts the running debt balance in the ready state", () => {
     const html = render(<SleepDebtCard debt={READY_DEBT} />);
-    // 600 min = 10h 0m short.
-    expect(html).toContain("10h 0m short");
-    expect(html).toContain("14 nights");
+    // 60 min = 1h 0m short — the small, recovering balance a normal sleeper sees.
+    expect(html).toContain("1h 0m short");
+    expect(html).toContain("5 nights");
   });
 
   it("inherits the standard Card rhythm (no compact override)", () => {
@@ -110,10 +110,11 @@ describe("<ChronotypeCard>", () => {
     expect(html).toContain("04:30");
   });
 
-  it("v1.18.7 W-D — renders the band as the large hero label, not a corner readout", () => {
+  it("v1.19.0 — renders the band as the bold primary value, uniform with the debt tile", () => {
     const html = render(<ChronotypeCard chronotype={READY_CHRONO} />);
-    // The reworked bottom treatment leads with a large band label + the
-    // natural-midpoint headline. The retired top-right corner readout is gone.
+    // The band is the primary value at the SAME text-2xl scale the debt tile
+    // uses for its hours figure; the natural-midpoint clock is the secondary
+    // line. The retired top-right corner readout is gone.
     expect(html).not.toContain('data-slot="chronotype-corner"');
     expect(html).toContain('data-slot="chronotype-band"');
     expect(html).toContain("Intermediate type");

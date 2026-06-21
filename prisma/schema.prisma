@@ -657,6 +657,10 @@ model User {
   // per-day timeline mirroring the CycleDayLog shape.
   illnessEpisodes             IllnessEpisode[]
   illnessDayLogs              IllnessDayLog[]
+  // v1.19.0 — full Withings ECG waveform recordings (encrypted at rest).
+  // The paired AFib verdict still lands as an IRREGULAR_RHYTHM_NOTIFICATION
+  // Measurement EVENT row (v1.18.11); this holds the raw signal samples.
+  ecgRecordings               EcgRecording[]
 
   // v1.7.0 profile — optional patient-identity fields surfaced on the
   // health-record export cover (PDF) and the FHIR `Patient` resource.
@@ -901,6 +905,17 @@ enum MeasurementType {
   // absolute-reading buckets. Plausible band is small and centred on 0.
   BODY_TEMPERATURE_DEVIATION // celsius (signed deviation) — Oura `daily_readiness.temperature_deviation`.
 
+  // ── v1.19.0 — Oura resilience (additive) ──
+  // Oura's daily resilience level from the `daily_resilience` collection — a
+  // categorical band describing how well the body is coping with cumulative
+  // load: limited / adequate / solid / strong / exceptional. Stored ORDINAL-
+  // ENCODED into the numeric `value` (limited=1, adequate=2, solid=3, strong=4,
+  // exceptional=5) so it fits the existing numeric Measurement model with no new
+  // categorical column or CHECK constraint. Unit is the level scale (`level`).
+  // The 5-level → ordinal mapping is the single source of truth in
+  // `src/lib/oura/client.ts` (RESILIENCE_LEVELS). Stored as `source = OURA`.
+  RESILIENCE // level (ordinal 1–5) — Oura `daily_resilience.level` (limited=1 … exceptional=5).
+
   @@map("measurement_type")
 }
 
@@ -1070,6 +1085,10 @@ model Measurement {
   updatedAt             DateTime          @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // v1.19.0 — optional back-relation to the full ECG waveform recording(s)
+  // paired with this EVENT row. SET NULL on the FK side keeps the trace if
+  // the EVENT row is re-keyed / removed.
+  ecgRecordings EcgRecording[]
 
   // Original measuredAt-based dedup — kept for legacy Withings ingest
   // and the manual UI's "no duplicate at the same wall-clock" guard.
@@ -1128,6 +1147,75 @@ model Measurement {
   // and removes the `deleted_at` heap re-check. Same Prisma-can't-express-a-
   // partial-predicate reason it is omitted here.
   @@map("measurements")
+}
+
+// ─── ECG waveform recordings (v1.19.0) ─────────────────────
+//
+// v1.18.11 captured only the device's AFib *verdict* for each on-device
+// ECG (one IRREGULAR_RHYTHM_NOTIFICATION Measurement EVENT row). This model
+// stores the full raw ECG **waveform** so a real trace can later be rendered.
+//
+// The waveform is sensitive health data, so the sample array is held
+// AES-256-GCM at rest in `waveformEncrypted` (Bytes) — the same Bytes-codec
+// precedent as `CoachMessage.encryptedContent`. The plaintext is the JSON
+// encoding of the integer micro-volt sample array returned by the Withings
+// Heart `get` endpoint (`body.signal`); decrypt → `JSON.parse` → number[].
+// It NEVER lands as plaintext (fail-closed crypto in `src/lib/crypto.ts`).
+//
+// The non-sensitive descriptors stay plaintext so a future renderer can read
+// `samplingFrequency` / `sampleCount` / `durationSeconds` without a per-row
+// decrypt: `samplingFrequency` (Hz) pairs with the sample index to recover
+// each sample's time offset; `sampleCount` is the array length; `durationSeconds`
+// is `sampleCount / samplingFrequency`; `lead` is the recording lead/pathway
+// when the source reports it; `averageHeartRate` mirrors the source's reported
+// average BPM for the strip when present.
+//
+// `rhythmClassification` snapshots the same AFib verdict captured on the paired
+// Measurement EVENT row so the waveform self-describes without a join, and
+// `measurementId` links back to that row (SET NULL — the trace survives a
+// re-keyed/removed EVENT row).
+//
+// Idempotency: `externalRecordingId` is the source's stable per-recording id
+// (Withings `signalid`, or a `ts-<unix>` fallback when absent). The unique
+// `(userId, source, externalRecordingId)` lets a re-sync overwrite the same
+// recording in place rather than inserting a duplicate.
+//
+// RENDERING UI IS OUT OF SCOPE FOR v1.19.0 — this is ingest-only. A trace
+// view (and any analytics over the waveform) is a follow-up.
+model EcgRecording {
+  id                  String            @id @default(cuid())
+  userId              String            @map("user_id")
+  source              MeasurementSource @default(WITHINGS)
+  /// Source's stable per-recording id (Withings `signalid`, or `ts-<unix>`).
+  externalRecordingId String            @map("external_recording_id")
+  /// When the strip was recorded on-device (source timestamp).
+  recordedAt          DateTime          @map("recorded_at")
+  /// AES-256-GCM ciphertext of the JSON-encoded micro-volt sample array.
+  waveformEncrypted   Bytes             @map("waveform_encrypted")
+  /// Sampling rate of the signal in Hz (sample index → time offset).
+  samplingFrequency   Int               @map("sampling_frequency")
+  /// Number of samples in the (decrypted) waveform array.
+  sampleCount         Int               @map("sample_count")
+  /// `sampleCount / samplingFrequency` in seconds; NULL when frequency is 0.
+  durationSeconds     Float?            @map("duration_seconds")
+  /// Recording lead / pathway label when the source reports it (else NULL).
+  lead                String?
+  /// Source-reported average heart rate (BPM) for the strip, when present.
+  averageHeartRate    Int?              @map("average_heart_rate")
+  /// Snapshot of the device AFib verdict for the paired EVENT row.
+  rhythmClassification RhythmClassification? @map("rhythm_classification")
+  /// FK to the IRREGULAR_RHYTHM_NOTIFICATION Measurement EVENT row, when known.
+  measurementId       String?           @map("measurement_id")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  measurement Measurement? @relation(fields: [measurementId], references: [id], onDelete: SetNull)
+
+  // Re-sync overwrites in place rather than inserting a duplicate.
+  @@unique([userId, source, externalRecordingId])
+  @@index([userId, recordedAt(sort: Desc)])
+  @@map("ecg_recordings")
 }
 
 // ─── Measurement rollups (v1.5.0) ──────────────────────────
@@ -2183,6 +2271,33 @@ model TelegramScheduledDeletion {
 
   @@index([deleteAfter])
   @@map("telegram_scheduled_deletions")
+}
+
+// v1.19.0 — force-reply correlation for the interactive mood reminder.
+//
+// When a user taps "Notiz…" on a mood prompt the bot sends a force_reply
+// message; the user's free-text reply then arrives as a normal `message`
+// whose `reply_to_message.message_id` points back at that prompt. This
+// row maps `(chatId, promptMessageId)` to the mood entry the note should
+// attach to, so the inbound note handler can resolve "what was this a
+// reply to" without trusting any client-supplied id. Rows are short-lived
+// (`expiresAt`) and best-effort deleted once consumed; the deletion sweep
+// is keyed on `expiresAt` so an unanswered note prompt self-cleans.
+model TelegramPromptContext {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  chatId      String   @map("chat_id")
+  // The bot's prompt message the user is expected to reply to.
+  promptMsgId Int      @map("prompt_msg_id")
+  // What the reply attaches to. "mood_note" carries `refId = moodEntryId`.
+  kind        String
+  refId       String   @map("ref_id")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([chatId, promptMsgId])
+  @@index([expiresAt])
+  @@map("telegram_prompt_contexts")
 }
 
 // ─── API Tokens (for external ingest) ──────────────────────

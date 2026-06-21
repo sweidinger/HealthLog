@@ -226,6 +226,35 @@ export interface OuraVo2Max {
   vo2_max?: number | null;
 }
 
+/**
+ * Oura `daily_cardiovascular_age` — Oura's estimate of how the user's
+ * cardiovascular system is ageing relative to chronological age, in years.
+ * Maps cleanly onto the existing `VASCULAR_AGE` enum (the same years-unit
+ * arterial-age concept Withings' Body Scan reports under meastype 155).
+ */
+export interface OuraCardiovascularAge {
+  id?: string;
+  day: string;
+  /** Estimated vascular age in years. */
+  vascular_age?: number | null;
+}
+
+/**
+ * Oura `daily_resilience` — the daily resilience LEVEL, a categorical band
+ * describing how well the body copes with cumulative load. The headline is the
+ * `level` string (limited / adequate / solid / strong / exceptional); the
+ * collection also carries `contributors` (sleep_recovery / daytime_recovery /
+ * stress) which we do NOT ingest — we capture only the headline level.
+ * Re-verify the `level` field name + value set against
+ * `cloud.ouraring.com/v2/docs` at build time.
+ */
+export interface OuraResilience {
+  id?: string;
+  day: string;
+  /** limited | adequate | solid | strong | exceptional */
+  level?: string | null;
+}
+
 export interface OuraDailyActivity {
   id: string;
   day: string;
@@ -371,6 +400,30 @@ export function fetchVo2Max(
     "/v2/usercollection/vO2_max",
     accessToken,
     "fetchVo2Max",
+    query,
+  );
+}
+
+export function fetchCardiovascularAge(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraCardiovascularAge[]> {
+  return fetchCollection<OuraCardiovascularAge>(
+    "/v2/usercollection/daily_cardiovascular_age",
+    accessToken,
+    "fetchCardiovascularAge",
+    query,
+  );
+}
+
+export function fetchResilience(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraResilience[]> {
+  return fetchCollection<OuraResilience>(
+    "/v2/usercollection/daily_resilience",
+    accessToken,
+    "fetchResilience",
     query,
   );
 }
@@ -697,6 +750,72 @@ export function mapVo2Max(v: OuraVo2Max): MappedMeasurement[] {
       unit: "mL/(kg·min)",
       measuredAt,
       fieldTag: "vo2_max",
+    },
+  ];
+}
+
+/**
+ * Map one Oura `daily_cardiovascular_age` record → `VASCULAR_AGE` (years, the
+ * canonical DB unit — no conversion). Skips a record with no positive value.
+ * Shares the `VASCULAR_AGE` bucket with Withings' Body Scan arterial-age, kept
+ * distinct from the two vendors only by `source`.
+ */
+export function mapCardiovascularAge(
+  c: OuraCardiovascularAge,
+): MappedMeasurement[] {
+  if (typeof c.vascular_age !== "number" || c.vascular_age <= 0) return [];
+  const measuredAt = dayAnchor(c.day);
+  if (!measuredAt) return [];
+  return [
+    {
+      type: "VASCULAR_AGE",
+      value: round2(c.vascular_age),
+      unit: "years",
+      measuredAt,
+      fieldTag: "vascular_age",
+    },
+  ];
+}
+
+/**
+ * Single source of truth for the Oura resilience level → ordinal encoding.
+ * Oura's `daily_resilience.level` is a categorical band; we store it ORDINAL-
+ * ENCODED in the numeric Measurement `value` so it fits the existing model with
+ * no new categorical column. Keep in lock-step with the schema comment on the
+ * `RESILIENCE` enum value and migration 0186.
+ */
+export const RESILIENCE_LEVELS: Record<string, number> = {
+  limited: 1,
+  adequate: 2,
+  solid: 3,
+  strong: 4,
+  exceptional: 5,
+};
+
+/** The unit recorded for a RESILIENCE row — the ordinal level scale (1–5). */
+export const RESILIENCE_UNIT = "level" as const;
+
+/**
+ * Map one Oura `daily_resilience` record → `RESILIENCE`, ordinal-encoded
+ * (limited=1 … exceptional=5) into the numeric `value`. An unknown / missing
+ * level string mints NO row (skipped, never coerced to 0) so a future Oura band
+ * we do not recognise never lands as a misleading reading. Anchored at the
+ * day's UTC midnight (the collection carries no per-record instant).
+ */
+export function mapResilience(r: OuraResilience): MappedMeasurement[] {
+  const level = typeof r.level === "string" ? r.level.toLowerCase() : null;
+  if (!level) return [];
+  const ordinal = RESILIENCE_LEVELS[level];
+  if (typeof ordinal !== "number") return [];
+  const measuredAt = dayAnchor(r.day);
+  if (!measuredAt) return [];
+  return [
+    {
+      type: "RESILIENCE",
+      value: ordinal,
+      unit: RESILIENCE_UNIT,
+      measuredAt,
+      fieldTag: "resilience",
     },
   ];
 }

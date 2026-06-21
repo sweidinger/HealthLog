@@ -64,6 +64,7 @@ import {
   type RunwaySchedule,
 } from "@/components/medications/detail/supply-runway";
 import {
+  detectSupplyUnderflow,
   summariseSupply,
   type SupplyItem,
 } from "@/lib/medications/inventory/summary";
@@ -118,6 +119,22 @@ export function evaluateMedicationRunway(
   schedules: RunwaySchedule[],
 ): LowStockEvaluation {
   const supply = summariseSupply(items, unitsPerDose);
+  // v1.18.11 (#31) — server-side observability for the central stock clamp.
+  // `summariseSupply` floors a corrupt/legacy negative pool to zero; this is
+  // the request-scoped seam that records the underflow so the data defect
+  // stays visible if it ever recurs.
+  const underflow = detectSupplyUnderflow(items);
+  if (underflow) {
+    annotate({
+      action: { name: "medication.inventory.underflow" },
+      meta: {
+        raw_units_remaining: underflow.rawUnitsRemaining,
+        raw_units_total: underflow.rawUnitsTotal,
+        clamped_units_remaining: underflow.clampedUnitsRemaining,
+        available_count: underflow.availableCount,
+      },
+    });
+  }
   const perDay = estimateDailyDoseCount(schedules);
   if (perDay <= 0) {
     return {

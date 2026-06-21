@@ -22,6 +22,7 @@ import { prisma } from "@/lib/db";
 import {
   extractFeatures,
   FeaturesPayloadTooLargeError,
+  BRIEFING_FEATURE_WINDOW_DAYS,
   type SignalOfDay,
 } from "@/lib/insights/features";
 import {
@@ -30,6 +31,11 @@ import {
   buildBriefingGroundingCorrection,
 } from "@/lib/ai/briefing-grounding";
 import { applyInsightsExcludeFilter } from "@/lib/insights/exclude-filter";
+import { getCachedFeatures } from "@/lib/insights/feature-cache";
+import {
+  buildBriefingIllnessCycleContext,
+  buildBriefingIllnessCyclePrompt,
+} from "@/lib/insights/illness-cycle-briefing";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import {
   detectGlp1Plateau,
@@ -687,6 +693,8 @@ export async function generateComprehensiveInsight(
       // (see the hash construction below), so it must be readable BEFORE
       // the gate — the comparison snapshot itself is only built after.
       dashboardWidgetsJson: true,
+      // v1.18.11 P5 — gender feeds the cycle context block (phase contrast).
+      gender: true,
     },
   });
 
@@ -721,17 +729,40 @@ export async function generateComprehensiveInsight(
   }
 
   const includeRaw = dbUser?.insightsPrivacyMode === "raw";
+  // v1.18.11 P1 — bound the briefing's bulk feature read to a recent window
+  // (all-time extremes are sourced separately, see features.ts). The downgrade
+  // ladder below stays as the safety net for the rare oversize payload.
+  const featureWindow = { sinceDays: BRIEFING_FEATURE_WINDOW_DAYS };
   let features: Awaited<ReturnType<typeof extractFeatures>>;
   try {
-    features = await extractFeatures(userId, includeRaw);
+    // v1.18.11 P3 — compute-once-per-scope. Inside the nightly-tick scope (or
+    // the on-demand route scope) the bounded feature read is shared, so the
+    // downgrade-ladder re-reads below and any sibling consumer in the same
+    // scope reuse this object instead of re-querying.
+    features = await getCachedFeatures({
+      userId,
+      includeRaw,
+      sinceDays: featureWindow.sinceDays,
+      compute: () => extractFeatures(userId, includeRaw, featureWindow),
+    });
   } catch (err) {
     if (err instanceof FeaturesPayloadTooLargeError) {
       try {
-        features = await extractFeatures(userId, false);
+        features = await getCachedFeatures({
+          userId,
+          includeRaw: false,
+          sinceDays: featureWindow.sinceDays,
+          compute: () => extractFeatures(userId, false, featureWindow),
+        });
       } catch (retryErr) {
         if (retryErr instanceof FeaturesPayloadTooLargeError) {
           try {
-            const aggregated = await extractFeatures(userId, false);
+            const aggregated = await getCachedFeatures({
+              userId,
+              includeRaw: false,
+              sinceDays: featureWindow.sinceDays,
+              compute: () => extractFeatures(userId, false, featureWindow),
+            });
             features = applyInsightsExcludeFilter(
               aggregated,
               MAX_DOWNGRADE_TOKENS,
@@ -817,6 +848,16 @@ export async function generateComprehensiveInsight(
   }
   if (aboutMe) {
     userPrompt += buildAboutMeInsightBlock(aboutMe, locale);
+  }
+  // v1.18.11 P5 — illness + cycle context (same builders as the on-demand
+  // route + the Coach). Module-gated; null for users without either module.
+  const illnessCycleCtx = await buildBriefingIllnessCycleContext(
+    userId,
+    dbUser?.gender ?? null,
+    await resolveUserTimezone(userId),
+  );
+  if (illnessCycleCtx) {
+    userPrompt += buildBriefingIllnessCyclePrompt(illnessCycleCtx, locale);
   }
   const systemPrompt = buildSystemPromptWithReferences(
     locale,

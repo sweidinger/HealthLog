@@ -196,4 +196,66 @@ describe("CodexClient", () => {
     ).rejects.toThrow("Codex request failed (500)");
     expect(onRefresh).not.toHaveBeenCalled();
   });
+
+  it("emits input_image content blocks when images are present", async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(
+        sseResponse([messageDoneEvent('{"summary":"ok"}'), completedEvent(50)]),
+      );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new CodexClient({
+      accessToken: "test-token",
+      accountId: "acct-test",
+      onTokenRefresh: vi
+        .fn()
+        .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
+    });
+
+    await client.generateCompletion({
+      systemPrompt: "Transcribe.",
+      userPrompt: "Read this report.",
+      images: [{ mediaType: "image/png", dataBase64: "QUJD" }],
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const content = body.input[0].content;
+    expect(content[0]).toEqual({
+      type: "input_text",
+      text: "Read this report.",
+    });
+    expect(content[1]).toEqual({
+      type: "input_image",
+      image_url: "data:image/png;base64,QUJD",
+      detail: "high",
+    });
+  });
+
+  it("keeps the text-only content shape when no images are present", async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(
+        sseResponse([messageDoneEvent('{"summary":"ok"}'), completedEvent(50)]),
+      );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new CodexClient({
+      accessToken: "test-token",
+      accountId: "acct-test",
+      onTokenRefresh: vi
+        .fn()
+        .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
+    });
+
+    await client.generateCompletion({
+      systemPrompt: "Answer.",
+      userPrompt: "Plain text only.",
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.input[0].content).toEqual([
+      { type: "input_text", text: "Plain text only." },
+    ]);
+  });
 });

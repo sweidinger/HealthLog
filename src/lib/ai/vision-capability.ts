@@ -57,6 +57,34 @@ function openaiSupportsVision(model: string): boolean {
 }
 
 /**
+ * Codex (ChatGPT-OAuth) vision models. Image INPUT is reachable over the
+ * `codex/responses` endpoint (docs/codex-protocol-spec.md §2b) on a multimodal
+ * slug — no API key needed. The accepted GPT-5.x line is text+vision; the older
+ * `-codex` specialist slugs and the legacy `gpt-4`-class non-multimodal pins
+ * are text-only. The slug we test is the codex client's resolved working slug
+ * (cached or chain head), so a slug rotation onto a non-vision model degrades
+ * to false rather than 400-ing the user at the image block.
+ *
+ * `gpt-4o` / `o*` are folded in for completeness (a future codex slug could
+ * land there), reusing the same multimodal families the OpenAI gate accepts.
+ */
+function codexSupportsVision(model: string): boolean {
+  const m = model.toLowerCase();
+  return (
+    // GPT-5.x line is multimodal (text + vision) — but the `-codex` specialist
+    // slugs (e.g. gpt-5-codex) are text-only, so they must not claim vision or
+    // every lab-OCR upload burns a doomed image attempt before falling back.
+    (m.startsWith("gpt-5") && !m.includes("-codex")) ||
+    m.startsWith("gpt-4o") ||
+    m.startsWith("gpt-4.1") ||
+    m.startsWith("gpt-4-turbo") ||
+    m.startsWith("o1") ||
+    m.startsWith("o3") ||
+    m.startsWith("o4")
+  );
+}
+
+/**
  * Logical provider tags the OCR path reasons about. Mirrors the
  * `ProviderChainType` vocabulary plus the legacy `admin-key` single-provider
  * tag `resolveProvider`'s admin fallback returns.
@@ -79,8 +107,11 @@ export type VisionProviderType =
  *                           configuring a self-hosted model and we cannot sniff
  *                           its capabilities; a non-vision local model surfaces
  *                           a clear extract failure rather than a silent gate.
- *  - codex / none         → false (no vision over the Codex wire; nothing
- *                           configured).
+ *  - codex                → vision when the resolved codex slug is a
+ *                           multimodal model (GPT-5.x / gpt-4o-class). Image
+ *                           input rides the ChatGPT plan — no API key. A
+ *                           non-multimodal slug (or unknown) → false.
+ *  - none                 → false (nothing configured).
  */
 export function supportsVisionForConfig(
   providerType: VisionProviderType,
@@ -96,6 +127,7 @@ export function supportsVisionForConfig(
     case "local":
       return true;
     case "codex":
+      return model ? codexSupportsVision(model) : false;
     case "none":
     default:
       return false;

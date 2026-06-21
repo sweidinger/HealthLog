@@ -16,10 +16,11 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
-    measurement: { findMany: vi.fn() },
+    // v1.18.11 (P6) — the slow-mover input gate probes salient inputs.
+    measurement: { findMany: vi.fn(), groupBy: vi.fn() },
     measurementRollup: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
-    moodEntry: { findMany: vi.fn() },
+    moodEntry: { findMany: vi.fn(), aggregate: vi.fn() },
   },
 }));
 
@@ -76,6 +77,13 @@ beforeEach(() => {
     [] as never,
   );
   vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
+  // v1.18.11 (P6) — input-gate probe: empty groups + zero mood so the gate
+  // misses (no cached inputHash) and every fixture builds normally.
+  vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
+  vi.mocked(prisma.moodEntry.aggregate).mockResolvedValue({
+    _count: { _all: 0 },
+    _max: { moodLoggedAt: null },
+  } as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     dateOfBirth: null,
     gender: null,

@@ -28,12 +28,16 @@ function hoursMinutes(totalMinutes: number): {
 /**
  * v1.17.0 — chronotype card (MCTQ MSF / MSFsc band + social jetlag).
  *
- * v1.18.7 W-D — reworked from a small corner-label card into the PROMINENT
- * bottom treatment of the Sleep view: a LARGE band label is the hero, with the
- * natural sleep-midpoint clock beneath it, and an "advanced" disclosure that
- * reveals social jetlag + the sleep-debt-corrected MSFsc. While `learning` it
- * keeps the calm "still learning your rhythm — N of M nights" copy and asserts
- * NO band. Warm, grounded copy; mobile-first.
+ * v1.19.0 — brought to the SAME tile shape as `<SleepDebtCard>` so the two sit
+ * uniform in the shared grid row: identical card chrome, an icon + `text-base`
+ * `CardTitle` header, then a `space-y-0.5` value block with a bold primary value
+ * (`text-2xl font-semibold`) and one secondary `text-xs muted` line. The primary
+ * value is the chronotype BAND (a label, the slot the debt tile fills with an
+ * hours figure); the concrete companion — the natural sleep midpoint clock — is
+ * the secondary line, so both tiles read "bold value + one grounded line" at the
+ * same scale. The "advanced" disclosure (social jetlag + sleep-debt-corrected
+ * MSFsc) stays. While `learning` it keeps the calm "still learning your rhythm —
+ * N of M nights" copy and asserts NO band. Warm, grounded copy; mobile-first.
  */
 export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
   const { t } = useTranslations();
@@ -78,15 +82,13 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* The band is the hero of the bottom treatment — a large label the
-            eye lands on first, with the natural sleep-midpoint clock as the
-            grounding caption beneath it. */}
-        <div className="space-y-1" data-slot="chronotype-band">
-          <p className="text-foreground text-2xl font-semibold tracking-tight sm:text-3xl">
-            {bandLabel}
-          </p>
+        {/* Uniform with the sleep-debt tile: a bold primary value (the band) at
+            the same scale, with the concrete companion (natural sleep midpoint
+            clock) as the secondary muted line. */}
+        <div className="space-y-0.5" data-slot="chronotype-band">
+          <p className="text-2xl font-semibold">{bandLabel}</p>
           {msfClock && (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-xs">
               {t("insights.sleep.chronotype.midpointHeadline", {
                 clock: msfClock,
               })}

@@ -301,6 +301,10 @@
         "viewSleep": "Zobacz sen",
         "logMeasurement": "Zapisz pomiar",
         "viewInsights": "Otwórz Insights"
+      },
+      "briefing": {
+        "title": "Briefing dnia",
+        "viewAll": "Otwórz Insights"
       }
     },
     "greetingSalutation": "Cześć, {name}",
@@ -540,6 +544,7 @@
     "typeCardioLoad": "Obciążenie kardio",
     "typeSleepScore": "Wynik snu",
     "typeBodyTemperatureDeviation": "Odchylenie temperatury ciała",
+    "typeResilience": "Odporność",
     "sourceComputed": "Obliczone",
     "sourceWhoop": "WHOOP",
     "sourceFitbit": "Fitbit",
@@ -2082,6 +2087,7 @@
       "errorCredentialExpired": "Połączenie z dostawcą AI wygasło. Połącz je ponownie w Ustawieniach, aby Coach działał dalej.",
       "tagline": "Osobisty coach zdrowia, oparty na twoich danych.",
       "newChat": "Nowa rozmowa",
+      "actionsMenu": "Działania",
       "maximizeAriaLabel": "Otwórz na pełnej stronie",
       "minimizeAriaLabel": "Powrót do panelu",
       "send": "Wyślij",
@@ -2484,21 +2490,21 @@
         "skinTemperatureTitle": "Temperatura skóry",
         "skinTemperatureBody": "Temperatura skóry to tutaj niewielka nocna zmiana temperatury nadgarstka względem twojej własnej wartości bazowej, a nie bezwzględny pomiar gorączki. Zmiany mogą odzwierciedlać sen, otoczenie, chorobę lub fazę cyklu menstruacyjnego.",
         "cardioFitnessTitle": "Wydolność krążeniowa (VO₂ max)",
-        "cardioFitnessBody": "VO₂ max to ilość tlenu, jaką organizm potrafi wykorzystać przy maksymalnym wysiłku. To najlepszy laboratoryjny wskaźnik wydolności tlenowej, a wyższa lub rosnąca wartość świadczy o dobrym zdrowiu układu krążenia.",
+        "cardioFitnessBody": "VO₂ max to ilość tlenu, jaką organizm potrafi wykorzystać przy maksymalnym wysiłku — najlepszy laboratoryjny wskaźnik wydolności tlenowej, który urządzenia noszone szacują pośrednio. Dla orientacji: sprawność fizyczna jest stopniowanym predyktorem przeżycia — każdy dodatkowy MET (około 3,5 ml/kg/min) wiąże się z mniej więcej 10–25 % niższą śmiertelnością (AHA, Circulation 2016). Wyższy lub rosnący trend to mocny sygnał dobrego zdrowia układu krążenia.",
         "cardioRecoveryTitle": "Regeneracja serca",
         "cardioRecoveryBody": "Regeneracja serca to liczba uderzeń na minutę, o jaką spada tętno w pierwszej minucie po zakończeniu intensywnego wysiłku. Większy spadek oznacza, że serce szybciej się uspokaja, co świadczy o dobrej kondycji.",
         "wristTemperatureTitle": "Temperatura nadgarstka",
-        "wristTemperatureBody": "Temperatura nadgarstka jest mierzona podczas snu. Apple pokazuje ją jako różnicę względem Twojej wartości bazowej; stabilny odczyt jest normalny, a utrzymujący się wzrost może wskazywać na chorobę, intensywny trening lub zmianę cyklu.",
+        "wristTemperatureBody": "Temperatura nadgarstka jest mierzona podczas snu i podawana jako różnica względem Twojej wartości bazowej, a nie jako wartość bezwzględna. Stabilny odczyt jest normalny, a utrzymujący się wzrost może wskazywać na chorobę, intensywny trening lub zmianę cyklu.",
         "fallsTitle": "Upadki",
-        "fallsBody": "Tutaj liczone są poważne upadki wykryte przez Apple Watch. Celem jest zero; rosnąca liczba to sygnał ryzyka związanego z mobilnością, który warto omówić z lekarzem, zwłaszcza u osób starszych.",
+        "fallsBody": "Tutaj liczone są poważne upadki wykryte przez urządzenie noszone. Celem jest zero; rosnąca liczba to sygnał ryzyka związanego z mobilnością, który warto omówić z lekarzem, zwłaszcza u osób starszych.",
         "sixMinuteWalkTitle": "Dystans marszu 6-minutowego",
-        "sixMinuteWalkBody": "To szacunek Apple, jak daleko mógłbyś przejść w sześć minut — klasyczny test kliniczny mobilności i wydolności krążeniowo-oddechowej. Stały lub rosnący dystans to dobry znak.",
+        "sixMinuteWalkBody": "To szacunek, jak daleko mógłbyś przejść w sześć minut — klasyczny test kliniczny mobilności i wydolności krążeniowo-oddechowej. Wartość z urządzenia noszonego to przybliżenie, a nie nadzorowany test kliniczny; liczy się stały lub rosnący trend.",
         "stairAscentSpeedTitle": "Prędkość wchodzenia po schodach",
         "stairAscentSpeedBody": "To prędkość, z jaką pokonujesz bieg schodów. To czuły wskaźnik siły nóg i mobilności — stałe lub rosnące tempo to dobry znak, a spadające warto obserwować.",
         "stairDescentSpeedTitle": "Prędkość schodzenia po schodach",
         "stairDescentSpeedBody": "To prędkość, z jaką schodzisz bieg schodów. Razem z prędkością wchodzenia odzwierciedla kontrolę nóg i równowagę — stałe tempo to dobry znak, a spadające warto obserwować.",
         "breathingDisturbancesTitle": "Zaburzenia oddychania we śnie",
-        "breathingDisturbancesBody": "Twój Apple Watch potrafi oszacować, jak często Twój oddech był przerywany podczas snu. Niższy wskaźnik jest lepszy; poziom, który Apple oznacza jako podwyższony — zwłaszcza przez wiele nocy — warto omówić z lekarzem.",
+        "breathingDisturbancesBody": "Urządzenie noszone potrafi oszacować, jak często Twój oddech był przerywany podczas snu. Niższy wskaźnik jest lepszy; poziom oznaczony jako podwyższony — zwłaszcza przez wiele nocy — warto omówić z lekarzem. To przybliżenie przesiewowe, a nie diagnoza bezdechu sennego.",
         "stepsTitle": "Kroki",
         "stepsBody": "Liczba kroków to łączna liczba kroków wykonanych każdego dnia. To najprostsza miara codziennego ruchu — wyższa dzienna liczba zwykle odzwierciedla bardziej aktywny tryb życia, a stały nawyk liczy się bardziej niż pojedynczy intensywny dzień.",
         "readinessBody": "Gotowość to pojedynczy dzienny odczyt tego, jak przygotowane jest Twoje ciało, by zmierzyć się z dniem — łączy tętno spoczynkowe, zmienność rytmu serca, sen i regularność ostatnich nocy. Wyższy wynik oznacza, że Twój organizm wygląda na wypoczęty i pełen zasobów; niższy to delikatna wskazówka, by zwolnić tempo.",
@@ -4703,6 +4709,7 @@
     "cycleTracking": {
       "title": "Śledzenie cyklu",
       "description": "Śledź swój cykl menstruacyjny, prognozy, objawy i analizy faz. Domyślnie włączone dla kont ustawionych jako kobiece; dostępne dla wszystkich.",
+      "disclaimer": "Prognozy i fazy to opisowe szacunki na podstawie zarejestrowanych danych — nie są poradą medyczną ani metodą antykoncepcji. Nigdy nie wskazują, że współżycie bez zabezpieczenia jest bezpieczne. Dokładność rośnie wraz z liczbą zarejestrowanych cykli. W sprawach antykoncepcji lub decyzji medycznych skonsultuj się z pracownikiem ochrony zdrowia.",
       "enable": "Włącz śledzenie cyklu",
       "manage": "Otwórz śledzenie cyklu",
       "error": "Nie udało się zaktualizować śledzenia cyklu."
@@ -5682,8 +5689,6 @@
   },
   "notifications": {
     "title": "Powiadomienia",
-    "breadcrumbInbox": "Powiadomienia",
-    "breadcrumbChannels": "Kanały powiadomień",
     "eventColumn": "Zdarzenie",
     "subtitle": "Wybierz, które powiadomienia chcesz otrzymywać i którym kanałem.",
     "loadError": "Nie udało się załadować ustawień powiadomień.",
@@ -5780,7 +5785,13 @@
     "eventCycleFertileSoon": "Zbliża się okno płodności",
     "eventCycleFertileSoonDesc": "Wysyłane kilka dni przed szacowanym oknem płodności, gdy Twoim celem jest poczęcie.",
     "eventMedicationLowStock": "Niski zapas leku",
-    "eventMedicationLowStockDesc": "Gdy śledzony zapas leku wystarcza na mniej dni niż twój próg zapasu"
+    "eventMedicationLowStockDesc": "Gdy śledzony zapas leku wystarcza na mniej dni niż twój próg zapasu",
+    "eventCoachNudge": "Wskazówka Coacha",
+    "eventCoachNudgeDesc": "Okazjonalna wskazówka od Coacha, gdy twoje ostatnie trendy wymagają sprawdzenia.",
+    "eventMeasurementReminder": "Przypomnienie o pomiarze",
+    "eventMeasurementReminderDesc": "Wysyłane, gdy śledzony pomiar jest wymagany.",
+    "eventMedicationIntakeSync": "Synchronizacja przyjęć leku",
+    "eventMedicationIntakeSyncDesc": "Aktualizacja między urządzeniami, gdy dawka zostanie zapisana, przyjęta lub pominięta."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5906,6 +5917,16 @@
     "confirmed": "{name} potwierdzone.",
     "genericConfirmed": "Potwierdzone.",
     "cancelled": "Anulowane.",
+    "moodLogged": "Zapisano: {score}/5",
+    "moodNotePrompt": "Dodaj krótką notatkę (opcjonalnie).",
+    "moodNoteSaved": "Notatka zapisana.",
+    "moodNoteExpired": "Ta prośba wygasła.",
+    "remindLater": "Przypomnienie przełożone o {duration}.",
+    "measurementDone": "Oznaczono jako wykonane.",
+    "measurementNotFound": "Nie znaleziono przypomnienia.",
+    "buttonMoodNote": "Notatka…",
+    "buttonLater": "Później",
+    "buttonDone": "Gotowe",
     "noActiveMedications": "Nie znaleziono aktywnych leków.",
     "whichMedication": "<b>Który lek został przyjęty?</b>",
     "cancelButton": "Anuluj",
@@ -6271,6 +6292,7 @@
       "rawChartModeDescription": "Pokazuj tylko zapisane dane, bez prognoz i interpretacji.",
       "secondarySymptomLabel": "Drugi objaw płodności",
       "secondarySymptomDescription": "Drugi objaw łączony z temperaturą w podwójnej kontroli objawowo-termicznej. Większość obserwuje śluz szyjkowy; przełącz na obserwację szyjki macicy, jeśli wolisz.",
+      "secondarySymptomCitation": "Więcej o metodzie (badanie)",
       "secondarySymptom": {
         "MUCUS": "Śluz szyjkowy",
         "CERVIX": "Szyjka macicy"

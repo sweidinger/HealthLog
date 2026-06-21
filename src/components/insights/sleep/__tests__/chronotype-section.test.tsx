@@ -80,7 +80,7 @@ describe("<ChronotypeSection>", () => {
     expect(html).not.toContain('data-slot="chronotype-error"');
   });
 
-  it("renders the large band treatment + midpoint clock on a settled DTO", () => {
+  it("renders the band value + midpoint clock on a settled DTO", () => {
     rhythmMock.mockReturnValue({
       data: READY_DTO,
       isLoading: false,
@@ -90,8 +90,10 @@ describe("<ChronotypeSection>", () => {
     expect(html).toContain('data-slot="chronotype-band"');
     expect(html).toContain("Evening type");
     expect(html).toContain("05:41");
-    // The section heading carries the chronotype title.
-    expect(html).toContain('data-slot="section-heading"');
+    // v1.19.0 — the duplicate standalone section heading is gone; the single
+    // chronotype title now lives inside the card, uniform with the debt tile.
+    expect(html).not.toContain('data-slot="section-heading"');
+    expect(html).toContain('data-slot="chronotype-card"');
   });
 
   it("renders nothing when disabled", () => {

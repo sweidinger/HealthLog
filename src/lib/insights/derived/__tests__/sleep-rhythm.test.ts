@@ -101,10 +101,11 @@ describe("buildSleepRhythm", () => {
       tz: "UTC",
       now: new Date("2026-06-14T12:00:00Z"),
     });
-    // Partial (< 7 nights) but the cumulative is still computed: 120 + 0.
+    // Partial (< 4 nights) but the running balance is still computed: a 120-min
+    // short night then a met night, no surplus to pay down → balance 120.
     expect(dto.sleepDebt.debtMinutes).toBe(120);
     expect(dto.sleepDebt.nightsCounted).toBe(2);
-    expect(dto.sleepDebt.nightsUntilReady).toBe(5);
+    expect(dto.sleepDebt.nightsUntilReady).toBe(2); // minNights 4 − 2 counted
   });
 
   it("returns calm states with zero nights", async () => {

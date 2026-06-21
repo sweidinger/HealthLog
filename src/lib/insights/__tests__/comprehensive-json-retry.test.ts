@@ -39,6 +39,11 @@ vi.mock("@/lib/insights/features", () => ({
     sizeBytes = 0;
   },
   extractFeatures: (...a: unknown[]) => extractFeatures(...a),
+  BRIEFING_FEATURE_WINDOW_DAYS: 400,
+}));
+vi.mock("@/lib/insights/illness-cycle-briefing", () => ({
+  buildBriefingIllnessCycleContext: vi.fn().mockResolvedValue(null),
+  buildBriefingIllnessCyclePrompt: vi.fn().mockReturnValue(""),
 }));
 vi.mock("@/lib/insights/glp1-plateau", () => ({
   detectGlp1Plateau: vi.fn(async () => null),

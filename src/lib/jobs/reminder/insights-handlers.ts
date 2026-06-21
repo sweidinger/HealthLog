@@ -19,14 +19,15 @@ import {
   runInsightStatusGenerate,
 } from "@/lib/jobs/insight-status-generate";
 import { withBackgroundEvent } from "@/lib/logging/background";
-import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
 import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
 import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
 import { generatePulseStatusForUser } from "@/lib/insights/pulse-status";
 import { generateBmiStatusForUser } from "@/lib/insights/bmi-status";
 import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
 import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
+import { generateStatusBatchForUser } from "@/lib/insights/status-batch";
 import { findStatusCronCandidates } from "@/lib/jobs/status-cron-candidates";
+import { annotate } from "@/lib/logging/context";
 import { getWorkerPrisma } from "./shared";
 
 export interface GeneralStatusPayload {
@@ -74,12 +75,10 @@ export async function runStatusCronGenerate(
     userId: string,
     options: { locale: string | null; force: boolean },
   ) => Promise<unknown>,
-  options: { recordRun?: boolean } = {},
 ): Promise<void> {
   await withBackgroundEvent(taskName, async (evt) => {
     const prisma = getWorkerPrisma();
     try {
-      if (options.recordRun) recordInsightsRun();
       const users = await findStatusCronCandidates(prisma);
 
       if (users.length === 0) return;
@@ -112,13 +111,72 @@ export async function runStatusCronGenerate(
   });
 }
 
+/**
+ * v1.18.11 (P2) — nightly status batch. The 02:00 anchor cron runs
+ * `generateStatusBatchForUser` for every candidate: it builds all seven
+ * per-metric snapshots once and issues ONE provider call for the metrics
+ * still needing the LLM (seed-pinned + grounded inside `runStatusCompletion`,
+ * unchanged), fanning the response into the SAME per-metric cache rows the
+ * standalone generators wrote.
+ *
+ * The six later per-metric crons (02:05–02:30) stay registered and keep their
+ * own drivers: a card the batch wrote today resolves inside their `prepare`
+ * step as a calendar-day cache hit (`served`, no provider call, no snapshot
+ * rebuild), so they cost a cache read and cover the edge cases the batch
+ * can't — a user discovered after 02:00, a metric the batch omitted, or a
+ * batch-call failure (which falls each metric back to its single-card path
+ * inside the batch itself). Net effect: the nightly ladder pays one call per
+ * user instead of seven, with no queue/registry churn.
+ */
+async function runStatusBatchCron(taskName: string): Promise<void> {
+  await withBackgroundEvent(taskName, async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      recordInsightsRun();
+      const users = await findStatusCronCandidates(prisma);
+      if (users.length === 0) return;
+
+      let generated = 0;
+      let served = 0;
+      let failed = 0;
+      for (const user of users) {
+        try {
+          const result = await generateStatusBatchForUser(user.id, {
+            // The batch needs a concrete `de`/`en`; the per-metric generators
+            // normalise the same way (de stays de, everything else English).
+            locale: user.locale === "de" ? "de" : "en",
+            force: false,
+          });
+          generated += result.batched + result.fellBack;
+          served += result.served;
+        } catch (error) {
+          failed++;
+          evt.addWarning(
+            `${taskName} batch failed for user ${user.id}: ${error}`,
+          );
+        }
+      }
+
+      annotate({
+        action: { name: "insights.status.batch.cron" },
+        meta: { generated, served, failed, total: users.length },
+      });
+      evt.setBackground({
+        task_name: taskName,
+        result: { generated, served, failed, total: users.length },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      await reportWorkerError(taskName, err);
+      throw err;
+    }
+  });
+}
+
 export function handleGeneralStatusGenerate(jobs: Job<GeneralStatusPayload>[]) {
   void jobs;
-  return runStatusCronGenerate(
-    "job.insights.general",
-    generateGeneralStatusForUser,
-    { recordRun: true },
-  );
+  return runStatusBatchCron("job.insights.batch");
 }
 
 export function handleBloodPressureStatusGenerate(

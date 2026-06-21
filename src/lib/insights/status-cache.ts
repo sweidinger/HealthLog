@@ -1,3 +1,4 @@
+import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import {
   hasUsableStatusProvider,
@@ -7,7 +8,27 @@ import {
   enqueueStatusGeneration,
   type InsightStatusScope,
 } from "@/lib/jobs/insight-status-generate-shared";
+import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
+import {
+  DISCOVERY_BEHAVIOURS,
+  DISCOVERY_OUTCOMES,
+} from "@/lib/insights/correlation-discovery";
 import { annotate } from "@/lib/logging/context";
+
+/**
+ * v1.18.11 (P6-tighten) — the measurement types the FDR correlation-discovery
+ * matrix scans (`correlation-discovery.ts`). A status card whose prompt folds
+ * the surviving cross-metric correlations (`getRelevantCorrelationsForMetric`)
+ * can have a NEW correlation surface purely because one of these channels
+ * gained paired data — with no change to the card's own metric rows. The input
+ * gate must therefore fingerprint these channels too, or a freshly discovered
+ * relation would be silently skipped for the day. `MOOD` is mood-entry backed
+ * (folded separately via `includeMood`), so it is excluded from the
+ * measurement-type set here.
+ */
+const CORRELATION_CHANNEL_TYPES: readonly MeasurementType[] = Array.from(
+  new Set<string>([...DISCOVERY_BEHAVIOURS, ...DISCOVERY_OUTCOMES]),
+).filter((key) => key !== "MOOD") as MeasurementType[];
 
 /**
  * Shared cache-read for the seven `*-status.ts` insight generators.
@@ -57,6 +78,8 @@ interface ParsedStatusCache {
   retryAt?: string;
   /** v1.16.8 — fingerprint of the data snapshot the text was generated from. */
   snapshotHash?: string;
+  /** v1.18.11 (P6) — cheap fingerprint of the salient inputs (count + newest). */
+  inputHash?: string;
 }
 
 /**
@@ -194,6 +217,179 @@ export async function refreshUnchangedStatusInsight(args: {
   annotate({
     action: { name: "insights.status.skipped_unchanged" },
     meta: { cache_action: args.cacheAction },
+  });
+  return { text: parsed.text, updatedAt: created.createdAt.toISOString() };
+}
+
+/**
+ * v1.18.11 (P6) — cheap input fingerprint for the slow-moving status
+ * metrics (weight / BMI).
+ *
+ * The post-build content-hash gate (`refreshUnchangedStatusInsight`)
+ * already skips the LLM on unchanged data, but it only runs AFTER the heavy
+ * snapshot build (the bounded `findMany` + per-series rollup reads +
+ * correlation math). For metrics that move on a weekly cadence that rebuild
+ * is paid six days out of seven for nothing.
+ *
+ * This probe answers "did any salient input change since the cached
+ * assessment?" with ONE grouped query — per salient type, the live row
+ * `count` plus the newest `measuredAt`. A new or removed reading flips one
+ * of those, which flips the hash; an idle day leaves it byte-identical. The
+ * caller hashes the result and, on a match, skips the entire build. The
+ * finer post-build snapshot gate stays in place for the cases this coarse
+ * probe can't see (e.g. an in-place edit that keeps count + newest stamp).
+ */
+export async function computeStatusInputFingerprint(args: {
+  userId: string;
+  types: readonly MeasurementType[];
+  /**
+   * v1.18.11 (P6) — include the mood-entry table in the fingerprint. The
+   * weight snapshot folds a mood-context block, so a mood change must flip
+   * the input hash or the gate would skip a build whose prose could have
+   * moved. Omit for metrics that don't read mood.
+   */
+  includeMood?: boolean;
+  /**
+   * v1.18.11 (P6-tighten) — include the FDR correlation-discovery channels
+   * (`CORRELATION_CHANNEL_TYPES`) in the fingerprint. A card that folds the
+   * surviving cross-metric correlations (via `getRelevantCorrelationsForMetric`)
+   * can surface a NEW relation purely because a discovery channel — steps,
+   * sleep, HRV, glucose, daylight, … — gained paired data, with NO change to
+   * the card's own metric rows. Without this the input gate would re-stamp the
+   * stale assessment and the freshly discovered correlation would never reach
+   * the prose. Cheap: it widens the SAME grouped query by the channel type set
+   * (no extra round-trip). `includeMood` is honoured for the mood arm of the
+   * discovery matrix as before. Set on any card whose prompt carries a
+   * relations block (i.e. whose metric is a discovery channel).
+   */
+  includeCorrelationChannels?: boolean;
+  /**
+   * v1.18.11 (P6) — extra non-measurement inputs the snapshot derives from
+   * (e.g. BMI reads the profile `heightCm`). Folded into the hash so a
+   * change to one of them flips the gate. Values must be JSON-stable.
+   */
+  extra?: Record<string, string | number | null>;
+}): Promise<string> {
+  // Widen the grouped query by the correlation-discovery channels when the
+  // card folds a relations block, so a discovery-channel change flips the gate.
+  // De-duplicate the union (a card's own type can also be a discovery channel)
+  // so the `type IN (...)` list carries each type once.
+  const groupTypes = args.includeCorrelationChannels
+    ? Array.from(new Set<string>([...args.types, ...CORRELATION_CHANNEL_TYPES]))
+    : [...args.types];
+
+  const [grouped, mood] = await Promise.all([
+    prisma.measurement.groupBy({
+      by: ["type"],
+      where: {
+        userId: args.userId,
+        type: { in: groupTypes as MeasurementType[] },
+        deletedAt: null,
+      },
+      _count: { _all: true },
+      _max: { measuredAt: true },
+    }),
+    args.includeMood
+      ? prisma.moodEntry.aggregate({
+          where: { userId: args.userId },
+          _count: { _all: true },
+          _max: { moodLoggedAt: true },
+        })
+      : Promise.resolve(null),
+  ]);
+  // Deterministic shape regardless of group order: sort by type, project a
+  // stable `{ type, count, newest }` triple. `hashInsightSnapshot` sorts keys
+  // and collapses Date → ISO, so the hash is order- and clock-stable.
+  const fingerprint = grouped
+    .map((row) => ({
+      type: row.type,
+      count: row._count._all,
+      newest: row._max.measuredAt ? row._max.measuredAt.toISOString() : null,
+    }))
+    .sort((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : 0));
+  return hashInsightSnapshot({
+    statusInput: fingerprint,
+    ...(mood
+      ? {
+          mood: {
+            count: mood._count._all,
+            newest: mood._max.moodLoggedAt
+              ? mood._max.moodLoggedAt.toISOString()
+              : null,
+          },
+        }
+      : {}),
+    ...(args.extra ? { extra: args.extra } : {}),
+  });
+}
+
+/**
+ * v1.18.11 (P6) — the INPUT gate for slow-moving status metrics.
+ *
+ * Runs BEFORE the snapshot build. When the latest cached assessment is a
+ * real (non-stub) text whose stored `inputHash` equals the freshly probed
+ * one, nothing the prompt could see has changed, so the gate re-stamps that
+ * text under today's `dateKey` and returns it — the caller then skips the
+ * whole gather AND the provider call. Returns `null` on any miss (no prior
+ * row, stub, empty text, missing or differing `inputHash`, or a forced
+ * regeneration), in which case the caller proceeds to the normal build +
+ * the finer post-build content-hash gate.
+ *
+ * Consent is checked first, mirroring `refreshUnchangedStatusInsight`:
+ * re-dating a cached text presents it as current, so a user who revoked the
+ * server-managed AI consent must never have stale text re-stamped by an
+ * unchanged-input refresh.
+ */
+export async function gateUnchangedStatusInput(args: {
+  userId: string;
+  cacheAction: string;
+  todayKey: string;
+  inputHash: string;
+  force: boolean;
+}): Promise<FreshStatusCacheHit | null> {
+  if (args.force) return null;
+
+  if (await statusConsentBlocksGeneration(args.userId, "insights")) {
+    annotate({
+      action: { name: "insights.status.consent_required" },
+      meta: { cache_action: args.cacheAction, gate: "unchanged-input" },
+    });
+    return null;
+  }
+
+  const latest = await prisma.auditLog.findFirst({
+    where: { userId: args.userId, action: args.cacheAction },
+    orderBy: { createdAt: "desc" },
+    select: { details: true },
+  });
+  if (!latest?.details) return null;
+
+  let parsed: ParsedStatusCache;
+  try {
+    parsed = JSON.parse(latest.details) as ParsedStatusCache;
+  } catch {
+    return null;
+  }
+  if (isTimeoutStub(parsed)) return null;
+  if (typeof parsed.text !== "string" || parsed.text.trim().length === 0) {
+    return null;
+  }
+  if (!parsed.inputHash || parsed.inputHash !== args.inputHash) return null;
+
+  // Same inputs, valid text — re-stamp the day key WITHOUT rebuilding the
+  // snapshot or calling the provider. Preserve every field (incl. the prior
+  // `snapshotHash` + `inputHash`) so the next day's gates still match.
+  const created = await prisma.auditLog.create({
+    data: {
+      userId: args.userId,
+      action: args.cacheAction,
+      details: JSON.stringify({ ...parsed, dateKey: args.todayKey }),
+    },
+    select: { createdAt: true },
+  });
+  annotate({
+    action: { name: "insights.status.skipped_unchanged" },
+    meta: { cache_action: args.cacheAction, gate: "input" },
   });
   return { text: parsed.text, updatedAt: created.createdAt.toISOString() };
 }

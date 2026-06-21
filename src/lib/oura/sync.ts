@@ -5,14 +5,19 @@
  * (real per-segment hypnogram timeline when present, else per-stage totals;
  * efficiency, HRV, RHR, respiratory rate), daily activity (steps, active
  * energy, equivalent walking distance), the daily Sleep Score (→ SLEEP_SCORE),
- * daily SpO2 (→ OXYGEN_SATURATION), and the dedicated vO2_max collection (→
- * VO2_MAX) for one connected user, mapping each into `Measurement` rows tagged
- * `source = OURA`.
+ * daily SpO2 (→ OXYGEN_SATURATION), the dedicated vO2_max collection (→
+ * VO2_MAX), and the daily cardiovascular-age estimate (→ VASCULAR_AGE) for one
+ * connected user, mapping each into `Measurement` rows tagged `source = OURA`.
  *
  * daily_stress → STRESS_SCORE is deferred: STRESS_SCORE already has an
  * HRV-derived COMPUTED producer that is not yet wired into the source-priority
  * ladder or the weekly graded-series collapse, so a second producer here would
  * double-count nondeterministically. Re-add once STRESS_SCORE is laddered.
+ *
+ * daily_resilience → RESILIENCE (v1.19.0): the daily resilience LEVEL (limited /
+ * adequate / solid / strong / exceptional) is ordinal-encoded (limited=1 …
+ * exceptional=5) into the numeric `value` — no new categorical column. An
+ * unknown / missing level mints no row. See `RESILIENCE_LEVELS` in `./client`.
  *
  * Token model: Oura uses refresh tokens. The merged schema has no expiry
  * column, so the sync refreshes REACTIVELY — the first read that 401s triggers
@@ -43,16 +48,20 @@ import {
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
+  fetchCardiovascularAge,
   fetchDailyActivity,
   fetchDailySleep,
   fetchDailySpo2,
   fetchReadiness,
+  fetchResilience,
   fetchSleep,
   fetchVo2Max,
+  mapCardiovascularAge,
   mapDailyActivity,
   mapDailySleep,
   mapDailySpo2,
   mapReadiness,
+  mapResilience,
   mapSleep,
   mapVo2Max,
   refreshAccessToken,
@@ -106,7 +115,7 @@ function toUpsert(
 }
 
 /**
- * Fetch all three Oura collections for a user with a single reactive
+ * Fetch every Oura daily collection for a user with a single reactive
  * refresh-on-401 retry. Returns the raw mapped readings (not yet upserted).
  * Throws a classified `OuraApiError` on a hard failure so the caller records
  * the ledger entry.
@@ -122,15 +131,25 @@ async function fetchAll(
   const query = { startDate: ymd(start), endDate: ymd(now) };
 
   const run = async (token: string): Promise<OuraMeasurementUpsert[]> => {
-    const [readiness, sleeps, activities, dailySleep, spo2, vo2max] =
-      await Promise.all([
-        fetchReadiness(token, query),
-        fetchSleep(token, query),
-        fetchDailyActivity(token, query),
-        fetchDailySleep(token, query),
-        fetchDailySpo2(token, query),
-        fetchVo2Max(token, query),
-      ]);
+    const [
+      readiness,
+      sleeps,
+      activities,
+      dailySleep,
+      spo2,
+      vo2max,
+      cardioAge,
+      resilience,
+    ] = await Promise.all([
+      fetchReadiness(token, query),
+      fetchSleep(token, query),
+      fetchDailyActivity(token, query),
+      fetchDailySleep(token, query),
+      fetchDailySpo2(token, query),
+      fetchVo2Max(token, query),
+      fetchCardiovascularAge(token, query),
+      fetchResilience(token, query),
+    ]);
     const out: OuraMeasurementUpsert[] = [];
     for (const r of readiness)
       out.push(...toUpsert(mapReadiness(r), "readiness"));
@@ -141,6 +160,10 @@ async function fetchAll(
       out.push(...toUpsert(mapDailySleep(d), "daily_sleep"));
     for (const s of spo2) out.push(...toUpsert(mapDailySpo2(s), "spo2"));
     for (const v of vo2max) out.push(...toUpsert(mapVo2Max(v), "vo2max"));
+    for (const c of cardioAge)
+      out.push(...toUpsert(mapCardiovascularAge(c), "cardio_age"));
+    for (const r of resilience)
+      out.push(...toUpsert(mapResilience(r), "resilience"));
     return out;
   };
 

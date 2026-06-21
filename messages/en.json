@@ -301,6 +301,10 @@
         "viewSleep": "View sleep",
         "logMeasurement": "Log measurement",
         "viewInsights": "Open Insights"
+      },
+      "briefing": {
+        "title": "Today’s briefing",
+        "viewAll": "Open Insights"
       }
     },
     "greetingSalutation": "Hi, {name}",
@@ -540,6 +544,7 @@
     "typeCardioLoad": "Cardio load",
     "typeSleepScore": "Sleep score",
     "typeBodyTemperatureDeviation": "Body temperature deviation",
+    "typeResilience": "Resilience",
     "sourceComputed": "Computed",
     "sourceWhoop": "WHOOP",
     "sourceFitbit": "Fitbit",
@@ -2082,6 +2087,7 @@
       "errorCredentialExpired": "Your AI provider connection has expired. Reconnect it in Settings to keep the Coach running.",
       "tagline": "Personal health coach, grounded in your data.",
       "newChat": "New chat",
+      "actionsMenu": "Actions",
       "maximizeAriaLabel": "Open in full page",
       "minimizeAriaLabel": "Back to the drawer",
       "send": "Send",
@@ -2484,21 +2490,21 @@
         "skinTemperatureTitle": "Skin temperature",
         "skinTemperatureBody": "Skin temperature here is the small nightly change in your wrist temperature from your own baseline, not an absolute fever reading. Shifts can track sleep, environment, illness, or menstrual-cycle phase.",
         "cardioFitnessTitle": "Cardio fitness (VO₂ max)",
-        "cardioFitnessBody": "VO₂ max is how much oxygen your body can use at peak effort. It is the single best lab marker of aerobic fitness, and a higher or rising value is a strong sign of cardiovascular health.",
+        "cardioFitnessBody": "VO₂ max is how much oxygen your body can use at peak effort — the best lab index of aerobic fitness, which wearables estimate indirectly. As general guidance, fitness is a graded predictor of survival: each one-MET (about 3.5 mL/kg/min) higher value associates with roughly 10–25% lower mortality (AHA, Circulation 2016). A higher or rising trend is a strong sign of cardiovascular health.",
         "cardioRecoveryTitle": "Cardio recovery",
         "cardioRecoveryBody": "Cardio recovery is how many beats per minute your heart rate falls in the first minute after you stop hard exercise. A bigger drop means your heart settles down faster, which is a sign of good fitness.",
         "wristTemperatureTitle": "Wrist temperature",
-        "wristTemperatureBody": "Wrist temperature is measured while you sleep. Apple shows it as the difference from your personal baseline; a steady reading is normal, while a sustained rise can hint at illness, intense training, or a cycle change.",
+        "wristTemperatureBody": "Wrist temperature is measured while you sleep and reported as the difference from your personal baseline, not an absolute value. A steady reading is normal, while a sustained rise can hint at illness, intense training, or a menstrual-cycle change.",
         "fallsTitle": "Falls",
-        "fallsBody": "This counts the hard falls your Apple Watch detects. Zero is the goal; a rising count is a mobility-risk signal worth raising with a clinician, especially for older adults.",
+        "fallsBody": "This counts the hard falls your wearable detects. Zero is the goal; a rising count is a mobility-risk signal worth raising with a clinician, especially for older adults.",
         "sixMinuteWalkTitle": "Six-minute walk distance",
-        "sixMinuteWalkBody": "This is Apple's estimate of how far you could walk in six minutes — a long-standing clinical test of mobility and cardiopulmonary endurance. A steady or rising distance is a good sign.",
+        "sixMinuteWalkBody": "This is an estimate of how far you could walk in six minutes — a long-standing clinical test of mobility and cardiopulmonary endurance. The wearable figure is a proxy, not the supervised clinical test; a steady or rising trend is the useful read.",
         "stairAscentSpeedTitle": "Stair ascent speed",
         "stairAscentSpeedBody": "This is how fast you climb a flight of stairs. It is a sensitive marker of leg strength and mobility — a steady or rising pace is a good sign, and a falling one is worth watching.",
         "stairDescentSpeedTitle": "Stair descent speed",
         "stairDescentSpeedBody": "This is how fast you go down a flight of stairs. Together with ascent speed it tracks leg control and balance — a steady pace is a good sign, and a falling one is worth watching.",
         "breathingDisturbancesTitle": "Sleep breathing disturbances",
-        "breathingDisturbancesBody": "Your Apple Watch can estimate how often your breathing was interrupted during sleep. A lower index is better; a level Apple flags as elevated, especially over many nights, is worth raising with a clinician.",
+        "breathingDisturbancesBody": "A wearable can estimate how often your breathing was interrupted during sleep. A lower index is better; a level flagged as elevated, especially across many nights, is worth raising with a clinician. It is a screening proxy, not a sleep-apnea diagnosis.",
         "stepsTitle": "Steps",
         "stepsBody": "Step count is the total number of steps you take each day. It is the simplest measure of everyday movement, and a steady habit matters more than any single big day. As general guidance, mortality risk falls steeply toward about 8,000 steps a day with continued benefit through roughly 12,000 (Saint-Maurice JAMA 2020); the optimal count is lower for older adults. The '10,000' figure is a marketing slogan, not research.",
         "readinessBody": "Readiness is a single daily read on how prepared your body is to take on the day, blending resting heart rate, heart-rate variability, sleep, and how steady your recent nights have been. It is a device proxy benchmarked against your own baseline, not a clinical measure, and scores are not comparable across devices. A higher score means recovered and resourced; a lower one is a gentle cue to ease off.",
@@ -4703,6 +4709,7 @@
     "cycleTracking": {
       "title": "Cycle tracking",
       "description": "Track your menstrual cycle, predictions, symptoms, and phase insights. On by default for accounts set to female; available to everyone.",
+      "disclaimer": "Predictions and phases are descriptive estimates from your logged data — not medical advice and not a contraceptive method. They never indicate that it is safe to have unprotected sex. Accuracy improves as you log more cycles. For contraception or any medical decision, consult a healthcare professional.",
       "enable": "Enable cycle tracking",
       "manage": "Open cycle tracking",
       "error": "Couldn't update cycle tracking."
@@ -5682,8 +5689,6 @@
   },
   "notifications": {
     "title": "Notifications",
-    "breadcrumbInbox": "Notifications",
-    "breadcrumbChannels": "Notification channels",
     "eventColumn": "Event",
     "subtitle": "Choose which notifications you want to receive through which channel.",
     "loadError": "Notification preferences could not be loaded.",
@@ -5780,7 +5785,13 @@
     "eventCycleFertileSoon": "Fertile window coming up",
     "eventCycleFertileSoonDesc": "Sent a few days before your estimated fertile window when your goal is trying to conceive.",
     "eventMedicationLowStock": "Medication stock low",
-    "eventMedicationLowStockDesc": "When a tracked medication supply covers fewer days than your low-stock threshold"
+    "eventMedicationLowStockDesc": "When a tracked medication supply covers fewer days than your low-stock threshold",
+    "eventCoachNudge": "Coach nudge",
+    "eventCoachNudgeDesc": "Occasional prompt from your Coach when your recent trends warrant a check-in.",
+    "eventMeasurementReminder": "Measurement reminder",
+    "eventMeasurementReminderDesc": "Sent when a tracked measurement is due.",
+    "eventMedicationIntakeSync": "Medication intake sync",
+    "eventMedicationIntakeSyncDesc": "Cross-device update when a dose is logged, taken or skipped."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5906,6 +5917,16 @@
     "confirmed": "{name} confirmed.",
     "genericConfirmed": "Confirmed.",
     "cancelled": "Cancelled.",
+    "moodLogged": "Logged: {score}/5",
+    "moodNotePrompt": "Add a short note (optional).",
+    "moodNoteSaved": "Note saved.",
+    "moodNoteExpired": "That prompt has expired.",
+    "remindLater": "Reminder postponed for {duration}.",
+    "measurementDone": "Marked as done.",
+    "measurementNotFound": "Reminder not found.",
+    "buttonMoodNote": "Note…",
+    "buttonLater": "Later",
+    "buttonDone": "Done",
     "noActiveMedications": "No active medications found.",
     "whichMedication": "<b>Which medication did you take?</b>",
     "cancelButton": "Cancel",
@@ -6276,6 +6297,7 @@
       "rawChartModeDescription": "Show only your logged data with no predictions or interpretation.",
       "secondarySymptomLabel": "Secondary fertility sign",
       "secondarySymptomDescription": "The second sign paired with your temperature for the symptothermal double-check. Most people track cervical mucus; switch to cervix observation if you prefer.",
+      "secondarySymptomCitation": "Read about the method (study)",
       "secondarySymptom": {
         "MUCUS": "Cervical mucus",
         "CERVIX": "Cervix observation"

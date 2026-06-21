@@ -152,20 +152,34 @@ export function getEngagementMetrics(input: {
   measurements: MeasurementRecord[];
   moodEntries: MoodEntryRecord[];
   intakeEvents: IntakeEventRecord[];
+  /**
+   * v1.18.11 (W5 perf) — Berlin day-keys for `measurements`, precomputed
+   * once by the caller and passed in parallel to the array. When present the
+   * measurement rows reuse these instead of re-deriving a `toBerlinDayKey`
+   * per row; mood / intake timestamps (far fewer) still derive inline. Falls
+   * back to per-row derivation when absent — byte-identical result either way.
+   */
+  measurementDayKeys?: string[];
 }): {
   consistentMonthCount: number;
   entryDayStreak: number;
   weekendStreakCount: number;
 } {
-  const allDates: Date[] = [];
-  for (const m of input.measurements) allDates.push(m.measuredAt);
-  for (const e of input.moodEntries) allDates.push(e.moodLoggedAt);
+  const dayKeyAccum: string[] = [];
+  for (let i = 0; i < input.measurements.length; i++) {
+    dayKeyAccum.push(
+      input.measurementDayKeys?.[i] ??
+        toBerlinDayKey(input.measurements[i].measuredAt),
+    );
+  }
+  for (const e of input.moodEntries)
+    dayKeyAccum.push(toBerlinDayKey(e.moodLoggedAt));
   for (const i of input.intakeEvents) {
-    if (i.takenAt) allDates.push(i.takenAt);
-    else if (i.skipped) allDates.push(i.scheduledFor);
+    if (i.takenAt) dayKeyAccum.push(toBerlinDayKey(i.takenAt));
+    else if (i.skipped) dayKeyAccum.push(toBerlinDayKey(i.scheduledFor));
   }
 
-  if (allDates.length === 0) {
+  if (dayKeyAccum.length === 0) {
     return {
       consistentMonthCount: 0,
       entryDayStreak: 0,
@@ -173,9 +187,7 @@ export function getEngagementMetrics(input: {
     };
   }
 
-  const uniqueDays = Array.from(
-    new Set(allDates.map((d) => toBerlinDayKey(d))),
-  ).sort();
+  const uniqueDays = Array.from(new Set(dayKeyAccum)).sort();
   const entryDayStreak = calculateLongestStreak(uniqueDays);
 
   // consistent-month: did any Berlin-local calendar month have ≥25
@@ -256,6 +268,16 @@ export function getHiddenMetrics(input: {
   moodEntries: MoodEntryRecord[];
   intakeEvents: IntakeEventRecord[];
   auditEvents: AuditLogRecord[];
+  /**
+   * v1.18.11 (W5 perf) — Berlin day-keys + hours for `measurements`,
+   * precomputed once by the caller and passed in parallel to the array. When
+   * present the measurement rows reuse these instead of re-running
+   * `Intl.DateTimeFormat` per row for both the hour and the day-key; mood /
+   * intake timestamps (far fewer) still derive inline. Byte-identical to the
+   * per-row derivation either way.
+   */
+  measurementDayKeys?: string[];
+  measurementHours?: number[];
 }): {
   nightOwlCount: number;
   earlyBirdCount: number;
@@ -267,20 +289,25 @@ export function getHiddenMetrics(input: {
   let earlyBird = 0;
   let leapDay = 0;
 
-  const allTimestamps: Date[] = [];
-  for (const m of input.measurements) allTimestamps.push(m.measuredAt);
-  for (const e of input.moodEntries) allTimestamps.push(e.moodLoggedAt);
-  for (const i of input.intakeEvents) {
-    if (i.takenAt) allTimestamps.push(i.takenAt);
-  }
-
-  for (const ts of allTimestamps) {
-    const hour = berlinHour(ts);
+  const tally = (hour: number, dayKey: string): void => {
     if (hour >= 2 && hour < 4) nightOwl += 1;
     if (hour >= 4 && hour < 6) earlyBird += 1;
-    const dayKey = toBerlinDayKey(ts);
     // Feb 29 — only valid in leap years.
     if (dayKey.endsWith("-02-29")) leapDay += 1;
+  };
+
+  for (let i = 0; i < input.measurements.length; i++) {
+    const ts = input.measurements[i].measuredAt;
+    tally(
+      input.measurementHours?.[i] ?? berlinHour(ts),
+      input.measurementDayKeys?.[i] ?? toBerlinDayKey(ts),
+    );
+  }
+  for (const e of input.moodEntries) {
+    tally(berlinHour(e.moodLoggedAt), toBerlinDayKey(e.moodLoggedAt));
+  }
+  for (const i of input.intakeEvents) {
+    if (i.takenAt) tally(berlinHour(i.takenAt), toBerlinDayKey(i.takenAt));
   }
 
   let doctorPdfCount = 0;
@@ -353,19 +380,35 @@ export function buildExpansionMetricValues(input: {
   moodEntries: MoodEntryRecord[];
   intakeEvents: IntakeEventRecord[];
   auditEvents: AuditLogRecord[];
+  /**
+   * v1.18.11 (W5 perf) — Berlin day-keys for `measurements`, precomputed once
+   * by the caller (the achievements builder already derives them for the
+   * green-day / weekly-consistency passes) and threaded into the engagement +
+   * hidden passes so the full vitals array is `Intl`-walked once, not ~3×.
+   */
+  measurementDayKeys?: string[];
 }): ExpansionMetrics {
   const counts = countMeasurementsByType(input.measurements);
   const mood = getMoodMetrics(input.moodEntries);
+  // The hidden pass also needs the per-row Berlin hour; derive it once here
+  // (only when the caller supplied day-keys, i.e. on the hot achievements
+  // path) so a single hour pass replaces the per-pass re-derivation.
+  const measurementHours = input.measurementDayKeys
+    ? input.measurements.map((m) => berlinHour(m.measuredAt))
+    : undefined;
   const engagement = getEngagementMetrics({
     measurements: input.measurements,
     moodEntries: input.moodEntries,
     intakeEvents: input.intakeEvents,
+    measurementDayKeys: input.measurementDayKeys,
   });
   const hidden = getHiddenMetrics({
     measurements: input.measurements,
     moodEntries: input.moodEntries,
     intakeEvents: input.intakeEvents,
     auditEvents: input.auditEvents,
+    measurementDayKeys: input.measurementDayKeys,
+    measurementHours,
   });
 
   return {

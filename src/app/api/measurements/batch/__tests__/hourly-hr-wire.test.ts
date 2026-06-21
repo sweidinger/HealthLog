@@ -1,0 +1,242 @@
+/**
+ * v1.19.0 (iOS #34) — go-forward aggregated heart-rate wire contract on
+ * `POST /api/measurements/batch`.
+ *
+ * Asserts:
+ *   - a fresh hourly HR bucket inserts;
+ *   - a re-post of the same hour OVERWRITES (status `updated`, not a
+ *     duplicate row);
+ *   - a malformed hourly-HR bucket externalId is `skipped`;
+ *   - the per-sample uuid HR path is unaffected (immutable duplicate);
+ *   - the existing per-day step `stats:` overwrite path is unaffected.
+ */
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    measurement: {
+      findMany: vi.fn(),
+      createMany: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    $transaction: vi.fn(async (fn: unknown) => {
+      if (typeof fn === "function") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (fn as any)(prisma as unknown as { measurement: unknown });
+      }
+    }),
+  },
+}));
+
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/auth/audit", () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: vi.fn() }));
+vi.mock("@/lib/jobs/pr-detection", () => ({
+  enqueuePrDetection: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/jobs/reminder-satisfy", () => ({
+  enqueueReminderSatisfy: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/cache/invalidate", () => ({
+  invalidateUserMeasurements: vi.fn(),
+}));
+vi.mock("@/lib/insights/comprehensive-generate", () => ({
+  invalidateStatusInsightsForTypes: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/rollups/measurement-rollups", () => ({
+  recomputeBucketsForMeasurement: vi.fn().mockResolvedValue(undefined),
+  collapseToTypeDayKeys: vi.fn(() => []),
+}));
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => ({ get: () => null })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
+}));
+
+import { POST } from "../route";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const SESSION_OK = {
+  session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
+  user: { id: "user-1", username: "testuser", role: "USER" as const },
+};
+
+const HR_BUCKET_ID =
+  "stats:HKQuantityTypeIdentifierHeartRate:2026-06-21T14:00:00.000Z";
+
+function makeRequest(body: unknown): NextRequest {
+  return new NextRequest("http://localhost/api/measurements/batch", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function hrBucketEntry(externalId: string, value: number) {
+  return {
+    hkIdentifier: "HKQuantityTypeIdentifierHeartRate",
+    value,
+    unit: "count/min",
+    startDate: "2026-06-21T14:00:00.000Z",
+    endDate: "2026-06-21T14:59:59.000Z",
+    externalId,
+  };
+}
+
+async function readJson(res: Response) {
+  return (await res.json()) as {
+    data: {
+      processed: number;
+      inserted: number;
+      updated: number;
+      duplicates: number;
+      skipped: { index: number; reason: string }[];
+      entries: { index: number; status: string; reason?: string }[];
+    };
+  };
+}
+
+beforeEach(() => {
+  // `clearAllMocks` (not `resetAllMocks`) so the factory `$transaction`
+  // pass-through implementation survives — the overwrite path sets its
+  // per-entry status INSIDE the transaction, and a wiped impl would leave
+  // the result slot undefined and 500 the route.
+  vi.clearAllMocks();
+  vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  vi.mocked(checkRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 60,
+    resetAt: Date.now() + 60_000,
+  });
+  vi.mocked(prisma.measurement.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 0 });
+  vi.mocked(prisma.measurement.updateMany).mockResolvedValue({ count: 1 });
+});
+
+describe("POST /api/measurements/batch — hourly HR wire contract (iOS #34)", () => {
+  it("inserts a fresh hourly HR bucket as a PULSE row", async () => {
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
+    const res = await POST(
+      makeRequest({ entries: [hrBucketEntry(HR_BUCKET_ID, 72)] }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+    expect(data.inserted).toBe(1);
+    expect(data.updated).toBe(0);
+    expect(data.entries[0].status).toBe("inserted");
+
+    // Stored as a PULSE row carrying the hourly average value.
+    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
+    const rows = (createArg as { data: { type: string; value: number }[] })
+      .data;
+    expect(rows[0].type).toBe("PULSE");
+    expect(rows[0].value).toBe(72);
+  });
+
+  it("overwrites the same hour bucket on a re-post (updated, not duplicate)", async () => {
+    // The bucket already exists from an earlier within-hour post.
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        type: "PULSE",
+        source: "APPLE_HEALTH",
+        externalId: HR_BUCKET_ID,
+      },
+    ] as never);
+
+    const res = await POST(
+      makeRequest({ entries: [hrBucketEntry(HR_BUCKET_ID, 78)] }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+    expect(data.updated).toBe(1);
+    expect(data.inserted).toBe(0);
+    expect(data.duplicates).toBe(0);
+    expect(data.entries[0].status).toBe("updated");
+
+    // The overwrite went through updateMany with the new hourly average.
+    expect(prisma.measurement.updateMany).toHaveBeenCalledTimes(1);
+    const updateArg = vi.mocked(prisma.measurement.updateMany).mock.calls[0][0];
+    expect((updateArg as { data: { value: number } }).data.value).toBe(78);
+    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
+  });
+
+  it("skips a malformed hourly HR bucket externalId", async () => {
+    const res = await POST(
+      makeRequest({
+        entries: [
+          hrBucketEntry(
+            "stats:HKQuantityTypeIdentifierHeartRate:2026-06-21T14:30:00.000Z",
+            70,
+          ),
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+    expect(data.inserted).toBe(0);
+    expect(data.skipped).toEqual([
+      { index: 0, reason: "malformed_hr_bucket_id" },
+    ]);
+    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps the per-sample uuid HR path immutable (duplicate, not overwrite)", async () => {
+    const SAMPLE_ID = "B3A1C0DE-0000-4000-8000-000000000000";
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { type: "PULSE", source: "APPLE_HEALTH", externalId: SAMPLE_ID },
+    ] as never);
+
+    const res = await POST(
+      makeRequest({ entries: [hrBucketEntry(SAMPLE_ID, 99)] }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+    expect(data.duplicates).toBe(1);
+    expect(data.updated).toBe(0);
+    expect(data.entries[0].status).toBe("duplicate");
+    expect(prisma.measurement.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("leaves the per-day step stats overwrite path unaffected", async () => {
+    const STEP_STATS_ID = "stats:HKQuantityTypeIdentifierStepCount:2026-06-21";
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        type: "ACTIVITY_STEPS",
+        source: "APPLE_HEALTH",
+        externalId: STEP_STATS_ID,
+      },
+    ] as never);
+
+    const res = await POST(
+      makeRequest({
+        entries: [
+          {
+            hkIdentifier: "HKQuantityTypeIdentifierStepCount",
+            value: 8421,
+            unit: "count",
+            startDate: "2026-06-21T00:00:00.000Z",
+            endDate: "2026-06-21T23:59:59.000Z",
+            externalId: STEP_STATS_ID,
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+    expect(data.updated).toBe(1);
+    expect(data.entries[0].status).toBe("updated");
+  });
+});

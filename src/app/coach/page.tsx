@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { CoachConversation } from "@/components/insights/coach-panel/coach-conversation";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
@@ -31,7 +31,46 @@ import { useDisableCoach } from "@/hooks/use-disable-coach";
  * drawer" minimize control is removed (pointless on the dedicated page —
  * the separate bottom-right FAB drawer is the compact surface). The chat
  * claims the full content width and the viewport height below the top bar.
+ *
+ * v1.18.11 (W11) — ChatGPT-style IA: the page drops its own header bar
+ * AND the top conversation-history strip entirely. The composer is the
+ * single control hub (leading `+` actions menu = new chat + open
+ * conversations, settings deep-link, mic, send); conversation history is a
+ * left slide-in drawer opened from that menu. The composer keeps one
+ * constant, centred, max-width-capped column across the new-chat hero and
+ * the active conversation. All of that lives in `<CoachConversation>`'s
+ * page branch, so the page stays a thin gating + sizing wrapper.
+ *
+ * v1.18.11 (W11, #67) — the page is now a deep-link target INTO a
+ * conversation. A `?c=<id>` query param opens that specific thread on
+ * mount; absent it, the page auto-opens the user's most-recent thread
+ * (server-authoritative `updatedAt desc` head of the rail, so it lands the
+ * same thread on web + mobile). Both feed `<CoachConversation>`'s existing
+ * selection state — the dashboard Coach entry navigates straight into the
+ * live conversation instead of a blank landing. `?c=new` (or no thread at
+ * all) keeps the new-chat hero. The search-param read sits in a Suspense
+ * child so the client-bailout never de-opts the route.
  */
+function CoachPageBody() {
+  const searchParams = useSearchParams();
+  // `?c=new` is an explicit "start a fresh chat" escape hatch; any other
+  // value is treated as a conversation id to open. A blank/absent param
+  // falls through to most-recent auto-open.
+  const rawC = searchParams.get("c");
+  const deepLinkedId = rawC && rawC !== "new" ? rawC : null;
+
+  return (
+    <CoachConversation
+      surface="page"
+      autoFocusComposer
+      initialConversationId={deepLinkedId}
+      // Only auto-resolve most-recent when the entry did not pin a thread
+      // and did not ask for a fresh chat.
+      autoOpenMostRecent={deepLinkedId === null && rawC !== "new"}
+    />
+  );
+}
+
 export default function CoachPage() {
   const router = useRouter();
   const launch = useCoachLaunch();
@@ -79,13 +118,11 @@ export default function CoachPage() {
       // is hidden, so the page reclaims the full height below the TopBar.
       className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-8rem-env(safe-area-inset-bottom,0px))] min-h-[32rem] flex-col overflow-hidden md:-mx-6 md:h-[calc(100dvh-4rem)]"
     >
-      <CoachConversation
-        surface="page"
-        autoFocusComposer
-        renderTitle={(title) => (
-          <h1 className="min-w-0 truncate text-sm font-semibold">{title}</h1>
-        )}
-      />
+      {/* `useSearchParams` requires a Suspense boundary so the client-search
+          bailout never opts the whole route out of static optimisation. */}
+      <Suspense fallback={null}>
+        <CoachPageBody />
+      </Suspense>
     </div>
   );
 }

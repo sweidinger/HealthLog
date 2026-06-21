@@ -3,6 +3,9 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 vi.mock("@/lib/db", () => ({
   prisma: {
     auditLog: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
+    // v1.18.11 (P6) — the input gate / fingerprint probe salient inputs.
+    measurement: { groupBy: vi.fn() },
+    moodEntry: { aggregate: vi.fn() },
   },
 }));
 
@@ -21,6 +24,8 @@ vi.mock("@/lib/jobs/insight-status-generate-shared", () => ({
 
 import { prisma } from "@/lib/db";
 import {
+  computeStatusInputFingerprint,
+  gateUnchangedStatusInput,
   isTimeoutStub,
   readFreshStatusText,
   refreshUnchangedStatusInsight,
@@ -395,6 +400,247 @@ describe("refreshUnchangedStatusInsight (v1.16.8)", () => {
         cacheAction: "insights.weight-status.en",
         todayKey: TODAY,
         snapshotHash: HASH,
+      }),
+    ).toBeNull();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("computeStatusInputFingerprint (v1.18.11 P6)", () => {
+  beforeEach(() => {
+    statusConsentBlocksGeneration.mockResolvedValue(false);
+  });
+
+  it("is stable across group order and flips when a count or newest moves", async () => {
+    const t0 = new Date("2026-05-30T08:00:00.000Z");
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([
+      { type: "WEIGHT", _count: { _all: 10 }, _max: { measuredAt: t0 } },
+      {
+        type: "BLOOD_PRESSURE_SYS",
+        _count: { _all: 3 },
+        _max: { measuredAt: t0 },
+      },
+    ] as never);
+    const a = await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT", "BLOOD_PRESSURE_SYS"],
+    });
+
+    // Same data, reversed group order → identical fingerprint.
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([
+      {
+        type: "BLOOD_PRESSURE_SYS",
+        _count: { _all: 3 },
+        _max: { measuredAt: t0 },
+      },
+      { type: "WEIGHT", _count: { _all: 10 }, _max: { measuredAt: t0 } },
+    ] as never);
+    const b = await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT", "BLOOD_PRESSURE_SYS"],
+    });
+    expect(b).toBe(a);
+
+    // One more reading → count moves → fingerprint flips.
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([
+      { type: "WEIGHT", _count: { _all: 11 }, _max: { measuredAt: t0 } },
+      {
+        type: "BLOOD_PRESSURE_SYS",
+        _count: { _all: 3 },
+        _max: { measuredAt: t0 },
+      },
+    ] as never);
+    const c = await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT", "BLOOD_PRESSURE_SYS"],
+    });
+    expect(c).not.toBe(a);
+  });
+
+  it("flips when a correlation-discovery channel moves (P6-tighten)", async () => {
+    const t0 = new Date("2026-05-30T08:00:00.000Z");
+    // The card's own metric (WEIGHT) is steady across both probes; only a
+    // discovery BEHAVIOUR channel (steps) gains rows. Without the channel
+    // coverage the gate would re-stamp the stale assessment and a newly
+    // discoverable "steps → next-day weight" relation would never surface.
+    const weightOnly = [
+      { type: "WEIGHT", _count: { _all: 10 }, _max: { measuredAt: t0 } },
+    ];
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValueOnce(
+      weightOnly as never,
+    );
+    const before = await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+      includeCorrelationChannels: true,
+    });
+
+    // A new ACTIVITY_STEPS reading (a discovery channel, NOT the card's own
+    // type) appears — the grouped probe now returns it.
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValueOnce([
+      ...weightOnly,
+      {
+        type: "ACTIVITY_STEPS",
+        _count: { _all: 30 },
+        _max: { measuredAt: t0 },
+      },
+    ] as never);
+    const after = await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+      includeCorrelationChannels: true,
+    });
+    expect(after).not.toBe(before);
+  });
+
+  it("widens the grouped query by the discovery channels only when asked", async () => {
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
+    await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+    });
+    const narrow = vi.mocked(prisma.measurement.groupBy).mock.calls[0][0] as {
+      where: { type: { in: string[] } };
+    };
+    // No channel widening — exactly the card's own types.
+    expect(narrow.where.type.in).toEqual(["WEIGHT"]);
+
+    vi.mocked(prisma.measurement.groupBy).mockClear();
+    await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+      includeCorrelationChannels: true,
+    });
+    const wide = vi.mocked(prisma.measurement.groupBy).mock.calls[0][0] as {
+      where: { type: { in: string[] } };
+    };
+    // The card's own type is present exactly once (de-duped against the
+    // discovery channel set, which also carries WEIGHT as an outcome).
+    expect(wide.where.type.in.filter((t) => t === "WEIGHT")).toHaveLength(1);
+    // A behaviour channel the card never reads on its own is now folded in.
+    expect(wide.where.type.in).toContain("ACTIVITY_STEPS");
+    expect(wide.where.type.in).toContain("SLEEP_DURATION");
+    // MOOD is mood-entry backed, not a measurement type — never in the IN set.
+    expect(wide.where.type.in).not.toContain("MOOD");
+  });
+
+  it("folds mood and extra inputs into the hash when requested", async () => {
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([
+      {
+        type: "WEIGHT",
+        _count: { _all: 5 },
+        _max: { measuredAt: new Date("2026-05-30T08:00:00.000Z") },
+      },
+    ] as never);
+    vi.mocked(prisma.moodEntry.aggregate).mockResolvedValue({
+      _count: { _all: 2 },
+      _max: { moodLoggedAt: new Date("2026-05-29T20:00:00.000Z") },
+    } as never);
+
+    const withMood = await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+      includeMood: true,
+    });
+    const heightChanged = await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+      includeMood: true,
+      extra: { heightCm: 180 },
+    });
+    expect(heightChanged).not.toBe(withMood);
+    // moodEntry.aggregate is only queried when includeMood is set.
+    await computeStatusInputFingerprint({ userId: "u1", types: ["WEIGHT"] });
+    expect(prisma.moodEntry.aggregate).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("gateUnchangedStatusInput (v1.18.11 P6)", () => {
+  const INPUT = "b".repeat(64);
+
+  beforeEach(() => {
+    statusConsentBlocksGeneration.mockResolvedValue(false);
+  });
+
+  it("re-stamps the cached text and skips the build on a matching input hash", async () => {
+    const created = new Date("2026-05-31T02:00:00.000Z");
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(
+      cacheRow({
+        dateKey: "2026-05-30",
+        text: "Stable weight.",
+        model: "gpt-4o-mini",
+        inputHash: INPUT,
+        snapshotHash: "c".repeat(64),
+      }) as never,
+    );
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: created,
+    } as never);
+
+    const hit = await gateUnchangedStatusInput({
+      userId: "u1",
+      cacheAction: "insights.weight-status.en",
+      todayKey: TODAY,
+      inputHash: INPUT,
+      force: false,
+    });
+    expect(hit?.text).toBe("Stable weight.");
+    const persisted = JSON.parse(
+      (
+        vi.mocked(prisma.auditLog.create).mock.calls[0][0] as {
+          data: { details: string };
+        }
+      ).data.details,
+    ) as { dateKey: string; inputHash: string; snapshotHash: string };
+    expect(persisted.dateKey).toBe(TODAY);
+    // The prior fingerprints are preserved so the next day's gates match.
+    expect(persisted.inputHash).toBe(INPUT);
+    expect(persisted.snapshotHash).toBe("c".repeat(64));
+  });
+
+  it("misses on a differing or missing input hash (caller builds)", async () => {
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(
+      cacheRow({
+        dateKey: "2026-05-30",
+        text: "Stable weight.",
+        model: "gpt-4o-mini",
+        // no inputHash on the row
+      }) as never,
+    );
+    expect(
+      await gateUnchangedStatusInput({
+        userId: "u1",
+        cacheAction: "insights.weight-status.en",
+        todayKey: TODAY,
+        inputHash: INPUT,
+        force: false,
+      }),
+    ).toBeNull();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("misses on a forced run without touching the cache", async () => {
+    expect(
+      await gateUnchangedStatusInput({
+        userId: "u1",
+        cacheAction: "insights.weight-status.en",
+        todayKey: TODAY,
+        inputHash: INPUT,
+        force: true,
+      }),
+    ).toBeNull();
+    expect(prisma.auditLog.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("misses when the server-managed consent gate would block (no stale re-date)", async () => {
+    statusConsentBlocksGeneration.mockResolvedValue(true);
+    expect(
+      await gateUnchangedStatusInput({
+        userId: "u1",
+        cacheAction: "insights.weight-status.en",
+        todayKey: TODAY,
+        inputHash: INPUT,
+        force: false,
       }),
     ).toBeNull();
     expect(prisma.auditLog.create).not.toHaveBeenCalled();

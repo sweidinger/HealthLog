@@ -7,6 +7,19 @@ import {
   getHiddenMetrics,
   getMoodMetrics,
 } from "@/lib/gamification/expansion-metrics";
+import { toBerlinDayKey } from "@/lib/gamification/achievements";
+
+// Mirror of the module-private Berlin-hour derivation so the parity test can
+// build a CORRECT precomputed `measurementHours` array.
+const BERLIN_HOUR_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Europe/Berlin",
+  hour: "2-digit",
+  hour12: false,
+});
+function berlinHour(date: Date): number {
+  const parsed = Number.parseInt(BERLIN_HOUR_FORMATTER.format(date), 10);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
 
 describe("countMeasurementsByType", () => {
   it("counts each type independently", () => {
@@ -296,5 +309,105 @@ describe("buildExpansionMetricValues — integration smoke", () => {
     for (const value of Object.values(result)) {
       expect(value).toBe(0);
     }
+  });
+});
+
+// v1.18.11 (W5 perf) — the achievements builder now precomputes each vitals
+// row's Berlin day-key (and hour) ONCE and threads the parallel arrays into
+// the engagement + hidden passes instead of re-running `Intl.DateTimeFormat`
+// per row per pass. The optimisation must be a pure speed-up: supplying the
+// (correct) precomputed arrays has to yield results byte-identical to the
+// fallback path that derives them per row.
+describe("achievements Intl precompute — byte-identical parity", () => {
+  // Spread across hours (incl. night-owl 02-04h / early-bird 04-06h Berlin),
+  // a leap day, and multiple distinct days so every counter is exercised.
+  const measurements = [
+    { type: "WEIGHT", measuredAt: new Date("2024-02-29T03:30:00Z") }, // leap + night-owl
+    { type: "PULSE", measuredAt: new Date("2026-04-01T03:10:00Z") }, // early-bird (05:10 Berlin DST)
+    {
+      type: "BLOOD_PRESSURE_SYS",
+      measuredAt: new Date("2026-04-01T09:00:00Z"),
+    },
+    { type: "WEIGHT", measuredAt: new Date("2026-04-02T22:45:00Z") },
+    { type: "PULSE", measuredAt: new Date("2026-04-03T12:00:00Z") },
+  ];
+  const moodEntries = [
+    {
+      date: "2026-04-01",
+      score: 4,
+      moodLoggedAt: new Date("2026-04-01T20:00:00Z"),
+    },
+  ];
+  const intakeEvents = [
+    {
+      scheduledFor: new Date("2026-04-02T07:00:00Z"),
+      takenAt: new Date("2026-04-02T07:05:00Z"),
+      skipped: false,
+    },
+  ];
+  const auditEvents = [
+    {
+      action: "doctor-report.pdf.generate",
+      createdAt: new Date("2026-04-01T10:00:00Z"),
+    },
+  ];
+
+  const measurementDayKeys = measurements.map((m) =>
+    toBerlinDayKey(m.measuredAt),
+  );
+  const measurementHours = measurements.map((m) => berlinHour(m.measuredAt));
+
+  it("getEngagementMetrics: precomputed day-keys match per-row derivation", () => {
+    const fallback = getEngagementMetrics({
+      measurements,
+      moodEntries,
+      intakeEvents,
+    });
+    const precomputed = getEngagementMetrics({
+      measurements,
+      moodEntries,
+      intakeEvents,
+      measurementDayKeys,
+    });
+    expect(precomputed).toEqual(fallback);
+  });
+
+  it("getHiddenMetrics: precomputed day-keys + hours match per-row derivation", () => {
+    const fallback = getHiddenMetrics({
+      measurements,
+      moodEntries,
+      intakeEvents,
+      auditEvents,
+    });
+    const precomputed = getHiddenMetrics({
+      measurements,
+      moodEntries,
+      intakeEvents,
+      auditEvents,
+      measurementDayKeys,
+      measurementHours,
+    });
+    expect(precomputed).toEqual(fallback);
+    // Sanity: the fixture exercises the offset-independent hidden counters
+    // (leap day = 2024-02-29 Berlin-local; doctor-report audit event).
+    expect(fallback.leapDayCount).toBe(1);
+    expect(fallback.doctorPdfCount).toBe(1);
+  });
+
+  it("buildExpansionMetricValues: precomputed day-keys match fallback", () => {
+    const fallback = buildExpansionMetricValues({
+      measurements,
+      moodEntries,
+      intakeEvents,
+      auditEvents,
+    });
+    const precomputed = buildExpansionMetricValues({
+      measurements,
+      moodEntries,
+      intakeEvents,
+      auditEvents,
+      measurementDayKeys,
+    });
+    expect(precomputed).toEqual(fallback);
   });
 });

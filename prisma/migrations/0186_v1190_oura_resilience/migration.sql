@@ -1,0 +1,25 @@
+-- v1.19.0 — Oura resilience capture (additive).
+--
+-- One new `measurement_type` enum value, `RESILIENCE`, so the Oura sync can
+-- store the daily resilience level from the `daily_resilience` collection.
+--
+-- Oura exposes resilience as a categorical band — limited / adequate / solid /
+-- strong / exceptional — describing how well the body copes with cumulative
+-- load. Rather than introduce a new categorical column + CHECK constraint, the
+-- level is ORDINAL-ENCODED into the existing numeric `value`:
+--
+--     limited = 1, adequate = 2, solid = 3, strong = 4, exceptional = 5
+--
+-- The 5-level → ordinal mapping is the single source of truth in
+-- `src/lib/oura/client.ts` (RESILIENCE_LEVELS). Unit is the level scale
+-- (`level`). Stored as `source = OURA`. An unknown / missing level string mints
+-- no row (it is skipped, never coerced to 0).
+--
+-- Purely-additive: one enum extension, no backfill, no existing row touched, no
+-- new table or column. Idempotent guard (`IF NOT EXISTS`) so reruns are safe on
+-- prod.
+--
+-- Reversibility (down): Postgres cannot drop a single enum value in place; the
+-- value is inert until a row references it, so a down migration is a no-op.
+
+ALTER TYPE "measurement_type" ADD VALUE IF NOT EXISTS 'RESILIENCE';

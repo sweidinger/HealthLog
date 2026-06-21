@@ -111,13 +111,8 @@ export function MoodDistributionChart({
             // than a missing slot. The coloured bar paints over the track
             // for non-empty levels.
             background={{ fill: "var(--secondary)", opacity: 0.35, radius: 3 }}
-            // v1.15.14 — the saturated full-bleed mood hues read as
-            // "erschlagend"; soften every bar to a muted tint of its level
-            // colour. The hue (= mood-level semantics) still distinguishes the
-            // bands, but the fill sits calmly over the card rather than
-            // shouting. Scoped to this chart only — the shared `--dracula-*`
-            // mood tokens (heatmap, legend) are untouched.
-            fillOpacity={0.55}
+            // v1.19.0 — bars paint at full saturation in their level colour;
+            // the earlier muted tint read as a rendering glitch.
           >
             {data.map((row) => (
               <Cell
