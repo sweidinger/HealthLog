@@ -16,10 +16,7 @@ vi.mock("@/lib/logging/context", () => ({
 }));
 
 import { prisma } from "@/lib/db";
-import {
-  getCachedFeatures,
-  withFeatureCacheScope,
-} from "../feature-cache";
+import { getCachedFeatures, withFeatureCacheScope } from "../feature-cache";
 
 const T0 = new Date("2026-06-20T08:00:00.000Z");
 
