@@ -50,9 +50,13 @@ describe("nav-model destination list", () => {
     expect(hrefs).toContain("/vorsorge");
     const vorsorge = NAV_DESTINATIONS.find((d) => d.href === "/vorsorge");
     expect(vorsorge?.tKey).toBe("nav.vorsorge");
-    // Peer to Labs: sits in the clinical spine, before Insights.
-    expect(hrefs.indexOf("/labs")).toBeLessThan(hrefs.indexOf("/vorsorge"));
-    expect(hrefs.indexOf("/vorsorge")).toBeLessThan(hrefs.indexOf("/insights"));
+    // v1.19.1 (S4) — the fixed spine is Medications → Vorsorge → Labs →
+    // Illness → Insights, so Vorsorge sits after Medications and before Labs.
+    expect(hrefs.indexOf("/medications")).toBeLessThan(
+      hrefs.indexOf("/vorsorge"),
+    );
+    expect(hrefs.indexOf("/vorsorge")).toBeLessThan(hrefs.indexOf("/labs"));
+    expect(hrefs.indexOf("/labs")).toBeLessThan(hrefs.indexOf("/insights"));
   });
 
   it("does not list Recovery as a left-nav destination (it is an Insights pill)", () => {
@@ -99,15 +103,17 @@ describe("nav-model utility tail (N-1 — one shared list)", () => {
 });
 
 describe("visibleNavDestinations module gate", () => {
-  it("includes Cycle (between Medications and Insights) only when its module is enabled", () => {
+  it("includes Cycle (between Mood and Medications) only when its module is enabled", () => {
     // v1.18.0 — cycle is `requiresModule: "cycle"` and reads the delegated
     // `cycle` key from the same resolved module map every other gate uses.
+    // v1.19.1 (S4) — cycle sits in the head block, after Mood and before the
+    // fixed Medications → … → Achievements spine.
     const off = visibleNavDestinations({ cycle: false }).map((d) => d.href);
     const on = visibleNavDestinations({ cycle: true }).map((d) => d.href);
     expect(off).not.toContain("/cycle");
     expect(on).toContain("/cycle");
-    expect(on.indexOf("/medications")).toBeLessThan(on.indexOf("/cycle"));
-    expect(on.indexOf("/cycle")).toBeLessThan(on.indexOf("/insights"));
+    expect(on.indexOf("/mood")).toBeLessThan(on.indexOf("/cycle"));
+    expect(on.indexOf("/cycle")).toBeLessThan(on.indexOf("/medications"));
   });
 
   it("drops a module-gated entry (mood / labs / coach / achievements / insights / medications) when its module is disabled", () => {
