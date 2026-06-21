@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { CycleRing } from "./cycle-ring";
 import { BbtChart } from "./bbt-chart";
 import { CycleCalendar } from "./cycle-calendar";
-import { CycleDisclaimer } from "./cycle-disclaimer";
 import { CycleHistoryChart } from "./cycle-history-chart";
 import { LogDaySheet } from "./log-day-sheet";
 import { PhaseEducationCard } from "./phase-education-card";
@@ -118,22 +117,11 @@ export function CycleView() {
   const loading = calendar.isLoading && !calendar.data;
   const calendarError = calendar.isError && !calendar.data;
   const tileHue = wheel.phase ? PHASE_HUE[wheel.phase] : undefined;
-  // AVOID_PREGNANCY surfaces the fertile window, so it must show the stronger
-  // "not a contraceptive method" caveat. Prefer the server-resolved
-  // prediction.disclaimer (already goal-correct); fall back to the goal-derived
-  // key for the no-prediction calendar tab (QA H-1).
   const goal = calendar.data?.profile.goal;
   // Honesty-gate inputs for the phase-education card (Clue precedent): the
   // predictive phase framing only shows when prediction is on, not in
   // raw-chart mode, and at least three cycles are observed.
   const calProfile = calendar.data?.profile;
-  const disclaimerText =
-    calendar.data?.prediction?.disclaimer ??
-    t(
-      goal === "AVOID_PREGNANCY"
-        ? "cycle.disclaimer"
-        : "cycle.prediction.disclaimer",
-    );
 
   return (
     <div className="space-y-6">
@@ -162,8 +150,13 @@ export function CycleView() {
 
       {/* Desktop: ring (left) + tabs (right). Single column below lg. */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
-        {/* Wheel + compact phase card — grouped so they stick together. */}
-        <div className="flex flex-col gap-4 lg:sticky lg:top-6">
+        {/* Wheel + compact phase card — grouped so they stick together. The
+            `lg:mt-15` (3.75rem) drops the column so the wheel tile's top edge
+            lines up with the calendar / predictions content rather than the
+            tab strip: TabsList `h-9` (2.25rem) + the Tabs root `gap-2` (0.5rem)
+            + the content's `mt-4` (1rem). Below `lg` the column stacks first and
+            the offset collapses to zero. */}
+        <div className="flex flex-col gap-4 lg:sticky lg:top-6 lg:mt-15">
           {/* Wheel — the signature ring on the premium wellness-tile surface.
               `data-revealed` must sit on an ANCESTOR of `.wellness-tile-rise`
               — the keyframe selector is `[data-revealed="true"]
@@ -180,7 +173,7 @@ export function CycleView() {
                   : undefined
               }
               className={cn(
-                "wellness-tile flex flex-col items-center gap-3 rounded-xl px-6 py-6",
+                "wellness-tile flex flex-col items-center gap-3 rounded-xl px-5 py-5",
                 play && "wellness-tile-rise",
               )}
             >
@@ -321,9 +314,6 @@ export function CycleView() {
                 )}
               </CardContent>
             </Card>
-            {!loading && !calendarError ? (
-              <CycleDisclaimer text={disclaimerText} />
-            ) : null}
           </TabsContent>
 
           <TabsContent value="predictions" className="mt-4 space-y-4">
@@ -339,8 +329,6 @@ export function CycleView() {
                   prediction={calendar.data?.prediction ?? null}
                   rawChartMode={calendar.data?.profile.rawChartMode ?? false}
                   history={history.data}
-                  fallbackDisclaimer={disclaimerText}
-                  goal={goal}
                 />
                 <CycleHistoryChart history={history.data} animate={play} />
                 <BbtChart
