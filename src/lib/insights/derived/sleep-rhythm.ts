@@ -75,10 +75,14 @@ export interface SleepDebtDto {
  * Wire DTO for the average sleep per night over the rhythm window.
  *
  * v1.19.1 — a third peer card next to sleep-debt + chronotype. The mean of the
- * canonical per-night asleep totals over the same scorable-night set the debt
- * and chronotype read, so the three cards can never contradict one another.
- * Carries the same calm `partial` state under a minimum-night threshold so it
- * never asserts an average off one or two thin nights.
+ * canonical per-night asleep totals over the full scorable span (up to
+ * `DEFAULT_WINDOW_DAYS`). Each of the three cards reads its OWN sub-window —
+ * sleep-debt caps to 14 nights, chronotype to `CHRONOTYPE_WINDOW_NIGHTS`, this
+ * average over every scorable night — so the figures are each internally honest
+ * rather than identical; the card caption discloses its `nightsCounted` so the
+ * reader sees exactly which span produced the number. Carries the same calm
+ * `partial` state under a minimum-night threshold so it never asserts an average
+ * off one or two thin nights.
  */
 export interface AverageSleepDto {
   state: "partial" | "ready";
@@ -261,8 +265,11 @@ export function computeSleepRhythmFromNights(
     }));
   const chronotype = computeChronotype(chronoNights);
 
-  // Average sleep per night over the same scorable set the debt + chronotype
-  // read, so the three peer cards share one window and can't disagree.
+  // Average sleep per night over the full scorable span. Each of the three peer
+  // cards reads its OWN window — debt slices its trailing 14 nights, chronotype
+  // its trailing CHRONOTYPE_WINDOW_NIGHTS, this average every scorable night —
+  // so the figures are each internally honest rather than identical; each card's
+  // caption shows its own nightsCounted so the reader sees the span behind it.
   const averagePerNight = computeAverageSleep(scorable);
 
   return {
