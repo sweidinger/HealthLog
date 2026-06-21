@@ -128,6 +128,9 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "Biomarker", field: "contextEncrypted", kind: "bytes" },
   { model: "IllnessEpisode", field: "noteEncrypted", kind: "bytes" },
   { model: "IllnessDayLog", field: "noteEncrypted", kind: "bytes" },
+
+  // ───── v1.19.0 ECG waveform (Bytes column) ─────
+  { model: "EcgRecording", field: "waveformEncrypted", kind: "bytes" },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */
