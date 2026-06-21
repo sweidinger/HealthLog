@@ -26,7 +26,6 @@ import { ABOUT_ME_FIELD_MAX_CHARS } from "@/lib/validations/about-me";
 import { SourceChips } from "./source-chips";
 import { ReminderSuggestionCard } from "./reminder-suggestion-card";
 import { StreamedProse } from "./streamed-prose";
-import { ThinkingDisclosure } from "./thinking-disclosure";
 import { MessageTokenFooter } from "./message-token-footer";
 import type {
   CoachConversationDetailDTO,
@@ -470,11 +469,8 @@ export function MessageThread({
             providerType={streaming.inProgress ? "streaming" : null}
             inProgress={streaming.inProgress}
             errorCode={streaming.errorCode}
-            // v1.18.9 — live word-fade + the elapsed-time thinking
-            // disclosure + the just-landed token footer.
+            // v1.18.9 — live word-fade + the just-landed token footer.
             streaming
-            startedAt={streaming.startedAt}
-            reasoning={streaming.reasoning}
             usage={streaming.usage}
           />
         </div>
@@ -514,17 +510,6 @@ interface ChatBubbleProps {
    */
   streaming?: boolean;
   /**
-   * v1.18.9 — send-anchored timestamp (epoch ms) for the streaming turn,
-   * feeding the thinking disclosure's elapsed timer. Null on persisted
-   * bubbles.
-   */
-  startedAt?: number | null;
-  /**
-   * v1.18.9 — reasoning-summary text from the additive `reasoning` SSE
-   * frame, shown inside the thinking disclosure when present.
-   */
-  reasoning?: string;
-  /**
    * v1.18.9 — per-turn token usage for the just-finished streaming bubble
    * (from `done.usage`). Persisted bubbles read `tokensUsed` / `model`
    * instead.
@@ -548,8 +533,6 @@ function ChatBubble({
   errorCode,
   messageId,
   streaming,
-  startedAt,
-  reasoning,
   usage,
   tokensUsed,
   model,
@@ -678,28 +661,16 @@ function ChatBubble({
         )}
       </div>
       <div className="flex max-w-[calc(80%-2.625rem)] flex-col gap-2">
-        {/* v1.18.9 — the single thinking indicator (live elapsed-time line,
-            then an auto-collapsed past-tense disclosure). Renders only for
-            the live streaming turn — persisted bubbles pass no `startedAt`,
-            so the disclosure returns null and history stays settled. This
-            replaces the old <TypingDots> dots-plus-word combo: there is
-            never a three-dots indicator AND a "Thinking" word at once. */}
-        {streaming && startedAt != null && (
-          <ThinkingDisclosure
-            startedAt={startedAt}
-            inProgress={!!inProgress}
-            hasContent={!!content}
-            reasoning={reasoning}
-          />
-        )}
-        {/* The prose bubble. Skipped while the live turn is still thinking
-            with no prose (the disclosure carries the live state above), so
-            the user never sees an empty bubble under the indicator. The
-            `<TypingDots>` fallback below only fires when there is no live
-            disclosure (e.g. a defensive null `startedAt`). */}
-        {(content ||
-          safeError ||
-          (inProgress && !(streaming && startedAt != null))) && (
+        {/* v1.19.1 (C3) — the live turn shows the classic typing animation
+            (three pulsing dots) while it is still thinking with no prose
+            yet, restoring the writing/typing indicator the maintainer
+            prefers over the "Denke nach / Nachgedacht" reasoning disclosure.
+            The dots render inside the prose bubble below; the disclosure is
+            retired. Persisted bubbles never stream, so history stays settled. */}
+        {/* The prose bubble. While the live turn is still thinking with no
+            prose the bubble carries the typing animation; once tokens land
+            it swaps to the streamed prose without a layout jump. */}
+        {(content || safeError || inProgress) && (
           <div
             className={cn(
               "border-border/60 bg-muted/40 text-foreground",
