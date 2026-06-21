@@ -5688,8 +5688,6 @@
   },
   "notifications": {
     "title": "Notificaciones",
-    "breadcrumbInbox": "Notificaciones",
-    "breadcrumbChannels": "Canales de notificación",
     "eventColumn": "Evento",
     "subtitle": "Elige qué notificaciones recibes y por qué canal.",
     "loadError": "No se han podido cargar los ajustes de notificación.",
@@ -5786,7 +5784,13 @@
     "eventCycleFertileSoon": "Ventana fértil próxima",
     "eventCycleFertileSoonDesc": "Se envía unos días antes de tu ventana fértil estimada cuando tu objetivo es concebir.",
     "eventMedicationLowStock": "Existencias de medicación bajas",
-    "eventMedicationLowStockDesc": "Cuando unas existencias registradas cubren menos días que tu umbral de existencias"
+    "eventMedicationLowStockDesc": "Cuando unas existencias registradas cubren menos días que tu umbral de existencias",
+    "eventCoachNudge": "Aviso del Coach",
+    "eventCoachNudgeDesc": "Aviso ocasional de tu Coach cuando tus tendencias recientes justifican una revisión.",
+    "eventMeasurementReminder": "Recordatorio de medición",
+    "eventMeasurementReminderDesc": "Se envía cuando una medición registrada está pendiente.",
+    "eventMedicationIntakeSync": "Sincronización de tomas",
+    "eventMedicationIntakeSyncDesc": "Actualización entre dispositivos cuando se registra, toma u omite una dosis."
   },
   "i18n": {
     "maintainershipBanner": {
