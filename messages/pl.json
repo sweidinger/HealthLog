@@ -5687,8 +5687,6 @@
   },
   "notifications": {
     "title": "Powiadomienia",
-    "breadcrumbInbox": "Powiadomienia",
-    "breadcrumbChannels": "Kanały powiadomień",
     "eventColumn": "Zdarzenie",
     "subtitle": "Wybierz, które powiadomienia chcesz otrzymywać i którym kanałem.",
     "loadError": "Nie udało się załadować ustawień powiadomień.",
@@ -5785,7 +5783,13 @@
     "eventCycleFertileSoon": "Zbliża się okno płodności",
     "eventCycleFertileSoonDesc": "Wysyłane kilka dni przed szacowanym oknem płodności, gdy Twoim celem jest poczęcie.",
     "eventMedicationLowStock": "Niski zapas leku",
-    "eventMedicationLowStockDesc": "Gdy śledzony zapas leku wystarcza na mniej dni niż twój próg zapasu"
+    "eventMedicationLowStockDesc": "Gdy śledzony zapas leku wystarcza na mniej dni niż twój próg zapasu",
+    "eventCoachNudge": "Wskazówka Coacha",
+    "eventCoachNudgeDesc": "Okazjonalna wskazówka od Coacha, gdy twoje ostatnie trendy wymagają sprawdzenia.",
+    "eventMeasurementReminder": "Przypomnienie o pomiarze",
+    "eventMeasurementReminderDesc": "Wysyłane, gdy śledzony pomiar jest wymagany.",
+    "eventMedicationIntakeSync": "Synchronizacja przyjęć leku",
+    "eventMedicationIntakeSyncDesc": "Aktualizacja między urządzeniami, gdy dawka zostanie zapisana, przyjęta lub pominięta."
   },
   "i18n": {
     "maintainershipBanner": {

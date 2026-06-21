@@ -5687,8 +5687,6 @@
   },
   "notifications": {
     "title": "Notifications",
-    "breadcrumbInbox": "Notifications",
-    "breadcrumbChannels": "Notification channels",
     "eventColumn": "Event",
     "subtitle": "Choose which notifications you want to receive through which channel.",
     "loadError": "Notification preferences could not be loaded.",
@@ -5785,7 +5783,13 @@
     "eventCycleFertileSoon": "Fertile window coming up",
     "eventCycleFertileSoonDesc": "Sent a few days before your estimated fertile window when your goal is trying to conceive.",
     "eventMedicationLowStock": "Medication stock low",
-    "eventMedicationLowStockDesc": "When a tracked medication supply covers fewer days than your low-stock threshold"
+    "eventMedicationLowStockDesc": "When a tracked medication supply covers fewer days than your low-stock threshold",
+    "eventCoachNudge": "Coach nudge",
+    "eventCoachNudgeDesc": "Occasional prompt from your Coach when your recent trends warrant a check-in.",
+    "eventMeasurementReminder": "Measurement reminder",
+    "eventMeasurementReminderDesc": "Sent when a tracked measurement is due.",
+    "eventMedicationIntakeSync": "Medication intake sync",
+    "eventMedicationIntakeSyncDesc": "Cross-device update when a dose is logged, taken or skipped."
   },
   "i18n": {
     "maintainershipBanner": {

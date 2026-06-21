@@ -5687,8 +5687,6 @@
   },
   "notifications": {
     "title": "Benachrichtigungen",
-    "breadcrumbInbox": "Benachrichtigungen",
-    "breadcrumbChannels": "Benachrichtigungs-Kanäle",
     "eventColumn": "Ereignis",
     "subtitle": "Wähle aus, welche Benachrichtigungen du über welchen Kanal erhalten möchtest.",
     "loadError": "Benachrichtigungseinstellungen konnten nicht geladen werden.",
@@ -5785,7 +5783,13 @@
     "eventCycleFertileSoon": "Fruchtbares Fenster steht bevor",
     "eventCycleFertileSoonDesc": "Wird einige Tage vor deinem geschätzten fruchtbaren Fenster gesendet, wenn dein Ziel die Empfängnis ist.",
     "eventMedicationLowStock": "Medikamentenvorrat niedrig",
-    "eventMedicationLowStockDesc": "Wenn ein erfasster Vorrat weniger Tage abdeckt als deine Vorratsschwelle"
+    "eventMedicationLowStockDesc": "Wenn ein erfasster Vorrat weniger Tage abdeckt als deine Vorratsschwelle",
+    "eventCoachNudge": "Coach-Hinweis",
+    "eventCoachNudgeDesc": "Gelegentlicher Hinweis deines Coaches, wenn deine jüngsten Verläufe einen Check-in nahelegen.",
+    "eventMeasurementReminder": "Mess-Erinnerung",
+    "eventMeasurementReminderDesc": "Wird gesendet, wenn eine erfasste Messung fällig ist.",
+    "eventMedicationIntakeSync": "Einnahme-Synchronisierung",
+    "eventMedicationIntakeSyncDesc": "Geräteübergreifende Aktualisierung, wenn eine Dosis protokolliert, eingenommen oder übersprungen wird."
   },
   "i18n": {
     "maintainershipBanner": {
