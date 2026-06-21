@@ -58,6 +58,12 @@ const READY_DTO: SleepRhythmDto = {
     workNightsCounted: 14,
     freeNightsUntilReady: 0,
   },
+  averagePerNight: {
+    state: "ready",
+    averageMinutes: 420,
+    nightsCounted: 5,
+    nightsUntilReady: 0,
+  },
 };
 
 beforeEach(() => {

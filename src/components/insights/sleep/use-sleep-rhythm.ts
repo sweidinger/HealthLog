@@ -11,10 +11,11 @@ import { apiGet } from "@/lib/api/api-fetch";
 import type {
   SleepDebtDto,
   ChronotypeDto,
+  AverageSleepDto,
   SleepRhythmDto,
 } from "@/lib/insights/derived/sleep-rhythm";
 
-export type { SleepDebtDto, ChronotypeDto, SleepRhythmDto };
+export type { SleepDebtDto, ChronotypeDto, AverageSleepDto, SleepRhythmDto };
 
 /**
  * Read the server-authoritative sleep-rhythm DTO. Gated on `enabled` so a

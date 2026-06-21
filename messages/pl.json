@@ -2587,6 +2587,12 @@
         "clearCaption": "Brak skumulowanego niedoboru w ostatnich {nights} nocach",
         "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodny bilans."
       },
+      "average": {
+        "title": "Średnia na noc",
+        "value": "{hours} godz. {minutes} min",
+        "caption": "Średni sen w ciągu ostatnich {nights} nocy",
+        "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodną średnią."
+      },
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Wciąż poznajemy Twój rytm — {counted} z {total} wolnych nocy. Chronotyp wymaga kilku poranków bez budzika, aby coś znaczył.",
