@@ -181,11 +181,12 @@ const illnessVitalReturn = z
     type: z.string(),
     returnedDay: z.string().nullable(),
     gapDays: z.number().nullable(),
+    adverse: z.boolean(),
   })
   .meta({
     id: "IllnessVitalReturn",
     description:
-      "A vital's physiological return: the first day it re-entered its band AND held, and the signed gap (days) from the felt-better marker (positive = the body lagged the feeling).",
+      "A physiological / symptom return: the first day the metric re-entered its band AND held, the signed gap (days) from the felt-better marker (positive = the body lagged the feeling), and whether the move was illness-adverse (only adverse returns name the driver). `type` is a MeasurementType or `FUNCTIONAL_IMPACT` for the user-logged symptom-burden track (functionalImpact, baseline = constant 0).",
   });
 
 const illnessRedFlag = z
@@ -210,12 +211,13 @@ const illnessCorrelationValue = z
     recoveryGapDays: z.number().nullable(),
     adverseCoverageDays: z.number().int(),
     feltBetterDay: z.string().nullable(),
+    gapDriverType: z.string().nullable(),
     redFlags: z.array(illnessRedFlag),
   })
   .meta({
     id: "IllnessCorrelationValue",
     description:
-      "The retrospective correlation findings for one episode: pre-onset anomaly scan, nadir, per-vital physiological returns, the headline recovery-gap (median of per-vital gaps), and any red flags.",
+      "The retrospective correlation findings for one episode: pre-onset anomaly scan, nadir, per-vital physiological returns (incl. the user-logged symptom-burden track, `type:FUNCTIONAL_IMPACT`), the headline recovery-gap (median of per-track gaps), the driving metric (`gapDriverType`), and any red flags.",
   });
 
 const illnessCorrelationResponse = z

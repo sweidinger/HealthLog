@@ -66,6 +66,21 @@ export const NOTABLE_SD = 2;
  * for the recovery-gap (one lucky in-band day is not a recovery).
  */
 export const RETURN_STABILITY_DAYS = 3;
+/**
+ * Sentinel `type` for the functional-impact return track. The symptom curve is
+ * NOT a `MeasurementType` — it is the user's own logged daily-impact slider —
+ * so it rides `returns[]` under a stable string key the surface keys copy off
+ * (the typed `VitalReturnFinding.type` is widened to accept it). Tallied like
+ * any vital type in `gapReturnTypes` so it can win `gapDriverType`.
+ */
+export const FUNCTIONAL_IMPACT_RETURN_KEY = "FUNCTIONAL_IMPACT" as const;
+/**
+ * Functional-impact threshold (0–3 slider) at/above which a logged day counts
+ * as ADVERSE (symptomatic). The baseline is the known constant 0 (healthy), so
+ * the symptom curve needs none of the MAD-band / contamination machinery the
+ * passive vitals carry — "return" is simply impact back to below this floor.
+ */
+export const FUNCTIONAL_IMPACT_ADVERSE_FLOOR = 1;
 /** Minimum episode days with ANY vital coverage before the gap is asserted. */
 export const MIN_EPISODE_COVERAGE_DAYS = 4;
 
@@ -153,6 +168,22 @@ export interface DayLogFeverPoint {
   feverC: number;
 }
 
+/**
+ * A user-logged symptom-burden reading from the illness day-log, keyed by the
+ * stored `date` (already the user-tz local day). `impact` is the day's
+ * `functionalImpact` slider (0–3, 0 = fully functional … 3 = bedbound); when
+ * NULL it is the day's max linked `IllnessSymptomLink.severity` (0–3) as a
+ * fallback corroborator, or null when neither was logged. Present days only —
+ * never zero-filled (mirrors the fever read), so sparse logging WITHHOLDS the
+ * symptom return rather than fabricating an all-clear from absence of rows.
+ */
+export interface SymptomBurdenPoint {
+  /** Local day key, `YYYY-MM-DD`. */
+  day: string;
+  /** The day's symptom burden (0–3): functionalImpact, else max severity. */
+  impact: number;
+}
+
 /** The dates the engine reasons over, all `YYYY-MM-DD` local day keys. */
 export interface EpisodeWindow {
   /** Onset day. */
@@ -174,6 +205,17 @@ export interface IllnessCorrelationInput {
    * escalation even with no passive BODY_TEMPERATURE rows. Optional.
    */
   dayLogFever?: DayLogFeverPoint[];
+  /**
+   * Per-day symptom-burden readings from the illness day-log (`functionalImpact`
+   * primary, max linked symptom `severity` as fallback). Folded into the
+   * recovery-gap as ONE more return track against the known-constant baseline
+   * (healthy = 0): a "symptom return" is the burden back below the adverse floor
+   * and held for `RETURN_STABILITY_DAYS` LOGGED days. Always `adverse:true` (it
+   * is illness-relevant by construction), so it contributes to
+   * `adverseCoverageDays` and can drive the headline gap even on a
+   * passive-vital-thin episode. Optional.
+   */
+  symptomBurden?: SymptomBurdenPoint[];
   /** Provenance source the dominant read resolved against. */
   source: "DAY" | "live" | "none";
   /** Compute time (injected for deterministic tests). */
@@ -201,7 +243,11 @@ export interface VitalDeviationFinding {
 
 /** A vital's recovery timing within the episode. */
 export interface VitalReturnFinding {
-  type: MeasurementType;
+  /**
+   * The metric the return describes — a `MeasurementType` for a passive vital,
+   * or `FUNCTIONAL_IMPACT_RETURN_KEY` for the user-logged symptom-burden track.
+   */
+  type: MeasurementType | typeof FUNCTIONAL_IMPACT_RETURN_KEY;
   /** First day the vital re-entered its band AND stayed in for the window. */
   returnedDay: string | null;
   /** Days from felt-better to physiological return (signed); null if N/A. */
@@ -255,6 +301,16 @@ export interface IllnessCorrelationValue {
   adverseCoverageDays: number;
   /** Felt-better marker echoed for the surface. */
   feltBetterDay: string | null;
+  /**
+   * The metric whose physiological return dominates the headline gap — the
+   * adverse return-track whose own gap is closest to the median, with the
+   * functional-impact symptom track winning ties (it is the most
+   * illness-specific signal). A `MeasurementType`,
+   * `FUNCTIONAL_IMPACT_RETURN_KEY`, or null when no adverse return drove a gap.
+   * The card names it ("…before your symptoms eased" vs "…before your resting
+   * heart rate settled"). Retrospective only.
+   */
+  gapDriverType: string | null;
   /**
    * Red-flag escalation — a sustained adverse SpO2 drop or sustained fever
    * during the episode. Retrospective, but the copy must escalate ("if this
@@ -471,6 +527,21 @@ export function computeIllnessCorrelation(
     }
   }
 
+  // Symptom-burden return track — the user's OWN logged daily-impact curve,
+  // folded in as one more return against the KNOWN-CONSTANT baseline (healthy
+  // = 0). No MAD band, no contamination guard, no min-baseline floor: the band
+  // IS the constant 0, so it sidesteps every reliability caveat the passive
+  // vitals carry. Always adverse by construction (a logged impact is illness-
+  // relevant), so it contributes to `adverseCoverageDays` and the headline gap
+  // even when the passive vitals are thin — the genuine illness-relevant
+  // contributor the WEIGHT-only floor lacked. Logged-days-only stability:
+  // sparse logging WITHHOLDS the return rather than fabricating an all-clear.
+  const symptomReturn = computeSymptomReturn(input.symptomBurden ?? [], window);
+  if (symptomReturn) {
+    returns.push(symptomReturn.finding);
+    for (const day of symptomReturn.adverseDays) adverseDayKeys.add(day);
+  }
+
   // Red-flag escalation runs DECOUPLED from the banded loop: it scans the raw
   // episode days for SpO2 + temperature against ABSOLUTE clinical floors, so a
   // rock-steady (MAD=0) vital that drops the band filter still escalates — the
@@ -488,6 +559,31 @@ export function computeIllnessCorrelation(
     window.lifecycle === "CHRONIC_ONGOING" || gaps.length === 0
       ? null
       : Math.round(median(gaps));
+
+  // Name the per-episode driver: among the ADVERSE return tracks that produced
+  // a real gap, the one whose own gap sits closest to the headline median (it
+  // is the return that "explains" the headline). The functional-impact symptom
+  // track wins ties — it is the most illness-specific signal the engine has, so
+  // when it co-explains the gap it gets to name it ("…before your symptoms
+  // eased"). Null when no adverse return drove a gap.
+  const gapDriverType =
+    recoveryGapDays === null
+      ? null
+      : (returns
+          .filter(
+            (r): r is VitalReturnFinding & { gapDays: number } =>
+              r.gapDays !== null && r.adverse,
+          )
+          .sort((a, b) => {
+            const da = Math.abs(a.gapDays - recoveryGapDays);
+            const db = Math.abs(b.gapDays - recoveryGapDays);
+            if (da !== db) return da - db;
+            // Tie: prefer the functional-impact symptom track, then by name.
+            const fa = a.type === FUNCTIONAL_IMPACT_RETURN_KEY ? 0 : 1;
+            const fb = b.type === FUNCTIONAL_IMPACT_RETURN_KEY ? 0 : 1;
+            if (fa !== fb) return fa - fb;
+            return String(a.type) < String(b.type) ? -1 : 1;
+          })[0]?.type ?? null);
 
   const { coverage, confidence } = deriveCoverage({
     requiredInputs: 1,
@@ -510,6 +606,7 @@ export function computeIllnessCorrelation(
       recoveryGapDays,
       adverseCoverageDays: adverseDayKeys.size,
       feltBetterDay: window.feltBetterDay,
+      gapDriverType: gapDriverType === null ? null : String(gapDriverType),
       redFlags,
     },
     coverage,
@@ -542,6 +639,87 @@ function firstStableReturn(
     if (run >= RETURN_STABILITY_DAYS) return inBand[i].day;
   }
   return null;
+}
+
+/**
+ * Compute the functional-impact (symptom-burden) return track for one episode.
+ *
+ * The symptom curve's baseline is the KNOWN CONSTANT 0 (healthy), so this needs
+ * none of the passive vitals' MAD-band / contamination machinery — "adverse" is
+ * simply `impact >= FUNCTIONAL_IMPACT_ADVERSE_FLOOR`, "in band" is below it.
+ *
+ *  - Only LOGGED days (present in `burden`) participate — never zero-filled.
+ *  - The anchor is the first logged adverse day (same role as the vital
+ *    `firstDeviationIndex`): a return search starts AFTER it, so a run-up is
+ *    never read as a return.
+ *  - A "return" is the first logged day at/after the anchor that is in-band AND
+ *    stays in-band for the next `RETURN_STABILITY_DAYS` LOGGED days. LOGGED-days
+ *    stability (not calendar days) is the honest-withholding handler for sparse
+ *    journals: a single trailing impact-0 log never satisfies the run, so the
+ *    track WITHHOLDS rather than fabricating recovery from absence of rows.
+ *  - The gap is `dayDiff(feltBetterDay, returnedDay)`, same signed semantic.
+ *  - Always `adverse:true` (a logged symptom curve is illness-relevant), so it
+ *    feeds `adverseCoverageDays` and can drive the headline gap.
+ *
+ * Returns null (contributes nothing) when no adverse day was logged or the
+ * episode is CHRONIC_ONGOING. `adverseDays` is the set of logged adverse days in
+ * the active span, for the coverage tally.
+ */
+function computeSymptomReturn(
+  burden: SymptomBurdenPoint[],
+  window: EpisodeWindow,
+): { finding: VitalReturnFinding; adverseDays: string[] } | null {
+  if (window.lifecycle === "CHRONIC_ONGOING") return null;
+  // Active span only, chronological. (Logged days are sparse and arbitrary, so
+  // a stable sort by the day key is the canonical order.)
+  const active = burden
+    .filter((p) => p.day >= window.onsetDay)
+    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  if (active.length === 0) return null;
+
+  const adverseDays = active
+    .filter((p) => p.impact >= FUNCTIONAL_IMPACT_ADVERSE_FLOOR)
+    .map((p) => p.day);
+  // No adverse day logged → there is nothing to "return" from.
+  if (adverseDays.length === 0) return null;
+
+  // Anchor: first logged adverse day. The return search starts there so an
+  // early in-band log (impact 0 before symptoms appeared) is never a return.
+  const firstAdverseIndex = active.findIndex(
+    (p) => p.impact >= FUNCTIONAL_IMPACT_ADVERSE_FLOOR,
+  );
+  let returnedDay: string | null = null;
+  for (let i = firstAdverseIndex; i < active.length; i++) {
+    if (active[i].impact >= FUNCTIONAL_IMPACT_ADVERSE_FLOOR) continue;
+    // Count consecutive in-band LOGGED days from here.
+    let run = 0;
+    for (
+      let j = i;
+      j < active.length && active[j].impact < FUNCTIONAL_IMPACT_ADVERSE_FLOOR;
+      j++
+    ) {
+      run++;
+    }
+    if (run >= RETURN_STABILITY_DAYS) {
+      returnedDay = active[i].day;
+      break;
+    }
+  }
+
+  const gapDays =
+    returnedDay && window.feltBetterDay
+      ? dayDiff(window.feltBetterDay, returnedDay)
+      : null;
+
+  return {
+    finding: {
+      type: FUNCTIONAL_IMPACT_RETURN_KEY,
+      returnedDay,
+      gapDays,
+      adverse: true,
+    },
+    adverseDays,
+  };
 }
 
 /**
