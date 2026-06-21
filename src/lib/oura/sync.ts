@@ -14,11 +14,10 @@
  * ladder or the weekly graded-series collapse, so a second producer here would
  * double-count nondeterministically. Re-add once STRESS_SCORE is laddered.
  *
- * daily_resilience is deferred: resilience is a categorical level (limited /
- * adequate / solid / strong / exceptional), not a numeric metric, and HealthLog
- * has no categorical enum + column for it. Capturing it faithfully needs a new
- * MeasurementType plus a categorical context column + CHECK constraint (a
- * migration) — out of scope for this migration-free release.
+ * daily_resilience → RESILIENCE (v1.19.0): the daily resilience LEVEL (limited /
+ * adequate / solid / strong / exceptional) is ordinal-encoded (limited=1 …
+ * exceptional=5) into the numeric `value` — no new categorical column. An
+ * unknown / missing level mints no row. See `RESILIENCE_LEVELS` in `./client`.
  *
  * Token model: Oura uses refresh tokens. The merged schema has no expiry
  * column, so the sync refreshes REACTIVELY — the first read that 401s triggers
@@ -54,6 +53,7 @@ import {
   fetchDailySleep,
   fetchDailySpo2,
   fetchReadiness,
+  fetchResilience,
   fetchSleep,
   fetchVo2Max,
   mapCardiovascularAge,
@@ -61,6 +61,7 @@ import {
   mapDailySleep,
   mapDailySpo2,
   mapReadiness,
+  mapResilience,
   mapSleep,
   mapVo2Max,
   refreshAccessToken,
@@ -114,7 +115,7 @@ function toUpsert(
 }
 
 /**
- * Fetch all three Oura collections for a user with a single reactive
+ * Fetch every Oura daily collection for a user with a single reactive
  * refresh-on-401 retry. Returns the raw mapped readings (not yet upserted).
  * Throws a classified `OuraApiError` on a hard failure so the caller records
  * the ledger entry.
@@ -130,16 +131,25 @@ async function fetchAll(
   const query = { startDate: ymd(start), endDate: ymd(now) };
 
   const run = async (token: string): Promise<OuraMeasurementUpsert[]> => {
-    const [readiness, sleeps, activities, dailySleep, spo2, vo2max, cardioAge] =
-      await Promise.all([
-        fetchReadiness(token, query),
-        fetchSleep(token, query),
-        fetchDailyActivity(token, query),
-        fetchDailySleep(token, query),
-        fetchDailySpo2(token, query),
-        fetchVo2Max(token, query),
-        fetchCardiovascularAge(token, query),
-      ]);
+    const [
+      readiness,
+      sleeps,
+      activities,
+      dailySleep,
+      spo2,
+      vo2max,
+      cardioAge,
+      resilience,
+    ] = await Promise.all([
+      fetchReadiness(token, query),
+      fetchSleep(token, query),
+      fetchDailyActivity(token, query),
+      fetchDailySleep(token, query),
+      fetchDailySpo2(token, query),
+      fetchVo2Max(token, query),
+      fetchCardiovascularAge(token, query),
+      fetchResilience(token, query),
+    ]);
     const out: OuraMeasurementUpsert[] = [];
     for (const r of readiness)
       out.push(...toUpsert(mapReadiness(r), "readiness"));
@@ -152,6 +162,8 @@ async function fetchAll(
     for (const v of vo2max) out.push(...toUpsert(mapVo2Max(v), "vo2max"));
     for (const c of cardioAge)
       out.push(...toUpsert(mapCardiovascularAge(c), "cardio_age"));
+    for (const r of resilience)
+      out.push(...toUpsert(mapResilience(r), "resilience"));
     return out;
   };
 

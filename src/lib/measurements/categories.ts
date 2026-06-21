@@ -200,6 +200,10 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   // Body-temperature deviation is an overnight thermal signal that pairs with
   // skin / wrist temperature in the metabolic cluster.
   ["BODY_TEMPERATURE_DEVIATION", "metabolic"],
+  // ── v1.19.0 — Oura resilience ──
+  // The resilience level is a derived recovery composite (ordinal-encoded
+  // band) → scores cluster alongside RECOVERY_SCORE / ANS_CHARGE.
+  ["RESILIENCE", "scores"],
 ]);
 
 /**

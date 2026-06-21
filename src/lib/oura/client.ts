@@ -239,6 +239,22 @@ export interface OuraCardiovascularAge {
   vascular_age?: number | null;
 }
 
+/**
+ * Oura `daily_resilience` — the daily resilience LEVEL, a categorical band
+ * describing how well the body copes with cumulative load. The headline is the
+ * `level` string (limited / adequate / solid / strong / exceptional); the
+ * collection also carries `contributors` (sleep_recovery / daytime_recovery /
+ * stress) which we do NOT ingest — we capture only the headline level.
+ * Re-verify the `level` field name + value set against
+ * `cloud.ouraring.com/v2/docs` at build time.
+ */
+export interface OuraResilience {
+  id?: string;
+  day: string;
+  /** limited | adequate | solid | strong | exceptional */
+  level?: string | null;
+}
+
 export interface OuraDailyActivity {
   id: string;
   day: string;
@@ -400,13 +416,17 @@ export function fetchCardiovascularAge(
   );
 }
 
-// Oura `daily_resilience` → no fitting enum. Resilience is a categorical level
-// (limited / adequate / solid / strong / exceptional), not a numeric metric;
-// HealthLog has no categorical enum + column for it (RECOVERY_SCORE / ANS_CHARGE
-// are numeric scores, not a resilience band). Capturing it faithfully would
-// need a new MeasurementType plus a categorical context column + CHECK
-// constraint (a migration). Deferred until a migration lands — see the v1.18.11
-// backlog report.
+export function fetchResilience(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraResilience[]> {
+  return fetchCollection<OuraResilience>(
+    "/v2/usercollection/daily_resilience",
+    accessToken,
+    "fetchResilience",
+    query,
+  );
+}
 
 // ─── Field → Measurement mapping ───────────────────────────────
 
@@ -753,6 +773,49 @@ export function mapCardiovascularAge(
       unit: "years",
       measuredAt,
       fieldTag: "vascular_age",
+    },
+  ];
+}
+
+/**
+ * Single source of truth for the Oura resilience level → ordinal encoding.
+ * Oura's `daily_resilience.level` is a categorical band; we store it ORDINAL-
+ * ENCODED in the numeric Measurement `value` so it fits the existing model with
+ * no new categorical column. Keep in lock-step with the schema comment on the
+ * `RESILIENCE` enum value and migration 0186.
+ */
+export const RESILIENCE_LEVELS: Record<string, number> = {
+  limited: 1,
+  adequate: 2,
+  solid: 3,
+  strong: 4,
+  exceptional: 5,
+};
+
+/** The unit recorded for a RESILIENCE row — the ordinal level scale (1–5). */
+export const RESILIENCE_UNIT = "level" as const;
+
+/**
+ * Map one Oura `daily_resilience` record → `RESILIENCE`, ordinal-encoded
+ * (limited=1 … exceptional=5) into the numeric `value`. An unknown / missing
+ * level string mints NO row (skipped, never coerced to 0) so a future Oura band
+ * we do not recognise never lands as a misleading reading. Anchored at the
+ * day's UTC midnight (the collection carries no per-record instant).
+ */
+export function mapResilience(r: OuraResilience): MappedMeasurement[] {
+  const level = typeof r.level === "string" ? r.level.toLowerCase() : null;
+  if (!level) return [];
+  const ordinal = RESILIENCE_LEVELS[level];
+  if (typeof ordinal !== "number") return [];
+  const measuredAt = dayAnchor(r.day);
+  if (!measuredAt) return [];
+  return [
+    {
+      type: "RESILIENCE",
+      value: ordinal,
+      unit: RESILIENCE_UNIT,
+      measuredAt,
+      fieldTag: "resilience",
     },
   ];
 }

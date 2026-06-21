@@ -73,6 +73,10 @@ const MEASUREMENT_TYPES_WITHOUT_HK_COUNTERPART = new Set<MeasurementType>([
   // by design.
   "SLEEP_SCORE",
   "BODY_TEMPERATURE_DEVIATION",
+  // v1.19.0 — Oura resilience. The resilience level ingests server-side from
+  // the Oura API (source = OURA), never from HealthKit: Apple ships no
+  // resilience metric. No HK mapping by design.
+  "RESILIENCE",
 ]);
 
 describe("APPLE_HEALTH_TYPE_MAP", () => {

@@ -116,6 +116,12 @@ export const measurementTypeEnum = z.enum([
   // buckets. Both ingest server-side as `source = OURA`.
   "SLEEP_SCORE",
   "BODY_TEMPERATURE_DEVIATION",
+  // ── v1.19.0 — Oura resilience (additive) ──
+  // Oura's daily resilience LEVEL (`daily_resilience.level`) — a categorical
+  // band (limited / adequate / solid / strong / exceptional) ORDINAL-ENCODED
+  // into the numeric value (limited=1 … exceptional=5), unit `level`. Ingests
+  // server-side as `source = OURA`. See `RESILIENCE_LEVELS` in `src/lib/oura/client`.
+  "RESILIENCE",
 ]);
 
 /**
@@ -333,6 +339,10 @@ const unitMap: Record<string, string> = {
   SLEEP_SCORE: "score",
   // Signed body-temperature deviation in °C (Oura nightly baseline offset).
   BODY_TEMPERATURE_DEVIATION: "celsius",
+  // ── v1.19.0 — Oura resilience ──
+  // Ordinal level scale (1=limited … 5=exceptional) — the categorical band
+  // encoded into the numeric value. See RESILIENCE_LEVELS in src/lib/oura/client.
+  RESILIENCE: "level",
 };
 
 export function getUnitForType(type: string): string {
@@ -523,6 +533,10 @@ export const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // rejects an obvious sensor glitch while keeping every real illness /
   // luteal-phase swing.
   BODY_TEMPERATURE_DEVIATION: { min: -5, max: 5 },
+  // ── v1.19.0 — Oura resilience ──
+  // Ordinal level scale: 1 (limited) … 5 (exceptional). The closed encoding
+  // never falls outside this band.
+  RESILIENCE: { min: 1, max: 5 },
 };
 
 export function validateMeasurementRange(
