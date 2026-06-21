@@ -52,6 +52,9 @@ vi.mock("@/lib/db-compat", () => ({
 // the standard module mock works.
 vi.mock("@/lib/insights/features", () => ({
   extractFeatures: vi.fn(async () => ({ stub: true })),
+  // v1.19.0 — the generate route reads the bounded briefing window constant;
+  // the mock must export it or the route throws on access.
+  BRIEFING_FEATURE_WINDOW_DAYS: 400,
 }));
 vi.mock("@/lib/insights/prompt", () => ({
   getInsightsSystemPrompt: vi.fn(() => "system"),
