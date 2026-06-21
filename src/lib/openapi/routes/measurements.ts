@@ -26,7 +26,12 @@ const batchEntrySchema = z
       .describe(
         "HealthKit identifier (e.g. `HKQuantityTypeIdentifierBodyMass`).",
       ),
-    value: z.number().finite(),
+    value: z
+      .number()
+      .finite()
+      .describe(
+        "Raw HealthKit reading in Apple's native unit; the server applies any canonical scaling at ingest. For an hourly heart-rate bucket (see `externalId`) this is the hour's AVERAGE bpm — v1.19.0 ships avg-only; min/max are a documented fast-follow.",
+      ),
     unit: z.string().min(1).max(60),
     startDate: z.iso.datetime({ offset: true }),
     endDate: z.iso.datetime({ offset: true }),
@@ -52,7 +57,12 @@ const batchEntrySchema = z
       .string()
       .min(1)
       .max(120)
-      .describe("HKSample.uuid string — the dedup key."),
+      .describe(
+        "Dedup key for the `(userId, type, source, externalId)` composite index. Three shapes:\n" +
+          "• `HKSample.uuid` — a per-sample reading. First-write-wins: a re-post returns `duplicate` and the stored row is immutable.\n" +
+          "• `stats:<HKQuantityTypeIdentifier>:<YYYY-MM-DD>` — a per-day cumulative total (Steps, Active Energy, Sleep Duration, Walking/Running Distance, Flights Climbed). A re-post OVERWRITES the row and returns `updated`.\n" +
+          "• `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start-hour>` — v1.19.0 (iOS #34) hourly heart-rate bucket carrying the hour's AVERAGE bpm as one PULSE row. `<bucket-start-hour>` is the ISO-8601 UTC hour boundary with zeroed minutes/seconds/millis and a trailing `Z` (e.g. `2026-06-21T14:00:00.000Z`). A re-post within the hour OVERWRITES the row and returns `updated`, so iOS uploads ~24 rows/day instead of one per raw HR sample. A row that targets this prefix with a malformed hour suffix is `skipped` with reason `malformed_hr_bucket_id`.",
+      ),
     externalSourceVersion: z.string().min(1).max(120).optional(),
     // v1.8.6 W6 — optional per-entry source tag. Defaults to
     // `APPLE_HEALTH` server-side when omitted, so legacy clients are
@@ -90,16 +100,27 @@ const batchPayloadSchema = z
 const batchEntryResult = z
   .object({
     index: z.number().int().nonnegative(),
-    status: z.enum(["inserted", "duplicate", "skipped"]),
+    status: z
+      .enum(["inserted", "updated", "duplicate", "skipped"])
+      .describe(
+        "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate (per-day cumulative total or hourly heart-rate bucket) overwrote an existing row. `skipped` — not stored (e.g. unmappable identifier, out-of-range value, or `malformed_hr_bucket_id`); see `reason`.",
+      ),
     reason: z.string().optional(),
   })
   .meta({ id: "AppleHealthBatchEntryResult" });
 
 const batchResponse = z
   .object({
+    processed: z.number().int().nonnegative(),
     inserted: z.number().int().nonnegative(),
-    duplicate: z.number().int().nonnegative(),
-    skipped: z.number().int().nonnegative(),
+    updated: z.number().int().nonnegative(),
+    duplicates: z.number().int().nonnegative(),
+    skipped: z.array(
+      z.object({
+        index: z.number().int().nonnegative(),
+        reason: z.string(),
+      }),
+    ),
     entries: z.array(batchEntryResult),
   })
   .meta({ id: "AppleHealthBatchResponse" });
