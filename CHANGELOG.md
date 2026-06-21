@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.19.2] — 2026-06-21 — Recovery-gap symptom signal, resilience tile, long-range charts, richer device + Telegram data
+
+A follow-up that folds the illness journal's own symptom curve into the recovery-gap, surfaces Oura resilience, fixes multi-year chart ranges, and widens the heart-rate and Telegram data paths. Two additive migrations (`0188`, `0189`); no breaking changes.
+
+### Added
+
+- The recovery-gap now reads the illness journal's own daily functional-impact curve (and linked symptom severity), not just passive vitals. When symptoms lead the recovery, the card names them — "you tend to feel better before your logged symptoms ease". Sparse journals withhold rather than guess.
+- An Oura resilience tile on the recovery surface, showing the latest resilience band with a quiet above/in-line/below-average cue and a calm learning state until enough days are recorded.
+- Hourly heart-rate uploads can carry a per-bucket low and high alongside the average, so a high-frequency client no longer loses the within-hour spread.
+- A numeric reply to a Telegram measurement reminder is captured as a reading (for example a weight or a glucose value), bound to the linked chat and self-cleaning like the mood path. Blood pressure stays a simple "done" for now, since it needs two values.
+
+### Changed
+
+- A multi-year "All" chart range now renders the whole history, stepped up to a weekly or monthly tier, instead of being silently truncated to the most recent year.
+
+### Fixed
+
+- `telegram_chat_id` is now unique, with a one-time clean-up of any stale duplicate bindings (no account is removed).
+- Migration `0187` is rerun-safe.
+- The sleep peer-card comment no longer overstates window parity; each card discloses its own night count. Dead streaming state left after the reasoning-disclosure removal is gone.
+
 ## [1.19.1] — 2026-06-21 — Coach flow, sleep and mood polish, navigation, recovery-gap
 
 A follow-up to 1.19.0 that refines the Coach conversation flow and cost, adds a sleep average card, completes the mood colour pass, tidies navigation, and sharpens the illness recovery-gap. No schema changes; no breaking changes.
