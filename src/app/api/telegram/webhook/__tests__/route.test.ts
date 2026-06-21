@@ -28,8 +28,34 @@ vi.mock("@/lib/db", () => ({
     telegramScheduledDeletion: {
       createMany: vi.fn(),
     },
+    telegramPromptContext: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      delete: vi.fn(),
+    },
+    moodReminderDispatch: {
+      deleteMany: vi.fn(),
+    },
+    measurementReminder: {
+      findFirst: vi.fn(),
+      update: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
+}));
+
+vi.mock("@/lib/mood/create-from-telegram", () => ({
+  logTelegramMood: vi.fn(),
+  attachTelegramMoodNote: vi.fn(),
+}));
+
+vi.mock("@/lib/telegram-cleanup", () => ({
+  scheduleTelegramAutoDelete: vi.fn().mockResolvedValue(undefined),
+  TELEGRAM_AUTO_DELETE_DELAY_MS: 30 * 60 * 1000,
+}));
+
+vi.mock("@/lib/measurement-reminders/satisfy", () => ({
+  satisfyReminder: vi.fn().mockResolvedValue({ satisfied: true }),
 }));
 
 vi.mock("@/lib/crypto", () => ({
@@ -77,6 +103,12 @@ import {
   sendTelegramMessage,
 } from "@/lib/telegram";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  logTelegramMood,
+  attachTelegramMoodNote,
+} from "@/lib/mood/create-from-telegram";
+import { scheduleTelegramAutoDelete } from "@/lib/telegram-cleanup";
+import { satisfyReminder } from "@/lib/measurement-reminders/satisfy";
 
 const ORIGINAL_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
@@ -155,6 +187,23 @@ beforeEach(() => {
     messageId: 999,
     ok: true,
   } as never);
+  // v1.19.0 interactive mood + measurement defaults.
+  vi.mocked(logTelegramMood).mockResolvedValue({
+    created: true,
+    moodEntryId: "mood-1",
+    score: 4,
+  } as never);
+  vi.mocked(attachTelegramMoodNote).mockResolvedValue(true as never);
+  vi.mocked(scheduleTelegramAutoDelete).mockResolvedValue(undefined as never);
+  vi.mocked(satisfyReminder).mockResolvedValue({ satisfied: true } as never);
+  vi.mocked(prisma.telegramPromptContext.create).mockResolvedValue({} as never);
+  vi.mocked(prisma.telegramPromptContext.findUnique).mockResolvedValue(null);
+  vi.mocked(prisma.telegramPromptContext.delete).mockResolvedValue({} as never);
+  vi.mocked(prisma.moodReminderDispatch.deleteMany).mockResolvedValue({
+    count: 0,
+  } as never);
+  vi.mocked(prisma.measurementReminder.findFirst).mockResolvedValue(null);
+  vi.mocked(prisma.measurementReminder.update).mockResolvedValue({} as never);
 });
 
 afterEach(() => {
@@ -832,5 +881,179 @@ describe("Telegram webhook — GET verification", () => {
     const req = new NextRequest("http://localhost/api/telegram/webhook");
     const res = await GET(req);
     expect(res.status).toBe(401);
+  });
+});
+
+describe("Telegram webhook — interactive mood (v1.19.0)", () => {
+  it("logs a MoodEntry on a 1–5 tap, scoped to the linked chat's user", async () => {
+    const res = await POST(tgRequest(callbackUpdate("mood:4")));
+    expect(res.status).toBe(200);
+    expect(logTelegramMood).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(logTelegramMood).mock.calls[0][0];
+    // userId resolved from the linked chat (TG_USER), never the payload.
+    expect(arg.userId).toBe("user-1");
+    expect(arg.score).toBe(4);
+    // Stable per-tap idempotency id keyed on chat + message + score.
+    expect(arg.externalId).toContain("telegram:mood:7777:555:4");
+    // Calm callback toast, prompt deleted (no chat echo of the score).
+    expect(answerTelegramCallbackQuery).toHaveBeenCalled();
+    expect(deleteMessage).toHaveBeenCalledWith(
+      "decrypted:ENC(token-blob)",
+      "7777",
+      555,
+    );
+  });
+
+  it("rejects an out-of-range mood score without writing", async () => {
+    const res = await POST(tgRequest(callbackUpdate("mood:9")));
+    expect(res.status).toBe(200);
+    expect(logTelegramMood).not.toHaveBeenCalled();
+  });
+
+  it("rejects a mood tap from an unlinked / foreign chat", async () => {
+    vi.mocked(prisma.user.findFirst).mockResolvedValueOnce(null);
+    const res = await POST(
+      tgRequest(
+        callbackUpdate("mood:5", {
+          from: { id: 4242 },
+          message: { message_id: 1, chat: { id: 4242 } },
+        }),
+      ),
+    );
+    expect(res.status).toBe(200);
+    expect(logTelegramMood).not.toHaveBeenCalled();
+    expect(answerTelegramCallbackQuery).not.toHaveBeenCalled();
+  });
+
+  it("offers a force_reply note prompt and records its prompt context", async () => {
+    vi.mocked(sendTelegramMessage).mockResolvedValueOnce({
+      messageId: 4321,
+      ok: true,
+    } as never);
+    await POST(tgRequest(callbackUpdate("mood:3")));
+    const sendArgs = vi.mocked(sendTelegramMessage).mock.calls[0];
+    // force_reply markup opens the user's reply box pre-targeted at the bot.
+    expect(sendArgs[3]).toMatchObject({
+      replyMarkup: { force_reply: true },
+    });
+    expect(prisma.telegramPromptContext.create).toHaveBeenCalledTimes(1);
+    const ctx = vi.mocked(prisma.telegramPromptContext.create).mock.calls[0][0];
+    expect(ctx.data).toMatchObject({
+      userId: "user-1",
+      chatId: "7777",
+      promptMsgId: 4321,
+      kind: "mood_note",
+      refId: "mood-1",
+    });
+    // The note prompt is scheduled to self-clean (~30 min).
+    expect(scheduleTelegramAutoDelete).toHaveBeenCalledWith(
+      "user-1",
+      "7777",
+      [4321],
+    );
+  });
+
+  it("attaches a free-text reply to the just-logged mood entry", async () => {
+    vi.mocked(prisma.telegramPromptContext.findUnique).mockResolvedValueOnce({
+      id: "ctx-1",
+      userId: "user-1",
+      kind: "mood_note",
+      refId: "mood-1",
+      expiresAt: new Date(Date.now() + 60_000),
+    } as never);
+    const res = await POST(
+      tgRequest({
+        update_id: 900,
+        message: {
+          message_id: 60,
+          text: "Slept badly",
+          chat: { id: 7777 },
+          reply_to_message: { message_id: 4321 },
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(attachTelegramMoodNote).toHaveBeenCalledWith({
+      userId: "user-1",
+      moodEntryId: "mood-1",
+      note: "Slept badly",
+    });
+    // The prompt context row is consumed so a reply can't be replayed.
+    expect(prisma.telegramPromptContext.delete).toHaveBeenCalledWith({
+      where: { id: "ctx-1" },
+    });
+    // Note, prompt, and confirmation are scheduled to self-clean.
+    expect(scheduleTelegramAutoDelete).toHaveBeenCalled();
+  });
+
+  it("does not attach a note when the reply context belongs to another user", async () => {
+    vi.mocked(prisma.telegramPromptContext.findUnique).mockResolvedValueOnce({
+      id: "ctx-2",
+      userId: "someone-else",
+      kind: "mood_note",
+      refId: "mood-99",
+      expiresAt: new Date(Date.now() + 60_000),
+    } as never);
+    const res = await POST(
+      tgRequest({
+        update_id: 901,
+        message: {
+          message_id: 61,
+          text: "leak attempt",
+          chat: { id: 7777 },
+          reply_to_message: { message_id: 4321 },
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(attachTelegramMoodNote).not.toHaveBeenCalled();
+  });
+
+  it("mood_later clears today's dispatch ledger and deletes the prompt", async () => {
+    const res = await POST(tgRequest(callbackUpdate("mood_later:120")));
+    expect(res.status).toBe(200);
+    expect(prisma.moodReminderDispatch.deleteMany).toHaveBeenCalledTimes(1);
+    expect(deleteMessage).toHaveBeenCalled();
+    expect(logTelegramMood).not.toHaveBeenCalled();
+  });
+});
+
+describe("Telegram webhook — interactive measurement reminder (v1.19.0)", () => {
+  it("measure_done satisfies the reminder via the shared primitive", async () => {
+    vi.mocked(prisma.measurementReminder.findFirst).mockResolvedValueOnce({
+      id: "rem-1",
+      intervalDays: 7,
+      rrule: null,
+      anchorDate: null,
+      notifyHour: 9,
+      lastSatisfiedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    } as never);
+    const res = await POST(tgRequest(callbackUpdate("measure_done:rem-1")));
+    expect(res.status).toBe(200);
+    expect(satisfyReminder).toHaveBeenCalledTimes(1);
+    expect(deleteMessage).toHaveBeenCalled();
+  });
+
+  it("measure_done on a foreign reminder is a no-op", async () => {
+    vi.mocked(prisma.measurementReminder.findFirst).mockResolvedValueOnce(null);
+    const res = await POST(tgRequest(callbackUpdate("measure_done:rem-x")));
+    expect(res.status).toBe(200);
+    expect(satisfyReminder).not.toHaveBeenCalled();
+  });
+
+  it("measure_later pushes nextDueAt forward (one-shot snooze)", async () => {
+    vi.mocked(prisma.measurementReminder.findFirst).mockResolvedValueOnce({
+      id: "rem-2",
+    } as never);
+    const res = await POST(
+      tgRequest(callbackUpdate("measure_later:rem-2:180")),
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.measurementReminder.update).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(prisma.measurementReminder.update).mock.calls[0][0];
+    expect(arg.where).toEqual({ id: "rem-2" });
+    expect(arg.data.nextDueAt).toBeInstanceOf(Date);
+    expect(deleteMessage).toHaveBeenCalled();
   });
 });

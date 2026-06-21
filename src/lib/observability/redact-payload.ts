@@ -72,6 +72,15 @@ export const SENSITIVE_KEY_PATTERNS: readonly RegExp[] = [
   // the secret redacts instead of landing verbatim. The Live Activity push
   // token is already covered by `/token/i`.
   /headervalue/i,
+  // v1.19.0 — the Telegram chat id. It is the de-facto account-binding
+  // credential for the bot (the webhook resolves the user by stored
+  // `telegramChatId`) and a stable personal identifier, so it belongs out
+  // of wide-event excerpts. Matches `telegramChatId` / `telegram_chat_id`
+  // / `chatId` / `chat_id`. The bot token is already covered by `/token/i`.
+  /telegramchatid/i,
+  /telegram[_-]?chat[_-]?id/i,
+  /chatid/i,
+  /chat[_-]id/i,
 ];
 
 const REDACTED = "[redacted]";
