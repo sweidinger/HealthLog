@@ -226,6 +226,12 @@ export async function prepareWeightStatusForUser(
     userId,
     types: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"],
     includeMood: true,
+    // v1.18.11 (P6-tighten) — WEIGHT is an FDR discovery OUTCOME channel and
+    // the prompt folds `getRelevantCorrelationsForMetric(userId, "WEIGHT")`, so
+    // a relation surfacing off a behaviour channel (e.g. more daylight →
+    // next-day weight) must flip the gate even when no weight row moved. Fold
+    // the discovery channels + the prior-analysis anchor into the fingerprint.
+    includeCorrelationChannels: true,
   });
   if (!force) {
     const unchangedInput = await gateUnchangedStatusInput({

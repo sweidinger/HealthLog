@@ -457,6 +457,73 @@ describe("computeStatusInputFingerprint (v1.18.11 P6)", () => {
     expect(c).not.toBe(a);
   });
 
+  it("flips when a correlation-discovery channel moves (P6-tighten)", async () => {
+    const t0 = new Date("2026-05-30T08:00:00.000Z");
+    // The card's own metric (WEIGHT) is steady across both probes; only a
+    // discovery BEHAVIOUR channel (steps) gains rows. Without the channel
+    // coverage the gate would re-stamp the stale assessment and a newly
+    // discoverable "steps → next-day weight" relation would never surface.
+    const weightOnly = [
+      { type: "WEIGHT", _count: { _all: 10 }, _max: { measuredAt: t0 } },
+    ];
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValueOnce(
+      weightOnly as never,
+    );
+    const before = await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+      includeCorrelationChannels: true,
+    });
+
+    // A new ACTIVITY_STEPS reading (a discovery channel, NOT the card's own
+    // type) appears — the grouped probe now returns it.
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValueOnce([
+      ...weightOnly,
+      {
+        type: "ACTIVITY_STEPS",
+        _count: { _all: 30 },
+        _max: { measuredAt: t0 },
+      },
+    ] as never);
+    const after = await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+      includeCorrelationChannels: true,
+    });
+    expect(after).not.toBe(before);
+  });
+
+  it("widens the grouped query by the discovery channels only when asked", async () => {
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
+    await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+    });
+    const narrow = vi.mocked(prisma.measurement.groupBy).mock.calls[0][0] as {
+      where: { type: { in: string[] } };
+    };
+    // No channel widening — exactly the card's own types.
+    expect(narrow.where.type.in).toEqual(["WEIGHT"]);
+
+    vi.mocked(prisma.measurement.groupBy).mockClear();
+    await computeStatusInputFingerprint({
+      userId: "u1",
+      types: ["WEIGHT"],
+      includeCorrelationChannels: true,
+    });
+    const wide = vi.mocked(prisma.measurement.groupBy).mock.calls[0][0] as {
+      where: { type: { in: string[] } };
+    };
+    // The card's own type is present exactly once (de-duped against the
+    // discovery channel set, which also carries WEIGHT as an outcome).
+    expect(wide.where.type.in.filter((t) => t === "WEIGHT")).toHaveLength(1);
+    // A behaviour channel the card never reads on its own is now folded in.
+    expect(wide.where.type.in).toContain("ACTIVITY_STEPS");
+    expect(wide.where.type.in).toContain("SLEEP_DURATION");
+    // MOOD is mood-entry backed, not a measurement type — never in the IN set.
+    expect(wide.where.type.in).not.toContain("MOOD");
+  });
+
   it("folds mood and extra inputs into the hash when requested", async () => {
     vi.mocked(prisma.measurement.groupBy).mockResolvedValue([
       {

@@ -1,0 +1,177 @@
+/**
+ * v1.18.11 (P3) — request/run-scoped shared feature cache.
+ *
+ * The comprehensive briefing builds its feature snapshot via
+ * `extractFeatures(userId, includeRaw, { sinceDays })`. That call materialises a
+ * bounded measurement read + the per-type rollup folds + the all-time-extremes
+ * aggregation — the most expensive read in the insight pipeline. Two patterns
+ * paid for it more than once:
+ *
+ *   1. The on-demand route + `comprehensive-generate.ts` each run a downgrade
+ *      ladder that, on an oversize payload, re-invokes
+ *      `extractFeatures(userId, false, window)` with byte-identical arguments —
+ *      a second (and third) full read for the same user in the same request.
+ *   2. A single nightly tick warms one user's briefing and may, in the same
+ *      run-scope, touch the same feature read again (e.g. a follow-on reduce
+ *      stage). Without a shared object each consumer re-queried the DB.
+ *
+ * This module turns `extractFeatures` into a compute-ONCE-per-scope read: a
+ * caller opens a scope with `withFeatureCacheScope(...)`, and every
+ * `getCachedFeatures(...)` inside that scope keyed on the SAME
+ * `(userId, calendar-day, includeRaw, sinceDays, inputHash)` reuses the first
+ * computed object. This is an INPUT gate (compute-once + reuse), not a
+ * post-build skip: the key folds a cheap input fingerprint so an unchanged
+ * input set is computed once and a genuinely changed one recomputes.
+ *
+ * Scope discipline:
+ *   - The cache lives only for the duration of the `withFeatureCacheScope`
+ *     callback (an `AsyncLocalStorage` store). Outside any scope
+ *     `getCachedFeatures` falls straight through to the computer — no global
+ *     state, no cross-user leak, no stale-across-requests hazard.
+ *   - The key is `(userId, day, includeRaw, sinceDays, inputHash)`. `day` is
+ *     the Berlin calendar day so a scope that straddles midnight recomputes
+ *     rather than serving yesterday's window. `inputHash` is a cheap
+ *     count/newest fingerprint of the salient measurement + mood inputs, so a
+ *     mid-scope ingest (rare, but possible on a long-running warm) recomputes
+ *     instead of reusing a pre-ingest snapshot.
+ *
+ * The Coach owns its own snapshot builder and is deliberately NOT routed
+ * through here (its snapshot layers many blocks beyond `extractFeatures`); this
+ * cache is exposed as a standalone helper either could adopt without coupling.
+ */
+import { AsyncLocalStorage } from "node:async_hooks";
+import type { MeasurementType } from "@/generated/prisma/client";
+import { prisma } from "@/lib/db";
+import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
+import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { annotate } from "@/lib/logging/context";
+
+/** One memoised feature read, with the input fingerprint it was keyed on. */
+interface CacheEntry {
+  /** The resolved feature object (typed loosely — the caller re-narrows). */
+  value: unknown;
+  /** The salient-input fingerprint the value was computed for. */
+  inputHash: string;
+}
+
+/** The per-scope store: a map from the stable key prefix to its entry. */
+type FeatureCacheStore = Map<string, CacheEntry>;
+
+const store = new AsyncLocalStorage<FeatureCacheStore>();
+
+/**
+ * The measurement types whose count + newest stamp fingerprint a briefing
+ * feature read. This is the same salient set `extractFeatures` narrates over;
+ * the fingerprint is intentionally coarse (count + newest per type) so it is a
+ * single cheap grouped query, not a second full read. A new or removed reading
+ * for any of these flips the hash and forces a recompute within the scope.
+ */
+const FEATURE_INPUT_TYPES: readonly MeasurementType[] = [
+  "WEIGHT",
+  "BLOOD_PRESSURE_SYS",
+  "BLOOD_PRESSURE_DIA",
+  "PULSE",
+  "RESTING_HEART_RATE",
+  "HEART_RATE_VARIABILITY",
+  "BODY_FAT",
+  "SLEEP_DURATION",
+  "ACTIVITY_STEPS",
+  "BLOOD_GLUCOSE",
+  "TIME_IN_DAYLIGHT",
+];
+
+/**
+ * Run `fn` inside a fresh feature-cache scope. Every `getCachedFeatures` call
+ * made (synchronously or via awaited async work) within `fn` shares one cache.
+ * Nesting reuses the innermost store, so an inner scope never shadows an outer
+ * one's already-computed reads.
+ */
+export function withFeatureCacheScope<T>(fn: () => Promise<T>): Promise<T> {
+  const existing = store.getStore();
+  if (existing) return fn();
+  return store.run(new Map(), fn);
+}
+
+/**
+ * Cheap salient-input fingerprint for `userId` — one grouped query over the
+ * feature input types' count + newest stamp. Deterministic across group order
+ * (sorted before hashing). Best-effort: a read failure yields a sentinel hash
+ * so the cache degrades to "always recompute" rather than reusing a wrong
+ * object.
+ */
+async function computeFeatureInputHash(userId: string): Promise<string> {
+  try {
+    const grouped = await prisma.measurement.groupBy({
+      by: ["type"],
+      where: {
+        userId,
+        type: { in: [...FEATURE_INPUT_TYPES] },
+        deletedAt: null,
+      },
+      _count: { _all: true },
+      _max: { measuredAt: true },
+    });
+    const fingerprint = grouped
+      .map((row) => ({
+        type: row.type,
+        count: row._count._all,
+        newest: row._max.measuredAt ? row._max.measuredAt.toISOString() : null,
+      }))
+      .sort((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : 0));
+    return hashInsightSnapshot({ featureInput: fingerprint });
+  } catch {
+    // A probe failure must never serve a stale object: a unique sentinel makes
+    // the key miss so the caller computes fresh.
+    return `nofingerprint:${Date.now()}:${Math.random()}`;
+  }
+}
+
+/**
+ * Compute-once-per-scope wrapper around a feature read.
+ *
+ * Inside a `withFeatureCacheScope`, the first call for a given
+ * `(userId, day, includeRaw, sinceDays, inputHash)` runs `compute()` and stores
+ * the result; subsequent calls with the same key reuse it. Outside any scope it
+ * simply runs `compute()` (no caching). The returned value is whatever
+ * `compute()` resolves to — callers re-narrow it to their feature type.
+ *
+ * The input fingerprint is probed once per call (a cheap grouped query); the
+ * cost is paid to GUARANTEE correctness (a mid-scope ingest recomputes). The
+ * net saving is the full feature read on every cache HIT, which dwarfs the
+ * fingerprint probe.
+ */
+export async function getCachedFeatures<T>(args: {
+  userId: string;
+  includeRaw: boolean;
+  sinceDays: number;
+  compute: () => Promise<T>;
+}): Promise<T> {
+  const current = store.getStore();
+  if (!current) {
+    // No active scope — pass straight through. This keeps the helper a no-op
+    // for callers that never opened a scope (e.g. unit paths) so behaviour is
+    // identical to a bare `extractFeatures`.
+    return args.compute();
+  }
+
+  const inputHash = await computeFeatureInputHash(args.userId);
+  const dayKey = toBerlinDayKey(new Date());
+  const key = `${args.userId}|${dayKey}|${args.includeRaw ? "raw" : "agg"}|${args.sinceDays}`;
+
+  const hit = current.get(key);
+  if (hit && hit.inputHash === inputHash) {
+    annotate({
+      action: { name: "insights.feature_cache.hit" },
+      meta: { since_days: args.sinceDays, include_raw: args.includeRaw },
+    });
+    return hit.value as T;
+  }
+
+  const value = await args.compute();
+  current.set(key, { value, inputHash });
+  annotate({
+    action: { name: "insights.feature_cache.miss" },
+    meta: { since_days: args.sinceDays, include_raw: args.includeRaw },
+  });
+  return value;
+}
