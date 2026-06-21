@@ -7,12 +7,19 @@
  * suffix — matching the list payload and the GLP-1 endpoint instead of
  * counting expired stock as supply.
  *
+ * v1.19.0 (iOS#25) — the headline is now server-authoritative: the GET
+ * response carries a `summary` computed server-side via `summariseSupply`,
+ * and the component RENDERS it (no client-side derivation). The seed
+ * builds that summary with the same canonical helper the server uses, so
+ * these scenarios assert the component renders the server DTO faithfully.
+ *
  * Project convention is SSR-only component tests (`renderToStaticMarkup`).
  */
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider } from "@/lib/i18n/context";
+import { summariseSupply } from "@/lib/medications/inventory/summary";
 
 const useQueryMock = vi.fn();
 
@@ -35,9 +42,27 @@ function render(node: React.ReactNode): string {
   );
 }
 
-function seedItems(items: unknown[]) {
+function seedItems(
+  items: Array<{
+    state: "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
+    unitsTotal: number;
+    unitsRemaining: number;
+    [key: string]: unknown;
+  }>,
+  unitsPerDose = 1,
+) {
+  // The server computes the canonical summary; reproduce it here with the
+  // one source of truth so the seed mirrors the real DTO the route ships.
+  const summary = summariseSupply(
+    items.map((i) => ({
+      state: i.state,
+      unitsTotal: i.unitsTotal,
+      unitsRemaining: i.unitsRemaining,
+    })),
+    unitsPerDose,
+  );
   useQueryMock.mockReturnValue({
-    data: { items, meta: { total: items.length } },
+    data: { items, summary, meta: { total: items.length } },
     isLoading: false,
   });
 }

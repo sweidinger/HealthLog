@@ -2620,7 +2620,10 @@ paths:
         - Medications
       summary: List a medication's supply containers
       description: Returns every inventory item (all states) for the medication, ordered by state, then `expiresAt`, then
-        `createdAt`. Items count UNITS; divide by the medication's `unitsPerDose` for dose-level figures.
+        `createdAt`. Items count UNITS; divide by the medication's `unitsPerDose` for dose-level figures. v1.19.0
+        (iOS#25) — also returns a server-computed `summary` (the canonical {`unitsRemaining`, `unitsTotal`,
+        `dosesRemaining`, `dosesTotal`, `expiredUnits`}); clients render it directly rather than re-deriving the Bestand
+        headline, so web and iOS agree.
       parameters:
         - in: path
           name: id
@@ -12794,6 +12797,8 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/MedicationInventoryItem"
+            summary:
+              $ref: "#/components/schemas/MedicationSupplySummary"
             meta:
               type: object
               properties:
@@ -12806,6 +12811,7 @@ components:
               additionalProperties: false
           required:
             - items
+            - summary
             - meta
           additionalProperties: false
         error:
@@ -12922,6 +12928,36 @@ components:
       description: One supply container (pen / blister pack / bottle) of a medication. Counts UNITS — the medication's
         `unitsPerDose` maps units to doses. The intake write paths consume from the open container first, then
         first-expiry-first-out over unopened stock.
+    MedicationSupplySummary:
+      type: object
+      properties:
+        unitsRemaining:
+          type: number
+          description: Pooled units across available (ACTIVE / IN_USE, units left) containers. Floored at 0 — a corrupt / legacy
+            negative row can never surface a negative Bestand.
+        unitsTotal:
+          type: number
+          description: Pooled capacity across the same available containers.
+        dosesRemaining:
+          type: number
+          description: "Dose-derived headline: `floor(unitsRemaining / unitsPerDose)` (whole doses; a partial dose is not a dose)."
+        dosesTotal:
+          type: number
+          description: "Dose-derived capacity: `floor(unitsTotal / unitsPerDose)`."
+        expiredUnits:
+          type: number
+          description: Units still sitting in EXPIRED containers — visible to the user as a muted suffix, never folded into the
+            available headline or the runway estimate.
+      required:
+        - unitsRemaining
+        - unitsTotal
+        - dosesRemaining
+        - dosesTotal
+        - expiredUnits
+      additionalProperties: false
+      description: Server-authoritative supply summary for a medication's containers. Computed from the same availability
+        predicate the medications-list payload and the GLP-1 endpoint use, so every surface agrees on what 'remaining'
+        means.
     CreateMedicationInventoryItemResponse:
       type: object
       properties:

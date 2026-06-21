@@ -30,6 +30,7 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { createInventoryItemSchema } from "@/lib/validations/medication";
 import {
   buildCreateInventoryInput,
+  buildSupplySummary,
   serializeInventoryItem,
 } from "@/lib/medications/inventory/service";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
@@ -48,10 +49,27 @@ export const GET = apiHandler(
     const guard = await assertMedicationOwnership(id, user.id);
     if (guard) return guard;
 
-    const items = await prisma.medicationInventoryItem.findMany({
-      where: { userId: user.id, medicationId: id },
-      orderBy: [{ state: "asc" }, { expiresAt: "asc" }, { createdAt: "asc" }],
-    });
+    const [items, medication] = await Promise.all([
+      prisma.medicationInventoryItem.findMany({
+        where: { userId: user.id, medicationId: id },
+        orderBy: [{ state: "asc" }, { expiresAt: "asc" }, { createdAt: "asc" }],
+      }),
+      prisma.medication.findUnique({
+        where: { id },
+        select: { unitsPerDose: true },
+      }),
+    ]);
+
+    const serialized = items.map(serializeInventoryItem);
+    // v1.19.0 (iOS#25) — the canonical supply summary is computed HERE,
+    // server-side, through the one source of truth (`summariseSupply`).
+    // The detail-page client renders these ready figures instead of
+    // re-deriving them in the browser, so web and iOS read identical
+    // numbers from the same DTO.
+    const summary = buildSupplySummary(
+      serialized,
+      medication?.unitsPerDose ? Number(medication.unitsPerDose) : 1,
+    );
 
     annotate({
       action: { name: "medication.inventory.list" },
@@ -59,7 +77,8 @@ export const GET = apiHandler(
     });
 
     return apiSuccess({
-      items: items.map(serializeInventoryItem),
+      items: serialized,
+      summary,
       meta: { total: items.length },
     });
   },

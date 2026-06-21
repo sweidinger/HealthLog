@@ -319,6 +319,41 @@ export const medicationInventoryItemResource = z
       "One supply container (pen / blister pack / bottle) of a medication. Counts UNITS — the medication's `unitsPerDose` maps units to doses. The intake write paths consume from the open container first, then first-expiry-first-out over unopened stock.",
   });
 
+// v1.19.0 (iOS#25) — server-computed canonical supply summary returned
+// alongside the inventory list. Replaces the former client-side
+// derivation so web and iOS render identical Bestand figures from one
+// DTO. Pools ACTIVE / IN_USE containers with units left; EXPIRED stock
+// is surfaced separately and never counts as available.
+export const medicationSupplySummaryResource = z
+  .object({
+    unitsRemaining: z
+      .number()
+      .describe(
+        "Pooled units across available (ACTIVE / IN_USE, units left) containers. Floored at 0 — a corrupt / legacy negative row can never surface a negative Bestand.",
+      ),
+    unitsTotal: z
+      .number()
+      .describe("Pooled capacity across the same available containers."),
+    dosesRemaining: z
+      .number()
+      .describe(
+        "Dose-derived headline: `floor(unitsRemaining / unitsPerDose)` (whole doses; a partial dose is not a dose).",
+      ),
+    dosesTotal: z
+      .number()
+      .describe("Dose-derived capacity: `floor(unitsTotal / unitsPerDose)`."),
+    expiredUnits: z
+      .number()
+      .describe(
+        "Units still sitting in EXPIRED containers — visible to the user as a muted suffix, never folded into the available headline or the runway estimate.",
+      ),
+  })
+  .meta({
+    id: "MedicationSupplySummary",
+    description:
+      "Server-authoritative supply summary for a medication's containers. Computed from the same availability predicate the medications-list payload and the GLP-1 endpoint use, so every surface agrees on what 'remaining' means.",
+  });
+
 export const medicationIntakeEventResource = z
   .object({
     id: z.string(),

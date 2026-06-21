@@ -22,6 +22,7 @@ import {
   medicationListEntry,
   medicationDetailEntry,
   medicationInventoryItemResource,
+  medicationSupplySummaryResource,
   medicationIntakeEventResource,
   medicationCadenceResponse,
   medicationComplianceResponse,
@@ -285,7 +286,7 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Medications"],
       summary: "List a medication's supply containers",
       description:
-        "Returns every inventory item (all states) for the medication, ordered by state, then `expiresAt`, then `createdAt`. Items count UNITS; divide by the medication's `unitsPerDose` for dose-level figures.",
+        "Returns every inventory item (all states) for the medication, ordered by state, then `expiresAt`, then `createdAt`. Items count UNITS; divide by the medication's `unitsPerDose` for dose-level figures. v1.19.0 (iOS#25) — also returns a server-computed `summary` (the canonical {`unitsRemaining`, `unitsTotal`, `dosesRemaining`, `dosesTotal`, `expiredUnits`}); clients render it directly rather than re-deriving the Bestand headline, so web and iOS agree.",
       requestParams: {
         path: z.object({ id: z.string() }),
       },
@@ -297,6 +298,7 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 z.object({
                   items: z.array(medicationInventoryItemResource),
+                  summary: medicationSupplySummaryResource,
                   meta: z.object({ total: z.number().int().nonnegative() }),
                 }),
                 "ListMedicationInventoryResponse",

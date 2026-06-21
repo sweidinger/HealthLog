@@ -72,7 +72,7 @@ import { SideEffectsSection } from "@/components/medications/side-effects-sectio
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { TitrationTimeline } from "@/components/medications/titration-timeline";
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
-import { summariseSupply } from "@/lib/medications/inventory/summary";
+import type { SupplySummary } from "@/lib/medications/inventory/summary";
 import { MedicationWizardDialog } from "@/components/medications/wizard/medication-wizard-dialog";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { useQuery } from "@tanstack/react-query";
@@ -335,9 +335,8 @@ export function MedicationDetailTabs({
         return await apiGet<{
           items: Array<{
             state: "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
-            unitsTotal: number;
-            unitsRemaining: number;
           }>;
+          summary?: SupplySummary;
         } | null>(`/api/medications/${id}/inventory`);
       } catch {
         return null;
@@ -348,26 +347,34 @@ export function MedicationDetailTabs({
   });
 
   const inventoryItems = Array.isArray(inventory?.items) ? inventory.items : [];
-  // v1.16.10 — items count UNITS; the supply readout and the runway are
-  // dose-derived (floor over the pooled units — consumption spills
-  // across containers, so the pool is the honest dose count). The raw
-  // unit tally renders as secondary text when a dose spans > 1 unit.
-  // Availability rides the shared summary helper (ACTIVE / IN_USE with
-  // units only — the list / GLP-1 semantic); expired stock surfaces as
-  // a separate muted suffix and never feeds the runway.
-  // v1.16.12 — guard at > 0, NOT ≥ 1, so a fractional unitsPerDose (½
-  // tablet per dose) stays fractional instead of halving the dose counts.
-  const perDose =
-    medication.unitsPerDose && medication.unitsPerDose > 0
-      ? medication.unitsPerDose
-      : 1;
+  // v1.19.0 (iOS#25) — the supply headline is server-authoritative: the
+  // GET response carries a `summary` computed server-side through the
+  // shared `summariseSupply` helper (ACTIVE / IN_USE with units only —
+  // the list / GLP-1 semantic; EXPIRED surfaced separately, never
+  // available; dose-derived counts floored over the pooled units). The
+  // Übersicht status row renders these ready figures, so web and iOS read
+  // identical numbers from the same DTO. The runway estimate is a UI
+  // projection over the canonical `dosesRemaining`.
   const {
     unitsRemaining,
     unitsTotal,
     dosesRemaining,
     dosesTotal,
     expiredUnits,
-  } = summariseSupply(inventoryItems, perDose);
+  } = inventory?.summary ?? {
+    unitsRemaining: 0,
+    unitsTotal: 0,
+    dosesRemaining: 0,
+    dosesTotal: 0,
+    expiredUnits: 0,
+  };
+  // v1.16.12 — fractional unitsPerDose (½ tablet per dose) drives the
+  // "show the raw unit tally" toggle below; the canonical figures above
+  // already account for it server-side.
+  const perDose =
+    medication.unitsPerDose && medication.unitsPerDose > 0
+      ? medication.unitsPerDose
+      : 1;
   const runwayDays = estimateRunwayDays(dosesRemaining, medication.schedules);
 
   return (

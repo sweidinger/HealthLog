@@ -14,6 +14,11 @@
 import { prisma } from "@/lib/db";
 import type { MedicationContainerType } from "@/generated/prisma/client";
 import { computeExpiresAt } from "./state-machine";
+import {
+  summariseSupply,
+  type SupplyItemState,
+  type SupplySummary,
+} from "./summary";
 
 /**
  * Daily cron pass — flip any IN_USE rows whose 30-day window has
@@ -87,6 +92,43 @@ export function serializeInventoryItem<
     unitsTotal: toFiniteUnit(item.unitsTotal),
     unitsRemaining: toFiniteUnit(item.unitsRemaining),
   };
+}
+
+/**
+ * v1.19.0 (iOS#25) — server-authoritative supply summary for the
+ * inventory list response. The detail page used to compute the Bestand
+ * headline in the browser (calling `summariseSupply` client-side), which
+ * both risked web ↔ iOS drift and dragged the shared math into the
+ * client bundle. The SERVER now computes the canonical
+ * {@link SupplySummary} via the one source of truth (`summariseSupply`)
+ * and ships it in the DTO; the client renders the ready figures.
+ *
+ * The serialized items carry `unitsTotal` / `unitsRemaining` as
+ * `number | null` (null = unknown count for a corrupt / legacy row).
+ * A null contributes nothing to the available pool — coalesce to 0 for
+ * the summary inputs only, exactly as the former client code did, so the
+ * surfaced numbers stay identical to today's for healthy data while an
+ * unknown-count row still cannot pad the headline.
+ */
+export function buildSupplySummary(
+  items: ReadonlyArray<{
+    state: SupplyItemState;
+    unitsTotal: number | null;
+    unitsRemaining: number | null;
+  }>,
+  unitsPerDose: number | null | undefined,
+): SupplySummary {
+  // v1.16.12 — guard at > 0, NOT ≥ 1: a fractional unitsPerDose (½ tablet
+  // per dose) must stay fractional, else the dose-derived counts halve.
+  const perDose = unitsPerDose && unitsPerDose > 0 ? unitsPerDose : 1;
+  return summariseSupply(
+    items.map((item) => ({
+      state: item.state,
+      unitsTotal: item.unitsTotal ?? 0,
+      unitsRemaining: item.unitsRemaining ?? 0,
+    })),
+    perDose,
+  );
 }
 
 /**
