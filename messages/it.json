@@ -3539,6 +3539,22 @@
     "bodyTempDeviation": {
       "title": "Deviazione della temperatura corporea",
       "subtitle": "Scostamento notturno dalla tua linea di base"
+    },
+    "resilience": {
+      "explainer": "Quanto bene il tuo corpo bilancia il carico quotidiano con il recupero, letto dai tuoi segnali notturni degli ultimi giorni.",
+      "learning": "Stiamo ancora imparando la tua resilienza — qualche giorno in più stabilizzerà il livello.",
+      "band": {
+        "limited": "Limitata",
+        "adequate": "Adeguata",
+        "solid": "Solida",
+        "strong": "Forte",
+        "exceptional": "Eccezionale"
+      },
+      "trend": {
+        "above": "Sopra la tua media recente.",
+        "steady": "In linea con la tua media recente.",
+        "below": "Sotto la tua media recente."
+      }
     }
   },
   "thresholds": {

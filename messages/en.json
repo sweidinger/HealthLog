@@ -3539,6 +3539,22 @@
     "bodyTempDeviation": {
       "title": "Body temperature deviation",
       "subtitle": "Overnight delta from your baseline"
+    },
+    "resilience": {
+      "explainer": "How well your body is balancing daily strain with recovery, read from your overnight signals across recent days.",
+      "learning": "Still learning your resilience — a few more days will settle the band.",
+      "band": {
+        "limited": "Limited",
+        "adequate": "Adequate",
+        "solid": "Solid",
+        "strong": "Strong",
+        "exceptional": "Exceptional"
+      },
+      "trend": {
+        "above": "Above your recent average.",
+        "steady": "In line with your recent average.",
+        "below": "Below your recent average."
+      }
     }
   },
   "thresholds": {
