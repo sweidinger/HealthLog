@@ -3539,6 +3539,22 @@
     "bodyTempDeviation": {
       "title": "Écart de température corporelle",
       "subtitle": "Écart nocturne par rapport à votre référence"
+    },
+    "resilience": {
+      "explainer": "Comment votre corps équilibre la charge quotidienne et la récupération, d'après vos signaux nocturnes des derniers jours.",
+      "learning": "Votre résilience est encore en cours d'apprentissage — quelques jours de plus stabiliseront le niveau.",
+      "band": {
+        "limited": "Limitée",
+        "adequate": "Adéquate",
+        "solid": "Solide",
+        "strong": "Forte",
+        "exceptional": "Exceptionnelle"
+      },
+      "trend": {
+        "above": "Au-dessus de votre moyenne récente.",
+        "steady": "Conforme à votre moyenne récente.",
+        "below": "En dessous de votre moyenne récente."
+      }
     }
   },
   "thresholds": {

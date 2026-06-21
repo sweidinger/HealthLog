@@ -3539,6 +3539,22 @@
     "bodyTempDeviation": {
       "title": "Odchylenie temperatury ciała",
       "subtitle": "Nocne odchylenie od Twojej linii bazowej"
+    },
+    "resilience": {
+      "explainer": "Jak dobrze Twój organizm równoważy codzienne obciążenie z regeneracją — odczytane z nocnych sygnałów z ostatnich dni.",
+      "learning": "Wciąż poznajemy Twoją odporność — kilka kolejnych dni ustali poziom.",
+      "band": {
+        "limited": "Ograniczona",
+        "adequate": "Wystarczająca",
+        "solid": "Solidna",
+        "strong": "Silna",
+        "exceptional": "Wyjątkowa"
+      },
+      "trend": {
+        "above": "Powyżej Twojej ostatniej średniej.",
+        "steady": "Zgodnie z Twoją ostatnią średnią.",
+        "below": "Poniżej Twojej ostatniej średniej."
+      }
     }
   },
   "thresholds": {

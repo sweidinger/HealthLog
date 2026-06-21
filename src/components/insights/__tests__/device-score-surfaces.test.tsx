@@ -234,3 +234,60 @@ describe("<RecoverySection> data-gating", () => {
     expect(html).not.toContain('data-slot="recovery-empty"');
   });
 });
+
+describe("<ResilienceTile> on the recovery surface", () => {
+  it("stays hidden when there is no resilience reading", () => {
+    analyticsMock.mockReturnValue(
+      analyticsWith({
+        DAY_STRAIN: summary({ count: 14, latest: 12, mean: 11 }),
+        RESILIENCE: summary({ count: 0 }),
+      }),
+    );
+    const html = render(<RecoverySection />);
+    expect(html).not.toContain('data-slot="resilience-tile"');
+  });
+
+  it("names the latest band and explains it once enough days exist", () => {
+    analyticsMock.mockReturnValue(
+      analyticsWith({
+        // latest ordinal 4 → "strong"; mean 3 → above the recent average.
+        RESILIENCE: summary({ count: 9, latest: 4, mean: 3 }),
+      }),
+    );
+    const html = render(<RecoverySection />);
+    expect(html).toContain('data-slot="resilience-tile"');
+    expect(html).toContain('data-slot="resilience-band"');
+    expect(html).toContain("Strong");
+    expect(html).toContain('data-slot="resilience-trend"');
+    expect(html).toContain("Above your recent average.");
+    // Calm by construction — no learning gate once past the threshold.
+    expect(html).not.toContain('data-slot="resilience-learning"');
+  });
+
+  it("shows the calm learning note while the series is still sparse", () => {
+    analyticsMock.mockReturnValue(
+      analyticsWith({
+        RESILIENCE: summary({ count: 2, latest: 3, mean: 3 }),
+      }),
+    );
+    const html = render(<RecoverySection />);
+    expect(html).toContain('data-slot="resilience-tile"');
+    expect(html).toContain('data-slot="resilience-learning"');
+    // No trend cue until the band has settled.
+    expect(html).not.toContain('data-slot="resilience-trend"');
+  });
+
+  it("keeps the recovery surface non-empty when resilience is the only signal", () => {
+    analyticsMock.mockReturnValue(
+      analyticsWith({
+        SLEEP_DURATION: summary({ count: 10 }),
+        RESILIENCE: summary({ count: 9, latest: 2, mean: 2 }),
+      }),
+    );
+    const html = render(<RecoverySection />);
+    expect(html).not.toContain('data-slot="recovery-empty"');
+    expect(html).toContain('data-slot="resilience-tile"');
+    // "adequate" band label is surfaced.
+    expect(html).toContain("Adequate");
+  });
+});
