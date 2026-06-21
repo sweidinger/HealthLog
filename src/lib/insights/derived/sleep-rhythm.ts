@@ -161,8 +161,8 @@ export interface RhythmNight {
  * to pass. Without this cap a caller that hands in a year of nights (the
  * dashboard summary's 365-day read) would average MSF/MSFsc/social-jetlag over
  * a different sample than a caller passing six weeks (the route), and the two
- * surfaces would disagree. `computeSleepDebt` already self-caps to 14 nights,
- * so the debt headline is source-window-independent for free; this brings the
+ * surfaces would disagree. `computeSleepDebt` already self-caps to its rolling
+ * window, so the debt headline is source-window-independent for free; this brings the
  * chronotype to the same guarantee. 42 nights (six weeks) gives ~12 weekend
  * nights for a stable free-day MSF.
  */

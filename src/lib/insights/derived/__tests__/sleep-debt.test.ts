@@ -11,24 +11,56 @@ function nights(asleepPerNight: number[]): SleepDebtNight[] {
 
 const NEED = 480; // 8 h need, pinned so the deficit math is exact.
 
-describe("computeSleepDebt", () => {
-  it("sums a deficit sequence into the exact cumulative debt", () => {
-    // need 480; nights of 420 / 360 / 480 / 450 → deficits 60 / 120 / 0 / 30.
-    const res = computeSleepDebt(nights([420, 360, 480, 450]), NEED, {
-      minNights: 1,
+describe("computeSleepDebt — rolling balance", () => {
+  it("a well-rested week reads near-zero debt", () => {
+    // Seven nights at need exactly → no deficit ever accrues.
+    const res = computeSleepDebt(nights(Array(7).fill(480)), NEED, {
+      minNights: 4,
     });
     expect(res.state).toBe("ready");
-    expect(res.debtMinutes).toBe(60 + 120 + 0 + 30); // 210
-    expect(res.perNight.map((n) => n.deficitMinutes)).toEqual([60, 120, 0, 30]);
-    expect(res.nightsCounted).toBe(4);
-    expect(res.needMinutes).toBe(NEED);
+    expect(res.debtMinutes).toBe(0);
   });
 
-  it("never mints negative deficit from catch-up sleep", () => {
-    // A 10 h night (600) is 120 over need — deficit floors at 0, not −120.
+  it("keeps a modestly-short week bounded by the short window, not a fortnight sum", () => {
+    // The v1.17.0 bug: ~30 min short every night summed over 14 nights to ~7 h
+    // of standing debt. The balance model with a 5-night window keeps it small:
+    // five nights ~30 min short (450) → 5 × 30 = 150 min, never the old 7 h.
+    const res = computeSleepDebt(nights(Array(7).fill(450)), NEED, {
+      minNights: 4,
+    });
+    expect(res.debtMinutes).toBe(5 * 30);
+    expect(res.windowNights).toBe(5);
+  });
+
+  it("surplus nights pay the running balance down (recovery)", () => {
+    // Short night (360 = 120 short) then a long catch-up night (600 = 120 over).
+    // Deficit adds 120; surplus pays down 0.5 × 120 = 60 → balance 60.
+    const res = computeSleepDebt(nights([360, 600]), NEED, { minNights: 1 });
+    expect(res.perNight.map((n) => n.deltaMinutes)).toEqual([120, -60]);
+    expect(res.debtMinutes).toBe(60);
+  });
+
+  it("a single short night carries only that night's deficit, bounded", () => {
+    // Four full nights then one 6 h night (360 = 120 short) → balance 120.
+    const res = computeSleepDebt(nights([480, 480, 480, 480, 360]), NEED, {
+      minNights: 1,
+    });
+    expect(res.debtMinutes).toBe(120);
+  });
+
+  it("recovers to zero after enough catch-up sleep", () => {
+    // Two short nights (each 120 short = +240 balance) then long catch-up nights
+    // (each 240 over → pays 0.5 × 240 = 120 down). Two catch-up nights clear it.
+    const res = computeSleepDebt([...nights([360, 360, 720, 720, 480])], NEED, {
+      minNights: 1,
+      maxNightlyDeficitMinutes: 180,
+    });
+    expect(res.debtMinutes).toBe(0);
+  });
+
+  it("never mints negative debt — surplus alone floors at zero", () => {
     const res = computeSleepDebt(nights([600, 600]), NEED, { minNights: 1 });
     expect(res.debtMinutes).toBe(0);
-    expect(res.perNight.every((n) => n.deficitMinutes === 0)).toBe(true);
   });
 
   it("caps a single catastrophic night's deficit", () => {
@@ -37,54 +69,55 @@ describe("computeSleepDebt", () => {
       minNights: 1,
       maxNightlyDeficitMinutes: 180,
     });
-    expect(res.perNight[0].deficitMinutes).toBe(180);
+    expect(res.perNight[0].deltaMinutes).toBe(180);
     expect(res.debtMinutes).toBe(180);
   });
 
-  it("caps the cumulative total", () => {
-    // Ten 0 h nights × 180 cap = 1800 raw, clamped to 1200 total cap.
-    const res = computeSleepDebt(nights(Array(10).fill(0)), NEED, {
+  it("caps the running balance total", () => {
+    // Five 0 h nights × 180 cap = 900 raw, clamped to a 600 balance cap.
+    const res = computeSleepDebt(nights(Array(5).fill(0)), NEED, {
       minNights: 1,
-      maxTotalDebtMinutes: 1200,
+      maxTotalDebtMinutes: 600,
     });
-    expect(res.debtMinutes).toBe(1200);
+    expect(res.debtMinutes).toBe(600);
   });
 
   it("takes only the most recent windowNights and sorts oldest→newest", () => {
-    // 16 nights of 420 (60 short each); window 14 → 14 × 60 = 840.
-    const res = computeSleepDebt(nights(Array(16).fill(420)), NEED, {
-      windowNights: 14,
+    // 8 nights of 420 (60 short each); window 5 → balance walks 5 × 60 = 300.
+    const res = computeSleepDebt(nights(Array(8).fill(420)), NEED, {
+      windowNights: 5,
     });
-    expect(res.nightsCounted).toBe(14);
-    expect(res.debtMinutes).toBe(14 * 60);
-    expect(res.windowNights).toBe(14);
-    // Oldest kept night is 2026-06-03 (06-01 and 06-02 aged out).
-    expect(res.perNight[0].night).toBe("2026-06-03");
-    expect(res.perNight.at(-1)?.night).toBe("2026-06-16");
+    expect(res.nightsCounted).toBe(5);
+    expect(res.debtMinutes).toBe(5 * 60);
+    expect(res.windowNights).toBe(5);
+    // Oldest kept night is 2026-06-04 (06-01..06-03 aged out of the 5-window).
+    expect(res.perNight[0].night).toBe("2026-06-04");
+    expect(res.perNight.at(-1)?.night).toBe("2026-06-08");
   });
 
   it("debt drains as deficit nights age out of the rolling window", () => {
-    // Two short nights then twelve full ones, window 14 → only the short
-    // nights inside the window count; thirteen full + one short → drains.
-    const fourteen = nights([360, ...Array(13).fill(480)]); // 1 short, 13 full
-    const res = computeSleepDebt(fourteen, NEED, { windowNights: 14 });
-    expect(res.debtMinutes).toBe(120); // only the 360 night carries debt
+    // One short night then five full ones, window 5 → the short night ages out
+    // entirely, leaving only full nights inside the window → zero balance.
+    const res = computeSleepDebt(nights([360, 480, 480, 480, 480, 480]), NEED, {
+      windowNights: 5,
+    });
+    expect(res.debtMinutes).toBe(0);
   });
 
   it("returns a calm partial state under the night threshold", () => {
     const res = computeSleepDebt(nights([300, 300, 300]), NEED, {
-      minNights: 7,
+      minNights: 4,
     });
     expect(res.state).toBe("partial");
     expect(res.nightsCounted).toBe(3);
-    expect(res.nightsUntilReady).toBe(4); // 7 − 3
-    // It still reports the running figure so the UI can show a soft preview.
-    expect(res.debtMinutes).toBe(3 * 180); // each night 180 short
+    expect(res.nightsUntilReady).toBe(1); // 4 − 3
+    // It still reports the running balance so the UI can show a soft preview.
+    expect(res.debtMinutes).toBe(3 * 180); // each night 180 short, no surplus
   });
 
   it("clears the partial state at or above the threshold", () => {
-    const res = computeSleepDebt(nights(Array(7).fill(420)), NEED, {
-      minNights: 7,
+    const res = computeSleepDebt(nights(Array(4).fill(420)), NEED, {
+      minNights: 4,
     });
     expect(res.state).toBe("ready");
     expect(res.nightsUntilReady).toBe(0);
@@ -95,5 +128,13 @@ describe("computeSleepDebt", () => {
     expect(res.state).toBe("partial");
     expect(res.debtMinutes).toBe(0);
     expect(res.needMinutes).toBe(0);
+  });
+
+  it("reports minutes (unit correctness) — a 90-min standing deficit is 90, not 1.5", () => {
+    // One 90-min-short night inside an otherwise-met window.
+    const res = computeSleepDebt(nights([480, 480, 480, 480, 390]), NEED, {
+      minNights: 1,
+    });
+    expect(res.debtMinutes).toBe(90);
   });
 });

@@ -591,7 +591,7 @@ describe("GET /api/dashboard/summary", () => {
   it("emits the sleep-rhythm DTO (sleep-debt + chronotype) computed from the foundation modules (v1.17.0)", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     // Ten consecutive 6 h (360 min) nights. Need = 420 (40-year-old default in
-    // beforeEach) → a 60-min deficit per night, 10 nights ≥ the 7-night floor.
+    // beforeEach) → a 60-min deficit per night, 10 nights ≥ the night floor.
     const rows = [];
     for (let d = 1; d <= 10; d++) {
       const day = String(d).padStart(2, "0");
@@ -627,12 +627,15 @@ describe("GET /api/dashboard/summary", () => {
       };
     };
     const { sleepDebt, chronotype } = body.data.sleepRhythm;
-    // Debt DTO is the computeSleepDebt result: ready, 10 × 60 = 600 min, need
-    // forwarded as 420 — proves the route reused the module, not a recompute.
+    // Debt DTO is the computeSleepDebt result: the rolling balance over the
+    // 5-night window of 60-min-short nights with no surplus to recover →
+    // 5 × 60 = 300 min, need forwarded as 420 — proves the route reused the
+    // module, not a recompute.
     expect(sleepDebt.state).toBe("ready");
-    expect(sleepDebt.debtMinutes).toBe(600);
+    expect(sleepDebt.debtMinutes).toBe(300);
     expect(sleepDebt.needMinutes).toBe(420);
-    expect(sleepDebt.nightsCounted).toBe(10);
+    expect(sleepDebt.nightsCounted).toBe(5);
+    expect(sleepDebt.windowNights).toBe(5);
     expect(sleepDebt.nightsUntilReady).toBe(0);
     // Chronotype DTO carries every wiring field; the calm learning state holds
     // until enough free-day nights exist (these are all weekday wake days).
