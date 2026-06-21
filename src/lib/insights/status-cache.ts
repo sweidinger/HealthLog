@@ -9,7 +9,26 @@ import {
   type InsightStatusScope,
 } from "@/lib/jobs/insight-status-generate-shared";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
+import {
+  DISCOVERY_BEHAVIOURS,
+  DISCOVERY_OUTCOMES,
+} from "@/lib/insights/correlation-discovery";
 import { annotate } from "@/lib/logging/context";
+
+/**
+ * v1.18.11 (P6-tighten) — the measurement types the FDR correlation-discovery
+ * matrix scans (`correlation-discovery.ts`). A status card whose prompt folds
+ * the surviving cross-metric correlations (`getRelevantCorrelationsForMetric`)
+ * can have a NEW correlation surface purely because one of these channels
+ * gained paired data — with no change to the card's own metric rows. The input
+ * gate must therefore fingerprint these channels too, or a freshly discovered
+ * relation would be silently skipped for the day. `MOOD` is mood-entry backed
+ * (folded separately via `includeMood`), so it is excluded from the
+ * measurement-type set here.
+ */
+const CORRELATION_CHANNEL_TYPES: readonly MeasurementType[] = Array.from(
+  new Set<string>([...DISCOVERY_BEHAVIOURS, ...DISCOVERY_OUTCOMES]),
+).filter((key) => key !== "MOOD") as MeasurementType[];
 
 /**
  * Shared cache-read for the seven `*-status.ts` insight generators.
@@ -231,18 +250,40 @@ export async function computeStatusInputFingerprint(args: {
    */
   includeMood?: boolean;
   /**
+   * v1.18.11 (P6-tighten) — include the FDR correlation-discovery channels
+   * (`CORRELATION_CHANNEL_TYPES`) in the fingerprint. A card that folds the
+   * surviving cross-metric correlations (via `getRelevantCorrelationsForMetric`)
+   * can surface a NEW relation purely because a discovery channel — steps,
+   * sleep, HRV, glucose, daylight, … — gained paired data, with NO change to
+   * the card's own metric rows. Without this the input gate would re-stamp the
+   * stale assessment and the freshly discovered correlation would never reach
+   * the prose. Cheap: it widens the SAME grouped query by the channel type set
+   * (no extra round-trip). `includeMood` is honoured for the mood arm of the
+   * discovery matrix as before. Set on any card whose prompt carries a
+   * relations block (i.e. whose metric is a discovery channel).
+   */
+  includeCorrelationChannels?: boolean;
+  /**
    * v1.18.11 (P6) — extra non-measurement inputs the snapshot derives from
    * (e.g. BMI reads the profile `heightCm`). Folded into the hash so a
    * change to one of them flips the gate. Values must be JSON-stable.
    */
   extra?: Record<string, string | number | null>;
 }): Promise<string> {
+  // Widen the grouped query by the correlation-discovery channels when the
+  // card folds a relations block, so a discovery-channel change flips the gate.
+  // De-duplicate the union (a card's own type can also be a discovery channel)
+  // so the `type IN (...)` list carries each type once.
+  const groupTypes = args.includeCorrelationChannels
+    ? Array.from(new Set<string>([...args.types, ...CORRELATION_CHANNEL_TYPES]))
+    : [...args.types];
+
   const [grouped, mood] = await Promise.all([
     prisma.measurement.groupBy({
       by: ["type"],
       where: {
         userId: args.userId,
-        type: { in: [...args.types] },
+        type: { in: groupTypes as MeasurementType[] },
         deletedAt: null,
       },
       _count: { _all: true },
