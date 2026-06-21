@@ -99,14 +99,54 @@ import type { PerSampleRow } from "./drain-per-sample-cumulative";
  */
 
 /**
- * The dense-tier types. These are the daytime intra-day signals the Stress
- * engine reads as a shape. Both are deliberately EXEMPT from the
- * destructive daily-mean drain (`HIGH_FREQUENCY_MEAN_TYPES`); the
- * disjointness from that set is the load-bearing invariant a regression
- * test pins.
+ * The dense-tier types. These are the high-frequency intra-day signals that
+ * accumulate raw per-sample rows the destructive daily-mean drain never
+ * touches:
+ *
+ *   - `HEART_RATE_VARIABILITY` + `PULSE` — the daytime shape the Stress
+ *     engine reads (v1.10.0 / v1.18.11).
+ *   - `OXYGEN_SATURATION` — Apple Watch's Blood-Oxygen app samples SpO2
+ *     periodically through the day and overnight; the readings map to
+ *     `aggregation: "latest"` and sit in NEITHER `CUMULATIVE_HK_TYPES` nor
+ *     `HIGH_FREQUENCY_MEAN_TYPES`, so every sample piled up raw forever.
+ *     Folded here to one daily-mean row with the daily min/max preserved on
+ *     the rollup tier (the lowest sample is the overnight-desaturation
+ *     nadir — clinically the meaningful figure, not the mean).
+ *
+ * Every member is deliberately EXEMPT from the destructive daily-mean drain
+ * (`HIGH_FREQUENCY_MEAN_TYPES`); the disjointness from that set is the
+ * load-bearing invariant a regression test pins — a type in both would be
+ * folded by two drains at once and corrupt the value.
+ *
+ * `RESPIRATORY_RATE` is deliberately NOT here: it is already a member of
+ * `HIGH_FREQUENCY_MEAN_TYPES`, so the nightly mean-consolidation already
+ * collapses it to a daily-mean row. Adding it here would double-fold it.
  */
 export const DENSE_INTRADAY_RETENTION_TYPES: ReadonlySet<MeasurementType> =
-  new Set<MeasurementType>(["HEART_RATE_VARIABILITY", "PULSE"]);
+  new Set<MeasurementType>([
+    "HEART_RATE_VARIABILITY",
+    "PULSE",
+    "OXYGEN_SATURATION",
+  ]);
+
+/**
+ * Dense-tier types whose daily MIN / MAX are clinically meaningful and must
+ * survive the fold. For these, the DAY rollup bucket is recomputed from the
+ * RAW rows BEFORE the fold (while min/max are still computable from live
+ * rows) and the post-fold recompute that would collapse min == max == mean is
+ * SKIPPED — identical to the PULSE facet (iOS#34), generalised:
+ *
+ *   - `PULSE` — daily min/max bound the resting floor + workout peak.
+ *   - `OXYGEN_SATURATION` — the daily MIN is the overnight-desaturation
+ *     nadir, the single most clinically meaningful SpO2 figure; the mean
+ *     alone would hide a transient nocturnal dip.
+ *
+ * `HEART_RATE_VARIABILITY` is absent: out-of-window HRV has no min/max
+ * consumer (the Stress engine reads the IN-window shape this drain never
+ * folds), so it keeps the simpler post-fold recompute against its mean row.
+ */
+const DENSE_MIN_MAX_PRESERVING_TYPES: ReadonlySet<MeasurementType> =
+  new Set<MeasurementType>(["PULSE", "OXYGEN_SATURATION"]);
 
 /**
  * Retention bound (days). Per-sample HRV / HR rows older than this window
@@ -302,15 +342,18 @@ export async function runDenseIntradayRetention(
     }): Promise<DayWriteOutcome> => {
       const unit = dayRows[0]?.unit ?? "unknown";
       const isPulse = type === "PULSE";
+      const preservesMinMax = DENSE_MIN_MAX_PRESERVING_TYPES.has(type);
 
-      // iOS#34 — PULSE min/max preservation. The persistent `MeasurementRollup`
-      // DAY bucket stores min/max/mean but aggregates LIVE rows; recomputing it
-      // AFTER the fold (one mean row) collapses min == max == mean. So for
-      // PULSE, recompute the DAY bucket from the RAW rows BEFORE the fold,
-      // while they are still live — the bucket then keeps the TRUE intraday
-      // min/max/mean — and the post-fold recompute is SKIPPED below. (HRV has
-      // no min/max consumer, so it keeps the simpler post-fold recompute.)
-      if (isPulse && !options.dryRun) {
+      // iOS#34 — min/max preservation (PULSE + SpO2). The persistent
+      // `MeasurementRollup` DAY bucket stores min/max/mean but aggregates LIVE
+      // rows; recomputing it AFTER the fold (one mean row) collapses
+      // min == max == mean. So for the min/max-preserving types, recompute the
+      // DAY bucket from the RAW rows BEFORE the fold, while they are still live
+      // — the bucket then keeps the TRUE intraday min/max/mean (for SpO2 the
+      // MIN is the overnight-desaturation nadir) — and the post-fold recompute
+      // is SKIPPED below. HRV has no min/max consumer, so it keeps the simpler
+      // post-fold recompute.
+      if (preservesMinMax && !options.dryRun) {
         await recomputeBucketsForMeasurement(userId, type, canonicalTimestamp);
       }
 
@@ -509,12 +552,12 @@ export async function runDenseIntradayRetention(
       // the stale DAY bucket must re-aggregate against the single
       // consolidated row, exactly as the mean-consolidation drain does.
       //
-      // iOS#34 — for PULSE this would COLLAPSE the true intraday min/max the
-      // pre-fold recompute above just captured (the single folded row makes
-      // min == max == mean), so the PULSE DAY bucket is left as the pre-fold
-      // recompute set it. HRV (no min/max consumer) keeps the post-fold
-      // recompute against its single mean row.
-      if (!isPulse) {
+      // iOS#34 — for the min/max-preserving types (PULSE + SpO2) this would
+      // COLLAPSE the true intraday min/max the pre-fold recompute above just
+      // captured (the single folded row makes min == max == mean), so their
+      // DAY bucket is left as the pre-fold recompute set it. HRV (no min/max
+      // consumer) keeps the post-fold recompute against its single mean row.
+      if (!preservesMinMax) {
         await recomputeBucketsForMeasurement(userId, type, canonicalTimestamp);
       }
 
