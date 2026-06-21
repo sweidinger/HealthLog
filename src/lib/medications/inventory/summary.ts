@@ -23,12 +23,12 @@
  * helper returns could not go negative from a single corrupt / legacy
  * row carrying a negative `unitsRemaining` (or `unitsTotal`). Rather
  * than leave each surface to re-clamp, the floor lives HERE, at the one
- * point every readout flows through, and a raw-negative pool emits a
- * `medication.inventory.underflow` wide-event so the underlying bug is
- * observable if it ever recurs.
+ * point every readout flows through. The matching `medication.inventory.underflow`
+ * wide-event is emitted by the server-side caller (`evaluateMedicationRunway`
+ * in the low-stock job) via the pure `detectSupplyUnderflow` predicate below —
+ * this module imports no request-scoped logging so it stays safe to bundle into
+ * the client detail surfaces that also render from it.
  */
-
-import { annotate } from "@/lib/logging/context";
 
 export type SupplyItemState = "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
 
@@ -49,6 +49,15 @@ export interface SupplySummary {
   dosesTotal: number;
   /** Units still sitting in EXPIRED containers — visible, never available. */
   expiredUnits: number;
+}
+
+/** Raw figures behind a clamped pool, captured when the available pool would
+ *  otherwise have surfaced a non-finite or negative Bestand. */
+export interface SupplyUnderflow {
+  rawUnitsRemaining: number | null;
+  rawUnitsTotal: number | null;
+  clampedUnitsRemaining: number;
+  availableCount: number;
 }
 
 /** The list-route / GLP-1 availability predicate, verbatim. */
@@ -84,29 +93,11 @@ export function summariseSupply(
   // v1.18.11 (#31) — central sanity gate. A NaN / negative pool can only
   // come from a corrupt or legacy row that slipped past the per-row
   // availability predicate; never surface it. Clamp to zero (the dose
-  // ran out) and emit an underflow wide-event so the data defect stays
-  // observable — `annotate` is a no-op outside a request context, so the
-  // pure helper stays safe to call from a server component.
+  // ran out). The matching underflow wide-event is emitted by the
+  // server-side caller through `detectSupplyUnderflow` — this helper stays
+  // pure so it can bundle into the client detail surfaces.
   const unitsRemaining = clampNonNegative(rawUnitsRemaining);
   const unitsTotal = clampNonNegative(rawUnitsTotal);
-  if (
-    !Number.isFinite(rawUnitsRemaining) ||
-    rawUnitsRemaining < 0 ||
-    !Number.isFinite(rawUnitsTotal) ||
-    rawUnitsTotal < 0
-  ) {
-    annotate({
-      action: { name: "medication.inventory.underflow" },
-      meta: {
-        raw_units_remaining: Number.isFinite(rawUnitsRemaining)
-          ? rawUnitsRemaining
-          : null,
-        raw_units_total: Number.isFinite(rawUnitsTotal) ? rawUnitsTotal : null,
-        clamped_units_remaining: unitsRemaining,
-        available_count: available.length,
-      },
-    });
-  }
 
   return {
     unitsRemaining,
@@ -114,6 +105,42 @@ export function summariseSupply(
     dosesRemaining: Math.floor(unitsRemaining / perDose),
     dosesTotal: Math.floor(unitsTotal / perDose),
     expiredUnits,
+  };
+}
+
+/**
+ * Pure underflow detector for the available pool. Returns the raw figures
+ * (and the clamped result) when the available containers would have summed
+ * to a non-finite or negative Bestand, else `null`. No request-scoped logging
+ * import, so it is safe to bundle anywhere; a server caller with a request
+ * context turns a non-null result into the `medication.inventory.underflow`
+ * wide-event.
+ */
+export function detectSupplyUnderflow(
+  items: readonly SupplyItem[],
+): SupplyUnderflow | null {
+  const available = items.filter(isAvailableSupply);
+  const rawUnitsRemaining = available.reduce(
+    (sum, item) => sum + item.unitsRemaining,
+    0,
+  );
+  const rawUnitsTotal = available.reduce(
+    (sum, item) => sum + item.unitsTotal,
+    0,
+  );
+  const underflowed =
+    !Number.isFinite(rawUnitsRemaining) ||
+    rawUnitsRemaining < 0 ||
+    !Number.isFinite(rawUnitsTotal) ||
+    rawUnitsTotal < 0;
+  if (!underflowed) return null;
+  return {
+    rawUnitsRemaining: Number.isFinite(rawUnitsRemaining)
+      ? rawUnitsRemaining
+      : null,
+    rawUnitsTotal: Number.isFinite(rawUnitsTotal) ? rawUnitsTotal : null,
+    clampedUnitsRemaining: clampNonNegative(rawUnitsRemaining),
+    availableCount: available.length,
   };
 }
 
