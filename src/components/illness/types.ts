@@ -97,9 +97,11 @@ export interface IllnessVitalDeviation {
 }
 
 export interface IllnessVitalReturn {
+  /** A `MeasurementType`, or `"FUNCTIONAL_IMPACT"` for the symptom-burden track. */
   type: string;
   returnedDay: string | null;
   gapDays: number | null;
+  adverse: boolean;
 }
 
 export interface IllnessRedFlag {
@@ -117,6 +119,12 @@ export interface IllnessCorrelationValue {
   recoveryGapDays: number | null;
   adverseCoverageDays: number;
   feltBetterDay: string | null;
+  /**
+   * The metric that drove the headline gap — a `MeasurementType`,
+   * `"FUNCTIONAL_IMPACT"` (the symptom-burden track), or null. Drives the
+   * driver-aware recovery-gap copy.
+   */
+  gapDriverType: string | null;
   redFlags: IllnessRedFlag[];
 }
 

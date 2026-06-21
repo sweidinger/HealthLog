@@ -6882,6 +6882,8 @@
       "recoveryGapTitle": "Divario di recupero",
       "recoveryGapLag": "I tuoi valori si sono stabilizzati {days} giorni dopo esserti sentito meglio.",
       "recoveryGapLead": "I tuoi valori si sono stabilizzati {days} giorni prima di segnare la guarigione.",
+      "recoveryGapLagSymptom": "Ti sei sentito meglio {days} giorni prima che i sintomi registrati si attenuassero.",
+      "recoveryGapLeadSymptom": "I tuoi sintomi registrati si sono attenuati {days} giorni prima di segnare la guarigione.",
       "recoveryGapSame": "I tuoi valori si sono stabilizzati lo stesso giorno in cui ti sei sentito meglio.",
       "redFlagTitle": "Da guardare più da vicino",
       "redFlagSpo2": "La tua saturazione di ossigeno è rimasta bassa per diversi giorni. Se si ripete, rivolgiti a un medico.",

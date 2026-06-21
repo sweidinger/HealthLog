@@ -16,10 +16,12 @@ import type { MeasurementType } from "@/generated/prisma/client";
 import {
   computeIllnessCorrelation,
   dayDiff,
+  FUNCTIONAL_IMPACT_RETURN_KEY,
   isAdverseDeviation,
   MIN_BASELINE_DAYS,
   MIN_EPISODE_COVERAGE_DAYS,
   type IllnessCorrelationInput,
+  type SymptomBurdenPoint,
   type VitalDayPoint,
 } from "../correlation";
 
@@ -613,5 +615,198 @@ describe("computeIllnessCorrelation — return anchor", () => {
     // Gap = 01-19 − 01-15 = +4 (positive — body lagged), never negative.
     expect(out.value.recoveryGapDays).toBe(4);
     expect(out.value.recoveryGapDays).toBeGreaterThan(0);
+  });
+});
+
+describe("computeIllnessCorrelation — symptom-burden return track", () => {
+  // A banded RHR vital present in EVERY case below clears the engine's
+  // episode-coverage floor (the gate counts banded-vital days, not symptom
+  // days). Its band stays IN throughout so it produces no adverse signal and
+  // never competes with the symptom track for the driver — it is scaffolding.
+  const rhr: MeasurementType = "RESTING_HEART_RATE";
+  const rhrBaseline = jitteredBaseline(55, 1, 21, "2026-01-02");
+  const rhrFlat: VitalDayPoint[] = [
+    { day: "2026-01-10", mean: 55 },
+    { day: "2026-01-11", mean: 55 },
+    { day: "2026-01-12", mean: 55 },
+    { day: "2026-01-13", mean: 55 },
+    { day: "2026-01-14", mean: 55 },
+  ];
+
+  it("folds a functional-impact return into the gap with a constant-0 baseline", () => {
+    // Onset 01-10, felt better 01-14. Logged impact: bedbound early, eases to 0
+    // on 01-16 and HOLDS for 3 logged days → symptom return 01-16, gap +2.
+    const symptomBurden: SymptomBurdenPoint[] = [
+      { day: "2026-01-10", impact: 3 },
+      { day: "2026-01-12", impact: 2 },
+      { day: "2026-01-14", impact: 1 }, // felt-better day, still symptomatic
+      { day: "2026-01-16", impact: 0 }, // return start
+      { day: "2026-01-17", impact: 0 },
+      { day: "2026-01-18", impact: 0 }, // 3 logged in-band days → stable
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        symptomBurden,
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const sym = out.value.returns.find(
+      (r) => r.type === FUNCTIONAL_IMPACT_RETURN_KEY,
+    );
+    expect(sym).toBeDefined();
+    expect(sym?.returnedDay).toBe("2026-01-16");
+    expect(sym?.adverse).toBe(true);
+    // Gap = 01-16 − 01-14 = +2. RHR stayed flat (no gap), so the symptom track
+    // is the only contributor → headline gap = +2.
+    expect(sym?.gapDays).toBe(dayDiff("2026-01-14", "2026-01-16"));
+    expect(out.value.recoveryGapDays).toBe(2);
+    // It contributes to the adverse-coverage floor (3 logged adverse days).
+    expect(out.value.adverseCoverageDays).toBeGreaterThanOrEqual(3);
+    expect(out.value.gapDriverType).toBe(FUNCTIONAL_IMPACT_RETURN_KEY);
+  });
+
+  it("WITHHOLDS the symptom return when logging is too sparse to stabilise", () => {
+    // The user logs while sick, then logs impact-0 ONCE and stops — the
+    // 3-logged-day stability run can never fire. The symptom track must
+    // contribute NO gap (honest withholding), never fabricate recovery from the
+    // absence of further logs.
+    const symptomBurden: SymptomBurdenPoint[] = [
+      { day: "2026-01-10", impact: 3 },
+      { day: "2026-01-12", impact: 2 },
+      { day: "2026-01-16", impact: 0 }, // single trailing in-band log
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        symptomBurden,
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const sym = out.value.returns.find(
+      (r) => r.type === FUNCTIONAL_IMPACT_RETURN_KEY,
+    );
+    expect(sym).toBeDefined();
+    expect(sym?.returnedDay).toBeNull();
+    expect(sym?.gapDays).toBeNull();
+    // No vital returned either → no headline gap fabricated.
+    expect(out.value.recoveryGapDays).toBeNull();
+    expect(out.value.gapDriverType).toBeNull();
+    // The logged adverse days still count toward coverage (honest).
+    expect(out.value.adverseCoverageDays).toBeGreaterThanOrEqual(2);
+  });
+
+  it("lets the symptom track win the driver over a co-returning vital", () => {
+    // Both the symptom curve AND an adverse RHR spike return and produce gaps;
+    // the functional-impact track must win `gapDriverType` on a tie (it is the
+    // most illness-specific signal).
+    const rhrSpike: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 75 }, // adverse up
+      { day: "2026-01-11", mean: 74 },
+      { day: "2026-01-16", mean: 55 }, // back in band
+      { day: "2026-01-17", mean: 55 },
+      { day: "2026-01-18", mean: 55 }, // 3 stable
+    ];
+    const symptomBurden: SymptomBurdenPoint[] = [
+      { day: "2026-01-10", impact: 3 },
+      { day: "2026-01-12", impact: 2 },
+      { day: "2026-01-16", impact: 0 }, // same return day → same gap as RHR
+      { day: "2026-01-17", impact: 0 },
+      { day: "2026-01-18", impact: 0 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrSpike },
+        ],
+        symptomBurden,
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const sym = out.value.returns.find(
+      (r) => r.type === FUNCTIONAL_IMPACT_RETURN_KEY,
+    );
+    const rhrReturn = out.value.returns.find((r) => r.type === rhr);
+    expect(sym?.gapDays).toBe(2);
+    expect(rhrReturn?.gapDays).toBe(2);
+    expect(out.value.recoveryGapDays).toBe(2);
+    // Tie on |gap − median| → functional-impact wins.
+    expect(out.value.gapDriverType).toBe(FUNCTIONAL_IMPACT_RETURN_KEY);
+  });
+
+  it("ignores a symptom curve with no adverse day (nothing to return from)", () => {
+    const symptomBurden: SymptomBurdenPoint[] = [
+      { day: "2026-01-10", impact: 0 },
+      { day: "2026-01-12", impact: 0 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        symptomBurden,
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(
+      out.value.returns.find((r) => r.type === FUNCTIONAL_IMPACT_RETURN_KEY),
+    ).toBeUndefined();
+  });
+
+  it("never produces a symptom return for CHRONIC_ONGOING", () => {
+    const symptomBurden: SymptomBurdenPoint[] = [
+      { day: "2026-01-10", impact: 3 },
+      { day: "2026-01-16", impact: 0 },
+      { day: "2026-01-17", impact: 0 },
+      { day: "2026-01-18", impact: 0 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "CHRONIC_ONGOING",
+        },
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        symptomBurden,
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.recoveryGapDays).toBeNull();
+    expect(out.value.gapDriverType).toBeNull();
+    expect(
+      out.value.returns.find((r) => r.type === FUNCTIONAL_IMPACT_RETURN_KEY),
+    ).toBeUndefined();
   });
 });

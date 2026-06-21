@@ -44,6 +44,10 @@ function DeviationRow({ d }: { d: IllnessVitalDeviation }) {
 function CorrelationBody({ value }: { value: IllnessCorrelationValue }) {
   const { t } = useTranslations();
   const gap = value.recoveryGapDays;
+  // Driver-aware copy: when the user's logged symptom curve drove the gap, name
+  // the symptoms ("…before your symptoms eased"); otherwise the existing
+  // vital-driven phrasing. Clinically calm — observation, never prediction.
+  const symptomDriven = value.gapDriverType === "FUNCTIONAL_IMPACT";
 
   return (
     <div className="space-y-5">
@@ -71,11 +75,19 @@ function CorrelationBody({ value }: { value: IllnessCorrelationValue }) {
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
             {gap > 0
-              ? t("illness.correlation.recoveryGapLag", { days: gap })
+              ? t(
+                  symptomDriven
+                    ? "illness.correlation.recoveryGapLagSymptom"
+                    : "illness.correlation.recoveryGapLag",
+                  { days: gap },
+                )
               : gap < 0
-                ? t("illness.correlation.recoveryGapLead", {
-                    days: Math.abs(gap),
-                  })
+                ? t(
+                    symptomDriven
+                      ? "illness.correlation.recoveryGapLeadSymptom"
+                      : "illness.correlation.recoveryGapLead",
+                    { days: Math.abs(gap) },
+                  )
                 : t("illness.correlation.recoveryGapSame")}
           </p>
         </div>

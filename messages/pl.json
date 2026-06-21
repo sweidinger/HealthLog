@@ -6882,6 +6882,8 @@
       "recoveryGapTitle": "Luka rekonwalescencji",
       "recoveryGapLag": "Twoje wartości ustabilizowały się {days} dni po tym, jak poczułeś się lepiej.",
       "recoveryGapLead": "Twoje wartości ustabilizowały się {days} dni przed oznaczeniem wyzdrowienia.",
+      "recoveryGapLagSymptom": "Poczułeś się lepiej {days} dni przed ustąpieniem zapisanych objawów.",
+      "recoveryGapLeadSymptom": "Twoje zapisane objawy ustąpiły {days} dni przed oznaczeniem wyzdrowienia.",
       "recoveryGapSame": "Twoje wartości ustabilizowały się tego samego dnia, gdy poczułeś się lepiej.",
       "redFlagTitle": "Warto przyjrzeć się bliżej",
       "redFlagSpo2": "Twoje wysycenie tlenem pozostawało niskie przez kilka dni. Jeśli się powtórzy, zasięgnij pomocy medycznej.",

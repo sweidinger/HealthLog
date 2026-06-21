@@ -6882,6 +6882,8 @@
       "recoveryGapTitle": "Erholungslücke",
       "recoveryGapLag": "Deine Werte normalisierten sich {days} Tage, nachdem es dir besser ging.",
       "recoveryGapLead": "Deine Werte normalisierten sich {days} Tage, bevor du Genesung vermerktest.",
+      "recoveryGapLagSymptom": "Dir ging es {days} Tage besser, bevor deine erfassten Symptome abklangen.",
+      "recoveryGapLeadSymptom": "Deine erfassten Symptome klangen {days} Tage ab, bevor du Genesung vermerktest.",
       "recoveryGapSame": "Deine Werte normalisierten sich am selben Tag, an dem es dir besser ging.",
       "redFlagTitle": "Genauer ansehen",
       "redFlagSpo2": "Deine Sauerstoffsättigung blieb mehrere Tage niedrig. Wenn das erneut auftritt, suche ärztliche Hilfe.",
