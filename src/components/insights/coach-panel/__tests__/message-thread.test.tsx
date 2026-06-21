@@ -62,10 +62,10 @@ import {
 import type { CoachConversationDetailDTO } from "@/lib/ai/coach/types";
 import type { CoachStreamingMessage } from "../use-coach";
 
-// v1.18.9 — `CoachStreamingMessage` gained `usage` / `startedAt` /
-// `reasoning` (per-message token footer + thinking disclosure). The
-// fixtures below predate those fields; this builder fills the defaults so
-// each test only spells out the fields it cares about.
+// v1.18.9 — `CoachStreamingMessage` gained a `usage` field for the
+// per-message token footer. The fixtures below predate it; this builder
+// fills the defaults so each test only spells out the fields it cares
+// about.
 function streaming(
   partial: Partial<CoachStreamingMessage>,
 ): CoachStreamingMessage {
@@ -77,8 +77,6 @@ function streaming(
     messageId: null,
     errorCode: null,
     usage: null,
-    startedAt: null,
-    reasoning: "",
     ...partial,
   };
 }

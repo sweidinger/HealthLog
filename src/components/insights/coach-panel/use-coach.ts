@@ -199,19 +199,6 @@ export interface CoachStreamingMessage {
    * bubble; persisted bubbles read `CoachMessageDTO.tokensUsed` instead.
    */
   usage: CoachUsage | null;
-  /**
-   * v1.18.9 — epoch-ms timestamp the send fired, so the thinking
-   * disclosure can show a live "thinking for N s" counter that freezes
-   * to a past-tense summary once the first token lands. Null before a
-   * turn starts.
-   */
-  startedAt: number | null;
-  /**
-   * v1.18.9 — optional reasoning-summary text from the additive
-   * `reasoning` frame, rendered inside the thinking disclosure when a
-   * reasoning-capable provider emits it. Empty string when none.
-   */
-  reasoning: string;
 }
 
 /**
@@ -253,8 +240,6 @@ const EMPTY_STREAMING: CoachStreamingMessage = {
   messageId: null,
   errorCode: null,
   usage: null,
-  startedAt: null,
-  reasoning: "",
 };
 
 export interface SendCoachMessageParams {
@@ -349,10 +334,6 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         messageId: null,
         errorCode: null,
         usage: null,
-        // v1.18.9 — anchor the thinking-disclosure elapsed timer to the
-        // moment the send fired.
-        startedAt: Date.now(),
-        reasoning: "",
       });
 
       // v1.4.47 W8 — pre-check navigator.onLine so an airplane-mode
@@ -367,8 +348,6 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           messageId: null,
           errorCode: "coach.network",
           usage: null,
-          startedAt: null,
-          reasoning: "",
         });
         return null;
       }
@@ -403,8 +382,6 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           messageId: null,
           errorCode: "coach.network",
           usage: null,
-          startedAt: null,
-          reasoning: "",
         });
         return null;
       }
@@ -418,8 +395,6 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           messageId: null,
           errorCode: `coach.http.${response.status}`,
           usage: null,
-          startedAt: null,
-          reasoning: "",
         });
         return null;
       }
@@ -458,8 +433,6 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           messageId: null,
           errorCode: structured ?? `coach.http.${response.status}`,
           usage: null,
-          startedAt: null,
-          reasoning: "",
         });
         // v1.16.4 — KEEP the optimistic user bubble: a rejected turn
         // (budget gate, 4xx) has no persisted twin coming, and dropping
@@ -479,7 +452,6 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
       let lastError: string | null = null;
       let messageId: string | null = null;
       let collectedUsage: CoachUsage | null = null;
-      let collectedReasoning = "";
 
       try {
         while (true) {
@@ -512,16 +484,10 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
                 }));
                 break;
               case "reasoning":
-                // v1.18.9 — additive reasoning-summary frame. Append so
-                // multiple chunks accumulate; the disclosure renders it
-                // when present, else falls back to the elapsed-time label.
-                // Guard the text: a `reasoning` frame with no `text` must not
-                // append a literal "undefined".
-                collectedReasoning += evt.text ?? "";
-                setStreaming((prev) => ({
-                  ...prev,
-                  reasoning: prev.reasoning + (evt.text ?? ""),
-                }));
+                // v1.19.1 — the thinking disclosure was removed, so the
+                // additive `reasoning` frame is accepted off the wire and
+                // dropped. Kept as an explicit no-op case so the wire frame
+                // stays a recognised type rather than slipping to a default.
                 break;
               case "done":
                 resolvedConversationId = evt.conversationId;
@@ -544,8 +510,6 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
             collectedUsage = evt.usage ?? null;
           } else if (evt.type === "error") {
             lastError = evt.code;
-          } else if (evt.type === "reasoning") {
-            collectedReasoning += evt.text ?? "";
           }
         }
       } catch (err) {
@@ -554,7 +518,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         }
       }
 
-      setStreaming((prev) => ({
+      setStreaming({
         content: collectedContent,
         metricSource: collectedProvenance,
         suggestion: collectedSuggestion,
@@ -562,12 +526,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         messageId,
         errorCode: lastError,
         usage: collectedUsage,
-        // v1.18.9 — keep the send-anchored timestamp so the disclosure can
-        // freeze the elapsed time to a past-tense "thought for N s" once
-        // the turn settles.
-        startedAt: prev.startedAt,
-        reasoning: collectedReasoning,
-      }));
+      });
 
       if (resolvedConversationId) {
         // Invalidate the freshly-persisted conversation + the rail so
