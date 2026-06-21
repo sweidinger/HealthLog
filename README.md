@@ -42,18 +42,36 @@ Try the [live demo](https://demo.healthlog.dev) to see a working install — sig
 
 The full feature tour, integration guides, and API reference live at [docs.healthlog.dev](https://docs.healthlog.dev).
 
-## Quick start
+## Quick start (Docker Compose)
 
 ```bash
 git clone https://github.com/MBombeck/HealthLog.git && cd HealthLog
 cp .env.example .env
+
+# Generate the three secrets (each a 64-char hex string = 32 bytes):
 echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)" >> .env
 echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" >> .env
 echo "API_TOKEN_HMAC_KEY=$(openssl rand -hex 32)" >> .env
+
+# LAN / plain-HTTP host (NAS, homelab, Tailscale) — required, or login fails:
+echo "SESSION_COOKIE_SECURE=false" >> .env
+
 docker compose up -d
 ```
 
-Open **http://localhost:3000** — the first registered user becomes admin. The compose file pulls a pre-built multi-arch image (`amd64` + `arm64`) from [GHCR](https://github.com/MBombeck/HealthLog/pkgs/container/healthlog); no build step required. Behind a reverse proxy, set `NEXT_PUBLIC_APP_URL` and `APP_URL` first — see the [self-hosting guide](https://docs.healthlog.dev/self-hosting/).
+Open **http://localhost:3000** (or `http://<host>:3000`) — the first registered user becomes admin. The compose file pulls a pre-built multi-arch image (`amd64` + `arm64`) from [GHCR](https://github.com/MBombeck/HealthLog/pkgs/container/healthlog); no build step required.
+
+Verify the running version:
+
+```bash
+curl -s http://localhost:3000/api/version   # returns version + buildSha + builtAt
+```
+
+`SESSION_COOKIE_SECURE=false` is the one setting plain-HTTP self-hosts must set: without it the session cookie carries the `Secure` flag, the browser drops it over HTTP, and login silently fails. Leave it unset (or `true`) only when a TLS reverse proxy serves HTTPS — and then set `NEXT_PUBLIC_APP_URL` and `APP_URL` to the public URL first (see the [self-hosting guide](https://docs.healthlog.dev/self-hosting/)).
+
+Persistent state lives in exactly one named volume (`pgdata`, the Postgres data dir); the app container is stateless, so backing up the database backs up everything.
+
+NAS and homelab users have ready-made paths: [Unraid Community Applications](docs/self-hosting/unraid.md) and [Portainer app templates](docs/self-hosting/portainer/README.md).
 
 ## Self-hosting
 

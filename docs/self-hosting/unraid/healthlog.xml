@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<!--
+  HealthLog — Unraid Community Applications template.
+
+  CA templates describe ONE container. HealthLog needs PostgreSQL 16, so
+  install a PostgreSQL container FIRST (CA has community PostgreSQL templates),
+  create a `healthlog` database + user, then point DATABASE_URL below at it.
+  Full walkthrough: docs/self-hosting/unraid.md.
+
+  LAN installs serve plain HTTP (http://tower:3000). Keep SESSION_COOKIE_SECURE
+  set to false (the default in this template) or login will silently fail.
+-->
+<Container version="2">
+  <Name>HealthLog</Name>
+  <Repository>ghcr.io/mbombeck/healthlog:latest</Repository>
+  <Registry>https://github.com/MBombeck/HealthLog/pkgs/container/healthlog</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/MBombeck/HealthLog/issues</Support>
+  <Project>https://github.com/MBombeck/HealthLog</Project>
+  <Overview>
+    Self-hosted personal health tracker (PWA + native iOS client): weight, blood
+    pressure, pulse, blood glucose, body composition, sleep, mood, menstrual
+    cycle, and medications on one encrypted timeline. AES-256-GCM at rest, no
+    vendor cloud, no telemetry.
+
+    REQUIRES a separate PostgreSQL 16 container — install one first (CA has
+    community PostgreSQL templates), create a database and user, then set
+    DATABASE_URL below. Step-by-step guide:
+    https://github.com/MBombeck/HealthLog/blob/main/docs/self-hosting/unraid.md
+
+    Generate each required secret with: openssl rand -hex 32
+
+    LAN / plain-HTTP installs MUST keep SESSION_COOKIE_SECURE set to false,
+    otherwise the session cookie carries the Secure flag, the browser drops it
+    over HTTP, and login silently fails.
+  </Overview>
+  <Category>Tools: Productivity: Other:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <Icon>https://raw.githubusercontent.com/MBombeck/HealthLog/main/public/logo-512.png</Icon>
+  <ExtraParams>--security-opt no-new-privileges:true</ExtraParams>
+  <DonateText/>
+  <DonateLink/>
+
+  <Config Name="WebUI Port" Target="3000" Default="3000" Mode="tcp" Description="HTTP port HealthLog listens on." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+
+  <Config Name="DATABASE_URL" Target="DATABASE_URL" Default="postgresql://healthlog:CHANGE-ME@POSTGRES-HOST:5432/healthlog?schema=public" Mode="" Description="Connection string for your separately-installed PostgreSQL 16. Replace CHANGE-ME with the DB password and POSTGRES-HOST with the Postgres container IP or name." Type="Variable" Display="always" Required="true" Mask="true"/>
+
+  <Config Name="ENCRYPTION_KEY" Target="ENCRYPTION_KEY" Default="" Mode="" Description="AES-256-GCM key for data at rest. Generate with: openssl rand -hex 32 (64-char hex). Back this up — losing it makes encrypted data unrecoverable." Type="Variable" Display="always" Required="true" Mask="true"/>
+
+  <Config Name="API_TOKEN_HMAC_KEY" Target="API_TOKEN_HMAC_KEY" Default="" Mode="" Description="HMAC key for API token hashing. Generate with: openssl rand -hex 32 (64-char hex)." Type="Variable" Display="always" Required="true" Mask="true"/>
+
+  <Config Name="SESSION_COOKIE_SECURE" Target="SESSION_COOKIE_SECURE" Default="false" Mode="" Description="Set to false for LAN / plain-HTTP installs (http://tower:3000) or login fails. Set to true only behind an HTTPS reverse proxy." Type="Variable" Display="always" Required="true" Mask="false">false</Config>
+
+  <Config Name="NEXT_PUBLIC_APP_URL" Target="NEXT_PUBLIC_APP_URL" Default="http://tower:3000" Mode="" Description="Public URL users reach HealthLog at. Use the LAN URL (e.g. http://tower:3000) or your HTTPS domain behind a reverse proxy." Type="Variable" Display="always" Required="true" Mask="false"/>
+
+  <Config Name="APP_URL" Target="APP_URL" Default="http://tower:3000" Mode="" Description="Internal app base URL. Normally identical to NEXT_PUBLIC_APP_URL." Type="Variable" Display="always" Required="true" Mask="false"/>
+
+  <Config Name="ENCRYPTION_KEYS" Target="ENCRYPTION_KEYS" Default="" Mode="" Description="Optional. Key-rotation map, e.g. {&quot;v1&quot;:&quot;&lt;hex&gt;&quot;,&quot;v2&quot;:&quot;&lt;hex&gt;&quot;}. Leave empty unless rotating; use ENCRYPTION_KEY instead." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+
+  <Config Name="ENCRYPTION_ACTIVE_KEY_ID" Target="ENCRYPTION_ACTIVE_KEY_ID" Default="" Mode="" Description="Optional. Active key id for the ENCRYPTION_KEYS map (e.g. v2). Leave empty when using ENCRYPTION_KEY." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+</Container>
