@@ -2262,6 +2262,33 @@ model TelegramScheduledDeletion {
   @@map("telegram_scheduled_deletions")
 }
 
+// v1.19.0 — force-reply correlation for the interactive mood reminder.
+//
+// When a user taps "Notiz…" on a mood prompt the bot sends a force_reply
+// message; the user's free-text reply then arrives as a normal `message`
+// whose `reply_to_message.message_id` points back at that prompt. This
+// row maps `(chatId, promptMessageId)` to the mood entry the note should
+// attach to, so the inbound note handler can resolve "what was this a
+// reply to" without trusting any client-supplied id. Rows are short-lived
+// (`expiresAt`) and best-effort deleted once consumed; the deletion sweep
+// is keyed on `expiresAt` so an unanswered note prompt self-cleans.
+model TelegramPromptContext {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  chatId      String   @map("chat_id")
+  // The bot's prompt message the user is expected to reply to.
+  promptMsgId Int      @map("prompt_msg_id")
+  // What the reply attaches to. "mood_note" carries `refId = moodEntryId`.
+  kind        String
+  refId       String   @map("ref_id")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([chatId, promptMsgId])
+  @@index([expiresAt])
+  @@map("telegram_prompt_contexts")
+}
+
 // ─── API Tokens (for external ingest) ──────────────────────
 
 model ApiToken {

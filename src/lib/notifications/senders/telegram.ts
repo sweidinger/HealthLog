@@ -9,6 +9,36 @@ import { prisma } from "@/lib/db";
 import type { ReminderPhase } from "@/generated/prisma/client";
 import { getEvent } from "@/lib/logging/context";
 import { recordPushAttempt } from "@/lib/notifications/senders/push-attempt-record";
+import { scheduleTelegramAutoDelete } from "@/lib/telegram-cleanup";
+import {
+  buildMoodKeyboard,
+  buildMeasurementKeyboard,
+} from "@/lib/notifications/senders/telegram-keyboards";
+import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
+
+/**
+ * v1.19.0 — resolve the bot locale for an interactive reminder. The
+ * sender knows the user via `payload.userId`; the keyboard labels need
+ * the user's locale. Defaults to "de" (the historical bot default) when
+ * unset, matching the webhook's `resolveBotLocale`.
+ */
+async function resolveSenderLocale(userId: string): Promise<Locale> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { locale: true },
+    });
+    const value = user?.locale;
+    if (value && (locales as readonly string[]).includes(value)) {
+      return value as Locale;
+    }
+  } catch {
+    // Fall through to the default on any read failure.
+  }
+  return (locales as readonly string[]).includes("de")
+    ? ("de" as Locale)
+    : defaultLocale;
+}
 
 /**
  * Telegram sender result. Inherits from `SendOutcome` so the dispatcher
@@ -113,9 +143,32 @@ export async function sendViaTelegram(
     );
   }
 
+  // v1.19.0 — interactive mood + measurement reminders. The mood prompt
+  // ships a 1–5 scale + note/later row; the measurement prompt ships a
+  // done/later row (no value capture). Labels are localised; callback_data
+  // ids are stable and locale-independent. Both prompts schedule their own
+  // ~30-min auto-delete below so an ignored nudge self-cleans.
+  const reminderId = payload.metadata?.reminderId as string | undefined;
+  let interactiveKeyboard:
+    | { inline_keyboard: { text: string; callback_data: string }[][] }
+    | undefined;
+  if (!replyMarkup) {
+    if (payload.eventType === "MOOD_REMINDER") {
+      interactiveKeyboard = buildMoodKeyboard(
+        await resolveSenderLocale(payload.userId),
+      );
+    } else if (payload.eventType === "MEASUREMENT_REMINDER" && reminderId) {
+      interactiveKeyboard = buildMeasurementKeyboard(
+        reminderId,
+        await resolveSenderLocale(payload.userId),
+      );
+    }
+  }
+
   // Build reply markup
   const keyboard =
     replyMarkup ??
+    interactiveKeyboard ??
     (payload.eventType === "MEDICATION_REMINDER" && medicationId
       ? {
           inline_keyboard: [
@@ -190,6 +243,17 @@ export async function sendViaTelegram(
     } catch (err) {
       getEvent()?.addWarning(`Failed to track reminder message: ${err}`);
     }
+  }
+
+  // v1.19.0 — schedule the interactive prompt's own ~30-min self-clean so
+  // an UNANSWERED mood / measurement nudge never lingers in the chat (the
+  // medication path re-cleans on slot re-send; these have no re-send). A
+  // tapped prompt is deleted immediately by the webhook callback handler;
+  // this row is the fallback and is harmless once the message is gone.
+  if (result.ok && result.messageId && interactiveKeyboard) {
+    await scheduleTelegramAutoDelete(payload.userId, config.chatId, [
+      result.messageId,
+    ]);
   }
 
   if (result.ok) {

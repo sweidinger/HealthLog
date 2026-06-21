@@ -16,6 +16,7 @@ const deleteMessageMock = vi.fn();
 const findUniqueMock = vi.fn();
 const deleteMock = vi.fn();
 const upsertMock = vi.fn();
+const userFindUniqueMock = vi.fn();
 
 vi.mock("@/lib/telegram", () => ({
   sendTelegramMessage: (...args: unknown[]) => sendTelegramMessageMock(...args),
@@ -24,6 +25,9 @@ vi.mock("@/lib/telegram", () => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    user: {
+      findUnique: (...args: unknown[]) => userFindUniqueMock(...args),
+    },
     telegramReminderMessage: {
       findUnique: (...args: unknown[]) => findUniqueMock(...args),
       delete: (...args: unknown[]) => deleteMock(...args),
@@ -38,6 +42,13 @@ vi.mock("@/lib/logging/context", () => ({
 
 vi.mock("@/lib/notifications/senders/push-attempt-record", () => ({
   recordPushAttempt: vi.fn(),
+}));
+
+const scheduleTelegramAutoDeleteMock = vi.fn();
+vi.mock("@/lib/telegram-cleanup", () => ({
+  scheduleTelegramAutoDelete: (...args: unknown[]) =>
+    scheduleTelegramAutoDeleteMock(...args),
+  TELEGRAM_AUTO_DELETE_DELAY_MS: 30 * 60 * 1000,
 }));
 
 import { sendViaTelegram } from "../telegram";
@@ -68,6 +79,8 @@ describe("sendViaTelegram — per-slot delete scope (H2)", () => {
     findUniqueMock.mockResolvedValue(null);
     deleteMock.mockResolvedValue(undefined);
     upsertMock.mockResolvedValue(undefined);
+    userFindUniqueMock.mockResolvedValue({ locale: "en" });
+    scheduleTelegramAutoDeleteMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -139,5 +152,85 @@ describe("sendViaTelegram — per-slot delete scope (H2)", () => {
 
     expect(findUniqueMock).not.toHaveBeenCalled();
     expect(deleteMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendViaTelegram — interactive mood + measurement (v1.19.0)", () => {
+  beforeEach(() => {
+    sendTelegramMessageMock.mockResolvedValue({ ok: true, messageId: 999 });
+    deleteMessageMock.mockResolvedValue(undefined);
+    findUniqueMock.mockResolvedValue(null);
+    upsertMock.mockResolvedValue(undefined);
+    userFindUniqueMock.mockResolvedValue({ locale: "en" });
+    scheduleTelegramAutoDeleteMock.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("attaches a 1–5 mood keyboard + note/later row on MOOD_REMINDER", async () => {
+    await sendViaTelegram(config, {
+      eventType: "MOOD_REMINDER",
+      userId: "user-1",
+      title: "t",
+      message: "How are you feeling today?",
+    });
+
+    const opts = sendTelegramMessageMock.mock.calls[0][3];
+    const rows = opts.replyMarkup.inline_keyboard;
+    expect(
+      rows[0].map((b: { callback_data: string }) => b.callback_data),
+    ).toEqual(["mood:1", "mood:2", "mood:3", "mood:4", "mood:5"]);
+    expect(
+      rows[1].map((b: { callback_data: string }) => b.callback_data),
+    ).toEqual(["mood_note", "mood_later:120"]);
+  });
+
+  it("schedules the unanswered mood prompt for ~30-min self-clean", async () => {
+    await sendViaTelegram(config, {
+      eventType: "MOOD_REMINDER",
+      userId: "user-1",
+      title: "t",
+      message: "m",
+    });
+    expect(scheduleTelegramAutoDeleteMock).toHaveBeenCalledWith(
+      "user-1",
+      "chat-1",
+      [999],
+    );
+  });
+
+  it("attaches a done/later keyboard on MEASUREMENT_REMINDER with a reminderId", async () => {
+    await sendViaTelegram(config, {
+      eventType: "MEASUREMENT_REMINDER",
+      userId: "user-1",
+      title: "t",
+      message: "m",
+      metadata: { reminderId: "rem-1" },
+    });
+    const opts = sendTelegramMessageMock.mock.calls[0][3];
+    const row = opts.replyMarkup.inline_keyboard[0];
+    expect(row.map((b: { callback_data: string }) => b.callback_data)).toEqual([
+      "measure_done:rem-1",
+      "measure_later:rem-1:180",
+    ]);
+    expect(scheduleTelegramAutoDeleteMock).toHaveBeenCalledWith(
+      "user-1",
+      "chat-1",
+      [999],
+    );
+  });
+
+  it("sends a plain MEASUREMENT_REMINDER (no keyboard, no self-clean) without a reminderId", async () => {
+    await sendViaTelegram(config, {
+      eventType: "MEASUREMENT_REMINDER",
+      userId: "user-1",
+      title: "t",
+      message: "m",
+    });
+    const opts = sendTelegramMessageMock.mock.calls[0][3];
+    expect(opts.replyMarkup).toBeUndefined();
+    expect(scheduleTelegramAutoDeleteMock).not.toHaveBeenCalled();
   });
 });

@@ -20,9 +20,20 @@ interface TelegramReplyMarkup {
   inline_keyboard: TelegramInlineKeyboardButton[][];
 }
 
+/**
+ * v1.19.0 — force-reply markup. Opens the user's reply box pre-targeted at
+ * the bot's message; the reply then arrives as a normal `message` whose
+ * `reply_to_message` points back at this prompt (the linkage the mood-note
+ * flow uses). `input_field_placeholder` is bounded 1–64 chars by the API.
+ */
+interface TelegramForceReply {
+  force_reply: true;
+  input_field_placeholder?: string;
+}
+
 interface SendMessageOptions {
   parseMode?: "HTML" | "MarkdownV2";
-  replyMarkup?: TelegramReplyMarkup;
+  replyMarkup?: TelegramReplyMarkup | TelegramForceReply;
 }
 
 async function telegramApiRequest(

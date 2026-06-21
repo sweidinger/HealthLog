@@ -106,6 +106,22 @@ export async function cleanupScheduledTelegramDeletions(): Promise<void> {
       const { getEvent } = await import("@/lib/logging/context");
       getEvent()?.addMeta("telegram_scheduled_cleanup", totalDeleted);
     }
+
+    // v1.19.0 — prune expired force-reply correlation rows in the same
+    // tick (no new sweep). An unanswered mood-note prompt leaves a
+    // TelegramPromptContext row; once past `expiresAt` it can never bind a
+    // reply, so drop it. The prompt MESSAGE itself self-cleans through the
+    // scheduled-deletion rows above.
+    const prunedContexts = await prisma.telegramPromptContext.deleteMany({
+      where: { expiresAt: { lte: new Date() } },
+    });
+    if (prunedContexts.count > 0) {
+      const { getEvent } = await import("@/lib/logging/context");
+      getEvent()?.addMeta(
+        "telegram_prompt_context_cleanup",
+        prunedContexts.count,
+      );
+    }
   } catch (err) {
     const { getEvent } = await import("@/lib/logging/context");
     getEvent()?.addWarning(`telegram-scheduled-cleanup failed: ${err}`);

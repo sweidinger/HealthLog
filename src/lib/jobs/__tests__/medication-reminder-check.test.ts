@@ -14,6 +14,9 @@ const prismaMock = {
     findMany: vi.fn().mockResolvedValue([]),
     deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
   },
+  telegramPromptContext: {
+    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+  },
   medication: {
     updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     findMany: vi.fn().mockResolvedValue([]),
@@ -72,8 +75,23 @@ import { dispatchNotification } from "@/lib/notifications/dispatcher";
 beforeEach(() => {
   vi.clearAllMocks();
   prismaMock.telegramScheduledDeletion.findMany.mockResolvedValue([]);
+  prismaMock.telegramPromptContext.deleteMany.mockResolvedValue({ count: 0 });
   prismaMock.medication.updateMany.mockResolvedValue({ count: 0 });
   prismaMock.medication.findMany.mockResolvedValue([]);
+});
+
+describe("handleReminderCheck — telegram prompt-context cleanup (v1.19.0)", () => {
+  it("prunes expired force-reply prompt contexts in the same sweep tick", async () => {
+    await handleReminderCheck([]);
+    expect(prismaMock.telegramPromptContext.deleteMany).toHaveBeenCalledTimes(
+      1,
+    );
+    const arg = prismaMock.telegramPromptContext.deleteMany.mock
+      .calls[0][0] as {
+      where: { expiresAt: { lte: Date } };
+    };
+    expect(arg.where.expiresAt.lte).toBeInstanceOf(Date);
+  });
 });
 
 describe("handleReminderCheck — as-needed skip (v1.16.11, #316)", () => {
