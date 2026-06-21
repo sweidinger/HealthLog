@@ -31,6 +31,7 @@ import {
   buildBriefingGroundingCorrection,
 } from "@/lib/ai/briefing-grounding";
 import { applyInsightsExcludeFilter } from "@/lib/insights/exclude-filter";
+import { getCachedFeatures } from "@/lib/insights/feature-cache";
 import {
   buildBriefingIllnessCycleContext,
   buildBriefingIllnessCyclePrompt,
@@ -734,19 +735,34 @@ export async function generateComprehensiveInsight(
   const featureWindow = { sinceDays: BRIEFING_FEATURE_WINDOW_DAYS };
   let features: Awaited<ReturnType<typeof extractFeatures>>;
   try {
-    features = await extractFeatures(userId, includeRaw, featureWindow);
+    // v1.18.11 P3 — compute-once-per-scope. Inside the nightly-tick scope (or
+    // the on-demand route scope) the bounded feature read is shared, so the
+    // downgrade-ladder re-reads below and any sibling consumer in the same
+    // scope reuse this object instead of re-querying.
+    features = await getCachedFeatures({
+      userId,
+      includeRaw,
+      sinceDays: featureWindow.sinceDays,
+      compute: () => extractFeatures(userId, includeRaw, featureWindow),
+    });
   } catch (err) {
     if (err instanceof FeaturesPayloadTooLargeError) {
       try {
-        features = await extractFeatures(userId, false, featureWindow);
+        features = await getCachedFeatures({
+          userId,
+          includeRaw: false,
+          sinceDays: featureWindow.sinceDays,
+          compute: () => extractFeatures(userId, false, featureWindow),
+        });
       } catch (retryErr) {
         if (retryErr instanceof FeaturesPayloadTooLargeError) {
           try {
-            const aggregated = await extractFeatures(
+            const aggregated = await getCachedFeatures({
               userId,
-              false,
-              featureWindow,
-            );
+              includeRaw: false,
+              sinceDays: featureWindow.sinceDays,
+              compute: () => extractFeatures(userId, false, featureWindow),
+            });
             features = applyInsightsExcludeFilter(
               aggregated,
               MAX_DOWNGRADE_TOKENS,
