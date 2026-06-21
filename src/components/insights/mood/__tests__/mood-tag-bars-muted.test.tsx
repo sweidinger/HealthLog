@@ -6,11 +6,11 @@ import { MoodTagBreakdown } from "../mood-tag-breakdown";
 import { MoodStructuredTagBreakdown } from "../mood-structured-tag-breakdown";
 
 /**
- * v1.16.8 — the tag-breakdown bars carry the same muted treatment as
- * the mood Recharts charts (`fillOpacity={0.55}` on distribution /
- * weekday / time-of-day). The CSS bars rendered the raw `--dracula-*`
- * hues at full opacity, which made the two tag cards shout next to the
- * matte charts above them. Pinned: every fill bar ships `opacity-55`.
+ * v1.19.0 — the muted mood treatment (`opacity-55` on the tag bars,
+ * `fillOpacity={0.55}` on the Recharts bars) read as a rendering glitch,
+ * so the bars now paint at full saturation in their level hue. This guard
+ * keeps the dimming from creeping back: every fill bar carries the level
+ * colour at full opacity.
  */
 
 function render(node: React.ReactNode) {
@@ -19,8 +19,8 @@ function render(node: React.ReactNode) {
   );
 }
 
-describe("mood tag bars — muted palette (v1.16.8)", () => {
-  it("free-text tag breakdown bars render at the shared chart opacity", () => {
+describe("mood tag bars — full-saturation palette (v1.19.0)", () => {
+  it("free-text tag breakdown bars render at full opacity", () => {
     const html = render(
       <MoodTagBreakdown
         tags={[
@@ -32,14 +32,14 @@ describe("mood tag bars — muted palette (v1.16.8)", () => {
     const fills = html.match(/class="[^"]*absolute inset-y-0 left-0[^"]*"/g);
     expect(fills).toHaveLength(2);
     for (const fill of fills ?? []) {
-      expect(fill).toContain("opacity-55");
+      expect(fill).not.toContain("opacity-55");
     }
     // The level hue itself stays a Dracula token.
     expect(html).toContain("var(--dracula-red)");
     expect(html).toContain("var(--dracula-green)");
   });
 
-  it("structured tag breakdown bars render at the shared chart opacity", () => {
+  it("structured tag breakdown bars render at full opacity", () => {
     const html = render(
       <MoodStructuredTagBreakdown
         tags={[
@@ -56,6 +56,6 @@ describe("mood tag bars — muted palette (v1.16.8)", () => {
     );
     const fills = html.match(/class="[^"]*absolute inset-y-0 left-0[^"]*"/g);
     expect(fills).toHaveLength(1);
-    expect(fills?.[0]).toContain("opacity-55");
+    expect(fills?.[0]).not.toContain("opacity-55");
   });
 });
