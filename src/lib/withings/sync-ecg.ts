@@ -1,10 +1,22 @@
 /**
  * v1.18.11 — Withings ECG / AFib capture.
+ * v1.19.0  — full ECG waveform capture (the raw signal samples).
  *
  * The Withings Heart List endpoint (`POST /v2/heart?action=list`) returns one
  * entry per on-device ECG recording made by the ScanWatch family. Each entry
  * carries the device's OWN AFib screening verdict under `ecg.afib`. HealthLog
  * captured none of this before — the signal was fetched by no path and dropped.
+ *
+ * v1.19.0 additionally fetches each recording's full waveform via the Heart
+ * `get` endpoint (`POST /v2/heart?action=get&signalid=<id>`), which returns the
+ * micro-volt sample array (`body.signal`) plus `body.sampling_frequency`
+ * (Hz) and an optional average `body.heart_rate`. The sample array is raw
+ * health data, so it is stored AES-256-GCM ENCRYPTED at rest in the new
+ * `EcgRecording.waveformEncrypted` Bytes column (fail-closed crypto, the
+ * `CoachMessage.encryptedContent` precedent). The descriptors (frequency,
+ * sample count, duration, lead, average HR, AFib verdict) stay plaintext so a
+ * future trace renderer reads them without a per-row decrypt. RENDERING UI IS
+ * OUT OF SCOPE for v1.19.0 — this remains ingest-only.
  *
  * This mirrors the v1.10.0 categorical-event treatment the Apple-Health bridge
  * already gives the Watch's irregular-rhythm notification: HealthLog stores
@@ -39,8 +51,9 @@ import type {
 } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db";
-import { getEvent } from "@/lib/logging/context";
+import { annotate, getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
+import { encryptWaveformToBytes } from "./ecg-waveform-codec";
 import {
   collapseToTypeDayKeys,
   recomputeBucketsForMeasurement,
@@ -173,6 +186,160 @@ export async function fetchWithingsHeartList(
 }
 
 /**
+ * The Heart `get` response body for a single ECG signal. `signal` is the
+ * micro-volt sample array; `sampling_frequency` is the rate in Hz used to map
+ * a sample index to its time offset. `heart_rate` (average BPM for the strip)
+ * and `wavelets` are optional and source-version dependent — we capture the
+ * average HR when present and ignore the wavelet transform.
+ */
+export interface WithingsHeartSignal {
+  signal?: number[] | null;
+  sampling_frequency?: number | null;
+  heart_rate?: number | null;
+}
+
+/**
+ * Fetch the full waveform for one ECG recording via `action=get`. Returns the
+ * raw signal body (no DB write) so the caller composes the encrypt + persist
+ * step. Returns `null` when the recording carries no usable signal array so
+ * the caller can skip waveform storage without failing the whole sync.
+ */
+export async function fetchWithingsHeartSignal(
+  accessToken: string,
+  signalId: number,
+): Promise<WithingsHeartSignal | null> {
+  const params = new URLSearchParams({
+    action: "get",
+    signalid: String(signalId),
+  });
+
+  const callStart = performance.now();
+  const res = await safeFetch(WITHINGS_HEART_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: params.toString(),
+  });
+  const json = await res.json();
+  const verdict = classifyWithingsResponse(res.status, json);
+  getEvent()?.addExternalCall({
+    service: "withings",
+    method: "fetchWithingsHeartSignal",
+    duration_ms: Math.round(performance.now() - callStart),
+    status: res.status,
+    error: verdict.classification === "success" ? undefined : verdict.reason,
+  });
+  if (verdict.classification !== "success") {
+    throw new WithingsApiError({
+      verb: "heart",
+      classification: verdict.classification,
+      withingsStatus: verdict.withingsStatus,
+      reason: verdict.reason,
+      upstreamError: typeof json?.error === "string" ? json.error : undefined,
+    });
+  }
+
+  const body = json.body ?? {};
+  const signal = Array.isArray(body.signal)
+    ? body.signal.filter((n: unknown): n is number => typeof n === "number")
+    : null;
+  if (!signal || signal.length === 0) return null;
+
+  return {
+    signal,
+    sampling_frequency:
+      typeof body.sampling_frequency === "number"
+        ? body.sampling_frequency
+        : null,
+    heart_rate: typeof body.heart_rate === "number" ? body.heart_rate : null,
+  };
+}
+
+/**
+ * Fetch + encrypt + persist one ECG waveform. Idempotent: upserts on
+ * `(userId, source, externalRecordingId)` so a re-sync overwrites the same
+ * recording in place rather than inserting a duplicate. Returns `true` when a
+ * waveform row was written, `false` when the recording carried no usable
+ * signal (nothing to store). Throws on an upstream / persist error so the
+ * caller can warn without failing the verdict ingest.
+ */
+async function captureEcgWaveform(params: {
+  userId: string;
+  accessToken: string;
+  signalId: number;
+  externalRecordingId: string;
+  recordedAt: Date;
+  classification: RhythmClassification;
+  measurementId: string | null;
+}): Promise<boolean> {
+  const signal = await fetchWithingsHeartSignal(
+    params.accessToken,
+    params.signalId,
+  );
+  if (!signal || !signal.signal || signal.signal.length === 0) {
+    return false;
+  }
+
+  const samples = signal.signal;
+  const samplingFrequency =
+    typeof signal.sampling_frequency === "number" &&
+    Number.isFinite(signal.sampling_frequency) &&
+    signal.sampling_frequency > 0
+      ? Math.round(signal.sampling_frequency)
+      : 0;
+  const sampleCount = samples.length;
+  const durationSeconds =
+    samplingFrequency > 0 ? sampleCount / samplingFrequency : null;
+  const averageHeartRate =
+    typeof signal.heart_rate === "number" && Number.isFinite(signal.heart_rate)
+      ? Math.round(signal.heart_rate)
+      : null;
+
+  // Encrypt the raw sample array BEFORE it ever reaches the row. Fail-closed:
+  // a crypto error throws here and the waveform is never written as plaintext.
+  const waveformEncrypted = encryptWaveformToBytes(samples);
+
+  // Build the `data` object field-by-field (no mass assignment); `userId` is
+  // the integration owner narrowed by the caller, never a client field.
+  await prisma.ecgRecording.upsert({
+    where: {
+      userId_source_externalRecordingId: {
+        userId: params.userId,
+        source: "WITHINGS",
+        externalRecordingId: params.externalRecordingId,
+      },
+    },
+    create: {
+      userId: params.userId,
+      source: "WITHINGS",
+      externalRecordingId: params.externalRecordingId,
+      recordedAt: params.recordedAt,
+      waveformEncrypted,
+      samplingFrequency,
+      sampleCount,
+      durationSeconds,
+      averageHeartRate,
+      rhythmClassification: params.classification,
+      measurementId: params.measurementId,
+    },
+    update: {
+      recordedAt: params.recordedAt,
+      waveformEncrypted,
+      samplingFrequency,
+      sampleCount,
+      durationSeconds,
+      averageHeartRate,
+      rhythmClassification: params.classification,
+      measurementId: params.measurementId,
+    },
+  });
+
+  return true;
+}
+
+/**
  * Sync ECG / AFib recordings for a single user. Walks the trailing 30-day
  * window, writing one `IRREGULAR_RHYTHM_NOTIFICATION` row per ECG recording
  * tagged with the device's AFib verdict. Returns the number of upserted rows.
@@ -226,6 +393,7 @@ export async function syncUserEcg(userId: string): Promise<number> {
   }
 
   let imported = 0;
+  let waveformsCaptured = 0;
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
 
   for (const entry of entries) {
@@ -235,11 +403,13 @@ export async function syncUserEcg(userId: string): Promise<number> {
       continue;
     }
     const measuredAt = new Date(entry.timestamp * 1000);
-    const signalId = entry.ecg?.signalid ?? `ts-${entry.timestamp}`;
+    const numericSignalId = entry.ecg?.signalid;
+    const signalId = numericSignalId ?? `ts-${entry.timestamp}`;
     const externalId = `withings:ecg:${userId}:${signalId}`;
 
+    let measurementId: string | null = null;
     try {
-      await prisma.measurement.upsert({
+      const row = await prisma.measurement.upsert({
         where: {
           userId_type_source_externalId: {
             userId,
@@ -265,15 +435,49 @@ export async function syncUserEcg(userId: string): Promise<number> {
           measuredAt,
           syncVersion: { increment: 1 },
         },
+        select: { id: true },
       });
+      measurementId = row.id;
       touched.push({ type: ECG_TYPE, measuredAt });
       imported++;
     } catch (err) {
       getEvent()?.addWarning(
         `withings ecg: failed to upsert recording (${classification}, ${measuredAt.toISOString()}): ${err}`,
       );
+      continue;
+    }
+
+    // v1.19.0 — capture the full waveform. Only a recording with a numeric
+    // `signalid` can be fetched (the `ts-` fallback has no signal to GET). A
+    // waveform-fetch / persist failure never fails the verdict ingest — the
+    // EVENT row already landed above.
+    if (typeof numericSignalId === "number") {
+      try {
+        const captured = await captureEcgWaveform({
+          userId,
+          accessToken: tokenInfo.accessToken,
+          signalId: numericSignalId,
+          externalRecordingId: String(numericSignalId),
+          recordedAt: measuredAt,
+          classification,
+          measurementId,
+        });
+        if (captured) waveformsCaptured++;
+      } catch (err) {
+        getEvent()?.addWarning(
+          `withings ecg: failed to capture waveform for signal ${numericSignalId}: ${err}`,
+        );
+      }
     }
   }
+
+  annotate({
+    action: { name: "withings.ecg.sync" },
+    meta: {
+      withings_ecg_verdicts_imported: imported,
+      withings_ecg_waveforms_captured: waveformsCaptured,
+    },
+  });
 
   // Refresh the persistent rollup tier for every distinct (type, day) touched,
   // then drop the per-metric assessment caches the new events dirty.
