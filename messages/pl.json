@@ -5923,7 +5923,6 @@
     "moodNoteExpired": "Ta prośba wygasła.",
     "remindLater": "Przypomnienie przełożone o {duration}.",
     "measurementDone": "Oznaczono jako wykonane.",
-    "measurementDismissed": "Odrzucono.",
     "measurementNotFound": "Nie znaleziono przypomnienia.",
     "buttonMoodNote": "Notatka…",
     "buttonLater": "Później",

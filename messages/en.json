@@ -5923,7 +5923,6 @@
     "moodNoteExpired": "That prompt has expired.",
     "remindLater": "Reminder postponed for {duration}.",
     "measurementDone": "Marked as done.",
-    "measurementDismissed": "Dismissed.",
     "measurementNotFound": "Reminder not found.",
     "buttonMoodNote": "Note…",
     "buttonLater": "Later",

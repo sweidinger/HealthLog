@@ -5923,7 +5923,6 @@
     "moodNoteExpired": "Cette invite a expiré.",
     "remindLater": "Rappel reporté de {duration}.",
     "measurementDone": "Marqué comme fait.",
-    "measurementDismissed": "Ignoré.",
     "measurementNotFound": "Rappel introuvable.",
     "buttonMoodNote": "Note…",
     "buttonLater": "Plus tard",

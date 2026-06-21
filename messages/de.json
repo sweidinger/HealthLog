@@ -5923,7 +5923,6 @@
     "moodNoteExpired": "Diese Abfrage ist abgelaufen.",
     "remindLater": "Erinnerung um {duration} verschoben.",
     "measurementDone": "Als erledigt markiert.",
-    "measurementDismissed": "Verworfen.",
     "measurementNotFound": "Erinnerung nicht gefunden.",
     "buttonMoodNote": "Notiz…",
     "buttonLater": "Später",

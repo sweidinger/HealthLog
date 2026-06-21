@@ -5923,7 +5923,6 @@
     "moodNoteExpired": "Esa solicitud ha caducado.",
     "remindLater": "Recordatorio pospuesto {duration}.",
     "measurementDone": "Marcado como hecho.",
-    "measurementDismissed": "Descartado.",
     "measurementNotFound": "Recordatorio no encontrado.",
     "buttonMoodNote": "Nota…",
     "buttonLater": "Más tarde",
