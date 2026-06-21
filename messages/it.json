@@ -4708,6 +4708,7 @@
     "cycleTracking": {
       "title": "Monitoraggio del ciclo",
       "description": "Monitora il ciclo mestruale, le previsioni, i sintomi e gli approfondimenti sulle fasi. Attivo per impostazione predefinita per gli account impostati come femminili; disponibile per tutti.",
+      "disclaimer": "Le previsioni e le fasi sono stime descrittive basate sui dati che registri: non sono un parere medico né un metodo contraccettivo. Non indicano mai che sia sicuro avere rapporti non protetti. La precisione migliora man mano che registri più cicli. Per la contraccezione o qualsiasi decisione medica, rivolgiti a un professionista sanitario.",
       "enable": "Attiva il monitoraggio del ciclo",
       "manage": "Apri il monitoraggio del ciclo",
       "error": "Impossibile aggiornare il monitoraggio del ciclo."
@@ -6276,6 +6277,7 @@
       "rawChartModeDescription": "Mostra solo i tuoi dati registrati, senza previsioni né interpretazioni.",
       "secondarySymptomLabel": "Secondo segno di fertilità",
       "secondarySymptomDescription": "Il secondo segno abbinato alla tua temperatura per il doppio controllo sintotermico. La maggior parte osserva il muco cervicale; passa all'osservazione della cervice se preferisci.",
+      "secondarySymptomCitation": "Scopri di più sul metodo (studio)",
       "secondarySymptom": {
         "MUCUS": "Muco cervicale",
         "CERVIX": "Cervice"
