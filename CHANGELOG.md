@@ -2,36 +2,47 @@
 
 ## [Unreleased]
 
-## [1.18.11] — 2026-06-21 — Coach context, leaner AI cadence, new device signals, and a code-size pass
+## [1.19.0] — 2026-06-21 — Coach context, a leaner AI pipeline, new device signals, interactive reminders, and wider self-hosting
 
-A follow-on correctness-and-feature release. The Coach gains the lab values and a direct way in; the daily AI work is restructured to do less and reuse more; two new device signals are captured; and several oversized modules are split for clarity. No migration; no breaking changes.
+A feature release. The Coach gains the lab values and a direct way in; the daily AI work is restructured to do less and reuse more; several new device signals are captured; reminders become interactive over Telegram; charts and the cycle and sleep surfaces are corrected and polished; and the project ships ready-made templates for one-click self-hosting. Three additive migrations (`0185`–`0187`); no breaking changes.
 
 ### Added
 
-- The Coach can answer about lab results — the most recent value per biomarker (last twelve months) is provided as grounded context, with reference range, in/out-of-range status, and date. Qualitative results are included. The Coach quotes these verbatim and never invents a value.
-- The Coach entry points open directly into the most recent conversation, the same thread across devices, rather than always starting blank. A `?c=<id>` deep-link opens a specific conversation, and the new-chat start is still available.
+- The Coach can answer about lab results — the most recent value per biomarker (last twelve months) is provided as grounded context, with reference range, in/out-of-range status, and date. Qualitative results are included; the Coach quotes them verbatim and never invents a value.
+- The Coach entry points open directly into the most recent conversation, the same thread across devices, rather than always starting blank. A `?c=<id>` deep-link opens a specific conversation; the new-chat start remains.
 - The daily briefing is surfaced on the dashboard as a short spotlight strip, lifting its key signals above the fold for a fresh briefing.
-- Withings ECG records the device's atrial-fibrillation screening result.
-- Oura cardiovascular age is recorded.
-- A configured multimodal model now reads a scanned lab document directly. Where the model is text-only (including the code-specialist chat models), the on-device OCR path from the previous release still applies.
+- Mood can be logged straight from a Telegram reminder — a 1–5 inline choice or a short written note — and the reminder chat self-cleans about thirty minutes later so old prompts do not linger or bias the next entry. Mood and measurement reminders also carry calm "remind me later" / "done" actions.
+- Withings ECG records the device's atrial-fibrillation screening result and the full ECG waveform (stored encrypted at rest).
+- Oura cardiovascular age and resilience are recorded.
+- A configured multimodal model reads a scanned lab document directly; where the model is text-only, the on-device OCR path still applies.
+- Ready-made self-hosting templates: an Unraid Community Applications template and a Portainer stack template, a hardened `docker-compose.yml`, and a NAS quick-start guide.
+- A go-forward aggregated heart-rate upload contract (hourly buckets) so high-frequency clients stop accumulating one row per raw sample.
 
 ### Changed
 
-- The comprehensive briefing reads a bounded recent window instead of the full history; all-time figures remain accurate.
-- Per-domain status summaries are generated once on the nightly pass rather than re-run per metric through the day; reproducibility and the consent and grounding checks are unchanged.
-- Slow-moving summaries (weight, BMI) are skipped when the underlying inputs have not changed since the last run, avoiding a redundant regeneration.
-- The illness and cycle state are folded into the briefing context for users tracking them, at no token cost for users who are not.
-- Sleep-night minute values are returned rounded.
-- The Coach composer keeps a consistent width between the new-chat start and an open conversation.
+- The AI pipeline does less, more coherently: the comprehensive briefing reads a bounded recent window (all-time figures stay accurate); per-domain status summaries generate once on the nightly pass instead of per metric through the day; a shared feature snapshot is computed once and reused; slow movers (weight, BMI) skip regeneration when their inputs are unchanged; illness and cycle state fold into the briefing context at no cost for users without them. Reproducibility, consent, and grounding checks are unchanged throughout.
+- Medication remaining-supply is computed server-side and rendered from one canonical value, so the web and the iOS client always agree.
+- High-frequency heart rate and blood oxygen are consolidated server-side into daily aggregates (mean with the daily minimum and maximum preserved; a resting-heart-rate value is derived where the source has none), matching the cumulative-metric consolidation already in place.
+- Day-level bucketing for recent readings honours the user's timezone, so a late-evening reading lands on the correct local day.
+- Sleep debt is a recovering rolling balance over recent nights instead of an ever-growing sum, so it reflects what is owed now and shrinks after a good night.
+- The cycle view aligns its columns, uses consistent typography and equally sized toggles, and shows the prediction disclaimer once — clearly, at onboarding — rather than repeated across the feature.
+- The sleep card's tiles share one consistent layout, and mood charts paint at full saturation.
+- Sleep-night minute values are returned rounded; the notifications page opens on a single heading.
 
 ### Fixed
 
-- Medication remaining-supply can no longer display a nonsensical negative figure: the canonical readout is floored at the single compute point, and a would-be underflow is recorded for diagnosis rather than shown.
+- Charts honour the 90-day and All ranges — they were stuck on roughly the last month regardless of the selected range.
+- Medication remaining-supply can no longer display a nonsensical negative figure; the canonical readout is floored and a would-be underflow is recorded for diagnosis.
+- Notification settings now label the measurement-reminder, medication-intake-sync, and coach-nudge events instead of showing raw keys.
 
 ### Performance
 
-- Achievements and the dashboard summary serve from a stale-while-revalidate cache, and the achievements builder precomputes day boundaries instead of per-row; three charts defer their library to load.
-- The analytics aggregate folds its canonical self-join into a single shared expression.
+- Achievements and the dashboard summary serve from a stale-while-revalidate cache, the achievements builder precomputes day boundaries, three charts defer their library, and the analytics aggregate folds its canonical self-join into a single shared expression.
+
+### Security
+
+- The ECG waveform is encrypted at rest and covered by the key-rotation script, with a schema-driven test that fails the build if any encrypted column is ever left out of rotation.
+- A Telegram interaction is strictly bound to the linked account before it can write, and the chat identifier is redacted from logs.
 
 ### Refactor
 
@@ -39,8 +50,8 @@ A follow-on correctness-and-feature release. The Coach gains the lab values and 
 
 ### Deferred
 
-- Oura resilience capture (a categorical level) is deferred — it needs a new measurement type and column.
-- A go-forward aggregated wire shape for high-frequency heart rate is left to the client contract; this release reconciles the already-stored raw samples server-side on the nightly pass.
+- Garmin: blocked by an external gate (the developer programme is invitation-only and not accepting new applicants), so there is nothing to build until access opens; only the official hosted instance could pursue it.
+- Briefing map-reduce over the per-domain summaries, the cycle/sleep companion-line edge cases, multi-year "All" chart ranges, and the Oura resilience tile remain follow-ups.
 
 ## [1.18.10] — 2026-06-20 — data-loss fix, measurement consolidation, grounding, and the full-page Coach
 
