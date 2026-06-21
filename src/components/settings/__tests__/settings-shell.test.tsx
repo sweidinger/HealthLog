@@ -284,9 +284,11 @@ describe("<SettingsShell>", () => {
     // `/notifications` inbox now shares the "Notifications" label.
     expect(html).toContain("Notifications");
     // v1.17.1 (F-2) — the dashboard + insights arrangement editors are
-    // reached through one Layout hub entry. v1.18.1 (D6) — renamed to "Layout".
+    // reached through one hub entry (route stays `/settings/layout`).
+    // v1.19.1 (S3) — the nav label now reads "Dashboard" to match where
+    // it leads; the route is unchanged.
     expect(html).toContain('href="/settings/layout"');
-    expect(html).toContain(">Layout</a>");
+    expect(html).toContain(">Dashboard</a>");
     // v1.18.1 (D4) — Channels + Sources are their own left-side entries.
     expect(html).toContain('href="/settings/channels"');
     expect(html).toContain('href="/settings/sources"');
@@ -322,10 +324,11 @@ describe("<SettingsShell>", () => {
     // compound "Benachrichtigungs-Kanäle" wrapped). The `/notifications`
     // inbox now shares the "Benachrichtigungen" label.
     expect(html).toContain("Benachrichtigungen");
-    // v1.17.1 (F-2) — the arrangement editors are reached through one
-    // Layout hub entry. v1.18.1 (D6) — renamed to "Layout" in every locale.
+    // v1.17.1 (F-2) — the arrangement editors are reached through one hub
+    // entry (route stays `/settings/layout`). v1.19.1 (S3) — the nav label
+    // reads "Dashboard" in every locale to match where it leads.
     expect(html).toContain('href="/settings/layout"');
-    expect(html).toContain(">Layout</a>");
+    expect(html).toContain(">Dashboard</a>");
     // v1.18.1 (D4) — Channels ("Kanäle") + Sources ("Quellen-Priorität")
     // are their own left-side entries.
     expect(html).toContain('href="/settings/channels"');

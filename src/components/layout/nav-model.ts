@@ -63,6 +63,10 @@ export interface NavDestination {
  * (after Medications) and is filtered out when the account gate is off;
  * the order is otherwise identical for both surfaces.
  */
+// v1.19.1 (S4) — the clinical/insight spine below the dashboard/measurements/
+// mood/cycle head follows one fixed sequence, each entry directly below the
+// previous: Medications → Vorsorge → Labs → Illness → Insights → Coach →
+// Achievements. A disabled module simply drops out; the rest keep this order.
 export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
   { href: "/", tKey: "nav.dashboard", icon: Home, tourId: "nav-dashboard" },
   {
@@ -79,6 +83,13 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     requiresModule: "mood",
   },
   {
+    href: "/cycle",
+    tKey: "nav.cycle",
+    icon: Droplets,
+    tourId: "nav-cycle",
+    requiresModule: "cycle",
+  },
+  {
     href: "/medications",
     tKey: "nav.medications",
     icon: Pill,
@@ -87,12 +98,23 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     // module; the nav entry now drops when the account turns the module off.
     requiresModule: "medications",
   },
+  // v1.17.1 — Vorsorge (preventive-care) gets a top-level nav home in the
+  // clinical spine. It is a first-class tracking surface ("wann muss ich was
+  // wo machen"), not pure configuration, so it belongs in the model both bars
+  // render — not buried three taps deep under Settings → Reminders. The
+  // Reminders hub still links to it; this is the direct front door.
   {
-    href: "/cycle",
-    tKey: "nav.cycle",
-    icon: Droplets,
-    tourId: "nav-cycle",
-    requiresModule: "cycle",
+    href: "/vorsorge",
+    tKey: "nav.vorsorge",
+    icon: Stethoscope,
+    tourId: "nav-vorsorge",
+    // v1.18.1 — deliberately NOT module-gated (no `requiresModule`). Unlike
+    // labs / illness / cycle (opt-in clinical-spine verticals born off by
+    // default), preventive-care reminders are a CORE surface available to
+    // every account from birth: a reminder can target core vitals
+    // (weight / BP / pulse) that are never behind a module toggle, and a
+    // free-text "Großes Blutbild" reminder belongs to no module at all.
+    // Gating the entry would orphan reminders the user can still create.
   },
   {
     href: "/labs",
@@ -111,25 +133,6 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     icon: Thermometer,
     tourId: "nav-illness",
     requiresModule: "illness",
-  },
-  // v1.17.1 — Vorsorge (preventive-care) gets a top-level nav home in the
-  // clinical spine, peer to Labs and Recovery. It is a first-class tracking
-  // surface ("wann muss ich was wo machen"), not pure configuration, so it
-  // belongs in the model both bars render — not buried three taps deep under
-  // Settings → Reminders. The Reminders hub still links to it; this is the
-  // direct front door so the customer knows where it lives.
-  {
-    href: "/vorsorge",
-    tKey: "nav.vorsorge",
-    icon: Stethoscope,
-    tourId: "nav-vorsorge",
-    // v1.18.1 — deliberately NOT module-gated (no `requiresModule`). Unlike
-    // labs / illness / cycle (opt-in clinical-spine verticals born off by
-    // default), preventive-care reminders are a CORE surface available to
-    // every account from birth: a reminder can target core vitals
-    // (weight / BP / pulse) that are never behind a module toggle, and a
-    // free-text "Großes Blutbild" reminder belongs to no module at all.
-    // Gating the entry would orphan reminders the user can still create.
   },
   // v1.18.0 — Workouts and Recovery both left the left-nav: each already
   // surfaces as an Insights tab-strip pill (`/insights/workouts` gated on

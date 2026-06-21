@@ -3817,7 +3817,7 @@
         "subtitle": "Choisissez les rappels que vous recevez."
       },
       "layout": {
-        "title": "Disposition",
+        "title": "Tableau de bord",
         "description": "Organisez la disposition du tableau de bord et des analyses.",
         "backToHub": "Retour à Disposition et personnalisation",
         "dashboard": {

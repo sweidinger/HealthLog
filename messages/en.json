@@ -3817,7 +3817,7 @@
         "subtitle": "Choose which reminders you receive."
       },
       "layout": {
-        "title": "Layout",
+        "title": "Dashboard",
         "description": "Arrange how the dashboard and insights are laid out.",
         "backToHub": "Back to Layout & Personalization",
         "dashboard": {
