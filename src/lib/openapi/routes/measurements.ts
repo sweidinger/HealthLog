@@ -30,7 +30,21 @@ const batchEntrySchema = z
       .number()
       .finite()
       .describe(
-        "Raw HealthKit reading in Apple's native unit; the server applies any canonical scaling at ingest. For an hourly heart-rate bucket (see `externalId`) this is the hour's AVERAGE bpm — v1.19.0 ships avg-only; min/max are a documented fast-follow.",
+        "Raw HealthKit reading in Apple's native unit; the server applies any canonical scaling at ingest. For an hourly heart-rate bucket (see `externalId`) this is the hour's AVERAGE bpm; the hour's spread rides `valueMin` / `valueMax`.",
+      ),
+    valueMin: z
+      .number()
+      .finite()
+      .optional()
+      .describe(
+        "v1.19.2 (iOS #34 extension) — the hour's MINIMUM bpm for an hourly heart-rate bucket (see `externalId`). Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row; ignored (stored null) on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract.",
+      ),
+    valueMax: z
+      .number()
+      .finite()
+      .optional()
+      .describe(
+        "v1.19.2 (iOS #34 extension) — the hour's MAXIMUM bpm for an hourly heart-rate bucket (see `externalId`). Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row; ignored (stored null) on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract.",
       ),
     unit: z.string().min(1).max(60),
     startDate: z.iso.datetime({ offset: true }),
@@ -406,6 +420,20 @@ const seriesPointSchema = z.object({
     .optional()
     .describe(
       "Per-stage hours for a `kind=sleep` night (CORE/DEEP/REM/…); null/absent for non-sleep kinds.",
+    ),
+  valueMin: z
+    .number()
+    .nullable()
+    .optional()
+    .describe(
+      "v1.19.2 (iOS #34 extension) — per-point MINIMUM for `kind=pulse`. On an aggregated hourly heart-rate bucket `value` is the hour's average and this is the hour's low; null on a per-sample PULSE row and absent for every other kind.",
+    ),
+  valueMax: z
+    .number()
+    .nullable()
+    .optional()
+    .describe(
+      "v1.19.2 (iOS #34 extension) — per-point MAXIMUM for `kind=pulse`. On an aggregated hourly heart-rate bucket `value` is the hour's average and this is the hour's high; null on a per-sample PULSE row and absent for every other kind.",
     ),
 });
 

@@ -1082,6 +1082,16 @@ export interface AppleHealthEntryInput {
    * existing category-value slot still round-trips.
    */
   categoryValue?: number;
+  /**
+   * v1.19.2 (iOS #34 extension) — per-bucket spread for an aggregated
+   * heart-rate row. The hour's MIN / MAX bpm in Apple's native unit
+   * (pre-conversion), companions to `value` (the hour's AVERAGE). The
+   * mapper applies the SAME `convertToDbUnit` it applies to `value`.
+   * Ignored for every non-quantity / non-HR-bucket entry; the caller
+   * persists them only on the hourly HR bucket row.
+   */
+  valueMin?: number;
+  valueMax?: number;
 }
 
 /** Output of `mapAppleHealthEntry()`. */
@@ -1090,6 +1100,13 @@ export interface AppleHealthEntryOutput {
   value: number;
   unit: string;
   takenAt: Date;
+  /**
+   * v1.19.2 (iOS #34 extension) — converted per-bucket MIN / MAX, set
+   * only when the input carried them (the hourly HR bucket). NULL/absent
+   * for every other row.
+   */
+  valueMin?: number;
+  valueMax?: number;
   /** Set only for sleep entries. */
   sleepStage?: SleepStage;
   /**
@@ -1131,6 +1148,17 @@ export function mapAppleHealthEntry(
     unit: mapping.dbUnit,
     takenAt,
   };
+
+  // v1.19.2 (iOS #34 extension) — carry the per-bucket MIN / MAX through
+  // the SAME unit conversion as `value` when the caller supplied them (the
+  // hourly HR bucket). A finite check guards a malformed payload; the
+  // caller only persists these on the HR-bucket row.
+  if (typeof input.valueMin === "number" && Number.isFinite(input.valueMin)) {
+    out.valueMin = mapping.convertToDbUnit(input.valueMin);
+  }
+  if (typeof input.valueMax === "number" && Number.isFinite(input.valueMax)) {
+    out.valueMax = mapping.convertToDbUnit(input.valueMax);
+  }
 
   if (mapping.sleepStageMap) {
     if (input.sleepStage === undefined) return null;

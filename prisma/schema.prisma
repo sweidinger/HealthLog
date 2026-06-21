@@ -1026,6 +1026,16 @@ model Measurement {
   userId                String            @map("user_id")
   type                  MeasurementType
   value                 Float
+  // v1.19.2 (iOS #34 extension) — per-bucket spread for an aggregated row.
+  // Set ONLY on the hourly heart-rate bucket
+  // (`stats:HKQuantityTypeIdentifierHeartRate:<UTC-hour>`), where `value`
+  // is the hour's AVERAGE bpm and these carry the hour's MIN / MAX bpm so a
+  // client can render the intra-hour range without re-uploading raw
+  // samples. NULL for every other row (per-sample readings, per-day
+  // cumulative `stats:` totals, manual entries) — the series reader hands
+  // them through only for the heart-rate kind.
+  valueMin              Float?            @map("value_min")
+  valueMax              Float?            @map("value_max")
   unit                  String // kg, mmHg, bpm, %, minutes (sleep), steps, mg/dL, kcal, m, ms, mL/(kg·min), celsius
   source                MeasurementSource @default(MANUAL)
   measuredAt            DateTime          @map("measured_at")

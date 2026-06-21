@@ -134,6 +134,51 @@ describe("GET /api/measurements/series", () => {
     expect(body.data.points[0].secondary).toBeNull();
   });
 
+  it("surfaces per-point min/max for kind=pulse (iOS #34 ext)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      // hourly HR bucket — average + spread
+      {
+        id: "p1",
+        value: 72,
+        measuredAt: new Date("2026-06-21T14:00:00.000Z"),
+        valueMin: 58,
+        valueMax: 96,
+      },
+      // per-sample PULSE row — no spread
+      {
+        id: "p2",
+        value: 64,
+        measuredAt: new Date("2026-06-21T15:00:00.000Z"),
+        valueMin: null,
+        valueMax: null,
+      },
+    ] as never);
+    const res = await GET(req("kind=pulse&days=7"));
+    const body = (await res.json()) as {
+      data: {
+        points: Array<{
+          value: number;
+          valueMin: number | null;
+          valueMax: number | null;
+        }>;
+      };
+    };
+    expect(body.data.points[0].valueMin).toBe(58);
+    expect(body.data.points[0].valueMax).toBe(96);
+    expect(body.data.points[1].valueMin).toBeNull();
+    expect(body.data.points[1].valueMax).toBeNull();
+
+    // The pulse read selects the spread columns.
+    const selectArg = vi.mocked(prisma.measurement.findMany).mock.calls[0][0];
+    expect(
+      (selectArg as { select: Record<string, boolean> }).select.valueMin,
+    ).toBe(true);
+    expect(
+      (selectArg as { select: Record<string, boolean> }).select.valueMax,
+    ).toBe(true);
+  });
+
   it("collapses sleep stage rows into one night point in hours (v1.11.4)", async () => {
     // SLEEP_DURATION is stored one row per STAGE per night (minutes). The
     // series must return ONE point per night carrying the TIME-ASLEEP
