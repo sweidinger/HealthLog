@@ -177,6 +177,13 @@ export const measurementSourceEnum = z.enum([
   // path), exactly like WHOOP/FITBIT. Part of this enum so the read/response
   // shapes (and the iOS decoder) can decode the rows it surfaces.
   "OURA",
+  // v1.19.2 — Telegram numeric-reply capture. A reply to a measurement
+  // reminder is written server-side from the chat-bound webhook (not the
+  // cookie/Bearer client write path), so it carries its own source label.
+  // Part of this enum so the read/response shapes (and the iOS decoder) can
+  // decode the rows it surfaces; the client-facing write surfaces still
+  // reject it (see `WRITABLE_MEASUREMENT_SOURCES` + the batch allowlist).
+  "TELEGRAM",
 ]);
 
 /**

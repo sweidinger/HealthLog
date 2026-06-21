@@ -5939,7 +5939,13 @@
     "askMedicationName": "Bitte Medikament angeben, z.B. <b>genommen Ramipril</b>.",
     "medicationNotFoundExact": "Medikament nicht gefunden. Bitte Namen exakt wie in HealthLog senden.",
     "helpHeader": "<b>Verfügbare Befehle:</b>",
-    "helpBody": "/help — Diese Hilfe anzeigen\n/add — Einnahme erfassen\n/start — Bot starten\n\n<b>Textbefehle:</b>\ngenommen &lt;Name&gt; — Einnahme bestätigen\n\n<b>Über die Buttons in Erinnerungen:</b>\n• Genommen — Einnahme bestätigen\n• 🕐 1h / 🕐 3h — Erinnerung verschieben\n• ⏭ Überspringen — Einnahme überspringen\n• ✓ Bestätigen — Verpasste Einnahme bestätigen"
+    "helpBody": "/help — Diese Hilfe anzeigen\n/add — Einnahme erfassen\n/start — Bot starten\n\n<b>Textbefehle:</b>\ngenommen &lt;Name&gt; — Einnahme bestätigen\n\n<b>Über die Buttons in Erinnerungen:</b>\n• Genommen — Einnahme bestätigen\n• 🕐 1h / 🕐 3h — Erinnerung verschieben\n• ⏭ Überspringen — Einnahme überspringen\n• ✓ Bestätigen — Verpasste Einnahme bestätigen",
+    "measureValuePrompt": "Antworte mit dem Wert, um ihn zu speichern (optional).",
+    "buttonMeasureValue": "Wert…",
+    "measureValueSaved": "Messwert gespeichert.",
+    "measureValueInvalid": "Antworte mit einer Zahl, um einen Messwert zu speichern.",
+    "measureValueOutOfRange": "Dieser Wert liegt außerhalb des plausiblen Bereichs.",
+    "measureValueExpired": "Diese Aufforderung ist abgelaufen."
   },
   "medicationReminders": {
     "phaseGreenTitle": "🟢 Erinnerung: {medName}",

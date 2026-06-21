@@ -5939,7 +5939,13 @@
     "askMedicationName": "Podaj lek, np. <b>przyjęty Ramipril</b>.",
     "medicationNotFoundExact": "Nie znaleziono leku. Wyślij nazwę dokładnie tak, jak w HealthLog.",
     "helpHeader": "<b>Dostępne polecenia:</b>",
-    "helpBody": "/help — pokaż tę pomoc\n/add — zapisz przyjęcie\n/start — uruchom bota\n\n<b>Polecenia tekstowe:</b>\ntaken &lt;nazwa&gt; — potwierdź przyjęcie\n\n<b>Przyciski w przypomnieniach:</b>\n• Przyjęto — potwierdź przyjęcie\n• 🕐 1h / 🕐 3h — odłóż przypomnienie\n• ⏭ Pomiń — pomiń przyjęcie\n• ✓ Potwierdź — potwierdź pominięte przyjęcie"
+    "helpBody": "/help — pokaż tę pomoc\n/add — zapisz przyjęcie\n/start — uruchom bota\n\n<b>Polecenia tekstowe:</b>\ntaken &lt;nazwa&gt; — potwierdź przyjęcie\n\n<b>Przyciski w przypomnieniach:</b>\n• Przyjęto — potwierdź przyjęcie\n• 🕐 1h / 🕐 3h — odłóż przypomnienie\n• ⏭ Pomiń — pomiń przyjęcie\n• ✓ Potwierdź — potwierdź pominięte przyjęcie",
+    "measureValuePrompt": "Odpowiedz wartością, aby ją zapisać (opcjonalnie).",
+    "buttonMeasureValue": "Wartość…",
+    "measureValueSaved": "Pomiar zapisany.",
+    "measureValueInvalid": "Odpowiedz liczbą, aby zapisać pomiar.",
+    "measureValueOutOfRange": "Ta wartość jest poza wiarygodnym zakresem.",
+    "measureValueExpired": "Ten monit wygasł."
   },
   "medicationReminders": {
     "phaseGreenTitle": "🟢 Przypomnienie: {medName}",

@@ -5939,7 +5939,13 @@
     "askMedicationName": "Indica el medicamento, p. ej. <b>tomado Ramipril</b>.",
     "medicationNotFoundExact": "Medicamento no encontrado. Envía el nombre exactamente como aparece en HealthLog.",
     "helpHeader": "<b>Comandos disponibles:</b>",
-    "helpBody": "/help — mostrar esta ayuda\n/add — registrar una toma\n/start — iniciar el bot\n\n<b>Comandos de texto:</b>\ntaken &lt;nombre&gt; — confirmar una toma\n\n<b>Botones en los recordatorios:</b>\n• Tomado — confirmar la toma\n• 🕐 1h / 🕐 3h — posponer el recordatorio\n• ⏭ Omitir — omitir la toma\n• ✓ Confirmar — confirmar una toma omitida"
+    "helpBody": "/help — mostrar esta ayuda\n/add — registrar una toma\n/start — iniciar el bot\n\n<b>Comandos de texto:</b>\ntaken &lt;nombre&gt; — confirmar una toma\n\n<b>Botones en los recordatorios:</b>\n• Tomado — confirmar la toma\n• 🕐 1h / 🕐 3h — posponer el recordatorio\n• ⏭ Omitir — omitir la toma\n• ✓ Confirmar — confirmar una toma omitida",
+    "measureValuePrompt": "Responde con el valor para registrarlo (opcional).",
+    "buttonMeasureValue": "Valor…",
+    "measureValueSaved": "Lectura guardada.",
+    "measureValueInvalid": "Responde con un número para registrar una lectura.",
+    "measureValueOutOfRange": "Ese valor está fuera del rango plausible.",
+    "measureValueExpired": "Esa solicitud ha caducado."
   },
   "medicationReminders": {
     "phaseGreenTitle": "🟢 Recordatorio: {medName}",

@@ -94,7 +94,12 @@ model User {
 
   // Telegram notifications (per-user)
   telegramBotToken String? @map("telegram_bot_token") // AES-256-GCM encrypted
-  telegramChatId   String? @map("telegram_chat_id")
+  // v1.19.2 — one Telegram chat binds to exactly one HealthLog account.
+  // The inbound webhook resolves the user from this chat id; a chat shared
+  // across two accounts would route a reply / button tap ambiguously. The
+  // unique is partial by Postgres NULL semantics (multiple NULLs allowed),
+  // so an unlinked account (NULL chat id) never collides. Migration 0189.
+  telegramChatId   String? @unique @map("telegram_chat_id")
   telegramEnabled  Boolean @default(false) @map("telegram_enabled")
 
   // Withings OAuth credentials (per-user, encrypted)
@@ -1002,6 +1007,14 @@ enum MeasurementSource {
   // path); rejected on batch + single POST like WITHINGS/WHOOP/FITBIT. iOS
   // DTO mirrors this exact spelling so /api/sync/changes decodes the rows.
   OURA
+  // v1.19.2 — measurements captured from a numeric reply to a Telegram
+  // measurement reminder. Unlike the server-owned integrations above, this
+  // is a user-driven write, but it enters through the webhook (chat-bound)
+  // rather than the cookie/Bearer client write path, so it carries its own
+  // source label. The client batch + single-POST surfaces still reject it
+  // (server-resolved only); iOS DTO mirrors this spelling so the
+  // /api/sync/changes delta feed decodes the rows.
+  TELEGRAM
 
   @@map("measurement_source")
 }
