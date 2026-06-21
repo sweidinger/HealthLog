@@ -138,13 +138,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
                   derived.status === "ok"
                     ? derived.value.adverseCoverageDays
                     : 0,
-                // The vitals that produced a real physiological return —
-                // tallied across the qualifying episodes to name the dominant
-                // driving vital in the summary copy.
+                // The vitals that produced a real physiological return in the
+                // illness-ADVERSE direction — tallied across the qualifying
+                // episodes to name the dominant driving vital in the summary
+                // copy. A neutral move (e.g. weight drift with no adverse
+                // signal) shows a return but must never be named the driver.
                 gapReturnTypes:
                   derived.status === "ok"
                     ? derived.value.returns
-                        .filter((r) => r.gapDays !== null)
+                        .filter((r) => r.gapDays !== null && r.adverse)
                         .map((r) => String(r.type))
                     : [],
               },

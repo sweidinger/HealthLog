@@ -226,6 +226,54 @@ describe("computeIllnessCorrelation — golden recovery-gap", () => {
     expect(out.value.recoveryGapDays).toBeNull();
     expect(out.value.returns[0]?.returnedDay).toBeNull();
   });
+
+  it("flags a return adverse only when the vital deviated in the adverse direction", () => {
+    // A neutral-direction vital (WEIGHT) can deviate out of band and stably
+    // return — it produces a return finding, but `adverse` must stay false so
+    // it never gets named the recovery driver. An up-adverse vital (RHR) that
+    // spikes and returns must read adverse: true.
+    const weight: MeasurementType = "WEIGHT";
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [
+          {
+            type: weight,
+            baselineDays: jitteredBaseline(80, 1, 21, "2026-01-02"),
+            episodeDays: [
+              { day: "2026-01-10", mean: 90 }, // far out of band, neutral
+              { day: "2026-01-11", mean: 91 },
+              { day: "2026-01-15", mean: 80 }, // back in band
+              { day: "2026-01-16", mean: 80 },
+              { day: "2026-01-17", mean: 80 },
+            ],
+          },
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: [
+              { day: "2026-01-10", mean: 75 }, // up = adverse
+              { day: "2026-01-11", mean: 74 },
+              { day: "2026-01-15", mean: 55 }, // back in band
+              { day: "2026-01-16", mean: 55 },
+              { day: "2026-01-17", mean: 55 },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const weightReturn = out.value.returns.find((r) => r.type === weight);
+    const rhrReturn = out.value.returns.find((r) => r.type === rhr);
+    expect(weightReturn?.adverse).toBe(false);
+    expect(rhrReturn?.adverse).toBe(true);
+  });
 });
 
 describe("computeIllnessCorrelation — baseline-contamination guard", () => {

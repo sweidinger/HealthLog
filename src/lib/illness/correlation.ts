@@ -206,6 +206,10 @@ export interface VitalReturnFinding {
   returnedDay: string | null;
   /** Days from felt-better to physiological return (signed); null if N/A. */
   gapDays: number | null;
+  /** Whether this vital deviated in the illness-adverse direction during the
+   *  active span — a neutral move (e.g. weight drift with no adverse signal)
+   *  still produces a return but must not name the recovery driver. */
+  adverse: boolean;
 }
 
 /**
@@ -421,11 +425,17 @@ export function computeIllnessCorrelation(
     // anchor the recovery search must start AFTER (an early in-band run before
     // the vital ever deviated is not a "return", it is the run-up).
     let firstDeviationIndex = -1;
+    // Whether THIS vital ever deviated adversely in the active span — gates it
+    // out of the recovery-driver tally even if it shows a return.
+    let vitalDeviatedAdversely = false;
     active.forEach((p, i) => {
       const f = finding(type, p.day, p.mean, center, spread);
       if (Math.abs(f.deviationSd) >= NOTABLE_SD) {
         if (firstDeviationIndex === -1) firstDeviationIndex = i;
-        if (f.adverse) adverseDayKeys.add(p.day);
+        if (f.adverse) {
+          adverseDayKeys.add(p.day);
+          vitalDeviatedAdversely = true;
+        }
         if (
           worstActive === null ||
           Math.abs(f.deviationSd) > Math.abs(worstActive.deviationSd)
@@ -452,7 +462,12 @@ export function computeIllnessCorrelation(
         returnedDay && window.feltBetterDay
           ? dayDiff(window.feltBetterDay, returnedDay)
           : null;
-      returns.push({ type, returnedDay, gapDays });
+      returns.push({
+        type,
+        returnedDay,
+        gapDays,
+        adverse: vitalDeviatedAdversely,
+      });
     }
   }
 

@@ -11860,9 +11860,38 @@ components:
             - workNightsCounted
             - freeNightsUntilReady
           additionalProperties: false
+        averagePerNight:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - partial
+                - ready
+            averageMinutes:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Mean asleep minutes per scorable night (0 while partial).
+            nightsCounted:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            nightsUntilReady:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Scorable nights still needed before the average is asserted.
+          required:
+            - state
+            - averageMinutes
+            - nightsCounted
+            - nightsUntilReady
+          additionalProperties: false
       required:
         - sleepDebt
         - chronotype
+        - averagePerNight
       additionalProperties: false
       description: "Server-authoritative sleep-rhythm read: cumulative sleep debt over the rolling window + MCTQ chronotype
         (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone (no work
