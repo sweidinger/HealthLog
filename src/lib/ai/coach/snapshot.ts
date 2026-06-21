@@ -415,6 +415,7 @@ async function buildCoarseTimelineTail(
   userId: string,
   type: MeasurementType,
   now: Date,
+  tz: string,
 ): Promise<CoarseTimelineTail | undefined> {
   // `buildTieredSeries` reads fall back on miss — a coverage miss yields empty
   // bands, which collapse to `undefined` here. The try/catch keeps the coarse
@@ -429,6 +430,7 @@ async function buildCoarseTimelineTail(
     // band reads it would otherwise discard.
     series = await buildTieredSeries(userId, type, {
       now: now.getTime(),
+      tz,
       coarseOnly: true,
     });
   } catch {
@@ -884,6 +886,7 @@ async function buildCoachSnapshotImpl(
       userId,
       "BLOOD_PRESSURE_SYS" as MeasurementType,
       now,
+      userTz,
     );
   }
   if (wantsWeight) {
@@ -891,6 +894,7 @@ async function buildCoachSnapshotImpl(
       userId,
       "WEIGHT" as MeasurementType,
       now,
+      userTz,
     );
   }
   if (wantsPulse) {
@@ -898,6 +902,7 @@ async function buildCoachSnapshotImpl(
       userId,
       "PULSE" as MeasurementType,
       now,
+      userTz,
     );
   }
   const [bpCoarseTail, weightCoarseTail, pulseCoarseTail] = await Promise.all([

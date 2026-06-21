@@ -33,6 +33,7 @@ import type {
   MeasurementType,
   RollupGranularity,
 } from "@/generated/prisma/client";
+import { userDayKey } from "@/lib/tz/format";
 import {
   ensureUserRollupsFresh,
   readRollupBuckets,
@@ -52,7 +53,11 @@ export const TIERED_BANDS = {
 
 /** One raw daily point in the 0–14d band. */
 export interface TieredRawPoint {
-  /** ISO date (UTC) of the day the point summarises. */
+  /**
+   * `YYYY-MM-DD` of the day the point summarises, keyed in the user's
+   * timezone (`options.tz`). A 23:30-local reading on a DST-changeover
+   * night lands on the correct local calendar day, not the UTC day.
+   */
   date: string;
   /** Mean of that day's readings (a single point for most metrics). */
   value: number;
@@ -105,6 +110,20 @@ export interface TieredSeries {
 }
 
 export interface BuildTieredSeriesOptions {
+  /**
+   * The user's IANA timezone. REQUIRED — the raw 0–14d band keys its
+   * daily fold on the user's local calendar day (`userDayKey`) so a
+   * late-evening reading lands on the right day across DST boundaries
+   * and for non-UTC users. The coarser DAY/WEEK/MONTH/YEAR bands read
+   * straight from the rollup table, whose `bucketStart` is UTC-anchored
+   * by system-wide design (the live aggregator's `date_trunc` and the
+   * rollup writer agree on UTC day boundaries — see
+   * `start-of-utc-day.ts`); re-keying those into `tz` here would diverge
+   * from the parity-locked read-swap fallback, so they are intentionally
+   * left UTC. Callers without a resolved zone should pass
+   * `DEFAULT_TIMEZONE`.
+   */
+  tz: string;
   /** Clock override for tests; defaults to `Date.now()`. */
   now?: number;
   /**
@@ -224,11 +243,17 @@ function extractAnomalies(
     .slice(0, cap);
 }
 
-/** Read the raw 0–14d daily points for one type, folding same-day rows. */
+/**
+ * Read the raw 0–14d daily points for one type, folding same-day rows.
+ * Days are keyed on the user's local calendar via `userDayKey(tz)`, so a
+ * 23:30-local reading folds onto its local day rather than the UTC day —
+ * correct across DST transitions and for non-UTC users.
+ */
 async function readRecentDaily(
   userId: string,
   type: MeasurementType,
   now: number,
+  tz: string,
 ): Promise<TieredRawPoint[]> {
   const since = new Date(now - TIERED_BANDS.rawDays * DAY_MS);
   const rows = await prisma.measurement.findMany({
@@ -238,7 +263,7 @@ async function readRecentDaily(
   });
   const byDay = new Map<string, { sum: number; count: number }>();
   for (const r of rows) {
-    const key = r.measuredAt.toISOString().slice(0, 10);
+    const key = userDayKey(r.measuredAt, tz);
     const entry = byDay.get(key) ?? { sum: 0, count: 0 };
     entry.sum += r.value;
     entry.count += 1;
@@ -279,7 +304,7 @@ async function readBand(
 export async function buildTieredSeries(
   userId: string,
   type: MeasurementType,
-  options: BuildTieredSeriesOptions = {},
+  options: BuildTieredSeriesOptions,
 ): Promise<TieredSeries> {
   const now = options.now ?? Date.now();
   const cap = options.maxAnomalies ?? 5;
@@ -296,7 +321,7 @@ export async function buildTieredSeries(
     await Promise.all([
       options.skipRecentDaily || coarseOnly
         ? Promise.resolve<TieredRawPoint[]>([])
-        : readRecentDaily(userId, type, now),
+        : readRecentDaily(userId, type, now, options.tz),
       coarseOnly
         ? emptyBand
         : readBand(
@@ -371,7 +396,7 @@ export async function buildTieredSeries(
 export async function buildTieredSeriesForTypes(
   userId: string,
   types: MeasurementType[],
-  options: BuildTieredSeriesOptions = {},
+  options: BuildTieredSeriesOptions,
 ): Promise<TieredSeries[]> {
   const now = options.now ?? Date.now();
   if (!options.skipEnsureFresh) {
