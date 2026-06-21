@@ -89,9 +89,14 @@ const TIME_RANGES_KEYS = [
  * A generous fixed bound (~10 years) that is clearly larger than any
  * other range tab, so "All" means "all of my history" rather than the
  * old silent 365-day truncation. Fixed (not per-account derived) so the
- * fetch-window cache key stays stable across the session. The server's
- * daily-aggregate reader still caps the returned bucket count, so this
- * only widens the requested window, never the render cost.
+ * fetch-window cache key stays stable across the session.
+ *
+ * v1.19.2 — the server's daily-aggregate reader now steps UP the bucket
+ * tier (DAY → WEEK → MONTH) for windows wider than the DAY cap, so a
+ * multi-year "All" range returns whole-history coverage downsampled to
+ * the tier the chart's `bucketTimeSeries` would render anyway, instead of
+ * truncating to the most recent ~365 daily buckets. The render cost stays
+ * flat — the coarse tier bounds the point count.
  */
 const ALL_RANGE_DAYS = 3650;
 
@@ -650,10 +655,13 @@ export function HealthChart({
   // (~10 years) rather than the old 365-day cap, which silently truncated
   // any account holding more than a year of history. The window is a
   // generous fixed bound (not derived per-account) so the cache key stays
-  // stable across the session; the daily-aggregate reader caps the
-  // RETURNED bucket count at `BUCKET_CAP.daily` (365), so the chart still
-  // paints at most ~365 daily buckets — see the report's note on raising
-  // that server-side ceiling for true multi-year coverage.
+  // stable across the session.
+  //
+  // v1.19.2 — the server reader steps the bucket tier up to WEEK / MONTH
+  // for windows past the DAY cap, so the "All" tab now returns coverage
+  // across the whole history (downsampled by tier) rather than the most
+  // recent ~365 daily buckets. The client folds those coarse buckets and
+  // `bucketTimeSeries` re-buckets to the visible range as before.
   const fetchWindow = useMemo(() => {
     const to = new Date();
     const windowDays = rangePoints > 0 ? rangePoints : ALL_RANGE_DAYS;
@@ -845,6 +853,13 @@ export function HealthChart({
         // falls back to live SQL when the rollup is empty for the
         // requested window so brand-new accounts still see a chart
         // on their first render.
+        //
+        // v1.19.2 — the `aggregate=daily` ask still holds, but for windows
+        // wider than the DAY bucket cap the server steps the rollup tier
+        // up to WEEK / MONTH and returns whole-history coverage at that
+        // tier. Each returned row is one coarse bucket; the daily fold +
+        // `bucketTimeSeries` below downsample it to the visible range, so
+        // the request contract is unchanged.
         if (fetchWindow.windowDays > 7) {
           typeParams.set("aggregate", "daily");
           typeParams.set("source", "rollup");

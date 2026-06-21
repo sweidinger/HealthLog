@@ -44,6 +44,7 @@ vi.mock("@/lib/db", () => ({
 import {
   aggregateWmyBuckets,
   readBestGranularityRollups,
+  readTieredRollupSeries,
   type RollupBucketRow,
 } from "../measurement-read-wmy";
 
@@ -284,5 +285,128 @@ describe("readBestGranularityRollups — cross-consumer routing parity", () => {
 
     expect(monthAgg.count).toBe(dayAgg.count);
     expect(monthAgg.mean).toBeCloseTo(dayAgg.mean ?? Number.NaN, 5);
+  });
+});
+
+/**
+ * v1.19.2 W-CHARTS — whole-history series reader. Pins that a very long
+ * "Alle" window reads the display-matching coarse tier (WEEK for 1–2 y,
+ * MONTH beyond) and returns coverage spanning the FULL span rather than a
+ * truncated recent slice; that the finer fallback rescues a coverage
+ * miss; and that the wire shape mirrors the daily reader.
+ */
+describe("readTieredRollupSeries", () => {
+  it("returns null on a non-positive window without touching the db", async () => {
+    expect(
+      await readTieredRollupSeries({
+        userId: "u",
+        type: "WEIGHT",
+        windowDays: 0,
+      }),
+    ).toBeNull();
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("reads the MONTH tier for a multi-year window and spans the whole history", async () => {
+    // 10-year window → MONTH tier. The fixture carries buckets from the
+    // OLDEST month through the most recent — the result must keep the
+    // oldest bucket, proving no recent-slice truncation.
+    const months: RollupBucketRow[] = [];
+    for (let y = 2017; y <= 2026; y++) {
+      months.push(bucket(`${y}-01-01T00:00:00.000Z`, { count: 12, mean: 80 }));
+    }
+    findMany.mockResolvedValueOnce(months);
+
+    const result = await readTieredRollupSeries({
+      userId: "u",
+      type: "WEIGHT",
+      windowDays: 3650,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.granularity).toBe("MONTH");
+    expect(findMany.mock.calls[0][0].where.granularity).toBe("MONTH");
+    // Whole-history coverage: the earliest 2017 bucket survives.
+    expect(result?.rows[0].measuredAt).toBe("2017-01-01T00:00:00.000Z");
+    expect(result?.rows.at(-1)?.measuredAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(result?.rows.length).toBe(10);
+  });
+
+  it("reads the WEEK tier for a 1–2 year window", async () => {
+    findMany.mockResolvedValueOnce([bucket("2025-08-04T00:00:00.000Z")]);
+    const result = await readTieredRollupSeries({
+      userId: "u",
+      type: "WEIGHT",
+      windowDays: 540,
+    });
+    expect(result?.granularity).toBe("WEEK");
+    expect(findMany.mock.calls[0][0].where.granularity).toBe("WEEK");
+  });
+
+  it("falls FINER (MONTH → WEEK → DAY) when the target tier has no coverage", async () => {
+    findMany
+      .mockResolvedValueOnce([]) // MONTH miss
+      .mockResolvedValueOnce([]) // WEEK miss
+      .mockResolvedValueOnce([bucket("2024-03-01T00:00:00.000Z")]); // DAY hit
+    const result = await readTieredRollupSeries({
+      userId: "u",
+      type: "WEIGHT",
+      windowDays: 3650,
+    });
+    expect(result?.granularity).toBe("DAY");
+    expect(findMany.mock.calls[0][0].where.granularity).toBe("MONTH");
+    expect(findMany.mock.calls[1][0].where.granularity).toBe("WEEK");
+    expect(findMany.mock.calls[2][0].where.granularity).toBe("DAY");
+  });
+
+  it("returns null when no tier at or below the target carries coverage", async () => {
+    findMany.mockResolvedValue([]);
+    const result = await readTieredRollupSeries({
+      userId: "u",
+      type: "WEIGHT",
+      windowDays: 3650,
+    });
+    expect(result).toBeNull();
+    // MONTH, WEEK, DAY all probed (never coarser than the target).
+    expect(findMany).toHaveBeenCalledTimes(3);
+  });
+
+  it("surfaces the cumulative summed total for SUM metrics and drops the spread", async () => {
+    findMany.mockResolvedValueOnce([
+      bucket("2025-01-01T00:00:00.000Z", {
+        count: 30,
+        mean: 8000,
+        sumValue: 240_000,
+        minValue: 0,
+        maxValue: 20_000,
+      }),
+    ]);
+    const result = await readTieredRollupSeries({
+      userId: "u",
+      type: "ACTIVITY_STEPS",
+      windowDays: 3650,
+    });
+    expect(result?.rows[0].value).toBe(240_000);
+    expect(result?.rows[0].minValue).toBeUndefined();
+    expect(result?.rows[0].maxValue).toBeUndefined();
+  });
+
+  it("carries the count-weighted mean + spread for spot metrics", async () => {
+    findMany.mockResolvedValueOnce([
+      bucket("2025-01-01T00:00:00.000Z", {
+        count: 12,
+        mean: 81.5,
+        minValue: 78,
+        maxValue: 85,
+      }),
+    ]);
+    const result = await readTieredRollupSeries({
+      userId: "u",
+      type: "WEIGHT",
+      windowDays: 3650,
+    });
+    expect(result?.rows[0].value).toBe(81.5);
+    expect(result?.rows[0].minValue).toBe(78);
+    expect(result?.rows[0].maxValue).toBe(85);
   });
 });

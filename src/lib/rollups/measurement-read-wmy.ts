@@ -61,6 +61,8 @@ import type {
 } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db";
+import { CUMULATIVE_HK_TYPES } from "@/lib/measurements/apple-health-mapping";
+import { annotate } from "@/lib/logging/context";
 import {
   collapseRollupRowsBySource,
   loadUserSourcePriority,
@@ -271,4 +273,136 @@ async function readGranularity(
     minValue: r.minValue,
     maxValue: r.maxValue,
   }));
+}
+
+/**
+ * Wire-row shape the chart-data client consumes — mirrors
+ * `DailySeriesRow` in `daily-series-read.ts` so a tier-stepped series
+ * interleaves with the daily path without the caller branching on the
+ * source granularity. `measuredAt` is the bucket-start ISO string at the
+ * resolved tier (one row per DAY / WEEK / MONTH / YEAR bucket).
+ */
+export interface TieredSeriesRow {
+  type: string;
+  value: number;
+  measuredAt: string;
+  count: number;
+  minValue?: number | null;
+  maxValue?: number | null;
+}
+
+/**
+ * Pick the rollup granularity that matches the chart's own client-side
+ * `bucketTimeSeries` downsampler (`src/lib/charts/bucket-time-series.ts`):
+ *
+ *   - > 730 days  → MONTH (the chart renders month points)
+ *   - 366–730     → WEEK  (the chart renders week points)
+ *   - ≤ 365       → DAY   (daily resolution; the DAY cap covers it)
+ *
+ * Mirroring the display tier means the server returns exactly the
+ * resolution the chart will paint — no finer (which would truncate at the
+ * DAY cap) and no coarser (which would drop visible detail). The finer
+ * fallback in `readTieredRollupSeries` still rescues a tenant whose
+ * coarse buckets the worker has not minted yet.
+ */
+function pickRollupGranularityForWindow(windowDays: number): RollupGranularity {
+  if (windowDays > 730) return "MONTH";
+  if (windowDays > 365) return "WEEK";
+  return "DAY";
+}
+
+/** DAY → WEEK → MONTH → YEAR ordering for the finer-fallback walk. */
+const TIER_ORDER: RollupGranularity[] = ["DAY", "WEEK", "MONTH", "YEAR"];
+
+/**
+ * v1.19.2 — whole-history series reader for very long chart ranges.
+ *
+ * The DAY-only `readDailySeries` reader caps its result at
+ * `BUCKET_CAP.daily` (365) buckets. A multi-year "Alle" range therefore
+ * silently truncated to roughly the most recent year — the older history
+ * never reached the client even though the chart's own
+ * `bucketTimeSeries` downsampler would have rendered it as week / month
+ * points. This reader closes that gap by reading the bucket tier that
+ * matches the chart's display granularity (WEEK for 1–2 years, MONTH
+ * beyond), so the returned series spans the WHOLE requested window inside
+ * a sane point budget instead of being chopped to a recent slice.
+ *
+ * The tier is purely a downsampling choice: `count` and the
+ * count-weighted `mean` compose identically across any granularity (see
+ * the compositional contract above), so a 5-year window rendered as ~60
+ * MONTH points carries the same trend as the ~1 800 DAY points would have
+ * — minus the truncation. `minValue` / `maxValue` ride through for the
+ * range band on spot metrics; cumulative metrics (steps, energy,
+ * distance) surface the bucket's summed total and drop the spread.
+ *
+ * Coverage handling: the target tier is read first; on a coverage miss
+ * (the boot backfill / worker has not minted the coarse buckets yet) the
+ * reader walks FINER (MONTH → WEEK → DAY) so a tenant still gets a usable
+ * series rather than an empty chart. Returns `null` only when no tier at
+ * or below the target carries any buckets for the window — the caller
+ * then falls through to its live-SQL path.
+ *
+ * The result is NOT capped — the tier selection bounds the row count
+ * (≤ ~104 weeks for the WEEK tier, ≤ ~12 months/year for MONTH). If a
+ * future tier ever risks an unbounded count it must step coarser rather
+ * than truncate; no silent cap lives on this path.
+ */
+export async function readTieredRollupSeries(opts: {
+  userId: string;
+  type: MeasurementType;
+  windowDays: number;
+  priorityJson?: unknown;
+}): Promise<{
+  granularity: RollupGranularity;
+  rows: TieredSeriesRow[];
+} | null> {
+  const { userId, type, windowDays, priorityJson } = opts;
+  if (!Number.isFinite(windowDays) || windowDays <= 0) return null;
+
+  const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+  const priority =
+    priorityJson !== undefined
+      ? priorityJson
+      : await loadUserSourcePriority(userId);
+
+  const target = pickRollupGranularityForWindow(windowDays);
+  // Walk the target tier first, then finer (never coarser — coarser would
+  // drop detail the chart can render). Stop at the first tier with coverage.
+  const targetIdx = TIER_ORDER.indexOf(target);
+  for (let i = targetIdx; i >= 0; i--) {
+    const granularity = TIER_ORDER[i];
+    const rows = await readGranularity(
+      userId,
+      type,
+      granularity,
+      since,
+      priority,
+    );
+    if (rows && rows.length > 0) {
+      const useSum = CUMULATIVE_HK_TYPES.has(type);
+      annotate({
+        action: { name: "measurement.list" },
+        meta: {
+          total: rows.length,
+          type,
+          aggregate: "tiered",
+          granularity,
+          target_granularity: target,
+          source: "rollup",
+        },
+      });
+      return {
+        granularity,
+        rows: rows.map((r) => ({
+          type,
+          value: useSum ? (r.sumValue ?? r.mean * r.count) : r.mean,
+          measuredAt: r.bucketStart.toISOString(),
+          count: r.count,
+          minValue: useSum ? undefined : r.minValue,
+          maxValue: useSum ? undefined : r.maxValue,
+        })),
+      };
+    }
+  }
+  return null;
 }
