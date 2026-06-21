@@ -1,0 +1,190 @@
+import { z } from "zod/v4";
+
+import { boundedTakenAtSchema, injectionSiteEnum } from "./base";
+
+export const intakeSchema = z
+  .object({
+    medicationId: z
+      .string()
+      .min(1)
+      .describe(
+        "Server-narrowed from the URL path. The route layer overwrites whatever the body supplies before Zod parsing so a caller cannot log an intake against another medication.",
+      ),
+    scheduledFor: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional()
+      .describe(
+        "Slot the dose belongs to. Defaults to `takenAt` (or `now()` when both are absent) so the compliance pairing logic can pin the dose to a schedule slot.",
+      ),
+    takenAt: boundedTakenAtSchema
+      .optional()
+      .describe(
+        "When the dose was actually taken. NULL when `skipped` is true; defaults to `now()` for non-skipped intakes. Must not lie in the future (5-minute clock-skew allowance) nor more than 5 years in the past.",
+      ),
+    skipped: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe(
+        "True to log a skipped slot (no consumption, no inventory decrement, one-shot medications stay active).",
+      ),
+    idempotencyKey: z
+      .string()
+      .max(128)
+      .optional()
+      .describe(
+        "Caller-issued de-dup key. A second POST with the same key returns the original event without creating a new row.",
+      ),
+    /**
+     * v1.8.5 — optional injection-site capture. Only honoured on a
+     * non-skipped (taken) write for a medication with
+     * `deliveryForm === "INJECTION"` and `trackInjectionSites === true`.
+     * The site is validated server-side against the medication's
+     * effective allowed set (per-medication `allowedInjectionSites`
+     * minus the user's `globalExcludedInjectionSites` deny-list); a
+     * disallowed value is rejected with 422. Always optional — the
+     * client may omit it (the dose still records).
+     */
+    injectionSite: injectionSiteEnum
+      .optional()
+      .describe(
+        "Optional injection site for a taken dose. Honoured only when the medication is an INJECTION with site-tracking enabled; validated against the medication's effective allowed set (per-medication allowed sites minus the user's global exclusion). A disallowed site returns 422. Omit to record the dose without a site.",
+      ),
+    /**
+     * v1.15.18 — late-take "attribute anyway" pin. An off-window take that
+     * band attribution would otherwise orphan to an ad-hoc row can be pinned
+     * onto a chosen scheduled slot via the UI's "diesem Slot zuordnen?" nudge.
+     * The instant MUST be a real slot of this medication on its day (the
+     * server validates it against the band anchors); an arbitrary instant is
+     * rejected with 422. Absent → default band attribution.
+     */
+    forceSlotInstant: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional()
+      .describe(
+        "Late-take override: pin this taken dose onto the named scheduled slot instead of orphaning it to an ad-hoc row. Must be a real scheduled slot of this medication on its day (validated server-side against the dose-window band anchors); an instant that is not a slot returns 422. Absent applies the default window-band attribution.",
+      ),
+    /**
+     * v1.16.4 — per-intake dose override. Free text mirroring
+     * `Medication.dose` (max 50 chars). Persisted only on a taken
+     * (non-skipped) write. Absent = the configured medication dose
+     * applies; read paths fall back to it.
+     */
+    doseTaken: z
+      .string()
+      .trim()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe(
+        "Dose actually consumed for THIS intake when it deviates from (or documents) the medication's configured dose, e.g. a half tablet or a titration step. Free text, max 50 characters. Omit to record the take under the medication's configured dose.",
+      ),
+  })
+  .meta({
+    id: "MedicationIntakeRequest",
+    description:
+      "Per-medication intake log body. Idempotent via `idempotencyKey`; the server also dedupes by a 60-second sliding window when the key is absent. Non-skipped intakes auto-decrement pen inventory (best-effort), refresh the per-day compliance rollup, and — for one-shot medications — flip `active` to false. The optional `injectionSite` is persisted only for an INJECTION medication with site-tracking enabled and is validated against the medication's effective allowed set (422 on a disallowed value).",
+  });
+
+export const externalIntakeSchema = z.object({
+  medicationName: z.string().min(1).max(200),
+  // v1.16.9 — same plausibility bounds as the interactive create paths.
+  takenAt: boundedTakenAtSchema.optional(),
+  idempotencyKey: z.string().max(128),
+});
+
+export const listIntakeEventsSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(500).optional().default(25),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+  sortBy: z
+    .enum(["scheduledFor", "takenAt", "source", "createdAt"])
+    .optional()
+    .default("scheduledFor"),
+  sortDir: z.enum(["asc", "desc"]).optional().default("desc"),
+  /**
+   * v1.4.37 W3 — server-side status filter so the medication detail
+   * page (IntakeHistoryListV2) can hide unconfirmed / planned rows.
+   *
+   *  - "all" (default): every event, preserves the byte-stable contract
+   *    the iOS Swift client and existing dashboard consumers depend on.
+   *  - "taken": only rows where the dose was confirmed taken
+   *    (`takenAt IS NOT NULL AND skipped = false`).
+   *  - "skipped": only rows the user explicitly skipped (`skipped = true`).
+   *  - "completed": taken OR skipped — anything the user actually
+   *    actioned. Excludes the ambiguous "missed / never confirmed"
+   *    rows (`takenAt IS NULL AND skipped = false`) that the v1 list
+   *    rendered as "verpasst" before the v1 component retired.
+   */
+  status: z
+    .enum(["all", "taken", "skipped", "completed"])
+    .optional()
+    .default("all"),
+});
+
+/**
+ * v1.15.19 — `takenAt` plausibility bounds on the edit path (audit P0-4).
+ * A date typo on an intake edit could park `takenAt` a month before its
+ * slot with no pushback anywhere. The schema rejects the physically
+ * implausible cases: a future instant (small skew allowance for client
+ * clocks) and anything older than the 5-year window the GLP-1 dose-change
+ * validator already established (`glp1DoseChangePostSchema`). Slot-distance
+ * checks stay out of the schema — it cannot see the medication — and live
+ * in the route (start-date guard) + the edit dialog (non-blocking hint).
+ */
+export const updateIntakeEventSchema = z
+  .object({
+    takenAt: boundedTakenAtSchema.nullable().optional(),
+    skipped: z.boolean().optional(),
+    scheduledFor: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional(),
+    /**
+     * v1.15.18 — late-take "attribute anyway" pin on the edit path. When the
+     * edited `takenAt` lands outside every window the UI can offer to pin the
+     * take onto a chosen slot; the server validates the instant is a real
+     * scheduled slot (422 otherwise). Absent → the edit re-runs band
+     * attribution on the new `takenAt`.
+     *
+     * v1.15.20 — an explicit `null` UNPINS: the dose re-attributes by window
+     * band on its (unchanged or edited) `takenAt` and the binding provenance
+     * resets to AUTO — the "Zuordnung lösen" path. A pin / unpin no longer
+     * requires `takenAt` or `skipped` to change in the same request.
+     */
+    forceSlotInstant: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .nullable()
+      .optional()
+      .describe(
+        "Late-take override on edit: pin the edited dose onto the named scheduled slot instead of re-attributing by window band. Must be a real scheduled slot of this medication on its day (validated server-side); a non-slot instant returns 422. Explicit null unpins: the dose re-attributes by window band on its takenAt (ad-hoc when no band matches). Absent re-runs the default window-band attribution on the edited `takenAt`.",
+      ),
+  })
+  .meta({
+    id: "UpdateMedicationIntakeEventRequest",
+    description:
+      "Edit a single intake event. v1.15.18 re-runs window-band slot attribution whenever `takenAt` or `skipped` change, snapping `scheduledFor` to the matched slot (or the take's own time when it falls in no window). `forceSlotInstant` overrides that to pin the take onto a named real slot (explicit null unpins, re-attributing by band); an explicit `scheduledFor` still wins when supplied directly. `takenAt` must not be in the future (5-minute clock-skew allowance) nor more than 5 years in the past; a `takenAt` before the medication's start date returns 422.",
+  });
+
+/**
+ * v1.5.5 — bulk-delete request body. The detail-page intake-history
+ * preview surfaces a multi-select that posts the resulting eventIds
+ * here. The cap matches `listIntakeEventsSchema.limit` (500) so the
+ * client never selects more rows than the table can return at once.
+ * Server-side guarantees scoped-by-medication ownership via
+ * `assertMedicationOwnership` + a `userId` predicate on the
+ * `deleteMany`.
+ */
+export const bulkDeleteIntakeEventsSchema = z.object({
+  eventIds: z.array(z.string().min(1).max(64)).min(1).max(500),
+});
+
+export type BulkDeleteIntakeEventsInput = z.infer<
+  typeof bulkDeleteIntakeEventsSchema
+>;
+
+export type IntakeInput = z.infer<typeof intakeSchema>;
+export type ListIntakeEventsInput = z.infer<typeof listIntakeEventsSchema>;
+export type UpdateIntakeEventInput = z.infer<typeof updateIntakeEventSchema>;
