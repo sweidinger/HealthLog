@@ -322,10 +322,26 @@ const chronotypeResource = z.object({
     .describe("Free-day nights still needed before a band is asserted."),
 });
 
+const averageSleepResource = z.object({
+  state: z.enum(["partial", "ready"]),
+  averageMinutes: z
+    .number()
+    .int()
+    .nonnegative()
+    .describe("Mean asleep minutes per scorable night (0 while partial)."),
+  nightsCounted: z.number().int().nonnegative(),
+  nightsUntilReady: z
+    .number()
+    .int()
+    .nonnegative()
+    .describe("Scorable nights still needed before the average is asserted."),
+});
+
 const sleepRhythmResponse = z
   .object({
     sleepDebt: sleepDebtResource,
     chronotype: chronotypeResource,
+    averagePerNight: averageSleepResource,
   })
   .meta({
     id: "SleepRhythmResource",

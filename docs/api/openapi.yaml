@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.19.0
+  version: 1.19.1
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -11860,9 +11860,38 @@ components:
             - workNightsCounted
             - freeNightsUntilReady
           additionalProperties: false
+        averagePerNight:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - partial
+                - ready
+            averageMinutes:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Mean asleep minutes per scorable night (0 while partial).
+            nightsCounted:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            nightsUntilReady:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Scorable nights still needed before the average is asserted.
+          required:
+            - state
+            - averageMinutes
+            - nightsCounted
+            - nightsUntilReady
+          additionalProperties: false
       required:
         - sleepDebt
         - chronotype
+        - averagePerNight
       additionalProperties: false
       description: "Server-authoritative sleep-rhythm read: cumulative sleep debt over the rolling window + MCTQ chronotype
         (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone (no work
@@ -20279,6 +20308,10 @@ components:
           anyOf:
             - type: number
             - type: "null"
+        adverseCoverageDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
         feltBetterDay:
           anyOf:
             - type: string
@@ -20293,6 +20326,7 @@ components:
         - nadir
         - returns
         - recoveryGapDays
+        - adverseCoverageDays
         - feltBetterDay
         - redFlags
       additionalProperties: false
@@ -20429,6 +20463,10 @@ components:
             type: integer
             minimum: -9007199254740991
             maximum: 9007199254740991
+        gapDriverType:
+          anyOf:
+            - type: string
+            - type: "null"
       required:
         - windowDays
         - episodeCount
@@ -20437,10 +20475,12 @@ components:
         - gapSampleSize
         - byMonth
         - byType
+        - gapDriverType
       additionalProperties: false
       description: "Cross-episode retrospective summary over the trailing window: episode + resolved counts, the typical
-        (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally,
-        and a per-type breakdown. Retrospective only."
+        (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally, a
+        per-type breakdown, and the dominant driving vital (`gapDriverType`, null when no gap is surfaced).
+        Retrospective only."
     DisclaimerAckEnvelope:
       type: object
       properties:

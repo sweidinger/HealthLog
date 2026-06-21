@@ -84,10 +84,9 @@ export function MoodTimeOfDayChart({
             data={data}
             margin={{ top: 8, right: 12, bottom: 8, left: 0 }}
           >
-            {/* Muted chart language — same treatment as the weekday/distribution
-                siblings: `--muted-foreground` axis ticks, a quiet comment-grey
-                target guide, and 0.55 bar fill so the level hues inform without
-                shouting. */}
+            {/* Quiet chart language — `--muted-foreground` axis ticks and a
+                comment-grey target guide. The bars themselves render at full
+                saturation (v1.19.1) so the mood level hues read clearly. */}
             <XAxis
               dataKey="label"
               tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
@@ -130,7 +129,10 @@ export function MoodTimeOfDayChart({
                 ];
               }}
             />
-            <Bar dataKey="value" radius={[3, 3, 0, 0]} fillOpacity={0.55}>
+            {/* v1.19.1 — populated buckets render at full saturation so the
+                level hues read clearly; only the no-data buckets keep the quiet
+                `--secondary` empty-state tint. */}
+            <Bar dataKey="value" radius={[3, 3, 0, 0]}>
               {data.map((row) => (
                 <Cell
                   key={row.bucket}
@@ -139,6 +141,7 @@ export function MoodTimeOfDayChart({
                       ? "var(--secondary)"
                       : colorForScore(row.avgScore)
                   }
+                  fillOpacity={row.avgScore == null ? 0.55 : 1}
                 />
               ))}
             </Bar>

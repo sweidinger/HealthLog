@@ -109,17 +109,18 @@ describe("<SidebarNav> cycle entry gate (v1.15.0 / v1.18.0 module map)", () => {
     expect(html).not.toContain('href="/cycle"');
   });
 
-  it("places the Cycle entry between Medications and Insights when enabled", () => {
+  it("places the Cycle entry between Mood and Medications when enabled", () => {
     const html = render({ modules: { cycle: true } });
-    const med = html.indexOf('href="/medications"');
+    const mood = html.indexOf('href="/mood"');
     const cycle = html.indexOf('href="/cycle"');
-    const insights = html.indexOf('href="/insights"');
-    expect(med).toBeGreaterThan(-1);
+    const med = html.indexOf('href="/medications"');
+    expect(mood).toBeGreaterThan(-1);
     expect(cycle).toBeGreaterThan(-1);
-    expect(insights).toBeGreaterThan(-1);
-    // Cycle sits after Medications and before Insights in document order.
-    expect(med).toBeLessThan(cycle);
-    expect(cycle).toBeLessThan(insights);
+    expect(med).toBeGreaterThan(-1);
+    // v1.19.1 (S4) — Cycle sits after Mood and before Medications in document
+    // order; Medications opens the fixed clinical/insight spine below it.
+    expect(mood).toBeLessThan(cycle);
+    expect(cycle).toBeLessThan(med);
   });
 });
 

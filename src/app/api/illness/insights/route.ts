@@ -85,7 +85,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // out of the typical-gap median by the aggregate's signal-density gates.
   const gapById = new Map<
     string,
-    { recoveryGapDays: number | null; gapMeasurementDays: number }
+    {
+      recoveryGapDays: number | null;
+      gapMeasurementDays: number;
+      gapReturnTypes: string[];
+    }
   >();
   if (includeRecoveryGap) {
     const gapCandidates = rows
@@ -98,7 +102,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
           async (): Promise<
             [
               string,
-              { recoveryGapDays: number | null; gapMeasurementDays: number },
+              {
+                recoveryGapDays: number | null;
+                gapMeasurementDays: number;
+                gapReturnTypes: string[];
+              },
             ]
           > => {
             const derived = await computeEpisodeCorrelation(
@@ -119,9 +127,28 @@ export const GET = apiHandler(async (request: NextRequest) => {
                   derived.status === "ok"
                     ? derived.value.recoveryGapDays
                     : null,
-                // `historyDays` = distinct episode days with a banded vital,
-                // present on both the `ok` and `insufficient` arms.
-                gapMeasurementDays: derived.coverage.historyDays,
+                // Qualifying-days floor: distinct episode days carrying an
+                // ADVERSE-direction banded reading — NOT raw coverage
+                // (`historyDays` counts ANY banded vital, so a WEIGHT-only
+                // episode with no illness-adverse signal could otherwise clear
+                // the floor and tip the typical-gap median). Only the `ok` arm
+                // ever contributes a gap; the `insufficient` arm's gap is null,
+                // so 0 here is correct (it never reaches the median anyway).
+                gapMeasurementDays:
+                  derived.status === "ok"
+                    ? derived.value.adverseCoverageDays
+                    : 0,
+                // The vitals that produced a real physiological return in the
+                // illness-ADVERSE direction — tallied across the qualifying
+                // episodes to name the dominant driving vital in the summary
+                // copy. A neutral move (e.g. weight drift with no adverse
+                // signal) shows a return but must never be named the driver.
+                gapReturnTypes:
+                  derived.status === "ok"
+                    ? derived.value.returns
+                        .filter((r) => r.gapDays !== null && r.adverse)
+                        .map((r) => String(r.type))
+                    : [],
               },
             ];
           },
@@ -140,6 +167,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       resolved: r.resolvedAt !== null,
       recoveryGapDays: gap?.recoveryGapDays ?? null,
       gapMeasurementDays: gap?.gapMeasurementDays ?? 0,
+      gapReturnTypes: gap?.gapReturnTypes ?? [],
       lifecycle: r.lifecycle,
     };
   });
@@ -152,6 +180,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       episode_count: summary.episodeCount,
       gap_sample_size: summary.gapSampleSize,
       typical_gap_days: summary.typicalRecoveryGapDays,
+      gap_driver_type: summary.gapDriverType,
       include_recovery_gap: includeRecoveryGap,
     },
   });

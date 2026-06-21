@@ -87,13 +87,22 @@ export function IllnessInsightsCard({
               <p className="text-muted-foreground">
                 {t("illness.insights.typicalGapLearning")}
               </p>
+            ) : gap.data.typicalRecoveryGapDays === null ? (
+              <p className="text-muted-foreground">
+                {t("illness.insights.typicalGapLearning")}
+              </p>
+            ) : gap.data.gapDriverType ? (
+              <p className="text-muted-foreground">
+                {t("illness.insights.typicalGapWithDriver", {
+                  days: gap.data.typicalRecoveryGapDays,
+                  vital: t(`illness.vital.${gap.data.gapDriverType}`),
+                })}
+              </p>
             ) : (
               <p className="text-muted-foreground">
-                {gap.data.typicalRecoveryGapDays !== null
-                  ? t("illness.insights.typicalGap", {
-                      days: gap.data.typicalRecoveryGapDays,
-                    })
-                  : t("illness.insights.typicalGapLearning")}
+                {t("illness.insights.typicalGap", {
+                  days: gap.data.typicalRecoveryGapDays,
+                })}
               </p>
             )}
           </div>

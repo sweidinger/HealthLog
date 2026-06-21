@@ -2587,6 +2587,12 @@
         "clearCaption": "Nessun deficit accumulato nelle ultime {nights} notti",
         "learning": "Stiamo ancora misurando il tuo sonno — {counted} notti finora, ne mancano {remaining} per un bilancio affidabile."
       },
+      "average": {
+        "title": "Media per notte",
+        "value": "{hours} h {minutes} min",
+        "caption": "Sonno medio nelle ultime {nights} notti",
+        "learning": "Stiamo ancora misurando il tuo sonno — {counted} notti finora, ne mancano {remaining} per una media affidabile."
+      },
       "chronotype": {
         "title": "Cronotipo",
         "learning": "Stiamo ancora imparando il tuo ritmo — {counted} di {total} notti libere. Un cronotipo richiede alcune mattine senza sveglia per avere significato.",
@@ -3817,7 +3823,7 @@
         "subtitle": "Scegli quali promemoria ricevere."
       },
       "layout": {
-        "title": "Layout",
+        "title": "Cruscotto",
         "description": "Organizza la disposizione del cruscotto e degli approfondimenti.",
         "backToHub": "Torna a Layout e personalizzazione",
         "dashboard": {
@@ -6874,6 +6880,7 @@
       "countOne": "Hai registrato 1 episodio in questo periodo.",
       "countOther": "Hai registrato {count} episodi in questo periodo.",
       "typicalGap": "Divario di recupero tipico: {days} giorni tra il sentirti meglio e la stabilizzazione dei valori.",
+      "typicalGapWithDriver": "Divario di recupero tipico: {days} giorni: di solito ti senti meglio prima che {vital} si stabilizzi.",
       "typicalGapLearning": "Ancora qualche episodio risolto e qui apparirà un divario di recupero tipico.",
       "none": "Nessun episodio registrato in questo periodo.",
       "analyze": "Analizza il divario di recupero"

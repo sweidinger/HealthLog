@@ -115,6 +115,7 @@ export interface IllnessCorrelationValue {
   nadir: IllnessVitalDeviation[];
   returns: IllnessVitalReturn[];
   recoveryGapDays: number | null;
+  adverseCoverageDays: number;
   feltBetterDay: string | null;
   redFlags: IllnessRedFlag[];
 }
@@ -148,4 +149,5 @@ export interface IllnessInsightsResponse {
   gapSampleSize: number;
   byMonth: Record<string, number>;
   byType: Record<string, number>;
+  gapDriverType: string | null;
 }

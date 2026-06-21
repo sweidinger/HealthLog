@@ -88,6 +88,17 @@ export function CoachDrawer({ open, onOpenChange, prefill }: CoachDrawerProps) {
     router.push("/coach");
   }, [onOpenChange, router]);
 
+  // v1.19.1 (C5) — the drawer's "Conversations" affordance hands off to the
+  // full page WITH the `?view=conversations` flag so the page opens the
+  // conversation-history drawer on arrival. Previously it shared
+  // `handleMaximize` and, after the v1.19.1 new-chat default (C1), landed on
+  // a blank hero with no list — the dead-end the maintainer reported.
+  const handleOpenConversations = useCallback(() => {
+    onOpenChange(false);
+    resetRef.current?.();
+    router.push("/coach?view=conversations");
+  }, [onOpenChange, router]);
+
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
@@ -118,9 +129,10 @@ export function CoachDrawer({ open, onOpenChange, prefill }: CoachDrawerProps) {
           autoFocusComposer
           registerReset={registerReset}
           // v1.16.1 — the "Conversations" affordance hands off to the
-          // full-page route (same path as maximize) instead of opening
-          // the broken in-panel left tray.
-          onRequestFullView={handleMaximize}
+          // full-page route instead of opening the broken in-panel left
+          // tray. v1.19.1 (C5) — it now carries `?view=conversations` so the
+          // page opens the history list on arrival, never a blank hero.
+          onRequestFullView={handleOpenConversations}
           // Radix requires an accessible name + description on the
           // dialog content. Mount them through the title/description
           // render-props so the page can swap in a plain heading.

@@ -208,6 +208,7 @@ const illnessCorrelationValue = z
     nadir: z.array(illnessVitalDeviation),
     returns: z.array(illnessVitalReturn),
     recoveryGapDays: z.number().nullable(),
+    adverseCoverageDays: z.number().int(),
     feltBetterDay: z.string().nullable(),
     redFlags: z.array(illnessRedFlag),
   })
@@ -252,11 +253,12 @@ const illnessInsightsResponse = z
     gapSampleSize: z.number().int(),
     byMonth: z.record(z.string(), z.number().int()),
     byType: z.record(z.string(), z.number().int()),
+    gapDriverType: z.string().nullable(),
   })
   .meta({
     id: "IllnessInsightsResponse",
     description:
-      "Cross-episode retrospective summary over the trailing window: episode + resolved counts, the typical (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally, and a per-type breakdown. Retrospective only.",
+      "Cross-episode retrospective summary over the trailing window: episode + resolved counts, the typical (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally, a per-type breakdown, and the dominant driving vital (`gapDriverType`, null when no gap is surfaced). Retrospective only.",
   });
 
 const episodeNotFound = {

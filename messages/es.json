@@ -2587,6 +2587,12 @@
         "clearCaption": "Sin déficit acumulado en las últimas {nights} noches",
         "learning": "Aún estamos midiendo tu sueño — {counted} noches hasta ahora, faltan {remaining} para un balance fiable."
       },
+      "average": {
+        "title": "Media por noche",
+        "value": "{hours} h {minutes} min",
+        "caption": "Sueño medio en las últimas {nights} noches",
+        "learning": "Aún estamos midiendo tu sueño — {counted} noches hasta ahora, faltan {remaining} para una media fiable."
+      },
       "chronotype": {
         "title": "Cronotipo",
         "learning": "Aún estamos aprendiendo tu ritmo — {counted} de {total} noches libres. Un cronotipo necesita varias mañanas sin despertador para tener sentido.",
@@ -3817,7 +3823,7 @@
         "subtitle": "Elige qué recordatorios recibes."
       },
       "layout": {
-        "title": "Diseño",
+        "title": "Panel",
         "description": "Organiza cómo están dispuestos el panel y los análisis.",
         "backToHub": "Volver a Diseño y personalización",
         "dashboard": {
@@ -6874,6 +6880,7 @@
       "countOne": "Registraste 1 episodio en este período.",
       "countOther": "Registraste {count} episodios en este período.",
       "typicalGap": "Brecha de recuperación típica: {days} días entre sentirte mejor y la estabilización de tus valores.",
+      "typicalGapWithDriver": "Brecha de recuperación típica: {days} días: sueles sentirte mejor antes de que {vital} se estabilice.",
       "typicalGapLearning": "Con unos pocos episodios resueltos más aparecerá aquí una brecha de recuperación típica.",
       "none": "Sin episodios registrados en este período.",
       "analyze": "Analizar la brecha de recuperación"

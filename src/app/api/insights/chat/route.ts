@@ -387,6 +387,24 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
       locale: locale === "en" ? "en" : "de",
     });
   }
+  // v1.19.1 (C4) — token efficiency. The full SNAPSHOT (now incl. labs,
+  // illness, cycle, every cluster + the reference-grounding block) is the
+  // single biggest cost in a Coach turn — typing one word used to re-ship the
+  // whole ~15k-token block. The grounding only needs to enter the prompt ONCE
+  // per conversation: the model's first reply is composed against it and that
+  // reply rides the conversation transcript on every following turn, so the
+  // figures stay in-context without re-paying for them. We therefore include
+  // the full block only when:
+  //   - this is the first turn (no prior turns on disk), OR
+  //   - the history window has begun eliding turns (`allTurns.length > TURN_CAP`)
+  //     — once the oldest turns are folded into the rolling summary the original
+  //     snapshot may have scrolled out of the verbatim window, so we re-ground.
+  // On the cheap path (a follow-up inside the verbatim window) we send a short
+  // pointer instead of the figures, preserving grounding + cross-metric
+  // correlation quality at a fraction of the wire cost.
+  const isFirstTurn = priorTurns.length === 0;
+  const historyEliding = allTurns.length > TURN_CAP;
+  const includeFullSnapshot = isFirstTurn || historyEliding;
   const transcript = window
     .map((t) => `${t.role.toUpperCase()}: ${t.content}`)
     .join("\n\n");
@@ -407,12 +425,23 @@ React briefly and personally to the answer; do not repeat the question and do no
   // inspectable and the model reads the published population bands + the
   // user's placement. Omitted entirely when no present metric is covered by
   // the reference backbone (the builder returns null).
-  const groundingBlock = snapshot.referenceGrounding
-    ? `\n${snapshot.referenceGrounding}\n`
-    : "";
-  const userPrompt = `SNAPSHOT
+  const groundingBlock =
+    includeFullSnapshot && snapshot.referenceGrounding
+      ? `\n${snapshot.referenceGrounding}\n`
+      : "";
+  // v1.19.1 (C4) — the SNAPSHOT block is the expensive prefix. On the first
+  // turn (or after the history window starts eliding) we ship the full figures;
+  // on a cheap follow-up we ship a one-line pointer back to the snapshot the
+  // model already received earlier in this same conversation, so it keeps
+  // grounding its numbers in that data without us re-paying for the block.
+  const snapshotBlock = includeFullSnapshot
+    ? `SNAPSHOT
 ${snapshot.snapshotJson || "(no metric data in this user's log yet)"}
-${groundingBlock}${guidedBlock}
+${groundingBlock}`
+    : `SNAPSHOT
+(The full health snapshot was provided earlier in this conversation — keep grounding your answer in those figures. Do not invent numbers you were not given.)
+`;
+  const userPrompt = `${snapshotBlock}${guidedBlock}
 CONVERSATION
 ${transcript}
 
@@ -704,6 +733,11 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       promptVersion: PROMPT_VERSION,
       conversationId: workingConversationId,
       historyTurns: window.length,
+      // v1.19.1 (C4) — whether the full SNAPSHOT block rode this turn (the
+      // expensive prefix) vs the cheap pointer. Lets the dashboards confirm
+      // the once-per-conversation grounding cut the tokens-per-message.
+      snapshotSent: includeFullSnapshot,
+      promptChars: userPrompt.length,
       // v1.7.0 — count of provenance metrics the snapshot surfaced
       // this turn (a proxy for cluster breadth) so the dashboards can
       // correlate reply shape with cluster activation.

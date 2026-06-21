@@ -2587,6 +2587,12 @@
         "clearCaption": "Brak skumulowanego niedoboru w ostatnich {nights} nocach",
         "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodny bilans."
       },
+      "average": {
+        "title": "Średnia na noc",
+        "value": "{hours} godz. {minutes} min",
+        "caption": "Średni sen w ciągu ostatnich {nights} nocy",
+        "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodną średnią."
+      },
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Wciąż poznajemy Twój rytm — {counted} z {total} wolnych nocy. Chronotyp wymaga kilku poranków bez budzika, aby coś znaczył.",
@@ -3817,7 +3823,7 @@
         "subtitle": "Wybierz, które przypomnienia otrzymujesz."
       },
       "layout": {
-        "title": "Układ",
+        "title": "Pulpit",
         "description": "Ustal, jak rozłożone są pulpit i analizy.",
         "backToHub": "Powrót do Układ i personalizacja",
         "dashboard": {
@@ -6874,6 +6880,7 @@
       "countOne": "W tym okresie zapisałeś 1 epizod.",
       "countOther": "W tym okresie zapisałeś {count} epizodów.",
       "typicalGap": "Typowa luka rekonwalescencji: {days} dni między poprawą a ustabilizowaniem wartości.",
+      "typicalGapWithDriver": "Typowa luka rekonwalescencji: {days} dni – zwykle czujesz się lepiej, zanim {vital} się ustabilizuje.",
       "typicalGapLearning": "Jeszcze kilka zakończonych epizodów i pojawi się tu typowa luka rekonwalescencji.",
       "none": "Brak epizodów zapisanych w tym okresie.",
       "analyze": "Przeanalizuj lukę rekonwalescencji"

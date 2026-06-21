@@ -2587,6 +2587,12 @@
         "clearCaption": "Kein aufgelaufenes Defizit über die letzten {nights} Nächte",
         "learning": "Dein Schlaf wird noch erfasst — {counted} Nächte bisher, noch {remaining} für eine verlässliche Bilanz."
       },
+      "average": {
+        "title": "Durchschnitt pro Nacht",
+        "value": "{hours} Std. {minutes} Min.",
+        "caption": "Mittlerer Schlaf über die letzten {nights} Nächte",
+        "learning": "Dein Schlaf wird noch erfasst — {counted} Nächte bisher, noch {remaining} für einen verlässlichen Durchschnitt."
+      },
       "chronotype": {
         "title": "Chronotyp",
         "learning": "Dein Rhythmus wird noch erfasst — {counted} von {total} freien Nächten. Ein Chronotyp braucht ein paar weckerfreie Morgen, um aussagekräftig zu sein.",
@@ -3817,7 +3823,7 @@
         "subtitle": "Wähle, welche Erinnerungen du erhältst."
       },
       "layout": {
-        "title": "Layout",
+        "title": "Dashboard",
         "description": "Lege fest, wie Dashboard und Insights aufgebaut und angeordnet sind.",
         "backToHub": "Zurück zu Layout & Personalisierung",
         "dashboard": {
@@ -6874,6 +6880,7 @@
       "countOne": "Du hast in diesem Zeitraum 1 Episode erfasst.",
       "countOther": "Du hast in diesem Zeitraum {count} Episoden erfasst.",
       "typicalGap": "Typische Erholungslücke: {days} Tage zwischen Besserung und normalisierten Werten.",
+      "typicalGapWithDriver": "Typische Erholungslücke: {days} Tage – du fühlst dich meist besser, bevor sich {vital} normalisiert.",
       "typicalGapLearning": "Noch ein paar abgeschlossene Episoden und hier erscheint eine typische Erholungslücke.",
       "none": "In diesem Zeitraum keine Episoden erfasst.",
       "analyze": "Erholungslücke analysieren"

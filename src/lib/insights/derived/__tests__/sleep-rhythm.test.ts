@@ -23,6 +23,7 @@ import * as chronotypeMod from "../chronotype";
 
 import {
   buildSleepRhythm,
+  computeAverageSleep,
   computeSleepRhythmFromNights,
   defaultDayType,
   type RhythmNight,
@@ -144,5 +145,37 @@ describe("computeSleepRhythmFromNights window cap", () => {
     // is the invariant the dashboard summary (365-day read) + the /api/sleep/
     // rhythm route (42-day read) both depend on to render identical values.
     expect(oneYear.chronotype).toEqual(sixWeeks.chronotype);
+  });
+});
+
+describe("computeAverageSleep", () => {
+  function nights(...minutes: number[]): RhythmNight[] {
+    return minutes.map((m, i) => ({
+      night: `2026-06-${String(10 + i).padStart(2, "0")}`,
+      asleepMinutes: m,
+      midpoint: 4 * 60,
+    }));
+  }
+
+  it("stays partial under the four-night floor and asserts no average", () => {
+    const avg = computeAverageSleep(nights(420, 420, 420));
+    expect(avg.state).toBe("partial");
+    expect(avg.averageMinutes).toBe(0);
+    expect(avg.nightsCounted).toBe(3);
+    expect(avg.nightsUntilReady).toBe(1);
+  });
+
+  it("returns the rounded mean over the scorable nights once ready", () => {
+    const avg = computeAverageSleep(nights(400, 410, 420, 430, 450));
+    expect(avg.state).toBe("ready");
+    expect(avg.averageMinutes).toBe(422); // 2110 / 5 = 422
+    expect(avg.nightsCounted).toBe(5);
+    expect(avg.nightsUntilReady).toBe(0);
+  });
+
+  it("matches the average the rhythm assembler emits over the same nights", () => {
+    const dto = computeSleepRhythmFromNights(nights(420, 420, 420, 420), 420);
+    expect(dto.averagePerNight.state).toBe("ready");
+    expect(dto.averagePerNight.averageMinutes).toBe(420);
   });
 });
