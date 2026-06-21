@@ -20,6 +20,7 @@ import { prisma } from "@/lib/db";
 import { BUCKET_CAP } from "@/lib/measurements/range-aggregation";
 import { CUMULATIVE_HK_TYPES } from "@/lib/measurements/apple-health-mapping";
 import { collapseRollupRowsBySource } from "@/lib/rollups/measurement-read";
+import { readTieredRollupSeries } from "@/lib/rollups/measurement-read-wmy";
 import { recomputeUserRollups } from "@/lib/rollups/measurement-rollups";
 import { buildSourceRankCase } from "@/lib/analytics/source-rank-sql";
 import { annotate } from "@/lib/logging/context";
@@ -58,6 +59,45 @@ export async function readDailySeries(opts: {
 }): Promise<DailySeriesRow[]> {
   const { userId, type, from, to, priorityJson } = opts;
   const cap = Math.min(opts.limit ?? BUCKET_CAP.daily, BUCKET_CAP.daily);
+
+  // v1.19.2 — whole-history step-up for very long ranges. When the
+  // requested window holds more days than the DAY bucket cap can carry,
+  // the daily path below would `LIMIT`/`slice` to `cap` (365) buckets and
+  // silently drop the older history — a multi-year "Alle" range collapsed
+  // to roughly the most recent year. Step UP the bucket tier
+  // (DAY → WEEK → MONTH → YEAR) so the series spans the whole window
+  // inside a sane point budget instead. The chart's own `bucketTimeSeries`
+  // downsampler already renders week / month points for long ranges, so a
+  // coarser server tier is the resolution it would have collapsed to
+  // anyway — minus the truncation. Short / normal ranges (≤ cap days)
+  // never enter this branch and stay byte-identical with the prior daily
+  // path, so there is no perf regression for the common case.
+  const windowDaysFull = Math.ceil(
+    (to.getTime() - from.getTime()) / 86_400_000,
+  );
+  if (windowDaysFull > cap) {
+    const tiered = await readTieredRollupSeries({
+      userId,
+      type,
+      windowDays: windowDaysFull,
+      priorityJson,
+    });
+    if (tiered && tiered.rows.length > 0) {
+      return tiered.rows;
+    }
+    // Coverage miss at every tier — fall through to the daily path, which
+    // probes the live table and folds an under-converged window. The
+    // daily fallback still caps at `cap`; the annotate below records that
+    // the long-range read could not step up so a truncated daily slice is
+    // an explicit, logged outcome rather than a silent one.
+    annotate({
+      meta: {
+        tiered_series_coverage_miss: true,
+        window_days: windowDaysFull,
+        type,
+      },
+    });
+  }
 
   const readRollup = async () =>
     collapseRollupRowsBySource(
