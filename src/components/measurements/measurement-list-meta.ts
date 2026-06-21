@@ -120,6 +120,8 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   // ── v1.17.1 — Oura coverage completion ──
   SLEEP_SCORE: "measurements.typeSleepScore",
   BODY_TEMPERATURE_DEVIATION: "measurements.typeBodyTemperatureDeviation",
+  // ── v1.19.0 — Oura resilience ──
+  RESILIENCE: "measurements.typeResilience",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -239,6 +241,10 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   // ── v1.17.1 — Oura coverage completion ──
   SLEEP_SCORE: Moon,
   BODY_TEMPERATURE_DEVIATION: Thermometer,
+  // ── v1.19.0 — Oura resilience ──
+  // Gauge reads as the composite "index / level" dial, matching the other
+  // recovery / score composites (RECOVERY_SCORE, DAY_STRAIN).
+  RESILIENCE: Gauge,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -349,4 +355,8 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   // for the body-temperature deviation.
   SLEEP_SCORE: "bg-chart-2/20 text-chart-2",
   BODY_TEMPERATURE_DEVIATION: "bg-chart-5/20 text-chart-5",
+  // ── v1.19.0 — Oura resilience ──
+  // chart-1 (Dracula purple) marks the derived recovery / score composites as
+  // their own visual group, matching RECOVERY_SCORE / DAY_STRAIN.
+  RESILIENCE: "bg-chart-1/20 text-chart-1",
 };

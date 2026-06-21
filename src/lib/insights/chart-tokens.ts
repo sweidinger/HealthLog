@@ -124,6 +124,9 @@ export const ALLOWED_CHART_TOKENS = [
   // each carries a `metric:<TYPE>` token and renders through the generic chart.
   "metric:SLEEP_SCORE",
   "metric:BODY_TEMPERATURE_DEVIATION",
+  // v1.19.0 — Oura resilience. A continuous daily ordinal series (1–5), so it
+  // carries a `metric:<TYPE>` token and renders through the generic chart.
+  "metric:RESILIENCE",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];

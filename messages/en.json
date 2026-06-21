@@ -544,6 +544,7 @@
     "typeCardioLoad": "Cardio load",
     "typeSleepScore": "Sleep score",
     "typeBodyTemperatureDeviation": "Body temperature deviation",
+    "typeResilience": "Resilience",
     "sourceComputed": "Computed",
     "sourceWhoop": "WHOOP",
     "sourceFitbit": "Fitbit",

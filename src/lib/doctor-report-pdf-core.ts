@@ -201,6 +201,10 @@ export const DOCTOR_REPORT_TYPE_UNIT_KEYS: Record<string, string | null> = {
  * composite) and `BODY_TEMPERATURE_DEVIATION` (a signed baseline offset, not an
  * absolute reading) are excluded for the same reason as the other derived /
  * lifestyle signals — they are descriptive, not measured clinical vitals.
+ *
+ * v1.19.0 — Oura resilience. `RESILIENCE` is an ordinal-encoded categorical
+ * band (limited=1 … exceptional=5), a derived recovery composite — descriptive,
+ * not a measured clinical vital — so it is excluded too.
  */
 export const DOCTOR_REPORT_VITAL_TYPES = [
   "WEIGHT",

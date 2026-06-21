@@ -1669,6 +1669,7 @@ paths:
               - CARDIO_LOAD
               - SLEEP_SCORE
               - BODY_TEMPERATURE_DEVIATION
+              - RESILIENCE
         - in: query
           name: from
           schema:
@@ -1855,6 +1856,7 @@ paths:
                     - CARDIO_LOAD
                     - SLEEP_SCORE
                     - BODY_TEMPERATURE_DEVIATION
+                    - RESILIENCE
                 value:
                   type: number
                 measuredAt:
@@ -4957,6 +4959,7 @@ paths:
               - CARDIO_LOAD
               - SLEEP_SCORE
               - BODY_TEMPERATURE_DEVIATION
+              - RESILIENCE
             description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
           required: true
           description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
@@ -10528,6 +10531,7 @@ components:
             - CARDIO_LOAD
             - SLEEP_SCORE
             - BODY_TEMPERATURE_DEVIATION
+            - RESILIENCE
         value:
           type: number
         unit:
@@ -10841,6 +10845,7 @@ components:
               - CARDIO_LOAD
               - SLEEP_SCORE
               - BODY_TEMPERATURE_DEVIATION
+              - RESILIENCE
           additionalProperties:
             type: array
             items:
@@ -10917,6 +10922,7 @@ components:
                     - CARDIO_LOAD
                     - SLEEP_SCORE
                     - BODY_TEMPERATURE_DEVIATION
+                    - RESILIENCE
                 value:
                   type: number
                   description: Daily mean (spot metrics) or SUM (cumulative).
@@ -11014,6 +11020,7 @@ components:
             - CARDIO_LOAD
             - SLEEP_SCORE
             - BODY_TEMPERATURE_DEVIATION
+            - RESILIENCE
           description: Per-type daily series, keyed by MeasurementType.
       required:
         - series
@@ -11232,6 +11239,7 @@ components:
             - CARDIO_LOAD
             - SLEEP_SCORE
             - BODY_TEMPERATURE_DEVIATION
+            - RESILIENCE
         value:
           type: number
         unit:
