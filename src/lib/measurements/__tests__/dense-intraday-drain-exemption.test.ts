@@ -47,6 +47,16 @@ describe("dense intra-day retention — drain exemption (WX-E)", () => {
     );
   });
 
+  it("EXEMPTS OXYGEN_SATURATION from the destructive daily-mean drain", () => {
+    // SpO2 is folded ONLY by the dense tier (bounded window, min/max
+    // preserved). If it were added to HIGH_FREQUENCY_MEAN_TYPES too, both
+    // drains would fold it and the overnight-desaturation nadir (the daily
+    // MIN) would be lost the next night the mean drain ran.
+    expect(
+      HIGH_FREQUENCY_MEAN_TYPES.has("OXYGEN_SATURATION" as MeasurementType),
+    ).toBe(false);
+  });
+
   it("EXEMPTS both dense-tier types from the cumulative (SUM) drain too", () => {
     // HRV / HR are spot signals, never cumulative — they must not be in the
     // SUM drain either, which would also collapse + hard-delete them.
@@ -55,9 +65,9 @@ describe("dense intra-day retention — drain exemption (WX-E)", () => {
     }
   });
 
-  it("scopes the dense tier to exactly HEART_RATE_VARIABILITY + PULSE", () => {
+  it("scopes the dense tier to exactly HEART_RATE_VARIABILITY + PULSE + OXYGEN_SATURATION", () => {
     expect(Array.from(DENSE_INTRADAY_RETENTION_TYPES).sort()).toEqual(
-      ["HEART_RATE_VARIABILITY", "PULSE"].sort(),
+      ["HEART_RATE_VARIABILITY", "PULSE", "OXYGEN_SATURATION"].sort(),
     );
   });
 
