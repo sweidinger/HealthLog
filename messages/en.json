@@ -6880,6 +6880,7 @@
       "countOne": "You logged 1 episode in this period.",
       "countOther": "You logged {count} episodes in this period.",
       "typicalGap": "Typical recovery gap: {days} days between feeling better and your numbers settling.",
+      "typicalGapWithDriver": "Typical recovery gap: {days} days — you tend to feel better before your {vital} settles.",
       "typicalGapLearning": "A few more resolved episodes and a typical recovery gap will appear here.",
       "none": "No episodes logged in this period.",
       "analyze": "Analyse the recovery gap"

@@ -6880,6 +6880,7 @@
       "countOne": "Du hast in diesem Zeitraum 1 Episode erfasst.",
       "countOther": "Du hast in diesem Zeitraum {count} Episoden erfasst.",
       "typicalGap": "Typische Erholungslücke: {days} Tage zwischen Besserung und normalisierten Werten.",
+      "typicalGapWithDriver": "Typische Erholungslücke: {days} Tage – du fühlst dich meist besser, bevor sich {vital} normalisiert.",
       "typicalGapLearning": "Noch ein paar abgeschlossene Episoden und hier erscheint eine typische Erholungslücke.",
       "none": "In diesem Zeitraum keine Episoden erfasst.",
       "analyze": "Erholungslücke analysieren"

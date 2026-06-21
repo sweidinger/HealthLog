@@ -131,6 +131,74 @@ describe("summarizeIllnessRetrospective", () => {
     expect(out.typicalRecoveryGapDays).toBeNull(); // …but the magnitude is noise
   });
 
+  it("names the dominant driving vital when a gap is surfaced", () => {
+    const out = summarizeIllnessRetrospective([
+      ep({
+        id: "a",
+        recoveryGapDays: 4,
+        gapReturnTypes: ["RESTING_HEART_RATE"],
+      }),
+      ep({
+        id: "b",
+        recoveryGapDays: 6,
+        gapReturnTypes: ["RESTING_HEART_RATE", "HEART_RATE_VARIABILITY"],
+      }),
+      ep({
+        id: "c",
+        recoveryGapDays: 5,
+        gapReturnTypes: ["HEART_RATE_VARIABILITY"],
+      }),
+    ]);
+    // RHR returned in 2 of 3 episodes, HRV in 2 as well — tie → deterministic
+    // alphabetical resolution picks HEART_RATE_VARIABILITY.
+    expect(out.typicalRecoveryGapDays).toBe(5);
+    expect(out.gapDriverType).toBe("HEART_RATE_VARIABILITY");
+  });
+
+  it("picks the strictly-most-frequent driver", () => {
+    const out = summarizeIllnessRetrospective([
+      ep({
+        id: "a",
+        recoveryGapDays: 4,
+        gapReturnTypes: ["RESTING_HEART_RATE"],
+      }),
+      ep({
+        id: "b",
+        recoveryGapDays: 6,
+        gapReturnTypes: ["RESTING_HEART_RATE"],
+      }),
+      ep({
+        id: "c",
+        recoveryGapDays: 5,
+        gapReturnTypes: ["HEART_RATE_VARIABILITY"],
+      }),
+    ]);
+    expect(out.gapDriverType).toBe("RESTING_HEART_RATE");
+  });
+
+  it("leaves the driver null when no gap is surfaced", () => {
+    const out = summarizeIllnessRetrospective([
+      ep({
+        id: "a",
+        recoveryGapDays: 0,
+        gapReturnTypes: ["RESTING_HEART_RATE"],
+      }),
+      ep({
+        id: "b",
+        recoveryGapDays: 1,
+        gapReturnTypes: ["RESTING_HEART_RATE"],
+      }),
+      ep({
+        id: "c",
+        recoveryGapDays: -1,
+        gapReturnTypes: ["RESTING_HEART_RATE"],
+      }),
+    ]);
+    // Magnitude gate withholds the gap → no driver is named.
+    expect(out.typicalRecoveryGapDays).toBeNull();
+    expect(out.gapDriverType).toBeNull();
+  });
+
   it("surfaces a negative gap once its magnitude clears the floor", () => {
     const out = summarizeIllnessRetrospective([
       ep({ id: "a", recoveryGapDays: -2 }),

@@ -62,6 +62,14 @@ export interface RetrospectiveEpisode {
    * the engine computed one. Absent/0 → does not qualify.
    */
   gapMeasurementDays?: number;
+  /**
+   * The vital metric types that produced a non-null physiological-return gap
+   * for this episode (the engine's `returns[]` filtered to a real return).
+   * Tallied across the qualifying episodes to name the dominant driving vital
+   * in the cross-episode summary ("felt better ~X days before resting heart
+   * rate settled"). Absent/empty → contributes no driver.
+   */
+  gapReturnTypes?: string[];
   /** Lifecycle — CHRONIC_ONGOING never contributes a gap. */
   lifecycle: string;
 }
@@ -87,6 +95,13 @@ export interface IllnessRetrospectiveSummary {
   byMonth: Record<number, number>;
   /** Per-type episode counts in the window (retrospective breakdown). */
   byType: Record<string, number>;
+  /**
+   * The dominant vital that drove the typical recovery gap — the metric type
+   * that most often produced a physiological return across the qualifying
+   * episodes — or null when no gap is surfaced or no vital clearly leads. The
+   * card names it ("…before resting heart rate settled"). Retrospective only.
+   */
+  gapDriverType: string | null;
 }
 
 /**
@@ -109,6 +124,10 @@ export function summarizeIllnessRetrospective(
   const byType: Record<string, number> = {};
   let resolvedCount = 0;
   const gaps: number[] = [];
+  // Tally of which vital produced a physiological return, across only the
+  // episodes that qualified for the typical-gap median — the dominant one
+  // names the driving vital in the card.
+  const driverTally: Record<string, number> = {};
 
   for (const e of episodes) {
     const month = Number(e.onsetDay.slice(5, 7));
@@ -124,6 +143,8 @@ export function summarizeIllnessRetrospective(
       (e.gapMeasurementDays ?? 0) >= MIN_GAP_MEASUREMENT_DAYS
     ) {
       gaps.push(e.recoveryGapDays);
+      for (const type of e.gapReturnTypes ?? [])
+        driverTally[type] = (driverTally[type] ?? 0) + 1;
     }
   }
 
@@ -139,6 +160,16 @@ export function summarizeIllnessRetrospective(
       ? medianGap
       : null;
 
+  // Name the driving vital only when a gap is actually surfaced — the most
+  // frequently-returning vital across the qualifying episodes. Ties resolve
+  // deterministically by metric name so the copy is stable across reads.
+  const gapDriverType =
+    typicalRecoveryGapDays !== null
+      ? (Object.entries(driverTally).sort((a, b) =>
+          b[1] !== a[1] ? b[1] - a[1] : a[0] < b[0] ? -1 : 1,
+        )[0]?.[0] ?? null)
+      : null;
+
   return {
     episodeCount: episodes.length,
     resolvedCount,
@@ -146,5 +177,6 @@ export function summarizeIllnessRetrospective(
     gapSampleSize: gaps.length,
     byMonth,
     byType,
+    gapDriverType,
   };
 }

@@ -20279,6 +20279,10 @@ components:
           anyOf:
             - type: number
             - type: "null"
+        adverseCoverageDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
         feltBetterDay:
           anyOf:
             - type: string
@@ -20293,6 +20297,7 @@ components:
         - nadir
         - returns
         - recoveryGapDays
+        - adverseCoverageDays
         - feltBetterDay
         - redFlags
       additionalProperties: false
@@ -20429,6 +20434,10 @@ components:
             type: integer
             minimum: -9007199254740991
             maximum: 9007199254740991
+        gapDriverType:
+          anyOf:
+            - type: string
+            - type: "null"
       required:
         - windowDays
         - episodeCount
@@ -20437,10 +20446,12 @@ components:
         - gapSampleSize
         - byMonth
         - byType
+        - gapDriverType
       additionalProperties: false
       description: "Cross-episode retrospective summary over the trailing window: episode + resolved counts, the typical
-        (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally,
-        and a per-type breakdown. Retrospective only."
+        (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally, a
+        per-type breakdown, and the dominant driving vital (`gapDriverType`, null when no gap is surfaced).
+        Retrospective only."
     DisclaimerAckEnvelope:
       type: object
       properties:

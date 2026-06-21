@@ -16,7 +16,9 @@ import type { MeasurementType } from "@/generated/prisma/client";
 import {
   computeIllnessCorrelation,
   dayDiff,
+  isAdverseDeviation,
   MIN_BASELINE_DAYS,
+  MIN_EPISODE_COVERAGE_DAYS,
   type IllnessCorrelationInput,
   type VitalDayPoint,
 } from "../correlation";
@@ -428,6 +430,102 @@ describe("computeIllnessCorrelation — red-flag escalation", () => {
     );
     expect(fever).toBeDefined();
     expect(fever?.days).toBe(3);
+  });
+});
+
+describe("isAdverseDeviation", () => {
+  it("pins per-metric adverse direction (up for RHR, down for HRV)", () => {
+    expect(isAdverseDeviation("RESTING_HEART_RATE", "above")).toBe(true);
+    expect(isAdverseDeviation("RESTING_HEART_RATE", "below")).toBe(false);
+    expect(isAdverseDeviation("HEART_RATE_VARIABILITY", "below")).toBe(true);
+    expect(isAdverseDeviation("HEART_RATE_VARIABILITY", "above")).toBe(false);
+  });
+
+  it("treats neutral-direction vitals (WEIGHT) as never adverse", () => {
+    expect(isAdverseDeviation("WEIGHT", "above")).toBe(false);
+    expect(isAdverseDeviation("WEIGHT", "below")).toBe(false);
+  });
+});
+
+describe("computeIllnessCorrelation — adverse-coverage qualifying floor", () => {
+  it("counts only days with a notable ADVERSE-direction reading", () => {
+    // RHR (up = adverse) spikes out-of-band on 3 distinct active days, then
+    // settles. Those 3 days — and only those — count toward the floor.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 75 }, // adverse spike
+      { day: "2026-01-11", mean: 74 }, // adverse spike
+      { day: "2026-01-12", mean: 73 }, // adverse spike
+      { day: "2026-01-15", mean: 55 }, // in band
+      { day: "2026-01-16", mean: 55 },
+      { day: "2026-01-17", mean: 55 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({ series: [{ type, baselineDays, episodeDays }] }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.adverseCoverageDays).toBe(3);
+  });
+
+  it("does NOT count a WEIGHT-only (no adverse direction) episode toward the floor", () => {
+    // WEIGHT has no illness-adverse direction. Even with plenty of out-of-band
+    // WEIGHT days (so raw coverage `historyDays` clears the engine floor), the
+    // adverse-coverage floor stays 0 — a WEIGHT-only episode must not feed the
+    // cross-episode typical-gap median.
+    const type: MeasurementType = "WEIGHT";
+    const baselineDays = jitteredBaseline(80, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 90 }, // far out of band, but neutral direction
+      { day: "2026-01-11", mean: 91 },
+      { day: "2026-01-12", mean: 92 },
+      { day: "2026-01-13", mean: 70 }, // out of band the other way — still neutral
+      { day: "2026-01-14", mean: 69 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({ series: [{ type, baselineDays, episodeDays }] }),
+    );
+    // Coverage clears the engine floor (5 banded days) so the engine returns ok…
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.coverage.historyDays).toBeGreaterThanOrEqual(
+      MIN_EPISODE_COVERAGE_DAYS,
+    );
+    // …but NO day counts toward the adverse-coverage qualifying floor.
+    expect(out.value.adverseCoverageDays).toBe(0);
+  });
+
+  it("ignores a non-adverse-direction move on an adverse-typed vital", () => {
+    // RHR is up-adverse. A big DROP (below band) is notable but NOT adverse, so
+    // it must not count toward the floor. Pair with a banded neutral vital to
+    // clear the engine coverage floor without adding adverse days.
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const weight: MeasurementType = "WEIGHT";
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: [
+              { day: "2026-01-10", mean: 40 }, // far BELOW band — not adverse for RHR
+              { day: "2026-01-11", mean: 41 },
+              { day: "2026-01-12", mean: 55 },
+              { day: "2026-01-13", mean: 55 },
+            ],
+          },
+          {
+            type: weight,
+            baselineDays: jitteredBaseline(80, 1, 21, "2026-01-02"),
+            episodeDays: flatBaseline(80, 5, "2026-01-15"),
+          },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.adverseCoverageDays).toBe(0);
   });
 });
 
