@@ -6866,6 +6866,8 @@
       "recoveryGapTitle": "Recovery gap",
       "recoveryGapLag": "Your numbers settled {days} days after you felt better.",
       "recoveryGapLead": "Your numbers settled {days} days before you marked recovery.",
+      "recoveryGapLagSymptom": "You felt better {days} days before your logged symptoms eased.",
+      "recoveryGapLeadSymptom": "Your logged symptoms eased {days} days before you marked recovery.",
       "recoveryGapSame": "Your numbers settled the same day you felt better.",
       "redFlagTitle": "Worth a closer look",
       "redFlagSpo2": "Your oxygen saturation stayed low for several days. If this recurs, seek medical care.",

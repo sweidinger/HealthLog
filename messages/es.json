@@ -6866,6 +6866,8 @@
       "recoveryGapTitle": "Brecha de recuperación",
       "recoveryGapLag": "Tus valores se estabilizaron {days} días después de sentirte mejor.",
       "recoveryGapLead": "Tus valores se estabilizaron {days} días antes de marcar la recuperación.",
+      "recoveryGapLagSymptom": "Te sentiste mejor {days} días antes de que cedieran tus síntomas registrados.",
+      "recoveryGapLeadSymptom": "Tus síntomas registrados cedieron {days} días antes de marcar la recuperación.",
       "recoveryGapSame": "Tus valores se estabilizaron el mismo día en que te sentiste mejor.",
       "redFlagTitle": "Conviene revisarlo",
       "redFlagSpo2": "Tu saturación de oxígeno se mantuvo baja varios días. Si se repite, busca atención médica.",
