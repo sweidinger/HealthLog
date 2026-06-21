@@ -2587,6 +2587,12 @@
         "clearCaption": "No accumulated shortfall over the last {nights} nights",
         "learning": "Still learning your sleep — {counted} nights so far, {remaining} more to read a reliable balance."
       },
+      "average": {
+        "title": "Average per night",
+        "value": "{hours}h {minutes}m",
+        "caption": "Mean sleep across the last {nights} nights",
+        "learning": "Still learning your sleep — {counted} nights so far, {remaining} more for a reliable average."
+      },
       "chronotype": {
         "title": "Chronotype",
         "learning": "Still learning your rhythm — {counted} of {total} free nights. A chronotype needs a few alarm-free mornings before it means anything.",

@@ -71,6 +71,23 @@ export interface SleepDebtDto {
   nightsUntilReady: number;
 }
 
+/**
+ * Wire DTO for the average sleep per night over the rhythm window.
+ *
+ * v1.19.1 — a third peer card next to sleep-debt + chronotype. The mean of the
+ * canonical per-night asleep totals over the same scorable-night set the debt
+ * and chronotype read, so the three cards can never contradict one another.
+ * Carries the same calm `partial` state under a minimum-night threshold so it
+ * never asserts an average off one or two thin nights.
+ */
+export interface AverageSleepDto {
+  state: "partial" | "ready";
+  /** Mean asleep minutes per scorable night (0 while partial). */
+  averageMinutes: number;
+  nightsCounted: number;
+  nightsUntilReady: number;
+}
+
 /** Wire DTO for the MCTQ chronotype — see `ChronotypeResult`. */
 export interface ChronotypeDto {
   state: "learning" | "ready";
@@ -93,6 +110,39 @@ export interface ChronotypeDto {
 export interface SleepRhythmDto {
   sleepDebt: SleepDebtDto;
   chronotype: ChronotypeDto;
+  averagePerNight: AverageSleepDto;
+}
+
+/**
+ * Minimum scorable nights before the average asserts a figure. Mirrors the
+ * sleep-debt `minNights` floor (4) so the three peer cards settle in step.
+ */
+const AVG_MIN_NIGHTS = 4;
+
+/**
+ * Mean asleep minutes over the scorable nights, or the calm `partial` state
+ * under the night floor. Pure: takes the already-filtered, ascending-sorted
+ * scorable nights the rhythm assembler holds.
+ */
+export function computeAverageSleep(
+  scorable: readonly RhythmNight[],
+): AverageSleepDto {
+  const nightsCounted = scorable.length;
+  if (nightsCounted < AVG_MIN_NIGHTS) {
+    return {
+      state: "partial",
+      averageMinutes: 0,
+      nightsCounted,
+      nightsUntilReady: AVG_MIN_NIGHTS - nightsCounted,
+    };
+  }
+  const total = scorable.reduce((sum, n) => sum + n.asleepMinutes, 0);
+  return {
+    state: "ready",
+    averageMinutes: Math.round(total / nightsCounted),
+    nightsCounted,
+    nightsUntilReady: 0,
+  };
 }
 
 /**
@@ -211,9 +261,14 @@ export function computeSleepRhythmFromNights(
     }));
   const chronotype = computeChronotype(chronoNights);
 
+  // Average sleep per night over the same scorable set the debt + chronotype
+  // read, so the three peer cards share one window and can't disagree.
+  const averagePerNight = computeAverageSleep(scorable);
+
   return {
     sleepDebt: toDebtDto(sleepDebt),
     chronotype: toChronotypeDto(chronotype),
+    averagePerNight,
   };
 }
 

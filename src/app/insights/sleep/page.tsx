@@ -15,6 +15,7 @@ import { MetricTargetSummary } from "@/components/insights/metric-target-summary
 import { SleepOverview } from "@/components/insights/sleep-overview";
 import { SleepRhythmSection } from "@/components/insights/sleep/sleep-rhythm-section";
 import { ChronotypeSection } from "@/components/insights/sleep/chronotype-section";
+import { AverageSleepSection } from "@/components/insights/sleep/average-sleep-section";
 import { SleepQualitySection } from "@/components/insights/sleep/sleep-quality-section";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
@@ -123,8 +124,9 @@ export default function InsightsSchlafPage() {
         viewports and sit side-by-side from `sm` up; each card keeps its own
         internals (the debt headline and the chronotype band treatment).
       */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <SleepRhythmSection enabled={!isEmpty} />
+        <AverageSleepSection enabled={!isEmpty} />
         <ChronotypeSection enabled={!isEmpty} />
       </div>
 
