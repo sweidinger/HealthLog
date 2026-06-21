@@ -71,7 +71,10 @@ function openaiSupportsVision(model: string): boolean {
 function codexSupportsVision(model: string): boolean {
   const m = model.toLowerCase();
   return (
-    m.startsWith("gpt-5") || // GPT-5.x line is multimodal (text + vision)
+    // GPT-5.x line is multimodal (text + vision) — but the `-codex` specialist
+    // slugs (e.g. gpt-5-codex) are text-only, so they must not claim vision or
+    // every lab-OCR upload burns a doomed image attempt before falling back.
+    (m.startsWith("gpt-5") && !m.includes("-codex")) ||
     m.startsWith("gpt-4o") ||
     m.startsWith("gpt-4.1") ||
     m.startsWith("gpt-4-turbo") ||

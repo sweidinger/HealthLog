@@ -69,6 +69,9 @@ describe("supportsVisionForConfig", () => {
     expect(supportsVisionForConfig("codex", "gpt-4")).toBe(false);
     expect(supportsVisionForConfig("codex", "gpt-3.5-turbo")).toBe(false);
     expect(supportsVisionForConfig("codex", null)).toBe(false);
+    // The `-codex` specialist slugs are text-only despite the gpt-5 prefix.
+    expect(supportsVisionForConfig("codex", "gpt-5-codex")).toBe(false);
+    expect(supportsVisionForConfig("codex", "gpt-5.1-codex-mini")).toBe(false);
   });
 
   it("never reports vision for none", () => {
