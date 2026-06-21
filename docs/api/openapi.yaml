@@ -1744,6 +1744,7 @@ paths:
               - NIGHTSCOUT
               - POLAR
               - OURA
+              - TELEGRAM
         - in: query
           name: valueMin
           schema:
@@ -2238,6 +2239,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                       externalId:
                         type: string
                         maxLength: 128
@@ -3355,6 +3357,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -3371,6 +3374,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -3387,6 +3391,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -3403,6 +3408,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 sleep:
                   maxItems: 8
                   type: array
@@ -3419,6 +3425,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 weight:
                   maxItems: 8
                   type: array
@@ -3435,6 +3442,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -3451,6 +3459,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 pulse:
                   maxItems: 8
                   type: array
@@ -3467,6 +3476,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -3483,6 +3493,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -3499,6 +3510,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 spo2:
                   maxItems: 8
                   type: array
@@ -3515,6 +3527,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 hrv:
                   maxItems: 8
                   type: array
@@ -3531,6 +3544,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -3547,6 +3561,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -3563,6 +3578,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -3579,6 +3595,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -3595,6 +3612,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 recovery:
                   maxItems: 8
                   type: array
@@ -3611,6 +3629,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 stress:
                   maxItems: 8
                   type: array
@@ -3627,6 +3646,7 @@ paths:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 metricPriority:
                   type: object
                   properties:
@@ -3646,6 +3666,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     activeEnergy:
                       maxItems: 8
                       type: array
@@ -3662,6 +3683,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     walkingRunningDistance:
                       maxItems: 8
                       type: array
@@ -3678,6 +3700,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     flightsClimbed:
                       maxItems: 8
                       type: array
@@ -3694,6 +3717,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     sleep:
                       maxItems: 8
                       type: array
@@ -3710,6 +3734,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     weight:
                       maxItems: 8
                       type: array
@@ -3726,6 +3751,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     bloodPressure:
                       maxItems: 8
                       type: array
@@ -3742,6 +3768,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     pulse:
                       maxItems: 8
                       type: array
@@ -3758,6 +3785,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     bodyFat:
                       maxItems: 8
                       type: array
@@ -3774,6 +3802,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     bodyTemperature:
                       maxItems: 8
                       type: array
@@ -3790,6 +3819,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     spo2:
                       maxItems: 8
                       type: array
@@ -3806,6 +3836,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     hrv:
                       maxItems: 8
                       type: array
@@ -3822,6 +3853,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     restingHeartRate:
                       maxItems: 8
                       type: array
@@ -3838,6 +3870,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     vo2Max:
                       maxItems: 8
                       type: array
@@ -3854,6 +3887,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     skinTemperature:
                       maxItems: 8
                       type: array
@@ -3870,6 +3904,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     respiratoryRate:
                       maxItems: 8
                       type: array
@@ -3886,6 +3921,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     recovery:
                       maxItems: 8
                       type: array
@@ -3902,6 +3938,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                     stress:
                       maxItems: 8
                       type: array
@@ -3918,6 +3955,7 @@ paths:
                           - NIGHTSCOUT
                           - POLAR
                           - OURA
+                          - TELEGRAM
                 deviceTypePriority:
                   type: object
                   properties:
@@ -7213,8 +7251,18 @@ components:
         value:
           type: number
           description: Raw HealthKit reading in Apple's native unit; the server applies any canonical scaling at ingest. For an
-            hourly heart-rate bucket (see `externalId`) this is the hour's AVERAGE bpm — v1.19.0 ships avg-only; min/max
-            are a documented fast-follow.
+            hourly heart-rate bucket (see `externalId`) this is the hour's AVERAGE bpm; the hour's spread rides
+            `valueMin` / `valueMax`.
+        valueMin:
+          description: "v1.19.2 (iOS #34 extension) — the hour's MINIMUM bpm for an hourly heart-rate bucket (see `externalId`).
+            Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row; ignored (stored null)
+            on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract."
+          type: number
+        valueMax:
+          description: "v1.19.2 (iOS #34 extension) — the hour's MAXIMUM bpm for an hourly heart-rate bucket (see `externalId`).
+            Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row; ignored (stored null)
+            on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract."
+          type: number
         unit:
           type: string
           minLength: 1
@@ -10553,6 +10601,7 @@ components:
             - NIGHTSCOUT
             - POLAR
             - OURA
+            - TELEGRAM
         notes:
           anyOf:
             - type: string
@@ -11096,6 +11145,20 @@ components:
                     additionalProperties:
                       type: number
                   - type: "null"
+              valueMin:
+                description: "v1.19.2 (iOS #34 extension) — per-point MINIMUM for `kind=pulse`. On an aggregated hourly heart-rate
+                  bucket `value` is the hour's average and this is the hour's low; null on a per-sample PULSE row and
+                  absent for every other kind."
+                anyOf:
+                  - type: number
+                  - type: "null"
+              valueMax:
+                description: "v1.19.2 (iOS #34 extension) — per-point MAXIMUM for `kind=pulse`. On an aggregated hourly heart-rate
+                  bucket `value` is the hour's average and this is the hour's high; null on a per-sample PULSE row and
+                  absent for every other kind."
+                anyOf:
+                  - type: number
+                  - type: "null"
             required:
               - id
               - at
@@ -11261,6 +11324,7 @@ components:
             - NIGHTSCOUT
             - POLAR
             - OURA
+            - TELEGRAM
         notes:
           anyOf:
             - type: string
@@ -11503,6 +11567,7 @@ components:
                         - NIGHTSCOUT
                         - POLAR
                         - OURA
+                        - TELEGRAM
                     - type: "null"
                 start:
                   type: string
@@ -11629,6 +11694,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                   - type: "null"
               start:
                 type: string
@@ -12001,6 +12067,7 @@ components:
             - NIGHTSCOUT
             - POLAR
             - OURA
+            - TELEGRAM
         externalId:
           anyOf:
             - type: string
@@ -12109,6 +12176,7 @@ components:
             - NIGHTSCOUT
             - POLAR
             - OURA
+            - TELEGRAM
         externalId:
           anyOf:
             - type: string
@@ -14315,6 +14383,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             activeEnergy:
               maxItems: 8
               type: array
@@ -14331,6 +14400,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -14347,6 +14417,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             flightsClimbed:
               maxItems: 8
               type: array
@@ -14363,6 +14434,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             sleep:
               maxItems: 8
               type: array
@@ -14379,6 +14451,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             weight:
               maxItems: 8
               type: array
@@ -14395,6 +14468,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             bloodPressure:
               maxItems: 8
               type: array
@@ -14411,6 +14485,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             pulse:
               maxItems: 8
               type: array
@@ -14427,6 +14502,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             bodyFat:
               maxItems: 8
               type: array
@@ -14443,6 +14519,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             bodyTemperature:
               maxItems: 8
               type: array
@@ -14459,6 +14536,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             spo2:
               maxItems: 8
               type: array
@@ -14475,6 +14553,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             hrv:
               maxItems: 8
               type: array
@@ -14491,6 +14570,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             restingHeartRate:
               maxItems: 8
               type: array
@@ -14507,6 +14587,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             vo2Max:
               maxItems: 8
               type: array
@@ -14523,6 +14604,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             skinTemperature:
               maxItems: 8
               type: array
@@ -14539,6 +14621,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             respiratoryRate:
               maxItems: 8
               type: array
@@ -14555,6 +14638,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             recovery:
               maxItems: 8
               type: array
@@ -14571,6 +14655,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             stress:
               maxItems: 8
               type: array
@@ -14587,6 +14672,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             metricPriority:
               type: object
               properties:
@@ -14606,6 +14692,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -14622,6 +14709,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -14638,6 +14726,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -14654,6 +14743,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 sleep:
                   maxItems: 8
                   type: array
@@ -14670,6 +14760,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 weight:
                   maxItems: 8
                   type: array
@@ -14686,6 +14777,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -14702,6 +14794,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 pulse:
                   maxItems: 8
                   type: array
@@ -14718,6 +14811,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -14734,6 +14828,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -14750,6 +14845,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 spo2:
                   maxItems: 8
                   type: array
@@ -14766,6 +14862,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 hrv:
                   maxItems: 8
                   type: array
@@ -14782,6 +14879,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -14798,6 +14896,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -14814,6 +14913,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -14830,6 +14930,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -14846,6 +14947,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 recovery:
                   maxItems: 8
                   type: array
@@ -14862,6 +14964,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 stress:
                   maxItems: 8
                   type: array
@@ -14878,6 +14981,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
               additionalProperties: false
             deviceTypePriority:
               type: object
@@ -14943,6 +15047,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             activeEnergy:
               maxItems: 8
               type: array
@@ -14959,6 +15064,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -14975,6 +15081,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             flightsClimbed:
               maxItems: 8
               type: array
@@ -14991,6 +15098,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             sleep:
               maxItems: 8
               type: array
@@ -15007,6 +15115,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             weight:
               maxItems: 8
               type: array
@@ -15023,6 +15132,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             bloodPressure:
               maxItems: 8
               type: array
@@ -15039,6 +15149,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             pulse:
               maxItems: 8
               type: array
@@ -15055,6 +15166,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             bodyFat:
               maxItems: 8
               type: array
@@ -15071,6 +15183,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             bodyTemperature:
               maxItems: 8
               type: array
@@ -15087,6 +15200,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             spo2:
               maxItems: 8
               type: array
@@ -15103,6 +15217,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             hrv:
               maxItems: 8
               type: array
@@ -15119,6 +15234,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             restingHeartRate:
               maxItems: 8
               type: array
@@ -15135,6 +15251,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             vo2Max:
               maxItems: 8
               type: array
@@ -15151,6 +15268,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             skinTemperature:
               maxItems: 8
               type: array
@@ -15167,6 +15285,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             respiratoryRate:
               maxItems: 8
               type: array
@@ -15183,6 +15302,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             recovery:
               maxItems: 8
               type: array
@@ -15199,6 +15319,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             stress:
               maxItems: 8
               type: array
@@ -15215,6 +15336,7 @@ components:
                   - NIGHTSCOUT
                   - POLAR
                   - OURA
+                  - TELEGRAM
             metricPriority:
               type: object
               properties:
@@ -15234,6 +15356,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -15250,6 +15373,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -15266,6 +15390,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -15282,6 +15407,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 sleep:
                   maxItems: 8
                   type: array
@@ -15298,6 +15424,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 weight:
                   maxItems: 8
                   type: array
@@ -15314,6 +15441,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -15330,6 +15458,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 pulse:
                   maxItems: 8
                   type: array
@@ -15346,6 +15475,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -15362,6 +15492,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -15378,6 +15509,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 spo2:
                   maxItems: 8
                   type: array
@@ -15394,6 +15526,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 hrv:
                   maxItems: 8
                   type: array
@@ -15410,6 +15543,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -15426,6 +15560,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -15442,6 +15577,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -15458,6 +15594,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -15474,6 +15611,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 recovery:
                   maxItems: 8
                   type: array
@@ -15490,6 +15628,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
                 stress:
                   maxItems: 8
                   type: array
@@ -15506,6 +15645,7 @@ components:
                       - NIGHTSCOUT
                       - POLAR
                       - OURA
+                      - TELEGRAM
               additionalProperties: false
             deviceTypePriority:
               type: object
@@ -20316,6 +20456,10 @@ components:
           anyOf:
             - type: string
             - type: "null"
+        gapDriverType:
+          anyOf:
+            - type: string
+            - type: "null"
         redFlags:
           type: array
           items:
@@ -20328,10 +20472,12 @@ components:
         - recoveryGapDays
         - adverseCoverageDays
         - feltBetterDay
+        - gapDriverType
         - redFlags
       additionalProperties: false
       description: "The retrospective correlation findings for one episode: pre-onset anomaly scan, nadir, per-vital
-        physiological returns, the headline recovery-gap (median of per-vital gaps), and any red flags."
+        physiological returns (incl. the user-logged symptom-burden track, `type:FUNCTIONAL_IMPACT`), the headline
+        recovery-gap (median of per-track gaps), the driving metric (`gapDriverType`), and any red flags."
     IllnessVitalDeviation:
       type: object
       properties:
@@ -20376,13 +20522,18 @@ components:
           anyOf:
             - type: number
             - type: "null"
+        adverse:
+          type: boolean
       required:
         - type
         - returnedDay
         - gapDays
+        - adverse
       additionalProperties: false
-      description: "A vital's physiological return: the first day it re-entered its band AND held, and the signed gap (days)
-        from the felt-better marker (positive = the body lagged the feeling)."
+      description: "A physiological / symptom return: the first day the metric re-entered its band AND held, the signed gap
+        (days) from the felt-better marker (positive = the body lagged the feeling), and whether the move was
+        illness-adverse (only adverse returns name the driver). `type` is a MeasurementType or `FUNCTIONAL_IMPACT` for
+        the user-logged symptom-burden track (functionalImpact, baseline = constant 0)."
     IllnessRedFlag:
       type: object
       properties:
