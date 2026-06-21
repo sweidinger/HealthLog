@@ -5955,7 +5955,13 @@
     "askMedicationName": "Indique le médicament, p. ex. <b>pris Ramipril</b>.",
     "medicationNotFoundExact": "Médicament introuvable. Envoie le nom exactement tel qu’il apparaît dans HealthLog.",
     "helpHeader": "<b>Commandes disponibles :</b>",
-    "helpBody": "/help — afficher cette aide\n/add — enregistrer une prise\n/start — démarrer le bot\n\n<b>Commandes texte :</b>\ntaken &lt;nom&gt; — confirmer une prise\n\n<b>Boutons dans les rappels :</b>\n• Pris — confirmer la prise\n• 🕐 1h / 🕐 3h — reporter le rappel\n• ⏭ Ignorer — ignorer la prise\n• ✓ Confirmer — confirmer une prise manquée"
+    "helpBody": "/help — afficher cette aide\n/add — enregistrer une prise\n/start — démarrer le bot\n\n<b>Commandes texte :</b>\ntaken &lt;nom&gt; — confirmer une prise\n\n<b>Boutons dans les rappels :</b>\n• Pris — confirmer la prise\n• 🕐 1h / 🕐 3h — reporter le rappel\n• ⏭ Ignorer — ignorer la prise\n• ✓ Confirmer — confirmer une prise manquée",
+    "measureValuePrompt": "Répondez avec la valeur pour l’enregistrer (facultatif).",
+    "buttonMeasureValue": "Valeur…",
+    "measureValueSaved": "Mesure enregistrée.",
+    "measureValueInvalid": "Répondez avec un nombre pour enregistrer une mesure.",
+    "measureValueOutOfRange": "Cette valeur est en dehors de la plage plausible.",
+    "measureValueExpired": "Cette invite a expiré."
   },
   "medicationReminders": {
     "phaseGreenTitle": "🟢 Rappel : {medName}",

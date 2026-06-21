@@ -5955,7 +5955,13 @@
     "askMedicationName": "Indica il farmaco, es. <b>preso Ramipril</b>.",
     "medicationNotFoundExact": "Farmaco non trovato. Invia il nome esattamente come appare in HealthLog.",
     "helpHeader": "<b>Comandi disponibili:</b>",
-    "helpBody": "/help — mostra questa guida\n/add — registra un'assunzione\n/start — avvia il bot\n\n<b>Comandi testuali:</b>\ntaken &lt;nome&gt; — conferma un'assunzione\n\n<b>Pulsanti nei promemoria:</b>\n• Assunto — conferma l'assunzione\n• 🕐 1h / 🕐 3h — posticipa il promemoria\n• ⏭ Salta — salta l'assunzione\n• ✓ Conferma — conferma un'assunzione saltata"
+    "helpBody": "/help — mostra questa guida\n/add — registra un'assunzione\n/start — avvia il bot\n\n<b>Comandi testuali:</b>\ntaken &lt;nome&gt; — conferma un'assunzione\n\n<b>Pulsanti nei promemoria:</b>\n• Assunto — conferma l'assunzione\n• 🕐 1h / 🕐 3h — posticipa il promemoria\n• ⏭ Salta — salta l'assunzione\n• ✓ Conferma — conferma un'assunzione saltata",
+    "measureValuePrompt": "Rispondi con il valore per registrarlo (facoltativo).",
+    "buttonMeasureValue": "Valore…",
+    "measureValueSaved": "Misurazione salvata.",
+    "measureValueInvalid": "Rispondi con un numero per registrare una misurazione.",
+    "measureValueOutOfRange": "Questo valore è fuori dall’intervallo plausibile.",
+    "measureValueExpired": "Questo messaggio è scaduto."
   },
   "medicationReminders": {
     "phaseGreenTitle": "🟢 Promemoria: {medName}",

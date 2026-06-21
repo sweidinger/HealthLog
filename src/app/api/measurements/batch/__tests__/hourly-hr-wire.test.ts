@@ -85,7 +85,11 @@ function makeRequest(body: unknown): NextRequest {
   });
 }
 
-function hrBucketEntry(externalId: string, value: number) {
+function hrBucketEntry(
+  externalId: string,
+  value: number,
+  spread?: { valueMin: number; valueMax: number },
+) {
   return {
     hkIdentifier: "HKQuantityTypeIdentifierHeartRate",
     value,
@@ -93,6 +97,7 @@ function hrBucketEntry(externalId: string, value: number) {
     startDate: "2026-06-21T14:00:00.000Z",
     endDate: "2026-06-21T14:59:59.000Z",
     externalId,
+    ...(spread ?? {}),
   };
 }
 
@@ -144,6 +149,69 @@ describe("POST /api/measurements/batch — hourly HR wire contract (iOS #34)", (
       .data;
     expect(rows[0].type).toBe("PULSE");
     expect(rows[0].value).toBe(72);
+  });
+
+  it("persists per-bucket min/max on a fresh hourly HR bucket (iOS #34 ext)", async () => {
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
+    const res = await POST(
+      makeRequest({
+        entries: [
+          hrBucketEntry(HR_BUCKET_ID, 72, { valueMin: 58, valueMax: 96 }),
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
+    const rows = (
+      createArg as {
+        data: { value: number; valueMin: number; valueMax: number }[];
+      }
+    ).data;
+    expect(rows[0].value).toBe(72);
+    expect(rows[0].valueMin).toBe(58);
+    expect(rows[0].valueMax).toBe(96);
+  });
+
+  it("overwrites min/max alongside the average on a re-post", async () => {
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { type: "PULSE", source: "APPLE_HEALTH", externalId: HR_BUCKET_ID },
+    ] as never);
+    const res = await POST(
+      makeRequest({
+        entries: [
+          hrBucketEntry(HR_BUCKET_ID, 78, { valueMin: 55, valueMax: 110 }),
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const updateArg = vi.mocked(prisma.measurement.updateMany).mock.calls[0][0];
+    const data = (
+      updateArg as {
+        data: { value: number; valueMin: number; valueMax: number };
+      }
+    ).data;
+    expect(data.value).toBe(78);
+    expect(data.valueMin).toBe(55);
+    expect(data.valueMax).toBe(110);
+  });
+
+  it("leaves min/max null on a per-sample PULSE row even if sent", async () => {
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
+    const SAMPLE_ID = "C0FFEE00-0000-4000-8000-000000000000";
+    const res = await POST(
+      makeRequest({
+        entries: [hrBucketEntry(SAMPLE_ID, 64, { valueMin: 50, valueMax: 80 })],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
+    const rows = (
+      createArg as {
+        data: { valueMin: number | null; valueMax: number | null }[];
+      }
+    ).data;
+    expect(rows[0].valueMin).toBeNull();
+    expect(rows[0].valueMax).toBeNull();
   });
 
   it("overwrites the same hour bucket on a re-post (updated, not duplicate)", async () => {

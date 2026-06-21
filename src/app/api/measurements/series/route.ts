@@ -124,6 +124,15 @@ interface SeriesPoint {
    * the night's TIME-ASLEEP total.
    */
   sleepStages?: Partial<Record<SleepStage, number>> | null;
+  /**
+   * v1.19.2 (iOS #34 extension) — per-point spread for `kind=pulse`. On an
+   * aggregated hourly heart-rate bucket `value` is the hour's AVERAGE bpm
+   * and these carry the hour's MIN / MAX. `null` for a per-sample PULSE row
+   * (no bucket spread) and absent for every non-pulse kind, so a client can
+   * render a low/high band only where the data supports it.
+   */
+  valueMin?: number | null;
+  valueMax?: number | null;
 }
 
 function stdDev(values: number[]): number {
@@ -317,6 +326,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
     });
   } else {
     const type = KIND_TO_TYPE[kind];
+    // v1.19.2 (iOS #34 extension) — pull the per-bucket spread for the
+    // heart-rate kind so the chart can render a low/high band around the
+    // hourly average. Only PULSE rows ever carry a non-null spread (the
+    // hourly HR bucket); every other kind selects the bare value shape.
+    const includeSpread = kind === "pulse";
     const rows = await prisma.measurement.findMany({
       where: {
         userId: user.id,
@@ -325,7 +339,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
         deletedAt: null,
       },
       orderBy: { measuredAt: "asc" },
-      select: { id: true, value: true, measuredAt: true },
+      select: {
+        id: true,
+        value: true,
+        measuredAt: true,
+        ...(includeSpread ? { valueMin: true, valueMax: true } : {}),
+      },
     });
     if (kind === "glucose") {
       // v1.16.16 — glucose is stored canonical mg/dL; convert each point to
@@ -379,6 +398,24 @@ export const GET = apiHandler(async (request: NextRequest) => {
           count: rawSummary.count,
         };
       }
+    } else if (includeSpread) {
+      // v1.19.2 (iOS #34 extension) — pulse points carry the per-bucket
+      // spread. A per-sample PULSE row has null min/max; an hourly HR bucket
+      // carries the hour's range around the average.
+      points = rows.map((r) => {
+        const row = r as typeof r & {
+          valueMin: number | null;
+          valueMax: number | null;
+        };
+        return {
+          id: row.id,
+          at: row.measuredAt.toISOString(),
+          value: row.value,
+          secondary: null,
+          valueMin: row.valueMin ?? null,
+          valueMax: row.valueMax ?? null,
+        };
+      });
     } else {
       points = rows.map((r) => ({
         id: r.id,
