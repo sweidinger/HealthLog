@@ -122,6 +122,51 @@ describe("GET /api/medications/[id]/inventory", () => {
     expect(body.data.items).toHaveLength(2);
     expect(body.data.meta.total).toBe(2);
   });
+
+  // v1.19.0 (iOS#25) — the GET response carries a server-computed supply
+  // summary so the detail-page clients render the canonical Bestand
+  // instead of re-deriving it. ACTIVE / IN_USE with units pool in;
+  // EXPIRED surfaces separately and never counts as available.
+  it("returns a server-computed supply summary (dose-derived, expired separate)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      unitsPerDose: 2,
+    } as never);
+    vi.mocked(prisma.medicationInventoryItem.findMany).mockResolvedValue([
+      { id: "inv-1", state: "IN_USE", unitsTotal: 4, unitsRemaining: 3 },
+      { id: "inv-2", state: "ACTIVE", unitsTotal: 4, unitsRemaining: 4 },
+      { id: "inv-3", state: "EXPIRED", unitsTotal: 4, unitsRemaining: 4 },
+      { id: "inv-4", state: "USED_UP", unitsTotal: 4, unitsRemaining: 0 },
+    ] as never);
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/medications/med-1/inventory"),
+      { params: Promise.resolve({ id: "med-1" }) },
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        summary: {
+          unitsRemaining: number;
+          unitsTotal: number;
+          dosesRemaining: number;
+          dosesTotal: number;
+          expiredUnits: number;
+        };
+      };
+    };
+    // 7 available units / 2 per dose = 3 doses; capacity 8 units = 4 doses;
+    // 4 units sit in the expired container (visible, never available).
+    expect(body.data.summary).toEqual({
+      unitsRemaining: 7,
+      unitsTotal: 8,
+      dosesRemaining: 3,
+      dosesTotal: 4,
+      expiredUnits: 4,
+    });
+  });
 });
 
 describe("POST /api/medications/[id]/inventory", () => {

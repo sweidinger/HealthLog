@@ -140,32 +140,57 @@ describe("summariseSupply / detectSupplyUnderflow — central negative-stock san
   });
 });
 
-describe("supply surfaces — both detail-page readouts ride the shared helper (source guard)", () => {
+describe("supply surfaces — server computes, the detail-page clients render the DTO (source guard)", () => {
+  // v1.19.0 (iOS#25) — server-authoritative parity. The detail-page
+  // clients used to call `summariseSupply` in the browser; that risked
+  // web ↔ iOS drift and dragged the shared math into the client bundle.
+  // The SERVER now computes the canonical summary via the one source of
+  // truth and ships it in the DTO; the clients render it. This guard is
+  // re-pointed at the new seam: (1) the GET inventory route computes the
+  // summary through `summariseSupply`, (2) neither client imports the
+  // helper as a value, (3) both consume the server `summary` field.
   const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
-  it("the Übersicht supply row sums through summariseSupply and feeds the runway with the available-only figure", () => {
+  it("the SERVER computes the summary through summariseSupply (single source of truth)", () => {
+    const service = read("src/lib/medications/inventory/service.ts");
+    expect(service).toContain('from "./summary"');
+    expect(service).toMatch(/summariseSupply\(/);
+    expect(service).toContain("buildSupplySummary");
+
+    const route = read("src/app/api/medications/[id]/inventory/route.ts");
+    // The GET response carries the server-computed summary in the DTO.
+    expect(route).toContain("buildSupplySummary");
+    expect(route).toMatch(/summary,/);
+  });
+
+  it("the Übersicht client renders the server summary and never imports the helper as a value", () => {
     const src = read(
       "src/components/medications/detail/medication-detail-tabs.tsx",
     );
-    expect(src).toContain('from "@/lib/medications/inventory/summary"');
-    expect(src).toMatch(/summariseSupply\(inventoryItems, perDose\)/);
+    // Type-only import is allowed; a value import of the helper is not.
+    expect(src).toContain(
+      'import type { SupplySummary } from "@/lib/medications/inventory/summary"',
+    );
+    expect(src).not.toMatch(/^import \{[^}]*summariseSupply/m);
+    // The client consumes the server-provided summary, not a local
+    // derivation, and still drives the runway with the available figure.
+    expect(src).toMatch(/inventory\?\.summary/);
     expect(src).toMatch(
       /estimateRunwayDays\(dosesRemaining, medication\.schedules\)/,
     );
-    // No hand-rolled "everything but USED_UP" filter remains.
     expect(src).not.toContain('state !== "USED_UP"');
     expect(src).toContain("medications.detail.bestand.expiredSuffix");
   });
 
-  it("the Bestand summary sums through summariseSupply and surfaces the expired suffix", () => {
+  it("the Bestand client renders the server summary and never imports the helper as a value", () => {
     const src = read(
       "src/components/medications/sections/inventory-section.tsx",
     );
-    expect(src).toContain('from "@/lib/medications/inventory/summary"');
-    // v1.18.3 (iOS#31) — the items are mapped through a nullable→0 coalesce
-    // (an unknown-units row contributes nothing to the available headline)
-    // before the shared helper, but the summary still rides summariseSupply.
-    expect(src).toMatch(/summariseSupply\(\s*items\.map\(/);
+    expect(src).toContain(
+      'import type { SupplySummary } from "@/lib/medications/inventory/summary"',
+    );
+    expect(src).not.toMatch(/^import \{[^}]*summariseSupply/m);
+    expect(src).toMatch(/data\?\.summary/);
     expect(src).not.toContain('state !== "USED_UP"');
     expect(src).toContain("medications.detail.bestand.expiredSuffix");
   });

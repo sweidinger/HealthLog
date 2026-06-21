@@ -76,7 +76,7 @@ import {
   apiPost,
   apiPut,
 } from "@/lib/api/api-fetch";
-import { summariseSupply } from "@/lib/medications/inventory/summary";
+import type { SupplySummary } from "@/lib/medications/inventory/summary";
 
 /**
  * Invalidate every read key whose payload reflects a medication's supply
@@ -127,6 +127,11 @@ interface InventoryItem {
 
 interface InventoryResponse {
   items: InventoryItem[];
+  // v1.19.0 (iOS#25) — server-authoritative supply summary. The headline
+  // figures are computed server-side via the shared `summariseSupply`
+  // helper and shipped ready; the client renders them rather than
+  // re-deriving in the browser, so web and iOS agree on the Bestand.
+  summary?: SupplySummary;
   meta?: { total: number };
 }
 
@@ -232,28 +237,19 @@ export function InventorySection({
   }
 
   const items = Array.isArray(data?.items) ? data.items : [];
-  // Available supply: ACTIVE / IN_USE containers with units left — the
-  // shared summary helper keeps this row, the Übersicht row, the list
-  // payload and the GLP-1 endpoint on one predicate. Expired stock is
-  // never available; it renders as a separate muted suffix.
-  // Dose-derived headline (floor — a partial dose is not a dose).
-  // v1.18.3 (iOS#31) — an unknown-units row (null) contributes nothing to
-  // the available-supply math; it shows "—" in its own row but cannot pad
-  // the pooled headline. Coalesce null → 0 only for the summary inputs.
-  const {
-    unitsRemaining: remainingUnits,
-    unitsTotal: totalUnits,
-    dosesRemaining: remaining,
-    dosesTotal: total,
-    expiredUnits,
-  } = summariseSupply(
-    items.map((item) => ({
-      state: item.state,
-      unitsTotal: item.unitsTotal ?? 0,
-      unitsRemaining: item.unitsRemaining ?? 0,
-    })),
-    perDose,
-  );
+  // v1.19.0 (iOS#25) — the supply headline is server-authoritative: the
+  // GET response carries a `summary` computed server-side through the
+  // shared `summariseSupply` helper (ACTIVE / IN_USE with units left;
+  // EXPIRED surfaced separately, never available; dose-derived counts
+  // floored). The client renders these ready figures so web and iOS show
+  // identical numbers. The per-item rows below still divide by `perDose`
+  // locally, which is presentation only — the canonical pool is the DTO.
+  const summary = data?.summary;
+  const remainingUnits = summary?.unitsRemaining ?? 0;
+  const totalUnits = summary?.unitsTotal ?? 0;
+  const remaining = summary?.dosesRemaining ?? 0;
+  const total = summary?.dosesTotal ?? 0;
+  const expiredUnits = summary?.expiredUnits ?? 0;
 
   const dialogs = (
     <>
