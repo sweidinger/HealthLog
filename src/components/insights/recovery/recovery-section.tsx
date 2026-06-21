@@ -20,6 +20,7 @@ import type { RestModeAnnotation } from "@/lib/analytics/health-score";
 import type { ChartOverlayKey } from "@/lib/dashboard-layout";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import { RecoveryMetricBlock } from "@/components/insights/recovery/recovery-metric-block";
+import { ResilienceTile } from "@/components/insights/recovery/resilience-tile";
 
 interface BlockSpec {
   type: string;
@@ -168,11 +169,17 @@ export function RecoverySection() {
     },
   ];
 
+  // v1.19.2 — resilience is an ordinal band (limited … exceptional), surfaced
+  // as a calm dedicated tile rather than a chart block, so it counts toward the
+  // data gate independently of `groups` (a chart-block list).
+  const hasResilience = (summaries?.["RESILIENCE"]?.count ?? 0) > 0;
+
   const hasAny =
     summaries != null &&
-    groups.some((group) =>
-      group.blocks.some((block) => (summaries[block.type]?.count ?? 0) > 0),
-    );
+    (hasResilience ||
+      groups.some((group) =>
+        group.blocks.some((block) => (summaries[block.type]?.count ?? 0) > 0),
+      ));
 
   if (isLoading || summaries == null) {
     return (
@@ -208,6 +215,9 @@ export function RecoverySection() {
       {/* v1.18.1 — calm Rest Mode cue at the head of the recovery surface.
           Self-gating: renders nothing unless an episode is active. */}
       <RestModeBanner annotation={restMode} />
+      {/* v1.19.2 — Oura resilience band, self-gating (renders nothing without
+          a reading). A calm ordinal readout, not a chart block. */}
+      <ResilienceTile />
       {presentBlocks.map((block) => (
         <RecoveryMetricBlock
           key={block.type}

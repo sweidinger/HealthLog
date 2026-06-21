@@ -3539,6 +3539,22 @@
     "bodyTempDeviation": {
       "title": "Body temperature deviation",
       "subtitle": "Overnight delta from your baseline"
+    },
+    "resilience": {
+      "explainer": "How well your body is balancing daily strain with recovery, read from your overnight signals across recent days.",
+      "learning": "Still learning your resilience — a few more days will settle the band.",
+      "band": {
+        "limited": "Limited",
+        "adequate": "Adequate",
+        "solid": "Solid",
+        "strong": "Strong",
+        "exceptional": "Exceptional"
+      },
+      "trend": {
+        "above": "Above your recent average.",
+        "steady": "In line with your recent average.",
+        "below": "Below your recent average."
+      }
     }
   },
   "thresholds": {
@@ -5939,7 +5955,13 @@
     "askMedicationName": "Please specify a medication, e.g. <b>taken Ramipril</b>.",
     "medicationNotFoundExact": "Medication not found. Please send the name exactly as in HealthLog.",
     "helpHeader": "<b>Available commands:</b>",
-    "helpBody": "/help — show this help\n/add — record an intake\n/start — start the bot\n\n<b>Text commands:</b>\ntaken &lt;name&gt; — confirm an intake\n\n<b>Buttons in reminders:</b>\n• Taken — confirm intake\n• 🕐 1h / 🕐 3h — postpone reminder\n• ⏭ Skip — skip intake\n• ✓ Confirm — confirm a missed intake"
+    "helpBody": "/help — show this help\n/add — record an intake\n/start — start the bot\n\n<b>Text commands:</b>\ntaken &lt;name&gt; — confirm an intake\n\n<b>Buttons in reminders:</b>\n• Taken — confirm intake\n• 🕐 1h / 🕐 3h — postpone reminder\n• ⏭ Skip — skip intake\n• ✓ Confirm — confirm a missed intake",
+    "measureValuePrompt": "Reply with the value to log it (optional).",
+    "buttonMeasureValue": "Value…",
+    "measureValueSaved": "Reading saved.",
+    "measureValueInvalid": "Reply with a number to log a reading.",
+    "measureValueOutOfRange": "That value is outside the plausible range.",
+    "measureValueExpired": "That prompt has expired."
   },
   "medicationReminders": {
     "phaseGreenTitle": "🟢 Reminder: {medName}",
@@ -6866,6 +6888,8 @@
       "recoveryGapTitle": "Recovery gap",
       "recoveryGapLag": "Your numbers settled {days} days after you felt better.",
       "recoveryGapLead": "Your numbers settled {days} days before you marked recovery.",
+      "recoveryGapLagSymptom": "You felt better {days} days before your logged symptoms eased.",
+      "recoveryGapLeadSymptom": "Your logged symptoms eased {days} days before you marked recovery.",
       "recoveryGapSame": "Your numbers settled the same day you felt better.",
       "redFlagTitle": "Worth a closer look",
       "redFlagSpo2": "Your oxygen saturation stayed low for several days. If this recurs, seek medical care.",

@@ -33,6 +33,10 @@ import {
 } from "@/lib/mood/create-from-telegram";
 import { scheduleTelegramAutoDelete } from "@/lib/telegram-cleanup";
 import { satisfyReminder } from "@/lib/measurement-reminders/satisfy";
+import {
+  isTelegramCapturableType,
+  logTelegramMeasurement,
+} from "@/lib/measurements/create-from-telegram";
 
 interface TelegramUpdate {
   update_id: number;
@@ -776,13 +780,15 @@ async function handleCallback(update: TelegramUpdate) {
       await deleteMessage(botToken, chatId, messageId);
     }
   } else if (data.startsWith("measure_done:")) {
-    // v1.19.0 — mark a Vorsorge/measurement reminder done. No value
-    // capture (restraint) — satisfy the cadence via the shared primitive.
+    // v1.19.0 — mark a Vorsorge/measurement reminder done; satisfy the
+    // cadence via the shared primitive.
     const reminderId = data.slice("measure_done:".length).trim();
     const reminder = await prisma.measurementReminder.findFirst({
       where: { id: reminderId, userId: user.id, deletedAt: null },
       select: {
         id: true,
+        // v1.19.2 — the target metric; drives the optional numeric capture.
+        measurementType: true,
         intervalDays: true,
         rrule: true,
         anchorDate: true,
@@ -808,6 +814,48 @@ async function handleCallback(update: TelegramUpdate) {
     );
     if (messageId) {
       await deleteMessage(botToken, chatId, messageId);
+    }
+
+    // v1.19.2 — optional numeric value capture. When the reminder names a
+    // single-value metric (BP and free-text Vorsorge are excluded), offer a
+    // force-reply prompt; a numeric reply is captured as a Measurement
+    // (source=TELEGRAM) in `handleTextMessage`. The reply binds to THIS
+    // reminder + user through a TelegramPromptContext keyed on the prompt
+    // message id, the SAME strict chat/message binding the mood-note path
+    // uses — the userId is never read from the inbound payload. Optional and
+    // self-cleaning: ignoring the prompt leaves the cadence already
+    // satisfied, and the prompt is swept on the ~30-min auto-delete.
+    if (isTelegramCapturableType(reminder.measurementType)) {
+      const valuePrompt = await sendTelegramMessage(
+        botToken,
+        chatId,
+        t("telegram.measureValuePrompt"),
+        {
+          replyMarkup: {
+            force_reply: true,
+            input_field_placeholder: t("telegram.buttonMeasureValue"),
+          },
+        },
+      );
+      if (valuePrompt.ok && valuePrompt.messageId) {
+        try {
+          await prisma.telegramPromptContext.create({
+            data: {
+              userId: user.id,
+              chatId,
+              promptMsgId: valuePrompt.messageId,
+              kind: "measure_value",
+              refId: reminder.id,
+              // Same ~30-min window as the deletion sweep; a later reply is
+              // treated as expired.
+              expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+            },
+          });
+        } catch {
+          // Best-effort — without the context row the value simply can't bind.
+        }
+        await scheduleAutoDelete(user.id, chatId, [valuePrompt.messageId]);
+      }
     }
   } else if (data.startsWith("measure_later:")) {
     // v1.19.0 — postpone a measurement reminder by N minutes (one-shot
@@ -892,7 +940,11 @@ async function handleTextMessage(update: TelegramUpdate) {
         expiresAt: true,
       },
     });
-    if (context && context.userId === user.id && context.kind === "mood_note") {
+    if (
+      context &&
+      context.userId === user.id &&
+      (context.kind === "mood_note" || context.kind === "measure_value")
+    ) {
       // Consume the context row regardless of outcome so a reply can't be
       // replayed onto the entry twice.
       await prisma.telegramPromptContext
@@ -903,7 +955,9 @@ async function handleTextMessage(update: TelegramUpdate) {
         const resp = await sendTelegramMessage(
           botToken,
           chatId,
-          t("telegram.moodNoteExpired"),
+          context.kind === "measure_value"
+            ? t("telegram.measureValueExpired")
+            : t("telegram.moodNoteExpired"),
         );
         const toDelete = [userMsgId, replyToId, resp.messageId].filter(
           (id): id is number => id != null,
@@ -913,6 +967,49 @@ async function handleTextMessage(update: TelegramUpdate) {
         }
         return;
       }
+
+      if (context.kind === "measure_value") {
+        // v1.19.2 — numeric value capture for a measurement reminder. The
+        // reminder named on the context row carries the expected metric; the
+        // userId is the chat-resolved one (never the payload). A non-numeric
+        // / out-of-range reply gets a calm hint, not a write. The reply, the
+        // prompt, and the confirmation all self-clean on the ~30-min sweep.
+        const reminder = await prisma.measurementReminder.findFirst({
+          where: { id: context.refId, userId: user.id, deletedAt: null },
+          select: { measurementType: true },
+        });
+        let confirmation: string;
+        if (!isTelegramCapturableType(reminder?.measurementType)) {
+          confirmation = t("telegram.measurementNotFound");
+        } else {
+          const externalId = `telegram:measure:${chatId}:${replyToId}`.slice(
+            0,
+            120,
+          );
+          const result = await logTelegramMeasurement({
+            userId: user.id,
+            type: reminder.measurementType,
+            rawText: text,
+            tz: user.timezone,
+            externalId,
+          });
+          confirmation =
+            result.status === "ok"
+              ? t("telegram.measureValueSaved")
+              : result.status === "out_of_range"
+                ? t("telegram.measureValueOutOfRange")
+                : t("telegram.measureValueInvalid");
+        }
+        const resp = await sendTelegramMessage(botToken, chatId, confirmation);
+        const toDelete = [userMsgId, replyToId, resp.messageId].filter(
+          (id): id is number => id != null,
+        );
+        if (toDelete.length > 0) {
+          await scheduleAutoDelete(user.id, chatId, toDelete);
+        }
+        return;
+      }
+
       const attached = await attachTelegramMoodNote({
         userId: user.id,
         moodEntryId: context.refId,

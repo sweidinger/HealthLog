@@ -124,6 +124,15 @@ const batchEntrySchema = z.object({
   // device's own verdict / severity; resolved to a `rhythmClassification`
   // by `mapAppleHealthEntry`. Ignored for every non-event identifier.
   categoryValue: z.number().int().min(0).max(20).optional(),
+  // v1.19.2 (iOS #34 extension) — per-bucket spread for the hourly
+  // heart-rate bucket. `value` carries the hour's AVERAGE bpm; these carry
+  // the hour's MIN / MAX so a client renders the intra-hour band without
+  // re-uploading raw samples. Persisted ONLY on a well-formed
+  // `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row; ignored (stored
+  // NULL) for every other entry. Optional + backward-compatible: a pre-W192
+  // iOS build omits them and the bucket keeps the avg-only contract.
+  valueMin: z.number().finite().optional(),
+  valueMax: z.number().finite().optional(),
   externalId: z.string().min(1).max(120),
   externalSourceVersion: z.string().min(1).max(120).optional(),
   // v1.8.6 W6 — optional per-entry source tag. Defaults to
@@ -255,6 +264,8 @@ async function postBatch(request: NextRequest): Promise<Response> {
       endDate: entry.endDate,
       sleepStage: entry.sleepStage,
       categoryValue: entry.categoryValue,
+      valueMin: entry.valueMin,
+      valueMax: entry.valueMax,
     });
 
     if (!mapped) {
@@ -301,6 +312,21 @@ async function postBatch(request: NextRequest): Promise<Response> {
       continue;
     }
 
+    // v1.19.2 (iOS #34 extension) — the per-bucket MIN / MAX are persisted
+    // ONLY on a well-formed hourly HR bucket row. A per-sample reading, a
+    // per-day cumulative `stats:` total, or a manual entry never carries a
+    // spread, so we pin them to null there even if a client mis-sends the
+    // fields — `value` stays the single source of truth for those rows.
+    const isHrBucket = isHourlyHeartRateStatsExternalId(entry.externalId);
+    const valueMin =
+      isHrBucket && typeof mapped.valueMin === "number"
+        ? mapped.valueMin
+        : null;
+    const valueMax =
+      isHrBucket && typeof mapped.valueMax === "number"
+        ? mapped.valueMax
+        : null;
+
     prepared.push({
       index,
       entry,
@@ -308,6 +334,8 @@ async function postBatch(request: NextRequest): Promise<Response> {
         userId: user.id,
         type: mapped.type,
         value: mapped.value,
+        valueMin,
+        valueMax,
         unit: mapped.unit,
         // v1.8.6 W6 — honour the per-entry source tag, defaulting to
         // `APPLE_HEALTH` when absent so legacy callers are unchanged.
@@ -505,6 +533,12 @@ async function postBatch(request: NextRequest): Promise<Response> {
             },
             data: {
               value: p.row.value as number,
+              // v1.19.2 (iOS #34 extension) — overwrite the per-bucket
+              // spread alongside `value` so a within-hour re-post (the
+              // running mean + range shift as more samples land) replaces
+              // both. Null for every non-HR-bucket `stats:` overwrite.
+              valueMin: p.row.valueMin as number | null,
+              valueMax: p.row.valueMax as number | null,
               unit: p.row.unit as string,
               measuredAt: p.row.measuredAt as Date,
               externalSourceVersion: p.row.externalSourceVersion as

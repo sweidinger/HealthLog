@@ -3539,6 +3539,22 @@
     "bodyTempDeviation": {
       "title": "Desviación de la temperatura corporal",
       "subtitle": "Variación nocturna respecto a tu línea base"
+    },
+    "resilience": {
+      "explainer": "Cómo equilibra tu cuerpo la carga diaria con la recuperación, leído a partir de tus señales nocturnas de los últimos días.",
+      "learning": "Aún estamos aprendiendo tu resiliencia — unos días más asentarán el nivel.",
+      "band": {
+        "limited": "Limitada",
+        "adequate": "Adecuada",
+        "solid": "Sólida",
+        "strong": "Fuerte",
+        "exceptional": "Excepcional"
+      },
+      "trend": {
+        "above": "Por encima de tu media reciente.",
+        "steady": "En línea con tu media reciente.",
+        "below": "Por debajo de tu media reciente."
+      }
     }
   },
   "thresholds": {
@@ -5939,7 +5955,13 @@
     "askMedicationName": "Indica el medicamento, p. ej. <b>tomado Ramipril</b>.",
     "medicationNotFoundExact": "Medicamento no encontrado. Envía el nombre exactamente como aparece en HealthLog.",
     "helpHeader": "<b>Comandos disponibles:</b>",
-    "helpBody": "/help — mostrar esta ayuda\n/add — registrar una toma\n/start — iniciar el bot\n\n<b>Comandos de texto:</b>\ntaken &lt;nombre&gt; — confirmar una toma\n\n<b>Botones en los recordatorios:</b>\n• Tomado — confirmar la toma\n• 🕐 1h / 🕐 3h — posponer el recordatorio\n• ⏭ Omitir — omitir la toma\n• ✓ Confirmar — confirmar una toma omitida"
+    "helpBody": "/help — mostrar esta ayuda\n/add — registrar una toma\n/start — iniciar el bot\n\n<b>Comandos de texto:</b>\ntaken &lt;nombre&gt; — confirmar una toma\n\n<b>Botones en los recordatorios:</b>\n• Tomado — confirmar la toma\n• 🕐 1h / 🕐 3h — posponer el recordatorio\n• ⏭ Omitir — omitir la toma\n• ✓ Confirmar — confirmar una toma omitida",
+    "measureValuePrompt": "Responde con el valor para registrarlo (opcional).",
+    "buttonMeasureValue": "Valor…",
+    "measureValueSaved": "Lectura guardada.",
+    "measureValueInvalid": "Responde con un número para registrar una lectura.",
+    "measureValueOutOfRange": "Ese valor está fuera del rango plausible.",
+    "measureValueExpired": "Esa solicitud ha caducado."
   },
   "medicationReminders": {
     "phaseGreenTitle": "🟢 Recordatorio: {medName}",
@@ -6866,6 +6888,8 @@
       "recoveryGapTitle": "Brecha de recuperación",
       "recoveryGapLag": "Tus valores se estabilizaron {days} días después de sentirte mejor.",
       "recoveryGapLead": "Tus valores se estabilizaron {days} días antes de marcar la recuperación.",
+      "recoveryGapLagSymptom": "Te sentiste mejor {days} días antes de que cedieran tus síntomas registrados.",
+      "recoveryGapLeadSymptom": "Tus síntomas registrados cedieron {days} días antes de marcar la recuperación.",
       "recoveryGapSame": "Tus valores se estabilizaron el mismo día en que te sentiste mejor.",
       "redFlagTitle": "Conviene revisarlo",
       "redFlagSpo2": "Tu saturación de oxígeno se mantuvo baja varios días. Si se repite, busca atención médica.",

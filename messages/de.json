@@ -3539,6 +3539,22 @@
     "bodyTempDeviation": {
       "title": "Körpertemperatur-Abweichung",
       "subtitle": "Nächtliche Abweichung von deiner Basislinie"
+    },
+    "resilience": {
+      "explainer": "Wie gut dein Körper die tägliche Belastung mit der Erholung ausbalanciert — aus deinen nächtlichen Signalen der letzten Tage abgelesen.",
+      "learning": "Deine Resilienz wird noch erlernt — ein paar Tage mehr festigen das Niveau.",
+      "band": {
+        "limited": "Eingeschränkt",
+        "adequate": "Ausreichend",
+        "solid": "Solide",
+        "strong": "Stark",
+        "exceptional": "Außergewöhnlich"
+      },
+      "trend": {
+        "above": "Über deinem jüngsten Durchschnitt.",
+        "steady": "Im Einklang mit deinem jüngsten Durchschnitt.",
+        "below": "Unter deinem jüngsten Durchschnitt."
+      }
     }
   },
   "thresholds": {
@@ -5939,7 +5955,13 @@
     "askMedicationName": "Bitte Medikament angeben, z.B. <b>genommen Ramipril</b>.",
     "medicationNotFoundExact": "Medikament nicht gefunden. Bitte Namen exakt wie in HealthLog senden.",
     "helpHeader": "<b>Verfügbare Befehle:</b>",
-    "helpBody": "/help — Diese Hilfe anzeigen\n/add — Einnahme erfassen\n/start — Bot starten\n\n<b>Textbefehle:</b>\ngenommen &lt;Name&gt; — Einnahme bestätigen\n\n<b>Über die Buttons in Erinnerungen:</b>\n• Genommen — Einnahme bestätigen\n• 🕐 1h / 🕐 3h — Erinnerung verschieben\n• ⏭ Überspringen — Einnahme überspringen\n• ✓ Bestätigen — Verpasste Einnahme bestätigen"
+    "helpBody": "/help — Diese Hilfe anzeigen\n/add — Einnahme erfassen\n/start — Bot starten\n\n<b>Textbefehle:</b>\ngenommen &lt;Name&gt; — Einnahme bestätigen\n\n<b>Über die Buttons in Erinnerungen:</b>\n• Genommen — Einnahme bestätigen\n• 🕐 1h / 🕐 3h — Erinnerung verschieben\n• ⏭ Überspringen — Einnahme überspringen\n• ✓ Bestätigen — Verpasste Einnahme bestätigen",
+    "measureValuePrompt": "Antworte mit dem Wert, um ihn zu speichern (optional).",
+    "buttonMeasureValue": "Wert…",
+    "measureValueSaved": "Messwert gespeichert.",
+    "measureValueInvalid": "Antworte mit einer Zahl, um einen Messwert zu speichern.",
+    "measureValueOutOfRange": "Dieser Wert liegt außerhalb des plausiblen Bereichs.",
+    "measureValueExpired": "Diese Aufforderung ist abgelaufen."
   },
   "medicationReminders": {
     "phaseGreenTitle": "🟢 Erinnerung: {medName}",
@@ -6866,6 +6888,8 @@
       "recoveryGapTitle": "Erholungslücke",
       "recoveryGapLag": "Deine Werte normalisierten sich {days} Tage, nachdem es dir besser ging.",
       "recoveryGapLead": "Deine Werte normalisierten sich {days} Tage, bevor du Genesung vermerktest.",
+      "recoveryGapLagSymptom": "Dir ging es {days} Tage besser, bevor deine erfassten Symptome abklangen.",
+      "recoveryGapLeadSymptom": "Deine erfassten Symptome klangen {days} Tage ab, bevor du Genesung vermerktest.",
       "recoveryGapSame": "Deine Werte normalisierten sich am selben Tag, an dem es dir besser ging.",
       "redFlagTitle": "Genauer ansehen",
       "redFlagSpo2": "Deine Sauerstoffsättigung blieb mehrere Tage niedrig. Wenn das erneut auftritt, suche ärztliche Hilfe.",

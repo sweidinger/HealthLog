@@ -39,6 +39,7 @@ import {
   computeIllnessCorrelation,
   type DayLogFeverPoint,
   type IllnessCorrelationValue,
+  type SymptomBurdenPoint,
   type VitalSeries,
 } from "./correlation";
 
@@ -103,7 +104,7 @@ export async function computeEpisodeCorrelation(
   // run paired rather than serially (halving the per-type round-trips).
   // The day-log fever read shares the same fan-out budget.
   const limit = pLimit(VITAL_SCAN_CONCURRENCY);
-  const [perType, dayLogFever] = await Promise.all([
+  const [perType, dayLogFever, symptomBurden] = await Promise.all([
     Promise.all(
       ILLNESS_SCAN_TYPES.map((type) =>
         limit(async () => {
@@ -132,6 +133,7 @@ export async function computeEpisodeCorrelation(
       ),
     ),
     limit(() => readDayLogFever(episode.id, preOnsetStart, end, tz)),
+    limit(() => readDayLogSymptomBurden(episode.id, preOnsetStart, end, tz)),
   ]);
 
   const series: VitalSeries[] = [];
@@ -167,6 +169,7 @@ export async function computeEpisodeCorrelation(
     window: { onsetDay, feltBetterDay, lifecycle: episode.lifecycle },
     series,
     dayLogFever,
+    symptomBurden,
     source,
     now,
   });
@@ -274,4 +277,57 @@ async function readDayLogFever(
   return [...byDay.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([day, feverC]) => ({ day, feverC }));
+}
+
+/**
+ * Read the illness day-log symptom-burden series over [from, to) — the user's
+ * own logged daily-impact curve, keyed by the stored `date` (already the
+ * user-tz day string, so NO tz conversion). Mirrors `readDayLogFever`: one
+ * `findMany`, present days only, no zero-fill.
+ *
+ * Per day the burden is `functionalImpact` (0–3, the deliberate daily slider)
+ * when logged; else the day's MAX linked `IllnessSymptomLink.severity` (0–3) as
+ * a fallback corroborator. A day with neither is dropped (absent from the
+ * series — the engine treats a missing day as "not logged", never an
+ * implicit 0).
+ */
+async function readDayLogSymptomBurden(
+  episodeId: string,
+  from: Date,
+  to: Date,
+  tz: string,
+): Promise<SymptomBurdenPoint[]> {
+  const fromKey = dayKeyForUserTz(from, tz);
+  const toKey = dayKeyForUserTz(to, tz);
+  const rows = await prisma.illnessDayLog.findMany({
+    where: {
+      episodeId,
+      deletedAt: null,
+      date: { gte: fromKey, lte: toKey },
+    },
+    select: {
+      date: true,
+      functionalImpact: true,
+      symptomLinks: { select: { severity: true } },
+    },
+  });
+  const points: SymptomBurdenPoint[] = [];
+  for (const row of rows) {
+    if (row.functionalImpact != null) {
+      points.push({ day: row.date, impact: row.functionalImpact });
+      continue;
+    }
+    // Fallback corroborator: the day's strongest linked symptom severity.
+    let maxSeverity: number | null = null;
+    for (const link of row.symptomLinks) {
+      if (link.severity == null) continue;
+      maxSeverity =
+        maxSeverity === null
+          ? link.severity
+          : Math.max(maxSeverity, link.severity);
+    }
+    if (maxSeverity != null)
+      points.push({ day: row.date, impact: maxSeverity });
+  }
+  return points.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
 }

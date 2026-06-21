@@ -3539,6 +3539,22 @@
     "bodyTempDeviation": {
       "title": "Écart de température corporelle",
       "subtitle": "Écart nocturne par rapport à votre référence"
+    },
+    "resilience": {
+      "explainer": "Comment votre corps équilibre la charge quotidienne et la récupération, d'après vos signaux nocturnes des derniers jours.",
+      "learning": "Votre résilience est encore en cours d'apprentissage — quelques jours de plus stabiliseront le niveau.",
+      "band": {
+        "limited": "Limitée",
+        "adequate": "Adéquate",
+        "solid": "Solide",
+        "strong": "Forte",
+        "exceptional": "Exceptionnelle"
+      },
+      "trend": {
+        "above": "Au-dessus de votre moyenne récente.",
+        "steady": "Conforme à votre moyenne récente.",
+        "below": "En dessous de votre moyenne récente."
+      }
     }
   },
   "thresholds": {
@@ -5939,7 +5955,13 @@
     "askMedicationName": "Indique le médicament, p. ex. <b>pris Ramipril</b>.",
     "medicationNotFoundExact": "Médicament introuvable. Envoie le nom exactement tel qu’il apparaît dans HealthLog.",
     "helpHeader": "<b>Commandes disponibles :</b>",
-    "helpBody": "/help — afficher cette aide\n/add — enregistrer une prise\n/start — démarrer le bot\n\n<b>Commandes texte :</b>\ntaken &lt;nom&gt; — confirmer une prise\n\n<b>Boutons dans les rappels :</b>\n• Pris — confirmer la prise\n• 🕐 1h / 🕐 3h — reporter le rappel\n• ⏭ Ignorer — ignorer la prise\n• ✓ Confirmer — confirmer une prise manquée"
+    "helpBody": "/help — afficher cette aide\n/add — enregistrer une prise\n/start — démarrer le bot\n\n<b>Commandes texte :</b>\ntaken &lt;nom&gt; — confirmer une prise\n\n<b>Boutons dans les rappels :</b>\n• Pris — confirmer la prise\n• 🕐 1h / 🕐 3h — reporter le rappel\n• ⏭ Ignorer — ignorer la prise\n• ✓ Confirmer — confirmer une prise manquée",
+    "measureValuePrompt": "Répondez avec la valeur pour l’enregistrer (facultatif).",
+    "buttonMeasureValue": "Valeur…",
+    "measureValueSaved": "Mesure enregistrée.",
+    "measureValueInvalid": "Répondez avec un nombre pour enregistrer une mesure.",
+    "measureValueOutOfRange": "Cette valeur est en dehors de la plage plausible.",
+    "measureValueExpired": "Cette invite a expiré."
   },
   "medicationReminders": {
     "phaseGreenTitle": "🟢 Rappel : {medName}",
@@ -6866,6 +6888,8 @@
       "recoveryGapTitle": "Écart de récupération",
       "recoveryGapLag": "Tes valeurs se sont stabilisées {days} jours après que tu te sois senti mieux.",
       "recoveryGapLead": "Tes valeurs se sont stabilisées {days} jours avant que tu notes la guérison.",
+      "recoveryGapLagSymptom": "Tu t'es senti mieux {days} jours avant que tes symptômes consignés s'apaisent.",
+      "recoveryGapLeadSymptom": "Tes symptômes consignés se sont apaisés {days} jours avant que tu notes la guérison.",
       "recoveryGapSame": "Tes valeurs se sont stabilisées le jour même où tu t'es senti mieux.",
       "redFlagTitle": "À examiner de plus près",
       "redFlagSpo2": "Ta saturation en oxygène est restée basse plusieurs jours. Si cela se reproduit, consulte un médecin.",
