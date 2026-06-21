@@ -84,6 +84,17 @@ const TIME_RANGES_KEYS = [
   },
 ] as const;
 
+/**
+ * v1.19.0 — day-span the "All" range tab (`rangePoints === 0`) fetches.
+ * A generous fixed bound (~10 years) that is clearly larger than any
+ * other range tab, so "All" means "all of my history" rather than the
+ * old silent 365-day truncation. Fixed (not per-account derived) so the
+ * fetch-window cache key stays stable across the session. The server's
+ * daily-aggregate reader still caps the returned bucket count, so this
+ * only widens the requested window, never the render cost.
+ */
+const ALL_RANGE_DAYS = 3650;
+
 interface HealthChartProps {
   types: string[];
   title: string;
@@ -250,6 +261,19 @@ interface HealthChartProps {
    * a self-fetched one.
    */
   preloadedSeries?: Record<string, MeasurementApiRow[]>;
+  /**
+   * v1.19.0 — the day-span the `preloadedSeries` slice actually covers
+   * (the window the dashboard's batched fetch requested). The chart reads
+   * the preloaded slice ONLY when the active range tab's window fits
+   * within this coverage; a wider tab (90 / All on a 30-day batch) falls
+   * through to a real fetch for the requested window instead of silently
+   * re-rendering the narrow batched slice.
+   *
+   * Required whenever `preloadedSeries` is supplied. Mount sites set it to
+   * the exact day-span their batch fetches (the dashboard batch spans 31
+   * days). Omitted on self-fetching mounts.
+   */
+  preloadedCoverageDays?: number;
 }
 
 interface ChartDataPoint {
@@ -560,6 +584,7 @@ export function HealthChart({
   titleIcon,
   onDataReady,
   preloadedSeries,
+  preloadedCoverageDays,
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
   const { t, locale } = useTranslations();
@@ -619,12 +644,19 @@ export function HealthChart({
   // Comparison overlays (lastMonth / lastYear) extend the `from`
   // boundary backwards by the shift distance so the prior-period
   // slice rides the same fetch and `shiftDailySeriesForward` finds
-  // its input. "All" range (rangePoints === 0) defaults to a
-  // 365-day window; the chart's existing all-time UX already
-  // re-renders against whatever window we hand it.
+  // its input.
+  //
+  // v1.19.0 — "All" range (rangePoints === 0) requests `ALL_RANGE_DAYS`
+  // (~10 years) rather than the old 365-day cap, which silently truncated
+  // any account holding more than a year of history. The window is a
+  // generous fixed bound (not derived per-account) so the cache key stays
+  // stable across the session; the daily-aggregate reader caps the
+  // RETURNED bucket count at `BUCKET_CAP.daily` (365), so the chart still
+  // paints at most ~365 daily buckets — see the report's note on raising
+  // that server-side ceiling for true multi-year coverage.
   const fetchWindow = useMemo(() => {
     const to = new Date();
-    const windowDays = rangePoints > 0 ? rangePoints : 365;
+    const windowDays = rangePoints > 0 ? rangePoints : ALL_RANGE_DAYS;
     const compareShift =
       effectiveCompareBaseline === "lastMonth"
         ? 30
@@ -649,13 +681,24 @@ export function HealthChart({
   // SLEEP_DURATION is never batched (per-night `/series`), so a chart
   // that includes it always self-fetches. A range-tab change to a ≤7-day
   // window (raw rows) drops batched coverage and self-fetches.
+  //
+  // v1.19.0 — also require that the requested window FITS within the
+  // batch's actual coverage. The dashboard batches only a ~30-day slice;
+  // pre-fix, picking the 90 / All tab kept reading that 30-day slice
+  // (`usePreloaded` never compared windows), so the chart showed ~30 days
+  // no matter the tab. The mount now threads `preloadedCoverageDays`; a
+  // tab wider than the coverage falls through to a real fetch for the
+  // requested window. Without an explicit coverage (legacy mount), treat
+  // it as 0 so any preloaded slice is bypassed rather than trusted blindly.
   const usePreloaded = useMemo(() => {
     if (!preloadedSeries) return false;
     if (fetchWindow.windowDays <= 7) return false;
+    const coverage = preloadedCoverageDays ?? 0;
+    if (fetchWindow.windowDays > coverage) return false;
     return types.every(
       (type) => type === "SLEEP_DURATION" || preloadedSeries[type] != null,
     );
-  }, [preloadedSeries, fetchWindow.windowDays, types]);
+  }, [preloadedSeries, preloadedCoverageDays, fetchWindow.windowDays, types]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     // v1.4.40 W-RSC — route the chart-data key through `queryKeys.chartData`

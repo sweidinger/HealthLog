@@ -66,6 +66,14 @@ const DASHBOARD_QUERY_OPTS = {
   refetchOnWindowFocus: false,
 } as const;
 
+// v1.19.0 — day-span the batched dashboard series (`series-batch`) fetches.
+// Threaded to every chart as `preloadedCoverageDays` so a chart reads the
+// batched slice ONLY for a range tab whose window fits within it (7 / 30);
+// the 90 / All tabs exceed it and self-fetch the wider window. Pre-fix the
+// chart trusted the batch for any window > 7 days, so 90 / All silently
+// re-rendered this ~30-day slice. Keep this in lockstep with `batchWindow`.
+const BATCH_COVERAGE_DAYS = 31;
+
 // v1.16.8 — the loaders retry a rejected chunk import once (a lazy
 // import caches its rejection permanently, so a transient 404 from a
 // stale shell used to brick the card for the session) and each mount
@@ -609,7 +617,7 @@ export default function DashboardPage() {
   const [batchWindow] = useState(() => {
     const to = new Date();
     to.setHours(23, 59, 59, 999);
-    const from = new Date(to.getTime() - 31 * 86_400_000);
+    const from = new Date(to.getTime() - BATCH_COVERAGE_DAYS * 86_400_000);
     return { from: from.toISOString(), to: to.toISOString() };
   });
 
@@ -1164,6 +1172,7 @@ export default function DashboardPage() {
                 key="weight-chart"
                 onDataReady={() => markChartReady("weight-chart")}
                 preloadedSeries={preloadedSeries}
+                preloadedCoverageDays={BATCH_COVERAGE_DAYS}
                 chartKey="weight"
                 types={["WEIGHT"]}
                 title={t("dashboard.weight")}
@@ -1185,6 +1194,7 @@ export default function DashboardPage() {
                   key="bmi-chart"
                   onDataReady={() => markChartReady("bmi-chart")}
                   preloadedSeries={preloadedSeries}
+                  preloadedCoverageDays={BATCH_COVERAGE_DAYS}
                   chartKey="bmi"
                   types={["WEIGHT"]}
                   title={t("targets.bmi")}
@@ -1215,6 +1225,7 @@ export default function DashboardPage() {
                 key="bp-chart"
                 onDataReady={() => markChartReady("bp-chart")}
                 preloadedSeries={preloadedSeries}
+                preloadedCoverageDays={BATCH_COVERAGE_DAYS}
                 chartKey="bp"
                 types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
                 title={t("dashboard.bloodPressure")}
@@ -1239,6 +1250,7 @@ export default function DashboardPage() {
                 key="pulse-chart"
                 onDataReady={() => markChartReady("pulse-chart")}
                 preloadedSeries={preloadedSeries}
+                preloadedCoverageDays={BATCH_COVERAGE_DAYS}
                 chartKey="pulse"
                 // v1.15.12 A2 — chart the RESTING series against the
                 // resting band when available; otherwise chart raw heart
@@ -1266,6 +1278,7 @@ export default function DashboardPage() {
                 key="bodyFat-chart"
                 onDataReady={() => markChartReady("bodyFat-chart")}
                 preloadedSeries={preloadedSeries}
+                preloadedCoverageDays={BATCH_COVERAGE_DAYS}
                 chartKey="bodyFat"
                 types={["BODY_FAT"]}
                 title={t("dashboard.bodyFat")}
@@ -1327,6 +1340,7 @@ export default function DashboardPage() {
                 key="steps-chart"
                 onDataReady={() => markChartReady("steps-chart")}
                 preloadedSeries={preloadedSeries}
+                preloadedCoverageDays={BATCH_COVERAGE_DAYS}
                 chartKey="steps"
                 types={["ACTIVITY_STEPS"]}
                 title={t("dashboard.steps") ?? "Steps"}
