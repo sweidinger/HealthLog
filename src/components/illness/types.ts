@@ -115,6 +115,7 @@ export interface IllnessCorrelationValue {
   nadir: IllnessVitalDeviation[];
   returns: IllnessVitalReturn[];
   recoveryGapDays: number | null;
+  adverseCoverageDays: number;
   feltBetterDay: string | null;
   redFlags: IllnessRedFlag[];
 }

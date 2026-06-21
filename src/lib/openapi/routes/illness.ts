@@ -208,6 +208,7 @@ const illnessCorrelationValue = z
     nadir: z.array(illnessVitalDeviation),
     returns: z.array(illnessVitalReturn),
     recoveryGapDays: z.number().nullable(),
+    adverseCoverageDays: z.number().int(),
     feltBetterDay: z.string().nullable(),
     redFlags: z.array(illnessRedFlag),
   })

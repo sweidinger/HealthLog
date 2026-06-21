@@ -20279,6 +20279,10 @@ components:
           anyOf:
             - type: number
             - type: "null"
+        adverseCoverageDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
         feltBetterDay:
           anyOf:
             - type: string
@@ -20293,6 +20297,7 @@ components:
         - nadir
         - returns
         - recoveryGapDays
+        - adverseCoverageDays
         - feltBetterDay
         - redFlags
       additionalProperties: false

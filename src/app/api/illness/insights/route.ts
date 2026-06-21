@@ -119,9 +119,17 @@ export const GET = apiHandler(async (request: NextRequest) => {
                   derived.status === "ok"
                     ? derived.value.recoveryGapDays
                     : null,
-                // `historyDays` = distinct episode days with a banded vital,
-                // present on both the `ok` and `insufficient` arms.
-                gapMeasurementDays: derived.coverage.historyDays,
+                // Qualifying-days floor: distinct episode days carrying an
+                // ADVERSE-direction banded reading — NOT raw coverage
+                // (`historyDays` counts ANY banded vital, so a WEIGHT-only
+                // episode with no illness-adverse signal could otherwise clear
+                // the floor and tip the typical-gap median). Only the `ok` arm
+                // ever contributes a gap; the `insufficient` arm's gap is null,
+                // so 0 here is correct (it never reaches the median anyway).
+                gapMeasurementDays:
+                  derived.status === "ok"
+                    ? derived.value.adverseCoverageDays
+                    : 0,
               },
             ];
           },

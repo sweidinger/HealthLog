@@ -208,6 +208,24 @@ export interface VitalReturnFinding {
   gapDays: number | null;
 }
 
+/**
+ * Whether a banded reading is the illness-adverse move for its metric — a
+ * RISE for an "up"-adverse vital (resting HR, temperature, BP, …), a DROP for
+ * a "down"-adverse one (HRV, recovery, SpO2). The single adverse-direction
+ * predicate the engine reasons with; reused by the qualifying-days floor so a
+ * neutral-direction vital (WEIGHT, glucose) never counts a day toward it.
+ */
+export function isAdverseDeviation(
+  type: MeasurementType,
+  direction: "above" | "below",
+): boolean {
+  const adverseDir = ADVERSE_DIRECTION[type];
+  return (
+    (adverseDir === "up" && direction === "above") ||
+    (adverseDir === "down" && direction === "below")
+  );
+}
+
 export interface IllnessCorrelationValue {
   episodeId: string;
   /** "How did it announce itself" — notable pre-onset deviations. */
@@ -222,6 +240,15 @@ export interface IllnessCorrelationValue {
    * = the body lagged the felt-better marker.
    */
   recoveryGapDays: number | null;
+  /**
+   * Distinct episode days carrying at least one ADVERSE-direction banded
+   * reading (a vital moving the illness-adverse way for its metric). This is
+   * the qualifying-days floor the cross-episode aggregate gates the typical-
+   * gap median on — a WEIGHT-only (no adverse direction) episode contributes
+   * 0 here even when `coverage.historyDays` (any banded reading) is high, so
+   * an episode with no illness-relevant signal cannot tip the typical gap.
+   */
+  adverseCoverageDays: number;
   /** Felt-better marker echoed for the surface. */
   feltBetterDay: string | null;
   /**
@@ -279,10 +306,7 @@ function finding(
 ): VitalDeviationFinding {
   const sd = deviationSd(value, center, spread);
   const direction: "above" | "below" = sd >= 0 ? "above" : "below";
-  const adverseDir = ADVERSE_DIRECTION[type];
-  const adverse =
-    (adverseDir === "up" && direction === "above") ||
-    (adverseDir === "down" && direction === "below");
+  const adverse = isAdverseDeviation(type, direction);
   return {
     type,
     day,
@@ -364,6 +388,11 @@ export function computeIllnessCorrelation(
   const preOnset: VitalDeviationFinding[] = [];
   const nadir: VitalDeviationFinding[] = [];
   const returns: VitalReturnFinding[] = [];
+  // Distinct active-span days with at least one notable ADVERSE-direction
+  // banded reading. This — not raw `coverageDays` (any banded reading) — is
+  // the qualifying-days floor the cross-episode aggregate gates on, so a
+  // neutral-direction-only episode (e.g. WEIGHT) never feeds the typical gap.
+  const adverseDayKeys = new Set<string>();
 
   for (const { series, band } of banded) {
     const { type } = series;
@@ -396,6 +425,7 @@ export function computeIllnessCorrelation(
       const f = finding(type, p.day, p.mean, center, spread);
       if (Math.abs(f.deviationSd) >= NOTABLE_SD) {
         if (firstDeviationIndex === -1) firstDeviationIndex = i;
+        if (f.adverse) adverseDayKeys.add(p.day);
         if (
           worstActive === null ||
           Math.abs(f.deviationSd) > Math.abs(worstActive.deviationSd)
@@ -463,6 +493,7 @@ export function computeIllnessCorrelation(
       ),
       returns,
       recoveryGapDays,
+      adverseCoverageDays: adverseDayKeys.size,
       feltBetterDay: window.feltBetterDay,
       redFlags,
     },
