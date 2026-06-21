@@ -370,6 +370,19 @@ async function main() {
     ),
   );
 
+  // ───── v1.19.0 ECG waveform (Bytes column) ─────
+  // "waveformEncrypted" holds the JSON-encoded micro-volt sample array in the
+  // same `encrypt()` ciphertext-string-as-UTF-8 shape the Coach columns use
+  // (see src/lib/withings/ecg-waveform-codec.ts), so the generic Bytes
+  // rotation re-stamps it without decoding the waveform.
+  results.push(
+    await rotateBytesColumn(
+      "EcgRecording",
+      "waveformEncrypted",
+      prisma.ecgRecording,
+    ),
+  );
+
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
   let totalErrors = 0;
