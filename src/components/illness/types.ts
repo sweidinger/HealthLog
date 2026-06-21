@@ -149,4 +149,5 @@ export interface IllnessInsightsResponse {
   gapSampleSize: number;
   byMonth: Record<string, number>;
   byType: Record<string, number>;
+  gapDriverType: string | null;
 }

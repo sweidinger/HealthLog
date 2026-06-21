@@ -85,7 +85,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // out of the typical-gap median by the aggregate's signal-density gates.
   const gapById = new Map<
     string,
-    { recoveryGapDays: number | null; gapMeasurementDays: number }
+    {
+      recoveryGapDays: number | null;
+      gapMeasurementDays: number;
+      gapReturnTypes: string[];
+    }
   >();
   if (includeRecoveryGap) {
     const gapCandidates = rows
@@ -98,7 +102,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
           async (): Promise<
             [
               string,
-              { recoveryGapDays: number | null; gapMeasurementDays: number },
+              {
+                recoveryGapDays: number | null;
+                gapMeasurementDays: number;
+                gapReturnTypes: string[];
+              },
             ]
           > => {
             const derived = await computeEpisodeCorrelation(
@@ -130,6 +138,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
                   derived.status === "ok"
                     ? derived.value.adverseCoverageDays
                     : 0,
+                // The vitals that produced a real physiological return —
+                // tallied across the qualifying episodes to name the dominant
+                // driving vital in the summary copy.
+                gapReturnTypes:
+                  derived.status === "ok"
+                    ? derived.value.returns
+                        .filter((r) => r.gapDays !== null)
+                        .map((r) => String(r.type))
+                    : [],
               },
             ];
           },
@@ -148,6 +165,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       resolved: r.resolvedAt !== null,
       recoveryGapDays: gap?.recoveryGapDays ?? null,
       gapMeasurementDays: gap?.gapMeasurementDays ?? 0,
+      gapReturnTypes: gap?.gapReturnTypes ?? [],
       lifecycle: r.lifecycle,
     };
   });
@@ -160,6 +178,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       episode_count: summary.episodeCount,
       gap_sample_size: summary.gapSampleSize,
       typical_gap_days: summary.typicalRecoveryGapDays,
+      gap_driver_type: summary.gapDriverType,
       include_recovery_gap: includeRecoveryGap,
     },
   });
