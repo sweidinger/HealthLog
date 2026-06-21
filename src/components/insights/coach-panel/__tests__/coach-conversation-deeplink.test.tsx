@@ -135,4 +135,25 @@ describe("<CoachConversation> page deep-link (#67)", () => {
     // though recent conversations exist in the cache.
     expect(html).toContain('data-slot="coach-hero"');
   });
+
+  // v1.19.1 (C2) — a dedicated, always-visible Conversations button on the
+  // page surface (not buried in the composer `+` menu).
+  it("renders the dedicated Conversations button on the page surface", () => {
+    const html = render(<CoachConversation surface="page" />, makeClient());
+    expect(html).toContain('data-slot="coach-page-conversations"');
+    expect(html).toContain('data-slot="coach-page-new-chat"');
+  });
+
+  // v1.19.1 (C5) — entering via the drawer handoff (`?view=conversations`)
+  // keeps the new-chat hero (no thread auto-resumed) while opening the
+  // history drawer; the toolbar + button stay present so the pane is never
+  // a blank dead-end.
+  it("keeps the hero and toolbar when opened with openHistoryOnMount", () => {
+    const html = render(
+      <CoachConversation surface="page" openHistoryOnMount />,
+      makeClient(),
+    );
+    expect(html).toContain('data-slot="coach-hero"');
+    expect(html).toContain('data-slot="coach-page-conversations"');
+  });
 });
