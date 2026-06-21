@@ -14,7 +14,8 @@
  * - 90 days of body composition (fat/lean/muscle mass, total body water,
  *   bone mass, visceral fat, BMI) derived from the same-day weight + body fat
  * - 90 days of blood glucose in a healthy non-diabetic band (fasting +
- *   post-meal + bedtime, contexts tagged)
+ *   post-meal + bedtime, contexts tagged) plus a 14-day Nightscout-style CGM
+ *   stream (a reading every 15 min) so the glucose panel renders fully
  * - 90 days of cardio fitness + vitals (HRV SDNN + RMSSD, SpO2, respiratory
  *   rate, VO2 max, active energy, walking/running distance, flights climbed)
  * - 90 days of WHOOP-style scores (recovery, day strain, sleep
@@ -25,8 +26,13 @@
  *   compliance, with today scheduled on-track (taken or not-yet-due)
  * - 90 days of mood entries
  * - Vorsorge (preventive-care) reminders — upcoming dental + annual physical
- * - One lab panel of biomarkers in healthy ranges
- * - One resolved illness episode in the past
+ * - Two lab panels of biomarkers across two dates (quantitative with
+ *   reference ranges + qualitative "negativ" rows)
+ * - Two illness episodes — a resolved acute cold with a day-by-day symptom
+ *   curve, and an active chronic condition carrying a recent flare
+ * - Cycle tracking opted in: ~5 observed cycles with biphasic basal body
+ *   temperature, period flow, fertile-window mucus/OPK, per-day symptoms,
+ *   and a cached forward prediction
  * - An AI-configured Coach with one short sample conversation
  * - App settings (registration disabled, English locale)
  *
@@ -181,7 +187,14 @@ async function seed() {
     await client.query("DELETE FROM coach_conversations");
     await client.query("DELETE FROM consent_receipts");
     await client.query("DELETE FROM insight_narratives");
+    await client.query("DELETE FROM illness_symptom_links");
+    await client.query("DELETE FROM illness_day_logs");
     await client.query("DELETE FROM illness_episodes");
+    await client.query("DELETE FROM cycle_symptom_links");
+    await client.query("DELETE FROM cycle_day_logs");
+    await client.query("DELETE FROM cycle_predictions");
+    await client.query("DELETE FROM menstrual_cycles");
+    await client.query("DELETE FROM cycle_profiles");
     await client.query("DELETE FROM lab_results");
     await client.query("DELETE FROM measurement_reminders");
     await client.query("DELETE FROM mood_entries");
@@ -465,6 +478,50 @@ async function seed() {
           `INSERT INTO measurements (id, user_id, type, value, unit, source, glucose_context, device_type, measured_at, created_at, updated_at)
            VALUES ($1, $2, 'BLOOD_GLUCOSE', $3, 'mg/dL', 'APPLE_HEALTH', $4, 'phone', $5, $5, $5)`,
           [cuid(), userId, value, r.context, at],
+        );
+      }
+    }
+
+    // ── Continuous glucose (Nightscout-style CGM stream) ──
+    // The clinical glucose panel above gives the spot fasting / post-meal /
+    // bedtime contexts; a real CGM additionally streams a reading every few
+    // minutes. Seed a dense, realistic 24 h-cycle stream for the most recent
+    // 14 days (one sample every 15 min) so the glucose feature's CGM / time-
+    // in-range surfaces render fully. Values follow a healthy circadian curve:
+    // a calm overnight ~90, a dawn rise, gentle post-meal bumps at ~8/13/19h
+    // that settle back inside range — every reading stays in the non-diabetic
+    // band (70–140 mg/dL). Source NIGHTSCOUT with a stable external_id so the
+    // (userId, type, source, externalId) immutable key makes the stream
+    // idempotent across re-seeds (the real Nightscout sync's dedup key). The
+    // measurements_glucose_context_requires_type CHECK forces a non-NULL
+    // glucose_context on every BLOOD_GLUCOSE row, so each CGM sample is tagged
+    // RANDOM (a free-running sensor reading has no meal context).
+    console.log("Creating continuous glucose (CGM) stream...");
+    const cgmDays = 14;
+    const cgmStepMin = 15;
+    for (let d = cgmDays - 1; d >= 0; d--) {
+      for (let minute = 0; minute < 24 * 60; minute += cgmStepMin) {
+        const hour = minute / 60;
+        // Baseline overnight ~90; dawn phenomenon lifts it slightly toward
+        // morning. Meal bumps are smooth gaussians centred on 8/13/19h.
+        const dawn = hour >= 4 && hour <= 8 ? (hour - 4) * 2.5 : 0;
+        const meal = (centre: number, peak: number, width: number) =>
+          peak * Math.exp(-((hour - centre) ** 2) / (2 * width * width));
+        const base =
+          90 + dawn + meal(8, 28, 1.1) + meal(13, 34, 1.3) + meal(19, 30, 1.3);
+        const value = Math.round(
+          Math.min(140, Math.max(72, base + (Math.random() - 0.5) * 6)),
+        );
+        const at = daysAgoAt(d, Math.floor(hour), minute % 60);
+        const externalId = `cgm-${formatDate(at)}-${minute}`;
+        // The measurements_glucose_context_requires_type CHECK requires a
+        // non-NULL glucose_context on every BLOOD_GLUCOSE row. A free-running
+        // CGM sample carries no meal context, so RANDOM ("any time,
+        // non-fasting, non-post-meal") is the correct enum value.
+        await client.query(
+          `INSERT INTO measurements (id, user_id, type, value, unit, source, glucose_context, external_id, measured_at, created_at, updated_at)
+           VALUES ($1, $2, 'BLOOD_GLUCOSE', $3, 'mg/dL', 'NIGHTSCOUT', 'RANDOM', $4, $5, $5, $5)`,
+          [cuid(), userId, value, externalId, at],
         );
       }
     }
@@ -979,18 +1036,27 @@ async function seed() {
       [cuid(), userId, daysAgo(275), physicalNextDue],
     );
 
-    // ── Lab panel (biomarkers in healthy ranges) ──
-    // One grouped panel taken ~10 days ago, every analyte comfortably inside
-    // its reference range, so the labs surface reads clean.
-    console.log("Creating lab panel...");
-    const panelTakenAt = daysAgo(10);
-    const labResults: Array<{
+    // ── Lab panels (biomarkers across two dates) ──
+    // Two grouped panels so the labs list / detail / sort / delete all have
+    // content: a recent annual blood panel (~10 days ago) and an older one
+    // (~7 months ago) so the per-analyte trend has at least two points, plus a
+    // couple of qualitative rows ("negativ" / "nicht nachweisbar") on the
+    // recent panel. Exactly one of value / value_text is set per row per the
+    // schema's quantitative-vs-qualitative invariant. Numeric analytes sit
+    // comfortably inside their reference range; the older panel runs slightly
+    // higher so the improvement reads as real, earned movement.
+    console.log("Creating lab panels...");
+    type QuantLab = {
       analyte: string;
       value: number;
       unit: string;
       low: number;
       high: number;
-    }> = [
+    };
+    type QualLab = { analyte: string; valueText: string; unit: string };
+
+    const recentPanelAt = daysAgo(10);
+    const recentQuant: QuantLab[] = [
       {
         analyte: "Total Cholesterol",
         value: 178,
@@ -1012,32 +1078,498 @@ async function seed() {
       { analyte: "Vitamin D", value: 42, unit: "ng/mL", low: 30, high: 100 },
       { analyte: "TSH", value: 1.8, unit: "mIU/L", low: 0.4, high: 4.0 },
       { analyte: "Ferritin", value: 120, unit: "ng/mL", low: 30, high: 400 },
+      { analyte: "CRP", value: 0.8, unit: "mg/L", low: 0, high: 3.0 },
+      { analyte: "Creatinine", value: 0.9, unit: "mg/dL", low: 0.7, high: 1.3 },
     ];
-    for (const lab of labResults) {
+    const recentQual: QualLab[] = [
+      { analyte: "Urine Glucose", valueText: "negativ", unit: "" },
+      {
+        analyte: "Hepatitis B Surface Antigen",
+        valueText: "negativ",
+        unit: "",
+      },
+      { analyte: "Urine Protein", valueText: "nicht nachweisbar", unit: "" },
+    ];
+
+    // An older draw of the same numeric markers, mostly a touch higher, so the
+    // per-analyte history renders a trend rather than a single point.
+    const olderPanelAt = daysAgo(210);
+    const olderQuant: QuantLab[] = [
+      {
+        analyte: "Total Cholesterol",
+        value: 196,
+        unit: "mg/dL",
+        low: 0,
+        high: 200,
+      },
+      { analyte: "LDL", value: 119, unit: "mg/dL", low: 0, high: 130 },
+      { analyte: "HDL", value: 51, unit: "mg/dL", low: 40, high: 100 },
+      {
+        analyte: "Triglycerides",
+        value: 128,
+        unit: "mg/dL",
+        low: 0,
+        high: 150,
+      },
+      { analyte: "HbA1c", value: 5.5, unit: "%", low: 4.0, high: 5.6 },
+      { analyte: "Vitamin D", value: 31, unit: "ng/mL", low: 30, high: 100 },
+      { analyte: "TSH", value: 2.2, unit: "mIU/L", low: 0.4, high: 4.0 },
+      { analyte: "Ferritin", value: 88, unit: "ng/mL", low: 30, high: 400 },
+    ];
+
+    const insertQuant = async (panel: string, lab: QuantLab, takenAt: Date) => {
       await client.query(
-        `INSERT INTO lab_results (id, user_id, panel, analyte, value, unit, reference_low, reference_high, taken_at, source, created_at, updated_at)
-         VALUES ($1, $2, 'Annual blood panel', $3, $4, $5, $6, $7, $8, 'MANUAL', NOW(), NOW())`,
+        `INSERT INTO lab_results (id, user_id, panel, analyte, value, value_text, unit, reference_low, reference_high, taken_at, source, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, $8, $9, 'MANUAL', NOW(), NOW())`,
         [
           cuid(),
           userId,
+          panel,
           lab.analyte,
           lab.value,
           lab.unit,
           lab.low,
           lab.high,
-          panelTakenAt,
+          takenAt,
         ],
       );
+    };
+    const insertQual = async (panel: string, lab: QualLab, takenAt: Date) => {
+      await client.query(
+        `INSERT INTO lab_results (id, user_id, panel, analyte, value, value_text, unit, reference_low, reference_high, taken_at, source, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, NULL, $5, $6, NULL, NULL, $7, 'MANUAL', NOW(), NOW())`,
+        [cuid(), userId, panel, lab.analyte, lab.valueText, lab.unit, takenAt],
+      );
+    };
+
+    for (const lab of recentQuant) {
+      await insertQuant("Annual blood panel", lab, recentPanelAt);
+    }
+    for (const lab of recentQual) {
+      await insertQual("Annual blood panel", lab, recentPanelAt);
+    }
+    for (const lab of olderQuant) {
+      await insertQuant("Blood panel (last year)", lab, olderPanelAt);
+    }
+    const labResults = [...recentQuant, ...recentQual, ...olderQuant];
+
+    // ── Illness / condition journal ───────────
+    // Two episodes so the journal + per-condition timeline both render with
+    // signal: (1) a short, fully-resolved cold ~7 weeks ago with a day-by-day
+    // symptom curve, and (2) an active chronic condition (seasonal allergic
+    // rhinitis) carrying a recent FLARE that hangs off it. Each episode gets
+    // IllnessDayLog rows (functional impact + optional fever + an encrypted
+    // note) and per-day symptom links from the seeded catalogue, so the
+    // retrospective curve + symptom chips have content. Day-log + episode
+    // notes are AES-256-GCM Bytes (the `*Encrypted` convention), written with
+    // the same codec the app uses — never plaintext.
+    console.log("Creating illness / condition journal...");
+
+    // Resolve a catalogue symptom id by its stable machine key.
+    const illnessSymptomId = async (key: string): Promise<string> => {
+      const { rows } = await client.query(
+        `SELECT id FROM illness_symptoms WHERE key = $1`,
+        [key],
+      );
+      return rows[0].id as string;
+    };
+    const encBytes = (text: string) => Buffer.from(encryptToBytes(text));
+
+    // Insert one IllnessDayLog with its symptom links.
+    const insertIllnessDay = async (params: {
+      episodeId: string;
+      date: Date;
+      functionalImpact: number;
+      feverC: number | null;
+      note: string;
+      symptoms: Array<{ key: string; severity: number }>;
+    }) => {
+      const dayLogId = cuid();
+      await client.query(
+        `INSERT INTO illness_day_logs (id, user_id, episode_id, date, functional_impact, fever_c, note_encrypted, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+        [
+          dayLogId,
+          userId,
+          params.episodeId,
+          formatDate(params.date),
+          params.functionalImpact,
+          params.feverC,
+          encBytes(params.note),
+        ],
+      );
+      for (const s of params.symptoms) {
+        await client.query(
+          `INSERT INTO illness_symptom_links (day_log_id, symptom_id, severity, created_at)
+           VALUES ($1, $2, $3, NOW())`,
+          [dayLogId, await illnessSymptomId(s.key), s.severity],
+        );
+      }
+    };
+
+    // (1) Resolved acute cold, day 49 → day 43.
+    const coldId = cuid();
+    await client.query(
+      `INSERT INTO illness_episodes (id, user_id, label, type, lifecycle, onset_at, resolved_at, note_encrypted, created_at, updated_at)
+       VALUES ($1, $2, 'Common cold', 'INFECTION', 'ACUTE', $3, $4, $5, NOW(), NOW())`,
+      [
+        coldId,
+        userId,
+        daysAgo(49),
+        daysAgo(43),
+        encBytes("Picked it up after a long-haul flight. Rested it off."),
+      ],
+    );
+    // A six-day curve: worst on days 2–3, easing toward recovery.
+    const coldDays: Array<{
+      offset: number;
+      impact: number;
+      fever: number | null;
+      note: string;
+      symptoms: Array<{ key: string; severity: number }>;
+    }> = [
+      {
+        offset: 49,
+        impact: 1,
+        fever: null,
+        note: "Scratchy throat starting in the evening.",
+        symptoms: [
+          { key: "sore_throat", severity: 2 },
+          { key: "fatigue", severity: 1 },
+        ],
+      },
+      {
+        offset: 48,
+        impact: 2,
+        fever: 37.8,
+        note: "Heavy head, runny nose all day.",
+        symptoms: [
+          { key: "runny_nose", severity: 3 },
+          { key: "headache", severity: 2 },
+          { key: "fatigue", severity: 2 },
+        ],
+      },
+      {
+        offset: 47,
+        impact: 2,
+        fever: 38.1,
+        note: "Worst day — stayed in bed, low fever.",
+        symptoms: [
+          { key: "stuffy_nose", severity: 3 },
+          { key: "body_aches", severity: 2 },
+          { key: "cough", severity: 2 },
+          { key: "fatigue", severity: 3 },
+        ],
+      },
+      {
+        offset: 46,
+        impact: 1,
+        fever: 37.4,
+        note: "Fever broke overnight, congestion lingering.",
+        symptoms: [
+          { key: "stuffy_nose", severity: 2 },
+          { key: "cough", severity: 2 },
+        ],
+      },
+      {
+        offset: 44,
+        impact: 1,
+        fever: null,
+        note: "Mostly a dry cough left now.",
+        symptoms: [{ key: "cough", severity: 1 }],
+      },
+      {
+        offset: 43,
+        impact: 0,
+        fever: null,
+        note: "Back to normal — calling it resolved.",
+        symptoms: [],
+      },
+    ];
+    for (const d of coldDays) {
+      await insertIllnessDay({
+        episodeId: coldId,
+        date: daysAgo(d.offset),
+        functionalImpact: d.impact,
+        feverC: d.fever,
+        note: d.note,
+        symptoms: d.symptoms,
+      });
     }
 
-    // ── Resolved illness episode ──────────────
-    // A short cold ~7 weeks ago, fully recovered, so the illness journal shows
-    // a clean "resolved" entry rather than an active sickness.
-    console.log("Creating resolved illness episode...");
+    // (2) Active chronic condition + a recent flare hanging off it.
+    const allergyId = cuid();
     await client.query(
-      `INSERT INTO illness_episodes (id, user_id, label, type, lifecycle, onset_at, resolved_at, created_at, updated_at)
-       VALUES ($1, $2, 'Common cold', 'INFECTION', 'ACUTE', $3, $4, NOW(), NOW())`,
-      [cuid(), userId, daysAgo(49), daysAgo(43)],
+      `INSERT INTO illness_episodes (id, user_id, label, type, lifecycle, onset_at, resolved_at, note_encrypted, created_at, updated_at)
+       VALUES ($1, $2, 'Seasonal allergic rhinitis', 'ALLERGY', 'CHRONIC_ONGOING', $3, NULL, $4, NOW(), NOW())`,
+      [
+        allergyId,
+        userId,
+        daysAgo(400),
+        encBytes("Tree pollen each spring. Antihistamine helps."),
+      ],
+    );
+    // The flare: a still-open bout this past week referencing the parent.
+    const flareId = cuid();
+    await client.query(
+      `INSERT INTO illness_episodes (id, user_id, label, type, lifecycle, onset_at, resolved_at, parent_condition_id, note_encrypted, created_at, updated_at)
+       VALUES ($1, $2, 'Pollen flare', 'ALLERGY', 'FLARE', $3, NULL, $4, $5, NOW(), NOW())`,
+      [
+        flareId,
+        userId,
+        daysAgo(5),
+        allergyId,
+        encBytes("High pollen count this week — symptoms back."),
+      ],
+    );
+    const flareDays: Array<{
+      offset: number;
+      impact: number;
+      note: string;
+      symptoms: Array<{ key: string; severity: number }>;
+    }> = [
+      {
+        offset: 5,
+        impact: 1,
+        note: "Itchy eyes and sneezing started today.",
+        symptoms: [
+          { key: "sneezing", severity: 2 },
+          { key: "runny_nose", severity: 2 },
+        ],
+      },
+      {
+        offset: 4,
+        impact: 1,
+        note: "Pollen high again — runny nose all morning.",
+        symptoms: [
+          { key: "runny_nose", severity: 3 },
+          { key: "sneezing", severity: 2 },
+        ],
+      },
+      {
+        offset: 2,
+        impact: 1,
+        note: "Antihistamine taking the edge off.",
+        symptoms: [
+          { key: "stuffy_nose", severity: 2 },
+          { key: "fatigue", severity: 1 },
+        ],
+      },
+      {
+        offset: 0,
+        impact: 1,
+        note: "Still sniffly but manageable.",
+        symptoms: [{ key: "runny_nose", severity: 1 }],
+      },
+    ];
+    for (const d of flareDays) {
+      await insertIllnessDay({
+        episodeId: flareId,
+        date: daysAgo(d.offset),
+        functionalImpact: d.impact,
+        feverC: null,
+        note: d.note,
+        symptoms: d.symptoms,
+      });
+    }
+
+    // ── Cycle tracking ────────────────────────
+    // The cycle module resolves through isCycleEnabled(gender, CycleProfile):
+    // a NULL flag derives from gender, so this account explicitly opts in
+    // (cycle_tracking_enabled = true) — the same posture the e2e seed takes —
+    // so the cycle vertical renders. Seed ~5 observed cycles of realistic
+    // length with a full symptothermal day-log: biphasic basal body
+    // temperature (lower follicular, a sustained ~0.3 °C luteal shift after
+    // ovulation), period flow on the bleeding days, fertile-window mucus + a
+    // positive OPK around ovulation, and per-day symptoms. Each BBT also lands
+    // as a BODY_TEMPERATURE Measurement (the schema's documented dual-write so
+    // the temperature charts elsewhere have the series). A cached
+    // CyclePrediction forward-mints the next period + fertile window so the
+    // prediction surface has signal. All date strings are anchored to the
+    // user's Europe/Berlin timezone.
+    console.log("Creating cycle tracking...");
+    const CYCLE_TZ = "Europe/Berlin";
+
+    await client.query(
+      `INSERT INTO cycle_profiles (id, user_id, goal, cycle_tracking_enabled, typical_cycle_length, typical_period_length, luteal_phase_length, secondary_symptom, prediction_enabled, created_at, updated_at)
+       VALUES ($1, $2, 'TRYING_TO_CONCEIVE', true, 29, 5, 14, 'MUCUS', true, NOW(), NOW())
+       ON CONFLICT (user_id) DO UPDATE SET cycle_tracking_enabled = true, updated_at = NOW()`,
+      [cuid(), userId],
+    );
+
+    // Resolve a cycle-symptom catalogue id by its stable machine key.
+    const cycleSymptomId = async (key: string): Promise<string> => {
+      const { rows } = await client.query(
+        `SELECT id FROM cycle_symptoms WHERE key = $1`,
+        [key],
+      );
+      return rows[0].id as string;
+    };
+
+    // Build cycles backwards from the most recent period start. Lengths jitter
+    // a little around the 29-day typical so the variability-aware predictor has
+    // something to chew on. The most recent cycle is left open-ended (no
+    // endDate) — its next period is what the prediction forecasts.
+    const cycleLengths = [29, 28, 30, 29, 27]; // most-recent first
+    const periodLen = 5;
+    // Most recent period started 8 days ago (so today sits early-follicular,
+    // a few days after this cycle's bleed) — keeps the wheel mid-cycle.
+    let cursor = 8;
+    const cycleStartsAgo: number[] = [];
+    for (const len of cycleLengths) {
+      cycleStartsAgo.push(cursor);
+      cursor += len;
+    }
+
+    // One Berlin YYYY-MM-DD per day offset.
+    const berlinDateString = (offset: number): string =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: CYCLE_TZ,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(daysAgo(offset));
+
+    for (let c = 0; c < cycleStartsAgo.length; c++) {
+      const startAgo = cycleStartsAgo[c];
+      const length = cycleLengths[c];
+      const isMostRecent = c === 0;
+      // endDate / length only known once the next cycle anchors it.
+      const endAgo = isMostRecent ? null : cycleStartsAgo[c - 1] + 1;
+      const ovulationAgo = startAgo - (length - 14); // luteal = 14d
+      const cycleId = cuid();
+      await client.query(
+        `INSERT INTO menstrual_cycles (id, user_id, start_date, end_date, period_end_date, length_days, ovulation_date, ovulation_confirmed, is_predicted, tz, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, true, false, $8, NOW(), NOW())`,
+        [
+          cycleId,
+          userId,
+          berlinDateString(startAgo),
+          endAgo === null ? null : berlinDateString(endAgo),
+          berlinDateString(startAgo - (periodLen - 1)),
+          isMostRecent ? null : length,
+          berlinDateString(ovulationAgo),
+          CYCLE_TZ,
+        ],
+      );
+
+      // Day-by-day log across the cycle span (start day back to the day before
+      // the next period). For the most recent open cycle, only log up to today.
+      const lastDayAgo = isMostRecent ? 0 : cycleStartsAgo[c - 1] + 1;
+      for (let dayAgo = startAgo; dayAgo >= lastDayAgo; dayAgo--) {
+        const cycleDay = startAgo - dayAgo + 1; // 1-based day in cycle
+        const daysFromOvulation = ovulationAgo - dayAgo; // <0 pre, 0 = ovu
+
+        // Biphasic BBT: ~36.40 °C follicular, rising to ~36.70 °C in the
+        // luteal phase from the day after ovulation, with small daily noise.
+        const luteal = cycleDay > length - 14;
+        const bbt =
+          Math.round(
+            ((luteal ? 36.7 : 36.4) + (Math.random() - 0.5) * 0.12) * 100,
+          ) / 100;
+
+        // Flow on the first `periodLen` days, tapering.
+        let flow: string | null = null;
+        if (cycleDay <= periodLen) {
+          flow =
+            cycleDay <= 2 ? "MEDIUM" : cycleDay <= 4 ? "LIGHT" : "SPOTTING";
+        }
+
+        // Fertile-window mucus + OPK around ovulation.
+        let mucus: string | null = null;
+        let opk: string | null = null;
+        if (daysFromOvulation >= -4 && daysFromOvulation <= 1) {
+          mucus =
+            daysFromOvulation >= -1 && daysFromOvulation <= 0
+              ? "EGG_WHITE"
+              : daysFromOvulation === -2
+                ? "WATERY"
+                : "CREAMY";
+          opk = daysFromOvulation === -1 ? "POSITIVE_LH_SURGE" : "NEGATIVE";
+        } else if (cycleDay > periodLen) {
+          mucus = luteal ? "STICKY" : "DRY";
+        }
+
+        const dayLogId = cuid();
+        await client.query(
+          `INSERT INTO cycle_day_logs (id, user_id, date, cycle_id, flow, basal_body_temp_c, ovulation_test, cervical_mucus, source, tz, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'MANUAL', $9, NOW(), NOW())
+           ON CONFLICT (user_id, date) DO NOTHING`,
+          [
+            dayLogId,
+            userId,
+            berlinDateString(dayAgo),
+            cycleId,
+            flow,
+            bbt,
+            opk,
+            mucus,
+            CYCLE_TZ,
+          ],
+        );
+
+        // BBT also as a BODY_TEMPERATURE Measurement (schema dual-write).
+        await client.query(
+          `INSERT INTO measurements (id, user_id, type, value, unit, source, measured_at, created_at, updated_at)
+           VALUES ($1, $2, 'BODY_TEMPERATURE', $3, 'celsius', 'MANUAL', $4, $4, $4)`,
+          [cuid(), userId, bbt, daysAgoAt(dayAgo, 6, 30)],
+        );
+
+        // Per-day symptoms: cramps + back pain during the period, mood swings
+        // + cravings + breast tenderness in the late-luteal PMS window.
+        const symptoms: Array<{ key: string; severity: number }> = [];
+        if (cycleDay <= 3) {
+          symptoms.push({ key: "cramps", severity: cycleDay <= 2 ? 3 : 2 });
+          symptoms.push({ key: "back_pain", severity: 2 });
+          symptoms.push({ key: "fatigue", severity: 2 });
+        }
+        if (cycleDay > length - 4 && cycleDay <= length) {
+          symptoms.push({ key: "mood_swings", severity: 2 });
+          symptoms.push({ key: "food_cravings", severity: 2 });
+          symptoms.push({ key: "breast_tenderness", severity: 2 });
+        }
+        for (const s of symptoms) {
+          await client.query(
+            `INSERT INTO cycle_symptom_links (day_log_id, symptom_id, severity, created_at)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (day_log_id, symptom_id) DO NOTHING`,
+            [dayLogId, await cycleSymptomId(s.key), s.severity],
+          );
+        }
+      }
+    }
+
+    // Cached forward prediction (the stale-while-revalidate cache the read
+    // surface serves). Next period ~21 days out (most recent cycle started 8
+    // days ago, typical 29), with a ±2 day band, a fertile window ~12 days
+    // before that, and the matching ovulation estimate.
+    const nextStartAgo = cycleStartsAgo[0] - 29;
+    await client.query(
+      `INSERT INTO cycle_predictions (id, user_id, method, next_period_start, next_period_start_low, next_period_start_high, fertile_window_start, fertile_window_end, predicted_ovulation, confidence, cycles_observed, generated_at, created_at, updated_at)
+       VALUES ($1, $2, 'SYMPTOTHERMAL', $3, $4, $5, $6, $7, $8, 0.82, $9, NOW(), NOW(), NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         method = EXCLUDED.method,
+         next_period_start = EXCLUDED.next_period_start,
+         next_period_start_low = EXCLUDED.next_period_start_low,
+         next_period_start_high = EXCLUDED.next_period_start_high,
+         fertile_window_start = EXCLUDED.fertile_window_start,
+         fertile_window_end = EXCLUDED.fertile_window_end,
+         predicted_ovulation = EXCLUDED.predicted_ovulation,
+         confidence = EXCLUDED.confidence,
+         cycles_observed = EXCLUDED.cycles_observed,
+         generated_at = NOW(),
+         updated_at = NOW()`,
+      [
+        cuid(),
+        userId,
+        berlinDateString(nextStartAgo),
+        berlinDateString(nextStartAgo + 2),
+        berlinDateString(nextStartAgo - 2),
+        berlinDateString(nextStartAgo + 17),
+        berlinDateString(nextStartAgo + 12),
+        berlinDateString(nextStartAgo + 14),
+        cycleLengths.length,
+      ],
     );
 
     // ── Achievements ─────────────────────────
@@ -1566,7 +2098,10 @@ async function seed() {
       `  Body composition: fat/lean/muscle mass, water, bone, visceral fat, BMI`,
     );
     console.log(
-      `  Blood glucose: ${glucoseReadings.length} readings/day (fasting + post-meal + bedtime)`,
+      `  Blood glucose: ${glucoseReadings.length} spot readings/day (fasting + post-meal + bedtime)`,
+    );
+    console.log(
+      `  CGM: Nightscout-style stream, every ${cgmStepMin} min over ${cgmDays} days`,
     );
     console.log(
       `  Cardio + vitals: HRV (SDNN + RMSSD), SpO2, resp. rate, VO2max, active energy, distance, flights`,
@@ -1583,8 +2118,15 @@ async function seed() {
     );
     console.log(`  Mood: ~${Math.round(span * 0.95)} entries`);
     console.log(`  Vorsorge reminders: 2 (dental, annual physical)`);
-    console.log(`  Lab panel: ${labResults.length} biomarkers`);
-    console.log(`  Illness: 1 resolved episode`);
+    console.log(
+      `  Lab panels: ${labResults.length} rows across 2 panels (incl. ${recentQual.length} qualitative)`,
+    );
+    console.log(
+      `  Illness: resolved cold (day-logs) + active chronic condition with a flare`,
+    );
+    console.log(
+      `  Cycle: ${cycleLengths.length} cycles with BBT, flow, mucus/OPK, symptoms + a forecast`,
+    );
     console.log(`  Coach: 1 conversation (${coachTurns.length} messages)`);
     console.log(
       `  Baked AI texts: comprehensive + daily briefing, ${statusCards.length} status cards, ${periodNarratives.length} period narratives (en)`,
