@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [1.19.1] — 2026-06-21 — Coach flow, sleep and mood polish, navigation, recovery-gap
+
+A follow-up to 1.19.0 that refines the Coach conversation flow and cost, adds a sleep average card, completes the mood colour pass, tidies navigation, and sharpens the illness recovery-gap. No schema changes; no breaking changes.
+
+### Added
+
+- A sleep average-per-night card sits beside sleep debt and chronotype as a third peer, computed over the same scorable-night set so the three cannot disagree. It stays calm until enough nights are scored.
+- The recovery-gap names the vital someone tends to recover ahead of — for example "you tend to feel better before your resting heart rate settles" — rather than a single bare line.
+
+### Changed
+
+- The Coach opens on a fresh chat by default. It resumes a past conversation only when the Coach has written something unread; an explicit `?c=<id>` deep-link still opens that conversation. This refines the 1.19.0 behaviour, which always reopened the most recent thread.
+- The chat view carries an always-visible toolbar with a clear way into past conversations and a new-chat action, and reaching conversations from the dashboard tile now always lands on the conversation list instead of an empty pane.
+- The Coach sends the full health snapshot once per conversation (and again only if the conversation grows long enough to scroll the original context out of view); short follow-ups ride the existing transcript. A one-word reply no longer re-pays the whole snapshot, cutting per-message cost on follow-ups by roughly an order of magnitude while keeping the same grounding and cross-metric correlation.
+- The streaming reply shows a typing indicator that gives way to the streamed text, replacing the reasoning-status disclosure.
+- The settings navigation entry that opens the dashboard layout is labelled "Dashboard" to match where it leads.
+- The main sidebar order groups the care surfaces together: medications, preventive care, lab values, illness, then insights, the Coach, and achievements.
+
+### Fixed
+
+- The mood time-of-day chart and the mood calendar now use full colour saturation in line with the other mood surfaces; only no-data cells stay muted.
+- The cross-episode recovery-gap baseline counts only days that deviated in the illness-adverse direction, so a neutral reading (such as a weight drift) can no longer pad the sample or be named the recovery driver.
+- The sleep average-per-night field is part of the documented sleep-rhythm response contract.
+
 ## [1.19.0] — 2026-06-21 — Coach context, a leaner AI pipeline, new device signals, interactive reminders, and wider self-hosting
 
 A feature release. The Coach gains the lab values and a direct way in; the daily AI work is restructured to do less and reuse more; several new device signals are captured; reminders become interactive over Telegram; charts and the cycle and sleep surfaces are corrected and polished; and the project ships ready-made templates for one-click self-hosting. Three additive migrations (`0185`–`0187`); no breaking changes.
