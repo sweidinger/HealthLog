@@ -2,6 +2,46 @@
 
 ## [Unreleased]
 
+## [1.18.11] — 2026-06-21 — Coach context, leaner AI cadence, new device signals, and a code-size pass
+
+A follow-on correctness-and-feature release. The Coach gains the lab values and a direct way in; the daily AI work is restructured to do less and reuse more; two new device signals are captured; and several oversized modules are split for clarity. No migration; no breaking changes.
+
+### Added
+
+- The Coach can answer about lab results — the most recent value per biomarker (last twelve months) is provided as grounded context, with reference range, in/out-of-range status, and date. Qualitative results are included. The Coach quotes these verbatim and never invents a value.
+- The Coach entry points open directly into the most recent conversation, the same thread across devices, rather than always starting blank. A `?c=<id>` deep-link opens a specific conversation, and the new-chat start is still available.
+- The daily briefing is surfaced on the dashboard as a short spotlight strip, lifting its key signals above the fold for a fresh briefing.
+- Withings ECG records the device's atrial-fibrillation screening result.
+- Oura cardiovascular age is recorded.
+- A configured multimodal model now reads a scanned lab document directly. Where the model is text-only (including the code-specialist chat models), the on-device OCR path from the previous release still applies.
+
+### Changed
+
+- The comprehensive briefing reads a bounded recent window instead of the full history; all-time figures remain accurate.
+- Per-domain status summaries are generated once on the nightly pass rather than re-run per metric through the day; reproducibility and the consent and grounding checks are unchanged.
+- Slow-moving summaries (weight, BMI) are skipped when the underlying inputs have not changed since the last run, avoiding a redundant regeneration.
+- The illness and cycle state are folded into the briefing context for users tracking them, at no token cost for users who are not.
+- Sleep-night minute values are returned rounded.
+- The Coach composer keeps a consistent width between the new-chat start and an open conversation.
+
+### Fixed
+
+- Medication remaining-supply can no longer display a nonsensical negative figure: the canonical readout is floored at the single compute point, and a would-be underflow is recorded for diagnosis rather than shown.
+
+### Performance
+
+- Achievements and the dashboard summary serve from a stale-while-revalidate cache, and the achievements builder precomputes day boundaries instead of per-row; three charts defer their library to load.
+- The analytics aggregate folds its canonical self-join into a single shared expression.
+
+### Refactor
+
+- Oversized modules are split into focused modules behind a barrel with no change in behaviour: the OpenAPI medication and insights registries, medication validations, the import panel, and the account settings section.
+
+### Deferred
+
+- Oura resilience capture (a categorical level) is deferred — it needs a new measurement type and column.
+- A go-forward aggregated wire shape for high-frequency heart rate is left to the client contract; this release reconciles the already-stored raw samples server-side on the nightly pass.
+
 ## [1.18.10] — 2026-06-20 — data-loss fix, measurement consolidation, grounding, and the full-page Coach
 
 A correctness-and-polish release. It closes a silent data-loss path and a stalled measurement-consolidation job, hardens AI output grounding, and acts on a broad round of UI feedback. Two additive migrations (a covering index and a labs setting); no breaking changes.
