@@ -7209,6 +7209,9 @@ components:
           description: HealthKit identifier (e.g. `HKQuantityTypeIdentifierBodyMass`).
         value:
           type: number
+          description: Raw HealthKit reading in Apple's native unit; the server applies any canonical scaling at ingest. For an
+            hourly heart-rate bucket (see `externalId`) this is the hour's AVERAGE bpm — v1.19.0 ships avg-only; min/max
+            are a documented fast-follow.
         unit:
           type: string
           minLength: 1
@@ -7238,7 +7241,21 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-          description: HKSample.uuid string — the dedup key.
+          description: >-
+            Dedup key for the `(userId, type, source, externalId)` composite index. Three shapes:
+
+            • `HKSample.uuid` — a per-sample reading. First-write-wins: a re-post returns `duplicate` and the stored row
+            is immutable.
+
+            • `stats:<HKQuantityTypeIdentifier>:<YYYY-MM-DD>` — a per-day cumulative total (Steps, Active Energy, Sleep
+            Duration, Walking/Running Distance, Flights Climbed). A re-post OVERWRITES the row and returns `updated`.
+
+            • `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start-hour>` — v1.19.0 (iOS #34) hourly heart-rate bucket
+            carrying the hour's AVERAGE bpm as one PULSE row. `<bucket-start-hour>` is the ISO-8601 UTC hour boundary
+            with zeroed minutes/seconds/millis and a trailing `Z` (e.g. `2026-06-21T14:00:00.000Z`). A re-post within
+            the hour OVERWRITES the row and returns `updated`, so iOS uploads ~24 rows/day instead of one per raw HR
+            sample. A row that targets this prefix with a malformed hour suffix is `skipped` with reason
+            `malformed_hr_bucket_id`.
         externalSourceVersion:
           type: string
           minLength: 1
@@ -11286,25 +11303,46 @@ components:
     AppleHealthBatchResponse:
       type: object
       properties:
+        processed:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
         inserted:
           type: integer
           minimum: 0
           maximum: 9007199254740991
-        duplicate:
+        updated:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        duplicates:
           type: integer
           minimum: 0
           maximum: 9007199254740991
         skipped:
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              reason:
+                type: string
+            required:
+              - index
+              - reason
+            additionalProperties: false
         entries:
           type: array
           items:
             $ref: "#/components/schemas/AppleHealthBatchEntryResult"
       required:
+        - processed
         - inserted
-        - duplicate
+        - updated
+        - duplicates
         - skipped
         - entries
       additionalProperties: false
@@ -11319,8 +11357,12 @@ components:
           type: string
           enum:
             - inserted
+            - updated
             - duplicate
             - skipped
+          description: "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate (per-day
+            cumulative total or hourly heart-rate bucket) overwrote an existing row. `skipped` — not stored (e.g.
+            unmappable identifier, out-of-range value, or `malformed_hr_bucket_id`); see `reason`."
         reason:
           type: string
       required:

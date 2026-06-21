@@ -796,6 +796,90 @@ export function dailyStatsExternalId(
 }
 
 /**
+ * v1.19.0 (iOS #34) — go-forward aggregated heart-rate wire contract.
+ *
+ * iOS uploads ONE PULSE row per hourly heart-rate bucket instead of one
+ * row per raw HealthKit sample (~16k rows/user/day → ~24). The bucket's
+ * `value` is the hourly AVERAGE bpm; the row reuses the existing
+ * `stats:` overwrite path so a re-post within the same hour (the running
+ * average shifts as more samples land) OVERWRITES rather than
+ * duplicating — identical mechanics to the per-day `stats:<HK>:<day>`
+ * cumulative rows, but at hourly granularity for the spot HR metric.
+ *
+ * Format: `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start>` where
+ * `<bucket-start>` is the ISO-8601 instant of the hour boundary in UTC
+ * with a literal `Z` and ZEROED minutes/seconds/millis — e.g.
+ * `stats:HKQuantityTypeIdentifierHeartRate:2026-06-21T14:00:00.000Z`.
+ *
+ * The hour boundary is in UTC (not the user's local hour) so the
+ * externalId is timezone-stable: a user travelling across zones never
+ * re-keys the same wall-clock hour to a new bucket. The `measuredAt`
+ * the client sends (`endDate`) still carries the offset for display.
+ *
+ * AVG-ONLY in v1.19.0. The `Measurement` model carries a single `value`
+ * column; hourly min/max would need a schema migration (companion
+ * columns or companion `stats:` rows), which is a fast-follow — see the
+ * iOS-coord note. Until then iOS uploads the hourly mean as PULSE; the
+ * raw min/max is recoverable from the device's HealthKit store and the
+ * server-side nightly fold of any residual raw backlog.
+ */
+const HOURLY_HR_HK_IDENTIFIER = "HKQuantityTypeIdentifierHeartRate";
+
+export function hourlyHeartRateStatsExternalId(bucketStart: Date): string {
+  const hourFloor = new Date(bucketStart);
+  hourFloor.setUTCMinutes(0, 0, 0);
+  return `stats:${HOURLY_HR_HK_IDENTIFIER}:${hourFloor.toISOString()}`;
+}
+
+/**
+ * The exact ISO-hour suffix shape the hourly HR bucket externalId must
+ * carry: full ISO-8601 UTC instant, minutes/seconds/millis all zero,
+ * trailing `Z`. Anchored so a partial / malformed suffix is rejected.
+ */
+const HOURLY_HR_SUFFIX_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:00:00\.000Z$/;
+
+/**
+ * v1.19.0 (iOS #34) — well-formedness guard for the hourly HR bucket
+ * externalId. Returns `true` ONLY for a `stats:` externalId that targets
+ * the heart-rate identifier AND carries a zeroed ISO-hour suffix that
+ * parses to a real instant. Used by the batch route to reject a
+ * malformed hourly-HR bucket (`skipped:"malformed_hr_bucket_id"`) rather
+ * than persisting an un-overwriteable, un-foldable garbage row.
+ *
+ * Non-HR `stats:` externalIds (the per-day cumulative rows) are NOT this
+ * function's concern — it returns `false` for them so the caller leaves
+ * them on the untouched path.
+ */
+export function isHourlyHeartRateStatsExternalId(
+  externalId: string | null | undefined,
+): boolean {
+  if (typeof externalId !== "string") return false;
+  const prefix = `stats:${HOURLY_HR_HK_IDENTIFIER}:`;
+  if (!externalId.startsWith(prefix)) return false;
+  const suffix = externalId.slice(prefix.length);
+  if (!HOURLY_HR_SUFFIX_RE.test(suffix)) return false;
+  const parsed = new Date(suffix);
+  return !Number.isNaN(parsed.getTime());
+}
+
+/**
+ * v1.19.0 (iOS #34) — does this externalId CLAIM to be an hourly HR
+ * bucket (right prefix + HR identifier) regardless of suffix validity?
+ * The route uses this to decide a malformed-vs-valid split: a row that
+ * targets the HR bucket prefix but fails `isHourlyHeartRateStatsExternalId`
+ * is a malformed bucket (reject), not an unrelated `stats:` row (pass
+ * through untouched).
+ */
+export function targetsHourlyHeartRateBucket(
+  externalId: string | null | undefined,
+): boolean {
+  return (
+    typeof externalId === "string" &&
+    externalId.startsWith(`stats:${HOURLY_HR_HK_IDENTIFIER}:`)
+  );
+}
+
+/**
  * v1.4.30 — reverse lookup from a HealthLog `MeasurementType` to the
  * canonical HealthKit identifier for that type. Used by the drain
  * script when minting a `dailyStatsExternalId` from a row whose

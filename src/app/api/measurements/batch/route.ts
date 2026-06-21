@@ -18,13 +18,20 @@
  *     HealthKit sample, surface as `duplicate` per entry instead of
  *     hard-failing the batch.
  *   - v1.5.0 issue #213 — entries whose `externalId` starts with
- *     `stats:` are per-day cumulative totals (Steps, Active Energy,
- *     Sleep Duration, Walking/Running Distance, Flights Climbed). The
- *     iOS HealthKit observer re-posts those throughout the day as the
- *     running total changes. They surface as `updated` (the row's
- *     value is overwritten) rather than `duplicate` (the new value
- *     dropped). Sample-class externalIds keep the strict immutable
- *     `duplicate` contract.
+ *     `stats:` are aggregate rows the iOS HealthKit observer re-posts as
+ *     the underlying window fills. Two granularities ride the same
+ *     overwrite mechanism:
+ *       · per-day cumulative totals — `stats:<HK>:<YYYY-MM-DD>` (Steps,
+ *         Active Energy, Sleep Duration, Walking/Running Distance,
+ *         Flights Climbed);
+ *       · v1.19.0 (iOS #34) hourly heart-rate buckets —
+ *         `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start-hour>`
+ *         carrying the hour's AVERAGE bpm as one PULSE row, so iOS stops
+ *         uploading one row per raw HR sample.
+ *     Both surface as `updated` (the row's value is overwritten) rather
+ *     than `duplicate` (the new value dropped). Sample-class externalIds
+ *     (every other prefix) keep the strict immutable `duplicate`
+ *     contract.
  */
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
@@ -40,7 +47,11 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { withIdempotency } from "@/lib/idempotency";
-import { mapAppleHealthEntry } from "@/lib/measurements/apple-health-mapping";
+import {
+  mapAppleHealthEntry,
+  isHourlyHeartRateStatsExternalId,
+  targetsHourlyHeartRateBucket,
+} from "@/lib/measurements/apple-health-mapping";
 import {
   MEASURED_AT_TOLERANCE_MS,
   isMergeableSource,
@@ -264,6 +275,28 @@ async function postBatch(request: NextRequest): Promise<Response> {
         index,
         status: "skipped",
         reason: "value_out_of_range",
+      };
+      continue;
+    }
+
+    // v1.19.0 (iOS #34) — go-forward aggregated heart-rate wire
+    // contract. A `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row
+    // is the hourly-average PULSE bucket; it rides the generic `stats:`
+    // overwrite path below so a within-hour re-post (the running mean
+    // shifts) replaces the value instead of duplicating. Reject a row
+    // that targets the HR-bucket prefix but carries a malformed hour
+    // suffix — a garbage suffix would mint an un-overwriteable row that
+    // the next hour's re-post can't collapse onto. A well-formed bucket
+    // (and every non-HR `stats:` / per-sample `uuid` externalId) passes
+    // through unchanged.
+    if (
+      targetsHourlyHeartRateBucket(entry.externalId) &&
+      !isHourlyHeartRateStatsExternalId(entry.externalId)
+    ) {
+      results[index] = {
+        index,
+        status: "skipped",
+        reason: "malformed_hr_bucket_id",
       };
       continue;
     }
