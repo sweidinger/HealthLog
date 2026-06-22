@@ -338,6 +338,15 @@ export interface CoachProvenance {
    * on a conversation reload. Absent on turns that carry no suggestion.
    */
   suggestion?: CoachSuggestion;
+  /**
+   * v1.20.0 (F1) — the retrieval-tool trace for this turn: which tools the
+   * Coach called and whether each found data (`present`). Metadata only — no
+   * raw values beyond what `keyValues` already persists. Lets a conversation
+   * reload show "what I looked at" and lets the hallucination audit replay
+   * grounding. Absent on the legacy snapshot path + on turns that called no
+   * tools.
+   */
+  toolCalls?: ReadonlyArray<{ name: string; present: boolean }>;
 }
 
 /**
