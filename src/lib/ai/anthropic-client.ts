@@ -335,14 +335,22 @@ export class AnthropicClient implements AIProvider {
     const tokensUsed = inputTokens + outputTokens || null;
     const cachedInputTokens = json.usage?.cache_read_input_tokens ?? null;
 
+    // The presence of tool_use blocks is authoritative for the tool-loop gate:
+    // F1's loop continues only when `finishReason === "tool_calls"`. Anthropic
+    // normally pairs tool_use blocks with `stop_reason: "tool_use"`, but if it
+    // ever returns the blocks under a different (or absent) stop_reason, deriving
+    // the reason from `stop_reason` alone would drop the tool request and the
+    // loop would surface the empty tool_use-only reply as the final answer.
     const finishReason: CompletionResult["finishReason"] =
-      json.stop_reason === "tool_use"
+      toolCalls && toolCalls.length > 0
         ? "tool_calls"
-        : json.stop_reason === "max_tokens"
-          ? "length"
-          : json.stop_reason === "end_turn"
-            ? "stop"
-            : undefined;
+        : json.stop_reason === "tool_use"
+          ? "tool_calls"
+          : json.stop_reason === "max_tokens"
+            ? "length"
+            : json.stop_reason === "end_turn"
+              ? "stop"
+              : undefined;
 
     return {
       content,

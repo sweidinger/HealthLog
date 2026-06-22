@@ -337,4 +337,53 @@ describe("AnthropicClient", () => {
     expect(result.finishReason).toBe("tool_calls");
     expect(result.cachedInputTokens).toBe(40);
   });
+
+  it("derives finishReason from tool_use blocks even on an unexpected stop_reason (M-2)", async () => {
+    // Anthropic normally pairs tool_use blocks with stop_reason "tool_use".
+    // If it ever returns the blocks under a different (or absent) stop_reason,
+    // the loop must still see finishReason "tool_calls" so it executes the tool
+    // round instead of surfacing the empty tool_use-only reply as the answer.
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          content: [
+            {
+              type: "tool_use",
+              id: "toolu_9",
+              name: "fetch_glucose",
+              input: { window: "last30days" },
+            },
+          ],
+          // Deliberately NOT "tool_use" — the pre-fix code derived finishReason
+          // from this field alone and would have returned undefined here.
+          stop_reason: "end_turn",
+          usage: { input_tokens: 10, output_tokens: 4 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new AnthropicClient({
+      apiKey: "sk-ant-x",
+      model: "claude-sonnet-4-6",
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({
+        system: "s",
+        user: "u",
+        tools: [
+          {
+            name: "fetch_glucose",
+            description: "Fetch glucose readings",
+            parameters: { type: "object", properties: {} },
+          },
+        ],
+        toolChoice: "auto",
+      }),
+    );
+
+    expect(result.toolCalls).toHaveLength(1);
+    expect(result.finishReason).toBe("tool_calls");
+  });
 });
