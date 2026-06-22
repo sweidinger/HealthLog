@@ -1,7 +1,8 @@
 /**
- * v1.12.0 — Fitbit token-management tests (mocked). Covers `getValidToken`:
- *   - the NO-ROTATION refresh branch (refresh token preserved when the response
- *     omits it; overwritten only when a fresh one is returned);
+ * Fitbit token-management tests (mocked). Covers `getValidToken`:
+ *   - the ROTATING refresh branch (classic Fitbit returns a fresh refresh token
+ *     on every refresh; persist it, replacing the stored one);
+ *   - the defensive keep-existing guard when a malformed response omits it;
  *   - the stored-token fast path when not near expiry;
  *   - a reauth failure recorded when credentials are missing on refresh.
  */
@@ -86,8 +87,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("getValidToken — non-rotating refresh", () => {
-  it("persists the new access token and KEEPS the stored refresh token when the response omits one", async () => {
+describe("getValidToken — rotating refresh", () => {
+  it("defensively KEEPS the stored refresh token when a malformed response omits one", async () => {
     prismaMock.fitbitConnection.findUnique.mockResolvedValue({
       id: "conn1",
       fitbitUserId: "abc123",
@@ -96,7 +97,8 @@ describe("getValidToken — non-rotating refresh", () => {
       // Expired so the refresh path fires.
       tokenExpiresAt: new Date(Date.now() - 1000),
     });
-    // Google does NOT return a refresh_token on a routine refresh.
+    // Classic Fitbit always rotates; a missing refresh_token is a malformed
+    // reply. Guard it by keeping the existing token rather than writing a blank.
     refreshAccessTokenMock.mockResolvedValue({
       access_token: "new-access",
       expires_in: 3600,
@@ -112,11 +114,11 @@ describe("getValidToken — non-rotating refresh", () => {
     });
     const updateArg = prismaMock.fitbitConnection.update.mock.calls[0]![0];
     expect(updateArg.data.accessToken).toBe("enc(new-access)");
-    // The stored refresh token must NOT be touched when the response omits one.
+    // The stored refresh token must NOT be wiped when the response omits one.
     expect(updateArg.data).not.toHaveProperty("refreshToken");
   });
 
-  it("overwrites the stored refresh token only when the response carries a fresh one", async () => {
+  it("persists the ROTATED refresh token when the response carries a fresh one", async () => {
     prismaMock.fitbitConnection.findUnique.mockResolvedValue({
       id: "conn1",
       fitbitUserId: "abc123",
