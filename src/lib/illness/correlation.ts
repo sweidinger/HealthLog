@@ -508,7 +508,7 @@ export function computeIllnessCorrelation(
     //    deviation (which yielded a spurious negative gap). Excluded for
     //    CHRONIC_ONGOING (no recovered date by design).
     if (firstDeviationIndex >= 0 && window.lifecycle !== "CHRONIC_ONGOING") {
-      const returnedDay = firstStableReturn(
+      const returnedDay = lastStableReturn(
         active,
         center,
         spread,
@@ -616,13 +616,22 @@ export function computeIllnessCorrelation(
 }
 
 /**
- * First day in `active` (chronological), starting at `fromIndex`, where the
- * vital is in-band AND stays in-band for the next `RETURN_STABILITY_DAYS`
- * observed days. Null when it never settles. "In-band" = |deviation| <
- * NOTABLE_SD. `fromIndex` pins the search to AFTER the first deviation so an
- * early in-band run (the run-up to the illness) is never mistaken for a return.
+ * Start of the FINAL sustained in-band run in `active` (chronological) at/after
+ * `fromIndex` — the day the vital *finally* settled and held to the end of the
+ * observed span. "In-band" = |deviation| < NOTABLE_SD. Null when it never
+ * settles, or when it ends out-of-band (still elevated at the last reading), or
+ * when the final in-band run is shorter than `RETURN_STABILITY_DAYS` observed
+ * days. `fromIndex` pins the search to AFTER the first deviation so an early
+ * in-band run (the run-up to the illness) is never mistaken for a return.
+ *
+ * This is the relapse-aware "last sustained return": an episode that settles,
+ * re-deviates (a mid-episode flare), and settles again reports the LAST settle.
+ * The change is monotone — a last return is always >= the first return day — so
+ * any series that settles ONCE (first == last) is unaffected. Multiple relapses
+ * collapse to the same rule: the final contiguous in-band span wins by
+ * construction, no special-casing.
  */
-function firstStableReturn(
+function lastStableReturn(
   active: VitalDayPoint[],
   center: number,
   spread: number,
@@ -632,13 +641,16 @@ function firstStableReturn(
     day: p.day,
     in: Math.abs(deviationSd(p.mean, center, spread)) < NOTABLE_SD,
   }));
-  for (let i = Math.max(0, fromIndex); i < inBand.length; i++) {
-    if (!inBand[i].in) continue;
-    let run = 0;
-    for (let j = i; j < inBand.length && inBand[j].in; j++) run++;
-    if (run >= RETURN_STABILITY_DAYS) return inBand[i].day;
-  }
-  return null;
+  // Series ends out-of-band → no sustained final return (still elevated).
+  if (inBand.length === 0 || !inBand[inBand.length - 1].in) return null;
+  // Walk back from the end to the start of the final maximal in-band run.
+  let start = inBand.length - 1;
+  while (start - 1 >= 0 && inBand[start - 1].in) start--;
+  const run = inBand.length - start;
+  // The final run must be long enough AND begin at/after the first deviation.
+  if (run < RETURN_STABILITY_DAYS || start < Math.max(0, fromIndex))
+    return null;
+  return inBand[start].day;
 }
 
 /**
@@ -652,11 +664,15 @@ function firstStableReturn(
  *  - The anchor is the first logged adverse day (same role as the vital
  *    `firstDeviationIndex`): a return search starts AFTER it, so a run-up is
  *    never read as a return.
- *  - A "return" is the first logged day at/after the anchor that is in-band AND
- *    stays in-band for the next `RETURN_STABILITY_DAYS` LOGGED days. LOGGED-days
+ *  - A "return" is the START of the FINAL sustained in-band logged run at/after
+ *    the anchor — the day symptoms *finally* eased and stayed eased through the
+ *    last logged day, requiring `RETURN_STABILITY_DAYS` LOGGED days. Relapse-
+ *    aware (parity with the vital `lastStableReturn`): if symptoms ease, flare
+ *    again, then ease again, the SECOND easing is the return. LOGGED-days
  *    stability (not calendar days) is the honest-withholding handler for sparse
- *    journals: a single trailing impact-0 log never satisfies the run, so the
- *    track WITHHOLDS rather than fabricating recovery from absence of rows.
+ *    journals: a single trailing impact-0 log never satisfies the run, and a
+ *    journal that ends on an adverse log has no final in-band run, so the track
+ *    WITHHOLDS rather than fabricating recovery from absence of rows.
  *  - The gap is `dayDiff(feltBetterDay, returnedDay)`, same signed semantic.
  *  - Always `adverse:true` (a logged symptom curve is illness-relevant), so it
  *    feeds `adverseCoverageDays` and can drive the headline gap.
@@ -688,21 +704,17 @@ function computeSymptomReturn(
   const firstAdverseIndex = active.findIndex(
     (p) => p.impact >= FUNCTIONAL_IMPACT_ADVERSE_FLOOR,
   );
+  // Start of the FINAL sustained in-band logged run (relapse-aware "last
+  // return"): walk back from the last logged day. A journal ending on an
+  // adverse log has no final in-band run → null (honest withholding).
+  const inBand = active.map((p) => p.impact < FUNCTIONAL_IMPACT_ADVERSE_FLOOR);
   let returnedDay: string | null = null;
-  for (let i = firstAdverseIndex; i < active.length; i++) {
-    if (active[i].impact >= FUNCTIONAL_IMPACT_ADVERSE_FLOOR) continue;
-    // Count consecutive in-band LOGGED days from here.
-    let run = 0;
-    for (
-      let j = i;
-      j < active.length && active[j].impact < FUNCTIONAL_IMPACT_ADVERSE_FLOOR;
-      j++
-    ) {
-      run++;
-    }
-    if (run >= RETURN_STABILITY_DAYS) {
-      returnedDay = active[i].day;
-      break;
+  if (inBand.length > 0 && inBand[inBand.length - 1]) {
+    let start = inBand.length - 1;
+    while (start - 1 >= 0 && inBand[start - 1]) start--;
+    const run = inBand.length - start;
+    if (run >= RETURN_STABILITY_DAYS && start >= firstAdverseIndex) {
+      returnedDay = active[start].day;
     }
   }
 

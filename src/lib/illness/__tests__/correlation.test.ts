@@ -810,3 +810,188 @@ describe("computeIllnessCorrelation — symptom-burden return track", () => {
     ).toBeUndefined();
   });
 });
+
+describe("computeIllnessCorrelation — relapse-aware return (last sustained)", () => {
+  it("reports the LAST sustained return when the vital relapses mid-episode", () => {
+    // Deviate 01-10, settle in-band 01-13..01-15 (a 3-day run that the OLD
+    // first-return rule would have called the return), re-deviate 01-16..01-18,
+    // then settle again 01-20..01-22 and hold. felt-better 01-14. The honest
+    // answer is the SECOND settle (01-20), not the first — the relapse pushes
+    // the return later and extends the gap.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 75 }, // first deviation
+      { day: "2026-01-12", mean: 74 },
+      { day: "2026-01-13", mean: 55 }, // first settle (old return)
+      { day: "2026-01-14", mean: 55 },
+      { day: "2026-01-15", mean: 55 }, // 3-day in-band run
+      { day: "2026-01-16", mean: 75 }, // RELAPSE
+      { day: "2026-01-17", mean: 74 },
+      { day: "2026-01-18", mean: 73 },
+      { day: "2026-01-20", mean: 55 }, // final settle start
+      { day: "2026-01-21", mean: 55 },
+      { day: "2026-01-22", mean: 55 }, // holds to end
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [{ type, baselineDays, episodeDays }],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.returns[0]?.returnedDay).toBe("2026-01-20");
+    // Gap = 01-20 − 01-14 = +6 (the old first-return would have given −1).
+    expect(out.value.recoveryGapDays).toBe(dayDiff("2026-01-14", "2026-01-20"));
+    expect(out.value.recoveryGapDays).toBe(6);
+  });
+
+  it("reports the LAST sustained symptom return when the curve relapses", () => {
+    // Parity with the vital track on the symptom curve: impact eases to 0 for 3
+    // logged days, flares back to 2, eases to 0 again for 3 logged days → the
+    // return is the SECOND easing, not the first.
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const rhrBaseline = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const rhrFlat: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 55 },
+      { day: "2026-01-11", mean: 55 },
+      { day: "2026-01-12", mean: 55 },
+      { day: "2026-01-13", mean: 55 },
+      { day: "2026-01-14", mean: 55 },
+    ];
+    const symptomBurden: SymptomBurdenPoint[] = [
+      { day: "2026-01-10", impact: 3 },
+      { day: "2026-01-12", impact: 2 },
+      { day: "2026-01-13", impact: 0 }, // first easing
+      { day: "2026-01-14", impact: 0 },
+      { day: "2026-01-15", impact: 0 }, // 3 logged in-band days
+      { day: "2026-01-16", impact: 2 }, // FLARE
+      { day: "2026-01-18", impact: 0 }, // final easing start
+      { day: "2026-01-19", impact: 0 },
+      { day: "2026-01-20", impact: 0 }, // 3 logged in-band days, holds
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        symptomBurden,
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const sym = out.value.returns.find(
+      (r) => r.type === FUNCTIONAL_IMPACT_RETURN_KEY,
+    );
+    expect(sym?.returnedDay).toBe("2026-01-18");
+    expect(sym?.gapDays).toBe(dayDiff("2026-01-14", "2026-01-18"));
+    expect(out.value.recoveryGapDays).toBe(4);
+  });
+
+  it("withholds when the final in-band run is too short after a relapse", () => {
+    // Deviate, settle, relapse, then only 2 in-band days to the window end —
+    // the final run is shorter than RETURN_STABILITY_DAYS, so no return is
+    // fabricated off the too-short tail.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 75 }, // deviation
+      { day: "2026-01-12", mean: 55 }, // settle
+      { day: "2026-01-13", mean: 55 },
+      { day: "2026-01-14", mean: 55 }, // 3-day run
+      { day: "2026-01-16", mean: 75 }, // RELAPSE
+      { day: "2026-01-17", mean: 74 },
+      { day: "2026-01-19", mean: 55 }, // only 2 in-band days to end
+      { day: "2026-01-20", mean: 55 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [{ type, baselineDays, episodeDays }],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.returns[0]?.returnedDay).toBeNull();
+    expect(out.value.recoveryGapDays).toBeNull();
+  });
+
+  it("picks the FINAL settle across multiple relapses", () => {
+    // settle → flare → settle → flare → settle: the last contiguous in-band
+    // span wins regardless of how many intervening cycles.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 75 }, // deviation
+      { day: "2026-01-11", mean: 55 }, // settle 1
+      { day: "2026-01-12", mean: 55 },
+      { day: "2026-01-13", mean: 55 },
+      { day: "2026-01-14", mean: 75 }, // flare 1
+      { day: "2026-01-15", mean: 55 }, // settle 2
+      { day: "2026-01-16", mean: 55 },
+      { day: "2026-01-17", mean: 55 },
+      { day: "2026-01-18", mean: 75 }, // flare 2
+      { day: "2026-01-20", mean: 55 }, // FINAL settle start
+      { day: "2026-01-21", mean: 55 },
+      { day: "2026-01-22", mean: 55 }, // holds to end
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [{ type, baselineDays, episodeDays }],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.returns[0]?.returnedDay).toBe("2026-01-20");
+    expect(out.value.recoveryGapDays).toBe(6);
+  });
+
+  it("returns null when the episode ends out-of-band after a relapse", () => {
+    // Deviate, settle, relapse, never resolve (ends elevated) → no sustained
+    // final return → null gap. Honest: it did not finally settle in-window.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 75 }, // deviation
+      { day: "2026-01-12", mean: 55 }, // settle
+      { day: "2026-01-13", mean: 55 },
+      { day: "2026-01-14", mean: 55 }, // 3-day run
+      { day: "2026-01-16", mean: 75 }, // RELAPSE
+      { day: "2026-01-18", mean: 74 },
+      { day: "2026-01-20", mean: 73 }, // still elevated at the end
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [{ type, baselineDays, episodeDays }],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.returns[0]?.returnedDay).toBeNull();
+    expect(out.value.recoveryGapDays).toBeNull();
+  });
+});
