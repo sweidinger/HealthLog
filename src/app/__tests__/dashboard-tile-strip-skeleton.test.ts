@@ -105,10 +105,11 @@ describe("resolveDashboardFirstPaintGate", () => {
 describe("resolveConfiguredTileCount (v1.16.8)", () => {
   it("counts only widgets that paint a strip tile, with bp counting double", () => {
     // Default layout: weight, bp, pulse, bodyFat, mood, bpInTarget, vo2Max
-    // are tile-visible AND tile-capable; medications + recentWorkouts are
-    // tile-visible in the stored layout but paint NO strip tile, so
-    // they must not inflate the silhouette. bp paints sys + dia = 2.
-    expect(resolveConfiguredTileCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(8);
+    // plus the v1.20.0 sleep / steps / glucose flips are tile-visible AND
+    // tile-capable; medications + recentWorkouts are tile-visible in the
+    // stored layout but paint NO strip tile, so they must not inflate the
+    // silhouette. bp paints sys + dia = 2.
+    expect(resolveConfiguredTileCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(11);
   });
 
   it("ignores chart-only and iOS-pin-only widget ids", () => {
@@ -139,9 +140,10 @@ describe("resolveConfiguredTileCount (v1.16.8)", () => {
 describe("resolveChartRowPlaceholderCount (v1.16.8)", () => {
   it("reserves one cell per chart-visible chart-capable widget", () => {
     // Default layout chart row: weight, bp, pulse, bodyFat, mood,
-    // medications are `visible`; bpInTarget / achievements /
-    // recentWorkouts carry no chart-shaped footprint.
-    expect(resolveChartRowPlaceholderCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(6);
+    // medications are `visible`, plus the v1.20.0 vorsorge flip
+    // (chart-row only); bpInTarget / achievements / recentWorkouts carry
+    // no chart-shaped footprint.
+    expect(resolveChartRowPlaceholderCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(7);
   });
 
   it("adds the BMI cell riding the weight gate when a height is known", () => {
@@ -149,7 +151,7 @@ describe("resolveChartRowPlaceholderCount (v1.16.8)", () => {
       resolveChartRowPlaceholderCount(DEFAULT_DASHBOARD_LAYOUT, {
         hasHeightCm: true,
       }),
-    ).toBe(7);
+    ).toBe(8);
   });
 
   it("respects a trimmed layout", () => {

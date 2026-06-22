@@ -48,6 +48,10 @@ import { Buffer } from "node:buffer";
 import pg from "pg";
 import { encryptToBytes } from "../src/lib/ai/coach/bytes-codec";
 import { encrypt } from "../src/lib/crypto";
+import {
+  DEFAULT_DASHBOARD_LAYOUT,
+  serializeDashboardLayout,
+} from "../src/lib/dashboard-layout";
 import { VALUE_RANGES } from "../src/lib/validations/measurement";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -251,6 +255,32 @@ async function seed() {
         aiModel,
         aiKeyEncrypted,
       ],
+    );
+
+    // ── Dashboard showcase layout ─────────────
+    // The demo seeds rich sleep / steps / glucose / VO2max / vorsorge data,
+    // so persist an explicit dashboard layout that surfaces those tiles plus
+    // the daily-verdict hero. The v1.20.0 defaults already turn the data
+    // tiles on, but writing the layout verbatim keeps the public demo's home
+    // page stable regardless of future default tweaks. Derived from
+    // DEFAULT_DASHBOARD_LAYOUT with the seeded-rich strip tiles forced on.
+    const SHOWCASE_TILE_IDS = new Set([
+      "sleep",
+      "steps",
+      "glucose",
+      "vo2Max",
+      "recentWorkouts",
+    ]);
+    const demoDashboardLayout = serializeDashboardLayout({
+      ...DEFAULT_DASHBOARD_LAYOUT,
+      heroVisible: true,
+      widgets: DEFAULT_DASHBOARD_LAYOUT.widgets.map((w) =>
+        SHOWCASE_TILE_IDS.has(w.id) ? { ...w, tileVisible: true } : w,
+      ),
+    });
+    await client.query(
+      `UPDATE users SET dashboard_widgets_json = $1 WHERE id = $2`,
+      [JSON.stringify(demoDashboardLayout), userId],
     );
 
     // ── Measurements (90 days) ────────────────

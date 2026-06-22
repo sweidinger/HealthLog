@@ -469,16 +469,29 @@ describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
     expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(36);
   });
 
-  it("registers the Vorsorge widget default-off on both surfaces", () => {
-    // v1.18.2 — Vorsorge becomes a first-class dashboard widget like
-    // medications: chart-row only, default-invisible so existing
-    // dashboards are unchanged until the user opts in.
+  it("ships the sleep / steps / glucose strip tiles default-on (v1.20.0)", () => {
+    // These modules are on by default and their tiles self-gate on having
+    // data in page.tsx, so accounts that sync sleep / step / glucose data
+    // discover the tiles on / without hunting through Settings. The chart
+    // rows stay off because those charts live on the /insights sub-pages.
+    for (const id of ["sleep", "steps", "glucose"]) {
+      const widget = DEFAULT_DASHBOARD_LAYOUT.widgets.find((w) => w.id === id);
+      expect(widget).toBeDefined();
+      expect(widget?.tileVisible).toBe(true);
+      expect(widget?.visible).toBe(false);
+    }
+  });
+
+  it("registers the Vorsorge widget chart-row default-on (v1.20.0)", () => {
+    // v1.18.2 — Vorsorge is a first-class chart-row widget (no strip tile).
+    // v1.20.0 flipped it default-visible so preventive-care reminders
+    // surface on /; it self-gates and renders nothing without due reminders.
     expect(DASHBOARD_WIDGET_IDS).toContain("vorsorge");
     const entry = DEFAULT_DASHBOARD_LAYOUT.widgets.find(
       (w) => w.id === "vorsorge",
     );
     expect(entry).toBeDefined();
-    expect(entry?.visible).toBe(false);
+    expect(entry?.visible).toBe(true);
     expect(entry?.tileVisible).toBe(false);
   });
 
