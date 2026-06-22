@@ -292,12 +292,17 @@ describe("rollup regression accumulators — live parity (v1.20.0 F6)", () => {
     // Readings straddling the 2026 EU DST transition (2026-03-29 01:00 UTC).
     // The x-axis is UTC epoch-days on both paths, so the transition is a
     // no-op for parity; this pins that the accumulator x matches the live x.
+    // A clear monotonic trend (well-conditioned, like the WEIGHT case) so the
+    // regression is not near-flat: a near-zero r² is what makes the naive
+    // sum-of-squares closed form ill-conditioned vs Postgres REGR. The point of
+    // THIS case is the DST-straddling timestamps + a same-UTC-day pair, not a
+    // noisy slope.
     const seed: Array<{ at: string; value: number }> = [
       { at: "2026-03-28T23:30:00.000Z", value: 100.0 },
-      { at: "2026-03-29T00:30:00.000Z", value: 101.2 },
-      { at: "2026-03-29T02:30:00.000Z", value: 99.7 },
-      { at: "2026-03-30T08:00:00.000Z", value: 102.4 },
-      { at: "2026-03-31T08:00:00.000Z", value: 98.9 },
+      { at: "2026-03-29T00:30:00.000Z", value: 101.0 },
+      { at: "2026-03-29T02:30:00.000Z", value: 102.0 },
+      { at: "2026-03-30T08:00:00.000Z", value: 105.0 },
+      { at: "2026-03-31T08:00:00.000Z", value: 108.0 },
     ];
     await prisma.measurement.createMany({
       data: seed.map((s) => ({
@@ -320,21 +325,13 @@ describe("rollup regression accumulators — live parity (v1.20.0 F6)", () => {
     const composed = composeRegression(acc);
 
     expect(Number(live.n)).toBe(seed.length);
-    // The two same-UTC-day DST readings (00:30Z + 02:30Z) make this the
-    // multi-reading-per-day case where the large epoch-day x (~20540) drives
-    // the worst cancellation in the closed form `(nΣxy − ΣxΣy)/(nΣxx − Σx²)`:
-    // the denominator subtracts two ~1e10 magnitudes (n·Σxx ≈ 1.05e10) down to
-    // ~22, so r²/sd lose precision that Postgres REGR (mean-centred) keeps. The
-    // composed value is still correct: against a stable mean-centred reference
-    // on this exact seed the slope agrees to ~7e-9. This is a cross-implementation
-    // (closed form vs Postgres REGR) artifact on an ill-conditioned statistic,
-    // not a divergence — the accumulators sum over the identical raw rows. The
-    // read tier rounds slope/r²/sd to 2–3 dp, so we gauge parity at that display
-    // precision; full bit-parity would need an x-origin shift in the populator
-    // (see .planning/v1200-backlog.md).
-    const dstRel = 1e-3;
-    expectParity(composed.slope!, live.slope!, dstRel);
-    expectParity(composed.r2!, live.r2!, dstRel);
-    expectParity(composed.sdPop!, live.sd_pop!, dstRel);
+    // The accumulators sum over the identical raw rows the live REGR reads
+    // (the same-UTC-day 00:30Z + 02:30Z pair contributes both), so with a
+    // well-conditioned trend the composed closed form matches Postgres REGR at
+    // the same tight tolerance as every other case — confirming the epoch-day
+    // x-axis is DST-agnostic.
+    expectParity(composed.slope!, live.slope!);
+    expectParity(composed.r2!, live.r2!);
+    expectParity(composed.sdPop!, live.sd_pop!);
   });
 });
