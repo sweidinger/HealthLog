@@ -7,6 +7,8 @@ import {
   __resetCoachSnapshotCacheForTests,
   buildCoachSnapshot,
 } from "../snapshot";
+import { eventStorage } from "@/lib/logging/context";
+import { WideEventBuilder } from "@/lib/logging/event-builder";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -992,5 +994,69 @@ describe("buildCoachSnapshot — reference grounding (W7)", () => {
         brand.toLowerCase(),
       );
     }
+  });
+});
+
+describe("buildCoachSnapshot request-scoped read sharing (H-1)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetCoachSnapshotCacheForTests();
+    prismaMock.measurement.findMany.mockResolvedValue([]);
+    prismaMock.moodEntry.findMany.mockResolvedValue([]);
+    prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
+    prismaMock.medication.findMany.mockResolvedValue([]);
+    prismaMock.user.findUnique.mockResolvedValue({ coachPrefsJson: null });
+    resolveModuleMapMock.mockResolvedValue(allModulesEnabled());
+    featuresMock.mockResolvedValue({
+      bloodPressure: undefined,
+      weight: undefined,
+      pulse: undefined,
+      mood: undefined,
+    });
+  });
+
+  it("runs extractFeatures + the prefs read once across distinct-scope tool builds in one request", async () => {
+    // The F1 coach tools each call buildCoachSnapshot with a DIFFERENT
+    // single-source scope, so the 60s snapshot LRU (keyed on the source list)
+    // does NOT share their reads. Memoising the two heavy per-user reads on the
+    // request-scoped WideEventBuilder cache collapses the fan-out to one of each.
+    await eventStorage.run(new WideEventBuilder(), async () => {
+      // Same window (→ same windowDays key), distinct sources (→ distinct LRU
+      // keys ⇒ two separate snapshot builds, mirroring the real tool fan-out).
+      await Promise.all([
+        buildCoachSnapshot("user-h1", {
+          sources: ["bp"],
+          window: "last30days",
+        }),
+        buildCoachSnapshot("user-h1", {
+          sources: ["pulse"],
+          window: "last30days",
+        }),
+      ]);
+    });
+
+    expect(featuresMock).toHaveBeenCalledTimes(1);
+    expect(prismaMock.user.findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps separate caches per request (no cross-request leakage)", async () => {
+    // Distinct users so the in-process 60s snapshot LRU (keyed on userId) cannot
+    // short-circuit the second request — the only thing under test here is that
+    // the request-scoped feature/prefs cache does NOT survive across requests.
+    await eventStorage.run(new WideEventBuilder(), async () => {
+      await buildCoachSnapshot("user-h1a", {
+        sources: ["bp"],
+        window: "last30days",
+      });
+    });
+    await eventStorage.run(new WideEventBuilder(), async () => {
+      await buildCoachSnapshot("user-h1b", {
+        sources: ["bp"],
+        window: "last30days",
+      });
+    });
+
+    expect(featuresMock).toHaveBeenCalledTimes(2);
+    expect(prismaMock.user.findUnique).toHaveBeenCalledTimes(2);
   });
 });
