@@ -129,6 +129,14 @@ interface RollupRow {
   sd: number | null;
   slope: number | null;
   r2: number | null;
+  // v1.20.0 F6 — per-bucket OLS regression accumulators (epoch-day x-axis).
+  // See `MeasurementRollup.sumX` doc in schema.prisma. These let the
+  // windowed slope / r² / sd compose from summed accumulators across DAY
+  // buckets with bit-identical parity to live REGR_*/STDDEV_POP.
+  sum_x: number | null;
+  sum_xy: number | null;
+  sum_xx: number | null;
+  sum_yy: number | null;
 }
 
 /**
@@ -392,7 +400,22 @@ async function runRollupAggregate(input: {
         REGR_R2(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        )::double precision                                       AS r2
+        )::double precision                                       AS r2,
+        -- v1.20.0 F6 — regression accumulators (epoch-day x-axis). Summed
+        -- per (type, source, bucket) here so the read tier composes the
+        -- windowed slope / r2 / sd across DAY buckets without a live scan.
+        -- value is NOT NULL on measurements, so every row contributes; the
+        -- sums are over the same rows REGR_/STDDEV_POP fold above.
+        SUM(EXTRACT(EPOCH FROM m."measured_at") / 86400.0)::double precision
+                                                                  AS sum_x,
+        SUM(
+          (EXTRACT(EPOCH FROM m."measured_at") / 86400.0) * m."value"
+        )::double precision                                       AS sum_xy,
+        SUM(
+          (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
+          * (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
+        )::double precision                                       AS sum_xx,
+        SUM(m."value" * m."value")::double precision              AS sum_yy
       FROM measurements m
       WHERE m."user_id" = $1
         AND m."type" IN (${typeList})
@@ -427,7 +450,20 @@ async function runRollupAggregate(input: {
       REGR_R2(
         m."value",
         EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-      )::double precision                                       AS r2
+      )::double precision                                       AS r2,
+      -- v1.20.0 F6 — regression accumulators (epoch-day x-axis). See the
+      -- typed-list query above for the rationale; the read tier composes
+      -- windowed slope / r² / sd from these summed across DAY buckets.
+      SUM(EXTRACT(EPOCH FROM m."measured_at") / 86400.0)::double precision
+                                                                AS sum_x,
+      SUM(
+        (EXTRACT(EPOCH FROM m."measured_at") / 86400.0) * m."value"
+      )::double precision                                       AS sum_xy,
+      SUM(
+        (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
+        * (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
+      )::double precision                                       AS sum_xx,
+      SUM(m."value" * m."value")::double precision              AS sum_yy
     FROM measurements m
     WHERE m."user_id" = $1
       AND m."measured_at" >= $2
@@ -496,6 +532,12 @@ async function persistRollupRows(
     sd: row.sd,
     slope: row.slope,
     r2: row.r2,
+    // v1.20.0 F6 — persist the regression accumulators alongside the
+    // existing stats; they ride the same aggregate (no extra round-trip).
+    sumX: row.sum_x ?? null,
+    sumXy: row.sum_xy ?? null,
+    sumXx: row.sum_xx ?? null,
+    sumYy: row.sum_yy ?? null,
     computedAt: new Date(),
   });
 
