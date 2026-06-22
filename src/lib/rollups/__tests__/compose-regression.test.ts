@@ -28,6 +28,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   composeRegression,
+  hasPendingAccumulatorBackfill,
+  type AccumulatorBucketRow,
   type RegressionAccumulators,
 } from "../measurement-read";
 
@@ -200,5 +202,57 @@ describe("composeRegression — closed-form parity", () => {
     expect(composed.slope).toBeNull();
     expect(composed.r2).toBeNull();
     expect(composed.sdPop!).toBeCloseTo(1, 12); // values 90, 92 → pop sd = 1
+  });
+});
+
+describe("hasPendingAccumulatorBackfill — observable miss signal", () => {
+  const day = (iso: string): Date => new Date(iso);
+  const full = (bucketStart: Date): AccumulatorBucketRow => ({
+    bucketStart,
+    count: 2,
+    mean: 90,
+    sumX: 1,
+    sumXy: 2,
+    sumXx: 3,
+    sumYy: 4,
+  });
+  const nullAcc = (bucketStart: Date): AccumulatorBucketRow => ({
+    bucketStart,
+    count: 2,
+    mean: 88,
+    sumX: null,
+    sumXy: null,
+    sumXx: null,
+    sumYy: null,
+  });
+  const since = day("2026-03-01T00:00:00.000Z");
+
+  it("is true when an in-window bucket carries a NULL accumulator", () => {
+    const rows = [
+      full(day("2026-03-02T00:00:00.000Z")),
+      nullAcc(day("2026-03-10T00:00:00.000Z")),
+    ];
+    expect(hasPendingAccumulatorBackfill(rows, since)).toBe(true);
+  });
+
+  it("is false when every in-window bucket has full accumulators", () => {
+    const rows = [
+      full(day("2026-03-02T00:00:00.000Z")),
+      full(day("2026-03-10T00:00:00.000Z")),
+    ];
+    expect(hasPendingAccumulatorBackfill(rows, since)).toBe(false);
+  });
+
+  it("ignores a NULL accumulator that falls before the window cutoff", () => {
+    const rows = [
+      // Pre-window NULL row — outside the regression window, must not flag.
+      nullAcc(day("2026-02-20T00:00:00.000Z")),
+      full(day("2026-03-10T00:00:00.000Z")),
+    ];
+    expect(hasPendingAccumulatorBackfill(rows, since)).toBe(false);
+  });
+
+  it("is false for an empty bucket set", () => {
+    expect(hasPendingAccumulatorBackfill([], since)).toBe(false);
   });
 });

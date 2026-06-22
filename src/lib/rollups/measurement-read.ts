@@ -277,6 +277,43 @@ export function composeWindowedRegression(
 }
 
 /**
+ * v1.20.0 P3 M-1 — true iff any in-window DAY bucket carries a NULL
+ * regression accumulator (a row that predates migration 0190, or whose
+ * boot re-fold has not yet refilled it). `composeWindowedRegression`
+ * collapses both that case AND the legitimate "< 2 readings" / degenerate
+ * cases into the same `{ null, null, null }` miss, so the reader cannot
+ * tell from the composed result alone whether a null slope is the honest
+ * answer or a coverage gap pending backfill.
+ *
+ * The slim / comprehensive readers call this alongside the compose so they
+ * can annotate the miss (`regression_source:"unavailable_pending_backfill"`)
+ * per the project's "no silent cap / log any truncation" rule. The null
+ * value itself stays — it converges once the boot backfill refills the
+ * accumulators — but the MISS becomes observable rather than silent.
+ *
+ * Window contract matches `composeWindowedRegression`: a bucket is
+ * in-window iff its `bucketStart` is `>= since`.
+ */
+export function hasPendingAccumulatorBackfill(
+  rows: ReadonlyArray<AccumulatorBucketRow>,
+  since: Date,
+): boolean {
+  const cutoff = since.getTime();
+  for (const r of rows) {
+    if (r.bucketStart.getTime() < cutoff) continue;
+    if (
+      r.sumX === null ||
+      r.sumXy === null ||
+      r.sumXx === null ||
+      r.sumYy === null
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Combine DAY buckets into the linearly-composable window stats —
  * `count`, `min`, `max`, `mean`. SD / slope / R² are intentionally
  * NOT computed here because they don't compose across DAY rollups.

@@ -109,6 +109,7 @@ import {
   aggregateBuckets,
   collapseRollupRowsBySource,
   composeWindowedRegression,
+  hasPendingAccumulatorBackfill,
   loadUserSourcePriority,
   type AccumulatorBucketRow,
 } from "@/lib/rollups/measurement-read";
@@ -519,6 +520,12 @@ async function buildFromRollups(
   const since7 = startOfUtcDay(new Date(now - 7 * 24 * 60 * 60 * 1000));
   const since30 = startOfUtcDay(new Date(now - 30 * 24 * 60 * 60 * 1000));
   const since90 = startOfUtcDay(new Date(now - 90 * 24 * 60 * 60 * 1000));
+  // v1.20.0 P3 M-1 — set once any in-window bucket carries a NULL
+  // accumulator (pre-0190 row, or boot re-fold pending). The slope stays
+  // null then — it converges after backfill — but the miss must be
+  // observable per the "no silent cap" rule, so it surfaces in the
+  // annotation below rather than passing silently as a plain rollup read.
+  let regressionPendingBackfill = false;
 
   // Seed every type that has buckets — the bucket set is the source of
   // truth on this path. The narrow aggregate provides the non-composable
@@ -541,6 +548,12 @@ async function buildFromRollups(
       sumXx: b.sumXx,
       sumYy: b.sumYy,
     }));
+    if (
+      !regressionPendingBackfill &&
+      hasPendingAccumulatorBackfill(accBuckets, since90)
+    ) {
+      regressionPendingBackfill = true;
+    }
     const reg7 = composeWindowedRegression(accBuckets, since7);
     const reg30 = composeWindowedRegression(accBuckets, since30);
     const reg90 = composeWindowedRegression(accBuckets, since90);
@@ -582,6 +595,14 @@ async function buildFromRollups(
       insights: {
         slope_source: "rollup",
         anomaly_source: "live",
+        // v1.20.0 P3 M-1 — when a NULL accumulator (pre-0190 row, or boot
+        // re-fold pending) forced a slope miss, the read intentionally
+        // returns null without a live-SQL fallback (the design avoids the
+        // heavy scan). Surface the gap so the silent null is observable; it
+        // clears once the boot backfill refills the accumulators.
+        regression_source: regressionPendingBackfill
+          ? "unavailable_pending_backfill"
+          : "rollup",
       },
     },
   });
