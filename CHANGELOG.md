@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+## [1.20.0] — 2026-06-22 — Coach on-demand retrieval, deeper recovery insight, Fitbit, and a leaner data tier
+
+A feature release. The Coach fetches what it needs on demand instead of carrying a full snapshot; the recovery-gap learns from the symptom journal and sleep; Fitbit connects over its own Web API; the trend tier serves slope and variability without a live scan; and several built surfaces become discoverable. Two additive migrations (`0190`, `0191`); no breaking changes.
+
+### Added
+
+- The Coach answers from on-demand retrieval: a small base context plus a data inventory, with tools it calls to pull the exact series, lab, sleep, medication or recovery figures a question needs. It cites only what it fetched and says so plainly when there is no data. First-turn cost drops substantially while the grounding and cross-metric reasoning are unchanged.
+- The recovery-gap reads the illness journal's own symptom-severity curve and adds a sleep-context line, and it is now relapse-aware — it reports the final sustained return, not the first.
+- Fitbit connects experimentally over the Fitbit Web API with PKCE, so a self-hoster can link it with an instant developer app.
+- The sleep, steps and glucose dashboard tiles and the preventive-care row are surfaced by default (each self-hides without data), so built features are easier to find.
+
+### Changed
+
+- The AI client layer moves to a structured message format with per-provider prompt-caching, which lowers cost on repeated context and lays the groundwork for retrieval.
+- Trend slope, r² and standard deviation are served from the rollup tier via stored regression accumulators instead of a live scan on every request; the result matches the live computation.
+
+### Fixed
+
+- The fever red-flag now reads days in chronological order, so an episode logged from both a thermometer and the journal can no longer raise or hide a sustained-fever flag incorrectly.
+- A vital that settles and then shows a single stray out-of-range reading keeps its recovery day instead of reporting none.
+- Fitbit sleep segments are placed on the correct day for users outside UTC.
+- Concurrent syncs for Withings/WHOOP/Oura/Fitbit no longer park a connection at a spurious reconnect when a one-time-use refresh token is rotated.
+- The Coach reply is no longer corrupted into raw JSON on some providers, and a tool request is no longer dropped on an unexpected stop reason.
+- The trend tier records when slope is briefly unavailable pending backfill rather than reporting it silently.
+
+### Refactor
+
+- The Coach's per-request reads are shared across the retrieval fan-out instead of repeated per tool.
+
+### Security
+
+- Dependency bumps: next, pg-boss, radix-ui, pg, @testcontainers/postgresql, and the CI actions.
+
 ## [1.19.2] — 2026-06-21 — Recovery-gap symptom signal, resilience tile, long-range charts, richer device + Telegram data
 
 A follow-up that folds the illness journal's own symptom curve into the recovery-gap, surfaces Oura resilience, fixes multi-year chart ranges, and widens the heart-rate and Telegram data paths. Two additive migrations (`0188`, `0189`); no breaking changes.
