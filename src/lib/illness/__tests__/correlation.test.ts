@@ -20,7 +20,9 @@ import {
   isAdverseDeviation,
   MIN_BASELINE_DAYS,
   MIN_EPISODE_COVERAGE_DAYS,
+  SLEEP_CONTEXT_MIN_DELTA_MINUTES,
   type IllnessCorrelationInput,
+  type SleepNightPoint,
   type SymptomBurdenPoint,
   type VitalDayPoint,
 } from "../correlation";
@@ -993,5 +995,160 @@ describe("computeIllnessCorrelation — relapse-aware return (last sustained)", 
     if (out.status !== "ok") return;
     expect(out.value.returns[0]?.returnedDay).toBeNull();
     expect(out.value.recoveryGapDays).toBeNull();
+  });
+});
+
+describe("computeIllnessCorrelation — sleep-as-context observation", () => {
+  // A banded RHR vital clears the engine coverage floor in every case; the
+  // sleep context is computed independently from the night arrays.
+  const rhr: MeasurementType = "RESTING_HEART_RATE";
+  const rhrBaseline = jitteredBaseline(55, 1, 21, "2026-01-02");
+  const rhrFlat = flatBaseline(55, 5, "2026-01-15");
+
+  /** N baseline nights at `minutes`, ending the day before onset. */
+  function nights(
+    minutes: number,
+    count: number,
+    endDay: string,
+  ): SleepNightPoint[] {
+    const out: SleepNightPoint[] = [];
+    let cursor = Date.parse(`${endDay}T00:00:00Z`);
+    for (let i = 0; i < count; i++) {
+      out.unshift({
+        day: new Date(cursor).toISOString().slice(0, 10),
+        asleepMinutes: minutes,
+      });
+      cursor -= 24 * 60 * 60 * 1000;
+    }
+    return out;
+  }
+
+  it("surfaces a slept-more observation when the episode delta clears the floor", () => {
+    // Baseline ~420 min (7h), episode ~510 min (8.5h) → +90 min, well past the
+    // 30-min floor. Episode nights are inside the active span.
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        baselineNights: nights(420, 6, "2026-01-02"),
+        episodeNights: [
+          { day: "2026-01-10", asleepMinutes: 510 },
+          { day: "2026-01-11", asleepMinutes: 505 },
+          { day: "2026-01-12", asleepMinutes: 515 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.sleepContext).not.toBeNull();
+    expect(out.value.sleepContext?.baselineMeanMinutes).toBe(420);
+    expect(out.value.sleepContext?.deltaMinutes).toBeGreaterThanOrEqual(
+      SLEEP_CONTEXT_MIN_DELTA_MINUTES,
+    );
+    expect(out.value.sleepContext?.nightsCounted).toBe(3);
+    // It never touches the recovery-gap.
+    expect(out.value.recoveryGapDays).toBeNull();
+  });
+
+  it("withholds when the delta is below the magnitude floor", () => {
+    // Baseline 420, episode 430 → +10 min, sub-floor jitter → no observation.
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        baselineNights: nights(420, 6, "2026-01-02"),
+        episodeNights: [
+          { day: "2026-01-10", asleepMinutes: 430 },
+          { day: "2026-01-11", asleepMinutes: 425 },
+          { day: "2026-01-12", asleepMinutes: 435 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.sleepContext).toBeNull();
+  });
+
+  it("withholds when too few episode nights are scorable", () => {
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        baselineNights: nights(420, 6, "2026-01-02"),
+        episodeNights: [
+          { day: "2026-01-10", asleepMinutes: 520 },
+          { day: "2026-01-11", asleepMinutes: 525 }, // only 2 episode nights
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.sleepContext).toBeNull();
+  });
+
+  it("withholds when the baseline night count is too thin", () => {
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        baselineNights: nights(420, 3, "2026-01-02"), // only 3 baseline nights
+        episodeNights: [
+          { day: "2026-01-10", asleepMinutes: 520 },
+          { day: "2026-01-11", asleepMinutes: 525 },
+          { day: "2026-01-12", asleepMinutes: 515 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.sleepContext).toBeNull();
+  });
+
+  it("surfaces a slept-less observation with a negative delta", () => {
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        baselineNights: nights(480, 6, "2026-01-02"),
+        episodeNights: [
+          { day: "2026-01-10", asleepMinutes: 360 },
+          { day: "2026-01-11", asleepMinutes: 370 },
+          { day: "2026-01-12", asleepMinutes: 350 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.sleepContext?.deltaMinutes).toBeLessThanOrEqual(
+      -SLEEP_CONTEXT_MIN_DELTA_MINUTES,
+    );
+  });
+
+  it("excludes pre-onset nights from the episode mean", () => {
+    // A pre-onset night (before onsetDay 2026-01-10) must not count toward the
+    // episode mean — only the active-span nights do.
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        baselineNights: nights(420, 6, "2026-01-02"),
+        episodeNights: [
+          { day: "2026-01-08", asleepMinutes: 999 }, // pre-onset — must be dropped
+          { day: "2026-01-10", asleepMinutes: 510 },
+          { day: "2026-01-11", asleepMinutes: 510 },
+          { day: "2026-01-12", asleepMinutes: 510 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.sleepContext?.episodeMeanMinutes).toBe(510);
+    expect(out.value.sleepContext?.nightsCounted).toBe(3);
   });
 });

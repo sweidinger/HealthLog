@@ -6891,6 +6891,8 @@
       "recoveryGapLagSymptom": "You felt better {days} days before your logged symptoms eased.",
       "recoveryGapLeadSymptom": "Your logged symptoms eased {days} days before you marked recovery.",
       "recoveryGapSame": "Your numbers settled the same day you felt better.",
+      "sleepContextMore": "During this episode you slept noticeably more than usual (about {hours}h/night).",
+      "sleepContextLess": "During this episode you slept noticeably less than usual (about {hours}h/night).",
       "redFlagTitle": "Worth a closer look",
       "redFlagSpo2": "Your oxygen saturation stayed low for several days. If this recurs, seek medical care.",
       "redFlagFever": "You ran a sustained fever. If this recurs, seek medical care.",

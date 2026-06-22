@@ -6891,6 +6891,8 @@
       "recoveryGapLagSymptom": "Te sentiste mejor {days} días antes de que cedieran tus síntomas registrados.",
       "recoveryGapLeadSymptom": "Tus síntomas registrados cedieron {days} días antes de marcar la recuperación.",
       "recoveryGapSame": "Tus valores se estabilizaron el mismo día en que te sentiste mejor.",
+      "sleepContextMore": "Durante este episodio dormiste notablemente más de lo habitual (unas {hours} h/noche).",
+      "sleepContextLess": "Durante este episodio dormiste notablemente menos de lo habitual (unas {hours} h/noche).",
       "redFlagTitle": "Conviene revisarlo",
       "redFlagSpo2": "Tu saturación de oxígeno se mantuvo baja varios días. Si se repite, busca atención médica.",
       "redFlagFever": "Tuviste fiebre sostenida. Si se repite, busca atención médica.",
