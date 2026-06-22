@@ -2644,11 +2644,20 @@ model FitbitConnection {
 
 /// v1.12.0 — short-lived `(nonce → userId)` ledger backing the Fitbit OAuth
 /// state check, identical in shape + lifecycle to `WhoopOAuthState`.
+///
+/// v1.20.0 — the classic Fitbit Web API (`api.fitbit.com`) authorises with PKCE
+/// (Authorization Code + S256), so the connect route mints a `code_verifier`
+/// alongside the nonce and stashes it here; the callback reads it back to present
+/// on the token exchange. Nullable + additive: a legacy row (or a non-PKCE path)
+/// simply carries no verifier.
 model FitbitOAuthState {
-  nonce     String   @id
-  userId    String   @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  expiresAt DateTime @map("expires_at")
+  nonce        String   @id
+  userId       String   @map("user_id")
+  /// PKCE code_verifier carried from connect to callback (v1.20.0). Null when no
+  /// PKCE handshake is in flight (legacy rows).
+  codeVerifier String?  @map("code_verifier")
+  createdAt    DateTime @default(now()) @map("created_at")
+  expiresAt    DateTime @map("expires_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
