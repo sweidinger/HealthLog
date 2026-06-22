@@ -65,6 +65,7 @@ vi.mock("@/lib/analytics/source-rank-sql", () => ({
 
 import { prisma } from "@/lib/db";
 import { canonicalMeasurementsFrom } from "@/lib/analytics/source-rank-sql";
+import { startOfUtcDay } from "@/lib/tz/start-of-utc-day";
 import { computeSummariesSlice } from "../summaries-slice";
 
 const RAW = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
@@ -329,12 +330,8 @@ describe("computeSummariesSlice", () => {
           avg7: 82,
           avg30: 82.5,
           median: 82.1,
-          slope7: 0.02,
-          r2_7: 0.5,
-          slope30: 0.01,
-          r2_30: 0.4,
-          slope90: 0.005,
-          r2_90: 0.2,
+          // v1.20.0 F6 — the narrow query no longer carries slope/r²; those
+          // compose from the accumulator buckets mocked below.
         },
       ])
         .mockResolvedValueOnce([
@@ -356,6 +353,40 @@ describe("computeSummariesSlice", () => {
           },
         ]);
 
+      // v1.20.0 F6 — the 90-day accumulator findMany (first measurementRollup
+      // .findMany in the Promise.all). Two single-reading DAY buckets one day
+      // apart inside the 7-day window: x = epoch-days, y = 82.00 then 82.02.
+      // composeWindowedRegression over them yields slope = 0.02/day with a
+      // perfect fit (r² = 1) — a deterministic, hand-checkable regression.
+      const dayB = startOfUtcDay(new Date());
+      const dayA = startOfUtcDay(new Date(Date.now() - 24 * 60 * 60 * 1000));
+      const xA = dayA.getTime() / 86_400_000;
+      const xB = dayB.getTime() / 86_400_000;
+      ROLLUP_FIND_MANY.mockResolvedValueOnce([
+        {
+          type: "WEIGHT",
+          source: "MANUAL",
+          bucketStart: dayA,
+          count: 1,
+          mean: 82.0,
+          sumX: xA,
+          sumXy: xA * 82.0,
+          sumXx: xA * xA,
+          sumYy: 82.0 * 82.0,
+        },
+        {
+          type: "WEIGHT",
+          source: "MANUAL",
+          bucketStart: dayB,
+          count: 1,
+          mean: 82.02,
+          sumX: xB,
+          sumXy: xB * 82.02,
+          sumXx: xB * xB,
+          sumYy: 82.02 * 82.02,
+        },
+      ]);
+
       const result = await computeSummariesSlice("user-rollup");
       const weight = result.summaries.WEIGHT;
 
@@ -368,10 +399,12 @@ describe("computeSummariesSlice", () => {
       expect(weight.median).toBe(82.1);
       expect(weight.latest).toBe(82.7);
       expect(weight.avg7).toBe(82);
+      // v1.20.0 F6 — slope composed from the accumulator buckets: a clean
+      // +0.02/day with a perfect two-point fit.
       expect(weight.slope7).toEqual({
         slope: 0.02,
         direction: "up",
-        confidence: 0.5,
+        confidence: 1,
       });
 
       // 1 RAW coverage probe + 3 UNSAFE data queries (narrow aggregate
@@ -385,7 +418,10 @@ describe("computeSummariesSlice", () => {
       // 395-day window skips the YEAR floor (731 d) and walks MONTH
       // → WEEK → DAY on full coverage miss; the default mock returns
       // `[]` so all three reachable tiers probe.
-      expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(3);
+      //
+      // v1.20.0 F6 — plus the 90-day accumulator findMany the warm path
+      // now runs to compose slope / r² / sd: 1 accumulator + 3 WMY = 4.
+      expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -420,6 +456,10 @@ describe("computeSummariesSlice", () => {
           { type: "WEIGHT", count: 5, min: 82, max: 84, mean: 83 },
         ]);
 
+      // v1.20.0 F6 — the warm path runs the 90-day accumulator findMany
+      // first; return empty (slope composes to null, irrelevant to this
+      // year-over-year assertion) so the year-ago MONTH probe is call #2.
+      ROLLUP_FIND_MANY.mockResolvedValueOnce([]);
       // Year-ago slice MONTH bucket — `bucketStart` placed 380 days
       // ago so it falls inside `[now-395d, now-365d)`. Single bucket
       // (count=10, mean=85) → weighted mean = 85.
@@ -443,8 +483,9 @@ describe("computeSummariesSlice", () => {
       const result = await computeSummariesSlice("user-yoy");
 
       expect(result.summaries.WEIGHT.avg30LastYear).toBe(85);
-      // Router asked MONTH first (395 > 181, 395 < 731 → skip YEAR).
-      expect(ROLLUP_FIND_MANY.mock.calls[0][0].where.granularity).toBe("MONTH");
+      // Router asked MONTH first (395 > 181, 395 < 731 → skip YEAR). Call #0
+      // is the v1.20.0 F6 accumulator findMany (DAY); the WMY probe is #1.
+      expect(ROLLUP_FIND_MANY.mock.calls[1][0].where.granularity).toBe("MONTH");
     });
 
     it("leaves avg30LastYear null when no bucket overlaps the year-ago slice", async () => {
@@ -469,6 +510,9 @@ describe("computeSummariesSlice", () => {
           { type: "WEIGHT", count: 5, min: 82, max: 84, mean: 83 },
         ]);
 
+      // v1.20.0 F6 — accumulator findMany runs first; empty so the WMY
+      // probe is call #2.
+      ROLLUP_FIND_MANY.mockResolvedValueOnce([]);
       // MONTH bucket placed 30 days ago — inside the YEAR / MONTH /
       // WEEK 395-day window the router asks for, but outside the
       // `[now-395d, now-365d)` slice. The helper returns null.
@@ -522,8 +566,9 @@ describe("computeSummariesSlice", () => {
 
       expect(result.summaries.WEIGHT.avg30LastYear).toBeNull();
       // 395d window skips YEAR (floor 731 d) → MONTH → WEEK → DAY,
-      // three reachable tiers all probed on full coverage miss.
-      expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(3);
+      // three reachable tiers all probed on full coverage miss; plus the
+      // v1.20.0 F6 accumulator findMany = 4.
+      expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(4);
     });
 
     it("only probes types that actually have data in the current window", async () => {

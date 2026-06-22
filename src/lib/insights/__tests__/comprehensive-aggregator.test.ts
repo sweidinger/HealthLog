@@ -75,6 +75,11 @@ vi.mock("@/lib/analytics/source-rank-sql", () => {
 
 import { prisma } from "@/lib/db";
 import { buildComprehensiveAggregate } from "../comprehensive-aggregator";
+import {
+  composeWindowedRegression,
+  type AccumulatorBucketRow,
+} from "@/lib/rollups/measurement-read";
+import { startOfUtcDay } from "@/lib/tz/start-of-utc-day";
 
 const RAW = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
 const UNSAFE = prisma.$queryRawUnsafe as unknown as ReturnType<typeof vi.fn>;
@@ -139,12 +144,8 @@ describe("buildComprehensiveAggregate", () => {
           avg7: 81.9,
           avg30: 82.1,
           avg30_last_month: 83.0,
-          slope7: -0.014,
-          r2_7: 0.65,
-          slope30: -0.005,
-          r2_30: 0.42,
-          slope90: 0.001,
-          r2_90: 0.12,
+          // v1.20.0 F6 — slope / r² no longer ride the narrow aggregate;
+          // they compose from the accumulator buckets below.
         },
       ]).mockResolvedValueOnce([
         { type: "WEIGHT", value: 81.4, measured_at: now },
@@ -156,26 +157,61 @@ describe("buildComprehensiveAggregate", () => {
       // now carries a `source` so `partitionBucketsByType` →
       // `collapseRollupRowsBySource` can resolve dual-source days; with
       // a single source per day every bucket passes through unchanged.
-      ROLLUP_FIND_MANY.mockResolvedValueOnce([
-        {
-          type: "WEIGHT",
-          source: "APPLE_HEALTH",
-          bucketStart: new Date("2026-05-10T00:00:00.000Z"),
-          count: 20,
-          mean: 81.0,
-          minValue: 79.2,
-          maxValue: 82.5,
-        },
-        {
-          type: "WEIGHT",
-          source: "APPLE_HEALTH",
-          bucketStart: new Date("2026-05-11T00:00:00.000Z"),
-          count: 22,
-          mean: 83.0,
-          minValue: 80.0,
-          maxValue: 84.1,
-        },
-      ]);
+      //
+      // v1.20.0 F6 — buckets are placed on the two most-recent UTC days so
+      // they fall inside the 7-day slope window, and carry the regression
+      // accumulators the windowed slope / r² compose from. Each bucket
+      // models its `count` readings as all landing at the bucket's day
+      // midnight (x = bucketStart epoch-day) with value = mean, which is a
+      // valid, self-consistent accumulator set.
+      const dayB = startOfUtcDay(now);
+      const dayA = startOfUtcDay(new Date(now.getTime() - 86_400_000));
+      const xA = dayA.getTime() / 86_400_000;
+      const xB = dayB.getTime() / 86_400_000;
+      const bucketA = {
+        type: "WEIGHT",
+        source: "APPLE_HEALTH",
+        bucketStart: dayA,
+        count: 20,
+        mean: 81.0,
+        minValue: 79.2,
+        maxValue: 82.5,
+        sumX: 20 * xA,
+        sumXy: 20 * xA * 81.0,
+        sumXx: 20 * xA * xA,
+        sumYy: 20 * 81.0 * 81.0,
+      };
+      const bucketB = {
+        type: "WEIGHT",
+        source: "APPLE_HEALTH",
+        bucketStart: dayB,
+        count: 22,
+        mean: 83.0,
+        minValue: 80.0,
+        maxValue: 84.1,
+        sumX: 22 * xB,
+        sumXy: 22 * xB * 83.0,
+        sumXx: 22 * xB * xB,
+        sumYy: 22 * 83.0 * 83.0,
+      };
+      ROLLUP_FIND_MANY.mockResolvedValueOnce([bucketA, bucketB]);
+      // Expected slope7 — composed from the same accumulators the reader
+      // sees (the buildSlope contract rounds slope to 3 dp, confidence to
+      // 2 dp). Computed here from composeWindowedRegression so the test
+      // tracks the closed form rather than a hand-typed magic number.
+      const accBuckets: AccumulatorBucketRow[] = [bucketA, bucketB].map(
+        (b) => ({
+          bucketStart: b.bucketStart,
+          count: b.count,
+          mean: b.mean,
+          sumX: b.sumX,
+          sumXy: b.sumXy,
+          sumXx: b.sumXx,
+          sumYy: b.sumYy,
+        }),
+      );
+      const since7 = startOfUtcDay(new Date(Date.now() - 7 * 86_400_000));
+      const expectedReg7 = composeWindowedRegression(accBuckets, since7);
 
       // v1.18.10 I-1 — bpRawRows now reads source-collapsed rows via
       // `$queryRawUnsafe` (3rd UNSAFE call: narrow, latests, bpRaw). Empty
@@ -199,14 +235,21 @@ describe("buildComprehensiveAggregate", () => {
       expect(weight.avg30).toBe(82.1);
       expect(weight.avg30LastMonth).toBe(83.0);
       expect(weight.anomalyCount).toBe(3);
+      // v1.20.0 F6 — slope7 composes from the accumulator buckets. The two
+      // recent buckets (means 81 → 83 one day apart) yield a positive,
+      // perfect-fit slope; assert against the closed form the reader uses.
+      expect(expectedReg7.slope).not.toBeNull();
       expect(weight.slope7).toEqual({
-        slope: -0.014,
-        direction: "down",
-        confidence: 0.65,
+        slope: Math.round((expectedReg7.slope as number) * 1000) / 1000,
+        direction: "up",
+        confidence:
+          expectedReg7.r2 === null
+            ? 0
+            : Math.round(expectedReg7.r2 * 100) / 100,
       });
       expect(result.dailyByType.WEIGHT).toEqual([
-        { day: "2026-05-10", value: 81 },
-        { day: "2026-05-11", value: 83 },
+        { day: dayA.toISOString().slice(0, 10), value: 81 },
+        { day: dayB.toISOString().slice(0, 10), value: 83 },
       ]);
 
       // Contract pin — the heavy aggregate path is NOT exercised on the
