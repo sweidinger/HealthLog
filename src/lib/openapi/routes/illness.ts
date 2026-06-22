@@ -202,6 +202,19 @@ const illnessRedFlag = z
       "A retrospective red-flag escalation (sustained low SpO2 or sustained fever) against absolute clinical floors. Copy must escalate ('seek care if this recurs'), never reassure.",
   });
 
+const illnessSleepContext = z
+  .object({
+    baselineMeanMinutes: z.number(),
+    episodeMeanMinutes: z.number(),
+    deltaMinutes: z.number(),
+    nightsCounted: z.number().int(),
+  })
+  .meta({
+    id: "IllnessSleepContext",
+    description:
+      "A neutral sleep-as-context observation: the user's median asleep minutes over the well baseline vs the mean over the episode window, and their signed delta (positive = slept more than usual). A pure OBSERVATION surfaced alongside the gap — NEVER a recovery return and NEVER part of the headline recovery-gap. Withheld (the field is null) on thin sleep data or a sub-floor delta.",
+  });
+
 const illnessCorrelationValue = z
   .object({
     episodeId: z.string(),
@@ -213,11 +226,12 @@ const illnessCorrelationValue = z
     feltBetterDay: z.string().nullable(),
     gapDriverType: z.string().nullable(),
     redFlags: z.array(illnessRedFlag),
+    sleepContext: illnessSleepContext.nullable(),
   })
   .meta({
     id: "IllnessCorrelationValue",
     description:
-      "The retrospective correlation findings for one episode: pre-onset anomaly scan, nadir, per-vital physiological returns (incl. the user-logged symptom-burden track, `type:FUNCTIONAL_IMPACT`), the headline recovery-gap (median of per-track gaps), the driving metric (`gapDriverType`), and any red flags.",
+      "The retrospective correlation findings for one episode: pre-onset anomaly scan, nadir, per-vital physiological returns (incl. the user-logged symptom-burden track, `type:FUNCTIONAL_IMPACT`), the headline recovery-gap (median of per-track gaps), the driving metric (`gapDriverType`), any red flags, and an optional sleep-as-context observation (`sleepContext`, never in the gap).",
   });
 
 const illnessCorrelationResponse = z

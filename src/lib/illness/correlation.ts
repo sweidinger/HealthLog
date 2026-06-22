@@ -83,6 +83,20 @@ export const FUNCTIONAL_IMPACT_RETURN_KEY = "FUNCTIONAL_IMPACT" as const;
 export const FUNCTIONAL_IMPACT_ADVERSE_FLOOR = 1;
 /** Minimum episode days with ANY vital coverage before the gap is asserted. */
 export const MIN_EPISODE_COVERAGE_DAYS = 4;
+/**
+ * Minimum scorable baseline nights before the sleep-context observation is
+ * trusted (mirrors the sleep-debt engine's `minNights` floor). Below this the
+ * "usual" asleep figure is too fragile to compare against.
+ */
+export const SLEEP_CONTEXT_MIN_BASELINE_NIGHTS = 4;
+/** Minimum scorable episode nights before the sleep-context line surfaces. */
+export const SLEEP_CONTEXT_MIN_EPISODE_NIGHTS = 3;
+/**
+ * Minimum |episode − baseline| asleep-minutes delta before the sleep-context
+ * line is shown. Day-to-day jitter below this floor is not narrated as a
+ * finding (honest withholding, never a fabricated observation).
+ */
+export const SLEEP_CONTEXT_MIN_DELTA_MINUTES = 30;
 
 /**
  * Per-metric adverse direction — which way a reading moves when the body is
@@ -184,6 +198,21 @@ export interface SymptomBurdenPoint {
   impact: number;
 }
 
+/**
+ * One reconstructed night's asleep total, keyed by the local WAKE-DAY (the same
+ * `YYYY-MM-DD` day-space the engine's onset/feltBetter markers live in — a
+ * canonical `NightSummary.night`). The caller reconstructs nights from the raw
+ * per-stage SLEEP_DURATION rows (writer-deduped, session-clustered) and passes
+ * the asleep totals in; the engine never touches raw rows. Used ONLY for the
+ * sleep-context observation, NEVER as a recovery-gap return track.
+ */
+export interface SleepNightPoint {
+  /** Local wake-day key, `YYYY-MM-DD`. */
+  day: string;
+  /** Asleep minutes for the night (canonical, multi-source-deduped). */
+  asleepMinutes: number;
+}
+
 /** The dates the engine reasons over, all `YYYY-MM-DD` local day keys. */
 export interface EpisodeWindow {
   /** Onset day. */
@@ -216,6 +245,20 @@ export interface IllnessCorrelationInput {
    * passive-vital-thin episode. Optional.
    */
   symptomBurden?: SymptomBurdenPoint[];
+  /**
+   * Reconstructed per-night asleep totals over the user's WELL baseline window
+   * (the span ending before the pre-onset lookback). Their median is the user's
+   * usual asleep figure the episode is compared against. Optional — absent /
+   * thin → no sleep-context observation. NEVER feeds the recovery-gap.
+   */
+  baselineNights?: SleepNightPoint[];
+  /**
+   * Reconstructed per-night asleep totals over the episode window (`onset −
+   * lookback` through end). Compared against the baseline median as a neutral
+   * CONTEXT observation (slept more / less than usual), never a return track and
+   * never in the gap median. Optional — absent / thin → no observation.
+   */
+  episodeNights?: SleepNightPoint[];
   /** Provenance source the dominant read resolved against. */
   source: "DAY" | "live" | "none";
   /** Compute time (injected for deterministic tests). */
@@ -276,6 +319,25 @@ export function isAdverseDeviation(
   );
 }
 
+/**
+ * A neutral sleep-context observation for the episode — the user's median
+ * asleep minutes over the well baseline vs the mean over the episode window. A
+ * pure OBSERVATION ("you slept more / less than usual"), never a recovery
+ * return, never in the gap median, never a causal/recovery claim. Null when the
+ * sleep data is too thin (below the night-count floors) or the delta is below
+ * the magnitude floor — honest withholding, never a fabricated finding.
+ */
+export interface SleepContext {
+  /** Median asleep minutes over the well baseline window. */
+  baselineMeanMinutes: number;
+  /** Mean asleep minutes over the episode window. */
+  episodeMeanMinutes: number;
+  /** `episode − baseline` asleep minutes (positive = slept more than usual). */
+  deltaMinutes: number;
+  /** Scorable episode nights the observation is built from (transparency). */
+  nightsCounted: number;
+}
+
 export interface IllnessCorrelationValue {
   episodeId: string;
   /** "How did it announce itself" — notable pre-onset deviations. */
@@ -317,6 +379,13 @@ export interface IllnessCorrelationValue {
    * recurs, seek care"), NEVER reassure. Empty when nothing tripped.
    */
   redFlags: IllnessRedFlag[];
+  /**
+   * Sleep-as-context observation — slept more / less than usual during the
+   * episode — or null when the sleep data is too thin or the delta sub-floor.
+   * A neutral observation surfaced ALONGSIDE the gap, NEVER a return track and
+   * NEVER part of the headline recovery-gap number. Optional/additive.
+   */
+  sleepContext: SleepContext | null;
 }
 
 export interface IllnessRedFlag {
@@ -508,7 +577,7 @@ export function computeIllnessCorrelation(
     //    deviation (which yielded a spurious negative gap). Excluded for
     //    CHRONIC_ONGOING (no recovered date by design).
     if (firstDeviationIndex >= 0 && window.lifecycle !== "CHRONIC_ONGOING") {
-      const returnedDay = firstStableReturn(
+      const returnedDay = lastStableReturn(
         active,
         center,
         spread,
@@ -593,6 +662,15 @@ export function computeIllnessCorrelation(
     fullHistoryDays: Math.max(MIN_EPISODE_COVERAGE_DAYS, 14),
   });
 
+  // Sleep-as-context — a neutral observation surfaced alongside the gap, NEVER a
+  // return track and NEVER in the recovery-gap median. Withholds (null) on thin
+  // data or a sub-floor delta.
+  const sleepContext = computeSleepContext(
+    input.baselineNights ?? [],
+    input.episodeNights ?? [],
+    window,
+  );
+
   return buildOk<IllnessCorrelationValue>({
     value: {
       episodeId: input.episodeId,
@@ -608,6 +686,7 @@ export function computeIllnessCorrelation(
       feltBetterDay: window.feltBetterDay,
       gapDriverType: gapDriverType === null ? null : String(gapDriverType),
       redFlags,
+      sleepContext,
     },
     coverage,
     confidence,
@@ -616,13 +695,22 @@ export function computeIllnessCorrelation(
 }
 
 /**
- * First day in `active` (chronological), starting at `fromIndex`, where the
- * vital is in-band AND stays in-band for the next `RETURN_STABILITY_DAYS`
- * observed days. Null when it never settles. "In-band" = |deviation| <
- * NOTABLE_SD. `fromIndex` pins the search to AFTER the first deviation so an
- * early in-band run (the run-up to the illness) is never mistaken for a return.
+ * Start of the FINAL sustained in-band run in `active` (chronological) at/after
+ * `fromIndex` — the day the vital *finally* settled and held to the end of the
+ * observed span. "In-band" = |deviation| < NOTABLE_SD. Null when it never
+ * settles, or when it ends out-of-band (still elevated at the last reading), or
+ * when the final in-band run is shorter than `RETURN_STABILITY_DAYS` observed
+ * days. `fromIndex` pins the search to AFTER the first deviation so an early
+ * in-band run (the run-up to the illness) is never mistaken for a return.
+ *
+ * This is the relapse-aware "last sustained return": an episode that settles,
+ * re-deviates (a mid-episode flare), and settles again reports the LAST settle.
+ * The change is monotone — a last return is always >= the first return day — so
+ * any series that settles ONCE (first == last) is unaffected. Multiple relapses
+ * collapse to the same rule: the final contiguous in-band span wins by
+ * construction, no special-casing.
  */
-function firstStableReturn(
+function lastStableReturn(
   active: VitalDayPoint[],
   center: number,
   spread: number,
@@ -632,13 +720,16 @@ function firstStableReturn(
     day: p.day,
     in: Math.abs(deviationSd(p.mean, center, spread)) < NOTABLE_SD,
   }));
-  for (let i = Math.max(0, fromIndex); i < inBand.length; i++) {
-    if (!inBand[i].in) continue;
-    let run = 0;
-    for (let j = i; j < inBand.length && inBand[j].in; j++) run++;
-    if (run >= RETURN_STABILITY_DAYS) return inBand[i].day;
-  }
-  return null;
+  // Series ends out-of-band → no sustained final return (still elevated).
+  if (inBand.length === 0 || !inBand[inBand.length - 1].in) return null;
+  // Walk back from the end to the start of the final maximal in-band run.
+  let start = inBand.length - 1;
+  while (start - 1 >= 0 && inBand[start - 1].in) start--;
+  const run = inBand.length - start;
+  // The final run must be long enough AND begin at/after the first deviation.
+  if (run < RETURN_STABILITY_DAYS || start < Math.max(0, fromIndex))
+    return null;
+  return inBand[start].day;
 }
 
 /**
@@ -652,11 +743,15 @@ function firstStableReturn(
  *  - The anchor is the first logged adverse day (same role as the vital
  *    `firstDeviationIndex`): a return search starts AFTER it, so a run-up is
  *    never read as a return.
- *  - A "return" is the first logged day at/after the anchor that is in-band AND
- *    stays in-band for the next `RETURN_STABILITY_DAYS` LOGGED days. LOGGED-days
+ *  - A "return" is the START of the FINAL sustained in-band logged run at/after
+ *    the anchor — the day symptoms *finally* eased and stayed eased through the
+ *    last logged day, requiring `RETURN_STABILITY_DAYS` LOGGED days. Relapse-
+ *    aware (parity with the vital `lastStableReturn`): if symptoms ease, flare
+ *    again, then ease again, the SECOND easing is the return. LOGGED-days
  *    stability (not calendar days) is the honest-withholding handler for sparse
- *    journals: a single trailing impact-0 log never satisfies the run, so the
- *    track WITHHOLDS rather than fabricating recovery from absence of rows.
+ *    journals: a single trailing impact-0 log never satisfies the run, and a
+ *    journal that ends on an adverse log has no final in-band run, so the track
+ *    WITHHOLDS rather than fabricating recovery from absence of rows.
  *  - The gap is `dayDiff(feltBetterDay, returnedDay)`, same signed semantic.
  *  - Always `adverse:true` (a logged symptom curve is illness-relevant), so it
  *    feeds `adverseCoverageDays` and can drive the headline gap.
@@ -688,21 +783,17 @@ function computeSymptomReturn(
   const firstAdverseIndex = active.findIndex(
     (p) => p.impact >= FUNCTIONAL_IMPACT_ADVERSE_FLOOR,
   );
+  // Start of the FINAL sustained in-band logged run (relapse-aware "last
+  // return"): walk back from the last logged day. A journal ending on an
+  // adverse log has no final in-band run → null (honest withholding).
+  const inBand = active.map((p) => p.impact < FUNCTIONAL_IMPACT_ADVERSE_FLOOR);
   let returnedDay: string | null = null;
-  for (let i = firstAdverseIndex; i < active.length; i++) {
-    if (active[i].impact >= FUNCTIONAL_IMPACT_ADVERSE_FLOOR) continue;
-    // Count consecutive in-band LOGGED days from here.
-    let run = 0;
-    for (
-      let j = i;
-      j < active.length && active[j].impact < FUNCTIONAL_IMPACT_ADVERSE_FLOOR;
-      j++
-    ) {
-      run++;
-    }
-    if (run >= RETURN_STABILITY_DAYS) {
-      returnedDay = active[i].day;
-      break;
+  if (inBand.length > 0 && inBand[inBand.length - 1]) {
+    let start = inBand.length - 1;
+    while (start - 1 >= 0 && inBand[start - 1]) start--;
+    const run = inBand.length - start;
+    if (run >= RETURN_STABILITY_DAYS && start >= firstAdverseIndex) {
+      returnedDay = active[start].day;
     }
   }
 
@@ -719,6 +810,56 @@ function computeSymptomReturn(
       adverse: true,
     },
     adverseDays,
+  };
+}
+
+/**
+ * Compute the sleep-as-context observation: the user's MEDIAN asleep minutes
+ * over the well baseline vs the MEAN over the episode's active span. A neutral
+ * OBSERVATION only — never a recovery return, never folded into the gap median,
+ * never a causal claim. Mirrors the engine's withholding ethos:
+ *
+ *   - Baseline needs ≥ `SLEEP_CONTEXT_MIN_BASELINE_NIGHTS` scorable nights AND
+ *     the episode needs ≥ `SLEEP_CONTEXT_MIN_EPISODE_NIGHTS` (thin sleep data
+ *     produces no observation — say nothing rather than guess).
+ *   - The |delta| must reach `SLEEP_CONTEXT_MIN_DELTA_MINUTES` so day-to-day
+ *     jitter is never narrated as a finding.
+ *
+ * Episode nights are clipped to the active span (`>= onsetDay`) so the
+ * comparison reflects the illness, not the pre-onset lookback. Returns null
+ * (says nothing) below either floor.
+ */
+function computeSleepContext(
+  baselineNights: SleepNightPoint[],
+  episodeNights: SleepNightPoint[],
+  window: EpisodeWindow,
+): SleepContext | null {
+  const baseMinutes = baselineNights.map((n) => n.asleepMinutes);
+  const episodeMinutes = episodeNights
+    .filter((n) => n.day >= window.onsetDay)
+    .map((n) => n.asleepMinutes);
+
+  if (
+    baseMinutes.length < SLEEP_CONTEXT_MIN_BASELINE_NIGHTS ||
+    episodeMinutes.length < SLEEP_CONTEXT_MIN_EPISODE_NIGHTS
+  ) {
+    return null;
+  }
+
+  const baselineMeanMinutes = Math.round(median(baseMinutes));
+  const episodeMeanMinutes = Math.round(
+    episodeMinutes.reduce((s, v) => s + v, 0) / episodeMinutes.length,
+  );
+  const deltaMinutes = episodeMeanMinutes - baselineMeanMinutes;
+
+  // Sub-floor delta is jitter, not a finding → say nothing.
+  if (Math.abs(deltaMinutes) < SLEEP_CONTEXT_MIN_DELTA_MINUTES) return null;
+
+  return {
+    baselineMeanMinutes,
+    episodeMeanMinutes,
+    deltaMinutes,
+    nightsCounted: episodeMinutes.length,
   };
 }
 

@@ -41,6 +41,11 @@ function DeviationRow({ d }: { d: IllnessVitalDeviation }) {
   );
 }
 
+/** Round asleep-minutes to a friendly hours figure (one decimal). */
+function hoursFromMinutes(minutes: number): string {
+  return (Math.round((minutes / 60) * 10) / 10).toString();
+}
+
 function CorrelationBody({ value }: { value: IllnessCorrelationValue }) {
   const { t } = useTranslations();
   const gap = value.recoveryGapDays;
@@ -48,6 +53,9 @@ function CorrelationBody({ value }: { value: IllnessCorrelationValue }) {
   // the symptoms ("…before your symptoms eased"); otherwise the existing
   // vital-driven phrasing. Clinically calm — observation, never prediction.
   const symptomDriven = value.gapDriverType === "FUNCTIONAL_IMPACT";
+  // Sleep-as-context: a neutral observation subordinate to the gap, withheld by
+  // the engine on thin data — never a recovery claim, never a second gap.
+  const sleep = value.sleepContext;
 
   return (
     <div className="space-y-5">
@@ -90,6 +98,16 @@ function CorrelationBody({ value }: { value: IllnessCorrelationValue }) {
                   )
                 : t("illness.correlation.recoveryGapSame")}
           </p>
+          {sleep ? (
+            <p className="text-muted-foreground mt-1.5 text-xs">
+              {t(
+                sleep.deltaMinutes > 0
+                  ? "illness.correlation.sleepContextMore"
+                  : "illness.correlation.sleepContextLess",
+                { hours: hoursFromMinutes(Math.abs(sleep.deltaMinutes)) },
+              )}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
