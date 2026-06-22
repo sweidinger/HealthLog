@@ -5,7 +5,9 @@
  *     `tokenExpiresAt - 5 min`, and persists the new access token + expiry AND
  *     the rotated refresh token. Classic Fitbit ROTATES refresh tokens
  *     (one-time use), so the new `refresh_token` MUST replace the stored one —
- *     the inverse of the prior Google transport, which did not rotate.
+ *     the inverse of the prior Google transport, which did not rotate. The
+ *     persist is a compare-and-swap on the stored ciphertext so two overlapping
+ *     syncs cannot park the connection at reauth (see `persistRotatedToken`).
  *   - `recordFitbitSyncFailure` / `classificationToFailureKind` map a
  *     classified API error onto the shared integration-status ledger.
  *   - `upsertFitbitMeasurements` + `syncUserFitbit` own the write tail (dedup,
@@ -33,6 +35,7 @@ import {
   recomputeUserRollups,
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+import { persistRotatedToken } from "@/lib/integrations/oauth-refresh";
 import { refreshAccessToken } from "./client";
 import { getUserFitbitCredentials } from "./credentials";
 import {
@@ -115,22 +118,47 @@ export async function getValidToken(
 
       // Classic Fitbit ROTATES refresh tokens: the refresh response carries a
       // fresh `refresh_token` that replaces the (now-invalid) stored one. Persist
-      // it unconditionally. Guard the malformed-reply case: if the response omits
-      // the new refresh token, keep the existing one rather than writing a blank,
-      // which would brick every future refresh.
-      await prisma.fitbitConnection.update({
-        where: { id: connection.id },
-        data: {
-          accessToken: encrypt(newTokens.access_token),
-          tokenExpiresAt: expiresAt,
-          ...(newTokens.refresh_token
-            ? { refreshToken: encrypt(newTokens.refresh_token) }
-            : {}),
+      // with a compare-and-swap on the stored ciphertext so a concurrent sync
+      // that already rotated the token does not get its work clobbered — and so
+      // THIS caller, if it lost the race, reuses the peer's rotated access token
+      // instead of parking the connection at reauth. Guard the malformed-reply
+      // case: if the response omits the new refresh token, keep the existing one
+      // rather than writing a blank, which would brick every future refresh.
+      const persistedAccessToken = await persistRotatedToken(
+        newTokens.access_token,
+        {
+          conditionalUpdate: async () => {
+            const { count } = await prisma.fitbitConnection.updateMany({
+              // `connection.refreshToken` is the exact ciphertext we read +
+              // spent; matching it is the CAS guard (a re-encrypt would differ).
+              where: {
+                id: connection.id,
+                refreshToken: connection.refreshToken,
+              },
+              data: {
+                accessToken: encrypt(newTokens.access_token),
+                tokenExpiresAt: expiresAt,
+                ...(newTokens.refresh_token
+                  ? { refreshToken: encrypt(newTokens.refresh_token) }
+                  : {}),
+              },
+            });
+            return count;
+          },
+          readPeerAccessToken: async () => {
+            const fresh = await prisma.fitbitConnection.findUnique({
+              where: { id: connection.id },
+              select: { accessToken: true },
+            });
+            return fresh ? decrypt(fresh.accessToken) : null;
+          },
         },
-      });
+      );
+
+      if (!persistedAccessToken) return null;
 
       return {
-        accessToken: newTokens.access_token,
+        accessToken: persistedAccessToken,
         connection: {
           id: connection.id,
           fitbitUserId: connection.fitbitUserId,

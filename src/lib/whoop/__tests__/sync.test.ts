@@ -20,6 +20,7 @@ const {
     whoopConnection: {
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       findMany: vi.fn(),
     },
     measurement: {
@@ -118,7 +119,7 @@ describe("getValidToken — rotating refresh", () => {
       refresh_token: "new-refresh",
       expires_in: 3600,
     });
-    prismaMock.whoopConnection.update.mockResolvedValue({});
+    prismaMock.whoopConnection.updateMany.mockResolvedValue({ count: 1 });
 
     const result = await getValidToken("user1");
 
@@ -127,9 +128,37 @@ describe("getValidToken — rotating refresh", () => {
       clientId: "cid",
       clientSecret: "csecret",
     });
-    const updateArg = prismaMock.whoopConnection.update.mock.calls[0]![0];
+    const updateArg = prismaMock.whoopConnection.updateMany.mock.calls[0]![0];
+    // CAS guard: scoped to the connection AND the exact stored ciphertext spent.
+    expect(updateArg.where.id).toBe("conn1");
+    expect(updateArg.where.refreshToken).toBe("enc(old-refresh)");
     expect(updateArg.data.accessToken).toBe("enc(new-access)");
     expect(updateArg.data.refreshToken).toBe("enc(new-refresh)");
+  });
+
+  it("reuses the peer's rotated token on a lost CAS race (no spurious reauth)", async () => {
+    prismaMock.whoopConnection.findUnique
+      .mockResolvedValueOnce({
+        id: "conn1",
+        whoopUserId: "42",
+        accessToken: "enc(old-access)",
+        refreshToken: "enc(old-refresh)",
+        tokenExpiresAt: new Date(Date.now() - 1000),
+      })
+      // Re-read after the lost race surfaces the peer's freshly rotated access.
+      .mockResolvedValueOnce({ accessToken: "enc(peer-access)" });
+    refreshAccessTokenMock.mockResolvedValue({
+      access_token: "new-access",
+      refresh_token: "new-refresh",
+      expires_in: 3600,
+    });
+    // A concurrent sync already rotated the token → zero rows match the guard.
+    prismaMock.whoopConnection.updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await getValidToken("user1");
+
+    expect(result?.accessToken).toBe("peer-access");
+    expect(recordSyncFailure).not.toHaveBeenCalled();
   });
 
   it("returns the stored token without refresh when not near expiry", async () => {

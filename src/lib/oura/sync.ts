@@ -124,6 +124,7 @@ async function fetchAll(
   userId: string,
   accessToken: string,
   refreshToken: string,
+  refreshTokenCiphertext: string,
   lookbackDays: number,
 ): Promise<OuraMeasurementUpsert[]> {
   const now = new Date();
@@ -179,8 +180,17 @@ async function fetchAll(
     if (!creds) throw err;
 
     const rotated = await refreshAccessToken(refreshToken, creds);
-    await storeOuraTokens(userId, rotated.access_token, rotated.refresh_token);
-    return run(rotated.access_token);
+    // Compare-and-swap persist: on a lost race against a concurrent sync this
+    // returns the peer's freshly rotated access token rather than the (now
+    // invalidated) one we just minted, so neither sync parks the connection.
+    const usableToken = await storeOuraTokens(
+      userId,
+      rotated.access_token,
+      rotated.refresh_token,
+      refreshTokenCiphertext,
+    );
+    if (!usableToken) throw err;
+    return run(usableToken);
   }
 }
 
@@ -202,6 +212,7 @@ export async function syncUserOura(
       userId,
       conn.accessToken,
       conn.refreshToken,
+      conn.refreshTokenCiphertext,
       opts.lookbackDays ?? OURA_SYNC_LOOKBACK_DAYS,
     );
   } catch (err) {

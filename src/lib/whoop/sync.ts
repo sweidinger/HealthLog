@@ -6,7 +6,9 @@
  *   - `getValidToken` decrypts the stored pair, refreshes at
  *     `tokenExpiresAt - 5 min`, and persists BOTH rotated tokens (WHOOP
  *     invalidates the prior access AND refresh token on every refresh — the
- *     same discipline Withings uses for its rotating refresh token).
+ *     same discipline Withings uses for its rotating refresh token). The persist
+ *     is a compare-and-swap on the stored ciphertext so two overlapping syncs
+ *     cannot park the connection at reauth (see `persistRotatedToken`).
  *   - Each per-resource sync (`sync-recovery` / `sync-sleep` / `sync-cycle` /
  *     `sync-workout`) upserts into `Measurement` / `Workout` keyed on
  *     `(userId, type, source = WHOOP, externalId)` so a re-post (WHOOP
@@ -38,6 +40,7 @@ import {
   recomputeBucketsForMeasurement,
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+import { persistRotatedToken } from "@/lib/integrations/oauth-refresh";
 import { refreshAccessToken } from "./client";
 import { getUserWhoopCredentials } from "./credentials";
 import {
@@ -217,20 +220,44 @@ export async function getValidToken(
       const newTokens = await refreshAccessToken(refreshToken, creds);
       const expiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
 
-      // WHOOP rotates the refresh token on every refresh — persist BOTH the
-      // new access token AND the new refresh token, or the next refresh
-      // reuses an invalidated token and the connection drops to reauth.
-      await prisma.whoopConnection.update({
-        where: { id: connection.id },
-        data: {
-          accessToken: encrypt(newTokens.access_token),
-          refreshToken: encrypt(newTokens.refresh_token),
-          tokenExpiresAt: expiresAt,
+      // WHOOP rotates the refresh token on every refresh. Persist BOTH the new
+      // access token AND the new refresh token with a compare-and-swap on the
+      // stored ciphertext: a concurrent sync that already rotated the token is
+      // not clobbered, and THIS caller — if it lost the race — reuses the peer's
+      // rotated access token instead of dropping the connection to reauth.
+      const persistedAccessToken = await persistRotatedToken(
+        newTokens.access_token,
+        {
+          conditionalUpdate: async () => {
+            const { count } = await prisma.whoopConnection.updateMany({
+              // `connection.refreshToken` is the exact ciphertext we read +
+              // spent; matching it is the CAS guard (a re-encrypt would differ).
+              where: {
+                id: connection.id,
+                refreshToken: connection.refreshToken,
+              },
+              data: {
+                accessToken: encrypt(newTokens.access_token),
+                refreshToken: encrypt(newTokens.refresh_token),
+                tokenExpiresAt: expiresAt,
+              },
+            });
+            return count;
+          },
+          readPeerAccessToken: async () => {
+            const fresh = await prisma.whoopConnection.findUnique({
+              where: { id: connection.id },
+              select: { accessToken: true },
+            });
+            return fresh ? decrypt(fresh.accessToken) : null;
+          },
         },
-      });
+      );
+
+      if (!persistedAccessToken) return null;
 
       return {
-        accessToken: newTokens.access_token,
+        accessToken: persistedAccessToken,
         connection: {
           id: connection.id,
           whoopUserId: connection.whoopUserId,
