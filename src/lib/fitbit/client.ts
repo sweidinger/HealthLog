@@ -39,6 +39,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
+import { zonedWallClockToUtc } from "@/lib/tz/wall-clock";
 import { FitbitApiError, classifyFitbitResponse } from "./response-classifier";
 
 /** Classic Fitbit Web API base. */
@@ -929,13 +930,13 @@ interface FitbitSleepSession {
  * The stable session anchor for a sleep externalId — the logId, else the end (or
  * start) instant. A re-scored night reuses the same logId → overwrites in place.
  */
-function sleepSessionAnchor(s: FitbitSleepSession): string {
+function sleepSessionAnchor(s: FitbitSleepSession, tz?: string): string {
   if (typeof s.logId === "number" && Number.isFinite(s.logId)) {
     return String(s.logId);
   }
   for (const t of [s.endTime, s.startTime]) {
     if (typeof t === "string") {
-      const d = parseLocalInstant(t);
+      const d = parseLocalInstant(t, tz);
       if (d) return d.toISOString();
     }
   }
@@ -943,12 +944,40 @@ function sleepSessionAnchor(s: FitbitSleepSession): string {
 }
 
 /**
- * Parse a Fitbit sleep timestamp. The 1.2 sleep log emits LOCAL wall-clock ISO
- * strings WITHOUT an offset (e.g. `2020-01-26T03:02:30.000`); `new Date(...)`
- * treats an offset-less ISO string as local time, which is the user's intent
- * here (the night belongs to the user's local clock). Returns null on a miss.
+ * Matches an offset-less local ISO wall-clock string Fitbit emits on the classic
+ * sleep + activity logs (`2020-01-26T03:02:30` / `...T03:02:30.000`). No trailing
+ * `Z`, no `±hh:mm` — those denote an absolute instant and are honoured verbatim.
  */
-function parseLocalInstant(iso: string): Date | null {
+const OFFSET_LESS_LOCAL_ISO =
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/;
+
+/**
+ * Parse a Fitbit timestamp into a UTC instant. The classic 1.2 sleep log and the
+ * activities list emit LOCAL wall-clock strings WITHOUT an offset (e.g.
+ * `2020-01-26T03:02:30.000`) — the night/activity belongs to the user's local
+ * clock, so the wall clock must be resolved against the USER'S timezone, not the
+ * process zone. A bare `new Date(iso)` parses an offset-less string in the host
+ * zone (UTC in production), which shifts a non-UTC user's segment by their UTC
+ * offset and can flip the wake-day in the night reconstruction. When `tz` is
+ * omitted (no user zone on the path) the host-local fallback preserves the prior
+ * behaviour. Strings that DO carry an offset/`Z` are absolute and parsed as-is.
+ * Returns null on a miss.
+ */
+function parseLocalInstant(iso: string, tz?: string): Date | null {
+  const m = OFFSET_LESS_LOCAL_ISO.exec(iso.trim());
+  if (m) {
+    return zonedWallClockToUtc(
+      {
+        year: Number(m[1]),
+        month: Number(m[2]),
+        day: Number(m[3]),
+        hour: Number(m[4]),
+        minute: Number(m[5]),
+        second: m[6] ? Number(m[6]) : 0,
+      },
+      tz,
+    );
+  }
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? null : d;
 }
@@ -959,14 +988,20 @@ function parseLocalInstant(iso: string): Date | null {
  * Each segment carries a stage-scoped, INDEXED fieldTag so the several segments
  * of one stage stay distinct under the `(userId, type, source, externalId)`
  * dedup key. Unknown stage labels are skipped.
+ *
+ * The 1.2 sleep log emits OFFSET-LESS local wall-clock timestamps, so `tz` (the
+ * user's stored zone) anchors them to the correct UTC instant — without it a
+ * non-UTC user's near-midnight segment END would shift by their UTC offset and
+ * could land on the wrong wake-day in the night reconstruction.
  */
 export function mapSleepSession(
   session: FitbitSleepSession,
+  tz?: string,
 ): FitbitMappedMeasurement[] {
   const data = session.levels?.data;
   if (!Array.isArray(data) || data.length === 0) return [];
 
-  const anchor = sleepSessionAnchor(session);
+  const anchor = sleepSessionAnchor(session, tz);
   const out: FitbitMappedMeasurement[] = [];
   let segIndex = 0;
   for (const seg of data) {
@@ -975,7 +1010,7 @@ export function mapSleepSession(
     if (!positive(seg.seconds)) continue;
     const startStr = typeof seg.dateTime === "string" ? seg.dateTime : null;
     if (!startStr) continue;
-    const start = parseLocalInstant(startStr);
+    const start = parseLocalInstant(startStr, tz);
     if (!start) continue;
     const minutes = seg.seconds / 60;
     const end = new Date(start.getTime() + seg.seconds * 1000);
@@ -1083,13 +1118,18 @@ export interface FitbitMappedWorkout {
  * there is no usable start + positive duration. The externalId anchors on the
  * `logId` (stable) so a re-fetch overwrites the same row. The classic
  * activities-list endpoint does not surface min/max HR, so those stay null.
+ *
+ * `startTime` is an offset-less local wall-clock string, so `tz` (the user's
+ * stored zone) anchors it to the correct UTC instant rather than the process
+ * zone.
  */
 export function mapWorkout(
   entry: FitbitActivityLogEntry,
+  tz?: string,
 ): FitbitMappedWorkout | null {
   const start =
     typeof entry.startTime === "string"
-      ? parseLocalInstant(entry.startTime)
+      ? parseLocalInstant(entry.startTime, tz)
       : null;
   if (!start) return null;
   if (!positive(entry.duration)) return null;

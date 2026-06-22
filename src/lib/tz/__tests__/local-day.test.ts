@@ -1,6 +1,46 @@
 import { describe, expect, it } from "vitest";
 import { startOfLocalDayInTz } from "@/lib/tz/local-day";
-import { wallClockInTz } from "@/lib/tz/wall-clock";
+import { wallClockInTz, zonedWallClockToUtc } from "@/lib/tz/wall-clock";
+
+describe("zonedWallClockToUtc", () => {
+  it("resolves a wall clock in a positive-offset zone to the right UTC instant", () => {
+    // 00:30 CEST (UTC+2) on 2026-05-11 → 22:30 UTC on 2026-05-10.
+    const utc = zonedWallClockToUtc(
+      { year: 2026, month: 5, day: 11, hour: 0, minute: 30 },
+      "Europe/Berlin",
+    );
+    expect(utc.toISOString()).toBe("2026-05-10T22:30:00.000Z");
+  });
+
+  it("round-trips through wallClockInTz across the spring-forward boundary", () => {
+    // 03:30 local on Berlin's spring-forward day (clocks jumped 02:00→03:00).
+    const utc = zonedWallClockToUtc(
+      { year: 2026, month: 3, day: 29, hour: 3, minute: 30 },
+      "Europe/Berlin",
+    );
+    const parts = wallClockInTz(utc, "Europe/Berlin");
+    expect(parts.hour).toBe(3);
+    expect(parts.minute).toBe(30);
+    expect(parts.day).toBe(29);
+  });
+
+  it("resolves a negative-offset zone", () => {
+    // 00:30 NZST (UTC+12) on 2026-06-15 → 12:30 UTC on 2026-06-14.
+    const utc = zonedWallClockToUtc(
+      { year: 2026, month: 6, day: 15, hour: 0, minute: 30 },
+      "Pacific/Auckland",
+    );
+    expect(utc.toISOString()).toBe("2026-06-14T12:30:00.000Z");
+  });
+
+  it("falls back to host-local when tz is undefined", () => {
+    const utc = zonedWallClockToUtc(
+      { year: 2026, month: 6, day: 15, hour: 14, minute: 30, second: 15 },
+      undefined,
+    );
+    expect(utc.getTime()).toBe(new Date(2026, 5, 15, 14, 30, 15).getTime());
+  });
+});
 
 describe("startOfLocalDayInTz", () => {
   it("anchors at the user's local midnight, not UTC midnight", () => {
