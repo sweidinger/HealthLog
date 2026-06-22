@@ -861,23 +861,49 @@ export async function enqueueBootTimeRollupBackfill(): Promise<{
     // every restart. Days outside the window are not foldable by
     // design and must not anchor discovery.
     const foldWindowStart = new Date(Date.now() - ROLLUP_FOLD_WINDOW_MS);
+    // Two discovery arms, UNION-ed:
+    //
+    //   1. Per-day MISSING coverage — a (user, type, day) pair in
+    //      `measurements` with no matching DAY rollup row (v1.4.39.1).
+    //
+    //   2. v1.20.0 F6 NULL-accumulator arm — a user whose DAY rollup rows
+    //      predate migration 0190 (regression accumulators are NULL) needs a
+    //      one-time re-fold so the windowed slope / r² / sd readers compose
+    //      from the accumulators instead of falling back to the live REGR_*
+    //      scan. Anchored on `sum_xy IS NULL` (the column the read tier
+    //      treats as the coverage marker). New writes self-populate the
+    //      accumulators, so this arm drains to empty once the boot re-fold
+    //      catches up — mirrors the v1.4.39 sum_value rollout, which the
+    //      v1.4.41 note confirms converged via this same boot queue. Bounded
+    //      to the fold window so days outside it (un-foldable by design)
+    //      never re-flag a user on every boot.
     const users = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT DISTINCT mt."user_id" AS id
-      FROM (
-        SELECT DISTINCT
-          m."user_id",
-          m."type",
-          date_trunc('day', m."measured_at") AS bucket_start
-        FROM measurements m
-        WHERE m."deleted_at" IS NULL
-          AND m."measured_at" >= ${foldWindowStart}
-      ) mt
-      LEFT JOIN measurement_rollups r
-        ON  r."user_id"     = mt."user_id"
-        AND r."type"        = mt."type"
-        AND r."granularity" = 'DAY'
-        AND r."bucket_start" = mt."bucket_start"
-      WHERE r."bucket_start" IS NULL
+      SELECT DISTINCT id FROM (
+        SELECT DISTINCT mt."user_id" AS id
+        FROM (
+          SELECT DISTINCT
+            m."user_id",
+            m."type",
+            date_trunc('day', m."measured_at") AS bucket_start
+          FROM measurements m
+          WHERE m."deleted_at" IS NULL
+            AND m."measured_at" >= ${foldWindowStart}
+        ) mt
+        LEFT JOIN measurement_rollups r
+          ON  r."user_id"     = mt."user_id"
+          AND r."type"        = mt."type"
+          AND r."granularity" = 'DAY'
+          AND r."bucket_start" = mt."bucket_start"
+        WHERE r."bucket_start" IS NULL
+
+        UNION
+
+        SELECT DISTINCT r."user_id" AS id
+        FROM measurement_rollups r
+        WHERE r."granularity" = 'DAY'
+          AND r."bucket_start" >= ${foldWindowStart}
+          AND r."sum_xy" IS NULL
+      ) discovered
     `;
 
     if (users.length === 0) {
