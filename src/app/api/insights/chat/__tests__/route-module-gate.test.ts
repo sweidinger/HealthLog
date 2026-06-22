@@ -66,6 +66,17 @@ vi.mock("@/lib/ai/prompts/insight-generator", () => ({ PROMPT_VERSION: "x" }));
 vi.mock("@/lib/ai/coach/types", () => ({
   coachChatRequestSchema: { safeParse: () => ({ success: false }) },
 }));
+// v1.20.0 (F1) — the route statically imports the tool barrel; this suite
+// never reaches tool code (it asserts the 403 module-gate short-circuit), so a
+// thin stub keeps the import graph satisfied without pulling the real schemas.
+vi.mock("@/lib/ai/coach/tools", () => ({
+  COACH_TOOL_DEFS: [],
+  MAX_ROUNDS: 2,
+  buildCoachDataInventory: vi.fn(),
+  renderDataInventory: vi.fn(),
+  buildToolModeAddendum: vi.fn(),
+  runCoachToolLoop: vi.fn(),
+}));
 vi.mock("@/lib/ai/coach/persistence", () => ({
   appendMessage: vi.fn(),
   createConversation: vi.fn(),

@@ -58,8 +58,11 @@ vi.mock("@/lib/ai/provider-runner", () => ({
   runRawCompletionWithFallback,
 }));
 vi.mock("@/lib/ai/provider", () => ({
+  // v1.20.0 (F1) — pin a no-tools provider so this suite exercises the legacy
+  // snapshot-stuffing fallback path (the behaviour it was written to pin). The
+  // tool-retrieval path is covered by route-tool-mode.test.ts.
   resolveProviderChain: vi.fn(async () => [
-    { providerType: "admin-openai", instance: {} },
+    { providerType: "admin-openai", instance: { supportsTools: false } },
   ]),
   resolveProvider: vi.fn(),
 }));
