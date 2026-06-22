@@ -231,6 +231,105 @@ describe("computeIllnessCorrelation — golden recovery-gap", () => {
     expect(out.value.returns[0]?.returnedDay).toBeNull();
   });
 
+  it("still reports the settle day when a single transient out-of-band reading trails the recovery", () => {
+    // R-REG-1: a non-relapse episode that settles for ≥ RETURN_STABILITY_DAYS
+    // and then has ONE noisy out-of-band reading on the last logged day. A lone
+    // trailing outlier is measurement noise, not a relapse, so the recovery day
+    // must NOT be dropped to null. RHR settles 01-18..01-21 (4 in-band days),
+    // then a single 63 spike on 01-22.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 70 }, // onset, out of band
+      { day: "2026-01-12", mean: 75 }, // nadir
+      { day: "2026-01-17", mean: 64 }, // felt-better day, still elevated
+      { day: "2026-01-18", mean: 55 }, // settle starts
+      { day: "2026-01-19", mean: 55 },
+      { day: "2026-01-20", mean: 55 },
+      { day: "2026-01-21", mean: 55 }, // 4 stable in-band days
+      { day: "2026-01-22", mean: 63 }, // lone trailing outlier (transient)
+    ];
+    const out = computeIllnessCorrelation(
+      input({ series: [{ type, baselineDays, episodeDays }] }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.returns[0]?.returnedDay).toBe("2026-01-18");
+    // returned 01-18, felt better 01-17 → gap +1 (a non-null number)
+    expect(out.value.recoveryGapDays).toBe(dayDiff("2026-01-17", "2026-01-18"));
+    expect(out.value.recoveryGapDays).toBe(1);
+  });
+
+  it("reports the FINAL settle day after a genuine relapse that re-settles", () => {
+    // R-REG-1: settle → genuine sustained re-deviation (a real flare, not noise)
+    // → re-settle. The LAST sustained in-band run wins. RHR settles 01-13..01-15,
+    // flares out-of-band 01-16..01-18 (3 days = a genuine relapse), then settles
+    // again 01-19..01-21. The return is the SECOND settle, 01-19.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 72 }, // onset, out of band
+      { day: "2026-01-12", mean: 75 }, // nadir
+      { day: "2026-01-13", mean: 55 }, // first settle starts
+      { day: "2026-01-14", mean: 55 },
+      { day: "2026-01-15", mean: 55 }, // 3 in-band days
+      { day: "2026-01-16", mean: 68 }, // genuine relapse (sustained)
+      { day: "2026-01-17", mean: 67 },
+      { day: "2026-01-18", mean: 66 }, // 3 out-of-band days
+      { day: "2026-01-19", mean: 55 }, // second settle starts
+      { day: "2026-01-20", mean: 55 },
+      { day: "2026-01-21", mean: 55 }, // 3 in-band days
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [{ type, baselineDays, episodeDays }],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.returns[0]?.returnedDay).toBe("2026-01-19");
+    expect(out.value.recoveryGapDays).toBe(dayDiff("2026-01-14", "2026-01-19"));
+    expect(out.value.recoveryGapDays).toBe(5);
+  });
+
+  it("returns null when a sustained re-deviation follows the settle with no re-settle (still elevated)", () => {
+    // R-REG-1 boundary: the noise tolerance must NOT swallow a genuine ongoing
+    // relapse. Settle 01-13..01-15, then a SUSTAINED out-of-band tail
+    // (01-16..01-18, ≥ RETURN_STABILITY_DAYS) with no re-settle → the vital is
+    // still elevated at the end → null, exactly as a still-active episode.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 72 },
+      { day: "2026-01-12", mean: 75 },
+      { day: "2026-01-13", mean: 55 }, // settle
+      { day: "2026-01-14", mean: 55 },
+      { day: "2026-01-15", mean: 55 },
+      { day: "2026-01-16", mean: 68 }, // sustained re-deviation, no re-settle
+      { day: "2026-01-17", mean: 67 },
+      { day: "2026-01-18", mean: 66 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [{ type, baselineDays, episodeDays }],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.returns[0]?.returnedDay).toBeNull();
+    expect(out.value.recoveryGapDays).toBeNull();
+  });
+
   it("flags a return adverse only when the vital deviated in the adverse direction", () => {
     // A neutral-direction vital (WEIGHT) can deviate out of band and stably
     // return — it produces a return finding, but `adverse` must stay false so
