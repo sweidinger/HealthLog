@@ -696,19 +696,23 @@ export function computeIllnessCorrelation(
 
 /**
  * Start of the FINAL sustained in-band run in `active` (chronological) at/after
- * `fromIndex` — the day the vital *finally* settled and held to the end of the
- * observed span. "In-band" = |deviation| < NOTABLE_SD. Null when it never
- * settles, or when it ends out-of-band (still elevated at the last reading), or
- * when the final in-band run is shorter than `RETURN_STABILITY_DAYS` observed
- * days. `fromIndex` pins the search to AFTER the first deviation so an early
- * in-band run (the run-up to the illness) is never mistaken for a return.
+ * `fromIndex` — the day the vital *finally* settled and held. "In-band" =
+ * |deviation| < NOTABLE_SD. Null when it never settles, when the final settle
+ * is shorter than `RETURN_STABILITY_DAYS` observed days, or when a GENUINE
+ * sustained re-deviation (≥ `RETURN_STABILITY_DAYS` out-of-band days) follows
+ * the last settle with no re-settle (the vital is still elevated at the end).
+ * `fromIndex` pins the search to AFTER the first deviation so an early in-band
+ * run (the run-up to the illness) is never mistaken for a return.
  *
- * This is the relapse-aware "last sustained return": an episode that settles,
- * re-deviates (a mid-episode flare), and settles again reports the LAST settle.
- * The change is monotone — a last return is always >= the first return day — so
- * any series that settles ONCE (first == last) is unaffected. Multiple relapses
- * collapse to the same rule: the final contiguous in-band span wins by
- * construction, no special-casing.
+ * Relapse-aware AND noise-tolerant: an episode that settles, re-deviates (a
+ * mid-episode flare), and settles again reports the LAST settle. A LONE
+ * trailing out-of-band reading (or any tail shorter than the stability window)
+ * after a real settle is transient measurement noise, NOT a relapse — it does
+ * not null the return. Only a sustained out-of-band tail (≥ the stability
+ * window) is read as a genuine unrecovered re-deviation and clears the return.
+ * This keeps the change monotone for clean single-settle series (first == last,
+ * unaffected) while not regressing a settle that happens to end on one noisy
+ * out-of-band sample.
  */
 function lastStableReturn(
   active: VitalDayPoint[],
@@ -720,13 +724,24 @@ function lastStableReturn(
     day: p.day,
     in: Math.abs(deviationSd(p.mean, center, spread)) < NOTABLE_SD,
   }));
-  // Series ends out-of-band → no sustained final return (still elevated).
-  if (inBand.length === 0 || !inBand[inBand.length - 1].in) return null;
-  // Walk back from the end to the start of the final maximal in-band run.
-  let start = inBand.length - 1;
+  if (inBand.length === 0) return null;
+
+  // A sustained out-of-band TAIL (≥ stability window) means the vital genuinely
+  // re-deviated after the last settle and never came back — still elevated, no
+  // final return. A shorter trailing out-of-band tail is transient noise and is
+  // ignored so a real settle that ends on a noisy sample is not lost.
+  let tailOut = 0;
+  while (tailOut < inBand.length && !inBand[inBand.length - 1 - tailOut].in) {
+    tailOut++;
+  }
+  if (tailOut >= RETURN_STABILITY_DAYS) return null;
+
+  // Walk back from the last IN-band reading to the start of its maximal run.
+  const end = inBand.length - 1 - tailOut;
+  let start = end;
   while (start - 1 >= 0 && inBand[start - 1].in) start--;
-  const run = inBand.length - start;
-  // The final run must be long enough AND begin at/after the first deviation.
+  const run = end - start + 1;
+  // The final settle must be long enough AND begin at/after the first deviation.
   if (run < RETURN_STABILITY_DAYS || start < Math.max(0, fromIndex))
     return null;
   return inBand[start].day;
@@ -744,14 +759,15 @@ function lastStableReturn(
  *    `firstDeviationIndex`): a return search starts AFTER it, so a run-up is
  *    never read as a return.
  *  - A "return" is the START of the FINAL sustained in-band logged run at/after
- *    the anchor — the day symptoms *finally* eased and stayed eased through the
- *    last logged day, requiring `RETURN_STABILITY_DAYS` LOGGED days. Relapse-
- *    aware (parity with the vital `lastStableReturn`): if symptoms ease, flare
- *    again, then ease again, the SECOND easing is the return. LOGGED-days
- *    stability (not calendar days) is the honest-withholding handler for sparse
- *    journals: a single trailing impact-0 log never satisfies the run, and a
- *    journal that ends on an adverse log has no final in-band run, so the track
- *    WITHHOLDS rather than fabricating recovery from absence of rows.
+ *    the anchor — the day symptoms *finally* eased and stayed eased, requiring
+ *    `RETURN_STABILITY_DAYS` LOGGED days. Relapse-aware AND noise-tolerant
+ *    (parity with the vital `lastStableReturn`): if symptoms ease, flare again,
+ *    then ease again, the SECOND easing is the return; a trailing adverse tail
+ *    SHORTER than the stability window is a single noisy late log and is
+ *    tolerated, while a sustained adverse tail (≥ the window) is a genuine
+ *    re-flare with no re-settle and WITHHOLDS the return. LOGGED-days stability
+ *    (not calendar days) is the honest-withholding handler for sparse journals:
+ *    a single trailing impact-0 log never satisfies the run on its own.
  *  - The gap is `dayDiff(feltBetterDay, returnedDay)`, same signed semantic.
  *  - Always `adverse:true` (a logged symptom curve is illness-relevant), so it
  *    feeds `adverseCoverageDays` and can drive the headline gap.
@@ -784,16 +800,26 @@ function computeSymptomReturn(
     (p) => p.impact >= FUNCTIONAL_IMPACT_ADVERSE_FLOOR,
   );
   // Start of the FINAL sustained in-band logged run (relapse-aware "last
-  // return"): walk back from the last logged day. A journal ending on an
-  // adverse log has no final in-band run → null (honest withholding).
+  // return"): walk back from the last logged day. Mirrors the vital
+  // `lastStableReturn` — a trailing adverse tail SHORTER than the stability
+  // window is tolerated (a single noisy late log does not null a real ease),
+  // while a sustained adverse tail (≥ the window) is a genuine re-flare with no
+  // re-settle → null (honest withholding).
   const inBand = active.map((p) => p.impact < FUNCTIONAL_IMPACT_ADVERSE_FLOOR);
   let returnedDay: string | null = null;
-  if (inBand.length > 0 && inBand[inBand.length - 1]) {
-    let start = inBand.length - 1;
-    while (start - 1 >= 0 && inBand[start - 1]) start--;
-    const run = inBand.length - start;
-    if (run >= RETURN_STABILITY_DAYS && start >= firstAdverseIndex) {
-      returnedDay = active[start].day;
+  if (inBand.length > 0) {
+    let tailOut = 0;
+    while (tailOut < inBand.length && !inBand[inBand.length - 1 - tailOut]) {
+      tailOut++;
+    }
+    if (tailOut < RETURN_STABILITY_DAYS) {
+      const end = inBand.length - 1 - tailOut;
+      let start = end;
+      while (start - 1 >= 0 && inBand[start - 1]) start--;
+      const run = end - start + 1;
+      if (run >= RETURN_STABILITY_DAYS && start >= firstAdverseIndex) {
+        returnedDay = active[start].day;
+      }
     }
   }
 
@@ -909,9 +935,14 @@ function detectRedFlags(input: IllnessCorrelationInput): IllnessRedFlag[] {
     );
   }
   if (feverByDay.size > 0) {
-    const fevPoints: VitalDayPoint[] = [...feverByDay.entries()].map(
-      ([day, mean]) => ({ day, mean }),
-    );
+    // `runFlag` counts CONSECUTIVE-day runs, so it needs chronological input.
+    // The Map unions two individually-sorted sources (passive temperature, then
+    // day-log feverC) in insertion order, NOT global day order — sort by day
+    // before the run scan or an interleaved dual-source episode mis-counts the
+    // run (a false sustained_fever escalation, or a real run hidden).
+    const fevPoints: VitalDayPoint[] = [...feverByDay.entries()]
+      .map(([day, mean]) => ({ day, mean }))
+      .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
     const flag = runFlag(
       fevPoints,
       (v) => v >= FEVER_RED_FLAG,
