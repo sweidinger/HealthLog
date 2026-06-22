@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AnthropicClient } from "../anthropic-client";
+import { singleUserTurn } from "../types";
 
 describe("AnthropicClient", () => {
   beforeEach(() => {
@@ -22,12 +23,14 @@ describe("AnthropicClient", () => {
       model: "claude-3-5-sonnet-latest",
     });
 
-    const result = await client.generateCompletion({
-      systemPrompt: "You are a doctor.",
-      userPrompt: "Analyze this data.",
-      temperature: 0.4,
-      maxTokens: 800,
-    });
+    const result = await client.generateCompletion(
+      singleUserTurn({
+        system: "You are a doctor.",
+        user: "Analyze this data.",
+        temperature: 0.4,
+        maxTokens: 800,
+      }),
+    );
 
     expect(result.content).toBe('{"summary":"ok"}');
     expect(result.tokensUsed).toBe(42);
@@ -45,10 +48,16 @@ describe("AnthropicClient", () => {
     expect(body.model).toBe("claude-3-5-sonnet-latest");
     expect(body.max_tokens).toBe(800);
     expect(body.temperature).toBe(0.4);
-    // System prompt is a separate top-level field, NOT a message.
-    expect(body.system).toBe("You are a doctor.");
+    // v1.20.0 — system is a top-level cache-marked text block (NOT a message).
+    expect(body.system).toEqual([
+      {
+        type: "text",
+        text: "You are a doctor.",
+        cache_control: { type: "ephemeral" },
+      },
+    ]);
     expect(body.messages).toEqual([expect.objectContaining({ role: "user" })]);
-    // User message should be wrapped to coerce JSON output.
+    // User message carries the original text plus the JSON-coercion instruction.
     expect(body.messages[0].content).toContain("Analyze this data.");
     expect(body.messages[0].content.toLowerCase()).toContain("json");
   });
@@ -70,11 +79,9 @@ describe("AnthropicClient", () => {
       model: "claude-3-5-sonnet-latest",
     });
 
-    const result = await client.generateCompletion({
-      systemPrompt: "s",
-      userPrompt: "u",
-      responseFormat: "json",
-    });
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+    );
 
     // The returned content is the complete object (the `{` re-prepended).
     expect(result.content).toBe('{"summary":"ok"}');
@@ -101,10 +108,9 @@ describe("AnthropicClient", () => {
       model: "claude-3-5-sonnet-latest",
     });
 
-    const result = await client.generateCompletion({
-      systemPrompt: "s",
-      userPrompt: "u",
-    });
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u" }),
+    );
 
     expect(result.content).toBe("Just some prose.");
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -129,7 +135,7 @@ describe("AnthropicClient", () => {
       baseUrl: "https://api.anthropic.example/v1/",
     });
 
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     expect(mockFetch.mock.calls[0][0]).toBe(
       "https://api.anthropic.example/v1/messages",
@@ -156,10 +162,9 @@ describe("AnthropicClient", () => {
 
     let caught: unknown;
     try {
-      await client.generateCompletion({
-        systemPrompt: "s",
-        userPrompt: "u",
-      });
+      await client.generateCompletion(
+        singleUserTurn({ system: "s", user: "u" }),
+      );
     } catch (e) {
       caught = e;
     }
@@ -195,13 +200,15 @@ describe("AnthropicClient", () => {
       model: "claude-sonnet-4-6",
     });
 
-    await client.generateCompletion({
-      systemPrompt: "Transcribe this report.",
-      userPrompt: "Extract the readings.",
-      responseFormat: "json",
-      images: [{ mediaType: "image/jpeg", dataBase64: "aW1n" }],
-      documents: [{ mediaType: "application/pdf", dataBase64: "cGRm" }],
-    });
+    await client.generateCompletion(
+      singleUserTurn({
+        system: "Transcribe this report.",
+        user: "Extract the readings.",
+        responseFormat: "json",
+        images: [{ mediaType: "image/jpeg", dataBase64: "aW1n" }],
+        documents: [{ mediaType: "application/pdf", dataBase64: "cGRm" }],
+      }),
+    );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     // First message is the user turn; its content is now a typed array.
@@ -240,7 +247,7 @@ describe("AnthropicClient", () => {
       model: "claude-sonnet-4-6",
     });
 
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(typeof body.messages[0].content).toBe("string");
   });
@@ -260,7 +267,74 @@ describe("AnthropicClient", () => {
     });
 
     await expect(
-      client.generateCompletion({ systemPrompt: "s", userPrompt: "u" }),
+      client.generateCompletion(singleUserTurn({ system: "s", user: "u" })),
     ).rejects.toThrow("Anthropic returned empty content");
+  });
+
+  it("maps tools, drops the JSON prefill, parses tool_use + cache reads", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          content: [
+            {
+              type: "tool_use",
+              id: "toolu_1",
+              name: "fetch_glucose",
+              input: { window: "last30days" },
+            },
+          ],
+          stop_reason: "tool_use",
+          usage: {
+            input_tokens: 50,
+            output_tokens: 8,
+            cache_read_input_tokens: 40,
+          },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new AnthropicClient({
+      apiKey: "sk-ant-x",
+      model: "claude-sonnet-4-6",
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({
+        system: "s",
+        user: "u",
+        // Even with responseFormat json, tools must win and drop the prefill.
+        responseFormat: "json",
+        tools: [
+          {
+            name: "fetch_glucose",
+            description: "Fetch glucose readings",
+            parameters: { type: "object", properties: {} },
+          },
+        ],
+        toolChoice: "auto",
+      }),
+    );
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.tools).toEqual([
+      {
+        name: "fetch_glucose",
+        description: "Fetch glucose readings",
+        input_schema: { type: "object", properties: {} },
+      },
+    ]);
+    expect(body.tool_choice).toEqual({ type: "auto" });
+    // No `{`-prefill assistant turn when tools are present.
+    expect(body.messages).toHaveLength(1);
+    expect(result.toolCalls).toEqual([
+      {
+        id: "toolu_1",
+        name: "fetch_glucose",
+        arguments: JSON.stringify({ window: "last30days" }),
+      },
+    ]);
+    expect(result.finishReason).toBe("tool_calls");
+    expect(result.cachedInputTokens).toBe(40);
   });
 });

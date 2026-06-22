@@ -1,5 +1,13 @@
 import { safeFetch } from "@/lib/safe-fetch";
-import type { AIProvider, CompletionParams, CompletionResult } from "./types";
+import type {
+  AIProvider,
+  AiContentPart,
+  AiMessage,
+  AiToolCall,
+  AiToolDef,
+  CompletionParams,
+  CompletionResult,
+} from "./types";
 
 /**
  * v1.18.9 — Anthropic Messages API content blocks. The text-only path sends a
@@ -7,6 +15,10 @@ import type { AIProvider, CompletionParams, CompletionResult } from "./types";
  * uploaded image / PDF is framed strictly as DATA to transcribe by the system
  * prompt — never as instructions (prompt-injection backstop is the human
  * review screen downstream).
+ *
+ * v1.20.0 — adds the `tool_use` (assistant requests a tool) and `tool_result`
+ * (a `role:"user"` turn answering one) blocks so a multi-round tool loop (F1)
+ * round-trips natively.
  */
 type AnthropicContentBlock =
   | { type: "text"; text: string }
@@ -17,45 +29,22 @@ type AnthropicContentBlock =
   | {
       type: "document";
       source: { type: "base64"; media_type: "application/pdf"; data: string };
+    }
+  | {
+      type: "tool_use";
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+    }
+  | {
+      type: "tool_result";
+      tool_use_id: string;
+      content: string;
     };
 
-/**
- * Build the user-turn content for a vision request: the image / document
- * blocks first (so the model reads the report before the instruction), then
- * the JSON-wrapped instruction text. Returns null when there is nothing to
- * attach, so the caller keeps the bare-string text path unchanged.
- */
-function buildVisionContent(
-  params: CompletionParams,
-  text: string,
-): AnthropicContentBlock[] | null {
-  const images = params.images ?? [];
-  const documents = params.documents ?? [];
-  if (images.length === 0 && documents.length === 0) return null;
-
-  const blocks: AnthropicContentBlock[] = [];
-  for (const img of images) {
-    blocks.push({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: img.mediaType,
-        data: img.dataBase64,
-      },
-    });
-  }
-  for (const doc of documents) {
-    blocks.push({
-      type: "document",
-      source: {
-        type: "base64",
-        media_type: "application/pdf",
-        data: doc.dataBase64,
-      },
-    });
-  }
-  blocks.push({ type: "text", text });
-  return blocks;
+interface AnthropicWireMessage {
+  role: "user" | "assistant";
+  content: string | AnthropicContentBlock[];
 }
 
 interface AnthropicClientConfig {
@@ -67,13 +56,99 @@ interface AnthropicClientConfig {
 const DEFAULT_BASE_URL = "https://api.anthropic.com/v1";
 const ANTHROPIC_VERSION = "2023-06-01";
 
+const JSON_INSTRUCTION =
+  "\n\nRespond only with valid JSON matching the requested schema. Do not include any prose, markdown fences, or explanation outside the JSON object.";
+
 /**
- * Wrap the user prompt so Claude reliably emits valid JSON.
- * Anthropic's Messages API has no `response_format: json_object` knob; the
- * documented best-practice is an explicit instruction in the user message.
+ * Map an `AiContentPart[]` body into Anthropic content blocks. The media blocks
+ * (image / document) are emitted FIRST and the text blocks LAST so the model
+ * reads the report before the instruction — matching the pre-refactor
+ * `buildVisionContent` ordering exactly.
  */
-function wrapForJson(userPrompt: string): string {
-  return `${userPrompt}\n\nRespond only with valid JSON matching the requested schema. Do not include any prose, markdown fences, or explanation outside the JSON object.`;
+function mapParts(parts: AiContentPart[]): AnthropicContentBlock[] {
+  const media: AnthropicContentBlock[] = [];
+  const text: AnthropicContentBlock[] = [];
+  for (const part of parts) {
+    if (part.type === "text") {
+      text.push({ type: "text", text: part.text });
+    } else if (part.type === "image") {
+      media.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: part.mediaType,
+          data: part.dataBase64,
+        },
+      });
+    } else if (part.type === "document") {
+      media.push({
+        type: "document",
+        source: {
+          type: "base64",
+          media_type: "application/pdf",
+          data: part.dataBase64,
+        },
+      });
+    }
+  }
+  return [...media, ...text];
+}
+
+/**
+ * Map one `AiMessage` to its Anthropic wire turn. A `role:"tool"` turn becomes
+ * a `role:"user"` turn carrying a `tool_result` block (Anthropic's convention).
+ * An assistant turn with `toolCalls` emits `tool_use` blocks alongside any text.
+ */
+function mapMessage(m: AiMessage): AnthropicWireMessage {
+  if (m.role === "tool") {
+    return {
+      role: "user",
+      content: [
+        {
+          type: "tool_result",
+          tool_use_id: m.toolCallId ?? "",
+          content: typeof m.content === "string" ? m.content : "",
+        },
+      ],
+    };
+  }
+  const hasToolCalls =
+    m.role === "assistant" && !!m.toolCalls && m.toolCalls.length > 0;
+
+  // Plain-string content with no tool calls stays a bare string on the wire —
+  // byte-identical to the pre-refactor text-only path. Only build a block array
+  // when there are content parts or tool_use blocks to carry.
+  if (typeof m.content === "string" && !hasToolCalls) {
+    return { role: m.role, content: m.content };
+  }
+
+  const blocks: AnthropicContentBlock[] =
+    typeof m.content === "string"
+      ? m.content.length > 0
+        ? [{ type: "text", text: m.content }]
+        : []
+      : mapParts(m.content);
+  if (hasToolCalls) {
+    for (const tc of m.toolCalls!) {
+      let input: Record<string, unknown> = {};
+      try {
+        input = JSON.parse(tc.arguments) as Record<string, unknown>;
+      } catch {
+        input = {};
+      }
+      blocks.push({ type: "tool_use", id: tc.id, name: tc.name, input });
+    }
+  }
+  return { role: m.role, content: blocks };
+}
+
+/** Map tool defs into the Anthropic `tools` array. */
+function buildAnthropicTools(tools: AiToolDef[]) {
+  return tools.map((t) => ({
+    name: t.name,
+    description: t.description,
+    input_schema: t.parameters,
+  }));
 }
 
 export class AnthropicClient implements AIProvider {
@@ -93,14 +168,71 @@ export class AnthropicClient implements AIProvider {
     );
     const url = `${baseUrl}/messages`;
 
-    // v1.18.9 — fold vision inputs (Lab-OCR) into the user turn when present.
-    // The text-only path keeps a bare-string content; the vision path sends a
-    // typed content array (image / document blocks + the instruction text).
-    // The `{`-prefill JSON trick works after either shape.
-    const wrappedText = wrapForJson(params.userPrompt);
-    const visionContent = buildVisionContent(params, wrappedText);
-    const userContent: AnthropicContentBlock[] | string =
-      visionContent ?? wrappedText;
+    const hasTools = !!params.tools && params.tools.length > 0;
+    // v1.20.0 — the `{`-prefill JSON trick injects an assistant turn that is
+    // incompatible with a `tool_use` response in the same call, so tools and
+    // the prefill are mutually exclusive: when tools are present we drop the
+    // prefill (the tool flow is non-JSON-prefill).
+    const usePrefill = params.responseFormat === "json" && !hasTools;
+
+    const wireMessages: AnthropicWireMessage[] =
+      params.messages.map(mapMessage);
+
+    // JSON-reliability instruction. The pre-refactor client appended this to
+    // the user prompt UNCONDITIONALLY (not gated on `responseFormat`), so every
+    // Anthropic caller — including the Coach prose path — saw it. Preserve that
+    // exactly by appending to the LAST user turn's text. Tools imply the
+    // non-JSON tool flow, so skip the instruction when tools are present.
+    if (!hasTools) {
+      for (let i = wireMessages.length - 1; i >= 0; i -= 1) {
+        if (wireMessages[i].role !== "user") continue;
+        const turn = wireMessages[i];
+        if (typeof turn.content === "string") {
+          turn.content = `${turn.content}${JSON_INSTRUCTION}`;
+        } else {
+          // Merge into the trailing text block when there is one (vision turns
+          // end with the instruction text) so the wire stays a single text
+          // block — byte-identical to the pre-refactor `wrapForJson` output.
+          const last = turn.content[turn.content.length - 1];
+          if (last && last.type === "text") {
+            last.text = `${last.text}${JSON_INSTRUCTION}`;
+          } else {
+            turn.content = [
+              ...turn.content,
+              { type: "text", text: JSON_INSTRUCTION },
+            ];
+          }
+        }
+        break;
+      }
+    }
+
+    if (usePrefill) {
+      wireMessages.push({ role: "assistant", content: "{" });
+    }
+
+    // v1.20.0 — prompt-cache the stable system prefix. Anthropic needs an
+    // explicit `cache_control` marker; the system block carries the large
+    // brand-free reference grounding + persona, so marking it lets repeated
+    // calls (status batch, briefing) read it from cache. Surface
+    // `cache_read_input_tokens` for observability.
+    const system = [
+      {
+        type: "text" as const,
+        text: params.system,
+        cache_control: { type: "ephemeral" as const },
+      },
+    ];
+
+    const tools = hasTools
+      ? buildAnthropicTools(params.tools as AiToolDef[])
+      : undefined;
+    const toolChoice =
+      hasTools && params.toolChoice
+        ? params.toolChoice === "none"
+          ? { type: "none" as const }
+          : { type: "auto" as const }
+        : undefined;
 
     const res = await safeFetch(
       url,
@@ -114,26 +246,14 @@ export class AnthropicClient implements AIProvider {
         // NOTE: Anthropic's Messages API has no `seed` parameter, so
         // `params.seed` is intentionally not forwarded here — output on this
         // provider is non-deterministic regardless of the pinned seed.
-        //
-        // v1.18.7 — JSON-reliability prefill. For the structured surfaces
-        // (`responseFormat: "json"`) we seed the assistant turn with a bare
-        // `{`. Anthropic continues from that token, so the first emitted
-        // character is already inside a JSON object — this drops the
-        // first-pass "prose preamble before the JSON" failure the
-        // fence-stripping net otherwise has to catch. We re-prepend the `{`
-        // to the returned text below so the caller sees a complete object.
         body: JSON.stringify({
           model: this.config.model,
           max_tokens: params.maxTokens ?? 1000,
           temperature: params.temperature ?? 0.3,
-          system: params.systemPrompt,
-          messages:
-            params.responseFormat === "json"
-              ? [
-                  { role: "user", content: userContent },
-                  { role: "assistant", content: "{" },
-                ]
-              : [{ role: "user", content: userContent }],
+          system,
+          messages: wireMessages,
+          ...(tools ? { tools } : {}),
+          ...(toolChoice ? { tool_choice: toolChoice } : {}),
         }),
       },
       // 60 s ceiling — see openai-client.ts for the rationale.
@@ -164,14 +284,40 @@ export class AnthropicClient implements AIProvider {
     }
 
     const json = (await res.json()) as {
-      content?: Array<{ type: string; text?: string }>;
-      usage?: { input_tokens?: number; output_tokens?: number };
+      content?: Array<{
+        type: string;
+        text?: string;
+        id?: string;
+        name?: string;
+        input?: Record<string, unknown>;
+      }>;
+      stop_reason?: string;
+      usage?: {
+        input_tokens?: number;
+        output_tokens?: number;
+        cache_read_input_tokens?: number;
+      };
     };
 
     const textBlock = json.content?.find((c) => c.type === "text");
     const rawText = textBlock?.text;
 
-    if (!rawText) {
+    // v1.20.0 — surface tool_use blocks for F1's loop.
+    const toolUseBlocks = (json.content ?? []).filter(
+      (c) => c.type === "tool_use",
+    );
+    const toolCalls: AiToolCall[] | undefined =
+      toolUseBlocks.length > 0
+        ? toolUseBlocks.map((b) => ({
+            id: b.id ?? "",
+            name: b.name ?? "",
+            arguments: JSON.stringify(b.input ?? {}),
+          }))
+        : undefined;
+
+    // A tool_use-only reply carries no text — that is valid (F1). Only an empty
+    // reply with neither text NOR a tool call is an error.
+    if (!rawText && !toolCalls) {
       throw new Error("Anthropic returned empty content");
     }
 
@@ -180,19 +326,32 @@ export class AnthropicClient implements AIProvider {
     // it so the caller parses a complete object. Guard against a model that
     // (rarely) echoes the prefill itself.
     const content =
-      params.responseFormat === "json" && !rawText.trimStart().startsWith("{")
+      usePrefill && rawText && !rawText.trimStart().startsWith("{")
         ? `{${rawText}`
-        : rawText;
+        : (rawText ?? "");
 
     const inputTokens = json.usage?.input_tokens ?? 0;
     const outputTokens = json.usage?.output_tokens ?? 0;
     const tokensUsed = inputTokens + outputTokens || null;
+    const cachedInputTokens = json.usage?.cache_read_input_tokens ?? null;
+
+    const finishReason: CompletionResult["finishReason"] =
+      json.stop_reason === "tool_use"
+        ? "tool_calls"
+        : json.stop_reason === "max_tokens"
+          ? "length"
+          : json.stop_reason === "end_turn"
+            ? "stop"
+            : undefined;
 
     return {
       content,
       tokensUsed,
+      cachedInputTokens,
       model: this.config.model,
       providerType: "anthropic",
+      ...(toolCalls ? { toolCalls } : {}),
+      finishReason,
     };
   }
 }

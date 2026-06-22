@@ -1,11 +1,43 @@
 import { safeFetch } from "@/lib/safe-fetch";
 import { isLocalAiHostAllowed } from "./local-host-allowlist";
-import type { AIProvider, CompletionParams, CompletionResult } from "./types";
+import type {
+  AIProvider,
+  AiMessage,
+  CompletionParams,
+  CompletionResult,
+} from "./types";
+import { buildOpenAIMessages } from "./openai-wire";
 
 interface LocalClientConfig {
   apiKey?: string | null;
   model: string;
   baseUrl: string;
+}
+
+const STRICT_JSON_PREFIX =
+  "Return strict JSON only, no markdown, no commentary.\n\n";
+
+/**
+ * Prepend the strict-JSON instruction to the FIRST user turn's text. Local
+ * model templates respect an in-message instruction better than the
+ * `response_format` flag (which many reject). Mirrors the pre-refactor
+ * behaviour, which prepended to the single user prompt.
+ */
+function withStrictJsonPrefix(messages: AiMessage[]): AiMessage[] {
+  const idx = messages.findIndex((m) => m.role === "user");
+  if (idx === -1) return messages;
+  const out = [...messages];
+  const target = out[idx];
+  if (typeof target.content === "string") {
+    out[idx] = { ...target, content: `${STRICT_JSON_PREFIX}${target.content}` };
+  } else {
+    // Vision parts: prepend a leading text part with the instruction.
+    out[idx] = {
+      ...target,
+      content: [{ type: "text", text: STRICT_JSON_PREFIX }, ...target.content],
+    };
+  }
+  return out;
 }
 
 /**
@@ -14,9 +46,18 @@ interface LocalClientConfig {
  * `response_format: { type: "json_object" }` — many local models reject the
  * field outright. Instead we prepend a strict-JSON instruction to the user
  * message, which is what most local model templates respect.
+ *
+ * v1.20.0 — tool-calling DEGRADES silently here: most local servers reject an
+ * unknown `tools` field, so the client never forwards it (capability flag
+ * below). F1's tool loop must therefore tolerate a provider that never returns
+ * `toolCalls` and answer from base context. Prompt-caching, where the local
+ * server supports it (vLLM / Ollama prefix cache), is transparent — no flag,
+ * no harm.
  */
 export class LocalOpenAICompatibleClient implements AIProvider {
   readonly type = "local" as const;
+  /** Local servers commonly reject an unknown `tools` field — never send it. */
+  readonly supportsTools = false;
   private config: LocalClientConfig;
 
   constructor(config: LocalClientConfig) {
@@ -38,26 +79,15 @@ export class LocalOpenAICompatibleClient implements AIProvider {
       headers.Authorization = `Bearer ${trimmedKey}`;
     }
 
-    const userPrompt = `Return strict JSON only, no markdown, no commentary.\n\n${params.userPrompt}`;
-
-    // v1.18.9 — fold vision inputs (Lab-OCR) into the user turn when present,
-    // using the OpenAI-compatible `image_url` content array that llava /
-    // llama-vision models accept over the same endpoint. PDFs are not handled
-    // here (the OCR route gates PDF to Anthropic); only `params.images` is
-    // consumed. The image is framed as untrusted DATA by the system prompt.
-    const images = params.images ?? [];
-    const userContent =
-      images.length > 0
-        ? [
-            { type: "text" as const, text: userPrompt },
-            ...images.map((img) => ({
-              type: "image_url" as const,
-              image_url: {
-                url: `data:${img.mediaType};base64,${img.dataBase64}`,
-              },
-            })),
-          ]
-        : userPrompt;
+    // System turn first, then the conversation turns (with the strict-JSON
+    // instruction folded into the first user turn). Vision parts (Lab-OCR)
+    // become the OpenAI-compatible `image_url` content array that llava /
+    // llama-vision models accept over the same endpoint. The image is framed
+    // as untrusted DATA by the system prompt.
+    const messages = buildOpenAIMessages(
+      params.system,
+      withStrictJsonPrefix(params.messages),
+    );
 
     // safeFetch defaults: no redirect-follow (the local endpoint is the
     // most exploitable on this surface — a user-controlled baseUrl that
@@ -81,10 +111,7 @@ export class LocalOpenAICompatibleClient implements AIProvider {
         headers,
         body: JSON.stringify({
           model: this.config.model,
-          messages: [
-            { role: "system", content: params.systemPrompt },
-            { role: "user", content: userContent },
-          ],
+          messages,
           temperature: params.temperature ?? 0.3,
           max_tokens: params.maxTokens ?? 1000,
           // Deterministic seed for reproducible reference output. Ollama +

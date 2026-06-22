@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { LocalOpenAICompatibleClient } from "../local-client";
+import { singleUserTurn } from "../types";
 
 describe("LocalOpenAICompatibleClient", () => {
   beforeEach(() => {
@@ -31,10 +32,9 @@ describe("LocalOpenAICompatibleClient", () => {
       baseUrl: "http://localhost:11434/v1",
     });
 
-    const result = await client.generateCompletion({
-      systemPrompt: "system",
-      userPrompt: "user-input",
-    });
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "system", user: "user-input" }),
+    );
 
     expect(result.content).toBe('{"summary":"local"}');
     expect(result.tokensUsed).toBe(17);
@@ -76,12 +76,14 @@ describe("LocalOpenAICompatibleClient", () => {
       baseUrl: "http://localhost:11434/v1",
     });
 
-    await client.generateCompletion({
-      systemPrompt: "s",
-      userPrompt: "u",
-      responseFormat: "json",
-      seed: 99,
-    });
+    await client.generateCompletion(
+      singleUserTurn({
+        system: "s",
+        user: "u",
+        responseFormat: "json",
+        seed: 99,
+      }),
+    );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.format).toBe("json");
@@ -105,7 +107,7 @@ describe("LocalOpenAICompatibleClient", () => {
       baseUrl: "http://localhost:11434/v1",
     });
 
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     const init = mockFetch.mock.calls[0][1];
     expect(init.headers.Authorization).toBeUndefined();
@@ -128,7 +130,7 @@ describe("LocalOpenAICompatibleClient", () => {
       baseUrl: "http://192.168.1.20:1234/v1",
     });
 
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     const init = mockFetch.mock.calls[0][1];
     expect(init.headers.Authorization).toBe("Bearer lm-studio-secret");
@@ -155,7 +157,9 @@ describe("LocalOpenAICompatibleClient", () => {
 
     let caught: unknown;
     try {
-      await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+      await client.generateCompletion(
+        singleUserTurn({ system: "s", user: "u" }),
+      );
     } catch (e) {
       caught = e;
     }
@@ -192,7 +196,39 @@ describe("LocalOpenAICompatibleClient", () => {
     });
 
     await expect(
-      client.generateCompletion({ systemPrompt: "s", userPrompt: "u" }),
+      client.generateCompletion(singleUserTurn({ system: "s", user: "u" })),
     ).rejects.toThrow("Local AI returned empty content");
+  });
+
+  it("degrades tools silently — never forwards a `tools` field", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: "{}" } }],
+          usage: { total_tokens: 1 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new LocalOpenAICompatibleClient({
+      apiKey: null,
+      model: "llama3",
+      baseUrl: "http://localhost:11434/v1",
+    });
+    expect(client.supportsTools).toBe(false);
+
+    await client.generateCompletion(
+      singleUserTurn({
+        system: "s",
+        user: "u",
+        tools: [{ name: "t", description: "d", parameters: {} }],
+        toolChoice: "auto",
+      }),
+    );
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body).not.toHaveProperty("tools");
+    expect(body).not.toHaveProperty("tool_choice");
   });
 });

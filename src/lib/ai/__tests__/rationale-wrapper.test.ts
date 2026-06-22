@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { generateInsight } from "../generate-insight";
 import { MockAIProvider } from "../mock-client";
+import { singleUserTurn } from "../types";
 
 const annotateMock = vi.fn();
 
@@ -75,13 +76,13 @@ describe("generateInsight() — corrective retry mentions rationale", () => {
     const provider = new MockAIProvider({
       responses: [JSON.stringify(broken), JSON.stringify(validResponse)],
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "sys",
-      userPrompt: "Original user prompt.",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "sys", user: "Original user prompt." }),
+    );
     expect(outcome.attempts).toBe(2);
     expect(outcome.retried).toBe(true);
-    const retryUserPrompt = provider.calls[1].userPrompt;
+    const retryUserPrompt = provider.calls[1].messages[0].content as string;
     expect(retryUserPrompt).toContain("Original user prompt.");
     expect(retryUserPrompt).toContain("rationale");
     expect(retryUserPrompt).toContain("dataWindow");
@@ -108,10 +109,10 @@ describe("generateInsight() — corrective retry mentions rationale", () => {
     const provider = new MockAIProvider({
       responses: [JSON.stringify(broken), JSON.stringify(validResponse)],
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     expect(outcome.attempts).toBe(2);
     expect(outcome.retried).toBe(true);
   });
@@ -126,10 +127,10 @@ describe("generateInsight() — rationale-coverage annotation", () => {
     const provider = new MockAIProvider({
       responses: JSON.stringify(validResponse),
     });
-    await generateInsight(provider, {
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    await generateInsight(
+      provider,
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     expect(annotateMock).toHaveBeenCalled();
     const meta = annotateMock.mock.calls[0][0]?.meta as Record<string, unknown>;
     expect(meta).toMatchObject({
@@ -157,10 +158,10 @@ describe("generateInsight() — rationale-coverage annotation", () => {
     const provider = new MockAIProvider({
       responses: JSON.stringify(twoRecs),
     });
-    await generateInsight(provider, {
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    await generateInsight(
+      provider,
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     const meta = annotateMock.mock.calls[0][0]?.meta as Record<string, unknown>;
     expect(meta).toMatchObject({
       ai_rationale_total_recommendations: 2,

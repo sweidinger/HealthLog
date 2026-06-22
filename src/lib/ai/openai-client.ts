@@ -1,5 +1,13 @@
 import { safeFetch } from "@/lib/safe-fetch";
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
+import {
+  buildOpenAIMessages,
+  buildOpenAITools,
+  mapFinishReason,
+  parseCachedTokens,
+  parseOpenAIToolCalls,
+  type OpenAIResponseJson,
+} from "./openai-wire";
 
 interface OpenAIClientConfig {
   apiKey: string;
@@ -31,25 +39,20 @@ export class OpenAIClient implements AIProvider {
   ): Promise<CompletionResult> {
     const url = `${this.config.baseUrl.replace(/\/$/, "")}/chat/completions`;
 
-    // v1.18.9 — fold vision inputs (Lab-OCR) into the user turn when present.
-    // The text-only path keeps the bare-string content; the vision path sends
-    // the multimodal `image_url` content array `gpt-4o`-class models accept
-    // (a data-URL per image). PDFs are NOT handled here (the OCR route gates
-    // PDF uploads to Anthropic); only `params.images` is consumed. The image
-    // is framed as untrusted DATA by the system prompt.
-    const images = params.images ?? [];
-    const userContent =
-      images.length > 0
-        ? [
-            { type: "text" as const, text: params.userPrompt },
-            ...images.map((img) => ({
-              type: "image_url" as const,
-              image_url: {
-                url: `data:${img.mediaType};base64,${img.dataBase64}`,
-              },
-            })),
-          ]
-        : params.userPrompt;
+    // System turn first (the stable cache prefix — OpenAI prefix-caches a
+    // byte-identical ≥1024-token prefix automatically, no API flag), then the
+    // conversation turns mapped 1:1. Vision parts (Lab-OCR) become the
+    // multimodal `image_url` content array `gpt-4o`-class models accept. The
+    // image is framed as untrusted DATA by the system prompt.
+    const messages = buildOpenAIMessages(params.system, params.messages);
+
+    // v1.20.0 — tool plumbing. The defs map onto the OpenAI `function` tool
+    // wire; F1 supplies real defs and consumes the parsed `toolCalls`. No F4
+    // call site sets `tools`, so the text-only body is unchanged.
+    const tools =
+      params.tools && params.tools.length > 0
+        ? buildOpenAITools(params.tools)
+        : undefined;
 
     const res = await safeFetch(
       url,
@@ -61,10 +64,7 @@ export class OpenAIClient implements AIProvider {
         },
         body: JSON.stringify({
           model: this.config.model,
-          messages: [
-            { role: "system", content: params.systemPrompt },
-            { role: "user", content: userContent },
-          ],
+          messages,
           temperature: params.temperature ?? 0.3,
           max_tokens: params.maxTokens ?? 1000,
           response_format: { type: "json_object" },
@@ -72,6 +72,8 @@ export class OpenAIClient implements AIProvider {
           // (undefined → dropped by JSON.stringify) when the caller does
           // not pin one (e.g. the seedless daily-briefing re-roll).
           ...(params.seed !== undefined ? { seed: params.seed } : {}),
+          ...(tools ? { tools } : {}),
+          ...(params.toolChoice ? { tool_choice: params.toolChoice } : {}),
         }),
       },
       // 60 s ceiling so a tar-pit upstream cannot pin a worker
@@ -105,18 +107,25 @@ export class OpenAIClient implements AIProvider {
       throw err;
     }
 
-    const json = await res.json();
-    const content = json.choices?.[0]?.message?.content;
+    const json = (await res.json()) as OpenAIResponseJson;
+    const choice = json.choices?.[0];
+    const content = choice?.message?.content;
+    const toolCalls = parseOpenAIToolCalls(choice);
 
-    if (!content) {
+    // A reply with tool calls and no prose is valid (F1 tool loop); only an
+    // empty reply with neither content NOR tool calls is an error.
+    if (!content && !toolCalls) {
       throw new Error("OpenAI returned empty content");
     }
 
     return {
-      content,
+      content: content ?? "",
       tokensUsed: json.usage?.total_tokens ?? null,
+      cachedInputTokens: parseCachedTokens(json),
       model: this.config.model,
       providerType: this.type,
+      ...(toolCalls ? { toolCalls } : {}),
+      finishReason: mapFinishReason(choice?.finish_reason),
     };
   }
 }

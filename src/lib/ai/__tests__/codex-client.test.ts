@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CodexClient } from "../codex-client";
+import { singleUserTurn } from "../types";
 
 /**
  * Build a `Response` whose `.body` streams a list of SSE event strings.
@@ -57,10 +58,9 @@ describe("CodexClient", () => {
         .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
     });
 
-    const result = await client.generateCompletion({
-      systemPrompt: "You are a doctor.",
-      userPrompt: "Analyze this.",
-    });
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "You are a doctor.", user: "Analyze this." }),
+    );
 
     expect(result.content).toBe('{"summary":"ok"}');
     expect(result.providerType).toBe("codex");
@@ -103,10 +103,9 @@ describe("CodexClient", () => {
         .fn()
         .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
     });
-    const result = await client.generateCompletion({
-      systemPrompt: "test",
-      userPrompt: "test",
-    });
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "test", user: "test" }),
+    );
     expect(result.content).toBe("Hello world");
   });
 
@@ -135,10 +134,9 @@ describe("CodexClient", () => {
       },
     });
 
-    const result = await client.generateCompletion({
-      systemPrompt: "test",
-      userPrompt: "test",
-    });
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "test", user: "test" }),
+    );
 
     expect(onRefresh).toHaveBeenCalledOnce();
     expect(result.content).toBe('{"test":true}');
@@ -167,7 +165,9 @@ describe("CodexClient", () => {
     });
 
     await expect(
-      client.generateCompletion({ systemPrompt: "test", userPrompt: "test" }),
+      client.generateCompletion(
+        singleUserTurn({ system: "test", user: "test" }),
+      ),
     ).rejects.toThrow("Codex request failed after token refresh (401)");
   });
 
@@ -192,7 +192,9 @@ describe("CodexClient", () => {
     });
 
     await expect(
-      client.generateCompletion({ systemPrompt: "test", userPrompt: "test" }),
+      client.generateCompletion(
+        singleUserTurn({ system: "test", user: "test" }),
+      ),
     ).rejects.toThrow("Codex request failed (500)");
     expect(onRefresh).not.toHaveBeenCalled();
   });
@@ -213,11 +215,13 @@ describe("CodexClient", () => {
         .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
     });
 
-    await client.generateCompletion({
-      systemPrompt: "Transcribe.",
-      userPrompt: "Read this report.",
-      images: [{ mediaType: "image/png", dataBase64: "QUJD" }],
-    });
+    await client.generateCompletion(
+      singleUserTurn({
+        system: "Transcribe.",
+        user: "Read this report.",
+        images: [{ mediaType: "image/png", dataBase64: "QUJD" }],
+      }),
+    );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const content = body.input[0].content;
@@ -248,14 +252,84 @@ describe("CodexClient", () => {
         .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
     });
 
-    await client.generateCompletion({
-      systemPrompt: "Answer.",
-      userPrompt: "Plain text only.",
-    });
+    await client.generateCompletion(
+      singleUserTurn({ system: "Answer.", user: "Plain text only." }),
+    );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.input[0].content).toEqual([
       { type: "input_text", text: "Plain text only." },
     ]);
+  });
+
+  it("maps tool defs and parses function_call items + cached tokens", async () => {
+    const functionCallEvent = `event: response.output_item.done\ndata: ${JSON.stringify(
+      {
+        type: "response.output_item.done",
+        item: {
+          type: "function_call",
+          call_id: "fc_1",
+          name: "fetch_glucose",
+          arguments: '{"window":"last30days"}',
+        },
+      },
+    )}\n\n`;
+    const completedWithCache = `event: response.completed\ndata: ${JSON.stringify(
+      {
+        type: "response.completed",
+        response: {
+          id: "resp1",
+          usage: {
+            total_tokens: 30,
+            input_tokens_details: { cached_tokens: 20 },
+          },
+        },
+      },
+    )}\n\n`;
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(sseResponse([functionCallEvent, completedWithCache]));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new CodexClient({
+      accessToken: "test-token",
+      accountId: "acct-test",
+      onTokenRefresh: vi
+        .fn()
+        .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({
+        system: "s",
+        user: "u",
+        tools: [
+          {
+            name: "fetch_glucose",
+            description: "Fetch glucose readings",
+            parameters: { type: "object", properties: {} },
+          },
+        ],
+      }),
+    );
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.tools).toEqual([
+      {
+        type: "function",
+        name: "fetch_glucose",
+        description: "Fetch glucose readings",
+        parameters: { type: "object", properties: {} },
+      },
+    ]);
+    expect(result.toolCalls).toEqual([
+      {
+        id: "fc_1",
+        name: "fetch_glucose",
+        arguments: '{"window":"last30days"}',
+      },
+    ]);
+    expect(result.finishReason).toBe("tool_calls");
+    expect(result.cachedInputTokens).toBe(20);
   });
 });

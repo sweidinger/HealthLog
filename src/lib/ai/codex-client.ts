@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { safeFetch } from "@/lib/safe-fetch";
-import type { AIProvider, CompletionParams, CompletionResult } from "./types";
+import type {
+  AIProvider,
+  AiContentPart,
+  AiMessage,
+  AiToolCall,
+  AiToolDef,
+  CompletionParams,
+  CompletionResult,
+} from "./types";
 import {
   getCachedCodexSlug,
   invalidateCachedCodexSlug,
@@ -107,6 +115,100 @@ function isSlugRejection(status: number, bodyExcerpt: string): boolean {
 
 const ORIGINATOR = "healthlog";
 const USER_AGENT = "HealthLog/1.0 (+https://github.com/MBombeck/HealthLog)";
+
+/** A Responses-API input item. */
+type CodexInputItem =
+  | {
+      type: "message";
+      role: "user" | "assistant";
+      content: Array<
+        | { type: "input_text"; text: string }
+        | { type: "input_image"; image_url: string; detail: "high" }
+      >;
+    }
+  | {
+      type: "function_call";
+      call_id: string;
+      name: string;
+      arguments: string;
+    }
+  | {
+      type: "function_call_output";
+      call_id: string;
+      output: string;
+    };
+
+/** Map an `AiContentPart[]` body into Responses input content blocks. */
+function mapCodexParts(
+  parts: AiContentPart[],
+): Array<
+  | { type: "input_text"; text: string }
+  | { type: "input_image"; image_url: string; detail: "high" }
+> {
+  const out: Array<
+    | { type: "input_text"; text: string }
+    | { type: "input_image"; image_url: string; detail: "high" }
+  > = [];
+  for (const part of parts) {
+    if (part.type === "text") {
+      out.push({ type: "input_text", text: part.text });
+    } else if (part.type === "image") {
+      out.push({
+        type: "input_image",
+        image_url: `data:${part.mediaType};base64,${part.dataBase64}`,
+        detail: "high",
+      });
+    }
+    // `document` (PDF) parts are not representable here (image-only wire).
+  }
+  return out;
+}
+
+/**
+ * Build the Responses-API `input` array from the message turns. Tool-call /
+ * tool-result turns map to the `function_call` / `function_call_output`
+ * top-level items the Responses API expects; everything else is a `message`.
+ * A text-only single user turn is byte-identical to the pre-refactor wire.
+ */
+function buildCodexInput(messages: AiMessage[]): CodexInputItem[] {
+  const items: CodexInputItem[] = [];
+  for (const m of messages) {
+    if (m.role === "tool") {
+      items.push({
+        type: "function_call_output",
+        call_id: m.toolCallId ?? "",
+        output: typeof m.content === "string" ? m.content : "",
+      });
+      continue;
+    }
+    const content =
+      typeof m.content === "string"
+        ? [{ type: "input_text" as const, text: m.content }]
+        : mapCodexParts(m.content);
+    items.push({ type: "message", role: m.role, content });
+    if (m.role === "assistant" && m.toolCalls) {
+      for (const tc of m.toolCalls) {
+        items.push({
+          type: "function_call",
+          call_id: tc.id,
+          name: tc.name,
+          arguments: tc.arguments,
+        });
+      }
+    }
+  }
+  return items;
+}
+
+/** Map tool defs into the Responses `function` tool shape. */
+function buildCodexTools(tools: AiToolDef[]) {
+  return tools.map((t) => ({
+    type: "function" as const,
+    name: t.name,
+    description: t.description,
+    parameters: t.parameters,
+  }));
+}
 
 interface CodexClientConfig {
   accessToken: string;
@@ -317,18 +419,16 @@ export class CodexClient implements AIProvider {
     // untouched. The image is UNTRUSTED data to transcribe, framed as such by
     // the system prompt. Documents (PDF) are NOT folded in — `input_image` is
     // image-only; the OCR route gates PDFs to Anthropic.
-    const images = params.images ?? [];
-    const content: Array<
-      | { type: "input_text"; text: string }
-      | { type: "input_image"; image_url: string; detail: "high" }
-    > = [{ type: "input_text", text: params.userPrompt }];
-    for (const img of images) {
-      content.push({
-        type: "input_image",
-        image_url: `data:${img.mediaType};base64,${img.dataBase64}`,
-        detail: "high",
-      });
-    }
+    //
+    // v1.20.0 — `input` is now built from the full message array (multi-turn +
+    // tool-result turns), with `tools` mapped to the Responses `function` shape
+    // (the wire already declared `tools`/`tool_choice` — now they carry defs).
+    const input = buildCodexInput(params.messages);
+    const tools =
+      params.tools && params.tools.length > 0
+        ? buildCodexTools(params.tools)
+        : [];
+    const toolChoice = params.toolChoice ?? "auto";
 
     return safeFetch(
       CODEX_ENDPOINT,
@@ -348,16 +448,10 @@ export class CodexClient implements AIProvider {
         },
         body: JSON.stringify({
           model: slug,
-          instructions: params.systemPrompt,
-          input: [
-            {
-              type: "message",
-              role: "user",
-              content,
-            },
-          ],
-          tools: [],
-          tool_choice: "auto",
+          instructions: params.system,
+          input,
+          tools,
+          tool_choice: toolChoice,
           parallel_tool_calls: false,
           // Reasoning is required-but-nullable on the wire. We don't ask
           // for reasoning summaries — emit `null` so the JSON has the
@@ -407,7 +501,9 @@ export class CodexClient implements AIProvider {
     let assembledText = "";
     let deltaText = "";
     let tokensUsed: number | null = null;
+    let cachedInputTokens: number | null = null;
     let serverModel: string | null = null;
+    const toolCalls: AiToolCall[] = [];
 
     // The server reports the actual routed model in the OpenAI-Model
     // response header — useful when safety-routing kicks in.
@@ -439,9 +535,16 @@ export class CodexClient implements AIProvider {
               type?: string;
               role?: string;
               content?: Array<{ type?: string; text?: string }>;
+              id?: string;
+              call_id?: string;
+              name?: string;
+              arguments?: string;
             };
             response?: {
-              usage?: { total_tokens?: number };
+              usage?: {
+                total_tokens?: number;
+                input_tokens_details?: { cached_tokens?: number };
+              };
               error?: { code?: string; message?: string };
               incomplete_details?: { reason?: string };
             };
@@ -466,11 +569,23 @@ export class CodexClient implements AIProvider {
                   .map((c) => c.text!)
                   .join("");
                 if (text) assembledText += text;
+              } else if (item?.type === "function_call") {
+                // v1.20.0 — the model asked to call a tool. Surface it for
+                // F1's loop; the id is the call_id the function_call_output
+                // turn must echo back.
+                toolCalls.push({
+                  id: item.call_id ?? item.id ?? "",
+                  name: item.name ?? "",
+                  arguments: item.arguments ?? "",
+                });
               }
               break;
             }
             case "response.completed": {
               tokensUsed = parsed.response?.usage?.total_tokens ?? null;
+              cachedInputTokens =
+                parsed.response?.usage?.input_tokens_details?.cached_tokens ??
+                null;
               break;
             }
             case "response.failed": {
@@ -509,15 +624,20 @@ export class CodexClient implements AIProvider {
     }
 
     const content = assembledText || deltaText;
-    if (!content) {
+    // A function-call-only reply carries no text — valid (F1). Only an empty
+    // reply with neither text NOR a tool call is an error.
+    if (!content && toolCalls.length === 0) {
       throw new Error("Codex returned empty content");
     }
 
     return {
       content,
       tokensUsed,
+      cachedInputTokens,
       model: serverModel ?? requestedSlug,
       providerType: "codex",
+      ...(toolCalls.length > 0 ? { toolCalls } : {}),
+      finishReason: toolCalls.length > 0 ? "tool_calls" : "stop",
     };
   }
 }
