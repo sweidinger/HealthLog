@@ -682,6 +682,9 @@ export const POST = apiHandler((request: NextRequest) =>
           user: userPrompt,
           temperature: 0.3,
           maxTokens: 1500,
+          // The reply is parsed with `JSON.parse` below, so opt the OpenAI /
+          // Codex chains into their strict JSON mode (gated on this flag).
+          responseFormat: "json",
         }),
       });
       result = fallback.result;
@@ -815,6 +818,8 @@ export const POST = apiHandler((request: NextRequest) =>
               user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
               temperature: 0.3,
               maxTokens: 1500,
+              // Parsed with `JSON.parse` below — opt OpenAI / Codex into JSON mode.
+              responseFormat: "json",
             }),
           });
           const parsedRetry = JSON.parse(retry.result.content);

@@ -195,6 +195,9 @@ async function handleExtract(request: NextRequest): Promise<Response> {
         // The reply body is a single small JSON object; 600 is well
         // over the empirical max we have seen on a 2k-char input.
         maxTokens: 600,
+        // Parsed with `parseModelJson` (JSON.parse) below — opt the OpenAI /
+        // Codex chains into their strict JSON-object mode (gated on this flag).
+        responseFormat: "json",
       }),
     });
   } catch (err) {

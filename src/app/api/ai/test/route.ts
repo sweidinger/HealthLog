@@ -72,6 +72,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
         user: 'Reply with the JSON object {"ok": true} and nothing else.',
         temperature: 0,
         maxTokens: 32,
+        // The probe asks for a JSON object — keep the OpenAI / Codex strict
+        // JSON mode it relied on before the response_format gate landed.
+        responseFormat: "json",
       }),
     );
 

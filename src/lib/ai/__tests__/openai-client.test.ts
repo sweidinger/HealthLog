@@ -28,6 +28,7 @@ describe("OpenAIClient", () => {
       singleUserTurn({
         system: "You are a doctor.",
         user: "Analyze this data.",
+        responseFormat: "json",
       }),
     );
 
@@ -44,6 +45,66 @@ describe("OpenAIClient", () => {
     expect(body.response_format).toEqual({ type: "json_object" });
     // No seed passed → field omitted from the body entirely.
     expect(body).not.toHaveProperty("seed");
+  });
+
+  it("forces JSON mode only when responseFormat is json AND no tools (M-1)", async () => {
+    const replyContent = (content: string) =>
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content } }],
+            usage: { total_tokens: 1 },
+          }),
+      });
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+      baseUrl: "https://api.openai.com/v1",
+    });
+
+    // 1. Prose Coach path (no responseFormat, no tools) → NO json_object. This
+    //    is the F1 forced-final round contract: JSON mode would corrupt prose.
+    const proseFetch = replyContent("Here is a plain-prose reply.");
+    vi.stubGlobal("fetch", proseFetch);
+    await client.generateCompletion(
+      singleUserTurn({ system: "coach", user: "how am I doing?" }),
+    );
+    expect(JSON.parse(proseFetch.mock.calls[0][1].body)).not.toHaveProperty(
+      "response_format",
+    );
+
+    // 2. responseFormat:"json" but tools present → still NO json_object (a tool
+    //    round must not be coerced into a JSON object).
+    const toolFetch = replyContent("{}");
+    vi.stubGlobal("fetch", toolFetch);
+    await client.generateCompletion({
+      system: "s",
+      messages: [{ role: "user", content: "u" }],
+      responseFormat: "json",
+      tools: [
+        {
+          name: "t",
+          description: "d",
+          parameters: { type: "object", properties: {} },
+        },
+      ],
+    });
+    expect(JSON.parse(toolFetch.mock.calls[0][1].body)).not.toHaveProperty(
+      "response_format",
+    );
+
+    // 3. responseFormat:"json" with no tools → json_object IS sent (insight /
+    //    extraction callers keep strict JSON).
+    const jsonFetch = replyContent('{"summary":"x"}');
+    vi.stubGlobal("fetch", jsonFetch);
+    await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+    );
+    expect(JSON.parse(jsonFetch.mock.calls[0][1].body).response_format).toEqual(
+      { type: "json_object" },
+    );
   });
 
   it("threads a deterministic seed onto the request body when supplied", async () => {
