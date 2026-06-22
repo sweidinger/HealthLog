@@ -6,6 +6,7 @@ import {
   AITestConfigError,
   type AITestOverride,
 } from "@/lib/ai/provider";
+import { singleUserTurn } from "@/lib/ai/types";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { annotate } from "@/lib/logging/context";
@@ -65,12 +66,17 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   try {
-    const result = await provider.generateCompletion({
-      systemPrompt: "You are a connection-test responder.",
-      userPrompt: 'Reply with the JSON object {"ok": true} and nothing else.',
-      temperature: 0,
-      maxTokens: 32,
-    });
+    const result = await provider.generateCompletion(
+      singleUserTurn({
+        system: "You are a connection-test responder.",
+        user: 'Reply with the JSON object {"ok": true} and nothing else.',
+        temperature: 0,
+        maxTokens: 32,
+        // The probe asks for a JSON object — keep the OpenAI / Codex strict
+        // JSON mode it relied on before the response_format gate landed.
+        responseFormat: "json",
+      }),
+    );
 
     return apiSuccess({
       ok: true,

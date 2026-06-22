@@ -83,11 +83,17 @@ vi.mock("../client", async (importOriginal) => {
 import { syncUserOura } from "../sync";
 import { OuraApiError } from "../response-classifier";
 
-const CONN = { accessToken: "acc", refreshToken: "ref" };
+const CONN = {
+  accessToken: "acc",
+  refreshToken: "ref",
+  refreshTokenCiphertext: "enc(ref)",
+};
 
 beforeEach(() => {
   getConnMock.mockReset();
-  storeTokensMock.mockReset().mockResolvedValue(undefined);
+  // The compare-and-swap persist returns the access token the caller should use
+  // (its own on a CAS win) — default to the freshly minted one.
+  storeTokensMock.mockReset().mockResolvedValue("newAcc");
   getCredsMock
     .mockReset()
     .mockResolvedValue({ clientId: "c", clientSecret: "s" });
@@ -155,9 +161,38 @@ describe("syncUserOura", () => {
     });
     const imported = await syncUserOura("u1");
     expect(refreshMock).toHaveBeenCalledWith("ref", expect.anything());
-    expect(storeTokensMock).toHaveBeenCalledWith("u1", "newAcc", "newRef");
+    expect(storeTokensMock).toHaveBeenCalledWith(
+      "u1",
+      "newAcc",
+      "newRef",
+      "enc(ref)",
+    );
     expect(imported).toBe(1);
     expect(recordSuccessMock).toHaveBeenCalledWith("u1", "oura");
+  });
+
+  it("reuses the peer's rotated token on a lost CAS race and still completes (no reauth)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchReadinessMock
+      .mockRejectedValueOnce(err401())
+      .mockResolvedValueOnce([{ id: "x", day: "2026-06-10", score: 70 }]);
+    refreshMock.mockResolvedValue({
+      access_token: "newAcc",
+      refresh_token: "newRef",
+      expires_in: 86400,
+    });
+    // A concurrent sync rotated first → the persist returns the PEER's token.
+    storeTokensMock.mockResolvedValue("peerAcc");
+
+    const imported = await syncUserOura("u1");
+
+    // The retry runs with the peer's token rather than the invalidated one.
+    expect(fetchReadinessMock).toHaveBeenLastCalledWith(
+      "peerAcc",
+      expect.anything(),
+    );
+    expect(imported).toBe(1);
+    expect(recordFailureMock).not.toHaveBeenCalled();
   });
 
   it("records reauth_required when the refresh itself fails", async () => {

@@ -65,6 +65,9 @@ vi.mock("@/lib/rollups/measurement-coverage", () => ({
 vi.mock("@/lib/rollups/measurement-read-wmy", () => ({
   readBestGranularityRollups: rollup.readBestGranularityRollups,
 }));
+vi.mock("@/lib/rollups/measurement-read", () => ({
+  loadUserSourcePriority: vi.fn(async () => null),
+}));
 
 import { computeEpisodeCorrelation } from "../correlation-read";
 import { ILLNESS_SCAN_TYPES } from "../correlation";
@@ -300,5 +303,122 @@ describe("computeEpisodeCorrelation — contamination-guard read window", () => 
     for (const w of boundedBaseline) {
       expect(w.lt!.getTime()).toBeLessThanOrEqual(lookbackStart);
     }
+  });
+});
+
+describe("computeEpisodeCorrelation — sleep-as-context read", () => {
+  it("reconstructs baseline + episode nights and surfaces the observation, deduping multi-source nights", async () => {
+    rollup.probeRollupCoverage.mockResolvedValue(
+      new Map<string, boolean>(
+        ILLNESS_SCAN_TYPES.map((t) => [String(t), false]),
+      ),
+    );
+    rollup.readBestGranularityRollups.mockResolvedValue(null);
+
+    // A banded RHR vital (flat-ish at 55) clears the engine coverage floor.
+    const rhrRows: Array<{ value: number; measuredAt: Date }> = [];
+    {
+      let cursor = Date.parse("2025-12-05T12:00:00Z");
+      const jit = [-2, -1, 0, 1, 2];
+      for (let i = 0; i < 40; i++) {
+        rhrRows.push({
+          value: 55 + jit[i % jit.length],
+          measuredAt: new Date(cursor),
+        });
+        cursor += 24 * 60 * 60 * 1000;
+      }
+    }
+
+    // Sleep rows. Baseline nights ~420 min (7h); episode nights ~510 min
+    // (8.5h) → +90 min. The episode 2026-01-11 night is DOUBLE-WRITTEN by two
+    // sources (WHOOP + Apple Health); the canonical reconstruction must count
+    // it ONCE, not sum it to ~1020 min and inflate the delta.
+    // A "night" is one asleep block whose wake-day is the local calendar day.
+    type SleepRow = {
+      value: number;
+      measuredAt: Date;
+      sleepStage: null;
+      source: string;
+      deviceType: string | null;
+    };
+    const sleepRows: SleepRow[] = [];
+    const asleepNight = (
+      wakeDay: string,
+      minutes: number,
+      source: string,
+    ): SleepRow => ({
+      // The block ENDS at 07:00Z on the wake-day; one ASLEEP sample of `minutes`.
+      value: minutes,
+      measuredAt: new Date(`${wakeDay}T07:00:00Z`),
+      sleepStage: null,
+      source,
+      deviceType: source,
+    });
+    // Baseline nights (well before the pre-onset lookback start 2026-01-03).
+    for (const day of [
+      "2025-12-20",
+      "2025-12-21",
+      "2025-12-22",
+      "2025-12-23",
+      "2025-12-24",
+      "2025-12-25",
+    ]) {
+      sleepRows.push(asleepNight(day, 420, "WHOOP"));
+    }
+    // Episode nights (active span ≥ onset 2026-01-10).
+    sleepRows.push(asleepNight("2026-01-10", 510, "WHOOP"));
+    // Double-written night — same wake-day, two writers.
+    sleepRows.push(asleepNight("2026-01-11", 510, "WHOOP"));
+    sleepRows.push(asleepNight("2026-01-11", 510, "APPLE_HEALTH"));
+    sleepRows.push(asleepNight("2026-01-12", 510, "WHOOP"));
+
+    db.measurement.findMany.mockImplementation(
+      async ({
+        where,
+      }: {
+        where: {
+          type: string;
+          measuredAt: { gte: Date; lt?: Date; lte?: Date };
+        };
+      }) => {
+        const from = where.measuredAt.gte.getTime();
+        const to =
+          where.measuredAt.lt?.getTime() ??
+          where.measuredAt.lte?.getTime() ??
+          NOW.getTime();
+        if (where.type === "RESTING_HEART_RATE") {
+          return rhrRows.filter(
+            (r) =>
+              r.measuredAt.getTime() >= from && r.measuredAt.getTime() <= to,
+          );
+        }
+        if (where.type === "SLEEP_DURATION") {
+          return sleepRows.filter(
+            (r) =>
+              r.measuredAt.getTime() >= from && r.measuredAt.getTime() <= to,
+          );
+        }
+        return [];
+      },
+    );
+
+    const episode = {
+      id: "ep-sleep",
+      onsetAt: new Date("2026-01-10T08:00:00Z"),
+      resolvedAt: null as Date | null,
+      lifecycle: "ACUTE",
+    };
+
+    const out = await computeEpisodeCorrelation("u1", episode, "UTC", NOW);
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const sleep = out.value.sleepContext;
+    expect(sleep).not.toBeNull();
+    expect(sleep?.baselineMeanMinutes).toBe(420);
+    // The double-written 01-11 night is counted ONCE → episode mean ≈ 510, not
+    // a doubled ~680 that summing two writers would produce.
+    expect(sleep?.episodeMeanMinutes).toBe(510);
+    expect(sleep?.deltaMinutes).toBe(90);
+    expect(sleep?.nightsCounted).toBe(3);
   });
 });

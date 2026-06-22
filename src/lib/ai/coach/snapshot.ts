@@ -43,6 +43,7 @@ import {
 } from "@/lib/insights/derived/sleep-rhythm";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import { annotate } from "@/lib/logging/context";
+import { memoizePerRequest } from "@/lib/request-cache";
 import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
 import { buildDerivedSnapshotBlock } from "./derived-snapshot";
 import { buildCoachMemoryBlock } from "./memory-snapshot";
@@ -83,6 +84,16 @@ import type {
 
 export interface CoachSnapshotResult {
   snapshotJson: string;
+  /**
+   * v1.20.0 (F1) — the structured, post-degrade snapshot record `snapshotJson`
+   * is serialised from. Keyed by domain block (`bloodPressure`, `weight`,
+   * `pulse`, `mood`, `compliance`, `glucose`, `sleep`, `sleepRhythm`, `labs`,
+   * `illness`, `derived`, `dayStrain`, `trajectory`, `weeklyContext`, …) plus a
+   * `scope` block. The coach tool executor reads a single domain block out of
+   * this so an on-demand retrieval tool returns exactly the numbers the legacy
+   * snapshot-stuffing path would have shown — identical builder, gates, and I/O.
+   */
+  sections: Record<string, unknown>;
   /**
    * Provenance built from snapshot keys actually present. Stays in
    * sync with the SNAPSHOT block so the source-chip row mirrors what
@@ -660,31 +671,38 @@ async function buildCoachSnapshotImpl(
   // single extra round-trip at most. Disabled modules fold into the same
   // SYSTEM-side exclusion the user's `excludeMetrics` flow already drives.
   const moduleMapPromise = resolveModuleMap(userId);
-  const prefsRow = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      coachPrefsJson: true,
-      timezone: true,
-      locale: true,
-      // v1.11.5 — needed to collapse a dual-source sleep night to one
-      // canonical source before reconstructing per-night asleep totals.
-      sourcePriorityJson: true,
-      // v1.15 — the cycle snapshot block is gated on the resolved cycle
-      // toggle (an explicit opt-in/out overrides the gender default). Read
-      // both columns here so a non-cycle account pays no extra round-trip.
-      gender: true,
-      cycleProfile: { select: { cycleTrackingEnabled: true } },
-      // v1.16.16 — the glucose block converts canonical mg/dL to the user's
-      // display unit so the Coach reads the same number every other surface
-      // shows. Read it on this existing prefs hop (no extra round-trip).
-      glucoseUnit: true,
-      // v1.18.6 (W7) — the explicit, user-declared diabetes opt-in. Selects
-      // the tighter ADA glycemic GOAL band for the glucose reference-grounding
-      // line only; never inferred from a reading, never a diagnosis. Read on
-      // this existing prefs hop (no extra round-trip).
-      hasDiabetes: true,
-    },
-  });
+  // v1.20.0 (H-1) — the F1 coach tools each rebuild a single-source snapshot
+  // with a distinct LRU key, so the 60s snapshot cache does not share this read
+  // across the fan-out. Memoise it per-request (the select shape is constant, so
+  // userId is the only key) so up to 6 concurrent tool builds collapse to one
+  // prefs round-trip instead of starving the shared Prisma pool.
+  const prefsRow = await memoizePerRequest(`coach-prefs:${userId}`, () =>
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        coachPrefsJson: true,
+        timezone: true,
+        locale: true,
+        // v1.11.5 — needed to collapse a dual-source sleep night to one
+        // canonical source before reconstructing per-night asleep totals.
+        sourcePriorityJson: true,
+        // v1.15 — the cycle snapshot block is gated on the resolved cycle
+        // toggle (an explicit opt-in/out overrides the gender default). Read
+        // both columns here so a non-cycle account pays no extra round-trip.
+        gender: true,
+        cycleProfile: { select: { cycleTrackingEnabled: true } },
+        // v1.16.16 — the glucose block converts canonical mg/dL to the user's
+        // display unit so the Coach reads the same number every other surface
+        // shows. Read it on this existing prefs hop (no extra round-trip).
+        glucoseUnit: true,
+        // v1.18.6 (W7) — the explicit, user-declared diabetes opt-in. Selects
+        // the tighter ADA glycemic GOAL band for the glucose reference-grounding
+        // line only; never inferred from a reading, never a diagnosis. Read on
+        // this existing prefs hop (no extra round-trip).
+        hasDiabetes: true,
+      },
+    }),
+  );
   const prefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
   // Resolve the UI locale for the rolling-profile narrative recall. The
   // narrative rows are keyed by ("de" | "en"); default to "de" (the app
@@ -749,9 +767,16 @@ async function buildCoachSnapshotImpl(
   // `userId` + the resolved window/sources), so running them
   // concurrently shaves a round-trip off the cold path. No block reads
   // `features` before the shared await, so the deferral is safe.
-  const featuresPromise = extractFeatures(userId, false, {
-    sinceDays: windowDays,
-  });
+  // v1.20.0 (H-1) — `extractFeatures` is the heaviest read on the cold path
+  // (user findUnique + a windowed measurement findMany + the all-time extremes).
+  // The F1 tools rebuild distinct-scope snapshots whose LRU keys differ, so they
+  // do not share this read; memoise it per-request keyed on the only varying
+  // input (windowDays) so the fan-out runs it once instead of up to 6× against
+  // the shared pool.
+  const featuresPromise = memoizePerRequest(
+    `coach-features:${userId}:${windowDays}`,
+    () => extractFeatures(userId, false, { sinceDays: windowDays }),
+  );
 
   // Trim down to the metrics the Coach narrates. extractFeatures
   // returns more (sleep, steps, etc.) — the Coach surface keeps the
@@ -2352,6 +2377,13 @@ async function buildCoachSnapshotImpl(
 
   return {
     snapshotJson: JSON.stringify(compactSnapshot, null, 2),
+    // v1.20.0 (F1) — the structured, post-degrade snapshot record keyed by
+    // domain block (`bloodPressure`, `glucose`, `labs`, …). The coach tool
+    // executor slices a single domain block out of this so a retrieval tool
+    // returns exactly the numbers the legacy snapshot path would have shown —
+    // same builder, same gates, same I/O. `snapshotJson` is this record
+    // serialised; exposing the record avoids re-parsing it.
+    sections: compactSnapshot,
     provenance: {
       windows: Array.from(windows),
       metrics: Array.from(metrics),

@@ -108,8 +108,12 @@ import { ensureUserRollupsFresh } from "@/lib/rollups/measurement-rollups";
 import {
   aggregateBuckets,
   collapseRollupRowsBySource,
+  composeWindowedRegression,
+  hasPendingAccumulatorBackfill,
   loadUserSourcePriority,
+  type AccumulatorBucketRow,
 } from "@/lib/rollups/measurement-read";
+import { startOfUtcDay } from "@/lib/tz/start-of-utc-day";
 import {
   buildSourceRankCase,
   canonicalMeasurementsCte,
@@ -160,12 +164,9 @@ interface NarrowAggregateRow {
   avg7: number | null;
   avg30: number | null;
   avg30_last_month: number | null;
-  slope7: number | null;
-  r2_7: number | null;
-  slope30: number | null;
-  r2_30: number | null;
-  slope90: number | null;
-  r2_90: number | null;
+  // v1.20.0 F6 — the slope7/30/90 + r2_7/30/90 columns have moved off this
+  // live query onto the rollup accumulators (composeWindowedRegression);
+  // they no longer scan the raw measurements partition on the warm path.
 }
 
 /** Latest raw value per type (DISTINCT ON over the 90-day window). */
@@ -436,43 +437,7 @@ async function buildFromRollups(
         AVG(m."value") FILTER (
           WHERE m."measured_at" >= NOW() - INTERVAL '60 days'
             AND m."measured_at" <  NOW() - INTERVAL '30 days'
-        )::double precision                                           AS avg30_last_month,
-        REGR_SLOPE(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '7 days'
-        )::double precision                                           AS slope7,
-        REGR_R2(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '7 days'
-        )::double precision                                           AS r2_7,
-        REGR_SLOPE(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '30 days'
-        )::double precision                                           AS slope30,
-        REGR_R2(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '30 days'
-        )::double precision                                           AS r2_30,
-        REGR_SLOPE(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
-        )::double precision                                           AS slope90,
-        REGR_R2(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
-        )::double precision                                           AS r2_90
+        )::double precision                                           AS avg30_last_month
       FROM cm m
       JOIN window_stats ws ON ws."type" = m."type"
       GROUP BY m."type", ws.stddev_value
@@ -548,16 +513,50 @@ async function buildFromRollups(
 
   const summaries: Record<string, DataSummary> = {};
   let totalMeasurements = 0;
+  // v1.20.0 F6 — day-aligned 7/30/90-day window anchors, matching the
+  // DAY-rollup grain. `startOfUtcDay(now − N days)` is the day-aligned
+  // equivalent of the live `measured_at >= NOW() - INTERVAL 'N days'`.
+  const now = Date.now();
+  const since7 = startOfUtcDay(new Date(now - 7 * 24 * 60 * 60 * 1000));
+  const since30 = startOfUtcDay(new Date(now - 30 * 24 * 60 * 60 * 1000));
+  const since90 = startOfUtcDay(new Date(now - 90 * 24 * 60 * 60 * 1000));
+  // v1.20.0 P3 M-1 — set once any in-window bucket carries a NULL
+  // accumulator (pre-0190 row, or boot re-fold pending). The slope stays
+  // null then — it converges after backfill — but the miss must be
+  // observable per the "no silent cap" rule, so it surfaces in the
+  // annotation below rather than passing silently as a plain rollup read.
+  let regressionPendingBackfill = false;
 
   // Seed every type that has buckets — the bucket set is the source of
   // truth on this path. The narrow aggregate provides the non-composable
-  // windowed columns alongside.
+  // windowed columns (avg + anomaly) alongside; slope / r² / sd compose
+  // from the per-bucket regression accumulators (v1.20.0 F6).
   for (const [type, buckets] of bucketsByType.entries()) {
     const composed = aggregateBuckets(buckets);
     if (composed.count === 0) continue;
     totalMeasurements += composed.count;
     const latest = latestByType.get(type);
     const narrow = narrowByType.get(type);
+    // The buckets are already source-collapsed (one canonical row per day),
+    // so the accumulator sum is over the canonical source only.
+    const accBuckets: AccumulatorBucketRow[] = buckets.map((b) => ({
+      bucketStart: b.day,
+      count: b.count,
+      mean: b.mean,
+      sumX: b.sumX,
+      sumXy: b.sumXy,
+      sumXx: b.sumXx,
+      sumYy: b.sumYy,
+    }));
+    if (
+      !regressionPendingBackfill &&
+      hasPendingAccumulatorBackfill(accBuckets, since90)
+    ) {
+      regressionPendingBackfill = true;
+    }
+    const reg7 = composeWindowedRegression(accBuckets, since7);
+    const reg30 = composeWindowedRegression(accBuckets, since30);
+    const reg90 = composeWindowedRegression(accBuckets, since90);
     summaries[type] = {
       count: composed.count,
       latest: latest?.value ?? null,
@@ -571,9 +570,9 @@ async function buildFromRollups(
       median: null,
       avg7: round2(narrow?.avg7 ?? null),
       avg30: round2(narrow?.avg30 ?? null),
-      slope7: buildSlope(narrow?.slope7 ?? null, narrow?.r2_7 ?? null),
-      slope30: buildSlope(narrow?.slope30 ?? null, narrow?.r2_30 ?? null),
-      slope90: buildSlope(narrow?.slope90 ?? null, narrow?.r2_90 ?? null),
+      slope7: buildSlope(reg7.slope, reg7.r2),
+      slope30: buildSlope(reg30.slope, reg30.r2),
+      slope90: buildSlope(reg90.slope, reg90.r2),
       anomalyCount: Number(narrow?.anomaly_count ?? 0),
       avg30LastMonth: round2(narrow?.avg30_last_month ?? null),
       // Legacy semantics: the 90-day window guarantees no rows from a
@@ -585,6 +584,28 @@ async function buildFromRollups(
   const firstMeasurementAt = firstRows[0]?.first_at
     ? new Date(firstRows[0].first_at)
     : null;
+
+  // v1.20.0 F6 — observability: slope / r² / sd now compose from the rollup
+  // accumulators (no raw-partition REGR_* scan); the anomaly count stays on
+  // a live FILTER (per-reading |z|>2 is non-composable). The "no silent
+  // cap" rule wants both sources visible so a regression to the heavy path
+  // is observable.
+  annotate({
+    meta: {
+      insights: {
+        slope_source: "rollup",
+        anomaly_source: "live",
+        // v1.20.0 P3 M-1 — when a NULL accumulator (pre-0190 row, or boot
+        // re-fold pending) forced a slope miss, the read intentionally
+        // returns null without a live-SQL fallback (the design avoids the
+        // heavy scan). Surface the gap so the silent null is observable; it
+        // clears once the boot backfill refills the accumulators.
+        regression_source: regressionPendingBackfill
+          ? "unavailable_pending_backfill"
+          : "rollup",
+      },
+    },
+  });
 
   return {
     summaries,
@@ -810,6 +831,22 @@ async function buildFromLiveAggregate(
  * `count / min / max / mean` from them in O(1) and the daily-by-type
  * builder can replay them as the correlation feed.
  */
+/**
+ * v1.20.0 F6 — a partitioned DAY bucket carrying the composable stats plus
+ * the regression accumulators the windowed slope / r² / sd compose from.
+ */
+interface PartitionedBucket {
+  day: Date;
+  count: number;
+  mean: number;
+  minValue: number;
+  maxValue: number;
+  sumX: number | null;
+  sumXy: number | null;
+  sumXx: number | null;
+  sumYy: number | null;
+}
+
 function partitionBucketsByType(
   rows: ReadonlyArray<{
     type: string;
@@ -819,21 +856,19 @@ function partitionBucketsByType(
     mean: number;
     minValue: number;
     maxValue: number;
+    sumX: number | null;
+    sumXy: number | null;
+    sumXx: number | null;
+    sumYy: number | null;
   }>,
   userPriorityJson: unknown,
-): Map<
-  string,
-  Array<{
-    day: Date;
-    count: number;
-    mean: number;
-    minValue: number;
-    maxValue: number;
-  }>
-> {
+): Map<string, PartitionedBucket[]> {
   // v1.11.1 — rollup rows are per source. Group by type, then collapse each
   // type's buckets to the ladder-canonical source per day before composing,
   // so a dual-source vital is not double-counted in count/mean/dailyByType.
+  // v1.20.0 F6 — the collapse runs BEFORE the regression accumulators are
+  // consumed, so a dual-source day contributes only the canonical source's
+  // accumulators to the windowed slope / r² / sd (no cross-source sum).
   const byType = new Map<string, Array<(typeof rows)[number]>>();
   for (const b of rows) {
     const list = byType.get(b.type) ?? [];
@@ -841,16 +876,7 @@ function partitionBucketsByType(
     byType.set(b.type, list);
   }
 
-  const map = new Map<
-    string,
-    Array<{
-      day: Date;
-      count: number;
-      mean: number;
-      minValue: number;
-      maxValue: number;
-    }>
-  >();
+  const map = new Map<string, PartitionedBucket[]>();
   for (const [type, typeRows] of byType) {
     const collapsed = collapseRollupRowsBySource(
       typeRows,
@@ -865,6 +891,10 @@ function partitionBucketsByType(
         mean: b.mean,
         minValue: b.minValue,
         maxValue: b.maxValue,
+        sumX: b.sumX,
+        sumXy: b.sumXy,
+        sumXx: b.sumXx,
+        sumYy: b.sumYy,
       })),
     );
   }

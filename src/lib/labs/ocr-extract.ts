@@ -16,7 +16,12 @@
  * an extracted field as a command, and the human review screen is the hard
  * backstop — nothing commits without per-row confirmation.
  */
-import type { AIProvider, CompletionParams } from "@/lib/ai/types";
+import {
+  appendToLastUserMessage,
+  singleUserTurn,
+  type AIProvider,
+  type CompletionParams,
+} from "@/lib/ai/types";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
@@ -213,31 +218,33 @@ export async function runOcrExtraction(
   // prompt and images/documents stay UNSET, so the text-only provider wire
   // (codex `input_text`) carries it unchanged — the image never reaches here.
   const params: CompletionParams = isTextMode
-    ? {
-        systemPrompt: TEXT_SYSTEM_PROMPT,
-        userPrompt: `Structure the following OCR'd lab-report text into the JSON schema described in the system prompt. Return only the JSON object.\n\nOCR TEXT:\n${args.ocrText}`,
+    ? singleUserTurn({
+        system: TEXT_SYSTEM_PROMPT,
+        user: `Structure the following OCR'd lab-report text into the JSON schema described in the system prompt. Return only the JSON object.\n\nOCR TEXT:\n${args.ocrText}`,
         temperature: AI_BUDGETS.ocrExtract.temperature,
         maxTokens: AI_BUDGETS.ocrExtract.maxTokens,
         responseFormat: "json",
-      }
-    : {
-        systemPrompt: SYSTEM_PROMPT,
-        userPrompt: USER_PROMPT,
+      })
+    : singleUserTurn({
+        system: SYSTEM_PROMPT,
+        user: USER_PROMPT,
         temperature: AI_BUDGETS.ocrExtract.temperature,
         maxTokens: AI_BUDGETS.ocrExtract.maxTokens,
         responseFormat: "json",
         images: args.images,
         documents: args.documents,
-      };
+      });
 
   let parsed = await extractOnce(args.provider, params);
   if (!parsed.success) {
     // One corrective retry — re-state the schema requirement in the prompt.
-    // Reuse the mode's own user prompt (text mode carries the OCR text in it).
-    const retryParams: CompletionParams = {
-      ...params,
-      userPrompt: `${params.userPrompt}\n\nYour previous response was not valid JSON matching the schema. Return ONLY the JSON object described in the system prompt, with no prose or markdown.`,
-    };
+    // Reuse the mode's own user prompt (text mode carries the OCR text in it);
+    // appendToLastUserMessage keeps the single user turn, folding the
+    // correction into its text (or as a trailing text part on the vision path).
+    const retryParams = appendToLastUserMessage(
+      params,
+      "\n\nYour previous response was not valid JSON matching the schema. Return ONLY the JSON object described in the system prompt, with no prose or markdown.",
+    );
     parsed = await extractOnce(args.provider, retryParams);
   }
 

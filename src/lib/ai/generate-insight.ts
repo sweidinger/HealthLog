@@ -1,5 +1,10 @@
 import type { z } from "zod/v4";
-import type { AIProvider, CompletionParams, CompletionResult } from "./types";
+import {
+  appendToLastUserMessage,
+  type AIProvider,
+  type CompletionParams,
+  type CompletionResult,
+} from "./types";
 import {
   aiInsightResponseSchema,
   findRecommendationsMissingRationale,
@@ -248,10 +253,10 @@ export async function generateInsight(
     first.reason ?? "schema mismatch",
     first.details ?? "",
   );
-  const retryParams: CompletionParams = {
-    ...params,
-    userPrompt: `${params.userPrompt}\n\n${correction}`,
-  };
+  const retryParams: CompletionParams = appendToLastUserMessage(
+    params,
+    `\n\n${correction}`,
+  );
   const second = await tryOnce(provider, retryParams);
   if (second.ok && second.parsed) {
     annotateCitationCoverage(second.parsed);

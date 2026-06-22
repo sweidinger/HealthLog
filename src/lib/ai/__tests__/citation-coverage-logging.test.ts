@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { generateInsight } from "../generate-insight";
 import { MockAIProvider } from "../mock-client";
+import { singleUserTurn } from "../types";
 import {
   detectsNormativeClaim,
   computeCitationCoverage,
@@ -276,10 +277,10 @@ describe("generateInsight() — citation-coverage annotation", () => {
         warnings: [],
       }),
     });
-    await generateInsight(provider, {
-      systemPrompt: "system",
-      userPrompt: "user",
-    });
+    await generateInsight(
+      provider,
+      singleUserTurn({ system: "system", user: "user" }),
+    );
     const meta = findCoverageCall(annotateMock.mock.calls);
     expect(meta).toMatchObject({
       ai_total_recommendations: 1,
@@ -306,10 +307,10 @@ describe("generateInsight() — citation-coverage annotation", () => {
         warnings: [],
       }),
     });
-    await generateInsight(provider, {
-      systemPrompt: "system",
-      userPrompt: "user",
-    });
+    await generateInsight(
+      provider,
+      singleUserTurn({ system: "system", user: "user" }),
+    );
     const meta = findCoverageCall(annotateMock.mock.calls);
     expect(meta).toMatchObject({
       ai_normative_recommendations: 1,
@@ -324,7 +325,7 @@ describe("generateInsight() — citation-coverage annotation", () => {
       responses: ["not json", "still not json"],
     });
     await expect(
-      generateInsight(provider, { systemPrompt: "s", userPrompt: "u" }),
+      generateInsight(provider, singleUserTurn({ system: "s", user: "u" })),
     ).rejects.toThrow();
     expect(annotateMock).not.toHaveBeenCalled();
   });

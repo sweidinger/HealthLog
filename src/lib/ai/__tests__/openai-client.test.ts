@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { OpenAIClient } from "../openai-client";
+import { singleUserTurn } from "../types";
 
 describe("OpenAIClient", () => {
   beforeEach(() => {
@@ -23,10 +24,13 @@ describe("OpenAIClient", () => {
       baseUrl: "https://api.openai.com/v1",
     });
 
-    const result = await client.generateCompletion({
-      systemPrompt: "You are a doctor.",
-      userPrompt: "Analyze this data.",
-    });
+    const result = await client.generateCompletion(
+      singleUserTurn({
+        system: "You are a doctor.",
+        user: "Analyze this data.",
+        responseFormat: "json",
+      }),
+    );
 
     expect(result.content).toBe('{"summary":"test"}');
     expect(result.tokensUsed).toBe(42);
@@ -41,6 +45,66 @@ describe("OpenAIClient", () => {
     expect(body.response_format).toEqual({ type: "json_object" });
     // No seed passed → field omitted from the body entirely.
     expect(body).not.toHaveProperty("seed");
+  });
+
+  it("forces JSON mode only when responseFormat is json AND no tools (M-1)", async () => {
+    const replyContent = (content: string) =>
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content } }],
+            usage: { total_tokens: 1 },
+          }),
+      });
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+      baseUrl: "https://api.openai.com/v1",
+    });
+
+    // 1. Prose Coach path (no responseFormat, no tools) → NO json_object. This
+    //    is the F1 forced-final round contract: JSON mode would corrupt prose.
+    const proseFetch = replyContent("Here is a plain-prose reply.");
+    vi.stubGlobal("fetch", proseFetch);
+    await client.generateCompletion(
+      singleUserTurn({ system: "coach", user: "how am I doing?" }),
+    );
+    expect(JSON.parse(proseFetch.mock.calls[0][1].body)).not.toHaveProperty(
+      "response_format",
+    );
+
+    // 2. responseFormat:"json" but tools present → still NO json_object (a tool
+    //    round must not be coerced into a JSON object).
+    const toolFetch = replyContent("{}");
+    vi.stubGlobal("fetch", toolFetch);
+    await client.generateCompletion({
+      system: "s",
+      messages: [{ role: "user", content: "u" }],
+      responseFormat: "json",
+      tools: [
+        {
+          name: "t",
+          description: "d",
+          parameters: { type: "object", properties: {} },
+        },
+      ],
+    });
+    expect(JSON.parse(toolFetch.mock.calls[0][1].body)).not.toHaveProperty(
+      "response_format",
+    );
+
+    // 3. responseFormat:"json" with no tools → json_object IS sent (insight /
+    //    extraction callers keep strict JSON).
+    const jsonFetch = replyContent('{"summary":"x"}');
+    vi.stubGlobal("fetch", jsonFetch);
+    await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+    );
+    expect(JSON.parse(jsonFetch.mock.calls[0][1].body).response_format).toEqual(
+      { type: "json_object" },
+    );
   });
 
   it("threads a deterministic seed onto the request body when supplied", async () => {
@@ -60,11 +124,9 @@ describe("OpenAIClient", () => {
       baseUrl: "https://api.openai.com/v1",
     });
 
-    await client.generateCompletion({
-      systemPrompt: "test",
-      userPrompt: "test",
-      seed: 1234,
-    });
+    await client.generateCompletion(
+      singleUserTurn({ system: "test", user: "test", seed: 1234 }),
+    );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.seed).toBe(1234);
@@ -87,7 +149,9 @@ describe("OpenAIClient", () => {
     });
 
     await expect(
-      client.generateCompletion({ systemPrompt: "test", userPrompt: "test" }),
+      client.generateCompletion(
+        singleUserTurn({ system: "test", user: "test" }),
+      ),
     ).rejects.toThrow("OpenAI request failed (429)");
   });
 
@@ -108,13 +172,122 @@ describe("OpenAIClient", () => {
       baseUrl: "https://openrouter.ai/api/v1",
     });
 
-    await client.generateCompletion({
-      systemPrompt: "test",
-      userPrompt: "test",
-    });
+    await client.generateCompletion(
+      singleUserTurn({ system: "test", user: "test" }),
+    );
 
     expect(mockFetch.mock.calls[0][0]).toBe(
       "https://openrouter.ai/api/v1/chat/completions",
     );
+  });
+
+  it("maps tool defs onto the function wire and parses tool_calls", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_1",
+                    function: {
+                      name: "fetch_glucose",
+                      arguments: '{"window":"last30days"}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: "tool_calls",
+            },
+          ],
+          usage: {
+            total_tokens: 12,
+            prompt_tokens_details: { cached_tokens: 8 },
+          },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o",
+      baseUrl: "https://api.openai.com/v1",
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({
+        system: "s",
+        user: "u",
+        tools: [
+          {
+            name: "fetch_glucose",
+            description: "Fetch glucose readings",
+            parameters: { type: "object", properties: {} },
+          },
+        ],
+        toolChoice: "auto",
+      }),
+    );
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.tools).toEqual([
+      {
+        type: "function",
+        function: {
+          name: "fetch_glucose",
+          description: "Fetch glucose readings",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    ]);
+    expect(body.tool_choice).toBe("auto");
+    expect(result.toolCalls).toEqual([
+      {
+        id: "call_1",
+        name: "fetch_glucose",
+        arguments: '{"window":"last30days"}',
+      },
+    ]);
+    expect(result.finishReason).toBe("tool_calls");
+    expect(result.cachedInputTokens).toBe(8);
+  });
+
+  it("folds image parts into the multimodal content array", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: '{"rows":[]}' } }],
+          usage: { total_tokens: 3 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o",
+      baseUrl: "https://api.openai.com/v1",
+    });
+
+    await client.generateCompletion(
+      singleUserTurn({
+        system: "s",
+        user: "transcribe",
+        images: [{ mediaType: "image/png", dataBase64: "AAAA" }],
+      }),
+    );
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const userTurn = body.messages[1];
+    expect(userTurn.role).toBe("user");
+    // Text-first, then image (matches the pre-refactor OpenAI vision wire).
+    expect(userTurn.content[0]).toEqual({ type: "text", text: "transcribe" });
+    expect(userTurn.content[1]).toEqual({
+      type: "image_url",
+      image_url: { url: "data:image/png;base64,AAAA" },
+    });
   });
 });

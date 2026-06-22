@@ -111,12 +111,21 @@ export type ProviderType =
 
 export interface AIProvider {
   type: ProviderType;
+  /**
+   * v1.20.0 — per-provider tool-calling capability flag. Defaults to true
+   * (Anthropic / OpenAI / Codex / mock support tools natively). The local
+   * OpenAI-compatible client sets it `false` because most local servers reject
+   * an unknown `tools` field; F1's tool loop must treat a provider with
+   * `supportsTools === false` (or an empty `toolCalls` result) as "no tools
+   * available" and answer from base context.
+   */
+  supportsTools?: boolean;
   generateCompletion(params: CompletionParams): Promise<CompletionResult>;
 }
 
 /**
- * v1.18.9 — a single vision input folded into the provider request. Used by
- * the Lab-OCR extraction path: a photo of a paper report, or a PDF page.
+ * v1.18.9 — a single vision input folded into a message's content parts. Used
+ * by the Lab-OCR extraction path: a photo of a paper report, or a PDF page.
  * `dataBase64` is the raw file bytes, base64-encoded (no `data:` prefix —
  * each client wraps it in the wire shape it needs). The blob is NEVER threaded
  * into an `annotate()` meta or any log field (it is health data).
@@ -129,9 +138,10 @@ export interface CompletionImage {
 }
 
 /**
- * v1.18.9 — a PDF document folded into the provider request. Only Anthropic
- * accepts a native `document` block over the Messages API we use; the other
- * clients ignore it (the OCR route gates PDFs to Anthropic providers).
+ * v1.18.9 — a PDF document folded into a message's content parts. Only
+ * Anthropic accepts a native `document` block over the Messages API we use;
+ * the other clients ignore it (the OCR route gates PDFs to Anthropic
+ * providers).
  */
 export interface CompletionDocument {
   mediaType: "application/pdf";
@@ -139,25 +149,94 @@ export interface CompletionDocument {
   dataBase64: string;
 }
 
+// ─── Message-array request shape (v1.20.0) ─────────────────
+//
+// The provider contract takes a structured `{ system, messages[] }` request
+// instead of a single `{ systemPrompt, userPrompt }` string pair. This unlocks
+// three things in one refactor: provider prompt-caching (Anthropic
+// `cache_control` on the stable system prefix, OpenAI/local automatic prefix
+// cache), tool-calling (the typed surface F1 builds on), and clean multi-turn.
+//
+// The provider contract is still request → complete-string today: the Coach
+// fake-tokenises a fully-assembled reply downstream and Codex buffers its SSE
+// internally, so there is no real token-streaming dependency here.
+
+/** A plain-text content part. */
+export interface AiTextPart {
+  type: "text";
+  text: string;
+}
+/** An image content part (Lab-OCR vision). */
+export interface AiImagePart {
+  type: "image";
+  mediaType: CompletionImage["mediaType"];
+  /** Raw image bytes, base64-encoded (no data-URL prefix). */
+  dataBase64: string;
+}
+/** A PDF document content part (Anthropic-only; other clients drop it). */
+export interface AiDocPart {
+  type: "document";
+  mediaType: "application/pdf";
+  /** Raw PDF bytes, base64-encoded (no data-URL prefix). */
+  dataBase64: string;
+}
+export type AiContentPart = AiTextPart | AiImagePart | AiDocPart;
+
+/**
+ * v1.20.0 — a tool definition handed to the model. `parameters` is a JSON
+ * Schema object; each client maps it into the provider's tool shape. F4 plumbs
+ * the param + per-provider wire mapping; F1 supplies real definitions and the
+ * call→result→answer loop.
+ */
+export interface AiToolDef {
+  name: string;
+  description: string;
+  /** JSON-schema object describing the tool's arguments. */
+  parameters: Record<string, unknown>;
+}
+
+/**
+ * v1.20.0 — a tool the model asked to call. `arguments` is the raw JSON string
+ * the model produced (parsed by F1's loop, never trusted blindly).
+ */
+export interface AiToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+/**
+ * v1.20.0 — one conversation turn. The common case is a plain-string
+ * `content`; vision turns and tool-result turns use `parts[]`. `toolCalls` are
+ * set on assistant turns that requested tools (F1); `toolCallId` ties a
+ * `role:"tool"` turn back to the call it answers (F1).
+ */
+export interface AiMessage {
+  role: "user" | "assistant" | "tool";
+  content: string | AiContentPart[];
+  /** Set on assistant turns that called tools (F1 fills these). */
+  toolCalls?: AiToolCall[];
+  /** Set on `role:"tool"` turns — the id of the call this answers. */
+  toolCallId?: string;
+  /**
+   * Anthropic prompt-cache hint — marks a stable message-prefix boundary.
+   * A no-op on every other provider (their prefix caching is automatic).
+   */
+  cacheBreakpoint?: boolean;
+}
+
 export interface CompletionParams {
-  systemPrompt: string;
-  userPrompt: string;
+  /**
+   * Stable system prompt. Carries the brand-free reference grounding, persona
+   * and instructions. Eligible for the provider cache prefix on every client;
+   * keep per-request volatile data (timestamps, interpolated dates) OUT of it
+   * so the cached prefix stays byte-identical across calls.
+   */
+  system: string;
+  /** The conversation turns. The 80% case is one user turn (see {@link singleUserTurn}). */
+  messages: AiMessage[];
   temperature?: number;
   maxTokens?: number;
-  /**
-   * v1.18.9 — optional vision inputs (Lab-OCR). Additive: every text-only
-   * caller (Coach, status cards, insights, narratives) leaves these unset, so
-   * the existing wire shape and streaming path are untouched. A client that
-   * cannot read images/documents ignores the field. Treat the contents as
-   * UNTRUSTED data to transcribe — never as instructions.
-   */
-  images?: CompletionImage[];
-  /**
-   * v1.18.9 — optional PDF document input (Lab-OCR). Anthropic-only; other
-   * clients ignore it. Mutually informative with `images` — the OCR route
-   * sends one or the other depending on the upload type and provider.
-   */
-  documents?: CompletionDocument[];
   /**
    * Optional deterministic seed. Threaded onto the OpenAI and local
    * (Ollama / OpenAI-compatible) request bodies for reproducible output on
@@ -167,20 +246,146 @@ export interface CompletionParams {
   seed?: number;
   /**
    * v1.18.7 — opt the structured (JSON) surfaces into the provider's
-   * strongest JSON-reliability mode. When `"json"`:
+   * strongest JSON-reliability mode. When `"json"` (and no `tools`):
    *   - local (Ollama / OpenAI-compatible): adds `format: "json"`.
    *   - Anthropic: prefills the assistant turn with `{` so the first token
    *     is forced into a JSON object.
-   * The OpenAI client already pins `response_format: json_object`
-   * unconditionally and is unaffected. The Coach (prose, NOT JSON) leaves
-   * this unset, so its streaming path is untouched.
+   *   - OpenAI / Codex: sends `response_format: { type: "json_object" }`.
+   * The Coach (prose, NOT JSON) leaves this unset, so no provider coerces
+   * its reply into a JSON object — including the OpenAI client, which now
+   * gates `response_format` on this flag rather than pinning it always.
+   *
+   * Mutually exclusive with `tools` on Anthropic: the `{`-prefill injects an
+   * assistant turn that collides with a `tool_use` response, so the Anthropic
+   * client drops the prefill whenever `tools` are present.
    */
   responseFormat?: "json";
+  /**
+   * v1.20.0 — tool definitions offered to the model. F4 plumbs the param +
+   * per-provider wire mapping; no F4 call site sets it. Local providers may
+   * ignore tools entirely — F1's loop must tolerate an empty `toolCalls`.
+   */
+  tools?: AiToolDef[];
+  /**
+   * v1.20.0 — `"auto"` lets the model decide; `"none"` forbids tool calls.
+   * Mapped per provider; omitted from the wire when unset.
+   */
+  toolChoice?: "auto" | "none";
 }
 
 export interface CompletionResult {
   content: string;
   tokensUsed: number | null;
+  /**
+   * v1.20.0 — prompt-cache observability. The count of input tokens served
+   * from the provider's cache, where the provider reports it (Anthropic
+   * `cache_read_input_tokens`, OpenAI/Codex `cached_tokens`). Null / absent
+   * when the provider does not report it or the prefix did not hit.
+   */
+  cachedInputTokens?: number | null;
   model: string;
   providerType: ProviderType;
+  /**
+   * v1.20.0 — populated when the model asked to call tools (F1 consumes).
+   * Absent on a plain completion.
+   */
+  toolCalls?: AiToolCall[];
+  /**
+   * v1.20.0 — why the model stopped. Lets F1's loop branch only on
+   * `"tool_calls"`. Absent when the provider does not surface it.
+   */
+  finishReason?: "stop" | "tool_calls" | "length";
+}
+
+/**
+ * Ergonomic builder for the common single-user-turn completion. Folds an
+ * optional vision payload (`images` / `documents`) into the user message's
+ * content parts so the Lab-OCR path keeps a one-call shape.
+ */
+export function singleUserTurn(p: {
+  system: string;
+  user: string;
+  temperature?: number;
+  maxTokens?: number;
+  seed?: number;
+  responseFormat?: "json";
+  images?: CompletionImage[];
+  documents?: CompletionDocument[];
+  tools?: AiToolDef[];
+  toolChoice?: "auto" | "none";
+}): CompletionParams {
+  const images = p.images ?? [];
+  const documents = p.documents ?? [];
+  // Parts order is text-first, then media — the OpenAI / local / Codex wires
+  // emit it in this order. The Anthropic client re-orders to media-first when
+  // it maps the parts (it reads the report before the instruction), preserving
+  // each provider's pre-refactor vision wire byte-for-byte.
+  const content: string | AiContentPart[] =
+    images.length === 0 && documents.length === 0
+      ? p.user
+      : [
+          { type: "text", text: p.user },
+          ...images.map(
+            (img): AiImagePart => ({
+              type: "image",
+              mediaType: img.mediaType,
+              dataBase64: img.dataBase64,
+            }),
+          ),
+          ...documents.map(
+            (doc): AiDocPart => ({
+              type: "document",
+              mediaType: doc.mediaType,
+              dataBase64: doc.dataBase64,
+            }),
+          ),
+        ];
+  return {
+    system: p.system,
+    messages: [{ role: "user", content }],
+    temperature: p.temperature,
+    maxTokens: p.maxTokens,
+    seed: p.seed,
+    responseFormat: p.responseFormat,
+    tools: p.tools,
+    toolChoice: p.toolChoice,
+  };
+}
+
+/**
+ * Return a copy of `params` whose LAST user message has `suffix` appended to
+ * its text. Preserves the wire shape of the corrective-retry paths (insight
+ * schema retry, OCR retry, briefing grounding correction): they used to append
+ * to the single `userPrompt` string, and this keeps the model seeing one user
+ * turn with the appended text rather than an extra back-to-back user turn.
+ *
+ * Throws if there is no user message to append to — every retry path always
+ * has one, so a throw is a programming error, not a runtime case.
+ */
+export function appendToLastUserMessage(
+  params: CompletionParams,
+  suffix: string,
+): CompletionParams {
+  const messages = [...params.messages];
+  let idx = -1;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === "user") {
+      idx = i;
+      break;
+    }
+  }
+  if (idx === -1) {
+    throw new Error("appendToLastUserMessage: no user message to append to");
+  }
+  const target = messages[idx];
+  if (typeof target.content === "string") {
+    messages[idx] = { ...target, content: `${target.content}${suffix}` };
+  } else {
+    // Vision / parts content — append the suffix as a trailing text part.
+    messages[idx] = {
+      ...target,
+      content: [...target.content, { type: "text", text: suffix }],
+    };
+  }
+  return { ...params, messages };
 }

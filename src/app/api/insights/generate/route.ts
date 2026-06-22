@@ -52,7 +52,11 @@ import {
   type ComparisonBaseline,
 } from "@/lib/dashboard-layout";
 import type { MeasurementType } from "@/generated/prisma/client";
-import { insightResultSchema, type InsightResult } from "@/lib/ai/types";
+import {
+  insightResultSchema,
+  singleUserTurn,
+  type InsightResult,
+} from "@/lib/ai/types";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
 import {
   AllProvidersFailedError,
@@ -662,7 +666,7 @@ export const POST = apiHandler((request: NextRequest) =>
       const fallback = await runRawCompletionWithFallback({
         userId,
         providers: chain,
-        params: {
+        params: singleUserTurn({
           // The strict prompt (PROMPT_VERSION 4.20.x) carries GROUND RULE 8
           // — emit a top-level `dailyBriefing` block when the snapshot has
           // analysable signal — plus the trendAnnotations and
@@ -674,14 +678,14 @@ export const POST = apiHandler((request: NextRequest) =>
           // tolerates the strict shape via `insightResultSchema.safeParse`'s
           // soft fallback to `parsed` and `passthrough()` on the strict
           // schema, so switching the prompt does not break legacy callers.
-          systemPrompt: buildSystemPromptWithReferences(
-            locale,
-            referenceMetrics,
-          ),
-          userPrompt,
+          system: buildSystemPromptWithReferences(locale, referenceMetrics),
+          user: userPrompt,
           temperature: 0.3,
           maxTokens: 1500,
-        },
+          // The reply is parsed with `JSON.parse` below, so opt the OpenAI /
+          // Codex chains into their strict JSON mode (gated on this flag).
+          responseFormat: "json",
+        }),
       });
       result = fallback.result;
       workingProviderType = fallback.workingProvider.providerType;
@@ -809,15 +813,14 @@ export const POST = apiHandler((request: NextRequest) =>
           const retry = await runRawCompletionWithFallback({
             userId,
             providers: chain,
-            params: {
-              systemPrompt: buildSystemPromptWithReferences(
-                locale,
-                referenceMetrics,
-              ),
-              userPrompt: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
+            params: singleUserTurn({
+              system: buildSystemPromptWithReferences(locale, referenceMetrics),
+              user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
               temperature: 0.3,
               maxTokens: 1500,
-            },
+              // Parsed with `JSON.parse` below — opt OpenAI / Codex into JSON mode.
+              responseFormat: "json",
+            }),
           });
           const parsedRetry = JSON.parse(retry.result.content);
           const validatedRetry = insightResultSchema.safeParse(parsedRetry);

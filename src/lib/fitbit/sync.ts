@@ -1,17 +1,21 @@
 /**
- * Fitbit / Google Health sync service (v1.12.0).
+ * Fitbit Web API sync service.
  *
- * This wave (OAuth + credentials) lands the token-management half:
  *   - `getValidToken` decrypts the stored token, refreshes at
- *     `tokenExpiresAt - 5 min`, persists the new access token + expiry, and —
- *     UNLIKE WHOOP — only overwrites the stored refresh token when the response
- *     carries a fresh one (Google does not rotate refresh tokens).
+ *     `tokenExpiresAt - 5 min`, and persists the new access token + expiry AND
+ *     the rotated refresh token. Classic Fitbit ROTATES refresh tokens
+ *     (one-time use), so the new `refresh_token` MUST replace the stored one —
+ *     the inverse of the prior Google transport, which did not rotate. The
+ *     persist is a compare-and-swap on the stored ciphertext so two overlapping
+ *     syncs cannot park the connection at reauth (see `persistRotatedToken`).
  *   - `recordFitbitSyncFailure` / `classificationToFailureKind` map a
  *     classified API error onto the shared integration-status ledger.
- *
- * The per-resource data sync (`upsertFitbitMeasurements`, `syncUserFitbit`, the
- * collection walkers, and the 403 soft-skip orchestration) lands in a later
- * wave and extends this file.
+ *   - `upsertFitbitMeasurements` + `syncUserFitbit` own the write tail (dedup,
+ *     overwrite contract, rollup fold) — reused unchanged across the transport
+ *     fork; only the per-resource fetch/map differs.
+ *   - `chunkDateRanges` slices a deep backfill into the per-endpoint date-range
+ *     windows the classic Web API caps each call at (30 days), so the per-resource
+ *     syncs issue one valid request per window.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import pLimit from "p-limit";
@@ -31,6 +35,7 @@ import {
   recomputeUserRollups,
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+import { persistRotatedToken } from "@/lib/integrations/oauth-refresh";
 import { refreshAccessToken } from "./client";
 import { getUserFitbitCredentials } from "./credentials";
 import {
@@ -43,12 +48,21 @@ import {
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 /**
- * Overlap window for the incremental sync, in ms. Google re-rolls daily
- * summaries after the fact (a daily SpO2 / HRV / RHR can finalise hours after
- * the night), so the default overlap is a full 24 h to make sure the re-rolled
- * row is re-fetched on the next tick. Mirrors WHOOP's recovery/sleep overlap.
+ * Overlap window for the incremental sync, in ms. Fitbit finalises daily
+ * summaries after the fact (a daily SpO2 / HRV / RHR can settle hours after the
+ * night), so the default overlap is a full 24 h to make sure the re-rolled row
+ * is re-fetched on the next tick. Mirrors WHOOP's recovery/sleep overlap.
  */
 export const FITBIT_DEFAULT_OVERLAP_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How far back a `fullSync` backfill walks. The classic Web API per-endpoint
+ * range cap (30 days) means a deep backfill issues many requests against the
+ * tight 150/h budget, so the backfill horizon is bounded to keep one user's
+ * backfill inside a couple of hourly windows (~12 chunks/resource). One year of
+ * daily summaries is the launch horizon.
+ */
+export const FITBIT_BACKFILL_DAYS = 365;
 
 export interface FitbitTokenInfo {
   accessToken: string;
@@ -61,10 +75,12 @@ export interface FitbitTokenInfo {
  * credentials, or the refresh fails (the failure is recorded so scheduled syncs
  * back off).
  *
- * KEY DELTA vs WHOOP: Google does not rotate refresh tokens. On refresh, persist
- * the new access token + expiry and overwrite the stored `refreshToken` ONLY
- * when the response carries a fresh one — otherwise keep the existing refresh
- * token so the next refresh still authenticates.
+ * Classic Fitbit ROTATES refresh tokens (one-time use): every refresh response
+ * carries a fresh `refresh_token` that invalidates the old one. Persist the new
+ * access token + expiry AND the new refresh token unconditionally. If a refresh
+ * response ever omits the new refresh token (a malformed reply), keep the stored
+ * one rather than wiping it — a blank refresh token would brick every future
+ * refresh.
  */
 export async function getValidToken(
   userId: string,
@@ -100,23 +116,49 @@ export async function getValidToken(
       const newTokens = await refreshAccessToken(refreshToken, creds);
       const expiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
 
-      // Google does NOT rotate refresh tokens: a routine refresh returns a new
-      // access token but usually omits `refresh_token`. Persist the new access
-      // token + expiry and only overwrite the stored refresh token when the
-      // response actually carries a fresh one — otherwise keep the existing one.
-      await prisma.fitbitConnection.update({
-        where: { id: connection.id },
-        data: {
-          accessToken: encrypt(newTokens.access_token),
-          tokenExpiresAt: expiresAt,
-          ...(newTokens.refresh_token
-            ? { refreshToken: encrypt(newTokens.refresh_token) }
-            : {}),
+      // Classic Fitbit ROTATES refresh tokens: the refresh response carries a
+      // fresh `refresh_token` that replaces the (now-invalid) stored one. Persist
+      // with a compare-and-swap on the stored ciphertext so a concurrent sync
+      // that already rotated the token does not get its work clobbered — and so
+      // THIS caller, if it lost the race, reuses the peer's rotated access token
+      // instead of parking the connection at reauth. Guard the malformed-reply
+      // case: if the response omits the new refresh token, keep the existing one
+      // rather than writing a blank, which would brick every future refresh.
+      const persistedAccessToken = await persistRotatedToken(
+        newTokens.access_token,
+        {
+          conditionalUpdate: async () => {
+            const { count } = await prisma.fitbitConnection.updateMany({
+              // `connection.refreshToken` is the exact ciphertext we read +
+              // spent; matching it is the CAS guard (a re-encrypt would differ).
+              where: {
+                id: connection.id,
+                refreshToken: connection.refreshToken,
+              },
+              data: {
+                accessToken: encrypt(newTokens.access_token),
+                tokenExpiresAt: expiresAt,
+                ...(newTokens.refresh_token
+                  ? { refreshToken: encrypt(newTokens.refresh_token) }
+                  : {}),
+              },
+            });
+            return count;
+          },
+          readPeerAccessToken: async () => {
+            const fresh = await prisma.fitbitConnection.findUnique({
+              where: { id: connection.id },
+              select: { accessToken: true },
+            });
+            return fresh ? decrypt(fresh.accessToken) : null;
+          },
         },
-      });
+      );
+
+      if (!persistedAccessToken) return null;
 
       return {
-        accessToken: newTokens.access_token,
+        accessToken: persistedAccessToken,
         connection: {
           id: connection.id,
           fitbitUserId: connection.fitbitUserId,
@@ -141,14 +183,14 @@ export async function getValidToken(
 }
 
 /**
- * True when a caught error is a per-data-class 403 (forbidden). The six Google
- * Health Restricted bundles are granted independently in the consent flow, so a
- * 403 on ONE data class is a scope gate on THAT class — soft-skip it and keep
- * the connection connected rather than parking the whole integration at
- * `error_reauth`. Connection-wide reauth is reserved for a 401 (token rejected)
- * and for a 403 on the token-refresh / profile path (a genuine grant revoke),
- * which run outside the per-resource catch blocks. Matters more here than for
- * WHOOP because partial grants are likely with six independent bundles.
+ * True when a caught error is a per-endpoint 403 (forbidden). The classic Fitbit
+ * scopes are granted independently in the consent flow (and intraday needs an
+ * extra per-app grant), so a 403 on ONE endpoint is a scope gate on THAT metric
+ * — soft-skip it and keep the connection connected rather than parking the whole
+ * integration at `error_reauth`. Connection-wide reauth is reserved for a 401
+ * (token rejected) and a 403 on the token-refresh / profile path (a genuine
+ * grant revoke), which run outside the per-resource catch blocks. Matters here
+ * because partial grants are likely across the independent scopes.
  */
 export function isCollectionForbidden(err: unknown): boolean {
   return err instanceof FitbitApiError && err.httpStatus === 403;
@@ -203,16 +245,18 @@ export async function handleCollectionFetchError(
 
 /**
  * Options threaded from `syncUserFitbit` to each per-resource sync. The `start`
- * watermark is snapshotted ONCE by the orchestrator (a single `lastSyncedAt`
- * read) so every resource fetches from the same lower bound; no resource re-reads
- * `lastSyncedAt` or stamps `markSynced` itself. On a full/backfill run `start`
- * is undefined (no lower bound). The orchestrator owns the single end-of-cycle
- * `markSynced`.
+ * + `end` window is snapshotted ONCE by the orchestrator (a single `lastSyncedAt`
+ * read + a single `now`) so every resource fetches the same window; no resource
+ * re-reads `lastSyncedAt` or stamps `markSynced` itself. The per-resource sync
+ * chunks `[start, end]` into the per-endpoint date-range cap. The orchestrator
+ * owns the single end-of-cycle `markSynced`.
  */
 export interface FitbitResourceSyncOptions {
   fullSync?: boolean;
-  /** The incremental lower bound, snapshotted once by the orchestrator. */
+  /** The lower bound of the fetch window, snapshotted once by the orchestrator. */
   start?: Date;
+  /** The upper bound of the fetch window (now), snapshotted once. */
+  end?: Date;
   /**
    * When true, `upsertFitbitMeasurements` writes the rows but SKIPS the inline
    * per-(type,day) DAY-rollup recompute + status-insight invalidate, returning
@@ -227,19 +271,53 @@ export interface FitbitResourceSyncOptions {
 }
 
 /**
- * Compute the incremental `start` for a resource sync. `fullSync` returns
- * undefined (the backfill walks deep history without a lower bound). Otherwise
- * start from `lastSyncedAt - overlap`, or 30 days back on the very first
- * incremental tick. Mirrors WHOOP's `incrementalStart`.
+ * Compute the incremental `start` for a resource sync. `fullSync` walks back the
+ * bounded backfill horizon (the classic Web API caps each call's date range, so
+ * an unbounded backfill would blow the 150/h budget). Otherwise start from
+ * `lastSyncedAt - overlap`, or 30 days back on the very first incremental tick.
  */
 export function incrementalStart(
   lastSyncedAt: Date | null,
-  opts: { fullSync?: boolean; overlapMs?: number } = {},
-): Date | undefined {
-  if (opts.fullSync) return undefined;
+  opts: { fullSync?: boolean; overlapMs?: number; now?: Date } = {},
+): Date {
+  const now = opts.now ?? new Date();
+  if (opts.fullSync) {
+    return new Date(now.getTime() - FITBIT_BACKFILL_DAYS * 24 * 60 * 60 * 1000);
+  }
   const overlap = opts.overlapMs ?? FITBIT_DEFAULT_OVERLAP_MS;
   if (lastSyncedAt) return new Date(lastSyncedAt.getTime() - overlap);
-  return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Slice `[start, end]` into consecutive inclusive windows no wider than
+ * `maxDays` calendar days, the per-endpoint range cap the classic Web API
+ * enforces. Each window is `{ start, end }` with `end` no later than the overall
+ * `end`; the per-resource syncs issue one request per window. Returns a single
+ * window when the span already fits.
+ */
+export function chunkDateRanges(
+  start: Date,
+  end: Date,
+  maxDays: number,
+): Array<{ start: Date; end: Date }> {
+  const windows: Array<{ start: Date; end: Date }> = [];
+  if (end.getTime() < start.getTime()) return windows;
+  const stepMs = maxDays * 24 * 60 * 60 * 1000;
+  let cursor = start.getTime();
+  const endMs = end.getTime();
+  // Guard against a pathological span minting an unbounded loop.
+  let guard = 0;
+  const MAX_WINDOWS = 1000;
+  while (cursor <= endMs && guard < MAX_WINDOWS) {
+    // Each window spans up to `maxDays` days inclusive, so subtract one day from
+    // the step to keep the inclusive end inside the cap.
+    const windowEnd = Math.min(cursor + stepMs - 24 * 60 * 60 * 1000, endMs);
+    windows.push({ start: new Date(cursor), end: new Date(windowEnd) });
+    cursor = windowEnd + 24 * 60 * 60 * 1000;
+    guard += 1;
+  }
+  return windows;
 }
 
 /**
@@ -486,14 +564,13 @@ export async function markSynced(userId: string): Promise<void> {
  * and exercise workouts (W5). Each runs independently so a per-resource 403
  * (a Restricted bundle the user did not grant) soft-skips only that resource.
  *
- * WATERMARK: the incremental `start` is snapshotted ONCE here (from the single
- * `lastSyncedAt` read at the top of the cycle) and threaded to every resource,
- * and `markSynced` is stamped ONCE at the end. A per-resource read+stamp would
- * let the first resource move `lastSyncedAt` to now() so later resources only
- * see the last overlap window — silently dropping the gap after an outage longer
- * than the overlap. The full/backfill path passes `fullSync: true`, which makes
- * `incrementalStart` return undefined regardless of the snapshot, so the deep
- * history walk is unaffected.
+ * WATERMARK: the incremental `[start, end]` window is snapshotted ONCE here
+ * (from the single `lastSyncedAt` read + a single `now` at the top of the cycle)
+ * and threaded to every resource, and `markSynced` is stamped ONCE at the end. A
+ * per-resource read+stamp would let the first resource move `lastSyncedAt` to
+ * now() so later resources only see the last overlap window — silently dropping
+ * the gap after an outage longer than the overlap. The full/backfill path passes
+ * `fullSync: true`, which widens `start` back to the bounded backfill horizon.
  */
 export async function syncUserFitbit(
   userId: string,
@@ -506,21 +583,23 @@ export async function syncUserFitbit(
     return 0;
   }
 
-  // Snapshot the incremental watermark ONCE for the whole cycle. Every resource
-  // sees the same `start`; no resource re-reads `lastSyncedAt` mid-cycle. On a
-  // full/backfill run `incrementalStart` ignores the snapshot and returns
-  // undefined (no lower bound).
+  // Snapshot the incremental window ONCE for the whole cycle. Every resource
+  // sees the same `[start, end]`; no resource re-reads `lastSyncedAt` mid-cycle.
+  // A full/backfill run widens `start` back to the bounded backfill horizon.
   const connection = await prisma.fitbitConnection.findUnique({
     where: { userId },
     select: { lastSyncedAt: true },
   });
   if (!connection) return 0;
+  const end = new Date();
   const start = incrementalStart(connection.lastSyncedAt, {
     fullSync: opts.fullSync,
+    now: end,
   });
   const resourceOpts: FitbitResourceSyncOptions = {
     fullSync: opts.fullSync,
     start,
+    end,
     // A backfill walks years of daily summaries — defer the per-(type,day)
     // rollup hook on every write and run ONE range-recompute at the end of the
     // cycle. The hourly incremental keeps the inline hook (small touched set).
@@ -656,12 +735,17 @@ export function classificationToFailureKind(
 /**
  * Bounded fan-out width for the hourly Fitbit cohort poll. The cron tick carries
  * no `userId`, so the worker resolves every connection and hands the cohort here.
- * A small pool (rather than a strict serial loop) means one slow Google response
+ * A small pool (rather than a strict serial loop) means one slow Fitbit response
  * can't stall the whole cohort, while the cap keeps the burst of per-user
- * resource fetches + rollup writes from crowding the worker's DB pool — matching
- * the `p-limit` ceilings the analytics fan-out + insight warm pass use elsewhere.
+ * resource fetches + rollup writes from crowding the worker's DB pool.
+ *
+ * Tuned to 2 for the classic Web API: each per-user cycle issues ~a dozen
+ * date-range requests against a tight 150 req/h-per-user budget, so a narrower
+ * pool keeps the concurrent outbound burst (and the DB-write tail behind it)
+ * modest. The per-user budget is independent, so the cap is about worker
+ * pressure, not the API ceiling — but 2 keeps both comfortable.
  */
-export const FITBIT_POLL_CONCURRENCY = 4;
+export const FITBIT_POLL_CONCURRENCY = 2;
 
 /**
  * Run a Fitbit hourly-poll cohort with bounded concurrency + per-user error

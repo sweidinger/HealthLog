@@ -6,17 +6,17 @@ import { syncUserFitbit } from "@/lib/fitbit/sync";
 import { NextRequest } from "next/server";
 
 /**
- * Manually trigger a Fitbit / Google Health sync for the current user (v1.12.0).
+ * Manually trigger a Fitbit sync for the current user.
  *
  * Mirrors the WHOOP manual-sync route: incremental by default, full history when
  * `{ fullSync: true }` is posted.
  *
- * v1.12.1 — rate-limited (M-1). Every sibling Fitbit route (connect / test /
- * resume) is limited; this one was the outlier, while `{ fullSync: true }`
- * drives four paginated Google walkers (each capped at 1000 pages). A tight
- * loop or a stolen native token could pin Prisma + the Google Health quota.
- * A baseline 5/60s bucket (matching the test route) gates the route, and the
- * expensive `fullSync` path carries a tighter 1/hour bucket of its own.
+ * Rate-limited: every sibling Fitbit route (connect / test / resume) is limited;
+ * this one was the outlier, while `{ fullSync: true }` drives four resource syncs
+ * over the classic Web API's tight 150 req/h-per-user budget. A tight loop or a
+ * stolen native token could exhaust that budget and pin Prisma. A baseline 5/60s
+ * bucket (matching the test route) gates the route, and the expensive `fullSync`
+ * path carries a tighter 1/hour bucket of its own.
  */
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();

@@ -129,6 +129,14 @@ interface RollupRow {
   sd: number | null;
   slope: number | null;
   r2: number | null;
+  // v1.20.0 F6 — per-bucket OLS regression accumulators (epoch-day x-axis).
+  // See `MeasurementRollup.sumX` doc in schema.prisma. These let the
+  // windowed slope / r² / sd compose from summed accumulators across DAY
+  // buckets with bit-identical parity to live REGR_*/STDDEV_POP.
+  sum_x: number | null;
+  sum_xy: number | null;
+  sum_xx: number | null;
+  sum_yy: number | null;
 }
 
 /**
@@ -392,7 +400,22 @@ async function runRollupAggregate(input: {
         REGR_R2(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        )::double precision                                       AS r2
+        )::double precision                                       AS r2,
+        -- v1.20.0 F6 — regression accumulators (epoch-day x-axis). Summed
+        -- per (type, source, bucket) here so the read tier composes the
+        -- windowed slope / r2 / sd across DAY buckets without a live scan.
+        -- value is NOT NULL on measurements, so every row contributes; the
+        -- sums are over the same rows REGR_/STDDEV_POP fold above.
+        SUM(EXTRACT(EPOCH FROM m."measured_at") / 86400.0)::double precision
+                                                                  AS sum_x,
+        SUM(
+          (EXTRACT(EPOCH FROM m."measured_at") / 86400.0) * m."value"
+        )::double precision                                       AS sum_xy,
+        SUM(
+          (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
+          * (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
+        )::double precision                                       AS sum_xx,
+        SUM(m."value" * m."value")::double precision              AS sum_yy
       FROM measurements m
       WHERE m."user_id" = $1
         AND m."type" IN (${typeList})
@@ -427,7 +450,20 @@ async function runRollupAggregate(input: {
       REGR_R2(
         m."value",
         EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-      )::double precision                                       AS r2
+      )::double precision                                       AS r2,
+      -- v1.20.0 F6 — regression accumulators (epoch-day x-axis). See the
+      -- typed-list query above for the rationale; the read tier composes
+      -- windowed slope / r² / sd from these summed across DAY buckets.
+      SUM(EXTRACT(EPOCH FROM m."measured_at") / 86400.0)::double precision
+                                                                AS sum_x,
+      SUM(
+        (EXTRACT(EPOCH FROM m."measured_at") / 86400.0) * m."value"
+      )::double precision                                       AS sum_xy,
+      SUM(
+        (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
+        * (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
+      )::double precision                                       AS sum_xx,
+      SUM(m."value" * m."value")::double precision              AS sum_yy
     FROM measurements m
     WHERE m."user_id" = $1
       AND m."measured_at" >= $2
@@ -496,6 +532,12 @@ async function persistRollupRows(
     sd: row.sd,
     slope: row.slope,
     r2: row.r2,
+    // v1.20.0 F6 — persist the regression accumulators alongside the
+    // existing stats; they ride the same aggregate (no extra round-trip).
+    sumX: row.sum_x ?? null,
+    sumXy: row.sum_xy ?? null,
+    sumXx: row.sum_xx ?? null,
+    sumYy: row.sum_yy ?? null,
     computedAt: new Date(),
   });
 
@@ -819,23 +861,49 @@ export async function enqueueBootTimeRollupBackfill(): Promise<{
     // every restart. Days outside the window are not foldable by
     // design and must not anchor discovery.
     const foldWindowStart = new Date(Date.now() - ROLLUP_FOLD_WINDOW_MS);
+    // Two discovery arms, UNION-ed:
+    //
+    //   1. Per-day MISSING coverage — a (user, type, day) pair in
+    //      `measurements` with no matching DAY rollup row (v1.4.39.1).
+    //
+    //   2. v1.20.0 F6 NULL-accumulator arm — a user whose DAY rollup rows
+    //      predate migration 0190 (regression accumulators are NULL) needs a
+    //      one-time re-fold so the windowed slope / r² / sd readers compose
+    //      from the accumulators instead of falling back to the live REGR_*
+    //      scan. Anchored on `sum_xy IS NULL` (the column the read tier
+    //      treats as the coverage marker). New writes self-populate the
+    //      accumulators, so this arm drains to empty once the boot re-fold
+    //      catches up — mirrors the v1.4.39 sum_value rollout, which the
+    //      v1.4.41 note confirms converged via this same boot queue. Bounded
+    //      to the fold window so days outside it (un-foldable by design)
+    //      never re-flag a user on every boot.
     const users = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT DISTINCT mt."user_id" AS id
-      FROM (
-        SELECT DISTINCT
-          m."user_id",
-          m."type",
-          date_trunc('day', m."measured_at") AS bucket_start
-        FROM measurements m
-        WHERE m."deleted_at" IS NULL
-          AND m."measured_at" >= ${foldWindowStart}
-      ) mt
-      LEFT JOIN measurement_rollups r
-        ON  r."user_id"     = mt."user_id"
-        AND r."type"        = mt."type"
-        AND r."granularity" = 'DAY'
-        AND r."bucket_start" = mt."bucket_start"
-      WHERE r."bucket_start" IS NULL
+      SELECT DISTINCT id FROM (
+        SELECT DISTINCT mt."user_id" AS id
+        FROM (
+          SELECT DISTINCT
+            m."user_id",
+            m."type",
+            date_trunc('day', m."measured_at") AS bucket_start
+          FROM measurements m
+          WHERE m."deleted_at" IS NULL
+            AND m."measured_at" >= ${foldWindowStart}
+        ) mt
+        LEFT JOIN measurement_rollups r
+          ON  r."user_id"     = mt."user_id"
+          AND r."type"        = mt."type"
+          AND r."granularity" = 'DAY'
+          AND r."bucket_start" = mt."bucket_start"
+        WHERE r."bucket_start" IS NULL
+
+        UNION
+
+        SELECT DISTINCT r."user_id" AS id
+        FROM measurement_rollups r
+        WHERE r."granularity" = 'DAY'
+          AND r."bucket_start" >= ${foldWindowStart}
+          AND r."sum_xy" IS NULL
+      ) discovered
     `;
 
     if (users.length === 0) {

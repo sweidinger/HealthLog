@@ -47,6 +47,7 @@ import {
 } from "@/lib/ai/prompts/insight-system-prompt";
 import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
 import { buildRetryCorrectionMessage } from "@/lib/ai/generate-insight";
+import { singleUserTurn } from "@/lib/ai/types";
 import {
   buildAboutMeInsightBlock,
   getSelfContextTextForUser,
@@ -212,15 +213,15 @@ async function rerollBriefingParagraph(args: {
     const fallback = await runRawCompletionWithFallback({
       userId: args.userId,
       providers: args.chain,
-      params: {
-        systemPrompt: args.systemPrompt,
-        userPrompt: args.userPrompt,
+      params: singleUserTurn({
+        system: args.systemPrompt,
+        user: args.userPrompt,
         // Seedless on purpose: the seed would pin the same phrasing, which is
         // exactly what we are varying. Higher temperature for prose variety.
         temperature: BRIEFING_REROLL_TEMPERATURE,
         maxTokens: AI_BUDGETS.comprehensive.maxTokens,
         responseFormat: "json",
-      },
+      }),
     });
     result = fallback.result;
     providerType = fallback.workingProvider.providerType;
@@ -933,16 +934,16 @@ export async function generateComprehensiveInsight(
     const fallback = await runRawCompletionWithFallback({
       userId,
       providers: chain,
-      params: {
-        systemPrompt,
-        userPrompt,
+      params: singleUserTurn({
+        system: systemPrompt,
+        user: userPrompt,
         temperature: AI_BUDGETS.comprehensive.temperature,
         maxTokens: AI_BUDGETS.comprehensive.maxTokens,
         // v1.18.7 — structured surface: opt the non-OpenAI chains into their
         // strongest JSON mode (Ollama `format`, Anthropic `{` prefill) so a
         // first-pass JSON miss is rarer; stripJsonFences stays the net.
         responseFormat: "json",
-      },
+      }),
     });
     result = fallback.result;
     workingProviderType = fallback.workingProvider.providerType;
@@ -972,16 +973,16 @@ export async function generateComprehensiveInsight(
       const retry = await runRawCompletionWithFallback({
         userId,
         providers: chain,
-        params: {
-          systemPrompt,
-          userPrompt: `${userPrompt}\n\n${buildRetryCorrectionMessage(
+        params: singleUserTurn({
+          system: systemPrompt,
+          user: `${userPrompt}\n\n${buildRetryCorrectionMessage(
             "Response was not valid JSON",
             "The previous reply could not be parsed as a JSON object.",
           )}`,
           temperature: AI_BUDGETS.comprehensive.temperature,
           maxTokens: AI_BUDGETS.comprehensive.maxTokens,
           responseFormat: "json",
-        },
+        }),
       });
       result = retry.result;
       workingProviderType = retry.workingProvider.providerType;
@@ -1014,13 +1015,13 @@ export async function generateComprehensiveInsight(
         const retry = await runRawCompletionWithFallback({
           userId,
           providers: chain,
-          params: {
-            systemPrompt,
-            userPrompt: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
+          params: singleUserTurn({
+            system: systemPrompt,
+            user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
             temperature: AI_BUDGETS.comprehensive.temperature,
             maxTokens: AI_BUDGETS.comprehensive.maxTokens,
             responseFormat: "json",
-          },
+          }),
         });
         const retryInsights = parseComprehensiveResult(retry.result.content);
         const retryUngrounded = findUngroundedBriefingNumbers(

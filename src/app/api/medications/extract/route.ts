@@ -57,6 +57,7 @@ import {
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
+import { singleUserTurn } from "@/lib/ai/types";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
 
 import {
@@ -185,16 +186,19 @@ async function handleExtract(request: NextRequest): Promise<Response> {
     completion = await runRawCompletionWithFallback({
       userId,
       providers: chain,
-      params: {
-        systemPrompt,
-        userPrompt,
+      params: singleUserTurn({
+        system: systemPrompt,
+        user: userPrompt,
         // Low temperature because we want a deterministic field
         // extractor, not a creative rephrase.
         temperature: 0.1,
         // The reply body is a single small JSON object; 600 is well
         // over the empirical max we have seen on a 2k-char input.
         maxTokens: 600,
-      },
+        // Parsed with `parseModelJson` (JSON.parse) below — opt the OpenAI /
+        // Codex chains into their strict JSON-object mode (gated on this flag).
+        responseFormat: "json",
+      }),
     });
   } catch (err) {
     if (err instanceof AllProvidersFailedError) {

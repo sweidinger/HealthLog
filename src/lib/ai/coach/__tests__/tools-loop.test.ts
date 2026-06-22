@@ -1,0 +1,198 @@
+/**
+ * v1.20.0 (F1) — bounded Coach retrieval loop: tool dispatch round-trip, the
+ * max-rounds cap with a forced-final answer, parallel tool execution, and the
+ * summed-token accounting the budget reconcile depends on.
+ */
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+import type { CoachToolResult } from "@/lib/ai/coach/tools/executor";
+
+const executeCoachTool = vi.fn<() => Promise<CoachToolResult>>();
+vi.mock("@/lib/ai/coach/tools/executor", () => ({
+  executeCoachTool: () => executeCoachTool(),
+}));
+
+// The loop calls the real fallback runner; stub it to a deterministic
+// per-round script so we exercise the loop control flow, not the chain.
+const runRawCompletionWithFallback = vi.fn();
+vi.mock("@/lib/ai/provider-runner", () => ({
+  runRawCompletionWithFallback: (args: unknown) =>
+    runRawCompletionWithFallback(args),
+}));
+
+import { runCoachToolLoop, HARD_CAP } from "@/lib/ai/coach/tools/loop";
+import { COACH_TOOL_DEFS } from "@/lib/ai/coach/tools/definitions";
+
+function completion(opts: {
+  content: string;
+  tokensUsed?: number;
+  toolCalls?: Array<{ id: string; name: string; arguments: string }>;
+  finishReason?: "stop" | "tool_calls" | "length";
+}) {
+  return {
+    result: {
+      content: opts.content,
+      tokensUsed: opts.tokensUsed ?? 10,
+      model: "mock",
+      providerType: "anthropic" as const,
+      ...(opts.toolCalls ? { toolCalls: opts.toolCalls } : {}),
+      finishReason: opts.finishReason,
+    },
+    workingProvider: { providerType: "anthropic" },
+    fallbackHops: [],
+  };
+}
+
+const baseArgs = {
+  userId: "u1",
+  providers: [],
+  system: "sys",
+  messages: [{ role: "user" as const, content: "how is my bp?" }],
+  tools: COACH_TOOL_DEFS,
+};
+
+describe("runCoachToolLoop", () => {
+  beforeEach(() => {
+    executeCoachTool.mockReset();
+    runRawCompletionWithFallback.mockReset();
+  });
+
+  it("runs one tool round then streams the final prose (happy path)", async () => {
+    executeCoachTool.mockResolvedValue({ present: true, data: { x: 1 } });
+    runRawCompletionWithFallback
+      .mockResolvedValueOnce(
+        completion({
+          content: "",
+          tokensUsed: 30,
+          finishReason: "tool_calls",
+          toolCalls: [
+            {
+              id: "c1",
+              name: "get_metric_series",
+              arguments: '{"metric":"bp"}',
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        completion({ content: "Your BP looks steady.", tokensUsed: 20 }),
+      );
+
+    const out = await runCoachToolLoop(baseArgs);
+
+    expect(out.rounds).toBe(2);
+    expect(out.result.content).toBe("Your BP looks steady.");
+    expect(out.totalTokens).toBe(50); // summed across both rounds
+    expect(out.toolTrace).toEqual([
+      { name: "get_metric_series", present: true },
+    ]);
+    // The second call must forbid tools? No — round 2 still offers them
+    // (round <= MAX_ROUNDS). It simply chose to answer.
+    expect(runRawCompletionWithFallback).toHaveBeenCalledTimes(2);
+  });
+
+  it("answers immediately when the model emits no tool calls", async () => {
+    runRawCompletionWithFallback.mockResolvedValueOnce(
+      completion({ content: "Here's what I can help with.", tokensUsed: 12 }),
+    );
+    const out = await runCoachToolLoop(baseArgs);
+    expect(out.rounds).toBe(1);
+    expect(out.toolTrace).toHaveLength(0);
+    expect(executeCoachTool).not.toHaveBeenCalled();
+  });
+
+  it("executes parallel tool calls in one round", async () => {
+    executeCoachTool.mockResolvedValue({ present: true });
+    runRawCompletionWithFallback
+      .mockResolvedValueOnce(
+        completion({
+          content: "",
+          finishReason: "tool_calls",
+          toolCalls: [
+            {
+              id: "a",
+              name: "get_metric_series",
+              arguments: '{"metric":"bp"}',
+            },
+            { id: "b", name: "get_sleep", arguments: "{}" },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(completion({ content: "Combined view." }));
+
+    const out = await runCoachToolLoop(baseArgs);
+    expect(executeCoachTool).toHaveBeenCalledTimes(2);
+    expect(out.toolTrace).toHaveLength(2);
+    expect(out.result.content).toBe("Combined view.");
+  });
+
+  it("forces a final answer at the hard cap (no infinite loop)", async () => {
+    executeCoachTool.mockResolvedValue({ present: false });
+    // The model keeps asking for tools every round. The loop must still
+    // terminate: the last allowed round offers no tools (toolChoice none) so
+    // the model is forced to produce prose.
+    runRawCompletionWithFallback.mockImplementation(
+      (args: { params: { toolChoice?: string } }) => {
+        if (args.params.toolChoice === "none") {
+          return Promise.resolve(
+            completion({ content: "Final forced answer." }),
+          );
+        }
+        return Promise.resolve(
+          completion({
+            content: "",
+            finishReason: "tool_calls",
+            toolCalls: [
+              {
+                id: "x",
+                name: "get_metric_series",
+                arguments: '{"metric":"bp"}',
+              },
+            ],
+          }),
+        );
+      },
+    );
+
+    const out = await runCoachToolLoop(baseArgs);
+    expect(out.rounds).toBe(HARD_CAP);
+    expect(out.result.content).toBe("Final forced answer.");
+    // The final round must have been called with toolChoice "none".
+    const lastCall =
+      runRawCompletionWithFallback.mock.calls[
+        runRawCompletionWithFallback.mock.calls.length - 1
+      ][0];
+    expect(lastCall.params.toolChoice).toBe("none");
+  });
+
+  it("appends assistant(toolCalls) + tool turns to the message array", async () => {
+    executeCoachTool.mockResolvedValue({ present: true, data: { v: 1 } });
+    let secondCallMessages: unknown;
+    runRawCompletionWithFallback
+      .mockResolvedValueOnce(
+        completion({
+          content: "",
+          finishReason: "tool_calls",
+          toolCalls: [{ id: "c1", name: "get_sleep", arguments: "{}" }],
+        }),
+      )
+      .mockImplementationOnce((args: { params: { messages: unknown } }) => {
+        secondCallMessages = args.params.messages;
+        return Promise.resolve(completion({ content: "done" }));
+      });
+
+    await runCoachToolLoop(baseArgs);
+
+    const msgs = secondCallMessages as Array<{
+      role: string;
+      toolCallId?: string;
+      toolCalls?: unknown[];
+    }>;
+    // user, assistant(toolCalls), tool
+    expect(msgs).toHaveLength(3);
+    expect(msgs[1].role).toBe("assistant");
+    expect(msgs[1].toolCalls).toHaveLength(1);
+    expect(msgs[2].role).toBe("tool");
+    expect(msgs[2].toolCallId).toBe("c1");
+  });
+});

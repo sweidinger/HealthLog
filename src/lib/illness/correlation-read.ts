@@ -31,6 +31,8 @@ import { readBestGranularityRollups } from "@/lib/rollups/measurement-read-wmy";
 import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
 import { dayKeyForUserTz } from "@/lib/measurements/consolidation-tz";
 import { resolveUserTimezone } from "@/lib/measurements/consolidation-base";
+import { reconstructNights } from "@/lib/insights/derived/sleep-score";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import type { Derived } from "@/lib/insights/derived/types";
 import {
   BASELINE_WINDOW_DAYS,
@@ -39,6 +41,7 @@ import {
   computeIllnessCorrelation,
   type DayLogFeverPoint,
   type IllnessCorrelationValue,
+  type SleepNightPoint,
   type SymptomBurdenPoint,
   type VitalSeries,
 } from "./correlation";
@@ -96,15 +99,20 @@ export async function computeEpisodeCorrelation(
     : null;
 
   // One coverage probe shared across every vital read (pool-contention
-  // mitigation — the same pattern the derived route uses).
-  const coverage = await probeRollupCoverage(userId);
+  // mitigation — the same pattern the derived route uses). The source priority
+  // feeds the canonical sleep-night writer-dedup (same ladder every sleep
+  // surface uses), resolved once.
+  const [coverage, sleepPriorityJson] = await Promise.all([
+    probeRollupCoverage(userId),
+    loadUserSourcePriority(userId),
+  ]);
 
   // Attempt every scan type under a bounded concurrency cap. The two
   // windows per type (baseline + episode) are independent reads, so they
   // run paired rather than serially (halving the per-type round-trips).
   // The day-log fever read shares the same fan-out budget.
   const limit = pLimit(VITAL_SCAN_CONCURRENCY);
-  const [perType, dayLogFever, symptomBurden] = await Promise.all([
+  const [perType, dayLogFever, symptomBurden, sleepNights] = await Promise.all([
     Promise.all(
       ILLNESS_SCAN_TYPES.map((type) =>
         limit(async () => {
@@ -134,6 +142,14 @@ export async function computeEpisodeCorrelation(
     ),
     limit(() => readDayLogFever(episode.id, preOnsetStart, end, tz)),
     limit(() => readDayLogSymptomBurden(episode.id, preOnsetStart, end, tz)),
+    limit(() =>
+      readEpisodeSleepNights(
+        userId,
+        { baselineStart, baselineEnd, preOnsetStart, end },
+        tz,
+        sleepPriorityJson,
+      ),
+    ),
   ]);
 
   const series: VitalSeries[] = [];
@@ -170,6 +186,8 @@ export async function computeEpisodeCorrelation(
     series,
     dayLogFever,
     symptomBurden,
+    baselineNights: sleepNights.baselineNights,
+    episodeNights: sleepNights.episodeNights,
     source,
     now,
   });
@@ -330,4 +348,76 @@ async function readDayLogSymptomBurden(
       points.push({ day: row.date, impact: maxSeverity });
   }
   return points.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+}
+
+/**
+ * Reconstruct per-night asleep totals over the well baseline window AND the
+ * episode window for the sleep-as-context observation. Reuses the canonical
+ * `reconstructNights` engine wholesale (session-clustering, local-wake-day
+ * keying, multi-source writer-dedup — a WHOOP + Apple Health night is counted
+ * ONCE) so the figures match every other sleep surface. The night's `night`
+ * key is ALREADY the local wake-day string, so it joins the engine's
+ * onset/feltBetter day-space directly — no extra tz conversion.
+ *
+ * Two windows mirror the vital reads' contamination-guard seam:
+ *   baselineNights : [baselineStart, baselineEnd)  → the user's well baseline
+ *   episodeNights  : [preOnsetStart, end]          → the episode span
+ *
+ * Each is a single bounded `findMany` over the raw per-stage SLEEP_DURATION
+ * rows; the engine withholds the observation entirely on thin data.
+ */
+async function readEpisodeSleepNights(
+  userId: string,
+  windows: {
+    baselineStart: Date;
+    baselineEnd: Date;
+    preOnsetStart: Date;
+    end: Date;
+  },
+  tz: string,
+  priorityJson: unknown,
+): Promise<{
+  baselineNights: SleepNightPoint[];
+  episodeNights: SleepNightPoint[];
+}> {
+  const select = {
+    value: true,
+    measuredAt: true,
+    sleepStage: true,
+    source: true,
+    deviceType: true,
+  } as const;
+
+  const [baselineRows, episodeRows] = await Promise.all([
+    prisma.measurement.findMany({
+      where: {
+        userId,
+        type: "SLEEP_DURATION" satisfies MeasurementType,
+        deletedAt: null,
+        measuredAt: { gte: windows.baselineStart, lt: windows.baselineEnd },
+      },
+      orderBy: { measuredAt: "asc" },
+      select,
+    }),
+    prisma.measurement.findMany({
+      where: {
+        userId,
+        type: "SLEEP_DURATION" satisfies MeasurementType,
+        deletedAt: null,
+        measuredAt: { gte: windows.preOnsetStart, lte: windows.end },
+      },
+      orderBy: { measuredAt: "asc" },
+      select,
+    }),
+  ]);
+
+  const toPoints = (rows: typeof baselineRows): SleepNightPoint[] =>
+    reconstructNights(rows, tz, priorityJson)
+      .filter((n) => n.asleepMinutes > 0)
+      .map((n) => ({ day: n.night, asleepMinutes: n.asleepMinutes }));
+
+  return {
+    baselineNights: toPoints(baselineRows),
+    episodeNights: toPoints(episodeRows),
+  };
 }

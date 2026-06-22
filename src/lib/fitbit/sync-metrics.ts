@@ -1,99 +1,73 @@
 /**
- * Fitbit / Google Health "health metrics & measurements" bundle sync (v1.12.0).
+ * Fitbit Web API health-metrics sync.
  *
- * Reads the launch metric data types from the
- * `health_metrics_and_measurements.readonly` Restricted bundle and upserts each
- * mapped reading as `source = FITBIT`:
+ * Reads the launch metric endpoints from the classic Fitbit Web API and upserts
+ * each mapped reading as `source = FITBIT`:
  *
- *   - weight                 → WEIGHT
- *   - body-fat               → BODY_FAT
- *   - daily-oxygen-saturation→ OXYGEN_SATURATION
- *   - daily-HRV              → HEART_RATE_VARIABILITY (SDNN slot; see mapper)
- *   - daily-resting-HR       → RESTING_HEART_RATE
- *   - daily-respiratory-rate → RESPIRATORY_RATE
- *   - heart-rate (intraday)  → PULSE
- *   - daily sleep-temp deriv.→ WRIST_TEMPERATURE
- *   - height                 → User.heightCm (profile seed, NOT a Measurement)
+ *   - body/log/weight        → WEIGHT                  (kg)
+ *   - body/log/fat           → BODY_FAT                (%)
+ *   - spo2 summary           → OXYGEN_SATURATION       (%)
+ *   - hrv summary            → HEART_RATE_VARIABILITY  (ms, dailyRmssd)
+ *   - activities/heart       → RESTING_HEART_RATE      (bpm)
+ *   - br summary             → RESPIRATORY_RATE        (breaths/min)
  *
- * Each data point yields at most one Measurement row, disambiguated by the
- * per-point anchor + field-tag in the externalId (`<anchor>:<fieldTag>`) so a
- * re-fetch of the same window overwrites in place rather than duplicating.
+ * Each endpoint is a date-RANGE call (one request per ≤30-day window), so the
+ * sync chunks `[start, end]` into per-endpoint windows to respect the API range
+ * caps and the 150 req/h budget. Each metric is fetched independently so a
+ * per-endpoint 403 (a scope the user did not grant) soft-skips only that metric.
  *
- * A per-data-class 403 soft-skips THAT class (returns 0, leaves the connection
- * connected) rather than parking the whole integration — the six Restricted
- * bundles can be granted independently in the Google consent flow.
- *
- * Activity / sleep / workout land in W5; this is the first (and W3-only) resource.
+ * NOTE: intraday heart rate (`PULSE`) is intentionally NOT synced — the classic
+ * API gates intraday series behind a Personal-app / explicit per-app grant most
+ * self-hosters do not have, and the daily resting HR is always available. Skin
+ * temperature is also skipped: the classic reading is a baseline DELTA, not an
+ * absolute value, so it has no honest canonical slot (see mapping.md).
  */
 import {
-  FITBIT_DATA_TYPES,
-  type FitbitDataType,
+  FITBIT_RANGE_DAYS,
   type FitbitMappedMeasurement,
-  fetchDataPoints,
+  fetchBodyFatRange,
+  fetchHrvRange,
+  fetchRespiratoryRateRange,
+  fetchRestingHeartRateRange,
+  fetchSpo2Range,
+  fetchWeightRange,
   mapBodyFat,
-  mapHeartRate,
   mapHeartRateVariability,
-  mapHeightCm,
   mapOxygenSaturation,
   mapRespiratoryRate,
   mapRestingHeartRate,
-  mapSleepTemperature,
   mapWeight,
 } from "./client";
 import {
+  chunkDateRanges,
   getValidToken,
   handleCollectionFetchError,
   upsertFitbitMeasurements,
   type FitbitMeasurementUpsert,
   type FitbitResourceSyncOptions,
 } from "./sync";
-import { getEvent } from "@/lib/logging/context";
-import { prisma } from "@/lib/db";
 
-/** One mappable metric: its data-type encoding + the per-point mapper + a verb. */
+/** One mappable metric: a range fetcher + a body mapper + a verb. */
 interface MetricResource {
-  dataType: FitbitDataType;
-  map: (point: Record<string, unknown>) => FitbitMappedMeasurement[];
+  fetch: (accessToken: string, start: Date, end: Date) => Promise<unknown>;
+  map: (body: unknown) => FitbitMappedMeasurement[];
   verb: string;
 }
 
-/** The launch metric resources (Measurement-producing). Height is handled separately. */
 const METRIC_RESOURCES: MetricResource[] = [
-  { dataType: FITBIT_DATA_TYPES.weight, map: mapWeight, verb: "fetchWeight" },
+  { fetch: fetchWeightRange, map: mapWeight, verb: "fetchWeight" },
+  { fetch: fetchBodyFatRange, map: mapBodyFat, verb: "fetchBodyFat" },
+  { fetch: fetchSpo2Range, map: mapOxygenSaturation, verb: "fetchSpo2" },
+  { fetch: fetchHrvRange, map: mapHeartRateVariability, verb: "fetchHrv" },
   {
-    dataType: FITBIT_DATA_TYPES.bodyFat,
-    map: mapBodyFat,
-    verb: "fetchBodyFat",
-  },
-  {
-    dataType: FITBIT_DATA_TYPES.oxygenSaturation,
-    map: mapOxygenSaturation,
-    verb: "fetchSpo2",
-  },
-  {
-    dataType: FITBIT_DATA_TYPES.heartRateVariability,
-    map: mapHeartRateVariability,
-    verb: "fetchHrv",
-  },
-  {
-    dataType: FITBIT_DATA_TYPES.restingHeartRate,
+    fetch: fetchRestingHeartRateRange,
     map: mapRestingHeartRate,
     verb: "fetchRhr",
   },
   {
-    dataType: FITBIT_DATA_TYPES.respiratoryRate,
+    fetch: fetchRespiratoryRateRange,
     map: mapRespiratoryRate,
     verb: "fetchRespiratoryRate",
-  },
-  {
-    dataType: FITBIT_DATA_TYPES.heartRate,
-    map: mapHeartRate,
-    verb: "fetchHeartRate",
-  },
-  {
-    dataType: FITBIT_DATA_TYPES.sleepTemperature,
-    map: mapSleepTemperature,
-    verb: "fetchSleepTemperature",
   },
 ];
 
@@ -104,32 +78,32 @@ export async function syncUserMetrics(
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
 
-  // The incremental lower bound is the cycle-wide watermark snapshotted once by
-  // `syncUserFitbit` — never re-read here, so a sibling resource's stamp can't
-  // shrink this one's window. Undefined on a full/backfill run.
-  const start = opts.start;
+  const start = opts.start ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const end = opts.end ?? new Date();
+  const windows = chunkDateRanges(start, end, FITBIT_RANGE_DAYS);
 
   let imported = 0;
 
-  // Each metric data type is fetched + mapped independently so a per-class 403
-  // soft-skips only that class.
+  // Each metric is fetched + mapped independently so a per-endpoint 403
+  // soft-skips only that metric. A 403 short-circuits THAT metric (skips its
+  // remaining windows) without aborting the others.
   for (const resource of METRIC_RESOURCES) {
-    let points: Record<string, unknown>[];
-    try {
-      points = await fetchDataPoints(
-        resource.dataType,
-        tokenInfo.accessToken,
-        resource.verb,
-        { start },
-      );
-    } catch (err) {
-      imported += await handleCollectionFetchError(resource.verb, userId, err);
-      continue;
-    }
-
     const readings: FitbitMeasurementUpsert[] = [];
-    for (const point of points) {
-      for (const m of resource.map(point)) {
+    let forbidden = false;
+    for (const w of windows) {
+      let body: unknown;
+      try {
+        body = await resource.fetch(tokenInfo.accessToken, w.start, w.end);
+      } catch (err) {
+        imported += await handleCollectionFetchError(
+          resource.verb,
+          userId,
+          err,
+        );
+        forbidden = true;
+        break;
+      }
+      for (const m of resource.map(body)) {
         readings.push({
           type: m.type,
           value: m.value,
@@ -139,6 +113,7 @@ export async function syncUserMetrics(
         });
       }
     }
+    if (forbidden) continue;
     imported += (
       await upsertFitbitMeasurements(userId, readings, {
         deferRollup: opts.deferRollup,
@@ -146,47 +121,6 @@ export async function syncUserMetrics(
     ).imported;
   }
 
-  // Height → User.heightCm, only when the user has no height yet. Never mint a
-  // Measurement; never overwrite a user-set value. Mirrors WHOOP's mapBody seed.
-  try {
-    let heightPoints: Record<string, unknown>[];
-    try {
-      heightPoints = await fetchDataPoints(
-        FITBIT_DATA_TYPES.height,
-        tokenInfo.accessToken,
-        "fetchHeight",
-        { start },
-      );
-    } catch (err) {
-      heightPoints = [];
-      await handleCollectionFetchError("fetchHeight", userId, err);
-    }
-
-    // Latest non-null parsed height wins (the points are time-ordered ascending).
-    let heightCm: number | null = null;
-    for (const point of heightPoints) {
-      const cm = mapHeightCm(point);
-      if (cm !== null) heightCm = cm;
-    }
-    if (heightCm !== null) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { heightCm: true },
-      });
-      if (user && user.heightCm === null) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { heightCm },
-        });
-      }
-    }
-  } catch (err) {
-    getEvent()?.addWarning(
-      `fitbit: failed to seed heightCm for ${userId}: ${err}`,
-    );
-  }
-
-  // `markSynced` is owned by the orchestrator (`syncUserFitbit`), stamped once
-  // at the end of the cycle — never here, so the watermark can't move mid-cycle.
+  // `markSynced` is owned by the orchestrator (`syncUserFitbit`).
   return imported;
 }

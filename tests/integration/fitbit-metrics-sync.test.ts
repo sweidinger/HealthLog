@@ -1,9 +1,9 @@
 /**
- * v1.12.0 — Fitbit / Google Health metrics-sync end-to-end.
+ * v1.20.0 — Fitbit health-metrics sync end-to-end (classic Fitbit Web API).
  *
- * Drives `syncUserMetrics` against a mocked Google Health `dataPoints.list`
- * response and the real Postgres testcontainer. Asserts:
- *   - Each mapped data point writes one Measurement row keyed
+ * Drives `syncUserMetrics` against a mocked classic `api.fitbit.com` transport
+ * and the real Postgres testcontainer. Asserts:
+ *   - Each mapped reading writes one Measurement row keyed
  *     `(userId, type, source=FITBIT, externalId)`.
  *   - A second sync of the same window UPSERTS in place (no duplicates) and
  *     bumps `syncVersion` — the idempotency contract.
@@ -44,13 +44,13 @@ beforeEach(async () => {
   await prisma.fitbitConnection.create({
     data: {
       userId: TEST_USER_ID,
-      fitbitUserId: "gh-1",
+      fitbitUserId: "fb-1",
       accessToken: encrypt("access-token"),
       refreshToken: encrypt("refresh-token"),
       // Token valid for an hour — keeps `getValidToken` off the refresh path.
       tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
       scope:
-        "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
+        "activity heartrate oxygen_saturation profile respiratory_rate weight",
     },
   });
 });
@@ -61,45 +61,46 @@ afterEach(() => {
 });
 
 /**
- * Stub global fetch so each metric data-type read returns its own data points.
- * The metrics sync hits one URL per data type (kebab-cased in the path); match
- * on the path segment and return the matching point set, or an empty page for
- * any type we don't seed.
+ * Stub global fetch for the classic Fitbit Web API. The metrics sync hits one
+ * bespoke endpoint per metric (each a `/1/user/-/<resource>/date/{start}/{end}`
+ * range read), so match on the resource path segment and return its seeded
+ * classic-shaped body. Any endpoint not seeded returns its empty envelope.
+ *
+ * Each metric resource is keyed by a discriminating substring of its URL path:
+ *   - `body/log/weight` → `{ weight: [...] }`
+ *   - `body/log/fat`    → `{ fat: [...] }`
+ *   - `spo2`            → bare `[ { dateTime, value: { avg } } ]`
+ *   - `hrv`             → `{ hrv: [...] }`
+ *   - `activities/heart`→ `{ "activities-heart": [...] }`
+ *   - `br`             → `{ br: [...] }`
  */
-function stubGoogleHealth(byPathSegment: Record<string, unknown[]>) {
+function stubFitbit(byPath: Record<string, unknown>) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
-      const match = /dataTypes\/([^/]+)\/dataPoints/.exec(url);
-      const seg = match?.[1] ?? "";
-      const dataPoints = byPathSegment[seg] ?? [];
-      return {
-        status: 200,
-        json: async () => ({ dataPoints }),
-      };
+      for (const [needle, body] of Object.entries(byPath)) {
+        if (url.includes(needle)) {
+          return { status: 200, json: async () => body };
+        }
+      }
+      // Unseeded endpoint: empty body so its mapper yields no rows.
+      return { status: 200, json: async () => ({}) };
     }),
   );
 }
 
 describe("syncUserMetrics — integration", () => {
-  it("writes one Measurement row per mapped data point and folds a DAY rollup", async () => {
-    stubGoogleHealth({
-      weight: [
-        {
-          weight: {
-            kilograms: 80.5,
-            sample_time: { physical_time: "2026-05-10T07:00:00.000Z" },
-          },
-        },
-      ],
-      "daily-resting-heart-rate": [
-        {
-          daily_resting_heart_rate: {
-            beats_per_minute: 55,
-            date: { year: 2026, month: 5, day: 10 },
-          },
-        },
-      ],
+  it("writes one Measurement row per mapped reading and folds a DAY rollup", async () => {
+    stubFitbit({
+      "body/log/weight": {
+        // No logId → externalId anchors on the instant ISO (date + time).
+        weight: [{ date: "2026-05-10", time: "07:00:00", weight: 80.5 }],
+      },
+      "activities/heart": {
+        "activities-heart": [
+          { dateTime: "2026-05-10", value: { restingHeartRate: 55 } },
+        ],
+      },
     });
 
     const { syncUserMetrics } = await import("@/lib/fitbit/sync-metrics");
@@ -130,19 +131,17 @@ describe("syncUserMetrics — integration", () => {
   });
 
   it("upserts in place on a re-sync of the same window (no duplicates) and bumps syncVersion", async () => {
-    const point = (kg: number) => ({
-      weight: {
-        kilograms: kg,
-        sample_time: { physical_time: "2026-05-10T07:00:00.000Z" },
-      },
+    const body = (kg: number) => ({
+      // No logId → stable instant anchor → same dedup key on re-fetch.
+      weight: [{ date: "2026-05-10", time: "07:00:00", weight: kg }],
     });
 
-    stubGoogleHealth({ weight: [point(80.5)] });
+    stubFitbit({ "body/log/weight": body(80.5) });
     const { syncUserMetrics } = await import("@/lib/fitbit/sync-metrics");
     await syncUserMetrics(TEST_USER_ID);
 
     // Re-fetch the same window with a corrected value (same anchor → same key).
-    stubGoogleHealth({ weight: [point(81.2)] });
+    stubFitbit({ "body/log/weight": body(81.2) });
     await syncUserMetrics(TEST_USER_ID);
 
     const prisma = getPrismaClient();
@@ -171,15 +170,10 @@ describe("syncUserMetrics — integration", () => {
       },
     });
 
-    stubGoogleHealth({
-      weight: [
-        {
-          weight: {
-            kilograms: 80.5,
-            sample_time: { physical_time: "2026-05-10T07:00:00.000Z" },
-          },
-        },
-      ],
+    stubFitbit({
+      "body/log/weight": {
+        weight: [{ date: "2026-05-10", time: "07:00:00", weight: 80.5 }],
+      },
     });
     const { syncUserMetrics } = await import("@/lib/fitbit/sync-metrics");
     await syncUserMetrics(TEST_USER_ID);

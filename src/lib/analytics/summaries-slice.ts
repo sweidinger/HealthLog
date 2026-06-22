@@ -62,7 +62,14 @@ import type { DataSummary } from "@/lib/analytics/trends";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import { annotate } from "@/lib/logging/context";
 import { ensureUserRollupsFresh } from "@/lib/rollups/measurement-rollups";
-import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import {
+  collapseRollupRowsBySource,
+  composeWindowedRegression,
+  hasPendingAccumulatorBackfill,
+  loadUserSourcePriority,
+  type AccumulatorBucketRow,
+} from "@/lib/rollups/measurement-read";
+import { startOfUtcDay } from "@/lib/tz/start-of-utc-day";
 import {
   buildSourceRankCase,
   canonicalMeasurementsFrom,
@@ -148,6 +155,18 @@ interface NarrowAggregateRow {
    */
   median: number | null;
   avg30_last_month: number | null;
+  // v1.20.0 F6 — slope7/30/90 + r2_7/30/90 have moved off this live query
+  // onto the rollup accumulators (composeWindowedRegression); they no longer
+  // scan the raw measurements partition on the warm path. `median` stays
+  // live (PERCENTILE_CONT is non-composable across buckets).
+}
+
+/**
+ * v1.20.0 F6 — cold-fallback windowed row. The coverage-miss path keeps the
+ * live REGR_* regression (no rollup accumulators to compose from yet), so it
+ * carries the slope / r² columns the warm `NarrowAggregateRow` dropped.
+ */
+interface WindowedAggregateRow extends NarrowAggregateRow {
   slope7: number | null;
   r2_7: number | null;
   slope30: number | null;
@@ -380,7 +399,7 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
   );
   const rankM = buildSourceRankCase(priorityJson, 'm."type"', 'm."source"');
 
-  const [narrows, latests, dayBuckets] = await Promise.all([
+  const [narrows, latests, dayBuckets, accumulatorRows] = await Promise.all([
     // The FROM is restricted to the canonical-source rows per (type, day): the
     // inner DISTINCT ON picks the ladder-winning source for each day, and the
     // join keeps only that source's readings so the 90-day AVG / median / slope
@@ -403,43 +422,7 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
           ORDER BY m."value"
         ) FILTER (
           WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
-        )::double precision                                           AS median,
-        REGR_SLOPE(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '7 days'
-        )::double precision                                           AS slope7,
-        REGR_R2(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '7 days'
-        )::double precision                                           AS r2_7,
-        REGR_SLOPE(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '30 days'
-        )::double precision                                           AS slope30,
-        REGR_R2(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '30 days'
-        )::double precision                                           AS r2_30,
-        REGR_SLOPE(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
-        )::double precision                                           AS slope90,
-        REGR_R2(
-          m."value",
-          EXTRACT(EPOCH FROM m."measured_at") / 86400.0
-        ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
-        )::double precision                                           AS r2_90
+        )::double precision                                           AS median
       FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
       GROUP BY m."type"
     `,
@@ -503,7 +486,74 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
     `,
       userId,
     ),
+    // v1.20.0 F6 — trailing 90-day DAY rollup rows carrying the per-bucket
+    // regression accumulators. The windowed slope / r² / sd compose from
+    // these (composeWindowedRegression) instead of the live REGR_* scan the
+    // narrow query used to run. Rows are per source; collapsed per type
+    // below so a dual-source vital contributes only its canonical source's
+    // accumulators. Bounded to 90 days (≤ ~90 rows/type), the same window
+    // the dropped slope columns covered.
+    prisma.measurementRollup.findMany({
+      where: {
+        userId,
+        granularity: "DAY",
+        bucketStart: {
+          gte: startOfUtcDay(new Date(Date.now() - 90 * DAY_MS)),
+        },
+      },
+      orderBy: [{ type: "asc" }, { bucketStart: "asc" }],
+      select: {
+        type: true,
+        source: true,
+        bucketStart: true,
+        count: true,
+        mean: true,
+        sumX: true,
+        sumXy: true,
+        sumXx: true,
+        sumYy: true,
+      },
+    }),
   ]);
+
+  // v1.20.0 F6 — collapse the 90-day accumulator rows to the canonical
+  // source per (type, day), then build a per-type accumulator-bucket list so
+  // the windowed slope / r² / sd compose from the canonical source only.
+  const accBucketsByType = new Map<string, AccumulatorBucketRow[]>();
+  {
+    const byType = new Map<string, (typeof accumulatorRows)[number][]>();
+    for (const r of accumulatorRows) {
+      const list = byType.get(r.type) ?? [];
+      list.push(r);
+      byType.set(r.type, list);
+    }
+    for (const [type, rows] of byType) {
+      const collapsed = collapseRollupRowsBySource(
+        rows,
+        type as MeasurementType,
+        priorityJson,
+      );
+      accBucketsByType.set(
+        type,
+        collapsed.map((b) => ({
+          bucketStart: b.bucketStart,
+          count: b.count,
+          mean: b.mean,
+          sumX: b.sumX,
+          sumXy: b.sumXy,
+          sumXx: b.sumXx,
+          sumYy: b.sumYy,
+        })),
+      );
+    }
+  }
+
+  // Day-aligned 7/30/90-day anchors — the rollup-grain equivalent of the
+  // live `measured_at >= NOW() - INTERVAL 'N days'` filter.
+  const nowMs = Date.now();
+  const since7 = startOfUtcDay(new Date(nowMs - 7 * DAY_MS));
+  const since30 = startOfUtcDay(new Date(nowMs - 30 * DAY_MS));
+  const since90 = startOfUtcDay(new Date(nowMs - 90 * DAY_MS));
 
   const latestByType = new Map<string, number>();
   // v1.4.34 IW-B — capture the per-type `measured_at` alongside the
@@ -554,6 +604,12 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
   let totalRows = 0;
   let typeCount = 0;
   const typesWithData: string[] = [];
+  // v1.20.0 P3 M-1 — set once any in-window bucket carries a NULL
+  // accumulator (pre-0190 row, or boot re-fold pending). The slope stays
+  // null then — honest, it converges after backfill — but the miss must be
+  // observable per the "no silent cap" rule, so it surfaces in the
+  // annotation below rather than passing silently as a plain rollup read.
+  let regressionPendingBackfill = false;
   for (const row of dayBuckets) {
     if (!row.count || row.count <= 0) continue;
     typeCount += 1;
@@ -561,6 +617,21 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
     typesWithData.push(row.type);
     const narrow = narrowByType.get(row.type);
     const latest = latestByType.get(row.type) ?? null;
+    // v1.20.0 F6 — windowed slope / r² compose from the per-bucket
+    // accumulators (canonical-source-collapsed above) rather than the live
+    // REGR_* scan. A full miss (NULL accumulators pre-backfill, or < 2
+    // readings) yields a null slope, the same shape the empty REGR_* FILTER
+    // returned.
+    const accBuckets = accBucketsByType.get(row.type) ?? [];
+    if (
+      !regressionPendingBackfill &&
+      hasPendingAccumulatorBackfill(accBuckets, since90)
+    ) {
+      regressionPendingBackfill = true;
+    }
+    const reg7 = composeWindowedRegression(accBuckets, since7);
+    const reg30 = composeWindowedRegression(accBuckets, since30);
+    const reg90 = composeWindowedRegression(accBuckets, since90);
     summaries[row.type] = {
       count: row.count,
       latest,
@@ -570,9 +641,9 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
       median: round2(narrow?.median ?? null),
       avg7: round2(narrow?.avg7 ?? null),
       avg30: round2(narrow?.avg30 ?? null),
-      slope7: buildSlope(narrow?.slope7 ?? null, narrow?.r2_7 ?? null),
-      slope30: buildSlope(narrow?.slope30 ?? null, narrow?.r2_30 ?? null),
-      slope90: buildSlope(narrow?.slope90 ?? null, narrow?.r2_90 ?? null),
+      slope7: buildSlope(reg7.slope, reg7.r2),
+      slope30: buildSlope(reg30.slope, reg30.r2),
+      slope90: buildSlope(reg90.slope, reg90.r2),
       anomalyCount: 0,
       avg30LastMonth: round2(narrow?.avg30_last_month ?? null),
       avg30LastYear: null,
@@ -603,6 +674,20 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
           type_count: typeCount,
           path: "rollup",
           year_over_year_types: yearOverYearTypeCount,
+          // v1.20.0 F6 — slope / r² now compose from the rollup
+          // accumulators (no live REGR_* scan). The median stays live
+          // (PERCENTILE_CONT is non-composable); both sources are logged
+          // per the "no silent cap" rule so a regression is observable.
+          slope_source: "rollup",
+          median_source: "live",
+          // v1.20.0 P3 M-1 — when a NULL accumulator (pre-0190 row, or boot
+          // re-fold pending) forced a slope miss, the read intentionally
+          // returns null without a live-SQL fallback (the design avoids the
+          // heavy scan). Surface the gap so the silent null is observable;
+          // it clears once the boot backfill refills the accumulators.
+          regression_source: regressionPendingBackfill
+            ? "unavailable_pending_backfill"
+            : "rollup",
         },
       },
     },
@@ -668,7 +753,7 @@ async function computeFromLiveAggregate(
     `,
       userId,
     ),
-    prisma.$queryRawUnsafe<NarrowAggregateRow[]>(
+    prisma.$queryRawUnsafe<WindowedAggregateRow[]>(
       `
       SELECT
         m."type"::text                                                AS type,
@@ -778,7 +863,7 @@ async function computeFromLiveAggregate(
   // measurements in the 90-day window leave their windowed columns at
   // `null` (the same shape the pre-split query produced via FILTER
   // returning NULL on an empty set).
-  const windowedByType = new Map<string, NarrowAggregateRow>();
+  const windowedByType = new Map<string, WindowedAggregateRow>();
   for (const row of windowed) {
     windowedByType.set(row.type, row);
   }

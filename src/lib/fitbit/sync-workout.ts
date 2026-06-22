@@ -1,24 +1,25 @@
 /**
- * Fitbit / Google Health exercise-session sync (v1.12.0, W5).
+ * Fitbit Web API exercise-session sync.
  *
- * Reads exercise sessions from the `activity_and_fitness.readonly` Restricted
- * bundle and upserts each into the `Workout` table as `source = FITBIT`, keyed
- * on `(userId, source, externalId)` so a re-fetch overwrites in place.
+ * Reads exercise sessions from the classic `activities/list` endpoint
+ * (`afterDate` + ascending offset/limit pagination) and upserts each into the
+ * `Workout` table as `source = FITBIT`, keyed on `(userId, source, externalId)`
+ * (externalId = the Fitbit `logId`) so a re-fetch overwrites in place.
  *
  * A Fitbit run and the same run via Apple Health (or WHOOP) stay distinct
  * `Workout` rows (different `source`); the read-time `pickCanonicalWorkoutRows`
- * picker collapses the cross-source twin at read time per the user's source
- * ladder (FITBIT is already in the default ladder, ranked just below WHOOP).
- * There is no ingest-time collapse for a server-owned source pair.
+ * picker collapses the cross-source twin per the user's source ladder (FITBIT is
+ * already in the default ladder, ranked just below WHOOP). No ingest-time
+ * collapse for a server-owned source pair.
  *
- * A per-data-class 403 soft-skips the resource — the activity/fitness bundle is
- * granted independently in the Google consent flow.
+ * The page-walk is bounded (the 150 req/h budget is tight): a small page cap
+ * covers the incremental window comfortably; a deep backfill is bounded by the
+ * backfill horizon `afterDate`. A per-endpoint 403 soft-skips the resource.
  */
 import {
-  FITBIT_ACTIVITY_PAGE_SIZE,
-  FITBIT_DATA_TYPES,
-  fetchDataPoints,
+  fetchActivityList,
   mapWorkout,
+  readActivityList,
   type FitbitMappedWorkout,
 } from "./client";
 import {
@@ -28,6 +29,12 @@ import {
 } from "./sync";
 import { prisma } from "@/lib/db";
 import { annotate, getEvent } from "@/lib/logging/context";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
+
+/** Activities per page on the `activities/list` walk. */
+const WORKOUT_PAGE_SIZE = 100;
+/** Hard ceiling on pages walked per cycle (rate-budget guard). */
+const WORKOUT_MAX_PAGES = 12;
 
 export async function syncUserWorkout(
   userId: string,
@@ -36,25 +43,36 @@ export async function syncUserWorkout(
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
 
-  // Cycle-wide watermark snapshotted once by `syncUserFitbit`; undefined on a
-  // full/backfill run.
-  const start = opts.start;
+  // `startTime` on the activities list is offset-less local wall-clock; anchor
+  // it to the user's stored zone rather than the process zone.
+  const tz = await resolveUserTimezone(userId);
 
-  let points: Record<string, unknown>[];
-  try {
-    points = await fetchDataPoints(
-      FITBIT_DATA_TYPES.exercise,
-      tokenInfo.accessToken,
-      "fetchExercise",
-      { start, pageSize: FITBIT_ACTIVITY_PAGE_SIZE },
-    );
-  } catch (err) {
-    return handleCollectionFetchError("fetchExercise", userId, err);
+  const afterDate =
+    opts.start ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const entries: ReturnType<typeof readActivityList> = [];
+  let offset = 0;
+  let pages = 0;
+  while (pages < WORKOUT_MAX_PAGES) {
+    let body: unknown;
+    try {
+      body = await fetchActivityList(tokenInfo.accessToken, afterDate, {
+        limit: WORKOUT_PAGE_SIZE,
+        offset,
+      });
+    } catch (err) {
+      return handleCollectionFetchError("fetchExercise", userId, err);
+    }
+    const page = readActivityList(body);
+    entries.push(...page);
+    pages += 1;
+    if (page.length < WORKOUT_PAGE_SIZE) break;
+    offset += WORKOUT_PAGE_SIZE;
   }
 
   let imported = 0;
-  for (const point of points) {
-    const w: FitbitMappedWorkout | null = mapWorkout(point);
+  for (const entry of entries) {
+    const w: FitbitMappedWorkout | null = mapWorkout(entry, tz);
     if (!w) continue; // no usable time span — not a workout
 
     try {

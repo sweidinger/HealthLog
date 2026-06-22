@@ -1,6 +1,8 @@
 /**
- * v1.12.0 — shared constants + mint helper for the Fitbit / Google Health OAuth
- * state nonce ledger. Mirrors `src/lib/whoop/oauth-state.ts`.
+ * Shared constants + mint helper for the Fitbit OAuth state nonce ledger.
+ * Mirrors `src/lib/whoop/oauth-state.ts`. (v1.20.0 — the PKCE `code_verifier`
+ * lives on the `FitbitOAuthState` row; the connect route mints it via the
+ * client's `generatePkcePair`.)
  *
  * The nonce is random + opaque; a short-lived `FitbitOAuthState` row carries
  * the `(nonce → userId)` mapping so the user id never leaks into request logs
@@ -19,7 +21,7 @@ export const FITBIT_OAUTH_STATE_COOKIE = "fitbit_state" as const;
 
 /**
  * 10-minute TTL on the state row. Matches the cookie `maxAge`. Long enough to
- * cover a user approving the Google consent prompt; short enough that an
+ * cover a user approving the Fitbit consent prompt; short enough that an
  * abandoned handshake doesn't strand a row for hours.
  */
 export const FITBIT_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;

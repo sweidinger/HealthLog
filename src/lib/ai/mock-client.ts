@@ -1,4 +1,9 @@
-import type { AIProvider, CompletionParams, CompletionResult } from "./types";
+import type {
+  AIProvider,
+  AiToolCall,
+  CompletionParams,
+  CompletionResult,
+} from "./types";
 
 /**
  * Deterministic mock AI provider for tests.
@@ -37,6 +42,23 @@ export interface MockAIProviderOptions {
    * or per-call array, same semantics as `responses`).
    */
   tokensUsed?: number | number[] | null;
+  /**
+   * v1.20.0 — tool calls echoed on the result (single set replayed every
+   * call, or an array consumed per-call). Lets F1 exercise its tool loop
+   * against the mock without a live provider.
+   */
+  toolCalls?: AiToolCall[] | AiToolCall[][];
+  /** v1.20.0 — finishReason echoed on the result. Defaults to undefined. */
+  finishReason?: CompletionResult["finishReason"];
+  /** v1.20.0 — cachedInputTokens echoed on the result. Defaults to null. */
+  cachedInputTokens?: number | null;
+}
+
+/** Type guard: a per-call array of tool-call sets. */
+function isToolCallMatrix(
+  v: AiToolCall[] | AiToolCall[][] | undefined,
+): v is AiToolCall[][] {
+  return Array.isArray(v) && v.length > 0 && Array.isArray(v[0]);
 }
 
 // Conforms to v1.4.15 strict `aiInsightResponseSchema`. Tests that need
@@ -50,9 +72,14 @@ const DEFAULT_RESPONSE = JSON.stringify({
 
 export class MockAIProvider implements AIProvider {
   readonly type: "codex" | "admin-key" | "anthropic" | "local";
+  /** The mock can echo tool calls, so it advertises tool support. */
+  readonly supportsTools = true;
   readonly calls: CompletionParams[] = [];
   private readonly responses: string[];
   private readonly tokens: Array<number | null>;
+  private readonly toolCalls: AiToolCall[][] | undefined;
+  private readonly finishReason: CompletionResult["finishReason"];
+  private readonly cachedInputTokens: number | null;
   private readonly model: string;
   private readonly rejectWith: Error | undefined;
   private callIdx = 0;
@@ -61,6 +88,15 @@ export class MockAIProvider implements AIProvider {
     this.type = opts.providerType ?? "local";
     this.model = opts.model ?? "mock-model";
     this.rejectWith = opts.rejectWith;
+    this.finishReason = opts.finishReason;
+    this.cachedInputTokens = opts.cachedInputTokens ?? null;
+    if (isToolCallMatrix(opts.toolCalls)) {
+      this.toolCalls = opts.toolCalls;
+    } else if (Array.isArray(opts.toolCalls)) {
+      this.toolCalls = [opts.toolCalls];
+    } else {
+      this.toolCalls = undefined;
+    }
     if (Array.isArray(opts.responses)) {
       this.responses =
         opts.responses.length > 0 ? opts.responses : [DEFAULT_RESPONSE];
@@ -87,12 +123,18 @@ export class MockAIProvider implements AIProvider {
     }
     const idx = Math.min(this.callIdx, this.responses.length - 1);
     const tokIdx = Math.min(this.callIdx, this.tokens.length - 1);
+    const toolCalls = this.toolCalls
+      ? this.toolCalls[Math.min(this.callIdx, this.toolCalls.length - 1)]
+      : undefined;
     this.callIdx++;
     return {
       content: this.responses[idx],
       tokensUsed: this.tokens[tokIdx] ?? null,
+      cachedInputTokens: this.cachedInputTokens,
       model: this.model,
       providerType: this.type,
+      ...(toolCalls ? { toolCalls } : {}),
+      finishReason: this.finishReason,
     };
   }
 

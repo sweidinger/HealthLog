@@ -1,8 +1,8 @@
 /**
- * v1.12.0 (W5) — Fitbit activity / sleep / workout sync end-to-end.
+ * v1.20.0 — Fitbit activity / sleep / workout sync end-to-end (classic API).
  *
- * Drives the three W5 resource syncs against a mocked Google Health
- * `dataPoints.list` and the real Postgres testcontainer. Asserts:
+ * Drives the three resource syncs against a mocked classic `api.fitbit.com`
+ * transport and the real Postgres testcontainer. Asserts:
  *   - Daily cumulative activity rows mint a `stats:`-prefixed externalId and a
  *     re-fetched day OVERWRITES the row in place (no duplicate) — the
  *     Apple-Health daily-total overwrite contract.
@@ -37,17 +37,22 @@ beforeEach(async () => {
       id: TEST_USER_ID,
       username: "fitbit-w5-sync",
       email: "fitbit-w5-sync@example.test",
+      // Pin UTC so the classic offset-less local wall-clock timestamps Fitbit
+      // emits on the 1.2 sleep log + activities list resolve 1:1 to UTC instants
+      // — the sleep/workout assertions below anchor on those instants, and the
+      // workout twin must land in the same 5-minute picker bucket as its
+      // Apple-Health counterpart regardless of the server default zone.
+      timezone: "UTC",
     },
   });
   await prisma.fitbitConnection.create({
     data: {
       userId: TEST_USER_ID,
-      fitbitUserId: "gh-w5",
+      fitbitUserId: "fb-w5",
       accessToken: encrypt("access-token"),
       refreshToken: encrypt("refresh-token"),
       tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      scope:
-        "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.sleep.readonly",
+      scope: "activity sleep",
     },
   });
 });
@@ -57,27 +62,35 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** Stub fetch: match the kebab path segment → its seeded data points. */
-function stubGoogleHealth(byPathSegment: Record<string, unknown[]>) {
+/**
+ * Stub global fetch for the classic Fitbit Web API. Each resource sync hits one
+ * bespoke endpoint per metric; match on a discriminating substring of the URL
+ * path and return its seeded classic-shaped body. Endpoints not seeded return
+ * an empty envelope so their mappers yield no rows (the activity sync walks
+ * steps + distance + activityCalories + floors + cardioscore, so the unseeded
+ * siblings must produce zero rows for the per-metric counts to hold).
+ */
+function stubFitbit(byPath: Record<string, unknown>) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
-      const match = /dataTypes\/([^/?]+)\/dataPoints/.exec(url);
-      const seg = match?.[1] ?? "";
-      const dataPoints = byPathSegment[seg] ?? [];
-      return { status: 200, json: async () => ({ dataPoints }) };
+      for (const [needle, body] of Object.entries(byPath)) {
+        if (url.includes(needle)) {
+          return { status: 200, json: async () => body };
+        }
+      }
+      return { status: 200, json: async () => ({}) };
     }),
   );
 }
 
-// INTERVAL data type: the daily total is bucketed into an `interval` carrying a
-// physical `start_time` (the day's start instant), NOT a bare civil `date`.
-const DAY_INTERVAL = { start_time: "2026-05-10T00:00:00.000Z" };
-
 describe("syncUserActivity — cumulative overwrite", () => {
   it("mints a stats: externalId and overwrites the same day on re-sync (no duplicate)", async () => {
-    stubGoogleHealth({
-      steps: [{ steps: { count: 8000, interval: DAY_INTERVAL } }],
+    stubFitbit({
+      // Classic activities time series: civil-date rows, string values.
+      "activities/steps": {
+        "activities-steps": [{ dateTime: "2026-05-10", value: "8000" }],
+      },
     });
     const { syncUserActivity } = await import("@/lib/fitbit/sync-activity");
     const first = await syncUserActivity(TEST_USER_ID);
@@ -94,8 +107,10 @@ describe("syncUserActivity — cumulative overwrite", () => {
     expect(rows[0]!.externalId).toBe("stats:steps:2026-05-10");
 
     // Re-fetch the same day with a corrected total → overwrite, not duplicate.
-    stubGoogleHealth({
-      steps: [{ steps: { count: 9123, interval: DAY_INTERVAL } }],
+    stubFitbit({
+      "activities/steps": {
+        "activities-steps": [{ dateTime: "2026-05-10", value: "9123" }],
+      },
     });
     await syncUserActivity(TEST_USER_ID);
 
@@ -108,8 +123,10 @@ describe("syncUserActivity — cumulative overwrite", () => {
   });
 
   it("preserves a 0-step rest day rather than dropping it as a gap", async () => {
-    stubGoogleHealth({
-      steps: [{ steps: { count: 0, interval: DAY_INTERVAL } }],
+    stubFitbit({
+      "activities/steps": {
+        "activities-steps": [{ dateTime: "2026-05-10", value: "0" }],
+      },
     });
     const { syncUserActivity } = await import("@/lib/fitbit/sync-activity");
     const imported = await syncUserActivity(TEST_USER_ID);
@@ -126,30 +143,26 @@ describe("syncUserActivity — cumulative overwrite", () => {
 
 describe("syncUserSleep — per-stage upsert", () => {
   it("writes one SLEEP_DURATION row per stage carrying the SleepStage enum", async () => {
+    // Classic 1.2 sleep log: one session, per-segment `levels.data`. The segment
+    // `dateTime` is its START (offset-less local wall-clock); seconds → minutes;
+    // measuredAt = START + seconds. logId anchors the externalId.
     const session = {
-      sleep: {
-        startTime: "2026-05-10T22:00:00.000Z",
-        endTime: "2026-05-11T06:00:00.000Z",
-        segments: [
+      logId: 555001,
+      startTime: "2026-05-10T22:00:00.000",
+      endTime: "2026-05-11T06:00:00.000",
+      levels: {
+        data: [
           {
-            stage: "light",
-            startTime: "2026-05-10T22:00:00.000Z",
-            endTime: "2026-05-10T23:00:00.000Z",
+            dateTime: "2026-05-10T22:00:00.000",
+            level: "light",
+            seconds: 3600,
           },
-          {
-            stage: "deep",
-            startTime: "2026-05-10T23:00:00.000Z",
-            endTime: "2026-05-11T00:30:00.000Z",
-          },
-          {
-            stage: "rem",
-            startTime: "2026-05-11T00:30:00.000Z",
-            endTime: "2026-05-11T01:15:00.000Z",
-          },
+          { dateTime: "2026-05-10T23:00:00.000", level: "deep", seconds: 5400 },
+          { dateTime: "2026-05-11T00:30:00.000", level: "rem", seconds: 2700 },
         ],
       },
     };
-    stubGoogleHealth({ sleep: [session] });
+    stubFitbit({ "sleep/date": { sleep: [session] } });
     const { syncUserSleep } = await import("@/lib/fitbit/sync-sleep");
     const imported = await syncUserSleep(TEST_USER_ID);
     expect(imported).toBe(3);
@@ -178,20 +191,21 @@ describe("syncUserSleep — per-stage upsert", () => {
 
 describe("syncUserWorkout — Workout rows + cross-source dedup", () => {
   it("writes a Workout row keyed (userId, FITBIT, externalId)", async () => {
-    stubGoogleHealth({
-      exercise: [
-        {
-          exercise: {
-            session_id: "ex-1",
-            activity_type: "run",
-            startTime: "2026-05-10T07:00:00.000Z",
-            endTime: "2026-05-10T07:40:00.000Z",
-            active_kilocalories: 380,
-            distance: { meters: 7000 },
-            average_heart_rate: { beats_per_minute: 150 },
+    stubFitbit({
+      // Classic activities list: logId anchor, ms duration, km distance.
+      "activities/list": {
+        activities: [
+          {
+            logId: 90001,
+            activityName: "run",
+            startTime: "2026-05-10T07:00:00.000",
+            duration: 40 * 60 * 1000,
+            calories: 380,
+            distance: 7, // km (metric locale) → 7000 m
+            averageHeartRate: 150,
           },
-        },
-      ],
+        ],
+      },
     });
     const { syncUserWorkout } = await import("@/lib/fitbit/sync-workout");
     const imported = await syncUserWorkout(TEST_USER_ID);
@@ -203,7 +217,8 @@ describe("syncUserWorkout — Workout rows + cross-source dedup", () => {
     });
     expect(workouts).toHaveLength(1);
     expect(workouts[0]).toMatchObject({
-      externalId: "ex-1",
+      // Classic externalId = String(logId).
+      externalId: "90001",
       sportType: "running",
       durationSec: 40 * 60,
       totalEnergyKcal: 380,
@@ -235,17 +250,17 @@ describe("syncUserWorkout — Workout rows + cross-source dedup", () => {
       },
     });
 
-    stubGoogleHealth({
-      exercise: [
-        {
-          exercise: {
-            session_id: "ex-1",
-            activity_type: "run",
-            startTime: "2026-05-10T07:00:00.000Z",
-            endTime: "2026-05-10T07:40:00.000Z",
+    stubFitbit({
+      "activities/list": {
+        activities: [
+          {
+            logId: 90001,
+            activityName: "run",
+            startTime: "2026-05-10T07:00:00.000",
+            duration: 40 * 60 * 1000,
           },
-        },
-      ],
+        ],
+      },
     });
     const { syncUserWorkout } = await import("@/lib/fitbit/sync-workout");
     await syncUserWorkout(TEST_USER_ID);

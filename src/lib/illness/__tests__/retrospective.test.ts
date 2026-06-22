@@ -15,6 +15,30 @@ import {
   MIN_TYPICAL_GAP_MAGNITUDE_DAYS,
   type RetrospectiveEpisode,
 } from "../retrospective";
+import { computeIllnessCorrelation, type VitalDayPoint } from "../correlation";
+
+/** A baseline with a non-zero, stable MAD (mirrors the correlation suite). */
+function jitteredBaseline(
+  center: number,
+  jitter: number,
+  days: number,
+  endDay: string,
+): VitalDayPoint[] {
+  const out: VitalDayPoint[] = [];
+  let cursor = Date.parse(`${endDay}T00:00:00Z`);
+  const offsets = [-jitter, -jitter / 2, 0, jitter / 2, jitter];
+  for (let i = 0; i < days; i++) {
+    out.unshift({
+      day: new Date(cursor).toISOString().slice(0, 10),
+      mean: center,
+    });
+    cursor -= 24 * 60 * 60 * 1000;
+  }
+  return out.map((p, i) => ({
+    ...p,
+    mean: center + offsets[i % offsets.length],
+  }));
+}
 
 function ep(over: Partial<RetrospectiveEpisode>): RetrospectiveEpisode {
   return {
@@ -206,5 +230,69 @@ describe("summarizeIllnessRetrospective", () => {
       ep({ id: "c", recoveryGapDays: -4 }),
     ]);
     expect(out.typicalRecoveryGapDays).toBe(-3);
+  });
+
+  it("threads the larger last-return gap through the cross-episode median", () => {
+    // Integration guard for the relapse-aware (last-sustained) return change:
+    // one episode relapses mid-course, so its ENGINE-computed gap grows from
+    // the old first-return value (−1) to the last-return value (+6). The
+    // retrospective consumes that engine number verbatim — confirm the larger
+    // value pulls the cross-episode median up rather than the stale first
+    // return. No retrospective code changes; this guards the integration.
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const relapseEpisode: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 75 }, // first deviation
+      { day: "2026-01-13", mean: 55 }, // first settle (old return)
+      { day: "2026-01-14", mean: 55 },
+      { day: "2026-01-15", mean: 55 }, // 3-day run
+      { day: "2026-01-16", mean: 75 }, // RELAPSE
+      { day: "2026-01-18", mean: 73 },
+      { day: "2026-01-20", mean: 55 }, // final settle start
+      { day: "2026-01-21", mean: 55 },
+      { day: "2026-01-22", mean: 55 }, // holds to end
+    ];
+    const engine = computeIllnessCorrelation({
+      episodeId: "relapse",
+      window: {
+        onsetDay: "2026-01-10",
+        feltBetterDay: "2026-01-14",
+        lifecycle: "ACUTE",
+      },
+      series: [
+        {
+          type: "RESTING_HEART_RATE",
+          baselineDays,
+          episodeDays: relapseEpisode,
+        },
+      ],
+      source: "DAY",
+      now: new Date("2026-02-01T00:00:00Z"),
+    });
+    expect(engine.status).toBe("ok");
+    if (engine.status !== "ok") return;
+    // Last-return = 01-20, gap = +6 (not the old first-return −1).
+    expect(engine.value.recoveryGapDays).toBe(6);
+
+    const out = summarizeIllnessRetrospective([
+      ep({
+        id: "relapse",
+        recoveryGapDays: engine.value.recoveryGapDays,
+        gapMeasurementDays: engine.coverage.historyDays,
+        gapReturnTypes: ["RESTING_HEART_RATE"],
+      }),
+      ep({
+        id: "b",
+        recoveryGapDays: 4,
+        gapReturnTypes: ["RESTING_HEART_RATE"],
+      }),
+      ep({
+        id: "c",
+        recoveryGapDays: 5,
+        gapReturnTypes: ["RESTING_HEART_RATE"],
+      }),
+    ]);
+    // Median of [6, 4, 5] = 5 — the relapse episode's grown gap is in the mix.
+    expect(out.typicalRecoveryGapDays).toBe(5);
+    expect(out.gapDriverType).toBe("RESTING_HEART_RATE");
   });
 });

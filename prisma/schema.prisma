@@ -1292,6 +1292,20 @@ model MeasurementRollup {
   /// to keep the migration additive — the boot backfill fills NULLs
   /// for existing rows; new rows always carry the sum.
   sumValue    Float?            @map("sum_value")
+  /// v1.20.0 F6 — per-bucket OLS regression accumulators over the same
+  /// canonical-source raw rows the live REGR_* query reads. With
+  /// `n = count` and `Σy = mean·count` these close the additive set so a
+  /// windowed slope / r² / sd composes from summed accumulators across DAY
+  /// buckets with a bit-identical result to live REGR_SLOPE / REGR_R2 /
+  /// STDDEV_POP. The x-axis is epoch days (`EXTRACT(EPOCH FROM
+  /// measured_at) / 86400.0`), stored un-rebased so the cross-bucket sum
+  /// reconstructs the live regression. Nullable to keep migration 0190
+  /// additive — the boot backfill fills NULLs for pre-migration rows; new
+  /// rows always carry them (they ride the same aggregate as mean / sum).
+  sumX        Float?            @map("sum_x")
+  sumXy       Float?            @map("sum_xy")
+  sumXx       Float?            @map("sum_xx")
+  sumYy       Float?            @map("sum_yy")
   computedAt  DateTime          @default(now()) @map("computed_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2644,11 +2658,20 @@ model FitbitConnection {
 
 /// v1.12.0 — short-lived `(nonce → userId)` ledger backing the Fitbit OAuth
 /// state check, identical in shape + lifecycle to `WhoopOAuthState`.
+///
+/// v1.20.0 — the classic Fitbit Web API (`api.fitbit.com`) authorises with PKCE
+/// (Authorization Code + S256), so the connect route mints a `code_verifier`
+/// alongside the nonce and stashes it here; the callback reads it back to present
+/// on the token exchange. Nullable + additive: a legacy row (or a non-PKCE path)
+/// simply carries no verifier.
 model FitbitOAuthState {
-  nonce     String   @id
-  userId    String   @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  expiresAt DateTime @map("expires_at")
+  nonce        String   @id
+  userId       String   @map("user_id")
+  /// PKCE code_verifier carried from connect to callback (v1.20.0). Null when no
+  /// PKCE handshake is in flight (legacy rows).
+  codeVerifier String?  @map("code_verifier")
+  createdAt    DateTime @default(now()) @map("created_at")
+  expiresAt    DateTime @map("expires_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

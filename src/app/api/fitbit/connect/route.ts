@@ -3,7 +3,7 @@ import { apiError } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getAuthorizationUrl } from "@/lib/fitbit/client";
+import { getAuthorizationUrl, generatePkcePair } from "@/lib/fitbit/client";
 import { getUserFitbitCredentials } from "@/lib/fitbit/credentials";
 import {
   FITBIT_OAUTH_STATE_COOKIE,
@@ -14,14 +14,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
 
 /**
- * Redirect the user to the Google OAuth consent page for Fitbit / Google Health
- * (v1.12.0).
+ * Redirect the user to the Fitbit OAuth consent page (classic
+ * `www.fitbit.com/oauth2/authorize`, v1.20.0).
  *
  * Mirrors the WHOOP connect route: a fully-random base64url state nonce backed
  * by a 10-minute `FitbitOAuthState` ledger row carries the `(nonce → userId)`
  * mapping, so the user id never travels in the OAuth `state` param (which can
  * land in request logs / network captures). The httpOnly + Secure cookie
  * carries JUST the nonce; the callback resolves the user via the row's `userId`.
+ *
+ * v1.20.0 — the classic Fitbit Web API uses PKCE (S256). The route mints a
+ * `code_verifier`/`code_challenge` pair, stashes the verifier on the ledger row
+ * (server-side, never exposed to the browser), and sends the challenge to the
+ * authorize endpoint. The callback reads the verifier back to present on the
+ * token exchange.
  *
  * Rate-limited per user (10 calls / 60 s) so a logged-in session can't spam
  * ledger rows for the full 10-min TTL window. Both the rate-limit and
@@ -53,17 +59,19 @@ export const GET = apiHandler(async (req: NextRequest) => {
   const creds = await getUserFitbitCredentials(user.id);
   if (!creds) {
     return apiError(
-      "Please configure your Google OAuth Client ID and Client Secret in Settings first.",
+      "Please configure your Fitbit OAuth Client ID and Client Secret in Settings first.",
       400,
     );
   }
 
   const nonce = mintFitbitOAuthStateNonce();
+  const pkce = generatePkcePair();
   try {
     await prisma.fitbitOAuthState.create({
       data: {
         nonce,
         userId: user.id,
+        codeVerifier: pkce.verifier,
         expiresAt: new Date(Date.now() + FITBIT_OAUTH_STATE_TTL_MS),
       },
     });
@@ -75,7 +83,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
     );
   }
 
-  const url = getAuthorizationUrl(nonce, creds);
+  const url = getAuthorizationUrl(nonce, creds, pkce.challenge);
 
   const response = NextResponse.redirect(url);
   response.cookies.set(FITBIT_OAUTH_STATE_COOKIE, nonce, {

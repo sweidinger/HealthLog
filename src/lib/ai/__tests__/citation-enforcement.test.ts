@@ -8,6 +8,7 @@ import {
 } from "../schema";
 import { generateInsight } from "../generate-insight";
 import { MockAIProvider } from "../mock-client";
+import { singleUserTurn } from "../types";
 
 /**
  * Phase C1 — citation-from-data hard requirement.
@@ -247,10 +248,10 @@ describe("citation-from-data — wrapper end-to-end", () => {
     const provider = new MockAIProvider({
       responses: [JSON.stringify(orphan), JSON.stringify(baseValid)],
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "system",
-      userPrompt: "user",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "system", user: "user" }),
+    );
     expect(outcome.retried).toBe(true);
     expect(outcome.parsed.recommendations[0].id).toBe("rec-1");
   });
@@ -284,10 +285,10 @@ describe("citation-from-data — wrapper end-to-end", () => {
     const provider = new MockAIProvider({
       responses: [JSON.stringify(orphan), JSON.stringify(droppedRecs)],
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "system",
-      userPrompt: "user",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "system", user: "user" }),
+    );
     expect(outcome.retried).toBe(true);
     expect(outcome.parsed.recommendations).toHaveLength(0);
   });

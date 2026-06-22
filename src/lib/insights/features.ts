@@ -681,6 +681,18 @@ export async function extractFeatures(
       ? { userId, measuredAt: { gte: sinceCutoff }, deletedAt: null }
       : { userId, deletedAt: null },
     orderBy: { measuredAt: "asc" },
+    // Project only the columns every downstream consumer reads (`byType`,
+    // `summarize`, BP pairing, and `reconstructSleepNights`'s `SleepStageRow`).
+    // The PULSE / glucose windows are 200k-row-class; pulling every column
+    // (notes, externalId, …) is pure wasted I/O on the shared Prisma pool.
+    select: {
+      type: true,
+      value: true,
+      measuredAt: true,
+      sleepStage: true,
+      source: true,
+      deviceType: true,
+    },
   });
 
   // v1.18.11 P1 — when the bulk read is bounded to a recent window, the

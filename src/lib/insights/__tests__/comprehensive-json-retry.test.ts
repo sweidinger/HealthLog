@@ -104,9 +104,11 @@ describe("comprehensive JSON-retry", () => {
 
     expect(outcome).toEqual({ status: "generated", providerType: "openai" });
     expect(runRawCompletionWithFallback).toHaveBeenCalledTimes(2);
-    // The retry call appends the correction to the user prompt.
+    // The retry call appends the correction to the user message.
     const retryParams = runRawCompletionWithFallback.mock.calls[1][0].params;
-    expect(retryParams.userPrompt).toContain("did not satisfy the required");
+    expect(retryParams.messages[0].content).toContain(
+      "did not satisfy the required",
+    );
   });
 
   it("fails with invalid-json when both attempts miss", async () => {

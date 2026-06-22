@@ -58,8 +58,11 @@ vi.mock("@/lib/ai/provider-runner", () => ({
   runRawCompletionWithFallback,
 }));
 vi.mock("@/lib/ai/provider", () => ({
+  // v1.20.0 (F1) — pin a no-tools provider so this suite exercises the legacy
+  // snapshot-stuffing fallback path (the behaviour it was written to pin). The
+  // tool-retrieval path is covered by route-tool-mode.test.ts.
   resolveProviderChain: vi.fn(async () => [
-    { providerType: "admin-openai", instance: {} },
+    { providerType: "admin-openai", instance: { supportsTools: false } },
   ]),
   resolveProvider: vi.fn(),
 }));
@@ -164,10 +167,11 @@ function chatReq(body: Record<string, unknown>): Request {
 
 function lastUserPrompt(): string {
   const calls = runRawCompletionWithFallback.mock.calls as unknown as Array<
-    [{ params: { userPrompt: string } }]
+    [{ params: { messages: Array<{ role: string; content: string }> } }]
   >;
   const last = calls[calls.length - 1];
-  return last[0].params.userPrompt;
+  const userTurn = last[0].params.messages.find((m) => m.role === "user");
+  return typeof userTurn?.content === "string" ? userTurn.content : "";
 }
 
 describe("coach chat — snapshot sent once per conversation (C4)", () => {

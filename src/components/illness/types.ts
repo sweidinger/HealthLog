@@ -111,6 +111,19 @@ export interface IllnessRedFlag {
   days: number;
 }
 
+/**
+ * A neutral sleep-as-context observation for the episode — slept more / less
+ * than usual — surfaced ALONGSIDE the gap, never part of the recovery-gap
+ * number. Null when the sleep data is too thin or the delta sub-floor.
+ */
+export interface SleepContext {
+  baselineMeanMinutes: number;
+  episodeMeanMinutes: number;
+  /** `episode − baseline` asleep minutes (positive = slept more than usual). */
+  deltaMinutes: number;
+  nightsCounted: number;
+}
+
 export interface IllnessCorrelationValue {
   episodeId: string;
   preOnset: IllnessVitalDeviation[];
@@ -126,6 +139,11 @@ export interface IllnessCorrelationValue {
    */
   gapDriverType: string | null;
   redFlags: IllnessRedFlag[];
+  /**
+   * Sleep-as-context observation, or null when withheld (thin data / sub-floor
+   * delta). Additive — never part of the headline recovery-gap.
+   */
+  sleepContext: SleepContext | null;
 }
 
 /** The flat `Derived<T>` wire shape the correlation route returns. */

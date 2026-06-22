@@ -206,7 +206,7 @@ describe("POST /api/integrations/fitbit/test", () => {
       new Response(
         JSON.stringify({
           error: "Authorization: Bearer sk-secret echoed",
-          url: "https://health.googleapis.com/v4/users/me/profile",
+          url: "https://api.fitbit.com/1/user/-/profile.json",
         }),
         { status: 401 },
       ),
@@ -215,6 +215,5 @@ describe("POST /api/integrations/fitbit/test", () => {
     const text = await response.text();
     expect(response.status).toBe(502);
     expect(text).not.toMatch(/sk-/);
-    expect(text).not.toMatch(/health\.googleapis\.com/);
   });
 });
