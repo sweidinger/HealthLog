@@ -65,6 +65,7 @@ import { ensureUserRollupsFresh } from "@/lib/rollups/measurement-rollups";
 import {
   collapseRollupRowsBySource,
   composeWindowedRegression,
+  hasPendingAccumulatorBackfill,
   loadUserSourcePriority,
   type AccumulatorBucketRow,
 } from "@/lib/rollups/measurement-read";
@@ -603,6 +604,12 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
   let totalRows = 0;
   let typeCount = 0;
   const typesWithData: string[] = [];
+  // v1.20.0 P3 M-1 — set once any in-window bucket carries a NULL
+  // accumulator (pre-0190 row, or boot re-fold pending). The slope stays
+  // null then — honest, it converges after backfill — but the miss must be
+  // observable per the "no silent cap" rule, so it surfaces in the
+  // annotation below rather than passing silently as a plain rollup read.
+  let regressionPendingBackfill = false;
   for (const row of dayBuckets) {
     if (!row.count || row.count <= 0) continue;
     typeCount += 1;
@@ -616,6 +623,12 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
     // readings) yields a null slope, the same shape the empty REGR_* FILTER
     // returned.
     const accBuckets = accBucketsByType.get(row.type) ?? [];
+    if (
+      !regressionPendingBackfill &&
+      hasPendingAccumulatorBackfill(accBuckets, since90)
+    ) {
+      regressionPendingBackfill = true;
+    }
     const reg7 = composeWindowedRegression(accBuckets, since7);
     const reg30 = composeWindowedRegression(accBuckets, since30);
     const reg90 = composeWindowedRegression(accBuckets, since90);
@@ -667,6 +680,14 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
           // per the "no silent cap" rule so a regression is observable.
           slope_source: "rollup",
           median_source: "live",
+          // v1.20.0 P3 M-1 — when a NULL accumulator (pre-0190 row, or boot
+          // re-fold pending) forced a slope miss, the read intentionally
+          // returns null without a live-SQL fallback (the design avoids the
+          // heavy scan). Surface the gap so the silent null is observable;
+          // it clears once the boot backfill refills the accumulators.
+          regression_source: regressionPendingBackfill
+            ? "unavailable_pending_backfill"
+            : "rollup",
         },
       },
     },
