@@ -22,6 +22,7 @@
  * Server-only — reads `@/lib/db` through the provider resolver.
  */
 import { hasAnyConfiguredProvider, resolveProvider } from "@/lib/ai/provider";
+import { singleUserTurn } from "@/lib/ai/types";
 import {
   buildDateKey,
   getDailyTokenSpend,
@@ -151,12 +152,14 @@ export async function deriveClarifyingQuestions(
       resolveLocale(locale),
       snapshotJson,
     );
-    const result = await provider.generateCompletion({
-      systemPrompt,
-      userPrompt,
-      temperature: 0.4,
-      maxTokens: QUESTIONS_MAX_TOKENS,
-    });
+    const result = await provider.generateCompletion(
+      singleUserTurn({
+        system: systemPrompt,
+        user: userPrompt,
+        temperature: 0.4,
+        maxTokens: QUESTIONS_MAX_TOKENS,
+      }),
+    );
     if (typeof result.tokensUsed === "number" && result.tokensUsed > 0) {
       await recordSpend({ userId, tokens: result.tokensUsed, dateKey });
     }

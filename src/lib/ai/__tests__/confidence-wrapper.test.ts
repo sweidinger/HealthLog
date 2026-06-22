@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { generateInsight } from "../generate-insight";
 import { MockAIProvider } from "../mock-client";
+import { singleUserTurn } from "../types";
 
 /**
  * v1.4.16 phase B5d — wrapper post-validation override.
@@ -55,10 +56,10 @@ describe("generateInsight() — confidence override", () => {
     const provider = new MockAIProvider({
       responses: JSON.stringify(validResponseWithModelConfidence),
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     const rec = outcome.parsed.recommendations[0];
     // Model claimed 99; wrapper must have replaced it.
     // n=12, recencyDays=0 (default), ratio=null (default) →
@@ -83,10 +84,10 @@ describe("generateInsight() — confidence override", () => {
     // strip the undefined to emulate the model not emitting the key
     const stringified = JSON.stringify(noConfidence);
     const provider = new MockAIProvider({ responses: stringified });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "sys",
-      userPrompt: "u",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "sys", user: "u" }),
+    );
     expect(outcome.parsed.recommendations[0].confidence).toBe(66);
   });
 
@@ -111,10 +112,10 @@ describe("generateInsight() — confidence override", () => {
     const provider = new MockAIProvider({
       responses: JSON.stringify(fourteenN),
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "s",
-      userPrompt: "u",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "s", user: "u" }),
+    );
     // n=14, recencyDays=0, ratio=null → 10 + 10*log10(14) + 30 + 15 ≈ 66.46
     expect(outcome.parsed.recommendations[0].confidence).toBe(66);
   });
@@ -133,10 +134,10 @@ describe("generateInsight() — confidence override", () => {
       ],
     };
     const provider = new MockAIProvider({ responses: JSON.stringify(tinyN) });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "s",
-      userPrompt: "u",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "s", user: "u" }),
+    );
     expect(outcome.parsed.recommendations[0].confidence).toBeLessThanOrEqual(
       15,
     );
@@ -158,10 +159,10 @@ describe("generateInsight() — confidence override", () => {
       ],
     };
     const provider = new MockAIProvider({ responses: JSON.stringify(noN) });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "s",
-      userPrompt: "u",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "s", user: "u" }),
+    );
     // n=0 → hard-cap floor 10
     expect(outcome.parsed.recommendations[0].confidence).toBe(10);
   });
@@ -189,10 +190,10 @@ describe("generateInsight() — confidence override", () => {
     const provider = new MockAIProvider({
       responses: JSON.stringify(twoRecs),
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "s",
-      userPrompt: "u",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "s", user: "u" }),
+    );
     // Model claimed (99, 1); both must be discarded and replaced with
     // the deterministic value (n=12 → 66, n=5 → 62 from the saturating
     // formula 10 + 10*log10(5) + 30 + 15 ≈ 61.99).

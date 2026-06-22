@@ -6,6 +6,22 @@ import {
 } from "../schema";
 import { generateInsight } from "../generate-insight";
 import { MockAIProvider } from "../mock-client";
+import { singleUserTurn, type CompletionParams } from "../types";
+
+/** Read the last user message's text out of a recorded CompletionParams. */
+function lastUserText(params: CompletionParams): string {
+  for (let i = params.messages.length - 1; i >= 0; i -= 1) {
+    const m = params.messages[i];
+    if (m.role !== "user") continue;
+    return typeof m.content === "string"
+      ? m.content
+      : m.content
+          .filter((p): p is { type: "text"; text: string } => p.type === "text")
+          .map((p) => p.text)
+          .join("");
+  }
+  return "";
+}
 
 const validResponse = {
   summary: "Your blood pressure is trending high.",
@@ -143,10 +159,10 @@ describe("generateInsight wrapper", () => {
     const provider = new MockAIProvider({
       responses: JSON.stringify(validResponse),
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     expect(outcome.attempts).toBe(1);
     expect(outcome.retried).toBe(false);
     expect(outcome.parsed.summary).toMatch(/blood pressure/);
@@ -157,16 +173,16 @@ describe("generateInsight wrapper", () => {
     const provider = new MockAIProvider({
       responses: ["definitely not json", JSON.stringify(validResponse)],
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "sys",
-      userPrompt: "Original user prompt.",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "sys", user: "Original user prompt." }),
+    );
     expect(outcome.attempts).toBe(2);
     expect(outcome.retried).toBe(true);
     expect(provider.callCount).toBe(2);
     // The retry call must include the original user prompt PLUS the
     // corrective suffix referencing the schema.
-    const retryUserPrompt = provider.calls[1].userPrompt;
+    const retryUserPrompt = lastUserText(provider.calls[1]);
     expect(retryUserPrompt).toContain("Original user prompt.");
     expect(retryUserPrompt).toContain("did not satisfy");
     expect(retryUserPrompt).toContain("metricSource");
@@ -178,10 +194,10 @@ describe("generateInsight wrapper", () => {
     });
     let caught: unknown;
     try {
-      await generateInsight(provider, {
-        systemPrompt: "sys",
-        userPrompt: "user",
-      });
+      await generateInsight(
+        provider,
+        singleUserTurn({ system: "sys", user: "user" }),
+      );
     } catch (e) {
       caught = e;
     }
@@ -220,13 +236,13 @@ describe("generateInsight wrapper", () => {
         JSON.stringify(validResponse),
       ],
     });
-    const outcome = await generateInsight(provider, {
-      systemPrompt: "sys",
-      userPrompt: "u",
-    });
+    const outcome = await generateInsight(
+      provider,
+      singleUserTurn({ system: "sys", user: "u" }),
+    );
     expect(outcome.attempts).toBe(2);
     expect(outcome.retried).toBe(true);
-    expect(provider.calls[1].userPrompt).toContain(
+    expect(lastUserText(provider.calls[1])).toContain(
       "metricSources not in citations",
     );
   });
@@ -238,7 +254,7 @@ describe("generateInsight wrapper", () => {
       }),
     });
     await expect(
-      generateInsight(provider, { systemPrompt: "s", userPrompt: "u" }),
+      generateInsight(provider, singleUserTurn({ system: "s", user: "u" })),
     ).rejects.toThrow("OpenAI request failed (500)");
     // Provider only called once — wrapper does not retry on provider errors.
     expect(provider.callCount).toBe(1);

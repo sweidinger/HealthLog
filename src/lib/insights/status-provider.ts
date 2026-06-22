@@ -11,6 +11,7 @@ import {
 } from "@/lib/ai/consent-guard";
 import { annotate } from "@/lib/logging/context";
 import { AI_BUDGETS, REFERENCE_AI_SEED } from "@/lib/ai/ai-budgets";
+import { singleUserTurn } from "@/lib/ai/types";
 import { STATUS_PROVIDER_TIMEOUT_MS, withTimeout } from "./with-timeout";
 
 /**
@@ -172,9 +173,9 @@ export async function runStatusCompletion(
       runRawCompletionWithFallback({
         userId,
         providers: chain,
-        params: {
-          systemPrompt,
-          userPrompt,
+        params: singleUserTurn({
+          system: systemPrompt,
+          user: userPrompt,
           temperature: args.temperature ?? AI_BUDGETS.status.temperature,
           maxTokens: args.maxTokens ?? AI_BUDGETS.status.maxTokens,
           // v1.18.7 — status/reference output is reproducible: pin the
@@ -183,7 +184,7 @@ export async function runStatusCompletion(
           // Status cards are JSON by default; the narrative opts out via
           // `"text"`.
           responseFormat: args.responseFormat === "text" ? undefined : "json",
-        },
+        }),
       }),
     STATUS_PROVIDER_TIMEOUT_MS,
     null,

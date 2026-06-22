@@ -164,10 +164,11 @@ function chatReq(body: Record<string, unknown>): Request {
 
 function lastUserPrompt(): string {
   const calls = runRawCompletionWithFallback.mock.calls as unknown as Array<
-    [{ params: { userPrompt: string } }]
+    [{ params: { messages: Array<{ role: string; content: string }> } }]
   >;
   const last = calls[calls.length - 1];
-  return last[0].params.userPrompt;
+  const userTurn = last[0].params.messages.find((m) => m.role === "user");
+  return typeof userTurn?.content === "string" ? userTurn.content : "";
 }
 
 describe("coach chat — snapshot sent once per conversation (C4)", () => {

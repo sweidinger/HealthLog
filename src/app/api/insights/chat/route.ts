@@ -44,7 +44,7 @@ import {
 } from "@/lib/ai/provider-runner";
 import { resolveProviderChain, resolveProvider } from "@/lib/ai/provider";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
-import type { CompletionResult } from "@/lib/ai/types";
+import { singleUserTurn, type CompletionResult } from "@/lib/ai/types";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/insight-generator";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 
@@ -494,12 +494,16 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     const fallback = await runRawCompletionWithFallback({
       userId,
       providers: chain,
-      params: {
-        systemPrompt,
-        userPrompt,
+      // v1.20.0 — the Coach still builds one assembled user turn (the
+      // transcript-flattening preserves the once-per-conversation snapshot
+      // trick + grounding exactly), so it ships as a single user message. The
+      // stable persona/grounding rides `system` and is now cache-eligible.
+      params: singleUserTurn({
+        system: systemPrompt,
+        user: userPrompt,
         temperature: AI_BUDGETS.coach.temperature,
         maxTokens: AI_BUDGETS.coach.maxTokens,
-      },
+      }),
     });
     result = fallback.result;
     workingProviderType = fallback.workingProvider.providerType;

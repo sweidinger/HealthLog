@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AIProvider, CompletionParams, CompletionResult } from "../types";
+import {
+  singleUserTurn,
+  type AIProvider,
+  type CompletionParams,
+  type CompletionResult,
+} from "../types";
 
 // v1.11.0 W1 — the runner now defaults to the Postgres-backed
 // provider-health ledger. These pure chain tests do not stand up a DB,
@@ -139,7 +144,7 @@ describe("runWithFallback — happy path", () => {
     const result = await runWithFallback({
       userId: "u1",
       providers: [{ providerType: "codex", instance: codex }],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
     expect(result.parsed.summary).toBe("ok");
     expect(result.raw.providerType).toBe("codex");
@@ -155,7 +160,7 @@ describe("runWithFallback — happy path", () => {
     const result = await runWithFallback({
       userId: "u1",
       providers: [{ providerType: "openai", instance: openai }],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
     expect(result.workingProvider.providerType).toBe("openai");
     expect(result.raw.providerType).toBe("admin-key");
@@ -178,7 +183,7 @@ describe("runWithFallback — primary fails 401, secondary succeeds", () => {
         { providerType: "codex", instance: codex },
         { providerType: "openai", instance: openai },
       ],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
     expect(result.parsed.summary).toBe("ok");
     expect(result.workingProvider.providerType).toBe("openai");
@@ -209,7 +214,7 @@ describe("runWithFallback — all-fail cascade", () => {
           { providerType: "codex", instance: codex },
           { providerType: "openai", instance: openai },
         ],
-        params: { systemPrompt: "s", userPrompt: "u" },
+        params: singleUserTurn({ system: "s", user: "u" }),
       });
     } catch (e) {
       caught = e;
@@ -250,7 +255,7 @@ describe("runWithFallback — non-hard errors bubble unchanged", () => {
           { providerType: "codex", instance: breaking },
           { providerType: "openai", instance: openai },
         ],
-        params: { systemPrompt: "s", userPrompt: "u" },
+        params: singleUserTurn({ system: "s", user: "u" }),
       });
     } catch (e) {
       caught = e;
@@ -281,7 +286,7 @@ describe("runWithFallback — last-working cache", () => {
         { providerType: "codex", instance: codex },
         { providerType: "openai", instance: openai },
       ],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
 
     expect(getLastWorkingProvider("u-cache")).toBe("openai");
@@ -294,7 +299,7 @@ describe("runWithFallback — last-working cache", () => {
         { providerType: "codex", instance: codex },
         { providerType: "openai", instance: openai },
       ],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
 
     // codex was called exactly once (first call's failure); the cache
@@ -324,7 +329,7 @@ describe("runWithFallback — last-working cache", () => {
         { providerType: "codex", instance: codex },
         { providerType: "openai", instance: openai },
       ],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
     expect(getLastWorkingProvider("u-ttl")).toBe("openai");
 
@@ -340,7 +345,7 @@ describe("runWithFallback — last-working cache", () => {
         { providerType: "codex", instance: codex },
         { providerType: "openai", instance: openai },
       ],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
     expect(getLastWorkingProvider("u-ttl")).toBe("codex");
   });
@@ -353,7 +358,7 @@ describe("runWithFallback — last-working cache", () => {
     await runWithFallback({
       userId: "u-clear",
       providers: [{ providerType: "openai", instance: ok }],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
     expect(getLastWorkingProvider("u-clear")).toBe("openai");
     clearLastWorkingProviderCache();
@@ -377,7 +382,7 @@ describe("runRawCompletionWithFallback — legacy route shim", () => {
         { providerType: "codex", instance: codex },
         { providerType: "admin-openai", instance: openai },
       ],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
     expect(result.result.content).toBe('{ "legacy": true }');
     expect(result.workingProvider.providerType).toBe("admin-openai");
@@ -404,7 +409,7 @@ describe("runRawCompletionWithFallback — legacy route shim", () => {
         { providerType: "codex", instance: codex },
         { providerType: "openai", instance: openai },
       ],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
     });
     expect(result.result.content).toBe('{ "ok": true }');
     expect(result.workingProvider.providerType).toBe("openai");
@@ -432,7 +437,7 @@ describe("runRawCompletionWithFallback — legacy route shim", () => {
           { providerType: "codex", instance: a },
           { providerType: "admin-openai", instance: b },
         ],
-        params: { systemPrompt: "s", userPrompt: "u" },
+        params: singleUserTurn({ system: "s", user: "u" }),
       });
     } catch (e) {
       caught = e;
@@ -449,7 +454,7 @@ describe("runWithFallback — empty input", () => {
       await runWithFallback({
         userId: "u-empty",
         providers: [],
-        params: { systemPrompt: "s", userPrompt: "u" },
+        params: singleUserTurn({ system: "s", user: "u" }),
       });
     } catch (e) {
       caught = e;
@@ -483,7 +488,7 @@ describe("provider-health ledger — auth-failure negative cache", () => {
     await runRawCompletionWithFallback({
       userId: "u-neg",
       providers,
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
       ledger,
     });
     expect((await ledger.getSkipHints("u-neg")).get("codex")?.reason).toBe(
@@ -500,7 +505,7 @@ describe("provider-health ledger — auth-failure negative cache", () => {
     await runRawCompletionWithFallback({
       userId: "u-neg",
       providers,
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
       ledger,
     });
     expect(codex.callCount).toBe(codexCallsBefore); // not re-burned
@@ -519,7 +524,7 @@ describe("provider-health ledger — auth-failure negative cache", () => {
     await runRawCompletionWithFallback({
       userId: "u-clear-neg",
       providers: [{ providerType: "codex", instance: codex }],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
       ledger,
     });
     expect((await ledger.getSkipHints("u-clear-neg")).size).toBe(0);
@@ -559,7 +564,7 @@ describe("provider-health ledger — local model as guaranteed floor", () => {
         { providerType: "anthropic", instance: dead("anthropic") },
         { providerType: "local", instance: local },
       ],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
       ledger,
     });
 
@@ -583,7 +588,7 @@ describe("provider-health ledger — local model as guaranteed floor", () => {
       await runRawCompletionWithFallback({
         userId: "u-local-hard",
         providers: [{ providerType: "local", instance: local }],
-        params: { systemPrompt: "s", userPrompt: "u" },
+        params: singleUserTurn({ system: "s", user: "u" }),
         ledger,
       });
     } catch (e) {
@@ -597,7 +602,7 @@ describe("provider-health ledger — local model as guaranteed floor", () => {
     const result = await runRawCompletionWithFallback({
       userId: "u-local-hard",
       providers: [{ providerType: "local", instance: local }],
-      params: { systemPrompt: "s", userPrompt: "u" },
+      params: singleUserTurn({ system: "s", user: "u" }),
       ledger,
     });
     expect(result.workingProvider.providerType).toBe("local");
@@ -623,7 +628,7 @@ describe("AllProvidersFailedError — primaryCredentialExpired", () => {
           { providerType: "codex", instance: codex },
           { providerType: "admin-openai", instance: openai },
         ],
-        params: { systemPrompt: "s", userPrompt: "u" },
+        params: singleUserTurn({ system: "s", user: "u" }),
         ledger,
       });
     } catch (e) {
@@ -651,7 +656,7 @@ describe("AllProvidersFailedError — primaryCredentialExpired", () => {
           { providerType: "codex", instance: codex },
           { providerType: "admin-openai", instance: openai },
         ],
-        params: { systemPrompt: "s", userPrompt: "u" },
+        params: singleUserTurn({ system: "s", user: "u" }),
         ledger,
       });
     } catch (e) {

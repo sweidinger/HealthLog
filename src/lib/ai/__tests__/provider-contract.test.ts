@@ -4,7 +4,11 @@ import { OpenAIClient } from "../openai-client";
 import { AnthropicClient } from "../anthropic-client";
 import { LocalOpenAICompatibleClient } from "../local-client";
 import { CodexClient } from "../codex-client";
-import type { AIProvider, CompletionResult } from "../types";
+import {
+  singleUserTurn,
+  type AIProvider,
+  type CompletionResult,
+} from "../types";
 
 /**
  * Provider-contract tests: every concrete AIProvider implementation must
@@ -44,10 +48,9 @@ describe("AIProvider contract", () => {
 
   it("MockAIProvider — default response satisfies CompletionResult shape", async () => {
     const provider: AIProvider = new MockAIProvider();
-    const result = await provider.generateCompletion({
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    const result = await provider.generateCompletion(
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     assertCompletionResult(result);
     expect(result.providerType).toBe("local");
     expect(result.model).toBe("mock-model");
@@ -59,18 +62,15 @@ describe("AIProvider contract", () => {
       tokensUsed: [10, 20],
       providerType: "codex",
     });
-    const r1 = await mock.generateCompletion({
-      systemPrompt: "s",
-      userPrompt: "u1",
-    });
-    const r2 = await mock.generateCompletion({
-      systemPrompt: "s",
-      userPrompt: "u2",
-    });
-    const r3 = await mock.generateCompletion({
-      systemPrompt: "s",
-      userPrompt: "u3",
-    });
+    const r1 = await mock.generateCompletion(
+      singleUserTurn({ system: "s", user: "u1" }),
+    );
+    const r2 = await mock.generateCompletion(
+      singleUserTurn({ system: "s", user: "u2" }),
+    );
+    const r3 = await mock.generateCompletion(
+      singleUserTurn({ system: "s", user: "u3" }),
+    );
     expect(r1.content).toBe('{"a":1}');
     expect(r1.tokensUsed).toBe(10);
     expect(r2.content).toBe('{"a":2}');
@@ -78,13 +78,17 @@ describe("AIProvider contract", () => {
     // Last entry repeats once the queue is exhausted.
     expect(r3.content).toBe('{"a":2}');
     expect(mock.callCount).toBe(3);
-    expect(mock.calls.map((c) => c.userPrompt)).toEqual(["u1", "u2", "u3"]);
+    expect(mock.calls.map((c) => c.messages[0].content)).toEqual([
+      "u1",
+      "u2",
+      "u3",
+    ]);
   });
 
   it("MockAIProvider — rejectWith causes generateCompletion to throw", async () => {
     const mock = new MockAIProvider({ rejectWith: new Error("boom") });
     await expect(
-      mock.generateCompletion({ systemPrompt: "s", userPrompt: "u" }),
+      mock.generateCompletion(singleUserTurn({ system: "s", user: "u" })),
     ).rejects.toThrow("boom");
   });
 
@@ -106,10 +110,9 @@ describe("AIProvider contract", () => {
       model: "gpt-4o-mini",
       baseUrl: "https://api.openai.com/v1",
     });
-    const result = await provider.generateCompletion({
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    const result = await provider.generateCompletion(
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     assertCompletionResult(result);
     expect(result.providerType).toBe("admin-key");
     expect(result.model).toBe("gpt-4o-mini");
@@ -132,10 +135,9 @@ describe("AIProvider contract", () => {
       apiKey: "sk-ant-test",
       model: "claude-3-5-sonnet-latest",
     });
-    const result = await provider.generateCompletion({
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    const result = await provider.generateCompletion(
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     assertCompletionResult(result);
     expect(result.providerType).toBe("anthropic");
     expect(result.tokensUsed).toBe(14);
@@ -158,10 +160,9 @@ describe("AIProvider contract", () => {
       model: "llama3:8b",
       baseUrl: "http://localhost:11434/v1",
     });
-    const result = await provider.generateCompletion({
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    const result = await provider.generateCompletion(
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     assertCompletionResult(result);
     expect(result.providerType).toBe("local");
   });
@@ -205,10 +206,9 @@ describe("AIProvider contract", () => {
         .fn()
         .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
     });
-    const result = await provider.generateCompletion({
-      systemPrompt: "sys",
-      userPrompt: "user",
-    });
+    const result = await provider.generateCompletion(
+      singleUserTurn({ system: "sys", user: "user" }),
+    );
     assertCompletionResult(result);
     expect(result.providerType).toBe("codex");
     expect(result.tokensUsed).toBe(23);

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { CodexClient, __test } from "../codex-client";
+import { singleUserTurn } from "../types";
 import {
   clearCodexSlugCache,
   getCachedCodexSlug,
@@ -94,7 +95,7 @@ describe("Codex slug fallback chain", () => {
       onTokenRefresh,
       slugChain: ["gpt-5.3-codex", "gpt-5-codex", "gpt-4o"],
     });
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const sentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -121,7 +122,7 @@ describe("Codex slug fallback chain", () => {
       onTokenRefresh,
       slugChain: ["gpt-5", "gpt-5.3-codex", "gpt-4o"],
     });
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(JSON.parse(mockFetch.mock.calls[0][1].body).model).toBe("gpt-5");
@@ -155,7 +156,7 @@ describe("Codex slug fallback chain", () => {
       onTokenRefresh,
       slugChain: ["nonexistent-slug", "gpt-5.3-codex"],
     });
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(client.getLastDiagnostics()?.workingSlug).toBe("gpt-5.3-codex");
@@ -174,7 +175,7 @@ describe("Codex slug fallback chain", () => {
       onTokenRefresh,
       slugChain: ["dead-slug", "gpt-5.3-codex"],
     });
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
@@ -193,7 +194,7 @@ describe("Codex slug fallback chain", () => {
     });
 
     await expect(
-      client.generateCompletion({ systemPrompt: "s", userPrompt: "u" }),
+      client.generateCompletion(singleUserTurn({ system: "s", user: "u" })),
     ).rejects.toThrow("Codex request failed (500)");
 
     expect(mockFetch).toHaveBeenCalledTimes(1); // no walk
@@ -213,7 +214,7 @@ describe("Codex slug fallback chain", () => {
     });
 
     await expect(
-      client.generateCompletion({ systemPrompt: "s", userPrompt: "u" }),
+      client.generateCompletion(singleUserTurn({ system: "s", user: "u" })),
     ).rejects.toThrow("Codex request failed (429)");
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -235,7 +236,7 @@ describe("Codex slug fallback chain", () => {
       slugChain: ["gpt-5.3-codex", "gpt-4o"],
     });
 
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     // Both calls hit the SAME slug — auth retry didn't walk to gpt-4o.
     expect(JSON.parse(mockFetch.mock.calls[0][1].body).model).toBe(
@@ -263,7 +264,9 @@ describe("Codex slug fallback chain", () => {
 
     let caught: unknown;
     try {
-      await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+      await client.generateCompletion(
+        singleUserTurn({ system: "s", user: "u" }),
+      );
     } catch (e) {
       caught = e;
     }
@@ -291,7 +294,7 @@ describe("Codex slug fallback chain", () => {
       onTokenRefresh,
       slugChain: ["gpt-5.3-codex", "gpt-5-codex", "gpt-4o"],
     });
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(JSON.parse(mockFetch.mock.calls[0][1].body).model).toBe("gpt-4o");
@@ -314,7 +317,7 @@ describe("Codex slug fallback chain", () => {
       onTokenRefresh,
       slugChain: ["gpt-5.3-codex", "gpt-5-codex"],
     });
-    await client.generateCompletion({ systemPrompt: "s", userPrompt: "u" });
+    await client.generateCompletion(singleUserTurn({ system: "s", user: "u" }));
 
     // After walking to "gpt-5.3-codex" (the next entry after the
     // cached one), the cache is updated to the new working slug.
