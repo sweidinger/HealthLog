@@ -14,6 +14,7 @@ const { prismaMock, refreshAccessTokenMock, recordSyncFailure } = vi.hoisted(
       fitbitConnection: {
         findUnique: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn(),
       },
       measurement: {
         findMany: vi.fn<(arg: Record<string, unknown>) => Promise<unknown[]>>(
@@ -103,7 +104,7 @@ describe("getValidToken — rotating refresh", () => {
       access_token: "new-access",
       expires_in: 3600,
     });
-    prismaMock.fitbitConnection.update.mockResolvedValue({});
+    prismaMock.fitbitConnection.updateMany.mockResolvedValue({ count: 1 });
 
     const result = await getValidToken("user1");
 
@@ -112,7 +113,7 @@ describe("getValidToken — rotating refresh", () => {
       clientId: "cid",
       clientSecret: "csecret",
     });
-    const updateArg = prismaMock.fitbitConnection.update.mock.calls[0]![0];
+    const updateArg = prismaMock.fitbitConnection.updateMany.mock.calls[0]![0];
     expect(updateArg.data.accessToken).toBe("enc(new-access)");
     // The stored refresh token must NOT be wiped when the response omits one.
     expect(updateArg.data).not.toHaveProperty("refreshToken");
@@ -131,13 +132,40 @@ describe("getValidToken — rotating refresh", () => {
       refresh_token: "rotated-refresh",
       expires_in: 3600,
     });
-    prismaMock.fitbitConnection.update.mockResolvedValue({});
+    prismaMock.fitbitConnection.updateMany.mockResolvedValue({ count: 1 });
 
     await getValidToken("user1");
 
-    const updateArg = prismaMock.fitbitConnection.update.mock.calls[0]![0];
+    const updateArg = prismaMock.fitbitConnection.updateMany.mock.calls[0]![0];
+    // CAS guard scopes the write to the connection AND the spent ciphertext.
+    expect(updateArg.where.id).toBe("conn1");
+    expect(updateArg.where.refreshToken).toBe("enc(old-refresh)");
     expect(updateArg.data.accessToken).toBe("enc(new-access)");
     expect(updateArg.data.refreshToken).toBe("enc(rotated-refresh)");
+  });
+
+  it("reuses the peer's rotated token on a lost CAS race (no spurious reauth)", async () => {
+    prismaMock.fitbitConnection.findUnique
+      .mockResolvedValueOnce({
+        id: "conn1",
+        fitbitUserId: "abc123",
+        accessToken: "enc(old-access)",
+        refreshToken: "enc(old-refresh)",
+        tokenExpiresAt: new Date(Date.now() - 1000),
+      })
+      .mockResolvedValueOnce({ accessToken: "enc(peer-access)" });
+    refreshAccessTokenMock.mockResolvedValue({
+      access_token: "new-access",
+      refresh_token: "rotated-refresh",
+      expires_in: 3600,
+    });
+    // A concurrent sync rotated first → zero rows match the CAS guard.
+    prismaMock.fitbitConnection.updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await getValidToken("user1");
+
+    expect(result?.accessToken).toBe("peer-access");
+    expect(recordSyncFailure).not.toHaveBeenCalled();
   });
 
   it("returns the stored token without refresh when not near expiry", async () => {

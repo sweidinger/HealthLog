@@ -64,6 +64,75 @@ const WALL_CLOCK_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> =
     weekday: "short",
   });
 
+/**
+ * The wall-clock fields a `zonedWallClockToUtc` caller supplies. Months are
+ * 1-based to match `WallClockParts`; second defaults to 0 when omitted.
+ */
+export interface WallClockInput {
+  year: number;
+  /** 1–12 (January = 1, December = 12). */
+  month: number;
+  /** 1–31. */
+  day: number;
+  /** 0–23. */
+  hour: number;
+  minute: number;
+  second?: number;
+}
+
+/**
+ * Inverse of `wallClockInTz`: given the wall-clock an observer in `tz` reads
+ * (e.g. an offset-less `2020-01-26T03:02:30` Fitbit sleep timestamp), return the
+ * UTC instant it denotes. DST-safe via the same two-pass converge as
+ * `startOfLocalDayInTz` — the second pass settles the zone offset across a DST
+ * transition for every IANA zone. When `tz` is omitted the parts are read as the
+ * host's system-local clock so offset-less callers keep their legacy shape.
+ */
+export function zonedWallClockToUtc(
+  parts: WallClockInput,
+  tz: string | undefined,
+): Date {
+  const second = parts.second ?? 0;
+  if (!tz) {
+    return new Date(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      second,
+      0,
+    );
+  }
+  // Treat the wall clock as if it were UTC, then correct by the zone offset at
+  // that approximate instant; one extra pass settles the DST boundary.
+  const asIfUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    second,
+    0,
+  );
+  let guess = new Date(asIfUtc);
+  for (let i = 0; i < 2; i++) {
+    const at = wallClockInTz(guess, tz);
+    const guessAsIfUtc = Date.UTC(
+      at.year,
+      at.month - 1,
+      at.day,
+      at.hour,
+      at.minute,
+      at.second,
+      0,
+    );
+    const offsetMin = Math.round((guessAsIfUtc - guess.getTime()) / 60_000);
+    guess = new Date(asIfUtc - offsetMin * 60_000);
+  }
+  return guess;
+}
+
 export function wallClockInTz(
   date: Date,
   tz: string | undefined,

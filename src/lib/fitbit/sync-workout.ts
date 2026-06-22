@@ -29,6 +29,7 @@ import {
 } from "./sync";
 import { prisma } from "@/lib/db";
 import { annotate, getEvent } from "@/lib/logging/context";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 
 /** Activities per page on the `activities/list` walk. */
 const WORKOUT_PAGE_SIZE = 100;
@@ -41,6 +42,10 @@ export async function syncUserWorkout(
 ): Promise<number> {
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
+
+  // `startTime` on the activities list is offset-less local wall-clock; anchor
+  // it to the user's stored zone rather than the process zone.
+  const tz = await resolveUserTimezone(userId);
 
   const afterDate =
     opts.start ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -67,7 +72,7 @@ export async function syncUserWorkout(
 
   let imported = 0;
   for (const entry of entries) {
-    const w: FitbitMappedWorkout | null = mapWorkout(entry);
+    const w: FitbitMappedWorkout | null = mapWorkout(entry, tz);
     if (!w) continue; // no usable time span — not a workout
 
     try {

@@ -503,6 +503,62 @@ describe("sleep mapping (1.2 levels.data)", () => {
     expect(mapSleepSession({ levels: { data: [] } })).toHaveLength(0);
     expect(mapSleepSession({})).toHaveLength(0);
   });
+
+  it("anchors a near-midnight segment END to the user's timezone, not the process zone", () => {
+    // A Berlin user (UTC+2 in May / CEST) whose last segment ENDS at 00:30
+    // local on 2026-05-11. The offset-less wall clock `2026-05-11T00:30:00`
+    // must resolve to 22:30 UTC on 2026-05-10 — NOT 00:30 UTC (which a bare
+    // `new Date(iso)` in a UTC process would produce, flipping the wake-day).
+    const sessions = readSleepSessions({
+      sleep: [
+        {
+          logId: 4242,
+          startTime: "2026-05-10T23:00:00.000",
+          endTime: "2026-05-11T00:30:00.000",
+          levels: {
+            data: [
+              {
+                dateTime: "2026-05-11T00:00:00.000",
+                level: "deep",
+                seconds: 1800, // ends 00:30 Berlin local
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const out = mapSleepSession(sessions[0]!, "Europe/Berlin");
+    expect(out).toHaveLength(1);
+    // 00:30 CEST (UTC+2) → 22:30 UTC on the PRIOR civil day.
+    expect(out[0]!.measuredAt.toISOString()).toBe("2026-05-10T22:30:00.000Z");
+  });
+
+  it("anchors a logId-less session anchor against the user's timezone", () => {
+    const sessions = readSleepSessions({
+      sleep: [
+        {
+          // No logId → the anchor falls back to the END instant, which must
+          // also be tz-resolved so the externalId is stable across syncs.
+          endTime: "2026-05-11T00:30:00.000",
+          levels: {
+            data: [
+              {
+                dateTime: "2026-05-11T00:00:00.000",
+                level: "rem",
+                seconds: 1800,
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const out = mapSleepSession(sessions[0]!, "Europe/Berlin");
+    expect(out).toHaveLength(1);
+    // anchor = end instant ISO (UTC) → fieldTag starts with that instant.
+    expect(out[0]!.fieldTag).toBe("2026-05-10T22:30:00.000Z:sleep_rem:0");
+  });
 });
 
 describe("workout mapping (activities list)", () => {

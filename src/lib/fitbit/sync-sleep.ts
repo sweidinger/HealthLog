@@ -32,6 +32,7 @@ import {
   type FitbitResourceSyncOptions,
 } from "./sync";
 import { annotate } from "@/lib/logging/context";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 
 export async function syncUserSleep(
   userId: string,
@@ -39,6 +40,11 @@ export async function syncUserSleep(
 ): Promise<number> {
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
+
+  // The classic 1.2 sleep log emits offset-less local wall-clock timestamps;
+  // anchor them against the user's stored zone so a near-midnight segment END
+  // lands on the correct wake-day rather than being shifted by the process zone.
+  const tz = await resolveUserTimezone(userId);
 
   const start = opts.start ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const end = opts.end ?? new Date();
@@ -53,7 +59,7 @@ export async function syncUserSleep(
       return handleCollectionFetchError("fetchSleep", userId, err);
     }
     for (const session of readSleepSessions(body)) {
-      for (const m of mapSleepSession(session)) {
+      for (const m of mapSleepSession(session, tz)) {
         readings.push({
           type: m.type,
           value: m.value,
