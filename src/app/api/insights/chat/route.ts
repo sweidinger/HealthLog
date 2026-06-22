@@ -73,6 +73,16 @@ import {
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
 import { getSelfContextTextForUser } from "@/lib/ai/coach/about-me";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
+import {
+  COACH_TOOL_DEFS,
+  buildCoachDataInventory,
+  renderDataInventory,
+  buildToolModeAddendum,
+  runCoachToolLoop,
+  MAX_ROUNDS,
+  type CoachToolTrace,
+} from "@/lib/ai/coach/tools";
+import type { AiMessage } from "@/lib/ai/types";
 import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
 import { parseSuggestReminder } from "@/lib/ai/coach/suggest-reminder";
 import { gateSuggestion } from "@/lib/ai/coach/suggest-gate";
@@ -419,6 +429,36 @@ The user's message answers this clarifying question from their self-context ques
 React briefly and personally to the answer; do not repeat the question and do not ask it again.
 `
     : "";
+
+  // ── Provider chain ──────────────────────────────────────────
+  // v1.20.0 (F1) — resolved BEFORE the prompt is built so we know whether to
+  // run the tool-based retrieval path or the legacy snapshot-stuffing path.
+  const chain = await resolveProviderChain(userId);
+  if (chain.length === 0) {
+    const legacy = await resolveProvider(userId);
+    if (legacy.type === "none") {
+      annotate({
+        action: { name: "insights.coach.noProvider" },
+      });
+      return streamProviderError({ code: "coach.provider.none" });
+    }
+    chain.push({ providerType: "admin-openai", instance: legacy });
+  }
+
+  // v1.12.1 — consent gate before any server-managed external egress. When
+  // the chain could egress via the operator's global key, require an active
+  // `ai_coach` (or master `ai_full`) receipt. BYOK / local / ChatGPT-OAuth
+  // chains are the user's own egress and stay ungated. Throws
+  // ConsentRequiredError → apiHandler returns 403 + `consent.ai.required`.
+  await assertConsentForChain({ userId, chain, surface: "coach" });
+
+  // v1.20.0 (F1) — tool mode is on only when EVERY provider in the chain
+  // supports tool-calling, so whichever hop the fallback runner lands on can
+  // still serve tools. A chain that includes a no-tools provider (local /
+  // Ollama) falls back to the legacy snapshot-stuffing path verbatim, exactly
+  // as before — the snapshot builder stays alive as the no-tools floor.
+  const toolMode = chain.every((c) => c.instance.supportsTools !== false);
+
   // v1.18.6 (W7) — citation-aware reference-range grounding for the metrics
   // present in this snapshot. Deterministic + brand-free; framed as general
   // guidance, never a diagnosis. Appended after the SNAPSHOT so it is fully
@@ -447,26 +487,6 @@ ${transcript}
 
 Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
 
-  // ── Provider chain ──────────────────────────────────────────
-  const chain = await resolveProviderChain(userId);
-  if (chain.length === 0) {
-    const legacy = await resolveProvider(userId);
-    if (legacy.type === "none") {
-      annotate({
-        action: { name: "insights.coach.noProvider" },
-      });
-      return streamProviderError({ code: "coach.provider.none" });
-    }
-    chain.push({ providerType: "admin-openai", instance: legacy });
-  }
-
-  // v1.12.1 — consent gate before any server-managed external egress. When
-  // the chain could egress via the operator's global key, require an active
-  // `ai_coach` (or master `ai_full`) receipt. BYOK / local / ChatGPT-OAuth
-  // chains are the user's own egress and stay ungated. Throws
-  // ConsentRequiredError → apiHandler returns 403 + `consent.ai.required`.
-  await assertConsentForChain({ userId, chain, surface: "coach" });
-
   // v1.18.7 (SENIOR-DEV HIGH) — atomically RESERVE the day's budget before
   // the provider call. The reservation increments the day's total by the
   // per-call ceiling (`maxTokens`) in one upsert and returns the new total;
@@ -474,10 +494,17 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // Over-cap → 429 refusal frame, reservation already refunded. The actual
   // token count is reconciled against this reservation after the call,
   // including on empty / sentinel replies (their tokens were still burned).
+  //
+  // v1.20.0 (F1) — the tool loop makes up to MAX_ROUNDS provider round-trips,
+  // so reserve the per-call ceiling × the round count up front and reconcile
+  // the SUMMED actual tokens afterwards. The atomic reserve/reconcile
+  // primitives are unchanged; only the reserved amount scales.
   const reqDateKey = buildDateKey();
   const reservation = await reserveBudget(
     userId,
-    AI_BUDGETS.coach.maxTokens,
+    toolMode
+      ? AI_BUDGETS.coach.maxTokens * MAX_ROUNDS
+      : AI_BUDGETS.coach.maxTokens,
     reqDateKey,
   );
   if (!reservation.allowed) {
@@ -490,23 +517,62 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
 
   let result: CompletionResult;
   let workingProviderType: string;
+  let toolTrace: CoachToolTrace[] = [];
+  let totalTokensSpent: number;
   try {
-    const fallback = await runRawCompletionWithFallback({
-      userId,
-      providers: chain,
-      // v1.20.0 — the Coach still builds one assembled user turn (the
-      // transcript-flattening preserves the once-per-conversation snapshot
-      // trick + grounding exactly), so it ships as a single user message. The
-      // stable persona/grounding rides `system` and is now cache-eligible.
-      params: singleUserTurn({
-        system: systemPrompt,
-        user: userPrompt,
+    if (toolMode) {
+      // v1.20.0 (F1) — base context: the full system prompt + a tool-mode
+      // grounding addendum, with the tiny DATA INVENTORY manifest and the
+      // transcript on the user turn. The figures are NOT in the prompt — the
+      // model pulls only what it needs via the retrieval tools. The inventory
+      // build reuses the snapshot we already computed (60s LRU), so the tools
+      // that fire this turn share its reads.
+      const inventory = await buildCoachDataInventory(userId, effectiveScope);
+      const toolSystem = `${systemPrompt}\n\n${buildToolModeAddendum(locale)}`;
+      const messages: AiMessage[] = [
+        {
+          role: "user",
+          content: `${renderDataInventory(inventory)}${guidedBlock}
+
+CONVERSATION
+${transcript}
+
+Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch any figures you cite with the tools first.`,
+        },
+      ];
+      const loop = await runCoachToolLoop({
+        userId,
+        providers: chain,
+        system: toolSystem,
+        messages,
+        tools: COACH_TOOL_DEFS,
         temperature: AI_BUDGETS.coach.temperature,
         maxTokens: AI_BUDGETS.coach.maxTokens,
-      }),
-    });
-    result = fallback.result;
-    workingProviderType = fallback.workingProvider.providerType;
+        fallbackWindow: effectiveScope?.window,
+      });
+      result = loop.result;
+      workingProviderType = loop.workingProviderType;
+      toolTrace = loop.toolTrace;
+      totalTokensSpent = loop.totalTokens;
+    } else {
+      const fallback = await runRawCompletionWithFallback({
+        userId,
+        providers: chain,
+        // v1.20.0 — the no-tools path still builds one assembled user turn (the
+        // transcript-flattening preserves the once-per-conversation snapshot
+        // trick + grounding exactly), so it ships as a single user message. The
+        // stable persona/grounding rides `system` and is now cache-eligible.
+        params: singleUserTurn({
+          system: systemPrompt,
+          user: userPrompt,
+          temperature: AI_BUDGETS.coach.temperature,
+          maxTokens: AI_BUDGETS.coach.maxTokens,
+        }),
+      });
+      result = fallback.result;
+      workingProviderType = fallback.workingProvider.providerType;
+      totalTokensSpent = result.tokensUsed ?? 0;
+    }
   } catch (err) {
     // The provider chain failed outright — no tokens were billed, so refund
     // the full reservation before surfacing the error frame.
@@ -555,10 +621,12 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // against the actual count NOW, before any empty/sentinel short-circuit, so
   // an empty or sentinel-only reply still records its burned cost (the old
   // post-hoc `recordSpend` ran only on the happy path, undercounting these).
+  // v1.20.0 (F1) — reconcile against the SUMMED tokens across every tool round
+  // (the loop accumulates them); the no-tools path sums to the single call.
   await reconcileSpend(
     userId,
     reservation.reserved,
-    result.tokensUsed ?? 0,
+    totalTokensSpent,
     reqDateKey,
   ).catch(() => {
     // Ledger reconcile is best-effort; a failure leaves the conservative
@@ -681,6 +749,17 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       ? { keyValues: sentinel.keyValues }
       : {}),
     ...(surfacedSuggestion ? { suggestion: surfacedSuggestion } : {}),
+    // v1.20.0 (F1) — persist the retrieval-tool trace (which tools ran +
+    // whether each found data) so a reload can show "what I looked at" and the
+    // audit can replay grounding. Metadata only.
+    ...(toolTrace.length > 0
+      ? {
+          toolCalls: toolTrace.map((t) => ({
+            name: t.name,
+            present: t.present,
+          })),
+        }
+      : {}),
   };
   if (sentinel.malformed) {
     // Graceful degrade: log so ops can spot a provider whose
@@ -720,7 +799,9 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     // v1.18.9 — persist the per-turn token count + model so the quiet
     // token footer survives a conversation reload. The live turn paints
     // from the `done.usage` SSE frame below; reloads read these columns.
-    tokensUsed: result.tokensUsed ?? null,
+    // v1.20.0 (F1) — the summed cost across every tool round, so the footer
+    // reflects the true turn cost on the tool path too.
+    tokensUsed: totalTokensSpent || null,
     model: result.model ?? null,
   });
 
@@ -733,14 +814,21 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     action: { name: "insights.coach.replied" },
     meta: {
       provider: workingProviderType,
-      tokens: result.tokensUsed ?? null,
+      // v1.20.0 (F1) — summed tokens across every tool round (the loop) or the
+      // single call (no-tools path), so the dashboards see the true turn cost.
+      tokens: totalTokensSpent,
       promptVersion: PROMPT_VERSION,
       conversationId: workingConversationId,
       historyTurns: window.length,
+      // v1.20.0 (F1) — whether this turn ran the tool-retrieval path, and how
+      // many tools it fetched, so the dashboards can correlate the token delta
+      // with the new path vs the legacy snapshot path.
+      toolMode,
+      toolsCalled: toolTrace.length,
       // v1.19.1 (C4) — whether the full SNAPSHOT block rode this turn (the
-      // expensive prefix) vs the cheap pointer. Lets the dashboards confirm
-      // the once-per-conversation grounding cut the tokens-per-message.
-      snapshotSent: includeFullSnapshot,
+      // expensive prefix) vs the cheap pointer. On the tool path the snapshot
+      // never rides the prompt, so this is the legacy-path signal only.
+      snapshotSent: !toolMode && includeFullSnapshot,
       promptChars: userPrompt.length,
       // v1.7.0 — count of provenance metrics the snapshot surfaced
       // this turn (a proxy for cluster breadth) so the dashboards can
@@ -793,7 +881,8 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
         conversationId: workingConversationId,
         messageId: assistantMessage.id,
         usage: {
-          totalTokens: result.tokensUsed ?? null,
+          // v1.20.0 (F1) — summed across every tool round.
+          totalTokens: totalTokensSpent || null,
           model: result.model ?? null,
         },
       }),

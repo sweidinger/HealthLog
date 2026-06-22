@@ -277,6 +277,17 @@ const coachProvenanceSchema = z
       .describe(
         "Load-bearing numbers the assistant surfaced, rendered in the collapsible evidence block. Hard-capped at 8 entries.",
       ),
+    toolCalls: z
+      .array(
+        z.object({
+          name: z.string(),
+          present: z.boolean(),
+        }),
+      )
+      .optional()
+      .describe(
+        "v1.20.0 — the retrieval-tool trace for this turn: which tools the Coach called and whether each found data. Metadata only (no values). Absent on the legacy snapshot path and on turns that called no tools.",
+      ),
   })
   .meta({
     id: "CoachProvenance",

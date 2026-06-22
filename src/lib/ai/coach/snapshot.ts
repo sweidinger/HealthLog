@@ -84,6 +84,16 @@ import type {
 export interface CoachSnapshotResult {
   snapshotJson: string;
   /**
+   * v1.20.0 (F1) — the structured, post-degrade snapshot record `snapshotJson`
+   * is serialised from. Keyed by domain block (`bloodPressure`, `weight`,
+   * `pulse`, `mood`, `compliance`, `glucose`, `sleep`, `sleepRhythm`, `labs`,
+   * `illness`, `derived`, `dayStrain`, `trajectory`, `weeklyContext`, …) plus a
+   * `scope` block. The coach tool executor reads a single domain block out of
+   * this so an on-demand retrieval tool returns exactly the numbers the legacy
+   * snapshot-stuffing path would have shown — identical builder, gates, and I/O.
+   */
+  sections: Record<string, unknown>;
+  /**
    * Provenance built from snapshot keys actually present. Stays in
    * sync with the SNAPSHOT block so the source-chip row mirrors what
    * the model could see.
@@ -2352,6 +2362,13 @@ async function buildCoachSnapshotImpl(
 
   return {
     snapshotJson: JSON.stringify(compactSnapshot, null, 2),
+    // v1.20.0 (F1) — the structured, post-degrade snapshot record keyed by
+    // domain block (`bloodPressure`, `glucose`, `labs`, …). The coach tool
+    // executor slices a single domain block out of this so a retrieval tool
+    // returns exactly the numbers the legacy snapshot path would have shown —
+    // same builder, same gates, same I/O. `snapshotJson` is this record
+    // serialised; exposing the record avoids re-parsing it.
+    sections: compactSnapshot,
     provenance: {
       windows: Array.from(windows),
       metrics: Array.from(metrics),
