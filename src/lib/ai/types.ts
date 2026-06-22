@@ -246,13 +246,14 @@ export interface CompletionParams {
   seed?: number;
   /**
    * v1.18.7 — opt the structured (JSON) surfaces into the provider's
-   * strongest JSON-reliability mode. When `"json"`:
+   * strongest JSON-reliability mode. When `"json"` (and no `tools`):
    *   - local (Ollama / OpenAI-compatible): adds `format: "json"`.
    *   - Anthropic: prefills the assistant turn with `{` so the first token
    *     is forced into a JSON object.
-   * The OpenAI client already pins `response_format: json_object`
-   * unconditionally and is unaffected. The Coach (prose, NOT JSON) leaves
-   * this unset, so its streaming path is untouched.
+   *   - OpenAI / Codex: sends `response_format: { type: "json_object" }`.
+   * The Coach (prose, NOT JSON) leaves this unset, so no provider coerces
+   * its reply into a JSON object — including the OpenAI client, which now
+   * gates `response_format` on this flag rather than pinning it always.
    *
    * Mutually exclusive with `tools` on Anthropic: the `{`-prefill injects an
    * assistant turn that collides with a `tool_use` response, so the Anthropic

@@ -49,10 +49,17 @@ export class OpenAIClient implements AIProvider {
     // v1.20.0 — tool plumbing. The defs map onto the OpenAI `function` tool
     // wire; F1 supplies real defs and consumes the parsed `toolCalls`. No F4
     // call site sets `tools`, so the text-only body is unchanged.
-    const tools =
-      params.tools && params.tools.length > 0
-        ? buildOpenAITools(params.tools)
-        : undefined;
+    const hasTools = !!params.tools && params.tools.length > 0;
+    const tools = hasTools ? buildOpenAITools(params.tools!) : undefined;
+
+    // Only force OpenAI's strict JSON mode when the caller actually consumes a
+    // JSON object AND no tools are in play — mirrors the Anthropic client's
+    // `usePrefill` gate. JSON mode coerces `message.content` into a valid JSON
+    // object, which contradicts the Coach prose contract; the F1 tool loop's
+    // forced-final round (toolChoice:"none", no tools, no responseFormat) must
+    // therefore stay out of JSON mode, and every tool round is non-JSON by
+    // construction. Insight/extraction callers opt in with `responseFormat:"json"`.
+    const useJsonFormat = params.responseFormat === "json" && !hasTools;
 
     const res = await safeFetch(
       url,
@@ -67,7 +74,9 @@ export class OpenAIClient implements AIProvider {
           messages,
           temperature: params.temperature ?? 0.3,
           max_tokens: params.maxTokens ?? 1000,
-          response_format: { type: "json_object" },
+          ...(useJsonFormat
+            ? { response_format: { type: "json_object" } }
+            : {}),
           // Deterministic seed for reproducible reference output; omitted
           // (undefined → dropped by JSON.stringify) when the caller does
           // not pin one (e.g. the seedless daily-briefing re-roll).

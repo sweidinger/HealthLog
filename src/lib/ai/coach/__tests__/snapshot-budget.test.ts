@@ -63,6 +63,10 @@ vi.mock("@/lib/logging/context", () => ({
   }) => {
     annotateCalls.push({ name: fields.action?.name, meta: fields.meta });
   },
+  // The snapshot's request-scoped read memoisation (`memoizePerRequest`) reads
+  // the active event here; no request context in this unit test → null, so the
+  // memoiser falls through to the factory and behaviour is unchanged.
+  getEvent: () => null,
 }));
 
 vi.mock("./glp1-snapshot", () => ({
