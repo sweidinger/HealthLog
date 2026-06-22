@@ -24,15 +24,6 @@
  * single spurious reauth forces the user back through the consent flow.
  */
 
-/** Tokens returned by a provider's refresh endpoint (the fields we persist). */
-export interface RotatedTokens {
-  accessToken: string;
-  /** The new refresh token. Omitted only on a malformed reply (kept as-is). */
-  refreshToken?: string | null;
-  /** Absolute expiry of the new access token, if the provider supplies one. */
-  expiresAt?: Date;
-}
-
 export interface PersistRotatedTokenOptions {
   /**
    * Conditional persist: update the connection row ONLY when its stored refresh
