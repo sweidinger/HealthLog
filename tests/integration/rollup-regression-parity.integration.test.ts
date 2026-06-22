@@ -304,24 +304,29 @@ describe("rollup regression accumulators — live parity (v1.20.0 F6)", () => {
       { at: "2026-03-30T08:00:00.000Z", value: 105.0 },
       { at: "2026-03-31T08:00:00.000Z", value: 108.0 },
     ];
+    // WEIGHT, like the bit-identical case above: a plain metric whose rollup
+    // folds the raw rows directly. (BLOOD_GLUCOSE carries a source-priority /
+    // CGM-vs-spot consolidation that makes the live raw-row REGR and the
+    // bucket-folded accumulators legitimately regress over different row sets —
+    // orthogonal to the DST x-axis property this case is here to pin.)
     await prisma.measurement.createMany({
       data: seed.map((s) => ({
         userId: user.id,
-        type: "BLOOD_GLUCOSE" as const,
+        type: "WEIGHT" as const,
         value: s.value,
-        unit: "mg/dL",
+        unit: "kg",
         source: "MANUAL" as const,
         measuredAt: new Date(s.at),
       })),
     });
 
     await recomputeUserRollups(user.id, {
-      types: ["BLOOD_GLUCOSE"],
+      types: ["WEIGHT"],
       granularities: ["DAY"],
     });
 
-    const live = await liveRegr(prisma, user.id, "BLOOD_GLUCOSE");
-    const acc = await foldedAccumulators(prisma, user.id, "BLOOD_GLUCOSE");
+    const live = await liveRegr(prisma, user.id, "WEIGHT");
+    const acc = await foldedAccumulators(prisma, user.id, "WEIGHT");
     const composed = composeRegression(acc);
 
     expect(Number(live.n)).toBe(seed.length);
