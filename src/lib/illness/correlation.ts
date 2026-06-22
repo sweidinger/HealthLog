@@ -909,9 +909,14 @@ function detectRedFlags(input: IllnessCorrelationInput): IllnessRedFlag[] {
     );
   }
   if (feverByDay.size > 0) {
-    const fevPoints: VitalDayPoint[] = [...feverByDay.entries()].map(
-      ([day, mean]) => ({ day, mean }),
-    );
+    // `runFlag` counts CONSECUTIVE-day runs, so it needs chronological input.
+    // The Map unions two individually-sorted sources (passive temperature, then
+    // day-log feverC) in insertion order, NOT global day order — sort by day
+    // before the run scan or an interleaved dual-source episode mis-counts the
+    // run (a false sustained_fever escalation, or a real run hidden).
+    const fevPoints: VitalDayPoint[] = [...feverByDay.entries()]
+      .map(([day, mean]) => ({ day, mean }))
+      .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
     const flag = runFlag(
       fevPoints,
       (v) => v >= FEVER_RED_FLAG,

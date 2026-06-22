@@ -483,6 +483,93 @@ describe("computeIllnessCorrelation — red-flag escalation", () => {
     expect(fever).toBeDefined();
     expect(fever?.days).toBe(3);
   });
+
+  it("does NOT mis-escalate when the thermometer and day-log fever interleave (false-positive guard)", () => {
+    // The fever red-flag unions two individually-sorted sources — the passive
+    // BODY_TEMPERATURE series and the day-log feverC — into a Map. Unless the
+    // unioned points are re-sorted by day, the run scan sees Map-insertion
+    // order, not chronology. Here the thermometer covers {01-10, 01-12} and the
+    // day-log covers {01-11, 01-13, 01-14}. True chronology
+    // 01-10..01-14 = 39,39,37,39,39 → the fever breaks on 01-12, so the longest
+    // run ≥38.5 is 2 → NO escalation. Read in insertion order (temp first:
+    // 39,37 then fever: 39,39,39) it would read as a spurious 3-day run.
+    const temp: MeasurementType = "BODY_TEMPERATURE";
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          {
+            type: temp,
+            baselineDays: jitteredBaseline(36.6, 0.2, 21, "2026-01-02"),
+            episodeDays: [
+              { day: "2026-01-10", mean: 39.0 },
+              { day: "2026-01-12", mean: 37.0 }, // fever broke here
+            ],
+          },
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: flatBaseline(55, 5, "2026-01-15"),
+          },
+        ],
+        dayLogFever: [
+          { day: "2026-01-11", feverC: 39.0 },
+          { day: "2026-01-13", feverC: 39.0 },
+          { day: "2026-01-14", feverC: 39.0 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const fever = out.value.redFlags.find(
+      (f) => f.reason === "sustained_fever",
+    );
+    expect(fever).toBeUndefined();
+  });
+
+  it("escalates a genuine cross-source run that insertion order would hide (false-negative guard)", () => {
+    // The mirror case: a real consecutive 3-day fever run (01-11..01-13) spans
+    // both sources, but Map-insertion order scatters the days and breaks it.
+    // The thermometer covers {01-12 (fever), 01-10 (broke)} and the day-log
+    // covers {01-11, 01-13}. True chronology 01-10..01-13 = 37,39,39,39 → a
+    // real 3-day run ≥38.5. In Map-insertion order (temp first: 01-12=39,
+    // 01-10=37; then day-log: 01-11=39, 01-13=39) the 01-10 reset lands BETWEEN
+    // the fever days → longest run 2 → the genuine escalation is hidden. The
+    // explicit chronological sort is what recovers the streak.
+    const temp: MeasurementType = "BODY_TEMPERATURE";
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          {
+            type: temp,
+            baselineDays: jitteredBaseline(36.6, 0.2, 21, "2026-01-02"),
+            episodeDays: [
+              { day: "2026-01-12", mean: 39.0 }, // fever, listed first
+              { day: "2026-01-10", mean: 37.0 }, // broke, listed second
+            ],
+          },
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: flatBaseline(55, 5, "2026-01-15"),
+          },
+        ],
+        dayLogFever: [
+          { day: "2026-01-11", feverC: 39.0 },
+          { day: "2026-01-13", feverC: 39.0 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const fever = out.value.redFlags.find(
+      (f) => f.reason === "sustained_fever",
+    );
+    expect(fever).toBeDefined();
+    expect(fever?.days).toBe(3);
+    expect(fever?.worstValue).toBe(39.0);
+  });
 });
 
 describe("isAdverseDeviation", () => {
