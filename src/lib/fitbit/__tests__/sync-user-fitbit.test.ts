@@ -241,19 +241,26 @@ describe("syncUserFitbit — single cycle-wide watermark", () => {
     expect(recordSyncSuccess).not.toHaveBeenCalled();
   });
 
-  it("passes fullSync + deferRollup through with an undefined start on a backfill cycle", async () => {
+  it("passes fullSync + deferRollup through with a bounded backfill start", async () => {
     syncUserMetrics.mockResolvedValue(2);
 
     await syncUserFitbit("user1", { fullSync: true });
 
     const opts = syncUserMetrics.mock.calls[0]![1] as {
       start?: Date;
+      end?: Date;
       fullSync?: boolean;
       deferRollup?: boolean;
     };
     expect(opts.fullSync).toBe(true);
-    // Full sync walks deep history with no lower bound.
-    expect(opts.start).toBeUndefined();
+    // The classic Web API range caps mean the backfill walks a bounded horizon
+    // (~1 year back), not an unbounded deep history.
+    expect(opts.start).toBeInstanceOf(Date);
+    expect(opts.end).toBeInstanceOf(Date);
+    const spanDays =
+      (opts.end!.getTime() - opts.start!.getTime()) / (24 * 60 * 60 * 1000);
+    expect(spanDays).toBeGreaterThan(360);
+    expect(spanDays).toBeLessThan(370);
     // The backfill defers the per-write rollup hook to one end-of-cycle pass.
     expect(opts.deferRollup).toBe(true);
   });

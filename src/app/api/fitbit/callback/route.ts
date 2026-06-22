@@ -19,9 +19,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 
 /**
- * OAuth callback from Google for Fitbit / Google Health (v1.12.0). Mirrors the
- * WHOOP callback: the `state` param is a random base64url nonce keyed against
- * the `FitbitOAuthState` ledger. The in-flight user is resolved via the row's
+ * OAuth callback from Fitbit (classic Web API, v1.20.0). Mirrors the WHOOP
+ * callback: the `state` param is a random base64url nonce keyed against the
+ * `FitbitOAuthState` ledger. The in-flight user is resolved via the row's
  * `userId` (never parsed from the cookie value) and cross-checked against the
  * session. The row is consumed (deleted) atomically on every exit branch so a
  * replay of the same nonce fails the second time.
@@ -31,9 +31,12 @@ import { timingSafeEqual } from "node:crypto";
  * nonce already consumed), `expired` (valid row, TTL elapsed), and `cross_user`
  * (valid row, session userId mismatch).
  *
- * On success: exchange the code, fetch the Google Health profile for the
- * external `fitbitUserId`, persist the encrypted `FitbitConnection`, clear any
- * prior reauth state, and enqueue the self-converging history backfill.
+ * v1.20.0 — the deleted ledger row carries the PKCE `code_verifier` minted at
+ * connect; it is presented on the token exchange.
+ *
+ * On success: exchange the code, fetch the Fitbit profile for the external
+ * `fitbitUserId`, persist the encrypted `FitbitConnection`, clear any prior
+ * reauth state, and enqueue the self-converging history backfill.
  */
 const ERR = (reason: string) =>
   NextResponse.redirect(
@@ -70,7 +73,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // payload. P2025 means the nonce was already consumed (replay) or never
   // existed. Atomic at the Postgres row level: two concurrent callbacks with the
   // same nonce can't both pass before either deletes.
-  let stateRow: { userId: string; expiresAt: Date } | null = null;
+  let stateRow: {
+    userId: string;
+    expiresAt: Date;
+    codeVerifier: string | null;
+  } | null = null;
   try {
     stateRow = await prisma.fitbitOAuthState.delete({
       where: { nonce: state },
@@ -102,19 +109,26 @@ export const GET = apiHandler(async (request: NextRequest) => {
     return ERR("nocode");
   }
 
+  // The PKCE verifier minted at connect rides on the ledger row. Its absence
+  // means a malformed / legacy handshake — refuse rather than send a code
+  // exchange Fitbit will reject for a missing verifier.
+  if (!stateRow.codeVerifier) {
+    annotate({ meta: { reason: "no_verifier" } });
+    return ERR("no_verifier");
+  }
+
   try {
     const creds = await getUserFitbitCredentials(user.id);
     if (!creds) {
       return ERR("nocreds");
     }
 
-    const tokens = await exchangeCode(code, creds);
+    const tokens = await exchangeCode(code, stateRow.codeVerifier, creds);
 
-    // The initial code exchange MUST return a refresh token (the connect route
-    // forces `prompt=consent` + `access_type=offline`). If Google ever omits it,
-    // refuse to persist — a stored empty refresh token silently bricks every
-    // future token refresh (the refresh POST then 400s and the connection dies
-    // the moment the access token expires). Error out cleanly so the user
+    // The initial code exchange MUST return a refresh token. If Fitbit ever
+    // omits it, refuse to persist — a stored empty refresh token silently bricks
+    // every future token refresh (the refresh POST then 400s and the connection
+    // dies the moment the access token expires). Error out cleanly so the user
     // re-consents rather than landing a dead connection.
     if (!tokens.refresh_token) {
       getEvent()?.addWarning(

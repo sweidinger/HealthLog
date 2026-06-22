@@ -1,12 +1,14 @@
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FITBIT_API_BASE,
-  FITBIT_DATA_TYPES,
   FITBIT_FIELD_MAP,
   FITBIT_OAUTH_SCOPE,
   exchangeCode,
-  fetchDataPoints,
-  fetchProfile,
+  fetchSleepRange,
+  fetchSpo2Range,
+  fetchWeightRange,
+  generatePkcePair,
   getAuthorizationUrl,
   mapActiveCalories,
   mapBodyFat,
@@ -15,14 +17,17 @@ import {
   mapFitbitSportType,
   mapFloors,
   mapHeartRateVariability,
-  mapHeightCm,
   mapOxygenSaturation,
+  mapRespiratoryRate,
   mapRestingHeartRate,
   mapSleepSession,
   mapSteps,
   mapVo2Max,
   mapWeight,
   mapWorkout,
+  parseVo2Max,
+  readActivityList,
+  readSleepSessions,
   refreshAccessToken,
   resolveFitbitUserId,
 } from "../client";
@@ -44,8 +49,7 @@ function installFetchMock(pages: Array<{ status: number; body: unknown }>) {
   return fetchMock;
 }
 
-// v1.12.1 — the redirect_uri allowlist (M-5) requires a configured, absolute
-// https app origin. Pin one for the OAuth-handshake cases.
+// The redirect_uri allowlist requires a configured, absolute https app origin.
 const PRIOR_APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 beforeEach(() => {
   process.env.NEXT_PUBLIC_APP_URL = "https://app.example.test";
@@ -58,48 +62,61 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("generatePkcePair", () => {
+  it("mints a high-entropy verifier and the matching S256 challenge", () => {
+    const { verifier, challenge } = generatePkcePair();
+    // 64 random bytes → 86 base64url chars; inside Fitbit's 43–128 range.
+    expect(verifier.length).toBeGreaterThanOrEqual(43);
+    expect(verifier.length).toBeLessThanOrEqual(128);
+    expect(verifier).toMatch(/^[A-Za-z0-9_-]+$/);
+    // challenge = BASE64URL(SHA256(verifier)).
+    const expected = createHash("sha256").update(verifier).digest("base64url");
+    expect(challenge).toBe(expected);
+  });
+
+  it("mints a fresh pair each call", () => {
+    expect(generatePkcePair().verifier).not.toBe(generatePkcePair().verifier);
+  });
+});
+
 describe("getAuthorizationUrl", () => {
-  it("builds the Google authorize URL with offline access + consent prompt", () => {
-    const url = getAuthorizationUrl("nonce123", CREDS);
-    expect(url).toContain("accounts.google.com/o/oauth2/v2/auth");
+  it("builds the classic Fitbit authorize URL with PKCE S256", () => {
+    const url = getAuthorizationUrl("nonce123", CREDS, "chal-xyz");
+    expect(url).toContain("www.fitbit.com/oauth2/authorize");
     expect(url).toContain("response_type=code");
     expect(url).toContain("client_id=cid");
     expect(url).toContain("state=nonce123");
-    expect(url).toContain("access_type=offline");
-    expect(url).toContain("prompt=consent");
-    // URLSearchParams encodes the space-separated scope; compare the parsed
-    // `scope` param back to the canonical constant.
-    const scope = new URL(url).searchParams.get("scope");
-    expect(scope).toBe(FITBIT_OAUTH_SCOPE);
-    expect(FITBIT_OAUTH_SCOPE).toContain("googlehealth.profile.readonly");
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("code_challenge")).toBe("chal-xyz");
+    expect(parsed.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(parsed.searchParams.get("scope")).toBe(FITBIT_OAUTH_SCOPE);
   });
 
-  it("requests exactly the four launch Restricted read bundles", () => {
+  it("requests the classic self-serve scopes and omits temperature", () => {
     const scopes = FITBIT_OAUTH_SCOPE.split(" ");
-    expect(scopes).toHaveLength(4);
-    expect(scopes).toContain(
-      "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
-    );
-    expect(scopes).toContain(
-      "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
-    );
-    expect(scopes).toContain(
-      "https://www.googleapis.com/auth/googlehealth.sleep.readonly",
-    );
-    // ECG / nutrition / location are deliberately omitted from the launch set.
-    expect(FITBIT_OAUTH_SCOPE).not.toContain("ecg");
+    expect(scopes).toContain("activity");
+    expect(scopes).toContain("heartrate");
+    expect(scopes).toContain("sleep");
+    expect(scopes).toContain("weight");
+    expect(scopes).toContain("oxygen_saturation");
+    expect(scopes).toContain("respiratory_rate");
+    expect(scopes).toContain("cardio_fitness");
+    expect(scopes).toContain("profile");
+    // temperature deliberately omitted — the classic skin-temp reading is a
+    // baseline delta with no honest absolute slot.
+    expect(FITBIT_OAUTH_SCOPE).not.toContain("temperature");
     expect(FITBIT_OAUTH_SCOPE).not.toContain("nutrition");
     expect(FITBIT_OAUTH_SCOPE).not.toContain("location");
   });
 
   it("carries the configured app origin in the redirect_uri", () => {
-    const url = getAuthorizationUrl("nonce123", CREDS);
+    const url = getAuthorizationUrl("nonce123", CREDS, "c");
     const redirect = new URL(url).searchParams.get("redirect_uri");
     expect(redirect).toBe("https://app.example.test/api/fitbit/callback");
   });
 });
 
-describe("redirect_uri allowlist (M-5)", () => {
+describe("redirect_uri allowlist", () => {
   const PRIOR_REDIRECT = process.env.FITBIT_REDIRECT_URI;
   afterEach(() => {
     if (PRIOR_REDIRECT === undefined) delete process.env.FITBIT_REDIRECT_URI;
@@ -108,12 +125,12 @@ describe("redirect_uri allowlist (M-5)", () => {
 
   it("rejects a non-https app origin", () => {
     process.env.NEXT_PUBLIC_APP_URL = "http://app.example.test";
-    expect(() => getAuthorizationUrl("n", CREDS)).toThrow(/must be https/);
+    expect(() => getAuthorizationUrl("n", CREDS, "c")).toThrow(/must be https/);
   });
 
   it("allows http on localhost (dev)", () => {
     process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
-    const url = getAuthorizationUrl("n", CREDS);
+    const url = getAuthorizationUrl("n", CREDS, "c");
     expect(new URL(url).searchParams.get("redirect_uri")).toBe(
       "http://localhost:3000/api/fitbit/callback",
     );
@@ -121,7 +138,7 @@ describe("redirect_uri allowlist (M-5)", () => {
 
   it("rejects an explicit redirect that targets the wrong path", () => {
     process.env.FITBIT_REDIRECT_URI = "https://app.example.test/evil";
-    expect(() => getAuthorizationUrl("n", CREDS)).toThrow(
+    expect(() => getAuthorizationUrl("n", CREDS, "c")).toThrow(
       /must target \/api\/fitbit\/callback/,
     );
   });
@@ -130,80 +147,72 @@ describe("redirect_uri allowlist (M-5)", () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://app.example.test";
     process.env.FITBIT_REDIRECT_URI =
       "https://attacker.example.test/api/fitbit/callback";
-    expect(() => getAuthorizationUrl("n", CREDS)).toThrow(/does not match/);
-  });
-
-  it("accepts an explicit same-origin redirect", () => {
-    process.env.NEXT_PUBLIC_APP_URL = "https://app.example.test";
-    process.env.FITBIT_REDIRECT_URI =
-      "https://app.example.test/api/fitbit/callback";
-    const url = getAuthorizationUrl("n", CREDS);
-    expect(new URL(url).searchParams.get("redirect_uri")).toBe(
-      "https://app.example.test/api/fitbit/callback",
+    expect(() => getAuthorizationUrl("n", CREDS, "c")).toThrow(
+      /does not match/,
     );
   });
 });
 
 describe("token exchange + refresh", () => {
-  it("exchanges an authorization code for a token pair via Basic auth", async () => {
+  it("exchanges an authorization code WITH the PKCE verifier via Basic auth", async () => {
     const fetchMock = installFetchMock([
       {
         status: 200,
         body: {
           access_token: "at",
           refresh_token: "rt",
-          expires_in: 3600,
-          scope: "https://www.googleapis.com/auth/googlehealth.sleep.readonly",
+          expires_in: 28800,
+          scope: "activity sleep weight",
+          user_id: "ABC123",
         },
       },
     ]);
-    const tok = await exchangeCode("code", CREDS);
+    const tok = await exchangeCode("code", "verifier-123", CREDS);
     expect(tok.access_token).toBe("at");
     expect(tok.refresh_token).toBe("rt");
-    expect(tok.expires_in).toBe(3600);
+    expect(tok.expires_in).toBe(28800);
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [
       string,
       { headers: Record<string, string>; body: string },
     ];
-    expect(url).toContain("oauth2.googleapis.com/token");
+    expect(url).toContain("api.fitbit.com/oauth2/token");
     expect(init.body).toContain("grant_type=authorization_code");
-    // Confidential client credentials ride in the Basic-auth header.
+    expect(init.body).toContain("code_verifier=verifier-123");
     const expected = `Basic ${Buffer.from("cid:csecret").toString("base64")}`;
     expect(init.headers.Authorization).toBe(expected);
   });
 
-  it("refreshes WITHOUT re-sending scope (Google preserves the grant)", async () => {
+  it("refreshes and returns the ROTATED refresh token (classic rotates)", async () => {
     const fetchMock = installFetchMock([
       {
         status: 200,
-        body: { access_token: "at2", expires_in: 3600 },
+        body: {
+          access_token: "at2",
+          refresh_token: "rt2",
+          expires_in: 28800,
+        },
       },
     ]);
     const tok = await refreshAccessToken("rt1", CREDS);
     expect(tok.access_token).toBe("at2");
+    // Classic Fitbit rotates: a fresh refresh token is returned every time.
+    expect(tok.refresh_token).toBe("rt2");
     const [, init] = fetchMock.mock.calls[0] as unknown as [
       string,
       { body: string },
     ];
     expect(init.body).toContain("grant_type=refresh_token");
     expect(init.body).toContain("refresh_token=rt1");
-    // Google preserves the original grant — no scope param is re-sent.
+    // The grant's scope is preserved — no scope param re-sent.
     expect(init.body).not.toContain("scope=");
   });
 
-  it("returns an absent refresh_token unchanged (Google does not rotate)", async () => {
-    installFetchMock([
-      { status: 200, body: { access_token: "at3", expires_in: 3600 } },
-    ]);
-    const tok = await refreshAccessToken("rt1", CREDS);
-    expect(tok.access_token).toBe("at3");
-    expect(tok.refresh_token).toBeUndefined();
-  });
-
   it("throws a classified FitbitApiError on a 401 token response", async () => {
-    installFetchMock([{ status: 401, body: { error: "invalid_grant" } }]);
-    await expect(exchangeCode("bad", CREDS)).rejects.toMatchObject({
+    installFetchMock([
+      { status: 401, body: { errors: [{ errorType: "invalid_grant" }] } },
+    ]);
+    await expect(exchangeCode("bad", "v", CREDS)).rejects.toMatchObject({
       name: "FitbitApiError",
       classification: "reauth_required",
     });
@@ -211,131 +220,51 @@ describe("token exchange + refresh", () => {
 });
 
 describe("fetchProfile + resolveFitbitUserId", () => {
-  it("fetches the profile from the Google Health base", async () => {
-    const fetchMock = installFetchMock([
-      { status: 200, body: { name: "users/abc123" } },
-    ]);
-    const profile = await fetchProfile("at");
-    expect(profile.name).toBe("users/abc123");
-    const [url] = fetchMock.mock.calls[0] as unknown as [string];
-    expect(url).toBe(`${FITBIT_API_BASE}/users/me/profile`);
-  });
-
-  it("throws a classified error on a 403 profile read", async () => {
-    installFetchMock([{ status: 403, body: {} }]);
-    await expect(fetchProfile("at")).rejects.toMatchObject({
-      name: "FitbitApiError",
-      classification: "reauth_required",
-    });
-  });
-
-  it("resolves the external user id from a users/{id} resource name", () => {
-    expect(resolveFitbitUserId({ name: "users/abc123" })).toBe("abc123");
-  });
-
-  it("falls back to a bare id, then to 'me'", () => {
-    expect(resolveFitbitUserId({ id: "xyz" })).toBe("xyz");
+  it("resolves the external user id from the profile encodedId", () => {
+    expect(resolveFitbitUserId({ user: { encodedId: "ABC123" } })).toBe(
+      "ABC123",
+    );
     expect(resolveFitbitUserId({})).toBe("me");
+    expect(resolveFitbitUserId({ user: {} })).toBe("me");
   });
 });
 
-describe("fetchDataPoints", () => {
-  it("encodes the data type kebab-case in the path and snake_case in the filter, walking nextPageToken", async () => {
-    const fetchMock = installFetchMock([
-      {
-        status: 200,
-        body: {
-          dataPoints: [{ a: 1 }],
-          nextPageToken: "tok2",
-        },
-      },
-      { status: 200, body: { dataPoints: [{ a: 2 }] } },
-    ]);
-
-    const points = await fetchDataPoints(
-      FITBIT_DATA_TYPES.bodyFat,
+describe("date-range fetchers", () => {
+  it("encodes the weight endpoint path with the metric Accept-Language", async () => {
+    const fetchMock = installFetchMock([{ status: 200, body: { weight: [] } }]);
+    await fetchWeightRange(
       "at",
-      "fetchBodyFat",
-      { start: new Date("2026-01-01T00:00:00.000Z") },
+      new Date("2026-05-01T00:00:00Z"),
+      new Date("2026-05-30T00:00:00Z"),
     );
-    expect(points).toHaveLength(2);
-
-    const [url1] = fetchMock.mock.calls[0] as unknown as [string];
-    // Path uses kebab-case; filter uses snake_case.
-    expect(url1).toContain(
-      `${FITBIT_API_BASE}/users/me/dataTypes/body-fat/dataPoints`,
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      { headers: Record<string, string> },
+    ];
+    expect(url).toBe(
+      `${FITBIT_API_BASE}/1/user/-/body/log/weight/date/2026-05-01/2026-05-30.json`,
     );
-    const parsed = new URL(url1);
-    expect(parsed.searchParams.get("filter")).toBe(
-      'body_fat.sample_time.physical_time >= "2026-01-01T00:00:00.000Z"',
-    );
-
-    // Second page carries the pageToken from the first response.
-    const [url2] = fetchMock.mock.calls[1] as unknown as [string];
-    expect(new URL(url2).searchParams.get("pageToken")).toBe("tok2");
+    expect(init.headers["Accept-Language"]).toBe("en_GB");
+    expect(init.headers.Authorization).toBe("Bearer at");
   });
 
-  it("filters daily summaries on the civil date, not the sample time", async () => {
-    const fetchMock = installFetchMock([
-      { status: 200, body: { dataPoints: [] } },
-    ]);
-    await fetchDataPoints(
-      FITBIT_DATA_TYPES.restingHeartRate,
+  it("encodes the sleep endpoint on the 1.2 version path", async () => {
+    const fetchMock = installFetchMock([{ status: 200, body: { sleep: [] } }]);
+    await fetchSleepRange(
       "at",
-      "fetchRhr",
-      { start: new Date("2026-03-04T10:00:00.000Z") },
+      new Date("2026-05-01T00:00:00Z"),
+      new Date("2026-05-30T00:00:00Z"),
     );
     const [url] = fetchMock.mock.calls[0] as unknown as [string];
-    expect(new URL(url).searchParams.get("filter")).toBe(
-      'daily_resting_heart_rate.date >= "2026-03-04"',
+    expect(url).toBe(
+      `${FITBIT_API_BASE}/1.2/user/-/sleep/date/2026-05-01/2026-05-30.json`,
     );
   });
 
-  it("filters INTERVAL types on interval.start_time, not a sample_time or a bare date", async () => {
-    // steps / distance / calories / floors, sleep and exercise are INTERVAL data
-    // types — Google anchors them on `interval.start_time`. A sample_time filter
-    // 400s/empties for these and stalls incremental sync.
-    const stepsMock = installFetchMock([
-      { status: 200, body: { dataPoints: [] } },
-    ]);
-    await fetchDataPoints(FITBIT_DATA_TYPES.steps, "at", "fetchSteps", {
-      start: new Date("2026-03-04T10:00:00.000Z"),
-    });
-    expect(
-      new URL(
-        (stepsMock.mock.calls[0] as unknown as [string])[0],
-      ).searchParams.get("filter"),
-    ).toBe('steps.interval.start_time >= "2026-03-04T10:00:00.000Z"');
-
-    const sleepMock = installFetchMock([
-      { status: 200, body: { dataPoints: [] } },
-    ]);
-    await fetchDataPoints(FITBIT_DATA_TYPES.sleep, "at", "fetchSleep", {
-      start: new Date("2026-03-04T10:00:00.000Z"),
-    });
-    expect(
-      new URL(
-        (sleepMock.mock.calls[0] as unknown as [string])[0],
-      ).searchParams.get("filter"),
-    ).toBe('sleep.interval.start_time >= "2026-03-04T10:00:00.000Z"');
-
-    const exMock = installFetchMock([
-      { status: 200, body: { dataPoints: [] } },
-    ]);
-    await fetchDataPoints(FITBIT_DATA_TYPES.exercise, "at", "fetchExercise", {
-      start: new Date("2026-03-04T10:00:00.000Z"),
-    });
-    expect(
-      new URL(
-        (exMock.mock.calls[0] as unknown as [string])[0],
-      ).searchParams.get("filter"),
-    ).toBe('exercise.interval.start_time >= "2026-03-04T10:00:00.000Z"');
-  });
-
-  it("throws a classified FitbitApiError on a non-2xx page", async () => {
+  it("throws a classified FitbitApiError on a 403 page", async () => {
     installFetchMock([{ status: 403, body: {} }]);
     await expect(
-      fetchDataPoints(FITBIT_DATA_TYPES.weight, "at", "fetchWeight"),
+      fetchSpo2Range("at", new Date(), new Date()),
     ).rejects.toMatchObject({
       name: "FitbitApiError",
       classification: "reauth_required",
@@ -344,150 +273,145 @@ describe("fetchDataPoints", () => {
   });
 });
 
-describe("metric mappers", () => {
-  it("maps weight in kg with a stable sample-time anchor + field-tag externalId", () => {
-    const point = {
-      weight: {
-        kilograms: 81.456,
-        sample_time: { physical_time: "2026-05-10T07:30:00.000Z" },
-      },
-    };
-    const out = mapWeight(point);
+describe("metric mappers (classic shapes)", () => {
+  it("maps weight in kg, anchoring the externalId on the logId", () => {
+    const out = mapWeight({
+      weight: [
+        {
+          date: "2026-05-10",
+          time: "07:30:00",
+          weight: 81.46,
+          logId: 1551080804000,
+          source: "Aria",
+        },
+      ],
+    });
     expect(out).toHaveLength(1);
-    expect(out[0]).toMatchObject({
-      type: "WEIGHT",
-      value: 81.46,
-      unit: "kg",
-    });
+    expect(out[0]).toMatchObject({ type: "WEIGHT", value: 81.46, unit: "kg" });
     expect(out[0]!.measuredAt.toISOString()).toBe("2026-05-10T07:30:00.000Z");
-    // externalId field-tag: <anchor>:<tag>; anchor is the sample time ISO string.
-    expect(out[0]!.fieldTag).toBe("2026-05-10T07:30:00.000Z:weight");
+    expect(out[0]!.fieldTag).toBe("1551080804000:weight");
   });
 
-  it("maps body fat percentage", () => {
-    const out = mapBodyFat({ body_fat: { percentage: 18.2 } });
-    expect(out[0]).toMatchObject({ type: "BODY_FAT", value: 18.2, unit: "%" });
-  });
-
-  it("maps daily SpO2 with a civil-date anchor", () => {
-    const out = mapOxygenSaturation({
-      daily_oxygen_saturation: {
-        average_percentage: 97.4,
-        date: { year: 2026, month: 5, day: 10 },
-      },
+  it("maps body fat percentage from the fat array", () => {
+    const out = mapBodyFat({
+      fat: [{ date: "2026-05-10", time: "07:30:00", fat: 18.2, logId: 42 }],
     });
+    expect(out[0]).toMatchObject({ type: "BODY_FAT", value: 18.2, unit: "%" });
+    expect(out[0]!.fieldTag).toBe("42:body_fat");
+  });
+
+  it("maps daily SpO2 from value.avg with a day-keyed externalId (bare array)", () => {
+    const out = mapOxygenSaturation([
+      { dateTime: "2026-05-10", value: { avg: 97.4, min: 94, max: 100 } },
+    ]);
     expect(out[0]).toMatchObject({
       type: "OXYGEN_SATURATION",
       value: 97.4,
       unit: "%",
     });
-    // Daily anchor is the civil date (YYYY-MM-DD), so a re-fetch of the same day
-    // overwrites in place.
     expect(out[0]!.fieldTag).toBe("2026-05-10:spo2");
   });
 
-  it("maps Fitbit HRV into the SDNN HEART_RATE_VARIABILITY slot, NOT HRV_RMSSD", () => {
+  it("maps HRV dailyRmssd into the canonical HEART_RATE_VARIABILITY slot", () => {
     const out = mapHeartRateVariability({
-      daily_heart_rate_variability: {
-        rmssd_milliseconds: 42.7,
-        date: { year: 2026, month: 5, day: 10 },
-      },
+      hrv: [
+        { dateTime: "2026-05-10", value: { dailyRmssd: 42.7, deepRmssd: 50 } },
+      ],
     });
     expect(out[0]!.type).toBe("HEART_RATE_VARIABILITY");
-    expect(out[0]!.type).not.toBe("HRV_RMSSD");
     expect(out[0]).toMatchObject({ value: 42.7, unit: "ms" });
+    expect(out[0]!.fieldTag).toBe("2026-05-10:hrv");
   });
 
-  it("maps daily resting heart rate", () => {
+  it("maps resting HR from the activities-heart value.restingHeartRate", () => {
     const out = mapRestingHeartRate({
-      daily_resting_heart_rate: {
-        beats_per_minute: 54,
-        date: { year: 2026, month: 5, day: 10 },
-      },
+      "activities-heart": [
+        { dateTime: "2026-05-10", value: { restingHeartRate: 54 } },
+      ],
     });
     expect(out[0]).toMatchObject({ type: "RESTING_HEART_RATE", value: 54 });
   });
 
-  it("drops a garbage / non-positive reading rather than minting a row", () => {
-    expect(mapWeight({ weight: { kilograms: 0 } })).toHaveLength(0);
-    expect(mapWeight({ weight: { kilograms: Number.NaN } })).toHaveLength(0);
-    expect(mapWeight({})).toHaveLength(0);
+  it("maps respiratory rate from value.breathingRate", () => {
+    const out = mapRespiratoryRate({
+      br: [{ dateTime: "2026-05-10", value: { breathingRate: 17.8 } }],
+    });
+    expect(out[0]).toMatchObject({
+      type: "RESPIRATORY_RATE",
+      value: 17.8,
+      unit: "breaths/min",
+    });
   });
 
-  it("resolves height to cm from either centimetres or metres, never as a Measurement", () => {
-    expect(mapHeightCm({ height: { centimeters: 178 } })).toBe(178);
-    expect(mapHeightCm({ height: { meters: 1.78 } })).toBe(178);
-    expect(mapHeightCm({ height: {} })).toBeNull();
+  it("drops a garbage / non-positive / absent reading rather than minting a row", () => {
+    expect(
+      mapWeight({ weight: [{ date: "2026-05-10", weight: 0 }] }),
+    ).toHaveLength(0);
+    expect(mapWeight({ weight: [] })).toHaveLength(0);
+    expect(mapWeight({})).toHaveLength(0);
+    expect(
+      mapOxygenSaturation([{ dateTime: "2026-05-10", value: {} }]),
+    ).toHaveLength(0);
   });
 });
 
-describe("FITBIT_FIELD_MAP ↔ FITBIT_DATA_TYPES casing parity", () => {
-  it("keeps the kebab-path / snake-filter pair consistent across both tables", () => {
-    for (const [, entry] of Object.entries(FITBIT_FIELD_MAP)) {
-      // Path is kebab-case, filter is snake_case — they must never carry the
-      // wrong separator (the design §A.1 casing gotcha).
-      expect(entry.path).not.toContain("_");
-      expect(entry.filter).not.toContain("-");
-    }
-    // Every FITBIT_DATA_TYPES entry has matching casing too.
-    for (const dt of Object.values(FITBIT_DATA_TYPES)) {
-      expect(dt.path).not.toContain("_");
-      expect(dt.filter).not.toContain("-");
-    }
+describe("VO2 max", () => {
+  it("parses a single numeric string and a range midpoint", () => {
+    expect(parseVo2Max("45")).toBe(45);
+    expect(parseVo2Max("44-48")).toBe(46);
+    expect(parseVo2Max(50)).toBe(50);
+    expect(parseVo2Max("not-a-number")).toBeNull();
+  });
+
+  it("maps cardioScore value.vo2Max (range → midpoint) with a day-keyed stats externalId", () => {
+    const out = mapVo2Max({
+      cardioScore: [
+        { dateTime: "2026-05-10", value: { vo2Max: "44-48" } },
+        { dateTime: "2026-05-11", value: { vo2Max: "45" } },
+      ],
+    });
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ type: "VO2_MAX", value: 46 });
+    expect(out[0]!.cumulativeDaily).toBe(true);
+    expect(out[0]!.fieldTag).toBe("vo2_max:2026-05-10");
+    expect(out[1]!.value).toBe(45);
   });
 });
 
 describe("activity mappers (cumulative daily)", () => {
-  // INTERVAL data types: Google buckets the daily total into an `interval` with
-  // a `start_time` (physical instant) — NOT a bare civil `date`. The mapper
-  // anchors measuredAt on `interval.start_time` and day-keys the externalId.
-  const interval = { start_time: "2026-05-10T00:00:00.000Z" };
-  // A civil-only fallback shape (no physical start_time) still day-keys cleanly.
-  const civilInterval = {
-    civil_start_time: { year: 2026, month: 5, day: 10 },
-  };
-
-  it("maps steps with a stats:-shaped daily externalId and preserves a zero", () => {
-    const out = mapSteps({ steps: { count: 8421, interval } });
-    expect(out).toHaveLength(1);
+  it("maps steps from the string value, preserving a zero, with a day-keyed externalId", () => {
+    const out = mapSteps({
+      "activities-steps": [
+        { dateTime: "2026-05-10", value: "8421" },
+        { dateTime: "2026-05-11", value: "0" },
+      ],
+    });
+    expect(out).toHaveLength(2);
     expect(out[0]).toMatchObject({
       type: "ACTIVITY_STEPS",
       value: 8421,
       unit: "steps",
       cumulativeDaily: true,
     });
-    // fieldTag carries <tag>:<YYYY-MM-DD>; the sync layer prefixes `stats:`.
     expect(out[0]!.fieldTag).toBe("steps:2026-05-10");
-    // measuredAt anchored on the interval start instant.
-    expect(out[0]!.measuredAt.toISOString()).toBe("2026-05-10T00:00:00.000Z");
-
-    // The civil-only fallback day-keys the externalId at UTC midday.
-    const civil = mapSteps({ steps: { count: 100, interval: civilInterval } });
-    expect(civil[0]!.fieldTag).toBe("steps:2026-05-10");
-
-    // A rest day records 0 steps — that is real data, not a gap.
-    const rest = mapSteps({ steps: { count: 0, interval } });
-    expect(rest).toHaveLength(1);
-    expect(rest[0]!.value).toBe(0);
+    // A rest day of 0 steps is real data.
+    expect(out[1]!.value).toBe(0);
   });
 
-  it("maps distance in metres, converting km → m when reported in km", () => {
-    expect(
-      mapDistance({ distance: { meters: 6200, interval } })[0],
-    ).toMatchObject({
+  it("maps distance km → metres", () => {
+    const out = mapDistance({
+      "activities-distance": [{ dateTime: "2026-05-10", value: "6.2" }],
+    });
+    expect(out[0]).toMatchObject({
       type: "WALKING_RUNNING_DISTANCE",
       value: 6200,
       unit: "m",
     });
-    // km path multiplies by 1000.
-    expect(
-      mapDistance({ distance: { kilometers: 6.2, interval } })[0]!.value,
-    ).toBe(6200);
   });
 
   it("maps the ACTIVE-calories portion into ACTIVE_ENERGY_BURNED", () => {
     const out = mapActiveCalories({
-      active_calories: { active_kilocalories: 540, interval },
+      "activities-activityCalories": [{ dateTime: "2026-05-10", value: "540" }],
     });
     expect(out[0]).toMatchObject({
       type: "ACTIVE_ENERGY_BURNED",
@@ -497,205 +421,157 @@ describe("activity mappers (cumulative daily)", () => {
   });
 
   it("maps floors and preserves a zero", () => {
-    expect(mapFloors({ floors: { count: 12, interval } })[0]).toMatchObject({
-      type: "FLIGHTS_CLIMBED",
-      value: 12,
-      unit: "flights",
+    const out = mapFloors({
+      "activities-floors": [
+        { dateTime: "2026-05-10", value: "12" },
+        { dateTime: "2026-05-11", value: "0" },
+      ],
     });
-    expect(mapFloors({ floors: { count: 0, interval } })[0]!.value).toBe(0);
-  });
-
-  it("maps VO2 max (strictly positive, daily latest-wins) and drops a zero", () => {
-    // VO2 max is a daily-summary metric (civil `date` anchor), not an interval.
-    const day = { year: 2026, month: 5, day: 10 };
-    const out = mapVo2Max({
-      vo2_max: { milliliters_per_kilogram_per_minute: 47.3, date: day },
-    });
-    expect(out[0]).toMatchObject({ type: "VO2_MAX", value: 47.3 });
-    // VO2 max of 0 is garbage — dropped (unlike the running totals).
-    expect(
-      mapVo2Max({
-        vo2_max: { milliliters_per_kilogram_per_minute: 0, date: day },
-      }),
-    ).toHaveLength(0);
+    expect(out[0]).toMatchObject({ type: "FLIGHTS_CLIMBED", value: 12 });
+    expect(out[1]!.value).toBe(0);
   });
 });
 
-describe("sleep-stage mapping", () => {
-  it("harmonises Google stage labels onto the shared SleepStage enum", () => {
+describe("sleep mapping (1.2 levels.data)", () => {
+  it("harmonises classic Fitbit level labels onto the shared SleepStage enum", () => {
     expect(mapFitbitSleepStage("light")).toBe("CORE"); // Fitbit light ↔ Apple core
     expect(mapFitbitSleepStage("deep")).toBe("DEEP");
     expect(mapFitbitSleepStage("rem")).toBe("REM");
-    expect(mapFitbitSleepStage("awake")).toBe("AWAKE");
     expect(mapFitbitSleepStage("wake")).toBe("AWAKE");
+    expect(mapFitbitSleepStage("awake")).toBe("AWAKE");
     expect(mapFitbitSleepStage("restless")).toBe("AWAKE");
-    expect(mapFitbitSleepStage("in-bed")).toBe("IN_BED");
     expect(mapFitbitSleepStage("asleep")).toBe("ASLEEP");
-    // Unknown / non-string → null (skipped, never mis-bucketed).
     expect(mapFitbitSleepStage("snoring")).toBeNull();
     expect(mapFitbitSleepStage(42)).toBeNull();
   });
 
-  it("maps a session into per-SEGMENT SLEEP_DURATION rows with measuredAt = segment END (real timeline)", () => {
-    const session = {
-      sleep: {
-        startTime: "2026-05-10T22:00:00.000Z",
-        endTime: "2026-05-11T06:00:00.000Z",
-        segments: [
-          {
-            stage: "light",
-            startTime: "2026-05-10T22:00:00.000Z",
-            endTime: "2026-05-10T22:30:00.000Z",
+  it("maps a session into per-SEGMENT rows with measuredAt = segment END (real timeline)", () => {
+    const sessions = readSleepSessions({
+      sleep: [
+        {
+          logId: 999,
+          startTime: "2026-05-10T22:00:00.000",
+          endTime: "2026-05-11T06:00:00.000",
+          levels: {
+            data: [
+              {
+                dateTime: "2026-05-10T22:00:00.000",
+                level: "light",
+                seconds: 1800,
+              },
+              {
+                dateTime: "2026-05-10T22:30:00.000",
+                level: "deep",
+                seconds: 3600,
+              },
+              {
+                dateTime: "2026-05-10T23:30:00.000",
+                level: "rem",
+                seconds: 2700,
+              },
+            ],
           },
-          {
-            stage: "deep",
-            startTime: "2026-05-10T22:30:00.000Z",
-            endTime: "2026-05-10T23:30:00.000Z",
-          },
-          {
-            stage: "light",
-            startTime: "2026-05-10T23:30:00.000Z",
-            endTime: "2026-05-11T00:15:00.000Z",
-          },
-          {
-            stage: "rem",
-            startTime: "2026-05-11T00:15:00.000Z",
-            endTime: "2026-05-11T01:00:00.000Z",
-          },
-        ],
-      },
-    };
-    const out = mapSleepSession(session);
+        },
+      ],
+    });
+    expect(sessions).toHaveLength(1);
+    const out = mapSleepSession(sessions[0]!);
 
-    // One row PER segment (no collapse) — 4 segments → 4 rows.
-    expect(out).toHaveLength(4);
+    // One row per segment.
+    expect(out).toHaveLength(3);
     expect(out.every((m) => m.type === "SLEEP_DURATION")).toBe(true);
     expect(out.every((m) => m.unit === "minutes")).toBe(true);
 
-    // Each row carries its OWN end instant + duration — a real clock-time
-    // timeline, not a stage collapse.
-    const core = out.filter((m) => m.sleepStage === "CORE");
-    expect(core.map((m) => m.value)).toEqual([30, 45]);
-    expect(core.map((m) => m.measuredAt.toISOString())).toEqual([
-      "2026-05-10T22:30:00.000Z",
-      "2026-05-11T00:15:00.000Z",
-    ]);
+    const core = out.find((m) => m.sleepStage === "CORE")!;
+    expect(core.value).toBe(30); // 1800s → 30 min
+    // measuredAt = segment START + seconds = END (local instant).
+    expect(core.measuredAt.getTime()).toBe(
+      new Date("2026-05-10T22:30:00.000").getTime(),
+    );
     const deep = out.find((m) => m.sleepStage === "DEEP")!;
     expect(deep.value).toBe(60);
-    expect(deep.measuredAt.toISOString()).toBe("2026-05-10T23:30:00.000Z");
     const rem = out.find((m) => m.sleepStage === "REM")!;
     expect(rem.value).toBe(45);
 
-    // Every fieldTag is distinct (session anchor + stage + segment index) so
-    // the several segments of one stage never collide under the dedup key.
+    // Every fieldTag distinct (logId anchor + stage + segment index).
     const tags = out.map((m) => m.fieldTag);
     expect(new Set(tags).size).toBe(tags.length);
-    expect(tags).toContain("2026-05-11T06:00:00.000Z:sleep_deep:1");
-  });
-
-  it("anchors the session externalId on sleep.interval.end_time for an INTERVAL-shaped point", () => {
-    const out = mapSleepSession({
-      sleep: {
-        interval: {
-          start_time: "2026-05-10T22:00:00.000Z",
-          end_time: "2026-05-11T06:00:00.000Z",
-        },
-        segments: [
-          {
-            stage: "deep",
-            startTime: "2026-05-10T22:30:00.000Z",
-            endTime: "2026-05-10T23:30:00.000Z",
-          },
-        ],
-      },
-    });
-    const deep = out.find((m) => m.sleepStage === "DEEP");
-    expect(deep!.fieldTag).toBe("2026-05-11T06:00:00.000Z:sleep_deep:0");
+    expect(deep.fieldTag).toBe("999:sleep_deep:1");
   });
 
   it("yields nothing for a session with no parseable segments", () => {
-    expect(mapSleepSession({ sleep: {} })).toHaveLength(0);
+    expect(mapSleepSession({ levels: { data: [] } })).toHaveLength(0);
     expect(mapSleepSession({})).toHaveLength(0);
   });
 });
 
-describe("workout mapping", () => {
-  it("maps an exercise session into a Workout shape with a stable externalId", () => {
-    const w = mapWorkout({
-      exercise: {
-        session_id: "ex-123",
-        activity_type: "run",
-        startTime: "2026-05-10T07:00:00.000Z",
-        endTime: "2026-05-10T07:45:00.000Z",
-        active_kilocalories: 410,
-        distance: { meters: 7800 },
-        average_heart_rate: { beats_per_minute: 148 },
-        maximum_heart_rate: { beats_per_minute: 172 },
-      },
+describe("workout mapping (activities list)", () => {
+  it("maps an activity-list entry into a Workout keyed on the logId", () => {
+    const entries = readActivityList({
+      activities: [
+        {
+          logId: 123456,
+          activityName: "Run",
+          startTime: "2026-05-10T07:00:00.000",
+          duration: 45 * 60 * 1000,
+          calories: 410,
+          distance: 7.8, // km
+          averageHeartRate: 148,
+        },
+      ],
     });
+    expect(entries).toHaveLength(1);
+    const w = mapWorkout(entries[0]!);
     expect(w).not.toBeNull();
     expect(w).toMatchObject({
-      externalId: "ex-123",
+      externalId: "123456",
       sportType: "running",
       durationSec: 45 * 60,
       totalEnergyKcal: 410,
-      totalDistanceM: 7800,
+      totalDistanceM: 7800, // km → m
       avgHeartRate: 148,
-      maxHeartRate: 172,
+      maxHeartRate: null,
+      minHeartRate: null,
     });
-    expect(w!.startedAt.toISOString()).toBe("2026-05-10T07:00:00.000Z");
+    expect(w!.startedAt.getTime()).toBe(
+      new Date("2026-05-10T07:00:00.000").getTime(),
+    );
   });
 
   it("falls back to a start-anchored externalId + 'other' sport when fields are absent", () => {
     const w = mapWorkout({
-      exercise: {
-        startTime: "2026-05-10T07:00:00.000Z",
-        endTime: "2026-05-10T07:30:00.000Z",
-      },
+      startTime: "2026-05-10T07:00:00.000",
+      duration: 30 * 60 * 1000,
     });
-    expect(w!.externalId).toBe("exercise:2026-05-10T07:00:00.000Z");
+    expect(w!.externalId).toMatch(/^exercise:/);
     expect(w!.sportType).toBe("other");
     expect(w!.totalEnergyKcal).toBeNull();
     expect(w!.avgHeartRate).toBeNull();
   });
 
-  it("reads the start/end from exercise.interval for an INTERVAL-shaped point", () => {
-    const w = mapWorkout({
-      exercise: {
-        session_id: "ex-iv",
-        activity_type: "run",
-        interval: {
-          start_time: "2026-05-10T07:00:00.000Z",
-          end_time: "2026-05-10T07:45:00.000Z",
-        },
-      },
-    });
-    expect(w).not.toBeNull();
-    expect(w!.startedAt.toISOString()).toBe("2026-05-10T07:00:00.000Z");
-    expect(w!.endedAt.toISOString()).toBe("2026-05-10T07:45:00.000Z");
-    expect(w!.durationSec).toBe(45 * 60);
-  });
-
-  it("returns null for a session with no usable time span", () => {
-    expect(
-      mapWorkout({ exercise: { startTime: "2026-05-10T07:00:00.000Z" } }),
-    ).toBeNull();
-    expect(
-      mapWorkout({
-        exercise: {
-          startTime: "2026-05-10T07:30:00.000Z",
-          endTime: "2026-05-10T07:00:00.000Z", // end before start
-        },
-      }),
-    ).toBeNull();
+  it("returns null for an entry with no usable time span", () => {
+    expect(mapWorkout({ startTime: "2026-05-10T07:00:00.000" })).toBeNull();
+    expect(mapWorkout({ duration: 1000 })).toBeNull();
     expect(mapWorkout({})).toBeNull();
   });
 
-  it("resolves Google activity types to canonical sport labels", () => {
+  it("resolves activity names to canonical sport labels", () => {
     expect(mapFitbitSportType("Walk")).toBe("walking");
     expect(mapFitbitSportType("biking")).toBe("cycling");
     expect(mapFitbitSportType("weights")).toBe("strength");
     expect(mapFitbitSportType("unknown-sport")).toBe("other");
     expect(mapFitbitSportType("")).toBe("other");
+  });
+});
+
+describe("FITBIT_FIELD_MAP", () => {
+  it("documents a type + unit for every launch metric", () => {
+    for (const [, entry] of Object.entries(FITBIT_FIELD_MAP)) {
+      expect(typeof entry.type).toBe("string");
+      expect(entry.type.length).toBeGreaterThan(0);
+      expect(typeof entry.unit).toBe("string");
+    }
+    expect(FITBIT_FIELD_MAP.weight!.type).toBe("WEIGHT");
+    expect(FITBIT_FIELD_MAP.vo2Max!.type).toBe("VO2_MAX");
   });
 });

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // Cheap authenticated probe — the single (non-paginated) profile endpoint the
 // Fitbit client already calls via `fetchProfile`.
 // Base from `src/lib/fitbit/client.ts` (`FITBIT_API_BASE`).
-const FITBIT_PROFILE_URL = `${FITBIT_API_BASE}/users/me/profile`;
+const FITBIT_PROFILE_URL = `${FITBIT_API_BASE}/1/user/-/profile.json`;
 const TIMEOUT_MS = 5_000;
 
 type CategorisedError = { code: string; message: string };
@@ -22,24 +22,24 @@ function categoriseHttpStatus(status: number): CategorisedError {
   if (status === 401 || status === 403) {
     return {
       code: "credentials_rejected",
-      message: "Google Health rejected the credentials",
+      message: "Fitbit rejected the credentials",
     };
   }
   if (status === 429) {
     return {
       code: "rate_limited",
-      message: "Google Health rate-limited the request",
+      message: "Fitbit rate-limited the request",
     };
   }
   if (status >= 500) {
     return {
       code: "upstream_error",
-      message: "Google Health returned a server error",
+      message: "Fitbit returned a server error",
     };
   }
   return {
     code: "connection_failed",
-    message: "Google Health connection failed",
+    message: "Fitbit connection failed",
   };
 }
 
@@ -57,7 +57,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const tokenInfo = await getValidToken(user.id);
   if (!tokenInfo) {
-    return apiError("Google Health not connected", 422, {
+    return apiError("Fitbit not connected", 422, {
       errorCode: "not_configured",
     });
   }
@@ -115,9 +115,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       },
     });
     return apiError(
-      isAbort
-        ? "Google Health request timed out"
-        : "Google Health connection failed",
+      isAbort ? "Fitbit request timed out" : "Fitbit connection failed",
       502,
       { errorCode: code },
     );
