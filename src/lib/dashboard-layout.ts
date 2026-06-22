@@ -367,9 +367,21 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     { id: "mood", visible: true, tileVisible: true, order: 4 },
     { id: "bpInTarget", visible: true, tileVisible: true, order: 5 },
     { id: "medications", visible: true, tileVisible: true, order: 6 },
-    { id: "sleep", visible: false, tileVisible: false, order: 7 },
-    { id: "steps", visible: false, tileVisible: false, order: 8 },
-    { id: "glucose", visible: false, tileVisible: false, order: 9 },
+    // v1.20.0 — sleep / steps / glucose strip tiles default-on so accounts
+    // that sync these signals discover them on / without hunting through
+    // Settings → Dashboard. Each follows the VO2max precedent: the strip
+    // tile is on (`tileVisible: true`) and self-gates on having data
+    // (`hasSleep` / `hasSteps` / `showGlucoseCards` in page.tsx), so an
+    // empty account still gets a clean dashboard. The chart row stays off
+    // (`visible: false`) — those charts live on the /insights sub-pages.
+    { id: "sleep", visible: false, tileVisible: true, order: 7 },
+    { id: "steps", visible: false, tileVisible: true, order: 8 },
+    { id: "glucose", visible: false, tileVisible: true, order: 9 },
+    // totalBodyWater / boneMass / oxygenSaturation carry as catalogue ids
+    // for the iOS layout round-trip only — they have no web render block or
+    // data-floor flag in page.tsx, so flipping their defaults would surface
+    // nothing on web. Their data IS discoverable via the /insights sub-pages.
+    // Kept false until a web render path lands (see .planning/v1200-backlog.md).
     { id: "totalBodyWater", visible: false, tileVisible: false, order: 10 },
     { id: "boneMass", visible: false, tileVisible: false, order: 11 },
     { id: "oxygenSaturation", visible: false, tileVisible: false, order: 12 },
@@ -411,8 +423,10 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     { id: "falls", visible: false, tileVisible: false, order: 22 },
     { id: "walkingSteadiness", visible: false, tileVisible: false, order: 23 },
     // v1.18.2 — Vorsorge summary card. Chart-row only (no strip tile), so
-    // `tileVisible` is forced false; default-invisible until opt-in.
-    { id: "vorsorge", visible: false, tileVisible: false, order: 24 },
+    // `tileVisible` is forced false. v1.20.0 — flipped `visible: true` so
+    // preventive-care reminders surface on / by default; the card self-gates
+    // (see page.tsx) and shows nothing for accounts without due reminders.
+    { id: "vorsorge", visible: true, tileVisible: false, order: 24 },
   ],
 };
 
