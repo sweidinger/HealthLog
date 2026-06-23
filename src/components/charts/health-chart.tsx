@@ -23,6 +23,7 @@ import {
   useMemo,
   useEffect,
   useCallback,
+  useRef,
   type ComponentType,
 } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,6 +61,7 @@ import {
   computeWindowStats,
   type MetricWindowStats,
 } from "@/lib/charts/window-stats";
+import { shouldFireDataReady } from "@/lib/charts/data-ready-latch";
 
 const TIME_RANGES_KEYS = [
   {
@@ -1015,9 +1017,34 @@ export function HealthChart({
   // range-tab change creates a new cache entry but the gate has long
   // latched by then), so this fires exactly when the first paintable
   // state — chart, empty-window card, or error fallback — is available.
+  //
+  // v1.20.1 — fire exactly once, gated on a ref rather than on the
+  // `onDataReady` prop identity. The dashboard passes an inline
+  // `() => markChartReady(id)` closure, so `onDataReady` is a NEW
+  // reference on every parent render; keying the effect on it re-ran the
+  // notify on every commit (e.g. a snapshot refetch on tab-resume), and
+  // that per-commit passive effect kept the chart-row's Radix-Popper
+  // anchors re-committing until React tripped its update-depth guard
+  // (#185). The ready signal is monotonic — once a chart has settled it
+  // stays settled — so latch it behind a ref and depend on `isLoading`
+  // alone. `onDataReady` is read through a ref so a late-arriving handler
+  // still fires without re-arming the effect.
+  const onDataReadyRef = useRef(onDataReady);
   useEffect(() => {
-    if (!isLoading) onDataReady?.();
-  }, [isLoading, onDataReady]);
+    onDataReadyRef.current = onDataReady;
+  }, [onDataReady]);
+  const dataReadyFiredRef = useRef(false);
+  useEffect(() => {
+    if (
+      !shouldFireDataReady({
+        isLoading,
+        alreadyFired: dataReadyFiredRef.current,
+      })
+    )
+      return;
+    dataReadyFiredRef.current = true;
+    onDataReadyRef.current?.();
+  }, [isLoading]);
 
   const chartData = useMemo(() => {
     if (!data?.length) return data;
