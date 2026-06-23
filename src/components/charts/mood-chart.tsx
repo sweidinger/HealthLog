@@ -14,7 +14,7 @@ import {
   ReferenceArea,
   ReferenceLine,
 } from "recharts";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -40,6 +40,7 @@ import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
 import { useViewportWidth } from "@/hooks/use-viewport-width";
 import { computeTickPositions } from "@/lib/charts/x-axis-density";
 import { CHART_HEIGHT_PX } from "@/lib/charts/constants";
+import { shouldFireDataReady } from "@/lib/charts/data-ready-latch";
 import { moodLabelKeyForScore } from "@/lib/mood/labels";
 import { apiGet } from "@/lib/api/api-fetch";
 
@@ -361,9 +362,29 @@ export function MoodChart({
   // gate (see `onDataReady` prop doc). Must run BEFORE the
   // empty-entries early return below so a no-data mount still unblocks
   // the row.
+  //
+  // v1.20.1 — fire once via a ref instead of keying on the unstable
+  // `onDataReady` prop. See the matching note in `health-chart.tsx`: the
+  // dashboard hands every chart a fresh `() => markChartReady(id)` closure
+  // each render, so depending on it re-ran this notify on every commit and
+  // the per-commit passive effect kept the Radix-Popper tile anchors
+  // re-committing until React's update-depth guard tripped (#185).
+  const onDataReadyRef = useRef(onDataReady);
   useEffect(() => {
-    if (!isLoading) onDataReady?.();
-  }, [isLoading, onDataReady]);
+    onDataReadyRef.current = onDataReady;
+  }, [onDataReady]);
+  const dataReadyFiredRef = useRef(false);
+  useEffect(() => {
+    if (
+      !shouldFireDataReady({
+        isLoading,
+        alreadyFired: dataReadyFiredRef.current,
+      })
+    )
+      return;
+    dataReadyFiredRef.current = true;
+    onDataReadyRef.current?.();
+  }, [isLoading]);
 
   // v1.4.43 W2-CHART-GATE — raw mood-entry count across every day in
   // the window. `entries[].samples` carries the per-day raw count

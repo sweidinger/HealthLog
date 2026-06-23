@@ -33,7 +33,7 @@
  * the wrapper itself stays intact.
  */
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { queryKeys } from "@/lib/query-keys";
 import {
   ResponsiveContainer,
@@ -63,6 +63,7 @@ import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
 import { useViewportWidth } from "@/hooks/use-viewport-width";
 import { chooseTickInterval } from "@/lib/charts/x-axis-density";
 import { apiGet } from "@/lib/api/api-fetch";
+import { shouldFireDataReady } from "@/lib/charts/data-ready-latch";
 
 interface DailyCompliancePoint {
   /** Berlin calendar day, "YYYY-MM-DD". */
@@ -255,9 +256,29 @@ export function MedicationComplianceChart({
 
   // v1.16.0 — report the settled query to the dashboard's shared
   // reveal gate (see `onDataReady` prop doc).
+  //
+  // v1.20.1 — fire once via a ref instead of keying on the unstable
+  // `onDataReady` prop. See the matching note in `health-chart.tsx`: the
+  // dashboard hands every chart a fresh `() => markChartReady(id)` closure
+  // each render, so depending on it re-ran this notify on every commit and
+  // the per-commit passive effect kept the Radix-Popper tile anchors
+  // re-committing until React's update-depth guard tripped (#185).
+  const onDataReadyRef = useRef(onDataReady);
   useEffect(() => {
-    if (!isLoading) onDataReady?.();
-  }, [isLoading, onDataReady]);
+    onDataReadyRef.current = onDataReady;
+  }, [onDataReady]);
+  const dataReadyFiredRef = useRef(false);
+  useEffect(() => {
+    if (
+      !shouldFireDataReady({
+        isLoading,
+        alreadyFired: dataReadyFiredRef.current,
+      })
+    )
+      return;
+    dataReadyFiredRef.current = true;
+    onDataReadyRef.current?.();
+  }, [isLoading]);
 
   const chartData = useMemo(
     () =>

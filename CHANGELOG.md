@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.20.1] — 2026-06-23 — Dashboard render-loop fix
+
+A patch release. One fix; no schema changes.
+
+### Fixed
+
+- A user reported the dashboard crashing on returning to a backgrounded tab. The on-focus snapshot refetch re-rendered the page, and each chart's "data ready" notify — keyed on a handler that the page recreated every render — re-fired on every commit, driving the chart row into an unbounded update loop until the browser tripped its render-depth guard and the page fell back to its error card. The notify now fires once, when a chart's initial query settles, regardless of how often the page re-renders.
+
 ## [1.20.0] — 2026-06-22 — Coach on-demand retrieval, deeper recovery insight, Fitbit, and a leaner data tier
 
 A feature release. The Coach fetches what it needs on demand instead of carrying a full snapshot; the recovery-gap learns from the symptom journal and sleep; Fitbit connects over its own Web API; the trend tier serves slope and variability without a live scan; and several built surfaces become discoverable. Two additive migrations (`0190`, `0191`); no breaking changes.
