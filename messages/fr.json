@@ -2288,7 +2288,31 @@
       "thinkingDetail": "Réponse établie à partir de ton aperçu santé.",
       "tokensUsed": "{count} jetons",
       "tokensUsedWithModel": "{count} jetons · {model}",
-      "askAboutThis": "Interroger le coach à ce sujet"
+      "askAboutThis": "Interroger le coach à ce sujet",
+      "readStrip": {
+        "label": "Lecture du Coach",
+        "baselineWithin": "Ta plage habituelle est de {low}–{high} {unit} ; aujourd'hui, {value} s'y situe.",
+        "baselineAbove": "Ta plage habituelle est de {low}–{high} {unit} ; aujourd'hui, {value} se situe au-dessus.",
+        "baselineBelow": "Ta plage habituelle est de {low}–{high} {unit} ; aujourd'hui, {value} se situe en dessous.",
+        "insufficient": "J'apprends encore ta plage habituelle — continue à enregistrer quelques jours de plus.",
+        "driver": "{note}"
+      },
+      "scope": {
+        "prefix": "Le Coach est déjà sur {metric}",
+        "tap": "Touche pour demander",
+        "question": "Explique-moi cette mesure — y a-t-il quelque chose à surveiller ?"
+      },
+      "seeded": {
+        "prefix": "À regarder aujourd'hui : {signal}",
+        "signal": {
+          "readiness": "disponibilité",
+          "recovery": "récupération"
+        },
+        "question": {
+          "readiness": "Ma disponibilité est inhabituelle aujourd'hui — qu'est-ce qui l'explique ?",
+          "recovery": "Ma récupération a changé — qu'est-ce qui se cache derrière ?"
+        }
+      }
     },
     "relativeJustNow": "à l’instant",
     "relativeMinutesAgoOne": "il y a {count} minute",
@@ -3558,6 +3582,27 @@
         "steady": "Conforme à votre moyenne récente.",
         "below": "En dessous de votre moyenne récente."
       }
+    },
+    "briefing": {
+      "memory": {
+        "recall": "Plus tôt, {text}",
+        "forward": "En regardant vers l'avenir : {text}",
+        "forwardWatch": "{metric} est à surveiller.",
+        "forwardHolding": "Pour l'instant, tout reste stable."
+      }
+    },
+    "tension": {
+      "label": "Lecture honnête : {positive} se présente bien, mais {negative} décroche — l'ensemble se situe à {band}.",
+      "contributor": {
+        "green": "vert",
+        "yellow": "jaune",
+        "red": "rouge"
+      }
+    },
+    "streak": {
+      "returnLabel": "Ton {metric} est de nouveau dans ta plage habituelle après {count} jours — quoi que c'était, c'est passé.",
+      "daysInside": "{count} jours dans la plage",
+      "daysOutside": "{count} jours hors plage"
     }
   },
   "thresholds": {

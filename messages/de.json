@@ -2288,7 +2288,31 @@
       "thinkingDetail": "Beantwortet aus deinem Gesundheits-Snapshot.",
       "tokensUsed": "{count} Tokens",
       "tokensUsedWithModel": "{count} Tokens · {model}",
-      "askAboutThis": "Den Coach dazu fragen"
+      "askAboutThis": "Den Coach dazu fragen",
+      "readStrip": {
+        "label": "Coach-Einschätzung",
+        "baselineWithin": "Dein üblicher Bereich liegt bei {low}–{high} {unit}; heute liegt {value} darin.",
+        "baselineAbove": "Dein üblicher Bereich liegt bei {low}–{high} {unit}; heute liegt {value} darüber.",
+        "baselineBelow": "Dein üblicher Bereich liegt bei {low}–{high} {unit}; heute liegt {value} darunter.",
+        "insufficient": "Lerne noch deinen üblichen Bereich — protokolliere noch ein paar Tage weiter.",
+        "driver": "{note}"
+      },
+      "scope": {
+        "prefix": "Der Coach ist schon bei {metric}",
+        "tap": "Zum Fragen tippen",
+        "question": "Erkläre mir diese Kennzahl — worauf sollte ich achten?"
+      },
+      "seeded": {
+        "prefix": "Heute einen Blick wert: {signal}",
+        "signal": {
+          "readiness": "Bereitschaft",
+          "recovery": "Erholung"
+        },
+        "question": {
+          "readiness": "Meine Bereitschaft ist heute auffällig — woran liegt das?",
+          "recovery": "Meine Erholung hat sich verändert — was steckt dahinter?"
+        }
+      }
     },
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",
@@ -3558,6 +3582,27 @@
         "steady": "Im Einklang mit deinem jüngsten Durchschnitt.",
         "below": "Unter deinem jüngsten Durchschnitt."
       }
+    },
+    "briefing": {
+      "memory": {
+        "recall": "Zuletzt: {text}",
+        "forward": "Mit Blick nach vorn: {text}",
+        "forwardWatch": "{metric} ist im Blick zu behalten.",
+        "forwardHolding": "Im Moment ist alles stabil."
+      }
+    },
+    "tension": {
+      "label": "Ehrliche Lesung: {positive} sieht gut aus, aber {negative} fällt ab — das Komposit landet bei {band}.",
+      "contributor": {
+        "green": "grün",
+        "yellow": "gelb",
+        "red": "rot"
+      }
+    },
+    "streak": {
+      "returnLabel": "Dein {metric} ist seit {count} Tagen wieder in deinem üblichen Bereich — was es auch war, es ist vorbei.",
+      "daysInside": "{count} Tage drinnen",
+      "daysOutside": "{count} Tage draußen"
     }
   },
   "thresholds": {
