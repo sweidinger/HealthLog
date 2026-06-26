@@ -158,6 +158,41 @@ describe("resolveDeterministicAssessment", () => {
     expect(a!.text).toContain("Schlafmenge");
   });
 
+  it("appends a grounded next step when the weakest contributor is addressable (en)", () => {
+    // sleep (30) is the lowest present contributor → a behaviourally
+    // addressable driver, so the assessment closes with a doable pointer.
+    const sleepWeak: ReadinessValue = {
+      score: 58,
+      band: "yellow",
+      components: [
+        { key: "rhr", value: 80, weight: 0.3 },
+        { key: "hrv", value: 75, weight: 0.3 },
+        { key: "sleep", value: 30, weight: 0.25 },
+        { key: "mood", value: 70, weight: 0.15 },
+      ],
+    };
+    const a = resolveDeterministicAssessment(
+      "READINESS",
+      okDerived(sleepWeak),
+      "en",
+      NOW,
+    );
+    expect(a!.text).toContain("Held back most by");
+    expect(a!.text).toContain("An earlier night would lift this most.");
+  });
+
+  it("does NOT manufacture a step when the weakest contributor is physiology-only (en)", () => {
+    // rhr (40) is the lowest in the base readiness fixture → no pointer.
+    const a = resolveDeterministicAssessment(
+      "READINESS",
+      okDerived(readiness),
+      "en",
+      NOW,
+    );
+    expect(a!.text).not.toContain("An earlier night");
+    expect(a!.text).not.toContain("most effective lever");
+  });
+
   it("uses the trend for a contributor-less recovery score (en)", () => {
     const a = resolveDeterministicAssessment(
       "RECOVERY_SCORE",

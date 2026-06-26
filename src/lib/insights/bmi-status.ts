@@ -409,7 +409,7 @@ export async function prepareBmiStatusForUser(
     temperature: 0.45,
     noProvider: {
       hasProvider: false,
-      text: getNoKeyBmiStatusText(locale),
+      text: getNoKeyBmiStatusText(locale, bmiSignal),
       cached: true,
       updatedAt: null,
     },
@@ -419,7 +419,7 @@ export async function prepareBmiStatusForUser(
         reason,
         userId,
         todayKey,
-        stubText: getNoKeyBmiStatusText(locale),
+        stubText: getNoKeyBmiStatusText(locale, bmiSignal),
       }),
     finalize: async (outcome): Promise<StatusCardResult> => {
       const summary = normalizeSummaryText(

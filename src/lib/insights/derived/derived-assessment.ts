@@ -248,6 +248,41 @@ function contributorLabel(
 }
 
 /**
+ * v1.21.0 (coach C1 MEDIUM-2) — a single grounded next-step pointer keyed to
+ * the weakest BEHAVIOURALLY ADDRESSABLE contributor. Only the contributors a
+ * person can actually move (sleep, mood, consistency, timing) carry a
+ * pointer; physiology-only contributors (rhr, hrv, respiratory) return null,
+ * so the assessment affirms-and-watches rather than manufacturing a step —
+ * matching the `base-system.ts` "do NOT manufacture a step" rule.
+ */
+const CONTRIBUTOR_POINTERS: Record<string, { de: string; en: string }> = {
+  sleep: {
+    de: "Eine etwas frühere Nacht würde das am ehesten anheben.",
+    en: "An earlier night would lift this most.",
+  },
+  sufficiency: {
+    de: "Etwas mehr Schlafzeit ist hier der wirksamste Hebel.",
+    en: "A little more time asleep is the most effective lever here.",
+  },
+  consistency: {
+    de: "Gleichmäßigere Schlafzeiten über die Woche helfen am meisten.",
+    en: "More even sleep and wake times across the week help most.",
+  },
+  timing: {
+    de: "Ein gleichmäßigerer Rhythmus zieht das am ehesten nach oben.",
+    en: "A steadier sleep rhythm is the most likely thing to pull this up.",
+  },
+  mood: {
+    de: "Ein kurzer Moment für etwas, das dir guttut, kann hier spürbar helfen.",
+    en: "A small moment for something that does you good can noticeably help here.",
+  },
+};
+
+function contributorPointer(key: string, locale: Locale): string | null {
+  return CONTRIBUTOR_POINTERS[key]?.[locale] ?? null;
+}
+
+/**
  * Compose the deterministic per-score assessment from the score's signal +
  * its contributors. Always returns a non-empty, factual, non-causal text.
  * Leads with the score + standing, then names the 1–2 lowest contributors
@@ -294,6 +329,11 @@ export function buildDeterministicScoreAssessment(
           ? `Am stärksten gedämpft durch ${joined}.`
           : `Held back most by ${joined}.`,
       );
+      // v1.21.0 (MEDIUM-2) — close with ONE grounded next step drawn from the
+      // weakest contributor, but only when it is behaviourally addressable.
+      // When the weakest driver is physiology-only, no step is manufactured.
+      const pointer = contributorPointer(ranked[0].key, locale);
+      if (pointer) sentences.push(pointer);
     }
   } else if (signal.delta !== null && signal.delta !== 0) {
     // No contributor breakdown (recovery/stress/strain): use the trend.

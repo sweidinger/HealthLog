@@ -604,7 +604,7 @@ export async function prepareWeightStatusForUser(
     temperature: 0.45,
     noProvider: {
       hasProvider: false,
-      text: getNoKeyWeightStatusText(locale),
+      text: getNoKeyWeightStatusText(locale, weightSignal),
       cached: true,
       updatedAt: null,
     },
@@ -614,7 +614,7 @@ export async function prepareWeightStatusForUser(
         reason,
         userId,
         todayKey,
-        stubText: getNoKeyWeightStatusText(locale),
+        stubText: getNoKeyWeightStatusText(locale, weightSignal),
       }),
     finalize: async (outcome): Promise<StatusCardResult> => {
       const summary = normalizeSummaryText(
