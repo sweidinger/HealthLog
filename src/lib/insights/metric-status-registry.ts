@@ -36,6 +36,7 @@
  * collect.
  */
 import type { MeasurementType } from "@/generated/prisma/client";
+import { FEVER_BAND_C } from "@/lib/clinical-floors";
 
 /** The five shared archetypes plus the dedicated sleep template. */
 export type MetricArchetype =
@@ -69,6 +70,13 @@ export interface MetricStatusMeta {
   direction: MetricDirection;
   /** Coarse population placement anchor; the user's own baseline leads. */
   normalRange?: MetricNormalRange;
+  /**
+   * D3-H1: single-reading fever band line (°C) for temperature metrics, bound
+   * to the canonical `FEVER_BAND_C` so the status band and the illness engine's
+   * sustained-fever escalation (`FEVER_RED_FLAG_C`) are visibly one intentional
+   * pair from `@/lib/clinical-floors`, not two unrelated magic numbers.
+   */
+  feverBandC?: number;
   archetype: MetricArchetype;
 }
 
@@ -194,10 +202,12 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     archetype: "physiological-vital",
   },
   // Body temperature — the population oral-equivalent mean is ~36.6 °C, not
-  // 37.0 °C, with a normal band ~35.7–37.4 °C and fever ≥38.0 °C (J Gen
+  // 37.0 °C, with a normal band ~35.7–37.4 °C and fever ≥ FEVER_BAND_C (J Gen
   // Intern Med systematic review, 2019). C6: the high anchor tightens
   // 37.5 → 37.2 so the band sits below the fever line; sites differ by up
-  // to ~1 °C, so the read is a coarse placement only.
+  // to ~1 °C, so the read is a coarse placement only. D3-H1: the fever line is
+  // the canonical `FEVER_BAND_C`, paired in one place with the engine's
+  // sustained-fever escalation `FEVER_RED_FLAG_C`.
   BODY_TEMPERATURE: {
     id: "BODY_TEMPERATURE",
     measurementType: "BODY_TEMPERATURE",
@@ -205,6 +215,7 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     unit: "°C",
     direction: "target-band",
     normalRange: { low: 36.1, high: 37.2 },
+    feverBandC: FEVER_BAND_C,
     archetype: "physiological-vital",
   },
   SKIN_TEMPERATURE: {
