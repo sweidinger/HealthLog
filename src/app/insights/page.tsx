@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { HeroStrip } from "@/components/insights/hero-strip";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
+import { useDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 import { useDashboardDerived } from "@/components/insights/derived/use-dashboard-derived";
 // v1.4.41 W-ORG — shared shape lives in `src/types/analytics.ts` as
 // `InsightsAnalyticsData`; aliased back to the local name to keep the
@@ -275,6 +276,20 @@ export default function InsightsPage() {
   const analyticsQuery = useAnalyticsQuery();
   const analytics = analyticsQuery.data as AnalyticsData | undefined;
 
+  // v1.21.2 (A4 / A5 / A6) — the dashboard snapshot is the single server source
+  // for the ambient narrative the hero + briefing surface: the Tension Verdict
+  // and return-to-baseline ride its `healthScore`, the briefing recall +
+  // forward-look rides `briefingMemory`. The hero score number itself stays on
+  // the analytics payload (unchanged); only these three additive, server-
+  // resolved DTO fields are lifted from the snapshot. Reads the same shared
+  // `queryKeys.dashboardSnapshot()` cell the dashboard warms, so the insights
+  // visit pays at most one extra round-trip and usually a warm cache hit.
+  const snapshotQuery = useDashboardSnapshot(isAuthenticated);
+  const snapshotHealthScore = snapshotQuery.data?.healthScore ?? null;
+  const heroTension = snapshotHealthScore?.tension ?? null;
+  const heroReturnToBand = snapshotHealthScore?.returnToBand ?? null;
+  const briefingMemory = snapshotQuery.data?.briefingMemory ?? null;
+
   // v1.12.6 — the page owns the ONE overview derived batch. The wellness
   // strip (above the briefing) and the vitals grid (below it) both read this
   // single query instance, so the wellness lift adds no second request.
@@ -432,6 +447,10 @@ export default function InsightsPage() {
         // briefing is actually rendered (the empty-state path owns the
         // `noProvider` branch above).
         noProviderStale={briefingPayload !== null && !advisor.hasProvider}
+        // v1.21.2 (A4) — server-resolved recall + forward-look off the dashboard
+        // snapshot. Both strings are already localised; null leaves the card's
+        // memory block unrendered.
+        memory={briefingMemory}
       />
     ) : null,
     vitals: <VitalsDashboard batch={dashboardDerived} layout={layout} />,
@@ -491,6 +510,11 @@ export default function InsightsPage() {
         // <relative>" line with a discreet connect-provider hint, matching
         // the briefing card footer. Only when a briefing is actually shown.
         noProviderStale={briefingPayload !== null && !advisor.hasProvider}
+        // v1.21.2 (A5 / A6) — server-resolved Tension Verdict + return-to-
+        // baseline off the dashboard snapshot. The hero localises the keys and
+        // forwards them to the score card; null leaves the card quiet.
+        tension={heroTension}
+        returnToBand={heroReturnToBand}
       />
 
       {/* v1.15.18 — the inline "Anpassen" toggle was removed. Customising the

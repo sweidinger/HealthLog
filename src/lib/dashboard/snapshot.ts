@@ -84,6 +84,18 @@ import type {
 } from "@/lib/analytics/health-score";
 import { resolveRestMode } from "@/lib/illness/rest-mode";
 import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
+import {
+  buildScoreNarrativeBlock,
+  type ScoreTensionDto,
+  type ScoreReturnToBandDto,
+} from "@/lib/dashboard/score-narrative";
+import {
+  buildCoachMemoryBlock,
+  type CoachMemoryBlock,
+} from "@/lib/ai/coach/memory-snapshot";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
+import type { Locale } from "@/lib/i18n/config";
+import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 
 /** Briefing freshness window — mirrors the 24 h TTL on the advisor cache. */
 const BRIEFING_TTL_MS = 24 * 60 * 60 * 1000;
@@ -305,6 +317,36 @@ export interface DashboardSnapshotHealthScore {
    * builder always sets it (null when not in Rest Mode).
    */
   restMode?: RestModeAnnotation | null;
+  /**
+   * v1.21.2 (A5) — Tension Verdict, locale-agnostic. Fires only when the
+   * readiness composite's contributors DISAGREE (≥1 strongly favourable AND ≥1
+   * strongly unfavourable); suppressed (`null`) under a clinical red-flag so the
+   * red-flag path dominates. `positive` / `negative` carry the readiness
+   * contributor KEYS — the client maps each to its localised display label
+   * before handing the card its already-localised strings. Null on a coherent
+   * day. Optional (additive contract) so older cached snapshots stay valid.
+   */
+  tension?: ScoreTensionDto | null;
+  /**
+   * v1.21.2 (A6) — return-to-baseline, locale-agnostic. Present only when a
+   * salient metric has come BACK inside the user's own personal range after a
+   * prior out-of-band run; at most one (the most salient). `metricType` is the
+   * `MeasurementType` the client maps to its localised metric name. Null
+   * otherwise. Optional (additive contract).
+   */
+  returnToBand?: ScoreReturnToBandDto | null;
+}
+
+/**
+ * v1.21.2 (A4) — the briefing recall + forward-look. Both strings are
+ * already-localised, server-resolved prose: `recall` is the prior period's
+ * narrative headline; `forward` points ahead to the most salient trend drift
+ * (or a calm "holding steady" when nothing drifted). The card renders them
+ * verbatim. Null when no prior narrative is on file.
+ */
+export interface DashboardSnapshotBriefingMemory {
+  recall: string;
+  forward: string;
 }
 
 export interface DashboardSnapshot {
@@ -360,6 +402,13 @@ export interface DashboardSnapshot {
    */
   healthScore: DashboardSnapshotHealthScore | null;
   briefing: DailyBriefing | null;
+  /**
+   * v1.21.2 (A4) — server-resolved recall + forward-look for the briefing card.
+   * Null when no prior narrative is on file. Rides the snapshot DTO so iOS reads
+   * the same already-localised block. Optional on the type (additive contract)
+   * so older cached snapshots / fixtures without it stay valid.
+   */
+  briefingMemory?: DashboardSnapshotBriefingMemory | null;
   briefingState: BriefingState;
   briefingUpdatedAt: string | null;
   /**
@@ -865,6 +914,76 @@ function gateSummariesByModules(
 }
 
 /**
+ * v1.21.2 (A4) — map the machine-derived coach memory block onto the briefing
+ * card's `{ recall, forward }` shape, both already-localised. `recall` is the
+ * prior period's narrative headline (locale-generated prose). `forward` points
+ * ahead from the single most salient trend drift (a metric whose current-period
+ * center has moved OUT of its prior personal band), or a calm "holding steady"
+ * line when nothing drifted. Returns `null` when there is no prior narrative to
+ * recall — silence is the default, never a fabricated callback.
+ *
+ * Localised through the server translator + the EXISTING metric-name keys
+ * (`measurements.type*`). Two NEW forward-look template keys
+ * (`insights.briefing.memory.forwardWatch` / `forwardHolding`) are reported to
+ * the orchestrator; they degrade to the raw key string until the bundle lands.
+ */
+function mapBriefingMemory(
+  block: CoachMemoryBlock | null,
+  locale: Locale,
+): DashboardSnapshotBriefingMemory | null {
+  if (!block?.priorNarrative) return null;
+  const recall = block.priorNarrative.headline.trim();
+  if (recall.length === 0) return null;
+
+  const { t } = getServerTranslator(locale);
+
+  // The most salient drift: a trend metric whose current-period center sits
+  // OUT of its prior band. Deterministic — first in canonical map order. When
+  // none drifted, the forward-look is the calm "holding steady" line.
+  const driftType = Object.keys(block.trendMemory).find(
+    (type) => block.trendMemory[type]?.currentBand !== "in",
+  );
+  let forward: string;
+  if (driftType) {
+    const metricLabel = localisedMeasurementLabel(driftType, t);
+    forward = t("insights.briefing.memory.forwardWatch", {
+      metric: metricLabel,
+    });
+  } else {
+    forward = t("insights.briefing.memory.forwardHolding");
+  }
+  return { recall, forward };
+}
+
+/**
+ * Localised display name for a `MeasurementType`, via the existing
+ * `measurements.type*` keys (reused — no new metric-name keys). Falls back to
+ * the prettified raw type when no key resolves so a new type never blanks.
+ */
+function localisedMeasurementLabel(
+  type: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  // `WALKING_RUNNING_DISTANCE` → `measurements.typeWalkingRunningDistance`.
+  const camel = type
+    .toLowerCase()
+    .split("_")
+    .map((part, i) =>
+      i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1),
+    )
+    .join("");
+  const key = `measurements.type${camel.charAt(0).toUpperCase()}${camel.slice(1)}`;
+  const resolved = t(key);
+  // The server translator echoes the key on a miss; fall back to a readable form.
+  return resolved === key ? type.replace(/_/g, " ").toLowerCase() : resolved;
+}
+
+/** Narrow a 6-locale `Locale` to the de/en the narrative pipeline generates. */
+function narrativeLocale(locale: Locale): "de" | "en" {
+  return locale === "de" ? "de" : "en";
+}
+
+/**
  * Assemble the full snapshot in ONE `Promise.all`. Every sub-read is
  * timed via the optional `time` wrapper so a regression is attributable
  * through `meta.snapshot.sub_*_ms` without re-instrumenting the route.
@@ -889,6 +1008,25 @@ export async function buildDashboardSnapshot(
      * the client.
      */
     modules?: () => Promise<Record<ModuleKey, boolean>>;
+    /**
+     * v1.21.2 — active locale for the A4 briefing memory prose. Defaults to
+     * English; the route resolves it from the request (cookie / header / user
+     * preference). The recall headline is read locale-specific; non-de locales
+     * fall back to the English narrative read inside `buildCoachMemoryBlock`.
+     */
+    locale?: Locale;
+    /**
+     * v1.21.2 — injectable narrative-memory builder so the snapshot tests can
+     * exercise the A4 wire without a narrative row. Defaults to the real
+     * `buildCoachMemoryBlock`.
+     */
+    coachMemory?: typeof buildCoachMemoryBlock;
+    /**
+     * v1.21.2 — injectable score-narrative builder (A5 tension + A6
+     * return-to-baseline) so the snapshot tests can drive the wire without the
+     * derived engines. Defaults to the real `buildScoreNarrativeBlock`.
+     */
+    scoreNarrative?: typeof buildScoreNarrativeBlock;
   } = {},
 ): Promise<DashboardSnapshot> {
   const userTz = user.timezone ?? DEFAULT_TIMEZONE;
@@ -968,6 +1106,50 @@ export async function buildDashboardSnapshot(
     options.hasProvider ?? (() => hasAnyConfiguredProvider(user.id)),
   );
 
+  // v1.21.2 (A4 / A5 / A6) — the score-card narrative (Tension Verdict +
+  // return-to-baseline) and the briefing recall + forward-look. Gated like the
+  // briefing on the `insights` module so a narrative-off account carries none.
+  // Both are fail-soft — a transient derived-engine read resolves to null and
+  // never sinks the snapshot. The narrative block rides the warm phase's
+  // healthScore; memory rides the briefing card. The locale defaults to English.
+  const locale = options.locale ?? "en";
+  const narrativeSex: "MALE" | "FEMALE" | null =
+    user.gender === "MALE" || user.gender === "FEMALE" ? user.gender : null;
+  const narrativeProfile = {
+    ageYears: getAgeFromDateOfBirth(user.dateOfBirth),
+    sex: narrativeSex,
+    heightCm: user.heightCm ?? null,
+  };
+  // The Tension Verdict only adds signal once a health score actually rendered
+  // (a coherent ring with no contributors is nothing to reconcile); memory only
+  // matters once a briefing is shown.
+  const narrativeEnabled =
+    modules.insights !== false && extrasResult?.healthScore != null;
+  const [scoreNarrative, coachMemoryBlock] = await Promise.all([
+    narrativeEnabled
+      ? time("scoreNarrative", () =>
+          (options.scoreNarrative ?? buildScoreNarrativeBlock)(
+            user.id,
+            narrativeProfile,
+            now,
+            userTz,
+            coverage,
+          ),
+        ).catch(() => null)
+      : Promise.resolve(null),
+    briefing.briefing !== null && modules.insights !== false
+      ? time("coachMemory", () =>
+          (options.coachMemory ?? buildCoachMemoryBlock)(
+            user.id,
+            narrativeProfile,
+            now,
+            narrativeLocale(locale),
+          ),
+        ).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  const briefingMemory = mapBriefingMemory(coachMemoryBlock, locale);
+
   const gender =
     user.gender === "MALE" || user.gender === "FEMALE" ? user.gender : null;
 
@@ -1000,8 +1182,19 @@ export async function buildDashboardSnapshot(
     },
     extras: extrasResult?.extras ?? null,
     medsToday,
-    healthScore: extrasResult?.healthScore ?? null,
+    // v1.21.2 (A5 / A6) — fold the score-card narrative onto the health score so
+    // the hero reads tension + return-to-baseline off the resolved score DTO.
+    healthScore: extrasResult?.healthScore
+      ? {
+          ...extrasResult.healthScore,
+          tension: scoreNarrative?.tension ?? null,
+          returnToBand: scoreNarrative?.returnToBand ?? null,
+        }
+      : null,
     briefing: briefing.briefing,
+    // v1.21.2 (A4) — the briefing recall + forward-look. Null when there is no
+    // prior narrative on file or no briefing is shown.
+    briefingMemory: briefing.briefing !== null ? briefingMemory : null,
     briefingState: briefing.briefingState,
     briefingUpdatedAt: briefing.briefingUpdatedAt,
     briefingStale: briefing.briefingStale,
