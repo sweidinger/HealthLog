@@ -27,6 +27,7 @@ import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { TimeFormatSelect } from "@/components/settings/time-format-select";
+import { DateFormatSelect } from "@/components/settings/date-format-select";
 import { UnitPreferenceSelect } from "@/components/settings/unit-preference-select";
 import { CycleTrackingCard } from "@/components/settings/cycle-tracking-card";
 import { detectBrowserTimezone } from "@/lib/tz/format";
@@ -416,6 +417,7 @@ export function AccountSection() {
             <TimezonePicker value={timezone} onChange={setTimezone} />
             <UnitPreferenceSelect isAuthenticated={isAuthenticated} />
             <TimeFormatSelect isAuthenticated={isAuthenticated} />
+            <DateFormatSelect isAuthenticated={isAuthenticated} />
           </div>
 
           {/* v1.7.0 — optional patient-identity fields surfaced on the

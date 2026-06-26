@@ -20,6 +20,7 @@
     "inactive": "Inaktiv",
     "disabled": "Deaktiviert",
     "networkError": "Netzwerkfehler",
+    "openDatePicker": "Datumsauswahl öffnen",
     "unknownError": "Unbekannter Fehler",
     "copied": "Kopiert!",
     "or": "oder",
@@ -4119,6 +4120,16 @@
       "h12": "12 Stunden (AM/PM)",
       "saved": "Stundenformat gespeichert.",
       "saveError": "Speichern des Stundenformats fehlgeschlagen."
+    },
+    "dateFormat": {
+      "title": "Datumsformat",
+      "description": "Bestimmt die Reihenfolge von Tag, Monat und Jahr bei der Anzeige von Daten.",
+      "auto": "Automatisch (Sprache)",
+      "dmy": "TT.MM.JJJJ",
+      "mdy": "MM/TT/JJJJ",
+      "ymd": "JJJJ-MM-TT",
+      "saved": "Datumsformat gespeichert.",
+      "saveError": "Speichern des Datumsformats fehlgeschlagen."
     },
     "username": "Benutzername",
     "height": "Körpergröße (cm)",
