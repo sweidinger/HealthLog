@@ -62,6 +62,12 @@ export interface SparklineDeltaTileProps {
    * explainer; the tile just gives it a slot.
    */
   provenance?: React.ReactNode;
+  /**
+   * Optional quiet footer slot — a discreet pointer (e.g. a `LearnMoreLink`)
+   * rendered under the framing row. Plain element children; the caller decides
+   * whether a tile carries one, so the dense grid stays uncluttered.
+   */
+  footer?: React.ReactNode;
   className?: string;
 }
 
@@ -77,6 +83,7 @@ export function SparklineDeltaTile({
   staleDays = null,
   precision = 1,
   provenance,
+  footer,
   className,
 }: SparklineDeltaTileProps) {
   const { t } = useTranslations();
@@ -244,6 +251,12 @@ export function SparklineDeltaTile({
           {t("dashboard.staleHint", { count: staleDays })}
         </span>
       )}
+
+      {footer ? (
+        <div className="mt-2" data-slot="sparkline-delta-tile-footer">
+          {footer}
+        </div>
+      ) : null}
     </div>
   );
 }
