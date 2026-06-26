@@ -502,6 +502,96 @@ describe("dispatchNotification — Telegram hard reject", () => {
   });
 });
 
+describe("dispatchNotification — config parse/decrypt failure is a hard reject", () => {
+  it("malformed channel config auto-disables on first occurrence (not after 5 transient ticks)", async () => {
+    const channel = makeChannel({
+      type: "NTFY",
+      // Not valid JSON → JSON.parse throws in sendToChannel.
+      config: "{ this is not json",
+    });
+    vi.mocked(prisma.notificationChannel.findMany).mockResolvedValueOnce([
+      channel,
+    ] as never);
+
+    await dispatchNotification({
+      eventType: "SYSTEM_ALERT",
+      userId: "u-1",
+      title: "t",
+      message: "m",
+    });
+
+    // The sender is never reached on a parse failure.
+    expect(sendViaNtfyMock).not.toHaveBeenCalled();
+
+    // Channel auto-disabled immediately with the precise parse reason —
+    // NOT the misleading `give_up_after_5_failures`.
+    const updateCalls = (
+      prisma.notificationChannel.update as unknown as ReturnType<typeof vi.fn>
+    ).mock.calls;
+    const disablePayload = updateCalls.find(
+      (c) => (c[0] as { data: { enabled?: boolean } }).data?.enabled === false,
+    );
+    expect(disablePayload).toBeTruthy();
+    expect(
+      (disablePayload?.[0] as { data: { disabledReason?: string } }).data
+        .disabledReason,
+    ).toBe("ntfy_config_parse_failed");
+
+    // It is logged as a hard reject, not a transient give-up.
+    expect(auditLog).toHaveBeenCalledWith(
+      "notification.channel.auto_disabled",
+      expect.objectContaining({
+        details: expect.objectContaining({
+          reason: "ntfy_config_parse_failed",
+          kind: "hard_reject",
+        }),
+      }),
+    );
+  });
+
+  it("a genuine transient failure still takes the transient path (stays enabled, backoff set)", async () => {
+    const channel = makeChannel({
+      type: "NTFY",
+      config: JSON.stringify({ serverUrl: "https://ntfy.example", topic: "t" }),
+      consecutiveFailures: 0,
+    });
+    vi.mocked(prisma.notificationChannel.findMany).mockResolvedValueOnce([
+      channel,
+    ] as never);
+    sendViaNtfyMock.mockResolvedValueOnce({
+      ok: false,
+      hardReject: false,
+      statusCode: 503,
+      reason: "ntfy_503",
+    });
+    (prisma.notificationChannel.update as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ consecutiveFailures: 1 })
+      .mockResolvedValue({});
+
+    await dispatchNotification({
+      eventType: "SYSTEM_ALERT",
+      userId: "u-1",
+      title: "t",
+      message: "m",
+    });
+
+    const updateCalls = (
+      prisma.notificationChannel.update as unknown as ReturnType<typeof vi.fn>
+    ).mock.calls;
+    // No enabled=false update → channel stays enabled, backoff scheduled.
+    const disablePayload = updateCalls.find(
+      (c) => (c[0] as { data: { enabled?: boolean } }).data?.enabled === false,
+    );
+    expect(disablePayload).toBeUndefined();
+    const cooldownPayload = updateCalls.find(
+      (c) =>
+        (c[0] as { data: { nextRetryAt?: Date } }).data?.nextRetryAt instanceof
+        Date,
+    );
+    expect(cooldownPayload).toBeTruthy();
+  });
+});
+
 describe("dispatchNotification — reminders reach Web Push without APNs", () => {
   it("a PWA-only self-hoster (WEB_PUSH channel, no APNS) still gets MEDICATION_REMINDER", async () => {
     const channel = makeChannel({ type: "WEB_PUSH" });

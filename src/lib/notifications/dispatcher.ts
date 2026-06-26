@@ -263,9 +263,16 @@ async function sendToChannel(
     decrypted = decrypt(encryptedConfig);
   } catch {
     getEvent()?.addWarning(`Failed to decrypt ${type} channel config`);
+    // A config that can't be decrypted is a structurally-permanent failure,
+    // not a transient blip: the ciphertext / key pairing won't fix itself on
+    // a retry. Hard-reject so the channel auto-disables on first occurrence
+    // with an accurate reason, rather than burning the 5-failure transient
+    // budget and ending on the misleading `give_up_after_5_failures`. During
+    // a key-rotation gap every channel would otherwise auto-disable for the
+    // wrong reason.
     return {
       ok: false,
-      hardReject: false,
+      hardReject: true,
       reason: `${type.toLowerCase()}_config_decrypt_failed`,
     };
   }
@@ -277,9 +284,10 @@ async function sendToChannel(
         config = JSON.parse(decrypted) as TelegramChannelConfig;
       } catch {
         getEvent()?.addWarning("Failed to parse Telegram channel config");
+        // Malformed config decodes the same on every retry — permanent.
         return {
           ok: false,
-          hardReject: false,
+          hardReject: true,
           reason: "telegram_config_parse_failed",
         };
       }
@@ -291,9 +299,10 @@ async function sendToChannel(
         config = JSON.parse(decrypted) as NtfyChannelConfig;
       } catch {
         getEvent()?.addWarning("Failed to parse ntfy channel config");
+        // Malformed config decodes the same on every retry — permanent.
         return {
           ok: false,
-          hardReject: false,
+          hardReject: true,
           reason: "ntfy_config_parse_failed",
         };
       }
@@ -305,9 +314,10 @@ async function sendToChannel(
         config = JSON.parse(decrypted) as WebhookChannelConfig;
       } catch {
         getEvent()?.addWarning("Failed to parse webhook channel config");
+        // Malformed config decodes the same on every retry — permanent.
         return {
           ok: false,
-          hardReject: false,
+          hardReject: true,
           reason: "webhook_config_parse_failed",
         };
       }
@@ -319,9 +329,10 @@ async function sendToChannel(
         config = JSON.parse(decrypted) as EmailChannelConfig;
       } catch {
         getEvent()?.addWarning("Failed to parse email channel config");
+        // Malformed config decodes the same on every retry — permanent.
         return {
           ok: false,
-          hardReject: false,
+          hardReject: true,
           reason: "email_config_parse_failed",
         };
       }
