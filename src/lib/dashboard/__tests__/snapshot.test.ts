@@ -303,6 +303,11 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
       band: "yellow",
       delta: 3,
       restMode: null,
+      // v1.21.2 (A5 / A6) — additive narrative fields, null absent a
+      // disagreeing readiness set / a returned metric (the fake derived
+      // engines resolve nothing here).
+      tension: null,
+      returnToBand: null,
     });
     // v1.17 W1b — two runs (current + prior-week), identical to the analytics
     // route, so the ring's delta reflects BP movement.
@@ -439,6 +444,9 @@ describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
       band: "yellow",
       delta: -12,
       restMode: null,
+      // v1.21.2 (A5 / A6) — additive narrative fields, null here.
+      tension: null,
+      returnToBand: null,
     });
 
     // The fast path reuses the BP windows + coverage map already
@@ -1027,5 +1035,135 @@ describe("buildDashboardSnapshot — module gating (v1.18.0)", () => {
     const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
     expect(resolveModuleMap).toHaveBeenCalledWith("user-1");
     expect(widget(snap, "mood")!.visible).toBe(false);
+  });
+});
+
+// v1.21.2 (A4 / A5 / A6) — the ambient-narrative wire. The Tension Verdict +
+// return-to-baseline ride the warm-phase healthScore; the briefing recall +
+// forward-look rides `briefingMemory`. The resolvers themselves are pinned in
+// `score-narrative.test.ts`; here only the THREADING through the snapshot DTO is
+// asserted, via the injectable builders.
+describe("buildDashboardSnapshot — ambient narrative (A4/A5/A6)", () => {
+  /** Warm coverage + a non-null health score so the narrative branch runs. */
+  function warmScore() {
+    probeRollupCoverage.mockResolvedValue(new Map([["WEIGHT", true]]));
+    isFullyCovered.mockReturnValue(true);
+    computeBpInTargetFastPath.mockResolvedValue({
+      last7Days: { pct: 70 },
+      last30Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
+      allTime: { pct: 75 },
+      priorMonth: { pct: 60 },
+      priorYear: { pct: 50 },
+    });
+    computeUserHealthScoreFastPath.mockResolvedValue({
+      score: 71,
+      band: "yellow",
+      delta: 3,
+    });
+  }
+
+  it("folds tension + returnToBand onto the health score", async () => {
+    warmScore();
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser(), {
+      scoreNarrative: vi.fn(async () => ({
+        tension: {
+          band: "yellow" as const,
+          positive: ["sleep" as const],
+          negative: ["rhr" as const],
+        },
+        returnToBand: {
+          metricType: "RESTING_HEART_RATE" as const,
+          daysInside: 4,
+        },
+      })),
+    });
+    expect(snap.healthScore!.tension).toEqual({
+      band: "yellow",
+      positive: ["sleep"],
+      negative: ["rhr"],
+    });
+    expect(snap.healthScore!.returnToBand).toEqual({
+      metricType: "RESTING_HEART_RATE",
+      daysInside: 4,
+    });
+  });
+
+  it("leaves tension + returnToBand null when the resolver yields nothing", async () => {
+    warmScore();
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser(), {
+      scoreNarrative: vi.fn(async () => ({
+        tension: null,
+        returnToBand: null,
+      })),
+    });
+    expect(snap.healthScore!.tension).toBeNull();
+    expect(snap.healthScore!.returnToBand).toBeNull();
+  });
+
+  it("does NOT run the score narrative when no health score rendered", async () => {
+    // No warm coverage → healthScore null → the narrative branch is skipped.
+    probeRollupCoverage.mockResolvedValue(new Map());
+    const scoreNarrative = vi.fn(async () => ({
+      tension: null,
+      returnToBand: null,
+    }));
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser(), {
+      scoreNarrative,
+    });
+    expect(snap.healthScore).toBeNull();
+    expect(scoreNarrative).not.toHaveBeenCalled();
+  });
+
+  it("threads the briefing recall + forward-look through briefingMemory", async () => {
+    warmScore();
+    const snap = await buildDashboardSnapshot(
+      fakePrisma,
+      baseUser({
+        insightsCachedAt: new Date(),
+        insightsCachedText: JSON.stringify({
+          dailyBriefing: { greeting: "x", paragraph: "y", keyFindings: [] },
+        }),
+      }),
+      {
+        locale: "en",
+        coachMemory: vi.fn(async () => ({
+          priorNarrative: {
+            headline: "Your resting heart rate drifted up early last month.",
+            drivers: [],
+          },
+          trendMemory: {
+            RESTING_HEART_RATE: {
+              priorBand: "in" as const,
+              currentBand: "above" as const,
+              priorPeriod: "month" as const,
+            },
+          },
+        })),
+      },
+    );
+    expect(snap.briefingMemory).not.toBeNull();
+    expect(snap.briefingMemory!.recall).toContain("resting heart rate");
+    // The forward-look points at the drifted metric (or a holding line); either
+    // way it is a non-empty localised string.
+    expect(snap.briefingMemory!.forward.length).toBeGreaterThan(0);
+  });
+
+  it("leaves briefingMemory null when no prior narrative is on file", async () => {
+    warmScore();
+    const snap = await buildDashboardSnapshot(
+      fakePrisma,
+      baseUser({
+        insightsCachedAt: new Date(),
+        insightsCachedText: JSON.stringify({
+          dailyBriefing: { greeting: "x", paragraph: "y", keyFindings: [] },
+        }),
+      }),
+      {
+        coachMemory: vi.fn(async () => ({ trendMemory: {} })),
+      },
+    );
+    expect(snap.briefingMemory).toBeNull();
   });
 });

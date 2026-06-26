@@ -41,6 +41,7 @@ import {
   type DashboardSnapshot,
   type SnapshotUserInput,
 } from "@/lib/dashboard/snapshot";
+import { resolveServerLocale } from "@/lib/i18n/server-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,13 @@ export const GET = apiHandler(async () => {
     dashboardWidgetsJson: user.dashboardWidgetsJson,
   };
 
+  // v1.21.2 (A4) — the briefing recall + forward-look is locale-specific prose,
+  // so the snapshot cache key carries the resolved locale: an EN and a DE
+  // session never share a snapshot cell (and never see each other's memory
+  // wording). The `${user.id}|` prefix still covers the key under the
+  // measurement-write stale-sweep.
+  const locale = await resolveServerLocale({ userLocale: user.locale });
+
   // Stale-while-revalidate: a measurement write marks the analytics
   // bucket stale rather than hard-evicting the snapshot, so a busy iOS
   // sync serves the prior snapshot immediately (within the bucket's
@@ -98,8 +106,8 @@ export const GET = apiHandler(async () => {
   // miss + synchronous rebuild here.
   const body = await cachedSwr(
     caches.analytics as ServerCache<DashboardSnapshot>,
-    `${user.id}|dashboard-snapshot`,
-    () => buildDashboardSnapshot(prisma, snapshotUser, { time }),
+    `${user.id}|dashboard-snapshot|${locale}`,
+    () => buildDashboardSnapshot(prisma, snapshotUser, { time, locale }),
     annotate,
     SNAPSHOT_CACHE_TTL_MS,
   );

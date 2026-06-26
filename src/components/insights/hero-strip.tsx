@@ -10,8 +10,22 @@ import { cn } from "@/lib/utils";
 import {
   HealthScoreCard,
   type HealthScoreCardProps,
+  type HealthScoreBand,
 } from "./health-score-card";
 import type { DailyBriefing as DailyBriefingPayload } from "@/lib/ai/schema";
+
+/**
+ * v1.21.2 (A5) — readiness contributor keys the Tension Verdict surfaces. Kept
+ * as a local string union so the client never imports the server derived-engine
+ * types. Localised through the existing
+ * `insights.derived.composite.READINESS.component.{key}` labels.
+ */
+export type ReadinessContributorKey =
+  | "rhr"
+  | "hrv"
+  | "sleep"
+  | "respiratory"
+  | "mood";
 
 /**
  * Insights redesign hero strip.
@@ -79,6 +93,31 @@ interface HeroStripProps {
     restMode?: { active: boolean } | null;
   } | null;
   /**
+   * v1.21.2 (A5) — Tension Verdict, server-resolved + locale-agnostic. `band`
+   * is the readiness composite's band; `positive` / `negative` carry the
+   * readiness contributor KEYS (`rhr` / `hrv` / `sleep` / `respiratory` /
+   * `mood`). The hero localises each key through the existing
+   * `insights.derived.composite.READINESS.component.*` labels before handing the
+   * score card its already-localised strings. Null on a coherent day (or under a
+   * clinical red-flag suppress). The score card carries it only when the score
+   * is present.
+   */
+  tension?: {
+    band: HealthScoreBand;
+    positive: ReadinessContributorKey[];
+    negative: ReadinessContributorKey[];
+  } | null;
+  /**
+   * v1.21.2 (A6) — return-to-baseline, server-resolved + locale-agnostic.
+   * `metricType` is a `MeasurementType` the hero maps to its localised metric
+   * name (the existing `measurements.type*` keys). Null when no salient metric
+   * returned from a genuine prior out-of-band run.
+   */
+  returnToBand?: {
+    metricType: string;
+    daysInside: number;
+  } | null;
+  /**
    * v1.16.8 — true while the analytics payload that carries
    * `healthScore` is still in flight. The right column then reserves the
    * score card's footprint with a skeleton, so the hero band paints at
@@ -111,6 +150,32 @@ function resolveGreetingKey(now: Date): string {
   return "insights.heroGreetingEvening";
 }
 
+/**
+ * v1.21.2 (A5) — readiness contributor key → existing localised label key.
+ * Reuses the score-anatomy contributor labels so the Tension Verdict reads the
+ * same names the wellness ring's anatomy view renders — no new keys.
+ */
+const TENSION_CONTRIBUTOR_LABEL_KEY: Record<ReadinessContributorKey, string> = {
+  rhr: "insights.derived.composite.READINESS.component.rhr",
+  hrv: "insights.derived.composite.READINESS.component.hrv",
+  sleep: "insights.derived.composite.READINESS.component.sleep",
+  respiratory: "insights.derived.composite.READINESS.component.respiratory",
+  mood: "insights.derived.composite.READINESS.component.mood",
+};
+
+/**
+ * v1.21.2 (A6) — `MeasurementType` → existing localised metric-name key
+ * (`measurements.type*`). Only the salient deviation vitals the
+ * return-to-baseline detector scans need an entry; an unmapped type falls back
+ * to a prettified raw form so a new type never blanks.
+ */
+const RETURN_METRIC_LABEL_KEY: Record<string, string> = {
+  RESTING_HEART_RATE: "measurements.typeRestingHeartRate",
+  HEART_RATE_VARIABILITY: "measurements.typeHeartRateVariability",
+  RESPIRATORY_RATE: "measurements.typeRespiratoryRate",
+  WEIGHT: "measurements.typeWeight",
+};
+
 export function HeroStrip({
   briefing,
   updatedAt,
@@ -119,8 +184,38 @@ export function HeroStrip({
   healthScore,
   healthScorePending = false,
   noProviderStale = false,
+  tension = null,
+  returnToBand = null,
 }: HeroStripProps) {
   const { t } = useTranslations();
+
+  // v1.21.2 (A5) — localise the Tension Verdict's contributor keys into the
+  // card's already-localised `{ positive, negative }` shape. Only forwarded when
+  // a real disagreement is present on BOTH sides; the resolver already enforces
+  // that, but the guard keeps the card from rendering a one-sided line.
+  const tensionProp =
+    tension && tension.positive.length > 0 && tension.negative.length > 0
+      ? {
+          band: tension.band,
+          positive: tension.positive.map((k) =>
+            t(TENSION_CONTRIBUTOR_LABEL_KEY[k]),
+          ),
+          negative: tension.negative.map((k) =>
+            t(TENSION_CONTRIBUTOR_LABEL_KEY[k]),
+          ),
+        }
+      : null;
+
+  // v1.21.2 (A6) — localise the return-to-baseline metric into the card's
+  // already-localised `metricLabel`.
+  const returnToBandProp = returnToBand
+    ? {
+        metricLabel: RETURN_METRIC_LABEL_KEY[returnToBand.metricType]
+          ? t(RETURN_METRIC_LABEL_KEY[returnToBand.metricType])
+          : returnToBand.metricType.replace(/_/g, " ").toLowerCase(),
+        daysInside: returnToBand.daysInside,
+      }
+    : null;
   // v1.18.0 R4 — mood-module state so the score card hides its Mood row
   // when the account turned the module off (the server already drops the
   // pillar from the number itself). SSR-safe + default-on, matching the
@@ -291,6 +386,8 @@ export function HeroStrip({
             delta={healthScore.delta}
             moodEnabled={moodEnabled}
             restModeActive={healthScore.restMode?.active ?? false}
+            tension={tensionProp}
+            returnToBand={returnToBandProp}
           />
         )}
       </div>
