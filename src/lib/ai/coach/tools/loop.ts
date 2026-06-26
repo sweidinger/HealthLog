@@ -58,6 +58,8 @@ export async function runCoachToolLoop(args: {
   maxTokens?: number;
   fallbackWindow?: CoachScopeWindow;
   ledger?: ProviderHealthLedger;
+  /** Aborts the per-round provider calls on client disconnect. */
+  signal?: AbortSignal;
 }): Promise<CoachToolLoopResult> {
   const {
     userId,
@@ -68,6 +70,7 @@ export async function runCoachToolLoop(args: {
     maxTokens,
     fallbackWindow,
     ledger,
+    signal,
   } = args;
 
   const messages: AiMessage[] = [...args.messages];
@@ -92,6 +95,7 @@ export async function runCoachToolLoop(args: {
         messages,
         temperature,
         maxTokens,
+        signal,
         ...(offerTools
           ? { tools, toolChoice: "auto" as const }
           : { toolChoice: "none" as const }),

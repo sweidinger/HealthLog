@@ -19630,7 +19630,6 @@ components:
             - type: string
               enum:
                 - no-provider
-                - text-only-model
                 - enable-local-ocr
             - type: "null"
         pdfSupported:

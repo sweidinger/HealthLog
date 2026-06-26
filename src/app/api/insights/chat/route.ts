@@ -549,6 +549,9 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
         temperature: AI_BUDGETS.coach.temperature,
         maxTokens: AI_BUDGETS.coach.maxTokens,
         fallbackWindow: effectiveScope?.window,
+        // v1.20.1 — thread the abort signal so a mid-generation disconnect tears
+        // down the per-round provider calls instead of paying the full cost.
+        signal: request.signal,
       });
       result = loop.result;
       workingProviderType = loop.workingProviderType;
