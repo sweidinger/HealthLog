@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { DateTimeInput } from "@/components/ui/date-input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
@@ -310,10 +310,10 @@ export function LabForm({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="lab-takenAt">{t("labs.form.takenAt")}</Label>
-            <DateTimeInput
+            <DateTimeField
               id="lab-takenAt"
               value={takenAt}
-              onChange={(e) => setTakenAt(e.target.value)}
+              onChange={setTakenAt}
               max={defaultTakenAtValue()}
               required
             />

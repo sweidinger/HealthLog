@@ -66,7 +66,7 @@ import {
   MEASUREMENT_NOTES_MAX_LENGTH,
   measurementSourceEnum,
 } from "@/lib/validations/measurement";
-import { DateTimeInput } from "@/components/ui/date-input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   SortableHead,
@@ -1339,10 +1339,10 @@ export function MeasurementList({
               <Label htmlFor="edit-measuredAt">
                 {t("measurements.timestamp")}
               </Label>
-              <DateTimeInput
+              <DateTimeField
                 id="edit-measuredAt"
                 value={editMeasuredAt}
-                onChange={(e) => setEditMeasuredAt(e.target.value)}
+                onChange={setEditMeasuredAt}
                 // v1.17 W1b — match the server bound: no future instant.
                 max={toDateTimeLocalValue(new Date().toISOString())}
                 required

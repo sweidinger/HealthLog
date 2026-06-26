@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { DateTimeInput } from "@/components/ui/date-input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -468,10 +468,10 @@ export function MeasurementForm({
 
       <div className="space-y-2">
         <Label htmlFor="measuredAt">{t("measurements.timestamp")}</Label>
-        <DateTimeInput
+        <DateTimeField
           id="measuredAt"
           value={measuredAt}
-          onChange={(e) => setMeasuredAt(e.target.value)}
+          onChange={setMeasuredAt}
           // v1.17 W1b — mirror the server-side plausibility bound: the
           // picker cannot select a future instant. Matches the
           // `validateEntryInstant` refine on `measuredAt`.

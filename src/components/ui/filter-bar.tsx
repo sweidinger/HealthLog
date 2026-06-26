@@ -4,7 +4,7 @@ import * as React from "react";
 import { ListFilter, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { DateInput } from "@/components/ui/date-input";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -266,12 +266,12 @@ export function FilterBarDateRange({
             >
               {t("dataList.dateFrom")}
             </Label>
-            <DateInput
+            <DateField
               id={`${idPrefix}-from`}
               className="w-44"
               value={from}
               max={to || undefined}
-              onChange={(e) => onFromChange(e.target.value)}
+              onChange={onFromChange}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -281,12 +281,12 @@ export function FilterBarDateRange({
             >
               {t("dataList.dateTo")}
             </Label>
-            <DateInput
+            <DateField
               id={`${idPrefix}-to`}
               className="w-44"
               value={to}
               min={from || undefined}
-              onChange={(e) => onToChange(e.target.value)}
+              onChange={onToChange}
             />
           </div>
         </PopoverContent>

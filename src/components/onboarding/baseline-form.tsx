@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { DateInput } from "@/components/ui/date-input";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -242,10 +242,10 @@ export function BaselineForm() {
           <Label htmlFor="ob-baseline-dob">
             {t("onboarding.baseline.dateOfBirthLabel")}
           </Label>
-          <DateInput
+          <DateField
             id="ob-baseline-dob"
             value={form.dateOfBirth}
-            onChange={(e) => patch("dateOfBirth", e.target.value)}
+            onChange={(value) => patch("dateOfBirth", value)}
             max={new Date().toISOString().slice(0, 10)}
             autoComplete="bday"
           />

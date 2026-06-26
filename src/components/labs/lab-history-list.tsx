@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
-import { DateTimeInput } from "@/components/ui/date-input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
@@ -285,10 +285,10 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="lab-edit-takenAt">{t("labs.form.takenAt")}</Label>
-              <DateTimeInput
+              <DateTimeField
                 id="lab-edit-takenAt"
                 value={editTakenAt}
-                onChange={(e) => setEditTakenAt(e.target.value)}
+                onChange={setEditTakenAt}
                 required
               />
             </div>
