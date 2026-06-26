@@ -41,18 +41,32 @@ function anthropicSupportsVision(model: string): boolean {
 /**
  * OpenAI vision models (also covers the operator's admin key + Codex when it
  * runs an OpenAI model — though Codex is excluded by `providerType`). `gpt-4o`,
- * `gpt-4.1`, `gpt-4-turbo`, and the `o*` reasoning models read image content;
- * `gpt-3.5*` and the legacy `gpt-4` (non-turbo) 400 on an image block.
+ * `gpt-4.1`, `gpt-4-turbo`, and the full `o1` / `o3` / `o4` reasoning models
+ * read image content; `gpt-3.5*` and the legacy `gpt-4` (non-turbo) 400 on an
+ * image block.
+ *
+ * The `o*` reasoning line has text-only variants that DO accept the `o*` prefix
+ * but reject an image block: `o1-mini` / `o1-preview` and `o3-mini` have no
+ * vision input (only the full `o1` / `o3` are multimodal). They must be
+ * excluded or a user pinned to one is told OCR works, then the provider 400s at
+ * the image block. We treat an `o1` / `o3` / `o4` slug as vision-capable only
+ * when it is NOT a `-mini` / `-preview` variant — the conservative default for
+ * any unverified narrow slug.
  */
+function isVisionReasoningSlug(m: string): boolean {
+  if (!(m.startsWith("o1") || m.startsWith("o3") || m.startsWith("o4"))) {
+    return false;
+  }
+  return !m.includes("-mini") && !m.includes("-preview");
+}
+
 function openaiSupportsVision(model: string): boolean {
   const m = model.toLowerCase();
   return (
     m.startsWith("gpt-4o") ||
     m.startsWith("gpt-4.1") ||
     m.startsWith("gpt-4-turbo") ||
-    m.startsWith("o1") ||
-    m.startsWith("o3") ||
-    m.startsWith("o4")
+    isVisionReasoningSlug(m)
   );
 }
 
@@ -78,9 +92,9 @@ function codexSupportsVision(model: string): boolean {
     m.startsWith("gpt-4o") ||
     m.startsWith("gpt-4.1") ||
     m.startsWith("gpt-4-turbo") ||
-    m.startsWith("o1") ||
-    m.startsWith("o3") ||
-    m.startsWith("o4")
+    // Same `-mini` / `-preview` text-only exclusion as the OpenAI gate: a
+    // future codex slug rotation onto e.g. `o3-mini` must not claim vision.
+    isVisionReasoningSlug(m)
   );
 }
 
