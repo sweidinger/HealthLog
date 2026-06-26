@@ -35,18 +35,9 @@ import {
   type NamedSeries,
 } from "@/lib/insights/correlation-discovery";
 import {
-  buildComplianceMedicationContext,
-  buildMedicationComplianceBundle,
-  lastNonSkippedTakenAt,
-  SCHEDULE_COMPLIANCE_SELECT,
-} from "@/lib/analytics/compliance";
-import {
-  buildComplianceDailySeries,
-  buildSymptomSeverityDailySeries,
-  type SymptomDayLogRow,
-  type SymptomEpisodeSpan,
-} from "@/lib/insights/correlation-series-builders";
-import type { DoseHistoryRow } from "@/lib/medications/scheduling/dose-history";
+  fetchComplianceSeries,
+  fetchSymptomSeries,
+} from "@/lib/insights/correlation-channel-series";
 
 export const dynamic = "force-dynamic";
 
@@ -79,148 +70,6 @@ function toDailyMeans(
   return [...byDay.entries()]
     .map(([day, acc]) => ({ day, value: acc.sum / acc.count }))
     .sort((a, b) => (a.day < b.day ? -1 : 1));
-}
-
-/**
- * v1.21.0 (FDREXTEND) — build the user's MEDICATION_COMPLIANCE daily series.
- *
- * Pools every active, non-PRN medication's unified dose-history ledger over the
- * window, then collapses to one per-day adherence rate (user-tz day keys). A
- * user with no active medications (or no resolved slots) yields an empty
- * series, so the channel degrades to absent.
- */
-async function buildUserComplianceSeries(
-  userId: string,
-  since: Date,
-  tz: string,
-): Promise<NamedSeries> {
-  const medications = await prisma.medication.findMany({
-    // PRN (as-needed) medications have no expected doses → no defensible rate.
-    where: { userId, active: true, asNeeded: false },
-    include: {
-      schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
-      scheduleRevisions: { orderBy: { validFrom: "asc" } },
-    },
-    orderBy: { name: "asc" },
-  });
-  if (medications.length === 0) {
-    return {
-      key: MEDICATION_COMPLIANCE_CHANNEL_KEY,
-      role: "behaviour",
-      points: [],
-    };
-  }
-
-  const events = await prisma.medicationIntakeEvent.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      medicationId: { in: medications.map((med) => med.id) },
-      scheduledFor: { gte: since },
-    },
-    orderBy: { scheduledFor: "asc" },
-    select: {
-      medicationId: true,
-      scheduledFor: true,
-      takenAt: true,
-      skipped: true,
-    },
-  });
-
-  const now = new Date();
-  const ledgerRows: DoseHistoryRow[] = [];
-  for (const medication of medications) {
-    const medEvents = events.filter((e) => e.medicationId === medication.id);
-    const ctx = buildComplianceMedicationContext(
-      medication,
-      lastNonSkippedTakenAt(medEvents),
-      tz,
-    );
-    const bundle = buildMedicationComplianceBundle(
-      medEvents,
-      medication.schedules,
-      ctx,
-      now,
-    );
-    ledgerRows.push(...bundle.ledgerRows);
-  }
-
-  return buildComplianceDailySeries(ledgerRows, tz);
-}
-
-/**
- * v1.21.0 (FDREXTEND) — build the user's SYMPTOM_SEVERITY daily series (role set
- * by the caller). Reads every in-window illness episode + its day-logs; the
- * builder zero-fills healthy days ONLY across real episode spans, so a user
- * with no episodes yields an empty series that degrades to absent.
- */
-async function buildUserSymptomSeries(
-  userId: string,
-  since: Date,
-  now: Date,
-  tz: string,
-): Promise<NamedSeries> {
-  const episodes = await prisma.illnessEpisode.findMany({
-    // An episode overlaps the window when it onset before `now` and either is
-    // ongoing or resolved at/after the window start.
-    where: {
-      userId,
-      deletedAt: null,
-      onsetAt: { lte: now },
-      OR: [{ resolvedAt: null }, { resolvedAt: { gte: since } }],
-    },
-    select: { id: true, onsetAt: true, resolvedAt: true },
-  });
-  if (episodes.length === 0) {
-    return { key: SYMPTOM_SEVERITY_CHANNEL_KEY, role: "outcome", points: [] };
-  }
-
-  const dayLogRows = await prisma.illnessDayLog.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      episodeId: { in: episodes.map((e) => e.id) },
-    },
-    select: {
-      date: true,
-      functionalImpact: true,
-      symptomLinks: { select: { severity: true } },
-    },
-  });
-
-  // Collapse each day-log to one burden value (functionalImpact, else the day's
-  // max linked symptom severity) — the same rule the recovery-gap track uses.
-  const dayLogs: SymptomDayLogRow[] = [];
-  for (const row of dayLogRows) {
-    if (row.functionalImpact != null) {
-      dayLogs.push({ day: row.date, impact: row.functionalImpact });
-      continue;
-    }
-    let maxSeverity: number | null = null;
-    for (const link of row.symptomLinks) {
-      if (link.severity == null) continue;
-      maxSeverity =
-        maxSeverity === null
-          ? link.severity
-          : Math.max(maxSeverity, link.severity);
-    }
-    if (maxSeverity != null)
-      dayLogs.push({ day: row.date, impact: maxSeverity });
-  }
-
-  const spans: SymptomEpisodeSpan[] = episodes.map((e) => ({
-    onsetAt: e.onsetAt,
-    resolvedAt: e.resolvedAt,
-  }));
-
-  return buildSymptomSeverityDailySeries({
-    dayLogs,
-    episodes: spans,
-    tz,
-    windowStart: since,
-    windowEnd: now,
-    role: "outcome",
-  });
 }
 
 export const GET = apiHandler(async () => {
@@ -298,8 +147,8 @@ export const GET = apiHandler(async () => {
   // v1.21.0 (FDREXTEND) — build the two non-measurement, non-mood channels from
   // their own sources. Each degrades to an empty series when the user has no
   // data, so the discovery loop drops the channel (it cannot clear n ≥ 20).
-  const complianceSeries = await buildUserComplianceSeries(user.id, since, tz);
-  const symptomSeries = await buildUserSymptomSeries(user.id, since, now, tz);
+  const complianceSeries = await fetchComplianceSeries(user.id, tz, since);
+  const symptomSeries = await fetchSymptomSeries(user.id, tz, since);
 
   const points = (key: string): DailySeriesPoint[] =>
     key === "MOOD"
