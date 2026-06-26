@@ -228,6 +228,11 @@ model User {
   // (en → AM/PM, de → 24h), H12 forces AM/PM, H24 forces 24-hour.
   // Display-time only — canonical storage stays UTC instants.
   timeFormat              TimeFormatPreference @default(AUTO) @map("time_format")
+  // Date display preference. AUTO follows the active locale convention
+  // (de → dd.MM.yyyy, en → MM/dd/yyyy); DMY pins day-month-year,
+  // MDY pins month-day-year, YMD pins ISO yyyy-MM-dd. Display-time only —
+  // canonical storage stays UTC instants.
+  dateFormat              DateFormatPreference @default(AUTO) @map("date_format")
   // AI provider selection for insights. Null = OPENAI fallback.
   aiProvider              String? @map("ai_provider") // "OPENAI" | "ANTHROPIC" | "LOCAL" | "CHATGPT_OAUTH"
   aiModel                 String? @map("ai_model")
@@ -971,6 +976,17 @@ enum TimeFormatPreference {
   H24
 
   @@map("time_format_preference")
+}
+
+// Date display preference for rendered dates. AUTO defers to the active
+// locale's convention; DMY/MDY/YMD pin the field order regardless of locale.
+enum DateFormatPreference {
+  AUTO
+  DMY
+  MDY
+  YMD
+
+  @@map("date_format_preference")
 }
 
 enum MeasurementSource {
