@@ -271,6 +271,15 @@ export interface CompletionParams {
    * Mapped per provider; omitted from the wire when unset.
    */
   toolChoice?: "auto" | "none";
+  /**
+   * v1.20.1 — optional caller-owned cancellation signal. Threaded onto the
+   * client's `safeFetch` so a mid-generation client disconnect (the Coach SSE
+   * route wires `request.signal` here) tears the upstream provider request
+   * down instead of running it to completion and paying the full token cost
+   * into a closed connection. Composed with the per-client timeout inside
+   * `safeFetch`. Omitted → behaviour is unchanged (timeout-only).
+   */
+  signal?: AbortSignal;
 }
 
 export interface CompletionResult {
@@ -313,6 +322,8 @@ export function singleUserTurn(p: {
   documents?: CompletionDocument[];
   tools?: AiToolDef[];
   toolChoice?: "auto" | "none";
+  /** v1.20.1 — caller-owned cancel signal threaded to the client fetch. */
+  signal?: AbortSignal;
 }): CompletionParams {
   const images = p.images ?? [];
   const documents = p.documents ?? [];
@@ -349,6 +360,7 @@ export function singleUserTurn(p: {
     responseFormat: p.responseFormat,
     tools: p.tools,
     toolChoice: p.toolChoice,
+    signal: p.signal,
   };
 }
 

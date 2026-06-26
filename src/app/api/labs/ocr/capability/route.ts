@@ -4,7 +4,7 @@
  * Cheap probe (no provider call) the Labs UI uses to decide whether to show
  * the "Scan a report" affordance. Returns `{ available, reason, pdfSupported }`
  * for the calling user's configured AI provider. The surface stays dark for
- * codex-only / text-only-model users.
+ * users with no provider configured and no local-OCR opt-in.
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";

@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.20.2] — 2026-06-26 — Hardening across insights, safety flags, and integrations
+
+A patch release. A broad pass over the server tier and the AI surfaces: a few correctness and safety fixes, a numerical hardening of the trend tier, and several smaller robustness and cost improvements. No schema changes.
+
+### Added
+
+- The lab-report review screen marks low-confidence rows so an uncertain reading is easy to spot before it is saved.
+
+### Changed
+
+- The trend regression (slope, r² and variability) is composed from mean-centered sums, which removes a floating-point cancellation on long, near-flat windows and keeps the rollup result in line with the live computation. Each accumulator now uses the exact stored sum rather than reconstructing it.
+
+### Fixed
+
+- The symptom journal's "sustained fever" flag — which can raise an urgent prompt to seek care — now counts only consecutive calendar days. A sparse series of isolated febrile entries no longer trips it, so the alert reflects a genuine multi-day run.
+- Insight generation no longer reads a full measurement history per metric to compute its 30-day comparisons; it reads only the window those averages need. Generating insights on a long-history account is markedly faster, on both the page request and the overnight pre-generation.
+- Photo and PDF scanning is no longer offered for text-only reasoning models that cannot read an image, so a scan attempt fails clearly up front instead of erroring at the provider.
+- A notification channel whose stored configuration cannot be read now disables itself immediately with a precise reason, instead of retrying a permanent error several times and ending on a misleading message. This surfaces during an encryption-key rotation gap.
+- The Coach cancels its in-flight model call when the browser tab disconnects mid-answer, rather than paying the full cost into a closed connection.
+- Local-OCR text structuring reserves a budget proportionate to its real cost instead of the larger vision-scan ceiling, and refunds cleanly on a failed read.
+- The admin diagnostic endpoints return a 422 for a malformed query string instead of a 500.
+
 ## [1.20.1] — 2026-06-23 — Dashboard render-loop fix
 
 A patch release. One fix; no schema changes.

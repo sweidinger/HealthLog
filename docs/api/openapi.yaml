@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.20.1
+  version: 1.20.2
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -19630,7 +19630,6 @@ components:
             - type: string
               enum:
                 - no-provider
-                - text-only-model
                 - enable-local-ocr
             - type: "null"
         pdfSupported:

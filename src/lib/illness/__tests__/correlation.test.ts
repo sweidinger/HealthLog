@@ -669,6 +669,70 @@ describe("computeIllnessCorrelation — red-flag escalation", () => {
     expect(fever?.days).toBe(3);
     expect(fever?.worstValue).toBe(39.0);
   });
+
+  it("does NOT escalate a sparse febrile series with calendar GAPS (cries-wolf guard)", () => {
+    // Symptom/vital points are present-days-only (never zero-filled). A user
+    // who logs a fever on 01-10/01-15/01-20/01-25 has FOUR isolated febrile
+    // days with multi-day gaps between them — NOT a sustained run. The run
+    // scan must compare calendar-day deltas, not array adjacency, or it falsely
+    // fires sustained_fever (which surfaces a "seek medical care" string AND an
+    // urgent cross-channel push). No two of these days are calendar-adjacent →
+    // the longest run is 1 → NO escalation.
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: flatBaseline(55, 5, "2026-01-15"),
+          },
+        ],
+        dayLogFever: [
+          { day: "2026-01-10", feverC: 39.2 },
+          { day: "2026-01-15", feverC: 39.0 },
+          { day: "2026-01-20", feverC: 38.8 },
+          { day: "2026-01-25", feverC: 38.7 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const fever = out.value.redFlags.find(
+      (f) => f.reason === "sustained_fever",
+    );
+    expect(fever).toBeUndefined();
+  });
+
+  it("DOES escalate a genuinely consecutive 3-calendar-day febrile run", () => {
+    // The mirror of the gap guard: three truly adjacent calendar days
+    // (01-10/01-11/01-12) all ≥ 38.5 → a real sustained fever → escalate.
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: flatBaseline(55, 5, "2026-01-15"),
+          },
+        ],
+        dayLogFever: [
+          { day: "2026-01-10", feverC: 39.2 },
+          { day: "2026-01-11", feverC: 38.9 },
+          { day: "2026-01-12", feverC: 38.6 },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const fever = out.value.redFlags.find(
+      (f) => f.reason === "sustained_fever",
+    );
+    expect(fever).toBeDefined();
+    expect(fever?.days).toBe(3);
+    expect(fever?.worstValue).toBe(39.2);
+  });
 });
 
 describe("isAdverseDeviation", () => {

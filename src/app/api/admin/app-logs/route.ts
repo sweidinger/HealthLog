@@ -1,5 +1,5 @@
 import { apiHandler, requireAdmin } from "@/lib/api-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { readLogBuffer, LOG_BUFFER_MAX } from "@/lib/logging/in-memory-buffer";
 import { redactSecrets } from "@/lib/logging/redact";
@@ -35,7 +35,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   annotate({ action: { name: "admin.app-logs.list" } });
 
   const { searchParams } = new URL(request.url);
-  const parsed = querySchema.parse({
+  const result = querySchema.safeParse({
     traceId: searchParams.get("traceId") ?? undefined,
     level: searchParams.get("level") ?? undefined,
     action: searchParams.get("action") ?? undefined,
@@ -43,6 +43,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     until: searchParams.get("until") ?? undefined,
     limit: searchParams.get("limit") ?? undefined,
   });
+  if (!result.success) return returnAllZodIssues(result.error);
+  const parsed = result.data;
 
   const events = readLogBuffer({
     traceId: parsed.traceId,

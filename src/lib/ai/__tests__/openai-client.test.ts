@@ -290,4 +290,72 @@ describe("OpenAIClient", () => {
       image_url: { url: "data:image/png;base64,AAAA" },
     });
   });
+
+  it("tags an empty-content reply with sentinel httpStatus 0 + kind for the chain classifier", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: "" } }],
+            usage: { total_tokens: 5 },
+          }),
+      }),
+    );
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+      baseUrl: "https://api.openai.com/v1",
+    });
+
+    await client
+      .generateCompletion(singleUserTurn({ system: "s", user: "u" }))
+      .then(
+        () => {
+          throw new Error("expected an empty-content throw");
+        },
+        (err: unknown) => {
+          // The throw distinguishes an empty 200-OK reply from ECONNRESET:
+          // sentinel httpStatus 0 (still classified as a hard failure, so the
+          // cascade is unchanged) + a `kind` discriminator for observability.
+          expect((err as Error).message).toContain("empty content");
+          expect((err as { httpStatus?: number }).httpStatus).toBe(0);
+          expect((err as { kind?: string }).kind).toBe("empty_response");
+        },
+      );
+  });
+
+  it("threads the caller's abort signal onto the upstream fetch", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: "ok" } }],
+          usage: { total_tokens: 1 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+      baseUrl: "https://api.openai.com/v1",
+    });
+
+    const ctrl = new AbortController();
+    await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", signal: ctrl.signal }),
+    );
+
+    // safeFetch composes the caller signal with the timeout via AbortSignal.any,
+    // so a signal lands on the dispatched fetch init.
+    const init = mockFetch.mock.calls[0][1];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+
+    // Aborting the caller's controller propagates to the composed signal.
+    ctrl.abort();
+    expect(init.signal.aborted).toBe(true);
+  });
 });

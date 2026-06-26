@@ -49,6 +49,17 @@ export function OcrRowEditor({
     !isQualitative && row.confidence.value < CONFIDENCE_THRESHOLD;
   const valueUnreadable = !isQualitative && row.value === null;
 
+  // The model self-scores each field it transcribed. Surface a single calm
+  // per-row flag when ANY tracked field came back below the threshold so a
+  // shaky read is visible at a glance — including on qualitative rows, which
+  // have no value-confidence footnote of their own. Informative, not alarming.
+  const lowRowConfidence =
+    row.confidence.analyte < CONFIDENCE_THRESHOLD ||
+    row.confidence.unit < CONFIDENCE_THRESHOLD ||
+    (isQualitative
+      ? row.confidence.value < CONFIDENCE_THRESHOLD
+      : lowValueConfidence);
+
   // v1.18.10 (#5) — a NEW numeric biomarker mints its catalog reference range
   // from THIS extracted row. The range is therefore load-bearing and worth a
   // second look. Surface the range confidence prominently for new numeric
@@ -104,6 +115,12 @@ export function OcrRowEditor({
               <Badge variant="secondary">
                 <TriangleAlert aria-hidden />
                 {t("labs.ocr.duplicateWarning")}
+              </Badge>
+            ) : null}
+            {lowRowConfidence ? (
+              <Badge variant="secondary" className="text-muted-foreground">
+                <AlertCircle aria-hidden />
+                {t("labs.ocr.lowConfidenceBadge")}
               </Badge>
             ) : null}
           </div>

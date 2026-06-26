@@ -119,11 +119,20 @@ describe("GET /api/admin/app-logs", () => {
     expect(json.data.events).toHaveLength(10);
   });
 
-  it("rejects an invalid level value", async () => {
+  it("rejects an invalid level value with a 422 (not a thrown 500)", async () => {
     appendLogEvent(makeEvent());
-    // Invalid `level` — Zod parse should throw and the apiHandler test
-    // mock rethrows it (we mock only `requireAdmin`, not the wrapper
-    // error-translator). We simply assert the call rejects.
-    await expect(GET(req("level=critical"))).rejects.toThrow();
+    // Invalid `level` — the query is parsed with `safeParse` and returns the
+    // standard 422 multi-issue envelope rather than throwing (which the
+    // apiHandler catch ladder would otherwise surface as a 500 + incident).
+    const res = await GET(req("level=critical"));
+    expect(res.status).toBe(422);
+    const json = (await res.json()) as {
+      data: null;
+      error: string;
+      details: { issues: unknown[] };
+    };
+    expect(json.data).toBeNull();
+    expect(json.error).toBe("Validation failed");
+    expect(json.details.issues.length).toBeGreaterThan(0);
   });
 });
