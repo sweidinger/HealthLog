@@ -535,6 +535,15 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // v1.21.0 (P6) — the present tool-result payloads this turn, for the post-hoc
   // prose number-verifier. Empty on the no-tools path.
   let toolResultPayloads: unknown[] = [];
+  // v1.21.2 (A8) — no-tools/local-provider parity for the prose number-verifier.
+  // The tool path grades prose against the figures the tools returned; the
+  // no-tools path has no tools, so the authoritative set is the SNAPSHOT the
+  // model was actually shown this turn — `snapshot.sections`, the structured
+  // record `snapshotJson` is serialised from, which already carries the
+  // correlations-snapshot block. Populated only when the full figures were
+  // delivered this turn (`includeFullSnapshot`); on a cheap follow-up the block
+  // was not re-sent, so there is no fresh authoritative set to grade against.
+  let noToolsSnapshotPayloads: unknown[] = [];
   let totalTokensSpent: number;
   // v1.21.0 (F3) — cached-input tokens to subtract at reconcile (prompt-cached
   // input the user did not re-pay for must not be billed to the daily meter).
@@ -614,6 +623,14 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
       workingProviderType = fallback.workingProvider.providerType;
       totalTokensSpent = result.tokensUsed ?? 0;
       cachedTokensSpent = result.cachedInputTokens ?? 0;
+      // v1.21.2 (A8) — the no-tools path showed the model the full SNAPSHOT only
+      // when `includeFullSnapshot` was set; otherwise it shipped the
+      // grounded-elsewhere pointer with no fresh figures, so there is nothing to
+      // grade. When figures WERE delivered, the authoritative set is the
+      // structured snapshot record (incl. the correlations block).
+      if (includeFullSnapshot) {
+        noToolsSnapshotPayloads = [snapshot.sections];
+      }
     }
   } catch (err) {
     // The provider chain failed outright — no tokens were billed, so refund
@@ -737,18 +754,27 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
     });
   }
 
-  // v1.21.0 (P6 / C2-5) — post-hoc numeric verifier on the Coach prose. On the
-  // tool path, cross-check every number the model cited against the figures the
-  // tools actually returned this turn; an unmatched number (transcription /
-  // paraphrase drift) is soft-stripped to "[unverified]" and annotated. Cheap,
-  // non-blocking, and a no-op when no tool returned figures (a qualitative turn
-  // or the no-tools path) — the prompt-level grounding rule remains the
-  // backstop there, exactly like the briefing's "no signals → skip". A blocked
-  // turn already carries canned fallback prose, so skip it.
-  if (!outbound.block && toolResultPayloads.length > 0) {
+  // v1.21.0 (P6 / C2-5) — post-hoc numeric verifier on the Coach prose. Cross-
+  // check every number the model cited against this turn's authoritative figure
+  // set; an unmatched number (transcription / paraphrase drift) is soft-stripped
+  // to "[unverified]" and annotated. Cheap, non-blocking, and a no-op when there
+  // is no authoritative set — the prompt-level grounding rule remains the
+  // backstop, exactly like the briefing's "no signals → skip". A blocked turn
+  // already carries canned fallback prose, so skip it.
+  //
+  // v1.21.2 (A8) — the authoritative set is the figures the tools returned on the
+  // tool path, and the SNAPSHOT the model was shown on the no-tools/local path
+  // (`snapshot.sections`, which already carries the correlations-snapshot block).
+  // Exactly one is populated per turn; the grading, tolerance, and exemptions are
+  // identical, so a number the model invents is flagged the same way on both.
+  const authoritativePayloads =
+    toolResultPayloads.length > 0
+      ? toolResultPayloads
+      : noToolsSnapshotPayloads;
+  if (!outbound.block && authoritativePayloads.length > 0) {
     const unverified = findUnverifiedCoachNumbers(
       replyText,
-      toolResultPayloads,
+      authoritativePayloads,
     );
     if (unverified.length > 0) {
       const { prose: corrected, stripped } = stripUnverifiedNumbers(
