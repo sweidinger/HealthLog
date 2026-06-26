@@ -90,7 +90,9 @@ export class OpenAIClient implements AIProvider {
       // v1.11.2 — the base URL is user/admin-overridable (BYO gateway), so pin
       // the connect-time DNS check: a base URL resolving to a private/metadata
       // address is rejected, closing the SSRF/rebinding surface.
-      { timeoutMs: 60_000, requirePublicHost: true },
+      // v1.20.1 — compose the caller's cancel signal (Coach SSE disconnect) so
+      // a mid-generation abort tears the upstream call down early.
+      { timeoutMs: 60_000, requirePublicHost: true, signal: params.signal },
     );
 
     if (!res.ok) {

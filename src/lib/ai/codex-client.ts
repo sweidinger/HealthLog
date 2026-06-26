@@ -467,7 +467,9 @@ export class CodexClient implements AIProvider {
         // clients use so a long generation is not clipped by the 15 s
         // default while still bounding a tar-pit upstream.
       },
-      { timeoutMs: 60_000 },
+      // v1.20.1 — compose the caller's cancel signal (Coach SSE disconnect) so
+      // a mid-generation abort tears the upstream call down early.
+      { timeoutMs: 60_000, signal: params.signal },
     );
   }
 

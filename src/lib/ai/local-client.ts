@@ -125,7 +125,13 @@ export class LocalOpenAICompatibleClient implements AIProvider {
           ...(params.responseFormat === "json" ? { format: "json" } : {}),
         }),
       },
-      { timeoutMs: 60_000, requirePublicHost: !allowPrivate },
+      // v1.20.1 — compose the caller's cancel signal (Coach SSE disconnect) so
+      // a mid-generation abort tears the upstream call down early.
+      {
+        timeoutMs: 60_000,
+        requirePublicHost: !allowPrivate,
+        signal: params.signal,
+      },
     );
 
     if (!res.ok) {
