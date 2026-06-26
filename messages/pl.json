@@ -2288,7 +2288,31 @@
       "thinkingDetail": "Odpowiedź na podstawie Twojego podsumowania zdrowia.",
       "tokensUsed": "{count} tokenów",
       "tokensUsedWithModel": "{count} tokenów · {model}",
-      "askAboutThis": "Zapytaj trenera o to"
+      "askAboutThis": "Zapytaj trenera o to",
+      "readStrip": {
+        "label": "Ocena Coacha",
+        "baselineWithin": "Twój zwykły zakres to {low}–{high} {unit}; dzisiejsza wartość {value} mieści się w nim.",
+        "baselineAbove": "Twój zwykły zakres to {low}–{high} {unit}; dzisiejsza wartość {value} jest powyżej niego.",
+        "baselineBelow": "Twój zwykły zakres to {low}–{high} {unit}; dzisiejsza wartość {value} jest poniżej niego.",
+        "insufficient": "Wciąż poznaję twój zwykły zakres — rejestruj jeszcze przez kilka dni.",
+        "driver": "{note}"
+      },
+      "scope": {
+        "prefix": "Coach jest już przy {metric}",
+        "tap": "Dotknij, aby zapytać",
+        "question": "Wytłumacz mi tę wartość — na co powinienem zwrócić uwagę?"
+      },
+      "seeded": {
+        "prefix": "Dziś warto rzucić okiem: {signal}",
+        "signal": {
+          "readiness": "gotowość",
+          "recovery": "regeneracja"
+        },
+        "question": {
+          "readiness": "Moja gotowość jest dziś nietypowa — z czego to wynika?",
+          "recovery": "Moja regeneracja się zmieniła — co za tym stoi?"
+        }
+      }
     },
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",
@@ -3558,6 +3582,27 @@
         "steady": "Zgodnie z Twoją ostatnią średnią.",
         "below": "Poniżej Twojej ostatniej średniej."
       }
+    },
+    "briefing": {
+      "memory": {
+        "recall": "Wcześniej: {text}",
+        "forward": "Patrząc w przyszłość: {text}",
+        "forwardWatch": "Warto mieć na oku {metric}.",
+        "forwardHolding": "Na razie wszystko jest stabilne."
+      }
+    },
+    "tension": {
+      "label": "Szczera ocena: {positive} wygląda dobrze, ale {negative} odstaje — wynik łączny ląduje na {band}.",
+      "contributor": {
+        "green": "zielony",
+        "yellow": "żółty",
+        "red": "czerwony"
+      }
+    },
+    "streak": {
+      "returnLabel": "Twój {metric} wrócił do twojego zwykłego zakresu po {count} dniach — cokolwiek to było, minęło.",
+      "daysInside": "{count} dni w zakresie",
+      "daysOutside": "{count} dni poza zakresem"
     }
   },
   "thresholds": {

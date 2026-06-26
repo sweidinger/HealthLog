@@ -2288,7 +2288,31 @@
       "thinkingDetail": "Respondido a partir de tu resumen de salud.",
       "tokensUsed": "{count} tokens",
       "tokensUsedWithModel": "{count} tokens · {model}",
-      "askAboutThis": "Pregúntale al coach sobre esto"
+      "askAboutThis": "Pregúntale al coach sobre esto",
+      "readStrip": {
+        "label": "Lectura del Coach",
+        "baselineWithin": "Tu rango habitual es {low}–{high} {unit}; hoy {value} se sitúa dentro de él.",
+        "baselineAbove": "Tu rango habitual es {low}–{high} {unit}; hoy {value} se sitúa por encima.",
+        "baselineBelow": "Tu rango habitual es {low}–{high} {unit}; hoy {value} se sitúa por debajo.",
+        "insufficient": "Todavía estoy aprendiendo tu rango habitual — sigue registrando unos días más.",
+        "driver": "{note}"
+      },
+      "scope": {
+        "prefix": "El Coach ya está en {metric}",
+        "tap": "Toca para preguntar",
+        "question": "Explícame esta métrica — ¿hay algo que deba vigilar?"
+      },
+      "seeded": {
+        "prefix": "Hoy merece un vistazo: {signal}",
+        "signal": {
+          "readiness": "disposición",
+          "recovery": "recuperación"
+        },
+        "question": {
+          "readiness": "Mi disposición está rara hoy — ¿a qué se debe?",
+          "recovery": "Mi recuperación ha cambiado — ¿qué hay detrás?"
+        }
+      }
     },
     "relativeJustNow": "ahora mismo",
     "relativeMinutesAgoOne": "hace {count} minuto",
@@ -3558,6 +3582,27 @@
         "steady": "En línea con tu media reciente.",
         "below": "Por debajo de tu media reciente."
       }
+    },
+    "briefing": {
+      "memory": {
+        "recall": "Antes, {text}",
+        "forward": "Mirando hacia adelante: {text}",
+        "forwardWatch": "Conviene vigilar {metric}.",
+        "forwardHolding": "Por ahora todo se mantiene estable."
+      }
+    },
+    "tension": {
+      "label": "Lectura sincera: {positive} tiene buena pinta, pero {negative} flojea — el conjunto queda en {band}.",
+      "contributor": {
+        "green": "verde",
+        "yellow": "amarillo",
+        "red": "rojo"
+      }
+    },
+    "streak": {
+      "returnLabel": "Tu {metric} ha vuelto a tu rango habitual tras {count} días — fuera lo que fuera, ya pasó.",
+      "daysInside": "{count} días dentro",
+      "daysOutside": "{count} días fuera"
     }
   },
   "thresholds": {

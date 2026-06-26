@@ -126,4 +126,15 @@ export const insightsKeys = {
    * refreshes the caption in lockstep with the chart.
    */
   insightsTrendSeries: (types: string) => ["trend-series", types] as const,
+
+  /**
+   * v1.21.2 (A1) — per-metric "Coach read" strip
+   * (`/api/insights/coach-read?metric=<MeasurementType>`). One generic route
+   * backs every metric sub-page, so the key is parameterised by the
+   * MeasurementType. Pure compute over the baseline + correlation engines —
+   * the `["insights"]` prefix keeps it in the standard invalidation fan-out
+   * (a measurement write busts it so the placement refreshes).
+   */
+  insightsCoachRead: (metric: string) =>
+    ["insights", "coach-read", metric] as const,
 };

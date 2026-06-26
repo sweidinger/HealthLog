@@ -2288,7 +2288,31 @@
       "thinkingDetail": "Risposta basata sul tuo riepilogo di salute.",
       "tokensUsed": "{count} token",
       "tokensUsedWithModel": "{count} token · {model}",
-      "askAboutThis": "Chiedi al coach"
+      "askAboutThis": "Chiedi al coach",
+      "readStrip": {
+        "label": "Lettura del Coach",
+        "baselineWithin": "Il tuo intervallo abituale è {low}–{high} {unit}; oggi {value} rientra al suo interno.",
+        "baselineAbove": "Il tuo intervallo abituale è {low}–{high} {unit}; oggi {value} si colloca al di sopra.",
+        "baselineBelow": "Il tuo intervallo abituale è {low}–{high} {unit}; oggi {value} si colloca al di sotto.",
+        "insufficient": "Sto ancora imparando il tuo intervallo abituale — continua a registrare per qualche giorno in più.",
+        "driver": "{note}"
+      },
+      "scope": {
+        "prefix": "Il Coach è già su {metric}",
+        "tap": "Tocca per chiedere",
+        "question": "Spiegami questo parametro — c'è qualcosa da tenere d'occhio?"
+      },
+      "seeded": {
+        "prefix": "Oggi vale uno sguardo: {signal}",
+        "signal": {
+          "readiness": "prontezza",
+          "recovery": "recupero"
+        },
+        "question": {
+          "readiness": "La mia prontezza è anomala oggi — da cosa dipende?",
+          "recovery": "Il mio recupero è cambiato — cosa c'è dietro?"
+        }
+      }
     },
     "relativeJustNow": "proprio ora",
     "relativeMinutesAgoOne": "{count} minuto fa",
@@ -3558,6 +3582,27 @@
         "steady": "In linea con la tua media recente.",
         "below": "Sotto la tua media recente."
       }
+    },
+    "briefing": {
+      "memory": {
+        "recall": "In precedenza, {text}",
+        "forward": "Guardando avanti: {text}",
+        "forwardWatch": "Vale la pena tenere d'occhio {metric}.",
+        "forwardHolding": "Per ora è tutto stabile."
+      }
+    },
+    "tension": {
+      "label": "Lettura sincera: {positive} ha un bell'aspetto, ma {negative} è in calo — il complessivo si attesta su {band}.",
+      "contributor": {
+        "green": "verde",
+        "yellow": "giallo",
+        "red": "rosso"
+      }
+    },
+    "streak": {
+      "returnLabel": "Il tuo {metric} è di nuovo nel tuo intervallo abituale dopo {count} giorni — qualunque cosa fosse, è passata.",
+      "daysInside": "{count} giorni dentro",
+      "daysOutside": "{count} giorni fuori"
     }
   },
   "thresholds": {

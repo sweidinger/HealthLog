@@ -123,6 +123,20 @@ interface DailyBriefingProps {
    * comparison toggle migrates here from the hero in commit 5.
    */
   metaSlot?: React.ReactNode;
+  /**
+   * v1.21.2 (A4) — server-resolved callback + forward-look. The briefing
+   * recalls the prior period and points ahead ("as I noted Monday, your sleep
+   * was short; it's recovered since — worth watching tonight"). Both strings
+   * are already localised and figure-anchored by the resolver; the card only
+   * renders them. One callback per surface — absent (the common case) when no
+   * prior narrative recall is on file.
+   */
+  memory?: {
+    /** The recall of the prior-period read, anchored to a figure. */
+    recall: string;
+    /** The forward-look pointing ahead. */
+    forward: string;
+  } | null;
 }
 
 const METRIC_ICON: Record<
@@ -335,6 +349,7 @@ export function DailyBriefing({
   noProvider = false,
   noProviderStale = false,
   metaSlot,
+  memory = null,
 }: DailyBriefingProps) {
   const { t } = useTranslations();
 
@@ -374,6 +389,33 @@ export function DailyBriefing({
             // looser `space-y-4`, which read as taller than its neighbours on
             // the overview. One token, no new spacing scale.
             <div className="space-y-3">
+              {/* v1.21.2 (A4) — callback + forward-look. Recalls the prior
+                  period and points ahead, both server-resolved and
+                  figure-anchored. Leads the card so the briefing opens by
+                  closing the loop on what it noted last, then looks forward. */}
+              {memory && (
+                <div
+                  data-slot="daily-briefing-memory"
+                  className="border-border/60 bg-card/40 space-y-1 rounded-md border px-3 py-2"
+                >
+                  <p
+                    data-slot="daily-briefing-memory-recall"
+                    className="text-muted-foreground text-xs leading-snug"
+                  >
+                    {t("insights.briefing.memory.recall", {
+                      text: memory.recall,
+                    })}
+                  </p>
+                  <p
+                    data-slot="daily-briefing-memory-forward"
+                    className="text-foreground/80 text-xs leading-snug"
+                  >
+                    {t("insights.briefing.memory.forward", {
+                      text: memory.forward,
+                    })}
+                  </p>
+                </div>
+              )}
               {/* v1.4.27 B1 — the leading narrative paragraph dropped.
                 The hero strip subtitle on `/insights` already renders
                 the same `briefing.paragraph` text directly above this

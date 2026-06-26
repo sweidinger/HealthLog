@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Loader2 } from "lucide-react";
+import { Eye, Loader2, Target } from "lucide-react";
 import { toast } from "sonner";
 
 import { Switch } from "@/components/ui/switch";
@@ -54,9 +54,19 @@ const WINDOW_OPTIONS: ReadonlyArray<CoachDefaultWindow> = [
 
 export interface SourcesRailProps {
   className?: string;
+  /**
+   * v1.21.2 (A2) — the human label of the metric the current conversation
+   * was launched scoped to, or null for a generic (all-source) open. When
+   * set, the rail surfaces a small "the Coach is already on <metric>" line
+   * above the persisted-cluster toggles so the active narrowing is VISIBLE
+   * on the drawer surface (the page surface shows it in the hero). The
+   * persisted clusters below still describe what the Coach can otherwise
+   * see — the scope line names where this conversation actually started.
+   */
+  activeScopeLabel?: string | null;
 }
 
-export function SourcesRail({ className }: SourcesRailProps) {
+export function SourcesRail({ className, activeScopeLabel }: SourcesRailProps) {
   const { t } = useTranslations();
 
   const { data: prefs } = useCoachPrefs();
@@ -121,6 +131,25 @@ export function SourcesRail({ className }: SourcesRailProps) {
         <Eye className="text-muted-foreground size-3.5" aria-hidden="true" />
         {t("insights.coach.sourcesTitle")}
       </h3>
+
+      {/* v1.21.2 (A2) — the visible launch scope for this conversation. Only
+          rendered when the Coach was opened narrowed to a metric; a generic
+          open omits it entirely so the rail is unchanged for the default
+          all-source case. */}
+      {activeScopeLabel ? (
+        <div
+          data-slot="coach-sources-active-scope"
+          className="border-dracula-purple/30 bg-dracula-purple/5 text-foreground flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium"
+        >
+          <Target
+            className="text-dracula-purple size-3.5 shrink-0"
+            aria-hidden="true"
+          />
+          <span className="min-w-0 truncate">
+            {t("insights.coach.scope.prefix", { metric: activeScopeLabel })}
+          </span>
+        </div>
+      ) : null}
 
       {/* Window selector — persists to `coachPrefs.defaultWindow` so the
           chosen timeframe sticks across drawer opens and matches what

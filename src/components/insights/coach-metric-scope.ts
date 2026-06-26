@@ -1,4 +1,5 @@
 import type { CoachScopeSource, CoachScopeWindow } from "@/lib/ai/coach/types";
+import { COACH_SOURCE_DOMAIN_LABEL } from "@/lib/ai/coach/tools/source-keys";
 
 /**
  * v1.21.0 (C4 H1/H4) — metric → Coach scope + seed-question map.
@@ -164,4 +165,59 @@ export function scopeSourceFromMetricKey(
   if (lower === "bloodglucose" || lower === "blood_glucose") return "glucose";
   if (lower === "bmi") return "bmi";
   return null;
+}
+
+/**
+ * v1.21.2 (A2) — the human label for a launch scope's primary metric, for
+ * the VISIBLE "the Coach is already on …" pill. The caller resolves the
+ * i18n string via `t("insights.coach.scope.metric.<source>")`; this helper
+ * supplies the English domain phrase as the deterministic fallback for any
+ * source the bundle hasn't named yet, reusing the brand-free
+ * `COACH_SOURCE_DOMAIN_LABEL` vocabulary the Coach inventory already
+ * speaks. Returns null when there is no metric to label (a generic open).
+ */
+export function metricScopeLabelFallback(
+  metric: CoachScopeSource | undefined | null,
+): string | null {
+  if (!metric) return null;
+  return COACH_SOURCE_DOMAIN_LABEL[metric] ?? (metric as string);
+}
+
+/**
+ * v1.21.2 (A2) — map a launch-scope source onto the EXISTING localised
+ * `measurements.type*` metric-name key. The scope pill reads in the user's
+ * own language for every measurement-backed source, instead of the English
+ * `COACH_SOURCE_DOMAIN_LABEL` fallback that only carries the brand-free
+ * domain phrase. Sources without a measurement name (mood, the gait / audio
+ * long tail) keep that English fallback — they almost never become a scoped
+ * launch. Returns the key, or null when the source has no localised name.
+ */
+const SCOPE_SOURCE_METRIC_LABEL_KEY: Partial<Record<CoachScopeSource, string>> =
+  {
+    bp: "measurements.typeBloodPressure",
+    weight: "measurements.typeWeight",
+    pulse: "measurements.typePulse",
+    hrv: "measurements.typeHeartRateVariability",
+    resting_hr: "measurements.typeRestingHeartRate",
+    respiratory_rate: "measurements.typeRespiratoryRate",
+    spo2: "measurements.typeOxygenSaturation",
+    bmi: "measurements.typeBodyMassIndex",
+    body_temp: "measurements.typeBodyTemperature",
+    vo2_max: "measurements.typeVo2Max",
+    sleep: "measurements.typeSleep",
+    body_fat: "measurements.typeBodyFat",
+    fat_mass: "measurements.typeFatMass",
+    fat_free_mass: "measurements.typeFatFreeMass",
+    muscle_mass: "measurements.typeMuscleMass",
+    lean_body_mass: "measurements.typeLeanBodyMass",
+    bone_mass: "measurements.typeBoneMass",
+    active_energy: "measurements.typeActiveEnergyBurned",
+    flights: "measurements.typeFlightsClimbed",
+  };
+
+export function scopeSourceMetricLabelKey(
+  metric: CoachScopeSource | undefined | null,
+): string | null {
+  if (!metric) return null;
+  return SCOPE_SOURCE_METRIC_LABEL_KEY[metric] ?? null;
 }

@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [1.21.2] — 2026-06-27 — Ambient Coach presence
+
+A patch release. The Coach surfaces what it already computes — at the metric, on the score, in the briefing — instead of waiting to be asked. No migrations, no breaking changes.
+
+### Added
+
+- A "Coach read" on every metric page: one line placing today's reading against your own usual range, and — when the data supports it — one line naming the strongest connected signal in plain association language. While your range is still forming it says so rather than guessing.
+- Opening the Coach from a metric or card now shows that it is already on that metric, with a tappable opening question; the unscoped Coach opens on the day's most notable signal instead of a blank box.
+- The daily briefing recalls the prior period and points ahead.
+- The health score surfaces an honest "internal read" when its contributors disagree — good sleep but a rising resting pulse — and notes when a metric has come back inside your usual range after a dip.
+
+### Changed
+
+- The Coach's motivational-interviewing repertoire gained develop-discrepancy and roll-with-resistance moves and a clearer anti-persuasion boundary.
+- The prose number-check now runs on the local-model path too, so grounding holds regardless of provider.
+
 ## [1.21.1] — 2026-06-26 — Dialog footer reachability
 
 A patch release. No migrations, no breaking changes.
