@@ -6,6 +6,7 @@ import { Activity, Droplet, FlaskConical, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LearningGate } from "@/components/ui/learning-gate";
+import { LearnMoreLink } from "@/components/ui/learn-more-link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
@@ -116,6 +117,9 @@ export function GlucoseClinicalPanel() {
           />
           <div className="mt-4">
             <LabsCrossLink />
+          </div>
+          <div className="mt-3">
+            <LearnMoreLink concept="BLOOD_GLUCOSE" />
           </div>
         </CardContent>
       </Card>
@@ -237,6 +241,7 @@ export function GlucoseClinicalPanel() {
         ) : null}
 
         <LabsCrossLink />
+        <LearnMoreLink concept="BLOOD_GLUCOSE" />
       </CardContent>
     </Card>
   );

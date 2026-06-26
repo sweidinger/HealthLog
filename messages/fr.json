@@ -34,7 +34,8 @@
     "retry": "Réessayer",
     "reportIssue": "Signaler un problème",
     "showPassword": "Afficher le mot de passe",
-    "hidePassword": "Masquer le mot de passe"
+    "hidePassword": "Masquer le mot de passe",
+    "learnMore": "En savoir plus"
   },
   "doctorReport": {
     "title": "Rapport de santé",

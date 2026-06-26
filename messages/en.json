@@ -34,7 +34,8 @@
     "retry": "Retry",
     "reportIssue": "Report issue",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "learnMore": "Learn more"
   },
   "doctorReport": {
     "title": "Health Report",

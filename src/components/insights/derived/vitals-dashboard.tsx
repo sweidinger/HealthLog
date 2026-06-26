@@ -14,6 +14,7 @@ import {
 import { TileHeader } from "@/components/insights/tile-header";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { SparklineDeltaTile } from "./sparkline-delta-tile";
+import { LearnMoreLink } from "@/components/ui/learn-more-link";
 import { CoverageMeter } from "./coverage-meter";
 import { ProvenanceExplainer } from "./provenance-explainer";
 import { METRIC_PROVENANCE } from "./standards";
@@ -289,6 +290,7 @@ function BaselineTile({
         provenance={
           <MetricProvenance metric={metric} provenance={data.provenance} />
         }
+        footer={<LearnMoreLink concept={tileId} />}
       />
     </div>
   );
