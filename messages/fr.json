@@ -20,6 +20,7 @@
     "inactive": "Inactif",
     "disabled": "Désactivé",
     "networkError": "Erreur réseau",
+    "openDatePicker": "Ouvrir le sélecteur de date",
     "unknownError": "Erreur inconnue",
     "copied": "Copié !",
     "or": "ou",
@@ -4119,6 +4120,16 @@
       "h12": "12 heures (AM/PM)",
       "saved": "Format horaire enregistré.",
       "saveError": "Échec de l’enregistrement du format horaire."
+    },
+    "dateFormat": {
+      "title": "Format de date",
+      "description": "Détermine l’ordre du jour, du mois et de l’année lors de l’affichage des dates.",
+      "auto": "Automatique (langue)",
+      "dmy": "JJ.MM.AAAA",
+      "mdy": "MM/JJ/AAAA",
+      "ymd": "AAAA-MM-JJ",
+      "saved": "Format de date enregistré.",
+      "saveError": "Échec de l’enregistrement du format de date."
     },
     "username": "Nom d'utilisateur",
     "height": "Taille (cm)",

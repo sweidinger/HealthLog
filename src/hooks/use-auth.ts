@@ -7,8 +7,12 @@ import { queryKeys } from "@/lib/query-keys";
 import { apiGet, apiFetchRaw } from "@/lib/api/api-fetch";
 import { retryOnceOnTransientError } from "@/lib/queries/retry-transient";
 import { useTranslations } from "@/lib/i18n/context";
-import type { TimeFormatPreference } from "@/lib/format-locale";
+import type {
+  TimeFormatPreference,
+  DateFormatPreference,
+} from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
+import { isDateFormatPreference, storeDateFormat } from "@/lib/date-format";
 import type { ModuleKey } from "@/lib/modules/registry";
 import type { TourProgress } from "@/lib/onboarding/tour-progress";
 import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
@@ -75,6 +79,14 @@ export interface AuthUser {
    * "AUTO" against a stale /me payload.
    */
   timeFormat: TimeFormatPreference;
+  /**
+   * Date-order display preference. AUTO follows the locale convention
+   * (de → dd.MM.yyyy, en → MM/dd/yyyy); DMY / MDY / YMD pin the field order
+   * regardless of locale. Mirrored into localStorage by `fetchMe` so
+   * `useFormatters()` and the `<DateField>` primitive render the same order.
+   * Coerced to "AUTO" against a stale /me payload.
+   */
+  dateFormat: DateFormatPreference;
   /**
    * v1.4.47 W3 — per-user Coach opt-out. When `true`, every Coach
    * mount point (`<LayoutCoachFab>`, `<LayoutCoachMount>`, the
@@ -157,6 +169,15 @@ async function fetchMe(): Promise<AuthUser> {
     ? data.timeFormat
     : "AUTO";
   storeTimeFormat(timeFormat);
+  // Date-order preference: coerce against a stale /me payload, then mirror
+  // into localStorage so `useFormatters()` and the `<DateField>` primitive
+  // (which cannot reach the query cache) render the same field order.
+  const dateFormat: DateFormatPreference = isDateFormatPreference(
+    data.dateFormat,
+  )
+    ? data.dateFormat
+    : "AUTO";
+  storeDateFormat(dateFormat);
   return {
     ...(data as AuthUser),
     disableCoach: data.disableCoach ?? false,
@@ -167,6 +188,7 @@ async function fetchMe(): Promise<AuthUser> {
     // without the field) so the display defaults to metric.
     unitPreference: data.unitPreference === "imperial" ? "imperial" : "metric",
     timeFormat,
+    dateFormat,
     // v1.15.0 — coerce against a stale /me payload so the cycle nav entry
     // stays hidden by default when the field is absent.
     cycleTrackingEnabled: data.cycleTrackingEnabled === true,

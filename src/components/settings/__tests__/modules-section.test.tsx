@@ -70,6 +70,7 @@ function buildUser(modules: AuthUser["modules"]): AuthUser {
     glucoseUnit: null,
     unitPreference: "metric",
     timeFormat: "AUTO",
+    dateFormat: "AUTO",
     disableCoach: false,
     fullName: null,
     insurerName: null,

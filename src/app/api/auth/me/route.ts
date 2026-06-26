@@ -96,6 +96,10 @@ export const GET = apiHandler(async () => {
     // Hour-cycle display preference (AUTO follows the locale convention,
     // H12 / H24 pin the cycle). Clients mirror this into their formatters.
     timeFormat: user.timeFormat ?? "AUTO",
+    // Date-order display preference (AUTO follows the locale convention,
+    // DMY / MDY / YMD pin the field order). Clients mirror this into their
+    // formatters and the <DateField> primitive.
+    dateFormat: user.dateFormat ?? "AUTO",
     lastReportPracticeName: user.lastReportPracticeName ?? null,
     // v1.4.47 W3 — per-user Coach opt-out. Default `false` if the
     // column is absent (partial-deploy rollback safety, see migration

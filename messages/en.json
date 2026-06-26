@@ -20,6 +20,7 @@
     "inactive": "Inactive",
     "disabled": "Disabled",
     "networkError": "Network error",
+    "openDatePicker": "Open date picker",
     "unknownError": "Unknown error",
     "copied": "Copied!",
     "or": "or",
@@ -4119,6 +4120,16 @@
       "h12": "12-hour (AM/PM)",
       "saved": "Hour format saved.",
       "saveError": "Saving the hour format failed."
+    },
+    "dateFormat": {
+      "title": "Date format",
+      "description": "Controls the order of day, month and year when dates are shown.",
+      "auto": "Automatic (language)",
+      "dmy": "DD.MM.YYYY",
+      "mdy": "MM/DD/YYYY",
+      "ymd": "YYYY-MM-DD",
+      "saved": "Date format saved.",
+      "saveError": "Saving the date format failed."
     },
     "username": "Username",
     "height": "Height (cm)",

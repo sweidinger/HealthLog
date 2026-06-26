@@ -20,6 +20,7 @@
     "inactive": "Nieaktywne",
     "disabled": "Wyłączone",
     "networkError": "Błąd sieci",
+    "openDatePicker": "Otwórz wybór daty",
     "unknownError": "Nieznany błąd",
     "copied": "Skopiowano!",
     "or": "lub",
@@ -4119,6 +4120,16 @@
       "h12": "12-godzinny (AM/PM)",
       "saved": "Zapisano format godziny.",
       "saveError": "Nie udało się zapisać formatu godziny."
+    },
+    "dateFormat": {
+      "title": "Format daty",
+      "description": "Określa kolejność dnia, miesiąca i roku przy wyświetlaniu dat.",
+      "auto": "Automatycznie (język)",
+      "dmy": "DD.MM.RRRR",
+      "mdy": "MM/DD/RRRR",
+      "ymd": "RRRR-MM-DD",
+      "saved": "Zapisano format daty.",
+      "saveError": "Nie udało się zapisać formatu daty."
     },
     "username": "Nazwa użytkownika",
     "height": "Wzrost (cm)",
