@@ -3,7 +3,7 @@
 import { useEffect, useReducer, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessagesSquare, Plus, Settings, Sparkles } from "lucide-react";
+import { Plus, Settings, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -539,35 +539,30 @@ export function CoachConversation({
         data-variant={surface}
         className={cn("flex min-h-0 flex-1 flex-col", className)}
       >
-        {/* v1.19.1 (C2) — a clear, always-visible "Conversations" button on
-            the page surface. The composer's `+` menu still carries the same
-            action, but the maintainer wanted an obvious, dedicated affordance
-            to reach past conversations rather than one buried in a menu. */}
+        {/* v1.21.0 — the page toolbar is now a single trailing affordance:
+            the settings gear in the top-right corner. The "Conversations"
+            and "New chat" controls were removed here — both still live in the
+            composer's `+` actions menu, keeping the new-chat surface calm and
+            uncluttered. The gear deep-links to Settings → AI (one place for
+            model + behaviour), matching the drawer header's gear. */}
         <div
           data-slot="coach-page-toolbar"
-          className="flex shrink-0 items-center justify-between gap-2 px-4 pt-2 sm:px-6"
+          className="flex shrink-0 items-center justify-end px-4 pt-2 sm:px-6"
         >
           <Button
-            type="button"
+            asChild
             variant="ghost"
-            size="sm"
-            onClick={() => setHistoryDrawerOpen(true)}
-            data-slot="coach-page-conversations"
-            className="text-muted-foreground hover:text-foreground -ml-1 gap-1.5"
+            size="icon"
+            data-slot="coach-page-settings"
+            className="text-muted-foreground hover:text-foreground -mr-1 size-9 shrink-0"
           >
-            <MessagesSquare className="size-4" aria-hidden="true" />
-            {t("insights.coach.historyTitle")}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleNewChat}
-            data-slot="coach-page-new-chat"
-            className="text-muted-foreground hover:text-foreground -mr-1 gap-1.5"
-          >
-            <Plus className="size-4" aria-hidden="true" />
-            {t("insights.coach.newChat")}
+            <Link
+              href="/settings/ai"
+              aria-label={t("insights.coach.settingsAriaLabel")}
+              title={t("insights.coach.settingsAriaLabel")}
+            >
+              <Settings className="size-4" aria-hidden="true" />
+            </Link>
           </Button>
         </div>
         {heroActive ? (

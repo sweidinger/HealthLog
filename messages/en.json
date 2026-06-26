@@ -2279,7 +2279,7 @@
       "dictateError": "Could not start voice input. Check microphone permission and try again.",
       "showConversations": "Show conversations",
       "hideConversations": "Hide conversations",
-      "heroGreeting": "How can I help you?",
+      "heroGreeting": "Ask me anything about your data",
       "heroSubline": "Ask about your trends, medications, or readings.",
       "thinkingElapsed": "{seconds}s",
       "thinkingDuration": "Thought for {seconds}s",

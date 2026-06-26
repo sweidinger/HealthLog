@@ -9,16 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import Link from "next/link";
-import {
-  Loader2,
-  MessagesSquare,
-  Mic,
-  Plus,
-  Send,
-  Settings,
-  Square,
-} from "lucide-react";
+import { Loader2, MessagesSquare, Mic, Plus, Send, Square } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -452,6 +443,46 @@ export function CoachInput({
       </Button>
     );
 
+  // v1.21.0 — the leading `+` actions menu (page surface only). Opens the
+  // attachment/scope menu: new chat + open conversations. The settings gear
+  // no longer lives here — it moved to the page toolbar's top-right corner,
+  // so the composer's front is ONLY the `+`. Const-lifted like the mic / send
+  // so it slots into the single-row composer without forking the layout.
+  const actionsButton = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          disabled={disabled}
+          data-slot="coach-input-actions"
+          aria-label={t("insights.coach.actionsMenu")}
+          title={t("insights.coach.actionsMenu")}
+          className="text-muted-foreground hover:text-foreground size-11 shrink-0 rounded-xl sm:size-9"
+        >
+          <Plus className="size-5 sm:size-4" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="w-52">
+        <DropdownMenuItem
+          data-slot="coach-input-action-new-chat"
+          onSelect={() => onNewChat?.()}
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          {t("insights.coach.newChat")}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          data-slot="coach-input-action-history"
+          onSelect={() => onOpenHistory?.()}
+        >
+          <MessagesSquare className="size-4" aria-hidden="true" />
+          {t("insights.coach.historyTitle")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <form
       data-slot="coach-input"
@@ -459,26 +490,30 @@ export function CoachInput({
       className="flex flex-col"
     >
       {/* v1.16.1 / v1.18.7 — modern chat-app composer: a single rounded
-          field. The drawer surface keeps the textarea flanked by the mic
-          (left) and send / stop (right) on one baseline. The page surface
-          (`showHub`) stacks the textarea over a control-hub action row so
-          the composer carries the conversation controls ChatGPT-style.
-          `items-end` keeps the single-row controls pinned to the input's
-          last line as it grows. Enter sends, Shift+Enter inserts a newline. */}
+          field, ONE baseline row. The drawer surface flanks the textarea with
+          the mic (left) and send / stop (right). The page surface (`showHub`)
+          leads with a `+` actions menu (new chat + open conversations), then
+          the textarea, then the mic + send — same row, vertically centred.
+          The settings gear is NOT in the composer; it lives in the page
+          toolbar's top-right corner. `items-end` keeps the flanking controls
+          pinned to the input's last line as it grows. Enter sends,
+          Shift+Enter inserts a newline. */}
       <div
         className={cn(
           "border-border/60 bg-muted/40 group rounded-2xl border",
           "shadow-sm transition-colors",
           "focus-within:border-dracula-purple/50 focus-within:ring-dracula-purple/15 focus-within:bg-background focus-within:ring-2",
-          showHub ? "flex flex-col gap-1 p-2" : "flex items-end gap-1.5 p-1.5",
+          // Both surfaces share ONE baseline row: the drawer flanks the
+          // textarea with mic (left) + send (right); the page leads with a
+          // `+` actions menu, then the textarea, then mic + send. `items-end`
+          // keeps the flanking controls pinned to the input's last line as it
+          // grows.
+          "flex items-end gap-1.5 p-1.5",
         )}
       >
-        {/* v1.18.10 (W4) — the mic always renders so it stays discoverable.
-            When the browser lacks the Web Speech API (or during SSR) it is
-            DISABLED with an explanatory tooltip rather than vanishing or
-            sitting as a dead control that does nothing on tap. In the hub
-            layout the mic moves into the action row below the textarea. */}
-        {!showHub && micButton}
+        {/* Leading control. Page surface: the `+` actions menu. Drawer
+            surface: the dictation mic. */}
+        {showHub ? actionsButton : micButton}
         <textarea
           id={inputId}
           ref={textareaRef}
@@ -508,9 +543,9 @@ export function CoachInput({
             // Desktop shrinks back to `text-sm` for the compact
             // composer.
             "min-w-0 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none sm:text-sm",
-            // Centre the single-line state against the send button so
-            // the placeholder and the icon share a baseline.
-            showHub ? "px-2 pt-1.5 pb-0.5" : "px-2 py-1.5",
+            // Centre the single-line state against the flanking controls so
+            // the placeholder and the icons share a baseline.
+            "px-2 py-1.5",
             "max-h-[9.5rem] overflow-auto",
             // v1.18.7 — calm, thin scrollbar inside the composer when
             // dictation overruns 6 lines (see also the thread/history
@@ -520,64 +555,15 @@ export function CoachInput({
           )}
         />
         {showHub ? (
-          // v1.18.11 — the control-hub action row (page surface). Leading
-          // `+` actions menu (new chat + open conversations) and a settings
-          // deep-link on the left; the mic + send / stop on the right —
-          // all on one baseline, ChatGPT-style.
-          <div data-slot="coach-input-hub" className="flex items-center gap-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  disabled={disabled}
-                  data-slot="coach-input-actions"
-                  aria-label={t("insights.coach.actionsMenu")}
-                  title={t("insights.coach.actionsMenu")}
-                  className="text-muted-foreground hover:text-foreground size-11 shrink-0 rounded-xl sm:size-9"
-                >
-                  <Plus className="size-5 sm:size-4" aria-hidden="true" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top" className="w-52">
-                <DropdownMenuItem
-                  data-slot="coach-input-action-new-chat"
-                  onSelect={() => onNewChat?.()}
-                >
-                  <Plus className="size-4" aria-hidden="true" />
-                  {t("insights.coach.newChat")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  data-slot="coach-input-action-history"
-                  onSelect={() => onOpenHistory?.()}
-                >
-                  <MessagesSquare className="size-4" aria-hidden="true" />
-                  {t("insights.coach.historyTitle")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {/* The Coach preferences live in Settings → AI (one place for
-                model + behaviour); the gear deep-links there. */}
-            <Button
-              asChild
-              size="icon"
-              variant="ghost"
-              data-slot="coach-input-settings"
-              className="text-muted-foreground hover:text-foreground size-11 shrink-0 rounded-xl sm:size-9"
-            >
-              <Link
-                href="/settings/ai"
-                aria-label={t("insights.coach.settingsAriaLabel")}
-                title={t("insights.coach.settingsAriaLabel")}
-              >
-                <Settings className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-            <div className="ml-auto flex items-center gap-1">
-              {micButton}
-              {sendButton}
-            </div>
+          // v1.21.0 — page surface trailing cluster: mic + send / stop on the
+          // same baseline as the leading `+` and the textarea. The settings
+          // gear moved out of the composer entirely (now in the page toolbar).
+          <div
+            data-slot="coach-input-hub"
+            className="flex shrink-0 items-center gap-1.5"
+          >
+            {micButton}
+            {sendButton}
           </div>
         ) : (
           sendButton

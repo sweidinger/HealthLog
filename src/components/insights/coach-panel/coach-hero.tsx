@@ -64,11 +64,13 @@ export function CoachHero({ composer }: CoachHeroProps) {
           <Sparkles className="text-background size-6" />
         </div>
 
-        {/* Greeting — a slightly larger, tighter display treatment of the
-            existing font (weight/tracking/size only, no new font). */}
+        {/* Greeting — one line. A slightly larger, tighter display
+            treatment of the existing font (weight/tracking/size only, no
+            new font). The earlier two-line subline was dropped: the
+            new-chat surface reads as a single calm invitation. */}
         <div
           className={cn(
-            "flex flex-col gap-1.5",
+            "flex flex-col",
             "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-500",
           )}
           style={{ animationDelay: "80ms", animationFillMode: "both" }}
@@ -76,9 +78,6 @@ export function CoachHero({ composer }: CoachHeroProps) {
           <h1 className="text-foreground text-2xl font-semibold tracking-tight sm:text-3xl">
             {t("insights.coach.heroGreeting")}
           </h1>
-          <p className="text-muted-foreground text-sm">
-            {t("insights.coach.heroSubline")}
-          </p>
         </div>
 
         {/* Composer — the live <CoachInput>, centred. */}

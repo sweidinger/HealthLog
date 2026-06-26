@@ -17,8 +17,10 @@ describe("<CoachHero>", () => {
       <CoachHero composer={<div data-slot="test-composer">composer</div>} />,
     );
     expect(html).toContain('data-slot="coach-hero"');
-    // Greeting copy from insights.coach.heroGreeting.
-    expect(html).toContain("How can I help you?");
+    // Greeting copy from insights.coach.heroGreeting — one line now.
+    expect(html).toContain("Ask me anything about your data");
+    // The earlier two-line subline was dropped.
+    expect(html).not.toContain("Ask about your trends, medications");
     // The composer is re-parented into the hero, not forked.
     expect(html).toContain('data-slot="coach-hero-composer"');
     expect(html).toContain('data-slot="test-composer"');
@@ -26,7 +28,7 @@ describe("<CoachHero>", () => {
 
   it("renders the German greeting under the de locale", () => {
     const html = render(<CoachHero composer={null} />, "de");
-    expect(html).toContain("Wie kann ich dir helfen?");
+    expect(html).toContain("Frage mich etwas zu deinen Daten");
   });
 
   it("does not render starter-question suggestion chips", () => {
