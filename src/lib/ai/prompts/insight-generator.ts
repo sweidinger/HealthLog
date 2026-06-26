@@ -40,7 +40,7 @@ import {
 } from "./shared-contracts";
 
 /** Stable identifier for the active system prompt revision. */
-export const PROMPT_VERSION = "4.29.0" as const;
+export const PROMPT_VERSION = "4.30.0" as const;
 
 /**
  * The scope-hardened insight prompt is one structural skeleton with a

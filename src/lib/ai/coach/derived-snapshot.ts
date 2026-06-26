@@ -75,15 +75,95 @@ interface CoincidentSnapshotEntry {
 }
 
 /**
+ * v1.21.2 (A5) — the Tension Verdict flag, compactly. The readiness/recovery
+ * composite blends several contributors; when they DISAGREE (e.g. good sleep
+ * but a suppressed HRV-balance or an elevated resting pulse) the single band
+ * hides the conflict. This flag names the honest "internal read" the model
+ * narrates on the health-score card — "good sleep, but resting pulse is up — the
+ * composite lands yellow" — instead of papering the conflict over.
+ *
+ * DESCRIPTIVE multi-signal disagreement, never a cause. Computed deterministically
+ * server-side off the readiness contributors (each 0..100, higher = better); the
+ * model narrates the flag, it never invents it. Omitted entirely when the
+ * contributors agree (no tension to surface).
+ *
+ * CLINICAL-FLOORS OVERRIDE: `clinicalOverride` is true when a clinical red-flag
+ * is in play (the coincident-deviation flag fired WITHOUT an illness explanation).
+ * The narration must NOT reconcile a real red-flag away into a calm verdict — the
+ * flag carries the bit so the prompt clause can refuse the soft landing.
+ */
+interface TensionSnapshotEntry {
+  fired: true;
+  /** The composite band the disagreement resolved to (green/yellow/red). */
+  band: string;
+  /** Contributors reading FAVOURABLY, e.g. "sleep". */
+  positive: string[];
+  /** Contributors reading UNFAVOURABLY, e.g. "resting heart rate", "HRV balance". */
+  negative: string[];
+  /** True when a real clinical red-flag is in play — never reconcile it away. */
+  clinicalOverride: boolean;
+}
+
+/**
  * The derived block: per-metric compact score entries (keyed by metric id),
  * plus the optional fired-only coincident-deviation flag under its own reserved
  * `COINCIDENT_DEVIATION` key. The score entries keep their `DerivedSnapshotEntry`
  * shape (so callers + tests read `block.READINESS.value` directly); the
- * coincident flag rides alongside without widening the score index signature.
+ * coincident + tension flags ride alongside without widening the score index
+ * signature.
  */
 type DerivedSnapshotBlock = Record<string, DerivedSnapshotEntry> & {
   COINCIDENT_DEVIATION?: CoincidentSnapshotEntry;
+  TENSION?: TensionSnapshotEntry;
 };
+
+/**
+ * v1.21.2 (A5) — a contributor reading at/above this 0..100 score is FAVOURABLE;
+ * at/below `TENSION_LOW_SCORE` it is UNFAVOURABLE. The gap in the middle is
+ * "neutral" — neither side of a disagreement. A genuine tension needs at least
+ * one contributor on EACH side.
+ */
+export const TENSION_HIGH_SCORE = 70;
+export const TENSION_LOW_SCORE = 45;
+
+/** Human-readable contributor labels (no internal enum names reach the model). */
+const READINESS_CONTRIBUTOR_LABEL: Record<string, string> = {
+  rhr: "resting heart rate",
+  hrv: "HRV balance",
+  sleep: "sleep",
+  respiratory: "respiratory rate",
+  mood: "mood stability",
+};
+
+/**
+ * v1.21.2 (A5) — derive the Tension Verdict from the readiness contributors.
+ * Pure: a list of `{ key, value }` contributors (value 0..100, higher = better,
+ * null = absent) plus the composite band and the clinical-override bit. Returns
+ * the fired flag ONLY when at least one contributor reads favourably AND at least
+ * one reads unfavourably — a genuine internal disagreement. Null otherwise.
+ */
+export function deriveTension(
+  contributors: Array<{ key: string; value: number | null }>,
+  band: string | undefined,
+  clinicalOverride: boolean,
+): TensionSnapshotEntry | null {
+  const positive: string[] = [];
+  const negative: string[] = [];
+  for (const c of contributors) {
+    if (c.value === null) continue;
+    const label = READINESS_CONTRIBUTOR_LABEL[c.key] ?? c.key;
+    if (c.value >= TENSION_HIGH_SCORE) positive.push(label);
+    else if (c.value <= TENSION_LOW_SCORE) negative.push(label);
+  }
+  if (positive.length === 0 || negative.length === 0) return null;
+  return {
+    fired: true,
+    band: band ?? "yellow",
+    positive,
+    negative,
+    clinicalOverride,
+  };
+}
 
 /** Pull the headline number + band off each metric's value shape. */
 function summariseValue(
@@ -177,9 +257,26 @@ export async function buildDerivedSnapshotBlock(
     }),
   );
 
+  // v1.21.2 (A5) — capture the readiness contributors so the Tension Verdict can
+  // read the per-contributor directions the composite band hides. Only the
+  // readiness blend exposes them; recovery resolves to the same proxy when no
+  // device-native row exists, so reading readiness once is enough.
+  let readinessContributors: Array<{ key: string; value: number | null }> = [];
+  let readinessBand: string | undefined;
+
   for (const { metric, derived } of computed) {
     if (derived === null) continue;
     if (!isDerivedOk(derived)) continue; // omit insufficient — no noise
+    if (metric === "READINESS") {
+      const v = derived.value as {
+        band?: string;
+        components?: Array<{ key: string; value: number | null }>;
+      };
+      readinessBand = typeof v.band === "string" ? v.band : undefined;
+      readinessContributors = Array.isArray(v.components)
+        ? v.components.map((c) => ({ key: c.key, value: c.value }))
+        : [];
+    }
     const summary = summariseValue(metric, derived.value);
     if (!summary) continue;
     block[metric] = {
@@ -223,7 +320,9 @@ export async function buildDerivedSnapshotBlock(
   // own reserved key alongside the score entries.
   const out: DerivedSnapshotBlock = block;
   const coincident = await coincidentPromise;
-  if (coincident && isDerivedOk(coincident) && coincident.value.fired) {
+  const coincidentFired =
+    coincident !== null && isDerivedOk(coincident) && coincident.value.fired;
+  if (coincidentFired) {
     out.COINCIDENT_DEVIATION = {
       fired: true,
       contributing: coincident.value.contributing.map(
@@ -234,6 +333,20 @@ export async function buildDerivedSnapshotBlock(
       illnessExplained: coincident.value.illnessExplained,
     };
   }
+
+  // v1.21.2 (A5) — the Tension Verdict. A real clinical red-flag is in play when
+  // the coincident-deviation flag fired WITHOUT an illness explanation; the flag
+  // carries that bit so the narration never reconciles a red-flag into a calm
+  // verdict (clinical-floors override). Only attached when the contributors
+  // genuinely disagree — a coherent readiness adds no entry.
+  const clinicalOverride =
+    coincidentFired && !coincident.value.illnessExplained;
+  const tension = deriveTension(
+    readinessContributors,
+    readinessBand,
+    clinicalOverride,
+  );
+  if (tension) out.TENSION = tension;
 
   return Object.keys(out).length > 0 ? out : null;
 }

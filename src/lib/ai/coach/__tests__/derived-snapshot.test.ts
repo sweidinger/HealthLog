@@ -12,7 +12,12 @@ vi.mock("@/lib/db", () => ({
 
 import { computeDerivedMetric } from "@/lib/insights/derived";
 import { prisma } from "@/lib/db";
-import { buildDerivedSnapshotBlock } from "../derived-snapshot";
+import {
+  buildDerivedSnapshotBlock,
+  deriveTension,
+  TENSION_HIGH_SCORE,
+  TENSION_LOW_SCORE,
+} from "../derived-snapshot";
 
 const compute = computeDerivedMetric as unknown as ReturnType<typeof vi.fn>;
 const whoopFindFirst = prisma.measurement.findFirst as unknown as ReturnType<
@@ -165,5 +170,137 @@ describe("buildDerivedSnapshotBlock", () => {
         historyDays: 14,
       },
     });
+  });
+
+  it("attaches a TENSION flag when readiness contributors disagree", async () => {
+    // Good sleep (high) but a suppressed HRV-balance + elevated resting pulse
+    // (both low) — a genuine internal disagreement the band hides.
+    compute.mockImplementation(async (args?: { metric?: string }) => {
+      if (args?.metric === "READINESS")
+        return ok({
+          score: 58,
+          band: "yellow",
+          components: [
+            { key: "sleep", value: 90, weight: 0.3 },
+            { key: "hrv", value: 30, weight: 0.3 },
+            { key: "rhr", value: 35, weight: 0.3 },
+            { key: "mood", value: 60, weight: 0.1 },
+          ],
+        });
+      return insufficient;
+    });
+    const block = await buildDerivedSnapshotBlock("u1", PROFILE, NOW);
+    expect(block!.TENSION).toBeDefined();
+    expect(block!.TENSION!.fired).toBe(true);
+    expect(block!.TENSION!.band).toBe("yellow");
+    expect(block!.TENSION!.positive).toEqual(["sleep"]);
+    expect(block!.TENSION!.negative).toEqual([
+      "HRV balance",
+      "resting heart rate",
+    ]);
+    // No coincident flag fired (DB read fails-soft to null), so no red-flag.
+    expect(block!.TENSION!.clinicalOverride).toBe(false);
+  });
+
+  it("omits TENSION when the contributors agree", async () => {
+    compute.mockImplementation(async (args?: { metric?: string }) => {
+      if (args?.metric === "READINESS")
+        return ok({
+          score: 82,
+          band: "green",
+          components: [
+            { key: "sleep", value: 90, weight: 0.3 },
+            { key: "hrv", value: 85, weight: 0.3 },
+            { key: "rhr", value: 80, weight: 0.3 },
+          ],
+        });
+      return insufficient;
+    });
+    const block = await buildDerivedSnapshotBlock("u1", PROFILE, NOW);
+    expect(block!.READINESS).toBeDefined();
+    expect(block!.TENSION).toBeUndefined();
+  });
+});
+
+describe("deriveTension (pure)", () => {
+  it("fires only when at least one contributor sits on each side", () => {
+    const fired = deriveTension(
+      [
+        { key: "sleep", value: TENSION_HIGH_SCORE },
+        { key: "rhr", value: TENSION_LOW_SCORE },
+      ],
+      "yellow",
+      false,
+    );
+    expect(fired).not.toBeNull();
+    expect(fired!.positive).toEqual(["sleep"]);
+    expect(fired!.negative).toEqual(["resting heart rate"]);
+  });
+
+  it("returns null when every contributor is favourable", () => {
+    expect(
+      deriveTension(
+        [
+          { key: "sleep", value: 90 },
+          { key: "hrv", value: 85 },
+        ],
+        "green",
+        false,
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null when every contributor is unfavourable", () => {
+    expect(
+      deriveTension(
+        [
+          { key: "sleep", value: 20 },
+          { key: "hrv", value: 30 },
+        ],
+        "red",
+        false,
+      ),
+    ).toBeNull();
+  });
+
+  it("ignores neutral-band contributors (neither side)", () => {
+    // A mid-range contributor (between the low and high cuts) is neither
+    // favourable nor unfavourable, so on its own it cannot make a tension.
+    const mid = Math.floor((TENSION_HIGH_SCORE + TENSION_LOW_SCORE) / 2);
+    expect(
+      deriveTension(
+        [
+          { key: "sleep", value: mid },
+          { key: "hrv", value: mid },
+        ],
+        "yellow",
+        false,
+      ),
+    ).toBeNull();
+  });
+
+  it("ignores null (absent) contributors", () => {
+    expect(
+      deriveTension(
+        [
+          { key: "sleep", value: 90 },
+          { key: "rhr", value: null },
+        ],
+        "yellow",
+        false,
+      ),
+    ).toBeNull();
+  });
+
+  it("carries the clinical-override bit through unchanged", () => {
+    const fired = deriveTension(
+      [
+        { key: "sleep", value: 90 },
+        { key: "rhr", value: 20 },
+      ],
+      "red",
+      true,
+    );
+    expect(fired!.clinicalOverride).toBe(true);
   });
 });

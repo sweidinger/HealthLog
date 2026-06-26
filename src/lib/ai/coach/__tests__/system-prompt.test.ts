@@ -118,6 +118,28 @@ describe("getCoachSystemPrompt — EN", () => {
     expect(prompt).toMatch(/0–21/);
     expect(prompt).toMatch(/0–100/);
   });
+
+  it("carries the v1.21.2 narrative-presence clauses (A4/A5/A6/A7)", () => {
+    // A4 — briefing-style callback + forward-look from the memory block.
+    expect(prompt).toMatch(/17\. Recall \+ look ahead/);
+    expect(prompt).toMatch(/priorNarrative/);
+    expect(prompt).toMatch(/trendMemory/);
+    // A5 — Tension Verdict with the clinical-floors override.
+    expect(prompt).toMatch(/18\. Tension Verdict/);
+    expect(prompt).toMatch(/"TENSION" flag/);
+    expect(prompt).toMatch(/CLINICAL-FLOORS OVERRIDE/);
+    expect(prompt).toMatch(/clinicalOverride/);
+    expect(prompt).toMatch(/NEVER reconcile it\s+away into a calm verdict/i);
+    // A6 — streaks + return-to-baseline.
+    expect(prompt).toMatch(/19\. Streaks \+ return-to-baseline/);
+    expect(prompt).toMatch(/returnEvent/);
+    expect(prompt).toMatch(/back inside your usual range/i);
+    // A7 — MI freebies + anti-persuasion (Chain-of-Ethic).
+    expect(prompt).toMatch(/20\. Motivational-interviewing freebies/);
+    expect(prompt).toMatch(/DEVELOP DISCREPANCY/);
+    expect(prompt).toMatch(/ROLL WITH RESISTANCE/);
+    expect(prompt).toMatch(/Chain-of-Ethic/);
+  });
 });
 
 describe("getCoachSystemPrompt — DE", () => {
@@ -180,6 +202,20 @@ describe("getCoachSystemPrompt — DE", () => {
     expect(prompt).toMatch(/mg\/dL/);
     expect(prompt).toMatch(/mmol\/L/);
     expect(prompt).toMatch(/min[\s\S]*\(Schlafdefizit/);
+  });
+
+  it("carries the v1.21.2 narrative-presence clauses (A4/A5/A6/A7)", () => {
+    expect(prompt).toMatch(/17\. Rückblick \+ Ausblick/);
+    expect(prompt).toMatch(/priorNarrative/);
+    expect(prompt).toMatch(/18\. Spannungs-Verdikt/);
+    expect(prompt).toMatch(/"TENSION"-Flag/);
+    expect(prompt).toMatch(/CLINICAL-FLOORS-OVERRIDE/);
+    expect(prompt).toMatch(/19\. Serien \+ Rückkehr zur Baseline/);
+    expect(prompt).toMatch(/wieder in deinem üblichen Bereich/i);
+    expect(prompt).toMatch(/20\. Motivational-Interviewing-Extras/);
+    expect(prompt).toMatch(/DISKREPANZ ENTWICKELN/);
+    expect(prompt).toMatch(/WIDERSTAND ANNEHMEN/);
+    expect(prompt).toMatch(/Chain-of-Ethic/);
   });
 });
 
