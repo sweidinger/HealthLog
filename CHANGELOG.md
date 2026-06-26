@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [1.21.0] — 2026-06-26 — Date-format preference, a far more connected Coach, and broad correctness work
+
+A feature release. The Coach reaches every data domain on demand, surfaces the cross-metric patterns the analytics tier already discovers, opens in context from any screen, and speaks with a warmer, forward-looking voice on one shared set of safety thresholds. Dates render in your chosen format everywhere. Two additive migrations (`0193` rollup x-rescale, `0192` date format); no breaking changes.
+
+### Added
+
+- A date-format preference in the profile — automatic (follows the language), day-month-year, month-day-year, or ISO — honoured across the app, including every date and date-time field, which now render in your chosen order regardless of the browser's locale.
+- The Coach answers from the full data picture: every metric domain on demand plus cycle and workouts, and it surfaces the discovered cross-metric correlations — medication adherence against symptoms, short sleep against the next morning's vitals, and so on — citing only what the analytics tier actually found.
+- Open the Coach in context from any metric page or insight card and it arrives already scoped to what you were looking at, with a relevant opening question.
+- "Learn more" pointers on the vitals tiles, the glucose panel, the resilience tile, and the lab biomarker detail link out to the matching guide; the Coach references the same guides and can no longer offer a link that doesn't exist.
+- Medication compliance and symptom severity are now first-class signals in the correlation engine, so an adherence dip that tracks a symptom flare can finally be surfaced.
+
+### Changed
+
+- The Coach connects signals into one story instead of listing metrics, looks ahead with gentle, ranged outlooks, ends an action turn by checking your confidence and offering a single doable step, and keeps affirmation earned. A closed acute-symptom clause points to prompt medical attention for crisis signs.
+- Critical-threshold numbers — blood pressure, fever, glucose — now come from one source, so the dashboard banner, the Coach, the status cards, and the notifications always state the same thresholds.
+- The trend regression is composed on an origin-rescaled, mean-centred basis, removing a floating-point cancellation on long windows; the rollup now matches the live computation to the last digit.
+- The daily AI usage budget is provider-aware: usage on your own OpenAI key, ChatGPT plan, or local model is no longer limited by the server-cost ceiling that applies to an operator-provided key.
+- The Coach builds its data snapshot once per turn and may take an extra reasoning round for a deep cross-metric question.
+- Discovered correlations are held to an effect-size floor and a confidence tier, and sparse personal signals are shrunk toward the baseline, so a real-but-trivial association is no longer stated as a confident driver.
+
+### Fixed
+
+- ChatGPT/OpenAI sign-in users no longer hit a spurious "daily limit reached" after only a couple of messages.
+- The symptom journal's recovery-return and the SpO2 red-flag count consecutive calendar days and are order-independent; the "two or more vitals out of band today" flag is keyed to your calendar day rather than UTC.
+- Withings activity sync and the medication-intake dedup issue far fewer queries on a long backfill.
+- The trend read returns the same boundary day whether served from the rollup or from a live query.
+- The native date primitives that ignored the locale are gone — every field routes through the format-aware inputs.
+
 ## [1.20.2] — 2026-06-26 — Hardening across insights, safety flags, and integrations
 
 A patch release. A broad pass over the server tier and the AI surfaces: a few correctness and safety fixes, a numerical hardening of the trend tier, and several smaller robustness and cost improvements. No schema changes.
