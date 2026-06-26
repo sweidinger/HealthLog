@@ -67,11 +67,18 @@ const SURFACES: Record<
       forbiddenFiller,
     ],
   },
-  // The narrative is descriptive-only, so it enforces every contract EXCEPT
-  // the motivating tone contract.
+  // v1.21.0 (coach C1 MEDIUM-1) — the retrospective narrative now composes the
+  // shared tone contract too, so it matches the warm house voice of the daily
+  // briefing beside it. Its own descriptive-never-causal guards stay intact.
   "period-narrative": {
     prompt: (l) => SYSTEM_PROMPTS_FOR_TEST[l],
-    contracts: [grounding, safetyGlp1, metricIdentifierBan, forbiddenFiller],
+    contracts: [
+      grounding,
+      toneContract,
+      safetyGlp1,
+      metricIdentifierBan,
+      forbiddenFiller,
+    ],
   },
 };
 
