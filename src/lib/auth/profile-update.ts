@@ -27,6 +27,9 @@ const extendedProfileSchema = profileSchema.extend({
   // Hour-cycle display preference. AUTO follows the locale convention,
   // H12 forces AM/PM, H24 forces 24-hour.
   timeFormat: z.enum(["AUTO", "H12", "H24"]).optional(),
+  // Date-order display preference. AUTO follows the locale convention,
+  // DMY pins day-month-year, MDY month-day-year, YMD ISO yyyy-MM-dd.
+  dateFormat: z.enum(["AUTO", "DMY", "MDY", "YMD"]).optional(),
 });
 
 export interface ApplyProfileResult {
@@ -43,6 +46,7 @@ export interface ApplyProfileResult {
     timezone: string;
     locale: string | null;
     timeFormat: "AUTO" | "H12" | "H24";
+    dateFormat: "AUTO" | "DMY" | "MDY" | "YMD";
     moodReminderEnabled: boolean;
     // v1.7.0 — patient-identity fields. `insuranceNumber` is returned in
     // plaintext (decrypted on read by the route) so the client can render
@@ -110,6 +114,7 @@ export async function applyProfileUpdate(
   if (data.locale !== undefined) updates.locale = data.locale;
   if (data.timezone !== undefined) updates.timezone = data.timezone;
   if (data.timeFormat !== undefined) updates.timeFormat = data.timeFormat;
+  if (data.dateFormat !== undefined) updates.dateFormat = data.dateFormat;
   if (data.moodReminderEnabled !== undefined) {
     updates.moodReminderEnabled = data.moodReminderEnabled;
   }
@@ -206,6 +211,7 @@ export async function applyProfileUpdate(
       timezone: updatedUser.timezone,
       locale: updatedUser.locale,
       timeFormat: updatedUser.timeFormat ?? "AUTO",
+      dateFormat: updatedUser.dateFormat ?? "AUTO",
       moodReminderEnabled: updatedUser.moodReminderEnabled,
       fullName: updatedUser.fullName,
       insurerName: updatedUser.insurerName,

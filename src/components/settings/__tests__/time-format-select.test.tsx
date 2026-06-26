@@ -46,6 +46,7 @@ function buildUser(timeFormat: TimeFormatPreference): AuthUser {
     glucoseUnit: null,
     unitPreference: "metric",
     timeFormat,
+    dateFormat: "AUTO",
     disableCoach: false,
     fullName: null,
     insurerName: null,
