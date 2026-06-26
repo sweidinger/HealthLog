@@ -16,12 +16,11 @@
  *      nothing clears the existing floor the line is omitted entirely.
  *
  * Both inputs reuse the deterministic engines unchanged — no new statistics,
- * no lowered floor. Server-only (Prisma reads). The DTO shapes + the pure
- * selection helpers live in the client-safe `coach-read-shape.ts` sibling so
- * the strip component and the unit test can share them without pulling Prisma.
+ * no lowered floor. Server-only by construction — only the metric-page
+ * route imports it, and it reads Prisma. The DTO shapes + the pure selection
+ * helpers live in the client-safe `coach-read-shape.ts` sibling so the strip
+ * component and the unit test can share them without pulling Prisma.
  */
-import "server-only";
-
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import {
