@@ -51,6 +51,14 @@ export function resolveIntlLocale(locale: Locale): string {
 export type TimeFormatPreference = "AUTO" | "H12" | "H24";
 
 /**
+ * Date-order display preference (mirrors the `DateFormatPreference` Prisma
+ * enum). AUTO defers to the locale's own field order (de-DE → dd.MM.yyyy,
+ * en-US → MM/dd/yyyy); DMY pins day-month-year, MDY pins month-day-year,
+ * YMD pins ISO yyyy-MM-dd. Display-time only — stored instants stay UTC.
+ */
+export type DateFormatPreference = "AUTO" | "DMY" | "MDY" | "YMD";
+
+/**
  * Intl options for the requested hour cycle. AUTO contributes nothing so
  * `Intl.DateTimeFormat` falls back to the locale default.
  */
@@ -64,6 +72,34 @@ function hourCycleOptions(
       return { hourCycle: "h23" };
     default:
       return {};
+  }
+}
+
+/**
+ * The Intl locale tag a non-AUTO date preference renders through. The
+ * field order is a property of the BCP-47 locale, not a `DateTimeFormat`
+ * option, so we pin a canonical locale whose default numeric date order
+ * matches the requested preference and reuse the user's own locale only
+ * for AUTO. DMY is rendered through de-DE so it carries the app-wide
+ * dotted separator (dd.MM.yyyy); MDY through en-US (MM/dd/yyyy); YMD
+ * through the ISO-canonical en-CA / sv (yyyy-MM-dd). The day/month/year
+ * `2-digit`/`numeric` field set is supplied by the caller.
+ */
+function dateOrderLocale(
+  dateFormat: DateFormatPreference,
+  localeTag: string,
+): string {
+  switch (dateFormat) {
+    case "DMY":
+      return "de-DE";
+    case "MDY":
+      return "en-US";
+    case "YMD":
+      // en-CA renders numeric dates as yyyy-MM-dd across engines; it is the
+      // ISO-8601 default order without pulling a locale the app doesn't ship.
+      return "en-CA";
+    default:
+      return localeTag;
   }
 }
 
@@ -98,10 +134,16 @@ export function makeFormatters(
   locale: Locale,
   userTz?: string,
   timeFormat: TimeFormatPreference = "AUTO",
+  dateFormat: DateFormatPreference = "AUTO",
 ): Formatters {
   const intlLocale = resolveIntlLocale(locale);
   const tz = userTz && userTz.length > 0 ? userTz : DISPLAY_TIMEZONE;
   const hourOpts = hourCycleOptions(timeFormat);
+  // Field-order locale for the numeric date renderers. AUTO keeps the
+  // user's own locale; DMY/MDY/YMD pin a canonical locale whose default
+  // numeric order matches. `monthShort` deliberately stays on `intlLocale`
+  // so axis month names follow the UI language, not the date-order pin.
+  const dateLocale = dateOrderLocale(dateFormat, intlLocale);
 
   return {
     number: (value, fractionDigits) =>
@@ -123,7 +165,7 @@ export function makeFormatters(
       }).format(value),
 
     date: (value) =>
-      asDate(value).toLocaleDateString(intlLocale, {
+      asDate(value).toLocaleDateString(dateLocale, {
         timeZone: tz,
         day: "2-digit",
         month: "2-digit",
@@ -131,14 +173,14 @@ export function makeFormatters(
       }),
 
     dateShort: (value) =>
-      asDate(value).toLocaleDateString(intlLocale, {
+      asDate(value).toLocaleDateString(dateLocale, {
         timeZone: tz,
         day: "2-digit",
         month: "2-digit",
       }),
 
     dateTime: (value) =>
-      asDate(value).toLocaleString(intlLocale, {
+      asDate(value).toLocaleString(dateLocale, {
         timeZone: tz,
         day: "2-digit",
         month: "2-digit",
@@ -157,7 +199,7 @@ export function makeFormatters(
       }),
 
     dateWithWeekday: (value) =>
-      asDate(value).toLocaleDateString(intlLocale, {
+      asDate(value).toLocaleDateString(dateLocale, {
         timeZone: tz,
         weekday: "short",
         day: "2-digit",
