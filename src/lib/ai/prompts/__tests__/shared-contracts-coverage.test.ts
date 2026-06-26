@@ -14,6 +14,7 @@ import {
   grounding,
   toneContract,
   safetyGlp1,
+  safetyAcute,
   metricIdentifierBan,
   forbiddenFiller,
   type ContractLocale,
@@ -43,6 +44,7 @@ const SURFACES: Record<
       grounding,
       toneContract,
       safetyGlp1,
+      safetyAcute,
       metricIdentifierBan,
       forbiddenFiller,
     ],
@@ -53,6 +55,7 @@ const SURFACES: Record<
       grounding,
       toneContract,
       safetyGlp1,
+      safetyAcute,
       metricIdentifierBan,
       forbiddenFiller,
     ],
@@ -63,6 +66,7 @@ const SURFACES: Record<
       grounding,
       toneContract,
       safetyGlp1,
+      safetyAcute,
       metricIdentifierBan,
       forbiddenFiller,
     ],
@@ -71,7 +75,13 @@ const SURFACES: Record<
   // the motivating tone contract.
   "period-narrative": {
     prompt: (l) => SYSTEM_PROMPTS_FOR_TEST[l],
-    contracts: [grounding, safetyGlp1, metricIdentifierBan, forbiddenFiller],
+    contracts: [
+      grounding,
+      safetyGlp1,
+      safetyAcute,
+      metricIdentifierBan,
+      forbiddenFiller,
+    ],
   },
 };
 
@@ -98,6 +108,17 @@ describe("shared-contract cross-surface coverage", () => {
       expect(getBaseSystemPrompt(locale)).toContain(safetyGlp1[locale]);
       expect(getCoachSystemPrompt(locale)).toContain(safetyGlp1[locale]);
       expect(SYSTEM_PROMPTS_FOR_TEST[locale]).toContain(safetyGlp1[locale]);
+    }
+  });
+
+  it("the acute red-flag escalation contract reaches all four surfaces", () => {
+    for (const locale of LOCALES) {
+      expect(getStrictInsightsSystemPrompt(locale)).toContain(
+        safetyAcute[locale],
+      );
+      expect(getBaseSystemPrompt(locale)).toContain(safetyAcute[locale]);
+      expect(getCoachSystemPrompt(locale)).toContain(safetyAcute[locale]);
+      expect(SYSTEM_PROMPTS_FOR_TEST[locale]).toContain(safetyAcute[locale]);
     }
   });
 });

@@ -3,6 +3,7 @@ import {
   grounding,
   toneContract,
   safetyGlp1,
+  safetyAcute,
   metricIdentifierBan,
   forbiddenFiller,
 } from "./shared-contracts";
@@ -171,6 +172,10 @@ const ASSESSMENT_SECTIONS: readonly AssessmentSection[] = [
     de: metricIdentifierBan.de,
   },
   { id: "safetyGlp1", en: safetyGlp1.en, de: safetyGlp1.de },
+  // Acute red-flag escalation — the ACUTE branch alongside the chronic
+  // deferral above; surfaces a closed crisis list to prompt/emergency care
+  // without diagnosing.
+  { id: "safetyAcute", en: safetyAcute.en, de: safetyAcute.de },
   // v1.18.7 (HIGH-2) — the shared grounding + tone contracts, canonical
   // wording. The metric-specific build/tone sections above stay; these pin
   // the cross-surface wording so an edit lands here and everywhere at once.

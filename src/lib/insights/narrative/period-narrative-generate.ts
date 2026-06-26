@@ -108,7 +108,7 @@ Hard rules:
 - 2 to 4 short sentences. Plain text only — no markdown, no headings, no bullet points, no emojis.
 - If the context is thin, say plainly that there is little to report this period rather than inventing detail.
 
-${composeSharedContracts("en", ["grounding", "safetyGlp1", "metricIdentifierBan", "forbiddenFiller"])}`;
+${composeSharedContracts("en", ["grounding", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller"])}`;
 
 const SYSTEM_PROMPT_DE = `Du fasst den Gesundheits-Tracking-ZEITRAUM einer Person (eine Woche oder einen Monat) für diese Person zusammen.
 Prompt-Version: ${NARRATIVE_PROMPT_VERSION}.
@@ -121,7 +121,7 @@ Feste Regeln:
 - 2 bis 4 kurze Sätze. Nur Klartext — kein Markdown, keine Überschriften, keine Aufzählungen, keine Emojis.
 - Wenn der Kontext dünn ist, sage klar, dass es in diesem Zeitraum wenig zu berichten gibt, statt Details zu erfinden.
 
-${composeSharedContracts("de", ["grounding", "safetyGlp1", "metricIdentifierBan", "forbiddenFiller"])}`;
+${composeSharedContracts("de", ["grounding", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller"])}`;
 
 /**
  * Test-only view of the composed system prompts (incl. the appended shared
