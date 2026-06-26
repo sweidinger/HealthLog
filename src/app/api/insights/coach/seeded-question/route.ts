@@ -22,6 +22,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { requireAssistantSurface } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 import { loadBaselineProfile } from "@/lib/insights/derived";
 import { detectDerivedBriefingSignals } from "@/lib/insights/derived-briefing";
@@ -49,6 +50,10 @@ export const GET = apiHandler(async () => {
 
   const m = await requireModuleEnabled(user.id, "insights");
   if (!m.enabled) return m.response;
+
+  // The opener feeds the Coach hero, so it gates on the Coach assistant
+  // matrix: with the Coach off there is no hero to seed.
+  await requireAssistantSurface("coach");
 
   const rl = await checkAnalyticsReadRateLimit(user.id);
   if (!rl.allowed) {

@@ -20,6 +20,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { requireAssistantSurface } from "@/lib/feature-flags";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import { buildCoachReadStrip } from "@/lib/insights/derived/coach-read";
 import type { MeasurementType } from "@/generated/prisma/client";
@@ -35,6 +36,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const m = await requireModuleEnabled(user.id, "insights");
   if (!m.enabled) return m.response;
+
+  // The strip is the ambient Coach presence on the metric page, so it
+  // gates on the Coach assistant matrix too: an operator who turns the
+  // Coach off must not see a "Coach read" line linger.
+  await requireAssistantSurface("coach");
 
   // Shared analytics-read budget — generous; caps a runaway navigation loop.
   const rl = await checkAnalyticsReadRateLimit(user.id);
