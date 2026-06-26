@@ -16,6 +16,8 @@ import { importWithRetry } from "@/lib/retry-import";
 import { getMedicalReferenceById } from "@/lib/ai/medical-references";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import type { Locale } from "@/lib/i18n/config";
+import { AskCoachAction } from "./ask-coach-action";
+import { scopeSourceFromMetricKey } from "./coach-metric-scope";
 import {
   RecommendationFeedback,
   type RecommendationFeedbackSeverity,
@@ -349,6 +351,14 @@ export function RecommendationCard({
         }
       : null;
 
+  // v1.21.0 (C4 H2) — reverse-direction Coach hand-off. The opener
+  // quotes the rec so the conversation lands on this exact suggestion;
+  // when the rec carries a metric source, scope the snapshot to it.
+  const coachScopeSource = scopeSourceFromMetricKey(norm.metricSource?.type);
+  const coachQuestion = `Tell me more about this recommendation: "${stripChartTokens(
+    norm.text,
+  )}" — why does it apply to me, and what should I do about it?`;
+
   return (
     <div
       data-slot="rec-card"
@@ -435,6 +445,15 @@ export function RecommendationCard({
           <CitationFootnote referenceId={norm.referenceId} locale={locale} />
         </div>
       )}
+
+      {/* v1.21.0 (C4 H2) — discreet "ask the Coach about this rec" link,
+          aligned under the rec text (the number gutter is `ml-6`). */}
+      <div className="mt-1 ml-5">
+        <AskCoachAction
+          question={coachQuestion}
+          scope={coachScopeSource ? { metric: coachScopeSource } : undefined}
+        />
+      </div>
     </div>
   );
 }

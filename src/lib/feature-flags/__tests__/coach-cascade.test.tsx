@@ -271,6 +271,10 @@ describe("Coach disable cascade invariant", () => {
   const KNOWN_COACH_GATE_SITES: ReadonlyArray<string> = [
     // Coach-bearing surfaces mounted directly by the cascade fixture.
     "src/components/insights/coach-launch-button.tsx",
+    // v1.21.0 (C4 H2) — the reverse-direction "Ask the Coach about this"
+    // card affordance gates on `flags.coach` (operator master) like the
+    // launch button, returning null when the operator turns the Coach off.
+    "src/components/insights/ask-coach-action.tsx",
     // v1.18.7 — hero-strip.tsx no longer reads `flags.coach`: its coach
     // action button + suggested-prompt strip were removed from the band.
     "src/components/insights/layout-coach-fab.tsx",

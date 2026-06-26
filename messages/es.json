@@ -2286,7 +2286,8 @@
       "thinkingExpandAria": "Mostrar lo que el Coach tuvo en cuenta",
       "thinkingDetail": "Respondido a partir de tu resumen de salud.",
       "tokensUsed": "{count} tokens",
-      "tokensUsedWithModel": "{count} tokens · {model}"
+      "tokensUsedWithModel": "{count} tokens · {model}",
+      "askAboutThis": "Pregúntale al coach sobre esto"
     },
     "relativeJustNow": "ahora mismo",
     "relativeMinutesAgoOne": "hace {count} minuto",

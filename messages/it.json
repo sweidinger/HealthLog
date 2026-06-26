@@ -2286,7 +2286,8 @@
       "thinkingExpandAria": "Mostra cosa ha considerato il Coach",
       "thinkingDetail": "Risposta basata sul tuo riepilogo di salute.",
       "tokensUsed": "{count} token",
-      "tokensUsedWithModel": "{count} token · {model}"
+      "tokensUsedWithModel": "{count} token · {model}",
+      "askAboutThis": "Chiedi al coach"
     },
     "relativeJustNow": "proprio ora",
     "relativeMinutesAgoOne": "{count} minuto fa",

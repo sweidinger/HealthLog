@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiDelete, apiGet } from "@/lib/api/api-fetch";
+import type { CoachScope } from "@/lib/ai/coach/types";
+import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachHero } from "./coach-hero";
@@ -64,6 +66,27 @@ import {
  * `<SheetDescription>` (required for the dialog's accessible name) while
  * the page mounts a plain `<h1>` / `<p>`.
  */
+
+/**
+ * v1.21.0 (C4 H1/H4) — collapse a UI launch scope ({ metric, also,
+ * window }) into the chat route's wire scope ({ sources, window }).
+ * Returns undefined when there is nothing to narrow, so the request
+ * falls back to the route's default all-source snapshot. Exported for
+ * the unit test that pins the source-dedup + window contract.
+ */
+export function launchScopeToCoachScope(
+  launchScope: CoachLaunchScope | null | undefined,
+): CoachScope | undefined {
+  if (!launchScope?.metric) return undefined;
+  const sources = Array.from(
+    new Set([launchScope.metric, ...(launchScope.also ?? [])]),
+  );
+  return {
+    sources,
+    ...(launchScope.window ? { window: launchScope.window } : {}),
+  };
+}
+
 export interface CoachConversationProps {
   /**
    * Pre-fill for the composer (suggested-prompt chip click). Resets the
@@ -71,6 +94,15 @@ export interface CoachConversationProps {
    * freely between prop changes.
    */
   prefill?: string | null;
+  /**
+   * v1.21.0 (C4 H1/H4) — optional launch scope so a conversation opened
+   * from a metric surface or insight card narrows its snapshot to the
+   * relevant source(s) + window. Converted to the chat route's
+   * `CoachScope` and attached to the FIRST turn of a fresh conversation
+   * (`currentConversationId === null`); a continued thread keeps its own
+   * established scope. Null → the route's default all-source snapshot.
+   */
+  launchScope?: CoachLaunchScope | null;
   /**
    * Renders the conversation title. The surface passes the resolved
    * title string; the drawer wraps it in `<SheetTitle>`, the page in an
@@ -148,6 +180,7 @@ export interface CoachConversationProps {
 
 export function CoachConversation({
   prefill,
+  launchScope,
   renderTitle,
   renderDescription,
   leadingHeaderActions,
@@ -277,12 +310,21 @@ export function CoachConversation({
       dismissQuestions.mutate(guidedQuestion);
     }
     setInputValue("");
+    // v1.21.0 (C4 H1/H4) — attach the launch scope to the FIRST turn of a
+    // fresh conversation so a chat opened from a metric surface / insight
+    // card reads a snapshot narrowed to the relevant source(s). A continued
+    // thread (existing id) keeps its own established scope, so we omit it.
+    const scope =
+      currentConversationId === null
+        ? launchScopeToCoachScope(launchScope)
+        : undefined;
     // v1.16.6 — hand the question to the turn so the Coach reaction is
     // contextual (the question bubble itself is never persisted).
     const resolvedId = await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
       guidedQuestion: guidedQuestion ?? undefined,
+      scope,
     });
     if (guidedQuestion !== null && guidedIndex !== null) {
       setPendingAdopt({
