@@ -20,7 +20,10 @@ import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 import type { CoachScope } from "@/lib/ai/coach/types";
 import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 import type { CoachSeededQuestionDTO } from "@/app/api/insights/coach/seeded-question/route";
-import { metricScopeLabelFallback } from "@/components/insights/coach-metric-scope";
+import {
+  metricScopeLabelFallback,
+  scopeSourceMetricLabelKey,
+} from "@/components/insights/coach-metric-scope";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachHero } from "./coach-hero";
@@ -444,7 +447,7 @@ export function CoachConversation({
     pendingQuestions.length === 0 &&
     !pendingAdopt;
 
-  // v1.22.0 (A2 + A3) — the visible scope/opener affordance for the hero.
+  // v1.21.2 (A2 + A3) — the visible scope/opener affordance for the hero.
   //
   // A2 (scoped launch): the Coach was opened narrowed to a metric. Make it
   // visible — a "the Coach is already on <metric>" pill plus the data-aware
@@ -482,8 +485,10 @@ export function CoachConversation({
   // to the brand-free English domain phrase so every source has a label.
   // Hoisted so both the hero hint (page) and the sources rail (drawer) read
   // the same string. Null when the launch carried no metric.
+  const a2LabelKey = scopeSourceMetricLabelKey(a2Metric);
   const a2MetricLabel = a2Metric
     ? (tOrNull(`insights.coach.scope.metric.${a2Metric}`) ??
+      (a2LabelKey ? tOrNull(a2LabelKey) : null) ??
       metricScopeLabelFallback(a2Metric) ??
       a2Metric)
     : null;
@@ -787,7 +792,7 @@ export function CoachConversation({
         onSourcesOpenChange={setSourcesTrayOpen}
         sourcesRail={
           <SourcesRail
-            // v1.22.0 (A2) — surface the launch scope on the drawer surface;
+            // v1.21.2 (A2) — surface the launch scope on the drawer surface;
             // only set for a fresh, scoped, not-yet-sent conversation so a
             // continued thread (its own established scope) shows no stale line.
             activeScopeLabel={

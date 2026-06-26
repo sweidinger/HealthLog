@@ -3600,7 +3600,7 @@
       }
     },
     "streak": {
-      "returnLabel": "Your {metric} is back inside your usual range after {count} days — whatever that was, it's passed.",
+      "returnLabel": "Your {metric} has been back inside your usual range for {count} days now — whatever that was, it's passed.",
       "daysInside": "{count} days inside",
       "daysOutside": "{count} days outside"
     }
