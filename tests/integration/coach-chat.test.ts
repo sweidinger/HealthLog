@@ -24,7 +24,7 @@ process.env.ENCRYPTION_KEY ??=
 
 import { cookieJar, headerJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
-import { MAX_TOKENS_PER_USER_PER_DAY } from "@/lib/ai/coach/budget";
+import { OPERATOR_COST_CAP } from "@/lib/ai/coach/budget";
 
 vi.mock("next/headers", async () => {
   const { cookieJar, headerJar } = await import("./mock-next-headers");
@@ -227,7 +227,7 @@ describe("POST /api/insights/chat — integration", () => {
       data: {
         userId,
         dateKey,
-        totalTokens: MAX_TOKENS_PER_USER_PER_DAY,
+        totalTokens: OPERATOR_COST_CAP,
         messageCount: 50,
       },
     });
@@ -251,7 +251,7 @@ describe("POST /api/insights/chat — integration", () => {
     const usage = await prisma.coachUsage.findUnique({
       where: { userId_dateKey: { userId, dateKey } },
     });
-    expect(usage?.totalTokens).toBe(MAX_TOKENS_PER_USER_PER_DAY);
+    expect(usage?.totalTokens).toBe(OPERATOR_COST_CAP);
   });
 
   it("returns 404 (not 403) when conversationId belongs to another user", async () => {

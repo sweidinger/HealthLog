@@ -3,7 +3,6 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { HttpError } from "@/lib/api-handler";
 import {
   buildDateKey,
-  MAX_TOKENS_PER_USER_PER_DAY,
   OPERATOR_COST_CAP,
   USER_PLAN_CAP,
   resolveDailyCap,
@@ -76,7 +75,7 @@ describe("budget", () => {
 
   it("over-budget throws HttpError(429)", async () => {
     prismaMock.coachUsage.findUnique.mockResolvedValue({
-      totalTokens: MAX_TOKENS_PER_USER_PER_DAY,
+      totalTokens: OPERATOR_COST_CAP,
     });
     const { enforceBudget } = await import("../budget");
     await expect(enforceBudget("user-1", "2026-05-10")).rejects.toMatchObject({
@@ -233,11 +232,13 @@ describe("reconcileSpend cached-token subtraction (F3)", () => {
   });
 });
 
-describe("MAX_TOKENS_PER_USER_PER_DAY (F2 — reasoning-aware operator cap)", () => {
+describe("OPERATOR_COST_CAP (F2 — reasoning-aware operator cap)", () => {
   it("is sized for reasoning turns, not a single non-reasoning reply", () => {
     // Was 25_000 (≈ one gpt-5.x reasoning turn). Raised so the operator-key
     // path survives a normal day of reasoning turns.
-    expect(MAX_TOKENS_PER_USER_PER_DAY).toBeGreaterThanOrEqual(150_000);
-    expect(OPERATOR_COST_CAP).toBe(MAX_TOKENS_PER_USER_PER_DAY);
+    expect(OPERATOR_COST_CAP).toBeGreaterThanOrEqual(150_000);
+    // The user-plan cap is far more generous — a user's own egress is never
+    // gated on the operator-cost ceiling.
+    expect(USER_PLAN_CAP).toBeGreaterThan(OPERATOR_COST_CAP);
   });
 });

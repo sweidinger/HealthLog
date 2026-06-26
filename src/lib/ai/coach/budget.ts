@@ -34,13 +34,7 @@ import type { ProviderChainType } from "@/lib/ai/provider-chain";
  * surgery) while leaving room for a normal day of reasoning turns on the
  * operator's key. The cap stays a real ceiling on the operator's exposure.
  */
-export const MAX_TOKENS_PER_USER_PER_DAY = 200_000;
-
-/**
- * v1.21.0 (F1) — historical name retained for any external reference; the
- * operator-cost cap is the only cap the ledger enforces.
- */
-export const OPERATOR_COST_CAP = MAX_TOKENS_PER_USER_PER_DAY;
+export const OPERATOR_COST_CAP = 200_000;
 
 /**
  * v1.21.0 (F1) — the daily ceiling for a chain whose egress runs on the
@@ -108,7 +102,7 @@ export async function getDailyTokenSpend(
 export async function enforceBudget(
   userId: string,
   dateKey: string = buildDateKey(),
-  cap: number = MAX_TOKENS_PER_USER_PER_DAY,
+  cap: number = OPERATOR_COST_CAP,
 ): Promise<void> {
   const spent = await getDailyTokenSpend(userId, dateKey);
   if (spent >= cap) {
@@ -148,7 +142,7 @@ export async function reserveBudget(
   userId: string,
   estimatedTokens: number,
   dateKey: string = buildDateKey(),
-  cap: number = MAX_TOKENS_PER_USER_PER_DAY,
+  cap: number = OPERATOR_COST_CAP,
 ): Promise<ReserveBudgetResult> {
   const reserved =
     Number.isFinite(estimatedTokens) && estimatedTokens > 0
