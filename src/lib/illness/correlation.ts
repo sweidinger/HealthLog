@@ -968,22 +968,37 @@ function runFlag(
   let bestWorst: number | null = null;
   let run = 0;
   let runWorst: number | null = null;
+  let prevDay: string | null = null;
   for (const p of sorted) {
     if (predicate(p.mean)) {
-      run++;
-      runWorst =
-        runWorst === null
-          ? p.mean
-          : worst === "min"
-            ? Math.min(runWorst, p.mean)
-            : Math.max(runWorst, p.mean);
+      // A run is CALENDAR-consecutive days. Symptom/vital points are
+      // present-days-only (never zero-filled), so a sparse febrile series
+      // (e.g. days 01/10/15/20) must NOT count as one long run — that fires a
+      // false sustained_fever escalation. Continue the run only when this
+      // point is the calendar day immediately after the previous matching one;
+      // otherwise the current point starts a fresh run of 1.
+      const adjacent = prevDay !== null && dayDiff(prevDay, p.day) === 1;
+      if (adjacent) {
+        run++;
+        runWorst =
+          runWorst === null
+            ? p.mean
+            : worst === "min"
+              ? Math.min(runWorst, p.mean)
+              : Math.max(runWorst, p.mean);
+      } else {
+        run = 1;
+        runWorst = p.mean;
+      }
       if (run > bestRun) {
         bestRun = run;
         bestWorst = runWorst;
       }
+      prevDay = p.day;
     } else {
       run = 0;
       runWorst = null;
+      prevDay = null;
     }
   }
   if (bestRun >= RED_FLAG_RUN_DAYS && bestWorst !== null) {
