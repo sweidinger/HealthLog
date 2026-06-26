@@ -741,9 +741,19 @@ function lastStableReturn(
   if (tailOut >= RETURN_STABILITY_DAYS) return null;
 
   // Walk back from the last IN-band reading to the start of its maximal run.
+  // The run is CALENDAR-consecutive: extend only while the prior reading is both
+  // in-band AND the calendar day immediately before this one. Points are
+  // present-days-only (never zero-filled), so a sparse in-band series (e.g. days
+  // 01/08/15) must NOT register as one long settle — that mirrors the `runFlag`
+  // calendar-adjacency fix and bounds the run's span to its day count.
   const end = inBand.length - 1 - tailOut;
   let start = end;
-  while (start - 1 >= 0 && inBand[start - 1].in) start--;
+  while (
+    start - 1 >= 0 &&
+    inBand[start - 1].in &&
+    dayDiff(inBand[start - 1].day, inBand[start].day) === 1
+  )
+    start--;
   const run = end - start + 1;
   // The final settle must be long enough AND begin at/after the first deviation.
   if (run < RETURN_STABILITY_DAYS || start < Math.max(0, fromIndex))
@@ -819,7 +829,18 @@ function computeSymptomReturn(
     if (tailOut < RETURN_STABILITY_DAYS) {
       const end = inBand.length - 1 - tailOut;
       let start = end;
-      while (start - 1 >= 0 && inBand[start - 1]) start--;
+      // CALENDAR-consecutive run (parity with `lastStableReturn` / `runFlag`):
+      // extend only while the prior LOGGED day is in-band AND the calendar day
+      // immediately before this one. Sparse impact-0 logs (e.g. days 1/8/15)
+      // must NOT stamp a "stable symptom return" across a multi-day span and
+      // move the headline gap — the run's calendar span is bounded to its
+      // logged-day count.
+      while (
+        start - 1 >= 0 &&
+        inBand[start - 1] &&
+        dayDiff(active[start - 1].day, active[start].day) === 1
+      )
+        start--;
       const run = end - start + 1;
       if (run >= RETURN_STABILITY_DAYS && start >= firstAdverseIndex) {
         returnedDay = active[start].day;

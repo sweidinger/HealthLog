@@ -964,6 +964,80 @@ describe("computeIllnessCorrelation — symptom-burden return track", () => {
     expect(out.value.adverseCoverageDays).toBeGreaterThanOrEqual(2);
   });
 
+  it("WITHHOLDS the symptom return when the in-band logs span calendar GAPS", () => {
+    // Three impact-0 logs exist, but on 01-16/01-23/01-30 — spread across two
+    // weeks, not three consecutive days. The stability run is CALENDAR-adjacent,
+    // so this sparse settle must NOT register as a "stable symptom return" and
+    // must NOT move the headline gap (parity with the vital `lastStableReturn`
+    // and `runFlag` calendar-adjacency rule). Without the fix the array-adjacent
+    // walk would stamp a return on 01-16 across a 14-day span.
+    const symptomBurden: SymptomBurdenPoint[] = [
+      { day: "2026-01-10", impact: 3 },
+      { day: "2026-01-12", impact: 2 },
+      { day: "2026-01-16", impact: 0 },
+      { day: "2026-01-23", impact: 0 },
+      { day: "2026-01-30", impact: 0 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        symptomBurden,
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const sym = out.value.returns.find(
+      (r) => r.type === FUNCTIONAL_IMPACT_RETURN_KEY,
+    );
+    expect(sym).toBeDefined();
+    expect(sym?.returnedDay).toBeNull();
+    expect(sym?.gapDays).toBeNull();
+    expect(out.value.recoveryGapDays).toBeNull();
+    expect(out.value.gapDriverType).toBeNull();
+  });
+
+  it("DOES fold a symptom return when the in-band logs are calendar-consecutive", () => {
+    // The mirror: three impact-0 logs on truly adjacent days 01-16/01-17/01-18
+    // → a genuine stable return on 01-16, gap +2. Confirms the calendar-
+    // adjacency requirement does not regress the honest dense-logging case.
+    const symptomBurden: SymptomBurdenPoint[] = [
+      { day: "2026-01-10", impact: 3 },
+      { day: "2026-01-12", impact: 2 },
+      { day: "2026-01-16", impact: 0 },
+      { day: "2026-01-17", impact: 0 },
+      { day: "2026-01-18", impact: 0 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [
+          { type: rhr, baselineDays: rhrBaseline, episodeDays: rhrFlat },
+        ],
+        symptomBurden,
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    const sym = out.value.returns.find(
+      (r) => r.type === FUNCTIONAL_IMPACT_RETURN_KEY,
+    );
+    expect(sym?.returnedDay).toBe("2026-01-16");
+    expect(sym?.gapDays).toBe(dayDiff("2026-01-14", "2026-01-16"));
+    expect(out.value.recoveryGapDays).toBe(2);
+    expect(out.value.gapDriverType).toBe(FUNCTIONAL_IMPACT_RETURN_KEY);
+  });
+
   it("lets the symptom track win the driver over a co-returning vital", () => {
     // Both the symptom curve AND an adverse RHR spike return and produce gaps;
     // the functional-impact track must win `gapDriverType` on a tie (it is the
@@ -1230,6 +1304,37 @@ describe("computeIllnessCorrelation — relapse-aware return (last sustained)", 
       { day: "2026-01-16", mean: 75 }, // RELAPSE
       { day: "2026-01-18", mean: 74 },
       { day: "2026-01-20", mean: 73 }, // still elevated at the end
+    ];
+    const out = computeIllnessCorrelation(
+      input({
+        window: {
+          onsetDay: "2026-01-10",
+          feltBetterDay: "2026-01-14",
+          lifecycle: "ACUTE",
+        },
+        series: [{ type, baselineDays, episodeDays }],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.returns[0]?.returnedDay).toBeNull();
+    expect(out.value.recoveryGapDays).toBeNull();
+  });
+
+  it("WITHHOLDS a vital return when the in-band settle spans calendar GAPS", () => {
+    // Three in-band readings exist after the deviation, but on 01-13/01-20/01-27
+    // — a sparse settle across two weeks, not a sustained 3-day run. The settle
+    // walk is calendar-adjacent (parity with `runFlag`), so this must NOT count
+    // as a stable return and must not fabricate a gap. Array-adjacent walking
+    // would have stamped a return on 01-13.
+    const type: MeasurementType = "RESTING_HEART_RATE";
+    const baselineDays = jitteredBaseline(55, 1, 21, "2026-01-02");
+    const episodeDays: VitalDayPoint[] = [
+      { day: "2026-01-10", mean: 75 }, // deviation
+      { day: "2026-01-12", mean: 74 },
+      { day: "2026-01-13", mean: 55 }, // in-band, then a 7-day gap
+      { day: "2026-01-20", mean: 55 },
+      { day: "2026-01-27", mean: 55 },
     ];
     const out = computeIllnessCorrelation(
       input({
