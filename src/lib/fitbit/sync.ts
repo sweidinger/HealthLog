@@ -48,6 +48,14 @@ import {
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 /**
+ * Delimiter joining `(type, externalId)` into a single dedup map key. A
+ * control character keeps it unambiguous against any value a real type or
+ * externalId could contain, while staying a normal printable-safe constant
+ * (a literal NUL in the source made text tooling treat the file as binary).
+ */
+const DEDUP_KEY_DELIM = "\u0000";
+
+/**
  * Overlap window for the incremental sync, in ms. Fitbit finalises daily
  * summaries after the fact (a daily SpO2 / HRV / RHR can settle hours after the
  * night), so the default overlap is a full 24 h to make sure the re-rolled row
@@ -396,7 +404,10 @@ export async function upsertFitbitMeasurements(
     liveByKey = new Map(
       existing
         .filter((e) => e.externalId !== null)
-        .map((e) => [`${e.type} ${e.externalId}`, { id: e.id }]),
+        .map((e) => [
+          `${e.type}${DEDUP_KEY_DELIM}${e.externalId}`,
+          { id: e.id },
+        ]),
     );
   } catch (err) {
     // A probe failure must not strand the whole batch; fall back to treating
@@ -421,7 +432,7 @@ export async function upsertFitbitMeasurements(
   const plannedCreateKeys = new Set<string>();
   for (const r of readings) {
     const type = r.type as MeasurementType;
-    const key = `${type} ${r.externalId}`;
+    const key = `${type}${DEDUP_KEY_DELIM}${r.externalId}`;
     const live = liveByKey.get(key);
     if (live) {
       toUpdate.push({ id: live.id, r });
@@ -438,7 +449,9 @@ export async function upsertFitbitMeasurements(
     } else {
       // A duplicate fresh key inside the same batch — overwrite the planned
       // create's payload so last-write-wins, matching the prior upsert loop.
-      const idx = toCreate.findIndex((c) => `${c.type} ${c.externalId}` === key);
+      const idx = toCreate.findIndex(
+        (c) => `${c.type}${DEDUP_KEY_DELIM}${c.externalId}` === key,
+      );
       if (idx >= 0) {
         toCreate[idx] = {
           type,

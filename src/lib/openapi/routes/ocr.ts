@@ -29,9 +29,7 @@ const capabilityResponse = z
   .object({
     available: z.boolean(),
     mode: z.enum(["vision", "text"]).nullable(),
-    reason: z
-      .enum(["no-provider", "text-only-model", "enable-local-ocr"])
-      .nullable(),
+    reason: z.enum(["no-provider", "enable-local-ocr"]).nullable(),
     pdfSupported: z.boolean(),
   })
   .meta({
