@@ -198,6 +198,45 @@ describe("executeCoachTool", () => {
     expect(miss.reason).toBe("analyte_not_found");
   });
 
+  // v1.21.0 (NEW-A) — labs must reach the Coach with their value AND unit so it
+  // can cite the reading, not just name the biomarker. The snapshot labs block
+  // already carries { analyte, value, unit, rangeStatus, … }; the tool passes
+  // it through verbatim. This guards that the value + unit survive the tool.
+  it("get_labs carries each reading's value and unit (citation guarantee)", async () => {
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot({
+        labs: {
+          recent: [
+            {
+              analyte: "LDL",
+              value: 120,
+              unit: "mg/dL",
+              rangeStatus: "above",
+              referenceLow: null,
+              referenceHigh: 116,
+              takenAt: "2026-06-01T00:00:00.000Z",
+            },
+          ],
+        },
+      }),
+    );
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_labs",
+      rawArguments: "{}",
+    });
+    expect(result.present).toBe(true);
+    const data = result.data as {
+      recent: Array<{ value: number; unit: string; rangeStatus: string }>;
+    };
+    expect(data.recent[0]).toMatchObject({
+      analyte: "LDL",
+      value: 120,
+      unit: "mg/dL",
+      rangeStatus: "above",
+    });
+  });
+
   it("returns the workouts section for get_workouts when present", async () => {
     buildCoachSnapshot.mockResolvedValue(
       snapshot({ workouts: { recent: [{ sport: "RUN" }], totalInWindow: 3 } }),
