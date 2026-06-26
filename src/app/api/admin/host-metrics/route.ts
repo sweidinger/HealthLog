@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAdmin } from "@/lib/api-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
@@ -59,9 +59,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
   annotate({ action: { name: "admin.host-metrics.list" } });
 
   const { searchParams } = new URL(request.url);
-  const parsed = querySchema.parse({
+  const result = querySchema.safeParse({
     since: searchParams.get("since") ?? undefined,
   });
+  if (!result.success) return returnAllZodIssues(result.error);
+  const parsed = result.data;
 
   const sinceMs = presetToMs(parsed.since);
   const cutoff = new Date(Date.now() - sinceMs);

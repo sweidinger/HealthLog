@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAdmin } from "@/lib/api-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { redactSecrets } from "@/lib/logging/redact";
 import { NextRequest } from "next/server";
@@ -56,7 +56,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   annotate({ action: { name: "admin.audit-log.list" } });
 
   const { searchParams } = new URL(request.url);
-  const parsed = querySchema.parse({
+  const result = querySchema.safeParse({
     limit: searchParams.get("limit") ?? undefined,
     offset: searchParams.get("offset") ?? undefined,
     filter: searchParams.get("filter") ?? undefined,
@@ -68,6 +68,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     since: searchParams.get("since") ?? undefined,
     until: searchParams.get("until") ?? undefined,
   });
+  if (!result.success) return returnAllZodIssues(result.error);
+  const parsed = result.data;
 
   // Resolve perPage: clamp to allowed set, fall back to 50.
   const perPageResolved =
