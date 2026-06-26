@@ -316,6 +316,22 @@ export async function syncUserActivity(
   // See sync.ts header for the full rationale; the chart's
   // `source=rollup` fast-path otherwise misses Withings activity days.
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
+
+  // v1.20.2 F3 — flatten (entry × field) into the concrete rows the sync
+  // wants to land, then batch the reads + writes. The pre-v1.20.2 shape
+  // ran a per-(entry, field) `findFirst` + `update`/`create`, i.e.
+  // ~entries × 3 × 2 round-trips (≈ 2,190 on a 365-day backfill). The
+  // overwrite contract is unchanged: an existing WITHINGS row for the
+  // `(type, measuredAt)` slot has its `value` rewritten (the four-column
+  // dedup keys on `(userId, type, measuredAt, source, sleepStage=null)`),
+  // a fresh slot is inserted with the stable `externalId`.
+  interface PlannedRow {
+    type: MeasurementType;
+    measuredAt: Date;
+    value: number;
+    externalId: string;
+  }
+  const planned: PlannedRow[] = [];
   for (const entry of entries) {
     if (!entry.date) continue;
     const measuredAt = activityMeasuredAt(entry.date);
@@ -325,42 +341,99 @@ export async function syncUserActivity(
       // valid (a day of rest still records 0 steps). Only skip
       // undefined / null / NaN.
       if (raw == null || !Number.isFinite(raw)) continue;
-      try {
-        const existing = await prisma.measurement.findFirst({
-          where: {
-            userId,
-            type,
-            measuredAt,
-            source: "WITHINGS",
-            sleepStage: null,
-          },
-          select: { id: true },
+      planned.push({
+        type,
+        measuredAt,
+        value: raw,
+        externalId: `withings:activity:${userId}:${entry.date}:${field}`,
+      });
+    }
+  }
+
+  if (planned.length > 0) {
+    const slotKey = (type: MeasurementType, measuredAt: Date) =>
+      `${type}|${measuredAt.getTime()}`;
+
+    try {
+      // One read for the whole batch: every existing WITHINGS / non-sleep
+      // row that occupies a slot we intend to write. Keyed by the same
+      // four columns the per-row `findFirst` matched on, so the
+      // overwrite-vs-insert decision is identical — just resolved in
+      // memory instead of N round-trips.
+      const distinctMeasuredAt = [
+        ...new Map(planned.map((p) => [p.measuredAt.getTime(), p.measuredAt])),
+      ].map(([, d]) => d);
+      const distinctTypes = [...new Set(planned.map((p) => p.type))];
+      const existingRows = await prisma.measurement.findMany({
+        where: {
+          userId,
+          source: "WITHINGS",
+          sleepStage: null,
+          type: { in: distinctTypes },
+          measuredAt: { in: distinctMeasuredAt },
+        },
+        select: { id: true, type: true, measuredAt: true, value: true },
+      });
+      const existingBySlot = new Map<string, { id: string; value: number }>();
+      for (const row of existingRows) {
+        existingBySlot.set(slotKey(row.type, row.measuredAt), {
+          id: row.id,
+          value: row.value,
         });
+      }
+
+      const toCreate: PlannedRow[] = [];
+      const toUpdate: Array<{ id: string; value: number }> = [];
+      for (const p of planned) {
+        const existing = existingBySlot.get(slotKey(p.type, p.measuredAt));
         if (existing) {
-          await prisma.measurement.update({
-            where: { id: existing.id },
-            data: { value: raw },
-          });
+          // Only write when the value actually moved — a re-sync of an
+          // unchanged day is then a pure no-op on the write path.
+          if (existing.value !== p.value) {
+            toUpdate.push({ id: existing.id, value: p.value });
+          }
         } else {
-          await prisma.measurement.create({
-            data: {
-              userId,
-              type,
-              value: raw,
-              unit: getUnitForType(type),
-              measuredAt,
-              source: "WITHINGS",
-              externalId: `withings:activity:${userId}:${entry.date}:${field}`,
-            },
-          });
+          toCreate.push(p);
         }
-        touched.push({ type, measuredAt });
+        touched.push({ type: p.type, measuredAt: p.measuredAt });
         imported++;
-      } catch (err) {
-        getEvent()?.addWarning(
-          `Failed to upsert activity row (${type}, ${entry.date}): ${err}`,
+      }
+
+      // One insert for every fresh slot. `skipDuplicates` tolerates a
+      // concurrent sibling sync landing the same slot between the read
+      // and this write (the four-column unique catches it).
+      if (toCreate.length > 0) {
+        await prisma.measurement.createMany({
+          data: toCreate.map((p) => ({
+            userId,
+            type: p.type,
+            value: p.value,
+            unit: getUnitForType(p.type),
+            measuredAt: p.measuredAt,
+            source: "WITHINGS" as const,
+            externalId: p.externalId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      // Values differ per row, so the overwrites can't collapse into one
+      // `updateMany`; run them in a single transaction so the batch is one
+      // round-trip rather than one per row.
+      if (toUpdate.length > 0) {
+        await prisma.$transaction(
+          toUpdate.map((u) =>
+            prisma.measurement.update({
+              where: { id: u.id },
+              data: { value: u.value },
+            }),
+          ),
         );
       }
+    } catch (err) {
+      getEvent()?.addWarning(
+        `Failed to batch-upsert ${planned.length} activity rows for ${userId}: ${err}`,
+      );
     }
   }
 

@@ -242,25 +242,24 @@ export async function dedupeUserIntakeSlots(
   // recompute after the collapse. Deduped so a busy day folds once.
   const daysToRecompute = new Set<string>();
 
-  for (const med of medications) {
-    if (med.schedules.length === 0) continue;
+  // v1.20.2 F4 — batch the per-medication reads. The pre-v1.20.2 shape
+  // issued a `findFirst` (latest takenAt) + a `findMany` (all live rows)
+  // PER medication → 2N round-trips (20 meds = 40). Pull every live row
+  // for the user's medication set in ONE ordered `findMany`, group in
+  // memory by `medicationId`, and derive the per-med `lastIntakeAt` (max
+  // non-null takenAt) from the same grouped set the `findFirst` would
+  // have scanned. The grouping preserves the `scheduledFor asc` order the
+  // snap + heal passes depend on (a stable Postgres sort keeps the
+  // per-medication slices in the same order a per-med query returned).
+  const medIds = medications
+    .filter((m) => m.schedules.length > 0)
+    .map((m) => m.id);
 
-    // Latest non-tombstoned takenAt — only rolling schedules consult it,
-    // but the snap resolver needs it threaded in.
-    const lastIntake = await prisma.medicationIntakeEvent.findFirst({
-      where: {
-        userId,
-        medicationId: med.id,
-        deletedAt: null,
-        takenAt: { not: null },
-      },
-      orderBy: { takenAt: "desc" },
-      select: { takenAt: true },
-    });
-    const lastIntakeAt = lastIntake?.takenAt ?? null;
-
-    const rows = (await prisma.medicationIntakeEvent.findMany({
-      where: { userId, medicationId: med.id, deletedAt: null },
+  const rowsByMedication = new Map<string, DedupIntakeRow[]>();
+  const lastIntakeAtByMedication = new Map<string, Date | null>();
+  if (medIds.length > 0) {
+    const allRows = (await prisma.medicationIntakeEvent.findMany({
+      where: { userId, medicationId: { in: medIds }, deletedAt: null },
       select: {
         id: true,
         medicationId: true,
@@ -276,8 +275,36 @@ export async function dedupeUserIntakeSlots(
         // v1.16.10 — stamped losers refund their consumption on collapse.
         inventoryConsumption: true,
       },
-      orderBy: { scheduledFor: "asc" },
+      // `medicationId` first so the per-med slices are contiguous, then the
+      // `scheduledFor asc` the loop relies on.
+      orderBy: [{ medicationId: "asc" }, { scheduledFor: "asc" }],
     })) as DedupIntakeRow[];
+
+    for (const row of allRows) {
+      const list = rowsByMedication.get(row.medicationId);
+      if (list) {
+        list.push(row);
+      } else {
+        rowsByMedication.set(row.medicationId, [row]);
+      }
+      // Latest non-tombstoned takenAt per medication — the same value the
+      // per-med `findFirst({ takenAt: { not: null }, orderBy: desc })`
+      // returned. Only rolling schedules consult it, but the snap resolver
+      // needs it threaded in.
+      if (row.takenAt !== null) {
+        const prev = lastIntakeAtByMedication.get(row.medicationId) ?? null;
+        if (prev === null || row.takenAt.getTime() > prev.getTime()) {
+          lastIntakeAtByMedication.set(row.medicationId, row.takenAt);
+        }
+      }
+    }
+  }
+
+  for (const med of medications) {
+    if (med.schedules.length === 0) continue;
+
+    const lastIntakeAt = lastIntakeAtByMedication.get(med.id) ?? null;
+    const rows = rowsByMedication.get(med.id) ?? [];
 
     if (rows.length < 2) continue;
 

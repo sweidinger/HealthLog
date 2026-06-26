@@ -177,3 +177,69 @@ describe("dedupeUserIntakeSlots — per-slot error isolation", () => {
     expect(prisma.medicationIntakeEvent.updateMany).toHaveBeenCalledTimes(2);
   });
 });
+
+/**
+ * v1.20.2 F4 — the per-medication dedup read path is batched. The
+ * pre-v1.20.2 shape issued a `findFirst` (latest takenAt) + a `findMany`
+ * (all rows) PER medication → 2N round-trips. The batched path pulls
+ * every live row for the user's medication set in ONE `findMany`, groups
+ * in memory, and derives the per-med `lastIntakeAt` from the grouped set,
+ * so the read cost is one query regardless of the medication count.
+ */
+describe("dedupeUserIntakeSlots — batched read path (F4)", () => {
+  it("reads every medication's rows in a single findMany and never per-med findFirst", async () => {
+    const MED_2 = { ...MED, id: "med-2" };
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      MED,
+      MED_2,
+    ] as never);
+
+    // Rows for BOTH medications come back in one ordered result set; the
+    // grouping keys them apart by `medicationId`. med-2 carries a single
+    // row (no duplicate slot) so it is a no-op — proving the grouping
+    // routes each med's slice correctly.
+    const med2Row = {
+      id: "r-m2",
+      medicationId: "med-2",
+      scheduledFor: new Date("2026-06-15T05:00:00.000Z"),
+      takenAt: new Date("2026-06-15T05:02:00.000Z"),
+      skipped: false,
+      syncVersion: 0,
+      createdAt: new Date("2026-06-15T00:00:00Z"),
+      attributionSource: "AUTO",
+      inventoryConsumption: null,
+    };
+    // `inventoryConsumption: null` on every row keeps the loser-refund
+    // path (which itself runs a `findFirst` inside `restoreForIntake`)
+    // out of the picture, so the findFirst assertion isolates the removed
+    // lastIntake probe.
+    const med1Rows = seedRows().map((r) => ({
+      ...r,
+      inventoryConsumption: null,
+    }));
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      ...med1Rows,
+      med2Row,
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
+      {} as never,
+    );
+
+    const summary = await dedupeUserIntakeSlots("u1");
+
+    // ONE findMany for the whole medication set; the per-med findFirst is
+    // gone entirely.
+    expect(prisma.medicationIntakeEvent.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.medicationIntakeEvent.findFirst).not.toHaveBeenCalled();
+    // The single read is keyed by the medication-id set, not per med.
+    const whereArg = vi.mocked(prisma.medicationIntakeEvent.findMany).mock
+      .calls[0][0] as {
+      where: { medicationId: { in: string[] } };
+    };
+    expect(whereArg.where.medicationId.in.sort()).toEqual(["med-1", "med-2"]);
+
+    // med-1's two slots still collapse from its grouped slice; med-2's
+    // lone row is left alone.
+    expect(summary.slotsCollapsed).toBe(2);
+  });
+});
