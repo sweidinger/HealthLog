@@ -76,11 +76,12 @@ describe("buildComparisonSnapshotForUser — bounded read window", () => {
       expect(measuredAt).toBeDefined();
       expect(measuredAt.gte).toBeInstanceOf(Date);
 
-      // The floor is anchored on Date.now() - 400 days (allow scheduling
-      // slack between the snapshot's clock read and the test's bracket).
+      // The floor is anchored on Date.now() - 400 days, read inside the call.
+      // Since before <= snapshotNow <= after, the floor brackets exactly to
+      // [before - 400d, after - 400d] — no tick-timing slack assumptions.
       const gteMs = measuredAt.gte.getTime();
-      expect(gteMs).toBeLessThanOrEqual(before - 400 * DAY);
-      expect(gteMs).toBeGreaterThanOrEqual(after - 401 * DAY);
+      expect(gteMs).toBeGreaterThanOrEqual(before - 400 * DAY);
+      expect(gteMs).toBeLessThanOrEqual(after - 400 * DAY);
     }
   });
 
