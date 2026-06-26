@@ -67,6 +67,50 @@ describe("buildCoachDataInventory", () => {
     expect(sleep?.present).toBe(false);
   });
 
+  it("advertises workouts + correlations tools and the cycle tool when enabled", async () => {
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot(
+        {
+          workouts: { recent: [], totalInWindow: 4 },
+          mood: {},
+          cycle: { phase: "luteal" },
+          scope: { window: "last30days" },
+        },
+        { workouts: 4 },
+      ),
+    );
+    isCycleAvailableForUser.mockResolvedValue(true);
+    const inv = await buildCoachDataInventory("u1", undefined);
+    const workouts = inv.entries.find((e) => e.tool === "get_workouts");
+    expect(workouts).toMatchObject({ present: true, count: 4 });
+    const correlations = inv.entries.find((e) => e.tool === "get_correlations");
+    expect(correlations?.present).toBe(true); // mood present → correlatable
+    const cycle = inv.entries.find((e) => e.tool === "get_cycle");
+    expect(cycle).toMatchObject({ present: true });
+  });
+
+  it("omits the cycle line when cycle tracking is unavailable", async () => {
+    buildCoachSnapshot.mockResolvedValue(snapshot({ bloodPressure: {} }));
+    isCycleAvailableForUser.mockResolvedValue(false);
+    const inv = await buildCoachDataInventory("u1", undefined);
+    expect(inv.entries.find((e) => e.tool === "get_cycle")).toBeUndefined();
+  });
+
+  it("probes a wide source set so synced domains are advertised", async () => {
+    // body composition + spo2 present even though they are not default clusters.
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot(
+        { bodyFat: {}, oxygenSaturation: {}, scope: { window: "last30days" } },
+        { body_fat: 12, spo2: 30 },
+      ),
+    );
+    const inv = await buildCoachDataInventory("u1", undefined);
+    const bodyFat = inv.entries.find((e) => e.metric === "body_fat");
+    const spo2 = inv.entries.find((e) => e.metric === "spo2");
+    expect(bodyFat).toMatchObject({ present: true, count: 12 });
+    expect(spo2).toMatchObject({ present: true, count: 30 });
+  });
+
   it("reports restMode + cycleEnabled", async () => {
     buildCoachSnapshot.mockResolvedValue(
       snapshot({ illness: { restMode: true } }),

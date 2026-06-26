@@ -9,15 +9,17 @@
  * narrowed from the session in the executor), and every tool is read-only, so
  * there is no new mutation or egress surface.
  *
- * Six tools ship in v1.20.0 (the research's recommended slice):
+ * Tools ship as a closed catalogue:
  *   1. get_metric_series         — BP / weight / pulse + the ~38 additive series
  *   2. get_glucose_panel         — per-context daily means + the 30-day clinical panel
  *   3. get_sleep                 — per-night sleep + sleep-rhythm (debt + chronotype)
  *   4. get_medication_compliance — dose-weighted compliance + GLP-1
  *   5. get_labs                  — latest reading per biomarker (12 months)
  *   6. get_illness_recovery      — restMode + active/resolved illnesses + recovery composites
- *
- * cycle / correlation / workouts are deferred to a later release.
+ *   7. get_workouts              — recent sessions + per-sport rollup (v1.21.0, C2-4)
+ *   8. get_cycle                 — menstrual phase / prediction / correlation (v1.21.0, C2-1)
+ *   9. get_correlations          — discovered FDR cross-metric drivers + the
+ *                                  coincident-deviation flag (v1.21.0, C3)
  */
 import { z } from "zod/v4";
 
@@ -35,6 +37,9 @@ export const COACH_TOOL_NAMES = [
   "get_medication_compliance",
   "get_labs",
   "get_illness_recovery",
+  "get_workouts",
+  "get_cycle",
+  "get_correlations",
 ] as const;
 
 export type CoachToolName = (typeof COACH_TOOL_NAMES)[number];
@@ -82,6 +87,16 @@ export const getLabsArgsSchema = z
   .strict();
 
 export const getIllnessRecoveryArgsSchema = z.object({}).strict();
+
+export const getWorkoutsArgsSchema = z
+  .object({
+    window: coachScopeWindowSchema.optional(),
+  })
+  .strict();
+
+export const getCycleArgsSchema = z.object({}).strict();
+
+export const getCorrelationsArgsSchema = z.object({}).strict();
 
 /**
  * JSON-Schema parameter shapes handed to the provider. Kept hand-written
@@ -198,6 +213,45 @@ export const COACH_TOOL_DEFS: AiToolDef[] = [
     name: "get_illness_recovery",
     description:
       "Fetch the user's illness + recovery context: rest mode, active and recently-resolved illnesses, and the recovery / strain composites. Returns { present: false } when there is nothing to report.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: [],
+      properties: {},
+    },
+  },
+  {
+    name: "get_workouts",
+    description:
+      "Fetch the user's workouts: the most recent sessions (sport, duration, energy, distance, avg/max HR) plus a per-sport rollup over the window. Use for training-load and 'how were my runs / am I overtraining?' questions. Returns { present: false } when no workouts are tracked.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: [],
+      properties: {
+        window: {
+          type: "string",
+          enum: WINDOW_ENUM,
+          description: "Analysis window. Defaults to the user's scope window.",
+        },
+      },
+    },
+  },
+  {
+    name: "get_cycle",
+    description:
+      "Fetch the user's menstrual-cycle context: current phase + day-of-cycle, the next predicted event, and the headline phase-correlation finding. Descriptive only — never a contraception-grade or 'safe day' claim. Returns { present: false } when cycle tracking is off or there is no data.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: [],
+      properties: {},
+    },
+  },
+  {
+    name: "get_correlations",
+    description:
+      "Fetch the user's DISCOVERED cross-metric patterns: statistically-vetted (FDR-controlled) day-to-next-day driver pairs between behaviours (daylight, mood, glucose, blood pressure, steps) and outcomes (sleep, HRV, resting HR, weight, mood), each with direction, lag, sample size and a descriptive — never causal — note. Also reports the coincident-deviation flag (whether two or more vitals are outside their usual band today). Use when a metric is off and you want to state the observed linkage. Returns { present: false } when too little paired data exists for any pattern to survive.",
     parameters: {
       type: "object",
       additionalProperties: false,

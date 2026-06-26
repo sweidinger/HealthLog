@@ -86,6 +86,9 @@ describe("runCoachToolLoop", () => {
     expect(out.toolTrace).toEqual([
       { name: "get_metric_series", present: true },
     ]);
+    // v1.21.0 (P6) — the present result's payload is retained for the prose
+    // number-verifier.
+    expect(out.toolResults).toEqual([{ present: true, data: { x: 1 } }]);
     // The second call must forbid tools? No — round 2 still offers them
     // (round <= MAX_ROUNDS). It simply chose to answer.
     expect(runRawCompletionWithFallback).toHaveBeenCalledTimes(2);

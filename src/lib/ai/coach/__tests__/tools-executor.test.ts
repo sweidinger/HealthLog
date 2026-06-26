@@ -16,6 +16,11 @@ vi.mock("@/lib/ai/coach/snapshot", () => ({
     buildCoachSnapshot(userId, scope),
 }));
 
+const readCoachCorrelations = vi.fn();
+vi.mock("@/lib/ai/coach/tools/correlations-read", () => ({
+  readCoachCorrelations: (userId: string) => readCoachCorrelations(userId),
+}));
+
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
 
 function snapshot(
@@ -33,6 +38,7 @@ function snapshot(
 describe("executeCoachTool", () => {
   beforeEach(() => {
     buildCoachSnapshot.mockReset();
+    readCoachCorrelations.mockReset();
   });
 
   it("returns the matching section for get_metric_series when present", async () => {
@@ -180,6 +186,104 @@ describe("executeCoachTool", () => {
     });
     expect(miss.present).toBe(false);
     expect(miss.reason).toBe("analyte_not_found");
+  });
+
+  it("returns the workouts section for get_workouts when present", async () => {
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot({ workouts: { recent: [{ sport: "RUN" }], totalInWindow: 3 } }),
+    );
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_workouts",
+      rawArguments: JSON.stringify({ window: "last30days" }),
+    });
+    expect(result.present).toBe(true);
+    expect(result.data).toMatchObject({ totalInWindow: 3 });
+  });
+
+  it("returns { present: false } for get_workouts when no block", async () => {
+    buildCoachSnapshot.mockResolvedValue(snapshot({}));
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_workouts",
+      rawArguments: "{}",
+    });
+    expect(result.present).toBe(false);
+    expect(result.reason).toBe("no_data");
+  });
+
+  it("returns the cycle section for get_cycle when present", async () => {
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot({ cycle: { phase: "luteal", dayOfCycle: 21 } }),
+    );
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_cycle",
+      rawArguments: "{}",
+    });
+    expect(result.present).toBe(true);
+    expect(result.data).toMatchObject({ phase: "luteal" });
+  });
+
+  it("returns { present: false } for get_cycle when cycle tracking is off", async () => {
+    // A non-cycle account produces no cycle block (gated in the builder).
+    buildCoachSnapshot.mockResolvedValue(snapshot({}));
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_cycle",
+      rawArguments: "{}",
+    });
+    expect(result.present).toBe(false);
+    expect(result.reason).toBe("no_data");
+  });
+
+  it("surfaces discovered drivers + coincident flag for get_correlations", async () => {
+    readCoachCorrelations.mockResolvedValue({
+      present: true,
+      drivers: [
+        {
+          behaviour: "time in daylight",
+          outcome: "sleep duration",
+          direction: "higher",
+          lagDays: 1,
+          n: 42,
+          r: 0.31,
+          note: "Higher time in daylight tends to go with higher next-day sleep duration in your data — a pattern worth watching, not a cause.",
+        },
+      ],
+      coincident: {
+        fired: false,
+        contributing: [],
+        day: "2026-06-02",
+        illnessExplained: false,
+      },
+      pairsTested: 18,
+      windowDays: 180,
+    });
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_correlations",
+      rawArguments: "{}",
+    });
+    expect(result.present).toBe(true);
+    expect(result.data).toMatchObject({
+      drivers: [{ behaviour: "time in daylight", n: 42 }],
+      pairsTested: 18,
+    });
+  });
+
+  it("returns a clean { present: false } for get_correlations on no pattern", async () => {
+    readCoachCorrelations.mockResolvedValue({
+      present: false,
+      reason: "no_significant_pattern",
+    });
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_correlations",
+      rawArguments: "{}",
+    });
+    expect(result.present).toBe(false);
+    expect(result.reason).toBe("no_significant_pattern");
   });
 
   it("never passes userId as a tool argument (read from session only)", async () => {

@@ -37,6 +37,9 @@ import {
   getMedicationComplianceArgsSchema,
   getLabsArgsSchema,
   getIllnessRecoveryArgsSchema,
+  getWorkoutsArgsSchema,
+  getCycleArgsSchema,
+  getCorrelationsArgsSchema,
   isCoachToolName,
   type CoachToolName,
 } from "./definitions";
@@ -44,6 +47,7 @@ import {
   COACH_SOURCE_SNAPSHOT_KEY,
   METRIC_SERIES_EXCLUDED_SOURCES,
 } from "./source-keys";
+import { readCoachCorrelations } from "./correlations-read";
 
 /** A read-only structured tool result. Serialised to a `role:"tool"` turn. */
 export interface CoachToolResult {
@@ -162,9 +166,15 @@ async function dispatch(
     case "get_medication_compliance":
       return getMedicationCompliance(userId, rawArgs, fallbackWindow);
     case "get_labs":
-      return getLabs(userId, rawArgs);
+      return getLabs(userId, rawArgs, fallbackWindow);
     case "get_illness_recovery":
-      return getIllnessRecovery(userId);
+      return getIllnessRecovery(userId, fallbackWindow);
+    case "get_workouts":
+      return getWorkouts(userId, rawArgs, fallbackWindow);
+    case "get_cycle":
+      return getCycle(userId, rawArgs);
+    case "get_correlations":
+      return getCorrelations(userId, rawArgs);
   }
 }
 
@@ -300,13 +310,23 @@ async function getMedicationCompliance(
 async function getLabs(
   userId: string,
   rawArgs: unknown,
+  fallbackWindow: CoachScopeWindow | undefined,
 ): Promise<CoachToolResult> {
   const parsed = getLabsArgsSchema.safeParse(rawArgs);
   if (!parsed.success) return badArgs("get_labs", parsed.error);
   // Labs ride the snapshot regardless of `sources` (attached unconditionally),
   // so a minimal scope still surfaces them. Pass an empty source set to keep
   // the read tight.
-  const snapshot = await buildCoachSnapshot(userId, { sources: [] });
+  //
+  // v1.21.0 (A5-F4) — the labs block itself is a "latest reading per biomarker
+  // over the last 12 months" snapshot and is intentionally window-AGNOSTIC
+  // (the read cutoff is fixed). We still thread the conversation's window onto
+  // the scope so the snapshot's `scope` block reports the right horizon for the
+  // turn; it does not move the labs read.
+  const snapshot = await buildCoachSnapshot(userId, {
+    sources: [],
+    window: fallbackWindow,
+  });
   const labs = pickSection(snapshot.sections, "labs") as
     | { recent?: Array<{ name?: string; analyte?: string }> }
     | undefined;
@@ -327,15 +347,23 @@ async function getLabs(
   return { present: true, data: labs };
 }
 
-async function getIllnessRecovery(userId: string): Promise<CoachToolResult> {
+async function getIllnessRecovery(
+  userId: string,
+  fallbackWindow: CoachScopeWindow | undefined,
+): Promise<CoachToolResult> {
   // Validate the (empty) args shape for consistency; an empty object always
   // passes.
   getIllnessRecoveryArgsSchema.parse({});
   // Recovery composites gate on the `recovery` module + the HRV/RHR/VO2max
   // sources; request them so the derived / dayStrain / trajectory blocks can
   // build when the module is on. Illness rides the snapshot unconditionally.
+  //
+  // v1.21.0 (A5-F4) — honour the conversation's window so the recovery/strain/
+  // trajectory composites are computed over the horizon the caller asked for
+  // rather than the builder default.
   const snapshot = await buildCoachSnapshot(userId, {
     sources: ["hrv", "resting_hr", "vo2_max"],
+    window: fallbackWindow,
   });
   const illness = pickSection(snapshot.sections, "illness");
   const derived = pickSection(snapshot.sections, "derived");
@@ -356,6 +384,63 @@ async function getIllnessRecovery(userId: string): Promise<CoachToolResult> {
       ...(derived !== undefined ? { derived } : {}),
       ...(dayStrain !== undefined ? { dayStrain } : {}),
       ...(trajectory !== undefined ? { trajectory } : {}),
+    },
+  };
+}
+
+async function getWorkouts(
+  userId: string,
+  rawArgs: unknown,
+  fallbackWindow: CoachScopeWindow | undefined,
+): Promise<CoachToolResult> {
+  const parsed = getWorkoutsArgsSchema.safeParse(rawArgs);
+  if (!parsed.success) return badArgs("get_workouts", parsed.error);
+  // The workouts block builds when the `workouts` cluster is active AND the
+  // user has workout rows in the window. Scope the read to that single source.
+  const snapshot = await buildCoachSnapshot(
+    userId,
+    scopeFor(["workouts"], parsed.data.window, fallbackWindow),
+  );
+  const workouts = pickSection(snapshot.sections, "workouts");
+  if (workouts === undefined) return { present: false, reason: "no_data" };
+  return { present: true, data: workouts };
+}
+
+async function getCycle(
+  userId: string,
+  rawArgs: unknown,
+): Promise<CoachToolResult> {
+  const parsed = getCycleArgsSchema.safeParse(rawArgs);
+  if (!parsed.success) return badArgs("get_cycle", parsed.error);
+  // The cycle block is gated INSIDE the builder by `isCycleAvailableForUser`
+  // (the per-user toggle AND the operator switch), independent of `sources` —
+  // so a minimal scope still surfaces it when the account tracks cycles, and a
+  // non-cycle account structurally produces no block (→ present:false).
+  const snapshot = await buildCoachSnapshot(userId, { sources: [] });
+  const cycle = pickSection(snapshot.sections, "cycle");
+  if (cycle === undefined) return { present: false, reason: "no_data" };
+  return { present: true, data: cycle };
+}
+
+async function getCorrelations(
+  userId: string,
+  rawArgs: unknown,
+): Promise<CoachToolResult> {
+  const parsed = getCorrelationsArgsSchema.safeParse(rawArgs);
+  if (!parsed.success) return badArgs("get_correlations", parsed.error);
+  // Reads the deterministic FDR discovery + coincident-deviation flag; returns
+  // a clean `{ present: false }` when too little paired data exists.
+  const result = await readCoachCorrelations(userId);
+  if (!result.present) {
+    return { present: false, reason: result.reason ?? "no_data" };
+  }
+  return {
+    present: true,
+    data: {
+      ...(result.drivers ? { drivers: result.drivers } : {}),
+      ...(result.coincident ? { coincident: result.coincident } : {}),
+      pairsTested: result.pairsTested,
+      windowDays: result.windowDays,
     },
   };
 }

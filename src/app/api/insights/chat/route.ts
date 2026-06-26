@@ -84,6 +84,10 @@ import {
 } from "@/lib/ai/coach/tools";
 import type { AiMessage } from "@/lib/ai/types";
 import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
+import {
+  findUnverifiedCoachNumbers,
+  stripUnverifiedNumbers,
+} from "@/lib/ai/coach/coach-prose-grounding";
 import { parseSuggestReminder } from "@/lib/ai/coach/suggest-reminder";
 import { gateSuggestion } from "@/lib/ai/coach/suggest-gate";
 import {
@@ -518,6 +522,9 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   let result: CompletionResult;
   let workingProviderType: string;
   let toolTrace: CoachToolTrace[] = [];
+  // v1.21.0 (P6) — the present tool-result payloads this turn, for the post-hoc
+  // prose number-verifier. Empty on the no-tools path.
+  let toolResultPayloads: unknown[] = [];
   let totalTokensSpent: number;
   try {
     if (toolMode) {
@@ -556,6 +563,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
       result = loop.result;
       workingProviderType = loop.workingProviderType;
       toolTrace = loop.toolTrace;
+      toolResultPayloads = (loop.toolResults ?? []).map((r) => r.data);
       totalTokensSpent = loop.totalTokens;
     } else {
       const fallback = await runRawCompletionWithFallback({
@@ -699,6 +707,38 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
         reason: outbound.reason,
       },
     });
+  }
+
+  // v1.21.0 (P6 / C2-5) — post-hoc numeric verifier on the Coach prose. On the
+  // tool path, cross-check every number the model cited against the figures the
+  // tools actually returned this turn; an unmatched number (transcription /
+  // paraphrase drift) is soft-stripped to "[unverified]" and annotated. Cheap,
+  // non-blocking, and a no-op when no tool returned figures (a qualitative turn
+  // or the no-tools path) — the prompt-level grounding rule remains the
+  // backstop there, exactly like the briefing's "no signals → skip". A blocked
+  // turn already carries canned fallback prose, so skip it.
+  if (!outbound.block && toolResultPayloads.length > 0) {
+    const unverified = findUnverifiedCoachNumbers(
+      replyText,
+      toolResultPayloads,
+    );
+    if (unverified.length > 0) {
+      const { prose: corrected, stripped } = stripUnverifiedNumbers(
+        replyText,
+        unverified,
+      );
+      replyText = corrected;
+      annotate({
+        action: { name: "coach.prose.number_unverified" },
+        meta: {
+          flagged: unverified.length,
+          stripped,
+          // No raw values — just the count + truncated tokens for ops triage.
+          tokens: unverified.slice(0, 6).map((u) => u.source),
+          promptVersion: PROMPT_VERSION,
+        },
+      });
+    }
   }
 
   let surfacedSuggestion: CoachSuggestion | null = null;
