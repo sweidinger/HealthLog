@@ -13,6 +13,7 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { CoachReadStrip } from "@/components/insights/derived/coach-read-strip";
 import { MetricCorrelationCard } from "@/components/insights/metric-correlation-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
@@ -88,6 +89,7 @@ export default function InsightsGewichtPage() {
           windowStats={statsByType?.WEIGHT ?? null}
         />
       }
+      coachReadStrip={<CoachReadStrip metricType="WEIGHT" unit="kg" />}
       diversityNudge={
         <MeasurementDiversityNudge
           measurementType="WEIGHT"
