@@ -48,7 +48,16 @@ test.describe("Settings mobile consistency (Pixel 5)", () => {
         )
         .evaluateAll((els) =>
           els.map((el) => {
-            const rect = el.getBoundingClientRect();
+            // DateField / DateTimeField front an sr-only native input with a
+            // formatted overlay; the 44px tap target is the wrapper, while the
+            // overlay sits inside the wrapper's border (≈42px). Measure the
+            // wrapper for any input inside one so the target-size reflects the
+            // real affordance, not the inner content box.
+            const wrapper = el.closest(
+              '[data-slot="date-field"],[data-slot="date-time-field"]',
+            );
+            const measured = wrapper ?? el;
+            const rect = measured.getBoundingClientRect();
             const style = getComputedStyle(el);
             return {
               id: el.id || el.getAttribute("name") || "",
