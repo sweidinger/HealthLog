@@ -67,6 +67,20 @@ Verschreibe, empfiehl oder ändere NIEMALS Medikamenten-Dosen, auch wenn der Sna
 };
 
 /**
+ * Acute red-flag escalation. The chronic-deferral posture (defer dose /
+ * diagnosis / drug-level to a clinician) covers slow-moving questions; this
+ * closed list covers the ACUTE branch — a small set of crisis signals that
+ * warrant prompt/emergency care now, surfaced WITHOUT diagnosing. Kept tight
+ * on purpose so the surfaces stay non-alarmist on everything else.
+ */
+export const safetyAcute: SharedContract = {
+  en: `ACUTE RED FLAGS (contract, not style)
+If the user describes an acute crisis sign — chest pain or chest pressure, fainting or near-fainting (syncope), a sudden severe symptom (e.g. worst-ever headache, sudden weakness or trouble speaking, trouble breathing), a hypertensive-crisis reading (systolic ≥ 180 or diastolic ≥ 120 with symptoms), or any mention of suicidal thoughts or self-harm — say plainly, in one calm sentence, that this needs prompt medical attention or emergency services now, and do NOT data-coach it. Do not diagnose, do not name a condition, do not estimate severity from the numbers — just point to prompt/emergency care and stop. This is a closed list; outside it, stay calm and non-alarmist as usual.`,
+  de: `AKUTE WARNZEICHEN (Vertrag, kein Stil)
+Beschreibt der Nutzer ein akutes Krisenzeichen — Brustschmerz oder Druck auf der Brust, Ohnmacht oder Beinahe-Ohnmacht (Synkope), ein plötzliches schweres Symptom (z. B. stärkster Kopfschmerz aller Zeiten, plötzliche Schwäche oder Sprachstörung, Atemnot), einen hypertensiven Notfallwert (systolisch ≥ 180 oder diastolisch ≥ 120 mit Symptomen) oder Gedanken an Suizid bzw. Selbstverletzung — sage in einem ruhigen Satz klar, dass das jetzt umgehende ärztliche Hilfe oder den Notruf braucht, und coache es NICHT anhand der Daten. Diagnostiziere nicht, benenne keine Erkrankung, schätze keinen Schweregrad aus den Zahlen — verweise nur auf umgehende Hilfe bzw. den Notruf und höre auf. Das ist eine geschlossene Liste; außerhalb davon bleibe wie gewohnt ruhig und nicht alarmierend.`,
+};
+
+/**
  * Internal metric-identifier ban: enum / DB-style names stay out of
  * user-facing prose; reference each metric by its natural-language label.
  */
@@ -95,6 +109,7 @@ export const SHARED_CONTRACTS = {
   grounding,
   toneContract,
   safetyGlp1,
+  safetyAcute,
   metricIdentifierBan,
   forbiddenFiller,
 } as const satisfies Record<string, SharedContract>;

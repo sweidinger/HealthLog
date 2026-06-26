@@ -900,6 +900,7 @@ export function getCoachSystemPrompt(
           "grounding",
           "toneContract",
           "safetyGlp1",
+          "safetyAcute",
           "metricIdentifierBan",
           "forbiddenFiller",
         ])}`

@@ -33,6 +33,7 @@ import {
   grounding,
   toneContract,
   safetyGlp1,
+  safetyAcute,
   metricIdentifierBan,
   forbiddenFiller,
 } from "./shared-contracts";
@@ -759,6 +760,7 @@ neutralem Label + Detail. Höchstgrenze: 20 Einträge.`,
   { id: "sharedGrounding", en: grounding.en, de: grounding.de },
   { id: "sharedTone", en: toneContract.en, de: toneContract.de },
   { id: "sharedSafetyGlp1", en: safetyGlp1.en, de: safetyGlp1.de },
+  { id: "sharedSafetyAcute", en: safetyAcute.en, de: safetyAcute.de },
   {
     id: "sharedMetricIdentifierBan",
     en: metricIdentifierBan.en,
