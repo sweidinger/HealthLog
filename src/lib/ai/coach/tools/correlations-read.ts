@@ -27,11 +27,18 @@ import { prisma } from "@/lib/db";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   discoverCorrelations,
+  discoveryMeasurementTypes,
   DISCOVERY_BEHAVIOURS,
   DISCOVERY_OUTCOMES,
+  MEDICATION_COMPLIANCE_CHANNEL_KEY,
+  SYMPTOM_SEVERITY_CHANNEL_KEY,
   type DailySeriesPoint,
   type NamedSeries,
 } from "@/lib/insights/correlation-discovery";
+import {
+  fetchComplianceSeries,
+  fetchSymptomSeries,
+} from "@/lib/insights/correlation-channel-series";
 import {
   computeCoincidentDeviation,
   loadBaselineProfile,
@@ -106,9 +113,15 @@ function toDailyMeans(
     .sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
+/** Natural labels for the non-measurement channel keys (read cleanly in prose). */
+const CHANNEL_LABELS: Record<string, string> = {
+  [MEDICATION_COMPLIANCE_CHANNEL_KEY]: "medication adherence",
+  [SYMPTOM_SEVERITY_CHANNEL_KEY]: "symptom severity",
+};
+
 /** Lower-case, space-separated label from a discovery channel key. */
 function humanise(key: string): string {
-  return key.replace(/_/g, " ").toLowerCase();
+  return CHANNEL_LABELS[key] ?? key.replace(/_/g, " ").toLowerCase();
 }
 
 /**
@@ -129,13 +142,15 @@ export async function readCoachCorrelations(
     const tz = userRow?.timezone ?? "Europe/Berlin";
     const since = new Date(Date.now() - WINDOW_DAYS * MS_PER_DAY);
 
-    // MOOD is mood-entry backed, not a measurement type — strip it from the
-    // measurement query and source it separately, exactly like the route.
-    const behaviourTypes = DISCOVERY_BEHAVIOURS.filter(
-      (k) => k !== "MOOD",
+    // The non-MeasurementType channels (MOOD, MEDICATION_COMPLIANCE,
+    // SYMPTOM_SEVERITY) are backed by other models — `discoveryMeasurementTypes`
+    // drops them so the Postgres `type IN (...)` enum cast only ever sees real
+    // enum values; each is sourced separately below, exactly like the route.
+    const behaviourTypes = discoveryMeasurementTypes(
+      DISCOVERY_BEHAVIOURS,
     ) as MeasurementType[];
-    const outcomeTypes = DISCOVERY_OUTCOMES.filter(
-      (k) => k !== "MOOD",
+    const outcomeTypes = discoveryMeasurementTypes(
+      DISCOVERY_OUTCOMES,
     ) as MeasurementType[];
 
     const [measurements, moodEntries, coincidentDerived] = await Promise.all([
@@ -174,16 +189,34 @@ export async function readCoachCorrelations(
       tz,
     );
 
+    // The two non-measurement, non-mood channels come from their own sources
+    // (the dose-history ledger + the illness day-log), folded in below exactly
+    // like the route. Each degrades to an empty series when the user has no
+    // data, so the discovery loop drops the channel (it cannot clear the n ≥ 20
+    // floor) — it can never surface a fabricated driver.
+    const complianceSeries = await fetchComplianceSeries(userId, tz, since);
+    const symptomSeries = await fetchSymptomSeries(userId, tz, since);
+
     const series: NamedSeries[] = [];
     for (const key of DISCOVERY_BEHAVIOURS) {
-      const points =
-        key === "MOOD" ? moodDaily : toDailyMeans(byType.get(key) ?? [], tz);
-      series.push({ key, role: "behaviour", points });
+      if (key === MEDICATION_COMPLIANCE_CHANNEL_KEY) {
+        series.push(complianceSeries);
+      } else if (key === SYMPTOM_SEVERITY_CHANNEL_KEY) {
+        series.push({ ...symptomSeries, role: "behaviour" });
+      } else {
+        const points =
+          key === "MOOD" ? moodDaily : toDailyMeans(byType.get(key) ?? [], tz);
+        series.push({ key, role: "behaviour", points });
+      }
     }
     for (const key of DISCOVERY_OUTCOMES) {
-      const points =
-        key === "MOOD" ? moodDaily : toDailyMeans(byType.get(key) ?? [], tz);
-      series.push({ key, role: "outcome", points });
+      if (key === SYMPTOM_SEVERITY_CHANNEL_KEY) {
+        series.push({ ...symptomSeries, role: "outcome" });
+      } else {
+        const points =
+          key === "MOOD" ? moodDaily : toDailyMeans(byType.get(key) ?? [], tz);
+        series.push({ key, role: "outcome", points });
+      }
     }
 
     const discovery = discoverCorrelations(series);

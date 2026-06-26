@@ -8,11 +8,19 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 const measurementFindMany = vi.fn();
 const moodFindMany = vi.fn();
 const userFindUnique = vi.fn();
+const medicationFindMany = vi.fn();
+const intakeEventFindMany = vi.fn();
+const illnessEpisodeFindMany = vi.fn();
+const illnessDayLogFindMany = vi.fn();
 vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: { findMany: (a: unknown) => measurementFindMany(a) },
     moodEntry: { findMany: (a: unknown) => moodFindMany(a) },
     user: { findUnique: (a: unknown) => userFindUnique(a) },
+    medication: { findMany: (a: unknown) => medicationFindMany(a) },
+    medicationIntakeEvent: { findMany: (a: unknown) => intakeEventFindMany(a) },
+    illnessEpisode: { findMany: (a: unknown) => illnessEpisodeFindMany(a) },
+    illnessDayLog: { findMany: (a: unknown) => illnessDayLogFindMany(a) },
   },
 }));
 
@@ -34,7 +42,10 @@ vi.mock("@/lib/insights/correlation-discovery", async (importOriginal) => {
     await importOriginal<
       typeof import("@/lib/insights/correlation-discovery")
     >();
-  return { ...actual, discoverCorrelations: () => discoverCorrelations() };
+  return {
+    ...actual,
+    discoverCorrelations: (...args: unknown[]) => discoverCorrelations(...args),
+  };
 });
 
 import { readCoachCorrelations } from "@/lib/ai/coach/tools/correlations-read";
@@ -44,6 +55,10 @@ describe("readCoachCorrelations", () => {
     measurementFindMany.mockReset().mockResolvedValue([]);
     moodFindMany.mockReset().mockResolvedValue([]);
     userFindUnique.mockReset().mockResolvedValue({ timezone: "Europe/Berlin" });
+    medicationFindMany.mockReset().mockResolvedValue([]);
+    intakeEventFindMany.mockReset().mockResolvedValue([]);
+    illnessEpisodeFindMany.mockReset().mockResolvedValue([]);
+    illnessDayLogFindMany.mockReset().mockResolvedValue([]);
     loadBaselineProfile
       .mockReset()
       .mockResolvedValue({ ageYears: 40, sex: "MALE", heightCm: 180 });
@@ -142,5 +157,100 @@ describe("readCoachCorrelations", () => {
     const result = await readCoachCorrelations("u1");
     expect(result.present).toBe(false);
     expect(result.reason).toBe("retrieval_failed");
+  });
+
+  // INTEGFIX — the measurement query must only ever carry real MeasurementType
+  // enum values; the three non-measurement channels (MOOD + the two new ones)
+  // are dropped, so the Postgres enum cast can never throw on a channel key.
+  it("never splices a non-measurement channel key into the type IN(...) filter", async () => {
+    discoverCorrelations.mockReturnValue({
+      discovered: [],
+      pairsTested: 0,
+      fdrQ: 0.1,
+      minPairs: 20,
+    });
+    await readCoachCorrelations("u1");
+    const where = measurementFindMany.mock.calls[0]?.[0]?.where as {
+      type: { in: string[] };
+    };
+    const types = where.type.in;
+    expect(types).not.toContain("MOOD");
+    expect(types).not.toContain("MEDICATION_COMPLIANCE");
+    expect(types).not.toContain("SYMPTOM_SEVERITY");
+    // The real enum channels are still present.
+    expect(types).toContain("SLEEP_DURATION");
+  });
+
+  // INTEGFIX — drive the REAL discovery engine end-to-end with illness data so
+  // the SYMPTOM_SEVERITY channel flows through the non-enum query path and
+  // surfaces as a descriptive driver (proving the reader no longer throws an
+  // enum-cast error on a user with symptom data).
+  it("surfaces a symptom-severity driver through the real engine without an enum-cast error", async () => {
+    const real = await vi.importActual<
+      typeof import("@/lib/insights/correlation-discovery")
+    >("@/lib/insights/correlation-discovery");
+    discoverCorrelations.mockImplementation((series) =>
+      real.discoverCorrelations(
+        series as Parameters<typeof real.discoverCorrelations>[0],
+      ),
+    );
+
+    // 45 consecutive days. Symptom burden (behaviour, day D) drives next-day
+    // sleep (outcome, day D+1) with a strong, deterministic linear relationship
+    // so the pair clears n ≥ 20 / p < 0.05 / FDR / effect-size floor.
+    const DAYS = 45;
+    const base = Date.UTC(2026, 4, 1, 12, 0, 0); // midday → tz-stable day key
+    const dayKey = (offset: number): string => {
+      const d = new Date(base + offset * 86_400_000);
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+    };
+
+    const dayLogs: Array<{
+      date: string;
+      functionalImpact: number;
+      symptomLinks: Array<{ severity: number }>;
+    }> = [];
+    const measurements: Array<{
+      type: string;
+      value: number;
+      measuredAt: Date;
+    }> = [];
+    for (let i = 0; i < DAYS; i++) {
+      const burden = i % 4; // 0..3, real 0↔>0 variance
+      dayLogs.push({
+        date: dayKey(i),
+        functionalImpact: burden,
+        symptomLinks: [],
+      });
+      // Next-day sleep falls as today's burden rises (8h baseline − burden).
+      measurements.push({
+        type: "SLEEP_DURATION",
+        value: 8 - burden,
+        measuredAt: new Date(base + (i + 1) * 86_400_000),
+      });
+    }
+
+    measurementFindMany.mockResolvedValue(measurements);
+    // One episode spanning the whole window so the builder zero-fills/overlays
+    // every logged day.
+    illnessEpisodeFindMany.mockResolvedValue([
+      {
+        id: "ep1",
+        onsetAt: new Date(base),
+        resolvedAt: new Date(base + DAYS * 86_400_000),
+      },
+    ]);
+    illnessDayLogFindMany.mockResolvedValue(dayLogs);
+
+    const result = await readCoachCorrelations("u1");
+
+    expect(result.present).toBe(true);
+    const symptomDriver = result.drivers?.find(
+      (d) =>
+        d.behaviour === "symptom severity" || d.outcome === "symptom severity",
+    );
+    expect(symptomDriver).toBeDefined();
+    expect(symptomDriver?.outcome).toBe("sleep duration");
+    expect(symptomDriver?.n).toBeGreaterThanOrEqual(20);
   });
 });
