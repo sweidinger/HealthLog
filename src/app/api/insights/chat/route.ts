@@ -90,6 +90,7 @@ import {
   findUnverifiedCoachNumbers,
   stripUnverifiedNumbers,
 } from "@/lib/ai/coach/coach-prose-grounding";
+import { scrubUnknownLearnLinks } from "@/lib/ai/coach/learn-link-guard";
 import { parseSuggestReminder } from "@/lib/ai/coach/suggest-reminder";
 import { gateSuggestion } from "@/lib/ai/coach/suggest-gate";
 import {
@@ -762,6 +763,28 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
           stripped,
           // No raw values — just the count + truncated tokens for ops triage.
           tokens: unverified.slice(0, 6).map((u) => u.source),
+          promptVersion: PROMPT_VERSION,
+        },
+      });
+    }
+  }
+
+  // v1.21.0 (NEW-C C-3) — Learn-link post-filter. The prompt instructs the
+  // model to only link a published `/learn/<slug>`, but that is guidance, not
+  // enforcement: a fabricated `/learn/<invented-slug>` would otherwise ship as
+  // a dead link. Scrub any reference whose slug is not in the catalog (a real
+  // one is kept verbatim). A blocked turn carries canned fallback prose with no
+  // links, so skip it.
+  if (!outbound.block && replyText.includes("/learn/")) {
+    const scrubbed = scrubUnknownLearnLinks(replyText);
+    if (scrubbed.dropped.length > 0) {
+      replyText = scrubbed.text;
+      annotate({
+        action: { name: "coach.learn.link_dropped" },
+        meta: {
+          dropped: scrubbed.dropped.length,
+          // Truncated slug tokens for ops triage — no user content.
+          slugs: scrubbed.dropped.slice(0, 6),
           promptVersion: PROMPT_VERSION,
         },
       });
