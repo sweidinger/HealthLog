@@ -494,7 +494,15 @@ export class CodexClient implements AIProvider {
     requestedSlug: string,
   ): Promise<CompletionResult> {
     if (!res.body) {
-      throw new Error("Codex returned no response body");
+      // v1.20.1 — sentinel httpStatus + kind so the chain classifier can tell
+      // a stream-level failure apart from a connect-time transport error.
+      const err = new Error("Codex returned no response body");
+      Object.assign(err, {
+        httpStatus: 0,
+        kind: "stream_failed",
+        upstream: "codex",
+      });
+      throw err;
     }
 
     const reader = res.body.getReader();
@@ -597,6 +605,10 @@ export class CodexClient implements AIProvider {
               const e = new Error(message);
               Object.assign(e, {
                 upstream: "codex",
+                // v1.20.1 — sentinel httpStatus + kind so the chain classifier
+                // distinguishes a stream-level failure from a transport error.
+                httpStatus: 0,
+                kind: "stream_failed",
                 errorCode: err?.code ?? null,
                 model: serverModel ?? requestedSlug,
               });
@@ -606,13 +618,25 @@ export class CodexClient implements AIProvider {
               const reason =
                 parsed.response?.incomplete_details?.reason ??
                 "incomplete response";
-              throw new Error(`Codex stream incomplete: ${reason}`);
+              const e = new Error(`Codex stream incomplete: ${reason}`);
+              Object.assign(e, {
+                httpStatus: 0,
+                kind: "stream_failed",
+                upstream: "codex",
+              });
+              throw e;
             }
             case "error":
             case "response.error": {
               const message =
                 parsed.error?.message ?? "Codex stream returned an error event";
-              throw new Error(message);
+              const e = new Error(message);
+              Object.assign(e, {
+                httpStatus: 0,
+                kind: "stream_failed",
+                upstream: "codex",
+              });
+              throw e;
             }
             default:
               // Unknown event types are tolerated and ignored, same
@@ -629,7 +653,16 @@ export class CodexClient implements AIProvider {
     // A function-call-only reply carries no text — valid (F1). Only an empty
     // reply with neither text NOR a tool call is an error.
     if (!content && toolCalls.length === 0) {
-      throw new Error("Codex returned empty content");
+      // v1.20.1 — sentinel httpStatus + kind so the chain classifier can tell
+      // an empty reply apart from a transport failure. Cascade unchanged
+      // (`status <= 0` is already a hard failure).
+      const err = new Error("Codex returned empty content");
+      Object.assign(err, {
+        httpStatus: 0,
+        kind: "empty_response",
+        upstream: "codex",
+      });
+      throw err;
     }
 
     return {

@@ -161,7 +161,16 @@ export class LocalOpenAICompatibleClient implements AIProvider {
 
     const content = json.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error("Local AI returned empty content");
+      // v1.20.1 — sentinel httpStatus + kind so the chain classifier can tell
+      // an empty 200-OK reply apart from a transport failure. Cascade unchanged
+      // (`status <= 0` is already a hard failure).
+      const err = new Error("Local AI returned empty content");
+      Object.assign(err, {
+        httpStatus: 0,
+        kind: "empty_response",
+        upstream: "local",
+      });
+      throw err;
     }
 
     return {

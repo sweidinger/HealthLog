@@ -126,7 +126,19 @@ export class OpenAIClient implements AIProvider {
     // A reply with tool calls and no prose is valid (F1 tool loop); only an
     // empty reply with neither content NOR tool calls is an error.
     if (!content && !toolCalls) {
-      throw new Error("OpenAI returned empty content");
+      // v1.20.1 — tag the empty-reply throw with a sentinel `httpStatus: 0` +
+      // `kind` so the provider-chain classifier can tell an empty 200-OK reply
+      // apart from a genuine transport failure (ECONNRESET, DNS, timeout) in
+      // observability. The cascade is unchanged: `isHardProviderFailure`
+      // already treats `status <= 0` as a hard failure and walks to the next
+      // provider.
+      const err = new Error("OpenAI returned empty content");
+      Object.assign(err, {
+        httpStatus: 0,
+        kind: "empty_response",
+        upstream: "openai",
+      });
+      throw err;
     }
 
     return {
