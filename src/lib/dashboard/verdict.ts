@@ -126,7 +126,8 @@ export function resolveDashboardVerdict(
   const lastSeen = snapshot.tiles.lastSeenByType;
 
   // ── 1 · bpCritical ─────────────────────────────────────────────────
-  // Fixed floors (sys ≥ 180 OR dia ≥ 110), never user thresholds, and
+  // Fixed floors (sys ≥ 180 OR dia ≥ 120, from clinical-floors), never user
+  // thresholds, and
   // only while the reading is fresh (≤ 1 day, re-derived against the
   // injected `now`). Sits ABOVE the overdue dose: a fresh crisis-level
   // reading is the one item that must not hide behind a routine

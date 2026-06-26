@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
@@ -166,12 +166,11 @@ function IntakeEditDialogBody({
               <Label htmlFor="intake-edit-taken-at">
                 {t("medications.detail.intake.edit.takenAtLabel")}
               </Label>
-              <Input
+              <DateTimeField
                 id="intake-edit-taken-at"
-                type="datetime-local"
                 value={takenAt}
                 max={toDateTimeLocal(new Date())}
-                onChange={(e) => setTakenAt(e.target.value)}
+                onChange={(value) => setTakenAt(value)}
                 disabled={skipped}
               />
               {scheduledFor && (

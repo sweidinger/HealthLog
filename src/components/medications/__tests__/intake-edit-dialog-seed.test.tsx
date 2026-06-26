@@ -26,6 +26,33 @@ vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({}),
 }));
 
+// DateTimeField reads the client date/hour-cycle preference context, which the
+// wholesale i18n mock above strips. The dialog test pins the field's value/max
+// contract, not the field's own rendering, so a passthrough native input keeps
+// the assertions meaningful while staying SSR-renderable.
+vi.mock("@/components/ui/date-time-field", () => ({
+  DateTimeField: ({
+    id,
+    value,
+    max,
+    disabled,
+  }: {
+    id?: string;
+    value?: string;
+    max?: string;
+    disabled?: boolean;
+  }) => (
+    <input
+      id={id}
+      type="datetime-local"
+      value={value}
+      max={max}
+      disabled={disabled}
+      readOnly
+    />
+  ),
+}));
+
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ children }: { children: React.ReactNode }) => (
     <div data-slot="mock-dialog">{children}</div>

@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
@@ -297,12 +298,11 @@ export function LogIntakeDialog({
                 <Label htmlFor="log-intake-taken-at">
                   {t("medications.logIntake.takenAtLabel")}
                 </Label>
-                <Input
+                <DateTimeField
                   id="log-intake-taken-at"
-                  type="datetime-local"
                   value={takenAt}
                   max={toDateTimeLocal(new Date())}
-                  onChange={(e) => setTakenAt(e.target.value)}
+                  onChange={(value) => setTakenAt(value)}
                   disabled={skipped}
                 />
                 <p className="text-muted-foreground text-xs">
