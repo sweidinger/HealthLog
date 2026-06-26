@@ -55,6 +55,7 @@ import {
   METRIC_SERIES_EXCLUDED_SOURCES,
 } from "./source-keys";
 import { readCoachCorrelations } from "./correlations-read";
+import { buildIllnessScores } from "@/lib/ai/coach/illness-snapshot";
 
 /** A read-only structured tool result. Serialised to a `role:"tool"` turn. */
 export interface CoachToolResult {
@@ -427,11 +428,18 @@ async function getIllnessRecovery(
   const derived = pickSection(snapshot.sections, "derived");
   const dayStrain = pickSection(snapshot.sections, "dayStrain");
   const trajectory = pickSection(snapshot.sections, "trajectory");
+  // v1.21.0 (NEW-B B-2) — the computed illness retrospective the card shows
+  // (recovery-gap, gap-driver, nadir, pre-onset, red flags) for the most
+  // relevant episode. Read-only, coverage-gated (null when the engine
+  // withholds), and the SAME engine the card + the red-flag notifier run, so
+  // the Coach restates the numbers the user sees rather than the composite.
+  const illnessScores = await buildIllnessScores(userId);
   if (
     illness === undefined &&
     derived === undefined &&
     dayStrain === undefined &&
-    trajectory === undefined
+    trajectory === undefined &&
+    illnessScores === null
   ) {
     return { present: false, reason: "no_data" };
   }
@@ -439,6 +447,7 @@ async function getIllnessRecovery(
     present: true,
     data: {
       ...(illness !== undefined ? { illness } : {}),
+      ...(illnessScores !== null ? { illnessScores } : {}),
       ...(derived !== undefined ? { derived } : {}),
       ...(dayStrain !== undefined ? { dayStrain } : {}),
       ...(trajectory !== undefined ? { trajectory } : {}),

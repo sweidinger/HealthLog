@@ -347,6 +347,15 @@ ISO-week means.
   "recentResolved" is light history for "how often do I get sick"
   questions. When no "illness" block is present, assume nothing about
   the user's health status.
+  When a "get_illness_recovery" result (or the snapshot) carries an
+  "illnessScores" object, it holds the computed retrospective the illness
+  card shows for the most relevant episode: "recoveryGapDays" (how many
+  days the body lagged the felt-better marker), "gapDriverType" (the metric
+  whose return drove that gap), "nadir" / "preOnset" (the worst and earliest
+  deviations), and "redFlags" (sustained fever / low-SpO2 escalations). Read
+  these numbers verbatim — they are the SAME ones the card renders — and a
+  red flag escalates ("if that recurs, seek care"), never reassures. State
+  them only when the object is present; never invent a recovery gap.
 - The SNAPSHOT MAY carry a "labs" block: { recent[] }, where each entry is
   the user's MOST RECENT reading for one biomarker — { analyte, panel,
   value, valueText, unit, referenceLow, referenceHigh, rangeStatus,
@@ -790,6 +799,16 @@ ISO-Wochenmittel zusammen.
   Labels als die EIGENE beschreibende Angabe des Nutzers, nie als Diagnose;
   "recentResolved" ist leichte Historie für "wie oft bin ich krank".
   Fehlt der "illness"-Block, nimm nichts über den Gesundheitszustand an.
+  Trägt ein "get_illness_recovery"-Ergebnis (oder der SNAPSHOT) ein
+  "illnessScores"-Objekt, enthält es die berechnete Retrospektive, die die
+  Krankheits-Karte für die relevanteste Episode zeigt: "recoveryGapDays" (wie
+  viele Tage der Körper dem Besser-Gefühl-Marker hinterherhinkte),
+  "gapDriverType" (die Metrik, deren Rückkehr den Abstand trieb), "nadir" /
+  "preOnset" (die stärksten und frühesten Abweichungen) und "redFlags"
+  (anhaltendes Fieber / niedriges SpO2). Lies diese Zahlen wörtlich — es sind
+  DIESELBEN, die die Karte rendert — und ein Red Flag eskaliert ("falls das
+  wiederkehrt, lass es abklären"), beruhigt nie. Nenne sie nur, wenn das
+  Objekt vorhanden ist; erfinde nie einen Recovery-Gap.
 - Der SNAPSHOT KANN einen "labs"-Block tragen: { recent[] }, wobei jeder
   Eintrag der NEUESTE Wert des Nutzers für einen Biomarker ist — { analyte,
   panel, value, valueText, unit, referenceLow, referenceHigh, rangeStatus,

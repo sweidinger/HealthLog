@@ -21,6 +21,14 @@ vi.mock("@/lib/ai/coach/tools/correlations-read", () => ({
   readCoachCorrelations: (userId: string) => readCoachCorrelations(userId),
 }));
 
+// v1.21.0 (NEW-B B-2) — the illness-recovery tool augments its snapshot blocks
+// with the computed retrospective scores. Mock the read-only engine wrapper so
+// the executor test stays a pure dispatch test.
+const buildIllnessScores = vi.fn();
+vi.mock("@/lib/ai/coach/illness-snapshot", () => ({
+  buildIllnessScores: (userId: string) => buildIllnessScores(userId),
+}));
+
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
 
 function snapshot(
@@ -39,6 +47,8 @@ describe("executeCoachTool", () => {
   beforeEach(() => {
     buildCoachSnapshot.mockReset();
     readCoachCorrelations.mockReset();
+    buildIllnessScores.mockReset();
+    buildIllnessScores.mockResolvedValue(null);
   });
 
   it("returns the matching section for get_metric_series when present", async () => {
@@ -297,6 +307,77 @@ describe("executeCoachTool", () => {
     });
     expect(result.present).toBe(false);
     expect(result.reason).toBe("invalid_arguments");
+  });
+
+  // v1.21.0 (NEW-B B-2) — get_illness_recovery now carries the computed
+  // retrospective scores the illness card shows (recovery-gap, gap-driver,
+  // nadir, pre-onset, red flags), not just labels + composites.
+  it("get_illness_recovery surfaces the computed illness scores", async () => {
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot({ illness: { restMode: true, active: [], recentResolved: [] } }),
+    );
+    buildIllnessScores.mockResolvedValue({
+      episodeLabel: "flu",
+      episodeType: "INFECTION",
+      state: "resolved",
+      recoveryGapDays: 4,
+      gapDriverType: "RESTING_HEART_RATE",
+      nadir: [
+        {
+          type: "HEART_RATE_VARIABILITY",
+          day: "2026-06-10",
+          deviationSd: -2.4,
+          direction: "below",
+        },
+      ],
+      preOnset: [],
+      redFlags: [
+        {
+          type: "BODY_TEMPERATURE",
+          reason: "sustained_fever",
+          worstValue: 38.9,
+          days: 3,
+        },
+      ],
+    });
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_illness_recovery",
+      rawArguments: "{}",
+    });
+    expect(result.present).toBe(true);
+    const data = result.data as { illnessScores?: Record<string, unknown> };
+    expect(data.illnessScores).toMatchObject({
+      recoveryGapDays: 4,
+      gapDriverType: "RESTING_HEART_RATE",
+    });
+    expect(data.illnessScores?.redFlags).toHaveLength(1);
+    expect(data.illnessScores?.nadir).toHaveLength(1);
+  });
+
+  it("get_illness_recovery is present on scores alone (no derived blocks)", async () => {
+    // No illness/derived/strain/trajectory section, but the engine returned
+    // scores → the tool must still report present and carry them.
+    buildCoachSnapshot.mockResolvedValue(snapshot({}));
+    buildIllnessScores.mockResolvedValue({
+      episodeLabel: "cold",
+      episodeType: "INFECTION",
+      state: "active",
+      recoveryGapDays: null,
+      gapDriverType: null,
+      nadir: [],
+      preOnset: [],
+      redFlags: [],
+    });
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_illness_recovery",
+      rawArguments: "{}",
+    });
+    expect(result.present).toBe(true);
+    expect(
+      (result.data as { illnessScores?: unknown }).illnessScores,
+    ).toBeTruthy();
   });
 });
 
