@@ -2222,7 +2222,7 @@
       "feedbackThanks": "Merci pour l’indication.",
       "feedbackError": "Impossible d'enregistrer le retour",
       "dailyLimitTitle": "Limite quotidienne atteinte",
-      "dailyLimitBody": "Limite quotidienne atteinte ; réinitialisation à 00:00 UTC.",
+      "dailyLimitBody": "Limite quotidienne atteinte. Le quota se réinitialise à minuit (UTC).",
       "providerRateLimitTitle": "Fournisseur limité en débit",
       "providerRateLimitBody": "Le fournisseur est temporairement saturé ; réinitialisation dans ~5 min.",
       "settingsContextLabel": "Envoyer le contexte",

@@ -2224,7 +2224,7 @@
       "feedbackThanks": "Thanks for the signal.",
       "feedbackError": "Could not save feedback",
       "dailyLimitTitle": "Daily limit reached",
-      "dailyLimitBody": "Daily limit reached; resets at 00:00 UTC.",
+      "dailyLimitBody": "Daily limit reached. The budget refreshes at midnight UTC.",
       "providerRateLimitTitle": "Provider rate-limited",
       "providerRateLimitBody": "Provider temporarily rate-limited; retry in ~5 min.",
       "cluster": {

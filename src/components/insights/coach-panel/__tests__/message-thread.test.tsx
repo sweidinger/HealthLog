@@ -618,7 +618,9 @@ describe("<MessageThread>", () => {
         })}
       />,
     );
-    expect(html).toContain("Daily limit reached; resets at 00:00 UTC.");
+    expect(html).toContain(
+      "Daily limit reached. The budget refreshes at midnight UTC.",
+    );
     // v1.4.33 IW7 — fallback copy rewritten ("AI provider" -> "Insights
     // provider"). Both old and new strings should be absent here when
     // the budget-exceeded error takes precedence.

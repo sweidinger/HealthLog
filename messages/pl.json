@@ -2222,7 +2222,7 @@
       "feedbackThanks": "Dzięki za sygnał.",
       "feedbackError": "Nie udało się zapisać opinii",
       "dailyLimitTitle": "Osiągnięto dzienny limit",
-      "dailyLimitBody": "Osiągnięto dzienny limit; reset o 00:00 UTC.",
+      "dailyLimitBody": "Osiągnięto dzienny limit. Limit resetuje się o północy (UTC).",
       "providerRateLimitTitle": "Dostawca z ograniczeniem",
       "providerRateLimitBody": "Dostawca jest tymczasowo przeciążony; reset za ~5 min.",
       "settingsContextLabel": "Wysyłaj kontekst",
