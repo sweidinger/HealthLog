@@ -19,6 +19,7 @@ import { Activity, CalendarDays, NotebookPen, Thermometer } from "lucide-react";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { SheetSection, SheetSectionCount } from "@/components/ui/sheet-section";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -266,14 +267,13 @@ export function LogDaySheet({
             <Label htmlFor="illness-log-date" className="sr-only">
               {t("illness.sheet.day")}
             </Label>
-            <Input
+            <DateField
               id="illness-log-date"
-              type="date"
               value={selectedDate}
               min={onsetDate}
               max={date}
-              onChange={(e) => {
-                if (e.target.value) setSelectedDate(e.target.value);
+              onChange={(value) => {
+                if (value) setSelectedDate(value);
               }}
               className="max-w-44"
             />
