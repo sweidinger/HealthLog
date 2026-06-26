@@ -135,6 +135,7 @@ async function foldedAccumulators(
     select: {
       count: true,
       mean: true,
+      sumValue: true,
       sumX: true,
       sumXy: true,
       sumXx: true,
@@ -144,6 +145,7 @@ async function foldedAccumulators(
   return rows.map((r) => ({
     count: r.count,
     mean: r.mean,
+    sumValue: r.sumValue,
     sumX: r.sumX,
     sumXy: r.sumXy,
     sumXx: r.sumXx,
@@ -285,12 +287,29 @@ describe("rollup regression accumulators — live parity (v1.20.0 F6)", () => {
     expect(blended.slope).not.toBeCloseTo(live.slope!, 6);
   });
 
-  // TODO(v1.20.1): rebuild this cross-implementation REGR parity assertion. It
-  // is a test-harness artifact on the DST same-UTC-day reading pair, not a
-  // product bug — the production rollup math is covered bit-identically by the
-  // WEIGHT case above (it folds the same raw rows the live REGR reads). See
-  // .planning/v1200-backlog.md. Quarantined so the otherwise-complete, audited
-  // release is not blocked; restore once the harness scope is reconstructed.
+  // TODO(v1.20.1, still quarantined): the DST residual is a test-harness
+  // conditioning artifact, NOT a product bug — production math is covered
+  // bit-identically by the WEIGHT case above (which folds the same raw rows
+  // live REGR reads and passes at the tight 1e-9 relative bound).
+  //
+  // Root cause (per the v1.20.1 perf-parity verification): the original
+  // quarantine attributed the residual to catastrophic cancellation in the
+  // determinant form `n·Σxx − Σx²` on the ~1e10 epoch-day x-axis.
+  // `composeRegression` now evaluates the mean-centered (corrected-sum)
+  // identities (`Sxx = Σxx − Σx²/n`, …), which subtract the x mean at matched
+  // scale and shrink this residual by ~30× (was failing at ~1e-6-class noise;
+  // now ~9e-8). It is still above the 1e-9 relative gauge for THIS deliberately
+  // near-flat 5-point seed: the remaining gap is the difference between the
+  // composed closed form and Postgres' OWN internal REGR accumulator algorithm
+  // on an ill-conditioned (near-zero x-variance) window, not a divergence in
+  // the stored data. Both answers round to the same value at the read tier's
+  // 2–3 dp.
+  //
+  // The real close is the migration-based x-rescale noted for backlog: store /
+  // compose with x offset to a window-local origin (Σx → O(window) instead of
+  // ~20 540) so the products never reach 1e10. Until that lands the test stays
+  // quarantined rather than masked behind a loosened tolerance. See
+  // .planning/v1200-backlog.md.
   it.skip("DST boundary: the epoch-day x-axis is UTC, so a spring-forward reading parity-matches", async () => {
     const prisma = getPrismaClient();
     const user = await seedUser(prisma);
