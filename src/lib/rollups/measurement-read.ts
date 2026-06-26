@@ -54,6 +54,34 @@ export interface DailyMeanRow {
 }
 
 /**
+ * v1.21.0 — regression x-origin (epoch-days of 2020-01-01 UTC).
+ *
+ * The regression accumulators (`sum_x / sum_xy / sum_xx`) store x RELATIVE to
+ * this fixed origin: `x = EXTRACT(EPOCH FROM measured_at)/86400.0 − ORIGIN`.
+ * Raw epoch-days sit at x ≈ 20 540, so `x²` lands near 4.2e8 and `Σxx`
+ * accumulates past ~1e10 — squaring shaves ~10 of double's ~15-16 significant
+ * decimal digits BEFORE the value is ever stored, so the sub-day fractional x
+ * (the time-of-day) is already lossy at write time. No read-side identity can
+ * recover bits lost at accumulation. Rebasing to a recent origin keeps x in the
+ * low thousands (x² ≤ ~1e7 for any realistic window), so the squared terms stay
+ * comfortably exact.
+ *
+ * Slope / r² / population-sd are INVARIANT under an affine x-shift (subtracting
+ * a constant from every x leaves Sxx, Sxy, Syy unchanged), so the composed
+ * result is identical to the un-shifted basis — only the unreported intercept
+ * would move. The writer SQL and migration 0193 share this exact literal; the
+ * live REGR_* probe stays on raw epoch-days and matches because slope / r² / sd
+ * do not depend on the origin.
+ *
+ * 2020-01-01 = 18 262 days after the Unix epoch. It MUST stay a stable
+ * compile-time constant — changing it would orphan every stored accumulator
+ * until a full re-fold. Pick a value comfortably before any plausible reading.
+ */
+export const REGRESSION_X_ORIGIN_DAYS = Math.floor(
+  Date.UTC(2020, 0, 1) / 86_400_000,
+); // 18262
+
+/**
  * v1.20.0 F6 — per-bucket OLS regression accumulators (epoch-day x-axis).
  * Mirrors the four columns migration 0190 added to `measurement_rollups`
  * plus the `n` / `Σy` the existing `count` / `mean` already carry. A bucket
@@ -112,14 +140,18 @@ export interface ComposedRegression {
  *
  * This is algebraically identical to the determinant form (multiply numerator
  * and denominator by n) and to Postgres' REGR_* / STDDEV_POP, but numerically
- * stable: on the epoch-day x-axis (x ≈ 20 540) the determinant form computes
- * `n·Σxx − Σx²` as a difference of two ~1e10 magnitudes and sheds ~10
- * significant digits to catastrophic cancellation before the divide. The
- * centered form subtracts `Σx²/n` from `Σxx` at the same scale per term, so
- * the cancellation is bounded by the true x-variance, not the absolute x
- * magnitude. Σy is read from the exact stored `sumValue` accumulator when
- * present (falling back to `mean·count`), removing the AVG→multiply ULP
- * residual on the y side too.
+ * stable: the centered form subtracts `Σx²/n` from `Σxx` at the same scale per
+ * term, so the cancellation is bounded by the true x-variance, not the absolute
+ * x magnitude.
+ *
+ * v1.21.0 — the accumulators are stored REBASED to `REGRESSION_X_ORIGIN_DAYS`
+ * (x = epoch_days − origin), so `Σxx` stays O(1e7) instead of O(1e10) and the
+ * squared terms never shed precision at write time. Slope / r² / sd are
+ * invariant under the x-shift, so this composes the SAME regression the live
+ * (un-rebased) REGR_* probe folds — the rebase only restores the bits the raw
+ * epoch-day square would have lost. Σy is read from the exact stored `sumValue`
+ * accumulator when present (falling back to `mean·count`), removing the
+ * AVG→multiply ULP residual on the y side too.
  *
  * The caller MUST collapse overlapping sources to the canonical source
  * BEFORE handing rows here — the accumulators are per-source, so summing a

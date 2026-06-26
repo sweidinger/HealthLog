@@ -287,30 +287,25 @@ describe("rollup regression accumulators — live parity (v1.20.0 F6)", () => {
     expect(blended.slope).not.toBeCloseTo(live.slope!, 6);
   });
 
-  // TODO(v1.20.1, still quarantined): the DST residual is a test-harness
-  // conditioning artifact, NOT a product bug — production math is covered
-  // bit-identically by the WEIGHT case above (which folds the same raw rows
-  // live REGR reads and passes at the tight 1e-9 relative bound).
+  // v1.21.0 — un-quarantined by the regression x-rescale.
   //
-  // Root cause (per the v1.20.1 perf-parity verification): the original
-  // quarantine attributed the residual to catastrophic cancellation in the
-  // determinant form `n·Σxx − Σx²` on the ~1e10 epoch-day x-axis.
-  // `composeRegression` now evaluates the mean-centered (corrected-sum)
-  // identities (`Sxx = Σxx − Σx²/n`, …), which subtract the x mean at matched
-  // scale and shrink this residual by ~30× (was failing at ~1e-6-class noise;
-  // now ~9e-8). It is still above the 1e-9 relative gauge for THIS deliberately
-  // near-flat 5-point seed: the remaining gap is the difference between the
-  // composed closed form and Postgres' OWN internal REGR accumulator algorithm
-  // on an ill-conditioned (near-zero x-variance) window, not a divergence in
-  // the stored data. Both answers round to the same value at the read tier's
-  // 2–3 dp.
+  // The DST residual was never a data divergence: it was precision lost at
+  // ACCUMULATION time. Migration 0190 stored `sum_xx = Σ(epoch_days²)` over the
+  // raw epoch-day x-axis (x ≈ 20 540), so `sum_xx` accumulated past ~1e10 and
+  // the square shed ~10 of double's ~15-16 significant digits BEFORE the value
+  // was stored — the sub-day x detail was already gone, and no read-side
+  // identity (mean-centering included) could recover it. The earlier
+  // mean-centered fix shrank the residual to ~9e-8 but could not cross 1e-9 on
+  // this deliberately ill-conditioned 5-point near-flat seed.
   //
-  // The real close is the migration-based x-rescale noted for backlog: store /
-  // compose with x offset to a window-local origin (Σx → O(window) instead of
-  // ~20 540) so the products never reach 1e10. Until that lands the test stays
-  // quarantined rather than masked behind a loosened tolerance. See
-  // .planning/v1200-backlog.md.
-  it.skip("DST boundary: the epoch-day x-axis is UTC, so a spring-forward reading parity-matches", async () => {
+  // The write path now REBASES x to `REGRESSION_X_ORIGIN_DAYS` (2020-01-01), so
+  // `sum_xx` stays O(1e7) and the squared terms stay exact. Slope / r² / sd are
+  // invariant under the x-shift, so the live (raw-epoch) REGR_* probe this case
+  // compares against still parity-matches the cross-bucket compose — now within
+  // the tight 1e-9 relative bound. The WEIGHT case above stays bit-identical
+  // (it was already exact; the rebase only restores precision on the
+  // ill-conditioned tail).
+  it("DST boundary: the epoch-day x-axis is UTC, so a spring-forward reading parity-matches", async () => {
     const prisma = getPrismaClient();
     const user = await seedUser(prisma);
 
