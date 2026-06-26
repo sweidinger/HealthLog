@@ -78,6 +78,7 @@ import {
   COACH_TOOL_DEFS,
   buildCoachDataInventory,
   renderDataInventory,
+  renderFocusHint,
   buildToolModeAddendum,
   runCoachToolLoop,
   MAX_ROUNDS,
@@ -547,10 +548,17 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       // that fire this turn share its reads.
       const inventory = await buildCoachDataInventory(userId, effectiveScope);
       const toolSystem = `${systemPrompt}\n\n${buildToolModeAddendum(locale)}`;
+      // v1.21.0 (D1) — when the Coach was opened from a metric page/card, thread
+      // the launch sources into a one-line FOCUS hint so tool mode honours the
+      // metric the user is looking at (the no-tools path already narrows the
+      // snapshot; the inventory probes the full set, so this is the tool-mode
+      // equivalent of that narrowing). Empty string on a generic open.
+      const focusHint = renderFocusHint(effectiveScope?.sources);
+      const focusBlock = focusHint ? `${focusHint}\n\n` : "";
       const messages: AiMessage[] = [
         {
           role: "user",
-          content: `${renderDataInventory(inventory)}${guidedBlock}
+          content: `${focusBlock}${renderDataInventory(inventory)}${guidedBlock}
 
 CONVERSATION
 ${transcript}

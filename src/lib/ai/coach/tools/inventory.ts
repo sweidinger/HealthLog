@@ -192,6 +192,41 @@ export async function buildCoachDataInventory(
 }
 
 /**
+ * v1.21.0 (D1) — render the launch FOCUS hint for the tool-mode user turn.
+ *
+ * When the Coach is opened from a metric page or card, the client sends
+ * `scope.sources` (the metric the user is looking at). The no-tools path
+ * narrows the snapshot to those sources, but the tool-mode inventory probes the
+ * FULL source set, so without this hint the metric-narrowing was silently
+ * dropped server-side (D1 — the only surviving signals were the window + seed
+ * question). This injects a single `FOCUS:` line naming the launched domain(s)
+ * so the model prioritises the metric the user actually opened the Coach about,
+ * while every other domain stays fetchable (the user can still pivot).
+ *
+ * Returns `""` when no explicit sources were pinned (a generic open), so the
+ * prompt prefix is byte-identical to before on the non-scoped path.
+ */
+export function renderFocusHint(
+  sources: readonly CoachScopeSource[] | undefined,
+): string {
+  if (!sources || sources.length === 0) return "";
+  const labels = sources.map(
+    (s) => COACH_SOURCE_DOMAIN_LABEL[s] ?? (s as string),
+  );
+  // De-dup while preserving order (two sources can share a label only via the
+  // fallback, but keep it stable regardless).
+  const seen = new Set<string>();
+  const unique = labels.filter((l) => {
+    if (seen.has(l)) return false;
+    seen.add(l);
+    return true;
+  });
+  return `FOCUS: the user opened this conversation from ${unique.join(
+    ", ",
+  )} — prioritise that, fetch its figures first, and only branch to other domains if the question leads there.`;
+}
+
+/**
  * Render the inventory as the compact text block that rides the base context.
  * Brand-free, deterministic, and stable across turns so the prompt-cache prefix
  * stays intact. Each line tells the model the domain, whether data exists, and

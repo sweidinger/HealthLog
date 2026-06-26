@@ -21,6 +21,7 @@ vi.mock("@/lib/cycle/gate", () => ({
 import {
   buildCoachDataInventory,
   renderDataInventory,
+  renderFocusHint,
 } from "@/lib/ai/coach/tools/inventory";
 
 function snapshot(
@@ -140,5 +141,32 @@ describe("renderDataInventory", () => {
     expect(text.toLowerCase()).not.toContain("withings");
     expect(text.toLowerCase()).not.toContain("oura");
     expect(text.toLowerCase()).not.toContain("whoop");
+  });
+});
+
+// v1.21.0 (D1) — the launch FOCUS hint narrows tool mode to the metric the
+// Coach was opened from. The no-tools path narrows the snapshot; this is the
+// tool-mode equivalent so the metric-narrowing is not silently dropped.
+describe("renderFocusHint", () => {
+  it("is empty on a generic open (no pinned sources)", () => {
+    expect(renderFocusHint(undefined)).toBe("");
+    expect(renderFocusHint([])).toBe("");
+  });
+
+  it("names the launched domain(s) by their natural-language label", () => {
+    const hint = renderFocusHint(["hrv", "resting_hr", "sleep"]);
+    expect(hint).toContain("FOCUS:");
+    expect(hint).toContain("heart-rate variability");
+    expect(hint).toContain("resting heart rate");
+    expect(hint).toContain("sleep");
+    // It instructs prioritisation, not exclusion (the user can still pivot).
+    expect(hint).toContain("prioritise");
+    expect(hint).toContain("only branch to other domains");
+  });
+
+  it("falls back to the raw source key for an unlabelled source", () => {
+    // `compliance` has no domain label in the map; the raw key is used.
+    const hint = renderFocusHint(["compliance"]);
+    expect(hint).toContain("compliance");
   });
 });
