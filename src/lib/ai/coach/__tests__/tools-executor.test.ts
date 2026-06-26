@@ -299,3 +299,82 @@ describe("executeCoachTool", () => {
     expect(result.reason).toBe("invalid_arguments");
   });
 });
+
+// v1.21.0 (D5-1) — ONE snapshot per turn. When the route threads the shared
+// full-source scope (the inventory's probe scope) and the tool's window
+// matches, the tool must read under the SHARED scope key so every per-tool read
+// lands the inventory's already-built 60s LRU entry — rather than rebuilding a
+// distinct single-source snapshot per tool.
+describe("executeCoachTool — shared snapshot scope (D5-1)", () => {
+  beforeEach(() => {
+    buildCoachSnapshot.mockReset();
+  });
+
+  const sharedScope = {
+    sources: ["bp", "hrv", "sleep", "glucose"] as never,
+    window: "last30days" as const,
+  };
+
+  it("reads under the shared scope when the tool window matches", async () => {
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot({ bloodPressure: { aggregate: { avgSys30: 128 } } }),
+    );
+    const result = await executeCoachTool({
+      userId: "u1",
+      name: "get_metric_series",
+      rawArguments: JSON.stringify({ metric: "bp" }),
+      fallbackWindow: "last30days",
+      sharedScope,
+    });
+    expect(result.present).toBe(true);
+    // The read used the SHARED scope object, not a narrow single-source scope —
+    // so a second tool with the same shared scope hits the same cache key.
+    expect(buildCoachSnapshot).toHaveBeenCalledWith("u1", sharedScope);
+  });
+
+  it("two tools in a turn read under the SAME scope key (one build)", async () => {
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot({
+        bloodPressure: { aggregate: {} },
+        heartRateVariability: { aggregate: {} },
+      }),
+    );
+    await executeCoachTool({
+      userId: "u1",
+      name: "get_metric_series",
+      rawArguments: JSON.stringify({ metric: "bp" }),
+      fallbackWindow: "last30days",
+      sharedScope,
+    });
+    await executeCoachTool({
+      userId: "u1",
+      name: "get_metric_series",
+      rawArguments: JSON.stringify({ metric: "hrv" }),
+      fallbackWindow: "last30days",
+      sharedScope,
+    });
+    // Both reads used the identical shared scope object → identical cache key.
+    const scopes = buildCoachSnapshot.mock.calls.map((c) => c[1]);
+    expect(scopes).toHaveLength(2);
+    expect(scopes[0]).toBe(sharedScope);
+    expect(scopes[1]).toBe(sharedScope);
+  });
+
+  it("falls back to a narrow scope when the tool overrides the window", async () => {
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot({ bloodPressure: { aggregate: {} } }),
+    );
+    await executeCoachTool({
+      userId: "u1",
+      name: "get_metric_series",
+      // The model overrides the window → a distinct, correct build.
+      rawArguments: JSON.stringify({ metric: "bp", window: "last7days" }),
+      fallbackWindow: "last30days",
+      sharedScope,
+    });
+    expect(buildCoachSnapshot).toHaveBeenCalledWith("u1", {
+      sources: ["bp"],
+      window: "last7days",
+    });
+  });
+});

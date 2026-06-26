@@ -50,6 +50,14 @@ export interface CoachDataInventory {
   cycleEnabled: boolean;
   /** The window the inventory was built against. */
   window: string;
+  /**
+   * v1.21.0 (D5-1) — the exact full-source scope this inventory's snapshot was
+   * built against. The route threads it to the tool loop so every per-tool read
+   * lands the SAME 60s LRU entry (one snapshot build per turn, not N). Returned
+   * here so the route reuses the identical scope object rather than
+   * re-deriving it and risking a key mismatch.
+   */
+  probeScope: CoachScope;
 }
 
 /**
@@ -188,6 +196,7 @@ export async function buildCoachDataInventory(
     restMode,
     cycleEnabled,
     window: scopeBlock?.window ?? scope?.window ?? "last30days",
+    probeScope,
   };
 }
 

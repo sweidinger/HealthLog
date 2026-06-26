@@ -138,31 +138,36 @@ vi.mock("@/lib/ai/coach/snapshot", () => ({
 }));
 
 // Tool-module surface — stub the inventory + loop so we assert routing only.
-const { buildCoachDataInventory, renderDataInventory, runCoachToolLoop } =
-  vi.hoisted(() => ({
-    buildCoachDataInventory: vi.fn(async () => ({
-      entries: [],
-      restMode: false,
-      cycleEnabled: false,
-      window: "last30days",
-    })),
-    renderDataInventory: vi.fn(
-      () => "DATA INVENTORY\n- blood pressure: present",
-    ),
-    runCoachToolLoop: vi.fn(async () => ({
-      result: { content: "Your BP is steady.", tokensUsed: 80, model: "m" },
-      workingProviderType: "anthropic",
-      totalTokens: 80,
-      rounds: 2,
-      toolTrace: [{ name: "get_metric_series", present: true }],
-      toolResults: [],
-    })),
-  }));
-vi.mock("@/lib/ai/coach/tools", () => ({
-  COACH_TOOL_DEFS: [{ name: "get_metric_series" }],
-  MAX_ROUNDS: 2,
+const {
   buildCoachDataInventory,
   renderDataInventory,
+  renderFocusHint,
+  runCoachToolLoop,
+} = vi.hoisted(() => ({
+  buildCoachDataInventory: vi.fn(async () => ({
+    entries: [],
+    restMode: false,
+    cycleEnabled: false,
+    window: "last30days",
+    probeScope: { sources: ["bp", "hrv"], window: "last30days" },
+  })),
+  renderDataInventory: vi.fn(() => "DATA INVENTORY\n- blood pressure: present"),
+  renderFocusHint: vi.fn(() => ""),
+  runCoachToolLoop: vi.fn(async () => ({
+    result: { content: "Your BP is steady.", tokensUsed: 80, model: "m" },
+    workingProviderType: "anthropic",
+    totalTokens: 80,
+    rounds: 2,
+    toolTrace: [{ name: "get_metric_series", present: true }],
+    toolResults: [],
+  })),
+}));
+vi.mock("@/lib/ai/coach/tools", () => ({
+  COACH_TOOL_DEFS: [{ name: "get_metric_series" }],
+  MAX_ROUNDS: 3,
+  buildCoachDataInventory,
+  renderDataInventory,
+  renderFocusHint,
   buildToolModeAddendum: vi.fn(() => "TOOL ADDENDUM"),
   runCoachToolLoop,
 }));
@@ -246,11 +251,11 @@ describe("coach chat — tool-mode routing (F1)", () => {
       { providerType: "anthropic", instance: {} },
     ]);
     await post(chatReq({ message: "How is my BP?" }));
-    // maxTokens (1500) × MAX_ROUNDS (2). The 4th arg is the provider-aware
+    // maxTokens (1500) × MAX_ROUNDS (3). The 4th arg is the provider-aware
     // daily cap (F1) — mocked to the user-plan ceiling for this BYOK chain.
     expect(reserveBudget).toHaveBeenCalledWith(
       "u1",
-      3000,
+      4500,
       "2026-06-21",
       2_000_000,
     );

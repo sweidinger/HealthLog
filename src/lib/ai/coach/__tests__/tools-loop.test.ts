@@ -7,9 +7,9 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { CoachToolResult } from "@/lib/ai/coach/tools/executor";
 
-const executeCoachTool = vi.fn<() => Promise<CoachToolResult>>();
+const executeCoachTool = vi.fn<(args?: unknown) => Promise<CoachToolResult>>();
 vi.mock("@/lib/ai/coach/tools/executor", () => ({
-  executeCoachTool: () => executeCoachTool(),
+  executeCoachTool: (args: unknown) => executeCoachTool(args),
 }));
 
 // The loop calls the real fallback runner; stub it to a deterministic
@@ -20,7 +20,11 @@ vi.mock("@/lib/ai/provider-runner", () => ({
     runRawCompletionWithFallback(args),
 }));
 
-import { runCoachToolLoop, HARD_CAP } from "@/lib/ai/coach/tools/loop";
+import {
+  runCoachToolLoop,
+  HARD_CAP,
+  MAX_ROUNDS,
+} from "@/lib/ai/coach/tools/loop";
 import { COACH_TOOL_DEFS } from "@/lib/ai/coach/tools/definitions";
 
 function completion(opts: {
@@ -197,5 +201,77 @@ describe("runCoachToolLoop", () => {
     expect(msgs[1].toolCalls).toHaveLength(1);
     expect(msgs[2].role).toBe("tool");
     expect(msgs[2].toolCallId).toBe("c1");
+  });
+});
+
+// v1.21.0 (D5) — the round cap is 3 (sequential cross-metric "why" chains are
+// no longer starved on a 2-round ceiling), and the absolute ceiling tracks one
+// above so the final allowed round still forces prose.
+describe("round bounds (D5)", () => {
+  it("MAX_ROUNDS is 3 and HARD_CAP tracks one above", () => {
+    expect(MAX_ROUNDS).toBe(3);
+    expect(HARD_CAP).toBe(MAX_ROUNDS + 1);
+  });
+
+  it("allows up to three tool-fetch rounds before forcing prose", async () => {
+    executeCoachTool.mockResolvedValue({ present: false });
+    let toolRounds = 0;
+    runRawCompletionWithFallback.mockImplementation(
+      (args: { params: { toolChoice?: string } }) => {
+        if (args.params.toolChoice === "none") {
+          return Promise.resolve(completion({ content: "Forced final." }));
+        }
+        toolRounds += 1;
+        return Promise.resolve(
+          completion({
+            content: "",
+            finishReason: "tool_calls",
+            toolCalls: [
+              {
+                id: "c",
+                name: "get_metric_series",
+                arguments: '{"metric":"bp"}',
+              },
+            ],
+          }),
+        );
+      },
+    );
+    const out = await runCoachToolLoop(baseArgs);
+    // Three rounds offered tools, the fourth forced prose.
+    expect(toolRounds).toBe(MAX_ROUNDS);
+    expect(out.rounds).toBe(HARD_CAP);
+    expect(out.result.content).toBe("Forced final.");
+  });
+});
+
+// v1.21.0 (D5-1) — the loop threads the turn's shared snapshot scope to every
+// tool so each per-tool read lands one cache key (one snapshot build per turn).
+describe("shared snapshot scope threading (D5-1)", () => {
+  it("passes sharedScope through to executeCoachTool", async () => {
+    executeCoachTool.mockResolvedValue({ present: true, data: { x: 1 } });
+    const shared = {
+      sources: ["bp", "hrv"] as never,
+      window: "last30days" as const,
+    };
+    runRawCompletionWithFallback
+      .mockResolvedValueOnce(
+        completion({
+          content: "",
+          finishReason: "tool_calls",
+          toolCalls: [
+            {
+              id: "c1",
+              name: "get_metric_series",
+              arguments: '{"metric":"bp"}',
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(completion({ content: "done" }));
+    await runCoachToolLoop({ ...baseArgs, sharedScope: shared });
+    expect(executeCoachTool).toHaveBeenCalledWith(
+      expect.objectContaining({ sharedScope: shared }),
+    );
   });
 });

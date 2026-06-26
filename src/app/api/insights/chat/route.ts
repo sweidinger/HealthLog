@@ -575,6 +575,11 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
         temperature: AI_BUDGETS.coach.temperature,
         maxTokens: AI_BUDGETS.coach.maxTokens,
         fallbackWindow: effectiveScope?.window,
+        // v1.21.0 (D5-1) — share the inventory's full-source snapshot across
+        // every tool so the turn builds ONE snapshot, not one per tool. The
+        // probe scope is the exact scope the inventory was built against, so the
+        // per-tool reads land its 60s LRU entry.
+        sharedScope: inventory.probeScope,
         // v1.20.1 — thread the abort signal so a mid-generation disconnect tears
         // down the per-round provider calls instead of paying the full cost.
         signal: request.signal,
