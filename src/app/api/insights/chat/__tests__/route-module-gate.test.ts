@@ -94,6 +94,7 @@ vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(),
   enforceBudget: vi.fn(),
   recordSpend: vi.fn(),
+  resolveDailyCap: vi.fn(() => 200_000),
 }));
 vi.mock("@/lib/ai/coach/refusal", () => ({ detectRefusal: vi.fn() }));
 vi.mock("@/lib/ai/coach/system-prompt", () => ({

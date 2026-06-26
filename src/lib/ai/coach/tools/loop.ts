@@ -45,6 +45,12 @@ export interface CoachToolLoopResult {
   workingProviderType: string;
   /** Summed tokens across every round (for budget reconcile). */
   totalTokens: number;
+  /**
+   * v1.21.0 (F3) — summed cached-input tokens across every round. Subtracted
+   * from the charged amount at reconcile so prompt-cached input the user did
+   * not re-pay for is not billed to their daily meter.
+   */
+  cachedTokens: number;
   /** Number of model round-trips made. */
   rounds: number;
   /** Which tools ran + whether each found data (persisted onto provenance). */
@@ -86,6 +92,7 @@ export async function runCoachToolLoop(args: {
 
   const messages: AiMessage[] = [...args.messages];
   let totalTokens = 0;
+  let cachedTokens = 0;
   let rounds = 0;
   let workingProviderType = "";
   const toolTrace: CoachToolTrace[] = [];
@@ -116,6 +123,7 @@ export async function runCoachToolLoop(args: {
     const result = fallback.result;
     workingProviderType = fallback.workingProvider.providerType;
     totalTokens += result.tokensUsed ?? 0;
+    cachedTokens += result.cachedInputTokens ?? 0;
 
     const calls = result.toolCalls ?? [];
     const wantsTools =
@@ -136,6 +144,7 @@ export async function runCoachToolLoop(args: {
         result,
         workingProviderType,
         totalTokens,
+        cachedTokens,
         rounds,
         toolTrace,
         toolResults,

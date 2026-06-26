@@ -16,8 +16,63 @@
  */
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/api-handler";
+import type { ProviderChainType } from "@/lib/ai/provider-chain";
 
-export const MAX_TOKENS_PER_USER_PER_DAY = 25_000;
+/**
+ * Operator-cost daily ceiling — the cap that protects the OPERATOR's LLM bill.
+ *
+ * It applies ONLY to the operator-managed-key path (`admin-openai`): the
+ * server's own OpenAI key, where every token the user spends lands on the
+ * operator's invoice.
+ *
+ * v1.21.0 (F1/F2) — raised from the historical 25_000. That figure was sized
+ * for a single non-reasoning ~600-token chat reply (~20 turns/day). With the
+ * v1.20 tool loop charging the Responses-API gross `total_tokens` of a `gpt-5.x`
+ * reasoning turn (re-sent system prompt + inventory + 7 tool defs per round +
+ * hidden reasoning, summed across rounds ≈ 20k–40k), 25k locked the user out
+ * after one turn. 200k keeps gross accounting (no per-round output-token
+ * surgery) while leaving room for a normal day of reasoning turns on the
+ * operator's key. The cap stays a real ceiling on the operator's exposure.
+ */
+export const MAX_TOKENS_PER_USER_PER_DAY = 200_000;
+
+/**
+ * v1.21.0 (F1) — historical name retained for any external reference; the
+ * operator-cost cap is the only cap the ledger enforces.
+ */
+export const OPERATOR_COST_CAP = MAX_TOKENS_PER_USER_PER_DAY;
+
+/**
+ * v1.21.0 (F1) — the daily ceiling for a chain whose egress runs on the
+ * USER's own plan / key (ChatGPT-OAuth/Codex, BYOK OpenAI/Anthropic, or a
+ * self-hosted local model). The operator pays nothing for these, so the
+ * operator-cost cap is a category error here — gating them on it locks a user
+ * out of a plan they pay for. We keep only a generous abuse ceiling so a
+ * runaway client loop can't write unbounded rows; a normal user never reaches
+ * it.
+ */
+export const USER_PLAN_CAP = 2_000_000;
+
+/**
+ * v1.21.0 (F1) — classify a resolved provider chain's cost owner and return
+ * the daily cap that applies.
+ *
+ * The chain is a fallback list; the FIRST entry is the provider that will be
+ * tried first and is the expected cost owner. Only when that primary provider
+ * is `admin-openai` (the user has no personal provider and falls back to the
+ * operator's key) does the operator pay — so the operator-cost cap applies.
+ * Every other primary (`codex` / `openai` / `anthropic` / `local`) is the
+ * user's own egress, so the generous user-plan cap applies. An empty chain
+ * (no provider resolved) defaults to the operator cap — the conservative side.
+ */
+export function resolveDailyCap(
+  chain: ReadonlyArray<{ providerType: ProviderChainType }>,
+): number {
+  const primary = chain[0]?.providerType;
+  return primary === "admin-openai" || primary === undefined
+    ? OPERATOR_COST_CAP
+    : USER_PLAN_CAP;
+}
 
 /**
  * Build the UTC day-key for a given clock. Defaults to "now".
@@ -136,17 +191,31 @@ export async function reserveBudget(
  * goes negative). Called after every provider call — including empty /
  * sentinel / refusal replies, whose upstream tokens were still burned
  * (SENIOR-DEV MEDIUM: spend undercount).
+ *
+ * v1.21.0 (F3) — `cachedTokens` (the Responses-API `cached_tokens` count) is
+ * subtracted from the charged amount. The gross `total_tokens` a reasoning
+ * provider reports still includes the full input even when prompt-caching
+ * served most of it cheaply / free; charging the user's daily meter for input
+ * they did not re-pay for is an over-charge. We bill `actual - cached`.
  */
 export async function reconcileSpend(
   userId: string,
   reserved: number,
   actualTokens: number,
   dateKey: string = buildDateKey(),
+  cachedTokens = 0,
 ): Promise<void> {
-  const actual =
+  const grossActual =
     Number.isFinite(actualTokens) && actualTokens > 0
       ? Math.floor(actualTokens)
       : 0;
+  const cached =
+    Number.isFinite(cachedTokens) && cachedTokens > 0
+      ? Math.floor(cachedTokens)
+      : 0;
+  // Bill net of cached input; clamp so a cached count larger than the gross
+  // (shouldn't happen, but the wire is untrusted) can't drive a negative charge.
+  const actual = Math.max(0, grossActual - cached);
   const delta = actual - reserved;
   if (delta === 0) return;
   // Clamp at zero so a smaller-than-reserved actual can't drive the row

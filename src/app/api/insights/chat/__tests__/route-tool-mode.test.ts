@@ -111,6 +111,7 @@ vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(() => "2026-06-21"),
   reserveBudget,
   reconcileSpend,
+  resolveDailyCap: vi.fn(() => 2_000_000),
 }));
 
 const { detectRefusal } = vi.hoisted(() => ({
@@ -245,8 +246,14 @@ describe("coach chat — tool-mode routing (F1)", () => {
       { providerType: "anthropic", instance: {} },
     ]);
     await post(chatReq({ message: "How is my BP?" }));
-    // maxTokens (1500) × MAX_ROUNDS (2).
-    expect(reserveBudget).toHaveBeenCalledWith("u1", 3000, "2026-06-21");
+    // maxTokens (1500) × MAX_ROUNDS (2). The 4th arg is the provider-aware
+    // daily cap (F1) — mocked to the user-plan ceiling for this BYOK chain.
+    expect(reserveBudget).toHaveBeenCalledWith(
+      "u1",
+      3000,
+      "2026-06-21",
+      2_000_000,
+    );
   });
 
   it("persists the tool trace onto provenance", async () => {
@@ -321,8 +328,14 @@ describe("coach chat — tool-mode routing (F1)", () => {
 
     expect(runCoachToolLoop).not.toHaveBeenCalled();
     expect(runRawCompletionWithFallback).toHaveBeenCalledTimes(1);
-    // Single-round budget reservation in the fallback path.
-    expect(reserveBudget).toHaveBeenCalledWith("u1", 1500, "2026-06-21");
+    // Single-round budget reservation in the fallback path; the 4th arg is the
+    // provider-aware daily cap (F1).
+    expect(reserveBudget).toHaveBeenCalledWith(
+      "u1",
+      1500,
+      "2026-06-21",
+      2_000_000,
+    );
     // The legacy path ships the snapshot figures in the user turn.
     const params = (
       (runRawCompletionWithFallback.mock.calls[0] as unknown[])[0] as {
