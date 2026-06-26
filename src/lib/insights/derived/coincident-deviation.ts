@@ -40,6 +40,7 @@ import { computeVitalsBaseline, type BaselineProfile } from "./baseline";
 import { VITALS_BASELINE_TYPES } from "./registry";
 import type { Derived, DerivedProvenanceSource } from "./types";
 import { resolveRestMode } from "@/lib/illness/rest-mode";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
@@ -120,17 +121,31 @@ export interface CoincidentDeviationOpts {
   windowDays?: number;
   now?: Date;
   coverage?: RollupCoverageMap;
+  /**
+   * D2-8 — IANA timezone the "today" grouping is keyed in. A 23:30-local
+   * reading must land on the user's local "today", not UTC's; mirrors
+   * `readiness.ts`. Defaults to `DEFAULT_TIMEZONE` when the caller has no tz.
+   */
+  tz?: string;
 }
 
 /**
  * The most recent DAY mean for a type within the window, plus its day key.
  * Bounded raw read; null when no reading in the window.
+ *
+ * D2-8 — day keys are minted in the user's timezone (`userDayKey`), not UTC
+ * (`toISOString().slice(0,10)`), so a late-evening / early-morning reading for
+ * a non-UTC user is grouped under the right calendar "today" — the same
+ * tz-aware basis `readiness.ts` already uses. Without this, the fired
+ * coincident flag could compare a vital from the wrong calendar day against
+ * its band and narrate "≥2 vitals out of band TODAY" on the wrong day.
  */
 async function readLatestDayMean(
   userId: string,
   type: MeasurementType,
   windowDays: number,
   now: Date,
+  tz: string,
 ): Promise<{ value: number; day: string } | null> {
   const since = new Date(now.getTime() - windowDays * MS_PER_DAY);
   const rows = await prisma.measurement.findMany({
@@ -144,12 +159,10 @@ async function readLatestDayMean(
   // so the "today" reading is always the genuine latest, then mean its rows.
   let day = "";
   for (const r of rows) {
-    const d = r.measuredAt.toISOString().slice(0, 10);
+    const d = userDayKey(r.measuredAt, tz);
     if (d > day) day = d;
   }
-  const sameDay = rows.filter(
-    (r) => r.measuredAt.toISOString().slice(0, 10) === day,
-  );
+  const sameDay = rows.filter((r) => userDayKey(r.measuredAt, tz) === day);
   return {
     value: sameDay.reduce((s, r) => s + r.value, 0) / sameDay.length,
     day,
@@ -167,6 +180,7 @@ export async function computeCoincidentDeviation(
 ): Promise<Derived<CoincidentDeviationValue>> {
   const windowDays = opts.windowDays ?? DEFAULT_WINDOW_DAYS;
   const now = opts.now ?? new Date();
+  const tz = opts.tz ?? DEFAULT_TIMEZONE;
   const computedAt = nowProvenanceTimestamp(now);
   const coverage = opts.coverage ?? (await probeRollupCoverage(userId));
 
@@ -186,7 +200,7 @@ export async function computeCoincidentDeviation(
     });
     if (baseline.status !== "ok") continue;
     if (baseline.provenance.source === "DAY") anyDaySource = true;
-    const latest = await readLatestDayMean(userId, type, windowDays, now);
+    const latest = await readLatestDayMean(userId, type, windowDays, now, tz);
     if (!latest) continue;
     if (latest.day > latestDay) latestDay = latest.day;
     if (baseline.coverage.historyDays > maxHistoryDays) {

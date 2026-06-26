@@ -1237,7 +1237,7 @@ async function buildCoachSnapshotImpl(
     ? null
     : buildGlp1SnapshotBlock(userId, now);
   const derivedBlockPromise = derivedActive
-    ? buildDerivedSnapshotBlock(userId, derivedProfile, now)
+    ? buildDerivedSnapshotBlock(userId, derivedProfile, now, userTz)
     : null;
   // v1.17.0 — WHOOP-native day strain (0–21), distinct from the COMPUTED
   // STRAIN_SCORE (0–100) the derived block carries. Gated on the same
