@@ -6725,6 +6725,7 @@
       "linksExisting": "Links to existing {name}",
       "duplicateWarning": "A matching reading already exists",
       "lowConfidence": "Please double-check this value",
+      "lowConfidenceBadge": "Low confidence",
       "valueUnreadable": "Value unreadable — enter it manually",
       "saveSelected": "Save {count} selected",
       "discardAll": "Discard all",

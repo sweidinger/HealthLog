@@ -207,7 +207,7 @@ export interface OcrCapabilityDto {
    */
   mode: "vision" | "text" | null;
   /** Why scanning is unavailable, when it is. */
-  reason: "no-provider" | "text-only-model" | "enable-local-ocr" | null;
+  reason: "no-provider" | "enable-local-ocr" | null;
   /** Whether PDF uploads are accepted (Anthropic vision provider only). */
   pdfSupported: boolean;
 }

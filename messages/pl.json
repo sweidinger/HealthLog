@@ -6725,6 +6725,7 @@
       "linksExisting": "Łączy z istniejącym {name}",
       "duplicateWarning": "Pasujący wynik już istnieje",
       "lowConfidence": "Sprawdź tę wartość",
+      "lowConfidenceBadge": "Niska pewność",
       "valueUnreadable": "Wartość nieczytelna — wprowadź ją ręcznie",
       "saveSelected": "Zapisz {count} wybranych",
       "discardAll": "Odrzuć wszystko",

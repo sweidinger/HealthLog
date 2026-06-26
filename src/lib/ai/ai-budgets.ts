@@ -109,4 +109,16 @@ export const AI_BUDGETS = {
    * gates with a tight 6/hour rate bucket + reserveBudget + upload-size cap.
    */
   ocrExtract: { temperature: 0, maxTokens: 4000 },
+
+  /**
+   * v1.20.1 — Lab-OCR text-mode structuring. The browser OCR's the image
+   * (tesseract.js) and POSTs only the extracted TEXT, so the provider does a
+   * plain text→JSON structuring pass — no expensive vision input tokens. The
+   * output contract is identical (the same dozen-plus analyte rows), but the
+   * spend ceiling is far lower than the vision path's 4000, so the day-budget
+   * reservation should reflect that rather than over-charging a text call at
+   * the vision rate. 1500 tokens comfortably covers a dense report's JSON
+   * envelope. Temperature 0 — faithful structuring, not generation.
+   */
+  ocrExtractText: { temperature: 0, maxTokens: 1500 },
 } as const satisfies Record<string, AiBudget>;

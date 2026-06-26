@@ -138,12 +138,14 @@ async function handleTextExtract(
     });
   }
 
-  // Budget (text is cheaper than vision; reuse the same ceiling as the upper
-  // bound — a text-only structuring call always spends at most this).
+  // Budget — text mode is a plain text→JSON structuring pass, far cheaper than
+  // a vision call, so it reserves the proportionate text ceiling rather than
+  // the vision budget. Over-charging the vision rate for a text call would
+  // exhaust the day budget against spend that never happened.
   const dateKey = buildDateKey();
   const reservation = await reserveBudget(
     userId,
-    AI_BUDGETS.ocrExtract.maxTokens,
+    AI_BUDGETS.ocrExtractText.maxTokens,
     dateKey,
   );
   if (!reservation.allowed) {
@@ -163,6 +165,8 @@ async function handleTextExtract(
       providerType: pick.providerType,
       ocrText: parsed.data.text,
     });
+    // A clean structuring pass spent (at most) the reservation; the provider
+    // already billed it, so reconcile against the reserved estimate.
     await reconcileSpend(
       userId,
       reservation.reserved,
@@ -171,12 +175,9 @@ async function handleTextExtract(
     );
     return apiSuccess(result);
   } catch (err) {
-    await reconcileSpend(
-      userId,
-      reservation.reserved,
-      reservation.reserved,
-      dateKey,
-    );
+    // A failed structuring call produced no usable rows; mirror the vision
+    // path and refund the reservation in full rather than charging it.
+    await reconcileSpend(userId, reservation.reserved, 0, dateKey);
     if (err instanceof OcrExtractError) {
       return apiError("Couldn't read the report. Try a clearer photo.", 422, {
         errorCode: "labs.ocr.extractFailed",

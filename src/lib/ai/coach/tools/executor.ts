@@ -20,8 +20,10 @@
  *     mutation or egress surface.
  *
  * The builder result is memoised by the 60s snapshot LRU keyed on
- * `(userId, window, sources)`, so several tool calls in one turn (and the
- * base-context inventory build) share the underlying reads.
+ * `(userId, window, sources)`. Each tool scopes to a different source set, so
+ * tool calls for distinct domains do NOT share a cache entry; sharing happens
+ * only when the SAME scope recurs (a repeated call, or a turn that re-enters
+ * the same domain) within the 60s window.
  */
 import { z } from "zod/v4";
 
