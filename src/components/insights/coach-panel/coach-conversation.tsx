@@ -19,9 +19,12 @@ import { queryKeys } from "@/lib/query-keys";
 import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 import type { CoachScope } from "@/lib/ai/coach/types";
 import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
+import type { CoachSeededQuestionDTO } from "@/app/api/insights/coach/seeded-question/route";
+import { metricScopeLabelFallback } from "@/components/insights/coach-metric-scope";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachHero } from "./coach-hero";
+import { ScopeHintBadge } from "./scope-hint-badge";
 import { CoachInput } from "./coach-input";
 import {
   GuidedQuestionBubble,
@@ -441,6 +444,85 @@ export function CoachConversation({
     pendingQuestions.length === 0 &&
     !pendingAdopt;
 
+  // v1.22.0 (A2 + A3) — the visible scope/opener affordance for the hero.
+  //
+  // A2 (scoped launch): the Coach was opened narrowed to a metric. Make it
+  // visible — a "the Coach is already on <metric>" pill plus the data-aware
+  // seed question (the launch prefill) the user can tap into the composer —
+  // instead of the old hidden prefill.
+  //
+  // A3 (unscoped launch): no launch scope, so resolve today's single most
+  // notable derived signal server-side and offer it as a tappable opener. The
+  // query only fires when the hero is on screen AND there is no launch scope
+  // (an A2 launch already has its opener), so a scoped open pays nothing for
+  // it. When the server returns no signal the hint is null and the neutral
+  // greeting stands — never a fabricated opener.
+  const a2Metric = launchScope?.metric ?? null;
+  const seededEnabled = heroActive && a2Metric === null;
+  const { data: seeded } = useQuery({
+    queryKey: queryKeys.coachSeededQuestion(),
+    queryFn: async () =>
+      apiGet<CoachSeededQuestionDTO>("/api/insights/coach/seeded-question"),
+    enabled: seededEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  function seedComposer(question: string) {
+    setInputValue(question);
+  }
+
+  // `t()` returns the key string itself when a key is missing, so the only
+  // reliable "is this key defined" signal is `t(key) !== key`.
+  function tOrNull(key: string): string | null {
+    const resolved = t(key);
+    return resolved === key ? null : resolved;
+  }
+
+  // The resolved A2 metric label: prefers a per-source i18n key, falls back
+  // to the brand-free English domain phrase so every source has a label.
+  // Hoisted so both the hero hint (page) and the sources rail (drawer) read
+  // the same string. Null when the launch carried no metric.
+  const a2MetricLabel = a2Metric
+    ? (tOrNull(`insights.coach.scope.metric.${a2Metric}`) ??
+      metricScopeLabelFallback(a2Metric) ??
+      a2Metric)
+    : null;
+
+  let scopeHint: React.ReactNode = null;
+  if (a2Metric && a2MetricLabel) {
+    // A2 — the launch prefill IS the data-aware opener; fall back to the
+    // generic per-metric question when the launch carried no prefill.
+    const seedQuestion =
+      (prefill ?? "").trim() || t("insights.coach.scope.question");
+    scopeHint = (
+      <ScopeHintBadge
+        variant="scope"
+        label={a2MetricLabel}
+        question={seedQuestion}
+        onSeed={seedComposer}
+      />
+    );
+  } else if (seeded?.signal) {
+    // A3 — the notable derived signal. The label + opener are keyed on the
+    // signal's sourceMetric (`readiness` / `recovery`); an unknown sentinel
+    // (future detector additions) skips the opener rather than guessing.
+    const sentinel = seeded.signal.sourceMetric;
+    const signalLabel = tOrNull(`insights.coach.seeded.signal.${sentinel}`);
+    const signalQuestion = tOrNull(
+      `insights.coach.seeded.question.${sentinel}`,
+    );
+    if (signalLabel && signalQuestion) {
+      scopeHint = (
+        <ScopeHintBadge
+          variant="seeded"
+          label={signalLabel}
+          question={signalQuestion}
+          onSeed={seedComposer}
+        />
+      );
+    }
+  }
+
   // v1.18.11 (W11) — the docked composer column: the quiet adopt offer and
   // the guided-questions entry card stack above the live composer. Shared by
   // the drawer body (via `CoachDrawerBody`) and the page surface (rendered
@@ -566,7 +648,7 @@ export function CoachConversation({
           </Button>
         </div>
         {heroActive ? (
-          <CoachHero composer={composerNode} />
+          <CoachHero composer={composerNode} scopeHint={scopeHint} />
         ) : (
           <>
             <div className="flex min-h-0 flex-1 flex-col">
@@ -703,7 +785,16 @@ export function CoachConversation({
         }
         sourcesOpen={sourcesTrayOpen}
         onSourcesOpenChange={setSourcesTrayOpen}
-        sourcesRail={<SourcesRail />}
+        sourcesRail={
+          <SourcesRail
+            // v1.22.0 (A2) — surface the launch scope on the drawer surface;
+            // only set for a fresh, scoped, not-yet-sent conversation so a
+            // continued thread (its own established scope) shows no stale line.
+            activeScopeLabel={
+              currentConversationId === null ? a2MetricLabel : null
+            }
+          />
+        }
       />
     </div>
   );

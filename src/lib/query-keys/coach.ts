@@ -26,4 +26,10 @@ export const coachKeys = {
    * the streaming hook invalidates this slot once the persisted twin lands.
    */
   coachConversation: (id: string | null) => ["coachConversation", id] as const,
+  /**
+   * v1.22.0 (A3) — today's most notable derived signal, resolved into the
+   * Coach hero's pre-seeded relevance opener
+   * (`GET /api/insights/coach/seeded-question`).
+   */
+  coachSeededQuestion: () => ["coach-seeded-question"] as const,
 };

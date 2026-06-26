@@ -1,4 +1,5 @@
 import type { CoachScopeSource, CoachScopeWindow } from "@/lib/ai/coach/types";
+import { COACH_SOURCE_DOMAIN_LABEL } from "@/lib/ai/coach/tools/source-keys";
 
 /**
  * v1.21.0 (C4 H1/H4) — metric → Coach scope + seed-question map.
@@ -164,4 +165,20 @@ export function scopeSourceFromMetricKey(
   if (lower === "bloodglucose" || lower === "blood_glucose") return "glucose";
   if (lower === "bmi") return "bmi";
   return null;
+}
+
+/**
+ * v1.22.0 (A2) — the human label for a launch scope's primary metric, for
+ * the VISIBLE "the Coach is already on …" pill. The caller resolves the
+ * i18n string via `t("insights.coach.scope.metric.<source>")`; this helper
+ * supplies the English domain phrase as the deterministic fallback for any
+ * source the bundle hasn't named yet, reusing the brand-free
+ * `COACH_SOURCE_DOMAIN_LABEL` vocabulary the Coach inventory already
+ * speaks. Returns null when there is no metric to label (a generic open).
+ */
+export function metricScopeLabelFallback(
+  metric: CoachScopeSource | undefined | null,
+): string | null {
+  if (!metric) return null;
+  return COACH_SOURCE_DOMAIN_LABEL[metric] ?? (metric as string);
 }
