@@ -46,6 +46,7 @@ import { annotate } from "@/lib/logging/context";
 import { memoizePerRequest } from "@/lib/request-cache";
 import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
 import { buildDerivedSnapshotBlock } from "./derived-snapshot";
+import { buildCorrelationsSnapshotBlock } from "./correlations-snapshot";
 import { buildCoachMemoryBlock } from "./memory-snapshot";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import { buildCycleSnapshotBlock } from "./cycle-snapshot";
@@ -1259,6 +1260,16 @@ async function buildCoachSnapshotImpl(
   const trajectoryBlockPromise = derivedActive
     ? buildTrajectorySnapshotBlock(userId, derivedProfile, now)
     : null;
+  // RECON1 (D5-5) — discovered cross-metric driver pairs for the no-tools
+  // snapshot floor. Reuses the SAME gated/ranked output the get_correlations
+  // tool serves (effect-size floor + family-tautology exclusion + shrinkage +
+  // confidence tiering already applied inside the discovery engine), so a
+  // local/no-tools provider reaches parity on the flagship cross-metric layer
+  // instead of getting only the coincident flag. Gated on `derivedActive` (it
+  // is the recovery / cross-metric layer) and fail-soft to null.
+  const correlationsBlockPromise = derivedActive
+    ? buildCorrelationsSnapshotBlock(userId)
+    : null;
   const memoryBlockPromise = buildCoachMemoryBlock(
     userId,
     derivedProfile,
@@ -1305,6 +1316,7 @@ async function buildCoachSnapshotImpl(
     derivedBlock,
     dayStrainRows,
     trajectoryBlock,
+    correlationsBlock,
     memoryBlock,
     cycleBlock,
     illnessBlock,
@@ -1320,6 +1332,7 @@ async function buildCoachSnapshotImpl(
     derivedBlockPromise,
     dayStrainRowsPromise,
     trajectoryBlockPromise,
+    correlationsBlockPromise,
     memoryBlockPromise,
     cycleBlockPromise,
     illnessBlockPromise,
@@ -2268,6 +2281,20 @@ async function buildCoachSnapshotImpl(
     if (trajectoryBlock) {
       snapshot.trajectory = trajectoryBlock;
       registerBlock("trajectory", "skin_temp");
+    }
+
+    // ── RECON1 (D5-5) — discovered cross-metric drivers ──────────────────
+    // The bounded top-N driver pairs (post quality-gate, post-rank) from the
+    // SAME engine the get_correlations tool reads, attached so the no-tools /
+    // local-provider path narrates the cross-metric layer it was missing —
+    // closing the parity gap with the tool path and making system-prompt rule
+    // 14's "any driver field the SNAPSHOT carries" fallback real. Descriptive,
+    // never causal. Registered against the lowest-priority `skin_temp`
+    // (environment) cluster so the budget degrader sheds it before any
+    // clinical block under prompt-budget pressure.
+    if (correlationsBlock) {
+      snapshot.correlations = correlationsBlock;
+      registerBlock("correlations", "skin_temp");
     }
   }
 
