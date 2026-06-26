@@ -53,10 +53,9 @@ export interface ResponsiveSheetProps {
    * child and breaks that responsive stacking. This split is a
    * decision, not drift — don't unify the two branches.
    *
-   * The Sheet branch sticky-pins the footer to the
-   * bottom of the bottom-sheet so the primary CTA stays reachable
-   * once the body scrolls; the Dialog branch lets the footer flow
-   * normally beneath the body.
+   * Both branches keep the footer reachable once the body scrolls:
+   * the Sheet branch sticky-pins it to the bottom of the bottom-sheet,
+   * and the Dialog branch holds it `shrink-0` below the scrolling body.
    */
   footer?: React.ReactNode;
   /** Class name applied to the content surface (sheet / dialog). */
@@ -100,12 +99,15 @@ const CONTENT_WIDTH_CLASS: Record<
  * centred `<Dialog>` on tablet/desktop. Picks the breakpoint via
  * the `useIsMobile()` hook (Tailwind `md` — 768 px).
  *
- * On the Sheet branch we cap the content at `90dvh`, scroll the
- * body on overflow, and sticky-pin the footer so Save / Cancel
- * stay reachable when the keyboard pushes the bottom of the sheet
- * up. The Dialog branch consumes the primitive's `max-h-[calc(100dvh-2rem)]`
- * default so long forms scroll inside the dialog instead of
- * spilling off-screen on tablet portrait.
+ * Both branches use the same layout contract: cap the surface
+ * height, scroll ONLY the body on overflow, and keep the footer
+ * reachable. The Sheet branch caps at `90dvh` and sticky-pins the
+ * footer so Save / Cancel stay reachable when the keyboard pushes
+ * the bottom of the sheet up. The Dialog branch caps at the
+ * primitive's `max-h-[calc(100dvh-2rem)]`, runs as a flex column,
+ * and pins its header + footer (`shrink-0`) so the body — not the
+ * whole grid — is what scrolls; the primary action never slides
+ * below the fold under long forms, browser zoom, or OS scaling.
  *
  * Consumers swap `<Dialog>` → `<ResponsiveSheet>` and feed the
  * existing form markup through `children` / `footer`. The rest of
@@ -194,7 +196,21 @@ export function ResponsiveSheet({
         showCloseButton={showCloseButton}
         data-slot="responsive-sheet-content"
         data-variant="dialog"
-        className={cn(CONTENT_WIDTH_CLASS[contentWidth], className)}
+        // v1.21.1 — flip the desktop Dialog from the primitive's single
+        // `overflow-y-auto` grid (where header + body + footer all scroll
+        // together, so the primary CTA can slide below the fold once the
+        // form, a long locale string, browser zoom, or OS display scaling
+        // pushes the content past `max-h-[calc(100dvh-2rem)]`) to a flex
+        // column that scrolls ONLY the body. This brings the Dialog branch
+        // to parity with the Sheet branch, which already pins its footer.
+        // The header + footer stay shrink-0 so the body absorbs every
+        // height shortfall and the action row is always reachable without
+        // scrolling. `overflow-hidden` makes the body the lone scroll port.
+        className={cn(
+          "flex flex-col overflow-hidden",
+          CONTENT_WIDTH_CLASS[contentWidth],
+          className,
+        )}
       >
         {hideHeader ? (
           <DialogHeader className="sr-only">
@@ -204,7 +220,10 @@ export function ResponsiveSheet({
             ) : null}
           </DialogHeader>
         ) : (
-          <DialogHeader data-slot="responsive-sheet-header">
+          <DialogHeader
+            data-slot="responsive-sheet-header"
+            className="shrink-0"
+          >
             <DialogTitle>{title}</DialogTitle>
             {description ? (
               <DialogDescription>{description}</DialogDescription>
@@ -213,12 +232,18 @@ export function ResponsiveSheet({
         )}
         <div
           data-slot="responsive-sheet-body"
-          className={cn("flex flex-col gap-4", bodyClassName)}
+          className={cn(
+            "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto",
+            bodyClassName,
+          )}
         >
           {children}
         </div>
         {footer ? (
-          <DialogFooter data-slot="responsive-sheet-footer">
+          <DialogFooter
+            data-slot="responsive-sheet-footer"
+            className="shrink-0"
+          >
             {footer}
           </DialogFooter>
         ) : null}

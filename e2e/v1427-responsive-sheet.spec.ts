@@ -87,4 +87,48 @@ test.describe("v1.4.27 — ResponsiveSheet branch", () => {
     await expect(content).toBeVisible({ timeout: 10_000 });
     await expect(content).toHaveAttribute("data-variant", "dialog");
   });
+
+  // v1.21.1 — the desktop Dialog branch must scroll only its body and
+  // keep the footer (the primary action) inside the viewport when the
+  // form is taller than the available height. A short viewport stands in
+  // for the real-world triggers — browser zoom, OS display scaling, long
+  // locale strings — that push a form past `max-h-[calc(100dvh-2rem)]`.
+  test("Desktop Chrome: footer stays in viewport when the form overflows", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "desktop-only branch",
+    );
+
+    // Deliberately short so the Add-Measurement form exceeds the dialog
+    // height cap and forces the body to scroll.
+    await page.setViewportSize({ width: 1280, height: 480 });
+
+    await page.goto("/measurements?add=WEIGHT", {
+      waitUntil: "domcontentloaded",
+    });
+
+    const content = page.locator('[data-slot="responsive-sheet-content"]');
+    await expect(content).toBeVisible({ timeout: 10_000 });
+    await expect(content).toHaveAttribute("data-variant", "dialog");
+
+    // The body owns the scroll — its content is taller than its box.
+    const body = page.locator('[data-slot="responsive-sheet-body"]');
+    await expect(body).toBeVisible();
+    const bodyScrolls = await body.evaluate(
+      (el) => el.scrollHeight > el.clientHeight + 1,
+    );
+    expect(bodyScrolls).toBe(true);
+
+    // The footer (primary action) is reachable without scrolling: its
+    // bottom edge sits within the viewport.
+    const footer = page.locator('[data-slot="responsive-sheet-footer"]');
+    await expect(footer).toBeVisible();
+    const box = await footer.boundingBox();
+    expect(box).not.toBeNull();
+    const viewport = page.viewportSize();
+    expect(viewport).not.toBeNull();
+    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1);
+  });
 });
