@@ -6725,6 +6725,7 @@
       "linksExisting": "Lié au {name} existant",
       "duplicateWarning": "Une valeur correspondante existe déjà",
       "lowConfidence": "Veuillez vérifier cette valeur",
+      "lowConfidenceBadge": "Confiance faible",
       "valueUnreadable": "Valeur illisible — saisissez-la manuellement",
       "saveSelected": "Enregistrer {count} sélectionnées",
       "discardAll": "Tout abandonner",
