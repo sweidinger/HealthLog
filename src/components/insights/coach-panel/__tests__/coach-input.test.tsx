@@ -237,10 +237,11 @@ describe("<CoachInput>", () => {
     expect(html).toContain('data-slot="coach-input-send"');
   });
 
-  it("renders the control-hub action row with showHub (page composer)", () => {
-    // v1.18.11 (W11) — the page composer is the control hub: a `+` actions
-    // menu (new chat + open conversations) and a settings deep-link sit on
-    // the action row alongside the mic + send.
+  it("renders the one-row page composer with showHub", () => {
+    // v1.21.0 — the page composer is ONE baseline row: a leading `+` actions
+    // menu (new chat + open conversations), the textarea, then mic + send.
+    // The settings gear moved OUT of the composer (now the page toolbar's
+    // top-right), so the composer's front is only the `+`.
     const html = render(
       <CoachInput
         value=""
@@ -253,14 +254,18 @@ describe("<CoachInput>", () => {
     );
     expect(html).toContain('data-slot="coach-input-hub"');
     expect(html).toContain('data-slot="coach-input-actions"');
-    // The settings gear deep-links to Settings → AI (not an in-chat sheet).
-    const settings = html.match(
-      /<a[^>]*data-slot="coach-input-settings"[^>]*>/,
-    );
-    expect(settings?.[0]).toContain('href="/settings/ai"');
-    // Mic + send remain present in the hub layout.
+    // The settings gear is gone from the composer entirely.
+    expect(html).not.toContain('data-slot="coach-input-settings"');
+    // Mic + send remain present on the same row.
     expect(html).toContain('data-slot="coach-input-mic"');
     expect(html).toContain('data-slot="coach-input-send"');
+    // The leading `+` precedes the textarea; the textarea precedes the send.
+    const plusIdx = html.indexOf('data-slot="coach-input-actions"');
+    const textareaIdx = html.indexOf('data-slot="coach-input-textarea"');
+    const sendIdx = html.indexOf('data-slot="coach-input-send"');
+    expect(plusIdx).toBeGreaterThan(-1);
+    expect(plusIdx).toBeLessThan(textareaIdx);
+    expect(textareaIdx).toBeLessThan(sendIdx);
   });
 
   it("sizes the hub actions trigger to the 44px tap-target floor on phones", () => {

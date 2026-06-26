@@ -136,24 +136,30 @@ describe("<CoachConversation> page deep-link (#67)", () => {
     expect(html).toContain('data-slot="coach-hero"');
   });
 
-  // v1.19.1 (C2) — a dedicated, always-visible Conversations button on the
-  // page surface (not buried in the composer `+` menu).
-  it("renders the dedicated Conversations button on the page surface", () => {
+  // v1.21.0 — the page toolbar is a single trailing affordance: the settings
+  // gear in the top-right corner. The "Conversations" + "New chat" buttons
+  // were removed from the toolbar (both still live in the composer `+` menu),
+  // and the settings gear moved here from the composer.
+  it("renders the settings gear in the top-right page toolbar", () => {
     const html = render(<CoachConversation surface="page" />, makeClient());
-    expect(html).toContain('data-slot="coach-page-conversations"');
-    expect(html).toContain('data-slot="coach-page-new-chat"');
+    expect(html).toContain('data-slot="coach-page-settings"');
+    const gear = html.match(/<a[^>]*data-slot="coach-page-settings"[^>]*>/);
+    expect(gear?.[0]).toContain('href="/settings/ai"');
+    // The old toolbar Conversations + New chat buttons are gone.
+    expect(html).not.toContain('data-slot="coach-page-conversations"');
+    expect(html).not.toContain('data-slot="coach-page-new-chat"');
   });
 
-  // v1.19.1 (C5) — entering via the drawer handoff (`?view=conversations`)
-  // keeps the new-chat hero (no thread auto-resumed) while opening the
-  // history drawer; the toolbar + button stay present so the pane is never
-  // a blank dead-end.
-  it("keeps the hero and toolbar when opened with openHistoryOnMount", () => {
+  // v1.21.0 — entering via the drawer handoff (`?view=conversations`) keeps
+  // the new-chat hero (no thread auto-resumed) while opening the history
+  // drawer; the toolbar gear stays present so the pane is never a blank
+  // dead-end.
+  it("keeps the hero and toolbar gear when opened with openHistoryOnMount", () => {
     const html = render(
       <CoachConversation surface="page" openHistoryOnMount />,
       makeClient(),
     );
     expect(html).toContain('data-slot="coach-hero"');
-    expect(html).toContain('data-slot="coach-page-conversations"');
+    expect(html).toContain('data-slot="coach-page-settings"');
   });
 });

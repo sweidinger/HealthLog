@@ -2279,7 +2279,7 @@
       "dictateError": "No se pudo iniciar la entrada de voz. Comprueba el permiso del micrófono e inténtalo de nuevo.",
       "showConversations": "Mostrar conversaciones",
       "hideConversations": "Ocultar conversaciones",
-      "heroGreeting": "¿En qué puedo ayudarte?",
+      "heroGreeting": "Pregúntame lo que quieras sobre tus datos",
       "heroSubline": "Pregunta por tus tendencias, medicamentos o mediciones.",
       "thinkingElapsed": "{seconds}s",
       "thinkingDuration": "Pensó durante {seconds}s",

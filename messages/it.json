@@ -2279,7 +2279,7 @@
       "dictateError": "Impossibile avviare l'inserimento vocale. Controlla l'autorizzazione del microfono e riprova.",
       "showConversations": "Mostra conversazioni",
       "hideConversations": "Nascondi conversazioni",
-      "heroGreeting": "Come posso aiutarti?",
+      "heroGreeting": "Chiedimi qualcosa sui tuoi dati",
       "heroSubline": "Chiedi dei tuoi andamenti, farmaci o misurazioni.",
       "thinkingElapsed": "{seconds}s",
       "thinkingDuration": "Ha riflettuto per {seconds}s",

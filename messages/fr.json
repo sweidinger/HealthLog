@@ -2279,7 +2279,7 @@
       "dictateError": "Impossible de démarrer la saisie vocale. Vérifiez l'autorisation du microphone et réessayez.",
       "showConversations": "Afficher les conversations",
       "hideConversations": "Masquer les conversations",
-      "heroGreeting": "Comment puis-je t'aider ?",
+      "heroGreeting": "Pose-moi une question sur tes données",
       "heroSubline": "Pose une question sur tes tendances, médicaments ou mesures.",
       "thinkingElapsed": "{seconds}s",
       "thinkingDuration": "A réfléchi pendant {seconds}s",
