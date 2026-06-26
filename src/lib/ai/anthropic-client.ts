@@ -259,7 +259,9 @@ export class AnthropicClient implements AIProvider {
       // 60 s ceiling — see openai-client.ts for the rationale.
       // v1.11.2 — base URL is user/admin-overridable; pin the connect-time DNS
       // check so a private/metadata address is rejected (SSRF/rebinding).
-      { timeoutMs: 60_000, requirePublicHost: true },
+      // v1.20.1 — compose the caller's cancel signal (Coach SSE disconnect) so
+      // a mid-generation abort tears the upstream call down early.
+      { timeoutMs: 60_000, requirePublicHost: true, signal: params.signal },
     );
 
     if (!res.ok) {
@@ -318,7 +320,16 @@ export class AnthropicClient implements AIProvider {
     // A tool_use-only reply carries no text — that is valid (F1). Only an empty
     // reply with neither text NOR a tool call is an error.
     if (!rawText && !toolCalls) {
-      throw new Error("Anthropic returned empty content");
+      // v1.20.1 — sentinel httpStatus + kind so the chain classifier can tell
+      // an empty 200-OK reply apart from a transport failure. Cascade unchanged
+      // (`status <= 0` is already a hard failure).
+      const err = new Error("Anthropic returned empty content");
+      Object.assign(err, {
+        httpStatus: 0,
+        kind: "empty_response",
+        upstream: "anthropic",
+      });
+      throw err;
     }
 
     // When we prefilled the assistant turn with `{`, the model continues
