@@ -36,6 +36,7 @@ import {
   safetyAcute,
   metricIdentifierBan,
   forbiddenFiller,
+  outlookContract,
 } from "./shared-contracts";
 
 /** Stable identifier for the active system prompt revision. */
@@ -770,6 +771,14 @@ neutralem Label + Detail. Höchstgrenze: 20 Einträge.`,
     id: "sharedForbiddenFiller",
     en: forbiddenFiller.en,
     de: forbiddenFiller.de,
+  },
+  // v1.21.0 (QoL-B §3) — the forward-looking outlook contract, composed beside
+  // the tone contract on the briefing so its close can sharpen expectations
+  // within the same no-false-promise rails the Coach uses.
+  {
+    id: "sharedOutlook",
+    en: outlookContract.en,
+    de: outlookContract.de,
   },
   {
     id: "language",
