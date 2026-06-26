@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
+import { AskCoachAction } from "@/components/insights/ask-coach-action";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
@@ -457,6 +458,12 @@ export function DailyBriefing({
                   )}
                 </div>
               )}
+              {/* v1.21.0 (C4 H2) — hand off to the Coach for the whole
+                picture. The briefing spans every metric, so no scope: the
+                default all-source snapshot reads best here. */}
+              <div className="flex justify-end">
+                <AskCoachAction question="Walk me through today's briefing — what should I focus on, and is anything worth acting on?" />
+              </div>
             </div>
           ) : noProvider ? (
             // v1.15.20 — no provider configured anywhere: a regenerate CTA

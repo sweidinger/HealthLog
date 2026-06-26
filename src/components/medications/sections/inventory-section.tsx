@@ -56,6 +56,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
@@ -649,12 +650,10 @@ export function AddInventoryDialog({
             >
               {t("medications.detail.bestand.addExpiryLabel")}
             </label>
-            <Input
+            <DateField
               id="inventory-add-expiry"
-              type="date"
-              autoComplete="off"
               value={expiry}
-              onChange={(e) => setExpiry(e.target.value)}
+              onChange={setExpiry}
             />
           </div>
           <DialogFooter>

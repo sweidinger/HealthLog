@@ -95,6 +95,7 @@ function buildUser(disableCoach: boolean): AuthUser {
     glucoseUnit: null,
     unitPreference: "metric",
     timeFormat: "AUTO",
+    dateFormat: "AUTO",
     disableCoach,
     fullName: null,
     insurerName: null,
@@ -281,6 +282,11 @@ describe("Coach per-user disableCoach invariant", () => {
     // fixture above; each one calls `useDisableCoach()` and short-
     // circuits to `null` when the per-user flag is on.
     "src/components/insights/coach-launch-button.tsx",
+    // v1.21.0 (C4 H2) — the reverse-direction "Ask the Coach about this"
+    // card affordance mirrors the launch-button gate: operator master flag
+    // OR per-user opt-out short-circuits it to `null` so a card never paints
+    // a dead Coach control.
+    "src/components/insights/ask-coach-action.tsx",
     // v1.18.7 — hero-strip.tsx no longer gates on the Coach flag: its
     // action button + suggested-prompt strip were removed, so it dropped
     // the `useDisableCoach` call entirely.

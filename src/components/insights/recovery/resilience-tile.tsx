@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LearningGate } from "@/components/ui/learning-gate";
+import { LearnMoreLink } from "@/components/ui/learn-more-link";
 
 /**
  * v1.19.2 — calm readout for Oura's daily resilience level.
@@ -129,6 +130,7 @@ export function ResilienceTile() {
             {t(TREND_KEYS[trendKey])}
           </p>
         ) : null}
+        <LearnMoreLink concept="RESILIENCE" />
       </CardContent>
     </Card>
   );

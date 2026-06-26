@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { DateInput } from "@/components/ui/date-input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -27,6 +27,7 @@ import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { TimeFormatSelect } from "@/components/settings/time-format-select";
+import { DateFormatSelect } from "@/components/settings/date-format-select";
 import { UnitPreferenceSelect } from "@/components/settings/unit-preference-select";
 import { CycleTrackingCard } from "@/components/settings/cycle-tracking-card";
 import { detectBrowserTimezone } from "@/lib/tz/format";
@@ -372,10 +373,10 @@ export function AccountSection() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="dob">{t("settings.dateOfBirth")}</Label>
-              <DateInput
+              <DateField
                 id="dob"
                 value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
+                onChange={setDateOfBirth}
                 max={new Date().toISOString().slice(0, 10)}
               />
               <p className="text-muted-foreground text-xs">
@@ -416,6 +417,7 @@ export function AccountSection() {
             <TimezonePicker value={timezone} onChange={setTimezone} />
             <UnitPreferenceSelect isAuthenticated={isAuthenticated} />
             <TimeFormatSelect isAuthenticated={isAuthenticated} />
+            <DateFormatSelect isAuthenticated={isAuthenticated} />
           </div>
 
           {/* v1.7.0 — optional patient-identity fields surfaced on the

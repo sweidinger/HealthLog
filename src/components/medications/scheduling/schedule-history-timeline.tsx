@@ -59,7 +59,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DateInput } from "@/components/ui/date-input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { TimesOfDayChips } from "@/components/medications/scheduling/times-of-day-chips";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
@@ -545,22 +545,22 @@ function EraDialog({
               <Label htmlFor="zeitplan-history-from">
                 {t("medications.detail.zeitplan.history.fromLabel")}
               </Label>
-              <DateInput
+              <DateField
                 id="zeitplan-history-from"
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                data-slot="zeitplan-history-from"
+                onChange={setFromDate}
+                data-testid="zeitplan-history-from"
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="zeitplan-history-until">
                 {t("medications.detail.zeitplan.history.untilLabel")}
               </Label>
-              <DateInput
+              <DateField
                 id="zeitplan-history-until"
                 value={untilDate}
-                onChange={(e) => setUntilDate(e.target.value)}
-                data-slot="zeitplan-history-until"
+                onChange={setUntilDate}
+                data-testid="zeitplan-history-until"
               />
             </div>
           </div>

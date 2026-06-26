@@ -16,8 +16,10 @@ import {
   makeFormatters,
   type Formatters,
   type TimeFormatPreference,
+  type DateFormatPreference,
 } from "../format-locale";
 import { readStoredTimeFormat, subscribeTimeFormat } from "../time-format";
+import { readStoredDateFormat, subscribeDateFormat } from "../date-format";
 import { resolveKey } from "./resolve-key";
 import {
   fallbackMessages,
@@ -249,6 +251,21 @@ export function useTimeFormatPreference(): TimeFormatPreference {
 }
 
 /**
+ * The user's date-order preference (AUTO / DMY / MDY / YMD), reactive to
+ * changes. Backed by the same localStorage-mirror pattern as the hour-cycle
+ * preference — `useAuth`'s `/api/auth/me` fetch and the profile date-format
+ * select keep it in sync with the server value, no QueryClient required.
+ * SSR resolves AUTO.
+ */
+export function useDateFormatPreference(): DateFormatPreference {
+  return useSyncExternalStore(
+    subscribeDateFormat,
+    readStoredDateFormat,
+    () => "AUTO" as const,
+  );
+}
+
+/**
  * Locale-aware formatters tied to the active UI locale. Use for every number,
  * date, and time rendered in the UI so regional conventions (70,5 vs 70.5,
  * 19.02.2026 vs Feb 19, 2026) follow the user's language choice. Times honour
@@ -258,8 +275,9 @@ export function useTimeFormatPreference(): TimeFormatPreference {
 export function useFormatters(): Formatters {
   const { locale } = useTranslations();
   const timeFormat = useTimeFormatPreference();
+  const dateFormat = useDateFormatPreference();
   return useMemo(
-    () => makeFormatters(locale, undefined, timeFormat),
-    [locale, timeFormat],
+    () => makeFormatters(locale, undefined, timeFormat, dateFormat),
+    [locale, timeFormat, dateFormat],
   );
 }

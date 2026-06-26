@@ -652,4 +652,54 @@ describe("computeSummariesSlice", () => {
       );
     });
   });
+
+  /**
+   * A2-M2 — read-swap boundary-day consistency. The warm
+   * `computeFromRollups` path windows the regression on UTC-midnight
+   * (`startOfUtcDay(now − N days)` + `composeWindowedRegression`). The
+   * cold-fallback `windowed` query must anchor its REGR_* FILTERs on the
+   * SAME UTC-midnight boundary — `date_trunc('day', NOW() AT TIME ZONE
+   * 'UTC') − INTERVAL 'N days'` — so a warm→cold coverage transition
+   * returns identical boundary-day membership for slope7/30/90 instead of
+   * a cache-dependent answer to the same request.
+   */
+  describe("A2-M2 regression-window boundary alignment", () => {
+    it("anchors the cold-fallback slope FILTERs on the UTC-midnight day boundary, not the wall-clock instant", async () => {
+      const queries: string[] = [];
+      UNSAFE.mockImplementation((sql: string) => {
+        queries.push(sql);
+        return Promise.resolve([]);
+      });
+
+      // Empty coverage ⇒ cold-fallback path ⇒ the `windowed` query runs.
+      RAW.mockResolvedValueOnce([]);
+      await computeSummariesSlice("user-a2m2");
+
+      const windowedSql = queries.find(
+        (sql) => sql.includes("AS slope7") && sql.includes("REGR_SLOPE"),
+      );
+      expect(windowedSql).toBeDefined();
+      const sql = windowedSql as string;
+
+      // Every regression window (7/30/90 for slope + r²) anchors on the
+      // day-truncated UTC boundary. Six FILTERs total.
+      for (const days of ["7 days", "30 days", "90 days"]) {
+        expect(sql).toContain(
+          `(date_trunc('day', NOW() AT TIME ZONE 'UTC') - INTERVAL '${days}') AT TIME ZONE 'UTC'`,
+        );
+      }
+      const anchored = sql.match(
+        /date_trunc\('day', NOW\(\) AT TIME ZONE 'UTC'\) - INTERVAL '(?:7|30|90) days'\) AT TIME ZONE 'UTC'/g,
+      );
+      expect(anchored?.length).toBe(6);
+
+      // The regression windows must NOT fall back to the bare wall-clock
+      // `NOW() - INTERVAL 'N days'` bound the warm path never uses for the
+      // slope. Isolate the slope columns (everything from the first
+      // REGR_SLOPE onward) so the avg7/avg30 windows above — which DO stay
+      // wall-clock by design — don't trip the assertion.
+      const slopeBlock = sql.slice(sql.indexOf("REGR_SLOPE"));
+      expect(slopeBlock).not.toMatch(/WHERE m\."measured_at" >= NOW\(\) -/);
+    });
+  });
 });

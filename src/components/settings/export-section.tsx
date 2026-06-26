@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { DateInput } from "@/components/ui/date-input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { SettingsCard } from "@/components/settings/settings-card";
@@ -181,10 +181,10 @@ function DateRangeFields({
         <Label htmlFor={`${idPrefix}-since`} className="text-xs">
           {t("settings.sections.export.filters.since")}
         </Label>
-        <DateInput
+        <DateField
           id={`${idPrefix}-since`}
           value={since}
-          onChange={(e) => setSince(e.target.value)}
+          onChange={setSince}
           max={until || undefined}
         />
       </div>
@@ -192,10 +192,10 @@ function DateRangeFields({
         <Label htmlFor={`${idPrefix}-until`} className="text-xs">
           {t("settings.sections.export.filters.until")}
         </Label>
-        <DateInput
+        <DateField
           id={`${idPrefix}-until`}
           value={until}
-          onChange={(e) => setUntil(e.target.value)}
+          onChange={setUntil}
           min={since || undefined}
         />
       </div>

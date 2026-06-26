@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, ChevronDown, Minus, Moon } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { HealthScoreDeltaExplainer } from "./health-score-delta-explainer";
+import { AskCoachAction } from "./ask-coach-action";
 
 /**
  * v1.4.20 B5 — Personal Health Score panel.
@@ -616,6 +617,16 @@ export function HealthScoreCard({
         {/* v1.18.6 (DISC-01) — the "indicative, not a clinical assessment"
             card disclaimer is removed; the one-time onboarding acknowledgment
             now covers the not-a-diagnosis framing app-wide. */}
+
+        {/* v1.21.0 (C4 H2) — the score is a whole-picture composite, so the
+            hand-off opens the Coach against the default snapshot (no scope)
+            seeded with the actual number. Mounts at the foot of the card as
+            a single discreet entry, not a primary CTA. */}
+        <div className="mt-auto flex justify-end pt-1">
+          <AskCoachAction
+            question={`Why is my health score ${score} out of 100, and what would move it the most?`}
+          />
+        </div>
       </div>
     </div>
   );

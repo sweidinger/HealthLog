@@ -20,6 +20,7 @@
     "inactive": "Inactif",
     "disabled": "Désactivé",
     "networkError": "Erreur réseau",
+    "openDatePicker": "Ouvrir le sélecteur de date",
     "unknownError": "Erreur inconnue",
     "copied": "Copié !",
     "or": "ou",
@@ -33,7 +34,8 @@
     "retry": "Réessayer",
     "reportIssue": "Signaler un problème",
     "showPassword": "Afficher le mot de passe",
-    "hidePassword": "Masquer le mot de passe"
+    "hidePassword": "Masquer le mot de passe",
+    "learnMore": "En savoir plus"
   },
   "doctorReport": {
     "title": "Rapport de santé",
@@ -2221,7 +2223,7 @@
       "feedbackThanks": "Merci pour l’indication.",
       "feedbackError": "Impossible d'enregistrer le retour",
       "dailyLimitTitle": "Limite quotidienne atteinte",
-      "dailyLimitBody": "Limite quotidienne atteinte ; réinitialisation à 00:00 UTC.",
+      "dailyLimitBody": "Limite quotidienne atteinte. Le quota se réinitialise à minuit (UTC).",
       "providerRateLimitTitle": "Fournisseur limité en débit",
       "providerRateLimitBody": "Le fournisseur est temporairement saturé ; réinitialisation dans ~5 min.",
       "settingsContextLabel": "Envoyer le contexte",
@@ -2278,14 +2280,15 @@
       "dictateError": "Impossible de démarrer la saisie vocale. Vérifiez l'autorisation du microphone et réessayez.",
       "showConversations": "Afficher les conversations",
       "hideConversations": "Masquer les conversations",
-      "heroGreeting": "Comment puis-je t'aider ?",
+      "heroGreeting": "Pose-moi une question sur tes données",
       "heroSubline": "Pose une question sur tes tendances, médicaments ou mesures.",
       "thinkingElapsed": "{seconds}s",
       "thinkingDuration": "A réfléchi pendant {seconds}s",
       "thinkingExpandAria": "Montrer ce que le Coach a pris en compte",
       "thinkingDetail": "Réponse établie à partir de ton aperçu santé.",
       "tokensUsed": "{count} jetons",
-      "tokensUsedWithModel": "{count} jetons · {model}"
+      "tokensUsedWithModel": "{count} jetons · {model}",
+      "askAboutThis": "Interroger le coach à ce sujet"
     },
     "relativeJustNow": "à l’instant",
     "relativeMinutesAgoOne": "il y a {count} minute",
@@ -4119,6 +4122,16 @@
       "h12": "12 heures (AM/PM)",
       "saved": "Format horaire enregistré.",
       "saveError": "Échec de l’enregistrement du format horaire."
+    },
+    "dateFormat": {
+      "title": "Format de date",
+      "description": "Détermine l’ordre du jour, du mois et de l’année lors de l’affichage des dates.",
+      "auto": "Automatique (langue)",
+      "dmy": "JJ.MM.AAAA",
+      "mdy": "MM/JJ/AAAA",
+      "ymd": "AAAA-MM-JJ",
+      "saved": "Format de date enregistré.",
+      "saveError": "Échec de l’enregistrement du format de date."
     },
     "username": "Nom d'utilisateur",
     "height": "Taille (cm)",

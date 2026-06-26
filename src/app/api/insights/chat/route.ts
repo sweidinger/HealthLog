@@ -64,6 +64,7 @@ import {
   buildDateKey,
   reserveBudget,
   reconcileSpend,
+  resolveDailyCap,
 } from "@/lib/ai/coach/budget";
 import { detectRefusal } from "@/lib/ai/coach/refusal";
 import {
@@ -77,6 +78,7 @@ import {
   COACH_TOOL_DEFS,
   buildCoachDataInventory,
   renderDataInventory,
+  renderFocusHint,
   buildToolModeAddendum,
   runCoachToolLoop,
   MAX_ROUNDS,
@@ -84,6 +86,11 @@ import {
 } from "@/lib/ai/coach/tools";
 import type { AiMessage } from "@/lib/ai/types";
 import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
+import {
+  findUnverifiedCoachNumbers,
+  stripUnverifiedNumbers,
+} from "@/lib/ai/coach/coach-prose-grounding";
+import { scrubUnknownLearnLinks } from "@/lib/ai/coach/learn-link-guard";
 import { parseSuggestReminder } from "@/lib/ai/coach/suggest-reminder";
 import { gateSuggestion } from "@/lib/ai/coach/suggest-gate";
 import {
@@ -499,6 +506,12 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // so reserve the per-call ceiling × the round count up front and reconcile
   // the SUMMED actual tokens afterwards. The atomic reserve/reconcile
   // primitives are unchanged; only the reserved amount scales.
+  // v1.21.0 (F1) — the daily ceiling is the OPERATOR's cost cap only when the
+  // chain egresses via the operator's own key (`admin-openai` primary). A
+  // ChatGPT-OAuth/Codex or BYOK chain runs on the user's OWN plan/key and costs
+  // the operator nothing, so it gets the generous user-plan ceiling — gating it
+  // on the operator-cost cap would lock the user out of a plan they pay for.
+  const dailyCap = resolveDailyCap(chain);
   const reqDateKey = buildDateKey();
   const reservation = await reserveBudget(
     userId,
@@ -506,6 +519,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       ? AI_BUDGETS.coach.maxTokens * MAX_ROUNDS
       : AI_BUDGETS.coach.maxTokens,
     reqDateKey,
+    dailyCap,
   );
   if (!reservation.allowed) {
     annotate({
@@ -518,7 +532,13 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   let result: CompletionResult;
   let workingProviderType: string;
   let toolTrace: CoachToolTrace[] = [];
+  // v1.21.0 (P6) — the present tool-result payloads this turn, for the post-hoc
+  // prose number-verifier. Empty on the no-tools path.
+  let toolResultPayloads: unknown[] = [];
   let totalTokensSpent: number;
+  // v1.21.0 (F3) — cached-input tokens to subtract at reconcile (prompt-cached
+  // input the user did not re-pay for must not be billed to the daily meter).
+  let cachedTokensSpent = 0;
   try {
     if (toolMode) {
       // v1.20.0 (F1) — base context: the full system prompt + a tool-mode
@@ -529,10 +549,17 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       // that fire this turn share its reads.
       const inventory = await buildCoachDataInventory(userId, effectiveScope);
       const toolSystem = `${systemPrompt}\n\n${buildToolModeAddendum(locale)}`;
+      // v1.21.0 (D1) — when the Coach was opened from a metric page/card, thread
+      // the launch sources into a one-line FOCUS hint so tool mode honours the
+      // metric the user is looking at (the no-tools path already narrows the
+      // snapshot; the inventory probes the full set, so this is the tool-mode
+      // equivalent of that narrowing). Empty string on a generic open.
+      const focusHint = renderFocusHint(effectiveScope?.sources);
+      const focusBlock = focusHint ? `${focusHint}\n\n` : "";
       const messages: AiMessage[] = [
         {
           role: "user",
-          content: `${renderDataInventory(inventory)}${guidedBlock}
+          content: `${focusBlock}${renderDataInventory(inventory)}${guidedBlock}
 
 CONVERSATION
 ${transcript}
@@ -549,6 +576,11 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
         temperature: AI_BUDGETS.coach.temperature,
         maxTokens: AI_BUDGETS.coach.maxTokens,
         fallbackWindow: effectiveScope?.window,
+        // v1.21.0 (D5-1) — share the inventory's full-source snapshot across
+        // every tool so the turn builds ONE snapshot, not one per tool. The
+        // probe scope is the exact scope the inventory was built against, so the
+        // per-tool reads land its 60s LRU entry.
+        sharedScope: inventory.probeScope,
         // v1.20.1 — thread the abort signal so a mid-generation disconnect tears
         // down the per-round provider calls instead of paying the full cost.
         signal: request.signal,
@@ -556,7 +588,9 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
       result = loop.result;
       workingProviderType = loop.workingProviderType;
       toolTrace = loop.toolTrace;
+      toolResultPayloads = (loop.toolResults ?? []).map((r) => r.data);
       totalTokensSpent = loop.totalTokens;
+      cachedTokensSpent = loop.cachedTokens;
     } else {
       const fallback = await runRawCompletionWithFallback({
         userId,
@@ -579,6 +613,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
       result = fallback.result;
       workingProviderType = fallback.workingProvider.providerType;
       totalTokensSpent = result.tokensUsed ?? 0;
+      cachedTokensSpent = result.cachedInputTokens ?? 0;
     }
   } catch (err) {
     // The provider chain failed outright — no tokens were billed, so refund
@@ -635,6 +670,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
     reservation.reserved,
     totalTokensSpent,
     reqDateKey,
+    cachedTokensSpent,
   ).catch(() => {
     // Ledger reconcile is best-effort; a failure leaves the conservative
     // reservation in place (never an undercount) and never breaks the turn.
@@ -699,6 +735,60 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
         reason: outbound.reason,
       },
     });
+  }
+
+  // v1.21.0 (P6 / C2-5) — post-hoc numeric verifier on the Coach prose. On the
+  // tool path, cross-check every number the model cited against the figures the
+  // tools actually returned this turn; an unmatched number (transcription /
+  // paraphrase drift) is soft-stripped to "[unverified]" and annotated. Cheap,
+  // non-blocking, and a no-op when no tool returned figures (a qualitative turn
+  // or the no-tools path) — the prompt-level grounding rule remains the
+  // backstop there, exactly like the briefing's "no signals → skip". A blocked
+  // turn already carries canned fallback prose, so skip it.
+  if (!outbound.block && toolResultPayloads.length > 0) {
+    const unverified = findUnverifiedCoachNumbers(
+      replyText,
+      toolResultPayloads,
+    );
+    if (unverified.length > 0) {
+      const { prose: corrected, stripped } = stripUnverifiedNumbers(
+        replyText,
+        unverified,
+      );
+      replyText = corrected;
+      annotate({
+        action: { name: "coach.prose.number_unverified" },
+        meta: {
+          flagged: unverified.length,
+          stripped,
+          // No raw values — just the count + truncated tokens for ops triage.
+          tokens: unverified.slice(0, 6).map((u) => u.source),
+          promptVersion: PROMPT_VERSION,
+        },
+      });
+    }
+  }
+
+  // v1.21.0 (NEW-C C-3) — Learn-link post-filter. The prompt instructs the
+  // model to only link a published `/learn/<slug>`, but that is guidance, not
+  // enforcement: a fabricated `/learn/<invented-slug>` would otherwise ship as
+  // a dead link. Scrub any reference whose slug is not in the catalog (a real
+  // one is kept verbatim). A blocked turn carries canned fallback prose with no
+  // links, so skip it.
+  if (!outbound.block && replyText.includes("/learn/")) {
+    const scrubbed = scrubUnknownLearnLinks(replyText);
+    if (scrubbed.dropped.length > 0) {
+      replyText = scrubbed.text;
+      annotate({
+        action: { name: "coach.learn.link_dropped" },
+        meta: {
+          dropped: scrubbed.dropped.length,
+          // Truncated slug tokens for ops triage — no user content.
+          slugs: scrubbed.dropped.slice(0, 6),
+          promptVersion: PROMPT_VERSION,
+        },
+      });
+    }
   }
 
   let surfacedSuggestion: CoachSuggestion | null = null;

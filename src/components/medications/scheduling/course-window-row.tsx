@@ -25,7 +25,7 @@
 
 import { useCallback, useId, useMemo } from "react";
 
-import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
@@ -135,15 +135,15 @@ export function CourseWindowRow({
           <Label htmlFor={startId} className="text-sm">
             {t(`${i18nPrefix}.startsOn.label`)}
           </Label>
-          <Input
+          <DateField
             id={startId}
-            type="date"
             value={startsIso}
             disabled={disabled}
-            onChange={(e) => onStartsChange(e.target.value)}
-            className="h-11 w-full"
+            onChange={onStartsChange}
+            className="w-full"
             aria-label={t(`${i18nPrefix}.startsOn.label`)}
             data-slot="course-window-starts"
+            data-testid="course-window-starts-field"
           />
         </div>
 
@@ -152,17 +152,16 @@ export function CourseWindowRow({
           <Label htmlFor={endId} className="text-sm">
             {t(`${i18nPrefix}.endsOn.label`)}
           </Label>
-          <Input
+          <DateField
             id={endId}
-            type="date"
             value={endsIso}
             disabled={disabled || noEndDate || lockEndsToStart}
-            readOnly={lockEndsToStart}
-            onChange={(e) => onEndsChange(e.target.value)}
-            className="h-11 w-full"
+            onChange={onEndsChange}
+            className="w-full"
             aria-label={t(`${i18nPrefix}.endsOn.label`)}
             aria-invalid={!valid || undefined}
             data-slot="course-window-ends"
+            data-testid="course-window-ends-field"
           />
           {lockEndsToStart && (
             <p

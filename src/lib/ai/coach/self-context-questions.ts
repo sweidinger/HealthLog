@@ -26,7 +26,7 @@ import { singleUserTurn } from "@/lib/ai/types";
 import {
   buildDateKey,
   getDailyTokenSpend,
-  MAX_TOKENS_PER_USER_PER_DAY,
+  OPERATOR_COST_CAP,
   recordSpend,
 } from "@/lib/ai/coach/budget";
 import {
@@ -137,7 +137,7 @@ export async function deriveClarifyingQuestions(
     // Budget gate — same per-day ledger the Coach chat enforces.
     const dateKey = buildDateKey();
     const spent = await getDailyTokenSpend(userId, dateKey);
-    if (spent >= MAX_TOKENS_PER_USER_PER_DAY) return fallback();
+    if (spent >= OPERATOR_COST_CAP) return fallback();
 
     const provider = await resolveProvider(userId);
     // v1.16.6 — same snapshot the Coach chat rides; lets the model

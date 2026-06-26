@@ -49,6 +49,7 @@ function buildUser(unitPreference: "metric" | "imperial"): AuthUser {
     glucoseUnit: null,
     unitPreference,
     timeFormat: "AUTO",
+    dateFormat: "AUTO",
     disableCoach: false,
     fullName: null,
     insurerName: null,

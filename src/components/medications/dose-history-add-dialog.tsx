@@ -32,7 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
@@ -227,12 +227,11 @@ export function LedgerAddDialog({
               <Label htmlFor="ledger-add-taken-at">
                 {t("medications.detail.verlauf.addDialog.takenAtLabel")}
               </Label>
-              <Input
+              <DateTimeField
                 id="ledger-add-taken-at"
-                type="datetime-local"
                 value={takenAt}
                 max={toDateTimeLocal(new Date())}
-                onChange={(e) => setTakenAt(e.target.value)}
+                onChange={(value) => setTakenAt(value)}
                 disabled={skipped}
               />
             </div>

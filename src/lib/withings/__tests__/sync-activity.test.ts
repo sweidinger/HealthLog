@@ -7,18 +7,30 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
-    measurement: {
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
+vi.mock("@/lib/db", () => {
+  // v1.20.2 F3 — the write path batches: one `findMany` resolves the
+  // overwrite-vs-insert decision for the whole sync, `createMany` lands
+  // every fresh slot, and changed-value overwrites run inside a
+  // `$transaction([...update])`. The mock `$transaction` awaits the array
+  // of update promises so the per-row `update` mocks still fire and the
+  // call counts assert the batched shape.
+  const measurement = {
+    findMany: vi.fn(),
+    createMany: vi.fn(),
+    update: vi.fn(),
+  };
+  return {
+    prisma: {
+      measurement,
+      withingsConnection: {
+        findUnique: vi.fn(),
+      },
+      $transaction: vi.fn((ops: unknown) =>
+        Array.isArray(ops) ? Promise.all(ops) : Promise.resolve(),
+      ),
     },
-    withingsConnection: {
-      findUnique: vi.fn(),
-    },
-  },
-}));
+  };
+});
 
 vi.mock("@/lib/integrations/status", () => ({
   isReauthRequired: vi.fn().mockResolvedValue(false),
@@ -155,22 +167,35 @@ describe("fetchWithingsActivity", () => {
   });
 });
 
+/**
+ * v1.20.2 F3 — helper: pull the flat `data[]` the batched `createMany`
+ * received (the writer always passes a single call with every fresh
+ * slot). Returns `[]` when `createMany` never fired.
+ */
+function createManyRows(): Array<Record<string, unknown>> {
+  const calls = vi.mocked(prisma.measurement.createMany).mock.calls;
+  if (calls.length === 0) return [];
+  return (calls[0][0] as { data: Array<Record<string, unknown>> }).data;
+}
+
 describe("syncUserActivity — field mapping + idempotency", () => {
   it("writes one row per (date, metric) the first time a day shows up", async () => {
     installFetchMock([
       { date: "2026-05-12", steps: 8420, distance: 6720, calories: 412 },
     ]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    // No existing slot rows → every planned row is an insert.
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 3,
+    } as never);
 
     const imported = await syncUserActivity("user-1");
 
     expect(imported).toBe(3);
-    expect(prisma.measurement.create).toHaveBeenCalledTimes(3);
+    // v1.20.2 F3 — one batched insert carrying all three metric rows.
+    expect(prisma.measurement.createMany).toHaveBeenCalledTimes(1);
 
-    const types = vi
-      .mocked(prisma.measurement.create)
-      .mock.calls.map((c) => (c[0].data as { type: string }).type);
+    const types = createManyRows().map((r) => r.type as string);
     expect(types.sort()).toEqual([
       "ACTIVE_ENERGY_BURNED",
       "ACTIVITY_STEPS",
@@ -178,33 +203,67 @@ describe("syncUserActivity — field mapping + idempotency", () => {
     ]);
   });
 
-  it("updates instead of inserting when the same (date, metric) already exists", async () => {
+  it("updates instead of inserting when the same (date, metric) already exists with a different value", async () => {
     installFetchMock([
       { date: "2026-05-12", steps: 9001, distance: 7000, calories: 450 },
     ]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue({
-      id: "row-existing",
-    } as never);
+    const measuredAt = new Date("2026-05-12T12:00:00.000Z");
+    // Each slot already holds a row with a DIFFERENT value → all three
+    // overwrite (the value moved). Keyed by the same four columns the
+    // batched read matches on.
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "row-steps", type: "ACTIVITY_STEPS", measuredAt, value: 1 },
+      {
+        id: "row-distance",
+        type: "WALKING_RUNNING_DISTANCE",
+        measuredAt,
+        value: 1,
+      },
+      {
+        id: "row-calories",
+        type: "ACTIVE_ENERGY_BURNED",
+        measuredAt,
+        value: 1,
+      },
+    ] as never);
     vi.mocked(prisma.measurement.update).mockResolvedValue({} as never);
 
     const imported = await syncUserActivity("user-1");
 
     expect(imported).toBe(3);
-    expect(prisma.measurement.create).not.toHaveBeenCalled();
+    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
+    // One batched `$transaction` carrying three per-row updates.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.measurement.update).toHaveBeenCalledTimes(3);
+  });
+
+  it("skips the write entirely when an existing slot already holds the same value (idempotent re-sync)", async () => {
+    installFetchMock([{ date: "2026-05-12", steps: 8420 }]);
+    const measuredAt = new Date("2026-05-12T12:00:00.000Z");
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "row-steps", type: "ACTIVITY_STEPS", measuredAt, value: 8420 },
+    ] as never);
+
+    const imported = await syncUserActivity("user-1");
+
+    // The slot is still "touched" (rollup re-fold + imported count), but
+    // no value moved so neither the insert nor the update path runs.
+    expect(imported).toBe(1);
+    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
+    expect(prisma.measurement.update).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("anchors measuredAt at noon UTC so the instant lands inside the local day for every supported tz", async () => {
     installFetchMock([{ date: "2026-05-12", steps: 1000 }]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 1,
+    } as never);
 
     await syncUserActivity("user-1");
 
-    const createArg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
-      data: { measuredAt: Date };
-    };
-    const measuredAt = createArg.data.measuredAt;
+    const measuredAt = createManyRows()[0].measuredAt as Date;
     expect(measuredAt.toISOString()).toBe("2026-05-12T12:00:00.000Z");
 
     // Regression: anchoring at noon UTC keeps the row inside the
@@ -233,15 +292,15 @@ describe("syncUserActivity — field mapping + idempotency", () => {
     // `distance` absent — Withings drops the field rather than emitting 0
     // when there's no GPS. Steps + calories still write.
     installFetchMock([{ date: "2026-05-12", steps: 8000, calories: 380 }]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 2,
+    } as never);
 
     const imported = await syncUserActivity("user-1");
 
     expect(imported).toBe(2);
-    const types = vi
-      .mocked(prisma.measurement.create)
-      .mock.calls.map((c) => (c[0].data as { type: string }).type);
+    const types = createManyRows().map((r) => r.type as string);
     expect(types).not.toContain("WALKING_RUNNING_DISTANCE");
   });
 
@@ -252,8 +311,10 @@ describe("syncUserActivity — field mapping + idempotency", () => {
     installFetchMock([
       { date: "2026-05-12", steps: 0, distance: 0, calories: 0 },
     ]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 3,
+    } as never);
 
     const imported = await syncUserActivity("user-1");
     expect(imported).toBe(3);
@@ -261,8 +322,10 @@ describe("syncUserActivity — field mapping + idempotency", () => {
 
   it("calls recordSyncSuccess after a clean round-trip", async () => {
     installFetchMock([{ date: "2026-05-12", steps: 1000 }]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 1,
+    } as never);
 
     await syncUserActivity("user-1");
     expect(recordSyncSuccess).toHaveBeenCalledWith("user-1", "withings");
@@ -270,17 +333,51 @@ describe("syncUserActivity — field mapping + idempotency", () => {
 
   it("tags every row with the canonical externalId so future replays dedup", async () => {
     installFetchMock([{ date: "2026-05-12", steps: 8420 }]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 1,
+    } as never);
 
     await syncUserActivity("user-1");
 
-    const createArg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
-      data: { externalId: string };
-    };
-    expect(createArg.data.externalId).toBe(
+    expect(createManyRows()[0].externalId).toBe(
       "withings:activity:user-1:2026-05-12:steps",
     );
+  });
+
+  it("batches a multi-day backfill into one read and one insert (F3)", async () => {
+    // 5 days × 3 metrics = 15 planned rows. The pre-v1.20.2 shape ran
+    // 15 findFirst + 15 create = 30 round-trips; the batched path is one
+    // findMany + one createMany regardless of the day count.
+    installFetchMock(
+      Array.from({ length: 5 }, (_, i) => ({
+        date: `2026-05-1${i}`,
+        steps: 1000 + i,
+        distance: 2000 + i,
+        calories: 300 + i,
+      })),
+    );
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 15,
+    } as never);
+
+    const imported = await syncUserActivity("user-1");
+
+    expect(imported).toBe(15);
+    expect(prisma.measurement.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.measurement.createMany).toHaveBeenCalledTimes(1);
+    expect(createManyRows()).toHaveLength(15);
+    // The single read is keyed by the full distinct (type, measuredAt)
+    // sets the batch will write — `skipDuplicates` guards the insert.
+    const readArg = vi.mocked(prisma.measurement.findMany).mock.calls[0][0] as {
+      where: { type: { in: unknown[] }; measuredAt: { in: unknown[] } };
+    };
+    expect(readArg.where.type.in).toHaveLength(3);
+    expect(readArg.where.measuredAt.in).toHaveLength(5);
+    const createArg = vi.mocked(prisma.measurement.createMany).mock
+      .calls[0][0] as { skipDuplicates: boolean };
+    expect(createArg.skipDuplicates).toBe(true);
   });
 });
 
@@ -300,7 +397,7 @@ describe("syncUserActivity — scope-skip guard (v1.4.26)", () => {
 
     expect(imported).toBe(0);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(prisma.measurement.create).not.toHaveBeenCalled();
+    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
     expect(recordSyncSuccess).not.toHaveBeenCalled();
   });
 
@@ -391,8 +488,10 @@ describe("syncUserActivity — measurement rollup hook (v1.4.39.1)", () => {
       { date: "2026-05-12", steps: 8420, distance: 6720, calories: 412 },
       { date: "2026-05-13", steps: 9100, distance: 7100, calories: 430 },
     ]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 0,
+    } as never);
 
     await syncUserActivity("user-1");
 
@@ -418,8 +517,10 @@ describe("syncUserActivity — measurement rollup hook (v1.4.39.1)", () => {
     installFetchMock([
       { date: "2026-05-12", steps: 8420, distance: 6720, calories: 412 },
     ]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 0,
+    } as never);
 
     await syncUserActivity("user-1");
 
@@ -431,8 +532,10 @@ describe("syncUserActivity — measurement rollup hook (v1.4.39.1)", () => {
     // hiccup must never fail the user's sync. The sync's `imported`
     // return value should still reflect the rows written.
     installFetchMock([{ date: "2026-05-12", steps: 8420 }]);
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({
+      count: 0,
+    } as never);
     vi.mocked(recomputeBucketsForMeasurement).mockRejectedValueOnce(
       new Error("simulated rollup failure"),
     );

@@ -25,6 +25,7 @@ import type {
   PeriodNarrativeContext,
   PeriodNarrativeResult,
 } from "@/lib/insights/narrative/period-narrative";
+import { toneContract } from "@/lib/ai/prompts/shared-contracts";
 
 function readyContext(
   over: Partial<PeriodNarrativeContext> = {},
@@ -170,6 +171,9 @@ describe("generatePeriodNarrative — descriptive generation", () => {
     });
     expect(systemPrompt).toMatch(/never CAUSAL|DESCRIPTIVE/);
     expect(systemPrompt).toMatch(/no markdown/i);
+    // v1.21.0 (coach C1 MEDIUM-1) — the retrospective now carries the shared
+    // warm tone contract verbatim, matching the briefing's house voice.
+    expect(systemPrompt).toContain(toneContract.en);
   });
 });
 

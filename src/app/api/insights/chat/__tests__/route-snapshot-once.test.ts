@@ -100,6 +100,7 @@ vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(() => "2026-06-21"),
   reserveBudget: vi.fn(async () => ({ allowed: true, reserved: 1500 })),
   reconcileSpend: vi.fn(async () => undefined),
+  resolveDailyCap: vi.fn(() => 2_000_000),
 }));
 vi.mock("@/lib/ai/coach/refusal", () => ({
   detectRefusal: vi.fn(() => ({ refuse: false })),

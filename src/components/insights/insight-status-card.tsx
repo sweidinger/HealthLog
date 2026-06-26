@@ -11,6 +11,8 @@ import { formatRelativeTime } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { cn } from "@/lib/utils";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
+import { AskCoachAction } from "@/components/insights/ask-coach-action";
+import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -56,6 +58,15 @@ interface InsightStatusCardProps {
    * card is being assembled, not stuck. The client polls until text lands.
    */
   preparing?: boolean;
+  /**
+   * v1.21.0 (C4 H2) — opt-in "Ask the Coach about this assessment" hand-off.
+   * When `coachQuestion` is set (the metric-aware caller supplies it), the
+   * populated card renders a discreet Coach action seeded with that opener
+   * and narrowed to `coachScope` when known. Callers that omit it keep the
+   * card exactly as before — additive.
+   */
+  coachQuestion?: string;
+  coachScope?: CoachLaunchScope;
 }
 
 // ─── Main Component ───────────────────────────────────────
@@ -68,6 +79,8 @@ export function InsightStatusCard({
   updatedAt,
   loading = false,
   preparing = false,
+  coachQuestion,
+  coachScope,
 }: InsightStatusCardProps) {
   const { t } = useTranslations();
   const flags = useFeatureFlags();
@@ -228,6 +241,14 @@ export function InsightStatusCard({
             they roll forward. */}
         <StatusBody text={stripChartTokens(text)} />
         <LastUpdatedFooter updatedAt={updatedAt} />
+        {/* v1.21.0 (C4 H2) — discreet hand-off so the user can take the
+            assessment into a scoped Coach conversation. Only when the
+            caller supplied an opener. */}
+        {coachQuestion ? (
+          <div className="flex justify-end">
+            <AskCoachAction question={coachQuestion} scope={coachScope} />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

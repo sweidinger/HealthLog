@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.20.2
+  version: 1.21.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -8184,6 +8184,15 @@ components:
             - AUTO
             - H12
             - H24
+        dateFormat:
+          description: Date-order display preference. AUTO follows the locale convention, DMY pins day-month-year (dd.MM.yyyy),
+            MDY pins month-day-year (MM/dd/yyyy), YMD pins ISO yyyy-MM-dd.
+          type: string
+          enum:
+            - AUTO
+            - DMY
+            - MDY
+            - YMD
         moodReminderEnabled:
           type: boolean
         fullName:
@@ -15784,6 +15793,15 @@ components:
             - H12
             - H24
           description: Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.
+        dateFormat:
+          type: string
+          enum:
+            - AUTO
+            - DMY
+            - MDY
+            - YMD
+          description: Date-order display preference. AUTO follows the locale convention, DMY pins day-month-year (dd.MM.yyyy),
+            MDY pins month-day-year (MM/dd/yyyy), YMD pins ISO yyyy-MM-dd.
         moodReminderEnabled:
           type: boolean
         fullName:
@@ -15815,6 +15833,7 @@ components:
         - locale
         - timezone
         - timeFormat
+        - dateFormat
         - moodReminderEnabled
         - fullName
         - insurerName
@@ -15885,6 +15904,15 @@ components:
             - H12
             - H24
           description: Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.
+        dateFormat:
+          type: string
+          enum:
+            - AUTO
+            - DMY
+            - MDY
+            - YMD
+          description: Date-order display preference. AUTO follows the locale convention, DMY pins day-month-year (dd.MM.yyyy),
+            MDY pins month-day-year (MM/dd/yyyy), YMD pins ISO yyyy-MM-dd.
         moodReminderEnabled:
           type: boolean
         fullName:
@@ -15912,6 +15940,7 @@ components:
         - locale
         - timezone
         - timeFormat
+        - dateFormat
         - moodReminderEnabled
         - fullName
         - insurerName

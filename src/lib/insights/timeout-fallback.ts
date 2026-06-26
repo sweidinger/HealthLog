@@ -67,6 +67,14 @@ export async function persistTimeoutNegativeStub(args: {
  * signal "no persisted assessment". When `userId` + `todayKey` are present
  * (the worker-side generation path) a short-TTL negative stub is persisted
  * so a stalled provider doesn't trigger a re-enqueue storm.
+ *
+ * v1.21.0 (coach C1 HIGH-1) — the envelope now reports `hasProvider:false`.
+ * The `stubText` is a DETERMINISTIC (signal-grounded or generic) line, not a
+ * fresh provider assessment; reporting `hasProvider:true` let the UI render
+ * it in the primary assessment slot indistinguishable from real AI prose on
+ * any slow/errored call. `false` lets the UI surface it honestly as the
+ * computed/offline summary it is. This is independent of whether the user
+ * has a provider configured at all — it describes THIS text's authorship.
  */
 export function returnTimeoutFallback(input: {
   cacheAction: string;
@@ -75,7 +83,7 @@ export function returnTimeoutFallback(input: {
   userId?: string;
   todayKey?: string;
 }): {
-  hasProvider: true;
+  hasProvider: false;
   text: string;
   cached: true;
   updatedAt: null;
@@ -94,7 +102,7 @@ export function returnTimeoutFallback(input: {
     });
   }
   return {
-    hasProvider: true,
+    hasProvider: false,
     text: input.stubText,
     cached: true,
     updatedAt: null,

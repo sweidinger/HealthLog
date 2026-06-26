@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DateTimeInput } from "@/components/ui/date-input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -454,11 +454,11 @@ export function MedicationIntakeQuickAdd({
         <Label htmlFor="medication-intake-taken-at">
           {t("dashboard.medicationIntakeQuickAdd.timeLabel")}
         </Label>
-        <DateTimeInput
+        <DateTimeField
           id="medication-intake-taken-at"
           data-testid="medication-intake-quick-add-taken-at"
           value={takenAt}
-          onChange={(e) => setTakenAt(e.target.value)}
+          onChange={setTakenAt}
           required
           aria-required="true"
           aria-invalid={!!error || undefined}

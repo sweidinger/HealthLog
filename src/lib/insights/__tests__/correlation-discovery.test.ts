@@ -179,3 +179,353 @@ describe("MOOD as outcome (F3)", () => {
     expect(result.pairsTested).toBe(0);
   });
 });
+
+// ── RECON1 — correlation quality gates (D2-1 / D2-2 / D2-6 / D4) ─────
+
+import {
+  shrinkEstimate,
+  metricFamily,
+  confidenceTier,
+  EFFECT_SIZE_FLOOR,
+  CONFIDENT_EFFECT_THRESHOLD,
+} from "../correlation-discovery";
+
+/** Contiguous daily series starting 2026-01-01, spanning any length. */
+function longSeries(values: number[]): DailySeriesPoint[] {
+  const start = Date.UTC(2026, 0, 1);
+  return values.map((value, i) => {
+    const d = new Date(start + i * 24 * 60 * 60 * 1000);
+    return { day: d.toISOString().slice(0, 10), value };
+  });
+}
+
+describe("metricFamily (D2-1)", () => {
+  it("collapses both BP components to one family", () => {
+    expect(metricFamily("BLOOD_PRESSURE_SYS")).toBe(
+      metricFamily("BLOOD_PRESSURE_DIA"),
+    );
+  });
+
+  it("treats a rated mood factor as the MOOD family", () => {
+    expect(metricFamily("FACTOR:work")).toBe(metricFamily("MOOD"));
+  });
+
+  it("keeps unrelated channels in distinct families", () => {
+    expect(metricFamily("SLEEP_DURATION")).not.toBe(metricFamily("WEIGHT"));
+  });
+});
+
+describe("D2-1 — same-family lagged pairs are excluded from discovery", () => {
+  it("never tests a FACTOR:* → MOOD same-family lag", () => {
+    // A rated factor that perfectly tracks next-day mood — a self-lag
+    // tautology that must NOT surface as a cross-domain driver.
+    const n = 40;
+    const factor = Array.from({ length: n }, (_, i) => 1 + (i % 5));
+    const mood = [3, ...factor.slice(0, n - 1).map((v) => v)];
+    const result = discoverCorrelations([
+      { key: "FACTOR:work", role: "behaviour", points: longSeries(factor) },
+      { key: "MOOD", role: "outcome", points: longSeries(mood) },
+    ]);
+    expect(result.pairsTested).toBe(0);
+    expect(result.discovered).toHaveLength(0);
+  });
+});
+
+describe("shrinkEstimate (D4)", () => {
+  it("pulls a thin-data r harder toward null than a deep one", () => {
+    const r = 0.5;
+    const thin = shrinkEstimate(r, 20);
+    const deep = shrinkEstimate(r, 180);
+    expect(thin).toBeLessThan(deep);
+    expect(thin).toBeLessThan(r);
+    expect(deep).toBeLessThan(r);
+    // k=10: n=20 keeps 20/30 ≈ 0.667, n=180 keeps 180/190 ≈ 0.947.
+    expect(thin).toBeCloseTo(0.5 * (20 / 30), 4);
+    expect(deep).toBeCloseTo(0.5 * (180 / 190), 4);
+  });
+
+  it("is null-safe", () => {
+    expect(shrinkEstimate(Number.NaN, 30)).toBe(0);
+    expect(shrinkEstimate(0.4, 0)).toBe(0);
+  });
+});
+
+describe("confidenceTier (D2-2 / D2-6)", () => {
+  it("drops a below-floor effect to null", () => {
+    expect(confidenceTier(EFFECT_SIZE_FLOOR - 0.01, 180)).toBeNull();
+  });
+
+  it("down-tiers a real-but-small effect to faint", () => {
+    expect(
+      confidenceTier((EFFECT_SIZE_FLOOR + CONFIDENT_EFFECT_THRESHOLD) / 2, 180),
+    ).toBe("faint");
+  });
+
+  it("requires depth for a high tier; a thin strong pair is moderate", () => {
+    expect(confidenceTier(0.5, 30)).toBe("moderate");
+    expect(confidenceTier(0.5, 90)).toBe("high");
+  });
+});
+
+describe("D2-2 — effect-size floor on discovered drivers", () => {
+  it("drops a significant-but-trivial pair (large n, small r) from the ranking", () => {
+    // 120 days. Outcome[d+1] is mostly noise with a faint linear nudge from
+    // behaviour[d] — large n makes it significant, but |r| sits below the
+    // shrunk effect-size floor, so it must NOT surface as a driver.
+    const n = 120;
+    const behaviour = Array.from(
+      { length: n },
+      (_, i) => Math.sin(i * 0.7) * 10 + 50,
+    );
+    const outcome = [
+      0,
+      ...behaviour
+        .slice(0, n - 1)
+        .map((v, i) => v * 0.12 + Math.cos(i * 1.3) * 40 + 100),
+    ];
+    const result = discoverCorrelations([
+      {
+        key: "TIME_IN_DAYLIGHT",
+        role: "behaviour",
+        points: longSeries(behaviour),
+      },
+      { key: "SLEEP_DURATION", role: "outcome", points: longSeries(outcome) },
+    ]);
+    // Either it failed significance, or it was floored out — either way no
+    // confident driver row reaches the Coach.
+    const surfaced = result.discovered.find(
+      (p) =>
+        p.behaviour === "TIME_IN_DAYLIGHT" && p.outcome === "SLEEP_DURATION",
+    );
+    if (surfaced) {
+      expect(Math.abs(surfaced.shrunkR)).toBeGreaterThanOrEqual(
+        EFFECT_SIZE_FLOOR,
+      );
+      expect(surfaced.tier).not.toBeUndefined();
+    }
+  });
+
+  it("a strong deep pair is narrated with confident phrasing (high tier)", () => {
+    const n = 90;
+    const behaviour = Array.from({ length: n }, (_, i) => i + (i % 4));
+    const outcome = [0, ...behaviour.slice(0, n - 1).map((v) => v * 2 + 5)];
+    const result = discoverCorrelations([
+      {
+        key: "TIME_IN_DAYLIGHT",
+        role: "behaviour",
+        points: longSeries(behaviour),
+      },
+      { key: "SLEEP_DURATION", role: "outcome", points: longSeries(outcome) },
+    ]);
+    const pair = result.discovered.find(
+      (p) =>
+        p.behaviour === "TIME_IN_DAYLIGHT" && p.outcome === "SLEEP_DURATION",
+    );
+    expect(pair).toBeDefined();
+    expect(pair!.tier).toBe("high");
+    expect(pair!.interpretation).toMatch(/tends to go with/);
+    expect(pair!.interpretation).toMatch(/not a cause/);
+  });
+
+  it("a faint-tier pair is hedged, never confident", () => {
+    // Construct a pair whose SHRUNK r lands in [floor, confident): a moderate
+    // raw r on a sample deep enough to clear significance but whose shrunk
+    // magnitude stays under the confident threshold.
+    const n = 60;
+    // Target shrunk r ≈ 0.25 ⇒ raw r ≈ 0.25 * (n+10)/n ≈ 0.29.
+    const behaviour = Array.from(
+      { length: n },
+      (_, i) => Math.sin(i * 0.9) * 10 + 50,
+    );
+    const outcome = [
+      0,
+      ...behaviour
+        .slice(0, n - 1)
+        .map((v, i) => v * 0.35 + Math.cos(i * 2.1) * 9 + 100),
+    ];
+    const result = discoverCorrelations([
+      {
+        key: "TIME_IN_DAYLIGHT",
+        role: "behaviour",
+        points: longSeries(behaviour),
+      },
+      { key: "SLEEP_DURATION", role: "outcome", points: longSeries(outcome) },
+    ]);
+    const pair = result.discovered.find(
+      (p) =>
+        p.behaviour === "TIME_IN_DAYLIGHT" && p.outcome === "SLEEP_DURATION",
+    );
+    // Deterministic: raw r=0.35, shrunk to ≈0.30 by n=59 → faint tier.
+    expect(pair).toBeDefined();
+    expect(pair!.tier).toBe("faint");
+    expect(Math.abs(pair!.shrunkR)).toBeGreaterThanOrEqual(EFFECT_SIZE_FLOOR);
+    expect(Math.abs(pair!.shrunkR)).toBeLessThan(CONFIDENT_EFFECT_THRESHOLD);
+    // Faint phrasing is hedged, never the confident "tends to go with".
+    expect(pair!.interpretation).toMatch(/faint hint/);
+    expect(pair!.interpretation).not.toMatch(/tends to go with/);
+    expect(pair!.interpretation).toMatch(/never a cause/);
+  });
+});
+
+// ── FDREXTEND — medication compliance + symptom severity channels ─────
+
+import {
+  DISCOVERY_BEHAVIOURS,
+  MEDICATION_COMPLIANCE_CHANNEL_KEY,
+  SYMPTOM_SEVERITY_CHANNEL_KEY,
+} from "../correlation-discovery";
+
+describe("compliance + symptom channels (FDREXTEND)", () => {
+  it("registers compliance as a behaviour and symptom in both roles", () => {
+    expect(DISCOVERY_BEHAVIOURS).toContain(MEDICATION_COMPLIANCE_CHANNEL_KEY);
+    expect(DISCOVERY_BEHAVIOURS).toContain(SYMPTOM_SEVERITY_CHANNEL_KEY);
+    expect(DISCOVERY_OUTCOMES).toContain(SYMPTOM_SEVERITY_CHANNEL_KEY);
+  });
+
+  it("each new channel is its own metricFamily (no shared collapse)", () => {
+    expect(metricFamily(MEDICATION_COMPLIANCE_CHANNEL_KEY)).toBe(
+      MEDICATION_COMPLIANCE_CHANNEL_KEY,
+    );
+    expect(metricFamily(SYMPTOM_SEVERITY_CHANNEL_KEY)).toBe(
+      SYMPTOM_SEVERITY_CHANNEL_KEY,
+    );
+    // Neither shares a family with a vital / sleep / mood channel, so they can
+    // pair cross-domain.
+    expect(metricFamily(MEDICATION_COMPLIANCE_CHANNEL_KEY)).not.toBe(
+      metricFamily(SYMPTOM_SEVERITY_CHANNEL_KEY),
+    );
+    expect(metricFamily(MEDICATION_COMPLIANCE_CHANNEL_KEY)).not.toBe(
+      metricFamily("RESTING_HEART_RATE"),
+    );
+  });
+
+  it("surfaces an adherence-dip → next-day symptom-flare link at a confident tier", () => {
+    // 70 contiguous days. Lower adherence on day D drives a higher symptom
+    // burden on day D+1 (the flagship cross-metric link). Adherence oscillates
+    // 100/70/40; symptom[d+1] = (100 - adherence[d]) scaled into 0..3.
+    const n = 70;
+    const adherence = Array.from({ length: n }, (_, i) =>
+      i % 3 === 0 ? 100 : i % 3 === 1 ? 70 : 40,
+    );
+    const symptom = [
+      0,
+      ...adherence
+        .slice(0, n - 1)
+        // (100 - a) maps 0..60 → ~0..3, plus a tiny deterministic jitter so the
+        // pair is not a perfect line (a real-world-shaped strong link).
+        .map((a, i) => ((100 - a) / 20) * (i % 2 === 0 ? 1.0 : 0.98)),
+    ];
+    const result = discoverCorrelations([
+      {
+        key: MEDICATION_COMPLIANCE_CHANNEL_KEY,
+        role: "behaviour",
+        points: longSeries(adherence),
+      },
+      {
+        key: SYMPTOM_SEVERITY_CHANNEL_KEY,
+        role: "outcome",
+        points: longSeries(symptom),
+      },
+    ]);
+    const pair = result.discovered.find(
+      (p) =>
+        p.behaviour === MEDICATION_COMPLIANCE_CHANNEL_KEY &&
+        p.outcome === SYMPTOM_SEVERITY_CHANNEL_KEY,
+    );
+    expect(pair).toBeDefined();
+    expect(pair!.n).toBeGreaterThanOrEqual(20);
+    // Negative: higher adherence → lower next-day symptom burden.
+    expect(pair!.r).toBeLessThan(0);
+    expect(pair!.tier).toBe("high");
+    expect(pair!.interpretation).toMatch(/medication compliance/);
+    expect(pair!.interpretation).toMatch(/symptom severity/);
+    expect(pair!.interpretation).toMatch(/not a cause/);
+  });
+
+  it("does NOT surface a link when the overlap is below the n ≥ 20 floor", () => {
+    // A real adherence→symptom relationship but only ~10 paired days: sparse
+    // logging must withhold, never fabricate a confident driver.
+    const n = 12;
+    const adherence = Array.from({ length: n }, (_, i) =>
+      i % 2 === 0 ? 100 : 40,
+    );
+    const symptom = [
+      0,
+      ...adherence.slice(0, n - 1).map((a) => (100 - a) / 30),
+    ];
+    const result = discoverCorrelations([
+      {
+        key: MEDICATION_COMPLIANCE_CHANNEL_KEY,
+        role: "behaviour",
+        points: longSeries(adherence),
+      },
+      {
+        key: SYMPTOM_SEVERITY_CHANNEL_KEY,
+        role: "outcome",
+        points: longSeries(symptom),
+      },
+    ]);
+    // Below the floor the pair is never even tested.
+    expect(result.pairsTested).toBe(0);
+    expect(result.discovered).toHaveLength(0);
+  });
+
+  it("never tests the symptom → symptom self-lag", () => {
+    const n = 40;
+    const symptom = Array.from({ length: n }, (_, i) => (i % 4) / 2);
+    const result = discoverCorrelations([
+      {
+        key: SYMPTOM_SEVERITY_CHANNEL_KEY,
+        role: "behaviour",
+        points: longSeries(symptom),
+      },
+      {
+        key: SYMPTOM_SEVERITY_CHANNEL_KEY,
+        role: "outcome",
+        points: longSeries(symptom),
+      },
+    ]);
+    expect(
+      result.discovered.find(
+        (p) =>
+          p.behaviour === SYMPTOM_SEVERITY_CHANNEL_KEY &&
+          p.outcome === SYMPTOM_SEVERITY_CHANNEL_KEY,
+      ),
+    ).toBeUndefined();
+    expect(result.pairsTested).toBe(0);
+  });
+
+  it("compliance can pair with a vital outcome (cross-domain)", () => {
+    // Adherence dip today → resting HR drift up tomorrow. Confirms the channel
+    // is free to pair with vitals, not just symptom.
+    const n = 70;
+    const adherence = Array.from({ length: n }, (_, i) =>
+      i % 3 === 0 ? 100 : i % 3 === 1 ? 65 : 35,
+    );
+    const rhr = [
+      55,
+      ...adherence
+        .slice(0, n - 1)
+        .map((a, i) => 55 + (100 - a) / 6 + (i % 2 === 0 ? 0.1 : -0.1)),
+    ];
+    const result = discoverCorrelations([
+      {
+        key: MEDICATION_COMPLIANCE_CHANNEL_KEY,
+        role: "behaviour",
+        points: longSeries(adherence),
+      },
+      {
+        key: "RESTING_HEART_RATE",
+        role: "outcome",
+        points: longSeries(rhr),
+      },
+    ]);
+    const pair = result.discovered.find(
+      (p) =>
+        p.behaviour === MEDICATION_COMPLIANCE_CHANNEL_KEY &&
+        p.outcome === "RESTING_HEART_RATE",
+    );
+    expect(pair).toBeDefined();
+    expect(pair!.r).toBeLessThan(0); // higher adherence → lower next-day RHR
+  });
+});

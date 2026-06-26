@@ -20,6 +20,7 @@
     "inactive": "Nieaktywne",
     "disabled": "Wyłączone",
     "networkError": "Błąd sieci",
+    "openDatePicker": "Otwórz wybór daty",
     "unknownError": "Nieznany błąd",
     "copied": "Skopiowano!",
     "or": "lub",
@@ -33,7 +34,8 @@
     "retry": "Spróbuj ponownie",
     "reportIssue": "Zgłoś problem",
     "showPassword": "Pokaż hasło",
-    "hidePassword": "Ukryj hasło"
+    "hidePassword": "Ukryj hasło",
+    "learnMore": "Dowiedz się więcej"
   },
   "doctorReport": {
     "title": "Raport zdrowotny",
@@ -2221,7 +2223,7 @@
       "feedbackThanks": "Dzięki za sygnał.",
       "feedbackError": "Nie udało się zapisać opinii",
       "dailyLimitTitle": "Osiągnięto dzienny limit",
-      "dailyLimitBody": "Osiągnięto dzienny limit; reset o 00:00 UTC.",
+      "dailyLimitBody": "Osiągnięto dzienny limit. Limit resetuje się o północy (UTC).",
       "providerRateLimitTitle": "Dostawca z ograniczeniem",
       "providerRateLimitBody": "Dostawca jest tymczasowo przeciążony; reset za ~5 min.",
       "settingsContextLabel": "Wysyłaj kontekst",
@@ -2278,14 +2280,15 @@
       "dictateError": "Nie udało się uruchomić wprowadzania głosowego. Sprawdź uprawnienia mikrofonu i spróbuj ponownie.",
       "showConversations": "Pokaż rozmowy",
       "hideConversations": "Ukryj rozmowy",
-      "heroGreeting": "W czym mogę pomóc?",
+      "heroGreeting": "Zapytaj mnie o cokolwiek na temat twoich danych",
       "heroSubline": "Zapytaj o swoje trendy, leki lub pomiary.",
       "thinkingElapsed": "{seconds}s",
       "thinkingDuration": "Myślał przez {seconds}s",
       "thinkingExpandAria": "Pokaż, co Coach wziął pod uwagę",
       "thinkingDetail": "Odpowiedź na podstawie Twojego podsumowania zdrowia.",
       "tokensUsed": "{count} tokenów",
-      "tokensUsedWithModel": "{count} tokenów · {model}"
+      "tokensUsedWithModel": "{count} tokenów · {model}",
+      "askAboutThis": "Zapytaj trenera o to"
     },
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",
@@ -4119,6 +4122,16 @@
       "h12": "12-godzinny (AM/PM)",
       "saved": "Zapisano format godziny.",
       "saveError": "Nie udało się zapisać formatu godziny."
+    },
+    "dateFormat": {
+      "title": "Format daty",
+      "description": "Określa kolejność dnia, miesiąca i roku przy wyświetlaniu dat.",
+      "auto": "Automatycznie (język)",
+      "dmy": "DD.MM.RRRR",
+      "mdy": "MM/DD/RRRR",
+      "ymd": "RRRR-MM-DD",
+      "saved": "Zapisano format daty.",
+      "saveError": "Nie udało się zapisać formatu daty."
     },
     "username": "Nazwa użytkownika",
     "height": "Wzrost (cm)",

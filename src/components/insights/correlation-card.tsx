@@ -10,7 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import type { CorrelationResult } from "@/lib/insights/correlations";
+import type { CoachScopeSource } from "@/lib/ai/coach/types";
 import { CONFIDENCE_BADGE_CLASS } from "./confidence-badge";
+import { AskCoachAction } from "./ask-coach-action";
 
 /**
  * v1.4.20 phase B3 — single Correlation card.
@@ -71,10 +73,36 @@ const CONFIDENCE_LABEL_KEY: Record<"low" | "moderate" | "high", string> = {
   low: "insights.correlationRow.confidenceLow",
 };
 
+// v1.21.0 (C4 H2) — the two sources each correlation pair spans, so the
+// Coach hand-off narrows its snapshot to exactly the relationship the
+// card describes.
+const COACH_SOURCES_BY_KIND: Record<
+  CorrelationResult["kind"],
+  CoachScopeSource[]
+> = {
+  "bp-compliance": ["bp", "compliance"],
+  "mood-pulse": ["mood", "pulse"],
+  "weight-weekday": ["weight"],
+};
+
+const COACH_QUESTION_BY_KIND: Record<CorrelationResult["kind"], string> = {
+  "bp-compliance":
+    "How does my medication adherence relate to my blood pressure? Walk me through what this correlation means for me.",
+  "mood-pulse":
+    "Is there a real link between my mood and my pulse? Help me read this correlation.",
+  "weight-weekday":
+    "Does my weight follow a weekly pattern? What does this day-of-week correlation tell me?",
+};
+
 export function CorrelationCard({ result }: CorrelationCardProps) {
   const { t } = useTranslations();
   const title = t(TITLE_KEY[result.kind]);
   const subtitle = t(SUBTITLE_KEY[result.kind]);
+  const coachSources = COACH_SOURCES_BY_KIND[result.kind];
+  const coachScope =
+    coachSources.length > 0
+      ? { metric: coachSources[0], also: coachSources.slice(1) }
+      : undefined;
 
   return (
     <Card
@@ -134,23 +162,31 @@ export function CorrelationCard({ result }: CorrelationCardProps) {
                 window: t("insights.correlationRow.sourceWindowLast30"),
               })}
             </p>
-            <Button
-              type="button"
-              size="sm"
-              // Outline variant so the disabled placeholder reads as
-              // "this is on the roadmap" rather than "the system is
-              // broken right now". Flip back to default when the
-              // 7-day experiment feature ships in v1.5.
-              variant="outline"
-              disabled
-              data-slot="correlation-card-cta"
-              className="gap-1.5"
-              title={t("insights.correlationRow.experimentTooltip")}
-              aria-label={t("insights.correlationRow.experimentTooltip")}
-            >
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{t("insights.correlationRow.experimentCta")}</span>
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                // Outline variant so the disabled placeholder reads as
+                // "this is on the roadmap" rather than "the system is
+                // broken right now". Flip back to default when the
+                // 7-day experiment feature ships in v1.5.
+                variant="outline"
+                disabled
+                data-slot="correlation-card-cta"
+                className="gap-1.5"
+                title={t("insights.correlationRow.experimentTooltip")}
+                aria-label={t("insights.correlationRow.experimentTooltip")}
+              >
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{t("insights.correlationRow.experimentCta")}</span>
+              </Button>
+              {/* v1.21.0 (C4 H2) — the live Coach hand-off sits beside the
+                  roadmap CTA: it scopes to both sources in the pair. */}
+              <AskCoachAction
+                question={COACH_QUESTION_BY_KIND[result.kind]}
+                scope={coachScope}
+              />
+            </div>
           </>
         ) : (
           <EmptyState

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { createContext } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "@/lib/i18n/context";
 import { RecommendationCard } from "../recommendation-card";
@@ -24,6 +25,10 @@ vi.mock("@tanstack/react-query", () => ({
     error: null,
   }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  // v1.21.0 — the card footer's `<AskCoachAction>` reaches the
+  // query-client mount probe; a null-default context reads as "no client
+  // mounted" so the Coach hooks return their fail-open defaults.
+  QueryClientContext: createContext(null),
 }));
 
 vi.mock("@/hooks/use-auth", () => ({

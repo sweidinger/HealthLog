@@ -33,8 +33,10 @@ import {
   grounding,
   toneContract,
   safetyGlp1,
+  safetyAcute,
   metricIdentifierBan,
   forbiddenFiller,
+  outlookContract,
 } from "./shared-contracts";
 
 /** Stable identifier for the active system prompt revision. */
@@ -759,6 +761,7 @@ neutralem Label + Detail. Höchstgrenze: 20 Einträge.`,
   { id: "sharedGrounding", en: grounding.en, de: grounding.de },
   { id: "sharedTone", en: toneContract.en, de: toneContract.de },
   { id: "sharedSafetyGlp1", en: safetyGlp1.en, de: safetyGlp1.de },
+  { id: "sharedSafetyAcute", en: safetyAcute.en, de: safetyAcute.de },
   {
     id: "sharedMetricIdentifierBan",
     en: metricIdentifierBan.en,
@@ -768,6 +771,14 @@ neutralem Label + Detail. Höchstgrenze: 20 Einträge.`,
     id: "sharedForbiddenFiller",
     en: forbiddenFiller.en,
     de: forbiddenFiller.de,
+  },
+  // v1.21.0 (QoL-B §3) — the forward-looking outlook contract, composed beside
+  // the tone contract on the briefing so its close can sharpen expectations
+  // within the same no-false-promise rails the Coach uses.
+  {
+    id: "sharedOutlook",
+    en: outlookContract.en,
+    de: outlookContract.de,
   },
   {
     id: "language",

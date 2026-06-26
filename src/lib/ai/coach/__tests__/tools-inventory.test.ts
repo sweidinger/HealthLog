@@ -21,6 +21,7 @@ vi.mock("@/lib/cycle/gate", () => ({
 import {
   buildCoachDataInventory,
   renderDataInventory,
+  renderFocusHint,
 } from "@/lib/ai/coach/tools/inventory";
 
 function snapshot(
@@ -67,6 +68,50 @@ describe("buildCoachDataInventory", () => {
     expect(sleep?.present).toBe(false);
   });
 
+  it("advertises workouts + correlations tools and the cycle tool when enabled", async () => {
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot(
+        {
+          workouts: { recent: [], totalInWindow: 4 },
+          mood: {},
+          cycle: { phase: "luteal" },
+          scope: { window: "last30days" },
+        },
+        { workouts: 4 },
+      ),
+    );
+    isCycleAvailableForUser.mockResolvedValue(true);
+    const inv = await buildCoachDataInventory("u1", undefined);
+    const workouts = inv.entries.find((e) => e.tool === "get_workouts");
+    expect(workouts).toMatchObject({ present: true, count: 4 });
+    const correlations = inv.entries.find((e) => e.tool === "get_correlations");
+    expect(correlations?.present).toBe(true); // mood present → correlatable
+    const cycle = inv.entries.find((e) => e.tool === "get_cycle");
+    expect(cycle).toMatchObject({ present: true });
+  });
+
+  it("omits the cycle line when cycle tracking is unavailable", async () => {
+    buildCoachSnapshot.mockResolvedValue(snapshot({ bloodPressure: {} }));
+    isCycleAvailableForUser.mockResolvedValue(false);
+    const inv = await buildCoachDataInventory("u1", undefined);
+    expect(inv.entries.find((e) => e.tool === "get_cycle")).toBeUndefined();
+  });
+
+  it("probes a wide source set so synced domains are advertised", async () => {
+    // body composition + spo2 present even though they are not default clusters.
+    buildCoachSnapshot.mockResolvedValue(
+      snapshot(
+        { bodyFat: {}, oxygenSaturation: {}, scope: { window: "last30days" } },
+        { body_fat: 12, spo2: 30 },
+      ),
+    );
+    const inv = await buildCoachDataInventory("u1", undefined);
+    const bodyFat = inv.entries.find((e) => e.metric === "body_fat");
+    const spo2 = inv.entries.find((e) => e.metric === "spo2");
+    expect(bodyFat).toMatchObject({ present: true, count: 12 });
+    expect(spo2).toMatchObject({ present: true, count: 30 });
+  });
+
   it("reports restMode + cycleEnabled", async () => {
     buildCoachSnapshot.mockResolvedValue(
       snapshot({ illness: { restMode: true } }),
@@ -96,5 +141,32 @@ describe("renderDataInventory", () => {
     expect(text.toLowerCase()).not.toContain("withings");
     expect(text.toLowerCase()).not.toContain("oura");
     expect(text.toLowerCase()).not.toContain("whoop");
+  });
+});
+
+// v1.21.0 (D1) — the launch FOCUS hint narrows tool mode to the metric the
+// Coach was opened from. The no-tools path narrows the snapshot; this is the
+// tool-mode equivalent so the metric-narrowing is not silently dropped.
+describe("renderFocusHint", () => {
+  it("is empty on a generic open (no pinned sources)", () => {
+    expect(renderFocusHint(undefined)).toBe("");
+    expect(renderFocusHint([])).toBe("");
+  });
+
+  it("names the launched domain(s) by their natural-language label", () => {
+    const hint = renderFocusHint(["hrv", "resting_hr", "sleep"]);
+    expect(hint).toContain("FOCUS:");
+    expect(hint).toContain("heart-rate variability");
+    expect(hint).toContain("resting heart rate");
+    expect(hint).toContain("sleep");
+    // It instructs prioritisation, not exclusion (the user can still pivot).
+    expect(hint).toContain("prioritise");
+    expect(hint).toContain("only branch to other domains");
+  });
+
+  it("falls back to the raw source key for an unlabelled source", () => {
+    // `compliance` has no domain label in the map; the raw key is used.
+    const hint = renderFocusHint(["compliance"]);
+    expect(hint).toContain("compliance");
   });
 });

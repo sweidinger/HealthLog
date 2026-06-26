@@ -3,7 +3,7 @@
 import { useEffect, useReducer, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessagesSquare, Plus, Settings, Sparkles } from "lucide-react";
+import { Plus, Settings, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiDelete, apiGet } from "@/lib/api/api-fetch";
+import type { CoachScope } from "@/lib/ai/coach/types";
+import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachHero } from "./coach-hero";
@@ -64,6 +66,27 @@ import {
  * `<SheetDescription>` (required for the dialog's accessible name) while
  * the page mounts a plain `<h1>` / `<p>`.
  */
+
+/**
+ * v1.21.0 (C4 H1/H4) — collapse a UI launch scope ({ metric, also,
+ * window }) into the chat route's wire scope ({ sources, window }).
+ * Returns undefined when there is nothing to narrow, so the request
+ * falls back to the route's default all-source snapshot. Exported for
+ * the unit test that pins the source-dedup + window contract.
+ */
+export function launchScopeToCoachScope(
+  launchScope: CoachLaunchScope | null | undefined,
+): CoachScope | undefined {
+  if (!launchScope?.metric) return undefined;
+  const sources = Array.from(
+    new Set([launchScope.metric, ...(launchScope.also ?? [])]),
+  );
+  return {
+    sources,
+    ...(launchScope.window ? { window: launchScope.window } : {}),
+  };
+}
+
 export interface CoachConversationProps {
   /**
    * Pre-fill for the composer (suggested-prompt chip click). Resets the
@@ -71,6 +94,15 @@ export interface CoachConversationProps {
    * freely between prop changes.
    */
   prefill?: string | null;
+  /**
+   * v1.21.0 (C4 H1/H4) — optional launch scope so a conversation opened
+   * from a metric surface or insight card narrows its snapshot to the
+   * relevant source(s) + window. Converted to the chat route's
+   * `CoachScope` and attached to the FIRST turn of a fresh conversation
+   * (`currentConversationId === null`); a continued thread keeps its own
+   * established scope. Null → the route's default all-source snapshot.
+   */
+  launchScope?: CoachLaunchScope | null;
   /**
    * Renders the conversation title. The surface passes the resolved
    * title string; the drawer wraps it in `<SheetTitle>`, the page in an
@@ -148,6 +180,7 @@ export interface CoachConversationProps {
 
 export function CoachConversation({
   prefill,
+  launchScope,
   renderTitle,
   renderDescription,
   leadingHeaderActions,
@@ -277,12 +310,21 @@ export function CoachConversation({
       dismissQuestions.mutate(guidedQuestion);
     }
     setInputValue("");
+    // v1.21.0 (C4 H1/H4) — attach the launch scope to the FIRST turn of a
+    // fresh conversation so a chat opened from a metric surface / insight
+    // card reads a snapshot narrowed to the relevant source(s). A continued
+    // thread (existing id) keeps its own established scope, so we omit it.
+    const scope =
+      currentConversationId === null
+        ? launchScopeToCoachScope(launchScope)
+        : undefined;
     // v1.16.6 — hand the question to the turn so the Coach reaction is
     // contextual (the question bubble itself is never persisted).
     const resolvedId = await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
       guidedQuestion: guidedQuestion ?? undefined,
+      scope,
     });
     if (guidedQuestion !== null && guidedIndex !== null) {
       setPendingAdopt({
@@ -497,35 +539,30 @@ export function CoachConversation({
         data-variant={surface}
         className={cn("flex min-h-0 flex-1 flex-col", className)}
       >
-        {/* v1.19.1 (C2) — a clear, always-visible "Conversations" button on
-            the page surface. The composer's `+` menu still carries the same
-            action, but the maintainer wanted an obvious, dedicated affordance
-            to reach past conversations rather than one buried in a menu. */}
+        {/* v1.21.0 — the page toolbar is now a single trailing affordance:
+            the settings gear in the top-right corner. The "Conversations"
+            and "New chat" controls were removed here — both still live in the
+            composer's `+` actions menu, keeping the new-chat surface calm and
+            uncluttered. The gear deep-links to Settings → AI (one place for
+            model + behaviour), matching the drawer header's gear. */}
         <div
           data-slot="coach-page-toolbar"
-          className="flex shrink-0 items-center justify-between gap-2 px-4 pt-2 sm:px-6"
+          className="flex shrink-0 items-center justify-end px-4 pt-2 sm:px-6"
         >
           <Button
-            type="button"
+            asChild
             variant="ghost"
-            size="sm"
-            onClick={() => setHistoryDrawerOpen(true)}
-            data-slot="coach-page-conversations"
-            className="text-muted-foreground hover:text-foreground -ml-1 gap-1.5"
+            size="icon"
+            data-slot="coach-page-settings"
+            className="text-muted-foreground hover:text-foreground -mr-1 size-9 shrink-0"
           >
-            <MessagesSquare className="size-4" aria-hidden="true" />
-            {t("insights.coach.historyTitle")}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleNewChat}
-            data-slot="coach-page-new-chat"
-            className="text-muted-foreground hover:text-foreground -mr-1 gap-1.5"
-          >
-            <Plus className="size-4" aria-hidden="true" />
-            {t("insights.coach.newChat")}
+            <Link
+              href="/settings/ai"
+              aria-label={t("insights.coach.settingsAriaLabel")}
+              title={t("insights.coach.settingsAriaLabel")}
+            >
+              <Settings className="size-4" aria-hidden="true" />
+            </Link>
           </Button>
         </div>
         {heroActive ? (

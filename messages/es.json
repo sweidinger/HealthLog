@@ -20,6 +20,7 @@
     "inactive": "Inactivo",
     "disabled": "Desactivado",
     "networkError": "Error de red",
+    "openDatePicker": "Abrir el selector de fecha",
     "unknownError": "Error desconocido",
     "copied": "¡Copiado!",
     "or": "o",
@@ -33,7 +34,8 @@
     "retry": "Reintentar",
     "reportIssue": "Reportar problema",
     "showPassword": "Mostrar contraseña",
-    "hidePassword": "Ocultar contraseña"
+    "hidePassword": "Ocultar contraseña",
+    "learnMore": "Más información"
   },
   "doctorReport": {
     "title": "Informe de salud",
@@ -2221,7 +2223,7 @@
       "feedbackThanks": "Gracias por la indicación.",
       "feedbackError": "No se pudo guardar el comentario",
       "dailyLimitTitle": "Límite diario alcanzado",
-      "dailyLimitBody": "Límite diario alcanzado; reinicio a las 00:00 UTC.",
+      "dailyLimitBody": "Límite diario alcanzado. El cupo se reinicia a medianoche (UTC).",
       "providerRateLimitTitle": "Proveedor con límite de tasa",
       "providerRateLimitBody": "El proveedor está temporalmente saturado; reinicio en ~5 min.",
       "settingsContextLabel": "Enviar contexto",
@@ -2278,14 +2280,15 @@
       "dictateError": "No se pudo iniciar la entrada de voz. Comprueba el permiso del micrófono e inténtalo de nuevo.",
       "showConversations": "Mostrar conversaciones",
       "hideConversations": "Ocultar conversaciones",
-      "heroGreeting": "¿En qué puedo ayudarte?",
+      "heroGreeting": "Pregúntame lo que quieras sobre tus datos",
       "heroSubline": "Pregunta por tus tendencias, medicamentos o mediciones.",
       "thinkingElapsed": "{seconds}s",
       "thinkingDuration": "Pensó durante {seconds}s",
       "thinkingExpandAria": "Mostrar lo que el Coach tuvo en cuenta",
       "thinkingDetail": "Respondido a partir de tu resumen de salud.",
       "tokensUsed": "{count} tokens",
-      "tokensUsedWithModel": "{count} tokens · {model}"
+      "tokensUsedWithModel": "{count} tokens · {model}",
+      "askAboutThis": "Pregúntale al coach sobre esto"
     },
     "relativeJustNow": "ahora mismo",
     "relativeMinutesAgoOne": "hace {count} minuto",
@@ -4119,6 +4122,16 @@
       "h12": "12 horas (AM/PM)",
       "saved": "Formato horario guardado.",
       "saveError": "No se pudo guardar el formato horario."
+    },
+    "dateFormat": {
+      "title": "Formato de fecha",
+      "description": "Determina el orden de día, mes y año al mostrar las fechas.",
+      "auto": "Automático (idioma)",
+      "dmy": "DD.MM.AAAA",
+      "mdy": "MM/DD/AAAA",
+      "ymd": "AAAA-MM-DD",
+      "saved": "Formato de fecha guardado.",
+      "saveError": "No se pudo guardar el formato de fecha."
     },
     "username": "Nombre de usuario",
     "height": "Altura (cm)",

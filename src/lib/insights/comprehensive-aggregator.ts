@@ -682,41 +682,54 @@ async function buildFromLiveAggregate(
           WHERE m."measured_at" >= NOW() - INTERVAL '60 days'
             AND m."measured_at" <  NOW() - INTERVAL '30 days'
         )::double precision                                           AS avg30_last_month,
+        -- A2-M2 — the regression windows anchor on the UTC-midnight day
+        -- boundary, NOT the wall-clock instant, so this cold-fallback path
+        -- returns the SAME boundary-day membership the warm rollup path
+        -- composes from (startOfUtcDay(now - N days) +
+        -- composeWindowedRegression). The expression
+        -- date_trunc('day', NOW() AT TIME ZONE 'UTC') - INTERVAL 'N days'
+        -- is the SQL twin of startOfUtcDay; the trailing AT TIME ZONE 'UTC'
+        -- re-materialises the naive truncation as a UTC instant so the
+        -- measured_at (timestamptz) comparison is on the same wall the
+        -- rollup bucketStart sits on. Without this anchor an account that
+        -- crosses a coverage boundary (warm to cold) saw the boundary day
+        -- flip in/out of the slope window, giving a cache-dependent answer
+        -- to the same request.
         REGR_SLOPE(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
         ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '7 days'
+          WHERE m."measured_at" >= (date_trunc('day', NOW() AT TIME ZONE 'UTC') - INTERVAL '7 days') AT TIME ZONE 'UTC'
         )::double precision                                           AS slope7,
         REGR_R2(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
         ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '7 days'
+          WHERE m."measured_at" >= (date_trunc('day', NOW() AT TIME ZONE 'UTC') - INTERVAL '7 days') AT TIME ZONE 'UTC'
         )::double precision                                           AS r2_7,
         REGR_SLOPE(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
         ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '30 days'
+          WHERE m."measured_at" >= (date_trunc('day', NOW() AT TIME ZONE 'UTC') - INTERVAL '30 days') AT TIME ZONE 'UTC'
         )::double precision                                           AS slope30,
         REGR_R2(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
         ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '30 days'
+          WHERE m."measured_at" >= (date_trunc('day', NOW() AT TIME ZONE 'UTC') - INTERVAL '30 days') AT TIME ZONE 'UTC'
         )::double precision                                           AS r2_30,
         REGR_SLOPE(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
         ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
+          WHERE m."measured_at" >= (date_trunc('day', NOW() AT TIME ZONE 'UTC') - INTERVAL '90 days') AT TIME ZONE 'UTC'
         )::double precision                                           AS slope90,
         REGR_R2(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
         ) FILTER (
-          WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
+          WHERE m."measured_at" >= (date_trunc('day', NOW() AT TIME ZONE 'UTC') - INTERVAL '90 days') AT TIME ZONE 'UTC'
         )::double precision                                           AS r2_90
       FROM cm m
       JOIN window_stats ws ON ws."type" = m."type"

@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { DateTimeInput } from "@/components/ui/date-input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -844,10 +844,10 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
 
             <div className="space-y-2">
               <Label htmlFor="edit-mood-logged-at">{t("mood.timestamp")}</Label>
-              <DateTimeInput
+              <DateTimeField
                 id="edit-mood-logged-at"
                 value={editMoodLoggedAt}
-                onChange={(e) => setEditMoodLoggedAt(e.target.value)}
+                onChange={setEditMoodLoggedAt}
                 // v1.17 W1b — match the server bound: no future instant.
                 max={toDateTimeLocalValue(new Date().toISOString())}
                 required

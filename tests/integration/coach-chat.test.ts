@@ -24,7 +24,7 @@ process.env.ENCRYPTION_KEY ??=
 
 import { cookieJar, headerJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
-import { MAX_TOKENS_PER_USER_PER_DAY } from "@/lib/ai/coach/budget";
+import { USER_PLAN_CAP } from "@/lib/ai/coach/budget";
 
 vi.mock("next/headers", async () => {
   const { cookieJar, headerJar } = await import("./mock-next-headers");
@@ -223,11 +223,15 @@ describe("POST /api/insights/chat — integration", () => {
     const { userId } = await seedUserWithSession();
     const prisma = getPrismaClient();
     const dateKey = new Date().toISOString().slice(0, 10);
+    // v1.21.0 — the daily cap is now provider-aware: the seeded user resolves
+    // to a user-egress chain, so the applicable ceiling is USER_PLAN_CAP. Seed
+    // the spend at that ceiling so the reservation trips the gate. (Seeding the
+    // smaller operator cap would no longer refuse on this chain.)
     await prisma.coachUsage.create({
       data: {
         userId,
         dateKey,
-        totalTokens: MAX_TOKENS_PER_USER_PER_DAY,
+        totalTokens: USER_PLAN_CAP,
         messageCount: 50,
       },
     });
@@ -251,7 +255,7 @@ describe("POST /api/insights/chat — integration", () => {
     const usage = await prisma.coachUsage.findUnique({
       where: { userId_dateKey: { userId, dateKey } },
     });
-    expect(usage?.totalTokens).toBe(MAX_TOKENS_PER_USER_PER_DAY);
+    expect(usage?.totalTokens).toBe(USER_PLAN_CAP);
   });
 
   it("returns 404 (not 403) when conversationId belongs to another user", async () => {

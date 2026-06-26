@@ -46,7 +46,10 @@ import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 import { lookupNormalRange } from "@/lib/insights/derived/norms";
 import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/base-system";
-import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
+import {
+  getNoKeyGeneralStatusText,
+  getNoKeyMetricStatusText,
+} from "@/lib/insights/no-key-fallbacks";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
   buildGradedSeriesFromPoints,
@@ -479,7 +482,7 @@ export async function generateMetricStatus(args: {
   if (outcome.kind === "none") {
     return {
       hasProvider: false,
-      text: getNoKeyGeneralStatusText(locale),
+      text: getNoKeyMetricStatusText(locale, signal),
       cached: true,
       updatedAt: null,
     };
@@ -490,7 +493,7 @@ export async function generateMetricStatus(args: {
       reason: outcome.kind,
       userId: args.userId,
       todayKey,
-      stubText: getNoKeyGeneralStatusText(locale),
+      stubText: getNoKeyMetricStatusText(locale, signal),
     });
   }
 

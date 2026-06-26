@@ -62,7 +62,15 @@ test.describe("medication wizard — one-shot", () => {
     // Step 4 — course window. Set startsOn to a deterministic date so
     // the post body assertion below is stable.
     await expectStep(page, 4);
-    await page.locator('[data-slot="course-window-starts"]').fill("2026-10-15");
+    // `DateField` rides a visible text overlay (the data-testid) that parses
+    // a typed ISO string back to the canonical value; the hidden native input
+    // (data-slot) carries the committed ISO. Type into the overlay, then blur
+    // so the parse commits.
+    await page.getByTestId("course-window-starts-field").fill("2026-10-15");
+    await page.getByTestId("course-window-starts-field").blur();
+    await expect(
+      page.locator('[data-slot="course-window-starts"]'),
+    ).toHaveValue("2026-10-15");
     await clickNext(page);
 
     // Step 5 — pick Einmalig. The path compresses to 5 steps the

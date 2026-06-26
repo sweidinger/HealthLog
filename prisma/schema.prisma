@@ -228,6 +228,11 @@ model User {
   // (en → AM/PM, de → 24h), H12 forces AM/PM, H24 forces 24-hour.
   // Display-time only — canonical storage stays UTC instants.
   timeFormat              TimeFormatPreference @default(AUTO) @map("time_format")
+  // Date display preference. AUTO follows the active locale convention
+  // (de → dd.MM.yyyy, en → MM/dd/yyyy); DMY pins day-month-year,
+  // MDY pins month-day-year, YMD pins ISO yyyy-MM-dd. Display-time only —
+  // canonical storage stays UTC instants.
+  dateFormat              DateFormatPreference @default(AUTO) @map("date_format")
   // AI provider selection for insights. Null = OPENAI fallback.
   aiProvider              String? @map("ai_provider") // "OPENAI" | "ANTHROPIC" | "LOCAL" | "CHATGPT_OAUTH"
   aiModel                 String? @map("ai_model")
@@ -973,6 +978,17 @@ enum TimeFormatPreference {
   @@map("time_format_preference")
 }
 
+// Date display preference for rendered dates. AUTO defers to the active
+// locale's convention; DMY/MDY/YMD pin the field order regardless of locale.
+enum DateFormatPreference {
+  AUTO
+  DMY
+  MDY
+  YMD
+
+  @@map("date_format_preference")
+}
+
 enum MeasurementSource {
   MANUAL
   WITHINGS
@@ -1297,9 +1313,12 @@ model MeasurementRollup {
   /// `n = count` and `Σy = mean·count` these close the additive set so a
   /// windowed slope / r² / sd composes from summed accumulators across DAY
   /// buckets with a bit-identical result to live REGR_SLOPE / REGR_R2 /
-  /// STDDEV_POP. The x-axis is epoch days (`EXTRACT(EPOCH FROM
-  /// measured_at) / 86400.0`), stored un-rebased so the cross-bucket sum
-  /// reconstructs the live regression. Nullable to keep migration 0190
+  /// STDDEV_POP. The x-axis is epoch days REBASED to 2020-01-01
+  /// (`EXTRACT(EPOCH FROM measured_at) / 86400.0 − 18262`; v1.21.0 migration
+  /// 0193) so `sum_xx` stays O(1e7) instead of O(1e10) and never sheds
+  /// precision squaring a ~20 540 raw epoch-day. Slope / r² / sd are
+  /// invariant under the x-shift, so the live (raw-epoch) REGR_* probe still
+  /// parity-matches the cross-bucket compose. Nullable to keep migration 0190
   /// additive — the boot backfill fills NULLs for pre-migration rows; new
   /// rows always carry them (they ride the same aggregate as mean / sum).
   sumX        Float?            @map("sum_x")

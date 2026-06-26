@@ -20,6 +20,7 @@ export {
 export {
   buildCoachDataInventory,
   renderDataInventory,
+  renderFocusHint,
   type CoachDataInventory,
   type InventoryEntry,
 } from "./inventory";

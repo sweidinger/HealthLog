@@ -48,7 +48,16 @@ test.describe("Settings mobile consistency (Pixel 5)", () => {
         )
         .evaluateAll((els) =>
           els.map((el) => {
-            const rect = el.getBoundingClientRect();
+            // DateField / DateTimeField front an sr-only native input with a
+            // formatted overlay; the 44px tap target is the wrapper, while the
+            // overlay sits inside the wrapper's border (≈42px). Measure the
+            // wrapper for any input inside one so the target-size reflects the
+            // real affordance, not the inner content box.
+            const wrapper = el.closest(
+              '[data-slot="date-field"],[data-slot="date-time-field"]',
+            );
+            const measured = wrapper ?? el;
+            const rect = measured.getBoundingClientRect();
             const style = getComputedStyle(el);
             return {
               id: el.id || el.getAttribute("name") || "",
@@ -64,17 +73,15 @@ test.describe("Settings mobile consistency (Pixel 5)", () => {
           }),
         )
     ).filter(
-      // The avatar profile-photo upload uses the accessible
-      // visually-hidden <input type="file"> pattern: the input itself
-      // is sr-only / zero-size and the real 44 px touch target is the
-      // styled label/button that triggers it. The touch-target sweep
-      // must measure that visible affordance, not the hidden input, so
-      // exempt file inputs that are hidden or collapsed to zero size.
-      (inp) =>
-        !(
-          inp.type === "file" &&
-          (inp.hidden || inp.height === 0 || inp.width === 0)
-        ),
+      // Some inputs use the accessible visually-hidden pattern: the input
+      // itself is sr-only / zero-size and the real 44 px touch target is a
+      // sibling visible affordance — the styled label/button for the avatar
+      // <input type="file">, and the formatted overlay that fronts the
+      // sr-only native <input type="date"|"datetime-local"> inside DateField /
+      // DateTimeField. The touch-target sweep must measure those visible
+      // affordances, not the hidden input, so exempt any input that is
+      // visually hidden or collapsed to zero size.
+      (inp) => !(inp.hidden || inp.height === 0 || inp.width === 0),
     );
 
     expect(formInputs.length).toBeGreaterThan(0);

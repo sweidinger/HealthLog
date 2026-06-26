@@ -10,6 +10,14 @@ vi.mock("@/lib/db", () => ({
     },
     measurement: { findMany: vi.fn().mockResolvedValue([]) },
     moodEntry: { findMany: vi.fn().mockResolvedValue([]) },
+    // FDREXTEND — the route now folds two non-measurement channels in (built by
+    // the shared `correlation-channel-series` helpers). Default to empty corpora
+    // so neither channel produces a point and the discovery stays trivially
+    // pair-less for the existing assertions.
+    medication: { findMany: vi.fn().mockResolvedValue([]) },
+    medicationIntakeEvent: { findMany: vi.fn().mockResolvedValue([]) },
+    illnessEpisode: { findMany: vi.fn().mockResolvedValue([]) },
+    illnessDayLog: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -87,6 +95,20 @@ beforeEach(() => {
     [],
   );
   (prisma.moodEntry.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  // FDREXTEND — the two non-measurement channels read their own models; default
+  // them empty so neither channel produces a point.
+  (prisma.medication.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(
+    [],
+  );
+  (
+    prisma.medicationIntakeEvent.findMany as ReturnType<typeof vi.fn>
+  ).mockResolvedValue([]);
+  (
+    prisma.illnessEpisode.findMany as ReturnType<typeof vi.fn>
+  ).mockResolvedValue([]);
+  (prisma.illnessDayLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(
+    [],
+  );
 });
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;

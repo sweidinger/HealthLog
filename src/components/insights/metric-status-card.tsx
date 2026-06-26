@@ -7,6 +7,7 @@ import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { scopeSourceFromMetricKey } from "@/components/insights/coach-metric-scope";
 
 interface MetricStatusCardProps {
   /** The registry metric id the generic assessment route keys on. */
@@ -39,6 +40,19 @@ export function MetricStatusCard({
   const mounted = useMounted();
   const { data: status, isLoading } = useInsightMetricStatus(metric, enabled);
 
+  // v1.21.0 (C4 H2) — narrow the Coach hand-off to this metric's snapshot
+  // source when one exists; the registry id is a `MeasurementType`-style
+  // token, which `scopeSourceFromMetricKey` resolves for the metrics that
+  // carry a snapshot block. Unmapped metrics still get a metric-named
+  // opener, just against the default snapshot.
+  const coachSource = scopeSourceFromMetricKey(metric);
+  const coachQuestion = `Walk me through my ${metric
+    .toLowerCase()
+    .replace(
+      /_/g,
+      " ",
+    )} assessment — what does it mean and what should I do about it?`;
+
   return (
     <InsightStatusCard
       title={t("insights.assessmentTitle")}
@@ -46,6 +60,8 @@ export function MetricStatusCard({
       text={status?.text ?? null}
       hasProvider={status?.hasProvider ?? false}
       updatedAt={status?.updatedAt ?? null}
+      coachQuestion={coachQuestion}
+      coachScope={coachSource ? { metric: coachSource } : undefined}
       // Same hydration gate as `<SlugInsightStatusCard>`: the hook is
       // `enabled: isAuthenticated && enabled`, and both inputs can settle
       // before a late-hydrating boundary replays its first render — the

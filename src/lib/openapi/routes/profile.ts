@@ -185,6 +185,12 @@ const profileUpdateRequest = z
       .describe(
         "Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.",
       ),
+    dateFormat: z
+      .enum(["AUTO", "DMY", "MDY", "YMD"])
+      .optional()
+      .describe(
+        "Date-order display preference. AUTO follows the locale convention, DMY pins day-month-year (dd.MM.yyyy), MDY pins month-day-year (MM/dd/yyyy), YMD pins ISO yyyy-MM-dd.",
+      ),
     moodReminderEnabled: z.boolean().optional(),
     fullName: z.string().max(120).nullable().optional(),
     insurerName: z.string().max(120).nullable().optional(),
@@ -221,6 +227,11 @@ const profileResponse = z
       .enum(["AUTO", "H12", "H24"])
       .describe(
         "Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.",
+      ),
+    dateFormat: z
+      .enum(["AUTO", "DMY", "MDY", "YMD"])
+      .describe(
+        "Date-order display preference. AUTO follows the locale convention, DMY pins day-month-year (dd.MM.yyyy), MDY pins month-day-year (MM/dd/yyyy), YMD pins ISO yyyy-MM-dd.",
       ),
     moodReminderEnabled: z.boolean(),
     fullName: z.string().nullable(),
@@ -260,6 +271,11 @@ const profileUpdateResponse = z
       .enum(["AUTO", "H12", "H24"])
       .describe(
         "Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.",
+      ),
+    dateFormat: z
+      .enum(["AUTO", "DMY", "MDY", "YMD"])
+      .describe(
+        "Date-order display preference. AUTO follows the locale convention, DMY pins day-month-year (dd.MM.yyyy), MDY pins month-day-year (MM/dd/yyyy), YMD pins ISO yyyy-MM-dd.",
       ),
     moodReminderEnabled: z.boolean(),
     fullName: z.string().nullable(),

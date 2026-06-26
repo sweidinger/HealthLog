@@ -17,7 +17,17 @@
  */
 import { isCycleAvailableForUser } from "@/lib/cycle/gate";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
-import type { CoachProvenanceMetric, CoachScope } from "@/lib/ai/coach/types";
+import type {
+  CoachProvenanceMetric,
+  CoachScope,
+  CoachScopeSource,
+} from "@/lib/ai/coach/types";
+import {
+  COACH_SOURCE_SNAPSHOT_KEY,
+  COACH_SOURCE_DOMAIN_LABEL,
+  METRIC_SERIES_INVENTORY_SOURCES,
+  FULL_INVENTORY_SOURCE_SET,
+} from "./source-keys";
 
 /** One row of the inventory: a domain + whether the user has data for it. */
 export interface InventoryEntry {
@@ -36,73 +46,56 @@ export interface CoachDataInventory {
   entries: InventoryEntry[];
   /** Illness rest-mode flag, so the safety framing is right before any call. */
   restMode: boolean;
-  /** Whether cycle tracking is available (the get_cycle tool is deferred). */
+  /** Whether cycle tracking is available (fetched via get_cycle). */
   cycleEnabled: boolean;
   /** The window the inventory was built against. */
   window: string;
+  /**
+   * v1.21.0 (D5-1) — the exact full-source scope this inventory's snapshot was
+   * built against. The route threads it to the tool loop so every per-tool read
+   * lands the SAME 60s LRU entry (one snapshot build per turn, not N). Returned
+   * here so the route reuses the identical scope object rather than
+   * re-deriving it and risking a key mismatch.
+   */
+  probeScope: CoachScope;
 }
 
 /**
- * Map a snapshot section key → an inventory row. The per-metric series tool
- * carries the `metric` argument; the dedicated-tool domains name their tool.
+ * v1.21.0 (C2-2 / C2-3) — generate the get_metric_series inventory rows from
+ * the FULL source→key map rather than the eight legacy clusters. Every series
+ * the user actually has rows for is advertised, so the model is no longer told
+ * (rule 2) to skip body-composition / vascular / SpO2 / gait / environment.
+ * The `provenance` count key equals the source name for these series sources.
  */
 const METRIC_SERIES_DOMAINS: Array<{
   sectionKey: string;
-  metric: string;
+  metric: CoachScopeSource;
   domain: string;
   provenance: CoachProvenanceMetric;
-}> = [
-  {
-    sectionKey: "bloodPressure",
-    metric: "bp",
-    domain: "blood pressure",
-    provenance: "bp",
-  },
-  {
-    sectionKey: "weight",
-    metric: "weight",
-    domain: "weight",
-    provenance: "weight",
-  },
-  {
-    sectionKey: "pulse",
-    metric: "pulse",
-    domain: "pulse",
-    provenance: "pulse",
-  },
-  { sectionKey: "mood", metric: "mood", domain: "mood", provenance: "mood" },
-  {
-    sectionKey: "heartRateVariability",
-    metric: "hrv",
-    domain: "heart-rate variability",
-    provenance: "hrv",
-  },
-  {
-    sectionKey: "restingHeartRate",
-    metric: "resting_hr",
-    domain: "resting heart rate",
-    provenance: "resting_hr",
-  },
-  {
-    sectionKey: "steps",
-    metric: "steps",
-    domain: "steps",
-    provenance: "steps",
-  },
-  {
-    sectionKey: "vo2Max",
-    metric: "vo2_max",
-    domain: "VO2 max",
-    provenance: "vo2_max",
-  },
-];
+}> = METRIC_SERIES_INVENTORY_SOURCES.map((metric) => ({
+  sectionKey: COACH_SOURCE_SNAPSHOT_KEY[metric] as string,
+  metric,
+  domain: COACH_SOURCE_DOMAIN_LABEL[metric] ?? (metric as string),
+  provenance: metric as unknown as CoachProvenanceMetric,
+}));
 
 export async function buildCoachDataInventory(
   userId: string,
   scope: CoachScope | undefined,
 ): Promise<CoachDataInventory> {
+  // v1.21.0 (C2-2) — probe presence against the FULL source set, not the
+  // user's narration-cluster default. `effectiveScope` only carried the
+  // window; expanding `sources` here makes the snapshot build every domain the
+  // user has rows for, so sleep / glucose / activity / body-composition / etc.
+  // no longer report `absent` for a default-prefs user. Each per-tool read
+  // still re-scopes to its own domain, so this presence probe never widens a
+  // figure read — it only widens what the inventory advertises.
+  const probeScope: CoachScope = {
+    sources: [...FULL_INVENTORY_SOURCE_SET],
+    window: scope?.window,
+  };
   const [snapshot, cycleEnabled] = await Promise.all([
-    buildCoachSnapshot(userId, scope),
+    buildCoachSnapshot(userId, probeScope),
     isCycleAvailableForUser(userId),
   ]);
   const sections = snapshot.sections;
@@ -147,6 +140,14 @@ export async function buildCoachDataInventory(
       ? { count: counts.compliance }
       : {}),
   });
+  // v1.21.0 (C2-4) — workouts has its own tool now (get_metric_series refuses
+  // it). The block builds when the user has workout rows + the cluster is on.
+  entries.push({
+    tool: "get_workouts",
+    domain: "workouts & training",
+    present: has("workouts"),
+    ...(typeof counts.workouts === "number" ? { count: counts.workouts } : {}),
+  });
   entries.push({
     tool: "get_labs",
     domain: "lab results",
@@ -158,6 +159,31 @@ export async function buildCoachDataInventory(
     present:
       has("illness") || has("derived") || has("dayStrain") || has("trajectory"),
   });
+  // v1.21.0 (C3) — discovered cross-metric correlations (FDR-controlled lagged
+  // drivers) + the coincident-deviation flag. Advertised when the user has any
+  // two discovery channels with data; the tool itself returns present:false
+  // cleanly when nothing survives, so the inventory marks it present whenever a
+  // correlatable signal exists (mood / cardio / activity).
+  entries.push({
+    tool: "get_correlations",
+    domain: "cross-metric patterns (discovered drivers)",
+    present:
+      has("derived") ||
+      has("mood") ||
+      has("heartRateVariability") ||
+      has("restingHeartRate") ||
+      has("steps") ||
+      has("sleep"),
+  });
+  // v1.21.0 (C2-1) — cycle is fetchable via get_cycle when cycle tracking is
+  // available for this account (per-user toggle AND operator switch).
+  if (cycleEnabled) {
+    entries.push({
+      tool: "get_cycle",
+      domain: "menstrual cycle & phase",
+      present: has("cycle"),
+    });
+  }
 
   // restMode rides the illness section.
   const illness = sections.illness as { restMode?: boolean } | undefined;
@@ -170,7 +196,43 @@ export async function buildCoachDataInventory(
     restMode,
     cycleEnabled,
     window: scopeBlock?.window ?? scope?.window ?? "last30days",
+    probeScope,
   };
+}
+
+/**
+ * v1.21.0 (D1) — render the launch FOCUS hint for the tool-mode user turn.
+ *
+ * When the Coach is opened from a metric page or card, the client sends
+ * `scope.sources` (the metric the user is looking at). The no-tools path
+ * narrows the snapshot to those sources, but the tool-mode inventory probes the
+ * FULL source set, so without this hint the metric-narrowing was silently
+ * dropped server-side (D1 — the only surviving signals were the window + seed
+ * question). This injects a single `FOCUS:` line naming the launched domain(s)
+ * so the model prioritises the metric the user actually opened the Coach about,
+ * while every other domain stays fetchable (the user can still pivot).
+ *
+ * Returns `""` when no explicit sources were pinned (a generic open), so the
+ * prompt prefix is byte-identical to before on the non-scoped path.
+ */
+export function renderFocusHint(
+  sources: readonly CoachScopeSource[] | undefined,
+): string {
+  if (!sources || sources.length === 0) return "";
+  const labels = sources.map(
+    (s) => COACH_SOURCE_DOMAIN_LABEL[s] ?? (s as string),
+  );
+  // De-dup while preserving order (two sources can share a label only via the
+  // fallback, but keep it stable regardless).
+  const seen = new Set<string>();
+  const unique = labels.filter((l) => {
+    if (seen.has(l)) return false;
+    seen.add(l);
+    return true;
+  });
+  return `FOCUS: the user opened this conversation from ${unique.join(
+    ", ",
+  )} — prioritise that, fetch its figures first, and only branch to other domains if the question leads there.`;
 }
 
 /**

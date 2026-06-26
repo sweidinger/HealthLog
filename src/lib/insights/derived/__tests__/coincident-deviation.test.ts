@@ -180,6 +180,41 @@ describe("computeCoincidentDeviation", () => {
     }
   });
 
+  it("keys 'today' in the user's timezone, not UTC (D2-8)", async () => {
+    // A non-UTC user (UTC+2) logs both vitals at 23:30 UTC on Jun 2 — which is
+    // 01:30 LOCAL on Jun 3. Under the old UTC slice the day key would read
+    // "2026-06-02"; tz-aware it must read "2026-06-03", the user's real "today".
+    const TZ = "Europe/Berlin"; // UTC+2 in summer
+    const NOW_LATE = new Date("2026-06-02T23:45:00Z"); // 01:45 local Jun 3
+    const baseline = (
+      base: number,
+      outlier: number,
+    ): Array<{ value: number; measuredAt: Date }> => [
+      ...Array.from({ length: 9 }, (_, i) => ({
+        value: base,
+        measuredAt: new Date(
+          `2026-05-${String(15 + i).padStart(2, "0")}T07:00:00Z`,
+        ),
+      })),
+      // 23:30 UTC Jun 2 == 01:30 local Jun 3.
+      { value: outlier, measuredAt: new Date("2026-06-02T23:30:00Z") },
+    ];
+    findMany.mockImplementation(async (args: { where: { type: string } }) => {
+      if (args.where.type === "RESTING_HEART_RATE") return baseline(58, 95);
+      if (args.where.type === "HEART_RATE_VARIABILITY") return baseline(60, 10);
+      return [];
+    });
+    const result = await computeCoincidentDeviation("u1", PROFILE, {
+      now: NOW_LATE,
+      tz: TZ,
+    });
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") {
+      expect(result.value.day).toBe("2026-06-03");
+      expect(result.value.fired).toBe(true);
+    }
+  });
+
   it("does not resolve Rest Mode (no reframe) when the flag did not fire", async () => {
     // Banded but inside-band: the reframe must not even query Rest Mode.
     findMany.mockImplementation(quietBandedRows);

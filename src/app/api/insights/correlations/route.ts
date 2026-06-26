@@ -26,11 +26,18 @@ import { wallClockInTz } from "@/lib/tz/wall-clock";
 import type { MeasurementType } from "@/generated/prisma/client";
 import {
   discoverCorrelations,
+  discoveryMeasurementTypes,
   DISCOVERY_BEHAVIOURS,
   DISCOVERY_OUTCOMES,
+  MEDICATION_COMPLIANCE_CHANNEL_KEY,
+  SYMPTOM_SEVERITY_CHANNEL_KEY,
   type DailySeriesPoint,
   type NamedSeries,
 } from "@/lib/insights/correlation-discovery";
+import {
+  fetchComplianceSeries,
+  fetchSymptomSeries,
+} from "@/lib/insights/correlation-channel-series";
 
 export const dynamic = "force-dynamic";
 
@@ -85,16 +92,19 @@ export const GET = apiHandler(async () => {
     select: { timezone: true },
   });
   const tz = profile?.timezone ?? "Europe/Berlin";
-  const since = new Date(Date.now() - WINDOW_DAYS * MS_PER_DAY);
+  const now = new Date();
+  const since = new Date(now.getTime() - WINDOW_DAYS * MS_PER_DAY);
 
-  // MOOD is backed by mood entries, not measurements — it appears as both a
-  // behaviour and (v1.11.5 F3) an outcome channel, so filter it out of the
-  // measurement type list on either side.
-  const behaviourTypes = DISCOVERY_BEHAVIOURS.filter(
-    (k) => k !== "MOOD",
+  // Non-MeasurementType channels are backed by other models, not measurements —
+  // MOOD (MoodEntry), MEDICATION_COMPLIANCE (the dose-history ledger), and
+  // SYMPTOM_SEVERITY (the illness day-log). `discoveryMeasurementTypes` drops
+  // them so the `type IN (...)` query carries only real enum values; each is
+  // built from its own source below and folded into the series.
+  const behaviourTypes = discoveryMeasurementTypes(
+    DISCOVERY_BEHAVIOURS,
   ) as MeasurementType[];
-  const outcomeTypes = DISCOVERY_OUTCOMES.filter(
-    (k) => k !== "MOOD",
+  const outcomeTypes = discoveryMeasurementTypes(
+    DISCOVERY_OUTCOMES,
   ) as MeasurementType[];
 
   const [measurements, moodEntries] = await Promise.all([
@@ -134,20 +144,33 @@ export const GET = apiHandler(async () => {
     tz,
   );
 
+  // v1.21.0 (FDREXTEND) — build the two non-measurement, non-mood channels from
+  // their own sources. Each degrades to an empty series when the user has no
+  // data, so the discovery loop drops the channel (it cannot clear n ≥ 20).
+  const complianceSeries = await fetchComplianceSeries(user.id, tz, since);
+  const symptomSeries = await fetchSymptomSeries(user.id, tz, since);
+
+  const points = (key: string): DailySeriesPoint[] =>
+    key === "MOOD"
+      ? moodDaily
+      : toDailyMeans(measurementsByType.get(key) ?? [], tz);
+
   const series: NamedSeries[] = [];
   for (const key of DISCOVERY_BEHAVIOURS) {
-    const points =
-      key === "MOOD"
-        ? moodDaily
-        : toDailyMeans(measurementsByType.get(key) ?? [], tz);
-    series.push({ key, role: "behaviour", points });
+    if (key === MEDICATION_COMPLIANCE_CHANNEL_KEY) {
+      series.push(complianceSeries);
+    } else if (key === SYMPTOM_SEVERITY_CHANNEL_KEY) {
+      series.push({ ...symptomSeries, role: "behaviour" });
+    } else {
+      series.push({ key, role: "behaviour", points: points(key) });
+    }
   }
   for (const key of DISCOVERY_OUTCOMES) {
-    const points =
-      key === "MOOD"
-        ? moodDaily
-        : toDailyMeans(measurementsByType.get(key) ?? [], tz);
-    series.push({ key, role: "outcome", points });
+    if (key === SYMPTOM_SEVERITY_CHANNEL_KEY) {
+      series.push({ ...symptomSeries, role: "outcome" });
+    } else {
+      series.push({ key, role: "outcome", points: points(key) });
+    }
   }
 
   const result = discoverCorrelations(series);
@@ -158,6 +181,10 @@ export const GET = apiHandler(async () => {
       pairs_tested: result.pairsTested,
       discovered: result.discovered.length,
       fdr_q: result.fdrQ,
+      // FDREXTEND — per-channel day-counts so a dashboard can see whether the
+      // two sparse new channels reached the n ≥ 20 floor or degraded to absent.
+      compliance_days: complianceSeries.points.length,
+      symptom_days: symptomSeries.points.length,
     },
   });
 

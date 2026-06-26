@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
+import { LearnMoreLink } from "@/components/ui/learn-more-link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
@@ -226,6 +227,8 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
       {marker?.context ? (
         <p className="text-muted-foreground text-sm">{marker.context}</p>
       ) : null}
+
+      <LearnMoreLink concept="LAB_BIOMARKER" />
 
       <Card>
         <CardContent className="pt-6">
