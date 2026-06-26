@@ -145,6 +145,7 @@ export async function buildDerivedSnapshotBlock(
   userId: string,
   profile: BaselineProfile,
   now: Date,
+  tz?: string,
 ): Promise<DerivedSnapshotBlock | null> {
   const block: Record<string, DerivedSnapshotEntry> = {};
 
@@ -152,9 +153,11 @@ export async function buildDerivedSnapshotBlock(
   // off the one shared profile alongside the scores; fail-soft to null so a
   // baseline hiccup never sinks the derived block. Only attached when it
   // FIRED (≥2 vitals out of band today) — a quiet day adds no entry, keeping
-  // the snapshot noise-free.
+  // the snapshot noise-free. D2-8: pass the user's tz so the "today" grouping
+  // matches the user's calendar day, not UTC's.
   const coincidentPromise = computeCoincidentDeviation(userId, profile, {
     now,
+    ...(tz ? { tz } : {}),
   }).catch(() => null);
 
   // The metrics are independent passthrough reads off the one shared profile —

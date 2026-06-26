@@ -61,18 +61,31 @@ export type SafetyFloorReason =
 /** Severity tier — drives copy, never the confirm gate. */
 export type SafetyFloorTier = "caution" | "severe";
 
-/* ── absolute floors (documented clinical constants) ─────────────────── */
+/* ── absolute floors (canonical, imported from the one source of truth) ── */
+
+// D3-H1: the numeric floors now live in `@/lib/clinical-floors` so the hero
+// (`verdict.ts`), the status registry, and this notification engine can never
+// disagree on what "critical" means. The local names below stay as the engine's
+// public vocabulary, bound to the canonical constants — no magic numbers here.
+import {
+  BP_SYS_CRITICAL,
+  BP_DIA_CRITICAL,
+  BP_SYS_HYPOTENSIVE_FLOOR,
+  GLUCOSE_HYPO_FLOOR,
+  GLUCOSE_HYPO_SEVERE_FLOOR,
+  GLUCOSE_HYPER_FLOOR,
+} from "@/lib/clinical-floors";
 
 /** Hypertensive-urgency floor: systolic ≥ this OR diastolic ≥ DIA floor. */
-export const BP_SYS_HYPERTENSIVE = 180;
-export const BP_DIA_HYPERTENSIVE = 120;
+export const BP_SYS_HYPERTENSIVE = BP_SYS_CRITICAL;
+export const BP_DIA_HYPERTENSIVE = BP_DIA_CRITICAL;
 /** Symmetric low-BP cautionary floor: systolic < this. */
-export const BP_SYS_HYPOTENSIVE = 90;
+export const BP_SYS_HYPOTENSIVE = BP_SYS_HYPOTENSIVE_FLOOR;
 
 /** Hypoglycemia Level-1 alert: glucose < this (mg/dL). */
-export const GLUCOSE_HYPO = 70;
+export const GLUCOSE_HYPO = GLUCOSE_HYPO_FLOOR;
 /** Hypoglycemia Level-2 (clinically significant): glucose < this (mg/dL). */
-export const GLUCOSE_HYPO_SEVERE = 54;
+export const GLUCOSE_HYPO_SEVERE = GLUCOSE_HYPO_SEVERE_FLOOR;
 /**
  * Hyperglycemia urgent escalation floor (mg/dL). ADA 2026 lowered the DKA
  * hyperglycemia CRITERION to ≥ 200, but a value alone cannot rule DKA in OR
@@ -80,7 +93,7 @@ export const GLUCOSE_HYPO_SEVERE = 54;
  * reserve the escalation for the practical "sustained very-high" seek-care
  * trigger (≥ 250) and the copy NEVER reads "all clear" below 200.
  */
-export const GLUCOSE_HYPER = 250;
+export const GLUCOSE_HYPER = GLUCOSE_HYPER_FLOOR;
 
 /**
  * Confirm window: a breach reading only escalates when a PRIOR same-kind

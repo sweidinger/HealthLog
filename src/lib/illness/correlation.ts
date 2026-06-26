@@ -35,6 +35,7 @@
  * path agree.
  */
 import type { MeasurementType } from "@/generated/prisma/client";
+import { FEVER_RED_FLAG_C, SPO2_RED_FLAG_PCT } from "@/lib/clinical-floors";
 import { buildBaselineBand, median } from "@/lib/insights/derived/baseline";
 import {
   buildInsufficient,
@@ -400,10 +401,13 @@ export interface IllnessRedFlag {
 
 /* ── red-flag thresholds (clinical floors, conservative) ─────────────── */
 
+// D3-H1: sustained-fever + sustained-low-SpO2 escalation floors come from the
+// one source of truth so the illness engine, the status registry's fever band,
+// and the hero/Coach never carry divergent magic numbers.
 /** SpO2 at/below this for ≥ RED_FLAG_RUN_DAYS escalates. */
-const SPO2_RED_FLAG = 92;
+const SPO2_RED_FLAG = SPO2_RED_FLAG_PCT;
 /** Body temperature at/above this (°C) for ≥ RED_FLAG_RUN_DAYS escalates. */
-const FEVER_RED_FLAG = 38.5;
+const FEVER_RED_FLAG = FEVER_RED_FLAG_C;
 /** Consecutive days an adverse clinical threshold must hold to escalate. */
 const RED_FLAG_RUN_DAYS = 3;
 

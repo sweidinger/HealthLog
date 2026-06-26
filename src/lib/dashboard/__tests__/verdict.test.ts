@@ -250,18 +250,31 @@ describe("rung 1 — bpCritical", () => {
     expect(verdict.variant).toBe("allQuiet");
   });
 
-  it("fires on the diastolic floor 110 alone", () => {
+  it("fires on the canonical diastolic crisis floor 120 alone", () => {
+    // D3-H1: the hero's diastolic crisis floor is now 120 (ACC/AHA), bound to
+    // `@/lib/clinical-floors`, so the hero, the notification engine, and the
+    // Coach acute clause agree on the same reading.
     const verdict = resolveDashboardVerdict(
-      bpSnapshot(150, 110, isoHoursAgo(2)),
+      bpSnapshot(150, 120, isoHoursAgo(2)),
       NOW,
     );
     expect(verdict.variant).toBe("bpCritical");
-    expect(verdict.values).toEqual({ sys: 150, dia: 110 });
+    expect(verdict.values).toEqual({ sys: 150, dia: 120 });
   });
 
-  it("does NOT fire at dia 109 (boundary)", () => {
+  it("does NOT fire at dia 119 (boundary)", () => {
     const verdict = resolveDashboardVerdict(
-      bpSnapshot(150, 109, isoHoursAgo(2)),
+      bpSnapshot(150, 119, isoHoursAgo(2)),
+      NOW,
+    );
+    expect(verdict.variant).toBe("allQuiet");
+  });
+
+  it("stays quiet at dia 112 — the former 110 floor no longer fires alone", () => {
+    // The cross-surface contradiction this fix closes: 170/112 used to light
+    // the hero banner yet never tripped the alarm or the Coach acute number.
+    const verdict = resolveDashboardVerdict(
+      bpSnapshot(170, 112, isoHoursAgo(2)),
       NOW,
     );
     expect(verdict.variant).toBe("allQuiet");

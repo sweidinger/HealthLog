@@ -157,8 +157,10 @@ export async function readCoachCorrelations(
         select: { score: true, moodLoggedAt: true },
       }),
       // Coincident-deviation is its own derived metric — fail-soft to null so a
-      // baseline hiccup never sinks the whole correlations read.
-      computeCoincidentDeviation(userId, profile).catch(() => null),
+      // baseline hiccup never sinks the whole correlations read. D2-8: pass the
+      // user's tz so the "today" grouping matches the user's calendar day, not
+      // UTC's, before the fired flag is narrated as "out of band TODAY".
+      computeCoincidentDeviation(userId, profile, { tz }).catch(() => null),
     ]);
 
     const byType = new Map<string, Array<{ value: number; at: Date }>>();

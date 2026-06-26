@@ -30,6 +30,7 @@ import {
   COACH_NUDGE_WEIGHT_DRIFT_KG,
   COACH_NUDGE_SLEEP_DEFICIT_MARGIN_H,
 } from "@/lib/jobs/coach-nudge-thresholds";
+import { BP_SYS_CRITICAL, BP_DIA_CRITICAL } from "@/lib/clinical-floors";
 import { buildWeightRangeFromHeight } from "@/lib/analytics/value-bands";
 import { userDayKey } from "@/lib/tz/format";
 import type { DashboardSnapshot } from "@/lib/dashboard/snapshot";
@@ -37,13 +38,17 @@ import type { DashboardSnapshot } from "@/lib/dashboard/snapshot";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Fixed clinical floors for the BP-critical rung (ESC/ESH grade-3 /
- * hypertensive-crisis territory). Deliberately NOT the user's
- * personal targets — a user-relaxed threshold must never silence a
- * 180/110 reading on the hero.
+ * Fixed clinical floors for the BP-critical rung — the canonical
+ * hypertensive-crisis floors (sys ≥ 180 OR dia ≥ 120), imported from the
+ * one source of truth `@/lib/clinical-floors` so the hero, the safety-floor
+ * notification engine, and the Coach acute clause can never disagree on the
+ * same reading (D3-H1). The diastolic floor is 120 (ACC/AHA), NOT the former
+ * local 110: the wider 110 net lit the hero on readings the notification
+ * engine left calm. Deliberately NOT the user's personal targets — a
+ * user-relaxed threshold must never silence a crisis reading on the hero.
  */
-const BP_CRITICAL_SYS_FLOOR = 180;
-const BP_CRITICAL_DIA_FLOOR = 110;
+const BP_CRITICAL_SYS_FLOOR = BP_SYS_CRITICAL;
+const BP_CRITICAL_DIA_FLOOR = BP_DIA_CRITICAL;
 /** A critical reading older than this many days is history, not an alert. */
 const BP_CRITICAL_MAX_DAYS_AGO = 1;
 
