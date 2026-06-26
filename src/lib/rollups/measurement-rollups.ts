@@ -34,6 +34,7 @@ import { isP2002 } from "@/lib/prisma-errors";
 import {
   collapseRollupRowsBySource,
   loadUserSourcePriority,
+  REGRESSION_X_ORIGIN_DAYS,
 } from "@/lib/rollups/measurement-read";
 import { startOfUtcDay } from "@/lib/tz/start-of-utc-day";
 import type {
@@ -58,6 +59,30 @@ export const ROLLUP_RECOMPUTE_QUEUE = "rollup-recompute";
 
 /** Worker concurrency cap — recomputes are read-heavy on Postgres. */
 export const ROLLUP_RECOMPUTE_CONCURRENCY = 2;
+
+/**
+ * v1.21.0 — rebased epoch-day x for the regression accumulators.
+ *
+ * `sum_x / sum_xy / sum_xx` store x RELATIVE to `REGRESSION_X_ORIGIN_DAYS`
+ * (epoch-days of 2020-01-01) so the squared terms stay O(1e7) instead of the
+ * O(1e10) the raw epoch-day (x ≈ 20 540) basis produced — squaring a ~20 540 x
+ * sheds ~10 of double's significant decimal digits BEFORE the sum is stored,
+ * losing the sub-day x detail at write time. Slope / r² / sd are invariant under
+ * the x-shift, so the live REGR_* probe (which stays on raw epoch-days) still
+ * matches the cross-bucket compose. The `slope` / `r2` per-bucket columns also
+ * stay on raw epoch-days (shift-invariant; their stored values are unchanged).
+ *
+ * `REGRESSION_X_ORIGIN_DAYS` is a trusted compile-time integer; assert it stays
+ * one at SQL-build time before splicing it in (no user-input surface). Built
+ * lazily inside `runRollupAggregate` rather than at module init so a partial
+ * test mock of `measurement-read` can't trip the assertion before the SQL runs.
+ */
+function rebasedX(): string {
+  if (!Number.isInteger(REGRESSION_X_ORIGIN_DAYS)) {
+    throw new Error("REGRESSION_X_ORIGIN_DAYS must be an integer");
+  }
+  return `(EXTRACT(EPOCH FROM m."measured_at") / 86400.0 - ${REGRESSION_X_ORIGIN_DAYS})`;
+}
 
 /**
  * Payload `boss.send` carries onto the `rollup-recompute` queue. The
@@ -368,6 +393,10 @@ async function runRollupAggregate(input: {
   }
   const dateTrunc = `date_trunc('${truncUnit}', m."measured_at")`;
 
+  // v1.21.0 — rebased epoch-day x for the regression accumulators (see the
+  // `rebasedX` doc). Built per-call so the assertion fires with the real module.
+  const REBASED_X = rebasedX();
+
   if (input.types && input.types.length > 0) {
     // Build the type-list literal carefully. The enum values come
     // from `MeasurementType` (Prisma-generated TS enum); we whitelist
@@ -401,20 +430,18 @@ async function runRollupAggregate(input: {
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
         )::double precision                                       AS r2,
-        -- v1.20.0 F6 — regression accumulators (epoch-day x-axis). Summed
-        -- per (type, source, bucket) here so the read tier composes the
-        -- windowed slope / r2 / sd across DAY buckets without a live scan.
-        -- value is NOT NULL on measurements, so every row contributes; the
-        -- sums are over the same rows REGR_/STDDEV_POP fold above.
-        SUM(EXTRACT(EPOCH FROM m."measured_at") / 86400.0)::double precision
-                                                                  AS sum_x,
-        SUM(
-          (EXTRACT(EPOCH FROM m."measured_at") / 86400.0) * m."value"
-        )::double precision                                       AS sum_xy,
-        SUM(
-          (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
-          * (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
-        )::double precision                                       AS sum_xx,
+        -- v1.20.0 F6 — regression accumulators. Summed per (type, source,
+        -- bucket) here so the read tier composes the windowed slope / r2 / sd
+        -- across DAY buckets without a live scan. value is NOT NULL on
+        -- measurements, so every row contributes; the sums are over the same
+        -- rows REGR_/STDDEV_POP fold above.
+        -- v1.21.0 — x is REBASED to REGRESSION_X_ORIGIN_DAYS so sum_xx stays
+        -- O(1e7) and never sheds precision squaring a ~20 540 epoch-day. Slope
+        -- / r² / sd are shift-invariant, so the live (raw-epoch) REGR_* probe
+        -- still parity-matches the cross-bucket compose.
+        SUM(${REBASED_X})::double precision                       AS sum_x,
+        SUM(${REBASED_X} * m."value")::double precision           AS sum_xy,
+        SUM(${REBASED_X} * ${REBASED_X})::double precision        AS sum_xx,
         SUM(m."value" * m."value")::double precision              AS sum_yy
       FROM measurements m
       WHERE m."user_id" = $1
@@ -451,18 +478,14 @@ async function runRollupAggregate(input: {
         m."value",
         EXTRACT(EPOCH FROM m."measured_at") / 86400.0
       )::double precision                                       AS r2,
-      -- v1.20.0 F6 — regression accumulators (epoch-day x-axis). See the
-      -- typed-list query above for the rationale; the read tier composes
-      -- windowed slope / r² / sd from these summed across DAY buckets.
-      SUM(EXTRACT(EPOCH FROM m."measured_at") / 86400.0)::double precision
-                                                                AS sum_x,
-      SUM(
-        (EXTRACT(EPOCH FROM m."measured_at") / 86400.0) * m."value"
-      )::double precision                                       AS sum_xy,
-      SUM(
-        (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
-        * (EXTRACT(EPOCH FROM m."measured_at") / 86400.0)
-      )::double precision                                       AS sum_xx,
+      -- v1.20.0 F6 — regression accumulators. See the typed-list query above
+      -- for the rationale; the read tier composes windowed slope / r² / sd from
+      -- these summed across DAY buckets.
+      -- v1.21.0 — x is REBASED to REGRESSION_X_ORIGIN_DAYS (see above) so the
+      -- squared terms stay exact; slope / r² / sd are shift-invariant.
+      SUM(${REBASED_X})::double precision                       AS sum_x,
+      SUM(${REBASED_X} * m."value")::double precision           AS sum_xy,
+      SUM(${REBASED_X} * ${REBASED_X})::double precision        AS sum_xx,
       SUM(m."value" * m."value")::double precision              AS sum_yy
     FROM measurements m
     WHERE m."user_id" = $1
