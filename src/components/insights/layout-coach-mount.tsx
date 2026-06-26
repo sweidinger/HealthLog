@@ -52,6 +52,10 @@ export function LayoutCoachMount() {
       open={launch.open}
       onOpenChange={launch.setOpen}
       prefill={launch.prefill}
+      // v1.21.0 (C4 H1/H4) — carry the launch scope so a conversation
+      // opened from a metric surface or insight card is pre-narrowed to
+      // the relevant source(s).
+      scope={launch.scope}
     />
   );
 }

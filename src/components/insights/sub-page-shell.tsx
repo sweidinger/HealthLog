@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/tooltip";
 import { TargetAdjustButton } from "@/components/insights/target-adjust-button";
 import { TargetAdjustProvider } from "@/lib/insights/target-adjust-context";
+import { metricScopeFromExplainer } from "@/components/insights/coach-metric-scope";
+import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
@@ -110,9 +112,15 @@ export interface SubPageShellProps {
    * v1.18.6 (CCH-04) — RETIRED as a rendered control. With the Coach FAB
    * anchored bottom-right on every authenticated page, the per-metric
    * Coach icon was a redundant second entry point, so the shell no longer
-   * paints anything for it. The prop stays on the signature (every routed
-   * category page still passes it) to avoid a churny rename across ~14
-   * call sites; it is intentionally inert.
+   * paints anything for it.
+   *
+   * v1.21.0 (C4 H1) — re-purposed without re-adding any control. When set
+   * (and `explainerMetric` maps to a Coach source), the shell registers
+   * the page's metric as the launch context's ambient scope while it is
+   * mounted. The global FAB then opens a conversation pre-scoped to this
+   * metric with a data-aware seed question — so drilling into BP / weight
+   * / sleep and tapping the FAB no longer opens a blank chat. Still no
+   * second header affordance: the FAB stays the single entry point.
    */
   coachLaunch?: boolean;
   /**
@@ -137,14 +145,15 @@ export function SubPageShell({
   focusOnMount = false,
   statStrip,
   diversityNudge,
-  // v1.18.6 (CCH-04) — `coachLaunch` is intentionally not destructured:
-  // the prop is still accepted on the type (call sites pass it) but the
-  // shell no longer renders a Coach control. The FAB is the single Coach
-  // entry point app-wide.
+  // v1.21.0 (C4 H1) — `coachLaunch` no longer renders a control (CCH-04
+  // stands) but now gates whether the page registers its metric as the
+  // Coach launch context's ambient scope, so the FAB opens contextual.
+  coachLaunch = false,
   showAllValuesType,
   children,
 }: SubPageShellProps) {
   const { t } = useTranslations();
+  const launch = useCoachLaunch();
   // v1.10.2 — the "show all readings" link carries the originating metric
   // page as a `from` param so the values sub-page can offer a back-link to
   // where the user drilled in from (e.g. `weight → show all values → back to
@@ -170,6 +179,28 @@ export function SubPageShell({
     });
     return () => window.cancelAnimationFrame(handle);
   }, [focusOnMount]);
+
+  // v1.21.0 (C4 H1) — register the page's metric as the Coach launch
+  // context's ambient scope while the sub-page is mounted, so the global
+  // FAB opens a conversation pre-scoped to this metric with a data-aware
+  // seed question. Only when the page opted in (`coachLaunch`) and its
+  // `explainerMetric` maps to a snapshot source; mobility / gait micro-
+  // metrics with no map entry leave the FAB on its default snapshot. The
+  // cleanup lifts the scope on navigation away.
+  const registerScope = launch?.registerScope;
+  useEffect(() => {
+    if (!coachLaunch || !registerScope) return;
+    const resolved = metricScopeFromExplainer(explainerMetric);
+    if (!resolved) return;
+    return registerScope(
+      {
+        metric: resolved.metric,
+        also: resolved.also,
+        window: resolved.window,
+      },
+      resolved.question,
+    );
+  }, [coachLaunch, registerScope, explainerMetric]);
 
   return (
     // The target-adjust provider bridges the header gear (rendered just

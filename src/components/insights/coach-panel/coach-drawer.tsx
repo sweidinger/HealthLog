@@ -12,6 +12,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
+import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -47,9 +48,20 @@ export interface CoachDrawerProps {
   onOpenChange: (next: boolean) => void;
   /** Optional pre-fill for the input box (suggested-prompt chip click). */
   prefill?: string | null;
+  /**
+   * v1.21.0 (C4 H1/H4) — optional launch scope so a conversation opened
+   * from a metric surface or insight card is pre-narrowed to the relevant
+   * source(s) + window. Null → the route's default all-source snapshot.
+   */
+  scope?: CoachLaunchScope | null;
 }
 
-export function CoachDrawer({ open, onOpenChange, prefill }: CoachDrawerProps) {
+export function CoachDrawer({
+  open,
+  onOpenChange,
+  prefill,
+  scope,
+}: CoachDrawerProps) {
   const { t } = useTranslations();
   const router = useRouter();
   // v1.4.27 R3d MB1 — below the `sm` breakpoint (640 px) the Coach
@@ -126,6 +138,7 @@ export function CoachDrawer({ open, onOpenChange, prefill }: CoachDrawerProps) {
         <CoachConversation
           surface="drawer"
           prefill={prefill}
+          launchScope={scope}
           autoFocusComposer
           registerReset={registerReset}
           // v1.16.1 — the "Conversations" affordance hands off to the
