@@ -63,8 +63,19 @@ export interface DailyMeanRow {
  */
 export interface RegressionAccumulators {
   count: number;
-  /** Σy = mean·count (the writer stores mean + count; Σy is derived). */
+  /**
+   * Per-bucket mean. Kept for the count/min/max/mean composition and as the
+   * Σy fallback (`mean·count`) when the exact `sumValue` accumulator is null.
+   */
   mean: number;
+  /**
+   * Exact Σy = SUM(value) over the bucket's rows. The writer stores this in
+   * `sum_value` (migration pre-0190; `schema.prisma` `sumValue`); composing Σy
+   * from it instead of `mean·count` removes the ~1-ULP float-reorder residual
+   * the AVG→multiply round trip introduces. `null` on a row whose write
+   * predates the column, in which case the composer falls back to `mean·count`.
+   */
+  sumValue?: number | null;
   sumX: number | null;
   sumXy: number | null;
   sumXx: number | null;
@@ -83,15 +94,32 @@ export interface ComposedRegression {
  * v1.20.0 F6 — compose a windowed OLS slope / r² / population-sd from the
  * summed regression accumulators of a set of DAY buckets.
  *
- * The six terms (`n = Σcount`, `Σx`, `Σy = Σ(mean·count)`, `Σxy`, `Σxx`,
- * `Σyy`) are ADDITIVE across buckets, so summing the per-bucket
- * accumulators over the window and evaluating the closed form yields a
- * result BIT-IDENTICAL to Postgres `REGR_SLOPE` / `REGR_R2` / `STDDEV_POP`
- * over the same raw rows (Postgres folds the same accumulators):
+ * The six terms (`n = Σcount`, `Σx`, `Σy`, `Σxy`, `Σxx`, `Σyy`) are ADDITIVE
+ * across buckets, so summing the per-bucket accumulators over the window and
+ * evaluating the closed form yields a result that matches Postgres
+ * `REGR_SLOPE` / `REGR_R2` / `STDDEV_POP` over the same raw rows (Postgres
+ * folds the same accumulators).
  *
- *   slope  = (n·Σxy − Σx·Σy) / (n·Σxx − Σx²)
- *   r²     = (n·Σxy − Σx·Σy)² / ((n·Σxx − Σx²)(n·Σyy − Σy²))
- *   sd_pop = sqrt(Σyy/n − (Σy/n)²)
+ * The composition uses the MEAN-CENTERED (corrected-sum) identities rather
+ * than the textbook determinant form `n·Σxx − Σx²`:
+ *
+ *   Sxx    = Σxx − Σx²/n
+ *   Sxy    = Σxy − Σx·Σy/n
+ *   Syy    = Σyy − Σy²/n
+ *   slope  = Sxy / Sxx
+ *   r²     = Sxy² / (Sxx·Syy)
+ *   sd_pop = sqrt(Syy / n)
+ *
+ * This is algebraically identical to the determinant form (multiply numerator
+ * and denominator by n) and to Postgres' REGR_* / STDDEV_POP, but numerically
+ * stable: on the epoch-day x-axis (x ≈ 20 540) the determinant form computes
+ * `n·Σxx − Σx²` as a difference of two ~1e10 magnitudes and sheds ~10
+ * significant digits to catastrophic cancellation before the divide. The
+ * centered form subtracts `Σx²/n` from `Σxx` at the same scale per term, so
+ * the cancellation is bounded by the true x-variance, not the absolute x
+ * magnitude. Σy is read from the exact stored `sumValue` accumulator when
+ * present (falling back to `mean·count`), removing the AVG→multiply ULP
+ * residual on the y side too.
  *
  * The caller MUST collapse overlapping sources to the canonical source
  * BEFORE handing rows here — the accumulators are per-source, so summing a
@@ -138,9 +166,10 @@ export function composeRegression(
     }
     n += b.count;
     sumX += b.sumX;
-    // Σy is reconstructed from the stored mean·count, matching the live
-    // SUM(value) over the same rows.
-    sumY += b.mean * b.count;
+    // Σy is the exact stored SUM(value) when the bucket carries it; fall back
+    // to mean·count for pre-`sumValue` rows. The exact accumulator removes the
+    // AVG→multiply float-reorder residual.
+    sumY += b.sumValue ?? b.mean * b.count;
     sumXy += b.sumXy;
     sumXx += b.sumXx;
     sumYy += b.sumYy;
@@ -148,18 +177,22 @@ export function composeRegression(
 
   if (n < 2) return MISS;
 
-  const denomX = n * sumXx - sumX * sumX;
-  const denomY = n * sumYy - sumY * sumY;
-  const cov = n * sumXy - sumX * sumY;
+  // Mean-centered (corrected-sum) identities. Sxx/Sxy/Syy are the determinant
+  // terms divided by n — algebraically identical to `n·Σxx − Σx²` etc., but
+  // they subtract `Σx²/n` from `Σxx` at matched scale, avoiding the
+  // catastrophic cancellation the determinant form suffers on the ~1e10
+  // epoch-day x-axis. See the function header for the full rationale.
+  const sxx = sumXx - (sumX * sumX) / n;
+  const syy = sumYy - (sumY * sumY) / n;
+  const sxy = sumXy - (sumX * sumY) / n;
 
-  const slope = denomX === 0 ? null : cov / denomX;
+  const slope = sxx === 0 ? null : sxy / sxx;
   // REGR_R2 is null when either variance is zero (matches Postgres).
-  const r2 =
-    denomX === 0 || denomY === 0 ? null : (cov * cov) / (denomX * denomY);
+  const r2 = sxx === 0 || syy === 0 ? null : (sxy * sxy) / (sxx * syy);
 
-  // Population variance: Σyy/n − (Σy/n)². Clamp tiny negative values that
+  // Population variance: Syy/n = Σyy/n − (Σy/n)². Clamp tiny negative values
   // float rounding can produce when the variance is effectively zero.
-  const variance = sumYy / n - (sumY / n) * (sumY / n);
+  const variance = syy / n;
   const sdPop = variance <= 0 ? 0 : Math.sqrt(variance);
 
   return { slope, r2, sdPop };
