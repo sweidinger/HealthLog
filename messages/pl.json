@@ -34,7 +34,8 @@
     "retry": "Spróbuj ponownie",
     "reportIssue": "Zgłoś problem",
     "showPassword": "Pokaż hasło",
-    "hidePassword": "Ukryj hasło"
+    "hidePassword": "Ukryj hasło",
+    "learnMore": "Dowiedz się więcej"
   },
   "doctorReport": {
     "title": "Raport zdrowotny",
