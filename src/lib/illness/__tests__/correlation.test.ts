@@ -513,6 +513,66 @@ describe("computeIllnessCorrelation — red-flag escalation", () => {
     expect(spo2Flag?.days).toBe(3);
   });
 
+  it("escalates the same SpO2 run regardless of input order (order-independence)", () => {
+    // The SpO2 red-flag scan is calendar-consecutive and so depends on
+    // chronological input. It must sort defensively rather than trust an
+    // upstream sort — a shuffled `episodeDays` yields the SAME verdict as a
+    // sorted one (parity with the fever path's local sort). Days 01-10/01-11/
+    // 01-12 are all ≤92 → a genuine 3-day run; the order they arrive in is noise.
+    const type: MeasurementType = "OXYGEN_SATURATION";
+    const baselineDays = jitteredBaseline(98, 1, 21, "2026-01-02");
+    const shuffled: VitalDayPoint[] = [
+      { day: "2026-01-13", mean: 96 },
+      { day: "2026-01-11", mean: 90 },
+      { day: "2026-01-14", mean: 98 },
+      { day: "2026-01-10", mean: 91 },
+      { day: "2026-01-12", mean: 89 },
+    ];
+    const out = computeIllnessCorrelation(
+      input({ series: [{ type, baselineDays, episodeDays: shuffled }] }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(out.value.redFlags).toHaveLength(1);
+    expect(out.value.redFlags[0].reason).toBe("sustained_low_spo2");
+    expect(out.value.redFlags[0].worstValue).toBe(89);
+    expect(out.value.redFlags[0].days).toBe(3);
+  });
+
+  it("does NOT escalate a sparse low-SpO2 series with calendar GAPS (cries-wolf guard)", () => {
+    // Mirror of the fever gap guard for SpO2: three isolated low readings on
+    // 01-10/01-15/01-20 with multi-day gaps are NOT a sustained run. The scan
+    // compares calendar deltas, not array adjacency → longest run 1 → no flag.
+    // A banded RHR vital clears the episode-coverage floor.
+    const spo2: MeasurementType = "OXYGEN_SATURATION";
+    const rhr: MeasurementType = "RESTING_HEART_RATE";
+    const out = computeIllnessCorrelation(
+      input({
+        series: [
+          {
+            type: spo2,
+            baselineDays: jitteredBaseline(98, 1, 21, "2026-01-02"),
+            episodeDays: [
+              { day: "2026-01-10", mean: 91 },
+              { day: "2026-01-15", mean: 90 },
+              { day: "2026-01-20", mean: 89 },
+            ],
+          },
+          {
+            type: rhr,
+            baselineDays: jitteredBaseline(55, 1, 21, "2026-01-02"),
+            episodeDays: flatBaseline(55, 5, "2026-01-15"),
+          },
+        ],
+      }),
+    );
+    expect(out.status).toBe("ok");
+    if (out.status !== "ok") return;
+    expect(
+      out.value.redFlags.find((f) => f.reason === "sustained_low_spo2"),
+    ).toBeUndefined();
+  });
+
   it("escalates a sustained fever logged via the day-log feverC (no temp series)", () => {
     // No BODY_TEMPERATURE vital at all — the canonical journaling-fever path.
     // A banded RHR vital satisfies the coverage floor; the fever escalates

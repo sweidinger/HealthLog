@@ -932,8 +932,15 @@ function detectRedFlags(input: IllnessCorrelationInput): IllnessRedFlag[] {
   // it would HELP (SpO2's worst is the min, so means are conservative enough).
   const spo2 = input.series.find((s) => s.type === "OXYGEN_SATURATION");
   if (spo2) {
+    // `runFlag` counts CALENDAR-consecutive runs, so it needs chronological
+    // input. Sort locally rather than trusting an upstream sort invariant — the
+    // fever path already sorts its unioned series, and this keeps the SpO2 scan
+    // order-independent by construction if a future reader feeds unsorted days.
+    const spo2Points = spo2.episodeDays
+      .filter(inActive)
+      .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
     const flag = runFlag(
-      spo2.episodeDays.filter(inActive),
+      spo2Points,
       (v) => v <= SPO2_RED_FLAG,
       "sustained_low_spo2",
       "OXYGEN_SATURATION",
