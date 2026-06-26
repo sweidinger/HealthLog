@@ -50,6 +50,8 @@ export interface DateFieldProps {
   onBlur?: () => void;
   disabled?: boolean;
   required?: boolean;
+  /** Autofill hint forwarded to the native date input (e.g. "bday"). */
+  autoComplete?: string;
   /** ISO `yyyy-MM-dd`. */
   min?: string;
   /** ISO `yyyy-MM-dd`. */
@@ -73,6 +75,7 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(
       onBlur,
       disabled,
       required,
+      autoComplete,
       min,
       max,
       placeholder,
@@ -174,6 +177,7 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(
           defaultValue={value === undefined ? defaultValue : undefined}
           disabled={disabled}
           required={required}
+          autoComplete={autoComplete}
           min={min}
           max={max}
           onChange={handleNativeChange}
