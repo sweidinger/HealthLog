@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { DateTimeInput } from "@/components/ui/date-input";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { Label } from "@/components/ui/label";
 import {
   ListChecks,
@@ -511,10 +511,10 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="mood-logged-at">{t("mood.timestamp")}</Label>
-              <DateTimeInput
+              <DateTimeField
                 id="mood-logged-at"
                 value={moodLoggedAt}
-                onChange={(e) => setMoodLoggedAt(e.target.value)}
+                onChange={setMoodLoggedAt}
                 // v1.17 W1b — match the server bound: no future instant.
                 max={getDefaultMoodLoggedAtValue()}
                 required
