@@ -10,6 +10,7 @@ import { useState } from "react";
 
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -230,12 +231,11 @@ export function NewEpisodeSheet({
 
         <div className="space-y-1.5">
           <Label htmlFor="illness-onset">{t("illness.new.onset")}</Label>
-          <Input
+          <DateField
             id="illness-onset"
-            type="date"
             value={onset}
             max={today}
-            onChange={(e) => setOnset(e.target.value)}
+            onChange={setOnset}
             className="max-w-44"
           />
         </div>

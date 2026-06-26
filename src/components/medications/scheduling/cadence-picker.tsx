@@ -49,6 +49,7 @@
 
 import { useCallback, useId, useMemo } from "react";
 
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
@@ -602,13 +603,11 @@ function YearlyDate({
       <Label htmlFor={id} className="text-sm">
         {t(`${i18nPrefix}.yearly.date.label`)}
       </Label>
-      <Input
+      <DateField
         id={id}
-        type="date"
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11"
+        onChange={onChange}
         data-slot="cadence-yearly-date"
       />
     </div>

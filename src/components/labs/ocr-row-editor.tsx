@@ -25,6 +25,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
@@ -178,13 +179,10 @@ export function OcrRowEditor({
           <Label htmlFor={`${fieldId}-date`} className="text-xs">
             {t("labs.ocr.dateLabel")}
           </Label>
-          <Input
+          <DateField
             id={`${fieldId}-date`}
-            type="date"
             value={row.takenAt ?? ""}
-            onChange={(e) =>
-              onChange({ ...row, takenAt: e.target.value || null })
-            }
+            onChange={(value) => onChange({ ...row, takenAt: value || null })}
           />
         </div>
       </div>

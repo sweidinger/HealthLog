@@ -64,6 +64,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -598,12 +599,11 @@ export function VorsorgeSection({
             <Label htmlFor="vorsorge-anchor">
               {t("measurementReminders.form.firstDue")}
             </Label>
-            <Input
+            <DateField
               id="vorsorge-anchor"
-              type="date"
               value={form.anchorDate}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, anchorDate: e.target.value }))
+              onChange={(value) =>
+                setForm((f) => ({ ...f, anchorDate: value }))
               }
             />
           </div>
