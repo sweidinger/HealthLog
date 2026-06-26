@@ -59,6 +59,9 @@ test.describe("medication wizard — daily", () => {
 
     // Step 4 — course window (today by default).
     await expectStep(page, 4);
+    // `DateField` keeps the ISO value on a hidden native date input
+    // (data-slot), while the visible overlay paints the locale-formatted
+    // string. Assert the committed ISO value on the hidden input.
     await expect(
       page.locator('[data-slot="course-window-starts"]'),
     ).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
