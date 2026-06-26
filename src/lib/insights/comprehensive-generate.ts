@@ -328,6 +328,14 @@ export async function buildComparisonSnapshotForUser(
     ACTIVITY_STEPS: "",
   };
   const types = Object.keys(typeToSnapshotKey) as MeasurementType[];
+  // The snapshot only feeds summarize()'s avg30 / avg30LastMonth /
+  // avg30LastYear. The widest of those reaches back into the [365, 395)-day
+  // window (ageMs < 395 * DAY in meanOfWindow), so nothing older than 395
+  // days can change a result. Bound the read at 400 days — a 5-day floor over
+  // the strict-less-than boundary — instead of scanning the full history,
+  // which on multi-year accounts is tens of thousands of rows per type on the
+  // page-blocking generate path and the nightly pregenerate cron.
+  const sinceMeasuredAt = new Date(Date.now() - 400 * 86_400_000);
   const rows = await Promise.all(
     types.map(async (type) => {
       // SLEEP_DURATION is stored ONE ROW PER STAGE per night; summarising the
@@ -339,7 +347,12 @@ export async function buildComparisonSnapshotForUser(
       if (type === "SLEEP_DURATION") {
         const [sleepRows, sleepTz, sleepPriority] = await Promise.all([
           prisma.measurement.findMany({
-            where: { userId, type, deletedAt: null },
+            where: {
+              userId,
+              type,
+              deletedAt: null,
+              measuredAt: { gte: sinceMeasuredAt },
+            },
             orderBy: { measuredAt: "asc" },
             select: {
               measuredAt: true,
@@ -363,7 +376,12 @@ export async function buildComparisonSnapshotForUser(
           .map((n) => ({ date: n.measuredAt, value: n.asleepMinutes }));
       } else {
         const measurements = await prisma.measurement.findMany({
-          where: { userId, type, deletedAt: null },
+          where: {
+            userId,
+            type,
+            deletedAt: null,
+            measuredAt: { gte: sinceMeasuredAt },
+          },
           orderBy: { measuredAt: "asc" },
           select: { measuredAt: true, value: true },
         });
