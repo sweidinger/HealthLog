@@ -64,6 +64,7 @@ import {
   buildDateKey,
   reserveBudget,
   reconcileSpend,
+  resolveDailyCap,
 } from "@/lib/ai/coach/budget";
 import { detectRefusal } from "@/lib/ai/coach/refusal";
 import {
@@ -503,6 +504,12 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // so reserve the per-call ceiling × the round count up front and reconcile
   // the SUMMED actual tokens afterwards. The atomic reserve/reconcile
   // primitives are unchanged; only the reserved amount scales.
+  // v1.21.0 (F1) — the daily ceiling is the OPERATOR's cost cap only when the
+  // chain egresses via the operator's own key (`admin-openai` primary). A
+  // ChatGPT-OAuth/Codex or BYOK chain runs on the user's OWN plan/key and costs
+  // the operator nothing, so it gets the generous user-plan ceiling — gating it
+  // on the operator-cost cap would lock the user out of a plan they pay for.
+  const dailyCap = resolveDailyCap(chain);
   const reqDateKey = buildDateKey();
   const reservation = await reserveBudget(
     userId,
@@ -510,6 +517,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       ? AI_BUDGETS.coach.maxTokens * MAX_ROUNDS
       : AI_BUDGETS.coach.maxTokens,
     reqDateKey,
+    dailyCap,
   );
   if (!reservation.allowed) {
     annotate({
@@ -526,6 +534,9 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // prose number-verifier. Empty on the no-tools path.
   let toolResultPayloads: unknown[] = [];
   let totalTokensSpent: number;
+  // v1.21.0 (F3) — cached-input tokens to subtract at reconcile (prompt-cached
+  // input the user did not re-pay for must not be billed to the daily meter).
+  let cachedTokensSpent = 0;
   try {
     if (toolMode) {
       // v1.20.0 (F1) — base context: the full system prompt + a tool-mode
@@ -565,6 +576,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
       toolTrace = loop.toolTrace;
       toolResultPayloads = (loop.toolResults ?? []).map((r) => r.data);
       totalTokensSpent = loop.totalTokens;
+      cachedTokensSpent = loop.cachedTokens;
     } else {
       const fallback = await runRawCompletionWithFallback({
         userId,
@@ -587,6 +599,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
       result = fallback.result;
       workingProviderType = fallback.workingProvider.providerType;
       totalTokensSpent = result.tokensUsed ?? 0;
+      cachedTokensSpent = result.cachedInputTokens ?? 0;
     }
   } catch (err) {
     // The provider chain failed outright — no tokens were billed, so refund
@@ -643,6 +656,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
     reservation.reserved,
     totalTokensSpent,
     reqDateKey,
+    cachedTokensSpent,
   ).catch(() => {
     // Ledger reconcile is best-effort; a failure leaves the conservative
     // reservation in place (never an undercount) and never breaks the turn.

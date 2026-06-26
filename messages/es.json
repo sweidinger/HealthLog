@@ -2222,7 +2222,7 @@
       "feedbackThanks": "Gracias por la indicación.",
       "feedbackError": "No se pudo guardar el comentario",
       "dailyLimitTitle": "Límite diario alcanzado",
-      "dailyLimitBody": "Límite diario alcanzado; reinicio a las 00:00 UTC.",
+      "dailyLimitBody": "Límite diario alcanzado. El cupo se reinicia a medianoche (UTC).",
       "providerRateLimitTitle": "Proveedor con límite de tasa",
       "providerRateLimitBody": "El proveedor está temporalmente saturado; reinicio en ~5 min.",
       "settingsContextLabel": "Enviar contexto",

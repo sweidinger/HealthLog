@@ -41,6 +41,7 @@ vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(() => "2026-06-26"),
   reserveBudget: vi.fn(),
   reconcileSpend: vi.fn().mockResolvedValue(undefined),
+  resolveDailyCap: vi.fn(() => 200_000),
 }));
 vi.mock("@/lib/labs/ocr-extract", async () => {
   const actual = await vi.importActual<typeof import("@/lib/labs/ocr-extract")>(
@@ -106,6 +107,8 @@ describe("POST /api/labs/ocr/extract — text mode budget", () => {
       "user-1",
       AI_BUDGETS.ocrExtractText.maxTokens,
       "2026-06-26",
+      // F1 — the provider-aware daily cap (mocked) is threaded as the 4th arg.
+      200_000,
     );
   });
 
