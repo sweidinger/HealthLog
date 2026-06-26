@@ -154,6 +154,7 @@ const { buildCoachDataInventory, renderDataInventory, runCoachToolLoop } =
       totalTokens: 80,
       rounds: 2,
       toolTrace: [{ name: "get_metric_series", present: true }],
+      toolResults: [],
     })),
   }));
 vi.mock("@/lib/ai/coach/tools", () => ({
@@ -183,6 +184,9 @@ vi.mock("@/lib/validations/coach-prefs", () => ({
 }));
 
 const { appendMessage } = await import("@/lib/ai/coach/persistence");
+const { parseKeyValuesSentinel } = await import("@/lib/ai/coach/keyvalues");
+const { parseSuggestReminder } =
+  await import("@/lib/ai/coach/suggest-reminder");
 
 vi.mock("@/lib/sse/create-stream", () => ({
   createSseStream: (
@@ -258,6 +262,50 @@ describe("coach chat — tool-mode routing (F1)", () => {
       (assistantCall?.[0] as { metricSource: { toolCalls?: unknown } })
         .metricSource.toolCalls,
     ).toEqual([{ name: "get_metric_series", present: true }]);
+  });
+
+  it("soft-strips a prose number the tools never returned (P6)", async () => {
+    resolveProviderChain.mockResolvedValue([
+      { providerType: "anthropic", instance: {} },
+    ]);
+    // Echo the real prose through the sentinel + suggest parsers so the
+    // verifier sees the model's actual numbers (the default mocks return a
+    // fixed string).
+    const drift = "Your systolic averaged about 138 lately.";
+    (parseKeyValuesSentinel as ReturnType<typeof vi.fn>).mockReturnValue({
+      prose: drift,
+      keyValues: [],
+      malformed: false,
+      malformedEntries: [],
+    });
+    (parseSuggestReminder as ReturnType<typeof vi.fn>).mockReturnValue({
+      prose: drift,
+    });
+    // The tool returned systolic 128; the prose drifts to 138.
+    (runCoachToolLoop as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => ({
+        result: {
+          content: "Your systolic averaged about 138 lately.",
+          tokensUsed: 80,
+          model: "m",
+        },
+        workingProviderType: "anthropic",
+        totalTokens: 80,
+        rounds: 2,
+        toolTrace: [{ name: "get_metric_series", present: true }],
+        toolResults: [
+          { present: true, data: { aggregate: { avgSys30: 128 } } },
+        ],
+      }),
+    );
+    await post(chatReq({ message: "How is my BP?" }));
+    const calls = (appendMessage as ReturnType<typeof vi.fn>).mock.calls;
+    const assistantCall = calls.find(
+      (c) => (c[0] as { role: string }).role === "assistant",
+    );
+    const content = (assistantCall?.[0] as { content: string }).content;
+    expect(content).toContain("[unverified]");
+    expect(content).not.toContain("138");
   });
 
   it("falls back to the snapshot-stuffing path when a provider lacks tools", async () => {

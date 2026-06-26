@@ -28,7 +28,11 @@ import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
 import type { AiMessage, AiToolDef, CompletionResult } from "@/lib/ai/types";
 import type { ProviderHealthLedger } from "@/lib/ai/provider-health-ledger";
 import type { CoachScopeWindow } from "@/lib/ai/coach/types";
-import { executeCoachTool, type CoachToolTrace } from "./executor";
+import {
+  executeCoachTool,
+  type CoachToolResult,
+  type CoachToolTrace,
+} from "./executor";
 
 export const MAX_ROUNDS = 2;
 /** Absolute ceiling; the final allowed round forces prose (toolChoice none). */
@@ -45,6 +49,13 @@ export interface CoachToolLoopResult {
   rounds: number;
   /** Which tools ran + whether each found data (persisted onto provenance). */
   toolTrace: CoachToolTrace[];
+  /**
+   * v1.21.0 (P6) — the structured payloads of every PRESENT tool result this
+   * turn, in call order. The post-hoc prose number-verifier extracts the
+   * numeric leaves from these to cross-check the figures the model cited. Empty
+   * on a no-tools answer.
+   */
+  toolResults: CoachToolResult[];
 }
 
 export async function runCoachToolLoop(args: {
@@ -78,6 +89,7 @@ export async function runCoachToolLoop(args: {
   let rounds = 0;
   let workingProviderType = "";
   const toolTrace: CoachToolTrace[] = [];
+  const toolResults: CoachToolResult[] = [];
 
   // Round budget: rounds 1..HARD_CAP. On the last allowed round we forbid tool
   // calls so the model must answer.
@@ -120,7 +132,14 @@ export async function runCoachToolLoop(args: {
           forcedFinal: isForcedFinal,
         },
       });
-      return { result, workingProviderType, totalTokens, rounds, toolTrace };
+      return {
+        result,
+        workingProviderType,
+        totalTokens,
+        rounds,
+        toolTrace,
+        toolResults,
+      };
     }
 
     // Append the assistant turn that requested the tools, then execute them in
@@ -140,6 +159,10 @@ export async function runCoachToolLoop(args: {
           fallbackWindow,
         });
         toolTrace.push({ name: call.name, present: toolResult.present });
+        // v1.21.0 (P6) — retain the present results' payloads for the post-hoc
+        // prose number-verifier (the union of numeric leaves grounds the
+        // figures the model may cite).
+        if (toolResult.present) toolResults.push(toolResult);
         return { call, toolResult };
       }),
     );
