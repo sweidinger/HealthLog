@@ -34,6 +34,7 @@ import { prisma } from "@/lib/db";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   discoverCorrelations,
+  discoveryMeasurementTypes,
   DISCOVERY_BEHAVIOURS,
   DISCOVERY_OUTCOMES,
   FACTOR_CHANNEL_PREFIX,
@@ -532,13 +533,19 @@ export async function buildPeriodNarrativeContext(
   );
 
   // The full set of types any beat needs: delta metrics ∪ banded vitals ∪
-  // discovery channels (minus MOOD, which is mood-entry backed).
+  // discovery channels (minus the NON-measurement channels: MOOD is mood-entry
+  // backed; v1.21.0 MEDICATION_COMPLIANCE / SYMPTOM_SEVERITY are
+  // ledger / illness-day-log backed — none are MeasurementType enum values, so
+  // `discoveryMeasurementTypes` drops them from the `type IN (...)` query).
+  // Those two channels are not populated on the period-narrative surface (they
+  // degrade to absent here); the canonical `/api/insights/correlations` route
+  // builds them.
   const measurementTypes = Array.from(
     new Set<string>([
       ...DELTA_METRICS.map((m) => m.type),
       ...VITALS_BASELINE_TYPES,
-      ...DISCOVERY_BEHAVIOURS.filter((k) => k !== "MOOD"),
-      ...DISCOVERY_OUTCOMES.filter((k) => k !== "MOOD"),
+      ...discoveryMeasurementTypes(DISCOVERY_BEHAVIOURS),
+      ...discoveryMeasurementTypes(DISCOVERY_OUTCOMES),
     ]),
   ) as MeasurementType[];
 

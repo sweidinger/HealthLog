@@ -10,6 +10,7 @@ import {
 } from "@/lib/jobs/insight-status-generate-shared";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import {
+  discoveryMeasurementTypes,
   DISCOVERY_BEHAVIOURS,
   DISCOVERY_OUTCOMES,
 } from "@/lib/insights/correlation-discovery";
@@ -25,10 +26,19 @@ import { annotate } from "@/lib/logging/context";
  * relation would be silently skipped for the day. `MOOD` is mood-entry backed
  * (folded separately via `includeMood`), so it is excluded from the
  * measurement-type set here.
+ *
+ * v1.21.0 (FDREXTEND) — `MEDICATION_COMPLIANCE` (dose-history ledger) and
+ * `SYMPTOM_SEVERITY` (illness day-log) are likewise NON-measurement channels;
+ * `discoveryMeasurementTypes` excludes them too, or the `type IN (...)` groupBy
+ * below would try to cast a non-enum string to `MeasurementType` and error.
+ * Their own data changes still flip a card's gate through their source models —
+ * they simply do not belong in the measurement fingerprint set.
  */
-const CORRELATION_CHANNEL_TYPES: readonly MeasurementType[] = Array.from(
-  new Set<string>([...DISCOVERY_BEHAVIOURS, ...DISCOVERY_OUTCOMES]),
-).filter((key) => key !== "MOOD") as MeasurementType[];
+const CORRELATION_CHANNEL_TYPES: readonly MeasurementType[] =
+  discoveryMeasurementTypes([
+    ...DISCOVERY_BEHAVIOURS,
+    ...DISCOVERY_OUTCOMES,
+  ]) as MeasurementType[];
 
 /**
  * Shared cache-read for the seven `*-status.ts` insight generators.

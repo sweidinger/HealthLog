@@ -26,9 +26,17 @@
  * already-fetched daily series — the DB read lives in the route.
  *
  * Framing discipline: descriptive, never causal; every pair carries n, r,
- * p, and the BH-adjusted q; medication compliance is NOT yet a behaviour
- * channel (the cadence-aware per-day rate needs the compliance engine — a
- * later wave), documented here so the omission is intentional, not a gap.
+ * p, and the BH-adjusted q.
+ *
+ * v1.21.0 (FDREXTEND) — medication compliance (a daily adherence rate from the
+ * compliance engine's dose-history ledger) and symptom severity (the illness
+ * day-log functional-impact / symptom-burden track) are now first-class daily
+ * channels in the matrix, so the high-value "adherence dip → symptom flare" and
+ * "compliance↓ → a vital drifting" links can finally be discovered. They are
+ * the sparsest, noisiest inputs in the system — they flow through the SAME
+ * n ≥ 20 / p < 0.05 / BH-FDR / effect-size-floor / shrinkage gates as every
+ * other channel, so a thin series degrades to absent rather than to a spurious
+ * link. The series builders live in `correlation-series-builders.ts`.
  */
 import { pearson, MIN_PAIRED_N } from "@/lib/insights/correlations";
 
@@ -94,6 +102,14 @@ export function metricFamily(key: string): string {
   // tautology as MOOD→MOOD and is excluded too.
   if (key.startsWith(FACTOR_CHANNEL_PREFIX) || key === "MOOD") return "MOOD";
   if (key.startsWith("BLOOD_PRESSURE")) return "BLOOD_PRESSURE";
+  // v1.21.0 (FDREXTEND) — medication compliance and symptom severity each form
+  // their OWN single-channel family, so the loop's same-family guard collapses
+  // only the self-lag (compliance→compliance, symptom→symptom). The returned
+  // key equals the channel key for both, so neither shares a family with any
+  // vital / sleep / mood channel — they remain free to pair cross-domain
+  // (the whole point: adherence↓ → next-day symptom↑, or compliance↓ → a vital
+  // drifting). No special-case branch is needed; the `return key` fall-through
+  // already isolates them. This comment documents the deliberate decision.
   return key;
 }
 
@@ -287,6 +303,62 @@ function humanise(key: string): string {
 export const FACTOR_CHANNEL_PREFIX = "FACTOR:";
 
 /**
+ * v1.21.0 (FDREXTEND) — stable channel key for the daily medication-compliance
+ * adherence rate (per-day taken/scheduled, 0–100). Sourced from the compliance
+ * engine's unified dose-history ledger, NOT a `MeasurementType`, so the caller
+ * builds its series separately (the way MOOD is read from MoodEntry) and folds
+ * it in. A BEHAVIOUR channel: the actionable, high-value direction is
+ * "adherence dip today → a worse outcome tomorrow" (next-day symptom flare or a
+ * vital drifting), so compliance lags the outcome by a day like every other
+ * behaviour. It forms its own `metricFamily`, so the only pair the loop skips is
+ * the compliance→compliance self-lag.
+ */
+export const MEDICATION_COMPLIANCE_CHANNEL_KEY = "MEDICATION_COMPLIANCE";
+
+/**
+ * v1.21.0 (FDREXTEND) — stable channel key for the daily symptom-severity /
+ * functional-impact burden (0–3; 0 = healthy, 3 = bedbound). Sourced from the
+ * illness day-log (`functionalImpact`, else max linked symptom severity), NOT a
+ * `MeasurementType`. It rides BOTH roles like MOOD: as an OUTCOME it surfaces
+ * "adherence dip today → symptom flare tomorrow"; as a BEHAVIOUR it surfaces
+ * "symptom burden today → a vital drifting tomorrow". The same-family guard
+ * skips only the symptom→symptom self-lag. The series is built only across the
+ * span the user actually logs illness (healthy days inside that span = 0); a
+ * user who never logs illness yields an EMPTY series that degrades to absent —
+ * never a spurious all-zero constant that could fabricate a link.
+ */
+export const SYMPTOM_SEVERITY_CHANNEL_KEY = "SYMPTOM_SEVERITY";
+
+/**
+ * v1.21.0 (FDREXTEND) — discovery channels that are NOT `MeasurementType` enum
+ * values: each is backed by a different model (MOOD → MoodEntry,
+ * MEDICATION_COMPLIANCE → the dose-history ledger, SYMPTOM_SEVERITY → the
+ * illness day-log). EVERY caller that derives a `MeasurementType[]` list from
+ * `DISCOVERY_BEHAVIOURS` / `DISCOVERY_OUTCOMES` to feed a Prisma
+ * `measurement.findMany({ where: { type: { in } } })` MUST exclude these — a
+ * non-enum string in the `IN (...)` list errors the Postgres enum cast. Use
+ * {@link discoveryMeasurementTypes} (or this set) rather than re-spelling the
+ * `k !== "MOOD"` filter, so a future non-measurement channel cannot be missed at
+ * one call site and crash its query.
+ */
+export const NON_MEASUREMENT_DISCOVERY_CHANNELS: ReadonlySet<string> = new Set([
+  "MOOD",
+  MEDICATION_COMPLIANCE_CHANNEL_KEY,
+  SYMPTOM_SEVERITY_CHANNEL_KEY,
+]);
+
+/**
+ * v1.21.0 (FDREXTEND) — the subset of `keys` that ARE real `MeasurementType`
+ * enum values (i.e. excluding every {@link NON_MEASUREMENT_DISCOVERY_CHANNELS}
+ * channel), safe to splice into a Prisma `type IN (...)` filter. The cast is the
+ * caller's existing `as MeasurementType[]` assertion — this only drops the
+ * non-enum keys first.
+ */
+export function discoveryMeasurementTypes(keys: readonly string[]): string[] {
+  return keys.filter((k) => !NON_MEASUREMENT_DISCOVERY_CHANNELS.has(k));
+}
+
+/**
  * Run the FDR-controlled discovery over the behaviour × outcome matrix.
  *
  * 1. For every (behaviour, outcome) pair, lag-join (D → D+1) and run
@@ -382,9 +454,15 @@ export function discoverCorrelations(
 
 /**
  * The curated discovery matrix — the channels the engine pairs. Behaviours
- * (lag sources) on the left, outcomes (lag targets) on the right. Medication
- * compliance is deliberately NOT yet a behaviour channel — its cadence-aware
- * per-day rate needs the compliance engine; folding it in is a later wave.
+ * (lag sources) on the left, outcomes (lag targets) on the right.
+ *
+ * v1.21.0 (FDREXTEND) — medication compliance is NOW a behaviour channel (its
+ * cadence-aware per-day rate comes from the compliance engine's dose-history
+ * ledger; the caller builds the series and folds it in, the way MOOD is read
+ * from MoodEntry). Symptom severity rides both roles (see the OUTCOMES note).
+ * Both are sparse, noisy inputs — the engine's existing n ≥ 20 / p < 0.05 /
+ * BH-FDR / effect-size-floor / shrinkage gates apply UNCHANGED, so a thin
+ * compliance or symptom series cannot surface a confident driver.
  */
 export const DISCOVERY_BEHAVIOURS = [
   "TIME_IN_DAYLIGHT",
@@ -392,6 +470,12 @@ export const DISCOVERY_BEHAVIOURS = [
   "BLOOD_GLUCOSE",
   "BLOOD_PRESSURE_SYS",
   "ACTIVITY_STEPS",
+  // v1.21.0 (FDREXTEND) — daily adherence rate as a lag source: the high-value
+  // "adherence dip today → a worse outcome tomorrow" direction.
+  MEDICATION_COMPLIANCE_CHANNEL_KEY,
+  // v1.21.0 (FDREXTEND) — symptom burden as a lag source too: "more symptomatic
+  // today → a vital drifting tomorrow". Mirrored as an outcome below.
+  SYMPTOM_SEVERITY_CHANNEL_KEY,
 ] as const;
 
 export const DISCOVERY_OUTCOMES = [
@@ -406,6 +490,11 @@ export const DISCOVERY_OUTCOMES = [
   // to the existing "mood today → next-day outcome" direction. BH-FDR
   // already controls the larger pair family this opens up.
   "MOOD",
+  // v1.21.0 (FDREXTEND) — symptom severity as an OUTCOME: the flagship
+  // "adherence dip today → symptom flare tomorrow" link (compliance behaviour →
+  // symptom outcome). The same-family guard skips the symptom→symptom self-lag;
+  // BH-FDR controls the wider family the dual-role channel opens up.
+  SYMPTOM_SEVERITY_CHANNEL_KEY,
   // Wrist temperature is a credible future OUTCOME channel (near-daily, so
   // n ≥ 20 is reachable; "did a hard workout / late alcohol raise next-night
   // temperature?"), but it is deliberately NOT a channel yet: it is

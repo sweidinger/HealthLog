@@ -25,6 +25,7 @@ import { prisma } from "@/lib/db";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   discoverCorrelations,
+  discoveryMeasurementTypes,
   DISCOVERY_BEHAVIOURS,
   DISCOVERY_OUTCOMES,
   type DailySeriesPoint,
@@ -103,13 +104,17 @@ export async function getRelevantCorrelationsForMetric(
     const tz = profile?.timezone ?? "Europe/Berlin";
     const since = new Date(Date.now() - WINDOW_DAYS * MS_PER_DAY);
 
-    // MOOD is mood-entry backed, not a measurement type — strip it from the
-    // measurement query and source it separately, exactly like the route.
-    const behaviourTypes = DISCOVERY_BEHAVIOURS.filter(
-      (k) => k !== "MOOD",
+    // Non-measurement channels (MOOD, and v1.21.0 MEDICATION_COMPLIANCE /
+    // SYMPTOM_SEVERITY) are backed by other models — `discoveryMeasurementTypes`
+    // strips them from the measurement `type IN (...)` query (a non-enum string
+    // would error the cast). This per-metric-card surface does not populate the
+    // compliance / symptom channels (they degrade to absent here); the
+    // canonical `/api/insights/correlations` route builds them.
+    const behaviourTypes = discoveryMeasurementTypes(
+      DISCOVERY_BEHAVIOURS,
     ) as MeasurementType[];
-    const outcomeTypes = DISCOVERY_OUTCOMES.filter(
-      (k) => k !== "MOOD",
+    const outcomeTypes = discoveryMeasurementTypes(
+      DISCOVERY_OUTCOMES,
     ) as MeasurementType[];
 
     const [measurements, moodEntries] = await Promise.all([
