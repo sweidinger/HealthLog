@@ -8,6 +8,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/insights/section-heading";
+import { AskCoachAction } from "@/components/insights/ask-coach-action";
 import {
   Popover,
   PopoverContent,
@@ -224,6 +225,21 @@ export function PeriodNarrativeCard({
                   ),
                 })}
           </p>
+        ) : null}
+
+        {/* v1.21.0 (C4 H2) — hand the period summary to the Coach. It spans
+            the whole picture for the window, so no scope: the default
+            snapshot reads best. */}
+        {narrative ? (
+          <div className="flex justify-end">
+            <AskCoachAction
+              question={
+                period === "week"
+                  ? "Walk me through how my last week went across my health metrics — what stands out?"
+                  : "Walk me through how my last month went across my health metrics — what stands out?"
+              }
+            />
+          </div>
         ) : null}
       </div>
     </section>

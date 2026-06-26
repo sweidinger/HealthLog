@@ -2286,7 +2286,8 @@
       "thinkingExpandAria": "Montrer ce que le Coach a pris en compte",
       "thinkingDetail": "Réponse établie à partir de ton aperçu santé.",
       "tokensUsed": "{count} jetons",
-      "tokensUsedWithModel": "{count} jetons · {model}"
+      "tokensUsedWithModel": "{count} jetons · {model}",
+      "askAboutThis": "Interroger le coach à ce sujet"
     },
     "relativeJustNow": "à l’instant",
     "relativeMinutesAgoOne": "il y a {count} minute",
