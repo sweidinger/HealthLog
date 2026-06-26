@@ -14,6 +14,7 @@ import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { CoachReadStrip } from "@/components/insights/derived/coach-read-strip";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
@@ -111,6 +112,13 @@ export default function InsightsBlutdruckPage() {
       description={t("insights.subPage.blutdruckDescription")}
       explainerMetric="bloodPressure"
       coachLaunch
+      coachReadStrip={
+        <CoachReadStrip
+          metricType="BLOOD_PRESSURE_SYS"
+          unit="mmHg"
+          fractionDigits={0}
+        />
+      }
       statStrip={
         // v1.12.7 — blood pressure is two series, but they share ONE card
         // with the systolic / diastolic columns side by side (stacking only

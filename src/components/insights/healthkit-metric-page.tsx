@@ -23,6 +23,7 @@ import { TrajectoryForecastCard } from "@/components/insights/derived/trajectory
 import { isTrajectoryType } from "@/lib/insights/derived/registry";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { CoachReadStrip } from "@/components/insights/derived/coach-read-strip";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
@@ -352,6 +353,14 @@ export function HealthKitMetricPage({
           icon={statIcon}
           windowStats={statsByType?.[effectiveType] ?? null}
           medianLabel={statMedianLabel}
+        />
+      }
+      coachReadStrip={
+        <CoachReadStrip
+          metricType={effectiveType}
+          unit={yAxisUnit ?? unit}
+          fractionDigits={statFractionDigits}
+          valueScale={valueScale}
         />
       }
       diversityNudge={

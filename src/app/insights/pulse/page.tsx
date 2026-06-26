@@ -13,6 +13,7 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { CoachReadStrip } from "@/components/insights/derived/coach-read-strip";
 import { MetricCorrelationCard } from "@/components/insights/metric-correlation-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
@@ -131,6 +132,13 @@ export default function InsightsPulsPage() {
           seriesLabel={t("insights.pulseSectionTitle")}
           icon={Heart}
           windowStats={statsByType?.PULSE ?? null}
+        />
+      }
+      coachReadStrip={
+        <CoachReadStrip
+          metricType={hasRestingHr ? "RESTING_HEART_RATE" : "PULSE"}
+          unit="bpm"
+          fractionDigits={0}
         />
       }
       diversityNudge={
