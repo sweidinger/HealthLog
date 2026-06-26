@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.21.1] — 2026-06-26 — Dialog footer reachability
+
+A patch release. No migrations, no breaking changes.
+
+### Fixed
+
+- Pop-up forms now scroll only their body on desktop, keeping the action row in view. A tall form — or one made tall by browser zoom, display scaling, or a longer-language label — could push the primary button below the fold and force a scroll to reach it; the centred dialog now matches the bottom sheet, which already pinned its footer. Every form the app mounts through the shared sheet surface inherits the fix.
+
 ## [1.21.0] — 2026-06-26 — Date-format preference, a far more connected Coach, and broad correctness work
 
 A feature release. The Coach reaches every data domain on demand, surfaces the cross-metric patterns the analytics tier already discovers, opens in context from any screen, and speaks with a warmer, forward-looking voice on one shared set of safety thresholds. Dates render in your chosen format everywhere. Two additive migrations (`0193` rollup x-rescale, `0192` date format); no breaking changes.
