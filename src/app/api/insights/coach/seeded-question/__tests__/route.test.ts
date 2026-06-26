@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 /**
- * v1.22.0 (A3) — the seeded-question route resolves today's single most
+ * v1.21.2 (A3) — the seeded-question route resolves today's single most
  * notable derived signal into a tappable Coach opener, server-side. When the
  * confidence + notability gate yields nothing the route returns
  * `{ signal: null }` and the hero keeps its neutral greeting — never a

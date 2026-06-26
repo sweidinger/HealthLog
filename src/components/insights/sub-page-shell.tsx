@@ -97,7 +97,7 @@ export interface SubPageShellProps {
    */
   statStrip?: ReactNode;
   /**
-   * v1.22.0 (A1) — the "Coach read" strip, mounted between the stat strip and
+   * v1.21.2 (A1) — the "Coach read" strip, mounted between the stat strip and
    * the chart. A compact two-line own-baseline + lagged-association read that
    * makes the metric feel seen-in-context. Self-gating (renders nothing until
    * its server read lands, and nothing at all when there is no baseline and no
@@ -389,7 +389,7 @@ export function SubPageShell({
           strip so the numbers always reflect the range the chart paints. No
           drag, no pill — the range tab is the single selector. */}
         {statStrip}
-        {/* v1.22.0 (A1) — the "Coach read" strip sits between the numbers-first
+        {/* v1.21.2 (A1) — the "Coach read" strip sits between the numbers-first
           stat strip and the chart, so the spine reads intro → numbers → Coach
           read → chart → target → assessment. Self-gating, so the rhythm holds
           when the strip has nothing to say. */}

@@ -1,5 +1,5 @@
 /**
- * v1.22.0 (A3) — pre-seeded relevance opener for the unscoped Coach.
+ * v1.21.2 (A3) — pre-seeded relevance opener for the unscoped Coach.
  *
  * `GET /api/insights/coach/seeded-question` resolves today's single most
  * notable derived wellness signal (readiness / recovery shift, the same

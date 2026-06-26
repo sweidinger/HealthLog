@@ -128,7 +128,7 @@ export const insightsKeys = {
   insightsTrendSeries: (types: string) => ["trend-series", types] as const,
 
   /**
-   * v1.22.0 (A1) — per-metric "Coach read" strip
+   * v1.21.2 (A1) — per-metric "Coach read" strip
    * (`/api/insights/coach-read?metric=<MeasurementType>`). One generic route
    * backs every metric sub-page, so the key is parameterised by the
    * MeasurementType. Pure compute over the baseline + correlation engines —

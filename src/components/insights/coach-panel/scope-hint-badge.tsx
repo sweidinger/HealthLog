@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
- * v1.22.0 (A2 + A3) — the Coach's visible scope/opener affordance.
+ * v1.21.2 (A2 + A3) — the Coach's visible scope/opener affordance.
  *
  * Two modes, one surface:
  *

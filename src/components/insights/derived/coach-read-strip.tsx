@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import type { CoachReadStripData } from "@/lib/insights/derived/coach-read-shape";
 
 /**
- * v1.22.0 (A1) — "Coach read" strip.
+ * v1.21.2 (A1) — "Coach read" strip.
  *
  * A compact two-line read rendered ABOVE the chart on each metric sub-page:
  *

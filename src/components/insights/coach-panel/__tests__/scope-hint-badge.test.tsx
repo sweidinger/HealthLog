@@ -13,7 +13,7 @@ function render(node: React.ReactNode, locale: "en" | "de" = "en") {
 }
 
 /**
- * v1.22.0 (A2 + A3) — the visible scope/opener affordance.
+ * v1.21.2 (A2 + A3) — the visible scope/opener affordance.
  *
  * The component renders in the `node` test environment via static markup, so
  * the tests assert the structural slots + the caller-resolved label / question
