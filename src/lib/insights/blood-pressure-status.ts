@@ -696,7 +696,7 @@ export async function prepareBloodPressureStatusForUser(
     temperature: 0.45,
     noProvider: {
       hasProvider: false,
-      text: getNoKeyBloodPressureStatusText(locale),
+      text: getNoKeyBloodPressureStatusText(locale, sysSignal),
       cached: true,
       updatedAt: null,
     },
@@ -706,7 +706,7 @@ export async function prepareBloodPressureStatusForUser(
         reason,
         userId,
         todayKey,
-        stubText: getNoKeyBloodPressureStatusText(locale),
+        stubText: getNoKeyBloodPressureStatusText(locale, sysSignal),
       }),
     finalize: async (outcome): Promise<StatusCardResult> => {
       const summary = normalizeSummaryText(

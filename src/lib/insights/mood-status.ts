@@ -708,7 +708,7 @@ export async function prepareMoodStatusForUser(
     temperature: 0.45,
     noProvider: {
       hasProvider: false,
-      text: getNoKeyMoodStatusText(locale),
+      text: getNoKeyMoodStatusText(locale, moodSignal),
       cached: true,
       updatedAt: null,
     },
@@ -718,7 +718,7 @@ export async function prepareMoodStatusForUser(
         reason,
         userId,
         todayKey,
-        stubText: getNoKeyMoodStatusText(locale),
+        stubText: getNoKeyMoodStatusText(locale, moodSignal),
       }),
     finalize: async (outcome): Promise<StatusCardResult> => {
       const summary = normalizeSummaryText(

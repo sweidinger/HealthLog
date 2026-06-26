@@ -8,6 +8,10 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
  * fallback AS AN ASSESSMENT (the pre-v1.4.28 stick-until-midnight bug);
  * `updatedAt` stays null and the served text is never a real assessment.
  *
+ * v1.21.0 (coach C1 HIGH-1) — the fallback now reports `hasProvider:false`
+ * (it is a deterministic, signal-grounded line, not a fresh AI assessment),
+ * and the served text names the user's own value rather than a generic tip.
+ *
  * v1.8.3 — the timeout path now writes a *short-TTL negative stub*
  * (`{ timeout:true, model:"timeout-stub", retryAt }`). It is explicitly
  * rejected by `readFreshStatusText`, so it can never hide the real
@@ -65,10 +69,15 @@ describe("generatePulseStatusForUser — provider timeout fallback", () => {
       locale: "en",
     });
 
-    expect(result.hasProvider).toBe(true);
+    // Honest labelling — a deterministic fallback is NOT a provider
+    // assessment, so the UI can render it as the computed summary it is.
+    expect(result.hasProvider).toBe(false);
     expect(result.cached).toBe(true);
     expect(typeof result.text).toBe("string");
     expect(result.text?.length ?? 0).toBeGreaterThan(0);
+    // Signal-grounded — names the user's own pulse value (72), not a generic
+    // clinical platitude.
+    expect(result.text).toContain("72 bpm");
     // No real assessment persisted — `updatedAt` stays null so the card
     // never mislabels the fallback as a fresh assessment.
     expect(result.updatedAt).toBeNull();

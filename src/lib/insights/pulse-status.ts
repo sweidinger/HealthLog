@@ -461,7 +461,7 @@ export async function preparePulseStatusForUser(
     temperature: 0.45,
     noProvider: {
       hasProvider: false,
-      text: getNoKeyPulseStatusText(locale),
+      text: getNoKeyPulseStatusText(locale, pulseSignal),
       cached: true,
       updatedAt: null,
     },
@@ -471,7 +471,7 @@ export async function preparePulseStatusForUser(
         reason,
         userId,
         todayKey,
-        stubText: getNoKeyPulseStatusText(locale),
+        stubText: getNoKeyPulseStatusText(locale, pulseSignal),
       }),
     finalize: async (outcome): Promise<StatusCardResult> => {
       const summary = normalizeSummaryText(
