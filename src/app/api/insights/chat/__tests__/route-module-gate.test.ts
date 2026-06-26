@@ -71,9 +71,10 @@ vi.mock("@/lib/ai/coach/types", () => ({
 // thin stub keeps the import graph satisfied without pulling the real schemas.
 vi.mock("@/lib/ai/coach/tools", () => ({
   COACH_TOOL_DEFS: [],
-  MAX_ROUNDS: 2,
+  MAX_ROUNDS: 3,
   buildCoachDataInventory: vi.fn(),
   renderDataInventory: vi.fn(),
+  renderFocusHint: vi.fn(() => ""),
   buildToolModeAddendum: vi.fn(),
   runCoachToolLoop: vi.fn(),
 }));

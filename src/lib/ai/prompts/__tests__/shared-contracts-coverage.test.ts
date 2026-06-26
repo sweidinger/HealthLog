@@ -17,8 +17,17 @@ import {
   safetyAcute,
   metricIdentifierBan,
   forbiddenFiller,
+  outlookContract,
   type ContractLocale,
 } from "../shared-contracts";
+import {
+  BP_SYS_CRITICAL,
+  BP_DIA_CRITICAL,
+  GLUCOSE_HYPO_FLOOR,
+  GLUCOSE_HYPO_SEVERE_FLOOR,
+  GLUCOSE_HYPER_FLOOR,
+  FEVER_RED_FLAG_C,
+} from "@/lib/clinical-floors";
 import { getBaseSystemPrompt } from "../base-system";
 import { getStrictInsightsSystemPrompt } from "../insight-generator";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
@@ -47,6 +56,9 @@ const SURFACES: Record<
       safetyAcute,
       metricIdentifierBan,
       forbiddenFiller,
+      // v1.21.0 (QoL-B §3) — the briefing composes the forward-looking outlook
+      // contract beside the tone contract.
+      outlookContract,
     ],
   },
   "base-system (status cards)": {
@@ -69,6 +81,8 @@ const SURFACES: Record<
       safetyAcute,
       metricIdentifierBan,
       forbiddenFiller,
+      // v1.21.0 (QoL-B §3) — the Coach composes the outlook contract too.
+      outlookContract,
     ],
   },
   // v1.21.0 (coach C1 MEDIUM-1) — the retrospective narrative now composes the
@@ -122,5 +136,45 @@ describe("shared-contract cross-surface coverage", () => {
       expect(getCoachSystemPrompt(locale)).toContain(safetyAcute[locale]);
       expect(SYSTEM_PROMPTS_FOR_TEST[locale]).toContain(safetyAcute[locale]);
     }
+  });
+
+  it("the outlook contract reaches the Coach + briefing surfaces", () => {
+    for (const locale of LOCALES) {
+      expect(getCoachSystemPrompt(locale)).toContain(outlookContract[locale]);
+      expect(getStrictInsightsSystemPrompt(locale)).toContain(
+        outlookContract[locale],
+      );
+    }
+  });
+});
+
+// v1.21.0 (D3-M1 / D3-L1) — the acute-safety clause's threshold numbers are
+// composed from `clinical-floors.ts`, so the Coach's stated crisis thresholds
+// can never drift from the dashboard hero / notification engine / status
+// registry that read the same constants. Assert every floor is present in the
+// clause for both hand-composed locales, and that the glucose + sustained-fever
+// floors (previously absent) are now echoed.
+describe("safetyAcute numbers are bound to clinical-floors", () => {
+  it("echoes the BP crisis floors verbatim", () => {
+    for (const locale of LOCALES) {
+      expect(safetyAcute[locale]).toContain(String(BP_SYS_CRITICAL));
+      expect(safetyAcute[locale]).toContain(String(BP_DIA_CRITICAL));
+    }
+  });
+
+  it("echoes the glucose floors verbatim", () => {
+    for (const locale of LOCALES) {
+      expect(safetyAcute[locale]).toContain(String(GLUCOSE_HYPO_FLOOR));
+      expect(safetyAcute[locale]).toContain(String(GLUCOSE_HYPO_SEVERE_FLOOR));
+      expect(safetyAcute[locale]).toContain(String(GLUCOSE_HYPER_FLOOR));
+    }
+  });
+
+  it("echoes the sustained-fever escalation floor verbatim", () => {
+    // EN keeps the dot decimal; DE renders the decimal comma.
+    expect(safetyAcute.en).toContain(String(FEVER_RED_FLAG_C));
+    expect(safetyAcute.de).toContain(
+      String(FEVER_RED_FLAG_C).replace(".", ","),
+    );
   });
 });

@@ -7,10 +7,11 @@
  * FINAL prose for the visible stream exactly as before.
  *
  * Bounds (the loop can never run away):
- *   - MAX_ROUNDS = 2: one tool-fetch round + the answer round.
- *   - HARD_CAP = 3: an absolute ceiling; on the last allowed round the loop
- *     re-calls with `toolChoice:"none"` so the model is FORCED to produce prose
- *     even if it would otherwise keep asking for tools.
+ *   - MAX_ROUNDS = 3 (v1.21.0 D5): up to three tool-fetch rounds before the
+ *     forced answer, so a sequential cross-metric "why" chain isn't starved.
+ *   - HARD_CAP = MAX_ROUNDS + 1: an absolute ceiling; on the last allowed round
+ *     the loop re-calls with `toolChoice:"none"` so the model is FORCED to
+ *     produce prose even if it would otherwise keep asking for tools.
  *   - Tool calls within a round run in parallel (`Promise.all`).
  *
  * Token accounting: the caller reserves `maxTokens * MAX_ROUNDS` up front and
@@ -27,16 +28,28 @@ import { runRawCompletionWithFallback } from "@/lib/ai/provider-runner";
 import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
 import type { AiMessage, AiToolDef, CompletionResult } from "@/lib/ai/types";
 import type { ProviderHealthLedger } from "@/lib/ai/provider-health-ledger";
-import type { CoachScopeWindow } from "@/lib/ai/coach/types";
+import type { CoachScope, CoachScopeWindow } from "@/lib/ai/coach/types";
 import {
   executeCoachTool,
   type CoachToolResult,
   type CoachToolTrace,
 } from "./executor";
 
-export const MAX_ROUNDS = 2;
-/** Absolute ceiling; the final allowed round forces prose (toolChoice none). */
-export const HARD_CAP = 3;
+/**
+ * v1.21.0 (D5) — MAX_ROUNDS raised 2 → 3 so a sequential cross-metric "why"
+ * chain (recovery low → which driver → pull that metric's series) is not
+ * starved on the 2-round ceiling. The per-round token budget is unchanged; the
+ * caller reserves `maxTokens * MAX_ROUNDS` and reconciles the summed actual
+ * tokens, so the bound scales with this constant and stays explicit. HARD_CAP
+ * tracks one above so the final allowed round still forces prose.
+ */
+export const MAX_ROUNDS = 3;
+/**
+ * Absolute ceiling; the final allowed round forces prose (toolChoice none).
+ * Tracks one above MAX_ROUNDS so rounds 1..MAX_ROUNDS may fetch tools and the
+ * final round is always a forced answer.
+ */
+export const HARD_CAP = MAX_ROUNDS + 1;
 
 export interface CoachToolLoopResult {
   /** The final completion (prose). */
@@ -74,6 +87,12 @@ export async function runCoachToolLoop(args: {
   temperature?: number;
   maxTokens?: number;
   fallbackWindow?: CoachScopeWindow;
+  /**
+   * v1.21.0 (D5-1) — the turn's shared full-source snapshot scope (the same one
+   * the DATA INVENTORY was built against). Threaded to every tool so they read
+   * under one cache key — one snapshot build per turn instead of N.
+   */
+  sharedScope?: CoachScope;
   ledger?: ProviderHealthLedger;
   /** Aborts the per-round provider calls on client disconnect. */
   signal?: AbortSignal;
@@ -86,6 +105,7 @@ export async function runCoachToolLoop(args: {
     temperature,
     maxTokens,
     fallbackWindow,
+    sharedScope,
     ledger,
     signal,
   } = args;
@@ -166,6 +186,7 @@ export async function runCoachToolLoop(args: {
           name: call.name,
           rawArguments: call.arguments,
           fallbackWindow,
+          sharedScope,
         });
         toolTrace.push({ name: call.name, present: toolResult.present });
         // v1.21.0 (P6) — retain the present results' payloads for the post-hoc

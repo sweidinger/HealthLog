@@ -78,6 +78,7 @@ import {
   COACH_TOOL_DEFS,
   buildCoachDataInventory,
   renderDataInventory,
+  renderFocusHint,
   buildToolModeAddendum,
   runCoachToolLoop,
   MAX_ROUNDS,
@@ -89,6 +90,7 @@ import {
   findUnverifiedCoachNumbers,
   stripUnverifiedNumbers,
 } from "@/lib/ai/coach/coach-prose-grounding";
+import { scrubUnknownLearnLinks } from "@/lib/ai/coach/learn-link-guard";
 import { parseSuggestReminder } from "@/lib/ai/coach/suggest-reminder";
 import { gateSuggestion } from "@/lib/ai/coach/suggest-gate";
 import {
@@ -547,10 +549,17 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       // that fire this turn share its reads.
       const inventory = await buildCoachDataInventory(userId, effectiveScope);
       const toolSystem = `${systemPrompt}\n\n${buildToolModeAddendum(locale)}`;
+      // v1.21.0 (D1) — when the Coach was opened from a metric page/card, thread
+      // the launch sources into a one-line FOCUS hint so tool mode honours the
+      // metric the user is looking at (the no-tools path already narrows the
+      // snapshot; the inventory probes the full set, so this is the tool-mode
+      // equivalent of that narrowing). Empty string on a generic open.
+      const focusHint = renderFocusHint(effectiveScope?.sources);
+      const focusBlock = focusHint ? `${focusHint}\n\n` : "";
       const messages: AiMessage[] = [
         {
           role: "user",
-          content: `${renderDataInventory(inventory)}${guidedBlock}
+          content: `${focusBlock}${renderDataInventory(inventory)}${guidedBlock}
 
 CONVERSATION
 ${transcript}
@@ -567,6 +576,11 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
         temperature: AI_BUDGETS.coach.temperature,
         maxTokens: AI_BUDGETS.coach.maxTokens,
         fallbackWindow: effectiveScope?.window,
+        // v1.21.0 (D5-1) — share the inventory's full-source snapshot across
+        // every tool so the turn builds ONE snapshot, not one per tool. The
+        // probe scope is the exact scope the inventory was built against, so the
+        // per-tool reads land its 60s LRU entry.
+        sharedScope: inventory.probeScope,
         // v1.20.1 — thread the abort signal so a mid-generation disconnect tears
         // down the per-round provider calls instead of paying the full cost.
         signal: request.signal,
@@ -749,6 +763,28 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
           stripped,
           // No raw values — just the count + truncated tokens for ops triage.
           tokens: unverified.slice(0, 6).map((u) => u.source),
+          promptVersion: PROMPT_VERSION,
+        },
+      });
+    }
+  }
+
+  // v1.21.0 (NEW-C C-3) — Learn-link post-filter. The prompt instructs the
+  // model to only link a published `/learn/<slug>`, but that is guidance, not
+  // enforcement: a fabricated `/learn/<invented-slug>` would otherwise ship as
+  // a dead link. Scrub any reference whose slug is not in the catalog (a real
+  // one is kept verbatim). A blocked turn carries canned fallback prose with no
+  // links, so skip it.
+  if (!outbound.block && replyText.includes("/learn/")) {
+    const scrubbed = scrubUnknownLearnLinks(replyText);
+    if (scrubbed.dropped.length > 0) {
+      replyText = scrubbed.text;
+      annotate({
+        action: { name: "coach.learn.link_dropped" },
+        meta: {
+          dropped: scrubbed.dropped.length,
+          // Truncated slug tokens for ops triage — no user content.
+          slugs: scrubbed.dropped.slice(0, 6),
           promptVersion: PROMPT_VERSION,
         },
       });

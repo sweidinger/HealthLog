@@ -20,10 +20,17 @@
  *     mutation or egress surface.
  *
  * The builder result is memoised by the 60s snapshot LRU keyed on
- * `(userId, window, sources)`. Each tool scopes to a different source set, so
- * tool calls for distinct domains do NOT share a cache entry; sharing happens
- * only when the SAME scope recurs (a repeated call, or a turn that re-enters
- * the same domain) within the 60s window.
+ * `(userId, window, sources)`.
+ *
+ * v1.21.0 (D5-1) — ONE snapshot per turn. The route hands every tool the SAME
+ * `sharedScope` it built the DATA INVENTORY against (the full source set + the
+ * conversation window). A full-source build already contains every section, so
+ * each tool reads under that shared scope key and slices its own section out —
+ * landing the 60s LRU hit the inventory primed rather than rebuilding a
+ * distinct single-source snapshot per tool (the D5-1 N-builds-per-turn cost).
+ * A tool that overrides the window to something OTHER than the shared window
+ * still gets a correct, distinct build (the rare case); the common path
+ * collapses to one build.
  */
 import { z } from "zod/v4";
 
@@ -48,6 +55,7 @@ import {
   METRIC_SERIES_EXCLUDED_SOURCES,
 } from "./source-keys";
 import { readCoachCorrelations } from "./correlations-read";
+import { buildIllnessScores } from "@/lib/ai/coach/illness-snapshot";
 
 /** A read-only structured tool result. Serialised to a `role:"tool"` turn. */
 export interface CoachToolResult {
@@ -79,18 +87,32 @@ function pickSection(
 }
 
 /**
- * Resolve `args.window` into a scope. Falls back to the conversation's
- * effective window so a tool call that omits `window` matches the user's
- * chosen analysis window rather than the builder default.
+ * Resolve the scope a tool reads its snapshot under.
+ *
+ * v1.21.0 (D5-1) — when the route handed us a `sharedScope` (the full-source
+ * inventory build for this turn) AND the tool's effective window matches the
+ * shared window, read under the SHARED scope key so the per-tool read lands the
+ * 60s LRU hit the inventory already primed (the section it needs is present in
+ * the full-source build). Otherwise — no shared scope, or a window override —
+ * fall back to the tight per-source scope (a correct, distinct build).
+ *
+ * The window default chain is unchanged: `args.window` wins, else the
+ * conversation's `fallbackWindow`, else the builder default.
  */
 function scopeFor(
   sources: CoachScope["sources"],
   window: CoachScopeWindow | undefined,
   fallbackWindow: CoachScopeWindow | undefined,
+  sharedScope: CoachScope | undefined,
 ): CoachScope {
+  const effectiveWindow = window ?? fallbackWindow;
+  if (sharedScope && sharedScope.window === effectiveWindow) {
+    // Same window as the inventory's full-source build → reuse its cache entry.
+    return sharedScope;
+  }
   return {
     sources,
-    window: window ?? fallbackWindow,
+    window: effectiveWindow,
   };
 }
 
@@ -107,8 +129,15 @@ export async function executeCoachTool(args: {
   rawArguments: string;
   /** The conversation's effective window, used when a call omits `window`. */
   fallbackWindow?: CoachScopeWindow;
+  /**
+   * v1.21.0 (D5-1) — the turn's shared full-source snapshot scope (the same one
+   * the DATA INVENTORY was built against). When present and the tool's window
+   * matches, the tool reads under this scope key so it lands the inventory's
+   * already-built cache entry instead of rebuilding a single-source snapshot.
+   */
+  sharedScope?: CoachScope;
 }): Promise<CoachToolResult> {
-  const { userId, name, rawArguments, fallbackWindow } = args;
+  const { userId, name, rawArguments, fallbackWindow, sharedScope } = args;
 
   if (!isCoachToolName(name)) {
     annotate({
@@ -130,7 +159,13 @@ export async function executeCoachTool(args: {
   }
 
   try {
-    const result = await dispatch(name, userId, parsedArgs, fallbackWindow);
+    const result = await dispatch(
+      name,
+      userId,
+      parsedArgs,
+      fallbackWindow,
+      sharedScope,
+    );
     annotate({
       action: { name: "coach.tool.executed" },
       meta: { tool: name, present: result.present },
@@ -155,24 +190,30 @@ async function dispatch(
   userId: string,
   rawArgs: unknown,
   fallbackWindow: CoachScopeWindow | undefined,
+  sharedScope: CoachScope | undefined,
 ): Promise<CoachToolResult> {
   switch (name) {
     case "get_metric_series":
-      return getMetricSeries(userId, rawArgs, fallbackWindow);
+      return getMetricSeries(userId, rawArgs, fallbackWindow, sharedScope);
     case "get_glucose_panel":
-      return getGlucosePanel(userId, rawArgs, fallbackWindow);
+      return getGlucosePanel(userId, rawArgs, fallbackWindow, sharedScope);
     case "get_sleep":
-      return getSleep(userId, rawArgs, fallbackWindow);
+      return getSleep(userId, rawArgs, fallbackWindow, sharedScope);
     case "get_medication_compliance":
-      return getMedicationCompliance(userId, rawArgs, fallbackWindow);
+      return getMedicationCompliance(
+        userId,
+        rawArgs,
+        fallbackWindow,
+        sharedScope,
+      );
     case "get_labs":
-      return getLabs(userId, rawArgs, fallbackWindow);
+      return getLabs(userId, rawArgs, fallbackWindow, sharedScope);
     case "get_illness_recovery":
-      return getIllnessRecovery(userId, fallbackWindow);
+      return getIllnessRecovery(userId, fallbackWindow, sharedScope);
     case "get_workouts":
-      return getWorkouts(userId, rawArgs, fallbackWindow);
+      return getWorkouts(userId, rawArgs, fallbackWindow, sharedScope);
     case "get_cycle":
-      return getCycle(userId, rawArgs);
+      return getCycle(userId, rawArgs, sharedScope);
     case "get_correlations":
       return getCorrelations(userId, rawArgs);
   }
@@ -190,6 +231,7 @@ async function getMetricSeries(
   userId: string,
   rawArgs: unknown,
   fallbackWindow: CoachScopeWindow | undefined,
+  sharedScope: CoachScope | undefined,
 ): Promise<CoachToolResult> {
   const parsed = getMetricSeriesArgsSchema.safeParse(rawArgs);
   if (!parsed.success) return badArgs("get_metric_series", parsed.error);
@@ -217,7 +259,7 @@ async function getMetricSeries(
 
   const snapshot = await buildCoachSnapshot(
     userId,
-    scopeFor([metric], window, fallbackWindow),
+    scopeFor([metric], window, fallbackWindow, sharedScope),
   );
   const section = pickSection(snapshot.sections, sectionKey);
   if (section === undefined) {
@@ -234,12 +276,13 @@ async function getGlucosePanel(
   userId: string,
   rawArgs: unknown,
   fallbackWindow: CoachScopeWindow | undefined,
+  sharedScope: CoachScope | undefined,
 ): Promise<CoachToolResult> {
   const parsed = getGlucosePanelArgsSchema.safeParse(rawArgs);
   if (!parsed.success) return badArgs("get_glucose_panel", parsed.error);
   const snapshot = await buildCoachSnapshot(
     userId,
-    scopeFor(["glucose"], parsed.data.window, fallbackWindow),
+    scopeFor(["glucose"], parsed.data.window, fallbackWindow, sharedScope),
   );
   const section = pickSection(snapshot.sections, "glucose");
   if (section === undefined) return { present: false, reason: "no_data" };
@@ -254,12 +297,13 @@ async function getSleep(
   userId: string,
   rawArgs: unknown,
   fallbackWindow: CoachScopeWindow | undefined,
+  sharedScope: CoachScope | undefined,
 ): Promise<CoachToolResult> {
   const parsed = getSleepArgsSchema.safeParse(rawArgs);
   if (!parsed.success) return badArgs("get_sleep", parsed.error);
   const snapshot = await buildCoachSnapshot(
     userId,
-    scopeFor(["sleep"], parsed.data.window, fallbackWindow),
+    scopeFor(["sleep"], parsed.data.window, fallbackWindow, sharedScope),
   );
   const nights = pickSection(snapshot.sections, "sleep");
   const rhythm = pickSection(snapshot.sections, "sleepRhythm");
@@ -280,6 +324,7 @@ async function getMedicationCompliance(
   userId: string,
   rawArgs: unknown,
   fallbackWindow: CoachScopeWindow | undefined,
+  sharedScope: CoachScope | undefined,
 ): Promise<CoachToolResult> {
   const parsed = getMedicationComplianceArgsSchema.safeParse(rawArgs);
   if (!parsed.success) {
@@ -287,7 +332,7 @@ async function getMedicationCompliance(
   }
   const snapshot = await buildCoachSnapshot(
     userId,
-    scopeFor(["compliance"], parsed.data.window, fallbackWindow),
+    scopeFor(["compliance"], parsed.data.window, fallbackWindow, sharedScope),
   );
   const compliance = pickSection(snapshot.sections, "compliance");
   // GLP-1 context rides the `weeklyContext` block.
@@ -311,22 +356,26 @@ async function getLabs(
   userId: string,
   rawArgs: unknown,
   fallbackWindow: CoachScopeWindow | undefined,
+  sharedScope: CoachScope | undefined,
 ): Promise<CoachToolResult> {
   const parsed = getLabsArgsSchema.safeParse(rawArgs);
   if (!parsed.success) return badArgs("get_labs", parsed.error);
   // Labs ride the snapshot regardless of `sources` (attached unconditionally),
-  // so a minimal scope still surfaces them. Pass an empty source set to keep
-  // the read tight.
+  // so a minimal scope still surfaces them.
   //
   // v1.21.0 (A5-F4) — the labs block itself is a "latest reading per biomarker
   // over the last 12 months" snapshot and is intentionally window-AGNOSTIC
   // (the read cutoff is fixed). We still thread the conversation's window onto
   // the scope so the snapshot's `scope` block reports the right horizon for the
   // turn; it does not move the labs read.
-  const snapshot = await buildCoachSnapshot(userId, {
-    sources: [],
-    window: fallbackWindow,
-  });
+  //
+  // v1.21.0 (D5-1) — prefer the turn's shared full-source scope so this read
+  // lands the inventory's cache entry; fall back to a tight empty-source scope
+  // (labs ride unconditionally) when no shared scope or a window mismatch.
+  const snapshot = await buildCoachSnapshot(
+    userId,
+    scopeFor([], fallbackWindow, fallbackWindow, sharedScope),
+  );
   const labs = pickSection(snapshot.sections, "labs") as
     | { recent?: Array<{ name?: string; analyte?: string }> }
     | undefined;
@@ -350,6 +399,7 @@ async function getLabs(
 async function getIllnessRecovery(
   userId: string,
   fallbackWindow: CoachScopeWindow | undefined,
+  sharedScope: CoachScope | undefined,
 ): Promise<CoachToolResult> {
   // Validate the (empty) args shape for consistency; an empty object always
   // passes.
@@ -361,19 +411,35 @@ async function getIllnessRecovery(
   // v1.21.0 (A5-F4) — honour the conversation's window so the recovery/strain/
   // trajectory composites are computed over the horizon the caller asked for
   // rather than the builder default.
-  const snapshot = await buildCoachSnapshot(userId, {
-    sources: ["hrv", "resting_hr", "vo2_max"],
-    window: fallbackWindow,
-  });
+  //
+  // v1.21.0 (D5-1) — prefer the turn's shared full-source scope (which already
+  // carries hrv/resting_hr/vo2_max + illness + derived) so this read lands the
+  // inventory's cache entry; the narrow scope is the window-mismatch fallback.
+  const snapshot = await buildCoachSnapshot(
+    userId,
+    scopeFor(
+      ["hrv", "resting_hr", "vo2_max"],
+      fallbackWindow,
+      fallbackWindow,
+      sharedScope,
+    ),
+  );
   const illness = pickSection(snapshot.sections, "illness");
   const derived = pickSection(snapshot.sections, "derived");
   const dayStrain = pickSection(snapshot.sections, "dayStrain");
   const trajectory = pickSection(snapshot.sections, "trajectory");
+  // v1.21.0 (NEW-B B-2) — the computed illness retrospective the card shows
+  // (recovery-gap, gap-driver, nadir, pre-onset, red flags) for the most
+  // relevant episode. Read-only, coverage-gated (null when the engine
+  // withholds), and the SAME engine the card + the red-flag notifier run, so
+  // the Coach restates the numbers the user sees rather than the composite.
+  const illnessScores = await buildIllnessScores(userId);
   if (
     illness === undefined &&
     derived === undefined &&
     dayStrain === undefined &&
-    trajectory === undefined
+    trajectory === undefined &&
+    illnessScores === null
   ) {
     return { present: false, reason: "no_data" };
   }
@@ -381,6 +447,7 @@ async function getIllnessRecovery(
     present: true,
     data: {
       ...(illness !== undefined ? { illness } : {}),
+      ...(illnessScores !== null ? { illnessScores } : {}),
       ...(derived !== undefined ? { derived } : {}),
       ...(dayStrain !== undefined ? { dayStrain } : {}),
       ...(trajectory !== undefined ? { trajectory } : {}),
@@ -392,6 +459,7 @@ async function getWorkouts(
   userId: string,
   rawArgs: unknown,
   fallbackWindow: CoachScopeWindow | undefined,
+  sharedScope: CoachScope | undefined,
 ): Promise<CoachToolResult> {
   const parsed = getWorkoutsArgsSchema.safeParse(rawArgs);
   if (!parsed.success) return badArgs("get_workouts", parsed.error);
@@ -399,7 +467,7 @@ async function getWorkouts(
   // user has workout rows in the window. Scope the read to that single source.
   const snapshot = await buildCoachSnapshot(
     userId,
-    scopeFor(["workouts"], parsed.data.window, fallbackWindow),
+    scopeFor(["workouts"], parsed.data.window, fallbackWindow, sharedScope),
   );
   const workouts = pickSection(snapshot.sections, "workouts");
   if (workouts === undefined) return { present: false, reason: "no_data" };
@@ -409,6 +477,7 @@ async function getWorkouts(
 async function getCycle(
   userId: string,
   rawArgs: unknown,
+  sharedScope: CoachScope | undefined,
 ): Promise<CoachToolResult> {
   const parsed = getCycleArgsSchema.safeParse(rawArgs);
   if (!parsed.success) return badArgs("get_cycle", parsed.error);
@@ -416,7 +485,14 @@ async function getCycle(
   // (the per-user toggle AND the operator switch), independent of `sources` —
   // so a minimal scope still surfaces it when the account tracks cycles, and a
   // non-cycle account structurally produces no block (→ present:false).
-  const snapshot = await buildCoachSnapshot(userId, { sources: [] });
+  //
+  // v1.21.0 (D5-1) — prefer the turn's shared full-source scope so this read
+  // lands the inventory's cache entry; the empty-source scope is the fallback
+  // when no shared scope is threaded.
+  const snapshot = await buildCoachSnapshot(
+    userId,
+    sharedScope ?? { sources: [] },
+  );
   const cycle = pickSection(snapshot.sections, "cycle");
   if (cycle === undefined) return { present: false, reason: "no_data" };
   return { present: true, data: cycle };

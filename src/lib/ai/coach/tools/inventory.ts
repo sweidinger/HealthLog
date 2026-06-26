@@ -50,6 +50,14 @@ export interface CoachDataInventory {
   cycleEnabled: boolean;
   /** The window the inventory was built against. */
   window: string;
+  /**
+   * v1.21.0 (D5-1) — the exact full-source scope this inventory's snapshot was
+   * built against. The route threads it to the tool loop so every per-tool read
+   * lands the SAME 60s LRU entry (one snapshot build per turn, not N). Returned
+   * here so the route reuses the identical scope object rather than
+   * re-deriving it and risking a key mismatch.
+   */
+  probeScope: CoachScope;
 }
 
 /**
@@ -188,7 +196,43 @@ export async function buildCoachDataInventory(
     restMode,
     cycleEnabled,
     window: scopeBlock?.window ?? scope?.window ?? "last30days",
+    probeScope,
   };
+}
+
+/**
+ * v1.21.0 (D1) — render the launch FOCUS hint for the tool-mode user turn.
+ *
+ * When the Coach is opened from a metric page or card, the client sends
+ * `scope.sources` (the metric the user is looking at). The no-tools path
+ * narrows the snapshot to those sources, but the tool-mode inventory probes the
+ * FULL source set, so without this hint the metric-narrowing was silently
+ * dropped server-side (D1 — the only surviving signals were the window + seed
+ * question). This injects a single `FOCUS:` line naming the launched domain(s)
+ * so the model prioritises the metric the user actually opened the Coach about,
+ * while every other domain stays fetchable (the user can still pivot).
+ *
+ * Returns `""` when no explicit sources were pinned (a generic open), so the
+ * prompt prefix is byte-identical to before on the non-scoped path.
+ */
+export function renderFocusHint(
+  sources: readonly CoachScopeSource[] | undefined,
+): string {
+  if (!sources || sources.length === 0) return "";
+  const labels = sources.map(
+    (s) => COACH_SOURCE_DOMAIN_LABEL[s] ?? (s as string),
+  );
+  // De-dup while preserving order (two sources can share a label only via the
+  // fallback, but keep it stable regardless).
+  const seen = new Set<string>();
+  const unique = labels.filter((l) => {
+    if (seen.has(l)) return false;
+    seen.add(l);
+    return true;
+  });
+  return `FOCUS: the user opened this conversation from ${unique.join(
+    ", ",
+  )} — prioritise that, fetch its figures first, and only branch to other domains if the question leads there.`;
 }
 
 /**
