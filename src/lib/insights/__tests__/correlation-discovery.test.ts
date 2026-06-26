@@ -366,3 +366,166 @@ describe("D2-2 — effect-size floor on discovered drivers", () => {
     expect(pair!.interpretation).toMatch(/never a cause/);
   });
 });
+
+// ── FDREXTEND — medication compliance + symptom severity channels ─────
+
+import {
+  DISCOVERY_BEHAVIOURS,
+  MEDICATION_COMPLIANCE_CHANNEL_KEY,
+  SYMPTOM_SEVERITY_CHANNEL_KEY,
+} from "../correlation-discovery";
+
+describe("compliance + symptom channels (FDREXTEND)", () => {
+  it("registers compliance as a behaviour and symptom in both roles", () => {
+    expect(DISCOVERY_BEHAVIOURS).toContain(MEDICATION_COMPLIANCE_CHANNEL_KEY);
+    expect(DISCOVERY_BEHAVIOURS).toContain(SYMPTOM_SEVERITY_CHANNEL_KEY);
+    expect(DISCOVERY_OUTCOMES).toContain(SYMPTOM_SEVERITY_CHANNEL_KEY);
+  });
+
+  it("each new channel is its own metricFamily (no shared collapse)", () => {
+    expect(metricFamily(MEDICATION_COMPLIANCE_CHANNEL_KEY)).toBe(
+      MEDICATION_COMPLIANCE_CHANNEL_KEY,
+    );
+    expect(metricFamily(SYMPTOM_SEVERITY_CHANNEL_KEY)).toBe(
+      SYMPTOM_SEVERITY_CHANNEL_KEY,
+    );
+    // Neither shares a family with a vital / sleep / mood channel, so they can
+    // pair cross-domain.
+    expect(metricFamily(MEDICATION_COMPLIANCE_CHANNEL_KEY)).not.toBe(
+      metricFamily(SYMPTOM_SEVERITY_CHANNEL_KEY),
+    );
+    expect(metricFamily(MEDICATION_COMPLIANCE_CHANNEL_KEY)).not.toBe(
+      metricFamily("RESTING_HEART_RATE"),
+    );
+  });
+
+  it("surfaces an adherence-dip → next-day symptom-flare link at a confident tier", () => {
+    // 70 contiguous days. Lower adherence on day D drives a higher symptom
+    // burden on day D+1 (the flagship cross-metric link). Adherence oscillates
+    // 100/70/40; symptom[d+1] = (100 - adherence[d]) scaled into 0..3.
+    const n = 70;
+    const adherence = Array.from({ length: n }, (_, i) =>
+      i % 3 === 0 ? 100 : i % 3 === 1 ? 70 : 40,
+    );
+    const symptom = [
+      0,
+      ...adherence
+        .slice(0, n - 1)
+        // (100 - a) maps 0..60 → ~0..3, plus a tiny deterministic jitter so the
+        // pair is not a perfect line (a real-world-shaped strong link).
+        .map((a, i) => ((100 - a) / 20) * (i % 2 === 0 ? 1.0 : 0.98)),
+    ];
+    const result = discoverCorrelations([
+      {
+        key: MEDICATION_COMPLIANCE_CHANNEL_KEY,
+        role: "behaviour",
+        points: longSeries(adherence),
+      },
+      {
+        key: SYMPTOM_SEVERITY_CHANNEL_KEY,
+        role: "outcome",
+        points: longSeries(symptom),
+      },
+    ]);
+    const pair = result.discovered.find(
+      (p) =>
+        p.behaviour === MEDICATION_COMPLIANCE_CHANNEL_KEY &&
+        p.outcome === SYMPTOM_SEVERITY_CHANNEL_KEY,
+    );
+    expect(pair).toBeDefined();
+    expect(pair!.n).toBeGreaterThanOrEqual(20);
+    // Negative: higher adherence → lower next-day symptom burden.
+    expect(pair!.r).toBeLessThan(0);
+    expect(pair!.tier).toBe("high");
+    expect(pair!.interpretation).toMatch(/medication compliance/);
+    expect(pair!.interpretation).toMatch(/symptom severity/);
+    expect(pair!.interpretation).toMatch(/not a cause/);
+  });
+
+  it("does NOT surface a link when the overlap is below the n ≥ 20 floor", () => {
+    // A real adherence→symptom relationship but only ~10 paired days: sparse
+    // logging must withhold, never fabricate a confident driver.
+    const n = 12;
+    const adherence = Array.from({ length: n }, (_, i) =>
+      i % 2 === 0 ? 100 : 40,
+    );
+    const symptom = [
+      0,
+      ...adherence.slice(0, n - 1).map((a) => (100 - a) / 30),
+    ];
+    const result = discoverCorrelations([
+      {
+        key: MEDICATION_COMPLIANCE_CHANNEL_KEY,
+        role: "behaviour",
+        points: longSeries(adherence),
+      },
+      {
+        key: SYMPTOM_SEVERITY_CHANNEL_KEY,
+        role: "outcome",
+        points: longSeries(symptom),
+      },
+    ]);
+    // Below the floor the pair is never even tested.
+    expect(result.pairsTested).toBe(0);
+    expect(result.discovered).toHaveLength(0);
+  });
+
+  it("never tests the symptom → symptom self-lag", () => {
+    const n = 40;
+    const symptom = Array.from({ length: n }, (_, i) => (i % 4) / 2);
+    const result = discoverCorrelations([
+      {
+        key: SYMPTOM_SEVERITY_CHANNEL_KEY,
+        role: "behaviour",
+        points: longSeries(symptom),
+      },
+      {
+        key: SYMPTOM_SEVERITY_CHANNEL_KEY,
+        role: "outcome",
+        points: longSeries(symptom),
+      },
+    ]);
+    expect(
+      result.discovered.find(
+        (p) =>
+          p.behaviour === SYMPTOM_SEVERITY_CHANNEL_KEY &&
+          p.outcome === SYMPTOM_SEVERITY_CHANNEL_KEY,
+      ),
+    ).toBeUndefined();
+    expect(result.pairsTested).toBe(0);
+  });
+
+  it("compliance can pair with a vital outcome (cross-domain)", () => {
+    // Adherence dip today → resting HR drift up tomorrow. Confirms the channel
+    // is free to pair with vitals, not just symptom.
+    const n = 70;
+    const adherence = Array.from({ length: n }, (_, i) =>
+      i % 3 === 0 ? 100 : i % 3 === 1 ? 65 : 35,
+    );
+    const rhr = [
+      55,
+      ...adherence
+        .slice(0, n - 1)
+        .map((a, i) => 55 + (100 - a) / 6 + (i % 2 === 0 ? 0.1 : -0.1)),
+    ];
+    const result = discoverCorrelations([
+      {
+        key: MEDICATION_COMPLIANCE_CHANNEL_KEY,
+        role: "behaviour",
+        points: longSeries(adherence),
+      },
+      {
+        key: "RESTING_HEART_RATE",
+        role: "outcome",
+        points: longSeries(rhr),
+      },
+    ]);
+    const pair = result.discovered.find(
+      (p) =>
+        p.behaviour === MEDICATION_COMPLIANCE_CHANNEL_KEY &&
+        p.outcome === "RESTING_HEART_RATE",
+    );
+    expect(pair).toBeDefined();
+    expect(pair!.r).toBeLessThan(0); // higher adherence → lower next-day RHR
+  });
+});
