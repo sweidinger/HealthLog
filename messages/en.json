@@ -2288,7 +2288,31 @@
       "thinkingDetail": "Answered from your health snapshot.",
       "tokensUsed": "{count} tokens",
       "tokensUsedWithModel": "{count} tokens · {model}",
-      "askAboutThis": "Ask the coach about this"
+      "askAboutThis": "Ask the coach about this",
+      "readStrip": {
+        "label": "Coach read",
+        "baselineWithin": "Your usual range is {low}–{high} {unit}; today's {value} sits within it.",
+        "baselineAbove": "Your usual range is {low}–{high} {unit}; today's {value} sits above it.",
+        "baselineBelow": "Your usual range is {low}–{high} {unit}; today's {value} sits below it.",
+        "insufficient": "Still learning your usual range — keep logging for a few more days.",
+        "driver": "{note}"
+      },
+      "scope": {
+        "prefix": "The Coach is already on {metric}",
+        "tap": "Tap to ask",
+        "question": "Walk me through this metric — anything I should watch?"
+      },
+      "seeded": {
+        "prefix": "Worth a look today: {signal}",
+        "signal": {
+          "readiness": "readiness",
+          "recovery": "recovery"
+        },
+        "question": {
+          "readiness": "My readiness is off today — what's driving it?",
+          "recovery": "My recovery shifted — what's behind it?"
+        }
+      }
     },
     "relativeJustNow": "just now",
     "relativeMinutesAgoOne": "{count} minute ago",
@@ -3558,6 +3582,27 @@
         "steady": "In line with your recent average.",
         "below": "Below your recent average."
       }
+    },
+    "briefing": {
+      "memory": {
+        "recall": "Earlier, {text}",
+        "forward": "Looking ahead: {text}",
+        "forwardWatch": "Worth keeping an eye on {metric}.",
+        "forwardHolding": "Everything's holding steady for now."
+      }
+    },
+    "tension": {
+      "label": "Honest read: {positive} looks good, but {negative} is off — the composite lands {band}.",
+      "contributor": {
+        "green": "green",
+        "yellow": "yellow",
+        "red": "red"
+      }
+    },
+    "streak": {
+      "returnLabel": "Your {metric} is back inside your usual range after {count} days — whatever that was, it's passed.",
+      "daysInside": "{count} days inside",
+      "daysOutside": "{count} days outside"
     }
   },
   "thresholds": {
