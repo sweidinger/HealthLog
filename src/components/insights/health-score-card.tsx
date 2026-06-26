@@ -1,7 +1,15 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, Minus, Moon } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  CornerDownLeft,
+  Minus,
+  Moon,
+  Scale,
+} from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { HealthScoreDeltaExplainer } from "./health-score-delta-explainer";
@@ -96,6 +104,34 @@ export interface HealthScoreCardProps {
    * active, not the episode details. Default off (the common case).
    */
   restModeActive?: boolean;
+  /**
+   * v1.21.2 (A5) — Tension Verdict line. The server resolves the honest
+   * "internal read" when the readiness/recovery composite's contributors
+   * DISAGREE (good sleep but a rising resting pulse, …). The card renders it
+   * as one short line: the favourable contributor, the unfavourable one, and
+   * the band the composite lands on. Purely DTO-rendered — the card never
+   * recomputes the disagreement. Absent (the common case) when the
+   * contributors agree.
+   */
+  tension?: {
+    band: HealthScoreBand;
+    /** Favourable contributors, already localised by the resolver. */
+    positive: string[];
+    /** Unfavourable contributors, already localised by the resolver. */
+    negative: string[];
+  } | null;
+  /**
+   * v1.21.2 (A6) — return-to-baseline line. Present only when a metric has
+   * come BACK inside the user's own usual range after a prior out-of-band run.
+   * Actively closes a worry ("back inside your usual range after last week's
+   * dip"). Server-resolved DTO; the label is already localised.
+   */
+  returnToBand?: {
+    /** The metric's display label, already localised by the resolver. */
+    metricLabel: string;
+    /** Days the metric has now sat back inside its range. */
+    daysInside: number;
+  } | null;
 }
 
 type ComponentKey = keyof HealthScoreCardProps["components"];
@@ -178,6 +214,8 @@ export function HealthScoreCard({
   initiallyExpanded = false,
   moodEnabled = true,
   restModeActive = false,
+  tension = null,
+  returnToBand = null,
 }: HealthScoreCardProps) {
   const { t, locale } = useTranslations();
   // The asOf timestamps render under the source pill as a tooltip
@@ -201,6 +239,13 @@ export function HealthScoreCard({
     if (Number.isNaN(parsed.getTime())) return null;
     return asOfFormatter.format(parsed);
   };
+  // v1.21.2 (A5) — locale-aware conjunction list for the Tension Verdict's
+  // favourable / unfavourable contributor lists ("sleep and mood" / "resting
+  // heart rate, HRV balance, and mood"). Memoised per locale.
+  const listFormatter = useMemo(
+    () => new Intl.ListFormat(locale, { style: "long", type: "conjunction" }),
+    [locale],
+  );
   const [expanded, setExpanded] = useState(initiallyExpanded);
   // `useId` keeps the aria-controls/section-id pair unique even when
   // the card is mounted twice on the same page (lg+ hero strip vs
@@ -415,6 +460,51 @@ export function HealthScoreCard({
           >
             <Moon className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
             <span>{t("insights.healthScore.restModePaused")}</span>
+          </p>
+        )}
+
+        {/* v1.21.2 (A5) — Tension Verdict. The honest "internal read" when the
+            composite's contributors disagree, resolved server-side and rendered
+            as one short line. The card never recomputes the disagreement; it
+            only renders the resolved favourable / unfavourable contributors and
+            the band the composite lands on. */}
+        {tension &&
+          tension.positive.length > 0 &&
+          tension.negative.length > 0 && (
+            <p
+              data-slot="health-score-card-tension"
+              data-band={tension.band}
+              className="text-muted-foreground inline-flex items-start gap-1.5 text-[11px] leading-relaxed"
+            >
+              <Scale className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+              <span>
+                {t("insights.tension.label", {
+                  positive: listFormatter.format(tension.positive),
+                  negative: listFormatter.format(tension.negative),
+                  band: t(`insights.tension.contributor.${tension.band}`),
+                })}
+              </span>
+            </p>
+          )}
+
+        {/* v1.21.2 (A6) — return-to-baseline. Present only when a metric came
+            back inside the user's own usual range after a prior out-of-band run.
+            Actively closes a worry rather than reporting a number. */}
+        {returnToBand && (
+          <p
+            data-slot="health-score-card-return-to-band"
+            className="text-success/90 inline-flex items-start gap-1.5 text-[11px] leading-relaxed"
+          >
+            <CornerDownLeft
+              className="mt-0.5 size-3 shrink-0"
+              aria-hidden="true"
+            />
+            <span>
+              {t("insights.streak.returnLabel", {
+                metric: returnToBand.metricLabel,
+                count: returnToBand.daysInside,
+              })}
+            </span>
           </p>
         )}
 
