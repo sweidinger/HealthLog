@@ -16,6 +16,7 @@
  */
 import {
   computeDerivedMetric,
+  computeCoincidentDeviation,
   isDerivedOk,
   type DerivedMetricId,
   type BaselineProfile,
@@ -54,6 +55,35 @@ interface DerivedSnapshotEntry {
   /** Days of history backing the value. */
   historyDays: number;
 }
+
+/**
+ * v1.21.0 (C3 / D3) — the coincident-deviation flag, compactly. "Two or more
+ * of your vitals are outside their usual band today." Descriptive multi-signal
+ * co-movement, never a cause; carries the illness-explained reframe. Folded
+ * into the derived block so BOTH Coach paths (the tool path via
+ * get_illness_recovery/get_correlations AND the no-tools snapshot floor) can
+ * narrate it. Omitted entirely when it did not fire (no noise).
+ */
+interface CoincidentSnapshotEntry {
+  fired: true;
+  /** The out-of-band vitals (possible factors), e.g. "resting heart rate above". */
+  contributing: string[];
+  /** The day the flag was evaluated (YYYY-MM-DD). */
+  day: string;
+  /** True when an active illness episode explains the deviations. */
+  illnessExplained: boolean;
+}
+
+/**
+ * The derived block: per-metric compact score entries (keyed by metric id),
+ * plus the optional fired-only coincident-deviation flag under its own reserved
+ * `COINCIDENT_DEVIATION` key. The score entries keep their `DerivedSnapshotEntry`
+ * shape (so callers + tests read `block.READINESS.value` directly); the
+ * coincident flag rides alongside without widening the score index signature.
+ */
+type DerivedSnapshotBlock = Record<string, DerivedSnapshotEntry> & {
+  COINCIDENT_DEVIATION?: CoincidentSnapshotEntry;
+};
 
 /** Pull the headline number + band off each metric's value shape. */
 function summariseValue(
@@ -115,8 +145,17 @@ export async function buildDerivedSnapshotBlock(
   userId: string,
   profile: BaselineProfile,
   now: Date,
-): Promise<Record<string, DerivedSnapshotEntry> | null> {
+): Promise<DerivedSnapshotBlock | null> {
   const block: Record<string, DerivedSnapshotEntry> = {};
+
+  // v1.21.0 (C3 / D3) — the coincident-deviation flag, fired-only. Computed
+  // off the one shared profile alongside the scores; fail-soft to null so a
+  // baseline hiccup never sinks the derived block. Only attached when it
+  // FIRED (≥2 vitals out of band today) — a quiet day adds no entry, keeping
+  // the snapshot noise-free.
+  const coincidentPromise = computeCoincidentDeviation(userId, profile, {
+    now,
+  }).catch(() => null);
 
   // The metrics are independent passthrough reads off the one shared profile —
   // no ordering dependency — so compute them concurrently. Per-metric fault
@@ -176,5 +215,22 @@ export async function buildDerivedSnapshotBlock(
     }
   }
 
-  return Object.keys(block).length > 0 ? block : null;
+  // Attach the coincident-deviation flag (fired-only) — the await happens here
+  // so the score computes above run concurrently with it. It rides under its
+  // own reserved key alongside the score entries.
+  const out: DerivedSnapshotBlock = block;
+  const coincident = await coincidentPromise;
+  if (coincident && isDerivedOk(coincident) && coincident.value.fired) {
+    out.COINCIDENT_DEVIATION = {
+      fired: true,
+      contributing: coincident.value.contributing.map(
+        (c) =>
+          `${String(c.type).replace(/_/g, " ").toLowerCase()} ${c.direction}`,
+      ),
+      day: coincident.value.day,
+      illnessExplained: coincident.value.illnessExplained,
+    };
+  }
+
+  return Object.keys(out).length > 0 ? out : null;
 }
