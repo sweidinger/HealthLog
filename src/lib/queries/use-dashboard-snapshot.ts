@@ -43,6 +43,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { apiGet } from "@/lib/api/api-fetch";
+import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
 import { retryOnceOnTransientError } from "@/lib/queries/retry-transient";
@@ -106,11 +107,20 @@ export function prefetchDashboardSnapshot(queryClient: QueryClient) {
   // Cache already warm (return-to-dashboard within staleTime) — the
   // mounted cell serves it without ever calling `queryFn`; fetching here
   // would be a wasted request parked in the slot.
-  const state = queryClient.getQueryState(queryKeys.dashboardSnapshot());
-  if (
-    state?.data !== undefined &&
-    Date.now() - state.dataUpdatedAt < PRELOAD_MAX_AGE_MS
-  ) {
+  // v1.21.3 (b) — the live cell is locale-keyed (`["dashboard","snapshot",
+  // locale]`), but the preloader runs before the locale context is in scope.
+  // Probe ALL `["dashboard","snapshot"]` cells (prefix) and treat the freshest
+  // as the warm-slot signal: if any locale's cell is fresh, skip the preload;
+  // otherwise warm the request through the handoff and let the mounted cell
+  // commit it under whichever locale the user lands on.
+  const states = queryClient
+    .getQueriesData({ queryKey: queryKeys.dashboardSnapshot() })
+    .map(([key]) => queryClient.getQueryState(key));
+  const freshest = states.reduce<number>(
+    (max, s) => (s ? Math.max(max, s.dataUpdatedAt) : max),
+    0,
+  );
+  if (freshest > 0 && Date.now() - freshest < PRELOAD_MAX_AGE_MS) {
     return;
   }
   const promise = fetchDashboardSnapshot();
@@ -165,8 +175,18 @@ function makeSnapshotQueryFn(queryClient: QueryClient) {
 
 export function useDashboardSnapshot(enabled = true) {
   const queryClient = useQueryClient();
+  // v1.21.3 (b) — key the live snapshot cell by the active locale so a locale
+  // switch reads the freshly-localised prose on its own cache cell rather than
+  // serving the prior locale's tile copy / narrative until the 60 s staleTime
+  // elapses. The module-level preloader stays locale-agnostic: it warms the
+  // request through the promise handoff (NOT the query cache), and the mounted
+  // cell commits it under the locale key here, so the preload still rides in
+  // parallel with the page chunk and warms exactly the locale the user lands
+  // on. Every zero-arg `dashboardSnapshot()` invalidation still prefix-matches
+  // this locale-keyed cell, so cache eviction is unchanged.
+  const { locale } = useTranslations();
   return useQuery({
-    queryKey: queryKeys.dashboardSnapshot(),
+    queryKey: queryKeys.dashboardSnapshot(locale),
     queryFn: makeSnapshotQueryFn(queryClient),
     enabled,
     staleTime: 60_000,

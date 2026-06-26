@@ -108,6 +108,10 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "CoachMessage", field: "encryptedContent", kind: "bytes" },
   { model: "CoachConversation", field: "summaryEncrypted", kind: "bytes" },
   { model: "CoachFact", field: "factEncrypted", kind: "bytes" },
+  // v1.21.3 (B1) — Coach goal / if-then plan free-text columns.
+  { model: "CoachPlan", field: "ifCueEncrypted", kind: "bytes" },
+  { model: "CoachPlan", field: "thenActionEncrypted", kind: "bytes" },
+  { model: "CoachPlan", field: "targetEncrypted", kind: "bytes" },
 
   // ───── User health profile (Bytes columns) ─────
   { model: "UserHealthProfile", field: "aboutMeEncrypted", kind: "bytes" },

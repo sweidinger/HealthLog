@@ -2550,9 +2550,20 @@ function degradeToBudget(
       block && Array.isArray(block.facts) && block.facts.length > 0
         ? block.facts
         : null;
-    snapshot[key] = facts
-      ? { facts, omitted: "trimmed for prompt budget" }
-      : { omitted: "trimmed for prompt budget" };
+    // v1.21.3 (B1) — the durable plans survive the drop alongside facts: they
+    // are the user's confirmed if-then commitments, tiny by construction
+    // (top-6, ≤160 chars each), and shedding them would make the Coach forget
+    // a plan exactly on the data-heavy accounts that hit the char cap.
+    const plans =
+      block && Array.isArray(block.plans) && block.plans.length > 0
+        ? block.plans
+        : null;
+    const survivors: Record<string, unknown> = {
+      omitted: "trimmed for prompt budget",
+    };
+    if (facts) survivors.facts = facts;
+    if (plans) survivors.plans = plans;
+    snapshot[key] = survivors;
     return true;
   };
 
