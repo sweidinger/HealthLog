@@ -39,7 +39,10 @@ describe("supportsVisionForConfig", () => {
       expect(supportsVisionForConfig(providerType, "gpt-4o-mini")).toBe(true);
       expect(supportsVisionForConfig(providerType, "gpt-4.1")).toBe(true);
       expect(supportsVisionForConfig(providerType, "gpt-4-turbo")).toBe(true);
+      // Full o-series reasoning models read images.
       expect(supportsVisionForConfig(providerType, "o1")).toBe(true);
+      expect(supportsVisionForConfig(providerType, "o3")).toBe(true);
+      expect(supportsVisionForConfig(providerType, "o4")).toBe(true);
     }
   });
 
@@ -47,6 +50,20 @@ describe("supportsVisionForConfig", () => {
     expect(supportsVisionForConfig("openai", "gpt-3.5-turbo")).toBe(false);
     expect(supportsVisionForConfig("openai", "gpt-4")).toBe(false);
     expect(supportsVisionForConfig("openai", null)).toBe(false);
+  });
+
+  it("rejects text-only o-series variants (-mini / -preview) for openai", () => {
+    // o1-mini / o1-preview / o3-mini accept the `o*` prefix but have no image
+    // input — claiming vision here 400s the user at the image block.
+    for (const providerType of [
+      "openai",
+      "admin-openai",
+      "admin-key",
+    ] as const) {
+      expect(supportsVisionForConfig(providerType, "o1-mini")).toBe(false);
+      expect(supportsVisionForConfig(providerType, "o1-preview")).toBe(false);
+      expect(supportsVisionForConfig(providerType, "o3-mini")).toBe(false);
+    }
   });
 
   it("trusts local (operator opted in) regardless of model string", () => {
@@ -72,6 +89,12 @@ describe("supportsVisionForConfig", () => {
     // The `-codex` specialist slugs are text-only despite the gpt-5 prefix.
     expect(supportsVisionForConfig("codex", "gpt-5-codex")).toBe(false);
     expect(supportsVisionForConfig("codex", "gpt-5.1-codex-mini")).toBe(false);
+    // Text-only o-series variants are excluded for codex too.
+    expect(supportsVisionForConfig("codex", "o1-mini")).toBe(false);
+    expect(supportsVisionForConfig("codex", "o3-mini")).toBe(false);
+    expect(supportsVisionForConfig("codex", "o1-preview")).toBe(false);
+    // Full o-series stays vision-capable.
+    expect(supportsVisionForConfig("codex", "o3")).toBe(true);
   });
 
   it("never reports vision for none", () => {
