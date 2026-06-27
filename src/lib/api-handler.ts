@@ -6,9 +6,8 @@ import { eventStorage, getEvent } from "./logging/context";
 import { emitIfSampled } from "./logging/transports";
 import { redactOptional, redactSecrets } from "./logging/redact";
 import { getSession } from "./auth/session";
-import { hashToken } from "./auth/hmac";
-import { prisma } from "./db";
 import { auditLog } from "./auth/audit";
+import { resolveBearerToken, BearerAuthError } from "./auth/bearer";
 import { AssistantDisabledError } from "./feature-flags";
 import { ConsentRequiredError } from "./ai/consent-guard";
 
@@ -291,110 +290,52 @@ export async function requireAuth(
 
 /**
  * Authenticate a raw Bearer token against `ApiToken`.
- * Annotates the Wide Event with `auth_method: "api_key"` and writes audit-log
- * entries for both success and failure.
+ *
+ * The validation itself lives in the transport-agnostic `resolveBearerToken`
+ * (`./auth/bearer`) — the single source of truth shared with the MCP wire. This
+ * wrapper adds the HTTP-edge concerns: the `auth.bearer.*` audit trail for both
+ * outcomes and the Wide-Event `auth_method: "bearer"` annotation, then maps the
+ * result onto the `AuthContext` contract (`session.id` carries the token id).
+ *
+ * Authorisation contract (unchanged): a route that declares no
+ * `requiredPermission` accepts any valid token; one that declares a scope
+ * accepts wildcard (`["*"]`) tokens and narrow-scope tokens that list it.
  */
 async function authenticateBearer(
   rawToken: string,
   requiredPermission: string | undefined,
 ): Promise<AuthContext> {
-  const tokenHashValue = hashToken(rawToken);
-
-  const apiToken = await prisma.apiToken.findUnique({
-    where: { tokenHash: tokenHashValue },
-    select: {
-      id: true,
-      userId: true,
-      permissions: true,
-      revoked: true,
-      expiresAt: true,
-    },
-  });
-
-  if (!apiToken) {
-    auditLog("auth.bearer.failure", {
-      details: { reason: "unknown_token" },
-    }).catch(() => {});
-    throw new HttpError(401, "Invalid token");
+  let resolution;
+  try {
+    resolution = await resolveBearerToken(rawToken, requiredPermission);
+  } catch (err) {
+    if (err instanceof BearerAuthError) {
+      auditLog("auth.bearer.failure", {
+        userId: err.userId ?? null,
+        details: {
+          reason: err.reason,
+          ...(err.tokenId ? { tokenId: err.tokenId } : {}),
+          ...(err.reason === "insufficient_permissions"
+            ? { required: requiredPermission }
+            : {}),
+        },
+      }).catch(() => {});
+      const message =
+        err.statusCode === 403
+          ? "Insufficient permissions"
+          : err.reason === "expired"
+            ? "Token expired"
+            : "Invalid token";
+      throw new HttpError(err.statusCode, message);
+    }
+    throw err;
   }
 
-  if (apiToken.revoked) {
-    auditLog("auth.bearer.failure", {
-      userId: apiToken.userId,
-      details: { reason: "revoked", tokenId: apiToken.id },
-    }).catch(() => {});
-    throw new HttpError(401, "Invalid token");
-  }
-
-  if (apiToken.expiresAt && apiToken.expiresAt <= new Date()) {
-    auditLog("auth.bearer.failure", {
-      userId: apiToken.userId,
-      details: { reason: "expired", tokenId: apiToken.id },
-    }).catch(() => {});
-    throw new HttpError(401, "Token expired");
-  }
-
-  // `["*"]` is the wildcard scope: granted to the iOS app on login so it
-  // can call any authenticated route. Narrow scopes (e.g.
-  // `["medication:ingest"]`) gate specific routes.
-  //
-  // Authorisation contract:
-  //   - Route declares no `requiredPermission`: any valid token passes
-  //     (both wildcard and narrow-scope). The route does not gate on
-  //     scope, so authentication alone is sufficient.
-  //   - Route declares a `requiredPermission`: wildcard tokens pass;
-  //     narrow-scope tokens must list the required permission.
-  //
-  // v1.4.25 W10 reconcile (code-review H2): the previous "no
-  // requiredPermission ⇒ wildcard only" rule misread the contract.
-  // Routes without a declared scope (`/api/measurements/by-external-ids`,
-  // `/api/personal-records`, `/api/medications/[id]/glp1`,
-  // `/api/dashboard/glp1`) 403'd every narrow-scope token even though
-  // those routes did not intend to restrict by scope at all. Allowing
-  // any authenticated token through when the route does not declare a
-  // scope unblocks the v1.5 iOS endpoints while keeping the scoped-
-  // route gating below intact.
-  const hasWildcardPermission = apiToken.permissions.includes("*");
-
-  if (
-    requiredPermission &&
-    !hasWildcardPermission &&
-    !apiToken.permissions.includes(requiredPermission)
-  ) {
-    auditLog("auth.bearer.failure", {
-      userId: apiToken.userId,
-      details: {
-        reason: "insufficient_permissions",
-        tokenId: apiToken.id,
-        required: requiredPermission,
-      },
-    }).catch(() => {});
-    throw new HttpError(403, "Insufficient permissions");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: apiToken.userId },
-  });
-
-  if (!user) {
-    auditLog("auth.bearer.failure", {
-      userId: apiToken.userId,
-      details: { reason: "user_missing", tokenId: apiToken.id },
-    }).catch(() => {});
-    throw new HttpError(401, "Invalid token");
-  }
-
-  // Fire-and-forget: refresh lastUsedAt without blocking the request.
-  prisma.apiToken
-    .update({
-      where: { id: apiToken.id },
-      data: { lastUsedAt: new Date() },
-    })
-    .catch(() => {});
+  const { user, tokenId, expiresAt } = resolution;
 
   auditLog("auth.bearer.success", {
     userId: user.id,
-    details: { tokenId: apiToken.id },
+    details: { tokenId },
   }).catch(() => {});
 
   const evt = getEvent();
@@ -406,13 +347,8 @@ async function authenticateBearer(
     });
   }
 
-  // Use the token expiry as the session expiry; fall back to a 30-day window if
-  // the token has no fixed expiry so the contract `{ expiresAt: Date }` holds.
-  const expiresAt =
-    apiToken.expiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
   return {
-    session: { id: apiToken.id, expiresAt },
+    session: { id: tokenId, expiresAt },
     user,
   };
 }
