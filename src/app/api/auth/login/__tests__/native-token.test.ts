@@ -8,6 +8,8 @@ vi.mock("@/lib/db", () => ({
     user: { findFirst: vi.fn() },
     apiToken: { create: vi.fn() },
     refreshToken: { create: vi.fn() },
+    // v1.23 — login checks for a registered second-factor security key.
+    webauthnMfaCredential: { count: vi.fn().mockResolvedValue(0) },
   },
 }));
 
@@ -97,6 +99,7 @@ function makeRequest(headers: Record<string, string> = {}): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.user.findFirst).mockResolvedValue(FAKE_USER as never);
+  vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(0 as never);
   vi.mocked(verifyPassword).mockResolvedValue(true);
   vi.mocked(prisma.apiToken.create).mockResolvedValue({ id: "tok-1" } as never);
   vi.mocked(prisma.refreshToken.create).mockResolvedValue({

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({
-  prisma: { user: { findFirst: vi.fn() } },
+  prisma: {
+    user: { findFirst: vi.fn() },
+    webauthnMfaCredential: { count: vi.fn().mockResolvedValue(0) },
+  },
 }));
 vi.mock("@/lib/auth/password", () => ({
   verifyPassword: vi.fn().mockResolvedValue(true),
@@ -75,6 +78,8 @@ const BASE_USER = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: no registered security key. Individual tests override as needed.
+  vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(0 as never);
 });
 
 describe("login MFA branch", () => {
@@ -96,6 +101,22 @@ describe("login MFA branch", () => {
 
     expect(createMfaChallenge).toHaveBeenCalledWith("user-1", "login");
     // The session/token tail is never reached.
+    expect(finishLogin).not.toHaveBeenCalled();
+  });
+
+  it("WebAuthn-only user (no TOTP) → returns mfaRequired with webauthn method", async () => {
+    vi.mocked(prisma.user.findFirst).mockResolvedValue({
+      ...BASE_USER,
+      totpConfirmedAt: null,
+    } as never);
+    vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(1 as never);
+
+    const res = await POST(loginRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.meta.mfaRequired).toBe(true);
+    expect(body.meta.methods).toEqual(["webauthn"]);
     expect(finishLogin).not.toHaveBeenCalled();
   });
 
