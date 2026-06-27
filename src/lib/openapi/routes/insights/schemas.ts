@@ -296,8 +296,96 @@ export const discoveredCorrelation = z
       .string()
       .describe("Conservative, descriptive interpretation — never causal."),
     lagDays: z.number().int().describe("Lag in days applied (1)."),
+    window: z
+      .enum(["retrospective", "recent"])
+      .optional()
+      .describe(
+        "v1.22 — which window surfaced the pair. Absent on the 180-day scan (retrospective default); `recent` for an emerging early-detection pair.",
+      ),
+    provisional: z
+      .boolean()
+      .optional()
+      .describe(
+        "v1.22 — true for an emerging recent-window pair: fewer days, hedged as provisional rather than established.",
+      ),
   })
   .meta({ id: "DiscoveredCorrelation" });
+
+// v1.22 — one labs ↔ outcome association (point-vs-window over sparse draws).
+export const discoveredLabCorrelation = z
+  .object({
+    lab: z
+      .string()
+      .describe("`LAB:<analyte>` channel key (display strips the prefix)."),
+    outcome: z
+      .string()
+      .describe(
+        "Outcome channel the marker tracks with (WEIGHT, BLOOD_GLUCOSE, BLOOD_PRESSURE_SYS).",
+      ),
+    n: z
+      .number()
+      .int()
+      .describe("Draws paired with a usable contemporaneous outcome window."),
+    r: z
+      .number()
+      .describe(
+        "Pearson r over (draw value, contemporaneous outcome window-mean).",
+      ),
+    pValue: z.number().describe("Two-sided exact Student-t p-value (< 0.05)."),
+    qValue: z
+      .number()
+      .describe(
+        "Benjamini-Hochberg FDR-adjusted q-value (≤ the surface threshold).",
+      ),
+    windowDays: z
+      .number()
+      .int()
+      .describe("Trailing days each draw's outcome window spanned."),
+    interpretation: z
+      .string()
+      .describe("Conservative, descriptive interpretation — never causal."),
+  })
+  .meta({ id: "DiscoveredLabCorrelation" });
+
+// v1.22 — rolling early-detection result (recent-window emerging pairs).
+export const emergingCorrelationResult = z
+  .object({
+    emerging: z
+      .array(discoveredCorrelation)
+      .describe(
+        "Recent-window pairs NOT already established retrospectively — the emerging signals (provisional, hedged).",
+      ),
+    windowDays: z
+      .number()
+      .int()
+      .describe("Trailing window (days) the early pass scanned."),
+    minPairs: z
+      .number()
+      .int()
+      .describe("Paired-day floor enforced for the early pass."),
+    fdrQ: z
+      .number()
+      .describe("FDR target the early pass used (tighter than the main scan)."),
+    pairsTested: z.number().int().describe("Pairs tested in the early window."),
+  })
+  .meta({ id: "EmergingCorrelationResult" });
+
+// v1.22 — labs ↔ outcome pass result.
+export const labCorrelationResult = z
+  .object({
+    discovered: z
+      .array(discoveredLabCorrelation)
+      .describe(
+        "Lab ↔ outcome associations surviving the per-pair floor + BH-FDR.",
+      ),
+    pairsTested: z.number().int().describe("Lab × outcome pairs assessed."),
+    fdrQ: z.number().describe("The FDR target the pass used."),
+    minDraws: z
+      .number()
+      .int()
+      .describe("Minimum paired-draw count enforced per pair."),
+  })
+  .meta({ id: "LabCorrelationResult" });
 
 export const correlationDiscoveryResponse = z
   .object({
@@ -313,6 +401,16 @@ export const correlationDiscoveryResponse = z
       .number()
       .int()
       .describe("Minimum paired-day count enforced per pair."),
+    emerging: emergingCorrelationResult
+      .optional()
+      .describe(
+        "v1.22 — rolling early-detection pass over the trailing window; emerging pairs not yet established retrospectively (no double-count).",
+      ),
+    labCorrelations: labCorrelationResult
+      .optional()
+      .describe(
+        "v1.22 — labs ↔ outcome associations (each draw vs the contemporaneous outcome window-mean), FDR-controlled; absent-degrading on sparse draws.",
+      ),
   })
   .meta({
     id: "CorrelationDiscoveryResponse",
