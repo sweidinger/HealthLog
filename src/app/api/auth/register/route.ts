@@ -6,6 +6,7 @@ import {
 import { registerSchema } from "@/lib/validations/auth";
 import { hashPassword, checkPasswordStrength } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
+import { recordSignInDevice } from "@/lib/auth/login-alert";
 import { auditLog } from "@/lib/auth/audit";
 import {
   apiSuccess,
@@ -19,6 +20,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { checkPasswordBreach } from "@/lib/auth/hibp";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
 import {
   isValidTimezone,
   resolveServerDefaultTimezone,
@@ -121,6 +124,17 @@ export const POST = apiHandler(async (request: NextRequest) => {
       422,
     );
   }
+
+  // v1.23 — reject a registration password found in a known breach corpus
+  // (HIBP k-anonymity). Fail-open on an unreachable HIBP.
+  const breach = await checkPasswordBreach(password);
+  if (breach?.breached) {
+    return apiError(
+      getServerTranslator(locale).t("auth.passwordBreached"),
+      422,
+    );
+  }
+
   const passwordHash = await hashPassword(password);
 
   // v1.15.20 — consume the invite LAST, after every other validation,
@@ -175,6 +189,16 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // navigation instead of waiting for hydration.
   const ua = request.headers.get("user-agent");
   await createSession(user.id, true, ip, ua);
+
+  // v1.23 — record the registering device silently so the account's first
+  // login from this same device does not immediately fire a "new device"
+  // alert. A genuinely new device later still alerts on its first sighting.
+  void recordSignInDevice({
+    userId: user.id,
+    ip,
+    userAgent: ua,
+    alertOnNew: false,
+  });
 
   // Stamp the consumer onto the invite (informational, best-effort —
   // the use itself was already counted atomically above).

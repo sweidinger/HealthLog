@@ -1,5 +1,6 @@
 import { verifyAuthentication } from "@/lib/auth/passkey";
 import { createSession } from "@/lib/auth/session";
+import { recordSignInDevice } from "@/lib/auth/login-alert";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
@@ -75,6 +76,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     userId: user.id,
     ipAddress: ip,
   });
+
+  // v1.23 — new-device / new-location alert, fire-and-forget (see finishLogin).
+  void recordSignInDevice({ userId: user.id, ip, userAgent: ua });
 
   annotate({ action: { name: "auth.login.passkey" } });
 

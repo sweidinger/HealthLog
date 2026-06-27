@@ -26,6 +26,7 @@ import {
   isCookielessNativeCaller,
 } from "@/lib/auth/native-client";
 import { issueAccessAndRefresh } from "@/lib/auth/refresh-token";
+import { recordSignInDevice } from "@/lib/auth/login-alert";
 import type { User } from "@/generated/prisma/client";
 
 export interface FinishLoginParams {
@@ -53,6 +54,12 @@ export async function finishLogin(
   params: FinishLoginParams,
 ): Promise<Response> {
   const { user, request, ip, userAgent, source, mfaVerified } = params;
+
+  // v1.23 — new-device / new-location alert. Fire-and-forget: never let the
+  // device ledger or the dispatcher add latency to — or fail — a sign-in. Runs
+  // for every transport (web cookie + native bundle) since the factor checks
+  // are already done by the time finishLogin is reached.
+  void recordSignInDevice({ userId: user.id, ip, userAgent });
 
   if (
     shouldIssueBearerToken(request.headers) ||
