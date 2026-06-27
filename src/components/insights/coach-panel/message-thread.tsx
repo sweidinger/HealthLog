@@ -392,6 +392,24 @@ function useSpeechSynthesisSupported(): boolean {
 }
 
 /**
+ * v1.22.1 — feature-detect the async Clipboard API SSR-safe, mirroring the
+ * Speech-Synthesis detection above. `navigator.clipboard` is `undefined` on
+ * plain-HTTP self-hosts (a supported insecure-context config), so the copy
+ * button must be absent there rather than rendering and error-toasting on tap.
+ * `useSyncExternalStore` returns false on the server + first client paint and
+ * resolves to the real capability after hydration — no hydration mismatch.
+ */
+function useClipboardSupported(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () =>
+      typeof navigator !== "undefined" &&
+      typeof navigator.clipboard?.writeText === "function",
+    () => false,
+  );
+}
+
+/**
  * v1.22 — score a synthesis voice for a target language. Higher is better;
  * a negative score marks a legacy/compact voice we would rather skip. Pure
  * (no browser globals) so the ranking contract is unit-testable. Exported
@@ -566,8 +584,8 @@ function useReadAloud(): {
  */
 const COACH_ICON_BUTTON = cn(
   "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50",
-  "inline-flex size-11 items-center justify-center rounded outline-none",
-  "focus-visible:ring-2 disabled:opacity-50 sm:size-8",
+  "inline-flex size-11 min-w-11 shrink-0 items-center justify-center rounded",
+  "outline-none focus-visible:ring-2 disabled:opacity-50 sm:size-8 sm:min-w-8",
 );
 
 /**
@@ -615,6 +633,7 @@ function CopyMessageButton({
   strip: boolean;
 }) {
   const { t } = useTranslations();
+  const supported = useClipboardSupported();
   const [copied, setCopied] = useState(false);
   const handle = useCallback(async () => {
     const text = strip ? stripChartTokens(content) : content;
@@ -626,6 +645,9 @@ function CopyMessageButton({
       toast.error(t("insights.coach.copyMessageError"));
     }
   }, [content, strip, t]);
+  // Absent on insecure-context (plain-HTTP) self-hosts where the Clipboard API
+  // is undefined — render nothing rather than error-toast on tap.
+  if (!supported) return null;
   const label = t("insights.coach.copyMessage");
   return (
     <button
@@ -685,7 +707,7 @@ function BubbleTimestamp({
   const [open, setOpen] = useState(false);
   const label = formatters.dateTime(iso);
   return (
-    <span className="relative inline-flex">
+    <span className="relative inline-flex shrink-0">
       <button
         type="button"
         data-slot="coach-bubble-timestamp"
@@ -1446,7 +1468,7 @@ function ChatBubble({
           <div
             data-slot="coach-bubble-actions"
             className={cn(
-              "flex items-center gap-0.5",
+              "flex flex-wrap items-center gap-0.5",
               "sm:[@media(hover:hover)]:opacity-0",
               "sm:[@media(hover:hover)]:group-hover/assistant-bubble:opacity-100",
               "sm:[@media(hover:hover)]:group-focus-within/assistant-bubble:opacity-100",
