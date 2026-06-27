@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Target } from "lucide-react";
+import { Sparkles, Target, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
@@ -43,6 +43,12 @@ export interface ScopeHintBadgeProps {
   question: string;
   /** Fired with the seed question when the user taps the opener. */
   onSeed: (question: string) => void;
+  /**
+   * Dismiss the opener. Only honoured for `variant="seeded"` — the seeded
+   * opener is a soft suggestion the user can wave off for the day, while the
+   * A2 scope pill reflects how the chat was launched and is not dismissable.
+   */
+  onDismiss?: () => void;
   className?: string;
 }
 
@@ -51,6 +57,7 @@ export function ScopeHintBadge({
   label,
   question,
   onSeed,
+  onDismiss,
   className,
 }: ScopeHintBadgeProps) {
   const { t } = useTranslations();
@@ -84,26 +91,49 @@ export function ScopeHintBadge({
       </span>
 
       {/* The tappable seed question — the data-aware opener. A real button so
-          keyboard + screen-reader users get the same affordance. */}
-      <button
-        type="button"
-        data-slot="coach-scope-hint-seed"
-        onClick={() => onSeed(question)}
-        className={cn(
-          "group border-border/70 bg-background hover:bg-muted/50 text-foreground",
-          "flex w-full max-w-md items-center gap-2 rounded-xl border px-3.5 py-2.5 text-left",
-          "transition-colors",
-          "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
-        )}
-      >
-        <span className="min-w-0 flex-1 text-sm leading-snug">{question}</span>
-        <span
-          aria-hidden="true"
-          className="text-muted-foreground group-hover:text-foreground text-xs whitespace-nowrap"
+          keyboard + screen-reader users get the same affordance. The opener
+          fills the column (= the composer's max-width) so it reads as one line
+          with the field below; the seeded variant adds a dismiss control at the
+          trailing edge, mirroring the composer's send affordance. */}
+      <div className="flex w-full items-center gap-1.5">
+        <button
+          type="button"
+          data-slot="coach-scope-hint-seed"
+          onClick={() => onSeed(question)}
+          className={cn(
+            "group border-border/70 bg-background hover:bg-muted/50 text-foreground",
+            "flex min-w-0 flex-1 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-left",
+            "transition-colors",
+            "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+          )}
         >
-          {t("insights.coach.scope.tap")}
-        </span>
-      </button>
+          <span className="min-w-0 flex-1 text-sm leading-snug">
+            {question}
+          </span>
+          <span
+            aria-hidden="true"
+            className="text-muted-foreground group-hover:text-foreground text-xs whitespace-nowrap"
+          >
+            {t("insights.coach.scope.tap")}
+          </span>
+        </button>
+        {variant === "seeded" && onDismiss ? (
+          <button
+            type="button"
+            data-slot="coach-scope-hint-dismiss"
+            onClick={onDismiss}
+            aria-label={t("insights.coach.seeded.dismiss")}
+            title={t("insights.coach.seeded.dismiss")}
+            className={cn(
+              "text-muted-foreground hover:bg-muted/60 hover:text-foreground shrink-0",
+              "flex size-9 items-center justify-center rounded-xl transition-colors",
+              "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+            )}
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

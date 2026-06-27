@@ -1,6 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// v1.21.4 (B) — the page surface routes "Conversations" to the dedicated
+// `/coach/conversations` page via the app router, so the shared surface now
+// reads `useRouter`. Stub it for the static-markup render.
+const pushMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
 
 import { I18nProvider } from "@/lib/i18n/context";
 import { CoachConversation } from "../coach-conversation";
@@ -136,30 +144,16 @@ describe("<CoachConversation> page deep-link (#67)", () => {
     expect(html).toContain('data-slot="coach-hero"');
   });
 
-  // v1.21.0 — the page toolbar is a single trailing affordance: the settings
-  // gear in the top-right corner. The "Conversations" + "New chat" buttons
-  // were removed from the toolbar (both still live in the composer `+` menu),
-  // and the settings gear moved here from the composer.
-  it("renders the settings gear in the top-right page toolbar", () => {
+  // v1.21.4 (A) — the page-toolbar gear was removed; Settings now lives in the
+  // composer's `+` actions menu. The page chrome is the composer alone, so the
+  // surface exposes the `+` actions trigger and no standalone toolbar gear.
+  it("drops the page-toolbar gear and exposes the composer + actions menu", () => {
     const html = render(<CoachConversation surface="page" />, makeClient());
-    expect(html).toContain('data-slot="coach-page-settings"');
-    const gear = html.match(/<a[^>]*data-slot="coach-page-settings"[^>]*>/);
-    expect(gear?.[0]).toContain('href="/settings/ai"');
-    // The old toolbar Conversations + New chat buttons are gone.
-    expect(html).not.toContain('data-slot="coach-page-conversations"');
-    expect(html).not.toContain('data-slot="coach-page-new-chat"');
-  });
-
-  // v1.21.0 — entering via the drawer handoff (`?view=conversations`) keeps
-  // the new-chat hero (no thread auto-resumed) while opening the history
-  // drawer; the toolbar gear stays present so the pane is never a blank
-  // dead-end.
-  it("keeps the hero and toolbar gear when opened with openHistoryOnMount", () => {
-    const html = render(
-      <CoachConversation surface="page" openHistoryOnMount />,
-      makeClient(),
-    );
-    expect(html).toContain('data-slot="coach-hero"');
-    expect(html).toContain('data-slot="coach-page-settings"');
+    // The old page toolbar + its gear are gone.
+    expect(html).not.toContain('data-slot="coach-page-settings"');
+    expect(html).not.toContain('data-slot="coach-page-toolbar"');
+    // Settings now lives behind the composer's `+` actions menu (the menu
+    // content is portalled open-on-demand, so SSR shows only the trigger).
+    expect(html).toContain('data-slot="coach-input-actions"');
   });
 });

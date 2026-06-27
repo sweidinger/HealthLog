@@ -2311,7 +2311,15 @@
         "question": {
           "readiness": "Meine Bereitschaft ist heute auffällig — woran liegt das?",
           "recovery": "Meine Erholung hat sich verändert — was steckt dahinter?"
-        }
+        },
+        "dismiss": "Ausblenden"
+      },
+      "settings": "Einstellungen",
+      "history": {
+        "groupToday": "Heute",
+        "groupYesterday": "Gestern",
+        "groupThisWeek": "Diese Woche",
+        "groupEarlier": "Früher"
       }
     },
     "relativeJustNow": "gerade eben",

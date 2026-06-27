@@ -298,6 +298,10 @@ describe("Coach per-user disableCoach invariant", () => {
     // page back to `/insights` instead of painting a dead chat shell.
     // v1.18.0 — moved to the standalone top-level `/coach` route.
     "src/app/coach/page.tsx",
+    // v1.21.4 — the dedicated conversation-history page mirrors the
+    // Coach route gate: operator master flag OR per-user opt-out marks
+    // the page unavailable instead of painting a dead history shell.
+    "src/app/coach/conversations/page.tsx",
     // The hook itself + its `useAuth`-backed reader.
     "src/hooks/use-disable-coach.ts",
     // Cross-cut gates owned by sibling invariants / route tests.
