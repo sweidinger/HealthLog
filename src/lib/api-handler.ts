@@ -558,6 +558,34 @@ export async function requireFreshMfa(
 }
 
 /**
+ * v1.23 — conditional step-up for destructive account actions.
+ *
+ * Resolves the caller with the standard `requireAuth()` (cookie OR Bearer).
+ * For an account WITHOUT a confirmed second factor the caller passes straight
+ * through — a single-factor user is intentionally unaffected, so account
+ * deletion / data reset keeps its existing typed-confirmation-only contract.
+ * For an account WITH MFA active (`totpConfirmedAt` set) it additionally runs
+ * `requireFreshMfa`, which is cookie-only by construction: an MFA-enrolled
+ * account's Bearer transport carries no `mfaVerifiedAt` and therefore cannot
+ * satisfy step-up, surfacing `StepUpRequiredError` (401,
+ * `errorCode: "auth.stepup.required"`) so the UI launches a re-verification.
+ *
+ * Gating only the MFA-enrolled cohort keeps the boundary structural: a
+ * hijacked live cookie session for an MFA user cannot nuke the record without
+ * a fresh factor, while users who never opted into MFA are not forced through
+ * a flow they have no way to complete.
+ */
+export async function requireFreshMfaIfEnrolled(
+  maxAgeSeconds: number,
+): Promise<AuthContext> {
+  const auth = await requireAuth();
+  if (auth.user.totpConfirmedAt) {
+    await requireFreshMfa(maxAgeSeconds);
+  }
+  return auth;
+}
+
+/**
  * Report unhandled errors to GlitchTip (fire-and-forget).
  * Uses dynamic import to avoid circular dependencies and startup cost.
  */
