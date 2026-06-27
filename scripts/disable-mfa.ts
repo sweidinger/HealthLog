@@ -68,6 +68,17 @@ async function main(): Promise<void> {
       },
     });
     await tx.mfaRecoveryCode.deleteMany({ where: { userId: user.id } });
+    // v1.23 (M-review L3) — removing the second factor is a security-state
+    // change. Out-of-band there is no "current" session to keep, so drop every
+    // session, every native refresh token, and every "remember this device"
+    // trusted device for the account: a stolen session or trusted-device cookie
+    // must not survive the lockout-recovery reset.
+    await tx.session.deleteMany({ where: { userId: user.id } });
+    await tx.refreshToken.updateMany({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await tx.trustedDevice.deleteMany({ where: { userId: user.id } });
     await tx.auditLog.create({
       data: {
         action: "auth.mfa.disabled",

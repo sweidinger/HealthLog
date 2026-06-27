@@ -25,6 +25,7 @@ import {
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
+import { destroyOtherSessions } from "@/lib/auth/session";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { verifyMfaFactor } from "@/lib/auth/mfa/verify-factor";
 import { mfaDisableSchema } from "@/lib/validations/mfa";
@@ -37,7 +38,7 @@ const DISABLE_WINDOW_MS = 15 * 60 * 1000;
 export const POST = apiHandler(async (req: Request) => {
   // Step-up gate first — throws StepUpRequiredError (401 + errorCode) if the
   // session is not freshly second-factor-verified.
-  const { user } = await requireFreshMfa(MFA_STEP_UP_MAX_AGE_SECONDS);
+  const { user, session } = await requireFreshMfa(MFA_STEP_UP_MAX_AGE_SECONDS);
 
   const rl = await checkRateLimit(
     `mfa:disable:${user.id}`,
@@ -93,6 +94,13 @@ export const POST = apiHandler(async (req: Request) => {
     });
     await tx.mfaRecoveryCode.deleteMany({ where: { userId: user.id } });
   });
+
+  // v1.23 (M-review L3) — removing the second factor is a security-state
+  // change: drop every OTHER web session, every native refresh token, and
+  // every "remember this device" trusted device (all handled by
+  // destroyOtherSessions), keeping only the caller's current session. A stale
+  // session or a trusted-device cookie must not survive the factor's removal.
+  await destroyOtherSessions(user.id, session.id);
 
   await auditLog("auth.mfa.disabled", {
     userId: user.id,
