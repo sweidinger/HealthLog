@@ -49,7 +49,7 @@ describe("<CoachInput>", () => {
     const html = render(
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
     );
-    expect(html).toContain("Ask anything about your data");
+    expect(html).toContain("Ask me anything");
     expect(html).not.toContain('data-slot="coach-input-hint"');
     expect(html).not.toContain("Press Enter to send");
     expect(html).toContain('data-slot="coach-input-send"');
@@ -60,7 +60,7 @@ describe("<CoachInput>", () => {
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
       "de",
     );
-    expect(html).toContain("Frag mich etwas zu deinen Daten");
+    expect(html).toContain("Frag mich etwas");
   });
 
   it("disables the send button when the value is empty", () => {

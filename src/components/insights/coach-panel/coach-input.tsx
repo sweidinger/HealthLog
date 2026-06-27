@@ -567,6 +567,11 @@ export function CoachInput({
             // scroll regions). Scoped here, not in globals.css.
             "[scrollbar-width:thin] [scrollbar-color:color-mix(in_srgb,var(--dracula-purple)_35%,transparent)_transparent]",
             "placeholder:text-muted-foreground disabled:opacity-60",
+            // Keep the placeholder a single line on narrow phones: a long
+            // hint used to wrap to two lines inside the one-row composer and
+            // read as a cramped block. Clip the PLACEHOLDER pseudo only — the
+            // textarea value still wraps and auto-grows for real typing.
+            "placeholder:overflow-hidden placeholder:text-ellipsis placeholder:whitespace-nowrap",
           )}
         />
         {showHub ? (
