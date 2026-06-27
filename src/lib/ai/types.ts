@@ -121,6 +121,24 @@ export interface AIProvider {
    */
   supportsTools?: boolean;
   generateCompletion(params: CompletionParams): Promise<CompletionResult>;
+  /**
+   * v1.22 (#89) — optional true-streaming variant. A provider that can emit
+   * tokens incrementally (the local OpenAI-compatible client over `stream:true`)
+   * implements this so a slow self-hosted backend (e.g. an MLX/exo server that
+   * takes >60 s to load the model before the first token) produces output as it
+   * arrives rather than buffering the whole reply behind a single fetch — which
+   * is what tripped the legacy total-request timeout and the reverse-proxy idle
+   * cut. `onDelta` is called once per token/chunk as it arrives; the returned
+   * `CompletionResult` carries the FULL assembled reply so every downstream
+   * guard (grounding, refusal, sentinel-stripping) still runs on the complete
+   * text. The timeout becomes a per-idle-gap ceiling (time-to-first-token +
+   * inter-token gap), not a whole-call ceiling. Providers without a streaming
+   * wire omit this; the runner falls back to {@link generateCompletion}.
+   */
+  generateCompletionStream?(
+    params: CompletionParams,
+    onDelta: (delta: string) => void,
+  ): Promise<CompletionResult>;
 }
 
 /**
@@ -280,6 +298,18 @@ export interface CompletionParams {
    * `safeFetch`. Omitted → behaviour is unchanged (timeout-only).
    */
   signal?: AbortSignal;
+  /**
+   * v1.22 (#89) — per-request upstream timeout, in milliseconds. Each client
+   * passes this straight to its `safeFetch` call, falling back to the shared
+   * 60 s default when unset — so every existing caller (Coach, status cards)
+   * is byte-identical. The comprehensive briefing surface is the one caller
+   * that overrides it: its reasoning-heavy single-turn generation over the
+   * full feature snapshot ran past the 60 s default on large accounts and was
+   * aborted mid-stream ("operation aborted due to timeout"), which left the
+   * briefing — and the insights trend narrative that reads the same cached
+   * block — permanently blank. Sized in `AI_BUDGETS.comprehensive.timeoutMs`.
+   */
+  timeoutMs?: number;
 }
 
 export interface CompletionResult {
@@ -324,6 +354,8 @@ export function singleUserTurn(p: {
   toolChoice?: "auto" | "none";
   /** v1.20.1 — caller-owned cancel signal threaded to the client fetch. */
   signal?: AbortSignal;
+  /** v1.22 (#89) — per-request upstream timeout override (ms); see CompletionParams. */
+  timeoutMs?: number;
 }): CompletionParams {
   const images = p.images ?? [];
   const documents = p.documents ?? [];
@@ -361,6 +393,7 @@ export function singleUserTurn(p: {
     tools: p.tools,
     toolChoice: p.toolChoice,
     signal: p.signal,
+    timeoutMs: p.timeoutMs,
   };
 }
 

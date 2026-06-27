@@ -48,6 +48,11 @@ import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
 import { buildDerivedSnapshotBlock } from "./derived-snapshot";
 import { buildCorrelationsSnapshotBlock } from "./correlations-snapshot";
 import { buildCoachMemoryBlock } from "./memory-snapshot";
+import { buildExperimentOutcomeBlock } from "./plans";
+import { experimentVerdictEnabled } from "./experiment-flag";
+import { buildAdherenceStoryline } from "@/lib/insights/derived/adherence-storyline";
+import { buildChangepointSignals } from "@/lib/insights/derived/changepoint";
+import { buildSignalTrust } from "@/lib/insights/derived/signal-trust";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import { buildCycleSnapshotBlock } from "./cycle-snapshot";
 import { buildIllnessSnapshotBlock } from "./illness-snapshot";
@@ -70,6 +75,7 @@ import {
 } from "@/lib/analytics/compliance";
 import type { DoseHistoryRow } from "@/lib/medications/scheduling/dose-history";
 import type { BaselineProfile } from "@/lib/insights/derived";
+import { buildBaselineBand } from "@/lib/insights/derived/baseline";
 import {
   CLUSTER_PRIORITY,
   clusterSourcesFromPrefs,
@@ -634,6 +640,30 @@ export function __resetCoachSnapshotCacheForTests(): void {
  * chat handler calls this once per turn; within the same conversation
  * the second+ turn lands a cache hit and skips the row-level reads.
  */
+/**
+ * v1.22 (W6) — the user's own usual range for one BP component, computed from
+ * the rows already fetched for the snapshot (no extra DB read) using the SAME
+ * median ± k·MAD statistic as the baseline engine. Returns null below the
+ * engine's 7-day history floor so the Coach never quotes a fabricated band.
+ */
+function bpBandFromRows(
+  rows: ReadonlyArray<{ measuredAt: Date; value: number }>,
+): { low: number; high: number } | null {
+  const byDay = new Map<string, { sum: number; count: number }>();
+  for (const r of rows) {
+    const day = r.measuredAt.toISOString().slice(0, 10);
+    const acc = byDay.get(day) ?? { sum: 0, count: 0 };
+    acc.sum += r.value;
+    acc.count += 1;
+    byDay.set(day, acc);
+  }
+  const dayMeans = [...byDay.values()].map((a) => a.sum / a.count);
+  if (dayMeans.length < 7) return null;
+  const band = buildBaselineBand(dayMeans);
+  if (!band) return null;
+  return { low: Math.round(band.low), high: Math.round(band.high) };
+}
+
 export async function buildCoachSnapshot(
   userId: string,
   scope?: CoachScope,
@@ -1358,6 +1388,21 @@ async function buildCoachSnapshotImpl(
     );
     const olderSys = sysRows.filter((r) => r.measuredAt < recentCutoff);
     const olderDia = diaRows.filter((r) => r.measuredAt < recentCutoff);
+    // v1.22 (W6) — the user's own usual range (median ± k·MAD), computed from
+    // the BP rows ALREADY in memory (no extra DB read) with the same
+    // `buildBaselineBand` statistic the baseline engine uses, so the Coach can
+    // quote the real band verbatim instead of fabricating one from window means
+    // (the "153–150" bug). Omitted below the engine's 7-day history floor — a
+    // never-fabricated range.
+    const sysBand = bpBandFromRows(sysRows);
+    const diaBand = bpBandFromRows(diaRows);
+    const bpUsualRange =
+      sysBand || diaBand
+        ? {
+            ...(sysBand ? { sys: sysBand } : {}),
+            ...(diaBand ? { dia: diaBand } : {}),
+          }
+        : undefined;
     snapshot.bloodPressure = {
       aggregate: features.bloodPressure,
       timeline: {
@@ -1366,6 +1411,7 @@ async function buildCoachSnapshotImpl(
         weeklyDia: bucketWeekly(olderDia, userTz),
         ...(bpCoarseTail ? { coarse: bpCoarseTail } : {}),
       },
+      ...(bpUsualRange ? { usualRange: bpUsualRange } : {}),
     };
     metrics.add("bp");
     windows.add("last30days");
@@ -2350,6 +2396,40 @@ async function buildCoachSnapshotImpl(
     snapshot.labs = labsBlock;
   }
 
+  // ── v1.22 (W9) — adherence storyline (B5), changepoints (C1), signal-trust
+  // (C3), experiment read-back (C2, flag-gated). Best-effort + fault-isolated;
+  // tiny descriptive objects attached WITHOUT a cluster registration (like
+  // illness/labs/scope, the budget degrader never sheds them). The C2 read-back
+  // is attached ONLY when the operator flag is on — the user-visible experiment
+  // verdict stays gated until its live B0 cases clear.
+  // These cross-cutting narrations belong on the BROAD Coach turn, not on a
+  // narrowed single-source snapshot (the F1 tool builds + metric-page contexts
+  // pass an explicit `scope.sources`). Skipping them there keeps a scoped read
+  // bounded to its domain and avoids spurious recovery/vital reads.
+  const isExplicitlyScoped =
+    Array.isArray(scope?.sources) && scope.sources.length > 0;
+  const [adherenceStoryline, changepoints, signalTrust, experimentOutcomes] =
+    isExplicitlyScoped
+      ? [null, null, null, null]
+      : await Promise.all([
+          excludesMedications
+            ? Promise.resolve(null)
+            : buildAdherenceStoryline(userId, userTz, now).catch(() => null),
+          buildChangepointSignals(userId, now).catch(() => null),
+          buildSignalTrust(userId, userTz, now).catch(() => null),
+          experimentVerdictEnabled()
+            ? buildExperimentOutcomeBlock(userId, { now }).catch(() => null)
+            : Promise.resolve(null),
+        ]);
+  if (adherenceStoryline) snapshot.adherenceStoryline = adherenceStoryline;
+  if (changepoints && changepoints.length > 0) {
+    snapshot.changepoints = changepoints;
+  }
+  if (signalTrust) snapshot.signalTrust = signalTrust;
+  if (experimentOutcomes) {
+    snapshot.experimentOutcomes = experimentOutcomes.experiments;
+  }
+
   if (Object.keys(snapshot).length === 0) {
     metrics.add("general");
   }
@@ -2558,11 +2638,21 @@ function degradeToBudget(
       block && Array.isArray(block.plans) && block.plans.length > 0
         ? block.plans
         : null;
+    // v1.22 (B2/B3) — the episodic reminders survive the drop alongside
+    // facts/plans: they are the user's own "remember this" asks, tiny by
+    // construction (top-6, ≤280 chars each), and shedding them would make the
+    // Coach forget a reminder on exactly the data-heavy accounts that hit the
+    // char cap.
+    const reminders =
+      block && Array.isArray(block.reminders) && block.reminders.length > 0
+        ? block.reminders
+        : null;
     const survivors: Record<string, unknown> = {
       omitted: "trimmed for prompt budget",
     };
     if (facts) survivors.facts = facts;
     if (plans) survivors.plans = plans;
+    if (reminders) survivors.reminders = reminders;
     snapshot[key] = survivors;
     return true;
   };

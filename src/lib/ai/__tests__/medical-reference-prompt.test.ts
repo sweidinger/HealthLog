@@ -114,8 +114,8 @@ describe("buildSystemPromptWithReferences()", () => {
     const prompt = buildSystemPromptWithReferences("en", ["bp"]);
     expect(prompt).toContain(PROMPT_VERSION);
     // v1.4.16: phase B5a was 4.16.0; phase B8 bumped to 4.16.1.
-    // v1.4.19 bumped to 4.19.0 (no-default-positivity opener).
-    expect(prompt).toMatch(/4\.\d+\.\d+/);
+    // v1.4.19 bumped to 4.19.0; v1.22 (W6) bumped to 5.0.0.
+    expect(prompt).toMatch(/[45]\.\d+\.\d+/);
   });
 });
 
@@ -127,6 +127,6 @@ describe("plain getStrictInsightsSystemPrompt() backward compatibility", () => {
 
   it("contains the bumped PROMPT_VERSION", () => {
     const en = getStrictInsightsSystemPrompt("en");
-    expect(en).toMatch(/4\.\d+\.\d+/);
+    expect(en).toMatch(/[45]\.\d+\.\d+/);
   });
 });

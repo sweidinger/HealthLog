@@ -1,8 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "@/lib/i18n/context";
 import { HeroStrip } from "../hero-strip";
 import type { DailyBriefing as DailyBriefingPayload } from "@/lib/ai/schema";
+
+// The "generated" freshness line reads the profile timezone via `useAuth`; stub
+// it so the SSR render does not reach for a QueryClient the test omits.
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { timezone: "Europe/Berlin" },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+}));
 
 /**
  * Insights hero strip — pins the slots so future polish can't
@@ -94,7 +104,10 @@ describe("<HeroStrip>", () => {
     expect(html).toContain("Based on your last 90 days");
   });
 
-  it("renders the generated-time caption when updatedAt is supplied", () => {
+  it("renders the freshness caption when updatedAt is supplied", () => {
+    // v1.22 — the hero freshness line now uses `formatUpdatedLabel` for parity
+    // with the briefing + per-metric cards: a same-day timestamp reads
+    // "Updated today, HH:MM" rather than the old relative "Generated … ago".
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
     const html = render(
       <HeroStrip
@@ -104,7 +117,7 @@ describe("<HeroStrip>", () => {
       />,
     );
     expect(html).toMatch(/data-slot="insights-hero-strip-generated"/);
-    expect(html).toContain("Generated");
+    expect(html).toContain("Updated today");
   });
 
   it("does NOT render the generated caption when updatedAt is missing", () => {

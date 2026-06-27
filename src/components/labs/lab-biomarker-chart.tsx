@@ -128,8 +128,8 @@ export function LabBiomarkerChart({
           {t("labs.chart.empty")}
         </p>
       ) : (
-        <div style={{ height: CHART_HEIGHT_PX }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div>
+          <ResponsiveContainer width="100%" height={CHART_HEIGHT_PX}>
             <ComposedChart
               data={points}
               margin={{ top: 8, right: 12, bottom: 4, left: 0 }}

@@ -87,7 +87,7 @@ vi.mock("@/components/settings/thresholds-editor-section", () => ({
   ThresholdsEditorSection: () => <div data-testid="thresholds-editor" />,
 }));
 import { I18nProvider } from "@/lib/i18n/context";
-import { SettingsSectionFrame } from "../settings-section-frame";
+import { SettingsSectionFrame } from "./section-frame-harness";
 import type { SettingsSectionSlug } from "../section-slugs";
 import { AboutSection } from "../about-section";
 import { AccountSection } from "../account-section";

@@ -26,6 +26,8 @@ import {
   type CorrelationResult,
 } from "@/lib/analytics/correlations";
 import { getMedicationCategories } from "@/lib/medication-category";
+import { classifyReferenceRange } from "@/lib/labs/reference-range";
+import { resolveLabFields } from "@/lib/labs/serialise";
 import { readRollupBuckets } from "@/lib/rollups/measurement-rollups";
 import {
   ensureUserMoodRollupsFresh,
@@ -197,6 +199,77 @@ export interface AggregatedFeatures {
    * forces the briefing to regenerate. See `computeSignalsOfDay`.
    */
   signalsOfDay?: SignalOfDay[];
+  /**
+   * v1.22 — glucose aggregate block. Glucose previously reached the briefing
+   * only as a single `signalOfDay` row; this is the present-and-trend block the
+   * other vitals already carry (7 / 30 / 90-day means + a 30-day slope), from
+   * the canonical stored value. Omitted when the user has no glucose readings.
+   */
+  glucose?: {
+    avg7: number | null;
+    avg30: number | null;
+    avg90: number | null;
+    latest: number | null;
+    latestDaysAgo: number | null;
+    slope30: number | null;
+    coverage: DataCoverage;
+  };
+  /**
+   * v1.22 — recent FLAGGED biomarkers (abnormal or trending). Closes the
+   * biggest siloed domain: labs reached the Coach snapshot but never the
+   * briefing. Hidden biomarkers (the W3 catalog `hidden` flag) are excluded;
+   * qualitative rows carry a neutral `unknown` status (no fabricated verdict).
+   * Only abnormal / trending markers surface (the briefing-relevant ones) and
+   * the list is bounded. Omitted when nothing is flagged.
+   */
+  labs?: {
+    flagged: Array<{
+      analyte: string;
+      value: number | null;
+      valueText: string | null;
+      unit: string;
+      rangeStatus: "in-range" | "below" | "above" | "unknown";
+      /** Direction vs the immediately prior reading; null without a prior. */
+      trend: "rising" | "falling" | "flat" | null;
+      takenAt: string;
+      daysAgo: number;
+    }>;
+    /** Count of flagged markers (may exceed the bounded `flagged` length). */
+    flaggedCount: number;
+  };
+  /**
+   * v1.22 — preventive-care (Vorsorge) read-side: due + overdue items. The
+   * early-nudge use case ("your screening is overdue"). Previously fully siloed
+   * — captured + scheduled but read by no AI surface. Labels are sanitised
+   * (user free-text). Omitted when nothing is due or overdue.
+   */
+  preventiveCare?: {
+    overdue: Array<{ label: string; daysOverdue: number }>;
+    due: Array<{ label: string; daysUntil: number }>;
+  };
+  /**
+   * v1.22 — workout aggregate. The briefing previously saw activity only as
+   * ACTIVITY_STEPS; the `Workout` table never reached it. Provider-agnostic
+   * counts + load over the trailing windows. Omitted when no workouts logged.
+   */
+  workouts?: {
+    last7: {
+      count: number;
+      totalDurationMin: number;
+      totalDistanceKm: number | null;
+    };
+    last30: {
+      count: number;
+      totalDurationMin: number;
+      totalDistanceKm: number | null;
+    };
+    latest: {
+      sportType: string;
+      daysAgo: number;
+      durationMin: number;
+      distanceKm: number | null;
+    } | null;
+  };
 }
 
 /**
@@ -647,6 +720,267 @@ function computeSignalsOfDay(
       return priorityIndex(a.metric) - priorityIndex(b.metric);
     })
     .slice(0, 3);
+}
+
+// ─── v1.22 — cross-signal integration blocks (briefing-scoped) ────────────
+
+/**
+ * v1.22 — the integration blocks (labs / preventive-care / workouts) carry
+ * extra DB reads. They are BRIEFING-scoped: the daily briefing reads a wide
+ * window (`BRIEFING_FEATURE_WINDOW_DAYS`) and narrates long trends, while the
+ * Coach snapshot path calls `extractFeatures` with a tight ~90-day window and
+ * already carries its own labs / illness / workout context. Gating on the read
+ * window keeps these extra reads off every Coach turn without a new caller flag:
+ * the briefing window (400) clears it, the Coach window (90) does not.
+ */
+const INTEGRATION_BLOCK_MIN_WINDOW_DAYS = 180;
+
+/** Days a preventive-care item must be due within to surface as "due soon". */
+const PREVENTIVE_DUE_HORIZON_DAYS = 21;
+
+/** Cap on items surfaced per preventive-care bucket. */
+const PREVENTIVE_MAX_PER_BUCKET = 5;
+
+/** Cap on flagged biomarkers surfaced to the briefing. */
+const LABS_MAX_FLAGGED = 8;
+
+/** Only lab readings within this many months are considered "recent". */
+const LABS_LOOKBACK_MONTHS = 12;
+
+/** Trailing window (days) for the workout aggregate. */
+const WORKOUT_WINDOW_DAYS = 90;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Strip control chars + collapse whitespace, then bound the length, before a
+ * user-supplied label can reach the briefing prompt. Mirrors the labs /
+ * illness snapshot label handling — a self-scoped prompt-injection surface.
+ */
+function sanitizeLabel(text: string, max = 80): string {
+  let out = "";
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0;
+    out += code < 0x20 || (code >= 0x7f && code <= 0x9f) ? " " : ch;
+  }
+  return out.replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+/**
+ * v1.22 — recent FLAGGED biomarkers (abnormal or trending) for the briefing.
+ * Most-recent reading per biomarker over the lookback window; hidden markers
+ * excluded; qualitative rows neutral. Only abnormal (below/above) OR trending
+ * markers surface, bounded. Returns `undefined` when nothing is flagged so the
+ * block is omitted rather than emitting an empty shape.
+ */
+async function readLabsBriefingBlock(
+  userId: string,
+  now: number,
+): Promise<AggregatedFeatures["labs"] | undefined> {
+  const nowDate = new Date(now);
+  const cutoff = new Date(nowDate);
+  cutoff.setMonth(cutoff.getMonth() - LABS_LOOKBACK_MONTHS);
+
+  const rows = await prisma.labResult.findMany({
+    where: { userId, deletedAt: null, takenAt: { gte: cutoff, lte: nowDate } },
+    orderBy: { takenAt: "desc" },
+    take: LABS_MAX_FLAGGED * 16,
+    select: {
+      analyte: true,
+      panel: true,
+      unit: true,
+      value: true,
+      valueText: true,
+      referenceLow: true,
+      referenceHigh: true,
+      takenAt: true,
+      biomarkerId: true,
+      biomarker: {
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          lowerBound: true,
+          upperBound: true,
+          panel: true,
+          hidden: true,
+        },
+      },
+    },
+  });
+  if (rows.length === 0) return undefined;
+
+  // Group rows per biomarker identity (linked id, else lower-cased analyte),
+  // newest-first, so we can read the latest reading + the immediately prior one
+  // for a trend. Hidden markers are dropped entirely.
+  const byMarker = new Map<string, typeof rows>();
+  for (const row of rows) {
+    if (row.biomarker?.hidden) continue;
+    const resolved = resolveLabFields(row, row.biomarker);
+    const key = row.biomarkerId ?? `analyte:${resolved.analyte.toLowerCase()}`;
+    const list = byMarker.get(key) ?? [];
+    list.push(row);
+    byMarker.set(key, list);
+  }
+
+  const flagged: NonNullable<AggregatedFeatures["labs"]>["flagged"] = [];
+  for (const list of byMarker.values()) {
+    const latest = list[0];
+    const resolved = resolveLabFields(latest, latest.biomarker);
+    const rangeStatus =
+      latest.value === null
+        ? ("unknown" as const)
+        : classifyReferenceRange(
+            latest.value,
+            resolved.referenceLow,
+            resolved.referenceHigh,
+          );
+
+    // Trend = latest numeric reading vs the immediately prior numeric reading.
+    let trend: "rising" | "falling" | "flat" | null = null;
+    if (latest.value !== null) {
+      const prior = list.find((r, i) => i > 0 && r.value !== null);
+      if (prior?.value != null) {
+        const delta = latest.value - prior.value;
+        const eps = Math.max(Math.abs(prior.value) * 0.02, 1e-9);
+        trend = delta > eps ? "rising" : delta < -eps ? "falling" : "flat";
+      }
+    }
+
+    const isAbnormal = rangeStatus === "below" || rangeStatus === "above";
+    const isTrending = trend === "rising" || trend === "falling";
+    if (!isAbnormal && !isTrending) continue;
+
+    flagged.push({
+      analyte: resolved.analyte,
+      value: latest.value,
+      valueText: latest.valueText ? sanitizeLabel(latest.valueText, 60) : null,
+      unit: resolved.unit,
+      rangeStatus,
+      trend,
+      takenAt: latest.takenAt.toISOString(),
+      daysAgo: Math.round((now - latest.takenAt.getTime()) / MS_PER_DAY),
+    });
+  }
+
+  if (flagged.length === 0) return undefined;
+  // Abnormal markers lead, then most-recent first.
+  flagged.sort((a, b) => {
+    const abn = (s: typeof a.rangeStatus) =>
+      s === "below" || s === "above" ? 0 : 1;
+    const d = abn(a.rangeStatus) - abn(b.rangeStatus);
+    return d !== 0 ? d : a.daysAgo - b.daysAgo;
+  });
+  return {
+    flagged: flagged.slice(0, LABS_MAX_FLAGGED),
+    flaggedCount: flagged.length,
+  };
+}
+
+/**
+ * v1.22 — preventive-care (Vorsorge) due + overdue read-side. Reads the
+ * user's enabled, live reminders and buckets by the server-authoritative
+ * `nextDueAt`. Returns `undefined` when nothing is due or overdue.
+ */
+async function readPreventiveCareBlock(
+  userId: string,
+  now: number,
+): Promise<AggregatedFeatures["preventiveCare"] | undefined> {
+  const horizon = new Date(now + PREVENTIVE_DUE_HORIZON_DAYS * MS_PER_DAY);
+  const rows = await prisma.measurementReminder.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      enabled: true,
+      nextDueAt: { not: null, lte: horizon },
+    },
+    orderBy: { nextDueAt: "asc" },
+    take: (PREVENTIVE_MAX_PER_BUCKET + 1) * 4,
+    select: { label: true, nextDueAt: true },
+  });
+  if (rows.length === 0) return undefined;
+
+  const overdue: NonNullable<AggregatedFeatures["preventiveCare"]>["overdue"] =
+    [];
+  const due: NonNullable<AggregatedFeatures["preventiveCare"]>["due"] = [];
+  for (const r of rows) {
+    if (!r.nextDueAt) continue;
+    const label = sanitizeLabel(r.label);
+    if (!label) continue;
+    const diffMs = r.nextDueAt.getTime() - now;
+    if (diffMs < 0) {
+      overdue.push({ label, daysOverdue: Math.round(-diffMs / MS_PER_DAY) });
+    } else {
+      due.push({ label, daysUntil: Math.round(diffMs / MS_PER_DAY) });
+    }
+  }
+  if (overdue.length === 0 && due.length === 0) return undefined;
+  return {
+    overdue: overdue.slice(0, PREVENTIVE_MAX_PER_BUCKET),
+    due: due.slice(0, PREVENTIVE_MAX_PER_BUCKET),
+  };
+}
+
+/**
+ * v1.22 — workout aggregate over the trailing window. Provider-agnostic:
+ * counts + summed duration + summed distance (km, when any source reported it)
+ * over 7 / 30 days, plus the latest workout. Returns `undefined` when no
+ * workouts fall in the window.
+ */
+async function readWorkoutsBlock(
+  userId: string,
+  now: number,
+): Promise<AggregatedFeatures["workouts"] | undefined> {
+  const since = new Date(now - WORKOUT_WINDOW_DAYS * MS_PER_DAY);
+  const rows = await prisma.workout.findMany({
+    where: { userId, startedAt: { gte: since } },
+    orderBy: { startedAt: "desc" },
+    take: 2000,
+    select: {
+      sportType: true,
+      startedAt: true,
+      durationSec: true,
+      totalDistanceM: true,
+    },
+  });
+  if (rows.length === 0) return undefined;
+
+  const tally = (windowDays: number) => {
+    const cutoff = now - windowDays * MS_PER_DAY;
+    let count = 0;
+    let durationSec = 0;
+    let distanceM = 0;
+    let anyDistance = false;
+    for (const w of rows) {
+      if (w.startedAt.getTime() < cutoff) continue;
+      count += 1;
+      durationSec += w.durationSec;
+      if (w.totalDistanceM != null) {
+        distanceM += w.totalDistanceM;
+        anyDistance = true;
+      }
+    }
+    return {
+      count,
+      totalDurationMin: Math.round(durationSec / 60),
+      totalDistanceKm: anyDistance
+        ? Math.round((distanceM / 1000) * 10) / 10
+        : null,
+    };
+  };
+
+  const newest = rows[0];
+  const latest = {
+    sportType: sanitizeLabel(newest.sportType, 40),
+    daysAgo: Math.round((now - newest.startedAt.getTime()) / MS_PER_DAY),
+    durationMin: Math.round(newest.durationSec / 60),
+    distanceKm:
+      newest.totalDistanceM != null
+        ? Math.round((newest.totalDistanceM / 1000) * 10) / 10
+        : null,
+  };
+
+  return { last7: tally(7), last30: tally(30), latest };
 }
 
 export async function extractFeatures(
@@ -1387,6 +1721,46 @@ export async function extractFeatures(
   const signalsOfDay = computeSignalsOfDay(byType, now);
   if (signalsOfDay.length > 0) {
     features.signalsOfDay = signalsOfDay;
+  }
+
+  // v1.22 — glucose aggregate block. Computed from the already-fetched
+  // measurement set (no extra DB read), so it is always cheap to emit. Glucose
+  // previously reached the briefing only as one `signalOfDay` row.
+  const glucoseData = byType("BLOOD_GLUCOSE");
+  if (glucoseData.length > 0) {
+    const summary = summarize(toDataPoints(glucoseData));
+    const newest = glucoseData[glucoseData.length - 1];
+    features.glucose = {
+      avg7: summary.avg7,
+      avg30: summary.avg30,
+      avg90: avgInWindow(glucoseData, now, 90),
+      latest: summary.latest,
+      latestDaysAgo: Math.round(
+        (now - newest.measuredAt.getTime()) / (24 * 60 * 60 * 1000),
+      ),
+      slope30: summary.slope30?.slope ?? null,
+      coverage: computeCoverage(glucoseData, now),
+    };
+  }
+
+  // v1.22 — cross-signal integration blocks (labs / preventive-care /
+  // workouts). Briefing-scoped: only the wide briefing window pays the extra
+  // reads; the tight Coach-snapshot window (which carries its own labs / illness
+  // / workout context) skips them. Each block is omitted when its domain is
+  // empty (no fabricated zeros). Fetched in parallel — independent reads.
+  const includeIntegrations =
+    sinceCutoff === null ||
+    (typeof sinceDays === "number" &&
+      sinceDays >= INTEGRATION_BLOCK_MIN_WINDOW_DAYS);
+  if (includeIntegrations) {
+    const [labs, preventiveCare, workouts] = await Promise.all([
+      readLabsBriefingBlock(userId, now),
+      readPreventiveCareBlock(userId, now),
+      readWorkoutsBlock(userId, now),
+    ]);
+    if (labs) features.labs = labs;
+    if (preventiveCare) features.preventiveCare = preventiveCare;
+    if (workouts) features.workouts = workouts;
   }
 
   // v1.4.36 W3 T1 — "raw" mode no longer dumps every measurement row

@@ -34,7 +34,10 @@ import {
   buildUserPrompt,
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
-import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import {
+  buildSystemPromptWithReferences,
+  buildBriefingPersonalisationBlock,
+} from "@/lib/ai/prompts/insight-generator";
 import {
   buildAboutMeInsightBlock,
   getSelfContextTextForUser,
@@ -57,6 +60,7 @@ import {
   singleUserTurn,
   type InsightResult,
 } from "@/lib/ai/types";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
 import {
   AllProvidersFailedError,
@@ -397,6 +401,8 @@ export const POST = apiHandler((request: NextRequest) =>
         dateOfBirth: true,
         gender: true,
         heightCm: true,
+        // v1.22 (W6) — first name for the sparse, hash-gated briefing opener.
+        displayName: true,
       },
     });
 
@@ -665,6 +671,14 @@ export const POST = apiHandler((request: NextRequest) =>
       userPrompt += buildBriefingIllnessCyclePrompt(illnessCycleCtx, locale);
     }
 
+    // v1.22 (W6) — opener-archetype rotation + sparse first-name personalization
+    // (deterministic per user+day; omitted for unnamed accounts).
+    userPrompt += buildBriefingPersonalisationBlock(
+      userId,
+      dbUser?.displayName ?? null,
+      locale,
+    );
+
     // v1.12.7 (B5) — inject the curated SOURCES block for the metric sections
     // this briefing actually carries, so a normative claim can cite a real
     // `referenceId` the schema + UI footnote already support. Returns the plain
@@ -700,6 +714,10 @@ export const POST = apiHandler((request: NextRequest) =>
           user: userPrompt,
           temperature: 0.3,
           maxTokens: 1500,
+          // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
+          // generation is not aborted at the client's 60 s default on large
+          // accounts (which returned an empty briefing + trend narrative).
+          timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
           // The reply is parsed with `JSON.parse` below, so opt the OpenAI /
           // Codex chains into their strict JSON mode (gated on this flag).
           responseFormat: "json",
@@ -821,6 +839,7 @@ export const POST = apiHandler((request: NextRequest) =>
       let ungrounded = findUngroundedBriefingNumbers(
         readBriefingBlock(insights),
         signals,
+        features,
       );
       if (ungrounded.length > 0) {
         annotate({
@@ -836,6 +855,8 @@ export const POST = apiHandler((request: NextRequest) =>
               user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
               temperature: 0.3,
               maxTokens: 1500,
+              // v1.21.5 — wider upstream budget; see the first generation call.
+              timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
               // Parsed with `JSON.parse` below — opt OpenAI / Codex into JSON mode.
               responseFormat: "json",
             }),
@@ -848,6 +869,7 @@ export const POST = apiHandler((request: NextRequest) =>
           ungrounded = findUngroundedBriefingNumbers(
             readBriefingBlock(retryInsights),
             signals,
+            features,
           );
           if (ungrounded.length === 0) {
             insights = retryInsights;

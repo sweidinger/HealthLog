@@ -1,8 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "@/lib/i18n/context";
 import { DailyBriefing } from "../daily-briefing";
 import type { DailyBriefing as DailyBriefingPayload } from "@/lib/ai/schema";
+
+// The updated-at footer reads the profile timezone via `useAuth`; stub it so the
+// SSR render does not reach for a QueryClient the static-markup test omits.
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { timezone: "Europe/Berlin" },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+}));
 
 /**
  * v1.4.20 phase B1 — full-width Daily Briefing card.
@@ -119,13 +129,15 @@ describe("<DailyBriefing>", () => {
     expect(html).toContain("bg-info"); // tone=info bar
   });
 
-  it("renders the 'Generated <time>' caption when updatedAt is supplied", () => {
+  it("renders the 'Updated today, <time>' caption when updatedAt is supplied", () => {
+    // v1.22 (W6) — the footer now uses `formatUpdatedLabel`: a same-day
+    // timestamp reads "Updated today, HH:MM".
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
     const html = render(
       <DailyBriefing briefing={baseBriefing} updatedAt={fiveMinutesAgo} />,
     );
     expect(html).toMatch(/data-slot="daily-briefing-updated"/);
-    expect(html).toContain("Generated");
+    expect(html).toContain("Updated today");
   });
 
   it("does NOT render the updated caption when updatedAt is missing", () => {

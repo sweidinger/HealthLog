@@ -355,9 +355,9 @@ export function RecommendationCard({
   // quotes the rec so the conversation lands on this exact suggestion;
   // when the rec carries a metric source, scope the snapshot to it.
   const coachScopeSource = scopeSourceFromMetricKey(norm.metricSource?.type);
-  const coachQuestion = `Tell me more about this recommendation: "${stripChartTokens(
-    norm.text,
-  )}" — why does it apply to me, and what should I do about it?`;
+  const coachQuestion = t("insights.coach.seed.recommendation", {
+    text: stripChartTokens(norm.text),
+  });
 
   return (
     <div
@@ -377,7 +377,7 @@ export function RecommendationCard({
             <div className="flex flex-wrap items-center gap-2">
               {norm.severity && (
                 <Badge
-                  className={`text-[10px] tracking-wide uppercase ${
+                  className={`text-xs tracking-wide uppercase ${
                     SEVERITY_BADGE_STYLES[norm.severity] ?? ""
                   }`}
                   variant="outline"

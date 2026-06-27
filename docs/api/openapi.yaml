@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.21.4
+  version: 1.22.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -4676,6 +4676,8 @@ paths:
               - active
               - met
               - abandoned
+              - review_due
+              - reviewed
           description: Filter to a single lifecycle status. Omit for the non-terminal set (proposed + active).
       responses:
         "200":
@@ -4724,6 +4726,8 @@ paths:
                     - active
                     - met
                     - abandoned
+                    - review_due
+                    - reviewed
                 reviewDate:
                   anyOf:
                     - type: string
@@ -4830,6 +4834,189 @@ paths:
         "401": *a1
         "403":
           description: Coach surface (or the cadence's module) disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/coach/reminders:
+    get:
+      tags:
+        - Insights
+      summary: List the caller's Coach reminders
+      description: v1.22 (B2/B6) — the durable "remind me about X" memory the Coach captured inline, decrypted on the fly,
+        soonest-due first. Pass `?status=` (one status or a comma set like `due,surfaced` for the in-app tile); omitted
+        returns the non-terminal set (proposed + active + due + surfaced). Coach-gated
+        (`requireModuleEnabled("coach")`). Auth via cookie or Bearer; the owner is narrowed from the session.
+        Undecryptable rows are omitted.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter to one status or a comma-separated set (proposed | active | due | surfaced | done | dismissed). Omit
+            for the non-terminal set.
+      responses:
+        "200":
+          description: The caller's reminders.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachRemindersList"
+        "401": *a1
+        "403":
+          description: Coach surface disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Insights
+      summary: Create a Coach reminder manually
+      description: v1.22 (B6) — create a reminder from the ledger. `note` is the only writable content; `when` is the closed
+        grammar (ISO date | +Nd / +Nw | a context cue) resolved into the trigger server-side; `metric` optional. The
+        per-user cap returns 409 when the non-terminal set is full. Coach-gated. Auth via cookie or Bearer; the owner is
+        narrowed from the session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachReminderCreate"
+      responses:
+        "201":
+          description: The created reminder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachReminderCreated"
+        "401": *a1
+        "403":
+          description: Coach surface disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: The per-user reminder cap is full.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/coach/reminders/{id}:
+    patch:
+      tags:
+        - Insights
+      summary: Confirm or update a Coach reminder's lifecycle
+      description: v1.22 (B6) — confirm a proposed reminder (→ active), mark it done / dismissed, or re-schedule via the
+        closed `when` grammar (null clears the due moment). The body never carries the note text. A foreign / unknown /
+        already-deleted id maps to 404 (never 403) so the existence channel does not leak. Coach-gated. Auth via cookie
+        or Bearer.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Reminder id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachReminderPatch"
+      responses:
+        "200":
+          description: The reminder after the lifecycle update.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachReminderUpdated"
+        "401": *a1
+        "403":
+          description: Coach surface disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Reminder not found or not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Insights
+      summary: Soft-delete one Coach reminder
+      description: "v1.22 (B6) — soft-deletes a single reminder owned by the caller. An unknown / cross-user / already-deleted
+        id is an idempotent no-op returning `{ deleted: false }`. Coach-gated. Auth via cookie or Bearer."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Reminder id.
+      responses:
+        "200":
+          description: "The reminder was soft-deleted (`deleted: true`) or the id matched nothing the caller owns (`deleted:
+            false`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachReminderDeleted"
+        "401": *a1
+        "403":
+          description: Coach surface disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/coach/suggested-actions:
+    post:
+      tags:
+        - Insights
+      summary: Confirm a Coach action card
+      description: v1.22 (F6) — the confirm half of the generalised propose→confirm moat. `actionType` is from the CLOSED
+        allowlist (checkup.create | reminder.note) — NEVER a medication or clinical change. `checkup.create` builds a
+        preventive-care Vorsorge `MeasurementReminder` (free-text label + a closed interval id resolved to an RRULE
+        server-side); `reminder.note` builds a `CoachReminder`. Nothing is created without this explicit confirm.
+        Coach-gated (`requireModuleEnabled("coach")`); per-user rate-limited (429). Auth via cookie or Bearer; the owner
+        is narrowed from the session, built field-by-field — no mass assignment, no IDOR.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachSuggestedAction"
+      responses:
+        "201":
+          description: The action was applied (entity created server-side).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachSuggestedActionResultCreated"
+        "401": *a1
+        "403":
+          description: Coach surface disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: The per-user reminder cap is full (reminder.note).
           content:
             application/json:
               schema:
@@ -6741,6 +6928,8 @@ paths:
                         - type: string
                           const: ""
                     - type: "null"
+                hidden:
+                  type: boolean
       responses:
         "200":
           description: Updated biomarker.
@@ -8536,6 +8725,99 @@ components:
         compatibility and are normalised to their English equivalents before persisting; GET responses always carry the
         canonical English ids. Section ids are English-only. The legacy tile ids are deprecated and will be removed in a
         future major version."
+    CoachReminderCreate:
+      type: object
+      properties:
+        note:
+          type: string
+          minLength: 1
+          maxLength: 280
+        when:
+          type: string
+          minLength: 1
+          maxLength: 32
+        metric:
+          type: string
+          minLength: 1
+          maxLength: 60
+          pattern: ^[A-Za-z][A-Za-z0-9_]*$
+      required:
+        - note
+      additionalProperties: false
+      description: "Create a Coach reminder manually. `note` is free text (the only writable content). `when` is an optional
+        closed grammar token — an ISO date (YYYY-MM-DD), a relative offset (+Nd / +Nw), or a context cue
+        (NEXT_BP_LOGGED, NEXT_WEIGHT_LOGGED, NEXT_SLEEP_LOGGED, NEXT_APP_OPEN) — resolved into the trigger server-side.
+        Omit `when` for a recall-only note. Strict: unknown keys 422."
+    CoachReminderPatch:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - proposed
+            - active
+            - due
+            - surfaced
+            - done
+            - dismissed
+        when:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 32
+            - type: "null"
+      additionalProperties: false
+      description: "Update a Coach reminder's lifecycle. `status` confirms (proposed → active), or marks done / dismissed.
+        `when` re-schedules via the closed grammar (null clears the due moment). Never carries the note text. Strict:
+        unknown keys 422."
+    CoachSuggestedAction:
+      oneOf:
+        - type: object
+          properties:
+            actionType:
+              type: string
+              const: checkup.create
+            label:
+              type: string
+              minLength: 1
+              maxLength: 120
+            interval:
+              type: string
+              enum:
+                - yearly
+                - halfYearly
+                - quarterly
+                - monthly
+          required:
+            - actionType
+            - label
+            - interval
+        - type: object
+          properties:
+            actionType:
+              type: string
+              const: reminder.note
+            note:
+              type: string
+              minLength: 1
+              maxLength: 280
+            when:
+              type: string
+              minLength: 1
+              maxLength: 32
+            metric:
+              type: string
+              minLength: 1
+              maxLength: 60
+              pattern: ^[A-Za-z][A-Za-z0-9_]*$
+          required:
+            - actionType
+            - note
+      description: Confirm a Coach action card. `actionType` is from the closed allowlist (checkup.create, reminder.note);
+        NEVER a medication or clinical change. `checkup.create` builds a preventive-care Vorsorge reminder (free-text
+        label + a closed interval id resolved to an RRULE server-side); `reminder.note` builds a CoachReminder (note +
+        optional closed `when` grammar + optional metric). Nothing is created without this explicit confirm.
+      type: object
     CoachMessageFeedbackRequest:
       type: object
       properties:
@@ -14092,6 +14374,43 @@ components:
             - type: string
             - type: "null"
           description: "`...` + last 4 chars of the stored OpenAI key, or null."
+        responseTimeoutSeconds:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+          description: v1.22 (#89) — per-user response timeout for AI generation, in seconds (10–600). Null = the generous
+            built-in default (~180 s). Mainly for slow local/self-hosted backends.
+        ocrEnabled:
+          type: boolean
+          description: v1.22 (#90) — whether a dedicated document-scan (Lab-OCR) provider is active. When false the OCR path uses
+            the main provider chain.
+        ocrProvider:
+          anyOf:
+            - type: string
+              enum:
+                - OPENAI
+                - ANTHROPIC
+                - LOCAL
+            - type: "null"
+          description: The dedicated document-scan provider, or null when unset.
+        ocrModel:
+          anyOf:
+            - type: string
+            - type: "null"
+        ocrBaseUrl:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Custom base URL (LOCAL OCR provider only); null otherwise.
+        hasOcrKey:
+          type: boolean
+        ocrKeyPreview:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: "`...` + last 4 chars of the stored document-scan provider key, or null."
       required:
         - provider
         - model
@@ -14103,6 +14422,13 @@ components:
         - hasLocalKey
         - hasOpenaiKey
         - openaiKeyPreview
+        - responseTimeoutSeconds
+        - ocrEnabled
+        - ocrProvider
+        - ocrModel
+        - ocrBaseUrl
+        - hasOcrKey
+        - ocrKeyPreview
       additionalProperties: false
       description: The calling user's AI-provider configuration plus the effective availability (`aiAvailable` + `managedBy`).
         Reports key presence + a masked preview only — never a plaintext key.
@@ -16652,9 +16978,16 @@ components:
             unread:
               type: boolean
               description: True when that message is newer than the last time the caller opened the Coach.
+            conversationId:
+              anyOf:
+                - type: string
+                - type: "null"
+              description: Conversation holding the newest assistant message; null when none exists. The client deep-links into it
+                (`/coach?c=<id>`) on the unread path.
           required:
             - nudgedAt
             - unread
+            - conversationId
           additionalProperties: false
         error:
           type: "null"
@@ -16923,6 +17256,8 @@ components:
             - active
             - met
             - abandoned
+            - review_due
+            - reviewed
           description: "App-side lifecycle: proposed | active | met | abandoned."
         reviewDate:
           anyOf:
@@ -17062,6 +17397,208 @@ components:
         - data
         - error
       additionalProperties: false
+    CoachRemindersList:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            reminders:
+              type: array
+              items:
+                $ref: "#/components/schemas/CoachReminder"
+              description: The caller's reminders, soonest-due first. Undecryptable rows are omitted. No `status` filter returns the
+                non-terminal set (proposed + active + due + surfaced).
+          required:
+            - reminders
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachReminder:
+      type: object
+      properties:
+        id:
+          type: string
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Decrypted note (the user's own framing). Null when the row's key id is no longer in the map.
+        metric:
+          anyOf:
+            - type: string
+            - type: "null"
+        triggerKind:
+          type: string
+          enum:
+            - date
+            - context
+        dueAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        contextCue:
+          anyOf:
+            - type: string
+            - type: "null"
+        status:
+          type: string
+          enum:
+            - proposed
+            - active
+            - due
+            - surfaced
+            - done
+            - dismissed
+        source:
+          type: string
+          enum:
+            - sentinel
+            - extractor
+            - manual
+            - action
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      required:
+        - id
+        - note
+        - metric
+        - triggerKind
+        - dueAt
+        - contextCue
+        - status
+        - source
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: One Coach episodic reminder, decrypted server-side. The note reads null only when the encryption key id has
+        rotated out of the map.
+    CoachReminderCreated:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            reminder:
+              $ref: "#/components/schemas/CoachReminder"
+          required:
+            - reminder
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachReminderUpdated:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            reminder:
+              $ref: "#/components/schemas/CoachReminder"
+          required:
+            - reminder
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachReminderDeleted:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+              description: True when a reminder owned by the caller was soft-deleted; false for an unknown / cross-user /
+                already-deleted id (idempotent no-op).
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachSuggestedActionResultCreated:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoachSuggestedActionResult"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachSuggestedActionResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        actionType:
+          type: string
+          enum:
+            - checkup.create
+            - reminder.note
+        reminder: {}
+        reminderId:
+          type: string
+      required:
+        - ok
+        - actionType
+      additionalProperties: false
+      description: Outcome of confirming a Coach action card. `checkup.create` returns the created MeasurementReminder DTO;
+        `reminder.note` returns the created CoachReminder id.
     AdminInviteList:
       type: object
       properties:
@@ -18622,6 +19159,14 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
           description: Minimum paired-day count enforced per pair.
+        emerging:
+          description: v1.22 — rolling early-detection pass over the trailing window; emerging pairs not yet established
+            retrospectively (no double-count).
+          $ref: "#/components/schemas/EmergingCorrelationResult"
+        labCorrelations:
+          description: v1.22 — labs ↔ outcome associations (each draw vs the contemporaneous outcome window-mean), FDR-controlled;
+            absent-degrading on sparse draws.
+          $ref: "#/components/schemas/LabCorrelationResult"
       required:
         - discovered
         - pairsTested
@@ -18661,6 +19206,16 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
           description: Lag in days applied (1).
+        window:
+          description: v1.22 — which window surfaced the pair. Absent on the 180-day scan (retrospective default); `recent` for an
+            emerging early-detection pair.
+          type: string
+          enum:
+            - retrospective
+            - recent
+        provisional:
+          description: "v1.22 — true for an emerging recent-window pair: fewer days, hedged as provisional rather than established."
+          type: boolean
       required:
         - behaviour
         - outcome
@@ -18670,6 +19225,107 @@ components:
         - qValue
         - interpretation
         - lagDays
+      additionalProperties: false
+    EmergingCorrelationResult:
+      type: object
+      properties:
+        emerging:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveredCorrelation"
+          description: Recent-window pairs NOT already established retrospectively — the emerging signals (provisional, hedged).
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Trailing window (days) the early pass scanned.
+        minPairs:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Paired-day floor enforced for the early pass.
+        fdrQ:
+          type: number
+          description: FDR target the early pass used (tighter than the main scan).
+        pairsTested:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Pairs tested in the early window.
+      required:
+        - emerging
+        - windowDays
+        - minPairs
+        - fdrQ
+        - pairsTested
+      additionalProperties: false
+    LabCorrelationResult:
+      type: object
+      properties:
+        discovered:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveredLabCorrelation"
+          description: Lab ↔ outcome associations surviving the per-pair floor + BH-FDR.
+        pairsTested:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Lab × outcome pairs assessed.
+        fdrQ:
+          type: number
+          description: The FDR target the pass used.
+        minDraws:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Minimum paired-draw count enforced per pair.
+      required:
+        - discovered
+        - pairsTested
+        - fdrQ
+        - minDraws
+      additionalProperties: false
+    DiscoveredLabCorrelation:
+      type: object
+      properties:
+        lab:
+          type: string
+          description: "`LAB:<analyte>` channel key (display strips the prefix)."
+        outcome:
+          type: string
+          description: Outcome channel the marker tracks with (WEIGHT, BLOOD_GLUCOSE, BLOOD_PRESSURE_SYS).
+        n:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Draws paired with a usable contemporaneous outcome window.
+        r:
+          type: number
+          description: Pearson r over (draw value, contemporaneous outcome window-mean).
+        pValue:
+          type: number
+          description: Two-sided exact Student-t p-value (< 0.05).
+        qValue:
+          type: number
+          description: Benjamini-Hochberg FDR-adjusted q-value (≤ the surface threshold).
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Trailing days each draw's outcome window spanned.
+        interpretation:
+          type: string
+          description: Conservative, descriptive interpretation — never causal.
+      required:
+        - lab
+        - outcome
+        - n
+        - r
+        - pValue
+        - qValue
+        - windowDays
+        - interpretation
       additionalProperties: false
     MoodTagTreeEnvelope:
       type: object
@@ -20212,6 +20868,8 @@ components:
           anyOf:
             - type: string
             - type: "null"
+        hidden:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
@@ -20225,11 +20883,14 @@ components:
         - panel
         - hasContext
         - context
+        - hidden
         - createdAt
         - updatedAt
       additionalProperties: false
       description: A user-scoped catalog marker. `context` is the decrypted per-marker note (or null); `hasContext` flags its
-        presence. A `LabResult` linking this marker resolves its unit + reference bounds from here.
+        presence. `hidden` drops the marker from the active catalog list and the lab-entry pickers without deleting it
+        (its readings and unit/range survive). A `LabResult` linking this marker resolves its unit + reference bounds
+        from here.
     CreateBiomarkerResponse:
       type: object
       properties:

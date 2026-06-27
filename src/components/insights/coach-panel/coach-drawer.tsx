@@ -165,12 +165,12 @@ export function CoachDrawer({
             <Button
               type="button"
               variant="ghost"
-              size="icon"
+              size="icon-lg"
               onClick={handleMaximize}
               data-slot="coach-drawer-maximize"
               aria-label={t("insights.coach.maximizeAriaLabel")}
               title={t("insights.coach.maximizeAriaLabel")}
-              className="text-muted-foreground hover:text-foreground size-11 shrink-0"
+              className="text-muted-foreground hover:text-foreground shrink-0"
             >
               <Maximize2 className="size-4" aria-hidden="true" />
             </Button>
@@ -183,11 +183,11 @@ export function CoachDrawer({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-lg"
                 data-slot="coach-drawer-close"
                 aria-label={t("common.close")}
                 title={t("common.close")}
-                className="text-muted-foreground hover:text-foreground size-11 shrink-0"
+                className="text-muted-foreground hover:text-foreground shrink-0"
               >
                 <X className="size-4" aria-hidden="true" />
               </Button>

@@ -296,7 +296,9 @@ describe("runInsightPregenerate — outcome tally", () => {
           observedSignal = opts.signal;
           setTimeout(
             () => resolve({ status: "generated", providerType: "x" }),
-            120_000,
+            // v1.21.5 — above COMPREHENSIVE_WARM_TIMEOUT_MS (130 s) so the
+            // bounded budget fires before this "slow" generation settles.
+            200_000,
           );
         }),
     );
@@ -312,7 +314,7 @@ describe("runInsightPregenerate — outcome tally", () => {
         statusGenerators,
         warmGenericMetrics,
       });
-      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(140_000);
       const result = await promise;
 
       // The timeout fired, aborted the still-running generation (so its
@@ -787,7 +789,9 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
           // advance past it so the warm continues.
           setTimeout(
             () => resolve({ status: "generated", providerType: "x" }),
-            120_000,
+            // v1.21.5 — above COMPREHENSIVE_WARM_TIMEOUT_MS (130 s) so the
+            // bounded budget fires before this "slow" generation settles.
+            200_000,
           );
         }),
     );
@@ -804,7 +808,7 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
         warmGenericMetrics,
       });
       // Advance past the comprehensive budget so withTimeout fires.
-      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(140_000);
       const result = await promise;
 
       for (const g of statusGenerators) {
@@ -902,7 +906,9 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
           observedSignal = opts.signal;
           setTimeout(
             () => resolve({ status: "generated", providerType: "x" }),
-            120_000,
+            // v1.21.5 — above COMPREHENSIVE_WARM_TIMEOUT_MS (130 s) so the
+            // bounded budget fires before this "slow" generation settles.
+            200_000,
           );
         }),
     );
@@ -918,7 +924,7 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
         statusGenerators,
         warmGenericMetrics,
       });
-      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(140_000);
       const result = await promise;
 
       // The timeout fired and aborted the still-running generation.

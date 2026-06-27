@@ -238,7 +238,7 @@
     },
     "cycle": "Cykl",
     "labs": "Wyniki badań",
-    "vorsorge": "Profilaktyka",
+    "vorsorge": "Badania",
     "illness": "Choroba"
   },
   "auth": {
@@ -511,6 +511,7 @@
     "previousPage": "Poprzednia strona",
     "nextPage": "Następna strona",
     "dailyTotalCaption": "({count} pomiarów)",
+    "openMetricInsights": "Otwórz analizę {type}",
     "sleepNapCaption": "+{count} drzemka/i",
     "sleepAwakeningsCaption": "{count} przebudzenia",
     "expandDay": "Pokaż pomiary z tego dnia",
@@ -1945,7 +1946,6 @@
     "confidenceMittel": "Średnia",
     "confidenceGering": "Niska",
     "loadError": "Nie udało się załadować analiz",
-    "heroGenerated": "Wygenerowano {time}",
     "heroPersonalBaseline": "Na podstawie ostatnich 90 dni",
     "heroRegenerate": "Wygeneruj ponownie",
     "heroRegenerating": "Generowanie",
@@ -1957,7 +1957,6 @@
     "narrativeMonth": "Ten miesiąc",
     "narrativePreparing": "Przygotowywanie podsumowania…",
     "narrativeUpdating": "Aktualizowanie…",
-    "narrativeUpdated": "Zaktualizowano {time}",
     "narrativeProvenanceLabel": "Jak to powstało",
     "narrativeProvenanceMethod": "Podsumowanie okresu w prostym języku, oparte wyłącznie na zarejestrowanych wartościach i powiązaniach, które przeszły statystyczną korektę dla porównań wielokrotnych. Opisowe, nigdy nie przyczynowe.",
     "narrativeProvenanceMetrics": "Na podstawie: {metrics}",
@@ -2098,6 +2097,9 @@
       "composerPlaceholder": "Zapytaj o swoje dane…",
       "nudgeBubbleLabel": "Nowa wiadomość od trenera — otwórz czat",
       "fabLabel": "Otwórz trenera",
+      "readAloud": "Czytaj na głos",
+      "readAloudStop": "Zatrzymaj czytanie",
+      "messageTimeLabel": "Wiadomość wysłana {time}",
       "selfContextAdopt": {
         "offer": "Dodać tę odpowiedź do Twoich informacji o sobie?",
         "confirm": "Dodaj",
@@ -2211,6 +2213,8 @@
       "settingsSourcesPointerLink": "Otwórz coacha",
       "settingsExcludeLabel": "Wyklucz metryki",
       "settingsExcludeHint": "Coach nie zobaczy danych wybranych metryk.",
+      "settingsContextLabel": "Wysyłaj kontekst",
+      "settingsContextHint": "Opcjonalne bloki, na których coach może się opierać. Wyłączenie pominie blok w każdej odpowiedzi.",
       "settingsEvidenceLabel": "Pokazuj dowody domyślnie",
       "settingsEvidenceHint": "Automatycznie otwiera pole dowodów pod każdą odpowiedzią.",
       "settingsDefaultWindowLabel": "Domyślny okres analizy",
@@ -2226,8 +2230,6 @@
       "dailyLimitBody": "Osiągnięto dzienny limit. Limit resetuje się o północy (UTC).",
       "providerRateLimitTitle": "Dostawca z ograniczeniem",
       "providerRateLimitBody": "Dostawca jest tymczasowo przeciążony; reset za ~5 min.",
-      "settingsContextLabel": "Wysyłaj kontekst",
-      "settingsContextHint": "Opcjonalne bloki, na których coach może się opierać. Wyłączenie pominie blok w każdej odpowiedzi.",
       "cluster": {
         "cardio": {
           "label": "Sercowo-naczyniowe",
@@ -2320,6 +2322,33 @@
         "groupYesterday": "Wczoraj",
         "groupThisWeek": "W tym tygodniu",
         "groupEarlier": "Wcześniej"
+      },
+      "seed": {
+        "bloodPressure": "Przejdź ze mną przez trend mojego ciśnienia krwi z ostatnich 30 dni — czy jest coś, na co powinienem zwrócić uwagę?",
+        "weight": "Jak zmieniała się ostatnio moja waga i czy ten kierunek wymaga reakcji?",
+        "bmi": "Co mówi mi mój trend BMI i jak powinienem go odczytywać?",
+        "pulse": "Przejdź ze mną przez moje odczyty tętna — czy coś odbiega od normy?",
+        "restingHr": "Jak zmieniało się moje tętno spoczynkowe i co mówi o mojej kondycji?",
+        "hrv": "Co moja zmienność rytmu serca mówi mi o regeneracji i stresie w ostatnim czasie?",
+        "sleep": "Przejdź ze mną przez mój ostatni sen — długość, regularność i wszystko, co warto zmienić.",
+        "mood": "Jakie wzorce widzisz w moim nastroju w ciągu ostatnich kilku tygodni?",
+        "medications": "Jak wygląda moje przestrzeganie zaleceń lekowych i czy pokrywa się z tym, jak się czułem?",
+        "steps": "Jak aktywny byłem ostatnio na podstawie moich kroków i jak wypada to na tle zdrowego punktu odniesienia?",
+        "activeEnergy": "Co mój trend aktywnej energii mówi o moim poziomie aktywności w ostatnim czasie?",
+        "cardioFitness": "Co oznacza trend mojej wydolności krążeniowo-oddechowej (VO₂ max) i jak skierować go we właściwą stronę?",
+        "bloodGlucose": "Przejdź ze mną przez moje ostatnie odczyty glukozy — czy mieszczą się w zdrowym zakresie?",
+        "oxygenSaturation": "Co mówi mi mój trend saturacji krwi tlenem (SpO₂)?",
+        "respiratoryRate": "Co mój trend częstości oddechów mówi o moim zdrowiu?",
+        "workouts": "Przejdź ze mną przez moje ostatnie treningi — obciążenie, częstotliwość i jak regeneruję się między nimi.",
+        "recoveryPage": "Dlaczego moja regeneracja jest teraz na takim poziomie i co na nią wpływa?",
+        "briefing": "Przejdź ze mną przez dzisiejszy briefing — na czym powinienem się skupić i czy jest coś, co warto podjąć?",
+        "healthScore": "Dlaczego mój wynik zdrowia wynosi {score} na 100 i co poprawiłoby go najbardziej?",
+        "periodWeek": "Przejdź ze mną przez to, jak minął mój ostatni tydzień w moich wskaźnikach zdrowia — co się wyróżnia?",
+        "periodMonth": "Przejdź ze mną przez to, jak minął mój ostatni miesiąc w moich wskaźnikach zdrowia — co się wyróżnia?",
+        "correlationBpCompliance": "Jak moje przestrzeganie zaleceń lekowych wiąże się z moim ciśnieniem krwi? Wyjaśnij mi, co ta korelacja oznacza dla mnie.",
+        "correlationMoodPulse": "Czy istnieje rzeczywisty związek między moim nastrojem a tętnem? Pomóż mi odczytać tę korelację.",
+        "correlationWeightWeekday": "Czy moja waga podlega cotygodniowemu wzorcowi? Co mówi mi ta korelacja według dnia tygodnia?",
+        "recommendation": "Powiedz mi więcej o tej rekomendacji: \"{text}\" — dlaczego mnie dotyczy i co powinienem z nią zrobić?"
       }
     },
     "relativeJustNow": "przed chwilą",
@@ -3240,6 +3269,7 @@
       },
       "vitals": {
         "sectionTitle": "Twoje parametry życiowe",
+        "sectionSubtitle": "Spoczynkowe sygnały sercowo-naczyniowe i oddechowe na tle Twojej własnej linii bazowej",
         "loadingLabel": "Wczytywanie parametrów życiowych",
         "loadError": "Nie udało się teraz wczytać Twoich parametrów życiowych.",
         "building": "Budowanie Twojego typowego zakresu — {count} z {target} dni",
@@ -3366,6 +3396,7 @@
       },
       "scores": {
         "sectionTitle": "Twoje wskaźniki zdrowia",
+        "sectionSubtitle": "Złożone wartości regeneracji, stresu i obciążenia odczytane z Twoich połączonych urządzeń",
         "loadError": "Nie udało się teraz wczytać Twoich wyników dobrostanu.",
         "recovery": "Regeneracja",
         "stress": "Stres",
@@ -3611,7 +3642,10 @@
       "returnLabel": "Twój {metric} wrócił do twojego zwykłego zakresu po {count} dniach — cokolwiek to było, minęło.",
       "daysInside": "{count} dni w zakresie",
       "daysOutside": "{count} dni poza zakresem"
-    }
+    },
+    "updatedTodayAt": "Zaktualizowano dzisiaj, {time}",
+    "updatedYesterday": "Zaktualizowano wczoraj",
+    "updatedOn": "Zaktualizowano {date}"
   },
   "thresholds": {
     "defaultLabel": "Domyślne",
@@ -3677,8 +3711,8 @@
           "body": "Dziennik chorób zapisuje ostre epizody i przewlekłe diagnozy wraz z zaostrzeniami. Ukryte: korelacja epizodu z pomiarami oraz Tryb odpoczynku wstrzymujący przypomnienia. Dzięki temu Coach rozumie, czemu wartości przez chwilę odbiegają."
         },
         "vorsorge": {
-          "title": "Profilaktyka",
-          "body": "Profilaktyka przypomina o badaniach i szczepieniach z własnym interwałem. Wskazówka: „Wykonane” może od razu utworzyć pomiar lub wynik laboratoryjny. Terminy pojawiają się jako przypomnienia i w raporcie dla lekarza."
+          "title": "Badania",
+          "body": "Badania przypominają o przeglądach i szczepieniach z własnym interwałem. Wskazówka: „Wykonane” może od razu utworzyć pomiar lub wynik laboratoryjny. Terminy pojawiają się jako przypomnienia i w raporcie dla lekarza."
         },
         "cycle": {
           "title": "Cykl",
@@ -3702,7 +3736,7 @@
         },
         "export": {
           "title": "Raport dla lekarza",
-          "body": "Raport dla lekarza łączy pomiary, leki, wyniki laboratoryjne i profilaktykę w PDF lub FHIR na wizytę. Tu zbiegają się wszystkie moduły — pełny raport powstaje tylko z zadbanych danych."
+          "body": "Raport dla lekarza łączy pomiary, leki, wyniki laboratoryjne i badania w PDF lub FHIR na wizytę. Tu zbiegają się wszystkie moduły — pełny raport powstaje tylko z zadbanych danych."
         },
         "achievements": {
           "title": "Osiągnięcia",
@@ -4132,8 +4166,8 @@
         "subtitle": "Zarządzaj widokiem i kolejnością epizodów."
       },
       "vorsorge": {
-        "title": "Profilaktyka",
-        "description": "Widok, kolejność i poszczególne przypomnienia profilaktyczne.",
+        "title": "Badania",
+        "description": "Widok, kolejność i poszczególne przypomnienia o badaniach.",
         "subtitle": "Zarządzaj widokiem, kolejnością i poszczególnymi przypomnieniami."
       },
       "modules": {
@@ -4413,6 +4447,28 @@
         "clearedToast": "Zapomniano {count} zapisanych informacji.",
         "clearError": "Nie udało się usunąć zapisanych informacji. Spróbuj ponownie."
       },
+      "coachReminders": {
+        "title": "Twoje przypomnienia",
+        "description": "Rzeczy, o których przypomnienie poprosiłeś Coacha. Te, których termin nadszedł, pojawiają się tutaj i w Coachu.",
+        "empty": "Brak przypomnień. Poproś Coacha, aby przypomniał Ci o czymś, a pojawi się tutaj.",
+        "loadError": "Nie udało się wczytać Twoich przypomnień.",
+        "dueHeading": "Termin teraz",
+        "allHeading": "Zapisane",
+        "duePrefix": "termin {when}",
+        "confirm": "Zachowaj",
+        "markDone": "Gotowe",
+        "dismiss": "Odrzuć",
+        "deleteAria": "Usuń to przypomnienie",
+        "note": "Przypomnienia są przechowywane w postaci zaszyfrowanej. Usuń je w dowolnej chwili — znika z tego, co widzi Coach.",
+        "status": {
+          "proposed": "Sugerowane",
+          "active": "Zapisane",
+          "due": "Termin",
+          "surfaced": "Wyświetlone",
+          "done": "Gotowe",
+          "dismissed": "Odrzucone"
+        }
+      },
       "aboutMe": {
         "title": "O mnie",
         "description": "Osobisty kontekst, który Coach i codzienny briefing czytają obok Twoich danych.",
@@ -4436,7 +4492,24 @@
         "completeness": "Wypełnione: {answered} z {total}",
         "questionsTitle": "Coach ma pytania",
         "questionsOpenCoach": "Odpowiedz w Coachu"
-      }
+      },
+      "responseTimeoutHeading": "Limit czasu odpowiedzi",
+      "responseTimeoutBody": "Jak długo czekać na odpowiedź AI, zanim nastąpi przerwanie. Zwiększ wartość dla lokalnego lub samodzielnie hostowanego modelu, który potrzebuje czasu na załadowanie przy pierwszym żądaniu.",
+      "responseTimeoutLabel": "Limit czasu odpowiedzi (sekundy)",
+      "responseTimeoutPlaceholder": "Domyślnie (~180)",
+      "responseTimeoutInvalid": "Podaj liczbę od 10 do 600 sekund.",
+      "ocrHeading": "Skanowanie dokumentów (wyniki badań)",
+      "ocrBody": "Użyj dedykowanego dostawcy do odczytu przesłanych wyników badań. Gdy wyłączone, skanowanie używa Twojego głównego dostawcy.",
+      "ocrEnableLabel": "Włącz dedykowanego dostawcę do skanowania dokumentów",
+      "ocrProviderLabel": "Dostawca skanowania",
+      "ocrProviderOption": {
+        "OPENAI": "OpenAI (Twój klucz API)",
+        "ANTHROPIC": "Anthropic (Claude)",
+        "LOCAL": "Model lokalny (zgodny z OpenAI)"
+      },
+      "ocrModelPlaceholder": "np. gpt-4o",
+      "ocrVisionHint": "Ten model może nie odczytywać obrazów. Wybierz model obsługujący obraz do skanowania dokumentów.",
+      "ocrKeyLabel": "Klucz API"
     },
     "dashboard": {
       "units": {
@@ -4663,6 +4736,8 @@
       "changelog": "Changelog",
       "docs": "Dokumentacja",
       "linksHeading": "Źródła i dokumentacja",
+      "identityDescription": "Wersja, licencja i szczegóły kompilacji tej instancji.",
+      "linksDescription": "Kod źródłowy, dziennik zmian i dokumentacja.",
       "newerAvailable": "Nowa wersja: {tag}"
     },
     "testConnection": {
@@ -6483,13 +6558,13 @@
     "selectionBarLabel": "Akcje zaznaczenia"
   },
   "measurementReminders": {
-    "sectionTitle": "Profilaktyka",
+    "sectionTitle": "Badania",
     "sectionDescription": "Przypomnienia, co, kiedy i gdzie zmierzyć lub sprawdzić.",
     "addButton": "Dodaj przypomnienie",
     "markDone": "Gotowe",
     "delete": "Usuń",
     "deleteConfirmTitle": "Usunąć przypomnienie?",
-    "deleteConfirmDescription": "To przypomnienie profilaktyczne zostanie trwale usunięte.",
+    "deleteConfirmDescription": "To przypomnienie o badaniu zostanie trwale usunięte.",
     "disabledBadge": "Wył.",
     "nextDue": {
       "none": "Niezaplanowane",
@@ -6551,7 +6626,7 @@
       "rruleHint": "RFC-5545, np. FREQ=YEARLY dla corocznego badania.",
       "firstDue": "Pierwszy termin (opcjonalnie)"
     },
-    "pushTitle": "Przypomnienie profilaktyczne",
+    "pushTitle": "Przypomnienie o badaniu",
     "pushBody": "Czas na: {label}",
     "pushLocation": "(u {location})",
     "edit": "Edytuj",
@@ -6562,7 +6637,7 @@
     "measureNow": "Zmierz teraz",
     "nextDueLabel": "Następny termin:",
     "lastDoneLabel": "Ostatnio wykonano:",
-    "customize": "Dostosuj profilaktykę",
+    "customize": "Dostosuj badania",
     "adherence": {
       "label": "W interwale",
       "onTrack": "Zgodnie z planem",
@@ -6578,8 +6653,8 @@
       "empty": "Brak przypomnień do dostosowania."
     },
     "dashboard": {
-      "empty": "Brak nadchodzących przypomnień profilaktycznych.",
-      "openLink": "Otwórz profilaktykę"
+      "empty": "Brak nadchodzących przypomnień o badaniach.",
+      "openLink": "Otwórz badania"
     },
     "showMeasurements": "Pokaż pomiary"
   },
@@ -6720,7 +6795,14 @@
         "savedToast": "Biomarker zapisany",
         "updatedToast": "Biomarker zaktualizowany",
         "saveError": "Nie udało się zapisać biomarkera"
-      }
+      },
+      "hide": "Ukryj",
+      "unhide": "Przywróć",
+      "hiddenToast": "Biomarker ukryty",
+      "unhiddenToast": "Biomarker przywrócony",
+      "hideError": "Nie udało się zaktualizować biomarkera",
+      "allHidden": "Wszystkie biomarkery są ukryte.",
+      "hiddenSection": "Ukryte"
     },
     "catalog": {
       "total-cholesterol": "Cholesterol całkowity",
@@ -7039,6 +7121,25 @@
         "weightDaily": "Waż się codziennie, mniej więcej o tej samej porze",
         "bp722": "Mierz ciśnienie dwa razy dziennie przez tydzień",
         "glucoseStructured": "Mierz glukozę według ustrukturyzowanego planu dziennego"
+      }
+    },
+    "suggestedAction": {
+      "apply": "Dodaj",
+      "dismiss": "Nie teraz",
+      "applied": "Dodano",
+      "dismissed": "Odrzucono",
+      "failed": "Nie udało się dodać — spróbuj ponownie",
+      "checkup": {
+        "title": "Dodać przypomnienie o badaniu?"
+      },
+      "note": {
+        "title": "Zapisać przypomnienie?"
+      },
+      "interval": {
+        "yearly": "Co roku",
+        "halfYearly": "Co sześć miesięcy",
+        "quarterly": "Co trzy miesiące",
+        "monthly": "Co miesiąc"
       }
     },
     "settings": {

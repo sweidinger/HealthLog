@@ -3,16 +3,10 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Info, ListOrdered } from "lucide-react";
+import { ListOrdered } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { TargetAdjustButton } from "@/components/insights/target-adjust-button";
 import { TargetAdjustProvider } from "@/lib/insights/target-adjust-context";
 import { metricScopeFromExplainer } from "@/components/insights/coach-metric-scope";
@@ -208,9 +202,11 @@ export function SubPageShell({
         also: resolved.also,
         window: resolved.window,
       },
-      resolved.question,
+      // v1.22 (W6) — `question` is now an i18n key; resolve it so the composer
+      // seed reads in the user's language.
+      t(resolved.question),
     );
-  }, [coachLaunch, registerScope, explainerMetric]);
+  }, [coachLaunch, registerScope, explainerMetric, t]);
 
   return (
     // The target-adjust provider bridges the header gear (rendered just
@@ -344,33 +340,6 @@ export function SubPageShell({
               className="text-muted-foreground text-sm leading-relaxed"
             >
               {t(`insights.subPage.explainer.${explainerMetric}Body`)}
-              {/* v1.18.6 — a discreet general-guidance tooltip travels with
-                every metric definition. The reference bands in the body
-                above are population anchors, not medical advice; this
-                caption pins that framing without crowding the prose. */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      data-slot="metric-reference-guidance"
-                      className={cn(
-                        "text-muted-foreground hover:text-foreground ml-1.5 inline-flex",
-                        "focus-visible:ring-ring/50 rounded-full align-middle",
-                        "focus-visible:ring-2 focus-visible:outline-none",
-                      )}
-                      aria-label={t(
-                        "insights.subPage.explainer.referenceGuidance",
-                      )}
-                    >
-                      <Info className="size-3.5" aria-hidden="true" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-pretty">
-                    {t("insights.subPage.explainer.referenceGuidance")}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </p>
           ) : null}
           {description && !explainerMetric ? (

@@ -55,9 +55,9 @@ describe("<ScoreAnatomyView>", () => {
     // The missing contributor renders present=false (dropped, not blank).
     expect(html).toContain('data-contributor="respiratory"');
     expect(html).toContain('data-present="false"');
-    expect(html).toContain('data-slot="provenance-explainer-trigger"');
+    expect(html).toContain('data-slot="provenance-explainer-method"');
     // v1.15.12 F4 — the "keine klinische Bewertung" footer line is removed;
-    // the non-clinical framing now lives behind the provenance explainer.
+    // the non-clinical framing now lives in the inline provenance method.
     expect(html).not.toContain('data-slot="score-anatomy-disclaimer"');
   });
 

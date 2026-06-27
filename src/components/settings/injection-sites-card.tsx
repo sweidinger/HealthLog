@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Syringe } from "lucide-react";
 
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTranslations } from "@/lib/i18n/context";
@@ -66,7 +67,7 @@ export function InjectionSitesCard({
   }
 
   return (
-    <div className="bg-card border-border rounded-lg border p-4">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Syringe}
         title={t("settings.globalExcludedInjectionSitesLabel")}
@@ -84,6 +85,6 @@ export function InjectionSitesCard({
           </label>
         ))}
       </div>
-    </div>
+    </SettingsCard>
   );
 }

@@ -18,6 +18,7 @@ import {
   metricIdentifierBan,
   forbiddenFiller,
   outlookContract,
+  formattingContract,
   type ContractLocale,
 } from "../shared-contracts";
 import {
@@ -59,6 +60,8 @@ const SURFACES: Record<
       // v1.21.0 (QoL-B §3) — the briefing composes the forward-looking outlook
       // contract beside the tone contract.
       outlookContract,
+      // v1.22 (W6) — the paragraph formatting contract.
+      formattingContract,
     ],
   },
   "base-system (status cards)": {
@@ -70,6 +73,8 @@ const SURFACES: Record<
       safetyAcute,
       metricIdentifierBan,
       forbiddenFiller,
+      // v1.22 (W6) — the paragraph formatting contract.
+      formattingContract,
     ],
   },
   coach: {
@@ -83,6 +88,8 @@ const SURFACES: Record<
       forbiddenFiller,
       // v1.21.0 (QoL-B §3) — the Coach composes the outlook contract too.
       outlookContract,
+      // v1.22 (W6) — the paragraph formatting contract.
+      formattingContract,
     ],
   },
   // v1.21.0 (coach C1 MEDIUM-1) — the retrospective narrative now composes the
@@ -97,6 +104,8 @@ const SURFACES: Record<
       safetyAcute,
       metricIdentifierBan,
       forbiddenFiller,
+      // v1.22 (W6) — the paragraph formatting contract.
+      formattingContract,
     ],
   },
 };

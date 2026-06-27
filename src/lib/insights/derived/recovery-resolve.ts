@@ -136,3 +136,94 @@ export function resolveCanonicalRecovery(
     (a, b) => b.measuredAt.getTime() - a.measuredAt.getTime(),
   );
 }
+
+/**
+ * v1.22 (W9, C3) — which-signal-to-trust narration support.
+ *
+ * When two sources of recovery diverge for the SAME physiological night (e.g.
+ * the WHOOP-native band vs the COMPUTED proxy), the Coach should narrate WHICH
+ * it reads and the honest reason — never silently average them into mush. This
+ * is the thin wrapper over the resolver: for the MOST RECENT night that carries
+ * two or more sources, it returns the canonical pick, the strongest alternative,
+ * and the gap — but only when the gap is MATERIAL (below the threshold it
+ * returns null so the Coach never narrates trivial noise).
+ *
+ * Pure, like the resolver: the caller does the bounded read and passes rows in.
+ */
+export interface RecoveryDivergence {
+  /** The canonical source the resolver picks for that night. */
+  chosenSource: MeasurementSource;
+  chosenValue: number;
+  /** The strongest non-chosen source present for the same night. */
+  alternativeSource: MeasurementSource;
+  alternativeValue: number;
+  /** |chosenValue − alternativeValue|, rounded to a whole point. */
+  divergence: number;
+  /** True when the chosen source is a device-native reading (not COMPUTED). */
+  chosenIsDirect: boolean;
+}
+
+/** Points below which two sources are "in agreement" — divergence omitted. */
+const MATERIAL_RECOVERY_DIVERGENCE = 7;
+
+export function describeRecoveryDivergence(
+  rows: RecoveryRow[],
+  timezone?: string | null,
+  opts?: { materialThreshold?: number },
+): RecoveryDivergence | null {
+  const tz = resolveUserTimezone(timezone ?? null);
+  const threshold = opts?.materialThreshold ?? MATERIAL_RECOVERY_DIVERGENCE;
+
+  // Group rows by wake-day, keeping the best (latest) row PER SOURCE so a
+  // same-night re-score does not register as a second source.
+  const byNight = new Map<string, Map<MeasurementSource, RecoveryRow>>();
+  for (const row of rows) {
+    const key = wakeDayKeyOf(row.measuredAt, row.source, tz);
+    let bySource = byNight.get(key);
+    if (!bySource) {
+      bySource = new Map();
+      byNight.set(key, bySource);
+    }
+    const incumbent = bySource.get(row.source);
+    if (
+      !incumbent ||
+      row.measuredAt.getTime() > incumbent.measuredAt.getTime()
+    ) {
+      bySource.set(row.source, row);
+    }
+  }
+
+  // Pick the most recent night (by its chosen row's measuredAt) that carries
+  // two or more distinct sources.
+  let best: { chosen: RecoveryRow; alternative: RecoveryRow } | null = null;
+  let bestAt = -1;
+  for (const bySource of byNight.values()) {
+    if (bySource.size < 2) continue;
+    const ranked = [...bySource.values()].sort(
+      (a, b) =>
+        rankOf(a.source) - rankOf(b.source) ||
+        b.measuredAt.getTime() - a.measuredAt.getTime(),
+    );
+    const chosen = ranked[0];
+    const alternative = ranked[1];
+    if (chosen.measuredAt.getTime() > bestAt) {
+      bestAt = chosen.measuredAt.getTime();
+      best = { chosen, alternative };
+    }
+  }
+  if (!best) return null;
+
+  const divergence = Math.round(
+    Math.abs(best.chosen.value - best.alternative.value),
+  );
+  if (divergence < threshold) return null;
+
+  return {
+    chosenSource: best.chosen.source,
+    chosenValue: Math.round(best.chosen.value),
+    alternativeSource: best.alternative.source,
+    alternativeValue: Math.round(best.alternative.value),
+    divergence,
+    chosenIsDirect: best.chosen.source !== "COMPUTED",
+  };
+}

@@ -131,7 +131,7 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
-import { SettingsSectionFrame } from "../settings-section-frame";
+import { SettingsSectionFrame } from "./section-frame-harness";
 import { MoodSection } from "../mood-section";
 
 function render(locale: "en" | "de" = "en"): string {

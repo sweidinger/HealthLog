@@ -220,11 +220,12 @@ export function OcrReviewDialog({
               if (file) onFilePicked(file);
             }}
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => inputRef.current?.click()}
             disabled={extract.isPending}
-            className="border-muted-foreground/25 hover:bg-muted/50 focus-visible:ring-ring flex min-h-44 w-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+            className="border-muted-foreground/25 hover:bg-muted/50 h-auto min-h-44 w-full flex-col gap-3 rounded-lg border-dashed p-6 text-center whitespace-normal"
           >
             {extract.isPending ? (
               <>
@@ -261,7 +262,7 @@ export function OcrReviewDialog({
                 ) : null}
               </>
             )}
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-3 py-2">

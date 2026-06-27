@@ -26,9 +26,10 @@ import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { AskCoachAction } from "@/components/insights/ask-coach-action";
-import { useTranslations } from "@/lib/i18n/context";
-import { formatRelativeTime } from "@/lib/i18n/relative-time";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type {
   DailyBriefing as DailyBriefingPayload,
@@ -352,6 +353,8 @@ export function DailyBriefing({
   memory = null,
 }: DailyBriefingProps) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
+  const { user } = useAuth();
 
   return (
     // v1.13.1 — heading-above-card pattern. The "Tagesbriefing" title
@@ -430,7 +433,7 @@ export function DailyBriefing({
                 <div className="space-y-2">
                   <p
                     data-slot="daily-briefing-signals-title"
-                    className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase"
+                    className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
                   >
                     {t("insights.dailyBriefing.signalsTitle")}
                   </p>
@@ -448,7 +451,7 @@ export function DailyBriefing({
                 <div className="space-y-2">
                   <p
                     data-slot="daily-briefing-findings-title"
-                    className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase"
+                    className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
                   >
                     {t("insights.dailyBriefing.keyFindingsTitle")}
                   </p>
@@ -470,11 +473,15 @@ export function DailyBriefing({
                   {updatedAt && (
                     <p
                       data-slot="daily-briefing-updated"
-                      className="text-muted-foreground text-right text-[11px]"
+                      className="text-muted-foreground text-right text-xs"
                     >
-                      {t("insights.heroGenerated", {
-                        time: formatRelativeTime(updatedAt, t),
-                      })}
+                      {formatUpdatedLabel(
+                        updatedAt,
+                        t,
+                        fmt.dateShort,
+                        fmt.time,
+                        user?.timezone,
+                      )}
                     </p>
                   )}
                   {/* v1.18.9 (#4) — a stale briefing that can never refresh
@@ -484,7 +491,7 @@ export function DailyBriefing({
                   {noProviderStale && (
                     <p
                       data-slot="daily-briefing-stale-no-provider"
-                      className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-right text-[11px]"
+                      className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-right text-xs"
                     >
                       <span>
                         {t("insights.dailyBriefing.staleNoProviderHint")}
@@ -504,7 +511,7 @@ export function DailyBriefing({
                 picture. The briefing spans every metric, so no scope: the
                 default all-source snapshot reads best here. */}
               <div className="flex justify-end">
-                <AskCoachAction question="Walk me through today's briefing — what should I focus on, and is anything worth acting on?" />
+                <AskCoachAction question={t("insights.coach.seed.briefing")} />
               </div>
             </div>
           ) : noProvider ? (

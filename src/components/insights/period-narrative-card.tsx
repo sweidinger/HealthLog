@@ -2,18 +2,16 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarRange, Info } from "lucide-react";
+import { CalendarRange } from "lucide-react";
 
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { queryKeys } from "@/lib/query-keys";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { AskCoachAction } from "@/components/insights/ask-coach-action";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { apiGet } from "@/lib/api/api-fetch";
 
 /**
@@ -64,6 +62,13 @@ async function fetchNarrative(
   return apiGet<NarrativeResponse>(`/api/insights/narrative?period=${period}`);
 }
 
+/**
+ * v1.22 — the round ⓘ provenance glyph that hid the "how this was computed"
+ * read behind a popover is removed; the maintainer wants the trailing info
+ * affordance gone across the insights surface. The method line — and, when
+ * present, the metrics it drew on — now reads inline as a muted caption at the
+ * foot of the card, always visible rather than disclosure-only.
+ */
 function ProvenanceDisclosure({
   provenance,
 }: {
@@ -72,27 +77,15 @@ function ProvenanceDisclosure({
   const { t } = useTranslations();
   const metrics = provenance.metrics.slice(0, 8).join(", ");
   return (
-    <Popover>
-      <PopoverTrigger
-        aria-label={t("insights.narrativeProvenanceLabel")}
-        className="text-muted-foreground hover:text-foreground inline-flex size-5 shrink-0 items-center justify-center rounded-full transition-colors"
-      >
-        <Info className="size-3.5" aria-hidden="true" />
-      </PopoverTrigger>
-      <PopoverContent className="w-80 text-sm" align="end">
-        <p className="text-foreground font-medium">
-          {t("insights.narrativeProvenanceLabel")}
-        </p>
-        <p className="text-muted-foreground mt-1">
-          {t("insights.narrativeProvenanceMethod")}
-        </p>
-        {metrics ? (
-          <p className="text-muted-foreground mt-2 text-xs">
-            {t("insights.narrativeProvenanceMetrics", { metrics })}
-          </p>
-        ) : null}
-      </PopoverContent>
-    </Popover>
+    <p
+      data-slot="period-narrative-provenance"
+      className="text-muted-foreground text-xs leading-snug"
+    >
+      {t("insights.narrativeProvenanceMethod")}
+      {metrics
+        ? ` ${t("insights.narrativeProvenanceMetrics", { metrics })}`
+        : ""}
+    </p>
   );
 }
 
@@ -109,6 +102,8 @@ export function PeriodNarrativeCard({
   className,
 }: PeriodNarrativeCardProps) {
   const { t, locale } = useTranslations();
+  const fmt = useFormatters();
+  const { user } = useAuth();
   const [period, setPeriod] = useState<NarrativePeriod>("week");
 
   const query = useQuery({
@@ -168,11 +163,6 @@ export function PeriodNarrativeCard({
       <SectionHeading
         icon={CalendarRange}
         title={t("insights.narrativeTitle")}
-        action={
-          narrative?.provenance ? (
-            <ProvenanceDisclosure provenance={narrative.provenance} />
-          ) : undefined
-        }
       />
       <div
         data-slot="period-narrative-card"
@@ -209,21 +199,28 @@ export function PeriodNarrativeCard({
             {t("insights.narrativePreparing")}
           </p>
         ) : (
-          // Plain text child — NO markdown renderer (XSS posture, CLAUDE.md).
-          <p className="text-foreground text-sm leading-relaxed whitespace-pre-line">
-            {narrative?.text}
-          </p>
+          // v1.22 (W6) — real paragraphs via the shared ProseBlocks helper
+          // (still plain text children — NO markdown renderer, XSS posture).
+          <div className="text-foreground text-sm">
+            <ProseBlocks text={narrative?.text ?? ""} />
+          </div>
         )}
 
+        {narrative?.provenance ? (
+          <ProvenanceDisclosure provenance={narrative.provenance} />
+        ) : null}
+
         {narrative ? (
-          <p className="text-muted-foreground text-right text-[11px]">
+          <p className="text-muted-foreground text-right text-xs">
             {data?.revalidating
               ? t("insights.narrativeUpdating")
-              : t("insights.narrativeUpdated", {
-                  time: new Date(narrative.updatedAt).toLocaleDateString(
-                    locale === "de" ? "de-DE" : undefined,
-                  ),
-                })}
+              : formatUpdatedLabel(
+                  narrative.updatedAt,
+                  t,
+                  fmt.dateShort,
+                  fmt.time,
+                  user?.timezone,
+                )}
           </p>
         ) : null}
 
@@ -233,11 +230,11 @@ export function PeriodNarrativeCard({
         {narrative ? (
           <div className="flex justify-end">
             <AskCoachAction
-              question={
+              question={t(
                 period === "week"
-                  ? "Walk me through how my last week went across my health metrics — what stands out?"
-                  : "Walk me through how my last month went across my health metrics — what stands out?"
-              }
+                  ? "insights.coach.seed.periodWeek"
+                  : "insights.coach.seed.periodMonth",
+              )}
             />
           </div>
         ) : null}

@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [1.22.0] — 2026-06-27 — A Coach that speaks, remembers, and charts; richer narratives across the app
+
+A feature release. The Coach reads its replies aloud, can draw the metric it is discussing, remembers what you ask it to and resurfaces those reminders, and proposes checkups or measurement reminders you confirm inline. Insights and Coach assessments are rewritten for connected, motivating narratives instead of restated figures, and the daily read now folds in labs, preventive care, workouts, and glucose. Four additive migrations (`0195` hidden biomarkers, `0196` coach reminders, `0197` coach plan outcomes, `0198` AI settings); applied automatically on start — no operator action required.
+
+### Added
+
+- The Coach can read its replies aloud, and a reply can include a chart of the metric under discussion so the number has its trend alongside it.
+- The Coach remembers things you ask it to keep and resurfaces a reminder when it comes due; a reminders list in settings shows what it is holding and lets you clear any of it.
+- The Coach can propose a checkup or a measurement reminder, which you confirm inline before anything is saved.
+- Hover a message to see the date and time it was sent.
+- A configurable AI response timeout, and a separate optional provider dedicated to scanning lab documents.
+- Steps now appear in Insights, and selecting a measurement type opens its insight.
+
+### Changed
+
+- Insight and Coach assessments are rewritten to connect signals into a motivating narrative rather than restate figures, with substantially expanded score summaries; generated text now renders in paragraphs and carries clearer "updated" timestamps — today with the time, yesterday, and a date for anything older.
+- The daily read folds in labs, preventive care, workouts, and glucose, and correlations surface emerging signals over a recent window alongside more cross-signal links.
+- The preventive-care area is now "Checkups", reached at `/checkups`; the German interface keeps "Vorsorge".
+- Settings pages share one consistent layout, and the settings and admin sidebar stays pinned while the content scrolls.
+- Lab biomarkers are a compact, editable list with hide and restore.
+- Local AI servers stream their replies and honour the configurable timeout, so slower self-hosted models finish cleanly.
+
+### Fixed
+
+- The daily briefing and the insight trend no longer go blank when generation runs long.
+- The blood-pressure "usual range" no longer shows a nonsensical band.
+- A Coach notification now opens straight into the conversation it began.
+- Insight headings drop the trailing info icon in favour of a short description.
+- Lab values no longer link out to an article.
+
 ## [1.21.4] — 2026-06-27 — Coach surface refinements
 
 A patch release. No migrations, no breaking changes.

@@ -341,7 +341,7 @@ export function HealthScoreCard({
           <div className="flex min-w-0 items-center gap-2">
             <p
               data-slot="health-score-card-label"
-              className="text-muted-foreground text-[10px] font-semibold tracking-[0.18em] uppercase"
+              className="text-muted-foreground text-xs font-semibold tracking-[0.18em] uppercase"
             >
               {t("insights.healthScore.label")}
             </p>
@@ -361,7 +361,7 @@ export function HealthScoreCard({
           {delta !== null && delta > 0 && (
             <span
               data-slot="health-score-card-delta-chip"
-              className="bg-success/15 text-success rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              className="bg-success/15 text-success rounded-full px-2 py-0.5 text-xs font-semibold"
             >
               +{delta}
             </span>
@@ -414,7 +414,7 @@ export function HealthScoreCard({
             branch keeps the existing single-line caption. */}
         <p
           data-slot="health-score-card-delta"
-          className="text-muted-foreground inline-flex items-center gap-1 text-[11px]"
+          className="text-muted-foreground inline-flex items-center gap-1 text-xs"
         >
           {delta === null ? (
             <span>{t("insights.healthScore.deltaUnavailable")}</span>
@@ -456,7 +456,7 @@ export function HealthScoreCard({
         {restModeActive && (
           <p
             data-slot="health-score-card-rest-mode"
-            className="text-muted-foreground inline-flex items-start gap-1.5 text-[11px] leading-relaxed"
+            className="text-muted-foreground inline-flex items-start gap-1.5 text-xs leading-relaxed"
           >
             <Moon className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
             <span>{t("insights.healthScore.restModePaused")}</span>
@@ -474,7 +474,7 @@ export function HealthScoreCard({
             <p
               data-slot="health-score-card-tension"
               data-band={tension.band}
-              className="text-muted-foreground inline-flex items-start gap-1.5 text-[11px] leading-relaxed"
+              className="text-muted-foreground inline-flex items-start gap-1.5 text-xs leading-relaxed"
             >
               <Scale className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
               <span>
@@ -493,7 +493,7 @@ export function HealthScoreCard({
         {returnToBand && (
           <p
             data-slot="health-score-card-return-to-band"
-            className="text-success/90 inline-flex items-start gap-1.5 text-[11px] leading-relaxed"
+            className="text-success/90 inline-flex items-start gap-1.5 text-xs leading-relaxed"
           >
             <CornerDownLeft
               className="mt-0.5 size-3 shrink-0"
@@ -576,7 +576,7 @@ export function HealthScoreCard({
             className={cn(
               "text-muted-foreground hover:text-foreground",
               "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
-              "flex w-full items-center justify-between gap-1 rounded text-[11px]",
+              "flex w-full items-center justify-between gap-1 rounded text-xs",
             )}
           >
             <span>{t("insights.healthScore.provenance.toggle")}</span>
@@ -600,7 +600,7 @@ export function HealthScoreCard({
                 <p
                   data-slot="health-score-card-provenance-mixed-banner"
                   role="status"
-                  className="border-warning/30 text-warning/90 bg-warning/5 rounded border px-2 py-1 text-[10px] leading-snug"
+                  className="border-warning/30 text-warning/90 bg-warning/5 rounded border px-2 py-1 text-xs leading-snug"
                 >
                   {t("insights.healthScore.provenance.mixedBanner")}
                 </p>
@@ -625,7 +625,7 @@ export function HealthScoreCard({
                       data-component={row.key}
                       data-source={row.source}
                       className={cn(
-                        "flex items-center gap-2 text-[11px]",
+                        "flex items-center gap-2 text-xs",
                         isEmpty && "opacity-50",
                       )}
                     >
@@ -684,7 +684,7 @@ export function HealthScoreCard({
                         title={asOfLine ?? undefined}
                         data-as-of={row.asOf ?? undefined}
                         className={cn(
-                          "inline-flex items-center rounded-full border bg-transparent px-1.5 py-0.5 text-[10px] leading-none",
+                          "inline-flex items-center rounded-full border bg-transparent px-1.5 py-0.5 text-xs leading-none",
                           SOURCE_PILL_CLASS[row.source],
                         )}
                       >
@@ -696,7 +696,7 @@ export function HealthScoreCard({
               </ul>
               <p
                 data-slot="health-score-card-provenance-footnote"
-                className="text-muted-foreground text-[10px] leading-snug"
+                className="text-muted-foreground text-xs leading-snug"
               >
                 {t("insights.healthScore.provenance.footnote")}
               </p>
@@ -714,7 +714,7 @@ export function HealthScoreCard({
             a single discreet entry, not a primary CTA. */}
         <div className="mt-auto flex justify-end pt-1">
           <AskCoachAction
-            question={`Why is my health score ${score} out of 100, and what would move it the most?`}
+            question={t("insights.coach.seed.healthScore", { score })}
           />
         </div>
       </div>

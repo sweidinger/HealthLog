@@ -24,6 +24,15 @@ export interface AiBudget {
    * Optional for surfaces whose caller pins its own token const (self-context).
    */
   maxTokens?: number;
+  /**
+   * v1.21.5 — optional per-surface upstream timeout (ms) threaded onto the
+   * provider call via `CompletionParams.timeoutMs`. Omitted → the client's
+   * shared 60 s default holds. Only the comprehensive briefing sets it: its
+   * reasoning-heavy generation over the full feature snapshot legitimately
+   * runs past 60 s on large accounts, and the default abort clipped it
+   * mid-stream — leaving the briefing permanently blank.
+   */
+  timeoutMs?: number;
 }
 
 /**
@@ -43,8 +52,17 @@ export const AI_BUDGETS = {
    * Comprehensive insight + dailyBriefing — the largest structured payload
    * (summary + recommendations + dailyBriefing 80-200 words + signals +
    * keyFindings + trendAnnotations + storyboardAnnotations). 1500 tokens.
+   *
+   * v1.21.5 — `timeoutMs` raised to 120 s for THIS surface only. The 60 s
+   * client default aborted the reasoning-heavy single-turn generation
+   * mid-stream on large accounts (observed: a 60.7 s "operation aborted due
+   * to timeout" hop, no upstream status), which left the daily briefing and
+   * the insights trend narrative that share its cached block blank. The
+   * generation runs off the request hot path (nightly warm + the on-demand
+   * background warm), and the explicit regenerate is rate-limited, so the
+   * wider ceiling is bounded.
    */
-  comprehensive: { temperature: 0.3, maxTokens: 1500 },
+  comprehensive: { temperature: 0.3, maxTokens: 1500, timeoutMs: 120_000 },
 
   /**
    * Per-metric status assessment cards — output is a single

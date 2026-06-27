@@ -1,8 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
 
-import { learnLinkForMetric } from "@/lib/learn-links";
+import { learnLinkForMetric, learnUrl } from "@/lib/learn-links";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +53,53 @@ export function LearnMoreLink({ concept, className }: LearnMoreLinkProps) {
     >
       {label}
       <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+    </a>
+  );
+}
+
+/**
+ * v1.22 (W5) — inline, catalog-whitelisted Learn anchor for AI prose.
+ *
+ * Where `LearnMoreLink` resolves a *concept* to its guide for a deterministic
+ * UI surface, this variant linkifies a `/learn/<slug>` reference that already
+ * appears in trusted prose (the Coach reply, post-filtered server-side by
+ * `scrubUnknownLearnLinks`). The slug is resolved through `learnUrl` — the same
+ * closed-set, registry-backed builder — so an unknown slug renders the children
+ * as plain text (fail-closed): a drifted post-filter can never produce a
+ * clickable invented href, and there is no markdown / HTML parsing involved.
+ *
+ * The visible label is the caller's `children` (the original URL text), keeping
+ * the reference verbatim; the safe attributes (`target="_blank"`,
+ * `rel="noopener noreferrer"`) mirror `LearnMoreLink`.
+ */
+export interface InlineLearnLinkProps {
+  /** The `/learn/<slug>` path segment to resolve and link. */
+  slug: string;
+  /** Visible anchor text (typically the matched URL substring). */
+  children: ReactNode;
+  className?: string;
+}
+
+export function InlineLearnLink({
+  slug,
+  children,
+  className,
+}: InlineLearnLinkProps) {
+  const url = learnUrl(slug);
+  if (url == null) return <>{children}</>;
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-slot="inline-learn-link"
+      className={cn(
+        "text-primary underline decoration-from-font underline-offset-2 hover:no-underline",
+        className,
+      )}
+    >
+      {children}
     </a>
   );
 }

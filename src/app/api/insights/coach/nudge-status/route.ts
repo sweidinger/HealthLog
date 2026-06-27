@@ -39,7 +39,11 @@ export const GET = apiHandler(async () => {
     prisma.coachMessage.findFirst({
       where: { role: "assistant", conversation: { userId: user.id } },
       orderBy: { createdAt: "desc" },
-      select: { createdAt: true },
+      // v1.22 (W5) — also return the owning conversation id so the FAB can
+      // deep-link straight into the proactive thread (`/coach?c=<id>`)
+      // instead of opening a blank new chat and relying on a most-recent
+      // heuristic to find it.
+      select: { createdAt: true, conversationId: true },
     }),
     prisma.user.findUnique({
       where: { id: user.id },
@@ -55,6 +59,10 @@ export const GET = apiHandler(async () => {
   return apiSuccess({
     nudgedAt: nudgedAt ? nudgedAt.toISOString() : null,
     unread,
+    // The conversation holding the newest assistant message. Present
+    // whenever a Coach reply exists; the FAB only consumes it on the
+    // unread path.
+    conversationId: lastAssistant?.conversationId ?? null,
   });
 });
 

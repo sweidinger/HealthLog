@@ -1,8 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider } from "@/lib/i18n/context";
 import { InsightStatusCard } from "../insight-status-card";
+
+// The last-updated footer reads the profile timezone via `useAuth`; stub it so
+// the SSR render does not reach for a QueryClient the static-markup test omits.
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { timezone: "Europe/Berlin" },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+}));
 
 /**
  * v1.4.27 — F16 regression cover. The per-metric status text comes

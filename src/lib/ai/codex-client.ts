@@ -509,7 +509,9 @@ export class CodexClient implements AIProvider {
       },
       // v1.20.1 — compose the caller's cancel signal (Coach SSE disconnect) so
       // a mid-generation abort tears the upstream call down early.
-      { timeoutMs: 60_000, signal: params.signal },
+      // v1.21.5 — honour the caller's per-request timeout override (the
+      // comprehensive briefing needs >60 s); default unchanged at 60 s.
+      { timeoutMs: params.timeoutMs ?? 60_000, signal: params.signal },
     );
   }
 

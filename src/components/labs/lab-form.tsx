@@ -110,8 +110,12 @@ export function LabForm({
     null,
   );
 
-  const markers = catalog?.biomarkers ?? [];
-  const selected = markers.find((m) => m.id === biomarkerId);
+  const allMarkers = catalog?.biomarkers ?? [];
+  const selected = allMarkers.find((m) => m.id === biomarkerId);
+  // v1.22 — hidden markers drop from the picker, but keep the currently
+  // selected one visible (e.g. editing a reading whose marker was later
+  // hidden) so the Select still resolves its label.
+  const markers = allMarkers.filter((m) => !m.hidden || m.id === biomarkerId);
 
   function handleSelect(next: string) {
     if (next === DEFINE_NEW) {

@@ -424,36 +424,29 @@ export async function runWithFallback(
   throw new AllProvidersFailedError(hops);
 }
 
-export interface RunRawWithFallbackResult {
-  /** Raw provider response — the legacy `/api/insights/generate` route
-   *  consumes the rich shape from `result.content`, so the runner does
-   *  not strict-parse it. The `provider-runner` integration test for
-   *  v1.4.16 B5b checks that fallback semantics still hold for the
-   *  legacy code path. v1.4.17 will migrate this route to the strict
-   *  wrapper (B5c work) — at that point this helper is removed. */
-  result: CompletionResult;
-  workingProvider: ProviderChainResolved;
-  fallbackHops: FallbackHop[];
-}
-
 /**
- * Sibling of `runWithFallback()` that calls `provider.generateCompletion`
- * directly (no strict-schema wrapper). Used by the legacy route at
- * `/api/insights/generate` which still consumes the rich legacy shape.
- *
- * Fallback policy is identical: hard provider failures cascade,
- * everything else (e.g. a 4xx-but-non-auth from a custom provider)
- * bubbles to the caller. The cache + structured logging are shared
- * with the strict variant.
+ * Shared chain walker for the two RAW runners (streaming + buffered). Owns the
+ * one set of chain / fallback / health-ledger semantics — empty-chain guard,
+ * health-ledger + last-working reorder, hard-failure cascade with per-hop
+ * annotation, success memo + ledger write, and the terminal
+ * `AllProvidersFailedError`. The only per-runner delta is how a single
+ * candidate is invoked (`invoke`) and any extra success-path annotation
+ * (`successMeta`); both raw runners pass those in and keep one copy of the loop.
+ * Schema-class failures still bubble (they are not hard) exactly as before.
  */
-export async function runRawCompletionWithFallback(args: {
-  userId: string;
-  providers: ProviderChainResolved[];
-  params: CompletionParams;
-  /** See `RunWithFallbackParams.ledger`. */
-  ledger?: ProviderHealthLedger;
-}): Promise<RunRawWithFallbackResult> {
-  const { userId, providers, params } = args;
+async function runRawChain(
+  args: {
+    userId: string;
+    providers: ProviderChainResolved[];
+    params: CompletionParams;
+    ledger?: ProviderHealthLedger;
+  },
+  invoke: (candidate: ProviderChainResolved) => Promise<CompletionResult>,
+  successMeta?: (
+    candidate: ProviderChainResolved,
+  ) => Record<string, string | number | boolean | null>,
+): Promise<RunRawWithFallbackResult> {
+  const { userId, providers } = args;
   const ledger = args.ledger ?? postgresProviderHealthLedger;
 
   if (providers.length === 0) {
@@ -466,13 +459,14 @@ export async function runRawCompletionWithFallback(args: {
   for (let i = 0; i < ordered.length; i += 1) {
     const candidate = ordered[i];
     try {
-      const result = await candidate.instance.generateCompletion(params);
+      const result = await invoke(candidate);
       rememberWorkingProvider(userId, candidate.providerType);
       void ledger.recordSuccess(userId, candidate.providerType);
       annotate({
         meta: {
           ai_chain_working_provider: candidate.providerType,
           ai_chain_fallback_count: hops.length,
+          ...(successMeta ? successMeta(candidate) : {}),
         },
       });
       return {
@@ -511,4 +505,71 @@ export async function runRawCompletionWithFallback(args: {
     },
   });
   throw new AllProvidersFailedError(hops);
+}
+
+/**
+ * v1.22 (#89) — streaming sibling of {@link runRawCompletionWithFallback}.
+ * Identical chain / fallback / health-ledger semantics (via {@link runRawChain}),
+ * but each candidate is driven through its `generateCompletionStream` (emitting
+ * `onDelta` per token) when the provider implements one, and through the buffered
+ * `generateCompletion` otherwise. The caller (the Coach SSE route) uses the delta
+ * callback to keep the connection warm and — once safety guards have run on the
+ * full reply — to confirm real tokens flowed. The returned shape matches the
+ * buffered runner so the route is path-agnostic.
+ */
+export async function runStreamingRawCompletionWithFallback(args: {
+  userId: string;
+  providers: ProviderChainResolved[];
+  params: CompletionParams;
+  /** Called once per streamed token/chunk for providers that stream. */
+  onDelta: (delta: string) => void;
+  /** See `RunWithFallbackParams.ledger`. */
+  ledger?: ProviderHealthLedger;
+}): Promise<RunRawWithFallbackResult> {
+  return runRawChain(
+    args,
+    // Prefer the provider's streaming wire; fall back to the buffered call for
+    // providers (cloud clients today) that do not implement streaming.
+    (candidate) =>
+      candidate.instance.generateCompletionStream
+        ? candidate.instance.generateCompletionStream(args.params, args.onDelta)
+        : candidate.instance.generateCompletion(args.params),
+    (candidate) => ({
+      ai_chain_streamed: Boolean(candidate.instance.generateCompletionStream),
+    }),
+  );
+}
+
+export interface RunRawWithFallbackResult {
+  /** Raw provider response — the legacy `/api/insights/generate` route
+   *  consumes the rich shape from `result.content`, so the runner does
+   *  not strict-parse it. The `provider-runner` integration test for
+   *  v1.4.16 B5b checks that fallback semantics still hold for the
+   *  legacy code path. v1.4.17 will migrate this route to the strict
+   *  wrapper (B5c work) — at that point this helper is removed. */
+  result: CompletionResult;
+  workingProvider: ProviderChainResolved;
+  fallbackHops: FallbackHop[];
+}
+
+/**
+ * Sibling of `runWithFallback()` that calls `provider.generateCompletion`
+ * directly (no strict-schema wrapper). Used by the legacy route at
+ * `/api/insights/generate` which still consumes the rich legacy shape.
+ *
+ * Fallback policy is identical: hard provider failures cascade,
+ * everything else (e.g. a 4xx-but-non-auth from a custom provider)
+ * bubbles to the caller. The cache + structured logging are shared
+ * with the strict variant.
+ */
+export async function runRawCompletionWithFallback(args: {
+  userId: string;
+  providers: ProviderChainResolved[];
+  params: CompletionParams;
+  /** See `RunWithFallbackParams.ledger`. */
+  ledger?: ProviderHealthLedger;
+}): Promise<RunRawWithFallbackResult> {
+  return runRawChain(args, (candidate) =>
+    candidate.instance.generateCompletion(args.params),
+  );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,10 @@ import {
   apiPost,
   apiPut,
 } from "@/lib/api/api-fetch";
+import {
+  INSIGHTS_OVERVIEW_PATH,
+  subPageSlugForType,
+} from "@/lib/insights/sub-page-metric";
 
 /**
  * v1.4.37 W7c — cumulative HK types whose list view collapses to one
@@ -277,6 +282,20 @@ export function MeasurementList({
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  // v1.22 — clicking a row's type badge drills into that metric's Insights
+  // sub-page when one exists, else into the filtered measurements list. The
+  // reverse map prefers the dedicated single-metric slug (PULSE → `pulse`,
+  // WEIGHT → `weight`); types with no sub-page fall back to the `?type=` deep
+  // link the page already supports.
+  const navigateForType = (type: string) => {
+    const slug = subPageSlugForType(type);
+    router.push(
+      slug
+        ? `${INSIGHTS_OVERVIEW_PATH}/${slug}`
+        : `/measurements?type=${encodeURIComponent(type)}`,
+    );
+  };
   // v1.8.5 — when `lockedType` is set the list is pinned to that metric
   // and the type selector is hidden; the filter state seeds from it.
   // v1.18.7 (Wave E) — `initialType` (from a `?type=` deep link) seeds the
@@ -922,12 +941,26 @@ export function MeasurementList({
                           </TableCell>
                           <TableCell>
                             <Badge
+                              asChild
                               variant="secondary"
-                              className={TYPE_COLORS[m.type] ?? ""}
+                              className={`focus-visible:ring-ring/50 cursor-pointer transition-colors focus-visible:ring-2 focus-visible:outline-none ${TYPE_COLORS[m.type] ?? ""}`.trim()}
                             >
-                              {TYPE_LABEL_KEYS[m.type]
-                                ? t(TYPE_LABEL_KEYS[m.type])
-                                : m.type}
+                              <button
+                                type="button"
+                                onClick={() => navigateForType(m.type)}
+                                aria-label={t(
+                                  "measurements.openMetricInsights",
+                                  {
+                                    type: TYPE_LABEL_KEYS[m.type]
+                                      ? t(TYPE_LABEL_KEYS[m.type])
+                                      : m.type,
+                                  },
+                                )}
+                              >
+                                {TYPE_LABEL_KEYS[m.type]
+                                  ? t(TYPE_LABEL_KEYS[m.type])
+                                  : m.type}
+                              </button>
                             </Badge>
                           </TableCell>
                           <TableCell className="font-semibold tabular-nums">
@@ -1111,24 +1144,29 @@ export function MeasurementList({
                           </div>
                         )}
                         {Icon && (
-                          <div
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${TYPE_COLORS[m.type] ?? ""}`}
+                          <button
+                            type="button"
+                            onClick={() => navigateForType(m.type)}
+                            aria-label={t("measurements.openMetricInsights", {
+                              type: TYPE_LABEL_KEYS[m.type]
+                                ? t(TYPE_LABEL_KEYS[m.type])
+                                : m.type,
+                            })}
+                            className={`focus-visible:ring-ring/50 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none ${TYPE_COLORS[m.type] ?? ""}`}
                           >
                             <Icon className="h-4 w-4" />
-                          </div>
+                          </button>
                         )}
                         <div className="min-w-0">
-                          {/* v1.4.27 MB7 / CF-76 — bump the metadata
-                              badges from `text-[10px]` to `text-[11px]`
-                              so the legibility floor (12 px is the
-                              mobile baseline; 11 px is the lowest
-                              tolerated value for non-primary chrome)
-                              holds across the row. */}
+                          {/* v1.22 — metadata badges sit on the scale
+                              token `text-xs` (12 px, the mobile legibility
+                              baseline) instead of an arbitrary per-site
+                              size, so the row tracks the type scale. */}
                           {(m.type === "BLOOD_PRESSURE_SYS" ||
                             m.type === "BLOOD_PRESSURE_DIA") && (
                             <Badge
                               variant="outline"
-                              className="mr-1.5 h-5 px-1 text-[11px]"
+                              className="mr-1.5 h-5 px-1 text-xs"
                             >
                               {t(TYPE_LABEL_KEYS[m.type])}
                             </Badge>
@@ -1158,7 +1196,7 @@ export function MeasurementList({
                             <SleepNightCaption m={m} />
                           ) : (
                             isGrouped && (
-                              <span className="text-muted-foreground ml-1.5 text-[11px]">
+                              <span className="text-muted-foreground ml-1.5 text-xs">
                                 {t("measurements.dailyTotalCaption", {
                                   count: fmt.integer(m.sampleCount as number),
                                 })}
@@ -1177,7 +1215,7 @@ export function MeasurementList({
                               <Badge
                                 variant="outline"
                                 data-testid="measurement-source-badge"
-                                className={`ml-1.5 h-4 px-1 text-[11px] ${sourceBadgeClass(m.source)}`.trim()}
+                                className={`ml-1.5 h-4 px-1 text-xs ${sourceBadgeClass(m.source)}`.trim()}
                               >
                                 {formatMeasurementSource(m.source, t)}
                               </Badge>
@@ -1194,8 +1232,7 @@ export function MeasurementList({
                         {isGrouped ? (
                           <Button
                             variant="ghost"
-                            size="icon"
-                            className="size-11"
+                            size="icon-lg"
                             data-testid="measurement-day-expand"
                             onClick={() => toggleExpand(m.dayKey as string)}
                             aria-expanded={isExpanded}
@@ -1214,15 +1251,13 @@ export function MeasurementList({
                           <>
                             <Button
                               variant="ghost"
-                              size="icon"
-                              className="size-11"
+                              size="icon-lg"
                               onClick={() => startEdit(m)}
                               aria-label={t("common.edit")}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <DeleteButton
-                              className="size-11"
                               iconClassName="h-4 w-4"
                               onConfirm={() => deleteMutation.mutate(m.id)}
                               title={t("measurements.deleteConfirmTitle")}
@@ -1277,8 +1312,7 @@ export function MeasurementList({
             <div className="flex gap-1">
               <Button
                 variant="ghost"
-                size="icon"
-                className="size-11"
+                size="icon-lg"
                 disabled={page <= 1}
                 onClick={() => goToPage((p) => p - 1)}
                 aria-label={t("measurements.previousPage")}
@@ -1287,8 +1321,7 @@ export function MeasurementList({
               </Button>
               <Button
                 variant="ghost"
-                size="icon"
-                className="size-11"
+                size="icon-lg"
                 disabled={page >= totalPages}
                 onClick={() => goToPage((p) => p + 1)}
                 aria-label={t("measurements.nextPage")}
@@ -1390,8 +1423,7 @@ export function MeasurementList({
                         <Button
                           type="button"
                           variant="outline"
-                          size="icon"
-                          className="size-11"
+                          size="icon-lg"
                           disabled={
                             updateMutation.isPending || deleteMutation.isPending
                           }

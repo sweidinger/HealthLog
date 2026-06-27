@@ -193,7 +193,12 @@ export function AboutSection() {
           which read as a separate field even though the two values belong
           on the same row. */}
       <SettingsCard>
-        <SettingsCardHeader icon={Info} title="HealthLog" className="mb-4" />
+        <SettingsCardHeader
+          icon={Info}
+          title="HealthLog"
+          description={t("settings.about.identityDescription")}
+          className="mb-4"
+        />
 
         {isLoading || !version ? (
           <div className="flex items-center gap-2 pl-7">
@@ -266,6 +271,7 @@ export function AboutSection() {
           <SettingsCardHeader
             icon={BookOpen}
             title={t("settings.about.linksHeading")}
+            description={t("settings.about.linksDescription")}
             className="mb-4"
           />
           <div className="flex flex-col gap-2 pl-7 sm:flex-row sm:flex-wrap">

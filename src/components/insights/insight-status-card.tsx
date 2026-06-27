@@ -6,10 +6,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TileHeader } from "@/components/insights/tile-header";
-import { useTranslations } from "@/lib/i18n/context";
-import { formatRelativeTime } from "@/lib/i18n/relative-time";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
+import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { AskCoachAction } from "@/components/insights/ask-coach-action";
 import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
@@ -273,17 +275,18 @@ function StatusBody({ text }: { text: string }) {
   const { t } = useTranslations();
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
-  const paragraphRef = useRef<HTMLParagraphElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
 
-  // Measure the clamped paragraph against its scroll height. When the
-  // text fits inside the three-line clamp `scrollHeight` equals
-  // `clientHeight`; an overflow means the clamp is hiding content and the
-  // toggle earns its place. We measure against the *clamped* element, so
-  // the check is gated on `!expanded` — once expanded the paragraph is no
-  // longer clamped and the comparison would always read "fits".
+  // v1.22 (W6) — the assessment now renders through the shared `ProseBlocks`
+  // helper (real paragraphs). The 3-line clamp therefore moves from the single
+  // `<p>` to the BLOCK CONTAINER: a max-height + overflow-hidden when collapsed,
+  // measured on the wrapper node so multi-paragraph text doesn't re-collapse.
+  // When the text fits, `scrollHeight` equals `clientHeight`; an overflow means
+  // the clamp is hiding content and the toggle earns its place. Gated on
+  // `!expanded` so the comparison reads against the clamped element.
   useEffect(() => {
     if (expanded) return;
-    const node = paragraphRef.current;
+    const node = wrapperRef.current;
     if (!node) return;
 
     const measure = () => {
@@ -301,15 +304,16 @@ function StatusBody({ text }: { text: string }) {
 
   return (
     <div className="space-y-1">
-      <p
-        ref={paragraphRef}
+      <div
+        ref={wrapperRef}
         className={cn(
-          "text-muted-foreground text-sm leading-relaxed",
-          !expanded && "line-clamp-3",
+          "text-muted-foreground text-sm",
+          // ~3 lines at text-sm / leading-relaxed; only when collapsed.
+          !expanded && "max-h-[4.5rem] overflow-hidden",
         )}
       >
-        {text}
-      </p>
+        <ProseBlocks text={text} />
+      </div>
       {/* Only render the toggle on a genuine overflow. When the full text
           fits inside three lines there is nothing more to show, so no
           affordance is painted. */}
@@ -335,17 +339,25 @@ function StatusBody({ text }: { text: string }) {
 
 function LastUpdatedFooter({ updatedAt }: { updatedAt: string | null }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
+  const { user } = useAuth();
   if (!updatedAt) return null;
   return (
     // v1.11.5 — right-aligned so the timestamp tucks to the trailing edge
     // of the card for a tidier read against the left-aligned prose above.
     //
-    // v1.12.2 — the freshness caption is a relative read ("2 hours ago") via
-    // the shared `formatRelativeTime`, matching the briefing / hero /
-    // last-measurement / coach-history captions so two adjacent cards on the
-    // same page no longer read one relative and one absolute.
+    // v1.22 (W6) — the freshness caption is the calendar-bucketed
+    // `formatUpdatedLabel` ("Updated today, 14:30" / "yesterday" / "on DD.MM."),
+    // matching the briefing + per-metric cards. The day boundary follows the
+    // user's profile timezone, not the browser's.
     <p className="text-muted-foreground text-right text-xs">
-      {t("insights.lastUpdated")}: {formatRelativeTime(updatedAt, t)}
+      {formatUpdatedLabel(
+        updatedAt,
+        t,
+        fmt.dateShort,
+        fmt.time,
+        user?.timezone,
+      )}
     </p>
   );
 }

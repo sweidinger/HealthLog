@@ -3,12 +3,16 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
-    measurement: { findMany: vi.fn() },
+    measurement: { findMany: vi.fn(), groupBy: vi.fn() },
     measurementRollup: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn(), findFirst: vi.fn() },
     moodEntryRollup: { findMany: vi.fn(), findFirst: vi.fn() },
     medication: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
+    // v1.22 — cross-signal integration blocks.
+    labResult: { findMany: vi.fn() },
+    measurementReminder: { findMany: vi.fn() },
+    workout: { findMany: vi.fn() },
     $queryRawUnsafe: vi.fn(),
   },
 }));
@@ -41,7 +45,10 @@ import {
 
 const prismaMock = prisma as unknown as {
   user: { findUnique: ReturnType<typeof vi.fn> };
-  measurement: { findMany: ReturnType<typeof vi.fn> };
+  measurement: {
+    findMany: ReturnType<typeof vi.fn>;
+    groupBy: ReturnType<typeof vi.fn>;
+  };
   measurementRollup: { findMany: ReturnType<typeof vi.fn> };
   moodEntry: {
     findMany: ReturnType<typeof vi.fn>;
@@ -53,6 +60,9 @@ const prismaMock = prisma as unknown as {
   };
   medication: { findMany: ReturnType<typeof vi.fn> };
   medicationIntakeEvent: { findMany: ReturnType<typeof vi.fn> };
+  labResult: { findMany: ReturnType<typeof vi.fn> };
+  measurementReminder: { findMany: ReturnType<typeof vi.fn> };
+  workout: { findMany: ReturnType<typeof vi.fn> };
 };
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -79,6 +89,7 @@ beforeEach(() => {
     gender: "MALE",
   });
   prismaMock.measurement.findMany.mockResolvedValue([]);
+  prismaMock.measurement.groupBy.mockResolvedValue([]);
   prismaMock.measurementRollup.findMany.mockResolvedValue([]);
   prismaMock.moodEntry.findMany.mockResolvedValue([]);
   prismaMock.moodEntry.findFirst.mockResolvedValue(null);
@@ -86,6 +97,9 @@ beforeEach(() => {
   prismaMock.moodEntryRollup.findFirst.mockResolvedValue(null);
   prismaMock.medication.findMany.mockResolvedValue([]);
   prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
+  prismaMock.labResult.findMany.mockResolvedValue([]);
+  prismaMock.measurementReminder.findMany.mockResolvedValue([]);
+  prismaMock.workout.findMany.mockResolvedValue([]);
 });
 
 describe("extractFeatures — v1.4.36 W3 bucketed payload", () => {
@@ -185,5 +199,201 @@ describe("extractFeatures — v1.4.36 W3 bucketed payload", () => {
 
   it("exposes the size cap as a public constant", () => {
     expect(FEATURES_MAX_BYTES).toBe(5 * 1024 * 1024);
+  });
+});
+
+// ─── v1.22 — cross-signal integration blocks ──────────────────────────────
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function measurementRow(type: string, value: number, daysAgo: number) {
+  return {
+    type,
+    value,
+    measuredAt: new Date(Date.now() - daysAgo * DAY_MS),
+    sleepStage: null,
+    source: "MANUAL",
+    deviceType: null,
+  };
+}
+
+function labRow(opts: {
+  analyte: string;
+  value: number | null;
+  referenceLow: number | null;
+  referenceHigh: number | null;
+  daysAgo: number;
+  hidden?: boolean;
+  valueText?: string | null;
+}) {
+  return {
+    analyte: opts.analyte,
+    panel: null,
+    unit: "mg/dL",
+    value: opts.value,
+    valueText: opts.valueText ?? null,
+    referenceLow: opts.referenceLow,
+    referenceHigh: opts.referenceHigh,
+    takenAt: new Date(Date.now() - opts.daysAgo * DAY_MS),
+    biomarkerId: opts.hidden === undefined ? null : "bm-" + opts.analyte,
+    biomarker:
+      opts.hidden === undefined
+        ? null
+        : {
+            id: "bm-" + opts.analyte,
+            name: opts.analyte,
+            unit: "mg/dL",
+            lowerBound: opts.referenceLow,
+            upperBound: opts.referenceHigh,
+            panel: null,
+            hidden: opts.hidden,
+          },
+  };
+}
+
+describe("extractFeatures — v1.22 glucose aggregate block", () => {
+  it("emits a glucose block from BLOOD_GLUCOSE readings", async () => {
+    prismaMock.measurement.findMany.mockResolvedValue([
+      measurementRow("BLOOD_GLUCOSE", 95, 1),
+      measurementRow("BLOOD_GLUCOSE", 110, 10),
+      measurementRow("BLOOD_GLUCOSE", 105, 40),
+    ]);
+    const f = await extractFeatures("user-1", false);
+    expect(f.glucose).toBeDefined();
+    expect(f.glucose?.latest).not.toBeNull();
+    expect(f.glucose?.coverage.count).toBe(3);
+  });
+
+  it("omits the glucose block when there are no readings", async () => {
+    const f = await extractFeatures("user-1", false);
+    expect(f.glucose).toBeUndefined();
+  });
+});
+
+describe("extractFeatures — v1.22 labs briefing block", () => {
+  it("surfaces an abnormal (out-of-range) biomarker", async () => {
+    prismaMock.labResult.findMany.mockResolvedValue([
+      labRow({
+        analyte: "LDL",
+        value: 200,
+        referenceLow: 0,
+        referenceHigh: 130,
+        daysAgo: 5,
+      }),
+    ]);
+    const f = await extractFeatures("user-1", false);
+    expect(f.labs).toBeDefined();
+    expect(f.labs?.flagged[0]?.analyte).toBe("LDL");
+    expect(f.labs?.flagged[0]?.rangeStatus).toBe("above");
+  });
+
+  it("excludes a HIDDEN biomarker even when it is abnormal", async () => {
+    prismaMock.labResult.findMany.mockResolvedValue([
+      labRow({
+        analyte: "Ferritin",
+        value: 500,
+        referenceLow: 30,
+        referenceHigh: 300,
+        daysAgo: 3,
+        hidden: true,
+      }),
+    ]);
+    const f = await extractFeatures("user-1", false);
+    // The only marker is hidden + abnormal → block omitted entirely.
+    expect(f.labs).toBeUndefined();
+  });
+
+  it("does not surface an in-range, non-trending marker", async () => {
+    prismaMock.labResult.findMany.mockResolvedValue([
+      labRow({
+        analyte: "TSH",
+        value: 2,
+        referenceLow: 0.4,
+        referenceHigh: 4,
+        daysAgo: 4,
+      }),
+    ]);
+    const f = await extractFeatures("user-1", false);
+    expect(f.labs).toBeUndefined();
+  });
+
+  it("surfaces an in-range but trending marker (rising vs prior reading)", async () => {
+    prismaMock.labResult.findMany.mockResolvedValue([
+      // Newest first (route orders desc); both in range, but rising.
+      labRow({
+        analyte: "Glucose",
+        value: 99,
+        referenceLow: 70,
+        referenceHigh: 100,
+        daysAgo: 2,
+      }),
+      labRow({
+        analyte: "Glucose",
+        value: 80,
+        referenceLow: 70,
+        referenceHigh: 100,
+        daysAgo: 60,
+      }),
+    ]);
+    const f = await extractFeatures("user-1", false);
+    expect(f.labs?.flagged[0]?.trend).toBe("rising");
+  });
+});
+
+describe("extractFeatures — v1.22 preventive-care block", () => {
+  it("buckets reminders into overdue and due", async () => {
+    prismaMock.measurementReminder.findMany.mockResolvedValue([
+      { label: "Blutbild", nextDueAt: new Date(Date.now() - 5 * DAY_MS) },
+      { label: "Augenarzt", nextDueAt: new Date(Date.now() + 7 * DAY_MS) },
+    ]);
+    const f = await extractFeatures("user-1", false);
+    expect(f.preventiveCare?.overdue[0]?.label).toBe("Blutbild");
+    expect(f.preventiveCare?.overdue[0]?.daysOverdue).toBeGreaterThanOrEqual(4);
+    expect(f.preventiveCare?.due[0]?.label).toBe("Augenarzt");
+  });
+
+  it("omits the block when nothing is due or overdue", async () => {
+    const f = await extractFeatures("user-1", false);
+    expect(f.preventiveCare).toBeUndefined();
+  });
+});
+
+describe("extractFeatures — v1.22 workouts block", () => {
+  it("aggregates counts + distance over the windows", async () => {
+    prismaMock.workout.findMany.mockResolvedValue([
+      {
+        sportType: "running",
+        startedAt: new Date(Date.now() - 1 * DAY_MS),
+        durationSec: 1800,
+        totalDistanceM: 5000,
+      },
+      {
+        sportType: "cycling",
+        startedAt: new Date(Date.now() - 20 * DAY_MS),
+        durationSec: 3600,
+        totalDistanceM: 20000,
+      },
+    ]);
+    const f = await extractFeatures("user-1", false);
+    expect(f.workouts?.last7.count).toBe(1);
+    expect(f.workouts?.last30.count).toBe(2);
+    expect(f.workouts?.last7.totalDistanceKm).toBe(5);
+    expect(f.workouts?.latest?.sportType).toBe("running");
+  });
+});
+
+describe("extractFeatures — v1.22 integration blocks are briefing-scoped", () => {
+  it("skips the extra reads on the tight Coach-snapshot window (sinceDays: 90)", async () => {
+    await extractFeatures("user-1", false, { sinceDays: 90 });
+    expect(prismaMock.labResult.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.measurementReminder.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.workout.findMany).not.toHaveBeenCalled();
+  });
+
+  it("runs the extra reads on the wide briefing window (sinceDays: 400)", async () => {
+    await extractFeatures("user-1", false, { sinceDays: 400 });
+    expect(prismaMock.labResult.findMany).toHaveBeenCalled();
+    expect(prismaMock.measurementReminder.findMany).toHaveBeenCalled();
+    expect(prismaMock.workout.findMany).toHaveBeenCalled();
   });
 });

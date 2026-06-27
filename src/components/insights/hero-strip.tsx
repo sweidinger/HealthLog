@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useTranslations } from "@/lib/i18n/context";
-import { formatRelativeTime } from "@/lib/i18n/relative-time";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
+import { useAuth } from "@/hooks/use-auth";
 import { useModuleEnabled } from "@/hooks/use-module-enabled";
+import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { cn } from "@/lib/utils";
 import {
   HealthScoreCard,
@@ -188,6 +190,8 @@ export function HeroStrip({
   returnToBand = null,
 }: HeroStripProps) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
+  const { user } = useAuth();
 
   // v1.21.2 (A5) — localise the Tension Verdict's contributor keys into the
   // card's already-localised `{ positive, negative }` shape. Only forwarded when
@@ -225,8 +229,12 @@ export function HeroStrip({
   const greetingBase = t(greetingKey);
   const greeting = userName ? `${greetingBase}, ${userName}` : greetingBase;
   const subtitle = briefing?.paragraph ?? t("insights.heroFallbackSubtitle");
+  // v1.22 — calendar-bucketed freshness label ("Updated today, HH:MM" /
+  // "yesterday" / "on DD.MM."), matching the briefing + per-metric cards so the
+  // hero no longer reads relative while the cards below it read absolute. The
+  // day boundary follows the user's profile timezone.
   const generatedLine = updatedAt
-    ? t("insights.heroGenerated", { time: formatRelativeTime(updatedAt, t) })
+    ? formatUpdatedLabel(updatedAt, t, fmt.dateShort, fmt.time, user?.timezone)
     : null;
 
   return (
@@ -291,12 +299,15 @@ export function HeroStrip({
                 {greeting}
               </h1>
             </div>
-            <p
+            {/* v1.22 (W6) — the briefing paragraph renders through ProseBlocks
+                so a multi-paragraph verdict-first briefing shows real paragraph
+                spacing (still plain text children, no markdown). */}
+            <div
               data-slot="insights-hero-strip-subtitle"
-              className="text-muted-foreground max-w-3xl text-sm leading-relaxed"
+              className="text-muted-foreground max-w-3xl text-sm"
             >
-              {subtitle}
-            </p>
+              <ProseBlocks text={subtitle} />
+            </div>
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <span data-slot="insights-hero-strip-baseline">
                 {t("insights.heroPersonalBaseline")}

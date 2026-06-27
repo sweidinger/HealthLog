@@ -96,6 +96,12 @@ export async function runCoachToolLoop(args: {
   ledger?: ProviderHealthLedger;
   /** Aborts the per-round provider calls on client disconnect. */
   signal?: AbortSignal;
+  /**
+   * v1.22 (#89) — per-user upstream timeout (ms) for each tool-round provider
+   * call. Forwarded to `CompletionParams.timeoutMs`; unset → the client's
+   * shared default holds.
+   */
+  timeoutMs?: number;
 }): Promise<CoachToolLoopResult> {
   const {
     userId,
@@ -108,6 +114,7 @@ export async function runCoachToolLoop(args: {
     sharedScope,
     ledger,
     signal,
+    timeoutMs,
   } = args;
 
   const messages: AiMessage[] = [...args.messages];
@@ -135,6 +142,7 @@ export async function runCoachToolLoop(args: {
         temperature,
         maxTokens,
         signal,
+        timeoutMs,
         ...(offerTools
           ? { tools, toolChoice: "auto" as const }
           : { toolChoice: "none" as const }),

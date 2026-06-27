@@ -76,6 +76,14 @@ describe("resolveInsightsLayout — v1 → v2 forward upgrade", () => {
       visible: false,
       order: 1,
     });
+
+    // v1.22 — a late-added default tile the saved blob never enumerated
+    // (e.g. `steps`, which entered the set in v1.12) merges in
+    // default-VISIBLE, matching the fresh-account default. The old
+    // force-hidden merge silently dropped its nav pill on every read of an
+    // existing or iOS-synced layout.
+    const steps = resolved.tiles.find((t) => t.id === "steps");
+    expect(steps?.visible).toBe(true);
   });
 
   it("returns the full default layout for garbage input", () => {

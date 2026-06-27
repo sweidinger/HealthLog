@@ -16,15 +16,16 @@ import { getCoachSystemPrompt } from "../system-prompt";
  *      the prompt body (per the W1b research output).
  */
 describe("PROMPT_VERSION (v1.4.23 Coach + Apple Health extension)", () => {
-  it("matches the 4.23+ train", () => {
+  it("matches the 4.23+ / 5.x train", () => {
     // v1.4.23 ratcheted the prompt to add GROUND RULE 12 (Apple Health
     // optional categories). v1.4.25 W5b ratcheted again to add GROUND
-    // RULE 13 (no internal metric identifiers in prose). The pin
-    // loosens to accept any 4.{>=23}.x revision so future additive
-    // ratchets don't force a hostile test rewrite each time.
-    const [, minor] = PROMPT_VERSION.split(".").map(Number);
-    expect(PROMPT_VERSION).toMatch(/^4\.\d+\.\d+$/);
-    expect(minor).toBeGreaterThanOrEqual(23);
+    // RULE 13 (no internal metric identifiers in prose). v1.22 (W6) bumped
+    // the briefing prompt to the 5.x train for the verdict-first synthesis
+    // rewrite. The pin accepts any 4.{>=23}.x OR any 5.x revision so future
+    // additive ratchets don't force a hostile test rewrite each time.
+    const [major, minor] = PROMPT_VERSION.split(".").map(Number);
+    expect(PROMPT_VERSION).toMatch(/^[45]\.\d+\.\d+$/);
+    expect(major === 4 ? minor >= 23 : true).toBe(true);
   });
 });
 

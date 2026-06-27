@@ -72,6 +72,9 @@ export const updateBiomarkerSchema = z
     upperBound: upperBound.or(z.null()),
     context: optionalContext.or(z.null()),
     panel: optionalPanel.or(z.null()),
+    // v1.22 — hide / unhide a marker. An omitted key leaves visibility
+    // untouched; `true` drops the marker from the active list + pickers.
+    hidden: z.boolean().optional(),
   })
   .refine(
     (d) =>

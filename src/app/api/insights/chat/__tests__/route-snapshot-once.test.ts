@@ -50,12 +50,12 @@ vi.mock("@/lib/i18n/server-locale", () => ({
   resolveServerLocale: vi.fn(async () => "en"),
 }));
 
-const { runRawCompletionWithFallback } = vi.hoisted(() => ({
-  runRawCompletionWithFallback: vi.fn(),
+const { runStreamingRawCompletionWithFallback } = vi.hoisted(() => ({
+  runStreamingRawCompletionWithFallback: vi.fn(),
 }));
 vi.mock("@/lib/ai/provider-runner", () => ({
   AllProvidersFailedError: class extends Error {},
-  runRawCompletionWithFallback,
+  runStreamingRawCompletionWithFallback,
 }));
 vi.mock("@/lib/ai/provider", () => ({
   // v1.20.0 (F1) — pin a no-tools provider so this suite exercises the legacy
@@ -138,17 +138,18 @@ vi.mock("@/lib/validations/coach-prefs", () => ({
   parseCoachPrefs: vi.fn(() => ({ defaultWindow: undefined })),
   DEFAULT_REMINDER_SUGGESTION_PREFS: {},
 }));
+// v1.22 (#89) — the provider call now runs INSIDE the stream producer. Capture
+// the producer promise so the test can await it before asserting on call args.
+const sse = vi.hoisted(() => ({ done: Promise.resolve() as Promise<unknown> }));
 vi.mock("@/lib/sse/create-stream", () => ({
-  // Drain the producer synchronously so the handler completes; we only care
-  // about the provider call args, not the wire frames.
   createSseStream: (
     producer: (c: {
       signal: { aborted: boolean };
       enqueue: () => void;
     }) => void | Promise<void>,
   ) => {
-    void Promise.resolve(
-      producer({ signal: { aborted: true }, enqueue: () => {} }),
+    sse.done = Promise.resolve(
+      producer({ signal: { aborted: false }, enqueue: () => {} }),
     );
     return new ReadableStream();
   },
@@ -157,6 +158,12 @@ vi.mock("@/lib/sse/create-stream", () => ({
 import { POST } from "../route";
 
 const post = POST as unknown as (req: Request) => Promise<Response>;
+
+async function postAndDrain(body: Record<string, unknown>): Promise<Response> {
+  const res = await post(chatReq(body));
+  await sse.done;
+  return res;
+}
 
 function chatReq(body: Record<string, unknown>): Request {
   return new Request("http://localhost/api/insights/chat", {
@@ -167,7 +174,8 @@ function chatReq(body: Record<string, unknown>): Request {
 }
 
 function lastUserPrompt(): string {
-  const calls = runRawCompletionWithFallback.mock.calls as unknown as Array<
+  const calls = runStreamingRawCompletionWithFallback.mock
+    .calls as unknown as Array<
     [{ params: { messages: Array<{ role: string; content: string }> } }]
   >;
   const last = calls[calls.length - 1];
@@ -178,14 +186,14 @@ function lastUserPrompt(): string {
 describe("coach chat — snapshot sent once per conversation (C4)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    runRawCompletionWithFallback.mockResolvedValue({
+    runStreamingRawCompletionWithFallback.mockResolvedValue({
       result: { content: "Your BP looks stable.", tokensUsed: 42, model: "m" },
       workingProvider: { providerType: "admin-openai" },
     });
   });
 
   it("ships the full SNAPSHOT + grounding on the first turn", async () => {
-    await post(chatReq({ message: "How is my BP?" }));
+    await postAndDrain({ message: "How is my BP?" });
     const prompt = lastUserPrompt();
     expect(prompt).toContain(SNAPSHOT_JSON);
     expect(prompt).toContain(GROUNDING);
@@ -201,7 +209,7 @@ describe("coach chat — snapshot sent once per conversation (C4)", () => {
       ],
     });
 
-    await post(chatReq({ conversationId: "c1", message: "High?" }));
+    await postAndDrain({ conversationId: "c1", message: "High?" });
     const prompt = lastUserPrompt();
     // The expensive figures + grounding must be gone …
     expect(prompt).not.toContain(SNAPSHOT_JSON);

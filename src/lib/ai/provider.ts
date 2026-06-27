@@ -315,6 +315,114 @@ export async function resolveProviderChain(
 }
 
 /**
+ * v1.22 (#90) — dedicated document-scan (Lab-OCR) provider columns.
+ */
+type UserOcrRow = {
+  aiOcrEnabled: boolean | null;
+  aiOcrProvider: string | null;
+  aiOcrModel: string | null;
+  aiOcrBaseUrl: string | null;
+  aiOcrKeyEncrypted: string | null;
+};
+
+/**
+ * Build the dedicated OCR provider instance from the per-user `aiOcr*` columns.
+ * Returns the constructed instance paired with the chain tag the consent gate +
+ * vision-capability resolver understand, or null when the OCR provider is
+ * unconfigured / missing its credential (the caller then falls back to the main
+ * provider chain so document scanning is never silently lost).
+ */
+function buildOcrProvider(
+  row: UserOcrRow,
+): { providerType: ProviderChainType; instance: AIProvider } | null {
+  if (!row.aiOcrEnabled) return null;
+  const choice = row.aiOcrProvider?.toUpperCase();
+  switch (choice) {
+    case "ANTHROPIC": {
+      if (!row.aiOcrKeyEncrypted) return null;
+      return {
+        providerType: "anthropic",
+        instance: new AnthropicClient({
+          apiKey: decrypt(row.aiOcrKeyEncrypted),
+          model: row.aiOcrModel ?? "claude-sonnet-4-6",
+        }),
+      };
+    }
+    case "OPENAI": {
+      if (!row.aiOcrKeyEncrypted) return null;
+      return {
+        providerType: "openai",
+        instance: new OpenAIClient({
+          apiKey: decrypt(row.aiOcrKeyEncrypted),
+          model: row.aiOcrModel ?? "gpt-4o",
+          baseUrl: "https://api.openai.com/v1",
+        }),
+      };
+    }
+    case "LOCAL": {
+      if (!row.aiOcrBaseUrl) return null;
+      return {
+        providerType: "local",
+        instance: new LocalOpenAICompatibleClient({
+          apiKey: row.aiOcrKeyEncrypted ? decrypt(row.aiOcrKeyEncrypted) : null,
+          model: row.aiOcrModel ?? "local-model",
+          baseUrl: row.aiOcrBaseUrl,
+        }),
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * v1.22 (#90) — resolve the provider chain for the Lab-OCR ingestion path.
+ *
+ * When the user enabled a dedicated document-scan provider (Settings → AI →
+ * Document scanning), this returns a single-entry chain built from the `aiOcr*`
+ * columns plus the OCR model that drives the vision-capability allowlist.
+ * Otherwise (the default) it returns the MAIN provider chain unchanged, so the
+ * OCR path behaves exactly as before the feature existed. A dedicated provider
+ * that fails to build (missing key / base URL) also falls through to the main
+ * chain so scanning is never silently dropped.
+ */
+export async function resolveOcrProviderChain(userId: string): Promise<{
+  chain: ProviderChainResolved[];
+  /** The model driving the dedicated provider's vision allowlist, else null. */
+  ocrModelOverride: string | null;
+  /** True when the dedicated document-scan provider served this chain. */
+  dedicated: boolean;
+}> {
+  const row = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      aiOcrEnabled: true,
+      aiOcrProvider: true,
+      aiOcrModel: true,
+      aiOcrBaseUrl: true,
+      aiOcrKeyEncrypted: true,
+    },
+  });
+
+  if (row?.aiOcrEnabled) {
+    const built = buildOcrProvider(row);
+    if (built) {
+      return {
+        chain: [built],
+        ocrModelOverride: row.aiOcrModel ?? null,
+        dedicated: true,
+      };
+    }
+  }
+
+  return {
+    chain: await resolveProviderChain(userId),
+    ocrModelOverride: null,
+    dedicated: false,
+  };
+}
+
+/**
  * Credential-presence subset of the `User` row that
  * `userRowHasProviderCredential` evaluates. Mirrors the columns
  * `resolveProviderChain` / `resolveProvider` read, but presence-only —

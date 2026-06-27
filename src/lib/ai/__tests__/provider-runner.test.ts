@@ -32,6 +32,7 @@ import {
   getLastWorkingProvider,
   isHardProviderFailure,
   runRawCompletionWithFallback,
+  runStreamingRawCompletionWithFallback,
   runWithFallback,
 } from "../provider-runner";
 import {
@@ -718,5 +719,98 @@ describe("AllProvidersFailedError — primaryCredentialExpired", () => {
     }
     const e = caught as AllProvidersFailedError;
     expect(e.primaryCredentialExpired).toBe(false);
+  });
+});
+
+// ── v1.22 (#89) — streaming runner ───────────────────────────────────
+/** A provider that streams: emits each char of `text` through onDelta. */
+class StreamingProvider implements AIProvider {
+  readonly type: AIProvider["type"] = "local";
+  streamCalls = 0;
+  bufferedCalls = 0;
+  lastStreamParams: CompletionParams | null = null;
+  constructor(private readonly text: string) {}
+  async generateCompletion(): Promise<CompletionResult> {
+    this.bufferedCalls += 1;
+    return {
+      content: this.text,
+      tokensUsed: 1,
+      model: "stream-model",
+      providerType: this.type,
+    };
+  }
+  async generateCompletionStream(
+    params: CompletionParams,
+    onDelta: (d: string) => void,
+  ): Promise<CompletionResult> {
+    this.streamCalls += 1;
+    this.lastStreamParams = params;
+    for (const ch of this.text) onDelta(ch);
+    return {
+      content: this.text,
+      tokensUsed: 3,
+      model: "stream-model",
+      providerType: this.type,
+    };
+  }
+}
+
+describe("runStreamingRawCompletionWithFallback", () => {
+  it("drives a streaming provider via generateCompletionStream + onDelta and forwards timeoutMs", async () => {
+    const ledger = createInMemoryProviderHealthLedger();
+    const provider = new StreamingProvider("Hi");
+    const deltas: string[] = [];
+    const result = await runStreamingRawCompletionWithFallback({
+      userId: "u-stream",
+      providers: [{ providerType: "local", instance: provider }],
+      params: singleUserTurn({ system: "s", user: "u", timeoutMs: 12345 }),
+      onDelta: (d) => deltas.push(d),
+      ledger,
+    });
+    expect(deltas).toEqual(["H", "i"]);
+    expect(result.result.content).toBe("Hi");
+    expect(provider.streamCalls).toBe(1);
+    expect(provider.bufferedCalls).toBe(0);
+    // Per-request timeout is threaded through to the provider call.
+    expect(provider.lastStreamParams?.timeoutMs).toBe(12345);
+  });
+
+  it("falls back to generateCompletion for a provider that does not stream", async () => {
+    const ledger = createInMemoryProviderHealthLedger();
+    // ScriptedProvider has no generateCompletionStream → buffered path.
+    const provider = new ScriptedProvider({
+      script: [{ ok: true, content: "x" }],
+    });
+    const deltas: string[] = [];
+    const result = await runStreamingRawCompletionWithFallback({
+      userId: "u-nostream",
+      providers: [{ providerType: "local", instance: provider }],
+      params: singleUserTurn({ system: "s", user: "u" }),
+      onDelta: (d) => deltas.push(d),
+      ledger,
+    });
+    expect(result.result.content).toBe("x");
+    expect(provider.callCount).toBe(1);
+    expect(deltas).toEqual([]); // no streaming → no deltas
+  });
+
+  it("cascades past a hard failure to the next (streaming) provider", async () => {
+    const ledger = createInMemoryProviderHealthLedger();
+    const broken = new ScriptedProvider({
+      script: [{ ok: false, error: err(503) }],
+    });
+    const good = new StreamingProvider("ok");
+    const result = await runStreamingRawCompletionWithFallback({
+      userId: "u-cascade",
+      providers: [
+        { providerType: "openai", instance: broken },
+        { providerType: "local", instance: good },
+      ],
+      params: singleUserTurn({ system: "s", user: "u" }),
+      onDelta: () => {},
+      ledger,
+    });
+    expect(result.workingProvider.providerType).toBe("local");
+    expect(result.fallbackHops.map((h) => h.providerType)).toEqual(["openai"]);
   });
 });

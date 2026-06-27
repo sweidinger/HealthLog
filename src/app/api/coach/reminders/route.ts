@@ -1,0 +1,202 @@
+/**
+ * GET  /api/coach/reminders — list the caller's Coach episodic reminders.
+ * POST /api/coach/reminders — create one manually (the ledger "+ add" path).
+ *
+ * v1.22 (B2/B6) — the management + in-app-surface read for the durable
+ * "remind me about X" memory the Coach captures inline via the `---REMEMBER---`
+ * sentinel. The note free-text is decrypted on the fly; an undecryptable row (a
+ * key rotated out of the map) is skipped rather than 500ing the whole list.
+ *
+ * Ownership: every query is scoped `where: { userId, ... }`, so a caller can
+ * only ever see / create their own reminders. The owner is always narrowed from
+ * the session, never the body. Coach-gated by the same
+ * `requireModuleEnabled(userId, "coach")` kill-switch as the rest of the Coach
+ * management stack.
+ *
+ * `?status=` optionally filters (one status, or a comma set like `due,surfaced`
+ * for the in-app tile). Omitted returns the non-terminal set (proposed / active
+ * / due / surfaced), soonest-due first.
+ */
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import {
+  apiError,
+  apiSuccess,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
+import { annotate } from "@/lib/logging/context";
+import { prisma } from "@/lib/db";
+import { requireModuleEnabled } from "@/lib/modules/gate";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { decryptFromBytes, encryptToBytes } from "@/lib/ai/coach/bytes-codec";
+import {
+  resolveWhenGrammar,
+  MAX_REMINDERS_PER_USER,
+} from "@/lib/ai/coach/reminders";
+import {
+  coachRemindersListQuerySchema,
+  coachReminderCreateSchema,
+} from "@/lib/validations/coach-reminder";
+
+const NON_TERMINAL = ["proposed", "active", "due", "surfaced"] as const;
+
+interface ReminderRow {
+  id: string;
+  metric: string | null;
+  noteEncrypted: Uint8Array;
+  triggerKind: string;
+  dueAt: Date | null;
+  contextCue: string | null;
+  status: string;
+  source: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function toDto(row: ReminderRow, note: string) {
+  return {
+    id: row.id,
+    note,
+    metric: row.metric,
+    triggerKind: row.triggerKind,
+    dueAt: row.dueAt?.toISOString() ?? null,
+    contextCue: row.contextCue,
+    status: row.status,
+    source: row.source,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export const GET = apiHandler(async (req: Request) => {
+  const { user } = await requireAuth();
+  const gate = await requireModuleEnabled(user.id, "coach");
+  if (!gate.enabled) return gate.response;
+
+  const url = new URL(req.url);
+  const parsed = coachRemindersListQuerySchema.safeParse({
+    status: url.searchParams.get("status") ?? undefined,
+  });
+  if (!parsed.success) return returnAllZodIssues(parsed.error, 422);
+
+  const statusWhere = parsed.data.status
+    ? { status: { in: parsed.data.status } }
+    : { status: { in: [...NON_TERMINAL] } };
+
+  const rows = (await prisma.coachReminder.findMany({
+    where: { userId: user.id, deletedAt: null, ...statusWhere },
+    orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
+    select: {
+      id: true,
+      metric: true,
+      noteEncrypted: true,
+      triggerKind: true,
+      dueAt: true,
+      contextCue: true,
+      status: true,
+      source: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  })) as ReminderRow[];
+
+  const reminders: ReturnType<typeof toDto>[] = [];
+  for (const row of rows) {
+    let note: string;
+    try {
+      note = decryptFromBytes(row.noteEncrypted);
+    } catch {
+      // Fail closed per row — never surface ciphertext, never 500 the list.
+      continue;
+    }
+    reminders.push(toDto(row, note));
+  }
+
+  annotate({
+    action: { name: "coach.reminders.listed" },
+    meta: { count: reminders.length },
+  });
+
+  return apiSuccess({ reminders });
+});
+
+export const POST = apiHandler(async (req: Request) => {
+  const { user } = await requireAuth();
+  const gate = await requireModuleEnabled(user.id, "coach");
+  if (!gate.enabled) return gate.response;
+
+  const rate = await checkRateLimit(
+    `coach-reminders:create:${user.id}`,
+    30,
+    60_000,
+  );
+  if (!rate.allowed) return apiError("Too many requests", 429);
+
+  const { data: body, error: jsonError } = await safeJson(req, {
+    maxBytes: 4 * 1024,
+  });
+  if (jsonError) return jsonError;
+
+  const parsed = coachReminderCreateSchema.safeParse(body);
+  if (!parsed.success) return returnAllZodIssues(parsed.error, 422);
+
+  // Resolve the optional `when` against the closed grammar; an invalid token
+  // 422s rather than silently dropping the timing the user asked for.
+  const now = new Date();
+  let trigger: ReturnType<typeof resolveWhenGrammar> = null;
+  if (parsed.data.when) {
+    trigger = resolveWhenGrammar(parsed.data.when, now);
+    if (!trigger) return apiError("coach.reminder.invalidWhen", 422);
+  }
+
+  // Per-user cap on the non-terminal set.
+  const nonTerminal = await prisma.coachReminder.count({
+    where: {
+      userId: user.id,
+      deletedAt: null,
+      status: { in: [...NON_TERMINAL] },
+    },
+  });
+  if (nonTerminal >= MAX_REMINDERS_PER_USER) {
+    return apiError("coach.reminder.capReached", 409);
+  }
+
+  // Field-by-field — no mass assignment. Manual reminders are active on create.
+  const created = await prisma.coachReminder.create({
+    data: {
+      userId: user.id,
+      noteEncrypted: encryptToBytes(parsed.data.note),
+      metric: parsed.data.metric ?? null,
+      triggerKind: trigger?.triggerKind ?? "date",
+      dueAt: trigger?.dueAt ?? null,
+      contextCue: trigger?.contextCue ?? null,
+      status: "active",
+      source: "manual",
+    },
+    select: {
+      id: true,
+      metric: true,
+      noteEncrypted: true,
+      triggerKind: true,
+      dueAt: true,
+      contextCue: true,
+      status: true,
+      source: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  annotate({
+    action: { name: "coach.reminders.created" },
+    meta: { triggerKind: created.triggerKind, hasDue: created.dueAt != null },
+  });
+
+  return apiSuccess(
+    { reminder: toDto(created as ReminderRow, parsed.data.note) },
+    201,
+  );
+});
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";

@@ -24,6 +24,7 @@ import {
   FeaturesPayloadTooLargeError,
   BRIEFING_FEATURE_WINDOW_DAYS,
   type SignalOfDay,
+  type AggregatedFeatures,
 } from "@/lib/insights/features";
 import {
   findUngroundedBriefingNumbers,
@@ -45,7 +46,10 @@ import {
   buildUserPrompt,
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
-import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import {
+  buildSystemPromptWithReferences,
+  buildBriefingPersonalisationBlock,
+} from "@/lib/ai/prompts/insight-generator";
 import { buildRetryCorrectionMessage } from "@/lib/ai/generate-insight";
 import { singleUserTurn } from "@/lib/ai/types";
 import {
@@ -190,6 +194,12 @@ async function rerollBriefingParagraph(args: {
    * it does not trace to one of these figures.
    */
   signals: readonly SignalOfDay[] | null;
+  /**
+   * v1.22 (W6, W8 seam) — the full feature snapshot so the grounding gate also
+   * admits numbers from the W8 aggregate blocks (glucose / labs / preventive-
+   * care / workouts) the reroll may now cite.
+   */
+  features?: AggregatedFeatures | null;
 }): Promise<{ text: string; providerType: string } | null> {
   let cached: Record<string, unknown>;
   try {
@@ -220,6 +230,9 @@ async function rerollBriefingParagraph(args: {
         // exactly what we are varying. Higher temperature for prose variety.
         temperature: BRIEFING_REROLL_TEMPERATURE,
         maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+        // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
+        // generation is not clipped at the client's 60 s default mid-stream.
+        timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
         responseFormat: "json",
       }),
     });
@@ -257,6 +270,7 @@ async function rerollBriefingParagraph(args: {
   const rerollUngrounded = findUngroundedBriefingNumbers(
     { paragraph: freshParagraph },
     args.signals,
+    args.features,
   );
   if (rerollUngrounded.length > 0) {
     return null;
@@ -714,6 +728,8 @@ export async function generateComprehensiveInsight(
       dashboardWidgetsJson: true,
       // v1.18.11 P5 — gender feeds the cycle context block (phase contrast).
       gender: true,
+      // v1.22 (W6) — first name for the sparse, hash-gated briefing opener.
+      displayName: true,
     },
   });
 
@@ -878,6 +894,16 @@ export async function generateComprehensiveInsight(
   if (illnessCycleCtx) {
     userPrompt += buildBriefingIllnessCyclePrompt(illnessCycleCtx, locale);
   }
+  // v1.22 (W6) — opener-archetype rotation + sparse first-name personalization.
+  // Both are deterministic per (user, day): the opener hint varies the briefing
+  // lead day-over-day, and the name appears on roughly one day in three (never a
+  // rote daily "Good morning, <name>"). The whole block is omitted when no
+  // display name is set, so unnamed / demo accounts are byte-identical.
+  userPrompt += buildBriefingPersonalisationBlock(
+    userId,
+    dbUser?.displayName ?? null,
+    locale,
+  );
   const systemPrompt = buildSystemPromptWithReferences(
     locale,
     referenceMetrics,
@@ -903,6 +929,7 @@ export async function generateComprehensiveInsight(
         cachedText: dbUser.insightsCachedText,
         locale,
         signals: features.signalsOfDay ?? null,
+        features,
       });
       if (rerolled) {
         await prisma.user.update({
@@ -957,6 +984,9 @@ export async function generateComprehensiveInsight(
         user: userPrompt,
         temperature: AI_BUDGETS.comprehensive.temperature,
         maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+        // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
+        // generation is not clipped at the client's 60 s default mid-stream.
+        timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
         // v1.18.7 — structured surface: opt the non-OpenAI chains into their
         // strongest JSON mode (Ollama `format`, Anthropic `{` prefill) so a
         // first-pass JSON miss is rarer; stripJsonFences stays the net.
@@ -966,10 +996,30 @@ export async function generateComprehensiveInsight(
     result = fallback.result;
     workingProviderType = fallback.workingProvider.providerType;
   } catch (e) {
-    if (e instanceof AllProvidersFailedError) {
-      return { status: "failed", reason: "all-providers-failed" };
-    }
-    return { status: "failed", reason: "provider-error" };
+    // v1.21.5 — make the failed generation queryable. This path used to return
+    // a `failed` outcome with NO annotation, so a provider that consistently
+    // failed (e.g. a codex briefing aborted by the 60 s timeout on a large
+    // account) left the cached block empty AND emitted nothing the operator
+    // could grep — the briefing and the insights trend narrative that share
+    // the block stayed blank with no signal. No cache row is written, so the
+    // next warm / visit retries; the wider `timeoutMs` above is what lets that
+    // retry actually land.
+    const reason =
+      e instanceof AllProvidersFailedError
+        ? "all-providers-failed"
+        : "provider-error";
+    const err = e as { httpStatus?: number; message?: string };
+    annotate({
+      action: { name: "insights.generate.comprehensive_failed" },
+      meta: {
+        locale,
+        reason,
+        provider_status:
+          typeof err.httpStatus === "number" ? err.httpStatus : null,
+        provider_message: err.message?.slice(0, 240) ?? null,
+      },
+    });
+    return { status: "failed", reason };
   }
 
   // Anthropic + local have no native JSON mode, so a ```json-fenced or
@@ -999,6 +1049,8 @@ export async function generateComprehensiveInsight(
           )}`,
           temperature: AI_BUDGETS.comprehensive.temperature,
           maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+          // v1.21.5 — wider upstream budget; see the first generation call.
+          timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
           responseFormat: "json",
         }),
       });
@@ -1023,6 +1075,7 @@ export async function generateComprehensiveInsight(
     let ungrounded = findUngroundedBriefingNumbers(
       readBriefingBlock(insights),
       signals,
+      features,
     );
     if (ungrounded.length > 0) {
       annotate({
@@ -1038,6 +1091,8 @@ export async function generateComprehensiveInsight(
             user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
             temperature: AI_BUDGETS.comprehensive.temperature,
             maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+            // v1.21.5 — wider upstream budget; see the first generation call.
+            timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
             responseFormat: "json",
           }),
         });
@@ -1045,6 +1100,7 @@ export async function generateComprehensiveInsight(
         const retryUngrounded = findUngroundedBriefingNumbers(
           readBriefingBlock(retryInsights),
           signals,
+          features,
         );
         if (retryInsights !== null && retryUngrounded.length === 0) {
           insights = retryInsights;

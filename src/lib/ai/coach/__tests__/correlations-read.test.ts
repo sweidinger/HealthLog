@@ -12,6 +12,7 @@ const medicationFindMany = vi.fn();
 const intakeEventFindMany = vi.fn();
 const illnessEpisodeFindMany = vi.fn();
 const illnessDayLogFindMany = vi.fn();
+const labResultFindMany = vi.fn();
 vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: { findMany: (a: unknown) => measurementFindMany(a) },
@@ -21,6 +22,7 @@ vi.mock("@/lib/db", () => ({
     medicationIntakeEvent: { findMany: (a: unknown) => intakeEventFindMany(a) },
     illnessEpisode: { findMany: (a: unknown) => illnessEpisodeFindMany(a) },
     illnessDayLog: { findMany: (a: unknown) => illnessDayLogFindMany(a) },
+    labResult: { findMany: (a: unknown) => labResultFindMany(a) },
   },
 }));
 
@@ -59,6 +61,7 @@ describe("readCoachCorrelations", () => {
     intakeEventFindMany.mockReset().mockResolvedValue([]);
     illnessEpisodeFindMany.mockReset().mockResolvedValue([]);
     illnessDayLogFindMany.mockReset().mockResolvedValue([]);
+    labResultFindMany.mockReset().mockResolvedValue([]);
     loadBaselineProfile
       .mockReset()
       .mockResolvedValue({ ageYears: 40, sex: "MALE", heightCm: 180 });

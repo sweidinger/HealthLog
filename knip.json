@@ -20,6 +20,7 @@
     "src/proxy.ts",
     "src/instrumentation.ts",
     "src/lib/jobs/**/*.ts",
+    "src/lib/ai/coach/eval/judge.ts",
     "scripts/**/*.ts",
     "scripts/**/*.mjs",
     "e2e/**/*.spec.ts",

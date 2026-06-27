@@ -39,13 +39,20 @@ import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { annotate } from "@/lib/logging/context";
 
 import { decryptFromBytes, encryptToBytes } from "./bytes-codec";
+import { REMINDERS_INJECT_TOP_N } from "./reminders";
 
-/** App-side closed status enum (NOT a DB enum — matches the schema column). */
+/**
+ * App-side closed status enum (NOT a DB enum — matches the schema column).
+ * v1.22 (W9, C2) adds the n-of-1 experiment lifecycle: `review_due` (the review
+ * date passed) and `reviewed` (the read-back outcome was generated + stored).
+ */
 export const COACH_PLAN_STATUSES = [
   "proposed",
   "active",
   "met",
   "abandoned",
+  "review_due",
+  "reviewed",
 ] as const;
 
 /** Hard cap on non-terminal (proposed + active) plans per user. */
@@ -60,6 +67,7 @@ const RECENT_TURNS_CAP = 10;
 
 type RunCompletionFn = typeof runStatusCompletion;
 type PrismaLike = Pick<typeof prisma, "coachPlan" | "coachConversation">;
+type ReminderPrismaLike = Pick<typeof prisma, "coachReminder">;
 
 interface ExtractOpts {
   runCompletion?: RunCompletionFn;
@@ -461,4 +469,157 @@ export async function buildCoachPlansBlock(
 
   if (plans.length === 0) return null;
   return { plans };
+}
+
+// ---------------------------------------------------------------------------
+// v1.22 (W9, C2) — n-of-1 experiment outcome read-back block
+// ---------------------------------------------------------------------------
+
+/** How recent a reviewed experiment stays in the snapshot read-back block. */
+const EXPERIMENT_OUTCOME_RECALL_DAYS = 30;
+/** Max reviewed outcomes carried into the snapshot. */
+const EXPERIMENT_OUTCOME_TOP_N = 3;
+const EXPERIMENT_OUTCOME_RECALL_MS =
+  EXPERIMENT_OUTCOME_RECALL_DAYS * 86_400_000;
+
+/** One reviewed experiment as the snapshot read-back block carries it. */
+export interface ExperimentOutcomeEntry {
+  metric: string;
+  /** The grounded, association-only read-back prose (decrypted). */
+  outcome: string;
+}
+
+interface ReviewedPlanRow {
+  metric: string;
+  outcomeEncrypted: Uint8Array | null;
+  updatedAt: Date;
+}
+
+/**
+ * Build the experiment-outcome read-back block: recently-`reviewed` plans whose
+ * `outcomeEncrypted` carries a grounded result, decrypted fault-isolated. This
+ * is the C2 read-back surface; the caller (`snapshot.ts`) attaches it ONLY when
+ * the experiment-verdict flag is on, so the user-visible read-back stays gated
+ * until its live B0 cases clear. Returns `null` when nothing recent qualifies.
+ */
+export async function buildExperimentOutcomeBlock(
+  userId: string,
+  opts?: { prisma?: PrismaLike; now?: Date },
+): Promise<{ experiments: ExperimentOutcomeEntry[] } | null> {
+  const db = opts?.prisma ?? prisma;
+  const now = opts?.now ?? new Date();
+  const since = new Date(now.getTime() - EXPERIMENT_OUTCOME_RECALL_MS);
+
+  const rows = (await db.coachPlan.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      status: "reviewed",
+      outcomeEncrypted: { not: null },
+      updatedAt: { gte: since },
+    },
+    orderBy: [{ updatedAt: "desc" }],
+    take: EXPERIMENT_OUTCOME_TOP_N,
+    select: { metric: true, outcomeEncrypted: true, updatedAt: true },
+  })) as ReviewedPlanRow[];
+
+  const experiments: ExperimentOutcomeEntry[] = [];
+  for (const r of rows) {
+    const outcome = decryptOrNull(r.outcomeEncrypted);
+    if (outcome === null) continue;
+    experiments.push({ metric: r.metric, outcome });
+  }
+  if (experiments.length === 0) return null;
+  return { experiments };
+}
+
+// ---------------------------------------------------------------------------
+// v1.22 (B2/B3) — episodic reminder recall sub-block
+// ---------------------------------------------------------------------------
+
+/**
+ * How far ahead of `now` an active reminder enters the recall block. A
+ * reminder due within this horizon (or already overdue) is "near" enough that
+ * the Coach should reference it unprompted on the next message; a reminder due
+ * far in the future stays dormant until its window approaches.
+ */
+const REMINDER_RECALL_HORIZON_DAYS = 3;
+const REMINDER_RECALL_HORIZON_MS = REMINDER_RECALL_HORIZON_DAYS * 86_400_000;
+
+/** One reminder as the snapshot recall block carries it. */
+export interface CoachReminderInjectEntry {
+  note: string;
+  metric?: string;
+  /** ISO due moment, when the reminder is date-triggered. */
+  dueAt?: string;
+  /** Lifecycle status (active | due | surfaced) for the model's framing. */
+  status: string;
+}
+
+interface InjectReminderRow {
+  noteEncrypted: Uint8Array;
+  metric: string | null;
+  dueAt: Date | null;
+  status: string;
+  updatedAt: Date;
+}
+
+/**
+ * Build the recall sub-block: the reminders the Coach should reference next
+ * time — anything already `due`/`surfaced` (the sweep flipped it and the user
+ * has not resolved it) plus `active` reminders whose `dueAt` is near or overdue.
+ * A recall-only `active` note (no `dueAt`) is also surfaced so the Coach honours
+ * the user's explicit "remember this" even without a fire moment. Decrypt is
+ * fault-isolated — an undecryptable row is skipped, never thrown. Returns `null`
+ * when the user has nothing to recall.
+ *
+ * This is the read half of the episodic memory type, mirroring
+ * `buildCoachPlansBlock`; the write half lives in `reminders.ts`.
+ */
+export async function buildCoachRemindersBlock(
+  userId: string,
+  now: Date,
+  opts?: { prisma?: ReminderPrismaLike },
+): Promise<{ reminders: CoachReminderInjectEntry[] } | null> {
+  const db = opts?.prisma ?? prisma;
+  const horizon = new Date(now.getTime() + REMINDER_RECALL_HORIZON_MS);
+
+  const rows = (await db.coachReminder.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      OR: [
+        // Already surfaced by the sweep and not yet resolved.
+        { status: { in: ["due", "surfaced"] } },
+        // Active + near/overdue date trigger.
+        { status: "active", dueAt: { lte: horizon } },
+        // Active recall-only note (no fire moment) — honour the explicit ask.
+        { status: "active", dueAt: null },
+      ],
+    },
+    // Soonest-due first, then most-recently touched.
+    orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
+    take: REMINDERS_INJECT_TOP_N * 3,
+    select: {
+      noteEncrypted: true,
+      metric: true,
+      dueAt: true,
+      status: true,
+      updatedAt: true,
+    },
+  })) as InjectReminderRow[];
+
+  const reminders: CoachReminderInjectEntry[] = [];
+  for (const r of rows) {
+    if (reminders.length >= REMINDERS_INJECT_TOP_N) break;
+    const note = decryptOrNull(r.noteEncrypted);
+    if (note === null) continue;
+    const entry: CoachReminderInjectEntry = { note, status: r.status };
+    if (r.metric) entry.metric = r.metric;
+    if (r.dueAt) entry.dueAt = r.dueAt.toISOString();
+    reminders.push(entry);
+  }
+
+  if (reminders.length === 0) return null;
+  return { reminders };
 }

@@ -191,6 +191,7 @@ async function main() {
     "aiAnthropicKeyEncrypted",
     "aiLocalKeyEncrypted",
     "aiOpenaiKeyEncrypted",
+    "aiOcrKeyEncrypted",
     "insuranceNumberEncrypted",
   ];
   for (const field of userFields) {
@@ -319,14 +320,25 @@ async function main() {
   );
 
   // ───── CoachPlan (Bytes columns) ─────
-  // "ifCueEncrypted" "thenActionEncrypted" "targetEncrypted"
+  // "ifCueEncrypted" "thenActionEncrypted" "targetEncrypted" "outcomeEncrypted"
   for (const field of [
     "ifCueEncrypted",
     "thenActionEncrypted",
     "targetEncrypted",
+    "outcomeEncrypted",
   ]) {
     results.push(await rotateBytesColumn("CoachPlan", field, prisma.coachPlan));
   }
+
+  // ───── CoachReminder (Bytes column) ─────
+  // "noteEncrypted"
+  results.push(
+    await rotateBytesColumn(
+      "CoachReminder",
+      "noteEncrypted",
+      prisma.coachReminder,
+    ),
+  );
 
   // ───── UserHealthProfile (Bytes columns) ─────
   // "aboutMeEncrypted" "conditionsEncrypted" "allergiesEncrypted"

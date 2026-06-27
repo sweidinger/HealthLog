@@ -1,6 +1,15 @@
 "use client";
 
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,22 +18,34 @@ import {
   Bot,
   Check,
   ChevronRight,
+  Clock,
   Loader2,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
   User,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { scrollBehaviorForUser } from "@/lib/motion";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { ApiError, apiPost } from "@/lib/api/api-fetch";
 import { useAuth } from "@/hooks/use-auth";
 import { ABOUT_ME_FIELD_MAX_CHARS } from "@/lib/validations/about-me";
+import {
+  parseChartTokens,
+  stripChartTokens,
+  tokenToMetric,
+  type ChartToken,
+} from "@/lib/insights/chart-tokens";
+import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
+import { ProseBlocks } from "@/components/insights/prose-blocks";
 
 import { SourceChips } from "./source-chips";
 import { ReminderSuggestionCard } from "./reminder-suggestion-card";
+import { SuggestedActionCard } from "./suggested-action-card";
 import { StreamedProse } from "./streamed-prose";
 import { MessageTokenFooter } from "./message-token-footer";
 import type {
@@ -32,7 +53,10 @@ import type {
   CoachOptimisticUserMessage,
   CoachStreamingMessage,
 } from "./use-coach";
-import type { CoachMessageDTO } from "@/lib/ai/coach/types";
+import type {
+  CoachMessageDTO,
+  CoachProvenanceMetric,
+} from "@/lib/ai/coach/types";
 
 /**
  * v1.4.20 phase B2b — message-thread renderer.
@@ -207,6 +231,285 @@ export function errorCodeToI18nKey(code: string): string {
       // ship their own translation (e.g. legacy `errorProvider`).
       return `insights.coach.${code}`;
   }
+}
+
+/**
+ * v1.22 (W5) — Coach accompanying charts, Phase 1: the renderer half.
+ *
+ * The chart-token mechanism (`chart-tokens.ts`) was prepared for the
+ * Insights prose but its render path was never wired for the Coach —
+ * `stripChartTokens` cleaned tokens out of the prose, but `parseChartTokens`
+ * had no caller, so a `metric:<TYPE>` token the model emitted rendered no
+ * chart. This map activates the render half for the Coach.
+ *
+ * Each entry pairs an allowlisted chart token with the Coach provenance
+ * TOPIC that the snapshot stamps when it actually drew on that metric. A
+ * chart only renders when its topic is present in `metricSource.metrics`, so
+ * the series is grounded twice over: the closed allowlist drops a
+ * hallucinated token, and the provenance intersect drops a metric the turn
+ * never saw (and which therefore has no data). The chart itself self-fetches
+ * the user's real series from `/api/measurements` — the model never emits a
+ * data point.
+ *
+ * Only MeasurementType-backed tokens that render through the generic,
+ * self-fetching `<HealthChart>` are listed. The synthetic `metric:MOOD`
+ * token (served by a separate `<MoodChart>`) and the allowlist's reserved
+ * score classes are intentionally omitted from Phase 1.
+ *
+ * The prompt clause that tells the model it MAY emit one such token is a
+ * separate concern (the narrative/prompt workstream); this is render-only,
+ * provider-agnostic (it reads the plain inline token, so it works for every
+ * provider including the codex inline-text path), and a graceful no-op when
+ * no grounded token is present.
+ */
+const CHART_TOKEN_PROVENANCE: Partial<
+  Record<ChartToken, CoachProvenanceMetric>
+> = {
+  "metric:WEIGHT": "weight",
+  "metric:BLOOD_PRESSURE_SYS": "bp",
+  "metric:BLOOD_PRESSURE_DIA": "bp",
+  "metric:PULSE": "pulse",
+  "metric:BODY_FAT": "body_fat",
+  "metric:SLEEP_DURATION": "sleep",
+  "metric:ACTIVITY_STEPS": "steps",
+  "metric:BLOOD_GLUCOSE": "glucose",
+  "metric:TOTAL_BODY_WATER": "total_body_water",
+  "metric:BONE_MASS": "bone_mass",
+  "metric:OXYGEN_SATURATION": "spo2",
+  "metric:HEART_RATE_VARIABILITY": "hrv",
+  "metric:RESTING_HEART_RATE": "resting_hr",
+  "metric:ACTIVE_ENERGY_BURNED": "active_energy",
+  "metric:FLIGHTS_CLIMBED": "flights",
+  "metric:WALKING_RUNNING_DISTANCE": "distance",
+  "metric:VO2_MAX": "vo2_max",
+  "metric:BODY_TEMPERATURE": "body_temp",
+  "metric:FAT_FREE_MASS": "fat_free_mass",
+  "metric:FAT_MASS": "fat_mass",
+  "metric:MUSCLE_MASS": "muscle_mass",
+  "metric:LEAN_BODY_MASS": "lean_body_mass",
+  "metric:BODY_MASS_INDEX": "bmi",
+  "metric:VISCERAL_FAT": "visceral_fat",
+  "metric:SKIN_TEMPERATURE": "skin_temp",
+  "metric:RESPIRATORY_RATE": "respiratory_rate",
+  "metric:PULSE_WAVE_VELOCITY": "pulse_wave_velocity",
+  "metric:VASCULAR_AGE": "vascular_age",
+  "metric:WALKING_HEART_RATE_AVERAGE": "walking_hr",
+  "metric:WALKING_ASYMMETRY": "walking_asymmetry",
+  "metric:WALKING_DOUBLE_SUPPORT": "walking_double_support",
+  "metric:WALKING_STEP_LENGTH": "walking_step_length",
+  "metric:WALKING_SPEED": "walking_speed",
+  "metric:AUDIO_EXPOSURE_ENV": "audio_env",
+  "metric:AUDIO_EXPOSURE_HEADPHONE": "audio_headphone",
+  "metric:AUDIO_EXPOSURE_EVENT": "audio_event",
+  "metric:TIME_IN_DAYLIGHT": "daylight",
+};
+
+/** Max charts rendered under a single Coach turn (keeps the reply scannable). */
+const MAX_COACH_CHARTS = 2;
+
+/**
+ * Pure selection of the chart tokens to render under an assistant turn:
+ * allowlist-parsed, intersected with the turn's grounded provenance topics,
+ * de-duplicated by metric, and capped. Exported for unit tests so the
+ * grounding contract is pinned without standing up the chart component.
+ */
+export function selectCoachChartTokens(
+  content: string,
+  metrics: readonly CoachProvenanceMetric[] | undefined,
+): ChartToken[] {
+  const grounded = new Set(metrics ?? []);
+  const out: ChartToken[] = [];
+  const seen = new Set<string>();
+  for (const token of parseChartTokens(content)) {
+    const topic = CHART_TOKEN_PROVENANCE[token];
+    if (!topic || !grounded.has(topic)) continue;
+    const metric = tokenToMetric(token);
+    if (seen.has(metric)) continue;
+    seen.add(metric);
+    out.push(token);
+    if (out.length >= MAX_COACH_CHARTS) break;
+  }
+  return out;
+}
+
+/**
+ * Chart tokens whose canonical measurement-type label has no dedicated
+ * `measurements.type*` key — route them to the closest existing key so the
+ * chart header reads cleanly rather than echoing the raw enum.
+ */
+const CHART_TITLE_KEY_OVERRIDE: Record<string, string> = {
+  BLOOD_PRESSURE_SYS: "measurements.typeBloodPressure",
+  BLOOD_PRESSURE_DIA: "measurements.typeBloodPressure",
+};
+
+/** Localised chart header for a MeasurementType, mirroring the snapshot's
+ *  `measurements.type<Camel>` convention with a readable fallback. */
+function coachChartTitle(
+  metric: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  const override = CHART_TITLE_KEY_OVERRIDE[metric];
+  if (override) {
+    const resolved = t(override);
+    if (resolved !== override) return resolved;
+  }
+  const camel = metric
+    .toLowerCase()
+    .split("_")
+    .map((part, i) =>
+      i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1),
+    )
+    .join("");
+  const key = `measurements.type${camel.charAt(0).toUpperCase()}${camel.slice(1)}`;
+  const resolved = t(key);
+  return resolved === key ? metric.replace(/_/g, " ").toLowerCase() : resolved;
+}
+
+/**
+ * v1.22 (W5) — feature-detect the browser Speech Synthesis API SSR-safe.
+ * `useSyncExternalStore` returns false on the server + first client paint
+ * (so the read-aloud button is absent in markup) and resolves to the real
+ * capability after hydration, mirroring the mic button's detection pattern
+ * — no hydration mismatch warning, no `connect-src` (it runs in-browser).
+ */
+function useSpeechSynthesisSupported(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () =>
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window &&
+      "SpeechSynthesisUtterance" in window,
+    () => false,
+  );
+}
+
+/**
+ * v1.22 (W5) — read the assistant prose aloud via the browser's
+ * `SpeechSynthesis`. Client-only, no dependency, no egress, CSP-clean. A
+ * single in-flight utterance: a new `speak` cancels any prior one; `toggle`
+ * stops while speaking. The utterance language follows the active UI locale
+ * so the browser picks the closest installed voice (best-effort by OS).
+ */
+function useReadAloud(): {
+  supported: boolean;
+  speaking: boolean;
+  toggle: (text: string, lang: string) => void;
+} {
+  const supported = useSpeechSynthesisSupported();
+  const [speaking, setSpeaking] = useState(false);
+
+  // Stop any in-flight utterance if the bubble unmounts (thread reset, nav).
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const toggle = useCallback(
+    (text: string, lang: string) => {
+      if (!supported) return;
+      const synth = window.speechSynthesis;
+      if (speaking) {
+        synth.cancel();
+        setSpeaking(false);
+        return;
+      }
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      synth.cancel();
+      const utterance = new SpeechSynthesisUtterance(trimmed);
+      utterance.lang = lang;
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
+      setSpeaking(true);
+      synth.speak(utterance);
+    },
+    [supported, speaking],
+  );
+
+  return { supported, speaking, toggle };
+}
+
+/**
+ * v1.22 (W5) — read-aloud toggle for a settled assistant turn. Hidden when
+ * the browser has no Speech Synthesis support. Speaks `stripChartTokens`
+ * (the same text the prose shows), so stray tokens are never voiced.
+ */
+function ReadAloudButton({ content }: { content: string }) {
+  const { t, locale } = useTranslations();
+  const { supported, speaking, toggle } = useReadAloud();
+  if (!supported) return null;
+  const label = speaking
+    ? t("insights.coach.readAloudStop")
+    : t("insights.coach.readAloud");
+  return (
+    <button
+      type="button"
+      data-slot="coach-read-aloud"
+      onClick={() => toggle(stripChartTokens(content), locale)}
+      aria-label={label}
+      aria-pressed={speaking}
+      title={label}
+      // Interactive bubble affordances share one tap convention:
+      // `min-h-11 sm:min-h-9` (44px mobile floor → 36px desktop), matching the
+      // feedback buttons below. Keep TTS / remember / feedback in lockstep.
+      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-1.5 py-1 text-xs outline-none focus-visible:ring-2 sm:min-h-9"
+    >
+      {speaking ? (
+        <VolumeX className="size-3" aria-hidden="true" />
+      ) : (
+        <Volume2 className="size-3" aria-hidden="true" />
+      )}
+    </button>
+  );
+}
+
+/**
+ * v1.22 (W5) — hover/tap timestamp for a persisted message bubble. A small,
+ * calm clock affordance; the locale-aware date + time surfaces in a tooltip
+ * on hover or keyboard focus (desktop) and on tap (mobile, toggled state).
+ * Pure CSS + one boolean — no portal, no Radix dependency, SSR-safe.
+ */
+function BubbleTimestamp({
+  iso,
+  align = "start",
+}: {
+  iso: string;
+  align?: "start" | "end";
+}) {
+  const { t } = useTranslations();
+  const formatters = useFormatters();
+  const [open, setOpen] = useState(false);
+  const label = formatters.dateTime(iso);
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        data-slot="coach-bubble-timestamp"
+        aria-label={t("insights.coach.messageTimeLabel", { time: label })}
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setOpen(false)}
+        className="peer text-muted-foreground/70 hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex size-11 items-center justify-center rounded outline-none focus-visible:ring-2 sm:size-8"
+      >
+        <Clock className="size-3" aria-hidden="true" />
+      </button>
+      <span
+        role="tooltip"
+        className={cn(
+          "bg-popover text-popover-foreground border-border pointer-events-none absolute bottom-full z-50 mb-1",
+          "rounded-md border px-2 py-1 text-xs whitespace-nowrap shadow-md",
+          "opacity-0 transition-opacity duration-100 peer-hover:opacity-100 peer-focus-visible:opacity-100",
+          "motion-reduce:transition-none",
+          open && "opacity-100",
+          align === "end" ? "right-0" : "left-0",
+        )}
+      >
+        {label}
+      </span>
+    </span>
+  );
 }
 
 export function MessageThread({
@@ -425,6 +728,7 @@ export function MessageThread({
               messageId={m.id}
               tokensUsed={m.tokensUsed}
               model={m.model}
+              createdAt={m.createdAt}
             />
           </Fragment>
         );
@@ -466,6 +770,7 @@ export function MessageThread({
             content={streaming.content}
             metricSource={streaming.metricSource}
             suggestion={streaming.suggestion}
+            suggestedAction={streaming.suggestedAction}
             providerType={streaming.inProgress ? "streaming" : null}
             inProgress={streaming.inProgress}
             errorCode={streaming.errorCode}
@@ -494,6 +799,14 @@ interface ChatBubbleProps {
    * instead; the bubble falls back to that so the card survives reload.
    */
   suggestion?: import("@/lib/ai/coach/types").CoachSuggestion | null;
+  /**
+   * v1.22 (W7/W6) — live generalised confirm-card action from the streaming
+   * hook. Persisted messages carry it on `metricSource.suggestedAction`; the
+   * bubble falls back to that so the card survives reload.
+   */
+  suggestedAction?:
+    | import("@/lib/ai/coach/suggest-action").CoachSuggestedAction
+    | null;
   providerType?: string | null;
   inProgress?: boolean;
   errorCode?: string | null;
@@ -521,6 +834,12 @@ interface ChatBubbleProps {
    */
   tokensUsed?: number | null;
   model?: string | null;
+  /**
+   * v1.22 (W5) — ISO creation timestamp for the persisted bubble's
+   * hover/tap timestamp tooltip. Absent on optimistic + streaming bubbles
+   * (no persisted time yet), so those render no timestamp.
+   */
+  createdAt?: string;
 }
 
 function ChatBubble({
@@ -528,6 +847,7 @@ function ChatBubble({
   content,
   metricSource,
   suggestion,
+  suggestedAction,
   providerType,
   inProgress,
   errorCode,
@@ -536,6 +856,7 @@ function ChatBubble({
   usage,
   tokensUsed,
   model,
+  createdAt,
 }: ChatBubbleProps) {
   const { t } = useTranslations();
   const { user } = useAuth();
@@ -580,8 +901,12 @@ function ChatBubble({
               "text-sm leading-relaxed",
             )}
           >
-            {content}
+            {/* v1.22 (W5) — render real paragraph blocks so a multi-line
+                message reads as paragraphs, not one run-on block. User text
+                is verbatim: no chart-token strip, no Learn linkify. */}
+            <ProseBlocks text={content} strip={false} linkify={false} />
           </div>
+          {createdAt && <BubbleTimestamp iso={createdAt} align="end" />}
           {/* v1.16.8 — explicit remember control. Stating an allergy in
               chat used to leave no durable trace unless a narrow
               pattern pass happened to match the phrasing; this stores
@@ -607,7 +932,7 @@ function ChatBubble({
           <div
             aria-hidden="true"
             data-slot="coach-bubble-user-avatar"
-            className="text-muted-foreground bg-muted/60 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold"
+            className="text-muted-foreground bg-muted/60 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
           >
             {initials ?? <User className="size-3.5" />}
           </div>
@@ -644,6 +969,15 @@ function ChatBubble({
     ((metricSource.metrics?.length ?? 0) > 0 ||
       (metricSource.windows?.length ?? 0) > 0);
   const hasProvenance = hasChips || keyValues.length > 0;
+
+  // v1.22 (W5) — Coach charts Phase 1. Render an allowlisted, provenance-
+  // grounded `metric:<TYPE>` chart under a SETTLED assistant turn. Skipped
+  // while streaming / in-flight / errored / on a refusal; a no-op when no
+  // grounded token is present (provider-agnostic — reads the inline token).
+  const chartTokens =
+    !streaming && !inProgress && !errorCode && providerType !== "refusal"
+      ? selectCoachChartTokens(content, metricSource?.metrics)
+      : [];
 
   return (
     <div
@@ -698,6 +1032,30 @@ function ChatBubble({
         )}
         {safeError && content && (
           <p className="text-warning/90 text-xs">{safeError}</p>
+        )}
+        {/* v1.22 (W5) — accompanying chart(s). The token was already
+            stripped from the prose by <StreamedProse>; here it mounts the
+            real, self-fetching Recharts chart for the user's own series.
+            The model never emits data — only a metric identifier from a
+            closed allowlist, intersected with the turn's grounded metrics. */}
+        {chartTokens.length > 0 && (
+          <div data-slot="coach-charts" className="flex w-full flex-col gap-3">
+            {chartTokens.map((token) => {
+              const metric = tokenToMetric(token);
+              return (
+                <div
+                  key={token}
+                  data-slot="coach-chart"
+                  className="border-border/60 bg-muted/20 rounded-xl border p-2"
+                >
+                  <HealthChartDynamic
+                    types={[metric]}
+                    title={coachChartTitle(metric, t)}
+                  />
+                </div>
+              );
+            })}
+          </div>
         )}
         {/* v1.18.6 — a "no provider configured anywhere" turn is a
             setup gap, not a transient failure: surface a direct link to
@@ -817,6 +1175,16 @@ function ChatBubble({
             const sug = suggestion ?? metricSource?.suggestion ?? null;
             return sug ? <ReminderSuggestionCard suggestion={sug} /> : null;
           })()}
+        {/* v1.22 (W7/W6) — generalised confirm-card action. Live from the
+            streaming hook, or restored from persisted message provenance on
+            reload. Mirrors the reminder-suggestion block above. */}
+        {!inProgress &&
+          !errorCode &&
+          (() => {
+            const action =
+              suggestedAction ?? metricSource?.suggestedAction ?? null;
+            return action ? <SuggestedActionCard action={action} /> : null;
+          })()}
         {/* v1.18.9 — quiet per-message token footer. The just-finished
             streaming turn reads the `done.usage` envelope; a persisted /
             reloaded turn reads the message's own `tokensUsed` + `model`.
@@ -829,14 +1197,19 @@ function ChatBubble({
         )}
         {/* v1.4.23 H7 — per-message thumbs feedback. Only persisted
             assistant messages get the row (skipped for refusals,
-            errors, in-flight stream bubbles). The aggregator buckets
-            the rating by (promptVersion, tone, verbosity). */}
-        {messageId &&
-          !inProgress &&
-          !errorCode &&
-          providerType !== "refusal" && (
-            <CoachMessageFeedback messageId={messageId} />
-          )}
+            errors, in-flight stream bubbles). v1.22 (W5) — the
+            read-aloud toggle joins the same action row on a settled turn;
+            the bubble timestamp trails it. */}
+        {!inProgress && !errorCode && providerType !== "refusal" && content && (
+          <div
+            data-slot="coach-bubble-actions"
+            className="flex items-center gap-2"
+          >
+            {!streaming && <ReadAloudButton content={content} />}
+            {messageId && <CoachMessageFeedback messageId={messageId} />}
+            {createdAt && <BubbleTimestamp iso={createdAt} />}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -908,7 +1281,7 @@ function RememberUserMessage({ content }: { content: string }) {
       disabled={remember.isPending}
       className={cn(
         "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50",
-        "inline-flex min-h-8 items-center gap-1 rounded px-1.5 py-1 text-xs",
+        "inline-flex min-h-11 items-center gap-1 rounded px-1.5 py-1 text-xs sm:min-h-9",
         "outline-none focus-visible:ring-2 disabled:opacity-50",
         // Calmer thread on pointer devices: the control stays invisible
         // until its bubble is hovered or holds focus. Touch viewports

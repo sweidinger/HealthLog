@@ -22,6 +22,12 @@ import { coachChatRequestSchema } from "@/lib/ai/coach/types";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { createShareLinkSchema } from "@/lib/validations/clinician-share-link";
 import { coachReminderSuggestionActionSchema } from "@/lib/validations/coach-reminder-suggestion";
+import { COACH_REMINDER_STATUSES } from "@/lib/ai/coach/reminders";
+import {
+  coachReminderCreateSchema,
+  coachReminderPatchSchema,
+  coachSuggestedActionSchema,
+} from "@/lib/validations/coach-reminder";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 
 // ── Coach cadence suggestions (v1.18.1) ──────────────────────────────
@@ -315,6 +321,70 @@ coachPlansListQuerySchema.meta({
   description:
     "Optional `?status=` filter for the plans list (proposed | active | met | abandoned). Omitted returns the non-terminal set (proposed + active).",
 });
+
+// ── Coach episodic reminders (v1.22 B2/B6) ──────────────────────────────
+const coachReminderItem = z
+  .object({
+    id: z.string(),
+    note: z
+      .string()
+      .nullable()
+      .describe(
+        "Decrypted note (the user's own framing). Null when the row's key id is no longer in the map.",
+      ),
+    metric: z.string().nullable(),
+    triggerKind: z.enum(["date", "context"]),
+    dueAt: z.iso.datetime({ offset: true }).nullable(),
+    contextCue: z.string().nullable(),
+    status: z.enum(COACH_REMINDER_STATUSES),
+    source: z.enum(["sentinel", "extractor", "manual", "action"]),
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({
+    id: "CoachReminder",
+    description:
+      "One Coach episodic reminder, decrypted server-side. The note reads null only when the encryption key id has rotated out of the map.",
+  });
+
+const coachRemindersListResponse = z.object({
+  reminders: z
+    .array(coachReminderItem)
+    .describe(
+      "The caller's reminders, soonest-due first. Undecryptable rows are omitted. No `status` filter returns the non-terminal set (proposed + active + due + surfaced).",
+    ),
+});
+
+const coachReminderCreatedResponse = z.object({
+  reminder: coachReminderItem,
+});
+
+const coachReminderUpdatedResponse = z.object({
+  reminder: coachReminderItem,
+});
+
+const coachReminderDeletedResponse = z.object({
+  deleted: z
+    .boolean()
+    .describe(
+      "True when a reminder owned by the caller was soft-deleted; false for an unknown / cross-user / already-deleted id (idempotent no-op).",
+    ),
+});
+
+const coachSuggestedActionResultResponse = z
+  .object({
+    ok: z.literal(true),
+    actionType: z.enum(["checkup.create", "reminder.note"]),
+    reminder: z.unknown().optional(),
+    reminderId: z.string().optional(),
+  })
+  .meta({
+    id: "CoachSuggestedActionResult",
+    description:
+      "Outcome of confirming a Coach action card. `checkup.create` returns the created MeasurementReminder DTO; `reminder.note` returns the created CoachReminder id.",
+  });
+// The request bodies carry their `.meta({ id })` from
+// `@/lib/validations/coach-reminder` (single-source with the runtime parse).
 
 // ── Coach conversation history (v1.18.0) ─────────────────────────────
 // List + detail + delete surface for the Coach's persisted chat
@@ -779,6 +849,12 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                     .describe(
                       "True when that message is newer than the last time the caller opened the Coach.",
                     ),
+                  conversationId: z
+                    .string()
+                    .nullable()
+                    .describe(
+                      "Conversation holding the newest assistant message; null when none exists. The client deep-links into it (`/coach?c=<id>`) on the unread path.",
+                    ),
                 }),
                 "CoachNudgeStatus",
               ),
@@ -1051,6 +1127,198 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
     },
   },
 };
+
+export const coachReminderPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/coach/reminders": {
+    get: {
+      tags: ["Insights"],
+      summary: "List the caller's Coach reminders",
+      description:
+        'v1.22 (B2/B6) — the durable "remind me about X" memory the Coach captured inline, decrypted on the fly, soonest-due first. Pass `?status=` (one status or a comma set like `due,surfaced` for the in-app tile); omitted returns the non-terminal set (proposed + active + due + surfaced). Coach-gated (`requireModuleEnabled("coach")`). Auth via cookie or Bearer; the owner is narrowed from the session. Undecryptable rows are omitted.',
+      parameters: [
+        {
+          name: "status",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+          description:
+            "Filter to one status or a comma-separated set (proposed | active | due | surfaced | done | dismissed). Omit for the non-terminal set.",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "The caller's reminders.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachRemindersListResponse,
+                "CoachRemindersList",
+              ),
+            },
+          },
+        },
+        "403": {
+          description: "Coach surface disabled.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Insights"],
+      summary: "Create a Coach reminder manually",
+      description:
+        "v1.22 (B6) — create a reminder from the ledger. `note` is the only writable content; `when` is the closed grammar (ISO date | +Nd / +Nw | a context cue) resolved into the trigger server-side; `metric` optional. The per-user cap returns 409 when the non-terminal set is full. Coach-gated. Auth via cookie or Bearer; the owner is narrowed from the session.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: coachReminderCreateSchema },
+        },
+      },
+      responses: {
+        "201": {
+          description: "The created reminder.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachReminderCreatedResponse,
+                "CoachReminderCreated",
+              ),
+            },
+          },
+        },
+        "403": {
+          description: "Coach surface disabled.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "409": {
+          description: "The per-user reminder cap is full.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/coach/reminders/{id}": {
+    patch: {
+      tags: ["Insights"],
+      summary: "Confirm or update a Coach reminder's lifecycle",
+      description:
+        "v1.22 (B6) — confirm a proposed reminder (→ active), mark it done / dismissed, or re-schedule via the closed `when` grammar (null clears the due moment). The body never carries the note text. A foreign / unknown / already-deleted id maps to 404 (never 403) so the existence channel does not leak. Coach-gated. Auth via cookie or Bearer.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "Reminder id.",
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: coachReminderPatchSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The reminder after the lifecycle update.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachReminderUpdatedResponse,
+                "CoachReminderUpdated",
+              ),
+            },
+          },
+        },
+        "403": {
+          description: "Coach surface disabled.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "404": {
+          description: "Reminder not found or not owned by the caller.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Insights"],
+      summary: "Soft-delete one Coach reminder",
+      description:
+        "v1.22 (B6) — soft-deletes a single reminder owned by the caller. An unknown / cross-user / already-deleted id is an idempotent no-op returning `{ deleted: false }`. Coach-gated. Auth via cookie or Bearer.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "Reminder id.",
+        },
+      ],
+      responses: {
+        "200": {
+          description:
+            "The reminder was soft-deleted (`deleted: true`) or the id matched nothing the caller owns (`deleted: false`).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachReminderDeletedResponse,
+                "CoachReminderDeleted",
+              ),
+            },
+          },
+        },
+        "403": {
+          description: "Coach surface disabled.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+};
+
+export const coachSuggestedActionPaths: NonNullable<ZodOpenApiObject["paths"]> =
+  {
+    "/api/coach/suggested-actions": {
+      post: {
+        tags: ["Insights"],
+        summary: "Confirm a Coach action card",
+        description:
+          'v1.22 (F6) — the confirm half of the generalised propose→confirm moat. `actionType` is from the CLOSED allowlist (checkup.create | reminder.note) — NEVER a medication or clinical change. `checkup.create` builds a preventive-care Vorsorge `MeasurementReminder` (free-text label + a closed interval id resolved to an RRULE server-side); `reminder.note` builds a `CoachReminder`. Nothing is created without this explicit confirm. Coach-gated (`requireModuleEnabled("coach")`); per-user rate-limited (429). Auth via cookie or Bearer; the owner is narrowed from the session, built field-by-field — no mass assignment, no IDOR.',
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: coachSuggestedActionSchema },
+          },
+        },
+        responses: {
+          "201": {
+            description: "The action was applied (entity created server-side).",
+            content: {
+              "application/json": {
+                schema: dataEnvelope(
+                  coachSuggestedActionResultResponse,
+                  "CoachSuggestedActionResultCreated",
+                ),
+              },
+            },
+          },
+          "403": {
+            description: "Coach surface disabled.",
+            content: { "application/json": { schema: errorEnvelope } },
+          },
+          "409": {
+            description: "The per-user reminder cap is full (reminder.note).",
+            content: { "application/json": { schema: errorEnvelope } },
+          },
+          ...stdResponses,
+        },
+      },
+    },
+  };
 
 export const coachFeedbackPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/insights/chat/messages/{id}/feedback": {

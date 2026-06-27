@@ -238,7 +238,7 @@
     },
     "cycle": "Cycle",
     "labs": "Analyses",
-    "vorsorge": "Prévention",
+    "vorsorge": "Examens",
     "illness": "Maladie"
   },
   "auth": {
@@ -511,6 +511,7 @@
     "previousPage": "Page précédente",
     "nextPage": "Page suivante",
     "dailyTotalCaption": "({count} échantillons)",
+    "openMetricInsights": "Ouvrir l'analyse {type}",
     "sleepNapCaption": "+{count} sieste(s)",
     "sleepAwakeningsCaption": "{count} réveil(s)",
     "expandDay": "Afficher les échantillons de ce jour",
@@ -1945,7 +1946,6 @@
     "confidenceMittel": "Moyenne",
     "confidenceGering": "Faible",
     "loadError": "Impossible de charger les analyses",
-    "heroGenerated": "Généré {time}",
     "heroPersonalBaseline": "Basé sur tes 90 derniers jours",
     "heroRegenerate": "Régénérer",
     "heroRegenerating": "Génération en cours",
@@ -1957,7 +1957,6 @@
     "narrativeMonth": "Ce mois-ci",
     "narrativePreparing": "Préparation de votre résumé…",
     "narrativeUpdating": "Mise à jour…",
-    "narrativeUpdated": "Mis à jour {time}",
     "narrativeProvenanceLabel": "Comment cela a été établi",
     "narrativeProvenanceMethod": "Un résumé de la période en langage clair, établi uniquement à partir de vos valeurs enregistrées et des associations ayant survécu au contrôle statistique des comparaisons multiples. Descriptif, jamais une cause.",
     "narrativeProvenanceMetrics": "Basé sur : {metrics}",
@@ -2098,6 +2097,9 @@
       "composerPlaceholder": "Pose-moi une question sur tes données…",
       "nudgeBubbleLabel": "Nouveau message du coach — ouvrir le chat",
       "fabLabel": "Ouvrir le coach",
+      "readAloud": "Lire à voix haute",
+      "readAloudStop": "Arrêter la lecture",
+      "messageTimeLabel": "Message envoyé {time}",
       "selfContextAdopt": {
         "offer": "Ajouter cette réponse à vos informations personnelles ?",
         "confirm": "Ajouter",
@@ -2211,6 +2213,8 @@
       "settingsSourcesPointerLink": "Ouvrir le coach",
       "settingsExcludeLabel": "Exclure des métriques",
       "settingsExcludeHint": "Le coach ne verra pas les données des métriques sélectionnées.",
+      "settingsContextLabel": "Envoyer le contexte",
+      "settingsContextHint": "Blocs optionnels sur lesquels le coach peut s’appuyer. Si tu en désactives un, il sera omis dans chaque réponse.",
       "settingsEvidenceLabel": "Afficher les preuves par défaut",
       "settingsEvidenceHint": "Ouvre automatiquement l’encadré preuves sous chaque réponse.",
       "settingsDefaultWindowLabel": "Période d’analyse par défaut",
@@ -2226,8 +2230,6 @@
       "dailyLimitBody": "Limite quotidienne atteinte. Le quota se réinitialise à minuit (UTC).",
       "providerRateLimitTitle": "Fournisseur limité en débit",
       "providerRateLimitBody": "Le fournisseur est temporairement saturé ; réinitialisation dans ~5 min.",
-      "settingsContextLabel": "Envoyer le contexte",
-      "settingsContextHint": "Blocs optionnels sur lesquels le coach peut s’appuyer. Si tu en désactives un, il sera omis dans chaque réponse.",
       "cluster": {
         "cardio": {
           "label": "Cardiovasculaire",
@@ -2320,6 +2322,33 @@
         "groupYesterday": "Hier",
         "groupThisWeek": "Cette semaine",
         "groupEarlier": "Plus tôt"
+      },
+      "seed": {
+        "bloodPressure": "Passe en revue avec moi la tendance de ma tension artérielle sur les 30 derniers jours — y a-t-il quelque chose à surveiller ?",
+        "weight": "Comment mon poids a-t-il évolué ces derniers temps, et la tendance mérite-t-elle d'agir ?",
+        "bmi": "Que m'indique la tendance de mon IMC, et comment dois-je l'interpréter ?",
+        "pulse": "Passe en revue avec moi mes mesures de pouls — y a-t-il quelque chose d'inhabituel ?",
+        "restingHr": "Comment ma fréquence cardiaque au repos a-t-elle évolué, et que dit-elle de ma condition physique ?",
+        "hrv": "Que m'indique ma variabilité de la fréquence cardiaque sur ma récupération et mon stress ces derniers temps ?",
+        "sleep": "Passe en revue avec moi mon sommeil récent — durée, régularité et tout ce qui mériterait d'être changé.",
+        "mood": "Quels schémas observes-tu dans mon humeur ces dernières semaines ?",
+        "medications": "Où en est mon observance médicamenteuse, et correspond-elle à la façon dont je me sens ?",
+        "steps": "À quel point ai-je été actif ces derniers temps d'après mes pas, et comment cela se compare-t-il à un niveau de référence sain ?",
+        "activeEnergy": "Que dit ma tendance de dépense énergétique active sur mon niveau d'activité ces derniers temps ?",
+        "cardioFitness": "Que signifie la tendance de ma condition cardio (VO₂ max), et comment la faire évoluer dans le bon sens ?",
+        "bloodGlucose": "Passe en revue avec moi mes dernières mesures de glycémie — sont-elles dans une fourchette saine ?",
+        "oxygenSaturation": "Que m'indique ma tendance de saturation en oxygène (SpO₂) ?",
+        "respiratoryRate": "Que dit ma tendance de fréquence respiratoire sur ma santé ?",
+        "workouts": "Passe en revue avec moi mes séances d'entraînement récentes — charge, fréquence et comment je récupère entre elles.",
+        "recoveryPage": "Pourquoi ma récupération en est-elle là en ce moment, et qu'est-ce qui l'explique ?",
+        "briefing": "Passe en revue avec moi le briefing d'aujourd'hui — sur quoi devrais-je me concentrer, et y a-t-il quelque chose à entreprendre ?",
+        "healthScore": "Pourquoi mon score de santé est-il de {score} sur 100, et qu'est-ce qui le ferait le plus progresser ?",
+        "periodWeek": "Passe en revue avec moi comment s'est déroulée ma dernière semaine sur mes indicateurs de santé — qu'est-ce qui ressort ?",
+        "periodMonth": "Passe en revue avec moi comment s'est déroulé mon dernier mois sur mes indicateurs de santé — qu'est-ce qui ressort ?",
+        "correlationBpCompliance": "Quel est le lien entre mon observance médicamenteuse et ma tension artérielle ? Explique-moi ce que cette corrélation signifie pour moi.",
+        "correlationMoodPulse": "Y a-t-il un lien réel entre mon humeur et mon pouls ? Aide-moi à interpréter cette corrélation.",
+        "correlationWeightWeekday": "Mon poids suit-il un schéma hebdomadaire ? Que m'indique cette corrélation selon le jour de la semaine ?",
+        "recommendation": "Parle-moi davantage de cette recommandation : \"{text}\" — pourquoi s'applique-t-elle à moi, et que devrais-je faire ?"
       }
     },
     "relativeJustNow": "à l’instant",
@@ -3240,6 +3269,7 @@
       },
       "vitals": {
         "sectionTitle": "Vos constantes",
+        "sectionSubtitle": "Signaux cardiovasculaires et respiratoires au repos par rapport à ta propre référence",
         "loadingLabel": "Chargement de vos constantes",
         "loadError": "Impossible de charger vos constantes pour le moment.",
         "building": "Construction de votre plage habituelle — {count} sur {target} jours",
@@ -3366,6 +3396,7 @@
       },
       "scores": {
         "sectionTitle": "Tes indicateurs de santé",
+        "sectionSubtitle": "Valeurs combinées de récupération, de stress et d'effort issues de tes appareils connectés",
         "loadError": "Impossible de charger vos scores de bien-être pour le moment.",
         "recovery": "Récupération",
         "stress": "Stress",
@@ -3611,7 +3642,10 @@
       "returnLabel": "Ton {metric} est de nouveau dans ta plage habituelle après {count} jours — quoi que c'était, c'est passé.",
       "daysInside": "{count} jours dans la plage",
       "daysOutside": "{count} jours hors plage"
-    }
+    },
+    "updatedTodayAt": "Mis à jour aujourd'hui, {time}",
+    "updatedYesterday": "Mis à jour hier",
+    "updatedOn": "Mis à jour le {date}"
   },
   "thresholds": {
     "defaultLabel": "Par défaut",
@@ -3677,8 +3711,8 @@
           "body": "Le journal des maladies consigne les épisodes aigus et les diagnostics chroniques avec leurs poussées. Caché : corréler un épisode à vos mesures et le Mode repos qui suspend les rappels. Le Coach comprend ainsi pourquoi les valeurs dérivent un temps."
         },
         "vorsorge": {
-          "title": "Prévention",
-          "body": "Prévention vous rappelle examens et vaccins selon leur propre intervalle. Astuce : « Fait » peut créer directement une mesure ou un résultat de laboratoire. Les échéances apparaissent en rappels et dans le rapport médical."
+          "title": "Examens",
+          "body": "Les examens vous rappellent dépistages et vaccins selon leur propre intervalle. Astuce : « Fait » peut créer directement une mesure ou un résultat de laboratoire. Les échéances apparaissent en rappels et dans le rapport médical."
         },
         "cycle": {
           "title": "Cycle",
@@ -3702,7 +3736,7 @@
         },
         "export": {
           "title": "Rapport médical",
-          "body": "Le rapport médical regroupe mesures, médicaments, valeurs de laboratoire et prévention en PDF ou FHIR pour le rendez-vous. Tous les modules convergent ici — un rapport complet ne vient que de données bien tenues."
+          "body": "Le rapport médical regroupe mesures, médicaments, valeurs de laboratoire et examens en PDF ou FHIR pour le rendez-vous. Tous les modules convergent ici — un rapport complet ne vient que de données bien tenues."
         },
         "achievements": {
           "title": "Réussites",
@@ -4132,8 +4166,8 @@
         "subtitle": "Gérez l’affichage et l’ordre des épisodes."
       },
       "vorsorge": {
-        "title": "Prévention",
-        "description": "Affichage, ordre et rappels de prévention individuels.",
+        "title": "Examens",
+        "description": "Affichage, ordre et rappels d’examen individuels.",
         "subtitle": "Gérez l’affichage, l’ordre et les rappels individuels."
       },
       "modules": {
@@ -4413,6 +4447,28 @@
         "clearedToast": "{count} informations enregistrées oubliées.",
         "clearError": "Impossible d'effacer les informations enregistrées. Veuillez réessayer."
       },
+      "coachReminders": {
+        "title": "Tes rappels",
+        "description": "Les choses que tu as demandé au Coach de te rappeler plus tard. Celles qui arrivent à échéance apparaissent ici et chez le Coach.",
+        "empty": "Aucun rappel pour l'instant. Demande au Coach de te rappeler quelque chose et cela apparaîtra ici.",
+        "loadError": "Impossible de charger tes rappels.",
+        "dueHeading": "À échéance",
+        "allHeading": "Enregistrés",
+        "duePrefix": "à échéance {when}",
+        "confirm": "Garder",
+        "markDone": "Terminé",
+        "dismiss": "Ignorer",
+        "deleteAria": "Supprimer ce rappel",
+        "note": "Les rappels sont stockés chiffrés. Supprime-en un à tout moment — il disparaît de ce que le Coach peut voir.",
+        "status": {
+          "proposed": "Suggéré",
+          "active": "Enregistré",
+          "due": "À échéance",
+          "surfaced": "Affiché",
+          "done": "Terminé",
+          "dismissed": "Ignoré"
+        }
+      },
       "aboutMe": {
         "title": "À propos de moi",
         "description": "Contexte personnel que le Coach et le briefing quotidien lisent en plus de vos données.",
@@ -4436,7 +4492,24 @@
         "completeness": "{answered} sur {total} renseignés",
         "questionsTitle": "Le Coach a des questions",
         "questionsOpenCoach": "Y répondre dans le Coach"
-      }
+      },
+      "responseTimeoutHeading": "Délai de réponse",
+      "responseTimeoutBody": "Durée d'attente de la réponse de l'IA avant d'abandonner. Augmentez-la pour un modèle local ou auto-hébergé qui a besoin de temps pour se charger à la première requête.",
+      "responseTimeoutLabel": "Délai de réponse (secondes)",
+      "responseTimeoutPlaceholder": "Par défaut (~180)",
+      "responseTimeoutInvalid": "Saisissez un nombre entre 10 et 600 secondes.",
+      "ocrHeading": "Numérisation de documents (comptes rendus de laboratoire)",
+      "ocrBody": "Utilisez un fournisseur dédié pour lire les comptes rendus de laboratoire importés. Désactivé, la numérisation utilise votre fournisseur principal.",
+      "ocrEnableLabel": "Activer un fournisseur dédié à la numérisation de documents",
+      "ocrProviderLabel": "Fournisseur de numérisation",
+      "ocrProviderOption": {
+        "OPENAI": "OpenAI (votre clé API)",
+        "ANTHROPIC": "Anthropic (Claude)",
+        "LOCAL": "Modèle local (compatible OpenAI)"
+      },
+      "ocrModelPlaceholder": "p. ex. gpt-4o",
+      "ocrVisionHint": "Ce modèle ne peut peut-être pas lire les images. Choisissez un modèle capable de vision pour la numérisation de documents.",
+      "ocrKeyLabel": "Clé API"
     },
     "dashboard": {
       "units": {
@@ -4663,6 +4736,8 @@
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources et documentation",
+      "identityDescription": "Version, licence et détails de build de cette instance.",
+      "linksDescription": "Code source, journal des modifications et documentation.",
       "newerAvailable": "Nouvelle version : {tag}"
     },
     "testConnection": {
@@ -6483,13 +6558,13 @@
     "selectionBarLabel": "Actions de sélection"
   },
   "measurementReminders": {
-    "sectionTitle": "Prévention",
+    "sectionTitle": "Examens",
     "sectionDescription": "Rappels de ce qu'il faut mesurer ou vérifier, quand et où.",
     "addButton": "Ajouter un rappel",
     "markDone": "Terminé",
     "delete": "Supprimer",
     "deleteConfirmTitle": "Supprimer le rappel ?",
-    "deleteConfirmDescription": "Ce rappel de prévention sera définitivement supprimé.",
+    "deleteConfirmDescription": "Ce rappel d’examen sera définitivement supprimé.",
     "disabledBadge": "Désactivé",
     "nextDue": {
       "none": "Non planifié",
@@ -6551,7 +6626,7 @@
       "rruleHint": "RFC-5545, p. ex. FREQ=YEARLY pour un contrôle annuel.",
       "firstDue": "Première échéance (facultatif)"
     },
-    "pushTitle": "Rappel de prévention",
+    "pushTitle": "Rappel d’examen",
     "pushBody": "C'est l'heure : {label}",
     "pushLocation": "(chez {location})",
     "edit": "Modifier",
@@ -6562,7 +6637,7 @@
     "measureNow": "Mesurer maintenant",
     "nextDueLabel": "Prochaine échéance :",
     "lastDoneLabel": "Dernière fois :",
-    "customize": "Personnaliser la prévention",
+    "customize": "Personnaliser les examens",
     "adherence": {
       "label": "Dans l'intervalle",
       "onTrack": "Dans les temps",
@@ -6578,8 +6653,8 @@
       "empty": "Aucun rappel à personnaliser pour l'instant."
     },
     "dashboard": {
-      "empty": "Aucun rappel de prévention à venir.",
-      "openLink": "Ouvrir la prévention"
+      "empty": "Aucun rappel d’examen à venir.",
+      "openLink": "Ouvrir les examens"
     },
     "showMeasurements": "Afficher les mesures"
   },
@@ -6720,7 +6795,14 @@
         "savedToast": "Biomarqueur enregistré",
         "updatedToast": "Biomarqueur mis à jour",
         "saveError": "Impossible d'enregistrer le biomarqueur"
-      }
+      },
+      "hide": "Masquer",
+      "unhide": "Restaurer",
+      "hiddenToast": "Biomarqueur masqué",
+      "unhiddenToast": "Biomarqueur restauré",
+      "hideError": "Impossible de mettre à jour le biomarqueur",
+      "allHidden": "Tous les biomarqueurs sont masqués.",
+      "hiddenSection": "Masqués"
     },
     "catalog": {
       "total-cholesterol": "Cholestérol total",
@@ -7039,6 +7121,25 @@
         "weightDaily": "Pesez-vous chaque jour, à peu près à la même heure",
         "bp722": "Mesurez votre tension deux fois par jour pendant une semaine",
         "glucoseStructured": "Mesurez votre glycémie selon un horaire quotidien structuré"
+      }
+    },
+    "suggestedAction": {
+      "apply": "Ajouter",
+      "dismiss": "Pas maintenant",
+      "applied": "Ajouté",
+      "dismissed": "Ignoré",
+      "failed": "Impossible d'ajouter — réessaie",
+      "checkup": {
+        "title": "Ajouter un rappel d'examen ?"
+      },
+      "note": {
+        "title": "Enregistrer un rappel ?"
+      },
+      "interval": {
+        "yearly": "Tous les ans",
+        "halfYearly": "Tous les six mois",
+        "quarterly": "Tous les trois mois",
+        "monthly": "Tous les mois"
       }
     },
     "settings": {

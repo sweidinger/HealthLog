@@ -17,10 +17,10 @@ import { COACH_SOURCE_DOMAIN_LABEL } from "@/lib/ai/coach/tools/source-keys";
  *   - the "Ask the Coach" affordance on insight/assessment cards passes
  *     an explicit scope so a card tap lands a pre-scoped conversation.
  *
- * Seed questions are plain English strings, mirroring the empty-state
- * `coachPrefill` convention already in the tree — the Coach chat route
- * is English/German-gated and treats the prefill as composer seed text,
- * not an i18n key.
+ * v1.22 (W6) — seed questions are i18n KEYS (`insights.coach.seed.*`), not
+ * hardcoded English: a German user was getting an English composer seed. The
+ * consumer (`SubPageShell`) resolves the key through `t()` before handing it to
+ * the composer, so the seed reads in the user's language.
  */
 
 export interface CoachMetricScope {
@@ -30,7 +30,7 @@ export interface CoachMetricScope {
   also?: CoachScopeSource[];
   /** Optional day-window override; defaults to the route's `last30days`. */
   window?: CoachScopeWindow;
-  /** Composer seed question — a data-aware opener for the metric. */
+  /** i18n key for the composer seed question — resolved by the consumer. */
   question: string;
 }
 
@@ -45,79 +45,67 @@ export interface CoachMetricScope {
 const EXPLAINER_METRIC_SCOPE: Record<string, CoachMetricScope> = {
   bloodPressure: {
     metric: "bp",
-    question:
-      "Walk me through my blood pressure trend over the last 30 days — anything I should keep an eye on?",
+    question: "insights.coach.seed.bloodPressure",
   },
   weight: {
     metric: "weight",
-    question:
-      "How has my weight been trending lately, and is the direction something to act on?",
+    question: "insights.coach.seed.weight",
   },
   bmi: {
     metric: "bmi",
-    question: "What does my BMI trend tell me, and how should I read it?",
+    question: "insights.coach.seed.bmi",
   },
   pulse: {
     metric: "pulse",
-    question:
-      "Walk me through my pulse readings — is anything out of the ordinary?",
+    question: "insights.coach.seed.pulse",
   },
   restingHr: {
     metric: "resting_hr",
-    question:
-      "How has my resting heart rate been trending, and what does it say about my fitness?",
+    question: "insights.coach.seed.restingHr",
   },
   hrv: {
     metric: "hrv",
-    question:
-      "What is my heart-rate variability telling me about recovery and stress lately?",
+    question: "insights.coach.seed.hrv",
   },
   sleep: {
     metric: "sleep",
-    question:
-      "Walk me through my recent sleep — duration, consistency, and anything worth changing.",
+    question: "insights.coach.seed.sleep",
   },
   mood: {
     metric: "mood",
-    question: "What patterns do you see in my mood over the last few weeks?",
+    question: "insights.coach.seed.mood",
   },
   medications: {
     metric: "compliance",
-    question:
-      "How is my medication adherence looking, and is it lined up with how I've been feeling?",
+    question: "insights.coach.seed.medications",
   },
   steps: {
     metric: "steps",
-    question:
-      "How active have I been lately based on my steps, and how does it compare to a healthy baseline?",
+    question: "insights.coach.seed.steps",
   },
   activeEnergy: {
     metric: "active_energy",
-    question:
-      "What does my active-energy trend say about my activity level lately?",
+    question: "insights.coach.seed.activeEnergy",
   },
   cardioFitness: {
     metric: "vo2_max",
-    question:
-      "What does my cardio fitness (VO₂ max) trend mean, and how do I move it in the right direction?",
+    question: "insights.coach.seed.cardioFitness",
   },
   bloodGlucose: {
     metric: "glucose",
-    question:
-      "Walk me through my recent glucose readings — are they in a healthy range?",
+    question: "insights.coach.seed.bloodGlucose",
   },
   oxygenSaturation: {
     metric: "spo2",
-    question: "What does my blood-oxygen (SpO₂) trend tell me?",
+    question: "insights.coach.seed.oxygenSaturation",
   },
   respiratoryRate: {
     metric: "respiratory_rate",
-    question: "What does my respiratory-rate trend say about my health?",
+    question: "insights.coach.seed.respiratoryRate",
   },
   workouts: {
     metric: "workouts",
-    question:
-      "Walk me through my recent workouts — load, frequency, and how I'm recovering between them.",
+    question: "insights.coach.seed.workouts",
   },
   // Recovery is a synthesis page; anchor on HRV + resting HR + sleep so the
   // Coach reads the inputs that drive the recovery read.
@@ -125,8 +113,7 @@ const EXPLAINER_METRIC_SCOPE: Record<string, CoachMetricScope> = {
     metric: "hrv",
     also: ["resting_hr", "sleep"],
     window: "last7days",
-    question:
-      "Why is my recovery where it is right now, and what's driving it?",
+    question: "insights.coach.seed.recoveryPage",
   },
 };
 

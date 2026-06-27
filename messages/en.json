@@ -238,7 +238,7 @@
     },
     "cycle": "Cycle",
     "labs": "Labs",
-    "vorsorge": "Preventive Care",
+    "vorsorge": "Checkups",
     "illness": "Illness"
   },
   "auth": {
@@ -511,6 +511,7 @@
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "dailyTotalCaption": "({count} samples)",
+    "openMetricInsights": "Open {type} insights",
     "sleepNapCaption": "+{count} nap(s)",
     "sleepAwakeningsCaption": "{count} awakening(s)",
     "expandDay": "Show samples for this day",
@@ -1945,7 +1946,6 @@
     "confidenceMittel": "Medium",
     "confidenceGering": "Low",
     "loadError": "Failed to load insights",
-    "heroGenerated": "Generated {time}",
     "heroPersonalBaseline": "Based on your last 90 days",
     "heroRegenerate": "Regenerate",
     "heroRegenerating": "Regenerating",
@@ -1957,7 +1957,6 @@
     "narrativeMonth": "This month",
     "narrativePreparing": "Preparing your summary…",
     "narrativeUpdating": "Updating…",
-    "narrativeUpdated": "Updated {time}",
     "narrativeProvenanceLabel": "How this was put together",
     "narrativeProvenanceMethod": "A plain-language summary of the period, drawn only from your logged numbers and the associations that survived statistical multiple-comparison control. Descriptive, never a cause.",
     "narrativeProvenanceMetrics": "Based on: {metrics}",
@@ -2098,6 +2097,9 @@
       "composerPlaceholder": "Ask anything about your data…",
       "nudgeBubbleLabel": "New message from the Coach — open chat",
       "fabLabel": "Open the Coach",
+      "readAloud": "Read aloud",
+      "readAloudStop": "Stop reading",
+      "messageTimeLabel": "Message sent {time}",
       "selfContextAdopt": {
         "offer": "Add this answer to your self-context?",
         "confirm": "Add",
@@ -2320,6 +2322,33 @@
         "groupYesterday": "Yesterday",
         "groupThisWeek": "This week",
         "groupEarlier": "Earlier"
+      },
+      "seed": {
+        "bloodPressure": "Walk me through my blood pressure trend over the last 30 days — anything I should keep an eye on?",
+        "weight": "How has my weight been trending lately, and is the direction something to act on?",
+        "bmi": "What does my BMI trend tell me, and how should I read it?",
+        "pulse": "Walk me through my pulse readings — is anything out of the ordinary?",
+        "restingHr": "How has my resting heart rate been trending, and what does it say about my fitness?",
+        "hrv": "What is my heart-rate variability telling me about recovery and stress lately?",
+        "sleep": "Walk me through my recent sleep — duration, consistency, and anything worth changing.",
+        "mood": "What patterns do you see in my mood over the last few weeks?",
+        "medications": "How is my medication adherence looking, and is it lined up with how I've been feeling?",
+        "steps": "How active have I been lately based on my steps, and how does it compare to a healthy baseline?",
+        "activeEnergy": "What does my active-energy trend say about my activity level lately?",
+        "cardioFitness": "What does my cardio fitness (VO₂ max) trend mean, and how do I move it in the right direction?",
+        "bloodGlucose": "Walk me through my recent glucose readings — are they in a healthy range?",
+        "oxygenSaturation": "What does my blood-oxygen (SpO₂) trend tell me?",
+        "respiratoryRate": "What does my respiratory-rate trend say about my health?",
+        "workouts": "Walk me through my recent workouts — load, frequency, and how I'm recovering between them.",
+        "recoveryPage": "Why is my recovery where it is right now, and what's driving it?",
+        "briefing": "Walk me through today's briefing — what should I focus on, and is anything worth acting on?",
+        "healthScore": "Why is my health score {score} out of 100, and what would move it the most?",
+        "periodWeek": "Walk me through how my last week went across my health metrics — what stands out?",
+        "periodMonth": "Walk me through how my last month went across my health metrics — what stands out?",
+        "correlationBpCompliance": "How does my medication adherence relate to my blood pressure? Walk me through what this correlation means for me.",
+        "correlationMoodPulse": "Is there a real link between my mood and my pulse? Help me read this correlation.",
+        "correlationWeightWeekday": "Does my weight follow a weekly pattern? What does this day-of-week correlation tell me?",
+        "recommendation": "Tell me more about this recommendation: \"{text}\" — why does it apply to me, and what should I do about it?"
       }
     },
     "relativeJustNow": "just now",
@@ -3240,6 +3269,7 @@
       },
       "vitals": {
         "sectionTitle": "Your vitals",
+        "sectionSubtitle": "Resting cardiovascular and respiratory signals against your own baseline",
         "loadingLabel": "Loading your vitals",
         "loadError": "Could not load your vitals right now.",
         "building": "Building your typical range — {count} of {target} days",
@@ -3366,6 +3396,7 @@
       },
       "scores": {
         "sectionTitle": "Your health scores",
+        "sectionSubtitle": "Composite recovery, stress and strain read from your connected devices",
         "loadError": "Could not load your wellness scores right now.",
         "recovery": "Recovery",
         "stress": "Stress",
@@ -3611,7 +3642,10 @@
       "returnLabel": "Your {metric} has been back inside your usual range for {count} days now — whatever that was, it's passed.",
       "daysInside": "{count} days inside",
       "daysOutside": "{count} days outside"
-    }
+    },
+    "updatedTodayAt": "Updated today, {time}",
+    "updatedYesterday": "Updated yesterday",
+    "updatedOn": "Updated on {date}"
   },
   "thresholds": {
     "defaultLabel": "Default",
@@ -3677,8 +3711,8 @@
           "body": "The illness journal records acute episodes and chronic diagnoses with their flares. Hidden: correlate an episode with your readings, and Rest Mode that pauses reminders. That’s how the Coach understands why values drift for a while."
         },
         "vorsorge": {
-          "title": "Preventive care",
-          "body": "Preventive care reminds you of check-ups and vaccinations on their own interval. Tip: “Done” can create a reading or a lab result directly. Due items appear as reminders and in the doctor report."
+          "title": "Checkups",
+          "body": "Checkups remind you of screenings and vaccinations on their own interval. Tip: “Done” can create a reading or a lab result directly. Due items appear as reminders and in the doctor report."
         },
         "cycle": {
           "title": "Cycle",
@@ -3702,7 +3736,7 @@
         },
         "export": {
           "title": "Doctor report",
-          "body": "The doctor report bundles readings, medications, lab values, and preventive care as PDF or FHIR for the appointment. This is where every module converges — a complete report only comes from well-kept data."
+          "body": "The doctor report bundles readings, medications, lab values, and checkups as PDF or FHIR for the appointment. This is where every module converges — a complete report only comes from well-kept data."
         },
         "achievements": {
           "title": "Achievements",
@@ -4132,8 +4166,8 @@
         "subtitle": "Manage the view and order of episodes."
       },
       "vorsorge": {
-        "title": "Preventive care",
-        "description": "View, order, and individual preventive-care reminders.",
+        "title": "Checkups",
+        "description": "View, order, and individual checkup reminders.",
         "subtitle": "Manage the view, order, and individual reminders."
       },
       "modules": {
@@ -4413,6 +4447,28 @@
         "clearedToast": "Forgot {count} stored facts.",
         "clearError": "Could not clear the stored facts. Please try again."
       },
+      "coachReminders": {
+        "title": "Your reminders",
+        "description": "Things you asked the Coach to bring back later. Due ones show up here and on the Coach.",
+        "empty": "No reminders yet. Ask the Coach to remind you about something and it will appear here.",
+        "loadError": "Could not load your reminders.",
+        "dueHeading": "Due now",
+        "allHeading": "Saved",
+        "duePrefix": "due {when}",
+        "confirm": "Keep",
+        "markDone": "Done",
+        "dismiss": "Dismiss",
+        "deleteAria": "Delete this reminder",
+        "note": "Reminders are stored encrypted. Delete one any time — it is removed from what the Coach can see.",
+        "status": {
+          "proposed": "Suggested",
+          "active": "Saved",
+          "due": "Due",
+          "surfaced": "Surfaced",
+          "done": "Done",
+          "dismissed": "Dismissed"
+        }
+      },
       "aboutMe": {
         "title": "About me",
         "description": "Personal context the Coach and the daily briefing read alongside your data.",
@@ -4436,7 +4492,24 @@
         "completeness": "{answered} of {total} answered",
         "questionsTitle": "The Coach has follow-up questions",
         "questionsOpenCoach": "Answer them in the Coach"
-      }
+      },
+      "responseTimeoutHeading": "Response timeout",
+      "responseTimeoutBody": "How long to wait for the AI to respond before giving up. Raise it for a local or self-hosted model that needs time to load on the first request.",
+      "responseTimeoutLabel": "Response timeout (seconds)",
+      "responseTimeoutPlaceholder": "Default (~180)",
+      "responseTimeoutInvalid": "Enter a number between 10 and 600 seconds.",
+      "ocrHeading": "Document scanning (lab reports)",
+      "ocrBody": "Use a dedicated provider for reading uploaded lab reports. When off, scanning uses your main provider.",
+      "ocrEnableLabel": "Enable a dedicated document-scanning provider",
+      "ocrProviderLabel": "Scanning provider",
+      "ocrProviderOption": {
+        "OPENAI": "OpenAI (your API key)",
+        "ANTHROPIC": "Anthropic (Claude)",
+        "LOCAL": "Local model (OpenAI-compatible)"
+      },
+      "ocrModelPlaceholder": "e.g. gpt-4o",
+      "ocrVisionHint": "This model may not be able to read images. Choose a vision-capable model for document scanning.",
+      "ocrKeyLabel": "API key"
     },
     "dashboard": {
       "units": {
@@ -4663,6 +4736,8 @@
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources & docs",
+      "identityDescription": "Version, license, and build details for this instance.",
+      "linksDescription": "Source code, changelog, and documentation.",
       "newerAvailable": "Newer version: {tag}"
     },
     "testConnection": {
@@ -6483,13 +6558,13 @@
     "selectionBarLabel": "Selection actions"
   },
   "measurementReminders": {
-    "sectionTitle": "Preventive care",
+    "sectionTitle": "Checkups",
     "sectionDescription": "Reminders for what to measure or check, when, and where.",
     "addButton": "Add reminder",
     "markDone": "Done",
     "delete": "Delete",
     "deleteConfirmTitle": "Delete reminder?",
-    "deleteConfirmDescription": "This preventive-care reminder will be permanently deleted.",
+    "deleteConfirmDescription": "This checkup reminder will be permanently deleted.",
     "disabledBadge": "Off",
     "nextDue": {
       "none": "Not scheduled",
@@ -6551,7 +6626,7 @@
       "rruleHint": "RFC-5545, e.g. FREQ=YEARLY for an annual check.",
       "firstDue": "First due (optional)"
     },
-    "pushTitle": "Preventive-care reminder",
+    "pushTitle": "Checkup reminder",
     "pushBody": "Time for: {label}",
     "pushLocation": "(at {location})",
     "edit": "Edit",
@@ -6562,7 +6637,7 @@
     "measureNow": "Measure now",
     "nextDueLabel": "Next due:",
     "lastDoneLabel": "Last done:",
-    "customize": "Customize preventive care",
+    "customize": "Customize checkups",
     "adherence": {
       "label": "Within interval",
       "onTrack": "On track",
@@ -6578,8 +6653,8 @@
       "empty": "No reminders to customize yet."
     },
     "dashboard": {
-      "empty": "No upcoming preventive-care reminders.",
-      "openLink": "Open preventive care"
+      "empty": "No upcoming checkup reminders.",
+      "openLink": "Open checkups"
     },
     "showMeasurements": "Show measurements"
   },
@@ -6720,7 +6795,14 @@
         "savedToast": "Biomarker saved",
         "updatedToast": "Biomarker updated",
         "saveError": "Could not save the biomarker"
-      }
+      },
+      "hide": "Hide",
+      "unhide": "Restore",
+      "hiddenToast": "Biomarker hidden",
+      "unhiddenToast": "Biomarker restored",
+      "hideError": "Could not update the biomarker",
+      "allHidden": "Every biomarker is hidden.",
+      "hiddenSection": "Hidden"
     },
     "catalog": {
       "total-cholesterol": "Total cholesterol",
@@ -7039,6 +7121,25 @@
         "weightDaily": "Weigh yourself daily, around the same time",
         "bp722": "Measure your blood pressure twice a day for a week",
         "glucoseStructured": "Test your glucose on a structured daily schedule"
+      }
+    },
+    "suggestedAction": {
+      "apply": "Add",
+      "dismiss": "Not now",
+      "applied": "Added",
+      "dismissed": "Dismissed",
+      "failed": "Couldn't add that — please try again",
+      "checkup": {
+        "title": "Add a check-up reminder?"
+      },
+      "note": {
+        "title": "Save a reminder?"
+      },
+      "interval": {
+        "yearly": "Every year",
+        "halfYearly": "Every six months",
+        "quarterly": "Every three months",
+        "monthly": "Every month"
       }
     },
     "settings": {

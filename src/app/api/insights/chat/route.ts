@@ -30,7 +30,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
 import { apiError, apiSuccess } from "@/lib/api-response";
-import { annotate } from "@/lib/logging/context";
+import { annotate, getEvent } from "@/lib/logging/context";
+import { redactOptional, redactSecrets } from "@/lib/logging/redact";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -40,7 +41,7 @@ import { requireModuleEnabled } from "@/lib/modules/gate";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import {
   AllProvidersFailedError,
-  runRawCompletionWithFallback,
+  runStreamingRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
 import { resolveProviderChain, resolveProvider } from "@/lib/ai/provider";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
@@ -72,6 +73,11 @@ import {
   coachOutboundFallback,
 } from "@/lib/ai/coach/outbound-guard";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
+import {
+  openerArchetypeHint,
+  shouldUseNameForTurn,
+  firstNameFromDisplayName,
+} from "@/lib/ai/prompts/opener-archetype";
 import { getSelfContextTextForUser } from "@/lib/ai/coach/about-me";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
 import {
@@ -93,6 +99,16 @@ import {
 import { scrubUnknownLearnLinks } from "@/lib/ai/coach/learn-link-guard";
 import { parseSuggestReminder } from "@/lib/ai/coach/suggest-reminder";
 import { gateSuggestion } from "@/lib/ai/coach/suggest-gate";
+import {
+  parseRememberSentinel,
+  captureReminderFromSentinel,
+  buildRememberAddendum,
+} from "@/lib/ai/coach/reminders";
+import {
+  parseSuggestAction,
+  buildSuggestActionAddendum,
+  type CoachSuggestedAction,
+} from "@/lib/ai/coach/suggest-action";
 import {
   parseCoachPrefs,
   DEFAULT_REMINDER_SUGGESTION_PREFS,
@@ -118,6 +134,17 @@ const SSE_HEADERS: Record<string, string> = {
 function encodeFrame(event: CoachStreamEvent): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
 }
+
+/**
+ * v1.22 (#89) — keepalive heartbeat. An SSE COMMENT frame (a line starting
+ * with `:`) carries no `data:` payload, so the Coach client's frame parser
+ * (`parseSseChunk` finds the `data:` line; a comment frame has none) drops it
+ * silently — exactly what a keepalive should be. Flushed on `HEARTBEAT_MS`
+ * while the provider is still loading the model / generating, so a reverse
+ * proxy never idle-drops the long-lived SSE connection.
+ */
+const HEARTBEAT_MS = 12_000;
+const HEARTBEAT_FRAME = new TextEncoder().encode(": ka\n\n");
 
 /**
  * Split a full assistant reply into ~roughly-word-sized chunks so the
@@ -356,9 +383,24 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // we don't accidentally widen narrow per-call scopes.
   const prefsRow = await prisma.user.findUnique({
     where: { id: userId },
-    select: { coachPrefsJson: true },
+    select: {
+      coachPrefsJson: true,
+      displayName: true,
+      // v1.22 (#89) — per-user response timeout (seconds), mainly for slow
+      // local/self-hosted backends. Threaded onto the provider call below.
+      aiResponseTimeoutSeconds: true,
+    },
   });
   const coachPrefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
+  // v1.22 (#89) — the upstream timeout for THIS turn's provider call. On the
+  // streaming (local) path it is the per-idle-gap ceiling; on the buffered path
+  // it is the whole-call ceiling. A generous ~180 s default replaces the legacy
+  // 60 s client default that timed the Coach out on an MLX/exo backend whose
+  // first request loads the model. Clamped to sane bounds at write-time.
+  const aiResponseTimeoutMs =
+    prefsRow?.aiResponseTimeoutSeconds != null
+      ? prefsRow.aiResponseTimeoutSeconds * 1000
+      : 180_000;
   const effectiveScope =
     scope?.window === undefined && coachPrefs.defaultWindow
       ? { ...(scope ?? {}), window: coachPrefs.defaultWindow }
@@ -371,7 +413,24 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // v1.16.0 — composed self-context: structured questionnaire fields
   // plus age/gender merged in from the User profile.
   const aboutMe = await getSelfContextTextForUser(userId, locale);
-  const systemPrompt = getCoachSystemPrompt(locale, coachPrefs, aboutMe);
+  // v1.22 (B2/F6) — the canonical system-prompt module is owned elsewhere, so
+  // the two memory/action clauses are appended at assembly time here: one
+  // teaches the model to emit `---REMEMBER---` (durable "remind me" capture),
+  // one teaches the closed `---SUGGEST-ACTION---` confirm-card allowlist. Both
+  // are provider-neutral sentinels stripped from the prose before it streams.
+  // v1.22 (W6) — per-turn personalization: a sparse, hash-gated first name and
+  // an opener-archetype hint so multi-turn sessions vary. The turn index is the
+  // count of prior turns, so the name surfaces on ~1-in-3 turns, varied and
+  // never on a fixed cadence; both omit cleanly when no display name is set.
+  const turnIndex = priorTurns.length;
+  const firstName = firstNameFromDisplayName(prefsRow?.displayName ?? null);
+  const coachPersonalization = {
+    firstName,
+    mayUseName:
+      firstName != null && shouldUseNameForTurn(`${userId}:${turnIndex}`),
+    openerHint: openerArchetypeHint(`${userId}:${turnIndex}`, locale),
+  };
+  const systemPrompt = `${getCoachSystemPrompt(locale, coachPrefs, aboutMe, coachPersonalization)}\n\n${buildRememberAddendum(locale)}\n\n${buildSuggestActionAddendum(locale)}`;
   const allTurns: CoachTurn[] = [
     ...priorTurns,
     { role: "user", content: message },
@@ -529,508 +588,665 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     return streamProviderError({ code: "coach.budget.exceeded" });
   }
 
-  let result: CompletionResult;
-  let workingProviderType: string;
-  let toolTrace: CoachToolTrace[] = [];
-  // v1.21.0 (P6) — the present tool-result payloads this turn, for the post-hoc
-  // prose number-verifier. Empty on the no-tools path.
-  let toolResultPayloads: unknown[] = [];
-  // v1.21.2 (A8) — no-tools/local-provider parity for the prose number-verifier.
-  // The tool path grades prose against the figures the tools returned; the
-  // no-tools path has no tools, so the authoritative set is the SNAPSHOT the
-  // model was actually shown this turn — `snapshot.sections`, the structured
-  // record `snapshotJson` is serialised from, which already carries the
-  // correlations-snapshot block. Populated only when the full figures were
-  // delivered this turn (`includeFullSnapshot`); on a cheap follow-up the block
-  // was not re-sent, so there is no fresh authoritative set to grade against.
-  let noToolsSnapshotPayloads: unknown[] = [];
-  let totalTokensSpent: number;
-  // v1.21.0 (F3) — cached-input tokens to subtract at reconcile (prompt-cached
-  // input the user did not re-pay for must not be billed to the daily meter).
-  let cachedTokensSpent = 0;
-  try {
-    if (toolMode) {
-      // v1.20.0 (F1) — base context: the full system prompt + a tool-mode
-      // grounding addendum, with the tiny DATA INVENTORY manifest and the
-      // transcript on the user turn. The figures are NOT in the prompt — the
-      // model pulls only what it needs via the retrieval tools. The inventory
-      // build reuses the snapshot we already computed (60s LRU), so the tools
-      // that fire this turn share its reads.
-      const inventory = await buildCoachDataInventory(userId, effectiveScope);
-      const toolSystem = `${systemPrompt}\n\n${buildToolModeAddendum(locale)}`;
-      // v1.21.0 (D1) — when the Coach was opened from a metric page/card, thread
-      // the launch sources into a one-line FOCUS hint so tool mode honours the
-      // metric the user is looking at (the no-tools path already narrows the
-      // snapshot; the inventory probes the full set, so this is the tool-mode
-      // equivalent of that narrowing). Empty string on a generic open.
-      const focusHint = renderFocusHint(effectiveScope?.sources);
-      const focusBlock = focusHint ? `${focusHint}\n\n` : "";
-      const messages: AiMessage[] = [
-        {
-          role: "user",
-          content: `${focusBlock}${renderDataInventory(inventory)}${guidedBlock}
+  // v1.22 (#89) — the provider call + every safety guard + persistence run
+  // INSIDE the SSE stream now (see `produceReply` + the heartbeat-fronted
+  // emit below). This is the real fix for a slow local backend: the HTTP
+  // response headers flush immediately, a keepalive comment frame goes out
+  // every few seconds while the model is still loading / generating so the
+  // reverse proxy never idle-drops the connection, and the no-tools (local)
+  // path streams real provider tokens with a per-idle-gap timeout instead of
+  // one buffered fetch under a total-timeout. Client-visible token frames
+  // still carry the FULLY-GUARDED text — every guard runs on the complete
+  // reply before the first token frame leaves, exactly as before.
+  type ReplyOutcome =
+    | {
+        ok: true;
+        replyText: string;
+        provenance: typeof snapshot.provenance;
+        suggestion: CoachSuggestion | null;
+        action: CoachSuggestedAction | null;
+        messageId: string;
+        totalTokens: number;
+        model: string | null;
+      }
+    | { ok: false; code: string };
+
+  async function produceReply(): Promise<ReplyOutcome> {
+    let result: CompletionResult;
+    let workingProviderType: string;
+    let toolTrace: CoachToolTrace[] = [];
+    // v1.21.0 (P6) — the present tool-result payloads this turn, for the post-hoc
+    // prose number-verifier. Empty on the no-tools path.
+    let toolResultPayloads: unknown[] = [];
+    // v1.21.2 (A8) — no-tools/local-provider parity for the prose number-verifier.
+    // The tool path grades prose against the figures the tools returned; the
+    // no-tools path has no tools, so the authoritative set is the SNAPSHOT the
+    // model was actually shown this turn — `snapshot.sections`, the structured
+    // record `snapshotJson` is serialised from, which already carries the
+    // correlations-snapshot block. Populated only when the full figures were
+    // delivered this turn (`includeFullSnapshot`); on a cheap follow-up the block
+    // was not re-sent, so there is no fresh authoritative set to grade against.
+    let noToolsSnapshotPayloads: unknown[] = [];
+    let totalTokensSpent: number;
+    // v1.21.0 (F3) — cached-input tokens to subtract at reconcile (prompt-cached
+    // input the user did not re-pay for must not be billed to the daily meter).
+    let cachedTokensSpent = 0;
+    try {
+      if (toolMode) {
+        // v1.20.0 (F1) — base context: the full system prompt + a tool-mode
+        // grounding addendum, with the tiny DATA INVENTORY manifest and the
+        // transcript on the user turn. The figures are NOT in the prompt — the
+        // model pulls only what it needs via the retrieval tools. The inventory
+        // build reuses the snapshot we already computed (60s LRU), so the tools
+        // that fire this turn share its reads.
+        const inventory = await buildCoachDataInventory(userId, effectiveScope);
+        const toolSystem = `${systemPrompt}\n\n${buildToolModeAddendum(locale)}`;
+        // v1.21.0 (D1) — when the Coach was opened from a metric page/card, thread
+        // the launch sources into a one-line FOCUS hint so tool mode honours the
+        // metric the user is looking at (the no-tools path already narrows the
+        // snapshot; the inventory probes the full set, so this is the tool-mode
+        // equivalent of that narrowing). Empty string on a generic open.
+        const focusHint = renderFocusHint(effectiveScope?.sources);
+        const focusBlock = focusHint ? `${focusHint}\n\n` : "";
+        const messages: AiMessage[] = [
+          {
+            role: "user",
+            content: `${focusBlock}${renderDataInventory(inventory)}${guidedBlock}
 
 CONVERSATION
 ${transcript}
 
 Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch any figures you cite with the tools first.`,
-        },
-      ];
-      const loop = await runCoachToolLoop({
-        userId,
-        providers: chain,
-        system: toolSystem,
-        messages,
-        tools: COACH_TOOL_DEFS,
-        temperature: AI_BUDGETS.coach.temperature,
-        maxTokens: AI_BUDGETS.coach.maxTokens,
-        fallbackWindow: effectiveScope?.window,
-        // v1.21.0 (D5-1) — share the inventory's full-source snapshot across
-        // every tool so the turn builds ONE snapshot, not one per tool. The
-        // probe scope is the exact scope the inventory was built against, so the
-        // per-tool reads land its 60s LRU entry.
-        sharedScope: inventory.probeScope,
-        // v1.20.1 — thread the abort signal so a mid-generation disconnect tears
-        // down the per-round provider calls instead of paying the full cost.
-        signal: request.signal,
-      });
-      result = loop.result;
-      workingProviderType = loop.workingProviderType;
-      toolTrace = loop.toolTrace;
-      toolResultPayloads = (loop.toolResults ?? []).map((r) => r.data);
-      totalTokensSpent = loop.totalTokens;
-      cachedTokensSpent = loop.cachedTokens;
-    } else {
-      const fallback = await runRawCompletionWithFallback({
-        userId,
-        providers: chain,
-        // v1.20.0 — the no-tools path still builds one assembled user turn (the
-        // transcript-flattening preserves the once-per-conversation snapshot
-        // trick + grounding exactly), so it ships as a single user message. The
-        // stable persona/grounding rides `system` and is now cache-eligible.
-        params: singleUserTurn({
-          system: systemPrompt,
-          user: userPrompt,
+          },
+        ];
+        const loop = await runCoachToolLoop({
+          userId,
+          providers: chain,
+          system: toolSystem,
+          messages,
+          tools: COACH_TOOL_DEFS,
           temperature: AI_BUDGETS.coach.temperature,
           maxTokens: AI_BUDGETS.coach.maxTokens,
-          // v1.20.1 — thread the request's abort signal so a mid-generation
-          // client disconnect tears the upstream provider call down instead of
-          // paying the full token cost into a closed connection.
+          fallbackWindow: effectiveScope?.window,
+          // v1.21.0 (D5-1) — share the inventory's full-source snapshot across
+          // every tool so the turn builds ONE snapshot, not one per tool. The
+          // probe scope is the exact scope the inventory was built against, so the
+          // per-tool reads land its 60s LRU entry.
+          sharedScope: inventory.probeScope,
+          // v1.20.1 — thread the abort signal so a mid-generation disconnect tears
+          // down the per-round provider calls instead of paying the full cost.
           signal: request.signal,
-        }),
-      });
-      result = fallback.result;
-      workingProviderType = fallback.workingProvider.providerType;
-      totalTokensSpent = result.tokensUsed ?? 0;
-      cachedTokensSpent = result.cachedInputTokens ?? 0;
-      // v1.21.2 (A8) — the no-tools path showed the model the full SNAPSHOT only
-      // when `includeFullSnapshot` was set; otherwise it shipped the
-      // grounded-elsewhere pointer with no fresh figures, so there is nothing to
-      // grade. When figures WERE delivered, the authoritative set is the
-      // structured snapshot record (incl. the correlations block).
-      if (includeFullSnapshot) {
-        noToolsSnapshotPayloads = [snapshot.sections];
-      }
-    }
-  } catch (err) {
-    // The provider chain failed outright — no tokens were billed, so refund
-    // the full reservation before surfacing the error frame.
-    await reconcileSpend(userId, reservation.reserved, 0, reqDateKey).catch(
-      () => {},
-    );
-    if (err instanceof AllProvidersFailedError) {
-      annotate({
-        action: { name: "insights.coach.providerFailed" },
-        meta: {
-          attempts: err.attempts.length,
-          firstStatus: err.attempts[0]?.httpStatus ?? null,
-          credentialExpired: err.primaryCredentialExpired,
-        },
-      });
-      // v1.11.0 W1 — when the user's PRIMARY provider failed with an
-      // auth-class status (401/403), the credential is dead, not the
-      // service. Surface a distinct `credential_expired` frame so the
-      // drawer can deep-link the user to reconnect rather than telling
-      // them to "try again later" — the gap that let an expired codex
-      // token silently kill all generation.
-      if (err.primaryCredentialExpired) {
-        return streamProviderError({
-          code: "coach.provider.credential_expired",
+          // v1.22 (#89) — per-user response timeout for each tool-round call.
+          timeoutMs: aiResponseTimeoutMs,
         });
-      }
-      // v1.4.25 W5 — distinguish provider rate-limit (every attempt
-      // landed on 429) from generic unavailability. The drawer's
-      // error-decoder surfaces the rate-limit copy with a warning
-      // toast instead of the generic provider-down message, so the
-      // user understands the limit is transient.
-      const allRateLimited =
-        err.attempts.length > 0 &&
-        err.attempts.every((a) => a.httpStatus === 429);
-      return streamProviderError({
-        code: allRateLimited
-          ? "coach.provider.rate_limited"
-          : "coach.provider.unavailable",
-      });
-    }
-    // v1.21.3 — defence in depth. The chain runner wraps every hard provider
-    // failure in `AllProvidersFailedError`, but a provider client can still
-    // throw a tagged wire error that reaches here un-wrapped (e.g. a Codex 400
-    // raised mid tool-loop on a path the chain runner did not catch). Such an
-    // error is a PROVIDER failure, not a server bug — surface the same graceful
-    // `coach.provider.*` frame the chain path uses rather than rethrowing into
-    // an HTTP 500 (the bug that took the live Coach down for codex users). Only
-    // a genuinely unexpected error (no upstream tag, no httpStatus) keeps the
-    // 500 + GlitchTip path so real defects stay visible.
-    const providerError = classifyBubblingProviderError(err);
-    if (providerError) {
-      annotate({
-        action: { name: "insights.coach.providerFailed" },
-        meta: {
-          attempts: 1,
-          firstStatus: providerError.httpStatus,
-          credentialExpired: providerError.code === "credential_expired",
-          unwrapped: true,
-        },
-      });
-      return streamProviderError({
-        code: `coach.provider.${providerError.code}`,
-      });
-    }
-    throw err;
-  }
-
-  // v1.18.7 (SENIOR-DEV MEDIUM) — the provider call returned, so its tokens
-  // were billed regardless of reply quality. Reconcile the reservation
-  // against the actual count NOW, before any empty/sentinel short-circuit, so
-  // an empty or sentinel-only reply still records its burned cost (the old
-  // post-hoc `recordSpend` ran only on the happy path, undercounting these).
-  // v1.20.0 (F1) — reconcile against the SUMMED tokens across every tool round
-  // (the loop accumulates them); the no-tools path sums to the single call.
-  await reconcileSpend(
-    userId,
-    reservation.reserved,
-    totalTokensSpent,
-    reqDateKey,
-    cachedTokensSpent,
-  ).catch(() => {
-    // Ledger reconcile is best-effort; a failure leaves the conservative
-    // reservation in place (never an undercount) and never breaks the turn.
-  });
-
-  const rawReply = (result.content ?? "").trim();
-  if (!rawReply) {
-    return streamProviderError({ code: "coach.provider.empty" });
-  }
-
-  // v1.4.22 — strip the optional `---KEYVALUES---` … `---END---`
-  // sentinel out of the prose. The stripped prose is what we stream
-  // to the client and persist; the parsed entries enrich the
-  // provenance envelope so the UI can render the collapsible
-  // "Worauf bezieht sich das?" disclosure.
-  const sentinel = parseKeyValuesSentinel(rawReply);
-  const proseAfterStrip = sentinel.prose.trim();
-  // v1.4.22 W5 reconcile (Code-H1) — when the model emits a
-  // sentinel-only / malformed reply, `sentinel.prose` is empty after
-  // stripping. The previous fallback `sentinel.prose.trim() || rawReply`
-  // surfaced raw `---KEYVALUES---` markers to the user. The empty-prose
-  // condition signals an unusable provider response: short-circuit to
-  // the structured `coach.provider.empty` error frame instead of
-  // streaming the raw sentinel body.
-  if (!proseAfterStrip) {
-    annotate({
-      action: { name: "coach.keyvalues.parse_failed" },
-      meta: {
-        kept: sentinel.keyValues.length,
-        reason: "empty_prose_after_strip",
-        promptVersion: PROMPT_VERSION,
-      },
-    });
-    return streamProviderError({ code: "coach.provider.empty" });
-  }
-  // v1.18.1 (Workstream C) — strip the optional `---SUGGEST-REMINDER---`
-  // block out of the prose-after-keyvalues. The model proposes a cadence;
-  // the gate decides whether it actually surfaces (module-toggle + opt-out
-  // + dismissal memory + cooldown + dedup against a live COACH reminder).
-  // A suppressed proposal leaves the prose unchanged and emits no card.
-  const suggestParse = parseSuggestReminder(proseAfterStrip);
-  let replyText = suggestParse.prose.trim() || proseAfterStrip;
-
-  // v1.18.10 (HIGH-2) — OUTBOUND safety screen on the assembled assistant
-  // reply, before persistence and streaming. The inbound `detectRefusal`
-  // guards the user's message; this guards the model's reply for a
-  // dose-prescription or a fabricated clinical risk score that slipped past
-  // the system-prompt GLP-1/grounding contracts. On a trip the turn is
-  // replaced with a calm, grounded fallback and any reminder suggestion /
-  // key-value provenance is dropped — the user never sees the unsafe text.
-  const outbound = screenCoachReply(replyText);
-  if (outbound.block && outbound.reason) {
-    replyText = coachOutboundFallback(outbound.reason, locale);
-    annotate({
-      action: { name: "insights.coach.outbound_blocked" },
-      meta: { reason: outbound.reason, promptVersion: PROMPT_VERSION },
-    });
-    await auditLog("insights.coach.outbound_blocked", {
-      userId,
-      details: {
-        conversationId: workingConversationId,
-        reason: outbound.reason,
-      },
-    });
-  }
-
-  // v1.21.0 (P6 / C2-5) — post-hoc numeric verifier on the Coach prose. Cross-
-  // check every number the model cited against this turn's authoritative figure
-  // set; an unmatched number (transcription / paraphrase drift) is soft-stripped
-  // to "[unverified]" and annotated. Cheap, non-blocking, and a no-op when there
-  // is no authoritative set — the prompt-level grounding rule remains the
-  // backstop, exactly like the briefing's "no signals → skip". A blocked turn
-  // already carries canned fallback prose, so skip it.
-  //
-  // v1.21.2 (A8) — the authoritative set is the figures the tools returned on the
-  // tool path, and the SNAPSHOT the model was shown on the no-tools/local path
-  // (`snapshot.sections`, which already carries the correlations-snapshot block).
-  // Exactly one is populated per turn; the grading, tolerance, and exemptions are
-  // identical, so a number the model invents is flagged the same way on both.
-  const authoritativePayloads =
-    toolResultPayloads.length > 0
-      ? toolResultPayloads
-      : noToolsSnapshotPayloads;
-  if (!outbound.block && authoritativePayloads.length > 0) {
-    const unverified = findUnverifiedCoachNumbers(
-      replyText,
-      authoritativePayloads,
-    );
-    if (unverified.length > 0) {
-      const { prose: corrected, stripped } = stripUnverifiedNumbers(
-        replyText,
-        unverified,
-      );
-      replyText = corrected;
-      annotate({
-        action: { name: "coach.prose.number_unverified" },
-        meta: {
-          flagged: unverified.length,
-          stripped,
-          // No raw values — just the count + truncated tokens for ops triage.
-          tokens: unverified.slice(0, 6).map((u) => u.source),
-          promptVersion: PROMPT_VERSION,
-        },
-      });
-    }
-  }
-
-  // v1.21.0 (NEW-C C-3) — Learn-link post-filter. The prompt instructs the
-  // model to only link a published `/learn/<slug>`, but that is guidance, not
-  // enforcement: a fabricated `/learn/<invented-slug>` would otherwise ship as
-  // a dead link. Scrub any reference whose slug is not in the catalog (a real
-  // one is kept verbatim). A blocked turn carries canned fallback prose with no
-  // links, so skip it.
-  if (!outbound.block && replyText.includes("/learn/")) {
-    const scrubbed = scrubUnknownLearnLinks(replyText);
-    if (scrubbed.dropped.length > 0) {
-      replyText = scrubbed.text;
-      annotate({
-        action: { name: "coach.learn.link_dropped" },
-        meta: {
-          dropped: scrubbed.dropped.length,
-          // Truncated slug tokens for ops triage — no user content.
-          slugs: scrubbed.dropped.slice(0, 6),
-          promptVersion: PROMPT_VERSION,
-        },
-      });
-    }
-  }
-
-  let surfacedSuggestion: CoachSuggestion | null = null;
-  if (!outbound.block && suggestParse.cadence) {
-    const decision = await gateSuggestion({
-      prisma,
-      userId,
-      cadence: suggestParse.cadence,
-      prefs:
-        coachPrefs.reminderSuggestions ?? DEFAULT_REMINDER_SUGGESTION_PREFS,
-    });
-    if (decision.surface) {
-      const cadence = suggestParse.cadence;
-      surfacedSuggestion = {
-        cadenceId: cadence.id,
-        measurementType: cadence.measurementType,
-        label: cadence.labelKey,
-      };
-      // Stamp the cooldown anchor (frequency cap) onto the prefs blob.
-      const nextSuggestionPrefs = {
-        ...(coachPrefs.reminderSuggestions ??
-          DEFAULT_REMINDER_SUGGESTION_PREFS),
-        lastSuggestedAt: new Date().toISOString(),
-      };
-      void prisma.user
-        .update({
-          where: { id: userId },
-          data: {
-            coachPrefsJson: {
-              ...coachPrefs,
-              reminderSuggestions: nextSuggestionPrefs,
-            },
+        result = loop.result;
+        workingProviderType = loop.workingProviderType;
+        toolTrace = loop.toolTrace;
+        toolResultPayloads = (loop.toolResults ?? []).map((r) => r.data);
+        totalTokensSpent = loop.totalTokens;
+        cachedTokensSpent = loop.cachedTokens;
+      } else {
+        // v1.22 (#89) — the no-tools path (local / Ollama / exo, and any chain
+        // that includes a non-tool provider) runs through the STREAMING runner so
+        // the local client emits real tokens as they arrive and the per-idle-gap
+        // timeout governs. `onDelta` counts streamed chunks for observability; the
+        // heartbeat keeps the proxy connection warm and the assembled reply is
+        // returned in full so every guard below still runs on the complete text.
+        let streamedDeltas = 0;
+        const fallback = await runStreamingRawCompletionWithFallback({
+          userId,
+          providers: chain,
+          onDelta: () => {
+            streamedDeltas += 1;
           },
-        })
-        .catch(() => {
-          // Cooldown stamp is best-effort: a write failure at worst lets a
-          // second suggestion through sooner, never breaks the chat turn.
+          // v1.20.0 — the no-tools path still builds one assembled user turn (the
+          // transcript-flattening preserves the once-per-conversation snapshot
+          // trick + grounding exactly), so it ships as a single user message. The
+          // stable persona/grounding rides `system` and is now cache-eligible.
+          params: singleUserTurn({
+            system: systemPrompt,
+            user: userPrompt,
+            temperature: AI_BUDGETS.coach.temperature,
+            maxTokens: AI_BUDGETS.coach.maxTokens,
+            // v1.20.1 — thread the request's abort signal so a mid-generation
+            // client disconnect tears the upstream provider call down instead of
+            // paying the full token cost into a closed connection.
+            signal: request.signal,
+            // v1.22 (#89) — per-idle-gap timeout for the streaming local call /
+            // whole-call timeout for the buffered cloud fallback.
+            timeoutMs: aiResponseTimeoutMs,
+          }),
         });
+        annotate({
+          action: { name: "coach.stream.deltas" },
+          meta: { deltas: streamedDeltas },
+        });
+        result = fallback.result;
+        workingProviderType = fallback.workingProvider.providerType;
+        totalTokensSpent = result.tokensUsed ?? 0;
+        cachedTokensSpent = result.cachedInputTokens ?? 0;
+        // v1.21.2 (A8) — the no-tools path showed the model the full SNAPSHOT only
+        // when `includeFullSnapshot` was set; otherwise it shipped the
+        // grounded-elsewhere pointer with no fresh figures, so there is nothing to
+        // grade. When figures WERE delivered, the authoritative set is the
+        // structured snapshot record (incl. the correlations block).
+        if (includeFullSnapshot) {
+          noToolsSnapshotPayloads = [snapshot.sections];
+        }
+      }
+    } catch (err) {
+      // The provider chain failed outright — no tokens were billed, so refund
+      // the full reservation before surfacing the error frame.
+      await reconcileSpend(userId, reservation.reserved, 0, reqDateKey).catch(
+        () => {},
+      );
+      if (err instanceof AllProvidersFailedError) {
+        annotate({
+          action: { name: "insights.coach.providerFailed" },
+          meta: {
+            attempts: err.attempts.length,
+            firstStatus: err.attempts[0]?.httpStatus ?? null,
+            credentialExpired: err.primaryCredentialExpired,
+          },
+        });
+        // v1.11.0 W1 — when the user's PRIMARY provider failed with an
+        // auth-class status (401/403), the credential is dead, not the
+        // service. Surface a distinct `credential_expired` frame so the
+        // drawer can deep-link the user to reconnect rather than telling
+        // them to "try again later" — the gap that let an expired codex
+        // token silently kill all generation.
+        if (err.primaryCredentialExpired) {
+          return { ok: false, code: "coach.provider.credential_expired" };
+        }
+        // v1.4.25 W5 — distinguish provider rate-limit (every attempt
+        // landed on 429) from generic unavailability. The drawer's
+        // error-decoder surfaces the rate-limit copy with a warning
+        // toast instead of the generic provider-down message, so the
+        // user understands the limit is transient.
+        const allRateLimited =
+          err.attempts.length > 0 &&
+          err.attempts.every((a) => a.httpStatus === 429);
+        return {
+          ok: false,
+          code: allRateLimited
+            ? "coach.provider.rate_limited"
+            : "coach.provider.unavailable",
+        };
+      }
+      // v1.21.3 — defence in depth. The chain runner wraps every hard provider
+      // failure in `AllProvidersFailedError`, but a provider client can still
+      // throw a tagged wire error that reaches here un-wrapped (e.g. a Codex 400
+      // raised mid tool-loop on a path the chain runner did not catch). Such an
+      // error is a PROVIDER failure, not a server bug — surface the same graceful
+      // `coach.provider.*` frame the chain path uses rather than rethrowing into
+      // an HTTP 500 (the bug that took the live Coach down for codex users). Only
+      // a genuinely unexpected error (no upstream tag, no httpStatus) keeps the
+      // 500 + GlitchTip path so real defects stay visible.
+      const providerError = classifyBubblingProviderError(err);
+      if (providerError) {
+        annotate({
+          action: { name: "insights.coach.providerFailed" },
+          meta: {
+            attempts: 1,
+            firstStatus: providerError.httpStatus,
+            credentialExpired: providerError.code === "credential_expired",
+            unwrapped: true,
+          },
+        });
+        return { ok: false, code: `coach.provider.${providerError.code}` };
+      }
+      throw err;
+    }
+
+    // v1.18.7 (SENIOR-DEV MEDIUM) — the provider call returned, so its tokens
+    // were billed regardless of reply quality. Reconcile the reservation
+    // against the actual count NOW, before any empty/sentinel short-circuit, so
+    // an empty or sentinel-only reply still records its burned cost (the old
+    // post-hoc `recordSpend` ran only on the happy path, undercounting these).
+    // v1.20.0 (F1) — reconcile against the SUMMED tokens across every tool round
+    // (the loop accumulates them); the no-tools path sums to the single call.
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      totalTokensSpent,
+      reqDateKey,
+      cachedTokensSpent,
+    ).catch(() => {
+      // Ledger reconcile is best-effort; a failure leaves the conservative
+      // reservation in place (never an undercount) and never breaks the turn.
+    });
+
+    const rawReply = (result.content ?? "").trim();
+    if (!rawReply) {
+      return { ok: false, code: "coach.provider.empty" };
+    }
+
+    // v1.4.22 — strip the optional `---KEYVALUES---` … `---END---`
+    // sentinel out of the prose. The stripped prose is what we stream
+    // to the client and persist; the parsed entries enrich the
+    // provenance envelope so the UI can render the collapsible
+    // "Worauf bezieht sich das?" disclosure.
+    const sentinel = parseKeyValuesSentinel(rawReply);
+    const proseAfterStrip = sentinel.prose.trim();
+    // v1.4.22 W5 reconcile (Code-H1) — when the model emits a
+    // sentinel-only / malformed reply, `sentinel.prose` is empty after
+    // stripping. The previous fallback `sentinel.prose.trim() || rawReply`
+    // surfaced raw `---KEYVALUES---` markers to the user. The empty-prose
+    // condition signals an unusable provider response: short-circuit to
+    // the structured `coach.provider.empty` error frame instead of
+    // streaming the raw sentinel body.
+    if (!proseAfterStrip) {
       annotate({
-        action: { name: "coach.reminder.suggested" },
-        meta: { cadenceId: cadence.id, metric: cadence.measurementType },
+        action: { name: "coach.keyvalues.parse_failed" },
+        meta: {
+          kept: sentinel.keyValues.length,
+          reason: "empty_prose_after_strip",
+          promptVersion: PROMPT_VERSION,
+        },
       });
-    } else {
+      return { ok: false, code: "coach.provider.empty" };
+    }
+    // v1.18.1 (Workstream C) — strip the optional `---SUGGEST-REMINDER---`
+    // block out of the prose-after-keyvalues. The model proposes a cadence;
+    // the gate decides whether it actually surfaces (module-toggle + opt-out
+    // + dismissal memory + cooldown + dedup against a live COACH reminder).
+    // A suppressed proposal leaves the prose unchanged and emits no card.
+    const suggestParse = parseSuggestReminder(proseAfterStrip);
+    let replyText = suggestParse.prose.trim() || proseAfterStrip;
+
+    // v1.22 (B2) — strip the optional `---REMEMBER---` block and capture the
+    // reminder INLINE on this turn (not in the >20-turn memory worker), so a
+    // casual "remind me about X" in a SHORT chat is no longer lost. The note is
+    // the user's OWN explicit request → captured silently as `active` (no confirm
+    // gate); the model acknowledges it in prose. A missing note / invalid `when`
+    // drops the block (the user never sees the raw marker). Fire-and-forget: the
+    // capture write must never break the chat turn.
+    const rememberParse = parseRememberSentinel(replyText, new Date());
+    replyText = rememberParse.prose.trim() || replyText;
+    if (rememberParse.reminder) {
+      const capture = rememberParse.reminder;
+      void captureReminderFromSentinel({
+        userId,
+        conversationId: workingConversationId,
+        parsed: capture,
+      }).catch(() => {
+        // Reminder capture is best-effort; never sink the turn.
+      });
+    } else if (rememberParse.malformed) {
       annotate({
-        action: { name: "coach.reminder.suppressed" },
-        meta: { cadenceId: suggestParse.cadence.id, reason: decision.reason },
+        action: { name: "coach.reminder.capture_malformed" },
+        meta: { conversationId: workingConversationId },
       });
     }
-  }
-  const enrichedProvenance: typeof snapshot.provenance = {
-    ...snapshot.provenance,
-    // v1.18.10 (HIGH-2) — a blocked turn carries the fallback prose, so the
-    // key-values from the discarded reply must not ride along as provenance.
-    ...(!outbound.block && sentinel.keyValues.length > 0
-      ? { keyValues: sentinel.keyValues }
-      : {}),
-    ...(surfacedSuggestion ? { suggestion: surfacedSuggestion } : {}),
-    // v1.20.0 (F1) — persist the retrieval-tool trace (which tools ran +
-    // whether each found data) so a reload can show "what I looked at" and the
-    // audit can replay grounding. Metadata only.
-    ...(toolTrace.length > 0
-      ? {
-          toolCalls: toolTrace.map((t) => ({
-            name: t.name,
-            present: t.present,
-          })),
-        }
-      : {}),
-  };
-  if (sentinel.malformed) {
-    // Graceful degrade: log so ops can spot a provider whose
-    // sentinel format has drifted, but pass the prose through
-    // unchanged. v1.4.23 H1 — split the annotation:
-    //   - parse_partial: at least one row parsed AND at least one
-    //     row failed (mixed-format drift on a single reply)
-    //   - parse_failed: the whole block was unusable
-    // Both annotations carry the per-line `reasons` array so an ops
-    // dashboard can attribute the failure cause without re-running
-    // the parser.
-    const reasons = sentinel.malformedEntries.map((entry) => entry.reason);
-    const annotationName =
-      sentinel.keyValues.length > 0 && sentinel.malformedEntries.length > 0
-        ? "coach.keyvalues.parse_partial"
-        : "coach.keyvalues.parse_failed";
+
+    // v1.22 (F6) — strip the optional `---SUGGEST-ACTION---` block (the
+    // generalised confirm→apply moat). The model names ONE action from the closed
+    // allowlist (`checkup.create` / `reminder.note`); the card surfaces additively
+    // and NOTHING is created until the user taps confirm (the entity is built
+    // server-side, field-by-field, by `POST /api/coach/suggested-actions`).
+    const actionParse = parseSuggestAction(replyText);
+    replyText = actionParse.prose.trim() || replyText;
+
+    // v1.18.10 (HIGH-2) — OUTBOUND safety screen on the assembled assistant
+    // reply, before persistence and streaming. The inbound `detectRefusal`
+    // guards the user's message; this guards the model's reply for a
+    // dose-prescription or a fabricated clinical risk score that slipped past
+    // the system-prompt GLP-1/grounding contracts. On a trip the turn is
+    // replaced with a calm, grounded fallback and any reminder suggestion /
+    // key-value provenance is dropped — the user never sees the unsafe text.
+    const outbound = screenCoachReply(replyText);
+    if (outbound.block && outbound.reason) {
+      replyText = coachOutboundFallback(outbound.reason, locale);
+      annotate({
+        action: { name: "insights.coach.outbound_blocked" },
+        meta: { reason: outbound.reason, promptVersion: PROMPT_VERSION },
+      });
+      await auditLog("insights.coach.outbound_blocked", {
+        userId,
+        details: {
+          conversationId: workingConversationId,
+          reason: outbound.reason,
+        },
+      });
+    }
+
+    // v1.21.0 (P6 / C2-5) — post-hoc numeric verifier on the Coach prose. Cross-
+    // check every number the model cited against this turn's authoritative figure
+    // set; an unmatched number (transcription / paraphrase drift) is soft-stripped
+    // to "[unverified]" and annotated. Cheap, non-blocking, and a no-op when there
+    // is no authoritative set — the prompt-level grounding rule remains the
+    // backstop, exactly like the briefing's "no signals → skip". A blocked turn
+    // already carries canned fallback prose, so skip it.
+    //
+    // v1.21.2 (A8) — the authoritative set is the figures the tools returned on the
+    // tool path, and the SNAPSHOT the model was shown on the no-tools/local path
+    // (`snapshot.sections`, which already carries the correlations-snapshot block).
+    // Exactly one is populated per turn; the grading, tolerance, and exemptions are
+    // identical, so a number the model invents is flagged the same way on both.
+    const authoritativePayloads =
+      toolResultPayloads.length > 0
+        ? toolResultPayloads
+        : noToolsSnapshotPayloads;
+    if (!outbound.block && authoritativePayloads.length > 0) {
+      const unverified = findUnverifiedCoachNumbers(
+        replyText,
+        authoritativePayloads,
+      );
+      if (unverified.length > 0) {
+        const { prose: corrected, stripped } = stripUnverifiedNumbers(
+          replyText,
+          unverified,
+        );
+        replyText = corrected;
+        annotate({
+          action: { name: "coach.prose.number_unverified" },
+          meta: {
+            flagged: unverified.length,
+            stripped,
+            // No raw values — just the count + truncated tokens for ops triage.
+            tokens: unverified.slice(0, 6).map((u) => u.source),
+            promptVersion: PROMPT_VERSION,
+          },
+        });
+      }
+    }
+
+    // v1.21.0 (NEW-C C-3) — Learn-link post-filter. The prompt instructs the
+    // model to only link a published `/learn/<slug>`, but that is guidance, not
+    // enforcement: a fabricated `/learn/<invented-slug>` would otherwise ship as
+    // a dead link. Scrub any reference whose slug is not in the catalog (a real
+    // one is kept verbatim). A blocked turn carries canned fallback prose with no
+    // links, so skip it.
+    if (!outbound.block && replyText.includes("/learn/")) {
+      const scrubbed = scrubUnknownLearnLinks(replyText);
+      if (scrubbed.dropped.length > 0) {
+        replyText = scrubbed.text;
+        annotate({
+          action: { name: "coach.learn.link_dropped" },
+          meta: {
+            dropped: scrubbed.dropped.length,
+            // Truncated slug tokens for ops triage — no user content.
+            slugs: scrubbed.dropped.slice(0, 6),
+            promptVersion: PROMPT_VERSION,
+          },
+        });
+      }
+    }
+
+    let surfacedSuggestion: CoachSuggestion | null = null;
+    if (!outbound.block && suggestParse.cadence) {
+      const decision = await gateSuggestion({
+        prisma,
+        userId,
+        cadence: suggestParse.cadence,
+        prefs:
+          coachPrefs.reminderSuggestions ?? DEFAULT_REMINDER_SUGGESTION_PREFS,
+      });
+      if (decision.surface) {
+        const cadence = suggestParse.cadence;
+        surfacedSuggestion = {
+          cadenceId: cadence.id,
+          measurementType: cadence.measurementType,
+          label: cadence.labelKey,
+        };
+        // Stamp the cooldown anchor (frequency cap) onto the prefs blob.
+        const nextSuggestionPrefs = {
+          ...(coachPrefs.reminderSuggestions ??
+            DEFAULT_REMINDER_SUGGESTION_PREFS),
+          lastSuggestedAt: new Date().toISOString(),
+        };
+        void prisma.user
+          .update({
+            where: { id: userId },
+            data: {
+              coachPrefsJson: {
+                ...coachPrefs,
+                reminderSuggestions: nextSuggestionPrefs,
+              },
+            },
+          })
+          .catch(() => {
+            // Cooldown stamp is best-effort: a write failure at worst lets a
+            // second suggestion through sooner, never breaks the chat turn.
+          });
+        annotate({
+          action: { name: "coach.reminder.suggested" },
+          meta: { cadenceId: cadence.id, metric: cadence.measurementType },
+        });
+      } else {
+        annotate({
+          action: { name: "coach.reminder.suppressed" },
+          meta: { cadenceId: suggestParse.cadence.id, reason: decision.reason },
+        });
+      }
+    }
+    // v1.22 (F6) — surface the confirm-card action when the turn was not blocked.
+    // Additive: the prose already stands alone; the card only offers the one-tap
+    // confirm. Nothing is created server-side until the user taps it.
+    let surfacedAction: CoachSuggestedAction | null = null;
+    if (!outbound.block && actionParse.action) {
+      surfacedAction = actionParse.action;
+      annotate({
+        action: { name: "coach.action.suggested" },
+        meta: { actionType: actionParse.action.actionType },
+      });
+    }
+
+    const enrichedProvenance: typeof snapshot.provenance = {
+      ...snapshot.provenance,
+      ...(surfacedAction ? { suggestedAction: surfacedAction } : {}),
+      // v1.18.10 (HIGH-2) — a blocked turn carries the fallback prose, so the
+      // key-values from the discarded reply must not ride along as provenance.
+      ...(!outbound.block && sentinel.keyValues.length > 0
+        ? { keyValues: sentinel.keyValues }
+        : {}),
+      ...(surfacedSuggestion ? { suggestion: surfacedSuggestion } : {}),
+      // v1.20.0 (F1) — persist the retrieval-tool trace (which tools ran +
+      // whether each found data) so a reload can show "what I looked at" and the
+      // audit can replay grounding. Metadata only.
+      ...(toolTrace.length > 0
+        ? {
+            toolCalls: toolTrace.map((t) => ({
+              name: t.name,
+              present: t.present,
+            })),
+          }
+        : {}),
+    };
+    if (sentinel.malformed) {
+      // Graceful degrade: log so ops can spot a provider whose
+      // sentinel format has drifted, but pass the prose through
+      // unchanged. v1.4.23 H1 — split the annotation:
+      //   - parse_partial: at least one row parsed AND at least one
+      //     row failed (mixed-format drift on a single reply)
+      //   - parse_failed: the whole block was unusable
+      // Both annotations carry the per-line `reasons` array so an ops
+      // dashboard can attribute the failure cause without re-running
+      // the parser.
+      const reasons = sentinel.malformedEntries.map((entry) => entry.reason);
+      const annotationName =
+        sentinel.keyValues.length > 0 && sentinel.malformedEntries.length > 0
+          ? "coach.keyvalues.parse_partial"
+          : "coach.keyvalues.parse_failed";
+      annotate({
+        action: { name: annotationName },
+        meta: {
+          kept: sentinel.keyValues.length,
+          malformedCount: sentinel.malformedEntries.length,
+          reasons,
+          promptVersion: PROMPT_VERSION,
+        },
+      });
+    }
+
+    // Persist the assistant message BEFORE we begin streaming; if the
+    // client disconnects we still have the canonical row.
+    const assistantMessage = await appendMessage({
+      conversationId: workingConversationId,
+      role: "assistant",
+      content: replyText,
+      metricSource: enrichedProvenance,
+      providerType: workingProviderType,
+      promptVersion: PROMPT_VERSION,
+      // v1.18.9 — persist the per-turn token count + model so the quiet
+      // token footer survives a conversation reload. The live turn paints
+      // from the `done.usage` SSE frame below; reloads read these columns.
+      // v1.20.0 (F1) — the summed cost across every tool round, so the footer
+      // reflects the true turn cost on the tool path too.
+      tokensUsed: totalTokensSpent || null,
+      model: result.model ?? null,
+    });
+
+    // v1.18.7 — the day's spend was already reconciled against the
+    // reservation immediately after the provider returned (above), so there is
+    // no post-persistence ledger bump here. The reservation guarantees the
+    // tokens are counted even if persistence or streaming fails afterwards.
+
     annotate({
-      action: { name: annotationName },
+      action: { name: "insights.coach.replied" },
       meta: {
-        kept: sentinel.keyValues.length,
-        malformedCount: sentinel.malformedEntries.length,
-        reasons,
+        provider: workingProviderType,
+        // v1.20.0 (F1) — summed tokens across every tool round (the loop) or the
+        // single call (no-tools path), so the dashboards see the true turn cost.
+        tokens: totalTokensSpent,
         promptVersion: PROMPT_VERSION,
+        conversationId: workingConversationId,
+        historyTurns: window.length,
+        // v1.20.0 (F1) — whether this turn ran the tool-retrieval path, and how
+        // many tools it fetched, so the dashboards can correlate the token delta
+        // with the new path vs the legacy snapshot path.
+        toolMode,
+        toolsCalled: toolTrace.length,
+        // v1.19.1 (C4) — whether the full SNAPSHOT block rode this turn (the
+        // expensive prefix) vs the cheap pointer. On the tool path the snapshot
+        // never rides the prompt, so this is the legacy-path signal only.
+        snapshotSent: !toolMode && includeFullSnapshot,
+        promptChars: userPrompt.length,
+        // v1.7.0 — count of provenance metrics the snapshot surfaced
+        // this turn (a proxy for cluster breadth) so the dashboards can
+        // correlate reply shape with cluster activation.
+        clusterCount: snapshot.provenance.metrics.length,
       },
     });
-  }
 
-  // Persist the assistant message BEFORE we begin streaming; if the
-  // client disconnects we still have the canonical row.
-  const assistantMessage = await appendMessage({
-    conversationId: workingConversationId,
-    role: "assistant",
-    content: replyText,
-    metricSource: enrichedProvenance,
-    providerType: workingProviderType,
-    promptVersion: PROMPT_VERSION,
-    // v1.18.9 — persist the per-turn token count + model so the quiet
-    // token footer survives a conversation reload. The live turn paints
-    // from the `done.usage` SSE frame below; reloads read these columns.
-    // v1.20.0 (F1) — the summed cost across every tool round, so the footer
-    // reflects the true turn cost on the tool path too.
-    tokensUsed: totalTokensSpent || null,
-    model: result.model ?? null,
-  });
-
-  // v1.18.7 — the day's spend was already reconciled against the
-  // reservation immediately after the provider returned (above), so there is
-  // no post-persistence ledger bump here. The reservation guarantees the
-  // tokens are counted even if persistence or streaming fails afterwards.
-
-  annotate({
-    action: { name: "insights.coach.replied" },
-    meta: {
-      provider: workingProviderType,
-      // v1.20.0 (F1) — summed tokens across every tool round (the loop) or the
-      // single call (no-tools path), so the dashboards see the true turn cost.
-      tokens: totalTokensSpent,
-      promptVersion: PROMPT_VERSION,
-      conversationId: workingConversationId,
-      historyTurns: window.length,
-      // v1.20.0 (F1) — whether this turn ran the tool-retrieval path, and how
-      // many tools it fetched, so the dashboards can correlate the token delta
-      // with the new path vs the legacy snapshot path.
-      toolMode,
-      toolsCalled: toolTrace.length,
-      // v1.19.1 (C4) — whether the full SNAPSHOT block rode this turn (the
-      // expensive prefix) vs the cheap pointer. On the tool path the snapshot
-      // never rides the prompt, so this is the legacy-path signal only.
-      snapshotSent: !toolMode && includeFullSnapshot,
-      promptChars: userPrompt.length,
-      // v1.7.0 — count of provenance metrics the snapshot surfaced
-      // this turn (a proxy for cluster breadth) so the dashboards can
-      // correlate reply shape with cluster activation.
-      clusterCount: snapshot.provenance.metrics.length,
-    },
-  });
+    // produceReply success — hand the fully-guarded reply + provenance back to
+    // the heartbeat-fronted stream below for client-visible emission.
+    return {
+      ok: true,
+      replyText,
+      provenance: enrichedProvenance,
+      suggestion: surfacedSuggestion,
+      action: surfacedAction,
+      messageId: assistantMessage.id,
+      totalTokens: totalTokensSpent,
+      model: result.model ?? null,
+    };
+  } // end produceReply
 
   // ── Stream the body to the client ────────────────────────────
-  // v1.12.0 — yield to the event loop between token frames so each one
-  // flushes as its own network chunk. The provider clients return the
-  // full reply in one shot; without the yield the whole tokenised body
-  // was enqueued synchronously inside `start()` and the runtime
-  // coalesced every frame into a single read, so the client painted the
-  // answer all at once despite the per-token render path in `use-coach`.
-  // A zero-delay yield is enough to land each frame on its own tick —
-  // the visible cadence reads ChatGPT/Claude-style without a contrived
-  // sleep. The refusal + error paths stay single-frame (nothing to
-  // pace).
+  // v1.22 (#89) — the provider call + every guard + persistence run INSIDE the
+  // stream (via `produceReply`) so the HTTP headers + a keepalive heartbeat
+  // flush immediately and keep the reverse proxy from idle-dropping the
+  // connection while a slow local backend is still loading the model /
+  // generating. Only once the FULLY-GUARDED reply is ready do client-visible
+  // token frames go out.
+  //
+  // v1.12.0 — yield to the event loop between token frames so each one flushes
+  // as its own network chunk; the visible cadence reads ChatGPT/Claude-style.
   const stream = createSseStream(async (controller) => {
-    for (const tok of tokeniseForStreaming(replyText)) {
-      // v1.18.10 (A-2) — stop tokenising the moment the client disconnects;
-      // the cancel handler flips this signal, so we don't pace frames into a
-      // closed connection.
+    // Keepalive: an SSE comment frame (`: ka`) the client parser ignores,
+    // flushed on an interval through the pre-first-token (prompt-processing)
+    // and generation phases.
+    const heartbeat = setInterval(() => {
+      controller.enqueue(HEARTBEAT_FRAME);
+    }, HEARTBEAT_MS);
+
+    let outcome: ReplyOutcome;
+    try {
+      outcome = await produceReply();
+    } catch (err) {
+      clearInterval(heartbeat);
+      // The stream is already open, so we cannot 500: a tagged provider error
+      // surfaces a graceful `coach.provider.*` frame; anything else degrades to
+      // a generic unavailable frame. A genuine defect is still annotated.
+      const providerError = classifyBubblingProviderError(err);
+      if (!providerError) {
+        // Not a tagged provider failure — a genuine server defect raised
+        // inside the open producer (e.g. a DB error in the post-stream
+        // `appendMessage` persistence). Record it on the wide event and
+        // forward it to GlitchTip so it stays visible instead of reading
+        // as a provider outage; the stream is open, so we still emit an
+        // error frame below rather than a 500.
+        getEvent()?.setError(
+          err instanceof Error ? err : new Error(String(err)),
+        );
+        void reportCoachStreamDefect(err);
+      }
+      annotate({
+        action: { name: "insights.coach.streamError" },
+        meta: {
+          unwrapped: Boolean(providerError),
+          reported: !providerError,
+          firstStatus: providerError?.httpStatus ?? null,
+        },
+      });
+      if (!controller.signal.aborted) {
+        const code = providerError
+          ? `coach.provider.${providerError.code}`
+          : "coach.provider.unavailable";
+        controller.enqueue(encodeFrame({ type: "error", code, message: code }));
+      }
+      return;
+    }
+    clearInterval(heartbeat);
+
+    if (!outcome.ok) {
+      if (!controller.signal.aborted) {
+        controller.enqueue(
+          encodeFrame({
+            type: "error",
+            code: outcome.code,
+            message: outcome.code,
+          }),
+        );
+      }
+      return;
+    }
+
+    for (const tok of tokeniseForStreaming(outcome.replyText)) {
+      // v1.18.10 (A-2) — stop tokenising the moment the client disconnects.
       if (controller.signal.aborted) return;
       controller.enqueue(encodeFrame({ type: "token", token: tok }));
       await flushTick();
     }
     if (controller.signal.aborted) return;
     controller.enqueue(
-      encodeFrame({
-        type: "provenance",
-        metricSource: enrichedProvenance,
-      }),
+      encodeFrame({ type: "provenance", metricSource: outcome.provenance }),
     );
-    // v1.18.1 (Workstream C) — additive `suggestion` frame. Older clients
-    // ignore it; newer ones render the one-tap action card.
-    if (surfacedSuggestion) {
+    // v1.18.1 (Workstream C) — additive `suggestion` frame.
+    if (outcome.suggestion) {
       controller.enqueue(
-        encodeFrame({ type: "suggestion", suggestion: surfacedSuggestion }),
+        encodeFrame({ type: "suggestion", suggestion: outcome.suggestion }),
       );
     }
-    // v1.18.9 — additive `usage` envelope on the `done` frame so the client
-    // can paint the quiet per-message token footer the instant the stream
-    // closes. Server-authoritative: the client renders these numbers, never
-    // recomputes them. Older clients drop the unknown key.
+    // v1.22 (F6) — additive `suggestedAction` frame.
+    if (outcome.action) {
+      controller.enqueue(
+        encodeFrame({
+          type: "suggestedAction",
+          suggestedAction: outcome.action,
+        }),
+      );
+    }
+    // v1.18.9 — additive `usage` envelope on the `done` frame.
     controller.enqueue(
       encodeFrame({
         type: "done",
         conversationId: workingConversationId,
-        messageId: assistantMessage.id,
+        messageId: outcome.messageId,
         usage: {
-          // v1.20.0 (F1) — summed across every tool round.
-          totalTokens: totalTokensSpent || null,
-          model: result.model ?? null,
+          totalTokens: outcome.totalTokens || null,
+          model: outcome.model,
         },
       }),
     );
@@ -1123,6 +1339,46 @@ function classifyBubblingProviderError(err: unknown): {
   }
   if (status === 429) return { code: "rate_limited", httpStatus: status };
   return { code: "unavailable", httpStatus: status };
+}
+
+/**
+ * Fire-and-forget GlitchTip forward for a genuine server defect that
+ * surfaces INSIDE the open SSE producer — e.g. a Prisma failure in the
+ * post-stream `appendMessage` persistence, which runs after the provider
+ * call and therefore outside its try/catch. Once the stream is open the
+ * route can no longer return a 500, so without this such a defect would
+ * read as a generic provider outage in error tracking rather than the
+ * server bug it is. Mirrors the api-handler / worker forwarders: dynamic
+ * import (no cycle, no startup cost), redacted message + stack, and it
+ * NEVER throws so a sink failure cannot mask the original error.
+ */
+async function reportCoachStreamDefect(err: unknown): Promise<void> {
+  const e =
+    err instanceof Error ? err : new Error("Unknown coach stream error");
+  const message = redactSecrets(`[insights.coach.stream] ${e.message}`);
+  console.error("[coach-stream]", message, e);
+  try {
+    const [{ getGlitchtipSettings }, { sendGlitchtipEvent }] =
+      await Promise.all([
+        import("@/lib/monitoring-settings"),
+        import("@/lib/monitoring/glitchtip"),
+      ]);
+    const settings = await getGlitchtipSettings();
+    if (!settings.glitchtipEnabled || !settings.glitchtipDsn) return;
+    await sendGlitchtipEvent({
+      dsn: settings.glitchtipDsn,
+      input: {
+        environment: settings.glitchtipEnvironment || "production",
+        message,
+        level: "error",
+        type: e.name || "Error",
+        stack: redactOptional(e.stack),
+        sourceTag: "healthlog-api-handler",
+      },
+    });
+  } catch {
+    /* the reporter must never throw */
+  }
 }
 
 function streamProviderError(args: { code: string }): Response {

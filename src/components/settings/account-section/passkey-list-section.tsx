@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
@@ -129,7 +130,7 @@ export function PasskeyListSection({
                 <td className="px-3 py-2 text-xs">
                   <Badge
                     variant={pk.credentialBackedUp ? "secondary" : "outline"}
-                    className="text-[11px]"
+                    className="text-xs"
                   >
                     {pk.credentialBackedUp
                       ? t("settings.backedUp")
@@ -198,10 +199,7 @@ export function PasskeyListSection({
         data-testid="passkeys-mobile-list"
       >
         {passkeys.map((pk) => (
-          <li
-            key={pk.id}
-            className="bg-card border-border rounded-lg border p-4"
-          >
+          <SettingsCard as="li" key={pk.id}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{pk.name}</p>
@@ -211,14 +209,14 @@ export function PasskeyListSection({
                     "Single-device / Multi-device" column. Sits on the
                     same chip row as the backup status and date so all
                     metadata reads as a single horizontal stride. */}
-                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                  <Badge variant="outline" className="text-[11px]">
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                  <Badge variant="outline" className="text-xs">
                     {DEVICE_TYPE_LABELS[pk.credentialDeviceType] ??
                       pk.credentialDeviceType}
                   </Badge>
                   <Badge
                     variant={pk.credentialBackedUp ? "secondary" : "outline"}
-                    className="text-[11px]"
+                    className="text-xs"
                   >
                     {pk.credentialBackedUp
                       ? t("settings.backedUp")
@@ -267,7 +265,7 @@ export function PasskeyListSection({
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-          </li>
+          </SettingsCard>
         ))}
       </ul>
       {deleteMsg && (

@@ -28,7 +28,7 @@
  *    job; this is purely "did the model restate a figure we did not give it".
  *  - Pure + side-effect-free, so it unit-tests in isolation.
  */
-import type { SignalOfDay } from "@/lib/insights/features";
+import type { AggregatedFeatures, SignalOfDay } from "@/lib/insights/features";
 
 /**
  * Absolute rounding tolerance when matching a restated number to a
@@ -100,7 +100,10 @@ export function extractNumbers(
  * the model for choosing a sign convention. We keep both the signed and the
  * absolute form so an exact signed restatement also matches.
  */
-function authoritativeValues(signals: readonly SignalOfDay[]): number[] {
+function authoritativeValues(
+  signals: readonly SignalOfDay[],
+  features?: AggregatedFeatures | null,
+): number[] {
   const values: number[] = [];
   const push = (n: number | null | undefined) => {
     if (typeof n === "number" && Number.isFinite(n)) {
@@ -117,6 +120,41 @@ function authoritativeValues(signals: readonly SignalOfDay[]): number[] {
     push(s.spread30);
     if (s.recentAnomaly) push(s.recentAnomaly.value);
   }
+
+  // v1.22 (W6, W8 seam) — W8 wired four real aggregate blocks into the briefing
+  // (glucose / labs / preventive-care / workouts) but the gate only graded
+  // `signalsOfDay`, so the model was steered to drop any number from them. Add
+  // those REAL figures to the allow-set so the prose may cite them — without
+  // opening the gate to ungrounded values (only numbers the server actually
+  // pre-computed are admitted).
+  if (features) {
+    const g = features.glucose;
+    if (g) {
+      push(g.avg7);
+      push(g.avg30);
+      push(g.avg90);
+      push(g.latest);
+      push(g.slope30);
+    }
+    for (const m of features.labs?.flagged ?? []) push(m.value);
+    if (features.labs) push(features.labs.flaggedCount);
+    for (const o of features.preventiveCare?.overdue ?? []) push(o.daysOverdue);
+    for (const d of features.preventiveCare?.due ?? []) push(d.daysUntil);
+    const w = features.workouts;
+    if (w) {
+      for (const win of [w.last7, w.last30]) {
+        push(win.count);
+        push(win.totalDurationMin);
+        push(win.totalDistanceKm);
+      }
+      if (w.latest) {
+        push(w.latest.durationMin);
+        push(w.latest.distanceKm);
+        push(w.latest.daysAgo);
+      }
+    }
+  }
+
   return values;
 }
 
@@ -164,11 +202,12 @@ function isStructural(value: number, raw: string): boolean {
 export function findUngroundedBriefingNumbers(
   briefing: BriefingForGrounding | null | undefined,
   signals: readonly SignalOfDay[] | null | undefined,
+  features?: AggregatedFeatures | null,
 ): UngroundedBriefingNumber[] {
   if (!briefing) return [];
   if (!signals || signals.length === 0) return [];
 
-  const authoritative = authoritativeValues(signals);
+  const authoritative = authoritativeValues(signals, features);
   // No usable authoritative figures (every field null) — nothing to grade.
   if (authoritative.length === 0) return [];
 

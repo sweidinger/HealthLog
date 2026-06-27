@@ -39,7 +39,12 @@ import {
 } from "@/lib/insights/narrative/period-narrative";
 import type { BaselineProfile } from "@/lib/insights/derived";
 import { buildCoachFactsBlock } from "./facts";
-import { buildCoachPlansBlock, type CoachPlanInjectEntry } from "./plans";
+import {
+  buildCoachPlansBlock,
+  buildCoachRemindersBlock,
+  type CoachPlanInjectEntry,
+  type CoachReminderInjectEntry,
+} from "./plans";
 
 /** The period the rolling profile recalls — month is the high-signal beat. */
 const MEMORY_PERIOD: NarrativePeriod = "month";
@@ -85,6 +90,13 @@ export interface CoachMemoryBlock {
    * still awaiting the user's confirmation. Absent when none.
    */
   plans?: CoachPlanInjectEntry[];
+  /**
+   * v1.22 (B2/B3) — the user's near/overdue or already-surfaced episodic
+   * reminders ("remind me about X"), top-N soonest first. Lets the Coach
+   * reference them unprompted next turn — the progress-reflection reflex.
+   * Absent when none.
+   */
+  reminders?: CoachReminderInjectEntry[];
 }
 
 /** Pull the headline + driver recall off the latest period narrative. */
@@ -185,11 +197,25 @@ export async function buildCoachMemoryBlock(
     plans = undefined;
   }
 
+  // Sub-source 5 (v1.22 B2/B3): the user's near/overdue or surfaced episodic
+  // reminders. Fault-isolated like the others; the read half lives in plans.ts
+  // alongside the plan-injection block.
+  let reminders: CoachReminderInjectEntry[] | undefined;
+  try {
+    const remindersBlock = await buildCoachRemindersBlock(userId, now);
+    if (remindersBlock && remindersBlock.reminders.length > 0) {
+      reminders = remindersBlock.reminders;
+    }
+  } catch {
+    reminders = undefined;
+  }
+
   if (
     !priorNarrative &&
     Object.keys(trendMemory).length === 0 &&
     !facts &&
-    !plans
+    !plans &&
+    !reminders
   ) {
     return null;
   }
@@ -198,5 +224,6 @@ export async function buildCoachMemoryBlock(
   if (priorNarrative) block.priorNarrative = priorNarrative;
   if (facts) block.facts = facts;
   if (plans) block.plans = plans;
+  if (reminders) block.reminders = reminders;
   return block;
 }

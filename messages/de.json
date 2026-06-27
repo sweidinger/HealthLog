@@ -511,6 +511,7 @@
     "previousPage": "Vorherige Seite",
     "nextPage": "Nächste Seite",
     "dailyTotalCaption": "({count} Einzelwerte)",
+    "openMetricInsights": "{type}-Auswertung öffnen",
     "sleepNapCaption": "+{count} Nickerchen",
     "sleepAwakeningsCaption": "{count} Wachphasen",
     "expandDay": "Einzelwerte dieses Tages anzeigen",
@@ -1945,7 +1946,6 @@
     "confidenceMittel": "Mittel",
     "confidenceGering": "Gering",
     "loadError": "Auswertungen konnten nicht geladen werden",
-    "heroGenerated": "Erstellt {time}",
     "heroPersonalBaseline": "Basierend auf deinen letzten 90 Tagen",
     "heroRegenerate": "Neu generieren",
     "heroRegenerating": "Wird generiert",
@@ -1957,7 +1957,6 @@
     "narrativeMonth": "Dieser Monat",
     "narrativePreparing": "Deine Zusammenfassung wird erstellt…",
     "narrativeUpdating": "Wird aktualisiert…",
-    "narrativeUpdated": "Aktualisiert {time}",
     "narrativeProvenanceLabel": "Wie das zustande kam",
     "narrativeProvenanceMethod": "Eine Zusammenfassung des Zeitraums in einfacher Sprache, ausschließlich aus deinen erfassten Werten und den Zusammenhängen, die die statistische Mehrfachvergleichskorrektur überstanden haben. Beschreibend, nie eine Ursache.",
     "narrativeProvenanceMetrics": "Basierend auf: {metrics}",
@@ -2098,6 +2097,9 @@
       "composerPlaceholder": "Frag mich etwas zu deinen Daten…",
       "nudgeBubbleLabel": "Neue Nachricht vom Coach — Chat öffnen",
       "fabLabel": "Coach öffnen",
+      "readAloud": "Vorlesen",
+      "readAloudStop": "Vorlesen beenden",
+      "messageTimeLabel": "Nachricht gesendet {time}",
       "selfContextAdopt": {
         "offer": "Antwort in deine Selbstauskunft übernehmen?",
         "confirm": "Übernehmen",
@@ -2320,6 +2322,33 @@
         "groupYesterday": "Gestern",
         "groupThisWeek": "Diese Woche",
         "groupEarlier": "Früher"
+      },
+      "seed": {
+        "bloodPressure": "Geh mit mir meinen Blutdruckverlauf der letzten 30 Tage durch — gibt es etwas, das ich im Auge behalten sollte?",
+        "weight": "Wie hat sich mein Gewicht zuletzt entwickelt, und ist die Richtung etwas, worauf ich reagieren sollte?",
+        "bmi": "Was sagt mir mein BMI-Verlauf, und wie sollte ich ihn lesen?",
+        "pulse": "Geh mit mir meine Pulswerte durch — ist irgendetwas ungewöhnlich?",
+        "restingHr": "Wie hat sich mein Ruhepuls entwickelt, und was sagt er über meine Fitness?",
+        "hrv": "Was sagt mir meine Herzfrequenzvariabilität zuletzt über Erholung und Stress?",
+        "sleep": "Geh mit mir meinen letzten Schlaf durch — Dauer, Regelmäßigkeit und was sich zu ändern lohnt.",
+        "mood": "Welche Muster siehst du in meiner Stimmung über die letzten Wochen?",
+        "medications": "Wie sieht meine Medikamentenadhärenz aus, und passt sie dazu, wie ich mich gefühlt habe?",
+        "steps": "Wie aktiv war ich zuletzt gemessen an meinen Schritten, und wie ist das im Vergleich zu einem gesunden Richtwert?",
+        "activeEnergy": "Was sagt mein Aktivenergie-Verlauf über mein Aktivitätsniveau zuletzt?",
+        "cardioFitness": "Was bedeutet mein Cardio-Fitness-Verlauf (VO₂max), und wie bewege ich ihn in die richtige Richtung?",
+        "bloodGlucose": "Geh mit mir meine letzten Glukosewerte durch — liegen sie in einem gesunden Bereich?",
+        "oxygenSaturation": "Was sagt mir mein Sauerstoffsättigungs-Verlauf (SpO₂)?",
+        "respiratoryRate": "Was sagt mein Atemfrequenz-Verlauf über meine Gesundheit?",
+        "workouts": "Geh mit mir meine letzten Workouts durch — Belastung, Häufigkeit und wie ich mich dazwischen erhole.",
+        "recoveryPage": "Warum steht meine Erholung gerade dort, wo sie steht, und was treibt das?",
+        "briefing": "Geh mit mir das heutige Briefing durch — worauf sollte ich mich konzentrieren, und gibt es etwas, das einen Schritt wert ist?",
+        "healthScore": "Warum liegt mein Gesundheits-Score bei {score} von 100, und was würde ihn am stärksten bewegen?",
+        "periodWeek": "Geh mit mir durch, wie meine letzte Woche über meine Gesundheitswerte hinweg lief — was sticht heraus?",
+        "periodMonth": "Geh mit mir durch, wie mein letzter Monat über meine Gesundheitswerte hinweg lief — was sticht heraus?",
+        "correlationBpCompliance": "Wie hängt meine Medikamentenadhärenz mit meinem Blutdruck zusammen? Geh mit mir durch, was dieser Zusammenhang für mich bedeutet.",
+        "correlationMoodPulse": "Gibt es einen echten Zusammenhang zwischen meiner Stimmung und meinem Puls? Hilf mir, diesen Zusammenhang zu lesen.",
+        "correlationWeightWeekday": "Folgt mein Gewicht einem Wochenmuster? Was sagt mir dieser Wochentags-Zusammenhang?",
+        "recommendation": "Erzähl mir mehr zu dieser Empfehlung: \"{text}\" — warum trifft sie auf mich zu, und was sollte ich tun?"
       }
     },
     "relativeJustNow": "gerade eben",
@@ -3240,6 +3269,7 @@
       },
       "vitals": {
         "sectionTitle": "Deine Vitalwerte",
+        "sectionSubtitle": "Ruhewerte von Herz-Kreislauf und Atmung im Vergleich zu deiner eigenen Baseline",
         "loadingLabel": "Vitalwerte werden geladen",
         "loadError": "Deine Vitalwerte konnten gerade nicht geladen werden.",
         "building": "Typischer Bereich entsteht — {count} von {target} Tagen",
@@ -3366,6 +3396,7 @@
       },
       "scores": {
         "sectionTitle": "Deine Gesundheitswerte",
+        "sectionSubtitle": "Zusammengesetzte Werte für Erholung, Stress und Belastung aus deinen verbundenen Geräten",
         "loadError": "Deine Wellness-Werte konnten gerade nicht geladen werden.",
         "recovery": "Erholung",
         "stress": "Stress",
@@ -3611,7 +3642,10 @@
       "returnLabel": "Dein {metric} ist seit {count} Tagen wieder in deinem üblichen Bereich — was es auch war, es ist vorbei.",
       "daysInside": "{count} Tage drinnen",
       "daysOutside": "{count} Tage draußen"
-    }
+    },
+    "updatedTodayAt": "Heute aktualisiert, {time}",
+    "updatedYesterday": "Gestern aktualisiert",
+    "updatedOn": "Aktualisiert am {date}"
   },
   "thresholds": {
     "defaultLabel": "Default",
@@ -4413,6 +4447,28 @@
         "clearedToast": "{count} gespeicherte Angaben vergessen.",
         "clearError": "Konnte die gespeicherten Angaben nicht löschen. Bitte erneut versuchen."
       },
+      "coachReminders": {
+        "title": "Deine Erinnerungen",
+        "description": "Dinge, um die du den Coach gebeten hast, später darauf zurückzukommen. Fällige erscheinen hier und beim Coach.",
+        "empty": "Noch keine Erinnerungen. Bitte den Coach, dich an etwas zu erinnern — dann erscheint es hier.",
+        "loadError": "Konnte deine Erinnerungen nicht laden.",
+        "dueHeading": "Jetzt fällig",
+        "allHeading": "Gespeichert",
+        "duePrefix": "fällig {when}",
+        "confirm": "Behalten",
+        "markDone": "Erledigt",
+        "dismiss": "Verwerfen",
+        "deleteAria": "Diese Erinnerung löschen",
+        "note": "Erinnerungen werden verschlüsselt gespeichert. Lösche eine jederzeit — sie wird aus dem entfernt, was der Coach sehen kann.",
+        "status": {
+          "proposed": "Vorgeschlagen",
+          "active": "Gespeichert",
+          "due": "Fällig",
+          "surfaced": "Angezeigt",
+          "done": "Erledigt",
+          "dismissed": "Verworfen"
+        }
+      },
       "aboutMe": {
         "title": "Über mich",
         "description": "Persönlicher Kontext, den Coach und Tagesbriefing zusätzlich zu deinen Daten lesen.",
@@ -4436,7 +4492,24 @@
         "completeness": "{answered} von {total} beantwortet",
         "questionsTitle": "Der Coach hat Rückfragen",
         "questionsOpenCoach": "Im Coach beantworten"
-      }
+      },
+      "responseTimeoutHeading": "Antwort-Timeout",
+      "responseTimeoutBody": "Wie lange auf die Antwort der KI gewartet wird, bevor abgebrochen wird. Erhöhe den Wert für ein lokales oder selbst gehostetes Modell, das beim ersten Aufruf Zeit zum Laden braucht.",
+      "responseTimeoutLabel": "Antwort-Timeout (Sekunden)",
+      "responseTimeoutPlaceholder": "Standard (~180)",
+      "responseTimeoutInvalid": "Gib eine Zahl zwischen 10 und 600 Sekunden ein.",
+      "ocrHeading": "Dokumentenscan (Laborberichte)",
+      "ocrBody": "Verwende einen eigenen Anbieter zum Auslesen hochgeladener Laborberichte. Ist die Option aus, nutzt der Scan deinen Hauptanbieter.",
+      "ocrEnableLabel": "Eigenen Anbieter für den Dokumentenscan aktivieren",
+      "ocrProviderLabel": "Scan-Anbieter",
+      "ocrProviderOption": {
+        "OPENAI": "OpenAI (dein API-Key)",
+        "ANTHROPIC": "Anthropic (Claude)",
+        "LOCAL": "Lokales Modell (OpenAI-kompatibel)"
+      },
+      "ocrModelPlaceholder": "z. B. gpt-4o",
+      "ocrVisionHint": "Dieses Modell kann möglicherweise keine Bilder lesen. Wähle für den Dokumentenscan ein Modell mit Bildverständnis.",
+      "ocrKeyLabel": "API-Key"
     },
     "dashboard": {
       "units": {
@@ -4663,6 +4736,8 @@
       "changelog": "Changelog",
       "docs": "Dokumentation",
       "linksHeading": "Quellen & Dokumentation",
+      "identityDescription": "Version, Lizenz und Build-Details dieser Instanz.",
+      "linksDescription": "Quellcode, Änderungsprotokoll und Dokumentation.",
       "newerAvailable": "Neue Version: {tag}"
     },
     "testConnection": {
@@ -6720,7 +6795,14 @@
         "savedToast": "Biomarker gespeichert",
         "updatedToast": "Biomarker aktualisiert",
         "saveError": "Biomarker konnte nicht gespeichert werden"
-      }
+      },
+      "hide": "Ausblenden",
+      "unhide": "Wiederherstellen",
+      "hiddenToast": "Biomarker ausgeblendet",
+      "unhiddenToast": "Biomarker wiederhergestellt",
+      "hideError": "Biomarker konnte nicht aktualisiert werden",
+      "allHidden": "Alle Biomarker sind ausgeblendet.",
+      "hiddenSection": "Ausgeblendet"
     },
     "catalog": {
       "total-cholesterol": "Gesamtcholesterin",
@@ -7039,6 +7121,25 @@
         "weightDaily": "Wieg dich täglich, ungefähr zur selben Zeit",
         "bp722": "Miss deinen Blutdruck eine Woche lang zweimal täglich",
         "glucoseStructured": "Miss deine Glukose nach einem strukturierten Tagesplan"
+      }
+    },
+    "suggestedAction": {
+      "apply": "Hinzufügen",
+      "dismiss": "Jetzt nicht",
+      "applied": "Hinzugefügt",
+      "dismissed": "Verworfen",
+      "failed": "Konnte das nicht hinzufügen — bitte erneut versuchen",
+      "checkup": {
+        "title": "Vorsorge-Erinnerung hinzufügen?"
+      },
+      "note": {
+        "title": "Erinnerung speichern?"
+      },
+      "interval": {
+        "yearly": "Jedes Jahr",
+        "halfYearly": "Alle sechs Monate",
+        "quarterly": "Alle drei Monate",
+        "monthly": "Jeden Monat"
       }
     },
     "settings": {

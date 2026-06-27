@@ -26,9 +26,12 @@ import { wallClockInTz } from "@/lib/tz/wall-clock";
 import type { MeasurementType } from "@/generated/prisma/client";
 import {
   discoverCorrelations,
+  discoverEmergingCorrelations,
+  discoverLabOutcomeCorrelations,
   discoveryMeasurementTypes,
   DISCOVERY_BEHAVIOURS,
   DISCOVERY_OUTCOMES,
+  EARLY_WINDOW_DAYS,
   MEDICATION_COMPLIANCE_CHANNEL_KEY,
   SYMPTOM_SEVERITY_CHANNEL_KEY,
   type DailySeriesPoint,
@@ -36,6 +39,7 @@ import {
 } from "@/lib/insights/correlation-discovery";
 import {
   fetchComplianceSeries,
+  fetchLabDraws,
   fetchSymptomSeries,
 } from "@/lib/insights/correlation-channel-series";
 
@@ -147,8 +151,12 @@ export const GET = apiHandler(async () => {
   // v1.21.0 (FDREXTEND) — build the two non-measurement, non-mood channels from
   // their own sources. Each degrades to an empty series when the user has no
   // data, so the discovery loop drops the channel (it cannot clear n ≥ 20).
-  const complianceSeries = await fetchComplianceSeries(user.id, tz, since);
-  const symptomSeries = await fetchSymptomSeries(user.id, tz, since);
+  // v1.22 — lab draws (for the labs ↔ outcome pass) fetch alongside.
+  const [complianceSeries, symptomSeries, labDraws] = await Promise.all([
+    fetchComplianceSeries(user.id, tz, since),
+    fetchSymptomSeries(user.id, tz, since),
+    fetchLabDraws(user.id, tz, since),
+  ]);
 
   const points = (key: string): DailySeriesPoint[] =>
     key === "MOOD"
@@ -175,6 +183,21 @@ export const GET = apiHandler(async () => {
 
   const result = discoverCorrelations(series);
 
+  // v1.22 — rolling early-detection pass over the trailing window, re-using
+  // the already-built series (no extra DB read). Emerging pairs exclude anything
+  // the retrospective scan already established (no double-count).
+  const recentFromDayKey = tzDayKey(
+    new Date(now.getTime() - EARLY_WINDOW_DAYS * MS_PER_DAY),
+    tz,
+  );
+  const emerging = discoverEmergingCorrelations(series, result, {
+    recentFromDayKey,
+  });
+
+  // v1.22 — labs ↔ outcome pass (point-vs-window over sparse draws). Degrades
+  // to absent when the user has too few draws to clear the per-pair floor.
+  const labCorrelations = discoverLabOutcomeCorrelations(labDraws, series);
+
   annotate({
     action: { name: "insights.correlations.discover" },
     meta: {
@@ -185,8 +208,13 @@ export const GET = apiHandler(async () => {
       // two sparse new channels reached the n ≥ 20 floor or degraded to absent.
       compliance_days: complianceSeries.points.length,
       symptom_days: symptomSeries.points.length,
+      // v1.22 — early-detection + labs reach.
+      emerging: emerging.emerging.length,
+      emerging_window_days: emerging.windowDays,
+      lab_draws: labDraws.length,
+      lab_correlations: labCorrelations.discovered.length,
     },
   });
 
-  return apiSuccess(result);
+  return apiSuccess({ ...result, emerging, labCorrelations });
 });

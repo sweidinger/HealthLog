@@ -22,6 +22,11 @@
 
 import type { Locale } from "@/lib/i18n/config";
 import {
+  openerArchetypeHint,
+  shouldUseNameForTurn,
+  firstNameFromDisplayName,
+} from "./opener-archetype";
+import {
   selectReferencesForMetrics,
   type MedicalReferenceMetric,
 } from "../medical-references";
@@ -37,10 +42,71 @@ import {
   metricIdentifierBan,
   forbiddenFiller,
   outlookContract,
+  formattingContract,
 } from "./shared-contracts";
 
-/** Stable identifier for the active system prompt revision. */
-export const PROMPT_VERSION = "4.30.0" as const;
+/**
+ * Stable identifier for the active system prompt revision.
+ *
+ * 5.0.0 (v1.22 W6) — the daily briefing paragraph moves from "open with the
+ * freshest signal" enumeration to verdict-first synthesis (lead with the day's
+ * read, weave 2-3 signals into one associative story, state fewer numbers than
+ * signals), and the shared paragraph FORMATTING contract joins so the briefing
+ * renders as real paragraphs. Grounding is unchanged.
+ */
+export const PROMPT_VERSION = "5.0.0" as const;
+
+/** Europe/Berlin YYYY-MM-DD day key — the rotation boundary for the opener. */
+function berlinDayKey(now: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/**
+ * v1.22 (W6) — the daily-briefing personalization SYSTEM CONTEXT block.
+ *
+ * Two deterministic, per-(user, day) touches the briefing user prompt appends:
+ *   - an OPENER HINT (the hash-seeded archetype rotation) so the lead varies
+ *     day-over-day instead of always opening number-first; and
+ *   - a sparse first-name clause that fires on roughly one day in three, so the
+ *     briefing may open with the user's name SOME days without a rote daily
+ *     greeting that would clash with the verdict-first opener.
+ *
+ * The whole block is omitted when no real display name is set AND (defensively)
+ * always carries the opener hint, so the change is additive: an unnamed / demo
+ * account still gets the opener variety but never a name clause. Pure + dated by
+ * the caller's `now`, so it unit-tests deterministically.
+ */
+export function buildBriefingPersonalisationBlock(
+  userId: string,
+  displayName: string | null,
+  locale: Locale,
+  now: Date = new Date(),
+): string {
+  const dayKey = berlinDayKey(now);
+  const hint = openerArchetypeHint(`${userId}:briefing:${dayKey}`, locale);
+  const firstName = firstNameFromDisplayName(displayName);
+  const useName =
+    firstName != null &&
+    shouldUseNameForTurn(`${userId}:briefing-name:${dayKey}`);
+
+  const isDe = locale === "de";
+  const lines: string[] = [];
+  lines.push(isDe ? "\n\nSYSTEM-KONTEXT" : "\n\nSYSTEM CONTEXT");
+  lines.push(isDe ? `OPENER-HINWEIS: ${hint}` : `OPENER HINT: ${hint}`);
+  if (useName) {
+    lines.push(
+      isDe
+        ? `NAME: Der Vorname des Nutzers ist "${firstName}". Du DARFST den Vornamen heute einmal natürlich einsetzen — nie als feste Begrüßungsformel, nie zweimal, und lass ihn weg, wenn es gekünstelt wirkt. Nutze nur genau diesen Namen.`
+        : `NAME: The user's first name is "${firstName}". You MAY use the first name once today, naturally — never as a rote greeting formula, never twice, and leave it out if it would feel forced. Use only this exact name.`,
+    );
+  }
+  return lines.join("\n");
+}
 
 /**
  * The scope-hardened insight prompt is one structural skeleton with a
@@ -193,18 +259,23 @@ gib die obige Verweigerung zurück.`,
    warm, and motivating. Lead with NOW; draw on history for context,
    but the user opens this to learn what is happening TODAY and what
    one thing they can do about it. Fields:
-     - paragraph: an 80-200 word narrative the user reads at the top
-       of /insights. Open with the freshest, most salient signal —
-       what their newest readings are doing against their own recent
-       baseline — not a summary of the last quarter. Name an earned
-       win where the data shows one, and turn anything unfavourable
-       into ONE doable, specific next step the user can act on this
-       week ("you're ~1h short on sleep this week — aim for an earlier
-       night", "your systolic is creeping up — a quieter evening and
-       an earlier reading tomorrow would tell us a lot"). No
-       diagnosis, no prescription. Use the user's OWN data — never
-       "people like you" or population norms. Earned encouragement
-       only; avoid the banned openers from rule 7.
+     - paragraph: a connected 70-160 word read of TODAY the user sees
+       at the top of /insights. SENTENCE 1 is the day's VERDICT in plain
+       words — the overall picture, NOT a number ("Today reads like a
+       recovery day", "A steady day, nothing demanding your attention").
+       Then weave the 2-3 most salient signals into ONE story: lead from
+       the single most salient and let the others be context — do NOT
+       give every metric equal billing, and do NOT walk the signals one
+       by one. Where several move together, say so as an ASSOCIATION
+       ("your shorter nights and a slightly higher resting heart rate
+       this week tend to show up together"), NEVER as cause. Close on
+       what it means for today and ONE doable step. Follow the OPENER
+       HINT in the system context if one is given. You may state FEWER
+       numbers than signals — the story matters more than the readout;
+       every number you do state must come from this snapshot, never
+       "people like you" or population norms. No diagnosis, no
+       prescription; earned encouragement only; avoid the banned openers
+       from rule 7.
      - signalsOfDay: 0-3 present-focused signals — the lead of the
        briefing. PREFER the snapshot's "signalsOfDay" block when it is
        present: each entry already carries the comparison finished for
@@ -381,18 +452,24 @@ gib die obige Verweigerung zurück.`,
    JETZT; nutze die Historie als Kontext, aber der Nutzer öffnet das, um
    zu erfahren, was HEUTE passiert und welche eine Sache er dagegen tun
    kann. Felder:
-     - paragraph: ein 80-200 Wörter langer Fließtext, den der Nutzer
-       oben auf /insights liest. Eröffne mit dem frischesten, wichtigsten
-       Signal — was seine neuesten Werte gegenüber seiner eigenen
-       jüngsten Baseline tun — nicht mit einer Zusammenfassung des letzten
-       Quartals. Benenne einen verdienten Erfolg, wo die Daten ihn zeigen,
-       und mach aus Ungünstigem EINEN machbaren, konkreten nächsten
-       Schritt für diese Woche ("dir fehlt diese Woche ~1h Schlaf — geh
-       früher ins Bett", "dein systolischer Wert steigt — ein ruhigerer
-       Abend und eine frühe Messung morgen würden viel sagen"). Keine
-       Diagnose, keine Verschreibung. Nutze die EIGENEN Daten des Nutzers
-       — nie "Menschen wie Sie" oder Bevölkerungsnormen. Nur verdiente
-       Ermutigung; verwende keine in Regel 7 verbotenen Eröffnungen.
+     - paragraph: ein zusammenhängender 70-160 Wörter langer Tages-Read,
+       den der Nutzer oben auf /insights liest. SATZ 1 ist das URTEIL des
+       Tages in klaren Worten — das Gesamtbild, KEINE Zahl ("Heute liest
+       sich wie ein Erholungstag", "Ein ruhiger Tag, nichts, das deine
+       Aufmerksamkeit braucht"). Dann verwebe die 2-3 wichtigsten Signale
+       zu EINER Geschichte: führe vom einzeln wichtigsten und lass die
+       anderen Kontext sein — gib NICHT jeder Metrik gleiches Gewicht und
+       geh die Signale NICHT eins nach dem anderen durch. Wo sich mehrere
+       zusammen bewegen, sag es als ZUSAMMENHANG ("deine kürzeren Nächte
+       und ein leicht erhöhter Ruhepuls zeigen sich diese Woche oft
+       zusammen"), NIE als Ursache. Schließe damit, was es heute bedeutet,
+       und EINEM machbaren Schritt. Folge dem OPENER-HINWEIS im
+       System-Kontext, wenn einer mitgegeben ist. Du darfst WENIGER Zahlen
+       nennen als Signale — die Geschichte zählt mehr als die Auflistung;
+       jede genannte Zahl stammt aus diesem Snapshot, nie "Menschen wie
+       Sie" oder Bevölkerungsnormen. Keine Diagnose, keine Verschreibung;
+       nur verdiente Ermutigung; verwende keine in Regel 7 verbotenen
+       Eröffnungen.
      - signalsOfDay: 0-3 gegenwartsbezogene Signale — der Aufmacher des
        Briefings. BEVORZUGE den "signalsOfDay"-Block des Snapshots, wenn
        er vorhanden ist: jeder Eintrag trägt den Vergleich bereits fertig
@@ -779,6 +856,13 @@ neutralem Label + Detail. Höchstgrenze: 20 Einträge.`,
     id: "sharedOutlook",
     en: outlookContract.en,
     de: outlookContract.de,
+  },
+  // v1.22 (W6) — paragraph formatting so the briefing paragraph renders as real
+  // paragraphs through the shared `ProseBlocks` helper.
+  {
+    id: "sharedFormatting",
+    en: formattingContract.en,
+    de: formattingContract.de,
   },
   {
     id: "language",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 
@@ -49,6 +49,12 @@ const NUDGE_SEEN_STORAGE_KEY = "healthlog-coach-nudge-seen";
 export interface CoachNudgeStatus {
   nudgedAt: string | null;
   unread: boolean;
+  /**
+   * v1.22 (W5) — the conversation holding the newest assistant message, so
+   * the FAB can deep-link into the proactive thread on the unread path
+   * instead of opening a blank new chat. Null when no Coach reply exists.
+   */
+  conversationId: string | null;
 }
 
 /**
@@ -70,6 +76,7 @@ export function isNudgeUnread(
 export function LayoutCoachFab() {
   const { t } = useTranslations();
   const pathname = usePathname();
+  const router = useRouter();
   const launch = useCoachLaunch();
   const flags = useFeatureFlags();
   const disableCoach = useDisableCoach();
@@ -115,8 +122,27 @@ export function LayoutCoachFab() {
     },
   });
 
+  // v1.22 (M4) — surface a due/surfaced Coach reminder on the FAB. Additive:
+  // the dot also lights when the daily sweep has flipped a "remind me" reminder
+  // to due, independent of the nudge seen-stamp (resolving the reminder in the
+  // ledger clears it). Same cheap, gated, stale-while-revalidate read shape.
+  const { data: dueReminders } = useQuery({
+    queryKey: queryKeys.coachReminders("due,surfaced"),
+    queryFn: async () => {
+      const data = await apiGet<{ reminders?: unknown[] } | undefined>(
+        "/api/coach/reminders?status=due,surfaced",
+      );
+      return data?.reminders ?? [];
+    },
+    enabled: coachAvailable && !onCoachPage,
+    staleTime: 5 * 60 * 1000,
+  });
+  const hasDueReminders = (dueReminders?.length ?? 0) > 0;
+
   const nudgedAt = status?.nudgedAt ?? null;
   const unread = isNudgeUnread(status, seenStamp);
+  // The visual dot lights for either an unread nudge OR a due reminder.
+  const showDot = unread || hasDueReminders;
 
   // The unread dot is visual-only (`aria-hidden`) and the swapped
   // `aria-label` is not announced on mutation — a screen-reader user
@@ -182,6 +208,17 @@ export function LayoutCoachFab() {
     // device, not just this one. The local stamp above already hid the
     // dot for an instant paint; the mutation makes it durable.
     if (unread) markSeen.mutate();
+    // v1.22 (W5) — when the Coach has written an UNREAD proactive message,
+    // deep-link straight into that conversation (`/coach?c=<id>`) so the
+    // user lands on what the Coach said, rather than opening a blank new
+    // chat in the drawer. The full page honours `?c=` →
+    // `initialConversationId`. Fall back to the in-place drawer for the
+    // ordinary launcher case (no unread, or no conversation id yet).
+    const conversationId = status?.conversationId ?? null;
+    if (unread && conversationId) {
+      router.push(`/coach?c=${conversationId}`);
+      return;
+    }
     // v1.16.11 — open the side drawer in place (the launch context the
     // layout mount consumes) instead of navigating to the chat page;
     // the conversation arrives without losing the page underneath.
@@ -194,7 +231,7 @@ export function LayoutCoachFab() {
         type="button"
         size="icon"
         data-slot="coach-fab"
-        data-unread={unread ? "true" : undefined}
+        data-unread={showDot ? "true" : undefined}
         onClick={handleOpen}
         aria-label={accessibleLabel}
         title={accessibleLabel}
@@ -239,7 +276,7 @@ export function LayoutCoachFab() {
         )}
       >
         <Sparkles className="text-background size-6" aria-hidden="true" />
-        {unread ? (
+        {showDot ? (
           // v1.18.6 (CCH-03) — discreet "the Coach said something" dot.
           // Deliberately NOT an alarming red (the medication-card rule:
           // status via calm signal, never an alarm tint): a small cyan

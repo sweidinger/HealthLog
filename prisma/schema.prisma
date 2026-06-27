@@ -254,6 +254,27 @@ model User {
   // behaviour (single-provider resolution via `aiProvider`).
   aiProviderChain Json? @map("ai_provider_chain")
 
+  // v1.22 (#89) — per-user response timeout for AI generation, in SECONDS.
+  // Threaded onto `CompletionParams.timeoutMs` (×1000). Null = the generous
+  // built-in default (~180 s). Surfaced in Settings → AI mainly for
+  // local/self-hosted servers (an MLX/exo backend can take >60 s on the
+  // first request while it loads the model), where the legacy 60 s client
+  // default timed the Coach out before the first token landed.
+  aiResponseTimeoutSeconds Int? @map("ai_response_timeout_seconds")
+
+  // v1.22 (#90) — dedicated document-scan (Lab-OCR) provider. OFF by default:
+  // the lab-report OCR path uses the main provider chain unchanged. When
+  // `aiOcrEnabled` is true the OCR ingestion resolves THIS provider/model/key
+  // instead, so a user can keep a cheap text Coach on one provider and route
+  // expensive vision OCR to a vision-capable one. The key is AES-256-GCM at
+  // rest like every other `*Encrypted` column (registered in
+  // `src/lib/crypto/encrypted-columns.ts` + the rotation script).
+  aiOcrEnabled      Boolean @default(false) @map("ai_ocr_enabled")
+  aiOcrProvider     String? @map("ai_ocr_provider") // "OPENAI" | "ANTHROPIC" | "LOCAL"
+  aiOcrModel        String? @map("ai_ocr_model")
+  aiOcrBaseUrl      String? @map("ai_ocr_base_url") // LOCAL OCR provider only
+  aiOcrKeyEncrypted String? @map("ai_ocr_key_encrypted")
+
   // Onboarding
   onboardingCompletedAt   DateTime? @map("onboarding_completed_at")
   // v1.4.25 W14b — last persisted onboarding wizard step.
@@ -571,6 +592,7 @@ model User {
   coachConversations     CoachConversation[]
   coachFacts             CoachFact[]
   coachPlans             CoachPlan[]
+  coachReminders         CoachReminder[]
   coachUsage             CoachUsage[]
   // v1.4.25 W8d — workout passthrough (Apple HKWorkout / Withings
   // getworkouts / future Strava). Schema lands now so the v1.5 iOS
@@ -3657,6 +3679,10 @@ model Biomarker {
   /// Optional panel grouping moved off the per-entry row, e.g.
   /// "Großes Blutbild". NULL = standalone marker.
   panel     String?
+  /// A marker the user no longer needs: dropped from the active catalog list
+  /// and from the lab-entry pickers, but never deleted — its readings and
+  /// canonical unit/range definition survive.
+  hidden    Boolean  @default(false) @map("hidden")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -3903,7 +3929,10 @@ model CoachFact {
 // so an abandoned plan is hidden from injection but kept for audit.
 //
 // `status` is an APP-SIDE closed enum (NOT a DB enum, to keep the migration
-// purely additive): proposed | active | met | abandoned.
+// purely additive): proposed | active | met | abandoned | review_due | reviewed.
+// The last two are the v1.22 (W9, C2) n-of-1 experiment lifecycle: an
+// "experiment" is just a CoachPlan with a reviewDate; when the review fires and
+// the read-back is generated, `outcomeEncrypted` carries the grounded result.
 model CoachPlan {
   id                   String    @id @default(cuid())
   userId               String    @map("user_id")
@@ -3917,10 +3946,15 @@ model CoachPlan {
   // Optional free-text target ("70 kg by August", "lights out by 23:00"). Free
   // prose like the cue/action, so encrypted at rest as well.
   targetEncrypted      Bytes?    @map("target_encrypted")
-  // App-side closed enum: proposed | active | met | abandoned.
+  // App-side closed enum: proposed | active | met | abandoned | review_due |
+  // reviewed (the last two are the W9/C2 experiment lifecycle).
   status               String    @default("proposed")
   // Optional review checkpoint the Coach can recall ("how did this go by …").
   reviewDate           DateTime? @map("review_date")
+  // v1.22 (W9, C2) — the n-of-1 read-back prose, grounded in the user's own
+  // before/after numbers and encrypted at rest like the cue/action. Written
+  // once when an experiment's review is processed; surfaced behind a flag.
+  outcomeEncrypted     Bytes?    @map("outcome_encrypted")
   // Provenance — nullable so a future manual-entry surface can leave it null.
   sourceConversationId String?   @map("source_conversation_id")
   createdAt            DateTime  @default(now()) @map("created_at")
@@ -3932,6 +3966,56 @@ model CoachPlan {
 
   @@index([userId, status, deletedAt])
   @@map("coach_plans")
+}
+
+// v1.22 (B2/B6) — durable, user-scoped EPISODIC reminder memory: a
+// time-anchored "bring this back later" intent the Coach captured from a
+// conversation ("remind me about my sleep next week"). This is the middle
+// memory type that neither CoachFact (durable traits) nor CoachPlan (standing
+// if-then habits) covers — an episode with a due moment and a done state.
+//
+// The free-text note is the user's own framing, encrypted at rest (AES-256-GCM
+// via the shared Bytes codec, exactly like CoachPlan's cue/action). `metric`,
+// `status`, the trigger fields and the dates stay plain so the daily sweep and
+// the injection picker can rank / filter without paying a per-row decrypt.
+//
+// `status` is an APP-SIDE closed enum (NOT a DB enum, to keep the migration
+// purely additive): proposed | active | due | surfaced | done | dismissed.
+// `triggerKind` is likewise app-side closed: date | context. Soft-delete via
+// `deletedAt` so a "forget this" action is reversible / auditable.
+model CoachReminder {
+  id                   String    @id @default(cuid())
+  userId               String    @map("user_id")
+  // What to bring back — the user's own framing, encrypted at rest.
+  noteEncrypted        Bytes     @map("note_encrypted")
+  // Optional link to the metric / plan it concerns; plain for filtering.
+  metric               String?
+  relatedPlanId        String?   @map("related_plan_id")
+  // Trigger model — app-side closed enum (date | context). For `date`, `dueAt`
+  // carries the fire moment; for `context`, `contextCue` names a closed cue.
+  triggerKind          String    @default("date") @map("trigger_kind")
+  dueAt                DateTime? @map("due_at")
+  contextCue           String?   @map("context_cue")
+  // Lifecycle: proposed | active | due | surfaced | done | dismissed.
+  status               String    @default("active")
+  // Provenance — how it was captured (sentinel | extractor | manual | action).
+  source               String
+  sourceConversationId String?   @map("source_conversation_id")
+  lastSurfacedAt       DateTime? @map("last_surfaced_at")
+  // How many times the sweep has surfaced this without the user acting; capped
+  // before auto-dismiss so an ignored reminder cannot nag indefinitely.
+  surfaceCount         Int       @default(0) @map("surface_count")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The daily sweep scans active reminders whose dueAt has passed; the status +
+  // deleted_at columns are part of the predicate so the read stays index-backed.
+  @@index([userId, status, dueAt, deletedAt])
+  @@index([userId, triggerKind, status])
+  @@map("coach_reminders")
 }
 
 // v1.15.20 — user-authored "about me" self-description the AI surfaces

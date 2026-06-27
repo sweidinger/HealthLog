@@ -148,7 +148,7 @@ export function NotificationStatusCard() {
       />
 
       <ul
-        className="mt-4 space-y-3 pl-7"
+        className="divide-border/60 mt-4 divide-y pl-7"
         data-testid="notification-status-list"
       >
         {channels.map((ch) => (
@@ -189,7 +189,7 @@ function ChannelRow({
 
   return (
     <li
-      className="border-border/60 flex flex-col gap-2 rounded-lg border p-4 sm:flex-row sm:items-start sm:justify-between"
+      className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
       data-testid={`notification-status-row-${channel.type}`}
       data-state={channel.state}
     >
