@@ -48,8 +48,6 @@ export const COACH_PLAN_STATUSES = [
   "abandoned",
 ] as const;
 
-export type CoachPlanStatus = (typeof COACH_PLAN_STATUSES)[number];
-
 /** Hard cap on non-terminal (proposed + active) plans per user. */
 export const MAX_PLANS_PER_USER = 25;
 /** Per-field text length cap (mirrors the Zod gate + the prompt instruction). */

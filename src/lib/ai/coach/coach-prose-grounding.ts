@@ -142,22 +142,6 @@ export function findUnverifiedCoachNumbers(
  * judge covers — never a false positive that blocks a good answer.
  * ────────────────────────────────────────────────────────────────────────── */
 
-/** A claim category the deterministic grader recognises. */
-export type CoachClaimKind =
-  /** A verdict against a clinical/own threshold ("you have hypertension"). */
-  | "threshold"
-  /** Framing against the user's own range ("above your usual", "for you"). */
-  | "ownBaseline"
-  /** A confident state verdict ("you're clearly improving"). */
-  | "confidentVerdict";
-
-/** One structured claim the grader extracted from Coach prose. */
-export interface CoachClaim {
-  kind: CoachClaimKind;
-  /** The phrase that triggered the match (truncated for logging). */
-  source: string;
-}
-
 /**
  * Confident-verdict phrasings: an unhedged state assertion. These are the
  * phrasings a data-honesty case must NOT see when the snapshot is sparse —
@@ -244,26 +228,6 @@ export function hasConfidentVerdict(prose: string): boolean {
 /** True when the prose makes a diagnosis-shaped threshold verdict. */
 export function hasThresholdVerdict(prose: string): boolean {
   return THRESHOLD_VERDICT_PATTERNS.some((p) => p.test(prose));
-}
-
-/**
- * Extract the structured claims the grader recognises from Coach prose. Each
- * entry is a high-precision match the golden-set graders assert on. The list is
- * intentionally non-exhaustive — see the module-level posture note.
- */
-export function extractCoachClaims(prose: string): CoachClaim[] {
-  if (!prose) return [];
-  const claims: CoachClaim[] = [];
-  const push = (kind: CoachClaimKind, patterns: readonly RegExp[]) => {
-    for (const p of patterns) {
-      const m = p.exec(prose);
-      if (m) claims.push({ kind, source: m[0].slice(0, 48) });
-    }
-  };
-  push("threshold", THRESHOLD_VERDICT_PATTERNS);
-  push("confidentVerdict", CONFIDENT_VERDICT_PATTERNS);
-  push("ownBaseline", OWN_BASELINE_PATTERNS);
-  return claims;
 }
 
 /**
