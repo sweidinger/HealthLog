@@ -511,6 +511,7 @@
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "dailyTotalCaption": "({count} samples)",
+    "openMetricInsights": "Open {type} insights",
     "sleepNapCaption": "+{count} nap(s)",
     "sleepAwakeningsCaption": "{count} awakening(s)",
     "expandDay": "Show samples for this day",
