@@ -39,6 +39,7 @@ import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { annotate } from "@/lib/logging/context";
 
 import { decryptFromBytes, encryptToBytes } from "./bytes-codec";
+import { REMINDERS_INJECT_TOP_N } from "./reminders";
 
 /** App-side closed status enum (NOT a DB enum — matches the schema column). */
 export const COACH_PLAN_STATUSES = [
@@ -60,6 +61,7 @@ const RECENT_TURNS_CAP = 10;
 
 type RunCompletionFn = typeof runStatusCompletion;
 type PrismaLike = Pick<typeof prisma, "coachPlan" | "coachConversation">;
+type ReminderPrismaLike = Pick<typeof prisma, "coachReminder">;
 
 interface ExtractOpts {
   runCompletion?: RunCompletionFn;
@@ -461,4 +463,95 @@ export async function buildCoachPlansBlock(
 
   if (plans.length === 0) return null;
   return { plans };
+}
+
+// ---------------------------------------------------------------------------
+// v1.22 (B2/B3) — episodic reminder recall sub-block
+// ---------------------------------------------------------------------------
+
+/**
+ * How far ahead of `now` an active reminder enters the recall block. A
+ * reminder due within this horizon (or already overdue) is "near" enough that
+ * the Coach should reference it unprompted on the next message; a reminder due
+ * far in the future stays dormant until its window approaches.
+ */
+const REMINDER_RECALL_HORIZON_DAYS = 3;
+const REMINDER_RECALL_HORIZON_MS = REMINDER_RECALL_HORIZON_DAYS * 86_400_000;
+
+/** One reminder as the snapshot recall block carries it. */
+export interface CoachReminderInjectEntry {
+  note: string;
+  metric?: string;
+  /** ISO due moment, when the reminder is date-triggered. */
+  dueAt?: string;
+  /** Lifecycle status (active | due | surfaced) for the model's framing. */
+  status: string;
+}
+
+interface InjectReminderRow {
+  noteEncrypted: Uint8Array;
+  metric: string | null;
+  dueAt: Date | null;
+  status: string;
+  updatedAt: Date;
+}
+
+/**
+ * Build the recall sub-block: the reminders the Coach should reference next
+ * time — anything already `due`/`surfaced` (the sweep flipped it and the user
+ * has not resolved it) plus `active` reminders whose `dueAt` is near or overdue.
+ * A recall-only `active` note (no `dueAt`) is also surfaced so the Coach honours
+ * the user's explicit "remember this" even without a fire moment. Decrypt is
+ * fault-isolated — an undecryptable row is skipped, never thrown. Returns `null`
+ * when the user has nothing to recall.
+ *
+ * This is the read half of the episodic memory type, mirroring
+ * `buildCoachPlansBlock`; the write half lives in `reminders.ts`.
+ */
+export async function buildCoachRemindersBlock(
+  userId: string,
+  now: Date,
+  opts?: { prisma?: ReminderPrismaLike },
+): Promise<{ reminders: CoachReminderInjectEntry[] } | null> {
+  const db = opts?.prisma ?? prisma;
+  const horizon = new Date(now.getTime() + REMINDER_RECALL_HORIZON_MS);
+
+  const rows = (await db.coachReminder.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      OR: [
+        // Already surfaced by the sweep and not yet resolved.
+        { status: { in: ["due", "surfaced"] } },
+        // Active + near/overdue date trigger.
+        { status: "active", dueAt: { lte: horizon } },
+        // Active recall-only note (no fire moment) — honour the explicit ask.
+        { status: "active", dueAt: null },
+      ],
+    },
+    // Soonest-due first, then most-recently touched.
+    orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
+    take: REMINDERS_INJECT_TOP_N * 3,
+    select: {
+      noteEncrypted: true,
+      metric: true,
+      dueAt: true,
+      status: true,
+      updatedAt: true,
+    },
+  })) as InjectReminderRow[];
+
+  const reminders: CoachReminderInjectEntry[] = [];
+  for (const r of rows) {
+    if (reminders.length >= REMINDERS_INJECT_TOP_N) break;
+    const note = decryptOrNull(r.noteEncrypted);
+    if (note === null) continue;
+    const entry: CoachReminderInjectEntry = { note, status: r.status };
+    if (r.metric) entry.metric = r.metric;
+    if (r.dueAt) entry.dueAt = r.dueAt.toISOString();
+    reminders.push(entry);
+  }
+
+  if (reminders.length === 0) return null;
+  return { reminders };
 }

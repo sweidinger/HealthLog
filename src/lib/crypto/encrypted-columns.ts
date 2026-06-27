@@ -112,6 +112,8 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "CoachPlan", field: "ifCueEncrypted", kind: "bytes" },
   { model: "CoachPlan", field: "thenActionEncrypted", kind: "bytes" },
   { model: "CoachPlan", field: "targetEncrypted", kind: "bytes" },
+  // v1.22 (B2/B6) — Coach episodic reminder free-text note.
+  { model: "CoachReminder", field: "noteEncrypted", kind: "bytes" },
 
   // ───── User health profile (Bytes columns) ─────
   { model: "UserHealthProfile", field: "aboutMeEncrypted", kind: "bytes" },

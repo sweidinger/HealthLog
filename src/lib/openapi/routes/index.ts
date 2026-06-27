@@ -27,6 +27,8 @@ import {
   coachFeedbackPaths,
   coachPaths,
   coachReminderSuggestionPaths,
+  coachReminderPaths,
+  coachSuggestedActionPaths,
 } from "./coach";
 import { consentPaths } from "./consent";
 import { cyclePaths } from "./cycle";
@@ -62,6 +64,8 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...profilePaths,
   ...coachPaths,
   ...coachReminderSuggestionPaths,
+  ...coachReminderPaths,
+  ...coachSuggestedActionPaths,
   ...adminInvitePaths,
   ...coachFeedbackPaths,
   ...adminDiagnosticPaths,

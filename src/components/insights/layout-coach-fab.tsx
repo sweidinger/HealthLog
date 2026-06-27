@@ -122,8 +122,27 @@ export function LayoutCoachFab() {
     },
   });
 
+  // v1.22 (M4) — surface a due/surfaced Coach reminder on the FAB. Additive:
+  // the dot also lights when the daily sweep has flipped a "remind me" reminder
+  // to due, independent of the nudge seen-stamp (resolving the reminder in the
+  // ledger clears it). Same cheap, gated, stale-while-revalidate read shape.
+  const { data: dueReminders } = useQuery({
+    queryKey: queryKeys.coachReminders("due,surfaced"),
+    queryFn: async () => {
+      const data = await apiGet<{ reminders?: unknown[] } | undefined>(
+        "/api/coach/reminders?status=due,surfaced",
+      );
+      return data?.reminders ?? [];
+    },
+    enabled: coachAvailable && !onCoachPage,
+    staleTime: 5 * 60 * 1000,
+  });
+  const hasDueReminders = (dueReminders?.length ?? 0) > 0;
+
   const nudgedAt = status?.nudgedAt ?? null;
   const unread = isNudgeUnread(status, seenStamp);
+  // The visual dot lights for either an unread nudge OR a due reminder.
+  const showDot = unread || hasDueReminders;
 
   // The unread dot is visual-only (`aria-hidden`) and the swapped
   // `aria-label` is not announced on mutation — a screen-reader user
@@ -212,7 +231,7 @@ export function LayoutCoachFab() {
         type="button"
         size="icon"
         data-slot="coach-fab"
-        data-unread={unread ? "true" : undefined}
+        data-unread={showDot ? "true" : undefined}
         onClick={handleOpen}
         aria-label={accessibleLabel}
         title={accessibleLabel}
@@ -257,7 +276,7 @@ export function LayoutCoachFab() {
         )}
       >
         <Sparkles className="text-background size-6" aria-hidden="true" />
-        {unread ? (
+        {showDot ? (
           // v1.18.6 (CCH-03) — discreet "the Coach said something" dot.
           // Deliberately NOT an alarming red (the medication-card rule:
           // status via calm signal, never an alarm tint): a small cyan

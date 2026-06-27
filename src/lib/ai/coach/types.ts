@@ -8,6 +8,8 @@
  */
 import { z } from "zod/v4";
 
+import type { CoachSuggestedAction } from "./suggest-action";
+
 /**
  * Chat-message role. Stored as a free-form string column server-side
  * (`coach_messages.role`) but constrained at the application layer so a
@@ -205,6 +207,7 @@ export type CoachStreamEvent =
       metricSource: CoachProvenance;
     }
   | { type: "suggestion"; suggestion: CoachSuggestion }
+  | { type: "suggestedAction"; suggestedAction: CoachSuggestedAction }
   | { type: "reasoning"; text: string }
   | {
       type: "done";
@@ -338,6 +341,13 @@ export interface CoachProvenance {
    * on a conversation reload. Absent on turns that carry no suggestion.
    */
   suggestion?: CoachSuggestion;
+  /**
+   * v1.22 (F6) — a generalised confirm→apply action card attached to this turn
+   * (`checkup.create` / `reminder.note`, closed allowlist). Persisted alongside
+   * the message so the card re-renders on a conversation reload. Absent on turns
+   * that carry no action.
+   */
+  suggestedAction?: CoachSuggestedAction;
   /**
    * v1.20.0 (F1) — the retrieval-tool trace for this turn: which tools the
    * Coach called and whether each found data (`present`). Metadata only — no

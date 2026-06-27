@@ -2558,11 +2558,21 @@ function degradeToBudget(
       block && Array.isArray(block.plans) && block.plans.length > 0
         ? block.plans
         : null;
+    // v1.22 (B2/B3) — the episodic reminders survive the drop alongside
+    // facts/plans: they are the user's own "remember this" asks, tiny by
+    // construction (top-6, ≤280 chars each), and shedding them would make the
+    // Coach forget a reminder on exactly the data-heavy accounts that hit the
+    // char cap.
+    const reminders =
+      block && Array.isArray(block.reminders) && block.reminders.length > 0
+        ? block.reminders
+        : null;
     const survivors: Record<string, unknown> = {
       omitted: "trimmed for prompt budget",
     };
     if (facts) survivors.facts = facts;
     if (plans) survivors.plans = plans;
+    if (reminders) survivors.reminders = reminders;
     snapshot[key] = survivors;
     return true;
   };

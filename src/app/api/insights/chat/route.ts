@@ -94,6 +94,16 @@ import { scrubUnknownLearnLinks } from "@/lib/ai/coach/learn-link-guard";
 import { parseSuggestReminder } from "@/lib/ai/coach/suggest-reminder";
 import { gateSuggestion } from "@/lib/ai/coach/suggest-gate";
 import {
+  parseRememberSentinel,
+  captureReminderFromSentinel,
+  buildRememberAddendum,
+} from "@/lib/ai/coach/reminders";
+import {
+  parseSuggestAction,
+  buildSuggestActionAddendum,
+  type CoachSuggestedAction,
+} from "@/lib/ai/coach/suggest-action";
+import {
   parseCoachPrefs,
   DEFAULT_REMINDER_SUGGESTION_PREFS,
 } from "@/lib/validations/coach-prefs";
@@ -371,7 +381,12 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // v1.16.0 — composed self-context: structured questionnaire fields
   // plus age/gender merged in from the User profile.
   const aboutMe = await getSelfContextTextForUser(userId, locale);
-  const systemPrompt = getCoachSystemPrompt(locale, coachPrefs, aboutMe);
+  // v1.22 (B2/F6) — the canonical system-prompt module is owned elsewhere, so
+  // the two memory/action clauses are appended at assembly time here: one
+  // teaches the model to emit `---REMEMBER---` (durable "remind me" capture),
+  // one teaches the closed `---SUGGEST-ACTION---` confirm-card allowlist. Both
+  // are provider-neutral sentinels stripped from the prose before it streams.
+  const systemPrompt = `${getCoachSystemPrompt(locale, coachPrefs, aboutMe)}\n\n${buildRememberAddendum(locale)}\n\n${buildSuggestActionAddendum(locale)}`;
   const allTurns: CoachTurn[] = [
     ...priorTurns,
     { role: "user", content: message },
@@ -755,6 +770,39 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
   const suggestParse = parseSuggestReminder(proseAfterStrip);
   let replyText = suggestParse.prose.trim() || proseAfterStrip;
 
+  // v1.22 (B2) — strip the optional `---REMEMBER---` block and capture the
+  // reminder INLINE on this turn (not in the >20-turn memory worker), so a
+  // casual "remind me about X" in a SHORT chat is no longer lost. The note is
+  // the user's OWN explicit request → captured silently as `active` (no confirm
+  // gate); the model acknowledges it in prose. A missing note / invalid `when`
+  // drops the block (the user never sees the raw marker). Fire-and-forget: the
+  // capture write must never break the chat turn.
+  const rememberParse = parseRememberSentinel(replyText, new Date());
+  replyText = rememberParse.prose.trim() || replyText;
+  if (rememberParse.reminder) {
+    const capture = rememberParse.reminder;
+    void captureReminderFromSentinel({
+      userId,
+      conversationId: workingConversationId,
+      parsed: capture,
+    }).catch(() => {
+      // Reminder capture is best-effort; never sink the turn.
+    });
+  } else if (rememberParse.malformed) {
+    annotate({
+      action: { name: "coach.reminder.capture_malformed" },
+      meta: { conversationId: workingConversationId },
+    });
+  }
+
+  // v1.22 (F6) — strip the optional `---SUGGEST-ACTION---` block (the
+  // generalised confirm→apply moat). The model names ONE action from the closed
+  // allowlist (`checkup.create` / `reminder.note`); the card surfaces additively
+  // and NOTHING is created until the user taps confirm (the entity is built
+  // server-side, field-by-field, by `POST /api/coach/suggested-actions`).
+  const actionParse = parseSuggestAction(replyText);
+  replyText = actionParse.prose.trim() || replyText;
+
   // v1.18.10 (HIGH-2) — OUTBOUND safety screen on the assembled assistant
   // reply, before persistence and streaming. The inbound `detectRefusal`
   // guards the user's message; this guards the model's reply for a
@@ -888,8 +936,21 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
       });
     }
   }
+  // v1.22 (F6) — surface the confirm-card action when the turn was not blocked.
+  // Additive: the prose already stands alone; the card only offers the one-tap
+  // confirm. Nothing is created server-side until the user taps it.
+  let surfacedAction: CoachSuggestedAction | null = null;
+  if (!outbound.block && actionParse.action) {
+    surfacedAction = actionParse.action;
+    annotate({
+      action: { name: "coach.action.suggested" },
+      meta: { actionType: actionParse.action.actionType },
+    });
+  }
+
   const enrichedProvenance: typeof snapshot.provenance = {
     ...snapshot.provenance,
+    ...(surfacedAction ? { suggestedAction: surfacedAction } : {}),
     // v1.18.10 (HIGH-2) — a blocked turn carries the fallback prose, so the
     // key-values from the discarded reply must not ride along as provenance.
     ...(!outbound.block && sentinel.keyValues.length > 0
@@ -1016,6 +1077,16 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
     if (surfacedSuggestion) {
       controller.enqueue(
         encodeFrame({ type: "suggestion", suggestion: surfacedSuggestion }),
+      );
+    }
+    // v1.22 (F6) — additive `suggestedAction` frame. Older clients ignore it;
+    // newer ones render the generic one-tap confirm card.
+    if (surfacedAction) {
+      controller.enqueue(
+        encodeFrame({
+          type: "suggestedAction",
+          suggestedAction: surfacedAction,
+        }),
       );
     }
     // v1.18.9 — additive `usage` envelope on the `done` frame so the client

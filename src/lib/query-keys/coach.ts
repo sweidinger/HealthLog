@@ -32,4 +32,14 @@ export const coachKeys = {
    * (`GET /api/insights/coach/seeded-question`).
    */
   coachSeededQuestion: () => ["coach-seeded-question"] as const,
+  /**
+   * v1.22 (B2/B6) — the user's Coach episodic reminders (`GET /api/coach/
+   * reminders`). The optional `status` arg keys the in-app tile read
+   * (`due,surfaced`) separately from the full ledger list so the two never
+   * share a cache slot.
+   */
+  coachReminders: (status?: string) =>
+    ["coach-reminders", status ?? "all"] as const,
+  /** Prefix key — invalidates every `coachReminders(status)` slot at once. */
+  coachRemindersAll: () => ["coach-reminders"] as const,
 };
