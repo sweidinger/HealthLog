@@ -36,6 +36,7 @@ import { apiHandler, HttpError, requireAdmin } from "@/lib/api-handler";
 import { apiError, apiSuccess, getClientIp } from "@/lib/api-response";
 import { auditLog } from "@/lib/auth/audit";
 import { decrypt } from "@/lib/crypto";
+import { encryptNote } from "@/lib/crypto/note-cipher";
 import { defaultUserIdResolver, withIdempotency } from "@/lib/idempotency";
 import { annotate } from "@/lib/logging/context";
 import {
@@ -330,7 +331,10 @@ const handler = apiHandler(
               unit: m.unit,
               source: (m.source ?? "MANUAL") as never,
               measuredAt: new Date(m.measuredAt),
-              notes: m.notes ?? null,
+              // v1.23 — re-encrypt the note from the (decrypted) backup payload
+              // into the at-rest column; legacy plaintext column nulled.
+              notes: null,
+              notesEncrypted: encryptNote(m.notes ?? null),
             })),
             // Backups can replay the same data — the unique
             // (userId, type, measuredAt, source) constraint catches

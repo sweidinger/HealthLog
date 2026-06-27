@@ -11,6 +11,7 @@ import {
   formatIntakeEventsForExport,
   formatMoodEntriesForExport,
 } from "@/lib/export";
+import { shapeMeasurementNotes, shapeMoodNote } from "@/lib/crypto/note-cipher";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { NextRequest, NextResponse } from "next/server";
@@ -70,7 +71,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // Thread the user's source-priority so a multi-source night dedups to
     // the same canonical source the UI shows.
     const measurementRecords = formatMeasurementsForExport(
-      measurements,
+      // v1.23 — decrypt notes before formatting; strip the ciphertext column.
+      measurements.map(shapeMeasurementNotes),
       userTz,
       { sleepTz: userTz, sourcePriorityJson },
     );
@@ -110,10 +112,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
       where: { userId, deletedAt: null },
       orderBy: { moodLoggedAt: "desc" },
     });
+    const decryptedMood = moodEntries.map(shapeMoodNote);
     data.moodEntries =
       format === "csv"
-        ? toCSV(formatMoodEntriesForExport(moodEntries, userTz))
-        : formatMoodEntriesForExport(moodEntries, userTz);
+        ? toCSV(formatMoodEntriesForExport(decryptedMood, userTz))
+        : formatMoodEntriesForExport(decryptedMood, userTz);
   }
 
   await auditLog("export.download", {

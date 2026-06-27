@@ -71,6 +71,9 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   // v1.22 (#90) — dedicated document-scan (Lab-OCR) provider key.
   { model: "User", field: "aiOcrKeyEncrypted", kind: "string" },
   { model: "User", field: "insuranceNumberEncrypted", kind: "string" },
+  // v1.23 — TOTP shared secret (second factor). String ciphertext like the
+  // other User credential columns.
+  { model: "User", field: "totpSecretEncrypted", kind: "string" },
 
   // ───── OAuth token tables (`*_token`-convention columns) ─────
   { model: "WithingsConnection", field: "accessToken", kind: "string" },
@@ -141,6 +144,12 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
 
   // ───── v1.19.0 ECG waveform (Bytes column) ─────
   { model: "EcgRecording", field: "waveformEncrypted", kind: "bytes" },
+
+  // ───── v1.23 free-text health notes (Bytes columns) ─────
+  // Free-text mood diary + per-measurement notes. Same class as the
+  // IllnessDayLog / LabResult note columns above; Bytes via the shared codec.
+  { model: "MoodEntry", field: "noteEncrypted", kind: "bytes" },
+  { model: "Measurement", field: "notesEncrypted", kind: "bytes" },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */

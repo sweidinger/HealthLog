@@ -18,6 +18,7 @@ import {
   glucoseContextEnum,
 } from "@/lib/validations/measurement";
 import { validateEntryInstant } from "@/lib/validations/entry-instant";
+import { encryptNote } from "@/lib/crypto/note-cipher";
 import { recomputeUserMoodRollups } from "@/lib/rollups/mood-rollups";
 import {
   collapseToTypeDayKeys,
@@ -144,7 +145,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
               value: m.value,
               unit: m.unit,
               measuredAt,
-              notes: m.notes || null,
+              notes: null,
+              notesEncrypted: encryptNote(m.notes || null),
               glucoseContext: m.glucoseContext ?? null,
             },
             create: {
@@ -155,7 +157,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
               source: "IMPORT",
               externalId: m.externalId,
               measuredAt,
-              notes: m.notes || null,
+              notes: null,
+              notesEncrypted: encryptNote(m.notes || null),
               glucoseContext: m.glucoseContext ?? null,
             },
           });
@@ -168,7 +171,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
               unit: m.unit,
               source: "IMPORT",
               measuredAt,
-              notes: m.notes || null,
+              notes: null,
+              notesEncrypted: encryptNote(m.notes || null),
               glucoseContext: m.glucoseContext ?? null,
             },
           });

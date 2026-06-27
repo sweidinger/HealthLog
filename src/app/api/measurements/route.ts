@@ -27,6 +27,7 @@ import {
   localDayWindow,
 } from "@/lib/measurements/drain-per-sample-cumulative";
 import { withIdempotency } from "@/lib/idempotency";
+import { encryptNote, shapeMeasurementNotes } from "@/lib/crypto/note-cipher";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
@@ -491,7 +492,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
   annotate({ action: { name: "measurement.list" }, meta: { total, type } });
 
   return apiSuccess({
-    measurements,
+    // v1.23 — decrypt `notesEncrypted` onto `notes` and strip the ciphertext
+    // before it leaves the server (iOS MeasurementWireDTO contract).
+    measurements: measurements.map(shapeMeasurementNotes),
     meta: { total, limit, offset },
   });
 });
@@ -738,7 +741,10 @@ async function postMeasurement(request: NextRequest) {
             unit: getUnitForType(m.type),
             source: (m.source ?? "MANUAL") as MeasurementSource,
             measuredAt: m.measuredAt,
-            notes: m.notes ?? null,
+            // v1.23 — encrypt the note at rest; the legacy plaintext column is
+            // written null for new rows.
+            notes: null,
+            notesEncrypted: encryptNote(m.notes ?? null),
             glucoseContext:
               (m.glucoseContext as GlucoseContext | undefined) ?? null,
             // v1.4.25 W10 reconcile (code-review M4): mirror the
@@ -749,6 +755,8 @@ async function postMeasurement(request: NextRequest) {
         }),
       ),
     );
+
+    const shapedResults = results.map(shapeMeasurementNotes);
 
     await auditLog("measurement.create.batch", {
       userId: user.id,
@@ -823,7 +831,7 @@ async function postMeasurement(request: NextRequest) {
       console.warn("[measurements] rollup recompute failed", err);
     }
 
-    return apiSuccess(results, 201);
+    return apiSuccess(shapedResults, 201);
   }
 
   // Single mode (existing behavior)
@@ -878,7 +886,9 @@ async function postMeasurement(request: NextRequest) {
         unit: getUnitForType(type),
         source: (source ?? "MANUAL") as MeasurementSource,
         measuredAt,
-        notes: notes ?? null,
+        // v1.23 — encrypt the note at rest; legacy plaintext column nulled.
+        notes: null,
+        notesEncrypted: encryptNote(notes ?? null),
         glucoseContext: (glucoseContext as GlucoseContext | undefined) ?? null,
         // v1.4.25 W10 reconcile (code-review M4): the deviceType column
         // already accepts client metadata from the batch route. Mirror
@@ -963,5 +973,5 @@ async function postMeasurement(request: NextRequest) {
     console.warn("[measurements] status-insight invalidate failed", err);
   });
 
-  return apiSuccess(measurement, 201);
+  return apiSuccess(shapeMeasurementNotes(measurement), 201);
 }

@@ -21,6 +21,7 @@ import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { apiError, getClientIp } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { readNote } from "@/lib/crypto/note-cipher";
 import { BACKUP_SCHEMA_VERSION } from "@/lib/validations/backup";
 import { buildCycleBackupSection } from "@/lib/cycle/backup";
 import { NextRequest, NextResponse } from "next/server";
@@ -94,7 +95,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
       unit: m.unit,
       measuredAt: m.measuredAt.toISOString(),
       source: m.source,
-      notes: m.notes,
+      // v1.23 — decrypt the note for the human-readable backup; an admin
+      // restore re-encrypts it on re-insert.
+      notes: readNote(m.notesEncrypted, m.notes),
     })),
     medications: medications.map((m) => ({
       name: m.name,

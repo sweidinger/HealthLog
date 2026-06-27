@@ -7,6 +7,7 @@
 import { type Job } from "pg-boss";
 import { recordError } from "@/lib/jobs/worker-status";
 import { encrypt } from "@/lib/crypto";
+import { readNote } from "@/lib/crypto/note-cipher";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { buildCycleBackupSection } from "@/lib/cycle/backup";
 import { runOffhostBackup } from "@/lib/jobs/offhost-backup";
@@ -94,7 +95,9 @@ export async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
               unit: m.unit,
               measuredAt: m.measuredAt.toISOString(),
               source: m.source,
-              notes: m.notes,
+              // v1.23 — decrypt into the (whole-blob-encrypted) backup payload
+              // so an admin restore re-encrypts on re-insert.
+              notes: readNote(m.notesEncrypted, m.notes),
             })),
             medications: medications.map((m) => ({
               name: m.name,

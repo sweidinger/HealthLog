@@ -50,6 +50,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { readNote } from "@/lib/crypto/note-cipher";
 import { TOMBSTONE_RETENTION_DAYS } from "@/lib/auth/native-client";
 import {
   decodeCursor,
@@ -249,6 +250,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
           measuredAt: true,
           source: true,
           notes: true,
+          notesEncrypted: true,
           syncVersion: true,
           deletedAt: true,
           updatedAt: true,
@@ -265,6 +267,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
           score: true,
           tags: true,
           note: true,
+          noteEncrypted: true,
           moodLoggedAt: true,
           source: true,
           syncVersion: true,
@@ -336,7 +339,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         unit: row.unit,
         measuredAt: row.measuredAt.toISOString(),
         source: row.source,
-        notes: row.notes,
+        notes: readNote(row.notesEncrypted, row.notes),
         syncVersion: row.syncVersion,
         updatedAt: row.updatedAt.toISOString(),
       });
@@ -365,7 +368,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         mood: row.mood,
         score: row.score,
         tags: row.tags,
-        note: row.note,
+        note: readNote(row.noteEncrypted, row.note),
         moodLoggedAt: row.moodLoggedAt.toISOString(),
         source: row.source,
         syncVersion: row.syncVersion,

@@ -193,6 +193,8 @@ async function main() {
     "aiOpenaiKeyEncrypted",
     "aiOcrKeyEncrypted",
     "insuranceNumberEncrypted",
+    // v1.23 — TOTP shared secret (second factor).
+    "totpSecretEncrypted",
   ];
   for (const field of userFields) {
     results.push(await rotateStringColumn("User", field, prisma.user));
@@ -402,6 +404,22 @@ async function main() {
       "EcgRecording",
       "waveformEncrypted",
       prisma.ecgRecording,
+    ),
+  );
+
+  // ───── v1.23 free-text health notes (Bytes columns) ─────
+  // "noteEncrypted" (MoodEntry) + "notesEncrypted" (Measurement). Same shared-
+  // codec shape as the clinical-spine note columns. NULL on rows whose note is
+  // still in the legacy plaintext column (pre-backfill) — `rotateBytesColumn`
+  // skips those.
+  results.push(
+    await rotateBytesColumn("MoodEntry", "noteEncrypted", prisma.moodEntry),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "Measurement",
+      "notesEncrypted",
+      prisma.measurement,
     ),
   );
 

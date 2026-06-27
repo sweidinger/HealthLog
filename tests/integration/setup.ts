@@ -16,6 +16,14 @@
 import { prisma } from "@/lib/db";
 import type { PrismaClient } from "@/generated/prisma/client";
 
+// v1.23 — every integration test imports this module. The free-text health-note
+// columns (mood + measurement) are now AES-256-GCM at rest, so any test that
+// writes/reads a note needs an encryption key. Crypto reads the key lazily on
+// first `encrypt()`, so a `??=` default here covers every test without touching
+// each file (individual tests that set their own key still win — `??=`).
+process.env.ENCRYPTION_KEY ??=
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
 /**
  * The application's Prisma singleton. Tests use this so any code
  * imported via `await import("@/lib/...")` shares the exact same client

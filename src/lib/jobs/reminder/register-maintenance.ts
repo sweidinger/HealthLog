@@ -55,6 +55,13 @@ import {
   RESTORE_DRILL_CRON,
   RESTORE_DRILL_QUEUE,
 } from "@/lib/jobs/restore-drill";
+import {
+  NOTE_ENCRYPTION_BACKFILL_QUEUE,
+  NOTE_ENCRYPTION_BACKFILL_CONCURRENCY,
+  runNoteEncryptionBackfillForUser,
+  enqueueBootTimeNoteEncryptionBackfill,
+  type NoteEncryptionBackfillPayload,
+} from "@/lib/jobs/note-encryption-backfill";
 import { recordError } from "@/lib/jobs/worker-status";
 import { workerLog } from "./shared";
 import { createAndSchedule, type ScheduleEntry } from "./registrar-shared";
@@ -168,6 +175,13 @@ const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
 const COACH_MESSAGE_CLEANUP_QUEUE = "coach-message-cleanup";
 
 const COACH_MESSAGE_CLEANUP_CRON = "50 3 * * *";
+// v1.23 — converging backfill that migrates the free-text health-note columns
+// (mood + measurement) from plaintext to AES-256-GCM at rest. Boot discovery
+// enqueues one per-user job; a daily 03:55 Europe/Berlin discovery tick (empty
+// payload) re-fans for any rows that landed between worker reboots, so the
+// migration converges without a restart. Idempotent + fail-closed per row.
+
+const NOTE_ENCRYPTION_BACKFILL_CRON = "55 3 * * *";
 
 const allQueues = [
   DATA_BACKUP_QUEUE,
@@ -209,6 +223,11 @@ const allQueues = [
   // the daily schedule silently no-ops and the encrypted coach_messages
   // table grows unbounded.
   COACH_MESSAGE_CLEANUP_QUEUE,
+  // v1.23 — free-text health-note encryption backfill. Boot discovery + a
+  // daily discovery cron enqueue one per-user job per account still holding a
+  // plaintext note; without this entry pg-boss never provisions the queue and
+  // both the boot enqueue and the cron silently no-op.
+  NOTE_ENCRYPTION_BACKFILL_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -260,6 +279,10 @@ const schedules: ScheduleEntry[] = [
   [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
   // v1.18.7 — daily 03:50 Europe/Berlin prune for stale Coach history.
   [COACH_MESSAGE_CLEANUP_QUEUE, COACH_MESSAGE_CLEANUP_CRON],
+  // v1.23 — daily 03:55 Europe/Berlin note-encryption backfill discovery.
+  // The empty cron payload (no `userId`) is the handler's signal to fan out
+  // one per-user job per account still holding a plaintext note.
+  [NOTE_ENCRYPTION_BACKFILL_QUEUE, NOTE_ENCRYPTION_BACKFILL_CRON],
 ];
 
 /**
@@ -427,6 +450,46 @@ export async function registerMaintenanceQueues(
     },
   );
 
+  // v1.23 — note-encryption backfill worker. The boot enqueue helper (and the
+  // daily 03:55 discovery tick) send one job per user still holding a plaintext
+  // note; this handler migrates that user's rows to the encrypted columns. An
+  // empty-userId payload is the daily discovery tick and re-fans the per-user
+  // jobs (singletonKey-coalesced, identical to the boot pass). Serial
+  // concurrency so the migration never crowds the request pool.
+  await boss.work<Partial<NoteEncryptionBackfillPayload>>(
+    NOTE_ENCRYPTION_BACKFILL_QUEUE,
+    { localConcurrency: NOTE_ENCRYPTION_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        if (!userId) {
+          const result = await enqueueBootTimeNoteEncryptionBackfill();
+          workerLog(
+            "info",
+            `[note-encryption-backfill] daily discovery enqueued=${result.enqueued} skipped=${result.skipped}${result.error ? ` error=${result.error}` : ""}`,
+          );
+          continue;
+        }
+        try {
+          const { measurementsMigrated, moodEntriesMigrated } =
+            await runNoteEncryptionBackfillForUser(userId);
+          workerLog(
+            "info",
+            `[note-encryption-backfill] user=${userId} measurements=${measurementsMigrated} moodEntries=${moodEntriesMigrated}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[note-encryption-backfill] user=${userId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
   return allQueues;
 }
 
@@ -453,6 +516,32 @@ export async function enqueueMaintenanceBootDiscovery(): Promise<void> {
     workerLog(
       "error",
       "[intake-slot-dedup] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.23 — note-encryption backfill. Finds every user still holding a
+  // plaintext mood/measurement note (no ciphertext yet) and enqueues one
+  // migration job per account. Idempotent across reboots: a migrated row nulls
+  // its plaintext column and drops off the discovery predicate.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeNoteEncryptionBackfill();
+    if (error) {
+      workerLog(
+        "error",
+        `[note-encryption-backfill] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[note-encryption-backfill] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[note-encryption-backfill] boot discovery threw an unexpected error",
       err,
     );
   }

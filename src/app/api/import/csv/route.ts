@@ -3,6 +3,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
+import { encryptNote } from "@/lib/crypto/note-cipher";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 
@@ -124,7 +125,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
               value: m.value,
               unit: m.unit,
               measuredAt: m.measuredAt,
-              notes: m.notes ?? null,
+              notes: null,
+              notesEncrypted: encryptNote(m.notes ?? null),
               glucoseContext:
                 (m.glucoseContext as GlucoseContext | undefined) ?? null,
             },
@@ -136,7 +138,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
               source: "IMPORT",
               externalId: m.externalId,
               measuredAt: m.measuredAt,
-              notes: m.notes ?? null,
+              notes: null,
+              notesEncrypted: encryptNote(m.notes ?? null),
               glucoseContext:
                 (m.glucoseContext as GlucoseContext | undefined) ?? null,
             },
@@ -160,7 +163,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
               unit: m.unit,
               source: "IMPORT",
               measuredAt: m.measuredAt,
-              notes: m.notes ?? null,
+              notes: null,
+              notesEncrypted: encryptNote(m.notes ?? null),
               glucoseContext:
                 (m.glucoseContext as GlucoseContext | undefined) ?? null,
             },

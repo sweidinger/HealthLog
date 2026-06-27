@@ -19,6 +19,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { apiError, getClientIp } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { toCSV, formatMoodEntriesForExport } from "@/lib/export";
+import { shapeMoodNote } from "@/lib/crypto/note-cipher";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -62,7 +63,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
     resolveUserTimezone(user.id),
   ]);
 
-  const csv = toCSV(formatMoodEntriesForExport(entries, userTz));
+  const csv = toCSV(
+    formatMoodEntriesForExport(entries.map(shapeMoodNote), userTz),
+  );
 
   await auditLog("user.export.mood", {
     userId: user.id,

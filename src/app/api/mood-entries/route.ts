@@ -18,6 +18,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { withIdempotency } from "@/lib/idempotency";
+import { encryptNote, readNote, shapeMoodNote } from "@/lib/crypto/note-cipher";
 import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
@@ -119,7 +120,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
   });
 
   const entriesWithParsedTags = entries.map(({ tagLinks, ...e }) => ({
-    ...e,
+    // v1.23 — decrypt `noteEncrypted` onto `note`, strip the ciphertext.
+    ...shapeMoodNote(e),
     tags: parseTags(e.tags),
     // v1.8.5 — flat list of binary structured-tag keys attached to the
     // entry (rated factors are surfaced separately below).
@@ -234,7 +236,8 @@ async function postMoodEntry(request: NextRequest) {
                 mood,
                 score,
                 tags: tags ? JSON.stringify(tags) : null,
-                note: note ?? null,
+                note: null,
+                noteEncrypted: encryptNote(note ?? null),
                 source: resolvedSource,
                 externalId,
                 moodLoggedAt,
@@ -245,7 +248,8 @@ async function postMoodEntry(request: NextRequest) {
                 mood,
                 score,
                 tags: tags ? JSON.stringify(tags) : null,
-                note: note ?? null,
+                note: null,
+                noteEncrypted: encryptNote(note ?? null),
                 moodLoggedAt,
               },
             })
@@ -257,7 +261,8 @@ async function postMoodEntry(request: NextRequest) {
                 mood,
                 score,
                 tags: tags ? JSON.stringify(tags) : null,
-                note: note ?? null,
+                note: null,
+                noteEncrypted: encryptNote(note ?? null),
                 source: resolvedSource,
                 moodLoggedAt,
               },
@@ -347,7 +352,7 @@ async function postMoodEntry(request: NextRequest) {
         date: entry.date,
         moodLoggedAt: entry.moodLoggedAt,
         mood: entry.mood,
-        note: entry.note ?? null,
+        note: readNote(entry.noteEncrypted, entry.note),
         tags: entry.tags,
         source: entry.source,
       },
@@ -362,7 +367,8 @@ async function postMoodEntry(request: NextRequest) {
 
     return apiSuccess(
       {
-        ...entry,
+        // v1.23 — decrypt `noteEncrypted` onto `note`, strip the ciphertext.
+        ...shapeMoodNote(entry),
         tags: parseTags(entry.tags),
         // v1.8.5 — surface the persisted structured-tag keys so a client
         // hydrating from the create response renders the tag set without a
