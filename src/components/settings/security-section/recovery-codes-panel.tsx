@@ -53,7 +53,7 @@ export function RecoveryCodesPanel({ codes }: { codes: string[] }) {
         {t("settings.security.recovery.saveNowHint")}
       </p>
       <ul
-        className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm"
+        className="xs:grid-cols-2 mt-3 grid grid-cols-1 gap-2 font-mono text-sm"
         data-testid="recovery-codes"
       >
         {codes.map((code) => (

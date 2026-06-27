@@ -41,7 +41,7 @@ export function PasskeyUpgradeNudge() {
         type="button"
         variant="ghost"
         size="icon"
-        className="h-8 w-8 shrink-0"
+        className="min-h-11 min-w-11 shrink-0 sm:h-8 sm:min-h-0 sm:w-8 sm:min-w-0"
         onClick={() => dismiss.mutate()}
         disabled={dismiss.isPending}
         aria-label={t("common.dismiss")}
