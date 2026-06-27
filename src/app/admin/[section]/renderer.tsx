@@ -26,7 +26,6 @@ import { AppLogPreviewSection } from "@/components/admin/app-log-preview-section
 import { BackupsSection } from "@/components/admin/backups-section";
 import { DangerZoneSection } from "@/components/admin/danger-zone-section";
 import { EncryptionSection } from "@/components/admin/encryption-section";
-import { FeedbackInboxSection } from "@/components/admin/feedback-inbox-section";
 import { GeneralSettingsSection } from "@/components/admin/general-settings-section";
 import { IntegrationsGroupSection } from "@/components/admin/integrations-group-section";
 import { LoginOverviewSection } from "@/components/admin/login-overview-section";
@@ -119,15 +118,6 @@ export function AdminSectionRenderer({
           subtitle={t("admin.section.module-availability.subtitle")}
         >
           <ModuleAvailabilitySection />
-        </SectionFrame>
-      );
-    case "feedback":
-      return (
-        <SectionFrame
-          title={t("admin.section.feedback.title")}
-          subtitle={t("admin.section.feedback.subtitle")}
-        >
-          <FeedbackInboxSection />
         </SectionFrame>
       );
     case "reminders":

@@ -190,7 +190,7 @@ describe("GET /api/gamification/achievements — hidden achievement redaction", 
     for (const entry of hiddenLocked) {
       // Trigger semantics scrubbed
       expect(entry.metric ?? "").not.toMatch(
-        /(nightOwl|earlyBird|leapDay|doctorPdf|localeFlip|bugReport)Count/,
+        /(nightOwl|earlyBird|leapDay|doctorPdf|localeFlip)Count/,
       );
       // i18n keys scrubbed
       expect(entry.titleKey ?? "").not.toContain("hiddenNightOwl");

@@ -25,7 +25,6 @@ export const ADMIN_SECTION_SLUGS = [
   // (was stacked under Coach). It gates every module, not just the coach,
   // so it reads better next to Coach than buried inside it.
   "module-availability",
-  "feedback",
   "reminders",
   "users",
   // v1.16.0 — registration invites get their own section. They started

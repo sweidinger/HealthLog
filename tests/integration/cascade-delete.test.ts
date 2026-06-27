@@ -3,7 +3,7 @@
  *
  * Deleting a user must wipe every personal-data row that references
  * them. The schema declares `onDelete: Cascade` for personal data and
- * `onDelete: SetNull` for audit-style rows (AuditLog, Feedback). This
+ * `onDelete: SetNull` for audit-style rows (AuditLog). This
  * test verifies the actual database FKs match those declarations — a
  * missing CASCADE would leave orphan rows behind, violating GDPR.
  */
@@ -143,18 +143,10 @@ describe("user.delete cascades to all personal-data tables", () => {
       },
     });
 
-    // Audit logs / feedback are intentionally SetNull, not Cascade —
-    // they survive deletion with a null userId for compliance triage.
+    // Audit logs are intentionally SetNull, not Cascade — they survive
+    // deletion with a null userId for compliance triage.
     const auditRow = await prisma.auditLog.create({
       data: { userId: user.id, action: "auth.login" },
-    });
-    const feedbackRow = await prisma.feedback.create({
-      data: {
-        userId: user.id,
-        category: "BUG",
-        subject: "test",
-        description: "test",
-      },
     });
 
     // ── act ──
@@ -200,10 +192,5 @@ describe("user.delete cascades to all personal-data tables", () => {
       where: { id: auditRow.id },
     });
     expect(auditAfter?.userId).toBeNull();
-
-    const feedbackAfter = await prisma.feedback.findUnique({
-      where: { id: feedbackRow.id },
-    });
-    expect(feedbackAfter?.userId).toBeNull();
   });
 });

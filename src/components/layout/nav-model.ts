@@ -1,7 +1,6 @@
 import {
   Activity,
   Bell,
-  Bug,
   Droplets,
   FlaskConical,
   Home,
@@ -168,17 +167,15 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
 /**
  * v1.17.1 (F-1 residue) — the shared UTILITY tail.
  *
- * Bug Report, Settings and Notifications are reachable on both bars but are
- * not feature destinations: on desktop they live in the sidebar footer +
- * avatar menu, on mobile at the tail of the "More" hub. They used to be a
- * second hand-curated list on each bar — the exact drift the one-model
- * contract above set out to kill, just pushed down a level. This list is
- * the single source both bars consume for the tail, so the two surfaces
- * can no longer disagree on which utility links exist or in which order.
+ * Settings and Notifications are reachable on both bars but are not feature
+ * destinations: on desktop they live in the sidebar footer + avatar menu, on
+ * mobile at the tail of the "More" hub. They used to be a second hand-curated
+ * list on each bar — the exact drift the one-model contract above set out to
+ * kill, just pushed down a level. This list is the single source both bars
+ * consume for the tail, so the two surfaces can no longer disagree on which
+ * utility links exist or in which order.
  *
- * Order is the footer/hub order: Bug Report (gated) → Settings →
- * Notifications. `bugReportGated` entries drop when the operator flag is
- * off, exactly as the feature list drops cycle-gated entries.
+ * Order is the footer/hub order: Settings → Notifications.
  *
  * Admin is intentionally NOT here: it is a role-gated, desktop-sidebar-only
  * surface (the mobile bar never exposes it), so it is not a shared tail
@@ -189,33 +186,20 @@ export interface NavUtilityDestination {
   /** i18n key under the `nav.*` namespace. */
   tKey: string;
   icon: LucideIcon;
-  /** Drop the entry unless the operator's bug-report flag is on. */
-  bugReportGated?: boolean;
 }
 
 export const NAV_UTILITY_DESTINATIONS: ReadonlyArray<NavUtilityDestination> = [
-  {
-    href: "/bugreport",
-    tKey: "nav.bugreport",
-    icon: Bug,
-    bugReportGated: true,
-  },
   { href: "/settings/account", tKey: "nav.settings", icon: Settings },
   { href: "/notifications", tKey: "nav.notifications", icon: Bell },
 ];
 
 /**
- * The utility tail visible to this account — drops the bug-report entry
- * when the operator flag is off. Both bars consume this for their tail
- * (the sidebar footer + avatar menu, the bottom-nav More hub) so the two
+ * The utility tail visible to this account. Both bars consume this for their
+ * tail (the sidebar footer + avatar menu, the bottom-nav More hub) so the two
  * surfaces share one definition of the utility links.
  */
-export function visibleUtilityDestinations(
-  bugReportEnabled: boolean | undefined,
-): NavUtilityDestination[] {
-  return NAV_UTILITY_DESTINATIONS.filter(
-    (d) => !d.bugReportGated || bugReportEnabled === true,
-  );
+export function visibleUtilityDestinations(): NavUtilityDestination[] {
+  return [...NAV_UTILITY_DESTINATIONS];
 }
 
 /**
@@ -276,19 +260,18 @@ export interface MobileMoreHubEntry {
 /**
  * The ordered "More" hub for the mobile bottom-nav: every visible feature
  * destination that isn't a primary slot, in model order, followed by the
- * shared utility tail (Bug Report behind its flag, Settings, Notifications).
- * The desktop sidebar renders the same feature list inline and consumes the
- * same utility tail in its footer + avatar menu, so the two bars cannot
- * drift into two hand-curated lists.
+ * shared utility tail (Settings, Notifications). The desktop sidebar renders
+ * the same feature list inline and consumes the same utility tail in its
+ * footer + avatar menu, so the two bars cannot drift into two hand-curated
+ * lists.
  */
 export function mobileMoreHubDestinations(opts: {
   modules: ModuleVisibilityMap | undefined;
-  bugReportEnabled: boolean | undefined;
 }): MobileMoreHubEntry[] {
   const features = visibleNavDestinations(opts.modules)
     .filter((d) => !BOTTOM_NAV_PRIMARY_SLOT_HREFS.includes(d.href))
     .map((d) => ({ href: d.href, tKey: d.tKey, icon: d.icon }));
-  const tail = visibleUtilityDestinations(opts.bugReportEnabled).map((d) => ({
+  const tail = visibleUtilityDestinations().map((d) => ({
     href: d.href,
     tKey: d.tKey,
     icon: d.icon,

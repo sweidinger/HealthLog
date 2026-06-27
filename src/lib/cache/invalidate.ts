@@ -288,16 +288,3 @@ export function invalidateAllCaches(): void {
     cache.deleteByPrefix("");
   }
 }
-
-/**
- * Global eviction of the bug-report-status cache.
- *
- * The cache is keyed on the singleton `"singleton"` slot because the
- * underlying data is a row in `AppSettings`. Any admin write to the
- * GitHub-token / bug-report-enabled fields invalidates the entire
- * cache; the per-user `isAdmin` flag is layered on at request time, so
- * the cache itself only stores role-agnostic shape.
- */
-export function invalidateAppSettings(): void {
-  caches.bugreportStatus.deleteByPrefix("");
-}

@@ -32,7 +32,6 @@
     "copy": "Copiar",
     "copyDetails": "Copiar detalles",
     "retry": "Reintentar",
-    "reportIssue": "Reportar problema",
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
     "learnMore": "Más información",
@@ -205,7 +204,6 @@
     "insights": "Insights",
     "achievements": "Logros",
     "settings": "Ajustes",
-    "bugreport": "Reporte de bug",
     "admin": "Consola de administración",
     "logout": "Cerrar sesión",
     "login": "Iniciar sesión",
@@ -5173,7 +5171,6 @@
     "webPushGlobal": "Permitir notificaciones push del navegador.",
     "moodLogGlobal": "Permitir recordatorios del registro de ánimo.",
     "integrationWebPush": "Web Push",
-    "integrationBugReport": "Informe de errores",
     "offlineGeoLabel": "Datos geográficos",
     "offlineGeoEnabled": "Sin conexión (GeoLite2)",
     "offlineGeoFallback": "Respaldo (ipwho.is) — configura MAXMIND_LICENSE_KEY en CI",
@@ -5210,12 +5207,6 @@
     "configured": "Configurado",
     "monitoringTestSuccess": "Evento de prueba enviado",
     "monitoringTestFailed": "La prueba de monitorización falló",
-    "bugReportGithub": "Informe de errores (GitHub Issues)",
-    "bugReportGithubDescription": "Configura el token de issues de GitHub y el repositorio para los informes de errores entrantes.",
-    "bugReportEnabledLabel": "Informes de errores activados",
-    "bugReportEnabledDescription": "Cuando está desactivado, el botón de informe en la app se oculta; el token y el repositorio permanecen configurados.",
-    "bugReportDeprecatedBadge": "Obsoleto",
-    "bugReportDeprecatedNote": "Esta función está obsoleta y se eliminará en una versión futura.",
     "assistant": {
       "title": "Superficies del asistente",
       "description": "Cada conmutador oculta una superficie impulsada por el modelo en toda la aplicación sin retirar la configuración del proveedor. El interruptor maestro fuerza cada opción secundaria a off.",
@@ -5249,10 +5240,6 @@
       "description": "Desactiva un módulo para todo el servidor. Un módulo desactivado aquí queda apagado para todas las cuentas, sin importar la preferencia personal. Los dominios principales (peso, presión arterial, pulso, medicación) están siempre activos y no se pueden desactivar.",
       "saveError": "No se pudo actualizar la disponibilidad de módulos."
     },
-    "bugReportRepo": "Repositorio",
-    "bugReportRepoPlaceholder": "owner/repo",
-    "bugReportToken": "Token de issues",
-    "bugReportTokenPlaceholder": "ghp_...",
     "invites": {
       "title": "Invitaciones",
       "description": "Enlaces de invitación para el registro: funcionan incluso con el registro cerrado. El enlace se muestra solo una vez.",
@@ -5406,47 +5393,6 @@
     "reminderCheckNotifOff": "Notificaciones desactivadas",
     "reminderCheckEventsToday": "Eventos de hoy",
     "reminderCheckNotifSent": "Enviadas",
-    "feedback": {
-      "tabOpen": "Abierto",
-      "tabAcknowledged": "Confirmado",
-      "tabResolved": "Resuelto",
-      "tabArchived": "Archivado",
-      "subject": "Asunto",
-      "category": "Categoría",
-      "user": "Usuario",
-      "createdAt": "Enviado",
-      "actions": "Acciones",
-      "details": "Detalles",
-      "emptyTitle": "Todo al día",
-      "emptyDescription": "No hay comentarios de usuarios en este estado. Los errores, preguntas y solicitudes de funciones enviados aparecerán aquí.",
-      "loading": "Cargando comentarios...",
-      "anonymous": "anónimo",
-      "categoryBug": "Error",
-      "categoryFeature": "Función",
-      "categoryQuestion": "Pregunta",
-      "categoryOther": "Otro",
-      "metadataHeading": "Metadatos",
-      "metaUrl": "URL",
-      "metaLocale": "Idioma",
-      "metaUserAgent": "Agente de usuario",
-      "metaAppVersion": "Versión de la app",
-      "screenshotHeading": "Screenshot",
-      "adminNote": "Nota de administración",
-      "adminNotePlaceholder": "Nota interna (no visible para el usuario)",
-      "saveNote": "Guardar nota",
-      "noteSaved": "Nota guardada",
-      "actionAcknowledge": "Confirmar",
-      "actionResolve": "Resolver",
-      "actionArchive": "Archivar",
-      "actionPublishGithub": "Publicar en GitHub",
-      "publishedToGithub": "Publicado en GitHub",
-      "viewIssue": "Ver issue",
-      "publishSuccess": "Issue creada",
-      "publishFailed": "La publicación en GitHub falló",
-      "updateFailed": "La actualización falló",
-      "archiveConfirm": "¿Archivar esta entrada de comentarios?",
-      "submittedBy": "Enviado por"
-    },
     "shell": {
       "overview": "Resumen",
       "sectionsNav": "Secciones de administración"
@@ -5498,10 +5444,6 @@
       "coach": {
         "title": "Coach",
         "subtitle": "Superficies del asistente, clave del servidor y las tablas de calidad de comentarios del Coach y de los análisis, en un solo lugar."
-      },
-      "feedback": {
-        "title": "Comentarios",
-        "subtitle": "Clasifica los comentarios de usuarios, los informes de errores y las solicitudes de funciones."
       },
       "reminders": {
         "title": "Recordatorios",
@@ -5731,10 +5673,6 @@
         "title": "A la antigua",
         "description": "Inicia sesión al menos una vez con usuario y contraseña."
       },
-      "bugReport1": {
-        "title": "Cazador de errores",
-        "description": "Envía un informe de error."
-      },
       "loginStreak7": {
         "title": "Racha de inicios 7d",
         "description": "Inicia sesión 7 días seguidos."
@@ -5923,10 +5861,6 @@
         "title": "Políglota",
         "description": "Cambiaste el idioma de la app al menos una vez."
       },
-      "hiddenBugBuddy": {
-        "title": "Colega de errores",
-        "description": "Enviaste al menos 5 informes de error — el proyecto te quiere."
-      },
       "missFree7": {
         "title": "Sin dosis perdidas · 7d",
         "description": "7 días consecutivos sin una dosis perdida."
@@ -5978,26 +5912,6 @@
       "viewAll": "Ver todo",
       "empty": "Aún no hay logros — sigue registrando para desbloquear el primero."
     }
-  },
-  "bugreport": {
-    "title": "Reporte de bug",
-    "subtitle": "Envía un fallo, una sugerencia o una pregunta. El administrador del servidor verá tu envío.",
-    "loginRequired": "Inicia sesión para reportar un bug.",
-    "bugTitle": "Título",
-    "description": "Descripción",
-    "submit": "Enviar",
-    "success": "¡Gracias! Tu reporte se ha enviado correctamente.",
-    "errorCreating": "Error al crear",
-    "category": "Tipo",
-    "categoryBug": "Fallo",
-    "categoryFeature": "Sugerencia",
-    "categoryQuestion": "Pregunta",
-    "categoryOther": "Otro feedback",
-    "bugTitlePlaceholder": "Resumen breve (opcional)",
-    "githubEscalationNote": "Tu feedback se guarda localmente. Si el administrador activa la integración con GitHub, puede publicarse como issue público a petición.",
-    "internalOnlyNote": "Tu feedback se guarda localmente y solo es visible para el administrador de este servidor.",
-    "disabledTitle": "Los informes de errores están desactivados",
-    "disabledBody": "El administrador ha desactivado los informes de errores en este servidor."
   },
   "notifications": {
     "title": "Notificaciones",
@@ -6108,7 +6022,8 @@
       "newDeviceTitle": "Nuevo inicio de sesión en tu cuenta",
       "newDeviceBody": "Un nuevo inicio de sesión desde {device} ({location}). Si no fuiste tú, cambia tu contraseña de inmediato.",
       "unknownLocation": "ubicación desconocida"
-    }
+    },
+    "loginRequired": "Inicia sesión para gestionar las notificaciones."
   },
   "i18n": {
     "maintainershipBanner": {

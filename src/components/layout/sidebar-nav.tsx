@@ -26,7 +26,6 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { useTheme } from "@/components/providers";
-import { useAppSettings } from "@/components/app-settings-provider";
 import { useTranslations } from "@/lib/i18n/context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -229,7 +228,6 @@ export function SidebarNav() {
   // list request before the navigation commits, so the due-time cells
   // hydrate from a warm cache instead of serialising behind the chunk.
   const medsIntent = medicationsPrefetchIntentProps(queryClient);
-  const { bugReportEnabled } = useAppSettings();
   const isAdmin = user?.role === "ADMIN";
   // Match `/admin` exactly or any `/admin/...` sub-route for active-link
   // styling. Plain `startsWith("/admin")` would also flip for a
@@ -276,10 +274,8 @@ export function SidebarNav() {
   // role-gated, sidebar-only surface and is inserted separately below.
   const footerUtilityItems = useMemo(
     () =>
-      visibleUtilityDestinations(bugReportEnabled).filter(
-        (d) => d.href !== "/notifications",
-      ),
-    [bugReportEnabled],
+      visibleUtilityDestinations().filter((d) => d.href !== "/notifications"),
+    [],
   );
 
   function isUtilityActive(href: string) {

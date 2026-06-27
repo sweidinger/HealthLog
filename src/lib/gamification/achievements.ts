@@ -15,7 +15,6 @@ export type AchievementMetricKey =
   | "passkeyLoginCount"
   | "passwordLoginCount"
   | "loginDayStreak"
-  | "bugReportCount"
   // v1.4.18 expansion ─ mood
   | "moodEntryCount"
   | "moodDayStreak"
@@ -84,7 +83,7 @@ export interface AchievementDefinition {
  * v1.18.0 — module ownership for an achievement metric. Returns the
  * `ModuleKey` whose enable/disable state governs the badge, or `null`
  * when the badge belongs to a core domain (vitals, medications) or to
- * an account-wide capability (security, login, bug reports) that has no
+ * an account-wide capability (security, login) that has no
  * toggleable module behind it.
  *
  * The string literals here intentionally mirror `MODULE_KEYS` in
@@ -148,7 +147,6 @@ function categoryForMetric(metric: AchievementMetricKey): AchievementCategory {
     case "passwordLoginCount":
       return "security";
     case "loginDayStreak":
-    case "bugReportCount":
     case "consistentMonthCount":
     case "entryDayStreak":
     case "weekendStreakCount":
@@ -192,7 +190,6 @@ export interface AchievementMetrics {
   passkeyLoginCount: number;
   passwordLoginCount: number;
   loginDayStreak: number;
-  bugReportCount: number;
   moodEntryCount: number;
   moodDayStreak: number;
   moodImprovementHit: number;
@@ -384,16 +381,6 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     icon: "LogIn",
     tTitle: "achievements.badges.passwordLogin1.title",
     tDescription: "achievements.badges.passwordLogin1.description",
-    format: "count",
-  }),
-  define({
-    id: "bugreport-1",
-    metric: "bugReportCount",
-    target: 1,
-    points: 30,
-    icon: "Bug",
-    tTitle: "achievements.badges.bugReport1.title",
-    tDescription: "achievements.badges.bugReport1.description",
     format: "count",
   }),
   define({
@@ -668,17 +655,6 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     format: "count",
     isHidden: true,
   }),
-  define({
-    id: "hidden-bug-buddy",
-    metric: "bugReportCount",
-    target: 5,
-    points: 60,
-    icon: "Bug",
-    tTitle: "achievements.badges.hiddenBugBuddy.title",
-    tDescription: "achievements.badges.hiddenBugBuddy.description",
-    format: "count",
-    isHidden: true,
-  }),
   // ─── v1.16.1 ─ care routine (6) ─────────────────────────
   // Quiet, clinically meaningful milestones: therapy adherence without
   // a single auto-missed dose, sustained measurement consistency, a
@@ -932,7 +908,7 @@ export function evaluateAchievementsWithCompletionDates(
  *   2. Hidden Easter-eggs always stay (the "?" placeholder is the
  *      whole point).
  *   3. Achievements without a metric-data precondition (security,
- *      bugreport, login-streaks) stay because the precondition is
+ *      login-streaks) stay because the precondition is
  *      "the user has an account", which is implicit.
  */
 export function applyDiscoveryFilter(
@@ -977,7 +953,6 @@ function isEarnable(
     case "passkeyLoginCount":
     case "passwordLoginCount":
     case "loginDayStreak":
-    case "bugReportCount":
     case "consistentMonthCount":
     case "entryDayStreak":
     case "weekendStreakCount":

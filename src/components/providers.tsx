@@ -17,7 +17,6 @@ import {
 import { I18nProvider } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/config";
 import { Toaster } from "@/components/ui/sonner";
-import { AppSettingsProvider } from "@/components/app-settings-provider";
 import { VersionPoller } from "@/components/version-poller";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
@@ -211,14 +210,12 @@ export function Providers({
           initialLocale={initialLocale}
           initialMessages={initialMessages}
         >
-          <AppSettingsProvider>
-            <QueryPersistenceBridge />
-            <DashboardSnapshotPreloader />
-            {children}
-            <Toaster position="bottom-right" richColors />
-            <VersionPoller />
-            <ServiceWorkerRegistrar />
-          </AppSettingsProvider>
+          <QueryPersistenceBridge />
+          <DashboardSnapshotPreloader />
+          {children}
+          <Toaster position="bottom-right" richColors />
+          <VersionPoller />
+          <ServiceWorkerRegistrar />
         </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>

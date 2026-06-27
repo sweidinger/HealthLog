@@ -62,20 +62,6 @@ export const adminSettingsSchema = z
       )
       .optional(),
     glitchtipEnvironment: z.string().optional(),
-    bugReportRepo: z
-      .string()
-      .refine(
-        (v) => {
-          const trimmed = v.trim();
-          if (!trimmed) return true;
-          return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(trimmed);
-        },
-        { message: "GitHub repository must be in owner/repo format" },
-      )
-      .optional(),
-    bugReportToken: z.string().optional(),
-    clearBugReportToken: z.boolean().optional(),
-    bugReportEnabled: z.boolean().optional(),
     reminderLateMinutes: z.number().int().min(15).max(480).optional(),
     reminderMissedMinutes: z.number().int().min(30).max(720).optional(),
     moodLogGlobal: z.boolean().optional(),

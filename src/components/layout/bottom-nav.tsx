@@ -18,7 +18,6 @@ import {
 } from "@/components/layout/nav-model";
 import type { ModuleKey } from "@/lib/modules/registry";
 import { useMemo, useState } from "react";
-import { useAppSettings } from "@/components/app-settings-provider";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Sheet,
@@ -83,21 +82,19 @@ export function BottomNav() {
   // v1.16.7 — touch intent on the medications tab starts the list
   // request before the navigation commits (see sidebar-nav).
   const medsIntent = medicationsPrefetchIntentProps(queryClient);
-  const { bugReportEnabled } = useAppSettings();
   const [moreOpen, setMoreOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
 
   // v1.17.1 (F-1) — the More hub is the model-computed hub: every visible
   // feature destination that isn't a primary slot, plus the shared utility
-  // tail. Cycle + Bug Report are gated by the same flags the sidebar uses,
-  // so the two surfaces gate identically and cannot drift.
+  // tail. Cycle is gated by the same flag the sidebar uses, so the two
+  // surfaces gate identically and cannot drift.
   const moreHub = useMemo<ReadonlyArray<NavLink>>(
     () =>
       mobileMoreHubDestinations({
         modules: user?.modules,
-        bugReportEnabled,
       }),
-    [user?.modules, bugReportEnabled],
+    [user?.modules],
   );
 
   // v1.18.0 — drop a module-gated primary slot (Insights) when the account

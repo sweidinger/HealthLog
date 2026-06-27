@@ -156,16 +156,6 @@ async function ensureAppSettingsSchema() {
     ALTER TABLE "app_settings"
     ADD COLUMN IF NOT EXISTS "glitchtip_environment" TEXT;
   `);
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "app_settings"
-    ADD COLUMN IF NOT EXISTS "github_issue_token_encrypted" TEXT;
-  `);
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "app_settings"
-    ADD COLUMN IF NOT EXISTS "github_issue_repo" TEXT;
-  `);
 }
 
 async function ensureMedicationSchema() {

@@ -143,8 +143,6 @@ const LEGACY_ADMIN_ANCHORS: Record<string, string> = {
   "/admin/section-admin-umami": "/admin/integrations",
   "/admin/section-admin-glitchtip": "/admin/integrations",
   "/admin/section-admin-webpush": "/admin/integrations",
-  "/admin/section-admin-bugreport": "/admin/integrations",
-  "/admin/section-admin-feedback": "/admin/feedback",
   "/admin/section-admin-reminders": "/admin/reminders",
   "/admin/section-user-management": "/admin/users",
   "/admin/section-api-tokens": "/admin/api-tokens",

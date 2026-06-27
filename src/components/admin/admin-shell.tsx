@@ -23,7 +23,6 @@ import {
   FileText,
   Info,
   KeyRound,
-  Inbox,
   Plug,
   Radio,
   ScrollText,
@@ -89,11 +88,6 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     slug: "module-availability",
     titleKey: "admin.section.module-availability.title",
     icon: Blocks,
-  },
-  {
-    slug: "feedback",
-    titleKey: "admin.section.feedback.title",
-    icon: Inbox,
   },
   {
     slug: "reminders",

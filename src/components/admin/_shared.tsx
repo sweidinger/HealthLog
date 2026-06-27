@@ -60,7 +60,6 @@ export interface SystemStatus {
     umami: { configured: boolean; enabled: boolean } | null;
     glitchtip: { configured: boolean; enabled: boolean } | null;
     webPush: { configured: boolean } | null;
-    bugReport: { configured: boolean } | null;
   };
 }
 
@@ -80,9 +79,6 @@ export interface AdminSettings {
   glitchtipEnabled: boolean;
   glitchtipDsn: string | null;
   glitchtipEnvironment: string | null;
-  bugReportRepo: string | null;
-  bugReportConfigured: boolean;
-  bugReportEnabled: boolean;
   reminderLateMinutes: number;
   reminderMissedMinutes: number;
   // v1.4.25 W7 — null means "fall back to Europe/Berlin in the resolver".
@@ -116,54 +112,9 @@ export interface ApiTokenInfo {
   user: { id: string; username: string };
 }
 
-export type FeedbackStatusType =
-  | "OPEN"
-  | "ACKNOWLEDGED"
-  | "RESOLVED"
-  | "ARCHIVED";
-export type FeedbackCategoryType =
-  | "BUG"
-  | "FEATURE_REQUEST"
-  | "QUESTION"
-  | "OTHER";
-
-export interface FeedbackItem {
-  id: string;
-  userId: string | null;
-  email: string | null;
-  category: FeedbackCategoryType;
-  subject: string;
-  description: string;
-  status: FeedbackStatusType;
-  adminNote: string | null;
-  gitHubIssueUrl: string | null;
-  metadata: Record<string, unknown> | null;
-  screenshotBase64: string | null;
-  createdAt: string;
-  updatedAt: string;
-  user: { username: string } | null;
-}
-
-export interface FeedbackListResponse {
-  items: FeedbackItem[];
-  meta: {
-    total: number;
-    limit: number;
-    offset: number;
-    countsByStatus: Partial<Record<FeedbackStatusType, number>>;
-  };
-}
-
-export const FEEDBACK_STATUS_TABS: FeedbackStatusType[] = [
-  "OPEN",
-  "ACKNOWLEDGED",
-  "RESOLVED",
-  "ARCHIVED",
-];
-
-/** Shared green "configured" pill — the GlitchTip, Umami, bug-report,
- * and Web-Push VAPID cards all surface the same state; one component
- * keeps the tint and copy in lockstep. */
+/** Shared green "configured" pill — the GlitchTip, Umami, and Web-Push
+ * VAPID cards all surface the same state; one component keeps the tint
+ * and copy in lockstep. */
 export function ConfiguredBadge() {
   const { t } = useTranslations();
   return (
