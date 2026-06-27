@@ -87,6 +87,17 @@ export async function recordSignInDevice(params: {
       return { known: true, alerted: false };
     }
 
+    // First sighting of THIS device. If the user has no known devices at all
+    // the ledger is empty — this is the account's baseline (the first login
+    // after the feature shipped, or an account whose registration predates the
+    // ledger). Establish it silently: a "new device" alert only means anything
+    // once there is at least one established device to contrast against, so we
+    // never alert on the very first device a user is ever seen on.
+    const knownDeviceCount = await prisma.userKnownDevice.count({
+      where: { userId },
+    });
+    const isBaseline = knownDeviceCount === 0;
+
     // First sighting. Insert; if a concurrent first-login races us to the
     // unique (userId, deviceHash) index, swallow it and treat as already known
     // so we never double-alert.
@@ -98,7 +109,7 @@ export async function recordSignInDevice(params: {
       return { known: true, alerted: false };
     }
 
-    if (!alertOnNew) return { known: false, alerted: false };
+    if (!alertOnNew || isBaseline) return { known: false, alerted: false };
 
     await auditLog("auth.login.new_device", {
       userId,

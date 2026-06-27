@@ -7,6 +7,7 @@ vi.mock("@/lib/db", () => ({
     session: { findUnique: vi.fn() },
     apiToken: { findUnique: vi.fn(), update: vi.fn() },
     user: { findUnique: vi.fn() },
+    webauthnMfaCredential: { count: vi.fn() },
   },
 }));
 
@@ -57,6 +58,9 @@ beforeEach(() => {
   // resetAllMocks wipes the factory mockResolvedValue; auditLog is awaited
   // via `.catch(...)` in the Bearer path, so it must return a thenable.
   vi.mocked(auditLog).mockResolvedValue(undefined);
+  // Default: no registered security key, so a TOTP-less account is genuinely
+  // unenrolled and passes straight through.
+  vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(0 as never);
 });
 
 function mockCookieSession(user: unknown) {
@@ -72,6 +76,17 @@ describe("requireFreshMfaIfEnrolled", () => {
     const ctx = await requireFreshMfaIfEnrolled(MFA_STEP_UP_MAX_AGE_SECONDS);
     expect(ctx.user.id).toBe("user-1");
     expect(prisma.session.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("gates a security-key-only user (no TOTP) on step-up too", async () => {
+    mockCookieSession(PLAIN_USER);
+    vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(1 as never);
+    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+      mfaVerifiedAt: null,
+    } as never);
+    await expect(
+      requireFreshMfaIfEnrolled(MFA_STEP_UP_MAX_AGE_SECONDS),
+    ).rejects.toBeInstanceOf(StepUpRequiredError);
   });
 
   it("passes an MFA user with a fresh verification", async () => {

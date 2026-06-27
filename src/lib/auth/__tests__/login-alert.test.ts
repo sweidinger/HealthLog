@@ -6,6 +6,7 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
       create: vi.fn(),
+      count: vi.fn(),
     },
     user: { findUnique: vi.fn() },
   },
@@ -42,6 +43,9 @@ beforeEach(() => {
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     locale: "en",
   } as never);
+  // Default: the user already has at least one established device, so a new
+  // sighting is a genuine second-or-later device and may alert.
+  vi.mocked(prisma.userKnownDevice.count).mockResolvedValue(1 as never);
 });
 
 describe("recordSignInDevice — new-device dedupe", () => {
@@ -61,6 +65,22 @@ describe("recordSignInDevice — new-device dedupe", () => {
     const payload = vi.mocked(dispatchNotification).mock.calls[0][0];
     expect(payload.eventType).toBe("SECURITY_ALERT");
     expect(payload.userId).toBe("u1");
+  });
+
+  it("first-ever device on an empty ledger records silently (baseline)", async () => {
+    vi.mocked(prisma.userKnownDevice.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.userKnownDevice.count).mockResolvedValue(0 as never);
+    vi.mocked(prisma.userKnownDevice.create).mockResolvedValue({} as never);
+
+    const res = await recordSignInDevice({
+      userId: "u1",
+      ip: "203.0.113.9",
+      userAgent: UA,
+    });
+
+    expect(res).toEqual({ known: false, alerted: false });
+    expect(prisma.userKnownDevice.create).toHaveBeenCalledTimes(1);
+    expect(dispatchNotification).not.toHaveBeenCalled();
   });
 
   it("second sighting of the same device is silent (no alert)", async () => {
