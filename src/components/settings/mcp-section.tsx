@@ -257,6 +257,7 @@ function McpTokensCard() {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
+  const [allowWrite, setAllowWrite] = useState(false);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [tokenMsg, setTokenMsg] = useState<string | null>(null);
@@ -277,12 +278,17 @@ function McpTokensCard() {
       const res = await apiFetchRaw("/api/mcp/tokens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
+        body: JSON.stringify({
+          name: newName.trim(),
+          // Closed choice — read-only, or read + the audience-bound write scope.
+          scope: allowWrite ? "read_write" : "read",
+        }),
       });
       const json = await res.json();
       if (res.ok) {
         setNewToken(json.data.token);
         setNewName("");
+        setAllowWrite(false);
         queryClient.invalidateQueries({ queryKey: queryKeys.mcpTokens() });
       } else {
         setTokenMsg(json.error || t("common.error"));
@@ -335,6 +341,22 @@ function McpTokensCard() {
         <p className="text-muted-foreground text-xs leading-relaxed">
           {t("settings.mcp.scopeNote")}
         </p>
+
+        <div className="border-border bg-muted/30 space-y-2 rounded-lg border p-3">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm font-medium">
+              {t("settings.mcp.writeScopeToggleLabel")}
+            </span>
+            <Switch
+              checked={allowWrite}
+              onCheckedChange={setAllowWrite}
+              aria-label={t("settings.mcp.writeScopeToggleLabel")}
+            />
+          </div>
+          <p className="text-muted-foreground text-[11px] leading-relaxed">
+            {t("settings.mcp.writeScopeNote")}
+          </p>
+        </div>
 
         <form onSubmit={handleCreate} className="flex items-center gap-2">
           <Input

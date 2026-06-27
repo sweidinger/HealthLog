@@ -2,8 +2,11 @@
  * Token endpoint (OAuth 2.1) — `authorization_code` + `refresh_token` grants.
  *
  * Exchanges the bridge AS's self-describing artifacts for a REAL `hlk_`
- * `ApiToken` (the access token) minted through `issue-token.ts` with the narrow
- * `health:read` scope (ADR-006). The access token is therefore an ordinary
+ * `ApiToken` (the access token) minted through `issue-token.ts` with EXACTLY
+ * the scopes the authorization code carried — `health:read`, or
+ * `health:read health:write` when the user consented to logging (ADR-006). A
+ * `health:write` token is still audience-bound to `/mcp`. The access token is
+ * therefore an ordinary
  * Bearer the `/mcp` resolver already understands — bound to `<userId>:<tokenId>`
  * (REQ-SEC-11), revocable, and short-lived. There is no token passthrough: the
  * MCP layer never forwards a client-presented upstream credential.
@@ -42,6 +45,7 @@ import {
   isMcpOriginConfigured,
   REFRESH_TOKEN_TTL_DAYS,
   SCOPE_HEALTH_READ,
+  SCOPE_HEALTH_WRITE,
 } from "@/lib/mcp/oauth/config";
 import { signArtifact, verifyArtifact } from "@/lib/mcp/oauth/artifacts";
 import { verifyPkceS256 } from "@/lib/mcp/oauth/pkce";
@@ -124,10 +128,21 @@ async function mintTokenPair(args: {
   connectionId?: string;
   refreshJti?: string;
 }): Promise<Response> {
+  // Grant EXACTLY the scopes the authorization code carried (read, or
+  // read+write). `health:read` is always present; `health:write` is added
+  // only when the user consented to it at the authorize step. The token is
+  // never widened beyond the approved grant, and `offline_access` is a
+  // refresh-continuity marker, not an API permission.
+  const grantedScopes = new Set(args.scope.split(/\s+/).filter(Boolean));
+  const permissions = [SCOPE_HEALTH_READ];
+  if (grantedScopes.has(SCOPE_HEALTH_WRITE)) {
+    permissions.push(SCOPE_HEALTH_WRITE);
+  }
+
   const access = await issueApiToken({
     userId: args.userId,
     name: "MCP connector",
-    permissions: [SCOPE_HEALTH_READ],
+    permissions,
     expiresInMinutes: ACCESS_TOKEN_TTL_MINUTES,
     ...(args.connectionId ? { mcpConnectionId: args.connectionId } : {}),
   });

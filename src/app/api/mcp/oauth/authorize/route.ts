@@ -38,6 +38,7 @@ import {
   isMcpOriginConfigured,
   resolveBaseOrigin,
   SCOPE_HEALTH_READ,
+  SCOPE_HEALTH_WRITE,
 } from "@/lib/mcp/oauth/config";
 import { redirectUriAllowed, resolveClient } from "@/lib/mcp/oauth/clients";
 import { isValidChallenge } from "@/lib/mcp/oauth/pkce";
@@ -86,12 +87,19 @@ function html(body: string, status = 200): Response {
   );
 }
 
-/** The single scope this read surface grants, plus optional refresh continuity. */
+/**
+ * The scopes this surface grants for a request. `health:read` is always
+ * granted (the floor). `health:write` is granted ONLY when explicitly
+ * requested (RFC 8707 / incremental consent, SEP-835) — it admits the
+ * confirmed `/mcp` write tools and is surfaced plainly on the consent screen.
+ * `offline_access` enables refresh continuity. Nothing else is ever granted.
+ */
 function grantScope(requested: string | undefined): string {
   const wants = new Set(
     (requested ?? SCOPE_HEALTH_READ).split(/\s+/).filter(Boolean),
   );
   const granted = [SCOPE_HEALTH_READ];
+  if (wants.has(SCOPE_HEALTH_WRITE)) granted.push(SCOPE_HEALTH_WRITE);
   if (wants.has("offline_access")) granted.push("offline_access");
   return granted.join(" ");
 }
@@ -299,12 +307,19 @@ export async function GET(request: NextRequest): Promise<Response> {
       v.clientSource === "cimd"
         ? `<p>Verified origin: <code>${htmlEscape(v.clientOrigin)}</code></p>`
         : `<p><strong>Unverified application</strong> (dynamically registered — the name above is self-reported and not verified).</p>`;
+    // Plain-language access summary. When write is granted, say so explicitly —
+    // the app will be able to READ and LOG/WRITE health data, not just read.
+    const writeGranted = v.scope.split(/\s+/).includes(SCOPE_HEALTH_WRITE);
+    const accessSummary = writeGranted
+      ? `<p><strong>This grants read AND write access:</strong> the application will be able to read your own health records <strong>and log new measurements and mood entries</strong> to your account on your behalf. It cannot delete or change existing entries, edit medications, or reach admin functions.</p>`
+      : `<p>Scope: <code>${htmlEscape(v.scope)}</code> — read-only access to your own health records.</p>`;
     return html(
       `<main>
         <h1>Authorize access</h1>
         <p><strong>${htmlEscape(v.clientName)}</strong> is requesting access to your HealthLog data.</p>
         ${provenance}
-        <p>Scope: <code>${htmlEscape(v.scope)}</code> — read-only access to your own health records.</p>
+        <p>Scope: <code>${htmlEscape(v.scope)}</code></p>
+        ${accessSummary}
         <form method="POST" action="/api/mcp/oauth/authorize">
           ${hidden("response_type", "code")}
           ${hidden("client_id", v.clientId)}

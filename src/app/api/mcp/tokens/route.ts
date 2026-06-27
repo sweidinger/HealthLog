@@ -8,9 +8,14 @@
  * `health:read` scope automatically for cloud connectors. Both surface here so
  * the user can see and revoke every credential that can read over MCP.
  *
- * `userId` is always narrowed from the session — never a body field. Scope is
- * hardcoded `["health:read"]`, so this endpoint can never be coerced into
- * minting a broader grant (no mass assignment).
+ * `userId` is always narrowed from the session — never a body field. The
+ * caller may choose ONE of exactly two shapes via `scope`: `read` →
+ * `["health:read"]` (default) or `read_write` → `["health:read",
+ * "health:write"]`. The `permissions` array is built explicitly from that
+ * closed choice, so this endpoint can never be coerced into minting a
+ * wildcard or any other grant (no mass assignment). A `health:write` token is
+ * still audience-bound to `/mcp` (the resource-server guard refuses it on
+ * every REST write) — it only admits the confirmed in-process write tools.
  */
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
@@ -27,11 +32,16 @@ import { auditLog } from "@/lib/auth/audit";
 import { issueApiToken } from "@/lib/auth/issue-token";
 import { isApiGloballyEnabled } from "@/lib/app-settings";
 import { prisma } from "@/lib/db";
-import { SCOPE_HEALTH_READ } from "@/lib/mcp/oauth/config";
+import { SCOPE_HEALTH_READ, SCOPE_HEALTH_WRITE } from "@/lib/mcp/oauth/config";
 
 const createSchema = z.object({
   name: z.string().min(1, "Name required").max(100),
   expiresInDays: z.number().int().min(1).max(365).optional(),
+  // The ONLY two scope shapes this endpoint will mint. `read` (default) is the
+  // least-privilege read token; `read_write` adds `health:write` so the
+  // confirmed `/mcp` write tools become available. Anything else is rejected
+  // by the enum — the endpoint can never mint a wildcard or arbitrary grant.
+  scope: z.enum(["read", "read_write"]).optional().default("read"),
 });
 
 export const GET = apiHandler(async () => {
@@ -84,17 +94,24 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
+  // Build the permission array explicitly from the closed scope choice —
+  // never spread, never wildcard. `read` → read-only; `read_write` → read plus
+  // the `/mcp`-audience-bound write scope.
+  const permissions =
+    parsed.data.scope === "read_write"
+      ? [SCOPE_HEALTH_READ, SCOPE_HEALTH_WRITE]
+      : [SCOPE_HEALTH_READ];
+
   const issued = await issueApiToken({
     userId: user.id,
     name: parsed.data.name,
-    // Dedicated, least-privilege MCP read scope — never wildcard, never write.
-    permissions: [SCOPE_HEALTH_READ],
+    permissions,
     expiresInDays: parsed.data.expiresInDays ?? 90,
   });
 
   await auditLog("mcp.tokens.create", {
     userId: user.id,
-    details: { tokenId: issued.tokenId, scope: SCOPE_HEALTH_READ },
+    details: { tokenId: issued.tokenId, scope: permissions.join(" ") },
   });
 
   // Return the raw token ONCE — it can never be retrieved again.
