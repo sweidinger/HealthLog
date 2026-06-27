@@ -263,7 +263,8 @@
     "passkeySetupLater": "Puedes configurar passkeys más tarde en los ajustes.",
     "passwordMinLength": "Mín. 12 caracteres",
     "passwordTooShort": "La contraseña debe tener al menos {minLength} caracteres.",
-    "privacyPolicy": "Política de privacidad"
+    "privacyPolicy": "Política de privacidad",
+    "passwordBreached": "Esta contraseña aparece en filtraciones de datos conocidas. Elige otra."
   },
   "dashboard": {
     "title": "Panel",
@@ -4968,7 +4969,37 @@
     "polarDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
     "ouraDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
     "nightscoutDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
-    "integrationCredentialsHint": "Dónde encontrar estas credenciales y cómo registrar tu propia aplicación se explica en la guía de configuración de arriba."
+    "integrationCredentialsHint": "Dónde encontrar estas credenciales y cómo registrar tu propia aplicación se explica en la guía de configuración de arriba.",
+    "security": {
+      "sessionsTitle": "Sesiones activas",
+      "sessionsDescription": "Dispositivos y navegadores con sesión iniciada en tu cuenta.",
+      "sessionsLoadError": "No se pudieron cargar las sesiones activas.",
+      "sessionsEmpty": "No hay sesiones activas.",
+      "currentSession": "Este dispositivo",
+      "lastActive": "Última actividad {time}",
+      "unknownLocation": "Ubicación desconocida",
+      "revokeSession": "Cerrar sesión",
+      "revokeError": "No se pudo completar la solicitud. Inténtalo de nuevo.",
+      "signOutEverywhere": "Cerrar sesión en los demás dispositivos",
+      "signOutEverywhereDone": "Se cerraron {count} sesión(es).",
+      "activityTitle": "Actividad de seguridad",
+      "activityDescription": "Inicios de sesión, cambios de seguridad y exportaciones recientes de tu cuenta.",
+      "activityEmpty": "Aún no hay actividad de seguridad.",
+      "activityLoadError": "No se pudo cargar la actividad de seguridad.",
+      "action": {
+        "newDevice": "Inicio desde nuevo dispositivo",
+        "loginFailed": "Inicio de sesión fallido",
+        "login": "Inicio de sesión",
+        "passwordChange": "Contraseña cambiada",
+        "mfa": "Cambio de doble factor",
+        "sessionRevoke": "Sesión cerrada",
+        "token": "Cambio de token de API",
+        "accountDelete": "Cuenta eliminada",
+        "dataClear": "Datos restablecidos",
+        "export": "Exportación de datos",
+        "other": "Evento de seguridad"
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5955,7 +5986,12 @@
     "eventMeasurementReminder": "Recordatorio de medición",
     "eventMeasurementReminderDesc": "Se envía cuando una medición registrada está pendiente.",
     "eventMedicationIntakeSync": "Sincronización de tomas",
-    "eventMedicationIntakeSyncDesc": "Actualización entre dispositivos cuando se registra, toma u omite una dosis."
+    "eventMedicationIntakeSyncDesc": "Actualización entre dispositivos cuando se registra, toma u omite una dosis.",
+    "security": {
+      "newDeviceTitle": "Nuevo inicio de sesión en tu cuenta",
+      "newDeviceBody": "Un nuevo inicio de sesión desde {device} ({location}). Si no fuiste tú, cambia tu contraseña de inmediato.",
+      "unknownLocation": "ubicación desconocida"
+    }
   },
   "i18n": {
     "maintainershipBanner": {

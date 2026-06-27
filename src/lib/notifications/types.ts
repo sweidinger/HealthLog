@@ -94,6 +94,13 @@ export const EVENT_TYPES = [
   // user-visible Telegram message on every dose would be noise). Routed
   // through the dedicated intake-sync sender, not the alert cascade.
   "MEDICATION_INTAKE_SYNC",
+  // v1.23 — account-security alert (new-device / new-location sign-in). Fired
+  // by the login completion path on the first sighting of a coarse device
+  // fingerprint. ON by default at the channel layer: a sign-in the user did
+  // not make is exactly the case they need to hear about, so silence-by-default
+  // would defeat the feature. An explicit per-channel `NotificationPreference`
+  // row still wins for a user who opts out.
+  "SECURITY_ALERT",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -151,6 +158,10 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // toggle: this is plumbing that keeps the user's own devices coherent,
   // not a notification the user chooses to receive.
   MEDICATION_INTAKE_SYNC: true,
+  // v1.23 — ON by default; a new-device sign-in is a security event the user
+  // needs surfaced. An explicit per-channel `NotificationPreference` row
+  // (enabled=false) still suppresses it for a user who opts out.
+  SECURITY_ALERT: true,
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {

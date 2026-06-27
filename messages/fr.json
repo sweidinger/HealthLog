@@ -263,7 +263,8 @@
     "passkeySetupLater": "Tu peux configurer les passkeys plus tard dans les paramètres.",
     "passwordMinLength": "Min. 12 caractères",
     "passwordTooShort": "Le mot de passe doit comporter au moins {minLength} caractères.",
-    "privacyPolicy": "Politique de confidentialité"
+    "privacyPolicy": "Politique de confidentialité",
+    "passwordBreached": "Ce mot de passe figure dans des fuites de données connues. Choisissez-en un autre."
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -4968,7 +4969,37 @@
     "polarDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "ouraDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "nightscoutDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
-    "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus."
+    "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus.",
+    "security": {
+      "sessionsTitle": "Sessions actives",
+      "sessionsDescription": "Appareils et navigateurs actuellement connectés à votre compte.",
+      "sessionsLoadError": "Impossible de charger les sessions actives.",
+      "sessionsEmpty": "Aucune session active.",
+      "currentSession": "Cet appareil",
+      "lastActive": "Dernière activité {time}",
+      "unknownLocation": "Lieu inconnu",
+      "revokeSession": "Déconnecter",
+      "revokeError": "Impossible de traiter la demande. Veuillez réessayer.",
+      "signOutEverywhere": "Se déconnecter partout ailleurs",
+      "signOutEverywhereDone": "{count} autre(s) session(s) déconnectée(s).",
+      "activityTitle": "Activité de sécurité",
+      "activityDescription": "Connexions récentes, modifications de sécurité et exports de données de votre compte.",
+      "activityEmpty": "Aucune activité de sécurité pour l'instant.",
+      "activityLoadError": "Impossible de charger l'activité de sécurité.",
+      "action": {
+        "newDevice": "Connexion depuis un nouvel appareil",
+        "loginFailed": "Échec de connexion",
+        "login": "Connexion",
+        "passwordChange": "Mot de passe modifié",
+        "mfa": "Modification de la double authentification",
+        "sessionRevoke": "Session déconnectée",
+        "token": "Modification de jeton API",
+        "accountDelete": "Compte supprimé",
+        "dataClear": "Données réinitialisées",
+        "export": "Export de données",
+        "other": "Événement de sécurité"
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5955,7 +5986,12 @@
     "eventMeasurementReminder": "Rappel de mesure",
     "eventMeasurementReminderDesc": "Envoyé lorsqu'une mesure suivie est due.",
     "eventMedicationIntakeSync": "Synchronisation des prises",
-    "eventMedicationIntakeSyncDesc": "Mise à jour entre appareils quand une dose est enregistrée, prise ou ignorée."
+    "eventMedicationIntakeSyncDesc": "Mise à jour entre appareils quand une dose est enregistrée, prise ou ignorée.",
+    "security": {
+      "newDeviceTitle": "Nouvelle connexion à votre compte",
+      "newDeviceBody": "Une nouvelle connexion depuis {device} ({location}). Si ce n'était pas vous, changez votre mot de passe immédiatement.",
+      "unknownLocation": "lieu inconnu"
+    }
   },
   "i18n": {
     "maintainershipBanner": {

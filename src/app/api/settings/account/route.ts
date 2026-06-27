@@ -3,7 +3,11 @@ import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
 import { destroyAllSessions } from "@/lib/auth/session";
 import { NextRequest } from "next/server";
-import { apiHandler, requireAuth } from "@/lib/api-handler";
+import {
+  apiHandler,
+  requireFreshMfaIfEnrolled,
+  MFA_STEP_UP_MAX_AGE_SECONDS,
+} from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +15,14 @@ export const dynamic = "force-dynamic";
 /**
  * Permanently delete the user account and ALL associated data.
  * Cascading deletes in the schema handle all related records.
+ *
+ * v1.23 — for an account with a second factor active this requires a fresh
+ * step-up (within MFA_STEP_UP_MAX_AGE_SECONDS) in addition to the typed
+ * confirmation, so a hijacked live session cannot erase the record. Accounts
+ * without MFA are unaffected and keep the typed-confirmation-only contract.
  */
 export const DELETE = apiHandler(async (request: NextRequest) => {
-  const { user } = await requireAuth();
+  const { user } = await requireFreshMfaIfEnrolled(MFA_STEP_UP_MAX_AGE_SECONDS);
 
   let confirm = "";
   try {

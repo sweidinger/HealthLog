@@ -39,6 +39,8 @@ import {
 } from "./account-section-utils";
 import { PasskeyListSection } from "./passkey-list-section";
 import { AvatarSection } from "./avatar-section";
+import { SecuritySessionsCard } from "@/components/settings/security-sessions-card";
+import { SecurityActivityCard } from "@/components/settings/security-activity-card";
 
 export { resolveInitialTimezone } from "./account-section-utils";
 
@@ -588,6 +590,12 @@ export function AccountSection() {
           </Button>
         </div>
       </SettingsCard>
+
+      {/* v1.23 — active-session management (issue #64) + the security-activity
+          feed. Both sit in the account/security block under the credential
+          controls above. */}
+      <SecuritySessionsCard isAuthenticated={isAuthenticated} />
+      <SecurityActivityCard isAuthenticated={isAuthenticated} />
 
       {/* v1.18.1 (D1) — the "Tour neu starten" card moved to Settings →
           Erweitert. It is a maintenance / reset action, not a profile or

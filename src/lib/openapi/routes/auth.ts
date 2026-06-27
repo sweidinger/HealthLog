@@ -13,7 +13,7 @@ import {
   totpConfirmSchema,
   mfaDisableSchema,
 } from "@/lib/validations/mfa";
-import { dataEnvelope, stdResponses } from "./shared";
+import { dataEnvelope, stdResponses, errorEnvelope } from "./shared";
 
 // ── Sub-schemas owned here (route-specific shapes) ───────────────────
 
@@ -128,6 +128,61 @@ const recoveryCodesResponse = z
 const mfaToggleResponse = z
   .object({ enabled: z.boolean() })
   .meta({ id: "MfaToggleResponse" });
+
+// ── v1.23 active sessions + security activity shapes ──────────────────
+
+const sessionListResponse = z
+  .object({
+    sessions: z.array(
+      z.object({
+        id: z.string(),
+        device: z
+          .string()
+          .describe("Coarse device label derived from the User-Agent."),
+        ipMasked: z
+          .string()
+          .nullable()
+          .describe(
+            "IP with the host portion masked — never the full address.",
+          ),
+        location: z
+          .string()
+          .nullable()
+          .describe("Resolved coarse location, when available."),
+        lastActiveAt: z.iso.datetime({ offset: true }).nullable(),
+        createdAt: z.iso.datetime({ offset: true }),
+        isCurrent: z
+          .boolean()
+          .describe("True for the session making this request."),
+      }),
+    ),
+  })
+  .meta({ id: "SessionListResponse" });
+
+const signOutEverywhereResponse = z
+  .object({
+    sessionsRevoked: z
+      .number()
+      .int()
+      .describe("Number of OTHER sessions removed (the current one is kept)."),
+  })
+  .meta({ id: "SignOutEverywhereResponse" });
+
+const securityActivityResponse = z
+  .object({
+    events: z.array(
+      z.object({
+        action: z
+          .string()
+          .describe("Audit action name, e.g. auth.login.password."),
+        createdAt: z.iso.datetime({ offset: true }),
+        location: z.string().nullable(),
+        ipMasked: z.string().nullable().describe("Host-masked IP."),
+        carrier: z.string().nullable(),
+      }),
+    ),
+  })
+  .meta({ id: "SecurityActivityResponse" });
 
 export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/auth/login": {
@@ -313,6 +368,93 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           content: {
             "application/json": {
               schema: dataEnvelope(accessRefreshBundle, "RefreshResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/sessions": {
+    get: {
+      tags: ["Auth"],
+      summary: "List active web sessions",
+      description:
+        "v1.23 — the user-facing active-session list (issue #64). One row per browser login with a coarse device label, masked IP, resolved location, sliding last-active time, and the current-session marker. Distinct from /api/auth/me/devices (notification devices).",
+      responses: {
+        "200": {
+          description: "Active sessions for the caller.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(sessionListResponse, "SessionListEnvelope"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Auth"],
+      summary: "Sign out everywhere else",
+      description:
+        "v1.23 — revokes every OTHER web session plus all native refresh tokens, keeping the caller's current session. API tokens are not touched (manage those under /settings/api-tokens).",
+      responses: {
+        "200": {
+          description: "Other sessions revoked.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                signOutEverywhereResponse,
+                "SignOutEverywhereEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/sessions/{id}": {
+    delete: {
+      tags: ["Auth"],
+      summary: "Revoke a single web session",
+      description:
+        "v1.23 — revokes one session by id, scoped to the authenticated user (a foreign id returns 404, never another user's row).",
+      responses: {
+        "200": {
+          description: "Session revoked.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ revoked: z.boolean() }),
+                "SessionRevokeEnvelope",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Session not found or not owned by the caller.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/security-activity": {
+    get: {
+      tags: ["Auth"],
+      summary: "List recent account-security activity",
+      description:
+        "v1.23 — the SHARED security-activity feed: the caller's recent auth + export + deletion audit events with timestamp, resolved location, and a host-masked IP. `limit` query param caps at 100 (default 50). Reuses the AuditLog store; no event detail bodies are surfaced.",
+      responses: {
+        "200": {
+          description: "Recent security events for the caller.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                securityActivityResponse,
+                "SecurityActivityEnvelope",
+              ),
             },
           },
         },

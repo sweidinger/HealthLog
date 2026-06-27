@@ -263,7 +263,8 @@
     "passkeySetupLater": "You can set up passkeys at any time in Settings.",
     "passwordMinLength": "Min. 12 characters",
     "passwordTooShort": "Password must be at least {minLength} characters long.",
-    "privacyPolicy": "Privacy policy"
+    "privacyPolicy": "Privacy policy",
+    "passwordBreached": "This password has appeared in known data breaches. Please choose a different one."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -4968,7 +4969,37 @@
     "polarDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
     "ouraDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
     "nightscoutDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
-    "integrationCredentialsHint": "Where to find these credentials and how to register your own app is covered in the setup guide above."
+    "integrationCredentialsHint": "Where to find these credentials and how to register your own app is covered in the setup guide above.",
+    "security": {
+      "sessionsTitle": "Active sessions",
+      "sessionsDescription": "Devices and browsers currently signed in to your account.",
+      "sessionsLoadError": "Active sessions could not be loaded.",
+      "sessionsEmpty": "No active sessions.",
+      "currentSession": "This device",
+      "lastActive": "Last active {time}",
+      "unknownLocation": "Unknown location",
+      "revokeSession": "Sign out",
+      "revokeError": "Could not complete the request. Please try again.",
+      "signOutEverywhere": "Sign out everywhere else",
+      "signOutEverywhereDone": "Signed out {count} other session(s).",
+      "activityTitle": "Security activity",
+      "activityDescription": "Recent sign-ins, security changes, and data exports on your account.",
+      "activityEmpty": "No security activity yet.",
+      "activityLoadError": "Security activity could not be loaded.",
+      "action": {
+        "newDevice": "New-device sign-in",
+        "loginFailed": "Failed sign-in",
+        "login": "Sign-in",
+        "passwordChange": "Password changed",
+        "mfa": "Two-factor change",
+        "sessionRevoke": "Session signed out",
+        "token": "API token change",
+        "accountDelete": "Account deleted",
+        "dataClear": "Data reset",
+        "export": "Data export",
+        "other": "Security event"
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5955,7 +5986,12 @@
     "eventMeasurementReminder": "Measurement reminder",
     "eventMeasurementReminderDesc": "Sent when a tracked measurement is due.",
     "eventMedicationIntakeSync": "Medication intake sync",
-    "eventMedicationIntakeSyncDesc": "Cross-device update when a dose is logged, taken or skipped."
+    "eventMedicationIntakeSyncDesc": "Cross-device update when a dose is logged, taken or skipped.",
+    "security": {
+      "newDeviceTitle": "New sign-in to your account",
+      "newDeviceBody": "A new sign-in from {device} ({location}). If this wasn't you, change your password immediately.",
+      "unknownLocation": "unknown location"
+    }
   },
   "i18n": {
     "maintainershipBanner": {

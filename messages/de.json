@@ -263,7 +263,8 @@
     "passkeySetupLater": "Passkeys kannst du jederzeit in den Einstellungen einrichten.",
     "passwordMinLength": "Min. 12 Zeichen",
     "passwordTooShort": "Passwort muss mindestens {minLength} Zeichen lang sein.",
-    "privacyPolicy": "Datenschutzerklärung"
+    "privacyPolicy": "Datenschutzerklärung",
+    "passwordBreached": "Dieses Passwort taucht in bekannten Datenlecks auf. Bitte wähle ein anderes."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -4968,7 +4969,37 @@
     "polarDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "ouraDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "nightscoutDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
-    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben."
+    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben.",
+    "security": {
+      "sessionsTitle": "Aktive Sitzungen",
+      "sessionsDescription": "Geräte und Browser, die aktuell bei deinem Konto angemeldet sind.",
+      "sessionsLoadError": "Aktive Sitzungen konnten nicht geladen werden.",
+      "sessionsEmpty": "Keine aktiven Sitzungen.",
+      "currentSession": "Dieses Gerät",
+      "lastActive": "Zuletzt aktiv {time}",
+      "unknownLocation": "Unbekannter Ort",
+      "revokeSession": "Abmelden",
+      "revokeError": "Anfrage konnte nicht abgeschlossen werden. Bitte erneut versuchen.",
+      "signOutEverywhere": "Überall sonst abmelden",
+      "signOutEverywhereDone": "{count} andere Sitzung(en) abgemeldet.",
+      "activityTitle": "Sicherheitsaktivität",
+      "activityDescription": "Letzte Anmeldungen, Sicherheitsänderungen und Datenexporte deines Kontos.",
+      "activityEmpty": "Noch keine Sicherheitsaktivität.",
+      "activityLoadError": "Sicherheitsaktivität konnte nicht geladen werden.",
+      "action": {
+        "newDevice": "Anmeldung von neuem Gerät",
+        "loginFailed": "Fehlgeschlagene Anmeldung",
+        "login": "Anmeldung",
+        "passwordChange": "Passwort geändert",
+        "mfa": "Zwei-Faktor-Änderung",
+        "sessionRevoke": "Sitzung abgemeldet",
+        "token": "API-Token-Änderung",
+        "accountDelete": "Konto gelöscht",
+        "dataClear": "Daten zurückgesetzt",
+        "export": "Datenexport",
+        "other": "Sicherheitsereignis"
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5955,7 +5986,12 @@
     "eventMeasurementReminder": "Mess-Erinnerung",
     "eventMeasurementReminderDesc": "Wird gesendet, wenn eine erfasste Messung fällig ist.",
     "eventMedicationIntakeSync": "Einnahme-Synchronisierung",
-    "eventMedicationIntakeSyncDesc": "Geräteübergreifende Aktualisierung, wenn eine Dosis protokolliert, eingenommen oder übersprungen wird."
+    "eventMedicationIntakeSyncDesc": "Geräteübergreifende Aktualisierung, wenn eine Dosis protokolliert, eingenommen oder übersprungen wird.",
+    "security": {
+      "newDeviceTitle": "Neue Anmeldung bei deinem Konto",
+      "newDeviceBody": "Eine neue Anmeldung von {device} ({location}). Falls du das nicht warst, ändere sofort dein Passwort.",
+      "unknownLocation": "unbekannter Ort"
+    }
   },
   "i18n": {
     "maintainershipBanner": {

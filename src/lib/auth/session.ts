@@ -8,6 +8,12 @@ import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
 const SESSION_COOKIE = "healthlog_session";
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+// v1.23 — throttle window for the user-facing active-session list's "last
+// seen" stamp. A write only happens when the prior stamp is older than this,
+// so the high-churn `getSession` path costs at most one extra UPDATE per
+// session per window rather than one per request.
+const LAST_ACTIVE_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
  * v1.4.22 C4 — flag cookie mirroring the user's `onboardingCompletedAt`
  * status. Set to `"pending"` while the field is null and cleared once
@@ -147,6 +153,22 @@ export async function getSession(): Promise<{
     });
   }
 
+  // v1.23 — sliding "last seen" stamp for the active-session list. Throttled
+  // (only when the prior stamp is stale) and fire-and-forget so it never adds
+  // latency or a failure mode to the request-resolution path.
+  const lastActive = session.lastActiveAt;
+  if (
+    !lastActive ||
+    lastActive.getTime() < Date.now() - LAST_ACTIVE_THROTTLE_MS
+  ) {
+    void prisma.session
+      .update({
+        where: { id: session.id },
+        data: { lastActiveAt: new Date() },
+      })
+      .catch(() => {});
+  }
+
   return {
     session: { id: session.id, expiresAt: session.expiresAt },
     user: session.user,
@@ -190,4 +212,47 @@ export async function destroyAllSessions(userId: string): Promise<void> {
       data: { revokedAt: new Date() },
     }),
   ]);
+}
+
+/**
+ * v1.23 — "sign out everywhere" for the user-facing active-session surface
+ * (issue #64). Distinct from `destroyAllSessions`: this keeps the caller's
+ * CURRENT cookie session alive so clicking the button doesn't log the user out
+ * of the device they pressed it on, and it does NOT revoke `ApiToken`s — those
+ * are long-lived programmatic credentials the user manages separately under
+ * /settings/api-tokens, not "sessions" in the device-list sense. It DOES revoke
+ * every native-client `RefreshToken` (each is a device login) so a signed-in
+ * phone/tablet is dropped too, matching the "everywhere" promise.
+ *
+ * Returns the number of OTHER web sessions removed so the surface can confirm.
+ */
+export async function destroyOtherSessions(
+  userId: string,
+  currentSessionId: string,
+): Promise<{ sessionsRevoked: number }> {
+  const [deleted] = await prisma.$transaction([
+    prisma.session.deleteMany({
+      where: { userId, id: { not: currentSessionId } },
+    }),
+    prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
+  return { sessionsRevoked: deleted.count };
+}
+
+/**
+ * v1.23 — revoke a single web session by id, scoped to the owning user so a
+ * caller can never delete another user's session row. Returns whether a row
+ * was actually removed (false → not found or not owned).
+ */
+export async function destroySessionById(
+  userId: string,
+  sessionId: string,
+): Promise<boolean> {
+  const result = await prisma.session.deleteMany({
+    where: { id: sessionId, userId },
+  });
+  return result.count > 0;
 }

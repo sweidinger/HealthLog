@@ -575,6 +575,7 @@ model User {
   mfaChallenges               MfaChallenge[]
   mfaRecoveryCodes            MfaRecoveryCode[]
   webauthnMfaCredentials      WebauthnMfaCredential[]
+  knownDevices                UserKnownDevice[]
   measurements                Measurement[]
   medications                 Medication[]
   intakeEvents                MedicationIntakeEvent[]
@@ -873,6 +874,33 @@ model WebauthnMfaCredential {
 
   @@index([userId])
   @@map("webauthn_mfa_credentials")
+}
+
+// v1.23 — login-alert dedupe ledger. One row per (user, coarse device
+// fingerprint). The fingerprint is a one-way SHA-256 hash of
+// `userId | normalised-User-Agent | coarse-location-or-asn` — never the raw
+// User-Agent or IP, so the table holds no directly identifying request
+// metadata (`deviceHash` is salted by the userId, so the same browser on two
+// accounts yields two unrelated hashes). `label` is a coarse, human-readable
+// descriptor for the activity surface (e.g. "Firefox on macOS — Berlin, DE");
+// it intentionally omits the IP. First sighting of a hash fires one new-device
+// notification through the dispatcher; later sightings only bump `lastSeenAt`.
+model UserKnownDevice {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  deviceHash  String   @map("device_hash")
+  label       String?
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Dedupe is per-user: the same coarse fingerprint can never be inserted
+  // twice for one account, so the "first sighting → alert" decision is a
+  // single unique-constrained upsert.
+  @@unique([userId, deviceHash])
+  @@index([userId])
+  @@map("user_known_devices")
 }
 
 model AuthChallenge {

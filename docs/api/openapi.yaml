@@ -1554,6 +1554,81 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/auth/me/sessions:
+    get:
+      tags:
+        - Auth
+      summary: List active web sessions
+      description: "v1.23 — the user-facing active-session list (issue #64). One row per browser login with a coarse device
+        label, masked IP, resolved location, sliding last-active time, and the current-session marker. Distinct from
+        /api/auth/me/devices (notification devices)."
+      responses:
+        "200":
+          description: Active sessions for the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionListEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Auth
+      summary: Sign out everywhere else
+      description: v1.23 — revokes every OTHER web session plus all native refresh tokens, keeping the caller's current
+        session. API tokens are not touched (manage those under /settings/api-tokens).
+      responses:
+        "200":
+          description: Other sessions revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignOutEverywhereEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/sessions/{id}:
+    delete:
+      tags:
+        - Auth
+      summary: Revoke a single web session
+      description: v1.23 — revokes one session by id, scoped to the authenticated user (a foreign id returns 404, never
+        another user's row).
+      responses:
+        "200":
+          description: Session revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionRevokeEnvelope"
+        "401": *a1
+        "404":
+          description: Session not found or not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/auth/me/security-activity:
+    get:
+      tags:
+        - Auth
+      summary: List recent account-security activity
+      description: "v1.23 — the SHARED security-activity feed: the caller's recent auth + export + deletion audit events with
+        timestamp, resolved location, and a host-masked IP. `limit` query param caps at 100 (default 50). Reuses the
+        AuditLog store; no event detail bodies are surfaced."
+      responses:
+        "200":
+          description: Recent security events for the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityActivityEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/sync/state:
     get:
       tags:
@@ -11010,6 +11085,177 @@ components:
       required:
         - data
         - error
+      additionalProperties: false
+    SessionListEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SessionListResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SessionListResponse:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              device:
+                type: string
+                description: Coarse device label derived from the User-Agent.
+              ipMasked:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: IP with the host portion masked — never the full address.
+              location:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: Resolved coarse location, when available.
+              lastActiveAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                  - type: "null"
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              isCurrent:
+                type: boolean
+                description: True for the session making this request.
+            required:
+              - id
+              - device
+              - ipMasked
+              - location
+              - lastActiveAt
+              - createdAt
+              - isCurrent
+            additionalProperties: false
+      required:
+        - sessions
+      additionalProperties: false
+    SignOutEverywhereEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SignOutEverywhereResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SignOutEverywhereResponse:
+      type: object
+      properties:
+        sessionsRevoked:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Number of OTHER sessions removed (the current one is kept).
+      required:
+        - sessionsRevoked
+      additionalProperties: false
+    SessionRevokeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            revoked:
+              type: boolean
+          required:
+            - revoked
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SecurityActivityEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SecurityActivityResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SecurityActivityResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+                description: Audit action name, e.g. auth.login.password.
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              location:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              ipMasked:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: Host-masked IP.
+              carrier:
+                anyOf:
+                  - type: string
+                  - type: "null"
+            required:
+              - action
+              - createdAt
+              - location
+              - ipMasked
+              - carrier
+            additionalProperties: false
+      required:
+        - events
       additionalProperties: false
     SyncStateEnvelope:
       type: object

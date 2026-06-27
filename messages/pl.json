@@ -263,7 +263,8 @@
     "passkeySetupLater": "Passkey możesz skonfigurować później w ustawieniach.",
     "passwordMinLength": "Min. 12 znaków",
     "passwordTooShort": "Hasło musi mieć co najmniej {minLength} znaków.",
-    "privacyPolicy": "Polityka prywatności"
+    "privacyPolicy": "Polityka prywatności",
+    "passwordBreached": "To hasło pojawia się w znanych wyciekach danych. Wybierz inne."
   },
   "dashboard": {
     "title": "Pulpit",
@@ -4968,7 +4969,37 @@
     "polarDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "ouraDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "nightscoutDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
-    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej."
+    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej.",
+    "security": {
+      "sessionsTitle": "Aktywne sesje",
+      "sessionsDescription": "Urządzenia i przeglądarki obecnie zalogowane na Twoje konto.",
+      "sessionsLoadError": "Nie udało się załadować aktywnych sesji.",
+      "sessionsEmpty": "Brak aktywnych sesji.",
+      "currentSession": "To urządzenie",
+      "lastActive": "Ostatnia aktywność {time}",
+      "unknownLocation": "Nieznana lokalizacja",
+      "revokeSession": "Wyloguj",
+      "revokeError": "Nie udało się zrealizować żądania. Spróbuj ponownie.",
+      "signOutEverywhere": "Wyloguj na pozostałych urządzeniach",
+      "signOutEverywhereDone": "Wylogowano {count} inną/e sesję/e.",
+      "activityTitle": "Aktywność zabezpieczeń",
+      "activityDescription": "Ostatnie logowania, zmiany zabezpieczeń i eksporty danych Twojego konta.",
+      "activityEmpty": "Brak aktywności zabezpieczeń.",
+      "activityLoadError": "Nie udało się załadować aktywności zabezpieczeń.",
+      "action": {
+        "newDevice": "Logowanie z nowego urządzenia",
+        "loginFailed": "Nieudane logowanie",
+        "login": "Logowanie",
+        "passwordChange": "Zmieniono hasło",
+        "mfa": "Zmiana uwierzytelniania dwuskładnikowego",
+        "sessionRevoke": "Wylogowano sesję",
+        "token": "Zmiana tokenu API",
+        "accountDelete": "Konto usunięte",
+        "dataClear": "Zresetowano dane",
+        "export": "Eksport danych",
+        "other": "Zdarzenie zabezpieczeń"
+      }
+    }
   },
   "admin": {
     "title": "Administracja",
@@ -5955,7 +5986,12 @@
     "eventMeasurementReminder": "Przypomnienie o pomiarze",
     "eventMeasurementReminderDesc": "Wysyłane, gdy śledzony pomiar jest wymagany.",
     "eventMedicationIntakeSync": "Synchronizacja przyjęć leku",
-    "eventMedicationIntakeSyncDesc": "Aktualizacja między urządzeniami, gdy dawka zostanie zapisana, przyjęta lub pominięta."
+    "eventMedicationIntakeSyncDesc": "Aktualizacja między urządzeniami, gdy dawka zostanie zapisana, przyjęta lub pominięta.",
+    "security": {
+      "newDeviceTitle": "Nowe logowanie do Twojego konta",
+      "newDeviceBody": "Nowe logowanie z {device} ({location}). Jeśli to nie Ty, natychmiast zmień hasło.",
+      "unknownLocation": "nieznana lokalizacja"
+    }
   },
   "i18n": {
     "maintainershipBanner": {
