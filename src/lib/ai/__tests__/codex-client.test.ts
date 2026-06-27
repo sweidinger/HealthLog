@@ -314,11 +314,15 @@ describe("CodexClient", () => {
     );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    // v1.21.3 — the Responses-API function tool carries an explicit `strict`
+    // field; omitting it is a documented 400 cause on a client-supplied tools
+    // array (the live Coach tool-call regression).
     expect(body.tools).toEqual([
       {
         type: "function",
         name: "fetch_glucose",
         description: "Fetch glucose readings",
+        strict: false,
         parameters: { type: "object", properties: {} },
       },
     ]);
@@ -331,5 +335,85 @@ describe("CodexClient", () => {
     ]);
     expect(result.finishReason).toBe("tool_calls");
     expect(result.cachedInputTokens).toBe(20);
+  });
+
+  it("replays a prior assistant turn as output_text, not input_text (Responses API multi-round contract)", async () => {
+    // v1.21.3 — assistant message replays MUST use `output_text`. Sending
+    // `input_text` for an assistant turn is a spec violation the Coach tool
+    // loop hit on round 2+, surfacing as a 400. User turns keep input_text.
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(
+        sseResponse([messageDoneEvent("final"), completedEvent(10)]),
+      );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new CodexClient({
+      accessToken: "test-token",
+      accountId: "acct-test",
+      onTokenRefresh: vi
+        .fn()
+        .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
+    });
+
+    await client.generateCompletion({
+      system: "s",
+      messages: [
+        { role: "user", content: "how is my bp?" },
+        { role: "assistant", content: "Let me check." },
+        { role: "user", content: "thanks" },
+      ],
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const messageItems = body.input.filter(
+      (i: { type: string }) => i.type === "message",
+    );
+    const userItem = messageItems.find(
+      (i: { role: string }) => i.role === "user",
+    );
+    const assistantItem = messageItems.find(
+      (i: { role: string }) => i.role === "assistant",
+    );
+    expect(userItem.content[0].type).toBe("input_text");
+    expect(assistantItem.content[0].type).toBe("output_text");
+    expect(assistantItem.content[0].text).toBe("Let me check.");
+  });
+
+  it("folds the redacted upstream body into the thrown 400 message for diagnosability", async () => {
+    // v1.21.3 — the 400 body names the rejected field/param. It must reach the
+    // error message (the chain runner's summariseError reads err.message) so
+    // the live failure is diagnosable, with bearer/sk- secrets redacted.
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () =>
+        'Bearer secret-token-here {"error":{"message":"Unknown parameter: tools[0].strict"}}',
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new CodexClient({
+      accessToken: "test-token",
+      accountId: "acct-test",
+      onTokenRefresh: vi
+        .fn()
+        .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
+    });
+
+    let caught: unknown;
+    try {
+      await client.generateCompletion(
+        singleUserTurn({ system: "s", user: "u" }),
+      );
+    } catch (e) {
+      caught = e;
+    }
+    const e = caught as Error & { httpStatus?: number; bodyExcerpt?: string };
+    expect(e.httpStatus).toBe(400);
+    expect(e.message).toContain("Codex request failed (400)");
+    expect(e.message).toContain("Unknown parameter");
+    // Secret redacted in both the message and the side property.
+    expect(e.message).not.toContain("secret-token-here");
+    expect(e.bodyExcerpt).toContain("Bearer ***redacted***");
   });
 });

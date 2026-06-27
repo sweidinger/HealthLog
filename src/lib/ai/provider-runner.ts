@@ -120,12 +120,21 @@ function rememberWorkingProvider(
  *   - Network errors (no `httpStatus`) — DNS, ECONNRESET, timeout.
  *
  * No:
- *   - 4xx other than 401/403/429 — usually validation; the wrapper's
- *     422 path already covers schema mismatch and that surface is
- *     valuable for prompt-debugging.
- *   - `InsightSchemaError` — same logic; surfaces the wrapper's
- *     existing 422 so the user sees "model JSON malformed" rather
- *     than getting silent provider drift.
+ *   - `InsightSchemaError` — surfaces the wrapper's existing 422 so the
+ *     user sees "model JSON malformed" rather than getting silent
+ *     provider drift. This is the ONLY non-hard class.
+ *
+ * v1.21.3 — a 4xx that the PROVIDER WIRE returned (tagged `upstream`,
+ * e.g. a Codex `400` rejecting the tool-call / structured request shape)
+ * is now hard. It used to fall through `isHardProviderFailure → false`,
+ * so the raw error bubbled out of the chain runner UNWRAPPED — the Coach
+ * route's catch only handles `AllProvidersFailedError`, so an un-wrapped
+ * provider error rethrew as an HTTP 500. Treating every upstream 4xx as
+ * hard means it cascades to the next provider and, on exhaustion, is
+ * wrapped in `AllProvidersFailedError` so the route surfaces a graceful
+ * `coach.provider.*` frame instead of a 500. `InsightSchemaError`
+ * (no `upstream` tag) is still excluded, so the strict JSON surface keeps
+ * its 422 "model JSON malformed" diagnostic.
  */
 export function isHardProviderFailure(error: unknown): boolean {
   if (error instanceof InsightSchemaError) return false;
@@ -138,6 +147,10 @@ export function isHardProviderFailure(error: unknown): boolean {
   }
   if (status === 401 || status === 403 || status === 429) return true;
   if (status >= 500) return true;
+  // Any other 4xx surfaced by a provider wire (the Codex / OpenAI /
+  // Anthropic clients all tag their thrown errors) is a provider failure,
+  // not a caller bug — cascade rather than bubble raw into a 500.
+  if (status >= 400) return true;
   return false;
 }
 
@@ -312,14 +325,30 @@ async function resolveChainOrder(
   return applyLastWorkingCache(userId, afterSkips);
 }
 
-function summariseError(e: unknown): { reason: string; status: number | null } {
-  const err = e as { message?: string; httpStatus?: number };
+function summariseError(e: unknown): {
+  reason: string;
+  status: number | null;
+  bodyExcerpt: string | null;
+} {
+  const err = e as {
+    message?: string;
+    httpStatus?: number;
+    bodyExcerpt?: string;
+  };
   const status = typeof err.httpStatus === "number" ? err.httpStatus : null;
   const message = err.message ?? "unknown error";
+  // v1.21.3 — surface the provider's redacted response body (the codex client
+  // attaches it) so the wide-event carries the upstream's actual rejection
+  // reason, not just "HTTP 400". Already redacted of secrets at the client.
+  const bodyExcerpt =
+    typeof err.bodyExcerpt === "string" && err.bodyExcerpt.length > 0
+      ? err.bodyExcerpt.slice(0, 500)
+      : null;
   // Cap to keep wide-event payloads bounded.
   return {
     reason: status !== null ? `HTTP ${status}: ${message}` : message,
     status,
+    bodyExcerpt,
   };
 }
 
@@ -379,6 +408,7 @@ export async function runWithFallback(
           [`ai_chain_hop_${i + 1}_provider`]: candidate.providerType,
           [`ai_chain_hop_${i + 1}_status`]: summary.status,
           [`ai_chain_hop_${i + 1}_reason`]: summary.reason.slice(0, 240),
+          [`ai_chain_hop_${i + 1}_body`]: summary.bodyExcerpt,
         },
       });
     }
@@ -468,6 +498,7 @@ export async function runRawCompletionWithFallback(args: {
           [`ai_chain_hop_${i + 1}_provider`]: candidate.providerType,
           [`ai_chain_hop_${i + 1}_status`]: summary.status,
           [`ai_chain_hop_${i + 1}_reason`]: summary.reason.slice(0, 240),
+          [`ai_chain_hop_${i + 1}_body`]: summary.bodyExcerpt,
         },
       });
     }

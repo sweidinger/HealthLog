@@ -672,6 +672,30 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
           : "coach.provider.unavailable",
       });
     }
+    // v1.21.3 — defence in depth. The chain runner wraps every hard provider
+    // failure in `AllProvidersFailedError`, but a provider client can still
+    // throw a tagged wire error that reaches here un-wrapped (e.g. a Codex 400
+    // raised mid tool-loop on a path the chain runner did not catch). Such an
+    // error is a PROVIDER failure, not a server bug — surface the same graceful
+    // `coach.provider.*` frame the chain path uses rather than rethrowing into
+    // an HTTP 500 (the bug that took the live Coach down for codex users). Only
+    // a genuinely unexpected error (no upstream tag, no httpStatus) keeps the
+    // 500 + GlitchTip path so real defects stay visible.
+    const providerError = classifyBubblingProviderError(err);
+    if (providerError) {
+      annotate({
+        action: { name: "insights.coach.providerFailed" },
+        meta: {
+          attempts: 1,
+          firstStatus: providerError.httpStatus,
+          credentialExpired: providerError.code === "credential_expired",
+          unwrapped: true,
+        },
+      });
+      return streamProviderError({
+        code: `coach.provider.${providerError.code}`,
+      });
+    }
     throw err;
   }
 
@@ -1071,6 +1095,36 @@ async function streamRefusal(args: {
   });
 
   return new Response(stream, { status: 200, headers: SSE_HEADERS });
+}
+
+/**
+ * v1.21.3 — classify a provider error that bubbled out of the chain runner
+ * un-wrapped (i.e. not an `AllProvidersFailedError`). The provider clients tag
+ * their thrown errors with `upstream` + `httpStatus`; a tagged error is a
+ * provider failure that must surface a graceful `coach.provider.*` frame rather
+ * than rethrow into an HTTP 500. Returns `null` for anything that is NOT a
+ * recognisable provider error (a real server bug), so those keep the 500 +
+ * GlitchTip path. Status mapping mirrors `AllProvidersFailedError`: 401/403 →
+ * credential_expired, 429 → rate_limited, everything else → unavailable.
+ */
+function classifyBubblingProviderError(
+  err: unknown,
+): {
+  code: "credential_expired" | "rate_limited" | "unavailable";
+  httpStatus: number | null;
+} | null {
+  if (err === null || typeof err !== "object") return null;
+  const e = err as { upstream?: unknown; httpStatus?: unknown };
+  const hasUpstreamTag = typeof e.upstream === "string";
+  const status = typeof e.httpStatus === "number" ? e.httpStatus : null;
+  // Require the wire tag — a bare `{ httpStatus }` from unrelated code must not
+  // be swallowed as a provider outage.
+  if (!hasUpstreamTag) return null;
+  if (status === 401 || status === 403) {
+    return { code: "credential_expired", httpStatus: status };
+  }
+  if (status === 429) return { code: "rate_limited", httpStatus: status };
+  return { code: "unavailable", httpStatus: status };
 }
 
 function streamProviderError(args: { code: string }): Response {
