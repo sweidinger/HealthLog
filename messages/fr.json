@@ -5689,7 +5689,7 @@
     "carrier": "Opérateur",
     "carrierUnavailableGeoFallback": "{location} — opérateur indisponible",
     "mfaRequired": "Exiger un second facteur",
-    "mfaRequiredDescription": "Tout compte sans second facteur actif est dirigé vers la configuration après la connexion.",
+    "mfaRequiredDescription": "Chaque compte sans deuxième facteur actif est dirigé vers la configuration après la connexion. Cela invite les utilisateurs web à l'activer, mais ne bloque pas l'accès direct par API ou natif (Bearer) pour les comptes pas encore configurés.",
     "mfaEnforcedOn": "MFA activé",
     "mfaEnforcedOff": "MFA désactivé",
     "mfaEnforcedOnHint": "Un second facteur est requis pour cet utilisateur. Cliquez pour ne plus l'exiger.",

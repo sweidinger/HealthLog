@@ -45,7 +45,9 @@ export function GeneralSettingsSection() {
 
         {/* v1.23 — instance-wide "require a second factor" policy. Every
             account without an active factor is sent to forced enrollment after
-            sign-in. */}
+            sign-in. This is a web-session nudge, not an API wall: direct API /
+            native (Bearer) access for a not-yet-enrolled account is not blocked.
+            See docs/ops/mfa-enforcement.md. */}
         <SettingsToggle
           label={t("admin.mfaRequired")}
           description={t("admin.mfaRequiredDescription")}

@@ -5689,7 +5689,7 @@
     "carrier": "Carrier",
     "carrierUnavailableGeoFallback": "{location} — carrier unavailable",
     "mfaRequired": "Require a second factor",
-    "mfaRequiredDescription": "Every account without an active second factor is sent to enrollment after sign-in.",
+    "mfaRequiredDescription": "Every account without an active second factor is sent to enrollment after sign-in. This prompts web users to enroll — it does not block direct API or native (Bearer) access for accounts not yet enrolled.",
     "mfaEnforcedOn": "MFA on",
     "mfaEnforcedOff": "MFA off",
     "mfaEnforcedOnHint": "A second factor is required for this user. Click to stop requiring it.",
