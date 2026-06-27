@@ -43,7 +43,6 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { scrollBehaviorForUser } from "@/lib/motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import type { ModuleKey } from "@/lib/modules/registry";
@@ -366,11 +365,11 @@ export function SettingsShell({
     // box, which is the origin for `scrollLeft`.
     const maxScroll = strip.scrollWidth - strip.clientWidth;
     const target = Math.max(0, Math.min(active.offsetLeft, maxScroll));
-    strip.scrollTo({
-      left: target,
-      // v1.4.43 W5-H5 — respect `prefers-reduced-motion`.
-      behavior: scrollBehaviorForUser(),
-    });
+    // Position the active chip instantly. A smooth behaviour here animates
+    // the strip from its reset `scrollLeft: 0` to the target on every tap,
+    // which reads as an unwanted "scroll from the start" sweep when swapping
+    // sections. An instant jump keeps the chip in view without the sweep.
+    strip.scrollTo({ left: target, behavior: "auto" });
   }, [activeSlug]);
 
   // v1.18.6.1 — resolve the heading once. Pages pass an explicit `heading`

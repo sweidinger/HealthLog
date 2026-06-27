@@ -37,7 +37,6 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { scrollBehaviorForUser } from "@/lib/motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { isAdminSectionSlug, type AdminSectionSlug } from "./section-slugs";
@@ -188,16 +187,15 @@ export function AdminShell({ active, children }: AdminShellProps) {
       '[aria-current="page"]',
     );
     if (!activeChip) return;
-    activeChip.scrollIntoView({
-      block: "nearest",
-      // v1.4.36 W4b — `inline: "start"` pins the active chip to the
-      // left edge of the scroller. `inline: "center"` over-scrolled
-      // and the first one or two chips were unreachable on narrow
-      // viewports.
-      inline: "start",
-      // v1.4.43 W5-H5 — respect `prefers-reduced-motion`.
-      behavior: scrollBehaviorForUser(),
-    });
+    // Adjust only the strip's own horizontal offset, instantly. The old
+    // `scrollIntoView` walked every scrollable ancestor and could nudge the
+    // document vertically, and a smooth behaviour animated the strip from a
+    // reset `scrollLeft: 0` to the target on every tap — an unwanted "scroll
+    // from the start" sweep. `scrollTo({ left, behavior: "auto" })` confines
+    // the motion to the strip's horizontal axis and jumps without animation.
+    const maxScroll = strip.scrollWidth - strip.clientWidth;
+    const target = Math.max(0, Math.min(activeChip.offsetLeft, maxScroll));
+    strip.scrollTo({ left: target, behavior: "auto" });
   }, [activeSlug]);
 
   // The section bodies are already role-gated, but the shell frame
