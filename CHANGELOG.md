@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.21.4] — 2026-06-27 — Coach surface refinements
+
+A patch release. No migrations, no breaking changes.
+
+### Changed
+
+- The Coach settings link now lives in the composer's "+" menu, next to New chat and Conversations, and the redundant gear in the page toolbar is gone; the drawer keeps its own gear. The composer is the single control hub.
+- Conversations open as a dedicated page with the search field at the top and the list grouped by recency — today, yesterday, this week, and earlier — instead of a slide-in panel. Both the "+" menu and the drawer's conversations control route there.
+- The seeded "worth a look" opener spans the full width of the composer and carries a dismiss control that hides it for the rest of the day.
+
 ## [1.21.3] — 2026-06-27 — Coach memory and a standing quality harness
 
 A patch release. One additive migration (`0194` coach plans); no breaking changes.
