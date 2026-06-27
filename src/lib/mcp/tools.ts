@@ -33,7 +33,11 @@ import {
   compareMetric,
   getMetricBaseline,
   detectChangepoints,
+  getLabHistory,
+  LAB_HISTORY_MAX_LIMIT,
+  type DateRange,
 } from "@/lib/mcp/rich-reads";
+import { encodeOffsetCursor, decodeOffsetCursor } from "@/lib/mcp/pagination";
 import type { McpAuthContext } from "./auth";
 
 /**
@@ -101,6 +105,78 @@ async function runCoachTool(
   return result;
 }
 
+/** Finite-number guard for the citation summarisers. */
+function num(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Render a `fetch` result for a metric id as a short, human-readable citation
+ * sentence (NOT a JSON blob). Pulls the recent aggregate + the grounding band
+ * out of the server-authoritative result; falls back to a plain factual line
+ * when a field is absent. Never fabricates a number the result did not carry.
+ */
+function plainMetricText(rid: string, result: unknown): string {
+  const r = result as {
+    present?: boolean;
+    data?: { section?: Record<string, unknown> } & Record<string, unknown>;
+    grounding?: string;
+  };
+  if (!r?.present) return `No recent ${rid} data is on file.`;
+  const section = (r.data?.section ?? r.data) as
+    | Record<string, unknown>
+    | undefined;
+  const agg = section?.aggregate as Record<string, unknown> | undefined;
+  const parts: string[] = [];
+  const mean = num(agg?.mean);
+  const count = num(agg?.count);
+  if (mean !== null) parts.push(`recent mean ${round1(mean)}`);
+  if (count !== null) parts.push(`${count} readings`);
+  const head =
+    parts.length > 0
+      ? `${rid}: ${parts.join(", ")}.`
+      : `${rid}: data is available for the recent window.`;
+  return [head, typeof r.grounding === "string" ? r.grounding : ""]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Render a `fetch` result for a lab analyte id as a short citation sentence,
+ * quoting the latest reading's value/unit/status/date verbatim from the
+ * server-authoritative result.
+ */
+function plainLabText(rid: string, result: unknown): string {
+  const r = result as {
+    present?: boolean;
+    data?: { recent?: Array<Record<string, unknown>> };
+  };
+  if (!r?.present) return `No lab result for ${rid} is on file.`;
+  const reading = Array.isArray(r.data?.recent) ? r.data!.recent[0] : undefined;
+  if (!reading) return `${rid}: a reading is on file.`;
+  const analyte = typeof reading.analyte === "string" ? reading.analyte : rid;
+  const value =
+    reading.value != null
+      ? String(reading.value)
+      : typeof reading.valueText === "string"
+        ? reading.valueText
+        : "—";
+  const unit = typeof reading.unit === "string" ? reading.unit : "";
+  const status =
+    typeof reading.rangeStatus === "string" ? reading.rangeStatus : "";
+  const taken =
+    typeof reading.takenAt === "string" ? reading.takenAt.slice(0, 10) : "";
+  return (
+    `${analyte}: ${value}${unit ? ` ${unit}` : ""}` +
+    `${status && status !== "unknown" ? ` (${status})` : ""}` +
+    `${taken ? `, measured ${taken}` : ""}.`
+  );
+}
+
 /**
  * The `search` + `fetch` pair — the de-facto two-tool retrieval convention and,
  * critically, the ONLY tools ChatGPT can call in its default (non-Developer)
@@ -123,8 +199,17 @@ function searchAndFetchTools(): McpToolDefinition[] {
       name: "search",
       title: "Search your health records",
       description:
-        "Search the user's own health record — metric domains, medications, and lab biomarkers — for items matching a free-text query. Returns a list of { id, title, url }; pass an id to the `fetch` tool to hydrate it. Each `url` deep-links into the HealthLog web app for citation. Returns an empty list when nothing matches.",
-      inputShape: { query: z.string().max(200) },
+        "Search the user's own health record — metric domains, medications, and lab biomarkers — for items matching a free-text query. Returns { results: [{ id, title, url }], nextCursor? }; pass an id to the `fetch` tool to hydrate it. Each `url` deep-links into the HealthLog web app for citation. When more results exist, pass the opaque `nextCursor` back as `cursor` for the next page. Returns an empty list when nothing matches.",
+      inputShape: {
+        query: z.string().max(200),
+        cursor: z
+          .string()
+          .max(256)
+          .optional()
+          .describe(
+            "Opaque pagination cursor from a previous response's nextCursor. Treat as a black box; do not construct one.",
+          ),
+      },
       annotations: READ_ONLY_ANNOTATIONS,
       outputShape: {
         results: z.array(
@@ -134,6 +219,7 @@ function searchAndFetchTools(): McpToolDefinition[] {
             url: z.string(),
           }),
         ),
+        nextCursor: z.string().optional(),
       },
       async run(ctx, args) {
         const query =
@@ -185,19 +271,30 @@ function searchAndFetchTools(): McpToolDefinition[] {
           });
         }
 
-        const capped = results.slice(0, 50);
+        // Cursor pagination over the assembled result set (was a silent
+        // slice(0,50)). The set is rebuilt deterministically each call (stable
+        // ordering: metrics → medications → labs), so an opaque offset cursor
+        // pages it reliably and the response stays token-bounded.
+        const offset = decodeOffsetCursor(args.cursor);
+        const page = results.slice(offset, offset + SEARCH_PAGE_SIZE);
+        const hasMore = offset + SEARCH_PAGE_SIZE < results.length;
         annotate({
           action: { name: "mcp.tool.invoked" },
-          meta: { tool: "search", present: capped.length > 0 },
+          meta: { tool: "search", present: page.length > 0 },
         });
-        return { results: capped };
+        return {
+          results: page,
+          ...(hasMore
+            ? { nextCursor: encodeOffsetCursor(offset + SEARCH_PAGE_SIZE) }
+            : {}),
+        };
       },
     },
     {
       name: "fetch",
       title: "Fetch one health record",
       description:
-        "Hydrate a single record returned by `search`, by its id (e.g. `metric:weight`, `med:<id>`, `lab:LDL`). Returns { id, title, text, url, metadata } where `text` is a server-authoritative, plain-text summary suitable for citation and `url` deep-links into HealthLog. Returns a not-found message when the id does not resolve.",
+        "Hydrate a single record returned by `search`, by its id (e.g. `metric:weight`, `med:<id>`, `lab:LDL`). Returns { id, title, text, url, metadata } where `text` is a server-authoritative, plain-text prose summary suitable for citation and `url` deep-links to the specific record in HealthLog. Returns a not-found message when the id does not resolve.",
       inputShape: { id: z.string().min(1).max(200) },
       annotations: READ_ONLY_ANNOTATIONS,
       outputShape: {
@@ -228,8 +325,9 @@ function searchAndFetchTools(): McpToolDefinition[] {
           return {
             id,
             title: rid,
-            text: JSON.stringify(result),
-            url: `${origin}/insights`,
+            text: plainMetricText(rid, result),
+            // The metric page deep-link; the insights surface renders the series.
+            url: `${origin}/insights?metric=${encodeURIComponent(rid)}`,
             metadata: { type: "metric", metric: rid },
           };
         }
@@ -243,8 +341,9 @@ function searchAndFetchTools(): McpToolDefinition[] {
           return {
             id,
             title: rid,
-            text: JSON.stringify(result),
-            url: `${origin}/labs`,
+            text: plainLabText(rid, result),
+            // Deep-link to the labs surface filtered to this analyte.
+            url: `${origin}/labs?analyte=${encodeURIComponent(rid)}`,
             metadata: { type: "lab", analyte: rid },
           };
         }
@@ -268,12 +367,19 @@ function searchAndFetchTools(): McpToolDefinition[] {
               metadata: { type: "medication" },
             };
           }
+          // Plain-text prose, not a JSON blob. `dose` / `treatmentClass` are
+          // user-controlled free-text returned as DATA, never interpreted.
+          const text =
+            `${med.name}${med.dose ? ` ${med.dose}` : ""}` +
+            `${med.asNeeded ? " (as needed)" : ""}` +
+            `${med.treatmentClass ? ` — ${med.treatmentClass}` : ""}.`;
           return {
             id,
             title: med.name,
-            text: JSON.stringify(med),
-            url: `${origin}/medications`,
-            metadata: { type: "medication" },
+            text,
+            // Per-item deep-link to the medication detail page.
+            url: `${origin}/medications/${encodeURIComponent(rid)}`,
+            metadata: { type: "medication", medicationId: rid },
           };
         }
 
@@ -289,15 +395,52 @@ function searchAndFetchTools(): McpToolDefinition[] {
   ];
 }
 
-// ── Phase 4 deep-value output schemas ────────────────────────────────
-// Every field except `present` is optional so a grounded `{ present: false }`
-// miss and a full hit both conform — the SDK validates `structuredContent`
-// against these (REQ: structuredContent + outputSchema on the rich reads).
+// ── Output schemas ───────────────────────────────────────────────────
+// Every field except the presence anchor (`present`) is optional so a grounded
+// `{ present: false }` miss and a full hit both conform — the SDK validates the
+// returned `structuredContent` against these (ChatGPT Apps-SDK conformance).
 
 const bandShape = z
   .object({ low: z.number(), high: z.number() })
   .nullable()
   .optional();
+
+/**
+ * The shared output shape for the Coach-F1-backed reads (`get_metric_series`,
+ * `get_glucose_panel`, `get_sleep`, `get_workouts`, `get_illness_recovery`,
+ * `get_cycle`, `get_medication_compliance`, `get_correlations`). The executor
+ * returns the grounded `{ present, reason?, data?, grounding? }` contract; `data`
+ * is the server-authoritative domain section (its inner shape is the snapshot's,
+ * carried opaque here) so both a miss and a full hit validate.
+ */
+const coachReadOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  data: z.unknown().optional(),
+  grounding: z.string().optional(),
+};
+
+/**
+ * Optional explicit `{from,to}` ISO date range that the comparison /
+ * changepoint reads accept IN PLACE OF one of the five fixed trailing windows.
+ * Bounds are inclusive; the read serves the range over the same rollup tier the
+ * trailing windows use (see `rich-reads.ts`).
+ */
+const dateRangeShape = z
+  .object({
+    from: z.iso.datetime({ offset: true }),
+    to: z.iso.datetime({ offset: true }),
+  })
+  .describe(
+    "An explicit inclusive date range. Use INSTEAD OF `window` for an arbitrary span (e.g. before vs after a date). Both bounds are ISO-8601 instants.",
+  );
+
+/** Cap on metrics fetched in one `get_metrics` call (paginated past the cap). */
+const MAX_METRICS_PER_CALL = 24;
+/** Metrics resolved per `get_metrics` page. */
+const METRICS_PAGE_SIZE = 8;
+/** Results per `search` page. */
+const SEARCH_PAGE_SIZE = 50;
 
 const getCorrelationOutput: z.ZodRawShape = {
   present: z.boolean(),
@@ -328,7 +471,72 @@ const metricWindowSnapshotSchema = z.object({
   mean: z.number().nullable(),
   min: z.number().nullable(),
   max: z.number().nullable(),
+  // Present only when the side was an explicit `{from,to}` range.
+  from: z.string().optional(),
+  to: z.string().optional(),
 });
+
+/** Output schema for `list_metrics` — the inventory rows + flags. */
+const listMetricsOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  window: z.string().optional(),
+  restMode: z.boolean().optional(),
+  cycleEnabled: z.boolean().optional(),
+  metrics: z
+    .array(
+      z.object({
+        tool: z.string(),
+        domain: z.string(),
+        present: z.boolean(),
+        count: z.number().optional(),
+        metric: z.string().optional(),
+      }),
+    )
+    .optional(),
+};
+
+/** Output schema for `get_labs` — latest-per-biomarker OR a paginated history. */
+const getLabsOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  // Latest-mode payload (the Coach labs section, carried opaque).
+  data: z.unknown().optional(),
+  grounding: z.string().optional(),
+  // History-mode payload (per-analyte trajectory + pagination).
+  analyte: z.string().optional(),
+  readings: z
+    .array(
+      z.object({
+        value: z.number().nullable(),
+        valueText: z.string().nullable(),
+        unit: z.string(),
+        referenceLow: z.number().nullable(),
+        referenceHigh: z.number().nullable(),
+        rangeStatus: z.enum(["in-range", "below", "above", "unknown"]),
+        takenAt: z.string(),
+      }),
+    )
+    .optional(),
+  nextCursor: z.string().optional(),
+};
+
+/** Output schema for `get_metrics` — the multi-metric fan-out + pagination. */
+const getMetricsOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  window: z.string().optional(),
+  results: z
+    .array(
+      z.object({
+        metric: z.string(),
+        present: z.boolean(),
+        reason: z.string().optional(),
+        data: z.unknown().optional(),
+        grounding: z.string().optional(),
+      }),
+    )
+    .optional(),
+  nextCursor: z.string().optional(),
+};
 
 const compareMetricOutput: z.ZodRawShape = {
   present: z.boolean(),
@@ -388,6 +596,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       "Enumerate which of the user's health data exists and how to fetch it: one row per domain with whether data is present, an approximate sample count, and the tool that retrieves it. Call this first to discover what is available before fetching figures.",
     inputShape: {},
     annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: listMetricsOutput,
     async run(ctx) {
       const inventory = await buildCoachDataInventory(ctx.userId, undefined);
       annotate({
@@ -413,6 +622,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       window: coachScopeWindowSchema.optional(),
     },
     annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: coachReadOutput,
     run(ctx, args) {
       return runCoachTool(ctx, "get_metric_series", args);
     },
@@ -426,6 +636,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       window: coachScopeWindowSchema.optional(),
     },
     annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: coachReadOutput,
     run(ctx, args) {
       return runCoachTool(ctx, "get_medication_compliance", args);
     },
@@ -434,13 +645,46 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     name: "get_labs",
     title: "Get lab results",
     description:
-      "Fetch the user's most recent lab results — the latest reading per biomarker over the last 12 months, optionally filtered to one named analyte. Each reading carries its value, unit, reference range, and in-range/below/above status. Returns { present: false } when no labs are on file.",
+      "Fetch the user's lab results. By default returns the latest reading per biomarker over the last 12 months, optionally filtered to one named analyte. Pass history:true with an analyte to return that analyte's reading TRAJECTORY (newest first, paginated). Each reading carries its value, unit, reference range, and in-range/below/above status. Returns { present: false } when no labs match.",
     inputShape: {
       analyte: z.string().min(1).max(80).optional(),
+      history: z
+        .boolean()
+        .optional()
+        .describe(
+          "When true (requires `analyte`), return that analyte's full reading trajectory (newest first, paginated) instead of the latest-per-biomarker snapshot.",
+        ),
+      cursor: z
+        .string()
+        .max(256)
+        .optional()
+        .describe(
+          "Opaque pagination cursor from a previous history response's nextCursor. Treat as a black box.",
+        ),
     },
     annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getLabsOutput,
     run(ctx, args) {
-      return runCoachTool(ctx, "get_labs", args);
+      // History mode: one analyte's paginated trajectory over the labs read
+      // path. Requires an analyte — there is no whole-record history dump.
+      if (args.history === true) {
+        const analyte = typeof args.analyte === "string" ? args.analyte : "";
+        if (!analyte.trim()) {
+          return Promise.resolve({
+            present: false,
+            reason: "analyte_required_for_history",
+          });
+        }
+        return getLabHistory(ctx.userId, {
+          analyte,
+          offset: decodeOffsetCursor(args.cursor),
+          limit: LAB_HISTORY_MAX_LIMIT,
+        });
+      }
+      // Default: latest reading per biomarker via the Coach labs read.
+      return runCoachTool(ctx, "get_labs", {
+        ...(typeof args.analyte === "string" ? { analyte: args.analyte } : {}),
+      });
     },
   },
   {
@@ -450,6 +694,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       "Fetch the user's statistically-vetted (FDR-controlled) day-to-next-day driver pairs between behaviours (daylight, mood, glucose, blood pressure, steps) and outcomes (sleep, HRV, resting HR, weight), each with direction, lag, sample size, and a descriptive — never causal — note over a fixed trailing window. Returns { present: false } when too little paired data exists.",
     inputShape: {},
     annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: coachReadOutput,
     run(ctx, args) {
       return runCoachTool(ctx, "get_correlations", args);
     },
@@ -477,12 +722,14 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     name: "compare_metric",
     title: "Compare metrics or windows",
     description:
-      "Compare one metric against another over the same trailing window, OR a single metric across two trailing windows (e.g. last 30 days vs last 90 days). Returns each side's rollup statistics (count, mean, min, max) with units and reference bands, plus a delta + percent change when both sides share a unit. Windows are trailing-to-now. Returns { present: false } when a side has no data.",
+      "Compare one metric against another over the same horizon, OR a single metric across two horizons. A horizon is either one of the five fixed trailing windows OR an explicit {from,to} date range (use `range`/`rangeB` for before-vs-after-a-date). Returns each side's rollup statistics (count, mean, min, max) with units and reference bands, plus a delta + percent change when both sides share a unit. Returns { present: false } when a side has no data.",
     inputShape: {
       metric: z.string().min(1).max(60),
       metricB: z.string().min(1).max(60).optional(),
       window: coachScopeWindowSchema.optional(),
       windowB: coachScopeWindowSchema.optional(),
+      range: dateRangeShape.optional(),
+      rangeB: dateRangeShape.optional(),
     },
     annotations: READ_ONLY_ANNOTATIONS,
     outputShape: compareMetricOutput,
@@ -492,6 +739,8 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         metricB: typeof args.metricB === "string" ? args.metricB : undefined,
         window: args.window as never,
         windowB: args.windowB as never,
+        range: args.range as DateRange | undefined,
+        rangeB: args.rangeB as DateRange | undefined,
       });
     },
   },
@@ -515,10 +764,11 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     name: "detect_changepoints",
     title: "Detect level shifts in a metric",
     description:
-      "Surface points where a metric's level shifted over a trailing window (e.g. 'when did my weight trend change?'). Runs a conservative changepoint scan over the rollup tier's bucket means and reports each shift's date, direction, and before/after means with units. High firing bar — returns { present: false } when too little data exists or no shift clears the threshold.",
+      "Surface points where a metric's level shifted over a trailing window OR an explicit {from,to} date range (e.g. 'when did my weight trend change?'). Runs a conservative changepoint scan over the rollup tier's bucket means and reports each shift's date, direction, and before/after means with units. High firing bar — returns { present: false } when too little data exists or no shift clears the threshold.",
     inputShape: {
       metric: z.string().min(1).max(60),
       window: coachScopeWindowSchema.optional(),
+      range: dateRangeShape.optional(),
     },
     annotations: READ_ONLY_ANNOTATIONS,
     outputShape: detectChangepointsOutput,
@@ -526,7 +776,163 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       return detectChangepoints(ctx.userId, {
         metric: String(args.metric ?? ""),
         window: args.window as never,
+        range: args.range as DateRange | undefined,
       });
+    },
+  },
+  // ── Coach-F1 reads bridged to the wire (catalogue Tier 1) ───────────
+  // Each is a thin `runCoachTool` glue over an already-built, grounded Coach
+  // retrieval tool — same gates, units, and `{ present: false }` contract. The
+  // `list_metrics` inventory already advertises these, so wiring them here
+  // closes the prior advertise-but-missing self-inconsistency.
+  {
+    name: "get_glucose_panel",
+    title: "Get the glucose panel",
+    description:
+      "Fetch the user's glucose data: per-context daily means plus the trailing-30-day clinical panel (time-in-range, GMI, CV%, estimated A1c). Returns { present: false } when the user logs no glucose.",
+    inputShape: {
+      window: coachScopeWindowSchema.optional(),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: coachReadOutput,
+    run(ctx, args) {
+      return runCoachTool(ctx, "get_glucose_panel", args);
+    },
+  },
+  {
+    name: "get_sleep",
+    title: "Get sleep",
+    description:
+      "Fetch the user's sleep: per-night asleep + stage minutes plus the sleep-rhythm summary (sleep debt + chronotype). Returns { present: false } when no sleep is tracked.",
+    inputShape: {
+      window: coachScopeWindowSchema.optional(),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: coachReadOutput,
+    run(ctx, args) {
+      return runCoachTool(ctx, "get_sleep", args);
+    },
+  },
+  {
+    name: "get_workouts",
+    title: "Get workouts",
+    description:
+      "Fetch the user's workouts: the most recent sessions (sport, duration, energy, distance, avg/max HR) plus a per-sport rollup over the window. Use for training-load and 'how were my runs / am I overtraining?' questions. Returns { present: false } when no workouts are tracked.",
+    inputShape: {
+      window: coachScopeWindowSchema.optional(),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: coachReadOutput,
+    run(ctx, args) {
+      return runCoachTool(ctx, "get_workouts", args);
+    },
+  },
+  {
+    name: "get_illness_recovery",
+    title: "Get illness & recovery",
+    description:
+      "Fetch the user's illness + recovery context: rest mode, active and recently-resolved illnesses, the recovery / strain composites, and the illness retrospective (recovery-gap, nadir, red flags). Carries the rest-mode safety flag for framing. Returns { present: false } when there is nothing to report.",
+    inputShape: {},
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: coachReadOutput,
+    run(ctx, args) {
+      return runCoachTool(ctx, "get_illness_recovery", args);
+    },
+  },
+  {
+    name: "get_cycle",
+    title: "Get menstrual cycle",
+    description:
+      "Fetch the user's menstrual-cycle context: current phase + day-of-cycle, the next predicted event, and the headline phase-correlation finding. Descriptive only — never a contraception-grade or 'safe day' claim. Gated on cycle tracking being enabled for the account; returns { present: false } when cycle tracking is off or there is no data.",
+    inputShape: {},
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: coachReadOutput,
+    run(ctx, args) {
+      return runCoachTool(ctx, "get_cycle", args);
+    },
+  },
+  // ── Multi-metric fan-out (catalogue: query expressiveness) ──────────
+  {
+    name: "get_metrics",
+    title: "Get several metric series at once",
+    description:
+      "Fetch the time series for SEVERAL metrics in one call — a fan-out over the same single-metric read `get_metric_series` runs, returning one grounded result per metric (each with { present } and the metric's aggregate/timelines when present). Paginated: when more metrics remain than fit one page, pass the opaque nextCursor back as `cursor`. Use for a multi-metric question instead of many separate calls.",
+    inputShape: {
+      metrics: z
+        .array(z.string().min(1).max(60))
+        .min(1)
+        .max(MAX_METRICS_PER_CALL)
+        .describe(
+          "The metrics to fetch (e.g. ['weight','pulse','hrv']). Unknown metrics return { present: false } for that entry, never an error.",
+        ),
+      window: coachScopeWindowSchema.optional(),
+      cursor: z
+        .string()
+        .max(256)
+        .optional()
+        .describe(
+          "Opaque pagination cursor from a previous response's nextCursor. Treat as a black box.",
+        ),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getMetricsOutput,
+    async run(ctx, args) {
+      const requested = Array.isArray(args.metrics)
+        ? args.metrics
+            .filter((m): m is string => typeof m === "string")
+            .map((m) => m.trim())
+            .filter((m) => m.length > 0)
+            .slice(0, MAX_METRICS_PER_CALL)
+        : [];
+      const window = typeof args.window === "string" ? args.window : undefined;
+
+      const offset = decodeOffsetCursor(args.cursor);
+      const page = requested.slice(offset, offset + METRICS_PAGE_SIZE);
+      const hasMore = offset + METRICS_PAGE_SIZE < requested.length;
+
+      // Fan out over the SAME single-metric read; the executor validates each
+      // metric and returns a grounded `{ present, … }` (never throws), so one
+      // unknown metric cannot break the batch.
+      const results = await Promise.all(
+        page.map(async (metric) => {
+          const r = (await executeCoachTool({
+            userId: ctx.userId,
+            name: "get_metric_series",
+            rawArguments: JSON.stringify({
+              metric,
+              ...(window ? { window } : {}),
+            }),
+          })) as {
+            present: boolean;
+            reason?: string;
+            data?: unknown;
+            grounding?: string;
+          };
+          return {
+            metric,
+            present: r.present,
+            ...(r.reason ? { reason: r.reason } : {}),
+            ...(r.data !== undefined ? { data: r.data } : {}),
+            ...(r.grounding ? { grounding: r.grounding } : {}),
+          };
+        }),
+      );
+
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: {
+          tool: "get_metrics",
+          present: results.some((r) => r.present),
+        },
+      });
+      return {
+        present: results.some((r) => r.present),
+        ...(window ? { window } : {}),
+        results,
+        ...(hasMore
+          ? { nextCursor: encodeOffsetCursor(offset + METRICS_PAGE_SIZE) }
+          : {}),
+      };
     },
   },
   ...searchAndFetchTools(),

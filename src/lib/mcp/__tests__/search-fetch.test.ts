@@ -100,10 +100,11 @@ describe("search", () => {
 });
 
 describe("fetch", () => {
-  it("returns { id,title,text,url,metadata } for a metric id", async () => {
+  it("returns { id,title,text,url,metadata } for a metric id with a plain-text summary + deep link", async () => {
     vi.mocked(executeCoachTool).mockResolvedValue({
       present: true,
-      data: { mean: 80 },
+      data: { section: { aggregate: { mean: 80, count: 12 } } },
+      grounding: "Population band 60–100.",
     } as never);
     const def = tool("fetch");
     const result = (await def.run(CTX, { id: "metric:weight" })) as Record<
@@ -113,8 +114,29 @@ describe("fetch", () => {
     const schema = z.object(def.outputShape!);
     expect(schema.safeParse(result).success).toBe(true);
     expect(result.id).toBe("metric:weight");
-    expect(result.url).toBe("https://health.example/insights");
+    // Per-item deep-link, not just the section root.
+    expect(result.url).toBe("https://health.example/insights?metric=weight");
+    // Plain-text prose, not a JSON blob.
     expect(typeof result.text).toBe("string");
+    expect(result.text as string).not.toContain("{");
+    expect(result.text as string).toContain("80");
+  });
+
+  it("deep-links a medication id to the per-item page with prose text", async () => {
+    vi.mocked(prisma.medication.findFirst).mockResolvedValue({
+      name: "Ramipril",
+      dose: "5mg",
+      treatmentClass: null,
+      asNeeded: false,
+    } as never);
+    const def = tool("fetch");
+    const result = (await def.run(CTX, { id: "med:med-1" })) as Record<
+      string,
+      unknown
+    >;
+    expect(result.url).toBe("https://health.example/medications/med-1");
+    expect(result.text as string).not.toContain("{");
+    expect(result.text as string).toContain("Ramipril");
   });
 
   it("returns a not-found shape for an unknown id (still schema-valid)", async () => {

@@ -29,11 +29,14 @@ vi.mock("../rich-reads", () => ({
   compareMetric: vi.fn(async () => ({ present: true })),
   getMetricBaseline: vi.fn(async () => ({ present: true })),
   detectChangepoints: vi.fn(async () => ({ present: true })),
+  getLabHistory: vi.fn(async () => ({ present: true })),
+  LAB_HISTORY_MAX_LIMIT: 50,
 }));
 
 import { MCP_TOOLS, MCP_TOOL_NAMES } from "../tools";
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
 import { buildCoachDataInventory } from "@/lib/ai/coach/tools/inventory";
+import { prisma } from "@/lib/db";
 import type { McpAuthContext } from "../auth";
 
 const CTX: McpAuthContext = {
@@ -56,7 +59,7 @@ beforeEach(() => {
 });
 
 describe("MCP tool registry — surface", () => {
-  it("registers exactly the read tools (Phase 1 + Phase 4)", () => {
+  it("registers exactly the read tools", () => {
     expect([...MCP_TOOL_NAMES].sort()).toEqual(
       [
         "get_correlations",
@@ -72,8 +75,41 @@ describe("MCP tool registry — surface", () => {
         "compare_metric",
         "get_metric_baseline",
         "detect_changepoints",
+        // v1.24 — Coach-F1 reads bridged to the wire.
+        "get_glucose_panel",
+        "get_sleep",
+        "get_workouts",
+        "get_illness_recovery",
+        "get_cycle",
+        // v1.24 — multi-metric fan-out.
+        "get_metrics",
       ].sort(),
     );
+  });
+
+  it("every read tool declares a structured outputSchema", () => {
+    for (const def of MCP_TOOLS) {
+      expect(def.outputShape, `${def.name} lacks outputShape`).toBeDefined();
+    }
+  });
+
+  it("advertised inventory tools all exist on the wire (no advertise-but-missing drift)", () => {
+    // The `list_metrics` inventory advertises a fixed set of tool names; every
+    // one must be a registered read tool or the wire is self-inconsistent.
+    const advertised = [
+      "get_metric_series",
+      "get_glucose_panel",
+      "get_sleep",
+      "get_medication_compliance",
+      "get_workouts",
+      "get_labs",
+      "get_illness_recovery",
+      "get_correlations",
+      "get_cycle",
+    ];
+    for (const name of advertised) {
+      expect(MCP_TOOL_NAMES).toContain(name);
+    }
   });
 
   it("annotates every tool read-only / closed-world (cloud-connector requirement)", () => {
@@ -250,5 +286,108 @@ describe("no prose verdict (ADR-004 / REQ-SEC-2)", () => {
       expect(keys).not.toContain("diagnosis");
       expect(keys).not.toContain("advice");
     }
+  });
+});
+
+describe("get_metrics — multi-metric fan-out + pagination", () => {
+  it("fans out over get_metric_series and returns one result per metric", async () => {
+    vi.mocked(executeCoachTool).mockResolvedValue({
+      present: true,
+      data: { metric: "x", section: { aggregate: { mean: 1 } } },
+    });
+    const result = (await tool("get_metrics").run(CTX, {
+      metrics: ["weight", "pulse", "hrv"],
+      window: "last30days",
+    })) as {
+      present: boolean;
+      results: Array<{ metric: string; present: boolean }>;
+      nextCursor?: string;
+    };
+    expect(result.present).toBe(true);
+    expect(result.results.map((r) => r.metric)).toEqual([
+      "weight",
+      "pulse",
+      "hrv",
+    ]);
+    // The window threads through to the single-metric read.
+    expect(executeCoachTool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "get_metric_series",
+        rawArguments: JSON.stringify({
+          metric: "weight",
+          window: "last30days",
+        }),
+      }),
+    );
+    expect(result.nextCursor).toBeUndefined();
+  });
+
+  it("paginates with an opaque cursor that round-trips", async () => {
+    vi.mocked(executeCoachTool).mockResolvedValue({ present: true, data: {} });
+    const metrics = Array.from({ length: 10 }, (_, i) => `m${i}`);
+    const page1 = (await tool("get_metrics").run(CTX, { metrics })) as {
+      results: Array<{ metric: string }>;
+      nextCursor?: string;
+    };
+    // First page is bounded (METRICS_PAGE_SIZE = 8) and offers a cursor.
+    expect(page1.results).toHaveLength(8);
+    expect(typeof page1.nextCursor).toBe("string");
+
+    const page2 = (await tool("get_metrics").run(CTX, {
+      metrics,
+      cursor: page1.nextCursor,
+    })) as { results: Array<{ metric: string }>; nextCursor?: string };
+    expect(page2.results).toHaveLength(2);
+    expect(page2.results[0].metric).toBe("m8");
+    expect(page2.nextCursor).toBeUndefined();
+  });
+
+  it("caps the metrics array at the per-call maximum", async () => {
+    vi.mocked(executeCoachTool).mockResolvedValue({ present: true, data: {} });
+    const metrics = Array.from({ length: 40 }, (_, i) => `m${i}`);
+    // Page through and count distinct metrics actually fetched.
+    const seen = new Set<string>();
+    let cursor: string | undefined;
+    for (let i = 0; i < 10; i++) {
+      const page = (await tool("get_metrics").run(CTX, {
+        metrics,
+        ...(cursor ? { cursor } : {}),
+      })) as { results: Array<{ metric: string }>; nextCursor?: string };
+      for (const r of page.results) seen.add(r.metric);
+      cursor = page.nextCursor;
+      if (!cursor) break;
+    }
+    expect(seen.size).toBe(24); // MAX_METRICS_PER_CALL
+  });
+});
+
+describe("search — cursor pagination", () => {
+  it("returns a bounded page and an opaque nextCursor when more results exist", async () => {
+    // 60 lab analytes → exceeds the 50-result page.
+    vi.mocked(buildCoachDataInventory).mockResolvedValue({
+      entries: [],
+      restMode: false,
+      cycleEnabled: false,
+      window: "last30days",
+      probeScope: { sources: [] },
+    } as never);
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.labResult.findMany).mockResolvedValue(
+      Array.from({ length: 60 }, (_, i) => ({ analyte: `A${i}` })) as never,
+    );
+
+    const page1 = (await tool("search").run(CTX, { query: "" })) as {
+      results: unknown[];
+      nextCursor?: string;
+    };
+    expect(page1.results).toHaveLength(50);
+    expect(typeof page1.nextCursor).toBe("string");
+
+    const page2 = (await tool("search").run(CTX, {
+      query: "",
+      cursor: page1.nextCursor,
+    })) as { results: unknown[]; nextCursor?: string };
+    expect(page2.results).toHaveLength(10);
+    expect(page2.nextCursor).toBeUndefined();
   });
 });

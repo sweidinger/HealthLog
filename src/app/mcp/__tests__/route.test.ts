@@ -81,6 +81,14 @@ const READ_TOOLS = [
   "compare_metric",
   "get_metric_baseline",
   "detect_changepoints",
+  // v1.24 — Coach-F1 reads bridged to the wire.
+  "get_glucose_panel",
+  "get_sleep",
+  "get_workouts",
+  "get_illness_recovery",
+  "get_cycle",
+  // v1.24 — multi-metric fan-out.
+  "get_metrics",
 ].sort();
 
 /** A valid, narrow-scope (`health:read`) token resolution. */
@@ -342,6 +350,7 @@ describe("/mcp — write tools gate on health:write", () => {
     );
     expect(names).toContain("log_measurement");
     expect(names).toContain("log_mood");
+    expect(names).toContain("log_blood_pressure");
   });
 });
 
