@@ -41,6 +41,12 @@ const registrationSchema = z.object({
       message: "redirect_uris must be HTTPS or http loopback URLs",
     }),
   client_name: z.string().min(1).max(200).optional(),
+  // OIDC dynamic-registration `application_type` (forward-compat with OIDC-style
+  // clients): honoured by echoing it back, validated to the closed set so a
+  // malformed value is rejected cleanly rather than silently dropped. Absent ⇒
+  // the OIDC default `web`. It does not alter the redirect-URI rules — those are
+  // already shape-validated below and authoritatively matched at `/authorize`.
+  application_type: z.enum(["web", "native"]).optional(),
   // Accepted-and-ignored RFC 7591 fields (we never read them but tolerate them).
   grant_types: z.array(z.string()).optional(),
   response_types: z.array(z.string()).optional(),
@@ -111,6 +117,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
+    const applicationType = parsed.data.application_type ?? "web";
+
     const client = registerDcrClient({
       clientName: parsed.data.client_name ?? "MCP client",
       redirectUris: parsed.data.redirect_uris,
@@ -128,6 +136,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         client_id_issued_at: Math.floor(Date.now() / 1000),
         redirect_uris: client.redirectUris,
         client_name: client.clientName,
+        application_type: applicationType,
         token_endpoint_auth_method: "none",
         grant_types: ["authorization_code", "refresh_token"],
         response_types: ["code"],
