@@ -511,6 +511,7 @@
     "previousPage": "Pagina precedente",
     "nextPage": "Pagina successiva",
     "dailyTotalCaption": "({count} campioni)",
+    "openMetricInsights": "Apri l'analisi {type}",
     "sleepNapCaption": "+{count} pisolino/i",
     "sleepAwakeningsCaption": "{count} risveglio/i",
     "expandDay": "Mostra i campioni di questa giornata",
@@ -2098,6 +2099,9 @@
       "composerPlaceholder": "Chiedimi qualcosa sui tuoi dati…",
       "nudgeBubbleLabel": "Nuovo messaggio dal coach — apri la chat",
       "fabLabel": "Apri il coach",
+      "readAloud": "Leggi ad alta voce",
+      "readAloudStop": "Interrompi lettura",
+      "messageTimeLabel": "Messaggio inviato {time}",
       "selfContextAdopt": {
         "offer": "Aggiungere questa risposta alle tue informazioni personali?",
         "confirm": "Aggiungi",
@@ -2211,6 +2215,8 @@
       "settingsSourcesPointerLink": "Apri il coach",
       "settingsExcludeLabel": "Escludi metriche",
       "settingsExcludeHint": "Il coach non vede i dati delle metriche selezionate.",
+      "settingsContextLabel": "Invia contesto",
+      "settingsContextHint": "Blocchi opzionali su cui il coach può basarsi. Disattivandone uno, viene omesso da ogni risposta.",
       "settingsEvidenceLabel": "Mostra le evidenze per default",
       "settingsEvidenceHint": "Apre automaticamente il riquadro delle evidenze sotto ogni risposta.",
       "settingsDefaultWindowLabel": "Periodo di analisi predefinito",
@@ -2226,8 +2232,6 @@
       "dailyLimitBody": "Limite giornaliero raggiunto. Il budget si reimposta a mezzanotte (UTC).",
       "providerRateLimitTitle": "Provider con rate-limit",
       "providerRateLimitBody": "Il provider è temporaneamente sovraccarico; reset in ~5 min.",
-      "settingsContextLabel": "Invia contesto",
-      "settingsContextHint": "Blocchi opzionali su cui il coach può basarsi. Disattivandone uno, viene omesso da ogni risposta.",
       "cluster": {
         "cardio": {
           "label": "Cardiovascolare",
@@ -2320,6 +2324,33 @@
         "groupYesterday": "Ieri",
         "groupThisWeek": "Questa settimana",
         "groupEarlier": "Precedenti"
+      },
+      "seed": {
+        "bloodPressure": "Esamina con me l'andamento della mia pressione arteriosa negli ultimi 30 giorni — c'è qualcosa che dovrei tenere d'occhio?",
+        "weight": "Come si è evoluto il mio peso ultimamente e la direzione è qualcosa su cui intervenire?",
+        "bmi": "Cosa mi dice l'andamento del mio BMI e come dovrei interpretarlo?",
+        "pulse": "Esamina con me le mie letture del battito — c'è qualcosa fuori dal comune?",
+        "restingHr": "Come si è evoluta la mia frequenza cardiaca a riposo e cosa dice sulla mia forma fisica?",
+        "hrv": "Cosa mi dice la mia variabilità della frequenza cardiaca su recupero e stress ultimamente?",
+        "sleep": "Esamina con me il mio sonno recente — durata, regolarità e qualsiasi cosa valga la pena cambiare.",
+        "mood": "Quali schemi noti nel mio umore nelle ultime settimane?",
+        "medications": "Com'è la mia aderenza alla terapia e corrisponde a come mi sono sentito?",
+        "steps": "Quanto sono stato attivo ultimamente in base ai miei passi e come si confronta con un valore di riferimento sano?",
+        "activeEnergy": "Cosa dice il mio andamento dell'energia attiva sul mio livello di attività ultimamente?",
+        "cardioFitness": "Cosa significa l'andamento della mia forma cardiorespiratoria (VO₂ max) e come la indirizzo nella direzione giusta?",
+        "bloodGlucose": "Esamina con me le mie ultime letture di glicemia — sono in un intervallo sano?",
+        "oxygenSaturation": "Cosa mi dice l'andamento della mia saturazione di ossigeno (SpO₂)?",
+        "respiratoryRate": "Cosa dice il mio andamento della frequenza respiratoria sulla mia salute?",
+        "workouts": "Esamina con me i miei allenamenti recenti — carico, frequenza e come recupero tra uno e l'altro.",
+        "recoveryPage": "Perché il mio recupero è dov'è in questo momento e cosa lo determina?",
+        "briefing": "Esamina con me il riepilogo di oggi — su cosa dovrei concentrarmi e c'è qualcosa su cui vale la pena agire?",
+        "healthScore": "Perché il mio punteggio di salute è {score} su 100 e cosa lo migliorerebbe di più?",
+        "periodWeek": "Esamina con me com'è andata la mia ultima settimana sui miei parametri di salute — cosa spicca?",
+        "periodMonth": "Esamina con me com'è andato il mio ultimo mese sui miei parametri di salute — cosa spicca?",
+        "correlationBpCompliance": "Che relazione c'è tra la mia aderenza alla terapia e la mia pressione arteriosa? Spiegami cosa significa per me questa correlazione.",
+        "correlationMoodPulse": "C'è un legame reale tra il mio umore e il mio battito? Aiutami a interpretare questa correlazione.",
+        "correlationWeightWeekday": "Il mio peso segue uno schema settimanale? Cosa mi dice questa correlazione per giorno della settimana?",
+        "recommendation": "Dimmi di più su questa raccomandazione: \"{text}\" — perché si applica a me e cosa dovrei fare?"
       }
     },
     "relativeJustNow": "proprio ora",
@@ -3240,6 +3271,7 @@
       },
       "vitals": {
         "sectionTitle": "I tuoi parametri vitali",
+        "sectionSubtitle": "Segnali cardiovascolari e respiratori a riposo rispetto alla tua baseline personale",
         "loadingLabel": "Caricamento dei tuoi parametri vitali",
         "loadError": "Al momento non è stato possibile caricare i tuoi parametri vitali.",
         "building": "Creazione del tuo intervallo abituale — {count} di {target} giorni",
@@ -3366,6 +3398,7 @@
       },
       "scores": {
         "sectionTitle": "I tuoi indicatori di salute",
+        "sectionSubtitle": "Valori combinati di recupero, stress e sforzo letti dai tuoi dispositivi connessi",
         "loadError": "Al momento non è stato possibile caricare i tuoi punteggi di benessere.",
         "recovery": "Recupero",
         "stress": "Stress",
@@ -3611,7 +3644,10 @@
       "returnLabel": "Il tuo {metric} è di nuovo nel tuo intervallo abituale dopo {count} giorni — qualunque cosa fosse, è passata.",
       "daysInside": "{count} giorni dentro",
       "daysOutside": "{count} giorni fuori"
-    }
+    },
+    "updatedTodayAt": "Aggiornato oggi, {time}",
+    "updatedYesterday": "Aggiornato ieri",
+    "updatedOn": "Aggiornato il {date}"
   },
   "thresholds": {
     "defaultLabel": "Predefinito",
@@ -4412,6 +4448,28 @@
         "forgotError": "Impossibile dimenticare questa informazione. Riprova.",
         "clearedToast": "Dimenticate {count} informazioni memorizzate.",
         "clearError": "Impossibile cancellare le informazioni memorizzate. Riprova."
+      },
+      "coachReminders": {
+        "title": "I tuoi promemoria",
+        "description": "Cose che hai chiesto al Coach di riprendere più tardi. Quelle in scadenza compaiono qui e nel Coach.",
+        "empty": "Ancora nessun promemoria. Chiedi al Coach di ricordarti qualcosa e comparirà qui.",
+        "loadError": "Impossibile caricare i tuoi promemoria.",
+        "dueHeading": "In scadenza",
+        "allHeading": "Salvati",
+        "duePrefix": "in scadenza {when}",
+        "confirm": "Mantieni",
+        "markDone": "Fatto",
+        "dismiss": "Ignora",
+        "deleteAria": "Elimina questo promemoria",
+        "note": "I promemoria sono memorizzati cifrati. Eliminane uno in qualsiasi momento — viene rimosso da ciò che il Coach può vedere.",
+        "status": {
+          "proposed": "Suggerito",
+          "active": "Salvato",
+          "due": "In scadenza",
+          "surfaced": "Mostrato",
+          "done": "Fatto",
+          "dismissed": "Ignorato"
+        }
       },
       "aboutMe": {
         "title": "Su di me",
@@ -6737,7 +6795,14 @@
         "savedToast": "Biomarcatore salvato",
         "updatedToast": "Biomarcatore aggiornato",
         "saveError": "Impossibile salvare il biomarcatore"
-      }
+      },
+      "hide": "Nascondi",
+      "unhide": "Ripristina",
+      "hiddenToast": "Biomarcatore nascosto",
+      "unhiddenToast": "Biomarcatore ripristinato",
+      "hideError": "Impossibile aggiornare il biomarcatore",
+      "allHidden": "Tutti i biomarcatori sono nascosti.",
+      "hiddenSection": "Nascosti"
     },
     "catalog": {
       "total-cholesterol": "Colesterolo totale",
@@ -7056,6 +7121,25 @@
         "weightDaily": "Pesati ogni giorno, più o meno alla stessa ora",
         "bp722": "Misura la pressione due volte al giorno per una settimana",
         "glucoseStructured": "Misura la glicemia con un programma giornaliero strutturato"
+      }
+    },
+    "suggestedAction": {
+      "apply": "Aggiungi",
+      "dismiss": "Non ora",
+      "applied": "Aggiunto",
+      "dismissed": "Ignorato",
+      "failed": "Impossibile aggiungere — riprova",
+      "checkup": {
+        "title": "Aggiungere un promemoria di controllo?"
+      },
+      "note": {
+        "title": "Salvare un promemoria?"
+      },
+      "interval": {
+        "yearly": "Ogni anno",
+        "halfYearly": "Ogni sei mesi",
+        "quarterly": "Ogni tre mesi",
+        "monthly": "Ogni mese"
       }
     },
     "settings": {
