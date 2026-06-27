@@ -106,7 +106,7 @@ describe("<TrendsRow>", () => {
     expect(slots.length).toBe(3);
   });
 
-  it("pins every chart slot to h-[180px] so Recharts mounts with a known size (CLS fix)", () => {
+  it("pins every chart slot to a known responsive height so Recharts mounts with a size (CLS fix)", () => {
     // v1.4.36 W2 — without an explicit height the Recharts
     // ResponsiveContainer mounts with width=-1 height=-1 and emits a
     // console warning per chart. The mood card also drifted taller
@@ -119,12 +119,17 @@ describe("<TrendsRow>", () => {
     // TrendAnnotation row below — visible as text sitting on top of
     // the chart. 180 px absorbs the full envelope so the three tiles
     // share one chart-band baseline without overlap.
+    //
+    // v1.22.0 — the slot height became `clamp(140px,32vh,180px)` so a
+    // rotated phone doesn't lose half the screen to the fixed band. The
+    // 180 px envelope still holds on desktop + portrait (where 32vh
+    // clears 180 px); only short landscape viewports shrink to the floor.
     const html = render(<TrendsRow />);
     const slots =
       html.match(/data-slot="trends-row-chart-slot"[^>]*class="[^"]*"/g) ?? [];
     expect(slots.length).toBe(3);
     for (const slot of slots) {
-      expect(slot).toMatch(/h-\[180px\]/);
+      expect(slot).toMatch(/h-\[clamp\(140px,32vh,180px\)\]/);
     }
   });
 
