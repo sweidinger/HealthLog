@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/api-fetch";
+import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 import { formatDate } from "@/lib/format";
 import { formatReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabReading, formatLabValue } from "@/lib/labs/format-value";
@@ -76,6 +77,26 @@ function groupReadings(results: LabResultDto[]): MarkerGroup[] {
 export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   const { t } = useTranslations();
   const { prefs } = useModuleListPrefs("labs");
+
+  // v1.22 — a short, factual line under each marker heading describing what the
+  // biomarker measures, sourced from the catalog via i18n. Free-text markers
+  // (no catalog match) carry no subtitle rather than a fabricated one.
+  // v1.22.1 — build the localized name→slug map once per locale instead of
+  // re-scanning all catalog seeds (calling `t()` each) per group every render.
+  const slugByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const seed of BIOMARKER_CATALOG) {
+      const norm = t(`labs.catalog.${seed.slug}`).trim().toLowerCase();
+      if (norm) map.set(norm, seed.slug);
+    }
+    return map;
+  }, [t]);
+  const describeMarker = (analyte: string): string | null => {
+    const norm = analyte.trim().toLowerCase();
+    if (!norm) return null;
+    const slug = slugByName.get(norm);
+    return slug ? t(`labs.catalog.desc.${slug}`) : null;
+  };
 
   const listKey = queryKeys.labResultsList({
     biomarkerId: undefined,
@@ -183,6 +204,7 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
         <Card>
           <CardContent className="divide-border divide-y p-0">
             {groups.map((group) => {
+              const description = describeMarker(group.analyte);
               const inner = (
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
@@ -194,6 +216,11 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                       compact
                     />
                   </div>
+                  {description ? (
+                    <p className="text-muted-foreground text-xs">
+                      {description}
+                    </p>
+                  ) : null}
                   <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                     <span className="text-foreground font-semibold tabular-nums">
                       {formatLabReading(group.latest)}
@@ -250,61 +277,69 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
           </p>
         </li>
       ) : null}
-      {groups.map((group) => (
-        <li key={group.key} className="contents">
-          <Card className="h-full gap-3">
-            <MedicationCardHeader
-              name={group.analyte}
-              dose=""
-              categoryLabel={group.panel ?? group.unit}
-              nameChip={
-                <ReferenceRangeBadge
-                  status={group.latest.rangeStatus}
-                  compact
-                />
-              }
-              href={
-                group.biomarkerId ? `/labs/${group.biomarkerId}` : undefined
-              }
-              linkLabel={group.analyte}
-            />
-            <CardContent>
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
-                  <span className="text-foreground font-semibold tabular-nums">
-                    {formatLabReading(group.latest)}
-                  </span>
-                  {group.latest.value !== null &&
-                  (group.latest.referenceLow !== null ||
-                    group.latest.referenceHigh !== null) ? (
-                    <span className="text-xs">
-                      {t("labs.referenceLabel")}{" "}
-                      {formatReferenceRange(
-                        group.latest.referenceLow,
-                        group.latest.referenceHigh,
-                        formatLabValue,
-                      )}
+      {groups.map((group) => {
+        const description = describeMarker(group.analyte);
+        return (
+          <li key={group.key} className="contents">
+            <Card className="h-full gap-3">
+              <MedicationCardHeader
+                name={group.analyte}
+                dose=""
+                categoryLabel={group.panel ?? group.unit}
+                nameChip={
+                  <ReferenceRangeBadge
+                    status={group.latest.rangeStatus}
+                    compact
+                  />
+                }
+                href={
+                  group.biomarkerId ? `/labs/${group.biomarkerId}` : undefined
+                }
+                linkLabel={group.analyte}
+              />
+              <CardContent>
+                {description ? (
+                  <p className="text-muted-foreground mb-2 text-xs">
+                    {description}
+                  </p>
+                ) : null}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
+                    <span className="text-foreground font-semibold tabular-nums">
+                      {formatLabReading(group.latest)}
                     </span>
-                  ) : null}
-                  <span className="text-xs">
-                    {formatDate(group.latest.takenAt)}
-                  </span>
-                  {group.readings.length > 1 ? (
+                    {group.latest.value !== null &&
+                    (group.latest.referenceLow !== null ||
+                      group.latest.referenceHigh !== null) ? (
+                      <span className="text-xs">
+                        {t("labs.referenceLabel")}{" "}
+                        {formatReferenceRange(
+                          group.latest.referenceLow,
+                          group.latest.referenceHigh,
+                          formatLabValue,
+                        )}
+                      </span>
+                    ) : null}
                     <span className="text-xs">
-                      {t("labs.readingsCount", {
-                        count: group.readings.length,
-                      })}
+                      {formatDate(group.latest.takenAt)}
                     </span>
-                  ) : null}
+                    {group.readings.length > 1 ? (
+                      <span className="text-xs">
+                        {t("labs.readingsCount", {
+                          count: group.readings.length,
+                        })}
+                      </span>
+                    ) : null}
+                  </div>
+                  <LabTrendSparkline
+                    values={group.readings.map((r) => r.value)}
+                  />
                 </div>
-                <LabTrendSparkline
-                  values={group.readings.map((r) => r.value)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </li>
-      ))}
+              </CardContent>
+            </Card>
+          </li>
+        );
+      })}
     </ul>
   );
 }

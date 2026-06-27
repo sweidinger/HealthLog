@@ -77,7 +77,7 @@ export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
           which derived its height off the full card width and ballooned on a
           wide viewport). A fixed band keeps it a tidy card matching the
           distribution sibling. */}
-      <div className="h-[150px] w-full">
+      <div className="h-[clamp(120px,26vh,150px)] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}

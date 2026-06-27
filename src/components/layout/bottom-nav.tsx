@@ -220,14 +220,19 @@ export function BottomNav() {
           // The sheet auto-sizes to its content; padding-bottom respects
           // the iOS safe area so the inner buttons stay reachable above
           // the home-indicator on iPhone-X-class devices.
-          className="rounded-t-xl pb-[calc(env(safe-area-inset-bottom)+1rem)] md:hidden"
+          className="mx-auto max-w-md rounded-t-xl pb-[calc(env(safe-area-inset-bottom)+1rem)] md:hidden"
           data-testid="bottom-nav-more-sheet"
         >
           <SheetHeader>
             <SheetTitle>{t("nav.moreSheetTitle")}</SheetTitle>
             <SheetDescription>{t("nav.moreSheetDescription")}</SheetDescription>
           </SheetHeader>
-          <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+          {/* v1.22.1 — tighten the grid gutters (`px-3`) so each tile claims a
+              little more width on a 320 px phone; the long single-word labels
+              (de "Benachrichtigungen") then have room to break onto a clean
+              second line instead of clipping the last character at the tile
+              edge. */}
+          <div className="grid grid-cols-2 gap-2 px-3 pb-4">
             {moreHub.map((item) => {
               const isActive = isActiveLink(item.href);
               return (
@@ -239,8 +244,11 @@ export function BottomNav() {
                   // v1.12 — `min-h-14` matches the capture-picker tiles so
                   // the equivalent tappable rows share one height at this
                   // tier (and the larger row is a more comfortable target).
+                  // v1.22.1 — trim the inner padding/gap (`px-3`, `gap-2.5`)
+                  // to hand the label more horizontal room without changing
+                  // the shared tile height.
                   className={cn(
-                    "border-border flex min-h-14 items-center gap-3 rounded-lg border px-4 py-3 transition-colors",
+                    "border-border flex min-h-14 items-center gap-2.5 rounded-lg border px-3 py-3 transition-colors",
                     isActive
                       ? "text-primary bg-primary/5"
                       : "text-foreground hover:bg-accent/40",
@@ -252,11 +260,13 @@ export function BottomNav() {
                       ("Benachrichtigungen" → "Benachrichtigun…"); the goal is a
                       readable label, not a balanced tile. Shrink the type to
                       `text-xs` so long single-word locales (de/es/fr/it) fit on
-                      one line at ~110px, and allow a 2-line `line-clamp-2`
+                      one line where they can, and allow a 2-line `line-clamp-2`
                       fallback (with `[overflow-wrap:anywhere]` so a long word
                       breaks rather than overflowing) for the rare label that
                       still cannot fit one line. `min-w-0` lets the flex child
-                      shrink below its content width. */}
+                      shrink below its content width. v1.22.1 — with the wider
+                      text area above, "Benachrichtigungen" wraps fully inside
+                      two lines down to a 320 px viewport. */}
                   <span
                     className="line-clamp-2 min-w-0 text-xs leading-tight font-medium [overflow-wrap:anywhere]"
                     title={t(item.tKey)}

@@ -100,10 +100,10 @@ export function HistoryRail({
           {t("insights.coach.historyTitle")}
         </h3>
       )}
-      <div className="relative">
+      <div className="relative w-full">
         <Search
           aria-hidden="true"
-          className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
+          className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
         />
         <Input
           type="search"
@@ -111,7 +111,9 @@ export function HistoryRail({
           onChange={(e) => setFilter(e.target.value)}
           placeholder={t("insights.coach.historySearchPlaceholder")}
           data-slot="coach-history-search"
-          className="h-9 pl-7 text-sm"
+          // Full-width, comfortable field (matches the standalone
+          // conversations page) instead of the old thin h-9 strip.
+          className="h-10 w-full pl-9"
         />
       </div>
       <div

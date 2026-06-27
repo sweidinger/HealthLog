@@ -340,6 +340,25 @@ export function CoachConversation({
     }
   }
 
+  // v1.22 — "Try again": regenerate an assistant reply by resubmitting the
+  // user turn that produced it as a FRESH turn. The composer value is left
+  // untouched (unlike `handleSubmit`, which clears it) so a half-typed
+  // follow-up survives a regenerate. The existing thread is the conversation
+  // context, so the new turn continues it rather than forking.
+  function handleRegenerate(userText: string) {
+    const trimmed = userText.trim();
+    if (!trimmed || send.isStreaming) return;
+    const scope =
+      currentConversationId === null
+        ? launchScopeToCoachScope(launchScope)
+        : undefined;
+    void send.send({
+      conversationId: currentConversationId ?? undefined,
+      message: trimmed,
+      scope,
+    });
+  }
+
   function handleNewChat() {
     setCurrentConversationId(null);
     setInputValue("");
@@ -618,6 +637,7 @@ export function CoachConversation({
                 streaming={send.streaming}
                 optimisticUser={send.optimisticUser}
                 interleaved={interleaved}
+                onRegenerate={handleRegenerate}
               />
             </div>
             {/* Docked composer — the SAME centred, capped column as the
@@ -722,6 +742,7 @@ export function CoachConversation({
             streaming={send.streaming}
             optimisticUser={send.optimisticUser}
             interleaved={interleaved}
+            onRegenerate={handleRegenerate}
           />
         }
         composer={composerStack}

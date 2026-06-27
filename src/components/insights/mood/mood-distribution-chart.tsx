@@ -56,7 +56,7 @@ export function MoodDistributionChart({
     // v1.15.14 — bounded compact height (was `aspect-[3/2] min-h-[180px]`,
     // which ballooned the card on a wide viewport). A fixed band keeps this a
     // tidy card rather than a dominant block, and matches the weekday sibling.
-    <div className="h-[150px] w-full">
+    <div className="h-[clamp(120px,26vh,150px)] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}

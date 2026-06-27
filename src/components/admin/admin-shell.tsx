@@ -37,7 +37,6 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { scrollBehaviorForUser } from "@/lib/motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { isAdminSectionSlug, type AdminSectionSlug } from "./section-slugs";
@@ -188,16 +187,15 @@ export function AdminShell({ active, children }: AdminShellProps) {
       '[aria-current="page"]',
     );
     if (!activeChip) return;
-    activeChip.scrollIntoView({
-      block: "nearest",
-      // v1.4.36 W4b — `inline: "start"` pins the active chip to the
-      // left edge of the scroller. `inline: "center"` over-scrolled
-      // and the first one or two chips were unreachable on narrow
-      // viewports.
-      inline: "start",
-      // v1.4.43 W5-H5 — respect `prefers-reduced-motion`.
-      behavior: scrollBehaviorForUser(),
-    });
+    // Adjust only the strip's own horizontal offset, instantly. The old
+    // `scrollIntoView` walked every scrollable ancestor and could nudge the
+    // document vertically, and a smooth behaviour animated the strip from a
+    // reset `scrollLeft: 0` to the target on every tap — an unwanted "scroll
+    // from the start" sweep. `scrollTo({ left, behavior: "auto" })` confines
+    // the motion to the strip's horizontal axis and jumps without animation.
+    const maxScroll = strip.scrollWidth - strip.clientWidth;
+    const target = Math.max(0, Math.min(activeChip.offsetLeft, maxScroll));
+    strip.scrollTo({ left: target, behavior: "auto" });
   }, [activeSlug]);
 
   // The section bodies are already role-gated, but the shell frame
@@ -253,7 +251,7 @@ export function AdminShell({ active, children }: AdminShellProps) {
       <nav
         ref={mobileStripRef}
         aria-label={t("admin.shell.sectionsNav")}
-        className="no-scrollbar -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
+        className="no-scrollbar relative -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
           <li className="snap-start">
@@ -311,51 +309,60 @@ export function AdminShell({ active, children }: AdminShellProps) {
           {headingBlock}
         </div>
 
-        {/* Desktop sticky sidebar — starts at the cards row (row 2). */}
+        {/* Desktop sticky sidebar — starts at the cards row (row 2).
+
+            The sticky lives on the `<aside>` grid item itself, with
+            `self-start` so it shrinks to its content instead of stretching
+            to the full row height. A sticky CHILD inside a stretched grid
+            item resolves its containing block to the stretched item, which
+            in some engines lets the nav scroll away with the content rather
+            than pin. Sticking the grid item directly — sized to content and
+            offset `top-6` to clear the scroll viewport's padding — keeps the
+            nav fixed while only the content column scrolls. `max-h` +
+            `overflow-y-auto` let a long section list scroll within the
+            pinned panel on short viewports. */}
         <aside
           aria-label={t("admin.shell.sectionsNav")}
-          className="hidden md:col-start-1 md:row-start-2 md:block"
+          className="no-scrollbar hidden max-h-[calc(100dvh-5.5rem)] overflow-y-auto md:sticky md:top-6 md:col-start-1 md:row-start-2 md:block md:self-start"
         >
-          <div className="no-scrollbar sticky top-6 max-h-[calc(100dvh-5.5rem)] overflow-y-auto">
-            <ul className="space-y-1">
-              <li>
-                <Link
-                  href="/admin"
-                  aria-current={activeSlug === null ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    activeSlug === null
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-accent",
-                  )}
-                >
-                  <ScrollText className="h-4 w-4" aria-hidden="true" />
-                  {t("admin.shell.overview")}
-                </Link>
-              </li>
-              {ADMIN_SECTIONS.map((section) => {
-                const isActive = section.slug === activeSlug;
-                const Icon = section.icon;
-                return (
-                  <li key={section.slug}>
-                    <Link
-                      href={`/admin/${section.slug}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-accent",
-                      )}
-                    >
-                      <Icon className="h-4 w-4" aria-hidden="true" />
-                      {t(section.titleKey)}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          <ul className="space-y-1">
+            <li>
+              <Link
+                href="/admin"
+                aria-current={activeSlug === null ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  activeSlug === null
+                    ? "bg-primary/10 text-primary"
+                    : "text-foreground hover:bg-accent",
+                )}
+              >
+                <ScrollText className="h-4 w-4" aria-hidden="true" />
+                {t("admin.shell.overview")}
+              </Link>
+            </li>
+            {ADMIN_SECTIONS.map((section) => {
+              const isActive = section.slug === activeSlug;
+              const Icon = section.icon;
+              return (
+                <li key={section.slug}>
+                  <Link
+                    href={`/admin/${section.slug}`}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground hover:bg-accent",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    {t(section.titleKey)}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </aside>
 
         {/* Main column (cards) — row 2 / col 2. Same

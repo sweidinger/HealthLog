@@ -126,7 +126,13 @@ export function TopBar() {
                   for the small audience that still reaches it (admins
                   only, on the order of once or twice a year). */}
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
+                {/* v1.22.1 — the shared sub-trigger ships `py-1.5` and no
+                    min-height, while every sibling `DropdownMenuItem` carries
+                    `min-h-11 py-2`. Left as-is the Theme row sits a few pixels
+                    shorter than the rows around it and the menu reads as
+                    unevenly spaced. Match the item height here (instance-level
+                    override, so no other dropdown's sub-trigger is touched). */}
+                <DropdownMenuSubTrigger className="min-h-11 py-2">
                   {themeIcon}
                   <span className="ml-2">{t("nav.theme")}</span>
                 </DropdownMenuSubTrigger>

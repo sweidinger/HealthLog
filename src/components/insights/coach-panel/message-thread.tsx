@@ -19,7 +19,9 @@ import {
   Check,
   ChevronRight,
   Clock,
+  Copy,
   Loader2,
+  RotateCcw,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
@@ -98,6 +100,12 @@ export interface MessageThreadProps {
    * unanchored items render at the thread tail. See `placeInterleaved`.
    */
   interleaved?: InterleavedThreadItem[];
+  /**
+   * v1.22 — "Try again" on an assistant turn. The thread resolves the user
+   * message that produced the reply and hands its text up; the surface
+   * resubmits it as a fresh turn. Omitted → the regenerate action is hidden.
+   */
+  onRegenerate?: (userText: string) => void;
 }
 
 /**
@@ -384,11 +392,104 @@ function useSpeechSynthesisSupported(): boolean {
 }
 
 /**
+ * v1.22.1 — feature-detect the async Clipboard API SSR-safe, mirroring the
+ * Speech-Synthesis detection above. `navigator.clipboard` is `undefined` on
+ * plain-HTTP self-hosts (a supported insecure-context config), so the copy
+ * button must be absent there rather than rendering and error-toasting on tap.
+ * `useSyncExternalStore` returns false on the server + first client paint and
+ * resolves to the real capability after hydration — no hydration mismatch.
+ */
+function useClipboardSupported(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () =>
+      typeof navigator !== "undefined" &&
+      typeof navigator.clipboard?.writeText === "function",
+    () => false,
+  );
+}
+
+/**
+ * v1.22 — score a synthesis voice for a target language. Higher is better;
+ * a negative score marks a legacy/compact voice we would rather skip. Pure
+ * (no browser globals) so the ranking contract is unit-testable. Exported
+ * for the read-aloud voice-selection test.
+ *
+ * The default OS voice is often a legacy "compact" engine (Anna, Albert,
+ * Zarvox, eSpeak) that reads robotically. We prefer, in order: an Apple
+ * enhanced/premium or Siri voice, a Microsoft "Natural"/"Online" (Edge)
+ * voice, a "Google …" (Chrome) voice, and a small set of known-good names
+ * (Samantha). An exact lang-REGION match (de-DE/en-US) outweighs a bare
+ * language match. `localService` only breaks a tie. Known-bad names are
+ * penalised so they never win over a neutral remote voice.
+ */
+export function scoreSpeechVoice(
+  voice: { name: string; lang: string; localService?: boolean },
+  lang: string,
+): number {
+  const base = lang.split("-")[0].toLowerCase();
+  const vlang = voice.lang.toLowerCase().replace("_", "-");
+  if (!vlang.startsWith(base)) return -Infinity;
+  const name = voice.name.toLowerCase();
+  let score = 0;
+
+  // Exact lang-REGION match (de-DE, en-US) over a bare language match.
+  if (lang.includes("-") && vlang === lang.toLowerCase()) score += 40;
+
+  // High-quality engines.
+  if (/\b(enhanced|premium)\b/.test(name)) score += 60;
+  if (name.includes("siri")) score += 55;
+  if (name.includes("natural") || name.includes("online")) score += 50;
+  if (name.startsWith("google")) score += 35;
+  if (name.includes("samantha")) score += 30;
+
+  // Known-bad legacy / compact engines.
+  if (name.includes("compact")) score -= 80;
+  if (/\b(albert|zarvox|espeak|anna|fred|ralph|bahh|trinoids)\b/.test(name)) {
+    score -= 100;
+  }
+
+  // Tie-breaker only: a local voice has no network latency.
+  if (voice.localService) score += 1;
+
+  return score;
+}
+
+/**
+ * v1.22 — pick the best-scoring installed voice for `lang`, or null when
+ * none beats a legacy/compact default (graceful fallback to the browser
+ * default). Pure helper, exported for the ranking test.
+ */
+export function pickSpeechVoice(
+  voices: SpeechSynthesisVoice[],
+  lang: string,
+): SpeechSynthesisVoice | null {
+  let best: SpeechSynthesisVoice | null = null;
+  let bestScore = 0; // require a positive score to override the default
+  for (const v of voices) {
+    const s = scoreSpeechVoice(v, lang);
+    if (s > bestScore) {
+      bestScore = s;
+      best = v;
+    }
+  }
+  return best;
+}
+
+/**
  * v1.22 (W5) — read the assistant prose aloud via the browser's
  * `SpeechSynthesis`. Client-only, no dependency, no egress, CSP-clean. A
  * single in-flight utterance: a new `speak` cancels any prior one; `toggle`
- * stops while speaking. The utterance language follows the active UI locale
- * so the browser picks the closest installed voice (best-effort by OS).
+ * stops while speaking.
+ *
+ * v1.22 — natural-voice selection. The browser default is frequently a
+ * legacy/compact engine that reads robotically; instead of only stamping
+ * `utterance.lang` we enumerate `getVoices()`, rank the candidates for the
+ * locale (`pickSpeechVoice`), and assign the winner. The voice list is async
+ * (empty on the first call, and on iOS Safari it can stay empty until the
+ * first user-gesture speak), so we subscribe to `voiceschanged` and also
+ * re-read it lazily on the first toggle. The chosen voice is cached per
+ * locale in a ref so the ranking runs once.
  */
 function useReadAloud(): {
   supported: boolean;
@@ -397,6 +498,25 @@ function useReadAloud(): {
 } {
   const supported = useSpeechSynthesisSupported();
   const [speaking, setSpeaking] = useState(false);
+  // Cache the resolved voice per locale so the ranking runs once.
+  const voiceByLocaleRef = useRef<Map<string, SpeechSynthesisVoice | null>>(
+    new Map(),
+  );
+
+  // Pre-warm the voice list + keep it fresh: the list arrives asynchronously
+  // and `voiceschanged` fires when the OS finishes loading installed voices.
+  useEffect(() => {
+    if (!supported) return;
+    const synth = window.speechSynthesis;
+    const refresh = () => {
+      // A late-arriving list can surface a better voice than an early read;
+      // clear the cache so the next toggle re-ranks against the full set.
+      voiceByLocaleRef.current.clear();
+    };
+    synth.getVoices();
+    synth.addEventListener?.("voiceschanged", refresh);
+    return () => synth.removeEventListener?.("voiceschanged", refresh);
+  }, [supported]);
 
   // Stop any in-flight utterance if the bubble unmounts (thread reset, nav).
   useEffect(() => {
@@ -406,6 +526,21 @@ function useReadAloud(): {
       }
     };
   }, []);
+
+  const resolveVoice = useCallback(
+    (synth: SpeechSynthesis, lang: string): SpeechSynthesisVoice | null => {
+      const cached = voiceByLocaleRef.current.get(lang);
+      if (cached !== undefined) return cached;
+      const voices = synth.getVoices();
+      // An empty list (first call / iOS pre-gesture) is not cached so a later
+      // toggle re-ranks once the OS has populated the voices.
+      if (voices.length === 0) return null;
+      const chosen = pickSpeechVoice(voices, lang);
+      voiceByLocaleRef.current.set(lang, chosen);
+      return chosen;
+    },
+    [],
+  );
 
   const toggle = useCallback(
     (text: string, lang: string) => {
@@ -420,17 +555,38 @@ function useReadAloud(): {
       if (!trimmed) return;
       synth.cancel();
       const utterance = new SpeechSynthesisUtterance(trimmed);
-      utterance.lang = lang;
+      const voice = resolveVoice(synth, lang);
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+      } else {
+        utterance.lang = lang;
+      }
+      // A natural cadence: default rate, neutral pitch.
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
       utterance.onend = () => setSpeaking(false);
       utterance.onerror = () => setSpeaking(false);
       setSpeaking(true);
       synth.speak(utterance);
     },
-    [supported, speaking],
+    [supported, speaking, resolveVoice],
   );
 
   return { supported, speaking, toggle };
 }
+
+/**
+ * v1.22 — shared styling for the icon-only per-message action buttons. One
+ * tap convention across Copy / Read-aloud / feedback / Try-again: a 44px
+ * mobile tap floor (WCAG 2.5.5) collapsing to a compact 32px desktop target,
+ * muted until hover/focus, with the standard focus ring.
+ */
+const COACH_ICON_BUTTON = cn(
+  "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50",
+  "inline-flex size-11 min-w-11 shrink-0 items-center justify-center rounded",
+  "outline-none focus-visible:ring-2 disabled:opacity-50 sm:size-8 sm:min-w-8",
+);
 
 /**
  * v1.22 (W5) — read-aloud toggle for a settled assistant turn. Hidden when
@@ -452,16 +608,83 @@ function ReadAloudButton({ content }: { content: string }) {
       aria-label={label}
       aria-pressed={speaking}
       title={label}
-      // Interactive bubble affordances share one tap convention:
-      // `min-h-11 sm:min-h-9` (44px mobile floor → 36px desktop), matching the
-      // feedback buttons below. Keep TTS / remember / feedback in lockstep.
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-1.5 py-1 text-xs outline-none focus-visible:ring-2 sm:min-h-9"
+      className={COACH_ICON_BUTTON}
     >
       {speaking ? (
-        <VolumeX className="size-3" aria-hidden="true" />
+        <VolumeX className="size-3.5" aria-hidden="true" />
       ) : (
-        <Volume2 className="size-3" aria-hidden="true" />
+        <Volume2 className="size-3.5" aria-hidden="true" />
       )}
+    </button>
+  );
+}
+
+/**
+ * v1.22 — copy a message to the clipboard. Assistant prose is copied through
+ * `stripChartTokens` (the same text the bubble shows) so inline chart tokens
+ * are never pasted; user text is verbatim. A brief check-mark + toast confirm
+ * the copy. Hidden when the Clipboard API is unavailable (insecure context).
+ */
+function CopyMessageButton({
+  content,
+  strip,
+}: {
+  content: string;
+  strip: boolean;
+}) {
+  const { t } = useTranslations();
+  const supported = useClipboardSupported();
+  const [copied, setCopied] = useState(false);
+  const handle = useCallback(async () => {
+    const text = strip ? stripChartTokens(content) : content;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error(t("insights.coach.copyMessageError"));
+    }
+  }, [content, strip, t]);
+  // Absent on insecure-context (plain-HTTP) self-hosts where the Clipboard API
+  // is undefined — render nothing rather than error-toast on tap.
+  if (!supported) return null;
+  const label = t("insights.coach.copyMessage");
+  return (
+    <button
+      type="button"
+      data-slot="coach-copy-message"
+      onClick={handle}
+      aria-label={label}
+      title={label}
+      className={COACH_ICON_BUTTON}
+    >
+      {copied ? (
+        <Check className="text-dracula-green size-3.5" aria-hidden="true" />
+      ) : (
+        <Copy className="size-3.5" aria-hidden="true" />
+      )}
+    </button>
+  );
+}
+
+/**
+ * v1.22 — "Try again": re-run the user turn that produced this assistant
+ * reply so the user can regenerate an unsatisfying answer. The thread hands
+ * down the preceding user message; the surface resubmits it as a fresh turn.
+ */
+function TryAgainButton({ onRegenerate }: { onRegenerate: () => void }) {
+  const { t } = useTranslations();
+  const label = t("insights.coach.regenerate");
+  return (
+    <button
+      type="button"
+      data-slot="coach-try-again"
+      onClick={onRegenerate}
+      aria-label={label}
+      title={label}
+      className={COACH_ICON_BUTTON}
+    >
+      <RotateCcw className="size-3.5" aria-hidden="true" />
     </button>
   );
 }
@@ -484,7 +707,7 @@ function BubbleTimestamp({
   const [open, setOpen] = useState(false);
   const label = formatters.dateTime(iso);
   return (
-    <span className="relative inline-flex">
+    <span className="relative inline-flex shrink-0">
       <button
         type="button"
         data-slot="coach-bubble-timestamp"
@@ -518,6 +741,7 @@ export function MessageThread({
   optimisticUser,
   emptyHint,
   interleaved,
+  onRegenerate,
 }: MessageThreadProps) {
   const { t } = useTranslations();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -709,7 +933,7 @@ export function MessageThread({
         COACH_SCROLLBAR,
       )}
     >
-      {messages.map((m) => {
+      {messages.map((m, idx) => {
         // v1.4.22 W5 reconcile (Code-MED-3) — suppress the persisted
         // twin during the 150ms grace window so the streaming bubble
         // stays alone on slow connections.
@@ -717,6 +941,18 @@ export function MessageThread({
         // v1.16.5 — a guided question renders directly above the user
         // message that answered it.
         const guidedBefore = placement.before.get(m.id);
+        // v1.22 — "Try again": resolve the user message that produced this
+        // assistant reply (the nearest preceding user turn) so the surface
+        // can resubmit it. Null when there is none → no regenerate action.
+        let precedingUserContent: string | null = null;
+        if (m.role === "assistant" && onRegenerate) {
+          for (let j = idx - 1; j >= 0; j--) {
+            if (messages[j].role === "user") {
+              precedingUserContent = messages[j].content;
+              break;
+            }
+          }
+        }
         return (
           <Fragment key={m.id}>
             {guidedBefore?.node}
@@ -729,6 +965,11 @@ export function MessageThread({
               tokensUsed={m.tokensUsed}
               model={m.model}
               createdAt={m.createdAt}
+              onRegenerate={
+                precedingUserContent !== null && onRegenerate
+                  ? () => onRegenerate(precedingUserContent as string)
+                  : undefined
+              }
             />
           </Fragment>
         );
@@ -840,6 +1081,12 @@ interface ChatBubbleProps {
    * (no persisted time yet), so those render no timestamp.
    */
   createdAt?: string;
+  /**
+   * v1.22 — bound "Try again" callback for a settled assistant turn (the
+   * thread closes over the preceding user message). Absent on user / streaming
+   * / refusal turns and when the surface supplies no regenerate handler.
+   */
+  onRegenerate?: () => void;
 }
 
 function ChatBubble({
@@ -857,6 +1104,7 @@ function ChatBubble({
   tokensUsed,
   model,
   createdAt,
+  onRegenerate,
 }: ChatBubbleProps) {
   const { t } = useTranslations();
   const { user } = useAuth();
@@ -906,7 +1154,22 @@ function ChatBubble({
                 is verbatim: no chart-token strip, no Learn linkify. */}
             <ProseBlocks text={content} strip={false} linkify={false} />
           </div>
-          {createdAt && <BubbleTimestamp iso={createdAt} align="end" />}
+          {/* v1.22 — per-message action row: Copy, then the timestamp
+              trailing. Muted until the bubble is hovered / focused on pointer
+              devices; always visible on touch (no hover to reveal it). */}
+          <div
+            data-slot="coach-bubble-actions"
+            className={cn(
+              "flex items-center justify-end gap-0.5",
+              "sm:[@media(hover:hover)]:opacity-0",
+              "sm:[@media(hover:hover)]:group-hover/user-bubble:opacity-100",
+              "sm:[@media(hover:hover)]:group-focus-within/user-bubble:opacity-100",
+              "transition-opacity duration-150 motion-reduce:transition-none",
+            )}
+          >
+            <CopyMessageButton content={content} strip={false} />
+            {createdAt && <BubbleTimestamp iso={createdAt} align="end" />}
+          </div>
           {/* v1.16.8 — explicit remember control. Stating an allergy in
               chat used to leave no durable trace unless a narrow
               pattern pass happened to match the phrasing; this stores
@@ -982,7 +1245,7 @@ function ChatBubble({
   return (
     <div
       data-slot="coach-bubble-assistant"
-      className="flex items-start gap-2.5"
+      className="group/assistant-bubble flex items-start gap-2.5"
     >
       <div
         aria-hidden="true"
@@ -1195,18 +1458,29 @@ function ChatBubble({
             model={usage?.model ?? model}
           />
         )}
-        {/* v1.4.23 H7 — per-message thumbs feedback. Only persisted
-            assistant messages get the row (skipped for refusals,
-            errors, in-flight stream bubbles). v1.22 (W5) — the
-            read-aloud toggle joins the same action row on a settled turn;
-            the bubble timestamp trails it. */}
+        {/* v1.22 — per-message hover action row. Icon-only, muted until the
+            bubble is hovered / focused on pointer devices; always visible on
+            touch (no hover to reveal it). Copy + Read-aloud + Good / Bad
+            feedback + Try-again, with the timestamp trailing. Only settled
+            persisted assistant turns get the row (skipped for refusals,
+            errors, in-flight stream bubbles). */}
         {!inProgress && !errorCode && providerType !== "refusal" && content && (
           <div
             data-slot="coach-bubble-actions"
-            className="flex items-center gap-2"
+            className={cn(
+              "flex flex-wrap items-center gap-0.5",
+              "sm:[@media(hover:hover)]:opacity-0",
+              "sm:[@media(hover:hover)]:group-hover/assistant-bubble:opacity-100",
+              "sm:[@media(hover:hover)]:group-focus-within/assistant-bubble:opacity-100",
+              "transition-opacity duration-150 motion-reduce:transition-none",
+            )}
           >
+            <CopyMessageButton content={content} strip />
             {!streaming && <ReadAloudButton content={content} />}
             {messageId && <CoachMessageFeedback messageId={messageId} />}
+            {!streaming && onRegenerate && (
+              <TryAgainButton onRegenerate={onRegenerate} />
+            )}
             {createdAt && <BubbleTimestamp iso={createdAt} />}
           </div>
         )}
@@ -1376,38 +1650,55 @@ function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
     },
   });
 
+  // v1.22 — icon-only feedback in the per-message action row. After a rating
+  // lands, the chosen thumb stays visible in its confirming colour (the other
+  // is dropped) with an `sr-only` thanks so the signal is legible without a
+  // text caption breaking the icon row.
   if (submittedRating) {
     return (
-      <p
+      <span
         data-slot="coach-message-feedback-thanks"
-        className="text-muted-foreground text-xs"
+        role="status"
+        className="inline-flex items-center"
       >
-        {t("insights.coach.feedbackThanks")}
-      </p>
+        <span className="sr-only">{t("insights.coach.feedbackThanks")}</span>
+        {submittedRating === "helpful" ? (
+          <ThumbsUp className="text-success size-3.5" aria-hidden="true" />
+        ) : (
+          <ThumbsDown className="text-warning size-3.5" aria-hidden="true" />
+        )}
+      </span>
     );
   }
 
+  const helpfulLabel = t("insights.coach.feedbackHelpful");
+  const unhelpfulLabel = t("insights.coach.feedbackUnhelpful");
   return (
-    <div data-slot="coach-message-feedback" className="flex items-center gap-2">
+    <div
+      data-slot="coach-message-feedback"
+      className="inline-flex items-center"
+    >
       <button
         type="button"
         data-slot="coach-message-feedback-helpful"
         onClick={() => submit.mutate("helpful")}
         disabled={submit.isPending}
-        className="text-muted-foreground hover:text-success focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
+        aria-label={helpfulLabel}
+        title={helpfulLabel}
+        className={cn(COACH_ICON_BUTTON, "hover:text-success")}
       >
-        <ThumbsUp className="size-3" aria-hidden="true" />
-        {t("insights.coach.feedbackHelpful")}
+        <ThumbsUp className="size-3.5" aria-hidden="true" />
       </button>
       <button
         type="button"
         data-slot="coach-message-feedback-unhelpful"
         onClick={() => submit.mutate("unhelpful")}
         disabled={submit.isPending}
-        className="text-muted-foreground hover:text-warning focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
+        aria-label={unhelpfulLabel}
+        title={unhelpfulLabel}
+        className={cn(COACH_ICON_BUTTON, "hover:text-warning")}
       >
-        <ThumbsDown className="size-3" aria-hidden="true" />
-        {t("insights.coach.feedbackUnhelpful")}
+        <ThumbsDown className="size-3.5" aria-hidden="true" />
       </button>
     </div>
   );
