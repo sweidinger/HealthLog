@@ -33,6 +33,21 @@ export const authKeys = {
 
   passkeys: () => ["passkeys"] as const,
 
+  /**
+   * v1.23 — the user-facing active-session list behind
+   * `GET /api/auth/me/sessions`. Revoking a single session or signing out
+   * everywhere invalidates this key so the surface re-reads the live set.
+   */
+  sessions: () => ["auth", "sessions"] as const,
+
+  /**
+   * v1.23 — the shared security-activity feed behind
+   * `GET /api/auth/me/security-activity` (logins, MFA, password change,
+   * session revoke, exports, deletions). Consumed by the account-security
+   * surface and the privacy dashboard.
+   */
+  securityActivity: () => ["auth", "security-activity"] as const,
+
   userAiProvider: () => ["user", "ai-provider"] as const,
   userProfile: () => ["user", "profile"] as const,
   /**
