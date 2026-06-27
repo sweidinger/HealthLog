@@ -6,6 +6,19 @@
  * canonical tables scoped to the session `userId` — no new analytics, no
  * caller-supplied id. Absence is explicit via `{ present: false }` (REQ-SEC-4).
  *
+ * Two shapes live here:
+ *   - FIXED resources (`MCP_RESOURCES`) — one concrete URI each (profile,
+ *     medications, the biomarker catalogue, the data inventory, the
+ *     doctor-visit summary).
+ *   - resource TEMPLATES (`MCP_RESOURCE_TEMPLATES`) — RFC 6570 URI templates
+ *     (`healthlog://metric/{type}`, `healthlog://lab/{analyte}`,
+ *     `healthlog://medication/{id}`, …) that give a host a per-item address it
+ *     can attach without a tool round-trip. Each template is a thin façade over
+ *     the SAME server-authoritative read path the matching tool already uses, so
+ *     the wire shape can never fork. Per-variable completion + per-template
+ *     listing are user-scoped, so they double as honest discovery: a host only
+ *     ever sees the metrics / analytes / medications the user actually has.
+ *
  * The profile resource is deliberately data-minimised: it ships only the
  * health-relevant context an assistant needs (age in whole years, gender,
  * height, timezone, unit preferences) and omits direct identifiers (email,
@@ -14,6 +27,17 @@
  */
 import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
+import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
+import { buildCoachDataInventory } from "@/lib/ai/coach/tools/inventory";
+import {
+  BIOMARKER_CATALOG,
+  BIOMARKER_PANELS,
+} from "@/lib/labs/biomarker-catalog";
+import {
+  collectDoctorReportData,
+  type DoctorReportData,
+} from "@/lib/doctor-report-data";
+import { getMetricStatusMeta } from "@/lib/insights/metric-status-registry";
 import type { McpAuthContext } from "./auth";
 
 export interface McpResourceDefinition {
@@ -25,6 +49,62 @@ export interface McpResourceDefinition {
   mimeType: string;
   read: (ctx: McpAuthContext) => Promise<unknown>;
 }
+
+/**
+ * A parameterised resource (RFC 6570 URI template). Bound to one session in
+ * `createMcpServer`, so both `complete` and `list` are user-scoped — they only
+ * ever surface the data this user owns. `read` resolves one concrete instance
+ * from its matched template variables.
+ */
+export interface McpResourceTemplateDefinition {
+  name: string;
+  /** RFC 6570 URI template (e.g. `healthlog://metric/{type}/{window}`). */
+  uriTemplate: string;
+  title: string;
+  description: string;
+  mimeType: string;
+  /**
+   * Per-variable autocomplete sources, user-scoped. The host calls these as the
+   * user types a template variable; returning only the user's own metrics /
+   * analytes makes completion double as honest discovery.
+   */
+  complete?: Record<
+    string,
+    (ctx: McpAuthContext, value: string) => Promise<string[]> | string[]
+  >;
+  /**
+   * Optional user-scoped enumeration of the concrete resources this template
+   * resolves to. Gives a host a browseable list without a tool round-trip.
+   */
+  list?: (
+    ctx: McpAuthContext,
+  ) => Promise<Array<{ uri: string; name: string; title?: string }>>;
+  /** Resolve one instance from its matched template variables (user-scoped). */
+  read: (
+    ctx: McpAuthContext,
+    variables: Record<string, string | string[] | undefined>,
+  ) => Promise<unknown>;
+}
+
+/** The fixed trailing windows the windowed reads accept (mirrors the Coach). */
+export const MCP_WINDOW_VALUES = [
+  "last7days",
+  "last30days",
+  "last90days",
+  "lastYear",
+  "allTime",
+] as const;
+
+/** Trailing-day count per window, capped at the doctor-report 365-day ceiling. */
+const WINDOW_DAYS: Record<string, number> = {
+  last7days: 7,
+  last30days: 30,
+  last90days: 90,
+  lastYear: 365,
+  allTime: 365,
+};
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Whole-year age from a date of birth, or null when unknown. */
 function ageYears(dateOfBirth: Date | null): number | null {
@@ -39,6 +119,12 @@ function ageYears(dateOfBirth: Date | null): number | null {
     age -= 1;
   }
   return age >= 0 && age < 150 ? age : null;
+}
+
+/** First value of a template variable that may arrive exploded as an array. */
+function firstVar(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
 }
 
 export const MCP_RESOURCES: McpResourceDefinition[] = [
@@ -122,9 +208,379 @@ export const MCP_RESOURCES: McpResourceDefinition[] = [
       };
     },
   },
+  {
+    name: "labs-catalogue",
+    uri: "healthlog://labs/catalogue",
+    title: "Lab biomarker catalogue",
+    description:
+      "The curated catalogue of common lab biomarkers with their canonical units and suggested reference bounds, grouped by panel. These are EDITABLE DEFAULTS, not gospel — reference windows vary by lab, sex, and age. Use healthlog://lab/{analyte} or get_labs for the user's own readings.",
+    mimeType: "application/json",
+    async read() {
+      annotate({
+        action: { name: "mcp.resource.read" },
+        meta: { resource: "labs-catalogue", present: true },
+      });
+      return {
+        present: true,
+        note: "Suggested reference bounds are editable defaults, not clinical limits.",
+        panels: BIOMARKER_PANELS,
+        biomarkers: BIOMARKER_CATALOG.map((b) => ({
+          slug: b.slug,
+          panel: b.panel,
+          unit: b.unit,
+          suggestedRange: { low: b.lowerBound, high: b.upperBound },
+        })),
+      };
+    },
+  },
+  {
+    name: "measurements-inventory",
+    uri: "healthlog://measurements/inventory",
+    title: "Data inventory",
+    description:
+      "What health data the user has and which tool retrieves each domain — one row per domain with presence + approximate sample count. The same manifest list_metrics returns; read this first to discover what is available before fetching figures.",
+    mimeType: "application/json",
+    async read(ctx) {
+      const inventory = await buildCoachDataInventory(ctx.userId, undefined);
+      annotate({
+        action: { name: "mcp.resource.read" },
+        meta: { resource: "measurements-inventory", present: true },
+      });
+      return {
+        present: true,
+        window: inventory.window,
+        restMode: inventory.restMode,
+        cycleEnabled: inventory.cycleEnabled,
+        metrics: inventory.entries,
+      };
+    },
+  },
+  {
+    name: "doctor-visit-report",
+    uri: "healthlog://report/doctor-visit",
+    title: "Doctor-visit summary",
+    description:
+      "A grounded, clinician-oriented summary of the user's own records over the last 90 days — vitals (with units + reference bands), medications & adherence, and labs (with reference ranges). Reuses the doctor-report data path so the numbers match the exported PDF. Use healthlog://report/doctor-visit/{window} for a different window. Data + context only: no diagnosis, no verdict.",
+    mimeType: "application/json",
+    async read(ctx) {
+      return readDoctorVisit(ctx, "last90days");
+    },
+  },
 ];
 
-/** Stable list of the registered resource URIs. */
+// ── Doctor-visit summariser ──────────────────────────────────────────
+// Reshapes the server-authoritative doctor-report payload into a compact,
+// grounded summary — latest + aggregate per metric, latest reading per analyte.
+// Never the full per-reading history (R-DEL-2); never a verdict. Every numeric
+// value is one the server already computed; every band is server-side.
+
+const FALLBACK_UNITS: Record<string, string> = {
+  WEIGHT: "kg",
+  BLOOD_PRESSURE_SYS: "mmHg",
+  BLOOD_PRESSURE_DIA: "mmHg",
+  PULSE: "bpm",
+  BODY_MASS_INDEX: "kg/m²",
+  SLEEP_DURATION: "min",
+};
+
+function unitAndBandFor(type: string): {
+  unit: string;
+  referenceBand: { low: number; high: number } | null;
+} {
+  const meta = getMetricStatusMeta(type);
+  if (meta) {
+    return {
+      unit: meta.unit,
+      referenceBand: meta.normalRange
+        ? { low: meta.normalRange.low, high: meta.normalRange.high }
+        : null,
+    };
+  }
+  return { unit: FALLBACK_UNITS[type] ?? "", referenceBand: null };
+}
+
+const round = (n: number): number => Math.round(n * 100) / 100;
+
+function summariseForVisit(data: DoctorReportData): Record<string, unknown> {
+  const vitals = Object.entries(data.stats).map(([type, s]) => {
+    const { unit, referenceBand } = unitAndBandFor(type);
+    return {
+      metric: type,
+      unit,
+      referenceBand,
+      latest: round(s.latest),
+      avg: round(s.avg),
+      min: round(s.min),
+      max: round(s.max),
+      readings: s.count,
+    };
+  });
+
+  const compliance = Object.entries(data.compliance).map(([name, c]) => ({
+    medication: name,
+    takenDoses: c.taken,
+    expectedDoses: c.total,
+    missedDoses: c.missed,
+    adherencePct:
+      c.total > 0 ? Math.min(100, Math.round((c.taken / c.total) * 100)) : null,
+  }));
+
+  const medications = data.medications
+    .slice(0, 40)
+    .map((m) => ({ name: m.name, dose: m.dose }));
+
+  const labs = (data.labResults ?? []).slice(0, 50).map((l) => ({
+    analyte: l.analyte,
+    panel: l.panel,
+    value: l.value,
+    valueText: l.valueText,
+    unit: l.unit,
+    referenceLow: l.referenceLow,
+    referenceHigh: l.referenceHigh,
+    takenAt: l.takenAt,
+    readings: l.count,
+  }));
+
+  return {
+    present: true,
+    period: {
+      days: data.period.days,
+      start: data.period.start,
+      end: data.period.end,
+    },
+    patient: {
+      dateOfBirth: data.patient.dateOfBirth,
+      sex: data.patient.gender,
+      heightCm: data.patient.heightCm,
+    },
+    bmi: data.bmi,
+    vitals,
+    medications,
+    compliance,
+    ...(labs.length > 0 ? { labs } : {}),
+  };
+}
+
+async function readDoctorVisit(
+  ctx: McpAuthContext,
+  window: string,
+): Promise<unknown> {
+  const days = WINDOW_DAYS[window] ?? 90;
+  const end = new Date();
+  const start = new Date(end.getTime() - days * MS_PER_DAY);
+  const data = await collectDoctorReportData(ctx.userId, { start, end, days });
+  annotate({
+    action: { name: "mcp.resource.read" },
+    meta: { resource: "doctor-visit-report", days },
+  });
+  return summariseForVisit(data);
+}
+
+// ── User-scoped completion + listing sources ─────────────────────────
+
+/** Complete the trailing-window enum by prefix. Not user-specific. */
+function completeWindow(_ctx: McpAuthContext, value: string): string[] {
+  const v = value.toLowerCase();
+  return MCP_WINDOW_VALUES.filter((w) => w.toLowerCase().startsWith(v));
+}
+
+/** The user's own present metric types (the `metric` arg get_metric_series takes). */
+async function userMetricTypes(ctx: McpAuthContext): Promise<string[]> {
+  const inventory = await buildCoachDataInventory(ctx.userId, undefined);
+  const seen = new Set<string>();
+  for (const entry of inventory.entries) {
+    if (entry.present && entry.metric) seen.add(entry.metric);
+  }
+  return [...seen];
+}
+
+async function completeMetric(
+  ctx: McpAuthContext,
+  value: string,
+): Promise<string[]> {
+  const v = value.toLowerCase();
+  return (await userMetricTypes(ctx)).filter((m) =>
+    m.toLowerCase().includes(v),
+  );
+}
+
+/** The user's own lab analytes (distinct, non-deleted). */
+async function userAnalytes(ctx: McpAuthContext): Promise<string[]> {
+  const rows = await prisma.labResult.findMany({
+    where: { userId: ctx.userId, deletedAt: null },
+    select: { analyte: true },
+    distinct: ["analyte"],
+    take: 200,
+  });
+  return rows.map((r) => r.analyte);
+}
+
+async function completeAnalyte(
+  ctx: McpAuthContext,
+  value: string,
+): Promise<string[]> {
+  const v = value.toLowerCase();
+  return (await userAnalytes(ctx)).filter((a) => a.toLowerCase().includes(v));
+}
+
+export const MCP_RESOURCE_TEMPLATES: McpResourceTemplateDefinition[] = [
+  {
+    name: "metric",
+    uriTemplate: "healthlog://metric/{type}",
+    title: "Metric time series",
+    description:
+      "One metric's time series for the user (e.g. healthlog://metric/weight) over the default window. Same server-authoritative read get_metric_series serves: aggregate + recent timelines, units, and population reference bands. Returns { present: false } when the user has no data for that metric.",
+    mimeType: "application/json",
+    complete: { type: completeMetric },
+    async list(ctx) {
+      return (await userMetricTypes(ctx)).map((type) => ({
+        uri: `healthlog://metric/${type}`,
+        name: type,
+        title: `Metric: ${type}`,
+      }));
+    },
+    async read(ctx, variables) {
+      const metric = firstVar(variables.type);
+      const result = await executeCoachTool({
+        userId: ctx.userId,
+        name: "get_metric_series",
+        rawArguments: JSON.stringify({ metric }),
+      });
+      annotate({
+        action: { name: "mcp.resource.read" },
+        meta: { resource: "metric", present: result.present },
+      });
+      return result;
+    },
+  },
+  {
+    name: "metric-windowed",
+    uriTemplate: "healthlog://metric/{type}/{window}",
+    title: "Metric time series over a window",
+    description:
+      "One metric's time series for the user over a chosen trailing window (e.g. healthlog://metric/weight/last30days). Window is one of last7days, last30days, last90days, lastYear, allTime. Returns { present: false } when no data exists.",
+    mimeType: "application/json",
+    complete: { type: completeMetric, window: completeWindow },
+    async read(ctx, variables) {
+      const metric = firstVar(variables.type);
+      const window = firstVar(variables.window);
+      const result = await executeCoachTool({
+        userId: ctx.userId,
+        name: "get_metric_series",
+        rawArguments: JSON.stringify(window ? { metric, window } : { metric }),
+      });
+      annotate({
+        action: { name: "mcp.resource.read" },
+        meta: { resource: "metric-windowed", present: result.present },
+      });
+      return result;
+    },
+  },
+  {
+    name: "lab",
+    uriTemplate: "healthlog://lab/{analyte}",
+    title: "Lab analyte readings",
+    description:
+      "The user's recent readings for one named lab analyte (e.g. healthlog://lab/LDL) over the last 12 months — value, unit, reference range, and in-range/below/above status per reading. Same read get_labs serves. Returns { present: false } when no readings exist for that analyte.",
+    mimeType: "application/json",
+    complete: { analyte: completeAnalyte },
+    async list(ctx) {
+      return (await userAnalytes(ctx)).map((analyte) => ({
+        uri: `healthlog://lab/${encodeURIComponent(analyte)}`,
+        name: analyte,
+        title: `Lab: ${analyte}`,
+      }));
+    },
+    async read(ctx, variables) {
+      const analyte = decodeURIComponent(firstVar(variables.analyte));
+      const result = await executeCoachTool({
+        userId: ctx.userId,
+        name: "get_labs",
+        rawArguments: JSON.stringify({ analyte }),
+      });
+      annotate({
+        action: { name: "mcp.resource.read" },
+        meta: { resource: "lab", present: result.present },
+      });
+      return result;
+    },
+  },
+  {
+    name: "medication",
+    uriTemplate: "healthlog://medication/{id}",
+    title: "Medication summary",
+    description:
+      "One of the user's medications by id, with its schedules. User-scoped: returns { present: false } when the id does not belong to this user. Use get_medication_compliance for adherence figures.",
+    mimeType: "application/json",
+    async list(ctx) {
+      const meds = await prisma.medication.findMany({
+        where: { userId: ctx.userId },
+        select: { id: true, name: true, dose: true },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+      return meds.map((m) => ({
+        uri: `healthlog://medication/${m.id}`,
+        name: m.dose ? `${m.name} ${m.dose}` : m.name,
+        title: m.name,
+      }));
+    },
+    async read(ctx, variables) {
+      const id = firstVar(variables.id);
+      // user-scoped: a medication that is not this user's resolves to absent,
+      // never another tenant's row.
+      const med = await prisma.medication.findFirst({
+        where: { id, userId: ctx.userId },
+        include: { schedules: true },
+      });
+      annotate({
+        action: { name: "mcp.resource.read" },
+        meta: { resource: "medication", present: med !== null },
+      });
+      if (!med) return { present: false };
+      return {
+        present: true,
+        name: med.name,
+        dose: med.dose,
+        treatmentClass: med.treatmentClass,
+        asNeeded: med.asNeeded,
+        paused: med.pausedAt !== null,
+        startsOn: med.startsOn ? med.startsOn.toISOString() : null,
+        endsOn: med.endsOn ? med.endsOn.toISOString() : null,
+        schedules: med.schedules.map((s) => ({
+          label: s.label ?? null,
+          dose: s.dose ?? null,
+          windowStart: s.windowStart,
+          windowEnd: s.windowEnd,
+          timesOfDay: s.timesOfDay,
+          daysOfWeek: s.daysOfWeek ?? null,
+          rrule: s.rrule ?? null,
+          rollingIntervalDays: s.rollingIntervalDays ?? null,
+          scheduleType: s.scheduleType,
+        })),
+      };
+    },
+  },
+  {
+    name: "doctor-visit-windowed",
+    uriTemplate: "healthlog://report/doctor-visit/{window}",
+    title: "Doctor-visit summary over a window",
+    description:
+      "The grounded doctor-visit summary over a chosen trailing window (e.g. healthlog://report/doctor-visit/last30days). Window is one of last7days, last30days, last90days, lastYear, allTime. Reuses the doctor-report data path; data + context only, no diagnosis.",
+    mimeType: "application/json",
+    complete: { window: completeWindow },
+    async read(ctx, variables) {
+      const window = firstVar(variables.window) || "last90days";
+      return readDoctorVisit(ctx, window);
+    },
+  },
+];
+
+/** Stable list of the registered fixed resource URIs. */
 export const MCP_RESOURCE_URIS: readonly string[] = MCP_RESOURCES.map(
   (r) => r.uri,
 );
+
+/** Stable list of the registered resource-template URI patterns. */
+export const MCP_RESOURCE_TEMPLATE_URIS: readonly string[] =
+  MCP_RESOURCE_TEMPLATES.map((t) => t.uriTemplate);

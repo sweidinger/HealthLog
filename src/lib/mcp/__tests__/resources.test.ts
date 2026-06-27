@@ -32,10 +32,13 @@ beforeEach(() => {
 });
 
 describe("MCP resource surface", () => {
-  it("registers exactly the Phase-1 resources, none admin", () => {
+  it("registers the fixed resources, none admin", () => {
     expect([...MCP_RESOURCE_URIS].sort()).toEqual([
+      "healthlog://labs/catalogue",
+      "healthlog://measurements/inventory",
       "healthlog://medications",
       "healthlog://profile",
+      "healthlog://report/doctor-visit",
     ]);
     for (const uri of MCP_RESOURCE_URIS) {
       expect(uri).not.toMatch(/admin/i);
