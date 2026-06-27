@@ -19,7 +19,9 @@ import {
   Check,
   ChevronRight,
   Clock,
+  Copy,
   Loader2,
+  RotateCcw,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
@@ -98,6 +100,12 @@ export interface MessageThreadProps {
    * unanchored items render at the thread tail. See `placeInterleaved`.
    */
   interleaved?: InterleavedThreadItem[];
+  /**
+   * v1.22 — "Try again" on an assistant turn. The thread resolves the user
+   * message that produced the reply and hands its text up; the surface
+   * resubmits it as a fresh turn. Omitted → the regenerate action is hidden.
+   */
+  onRegenerate?: (userText: string) => void;
 }
 
 /**
@@ -551,6 +559,18 @@ function useReadAloud(): {
 }
 
 /**
+ * v1.22 — shared styling for the icon-only per-message action buttons. One
+ * tap convention across Copy / Read-aloud / feedback / Try-again: a 44px
+ * mobile tap floor (WCAG 2.5.5) collapsing to a compact 32px desktop target,
+ * muted until hover/focus, with the standard focus ring.
+ */
+const COACH_ICON_BUTTON = cn(
+  "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50",
+  "inline-flex size-11 items-center justify-center rounded outline-none",
+  "focus-visible:ring-2 disabled:opacity-50 sm:size-8",
+);
+
+/**
  * v1.22 (W5) — read-aloud toggle for a settled assistant turn. Hidden when
  * the browser has no Speech Synthesis support. Speaks `stripChartTokens`
  * (the same text the prose shows), so stray tokens are never voiced.
@@ -570,16 +590,79 @@ function ReadAloudButton({ content }: { content: string }) {
       aria-label={label}
       aria-pressed={speaking}
       title={label}
-      // Interactive bubble affordances share one tap convention:
-      // `min-h-11 sm:min-h-9` (44px mobile floor → 36px desktop), matching the
-      // feedback buttons below. Keep TTS / remember / feedback in lockstep.
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-1.5 py-1 text-xs outline-none focus-visible:ring-2 sm:min-h-9"
+      className={COACH_ICON_BUTTON}
     >
       {speaking ? (
-        <VolumeX className="size-3" aria-hidden="true" />
+        <VolumeX className="size-3.5" aria-hidden="true" />
       ) : (
-        <Volume2 className="size-3" aria-hidden="true" />
+        <Volume2 className="size-3.5" aria-hidden="true" />
       )}
+    </button>
+  );
+}
+
+/**
+ * v1.22 — copy a message to the clipboard. Assistant prose is copied through
+ * `stripChartTokens` (the same text the bubble shows) so inline chart tokens
+ * are never pasted; user text is verbatim. A brief check-mark + toast confirm
+ * the copy. Hidden when the Clipboard API is unavailable (insecure context).
+ */
+function CopyMessageButton({
+  content,
+  strip,
+}: {
+  content: string;
+  strip: boolean;
+}) {
+  const { t } = useTranslations();
+  const [copied, setCopied] = useState(false);
+  const handle = useCallback(async () => {
+    const text = strip ? stripChartTokens(content) : content;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error(t("insights.coach.copyMessageError"));
+    }
+  }, [content, strip, t]);
+  const label = t("insights.coach.copyMessage");
+  return (
+    <button
+      type="button"
+      data-slot="coach-copy-message"
+      onClick={handle}
+      aria-label={label}
+      title={label}
+      className={COACH_ICON_BUTTON}
+    >
+      {copied ? (
+        <Check className="text-dracula-green size-3.5" aria-hidden="true" />
+      ) : (
+        <Copy className="size-3.5" aria-hidden="true" />
+      )}
+    </button>
+  );
+}
+
+/**
+ * v1.22 — "Try again": re-run the user turn that produced this assistant
+ * reply so the user can regenerate an unsatisfying answer. The thread hands
+ * down the preceding user message; the surface resubmits it as a fresh turn.
+ */
+function TryAgainButton({ onRegenerate }: { onRegenerate: () => void }) {
+  const { t } = useTranslations();
+  const label = t("insights.coach.regenerate");
+  return (
+    <button
+      type="button"
+      data-slot="coach-try-again"
+      onClick={onRegenerate}
+      aria-label={label}
+      title={label}
+      className={COACH_ICON_BUTTON}
+    >
+      <RotateCcw className="size-3.5" aria-hidden="true" />
     </button>
   );
 }
@@ -636,6 +719,7 @@ export function MessageThread({
   optimisticUser,
   emptyHint,
   interleaved,
+  onRegenerate,
 }: MessageThreadProps) {
   const { t } = useTranslations();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -827,7 +911,7 @@ export function MessageThread({
         COACH_SCROLLBAR,
       )}
     >
-      {messages.map((m) => {
+      {messages.map((m, idx) => {
         // v1.4.22 W5 reconcile (Code-MED-3) — suppress the persisted
         // twin during the 150ms grace window so the streaming bubble
         // stays alone on slow connections.
@@ -835,6 +919,18 @@ export function MessageThread({
         // v1.16.5 — a guided question renders directly above the user
         // message that answered it.
         const guidedBefore = placement.before.get(m.id);
+        // v1.22 — "Try again": resolve the user message that produced this
+        // assistant reply (the nearest preceding user turn) so the surface
+        // can resubmit it. Null when there is none → no regenerate action.
+        let precedingUserContent: string | null = null;
+        if (m.role === "assistant" && onRegenerate) {
+          for (let j = idx - 1; j >= 0; j--) {
+            if (messages[j].role === "user") {
+              precedingUserContent = messages[j].content;
+              break;
+            }
+          }
+        }
         return (
           <Fragment key={m.id}>
             {guidedBefore?.node}
@@ -847,6 +943,11 @@ export function MessageThread({
               tokensUsed={m.tokensUsed}
               model={m.model}
               createdAt={m.createdAt}
+              onRegenerate={
+                precedingUserContent !== null && onRegenerate
+                  ? () => onRegenerate(precedingUserContent as string)
+                  : undefined
+              }
             />
           </Fragment>
         );
@@ -958,6 +1059,12 @@ interface ChatBubbleProps {
    * (no persisted time yet), so those render no timestamp.
    */
   createdAt?: string;
+  /**
+   * v1.22 — bound "Try again" callback for a settled assistant turn (the
+   * thread closes over the preceding user message). Absent on user / streaming
+   * / refusal turns and when the surface supplies no regenerate handler.
+   */
+  onRegenerate?: () => void;
 }
 
 function ChatBubble({
@@ -975,6 +1082,7 @@ function ChatBubble({
   tokensUsed,
   model,
   createdAt,
+  onRegenerate,
 }: ChatBubbleProps) {
   const { t } = useTranslations();
   const { user } = useAuth();
@@ -1024,7 +1132,22 @@ function ChatBubble({
                 is verbatim: no chart-token strip, no Learn linkify. */}
             <ProseBlocks text={content} strip={false} linkify={false} />
           </div>
-          {createdAt && <BubbleTimestamp iso={createdAt} align="end" />}
+          {/* v1.22 — per-message action row: Copy, then the timestamp
+              trailing. Muted until the bubble is hovered / focused on pointer
+              devices; always visible on touch (no hover to reveal it). */}
+          <div
+            data-slot="coach-bubble-actions"
+            className={cn(
+              "flex items-center justify-end gap-0.5",
+              "sm:[@media(hover:hover)]:opacity-0",
+              "sm:[@media(hover:hover)]:group-hover/user-bubble:opacity-100",
+              "sm:[@media(hover:hover)]:group-focus-within/user-bubble:opacity-100",
+              "transition-opacity duration-150 motion-reduce:transition-none",
+            )}
+          >
+            <CopyMessageButton content={content} strip={false} />
+            {createdAt && <BubbleTimestamp iso={createdAt} align="end" />}
+          </div>
           {/* v1.16.8 — explicit remember control. Stating an allergy in
               chat used to leave no durable trace unless a narrow
               pattern pass happened to match the phrasing; this stores
@@ -1100,7 +1223,7 @@ function ChatBubble({
   return (
     <div
       data-slot="coach-bubble-assistant"
-      className="flex items-start gap-2.5"
+      className="group/assistant-bubble flex items-start gap-2.5"
     >
       <div
         aria-hidden="true"
@@ -1313,18 +1436,29 @@ function ChatBubble({
             model={usage?.model ?? model}
           />
         )}
-        {/* v1.4.23 H7 — per-message thumbs feedback. Only persisted
-            assistant messages get the row (skipped for refusals,
-            errors, in-flight stream bubbles). v1.22 (W5) — the
-            read-aloud toggle joins the same action row on a settled turn;
-            the bubble timestamp trails it. */}
+        {/* v1.22 — per-message hover action row. Icon-only, muted until the
+            bubble is hovered / focused on pointer devices; always visible on
+            touch (no hover to reveal it). Copy + Read-aloud + Good / Bad
+            feedback + Try-again, with the timestamp trailing. Only settled
+            persisted assistant turns get the row (skipped for refusals,
+            errors, in-flight stream bubbles). */}
         {!inProgress && !errorCode && providerType !== "refusal" && content && (
           <div
             data-slot="coach-bubble-actions"
-            className="flex items-center gap-2"
+            className={cn(
+              "flex items-center gap-0.5",
+              "sm:[@media(hover:hover)]:opacity-0",
+              "sm:[@media(hover:hover)]:group-hover/assistant-bubble:opacity-100",
+              "sm:[@media(hover:hover)]:group-focus-within/assistant-bubble:opacity-100",
+              "transition-opacity duration-150 motion-reduce:transition-none",
+            )}
           >
+            <CopyMessageButton content={content} strip />
             {!streaming && <ReadAloudButton content={content} />}
             {messageId && <CoachMessageFeedback messageId={messageId} />}
+            {!streaming && onRegenerate && (
+              <TryAgainButton onRegenerate={onRegenerate} />
+            )}
             {createdAt && <BubbleTimestamp iso={createdAt} />}
           </div>
         )}
@@ -1494,38 +1628,55 @@ function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
     },
   });
 
+  // v1.22 — icon-only feedback in the per-message action row. After a rating
+  // lands, the chosen thumb stays visible in its confirming colour (the other
+  // is dropped) with an `sr-only` thanks so the signal is legible without a
+  // text caption breaking the icon row.
   if (submittedRating) {
     return (
-      <p
+      <span
         data-slot="coach-message-feedback-thanks"
-        className="text-muted-foreground text-xs"
+        role="status"
+        className="inline-flex items-center"
       >
-        {t("insights.coach.feedbackThanks")}
-      </p>
+        <span className="sr-only">{t("insights.coach.feedbackThanks")}</span>
+        {submittedRating === "helpful" ? (
+          <ThumbsUp className="text-success size-3.5" aria-hidden="true" />
+        ) : (
+          <ThumbsDown className="text-warning size-3.5" aria-hidden="true" />
+        )}
+      </span>
     );
   }
 
+  const helpfulLabel = t("insights.coach.feedbackHelpful");
+  const unhelpfulLabel = t("insights.coach.feedbackUnhelpful");
   return (
-    <div data-slot="coach-message-feedback" className="flex items-center gap-2">
+    <div
+      data-slot="coach-message-feedback"
+      className="inline-flex items-center"
+    >
       <button
         type="button"
         data-slot="coach-message-feedback-helpful"
         onClick={() => submit.mutate("helpful")}
         disabled={submit.isPending}
-        className="text-muted-foreground hover:text-success focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
+        aria-label={helpfulLabel}
+        title={helpfulLabel}
+        className={cn(COACH_ICON_BUTTON, "hover:text-success")}
       >
-        <ThumbsUp className="size-3" aria-hidden="true" />
-        {t("insights.coach.feedbackHelpful")}
+        <ThumbsUp className="size-3.5" aria-hidden="true" />
       </button>
       <button
         type="button"
         data-slot="coach-message-feedback-unhelpful"
         onClick={() => submit.mutate("unhelpful")}
         disabled={submit.isPending}
-        className="text-muted-foreground hover:text-warning focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
+        aria-label={unhelpfulLabel}
+        title={unhelpfulLabel}
+        className={cn(COACH_ICON_BUTTON, "hover:text-warning")}
       >
-        <ThumbsDown className="size-3" aria-hidden="true" />
-        {t("insights.coach.feedbackUnhelpful")}
+        <ThumbsDown className="size-3.5" aria-hidden="true" />
       </button>
     </div>
   );

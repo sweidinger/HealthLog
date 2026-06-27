@@ -2100,6 +2100,9 @@
       "readAloud": "Read aloud",
       "readAloudStop": "Stop reading",
       "messageTimeLabel": "Message sent {time}",
+      "copyMessage": "Copy",
+      "copyMessageError": "Could not copy",
+      "regenerate": "Try again",
       "selfContextAdopt": {
         "offer": "Add this answer to your self-context?",
         "confirm": "Add",

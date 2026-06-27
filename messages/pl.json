@@ -2100,6 +2100,9 @@
       "readAloud": "Czytaj na głos",
       "readAloudStop": "Zatrzymaj czytanie",
       "messageTimeLabel": "Wiadomość wysłana {time}",
+      "copyMessage": "Kopiuj",
+      "copyMessageError": "Nie udało się skopiować",
+      "regenerate": "Spróbuj ponownie",
       "selfContextAdopt": {
         "offer": "Dodać tę odpowiedź do Twoich informacji o sobie?",
         "confirm": "Dodaj",

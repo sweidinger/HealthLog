@@ -2100,6 +2100,9 @@
       "readAloud": "Leggi ad alta voce",
       "readAloudStop": "Interrompi lettura",
       "messageTimeLabel": "Messaggio inviato {time}",
+      "copyMessage": "Copia",
+      "copyMessageError": "Copia non riuscita",
+      "regenerate": "Riprova",
       "selfContextAdopt": {
         "offer": "Aggiungere questa risposta alle tue informazioni personali?",
         "confirm": "Aggiungi",

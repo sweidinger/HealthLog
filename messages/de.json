@@ -2100,6 +2100,9 @@
       "readAloud": "Vorlesen",
       "readAloudStop": "Vorlesen beenden",
       "messageTimeLabel": "Nachricht gesendet {time}",
+      "copyMessage": "Kopieren",
+      "copyMessageError": "Kopieren fehlgeschlagen",
+      "regenerate": "Erneut versuchen",
       "selfContextAdopt": {
         "offer": "Antwort in deine Selbstauskunft übernehmen?",
         "confirm": "Übernehmen",
