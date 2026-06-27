@@ -2099,6 +2099,9 @@
       "composerPlaceholder": "Ask anything about your data…",
       "nudgeBubbleLabel": "New message from the Coach — open chat",
       "fabLabel": "Open the Coach",
+      "readAloud": "Read aloud",
+      "readAloudStop": "Stop reading",
+      "messageTimeLabel": "Message sent {time}",
       "selfContextAdopt": {
         "offer": "Add this answer to your self-context?",
         "confirm": "Add",

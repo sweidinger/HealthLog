@@ -2099,6 +2099,9 @@
       "composerPlaceholder": "Frag mich etwas zu deinen Daten…",
       "nudgeBubbleLabel": "Neue Nachricht vom Coach — Chat öffnen",
       "fabLabel": "Coach öffnen",
+      "readAloud": "Vorlesen",
+      "readAloudStop": "Vorlesen beenden",
+      "messageTimeLabel": "Nachricht gesendet {time}",
       "selfContextAdopt": {
         "offer": "Antwort in deine Selbstauskunft übernehmen?",
         "confirm": "Übernehmen",

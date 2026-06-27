@@ -779,6 +779,12 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                     .describe(
                       "True when that message is newer than the last time the caller opened the Coach.",
                     ),
+                  conversationId: z
+                    .string()
+                    .nullable()
+                    .describe(
+                      "Conversation holding the newest assistant message; null when none exists. The client deep-links into it (`/coach?c=<id>`) on the unread path.",
+                    ),
                 }),
                 "CoachNudgeStatus",
               ),

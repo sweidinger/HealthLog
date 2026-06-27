@@ -877,12 +877,17 @@ export async function runCoachNudgeTick(
       // dot once the user opens the Coach). A persistence failure must
       // not swallow the notification, so it is caught locally and the
       // dispatch still fires.
+      let nudgeConversationId: string | null = null;
       try {
-        await recordNudgeImpl({
+        const recorded = await recordNudgeImpl({
           userId: user.id,
           title,
           body,
         });
+        // v1.22 (W5) — keep the conversation id so the push deep-links
+        // precisely into the proactive thread instead of the generic
+        // `/coach`, closing the most-recent-heuristic gap on the web side.
+        nudgeConversationId = recorded.conversationId;
         summary.persisted += 1;
       } catch (persistErr: unknown) {
         const message =
@@ -901,8 +906,12 @@ export async function runCoachNudgeTick(
           scheduledAt: now.toISOString(),
           trigger,
           // Deep link — the web-push sender threads this into the
-          // service-worker payload's click target.
-          url: "/coach",
+          // service-worker payload's click target. Point at the exact
+          // proactive conversation when it persisted; fall back to the
+          // generic Coach surface if persistence failed.
+          url: nudgeConversationId
+            ? `/coach?c=${nudgeConversationId}`
+            : "/coach",
         },
       });
 
