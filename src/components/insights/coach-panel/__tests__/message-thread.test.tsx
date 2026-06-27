@@ -73,6 +73,7 @@ function streaming(
     content: "",
     metricSource: null,
     suggestion: null,
+    suggestedAction: null,
     inProgress: false,
     messageId: null,
     errorCode: null,

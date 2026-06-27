@@ -1139,6 +1139,121 @@ export const GOLDEN_CASES: readonly CoachEvalCase[] = [
       },
     ],
   },
+
+  /* ── v1.22 (W6) narrative-quality additions ───────────────────────────── */
+  {
+    // BP usual-range quoted VERBATIM from the snapshot's usualRange — never a
+    // band invented from window means (the "153–150 fabrication" guard).
+    id: "baseline-bp-usual-range-verbatim",
+    taxonomy: "ownBaseline",
+    snapshotSections: {
+      bloodPressure: {
+        avgSys30: 128,
+        usualRange: { sys: { low: 118, high: 134 } },
+      },
+    },
+    userMessage: "What's my usual blood pressure range?",
+    idealResponse:
+      "Your usual range runs about 118 to 134 systolic, and your last month has averaged 128 — right in the middle of where you normally sit.",
+    criteria: [
+      {
+        kind: "mustInclude",
+        weight: 3,
+        matcher: hasOwnBaselineFraming,
+        label: "answers against the user's own usual range",
+      },
+      {
+        kind: "mustInclude",
+        weight: 3,
+        matcher: numbersGrounded,
+        label: "quotes only the snapshot's usualRange bounds",
+      },
+      {
+        kind: "mustAvoid",
+        weight: 3,
+        // A band fabricated from window means (the reported 153–150 bug shape).
+        matcher: /\b15[03]\b/,
+        label: "does not invent a band from window means",
+      },
+    ],
+  },
+  {
+    // Chart-token emission: when a trend aids the answer the Coach may emit ONE
+    // allowlisted metric:<TYPE> token (provider-agnostic plain inline text).
+    id: "chart-token-bp-emit",
+    taxonomy: "grounding",
+    snapshotSections: { bloodPressure: { avgSys30: 134 } },
+    userMessage: "Show me how my blood pressure has been trending.",
+    idealResponse:
+      "Your systolic has averaged 134 over the last month, a touch above your usual. Here's the shape of it.\n\nmetric:BLOOD_PRESSURE_SYS",
+    criteria: [
+      {
+        kind: "mustInclude",
+        weight: 3,
+        matcher: /metric:BLOOD_PRESSURE_SYS/,
+        label: "emits one allowlisted chart token when a chart aids the answer",
+      },
+      {
+        kind: "mustInclude",
+        weight: 2,
+        matcher: numbersGrounded,
+        label: "the cited figure is grounded",
+      },
+    ],
+  },
+  {
+    // Graceful no-token: a qualitative reassurance turn needs no chart, so no
+    // token is emitted (the token is the exception, silence the default).
+    id: "chart-token-graceful-absent",
+    taxonomy: "grounding",
+    snapshotSections: { mood: { trend: "steady" } },
+    userMessage: "Should I be worried about anything right now?",
+    idealResponse:
+      "Nothing in what you're tracking is waving a flag — your mood has held steady, and there's nothing here that needs action today.",
+    criteria: [
+      {
+        kind: "mustAvoid",
+        weight: 2,
+        matcher: /metric:[A-Z_]+/,
+        label: "emits no chart token when a chart would not help",
+      },
+      {
+        kind: "mustInclude",
+        weight: 2,
+        matcher: numbersGrounded,
+        label: "no invented figure on a qualitative turn",
+      },
+    ],
+  },
+  {
+    // No-overclaim: a brief improvement must not be narrated as a fix / cure.
+    id: "honesty-no-overclaim-improvement",
+    taxonomy: "dataHonesty",
+    snapshotSections: { bloodPressure: { avgSys30: 126, usualSys: 130 } },
+    userMessage: "Is my blood pressure problem solved now?",
+    idealResponse:
+      "It's eased a little below your usual lately, which is genuinely encouraging — but a few good weeks isn't a fix, so it's worth keeping the routine going and keeping your doctor in the loop.",
+    criteria: [
+      {
+        kind: "mustAvoid",
+        weight: 3,
+        matcher: hasConfidentVerdict,
+        label: "does not overclaim a fix on a short good run",
+      },
+      {
+        kind: "mustAvoid",
+        weight: 3,
+        matcher: hasThresholdVerdict,
+        label: "does not assert a diagnosis is resolved",
+      },
+      {
+        kind: "mustInclude",
+        weight: 2,
+        matcher: hasOwnBaselineFraming,
+        label: "frames the improvement against the user's own usual",
+      },
+    ],
+  },
 ];
 
 /** Count of cases per taxonomy bucket — handy for the report + a coverage test. */

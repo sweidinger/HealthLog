@@ -13,6 +13,7 @@ import type {
   CoachSuggestion,
   CoachUsage,
 } from "@/lib/ai/coach/types";
+import type { CoachSuggestedAction } from "@/lib/ai/coach/suggest-action";
 import { apiDelete, apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -186,6 +187,12 @@ export interface CoachStreamingMessage {
    * `suggestion` frame, if the turn carried one. Null otherwise.
    */
   suggestion: CoachSuggestion | null;
+  /**
+   * v1.22 (W7/W6) — generalised confirm-card action from the additive
+   * `suggestedAction` frame (mirrors `suggestion`). Persisted messages carry it
+   * on `metricSource.suggestedAction` instead. Null otherwise.
+   */
+  suggestedAction: CoachSuggestedAction | null;
   /** True until the `done` frame closes the stream. */
   inProgress: boolean;
   /** Final messageId once `done` lands; null otherwise. */
@@ -236,6 +243,7 @@ const EMPTY_STREAMING: CoachStreamingMessage = {
   content: "",
   metricSource: null,
   suggestion: null,
+  suggestedAction: null,
   inProgress: false,
   messageId: null,
   errorCode: null,
@@ -330,6 +338,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         content: "",
         metricSource: null,
         suggestion: null,
+        suggestedAction: null,
         inProgress: true,
         messageId: null,
         errorCode: null,
@@ -344,6 +353,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           content: "",
           metricSource: null,
           suggestion: null,
+          suggestedAction: null,
           inProgress: false,
           messageId: null,
           errorCode: "coach.network",
@@ -378,6 +388,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           content: "",
           metricSource: null,
           suggestion: null,
+          suggestedAction: null,
           inProgress: false,
           messageId: null,
           errorCode: "coach.network",
@@ -391,6 +402,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           content: "",
           metricSource: null,
           suggestion: null,
+          suggestedAction: null,
           inProgress: false,
           messageId: null,
           errorCode: `coach.http.${response.status}`,
@@ -429,6 +441,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           content: "",
           metricSource: null,
           suggestion: null,
+          suggestedAction: null,
           inProgress: false,
           messageId: null,
           errorCode: structured ?? `coach.http.${response.status}`,
@@ -449,6 +462,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
       let collectedContent = "";
       let collectedProvenance: CoachProvenance | null = null;
       let collectedSuggestion: CoachSuggestion | null = null;
+      let collectedSuggestedAction: CoachSuggestedAction | null = null;
       let lastError: string | null = null;
       let messageId: string | null = null;
       let collectedUsage: CoachUsage | null = null;
@@ -481,6 +495,13 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
                 setStreaming((prev) => ({
                   ...prev,
                   suggestion: evt.suggestion,
+                }));
+                break;
+              case "suggestedAction":
+                collectedSuggestedAction = evt.suggestedAction;
+                setStreaming((prev) => ({
+                  ...prev,
+                  suggestedAction: evt.suggestedAction,
                 }));
                 break;
               case "reasoning":
@@ -522,6 +543,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         content: collectedContent,
         metricSource: collectedProvenance,
         suggestion: collectedSuggestion,
+        suggestedAction: collectedSuggestedAction,
         inProgress: false,
         messageId,
         errorCode: lastError,

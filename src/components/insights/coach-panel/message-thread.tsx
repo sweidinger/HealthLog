@@ -45,6 +45,7 @@ import { ProseBlocks } from "@/components/insights/prose-blocks";
 
 import { SourceChips } from "./source-chips";
 import { ReminderSuggestionCard } from "./reminder-suggestion-card";
+import { SuggestedActionCard } from "./suggested-action-card";
 import { StreamedProse } from "./streamed-prose";
 import { MessageTokenFooter } from "./message-token-footer";
 import type {
@@ -766,6 +767,7 @@ export function MessageThread({
             content={streaming.content}
             metricSource={streaming.metricSource}
             suggestion={streaming.suggestion}
+            suggestedAction={streaming.suggestedAction}
             providerType={streaming.inProgress ? "streaming" : null}
             inProgress={streaming.inProgress}
             errorCode={streaming.errorCode}
@@ -794,6 +796,14 @@ interface ChatBubbleProps {
    * instead; the bubble falls back to that so the card survives reload.
    */
   suggestion?: import("@/lib/ai/coach/types").CoachSuggestion | null;
+  /**
+   * v1.22 (W7/W6) — live generalised confirm-card action from the streaming
+   * hook. Persisted messages carry it on `metricSource.suggestedAction`; the
+   * bubble falls back to that so the card survives reload.
+   */
+  suggestedAction?:
+    | import("@/lib/ai/coach/suggest-action").CoachSuggestedAction
+    | null;
   providerType?: string | null;
   inProgress?: boolean;
   errorCode?: string | null;
@@ -834,6 +844,7 @@ function ChatBubble({
   content,
   metricSource,
   suggestion,
+  suggestedAction,
   providerType,
   inProgress,
   errorCode,
@@ -1160,6 +1171,16 @@ function ChatBubble({
           (() => {
             const sug = suggestion ?? metricSource?.suggestion ?? null;
             return sug ? <ReminderSuggestionCard suggestion={sug} /> : null;
+          })()}
+        {/* v1.22 (W7/W6) — generalised confirm-card action. Live from the
+            streaming hook, or restored from persisted message provenance on
+            reload. Mirrors the reminder-suggestion block above. */}
+        {!inProgress &&
+          !errorCode &&
+          (() => {
+            const action =
+              suggestedAction ?? metricSource?.suggestedAction ?? null;
+            return action ? <SuggestedActionCard action={action} /> : null;
           })()}
         {/* v1.18.9 — quiet per-message token footer. The just-finished
             streaming turn reads the `done.usage` envelope; a persisted /
