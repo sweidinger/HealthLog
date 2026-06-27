@@ -19,6 +19,8 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { destroyAllSessions, createSession } from "@/lib/auth/session";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { checkPasswordBreach } from "@/lib/auth/hibp";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
 
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
@@ -69,6 +71,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (!strength.isAcceptable) {
     return apiError(
       strength.feedback[0] || "Password too weak (score < 3)",
+      422,
+    );
+  }
+
+  // v1.23 — reject a newly chosen password that appears in a known breach
+  // corpus (HIBP k-anonymity). Fail-open: a null result (HIBP unreachable)
+  // never blocks the change. Only the user's chosen NEW password is checked —
+  // existing credentials are never retroactively blocked at login.
+  const breach = await checkPasswordBreach(newPassword);
+  if (breach?.breached) {
+    return apiError(
+      getServerTranslator(locale).t("auth.passwordBreached"),
       422,
     );
   }

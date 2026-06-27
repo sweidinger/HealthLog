@@ -263,7 +263,8 @@
     "passkeySetupLater": "Puoi configurare le passkey più tardi dalle impostazioni.",
     "passwordMinLength": "Min. 12 caratteri",
     "passwordTooShort": "La password deve avere almeno {minLength} caratteri.",
-    "privacyPolicy": "Informativa sulla privacy"
+    "privacyPolicy": "Informativa sulla privacy",
+    "passwordBreached": "Questa password compare in violazioni di dati note. Scegline un'altra."
   },
   "dashboard": {
     "title": "Cruscotto",
@@ -4968,7 +4969,37 @@
     "polarDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
     "ouraDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
     "nightscoutDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
-    "integrationCredentialsHint": "Dove trovare queste credenziali e come registrare la tua app è spiegato nella guida alla configurazione qui sopra."
+    "integrationCredentialsHint": "Dove trovare queste credenziali e come registrare la tua app è spiegato nella guida alla configurazione qui sopra.",
+    "security": {
+      "sessionsTitle": "Sessioni attive",
+      "sessionsDescription": "Dispositivi e browser attualmente connessi al tuo account.",
+      "sessionsLoadError": "Impossibile caricare le sessioni attive.",
+      "sessionsEmpty": "Nessuna sessione attiva.",
+      "currentSession": "Questo dispositivo",
+      "lastActive": "Ultima attività {time}",
+      "unknownLocation": "Posizione sconosciuta",
+      "revokeSession": "Disconnetti",
+      "revokeError": "Impossibile completare la richiesta. Riprova.",
+      "signOutEverywhere": "Disconnetti ovunque",
+      "signOutEverywhereDone": "Disconnesse {count} altra/e sessione/i.",
+      "activityTitle": "Attività di sicurezza",
+      "activityDescription": "Accessi recenti, modifiche di sicurezza ed esportazioni di dati del tuo account.",
+      "activityEmpty": "Nessuna attività di sicurezza.",
+      "activityLoadError": "Impossibile caricare l'attività di sicurezza.",
+      "action": {
+        "newDevice": "Accesso da nuovo dispositivo",
+        "loginFailed": "Accesso non riuscito",
+        "login": "Accesso",
+        "passwordChange": "Password modificata",
+        "mfa": "Modifica autenticazione a due fattori",
+        "sessionRevoke": "Sessione disconnessa",
+        "token": "Modifica token API",
+        "accountDelete": "Account eliminato",
+        "dataClear": "Dati azzerati",
+        "export": "Esportazione dati",
+        "other": "Evento di sicurezza"
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5955,7 +5986,12 @@
     "eventMeasurementReminder": "Promemoria misurazione",
     "eventMeasurementReminderDesc": "Inviato quando una misurazione tracciata è in scadenza.",
     "eventMedicationIntakeSync": "Sincronizzazione assunzioni",
-    "eventMedicationIntakeSyncDesc": "Aggiornamento tra dispositivi quando una dose viene registrata, assunta o saltata."
+    "eventMedicationIntakeSyncDesc": "Aggiornamento tra dispositivi quando una dose viene registrata, assunta o saltata.",
+    "security": {
+      "newDeviceTitle": "Nuovo accesso al tuo account",
+      "newDeviceBody": "Un nuovo accesso da {device} ({location}). Se non sei stato tu, cambia subito la password.",
+      "unknownLocation": "posizione sconosciuta"
+    }
   },
   "i18n": {
     "maintainershipBanner": {
