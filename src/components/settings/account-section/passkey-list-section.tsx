@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
@@ -198,10 +199,7 @@ export function PasskeyListSection({
         data-testid="passkeys-mobile-list"
       >
         {passkeys.map((pk) => (
-          <li
-            key={pk.id}
-            className="bg-card border-border rounded-lg border p-4"
-          >
+          <SettingsCard as="li" key={pk.id}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{pk.name}</p>
@@ -267,7 +265,7 @@ export function PasskeyListSection({
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-          </li>
+          </SettingsCard>
         ))}
       </ul>
       {deleteMsg && (
