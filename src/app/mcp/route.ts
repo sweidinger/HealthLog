@@ -31,11 +31,14 @@
  *      (`sessionIdGenerator: undefined`, `enableJsonResponse: true`), torn
  *      down once the buffered JSON-RPC response is built.
  *
- * Read-only: the factory registers read tools only and `requireAdmin()` is
- * cookie-only, so neither writes nor admin can be reached over this wire
- * regardless of token scope — including `["*"]` (ADR-003 / ADR-005). The
- * `health:write` scope stays reserved and unreachable until the write
- * tools land in a later phase.
+ * Write surface: the factory registers the confirmed write tools
+ * (`log_measurement` / `log_mood`) ONLY for a `health:write`-scoped session;
+ * a read-only token never sees them. Writes happen in-process here and are
+ * audience-bound to `/mcp` — a `health:write` MCP token is refused on every
+ * REST write/delete by the resource-server guard in `api-handler.ts`, so it
+ * can never become a general REST write credential. `requireAdmin()` stays
+ * cookie-only, so admin is unreachable over this wire regardless of token
+ * scope — including `["*"]` (ADR-003 / ADR-005).
  *
  * Same-origin / no-CORS by construction: no `Access-Control-Allow-Origin`
  * header is emitted anywhere here, matching the app-wide posture.

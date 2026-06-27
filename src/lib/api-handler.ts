@@ -10,7 +10,7 @@ import { auditLog } from "./auth/audit";
 import { resolveBearerToken, BearerAuthError } from "./auth/bearer";
 import { AssistantDisabledError } from "./feature-flags";
 import { ConsentRequiredError } from "./ai/consent-guard";
-import { SCOPE_HEALTH_READ } from "./mcp/oauth/config";
+import { SCOPE_HEALTH_READ, SCOPE_HEALTH_WRITE } from "./mcp/oauth/config";
 
 /**
  * HTTP methods a read-only credential may use on the REST surface. A request
@@ -20,15 +20,20 @@ const READ_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
  * Whether a token is MCP-audience-bound (H1). The MCP OAuth bridge and the
- * connector settings card mint tokens whose ONLY grant is `health:read`. Such a
- * token is bound to the read surface: the `/mcp` resolver accepts it, and so do
- * safe (read) REST methods, but it must never reach a REST write/delete. A token
- * carrying any broader or legacy grant (`*`, `medication:ingest`, an explicit
- * `health:write`, …) is NOT MCP-audience-bound and keeps its existing reach.
+ * connector settings card mint tokens whose ONLY grants are `health:read` —
+ * and, when the user consents to logging, `health:read health:write`. Either
+ * shape is bound to the MCP surface: the `/mcp` resolver accepts it and so do
+ * safe (read) REST methods, but it must NEVER reach a REST write/delete. The
+ * `health:write` grant admits writes ONLY in-process over `/mcp` (the confirmed
+ * write tools), never over REST — so a write-scoped MCP token is exactly as
+ * audience-bound on this edge as a read-only one. A token carrying any broader
+ * or legacy grant (`*`, `medication:ingest`, …) is NOT MCP-audience-bound and
+ * keeps its existing reach.
  */
-function isMcpAudienceToken(permissions: readonly string[]): boolean {
-  return (
-    permissions.length > 0 && permissions.every((p) => p === SCOPE_HEALTH_READ)
+export function isMcpAudienceToken(permissions: readonly string[]): boolean {
+  if (permissions.length === 0) return false;
+  return permissions.every(
+    (p) => p === SCOPE_HEALTH_READ || p === SCOPE_HEALTH_WRITE,
   );
 }
 
@@ -354,10 +359,13 @@ async function authenticateBearer(
 
   const { user, tokenId, expiresAt, permissions } = resolution;
 
-  // H1 — audience binding at the resource server. A health:read-only token is
-  // the MCP read credential; it may reach `/mcp` (a separate resolver that
-  // never runs this edge) and safe REST reads, but a write/delete over REST is
-  // outside its audience and is refused. Fail closed when the method is unknown
+  // H1 — audience binding at the resource server. An MCP-audience token
+  // (`health:read`, or `health:read health:write`) is bound to the `/mcp`
+  // surface; it may reach `/mcp` (a separate resolver that never runs this
+  // edge) and safe REST reads, but a write/delete over REST is outside its
+  // audience and is refused — INCLUDING a write-scoped token, whose writes are
+  // confined to the in-process `/mcp` tools and never granted over REST. Fail
+  // closed when the method is unknown
   // (no event context) since every real REST request runs inside apiHandler,
   // which always sets the method — an unknown method means we cannot prove a
   // read, so we deny. This is RFC 8707 audience binding on the credential the

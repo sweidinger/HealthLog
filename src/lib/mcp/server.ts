@@ -8,14 +8,18 @@
  * `createMcpServer(ctx)` and then attach their own transport, so the tool /
  * resource surface is identical across wires (ADR-002).
  *
- * Only read tools are registered (REQ-SEC-1 / ADR-003). There is no admin
- * surface here and none can be added structurally — `requireAdmin()` is
- * cookie-only and the MCP context carries no cookie (REQ-SEC-7 / ADR-005).
+ * Read tools are always registered. The write tools (`log_measurement` /
+ * `log_mood`) are registered ONLY for a `health:write`-scoped session
+ * (`ctx.canWrite`); a read-only session never has them advertised, so the
+ * read-only-by-default posture is structural (REQ-SEC-1 / ADR-003). There is
+ * no admin surface here and none can be added structurally — `requireAdmin()`
+ * is cookie-only and the MCP context carries no cookie (REQ-SEC-7 / ADR-005).
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { McpAuthContext } from "./auth";
-import { MCP_TOOLS } from "./tools";
+import { MCP_TOOLS, type McpToolDefinition } from "./tools";
+import { MCP_WRITE_TOOLS } from "./write-tools";
 import { MCP_RESOURCES } from "./resources";
 import { MCP_PROMPTS } from "./prompts";
 
@@ -33,7 +37,9 @@ export function createMcpServer(ctx: McpAuthContext): McpServer {
     version: MCP_SERVER_VERSION,
   });
 
-  for (const tool of MCP_TOOLS) {
+  // Register one tool definition. Shared by the read registry and the
+  // write-scoped registry so the wire shape can never fork between them.
+  const registerTool = (tool: McpToolDefinition) => {
     server.registerTool(
       tool.name,
       {
@@ -41,8 +47,9 @@ export function createMcpServer(ctx: McpAuthContext): McpServer {
         description: tool.description,
         inputSchema: tool.inputShape,
         // Annotations are MANDATORY for the cloud connectors — the ChatGPT
-        // Apps SDK treats an omitted hint as a validation error. Every read
-        // tool is read-only, non-destructive, closed-world (ADR-003).
+        // Apps SDK treats an omitted hint as a validation error. Read tools
+        // are read-only/non-destructive; write tools advertise
+        // `readOnlyHint:false` so a host can add human-in-the-loop (ADR-003).
         annotations: tool.annotations,
         ...(tool.outputShape ? { outputSchema: tool.outputShape } : {}),
       },
@@ -63,6 +70,19 @@ export function createMcpServer(ctx: McpAuthContext): McpServer {
         return { content };
       },
     );
+  };
+
+  for (const tool of MCP_TOOLS) {
+    registerTool(tool);
+  }
+
+  // Write tools are advertised ONLY to a write-scoped session. A read-only
+  // (`health:read`) token never sees them in the capability list — the
+  // read-only posture is structural, not a runtime flag a tool could flip.
+  if (ctx.canWrite) {
+    for (const tool of MCP_WRITE_TOOLS) {
+      registerTool(tool);
+    }
   }
 
   for (const prompt of MCP_PROMPTS) {

@@ -114,8 +114,16 @@ export function audienceMatches(
   return want === got;
 }
 
-/** The single scope the read MCP surface issues. */
+/** The read scope the MCP surface issues — the default posture. */
 export const SCOPE_HEALTH_READ = "health:read";
+
+/**
+ * The write scope. Granted only on explicit request + consent; it admits the
+ * confirmed `/mcp` write tools. A token carrying it is STILL MCP-audience-bound
+ * (see `isMcpAudienceToken`) — it can never become a general REST write
+ * credential.
+ */
+export const SCOPE_HEALTH_WRITE = "health:write";
 
 /**
  * Scopes the AS advertises + will issue. `health:write` is advertised so a
@@ -125,7 +133,7 @@ export const SCOPE_HEALTH_READ = "health:read";
  */
 export const SUPPORTED_SCOPES = [
   SCOPE_HEALTH_READ,
-  "health:write",
+  SCOPE_HEALTH_WRITE,
   "offline_access",
 ] as const;
 

@@ -288,7 +288,7 @@ describe("/mcp — rate limit", () => {
   });
 });
 
-describe("/mcp — admin unreachable over HTTP (read-only, cookie-only boundary)", () => {
+describe("/mcp — admin unreachable over HTTP (cookie-only boundary)", () => {
   it("never consults a cookie session, even with a wildcard token", async () => {
     validToken(["*"]);
     const res = await POST(postRpc(TOOLS_LIST));
@@ -299,18 +299,49 @@ describe("/mcp — admin unreachable over HTTP (read-only, cookie-only boundary)
       (t) => t.name,
     );
 
-    // A `["*"]` token still sees ONLY the read tools — no write tool is
-    // registered and no admin tool exists (read-only by construction).
-    expect(names.sort()).toEqual(READ_TOOLS);
+    // A `["*"]` token carries write capability (`tokenAllowsWrite`), so it
+    // sees the confirmed write tools alongside the read tools — but NO admin
+    // tool exists, and admin stays unreachable here by construction.
+    for (const read of READ_TOOLS) {
+      expect(names).toContain(read);
+    }
+    expect(names).toContain("log_measurement");
+    expect(names).toContain("log_mood");
     for (const name of names) {
       expect(name).not.toMatch(/admin/i);
-      expect(name).not.toMatch(/^(log_|create_|update_|delete_|write_)/);
     }
 
     // The route authenticates purely by Bearer: a cookie session is never
     // read, so `requireAdmin()` (cookie-only) can never be reached here.
     expect(getSession).not.toHaveBeenCalled();
     expect(cookiesGet).not.toHaveBeenCalled();
+  });
+});
+
+describe("/mcp — write tools gate on health:write", () => {
+  it("a health:read token lists NO write tools", async () => {
+    validToken(["health:read"]);
+    const res = await POST(postRpc(TOOLS_LIST));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const names = (body.result.tools as Array<{ name: string }>).map(
+      (t) => t.name,
+    );
+    expect(names.sort()).toEqual(READ_TOOLS);
+    expect(names).not.toContain("log_measurement");
+    expect(names).not.toContain("log_mood");
+  });
+
+  it("a health:read+write token can list (and thus invoke) the write tools", async () => {
+    validToken(["health:read", "health:write"]);
+    const res = await POST(postRpc(TOOLS_LIST));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const names = (body.result.tools as Array<{ name: string }>).map(
+      (t) => t.name,
+    );
+    expect(names).toContain("log_measurement");
+    expect(names).toContain("log_mood");
   });
 });
 

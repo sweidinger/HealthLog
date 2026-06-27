@@ -273,7 +273,7 @@ describe("requireAuth — Bearer token path", () => {
 describe("requireAuth — H1 MCP health:read audience binding on REST", () => {
   // Drive the FULL apiHandler path so the request method is in event context —
   // the H1 check reads it to allow safe reads but block writes.
-  const route = apiHandler(async (_req: Request) => {
+  const route = apiHandler(async () => {
     await requireAuth();
     return Response.json({ ok: true });
   });
@@ -340,7 +340,10 @@ describe("requireAuth — H1 MCP health:read audience binding on REST", () => {
     expect(res.status).toBe(200);
   });
 
-  it("does NOT restrict a health:read+write token on POST", async () => {
+  it("rejects a health:read+write token on POST with 403 (writes are /mcp-only)", async () => {
+    // A write-scoped MCP token is STILL audience-bound: its `health:write`
+    // grant admits the confirmed in-process `/mcp` write tools, never a REST
+    // write/delete. So it gets the same 403 as a read-only MCP token here.
     vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
       id: "rw",
       userId: "user-1",
@@ -349,6 +352,26 @@ describe("requireAuth — H1 MCP health:read audience binding on REST", () => {
       expiresAt: null,
     } as never);
     const res = await call("POST");
+    expect(res.status).toBe(403);
+    expect(auditLog).toHaveBeenCalledWith(
+      "auth.bearer.failure",
+      expect.objectContaining({
+        details: expect.objectContaining({
+          reason: "mcp_audience_write_blocked",
+        }),
+      }),
+    );
+  });
+
+  it("accepts a health:read+write token on a GET read route", async () => {
+    vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
+      id: "rw",
+      userId: "user-1",
+      permissions: ["health:read", "health:write"],
+      revoked: false,
+      expiresAt: null,
+    } as never);
+    const res = await call("GET");
     expect(res.status).toBe(200);
   });
 });
