@@ -38,6 +38,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Switch } from "@/components/ui/switch";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
@@ -412,20 +413,55 @@ function MoodCsvCard() {
   );
 }
 
+const MIN_EXPORT_PASSPHRASE_LENGTH = 12;
+
 function FullBackupCard() {
   const { t } = useTranslations();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // v1.23 — opt-in passphrase encryption. When on, the download POSTs to
+  // /api/export/encrypted with the passphrase and saves an opaque `.hlx`
+  // archive instead of plaintext JSON.
+  const [encrypt, setEncrypt] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
+
+  const passphraseTooShort =
+    encrypt && passphrase.length < MIN_EXPORT_PASSPHRASE_LENGTH;
 
   async function handleDownload() {
     setBusy(true);
     setError(null);
     try {
       const stamp = new Date().toISOString().slice(0, 10);
-      await downloadFromUrl(
-        "/api/export/full-backup",
-        `healthlog-backup-${stamp}.json`,
-      );
+      if (encrypt) {
+        const res = await apiFetchRaw("/api/export/encrypted", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ passphrase }),
+        });
+        if (res.status === 401) {
+          setError(t("settings.sections.export.cards.fullBackup.stepUpNeeded"));
+          return;
+        }
+        if (!res.ok) {
+          throw new Error(`Download failed (${res.status})`);
+        }
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = `healthlog-backup-${stamp}.hlx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objectUrl);
+      } else {
+        await downloadFromUrl(
+          "/api/export/full-backup",
+          `healthlog-backup-${stamp}.json`,
+        );
+      }
     } catch {
       setError(t("settings.sections.export.downloadFailed"));
     } finally {
@@ -447,7 +483,7 @@ function FullBackupCard() {
           size="sm"
           className="min-h-11 sm:min-h-9"
           onClick={handleDownload}
-          disabled={busy}
+          disabled={busy || passphraseTooShort}
         >
           {busy ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -458,6 +494,44 @@ function FullBackupCard() {
         </Button>
       }
     >
+      <label
+        htmlFor="export-full-backup-encrypt"
+        className="flex min-h-11 cursor-pointer items-center gap-3 text-xs"
+      >
+        <Switch
+          id="export-full-backup-encrypt"
+          data-testid="export-full-backup-encrypt"
+          checked={encrypt}
+          onCheckedChange={(v) => {
+            setEncrypt(v);
+            setError(null);
+            if (!v) setPassphrase("");
+          }}
+        />
+        <span className="text-muted-foreground">
+          {t("settings.sections.export.cards.fullBackup.encryptToggle")}
+        </span>
+      </label>
+      {encrypt && (
+        <div className="space-y-2">
+          <PasswordInput
+            data-testid="export-full-backup-passphrase"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            placeholder={t(
+              "settings.sections.export.cards.fullBackup.passphrasePlaceholder",
+            )}
+            autoComplete="new-password"
+            className="h-9 text-sm"
+          />
+          <p className="text-muted-foreground text-xs">
+            {t("settings.sections.export.cards.fullBackup.passphraseHelp")}
+          </p>
+          <p className="text-xs text-amber-600 dark:text-amber-500">
+            {t("settings.sections.export.cards.fullBackup.noRecoveryWarning")}
+          </p>
+        </div>
+      )}
       {error && (
         <p role="alert" className="text-destructive text-sm">
           {error}

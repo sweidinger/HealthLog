@@ -4057,7 +4057,12 @@
           },
           "fullBackup": {
             "title": "Full backup",
-            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload."
+            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload.",
+            "encryptToggle": "Encrypt with a passphrase",
+            "passphrasePlaceholder": "Passphrase (min. 12 characters)",
+            "passphraseHelp": "Derives the archive key with Argon2id and seals it with AES-256-GCM. Save the file with a .hlx extension.",
+            "noRecoveryWarning": "There is no recovery — if you lose this passphrase, the archive cannot be opened. Keep it somewhere safe.",
+            "stepUpNeeded": "Confirm your second factor, then try again."
           },
           "cycle": {
             "title": "Cycle",

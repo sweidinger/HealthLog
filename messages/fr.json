@@ -4057,7 +4057,12 @@
           },
           "fullBackup": {
             "title": "Sauvegarde complète",
-            "description": "Un seul fichier JSON contenant tout — même format que la sauvegarde automatique hebdomadaire. Utile pour une restauration personnelle via le téléversement administrateur."
+            "description": "Un seul fichier JSON contenant tout — même format que la sauvegarde automatique hebdomadaire. Utile pour une restauration personnelle via le téléversement administrateur.",
+            "encryptToggle": "Chiffrer avec une phrase secrète",
+            "passphrasePlaceholder": "Phrase secrète (12 caractères min.)",
+            "passphraseHelp": "Dérive la clé de l'archive avec Argon2id et la scelle avec AES-256-GCM. Enregistrez le fichier avec l'extension .hlx.",
+            "noRecoveryWarning": "Aucune récupération possible : si vous perdez cette phrase secrète, l'archive ne pourra pas être ouverte. Conservez-la en lieu sûr.",
+            "stepUpNeeded": "Confirmez votre second facteur, puis réessayez."
           },
           "cycle": {
             "title": "Cycle",

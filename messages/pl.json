@@ -4057,7 +4057,12 @@
           },
           "fullBackup": {
             "title": "Pełna kopia zapasowa",
-            "description": "Pojedynczy plik JSON ze wszystkim — taki sam format jak cotygodniowa automatyczna kopia. Przydatny do samodzielnego przywracania przez przesłanie w panelu administratora."
+            "description": "Pojedynczy plik JSON ze wszystkim — taki sam format jak cotygodniowa automatyczna kopia. Przydatny do samodzielnego przywracania przez przesłanie w panelu administratora.",
+            "encryptToggle": "Zaszyfruj hasłem-frazą",
+            "passphrasePlaceholder": "Hasło-fraza (min. 12 znaków)",
+            "passphraseHelp": "Wyprowadza klucz archiwum za pomocą Argon2id i pieczętuje je AES-256-GCM. Zapisz plik z rozszerzeniem .hlx.",
+            "noRecoveryWarning": "Nie ma odzyskiwania — jeśli zgubisz tę frazę, archiwum nie da się otworzyć. Przechowuj ją bezpiecznie.",
+            "stepUpNeeded": "Potwierdź drugi składnik i spróbuj ponownie."
           },
           "cycle": {
             "title": "Cykl",

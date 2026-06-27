@@ -4057,7 +4057,12 @@
           },
           "fullBackup": {
             "title": "Backup completo",
-            "description": "Un unico file JSON con tutto — stesso formato del backup automatico settimanale. Utile per il ripristino autonomo tramite il caricamento da amministratore."
+            "description": "Un unico file JSON con tutto — stesso formato del backup automatico settimanale. Utile per il ripristino autonomo tramite il caricamento da amministratore.",
+            "encryptToggle": "Cifra con una passphrase",
+            "passphrasePlaceholder": "Passphrase (min. 12 caratteri)",
+            "passphraseHelp": "Deriva la chiave dell'archivio con Argon2id e lo sigilla con AES-256-GCM. Salva il file con estensione .hlx.",
+            "noRecoveryWarning": "Non c'è recupero: se perdi questa passphrase, l'archivio non potrà essere aperto. Conservala in un luogo sicuro.",
+            "stepUpNeeded": "Conferma il secondo fattore e riprova."
           },
           "cycle": {
             "title": "Ciclo",
