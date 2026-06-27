@@ -48,6 +48,14 @@ export const authKeys = {
    */
   securityActivity: () => ["auth", "security-activity"] as const,
 
+  /**
+   * v1.23 — the security settings hub reads second-factor status (TOTP
+   * enabled, recovery codes remaining, registered security keys, passkey-nudge
+   * dismissal) from `GET /api/auth/me/mfa`. Mutations that change a factor
+   * invalidate this key so the hub reflects the new state immediately.
+   */
+  mfaStatus: () => ["auth", "mfa", "status"] as const,
+
   userAiProvider: () => ["user", "ai-provider"] as const,
   userProfile: () => ["user", "profile"] as const,
   /**

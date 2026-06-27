@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/db", () => ({
   prisma: {
     session: { findUnique: vi.fn() },
+    webauthnMfaCredential: { count: vi.fn() },
   },
 }));
 
@@ -91,13 +92,25 @@ describe("requireFreshMfa", () => {
     );
   });
 
-  it("rejects a user without an active second factor", async () => {
+  it("rejects a user with neither TOTP nor a security key", async () => {
     mockSession({ ...MFA_USER, totpConfirmedAt: null });
+    vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(0 as never);
     await expect(requireFreshMfa(5 * 60)).rejects.toMatchObject({
       errorCode: "auth.stepup.mfa_not_enrolled",
     });
     // Never even reaches the session-row read.
     expect(prisma.session.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("accepts a WebAuthn-only account with a fresh stamp", async () => {
+    mockSession({ ...MFA_USER, totpConfirmedAt: null });
+    vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(1 as never);
+    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+      mfaVerifiedAt: new Date(Date.now() - 60_000),
+    } as never);
+
+    const ctx = await requireFreshMfa(MFA_STEP_UP_MAX_AGE_SECONDS);
+    expect(ctx.user.id).toBe("user-1");
   });
 
   it("rejects when there is no cookie session — Bearer can never satisfy it", async () => {

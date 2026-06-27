@@ -10,6 +10,11 @@ import {
 } from "@simplewebauthn/server";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/db";
+import {
+  RP_NAME as rpName,
+  getRpId,
+  getExpectedOrigin,
+} from "@/lib/auth/webauthn-rp";
 
 // v1.4.43 W13 L-3 — explicit Zod narrowing in front of
 // `verifyAuthentication`. Replaces the raw
@@ -76,44 +81,14 @@ type Transport =
   | "smart-card"
   | "usb";
 
-const rpName = "HealthLog";
+// The relying-party config (`rpName` / `getRpId` / `getExpectedOrigin`) is
+// shared with the second-factor security-key path via `@/lib/auth/webauthn-rp`
+// so both ceremonies bind credentials to the identical RP.
 
 async function cleanupExpiredChallenges() {
   await prisma.authChallenge.deleteMany({
     where: { expiresAt: { lt: new Date() } },
   });
-}
-
-function getConfiguredOrigins(): string[] {
-  const candidates = [
-    process.env.APP_URL,
-    process.env.NEXT_PUBLIC_APP_URL,
-    "http://localhost:3000",
-  ]
-    .map((value) => value?.trim())
-    .filter((value): value is string => Boolean(value));
-
-  const validOrigins = candidates
-    .map((value) => {
-      try {
-        return new URL(value).origin;
-      } catch {
-        return null;
-      }
-    })
-    .filter((value): value is string => Boolean(value));
-
-  return Array.from(new Set(validOrigins));
-}
-
-function getRpId(): string {
-  const origins = getConfiguredOrigins();
-  return new URL(origins[0]).hostname;
-}
-
-function getExpectedOrigin(): string | string[] {
-  const origins = getConfiguredOrigins();
-  return origins.length === 1 ? origins[0] : origins;
 }
 
 // ── Registration ─────────────────────────────────────────
@@ -294,10 +269,14 @@ export async function verifyAuthentication(
     });
 
     if (verification.verified) {
-      // Update counter
+      // Update counter + stamp last-used so the management UI can surface
+      // when each passkey was last exercised (v1.23 passkey QoL).
       await prisma.passkey.update({
         where: { id: passkey.id },
-        data: { counter: BigInt(verification.authenticationInfo.newCounter) },
+        data: {
+          counter: BigInt(verification.authenticationInfo.newCounter),
+          lastUsedAt: new Date(),
+        },
       });
     }
 

@@ -1502,6 +1502,145 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/auth/me/mfa:
+    get:
+      tags:
+        - Auth
+      summary: Second-factor status (cookie session only)
+      description: Whether TOTP is active, how many recovery codes remain, and the registered WebAuthn security keys. Metadata
+        only — no secret, code, or public key. Cookie-only.
+      responses:
+        "200":
+          description: Second-factor status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaStatusEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/webauthn/register/options:
+    post:
+      tags:
+        - Auth
+      summary: Begin registering a security key as a second factor
+      description: Returns SimpleWebAuthn creation options + a challenge id. Cookie-only — a Bearer token cannot enrol MFA.
+      responses:
+        "200":
+          description: Registration options issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnRegisterOptionsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/webauthn/register/verify:
+    post:
+      tags:
+        - Auth
+      summary: Finish registering a security key as a second factor
+      description: Verifies the attestation against the user-bound challenge and stores the credential in the second-factor
+        store (separate from primary passkeys). Cookie-only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaWebauthnRegisterVerifyRequest"
+      responses:
+        "200":
+          description: Security key registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnRegisterVerifyEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/webauthn/{id}:
+    patch:
+      tags:
+        - Auth
+      summary: Rename a registered security key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaWebauthnRenameRequest"
+      responses:
+        "200":
+          description: Security key renamed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnRenameEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Auth
+      summary: Remove a registered security key (step-up gated)
+      description: Requires a fresh second-factor step-up (cookie session). Bearer can never satisfy the gate.
+      responses:
+        "200":
+          description: Security key removed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnRemoveEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/mfa/webauthn/verify/options:
+    post:
+      tags:
+        - Auth
+      summary: Begin a mid-login security-key assertion
+      description: Presents the login `mfaTicket` and returns assertion options scoped to the password-identified user's
+        registered security keys. Anonymous surface; rate-limited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaWebauthnLoginOptionsRequest"
+      responses:
+        "200":
+          description: Assertion options issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnLoginOptionsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/mfa/webauthn/verify:
+    post:
+      tags:
+        - Auth
+      summary: Complete a security-key second-factor login challenge
+      description: Presents the login `mfaTicket` plus the assertion. On success returns the SAME token bundle / session the
+        password path issues, with the session marked second-factor-verified. The ticket is single-use; failures are
+        throttled and the ticket is burned at the attempt cap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaWebauthnLoginVerifyRequest"
+      responses:
+        "200":
+          description: Second factor verified — session + optional bearer issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnVerifyResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/auth/passkey/login-verify:
     post:
       tags:
@@ -7724,6 +7863,115 @@ components:
       required:
         - code
       description: Disable the second factor. Requires fresh step-up plus a current TOTP or recovery code.
+    MfaWebauthnRegisterVerifyRequest:
+      type: object
+      properties:
+        challengeId:
+          type: string
+          minLength: 1
+        credential:
+          type: object
+          properties:
+            id:
+              type: string
+            rawId:
+              type: string
+            type:
+              type: string
+              const: public-key
+            response:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+            authenticatorAttachment:
+              type: string
+              enum:
+                - platform
+                - cross-platform
+            clientExtensionResults:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+          required:
+            - id
+            - rawId
+            - type
+            - response
+          description: SimpleWebAuthn ceremony response payload.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+        - challengeId
+        - credential
+      description: Finish registering a WebAuthn security key as a second factor.
+    MfaWebauthnRenameRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+        - name
+    MfaWebauthnLoginOptionsRequest:
+      type: object
+      properties:
+        mfaTicket:
+          type: string
+          minLength: 1
+          description: The opaque single-use ticket from the login response.
+      required:
+        - mfaTicket
+    MfaWebauthnLoginVerifyRequest:
+      type: object
+      properties:
+        mfaTicket:
+          type: string
+          minLength: 1
+        challengeId:
+          type: string
+          minLength: 1
+        credential:
+          type: object
+          properties:
+            id:
+              type: string
+            rawId:
+              type: string
+            type:
+              type: string
+              const: public-key
+            response:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+            authenticatorAttachment:
+              type: string
+              enum:
+                - platform
+                - cross-platform
+            clientExtensionResults:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+          required:
+            - id
+            - rawId
+            - type
+            - response
+          description: SimpleWebAuthn ceremony response payload.
+      required:
+        - mfaTicket
+        - challengeId
+        - credential
+      description: Complete a second-factor login challenge with a WebAuthn security key and receive the same token bundle the
+        password path issues.
     PasskeyLoginVerifyRequest:
       type: object
       properties:
@@ -10915,7 +11163,9 @@ components:
                 enum:
                   - totp
                   - recovery
-              description: Second factors the account can complete the challenge with.
+                  - webauthn
+              description: Second factors the account can complete the challenge with. `webauthn` is completed via
+                /api/auth/mfa/webauthn/verify; the rest via /api/auth/mfa/verify.
           required:
             - mfaRequired
             - mfaTicket
@@ -11040,6 +11290,199 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/MfaRecoveryCodesResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaStatusEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MfaStatusResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaStatusResponse:
+      type: object
+      properties:
+        totp:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+          required:
+            - enabled
+          additionalProperties: false
+        recoveryCodesRemaining:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        webauthn:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebauthnMfaCredentialInfo"
+        passkeyNudgeDismissed:
+          type: boolean
+      required:
+        - totp
+        - recoveryCodesRemaining
+        - webauthn
+        - passkeyNudgeDismissed
+      additionalProperties: false
+    WebauthnMfaCredentialInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        lastUsedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+      required:
+        - id
+        - name
+        - createdAt
+        - lastUsedAt
+      additionalProperties: false
+    MfaWebauthnRegisterOptionsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebauthnOptionsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    WebauthnOptionsResponse:
+      type: object
+      properties:
+        options:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+          description: SimpleWebAuthn options to pass to the browser ceremony.
+        challengeId:
+          type: string
+          description: Server-issued challenge id.
+      required:
+        - options
+        - challengeId
+      additionalProperties: false
+    MfaWebauthnRegisterVerifyEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebauthnMfaCredentialInfo"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaWebauthnRenameEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebauthnMfaCredentialInfo"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaWebauthnRemoveEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AuthSuccessFlagResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    AuthSuccessFlagResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+      additionalProperties: false
+    MfaWebauthnLoginOptionsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebauthnOptionsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaWebauthnVerifyResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AccessRefreshBundle"
         error:
           type: "null"
         meta:

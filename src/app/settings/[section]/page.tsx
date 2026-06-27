@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { JSX } from "react";
 
 import { AccountSection } from "@/components/settings/account-section";
+import { SecuritySection } from "@/components/settings/security-section";
 import { AboutSection } from "@/components/settings/about-section";
 import { AdvancedSection } from "@/components/settings/advanced-section";
 import { AiSection } from "@/components/settings/ai-section";
@@ -55,6 +56,7 @@ const SECTION_COMPONENTS: Record<
   () => JSX.Element | null
 > = {
   account: AccountSection,
+  security: SecuritySection,
   modules: ModulesSection,
   about: AboutSection,
   ai: AiSection,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Lock, Loader2 } from "lucide-react";
@@ -13,7 +13,13 @@ import { Separator } from "@/components/ui/separator";
 import { describePasskeyError } from "@/lib/passkey-errors";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { ApiError, apiGet, apiPost } from "@/lib/api/api-fetch";
+import {
+  ApiError,
+  apiFetchEnvelope,
+  apiGet,
+  apiPost,
+} from "@/lib/api/api-fetch";
+import { MfaLoginStep, type MfaMethod } from "@/components/auth/mfa-login-step";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import { prefetchDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 
@@ -27,6 +33,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // v1.23 — second step of login when the password response carries
+  // `meta.mfaRequired`. Holds the opaque ticket + the factors the account can
+  // complete the challenge with.
+  const [mfaChallenge, setMfaChallenge] = useState<{
+    ticket: string;
+    methods: MfaMethod[];
+  } | null>(null);
+  // Guards the conditional-UI passkey autofill so it starts at most once.
+  const autofillStarted = useRef(false);
   // v1.4.27 MB3 — explicit error-region id so the email + password
   // inputs reference the banner via `aria-describedby`. Screen readers
   // pair the error with the field instead of announcing it as a
@@ -112,7 +127,28 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await apiPost("/api/auth/login", { email, password });
+      // Read the envelope `meta` directly: an MFA account gets HTTP 200 with
+      // `data: null` + `meta.mfaRequired`, not an error and not a session.
+      const { meta } = await apiFetchEnvelope<
+        unknown,
+        {
+          mfaRequired?: boolean;
+          mfaTicket?: string;
+          methods?: MfaMethod[];
+        }
+      >("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (meta?.mfaRequired && meta.mfaTicket) {
+        setMfaChallenge({
+          ticket: meta.mfaTicket,
+          methods: meta.methods ?? ["totp", "recovery"],
+        });
+        return;
+      }
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
       navigateAfterLogin();
@@ -126,6 +162,50 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  // v1.23 — passkey conditional-UI autofill. When the browser supports it,
+  // arm a discoverable-credential assertion bound to the username field so a
+  // returning user can pick their passkey straight from the autofill prompt.
+  // Best-effort: any abort (the user types a password instead) is swallowed.
+  useEffect(() => {
+    if (autofillStarted.current) return;
+    autofillStarted.current = true;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { browserSupportsWebAuthnAutofill, startAuthentication } =
+          await import("@simplewebauthn/browser");
+        if (!(await browserSupportsWebAuthnAutofill())) return;
+
+        const { options, challengeId } = await apiPost<{
+          options: Parameters<typeof startAuthentication>[0]["optionsJSON"];
+          challengeId: string;
+        }>("/api/auth/passkey/login-options");
+
+        const credential = await startAuthentication({
+          optionsJSON: options,
+          useBrowserAutofill: true,
+        });
+        if (cancelled) return;
+
+        await apiPost("/api/auth/passkey/login-verify", {
+          challengeId,
+          credential,
+        });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
+        navigateAfterLogin();
+      } catch {
+        // Autofill aborts (no passkey, user dismisses, password path taken)
+        // are normal — stay silent and let the explicit buttons drive login.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex w-full max-w-sm flex-col gap-4">
@@ -143,131 +223,152 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="mt-8 space-y-4">
-          {/* Phase A5 / B-mobile: bumped from default size (h-9, 36px)
+        {mfaChallenge ? (
+          <div className="mt-8">
+            <MfaLoginStep
+              mfaTicket={mfaChallenge.ticket}
+              methods={mfaChallenge.methods}
+              onSuccess={async () => {
+                await queryClient.invalidateQueries({
+                  queryKey: queryKeys.auth(),
+                });
+                navigateAfterLogin();
+              }}
+              onCancel={() => {
+                setMfaChallenge(null);
+                setError(null);
+              }}
+            />
+          </div>
+        ) : (
+          <div className="mt-8 space-y-4">
+            {/* Phase A5 / B-mobile: bumped from default size (h-9, 36px)
               to size="lg" so the login CTAs meet WCAG 2.5.5 (44px
               minimum) on mobile. Login is the most-tapped flow on a
               fresh install. */}
-          <Button
-            onClick={handlePasskeyLogin}
-            className="min-h-11 w-full"
-            size="lg"
-            disabled={loading}
-          >
-            {loading && mode === "passkey" ? (
-              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-            ) : (
-              <KeyRound className="h-4 w-4" />
-            )}
-            {t("auth.loginWithPasskey")}
-          </Button>
-
-          <div className="flex items-center gap-3">
-            <Separator className="flex-1" />
-            <span className="text-muted-foreground text-xs">
-              {t("common.or")}
-            </span>
-            <Separator className="flex-1" />
-          </div>
-
-          {mode === "passkey" ? (
             <Button
-              variant="outline"
+              onClick={handlePasskeyLogin}
               className="min-h-11 w-full"
               size="lg"
-              onClick={() => setMode("password")}
+              disabled={loading}
             >
-              <Lock className="h-4 w-4" />
-              {t("auth.loginWithPassword")}
+              {loading && mode === "passkey" ? (
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <KeyRound className="h-4 w-4" />
+              )}
+              {t("auth.loginWithPasskey")}
             </Button>
-          ) : (
-            <form onSubmit={handlePasswordLogin} className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="email">{t("auth.emailOrUsername")}</Label>
-                <Input
-                  id="email"
-                  type="text"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="username"
-                  inputMode="email"
-                  enterKeyHint="next"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  aria-required="true"
-                  aria-invalid={!!error || undefined}
-                  aria-describedby={errorDescriptor}
-                  placeholder={t("auth.emailOrUsernamePlaceholder")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">{t("auth.password")}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  enterKeyHint="go"
-                  aria-required="true"
-                  aria-invalid={!!error || undefined}
-                  aria-describedby={errorDescriptor}
-                  placeholder="********"
-                />
-              </div>
+
+            <div className="flex items-center gap-3">
+              <Separator className="flex-1" />
+              <span className="text-muted-foreground text-xs">
+                {t("common.or")}
+              </span>
+              <Separator className="flex-1" />
+            </div>
+
+            {mode === "passkey" ? (
               <Button
-                type="submit"
+                variant="outline"
                 className="min-h-11 w-full"
                 size="lg"
-                disabled={loading}
+                onClick={() => setMode("password")}
               >
-                {loading && mode === "password" ? (
-                  <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-                ) : (
-                  <Lock className="h-4 w-4" />
-                )}
-                {t("auth.login")}
+                <Lock className="h-4 w-4" />
+                {t("auth.loginWithPassword")}
               </Button>
-              <button
-                type="button"
-                onClick={() => setMode("passkey")}
-                className="text-muted-foreground hover:text-foreground inline-flex min-h-11 w-full items-center justify-center text-center text-xs"
-              >
-                {t("auth.backToPasskey")}
-              </button>
-            </form>
-          )}
+            ) : (
+              <form onSubmit={handlePasswordLogin} className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="email">{t("auth.emailOrUsername")}</Label>
+                  <Input
+                    id="email"
+                    type="text"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    // `webauthn` token arms the conditional-UI passkey
+                    // autofill prompt on this field (see the mount effect).
+                    autoComplete="username webauthn"
+                    inputMode="email"
+                    enterKeyHint="next"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-required="true"
+                    aria-invalid={!!error || undefined}
+                    aria-describedby={errorDescriptor}
+                    placeholder={t("auth.emailOrUsernamePlaceholder")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">{t("auth.password")}</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                    enterKeyHint="go"
+                    aria-required="true"
+                    aria-invalid={!!error || undefined}
+                    aria-describedby={errorDescriptor}
+                    placeholder="********"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="min-h-11 w-full"
+                  size="lg"
+                  disabled={loading}
+                >
+                  {loading && mode === "password" ? (
+                    <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                  {t("auth.login")}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setMode("passkey")}
+                  className="text-muted-foreground hover:text-foreground inline-flex min-h-11 w-full items-center justify-center text-center text-xs"
+                >
+                  {t("auth.backToPasskey")}
+                </button>
+              </form>
+            )}
 
-          {error && (
-            <div
-              id={errorId}
-              role="alert"
-              aria-live="polite"
-              className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
-            >
-              {error}
-            </div>
-          )}
-
-          {registrationEnabled === true && (
-            <p className="text-muted-foreground text-center text-xs">
-              {t("auth.noAccount")}{" "}
-              <Link
-                href="/auth/register"
-                // axe-core `link-in-text-block` requires a visible
-                // distinction beyond colour alone (WCAG 1.4.1). Forcing
-                // the underline always-on instead of `hover:underline`
-                // satisfies the rule without changing the visual after
-                // hover.
-                className="text-primary underline"
+            {error && (
+              <div
+                id={errorId}
+                role="alert"
+                aria-live="polite"
+                className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
               >
-                {t("auth.register")}
-              </Link>
-            </p>
-          )}
-        </div>
+                {error}
+              </div>
+            )}
+
+            {registrationEnabled === true && (
+              <p className="text-muted-foreground text-center text-xs">
+                {t("auth.noAccount")}{" "}
+                <Link
+                  href="/auth/register"
+                  // axe-core `link-in-text-block` requires a visible
+                  // distinction beyond colour alone (WCAG 1.4.1). Forcing
+                  // the underline always-on instead of `hover:underline`
+                  // satisfies the rule without changing the visual after
+                  // hover.
+                  className="text-primary underline"
+                >
+                  {t("auth.register")}
+                </Link>
+              </p>
+            )}
+          </div>
+        )}
       </div>
       {/* v1.4.26 — discoverable privacy link below the login card.
           App Store reviewers and first-time visitors need a one-click

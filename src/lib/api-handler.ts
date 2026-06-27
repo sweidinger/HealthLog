@@ -539,8 +539,15 @@ export async function requireFreshMfa(
   // The user must actually have a second factor active. A single-factor
   // account cannot produce a fresh-MFA proof, so step-up-gated actions are
   // unreachable for it by design (the management UI gates enrolment first).
+  // Either factor counts: a confirmed TOTP secret OR a registered WebAuthn
+  // security key — both stamp `Session.mfaVerifiedAt` on a completed login.
   if (!sessionData.user.totpConfirmedAt) {
-    throw new StepUpRequiredError("auth.stepup.mfa_not_enrolled");
+    const webauthnKeyCount = await prisma.webauthnMfaCredential.count({
+      where: { userId: sessionData.user.id },
+    });
+    if (webauthnKeyCount === 0) {
+      throw new StepUpRequiredError("auth.stepup.mfa_not_enrolled");
+    }
   }
 
   // Read the freshness stamp off the live session row — `getSession`'s
@@ -579,7 +586,17 @@ export async function requireFreshMfaIfEnrolled(
   maxAgeSeconds: number,
 ): Promise<AuthContext> {
   const auth = await requireAuth();
-  if (auth.user.totpConfirmedAt) {
+  // Either factor enrols the account: a confirmed TOTP secret OR a registered
+  // WebAuthn security key. A webauthn-only user must clear step-up too, so the
+  // destructive-action boundary tracks `requireFreshMfa`'s either-factor rule.
+  let enrolled = Boolean(auth.user.totpConfirmedAt);
+  if (!enrolled) {
+    const webauthnKeyCount = await prisma.webauthnMfaCredential.count({
+      where: { userId: auth.user.id },
+    });
+    enrolled = webauthnKeyCount > 0;
+  }
+  if (enrolled) {
     await requireFreshMfa(maxAgeSeconds);
   }
   return auth;

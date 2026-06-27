@@ -96,17 +96,30 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   // v1.23 — second-factor gate. The password is correct, but an account with
-  // a confirmed TOTP factor is NOT yet authenticated: no `Session` row and no
-  // token bundle is minted here. Instead a single-use, ~5-minute MFA ticket is
+  // a confirmed second factor (a TOTP secret and/or a registered WebAuthn
+  // security key) is NOT yet authenticated: no `Session` row and no token
+  // bundle is minted here. Instead a single-use, ~5-minute MFA ticket is
   // returned (the partial state lives in the ticket, never in a half-built
-  // session) and the client completes the login at `/api/auth/mfa/verify`.
+  // session) and the client completes the login at `/api/auth/mfa/verify`
+  // (TOTP / recovery) or `/api/auth/mfa/webauthn/verify` (security key).
   //
   // Enumeration note: `meta.mfaRequired` is only ever returned AFTER a valid
   // password, and the invalid-credentials response above is identical
   // regardless of MFA state — an attacker without the password cannot learn
   // whether an account has MFA.
-  if (user.totpConfirmedAt) {
+  const hasTotp = Boolean(user.totpConfirmedAt);
+  const webauthnKeyCount = await prisma.webauthnMfaCredential.count({
+    where: { userId: user.id },
+  });
+  const hasWebauthn = webauthnKeyCount > 0;
+
+  if (hasTotp || hasWebauthn) {
     const challenge = await createMfaChallenge(user.id, "login");
+    // Recovery codes are only ever issued alongside TOTP enrollment, so the
+    // recovery method is offered exactly when TOTP is active.
+    const methods: ("totp" | "recovery" | "webauthn")[] = [];
+    if (hasTotp) methods.push("totp", "recovery");
+    if (hasWebauthn) methods.push("webauthn");
     await auditLog("auth.mfa.challenge", {
       userId: user.id,
       ipAddress: ip,
@@ -123,7 +136,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
         meta: {
           mfaRequired: true,
           mfaTicket: challenge.ticket,
-          methods: ["totp", "recovery"],
+          methods,
         },
       },
       { status: 200 },
