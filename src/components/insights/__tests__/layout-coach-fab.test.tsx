@@ -171,20 +171,42 @@ describe("isNudgeUnread", () => {
 
   it("is false without status or without a nudge", () => {
     expect(isNudgeUnread(undefined, null)).toBe(false);
-    expect(isNudgeUnread({ nudgedAt: null, unread: false }, null)).toBe(false);
+    expect(
+      isNudgeUnread(
+        { nudgedAt: null, unread: false, conversationId: null },
+        null,
+      ),
+    ).toBe(false);
   });
 
   it("is true for a server-unread nudge the device has not seen", () => {
-    expect(isNudgeUnread({ nudgedAt, unread: true }, null)).toBe(true);
-    expect(isNudgeUnread({ nudgedAt, unread: true }, "2026-01-01")).toBe(true);
+    expect(
+      isNudgeUnread({ nudgedAt, unread: true, conversationId: "conv-1" }, null),
+    ).toBe(true);
+    expect(
+      isNudgeUnread(
+        { nudgedAt, unread: true, conversationId: "conv-1" },
+        "2026-01-01",
+      ),
+    ).toBe(true);
   });
 
   it("is false once the server counts the nudge as read", () => {
     // The user sent a Coach message after the nudge.
-    expect(isNudgeUnread({ nudgedAt, unread: false }, null)).toBe(false);
+    expect(
+      isNudgeUnread(
+        { nudgedAt, unread: false, conversationId: "conv-1" },
+        null,
+      ),
+    ).toBe(false);
   });
 
   it("is false once this device stored the matching seen stamp", () => {
-    expect(isNudgeUnread({ nudgedAt, unread: true }, nudgedAt)).toBe(false);
+    expect(
+      isNudgeUnread(
+        { nudgedAt, unread: true, conversationId: "conv-1" },
+        nudgedAt,
+      ),
+    ).toBe(false);
   });
 });
