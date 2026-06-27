@@ -1107,9 +1107,7 @@ async function streamRefusal(args: {
  * GlitchTip path. Status mapping mirrors `AllProvidersFailedError`: 401/403 →
  * credential_expired, 429 → rate_limited, everything else → unavailable.
  */
-function classifyBubblingProviderError(
-  err: unknown,
-): {
+function classifyBubblingProviderError(err: unknown): {
   code: "credential_expired" | "rate_limited" | "unavailable";
   httpStatus: number | null;
 } | null {
