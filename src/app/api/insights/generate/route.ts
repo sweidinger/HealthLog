@@ -57,6 +57,7 @@ import {
   singleUserTurn,
   type InsightResult,
 } from "@/lib/ai/types";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
 import {
   AllProvidersFailedError,
@@ -700,6 +701,10 @@ export const POST = apiHandler((request: NextRequest) =>
           user: userPrompt,
           temperature: 0.3,
           maxTokens: 1500,
+          // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
+          // generation is not aborted at the client's 60 s default on large
+          // accounts (which returned an empty briefing + trend narrative).
+          timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
           // The reply is parsed with `JSON.parse` below, so opt the OpenAI /
           // Codex chains into their strict JSON mode (gated on this flag).
           responseFormat: "json",
@@ -836,6 +841,8 @@ export const POST = apiHandler((request: NextRequest) =>
               user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
               temperature: 0.3,
               maxTokens: 1500,
+              // v1.21.5 — wider upstream budget; see the first generation call.
+              timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
               // Parsed with `JSON.parse` below — opt OpenAI / Codex into JSON mode.
               responseFormat: "json",
             }),
