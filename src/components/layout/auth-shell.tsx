@@ -261,8 +261,8 @@ export function AuthShell({
           >
             {/*
               v1.4.33 IW9 — container normalised on `max-w-screen-xl`
-              (1280 px) so dashboard / settings / admin / bugreport all
-              hit the same content frame. Pre-v1.4.33 the dashboard
+              (1280 px) so dashboard / settings / admin all hit the
+              same content frame. Pre-v1.4.33 the dashboard
               shell capped at `max-w-[76.8rem]` (1228 px) while the
               settings/admin shells used `max-w-screen-xl`, producing a
               52 px lateral wobble on every route switch. Same audit

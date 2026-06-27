@@ -606,7 +606,6 @@ model User {
   pushSubscriptions           PushSubscription[]
   dataBackups                 DataBackup[]
   achievements                UserAchievement[]
-  feedback                    Feedback[]
   recommendationFeedback      RecommendationFeedback[]
   idempotencyKeys             IdempotencyKey[]
   devices                     Device[]
@@ -3204,13 +3203,6 @@ model AppSettings {
   glitchtipEnabled                Boolean @default(false) @map("glitchtip_enabled")
   glitchtipDsn                    String? @map("glitchtip_dsn")
   glitchtipEnvironment            String? @map("glitchtip_environment")
-  githubIssueTokenEncrypted       String? @map("github_issue_token_encrypted")
-  githubIssueRepo                 String? @map("github_issue_repo")
-  // v1.4.3: explicit toggle so an admin can hide the bug-report
-  // surface without nuking the token+repo config. Default true so
-  // existing instances with credentials don't accidentally lose
-  // the feature on upgrade.
-  bugReportEnabled                Boolean @default(true) @map("bug_report_enabled")
 
   // Medication reminder thresholds (minutes after windowEnd)
   reminderLateMinutes   Int @default(120) @map("reminder_late_minutes")
@@ -3279,52 +3271,6 @@ model AppSettings {
   moduleAvailabilityJson Json? @map("module_availability_json")
 
   @@map("app_settings")
-}
-
-// ─── Built-in Feedback ───────────────────────────────────────
-
-enum FeedbackCategory {
-  BUG
-  FEATURE_REQUEST
-  QUESTION
-  OTHER
-
-  @@map("feedback_category")
-}
-
-enum FeedbackStatus {
-  OPEN
-  ACKNOWLEDGED
-  RESOLVED
-  ARCHIVED
-
-  @@map("feedback_status")
-}
-
-/// Stores user-submitted feedback without requiring external GitHub config.
-/// Admin inbox lives at /admin#feedback; optional escalation publishes to a
-/// GitHub issue reusing the existing integration when configured.
-model Feedback {
-  id               String           @id @default(cuid())
-  userId           String?          @map("user_id") // Null after user deletion; email snapshot remains.
-  email            String? // Snapshot at submission time for triage continuity.
-  category         FeedbackCategory @default(BUG)
-  subject          String
-  description      String
-  screenshotBase64 String?          @map("screenshot_base64") // Optional, <5MB, PNG/JPG.
-  metadata         Json? // URL, userAgent, locale, appVersion, …
-  status           FeedbackStatus   @default(OPEN)
-  adminNote        String?          @map("admin_note")
-  gitHubIssueUrl   String?          @map("github_issue_url")
-  notifiedEmail    Boolean          @default(false) @map("notified_email")
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([status, createdAt])
-  @@index([userId])
-  @@map("feedback")
 }
 
 // ─── Audit Log ─────────────────────────────────────────────

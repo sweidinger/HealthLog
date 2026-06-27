@@ -41,6 +41,4 @@ export const settingsKeys = {
   shareLinks: () => ["share-links"] as const,
 
   featureFlags: () => ["feature-flags"] as const,
-
-  bugreportStatus: () => ["bugreport", "status"] as const,
 };

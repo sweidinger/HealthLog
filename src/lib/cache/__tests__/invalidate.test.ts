@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { __resetAllCachesForTests, cached, caches } from "../server-cache";
 import {
-  invalidateAppSettings,
   invalidateUserDashboardWidgets,
   invalidateUserDashboardSnapshot,
   invalidateUserInsights,
@@ -95,8 +94,6 @@ async function primeAllCaches(): Promise<void> {
     dashboardSnapshotCacheKey(USER_B),
     async () => ({ snap: 2 }),
   );
-
-  await cached(caches.bugreportStatus, "singleton", async () => ({ s: 1 }));
 }
 
 describe("invalidateUserMeasurements", () => {
@@ -345,15 +342,5 @@ describe("invalidateUserProfile", () => {
 
     // Buckets a profile edit does not feed stay untouched.
     expect(caches.medications.get(USER_A)).not.toBeNull();
-  });
-});
-
-describe("invalidateAppSettings", () => {
-  it("evicts the entire bug-report status cache (singleton row)", async () => {
-    await primeAllCaches();
-    invalidateAppSettings();
-    expect(caches.bugreportStatus.get("singleton")).toBeNull();
-    // Per-user caches untouched.
-    expect(caches.analytics.get(`${USER_A}|default`)).not.toBeNull();
   });
 });

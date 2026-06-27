@@ -90,7 +90,6 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
     field: "webPushVapidPrivateKeyEncrypted",
     kind: "string",
   },
-  { model: "AppSettings", field: "githubIssueTokenEncrypted", kind: "string" },
 
   // ───── Custom labels (mood + cycle) ─────
   { model: "MoodTag", field: "labelEncrypted", kind: "string" },

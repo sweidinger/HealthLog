@@ -133,7 +133,7 @@ export default function NotificationsPage() {
           {t("notifications.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
-          {t("bugreport.loginRequired")}
+          {t("notifications.loginRequired")}
         </p>
       </div>
     );

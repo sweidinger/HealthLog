@@ -137,7 +137,6 @@ const mockData = {
     passkeyLoginCount: 0,
     passwordLoginCount: 0,
     loginDayStreak: 0,
-    bugReportCount: 0,
     moodEntryCount: 0,
     moodDayStreak: 0,
     moodImprovementHit: 0,

@@ -227,11 +227,9 @@ async function main() {
 
   // ───── AppSettings — operator credentials (String) ─────
   // Columns: "adminAiKeyEncrypted" "webPushVapidPrivateKeyEncrypted"
-  // "githubIssueTokenEncrypted"
   for (const field of [
     "adminAiKeyEncrypted",
     "webPushVapidPrivateKeyEncrypted",
-    "githubIssueTokenEncrypted",
   ]) {
     results.push(
       await rotateStringColumn("AppSettings", field, prisma.appSettings),

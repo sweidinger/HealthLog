@@ -598,7 +598,6 @@ export async function buildAchievementsResult(
           in: [
             "auth.login.passkey",
             "auth.login.password",
-            "bugreport.submit",
             // v1.4.18 — hidden Easter-egg triggers
             "doctor-report.generate",
             "doctor-report.pdf.generate",
@@ -700,9 +699,6 @@ export async function buildAchievementsResult(
   const passwordLoginDates = auditEvents
     .filter((event) => event.action === "auth.login.password")
     .map((event) => event.createdAt);
-  const bugReportDates = auditEvents
-    .filter((event) => event.action === "bugreport.submit")
-    .map((event) => event.createdAt);
   const loginDaySeries = getEventDaySeries([
     ...passkeyLoginDates,
     ...passwordLoginDates,
@@ -800,7 +796,6 @@ export async function buildAchievementsResult(
     passkeyLoginCount: passkeyLoginDates.length,
     passwordLoginCount: passwordLoginDates.length,
     loginDayStreak: calculateLongestStreak(freeze(loginDaySeries.dayKeys)),
-    bugReportCount: bugReportDates.length,
     ...expansionValues,
     // v1.16.1 — care-routine metrics.
     missFreeDayStreak: calculateLongestStreak(freeze(missFreeSeries.dayKeys)),
@@ -842,15 +837,6 @@ export async function buildAchievementsResult(
     if (definition.metric === "passwordLoginCount") {
       const completedAt = findCountCompletionDate(
         passwordLoginDates,
-        definition.target,
-      );
-      if (completedAt) completionDates[definition.id] = completedAt;
-      continue;
-    }
-
-    if (definition.metric === "bugReportCount") {
-      const completedAt = findCountCompletionDate(
-        bugReportDates,
         definition.target,
       );
       if (completedAt) completionDates[definition.id] = completedAt;

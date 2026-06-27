@@ -32,7 +32,6 @@
     "copy": "Copy",
     "copyDetails": "Copy details",
     "retry": "Retry",
-    "reportIssue": "Report issue",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "learnMore": "Learn more"
@@ -204,7 +203,6 @@
     "insights": "Insights",
     "achievements": "Achievements",
     "settings": "Settings",
-    "bugreport": "Bug Report",
     "admin": "Admin Console",
     "logout": "Sign out",
     "login": "Sign in",
@@ -5064,7 +5062,6 @@
     "webPushGlobal": "Allow browser push notifications.",
     "moodLogGlobal": "Allow mood-log reminders.",
     "integrationWebPush": "Web Push",
-    "integrationBugReport": "Bug Report",
     "offlineGeoLabel": "Geo data",
     "offlineGeoEnabled": "Offline (GeoLite2)",
     "offlineGeoFallback": "Fallback (ipwho.is) — set MAXMIND_LICENSE_KEY in CI",
@@ -5101,12 +5098,6 @@
     "configured": "Configured",
     "monitoringTestSuccess": "Test event sent",
     "monitoringTestFailed": "Monitoring test failed",
-    "bugReportGithub": "Bug report (GitHub Issues)",
-    "bugReportGithubDescription": "Configure GitHub issue token and repository for incoming bug reports.",
-    "bugReportEnabledLabel": "Bug reports enabled",
-    "bugReportEnabledDescription": "When off, the in-app report button hides — token and repository stay configured.",
-    "bugReportDeprecatedBadge": "Deprecated",
-    "bugReportDeprecatedNote": "This feature is deprecated and will be removed in a future version.",
     "assistant": {
       "title": "Assistant Surfaces",
       "description": "Each toggle hides a model-driven surface app-wide without removing the provider configuration. The master kills every sub-flag at once.",
@@ -5140,10 +5131,6 @@
       "description": "Turn a module off for the whole server. A module disabled here is off for every account regardless of personal preference. Core domains (weight, blood pressure, pulse, medications) are always on and cannot be disabled.",
       "saveError": "Could not update module availability."
     },
-    "bugReportRepo": "Repository",
-    "bugReportRepoPlaceholder": "owner/repo",
-    "bugReportToken": "Issue token",
-    "bugReportTokenPlaceholder": "ghp_...",
     "invites": {
       "title": "Invites",
       "description": "Registration invite links — they work even while registration is closed. The link is shown only once.",
@@ -5297,47 +5284,6 @@
     "reminderCheckNotifOff": "Notifications off",
     "reminderCheckEventsToday": "Events today",
     "reminderCheckNotifSent": "Sent",
-    "feedback": {
-      "tabOpen": "Open",
-      "tabAcknowledged": "Acknowledged",
-      "tabResolved": "Resolved",
-      "tabArchived": "Archived",
-      "subject": "Subject",
-      "category": "Category",
-      "user": "User",
-      "createdAt": "Submitted",
-      "actions": "Actions",
-      "details": "Details",
-      "emptyTitle": "All caught up",
-      "emptyDescription": "No user feedback in this status. Submitted bugs, questions, and feature requests will appear here.",
-      "loading": "Loading feedback...",
-      "anonymous": "anonymous",
-      "categoryBug": "Bug",
-      "categoryFeature": "Feature",
-      "categoryQuestion": "Question",
-      "categoryOther": "Other",
-      "metadataHeading": "Metadata",
-      "metaUrl": "URL",
-      "metaLocale": "Locale",
-      "metaUserAgent": "User agent",
-      "metaAppVersion": "App version",
-      "screenshotHeading": "Screenshot",
-      "adminNote": "Admin note",
-      "adminNotePlaceholder": "Internal note (not visible to user)",
-      "saveNote": "Save note",
-      "noteSaved": "Note saved",
-      "actionAcknowledge": "Acknowledge",
-      "actionResolve": "Resolve",
-      "actionArchive": "Archive",
-      "actionPublishGithub": "Publish to GitHub",
-      "publishedToGithub": "Published to GitHub",
-      "viewIssue": "View issue",
-      "publishSuccess": "Issue created",
-      "publishFailed": "GitHub publish failed",
-      "updateFailed": "Update failed",
-      "archiveConfirm": "Archive this feedback entry?",
-      "submittedBy": "Submitted by"
-    },
     "shell": {
       "overview": "Overview",
       "sectionsNav": "Admin sections"
@@ -5389,10 +5335,6 @@
       "coach": {
         "title": "Coach",
         "subtitle": "Assistant surfaces, server key, and the Coach and Insights feedback-quality tables in one place."
-      },
-      "feedback": {
-        "title": "Feedback",
-        "subtitle": "Triage user feedback, bug reports, and feature requests."
       },
       "reminders": {
         "title": "Reminders",
@@ -5583,10 +5525,6 @@
         "title": "Old school",
         "description": "Sign in at least once with username and password."
       },
-      "bugReport1": {
-        "title": "Bug hunter",
-        "description": "Submit a bug report."
-      },
       "loginStreak7": {
         "title": "Login streak 7d",
         "description": "Sign in on 7 consecutive days."
@@ -5775,10 +5713,6 @@
         "title": "Polyglot",
         "description": "Switched the app language at least once."
       },
-      "hiddenBugBuddy": {
-        "title": "Bug buddy",
-        "description": "Submitted at least 5 bug reports — the project loves you."
-      },
       "missFree7": {
         "title": "No dose missed · 7d",
         "description": "7 consecutive days without a missed dose."
@@ -5830,26 +5764,6 @@
       "viewAll": "View all",
       "empty": "No achievements yet — keep logging to unlock your first."
     }
-  },
-  "bugreport": {
-    "title": "Bug Report",
-    "subtitle": "Send a bug report, feature request, or question. The server administrator will see your submission.",
-    "loginRequired": "Please sign in to report a bug.",
-    "bugTitle": "Title",
-    "description": "Description",
-    "submit": "Send",
-    "success": "Thank you! Your bug report has been submitted successfully.",
-    "errorCreating": "Error creating report",
-    "category": "Type",
-    "categoryBug": "Bug report",
-    "categoryFeature": "Feature request",
-    "categoryQuestion": "Question",
-    "categoryOther": "Other feedback",
-    "bugTitlePlaceholder": "Short summary (optional)",
-    "githubEscalationNote": "Your feedback is stored locally. If the admin enables GitHub integration, it can be promoted to a public issue on request.",
-    "internalOnlyNote": "Your feedback is stored locally and only visible to the administrator of this server.",
-    "disabledTitle": "Bug reports are turned off",
-    "disabledBody": "The administrator has disabled bug reports on this server."
   },
   "notifications": {
     "title": "Notifications",
@@ -5955,7 +5869,8 @@
     "eventMeasurementReminder": "Measurement reminder",
     "eventMeasurementReminderDesc": "Sent when a tracked measurement is due.",
     "eventMedicationIntakeSync": "Medication intake sync",
-    "eventMedicationIntakeSyncDesc": "Cross-device update when a dose is logged, taken or skipped."
+    "eventMedicationIntakeSyncDesc": "Cross-device update when a dose is logged, taken or skipped.",
+    "loginRequired": "Please sign in to manage notifications."
   },
   "i18n": {
     "maintainershipBanner": {

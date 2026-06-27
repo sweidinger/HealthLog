@@ -46,7 +46,6 @@ import { AiQualitySection } from "../ai-quality-section";
 import { ApiTokenOverviewSection } from "../api-token-overview-section";
 import { BackupsSection } from "../backups-section";
 import { DangerZoneSection } from "../danger-zone-section";
-import { FeedbackInboxSection } from "../feedback-inbox-section";
 import { GeneralSettingsSection } from "../general-settings-section";
 import { IntegrationsGroupSection } from "../integrations-group-section";
 import { LoginOverviewSection } from "../login-overview-section";
@@ -89,20 +88,11 @@ describe("admin sections — SSR smoke", () => {
     expect(html).toContain("Telegram");
   });
 
-  it("<IntegrationsGroupSection> renders all four sub-sections", () => {
+  it("<IntegrationsGroupSection> renders all sub-sections", () => {
     const html = render(<IntegrationsGroupSection />);
     expect(html).toContain("Umami");
     expect(html).toContain("GlitchTip");
     expect(html).toContain("Web Push");
-  });
-
-  it("<FeedbackInboxSection> renders", () => {
-    const html = render(<FeedbackInboxSection />);
-    // F-08 dedupe: card no longer carries a duplicate "Feedback"
-    // header. Anchor on the empty-state copy + status tabs instead.
-    expect(html).toContain("All caught up");
-    expect(html).toContain("Open");
-    expect(html).toContain("Resolved");
   });
 
   it("<RemindersSection> renders", () => {

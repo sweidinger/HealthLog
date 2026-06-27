@@ -32,7 +32,6 @@
     "copy": "Kopieren",
     "copyDetails": "Details kopieren",
     "retry": "Erneut versuchen",
-    "reportIssue": "Fehler melden",
     "showPassword": "Passwort anzeigen",
     "hidePassword": "Passwort verbergen",
     "learnMore": "Mehr erfahren"
@@ -204,7 +203,6 @@
     "insights": "Insights",
     "achievements": "Erfolge",
     "settings": "Einstellungen",
-    "bugreport": "Bugreport",
     "admin": "Admin-Konsole",
     "logout": "Abmelden",
     "login": "Anmelden",
@@ -5064,7 +5062,6 @@
     "webPushGlobal": "Browser-Push-Benachrichtigungen erlauben.",
     "moodLogGlobal": "moodLog-Erinnerungen erlauben.",
     "integrationWebPush": "Web Push",
-    "integrationBugReport": "Bug-Reports",
     "offlineGeoLabel": "Geodaten",
     "offlineGeoEnabled": "Offline (GeoLite2)",
     "offlineGeoFallback": "Fallback (ipwho.is) — MAXMIND_LICENSE_KEY in CI setzen",
@@ -5101,12 +5098,6 @@
     "configured": "Konfiguriert",
     "monitoringTestSuccess": "Testevent wurde gesendet",
     "monitoringTestFailed": "Monitoring-Test fehlgeschlagen",
-    "bugReportGithub": "Bugreport (GitHub Issues)",
-    "bugReportGithubDescription": "Hinterlege GitHub-Issue-Token und Repository für eingehende Bugreports.",
-    "bugReportEnabledLabel": "Bug-Reports aktiviert",
-    "bugReportEnabledDescription": "Wenn deaktiviert, ist der Report-Button im Frontend nicht mehr sichtbar — Token und Repository bleiben gespeichert.",
-    "bugReportDeprecatedBadge": "Veraltet",
-    "bugReportDeprecatedNote": "Diese Funktion ist veraltet und wird in einer künftigen Version entfernt.",
     "assistant": {
       "title": "Assistenz-Oberflächen",
       "description": "Jeder Toggle versteckt eine modellgestützte Oberfläche app-weit, ohne die Provider-Konfiguration zu entfernen. Der Hauptschalter erzwingt jede Unter-Option aus.",
@@ -5140,10 +5131,6 @@
       "description": "Schalte ein Modul für den gesamten Server ab. Ein hier deaktiviertes Modul ist für jedes Konto aus – unabhängig von den persönlichen Einstellungen. Kerndaten (Gewicht, Blutdruck, Puls, Medikamente) sind immer aktiv und lassen sich nicht abschalten.",
       "saveError": "Modulverfügbarkeit konnte nicht aktualisiert werden."
     },
-    "bugReportRepo": "Repository",
-    "bugReportRepoPlaceholder": "owner/repo",
-    "bugReportToken": "Issue-Token",
-    "bugReportTokenPlaceholder": "ghp_...",
     "invites": {
       "title": "Einladungen",
       "description": "Einladungslinks für die Registrierung — funktionieren auch bei geschlossener Registrierung. Der Link wird nur einmal angezeigt.",
@@ -5297,47 +5284,6 @@
     "reminderCheckNotifOff": "Benachrichtigungen aus",
     "reminderCheckEventsToday": "Heutige Events",
     "reminderCheckNotifSent": "Gesendet",
-    "feedback": {
-      "tabOpen": "Offen",
-      "tabAcknowledged": "Bestätigt",
-      "tabResolved": "Erledigt",
-      "tabArchived": "Archiviert",
-      "subject": "Betreff",
-      "category": "Kategorie",
-      "user": "Benutzer",
-      "createdAt": "Eingegangen",
-      "actions": "Aktionen",
-      "details": "Details",
-      "emptyTitle": "Alles erledigt",
-      "emptyDescription": "Kein Nutzer-Feedback in diesem Status. Bug-Reports, Fragen und Feature-Wünsche erscheinen hier.",
-      "loading": "Lade Feedback...",
-      "anonymous": "anonym",
-      "categoryBug": "Bug",
-      "categoryFeature": "Feature",
-      "categoryQuestion": "Frage",
-      "categoryOther": "Sonstiges",
-      "metadataHeading": "Metadaten",
-      "metaUrl": "URL",
-      "metaLocale": "Sprache",
-      "metaUserAgent": "User-Agent",
-      "metaAppVersion": "App-Version",
-      "screenshotHeading": "Screenshot",
-      "adminNote": "Admin-Notiz",
-      "adminNotePlaceholder": "Interne Notiz (nicht für Benutzer sichtbar)",
-      "saveNote": "Notiz speichern",
-      "noteSaved": "Notiz gespeichert",
-      "actionAcknowledge": "Bestätigen",
-      "actionResolve": "Erledigen",
-      "actionArchive": "Archivieren",
-      "actionPublishGithub": "Auf GitHub veröffentlichen",
-      "publishedToGithub": "Auf GitHub veröffentlicht",
-      "viewIssue": "Issue ansehen",
-      "publishSuccess": "Issue erstellt",
-      "publishFailed": "GitHub-Veröffentlichung fehlgeschlagen",
-      "updateFailed": "Aktualisierung fehlgeschlagen",
-      "archiveConfirm": "Diesen Feedback-Eintrag archivieren?",
-      "submittedBy": "Eingereicht von"
-    },
     "shell": {
       "overview": "Übersicht",
       "sectionsNav": "Admin-Bereiche"
@@ -5389,10 +5335,6 @@
       "coach": {
         "title": "Coach",
         "subtitle": "Assistenz-Oberflächen, Server-Schlüssel sowie die Feedback-Qualitäts-Tabellen für Coach und Auswertungen an einem Ort."
-      },
-      "feedback": {
-        "title": "Feedback",
-        "subtitle": "Feedback, Bug-Reports und Feature-Wünsche der Nutzer sichten."
       },
       "reminders": {
         "title": "Erinnerungen",
@@ -5583,10 +5525,6 @@
         "title": "Oldschool",
         "description": "Melde dich mindestens einmal mit Username und Passwort an."
       },
-      "bugReport1": {
-        "title": "Fehlerjäger",
-        "description": "Reiche einen Bugreport ein."
-      },
       "loginStreak7": {
         "title": "Login-Serie 7T",
         "description": "Logge dich an 7 Tagen in Folge ein."
@@ -5775,10 +5713,6 @@
         "title": "Polyglott",
         "description": "Du hast die App-Sprache mindestens einmal gewechselt."
       },
-      "hiddenBugBuddy": {
-        "title": "Bug-Kumpel",
-        "description": "Mindestens 5 Bugreports eingereicht — das Projekt liebt dich."
-      },
       "missFree7": {
         "title": "Lückenlos · 7T",
         "description": "7 Tage in Folge ohne eine verpasste Dosis."
@@ -5830,26 +5764,6 @@
       "viewAll": "Alle anzeigen",
       "empty": "Noch keine Erfolge — trage weiter ein, um deinen ersten freizuschalten."
     }
-  },
-  "bugreport": {
-    "title": "Bugreport",
-    "subtitle": "Sende eine Fehlermeldung, einen Feature-Wunsch oder eine Frage. Der Server-Administrator sieht deine Einreichung.",
-    "loginRequired": "Bitte anmelden, um einen Bug zu melden.",
-    "bugTitle": "Titel",
-    "description": "Beschreibung",
-    "submit": "Senden",
-    "success": "Vielen Dank! Dein Bug Report wurde erfolgreich übermittelt.",
-    "errorCreating": "Fehler beim Erstellen",
-    "category": "Art",
-    "categoryBug": "Fehlermeldung",
-    "categoryFeature": "Feature-Wunsch",
-    "categoryQuestion": "Frage",
-    "categoryOther": "Sonstiges Feedback",
-    "bugTitlePlaceholder": "Kurze Zusammenfassung (optional)",
-    "githubEscalationNote": "Dein Feedback wird lokal gespeichert. Wenn der Administrator die GitHub-Integration aktiviert, kann es auf Wunsch als öffentliches Issue veröffentlicht werden.",
-    "internalOnlyNote": "Dein Feedback wird lokal gespeichert und ist nur für den Administrator dieses Servers sichtbar.",
-    "disabledTitle": "Bug-Reports sind deaktiviert",
-    "disabledBody": "Der Administrator hat Bug-Reports auf diesem Server deaktiviert."
   },
   "notifications": {
     "title": "Benachrichtigungen",
@@ -5955,7 +5869,8 @@
     "eventMeasurementReminder": "Mess-Erinnerung",
     "eventMeasurementReminderDesc": "Wird gesendet, wenn eine erfasste Messung fällig ist.",
     "eventMedicationIntakeSync": "Einnahme-Synchronisierung",
-    "eventMedicationIntakeSyncDesc": "Geräteübergreifende Aktualisierung, wenn eine Dosis protokolliert, eingenommen oder übersprungen wird."
+    "eventMedicationIntakeSyncDesc": "Geräteübergreifende Aktualisierung, wenn eine Dosis protokolliert, eingenommen oder übersprungen wird.",
+    "loginRequired": "Bitte melde dich an, um Benachrichtigungen zu verwalten."
   },
   "i18n": {
     "maintainershipBanner": {

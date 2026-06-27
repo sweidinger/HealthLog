@@ -16,7 +16,6 @@ import {
   invalidateServerDefaultTimezone,
   isValidTimezone,
 } from "@/lib/tz/resolver";
-import { invalidateAppSettings } from "@/lib/cache/invalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -48,11 +47,6 @@ export const GET = apiHandler(async () => {
     glitchtipEnabled: settings?.glitchtipEnabled ?? false,
     glitchtipDsn: settings?.glitchtipDsn ?? null,
     glitchtipEnvironment: settings?.glitchtipEnvironment ?? "production",
-    bugReportRepo: settings?.githubIssueRepo ?? null,
-    bugReportConfigured: Boolean(
-      settings?.githubIssueRepo && settings?.githubIssueTokenEncrypted,
-    ),
-    bugReportEnabled: settings?.bugReportEnabled ?? true,
     reminderLateMinutes: settings?.reminderLateMinutes ?? 120,
     reminderMissedMinutes: settings?.reminderMissedMinutes ?? 240,
     moodLogGlobal: settings?.moodLogGlobal ?? true,
@@ -92,7 +86,6 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     "umamiEnabled",
     "glitchtipEnabled",
     "moodLogGlobal",
-    "bugReportEnabled",
   ] as const;
   for (const field of booleanFields) {
     if (data[field] !== undefined) {
@@ -171,24 +164,6 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     auditDetails.glitchtipEnvironment = value || null;
   }
 
-  // Bug report
-  if (data.bugReportRepo !== undefined) {
-    const repo = data.bugReportRepo.trim();
-    updates.githubIssueRepo = repo || null;
-    auditDetails.bugReportRepo = repo || null;
-  }
-  if (data.bugReportToken !== undefined) {
-    const token = data.bugReportToken.trim();
-    if (token) {
-      updates.githubIssueTokenEncrypted = encrypt(token);
-      auditDetails.bugReportTokenUpdated = true;
-    }
-  }
-  if (data.clearBugReportToken === true) {
-    updates.githubIssueTokenEncrypted = null;
-    auditDetails.bugReportTokenUpdated = false;
-  }
-
   // Numeric thresholds
   if (data.reminderLateMinutes !== undefined) {
     updates.reminderLateMinutes = data.reminderLateMinutes;
@@ -233,11 +208,6 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     invalidateServerDefaultTimezone();
   }
 
-  // v1.4.34 IW-G — bust the bug-report status cache (global singleton)
-  // so the next read reflects the new GitHub-token / bug-report-enabled
-  // shape. Cheap call — the cache holds at most 10 entries.
-  invalidateAppSettings();
-
   await auditLog("admin.settings.update", {
     userId: user.id,
     ipAddress: getClientIp(request),
@@ -264,11 +234,6 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     glitchtipEnabled: settings.glitchtipEnabled,
     glitchtipDsn: settings.glitchtipDsn,
     glitchtipEnvironment: settings.glitchtipEnvironment ?? "production",
-    bugReportRepo: settings.githubIssueRepo,
-    bugReportConfigured: Boolean(
-      settings.githubIssueRepo && settings.githubIssueTokenEncrypted,
-    ),
-    bugReportEnabled: settings.bugReportEnabled,
     reminderLateMinutes: settings.reminderLateMinutes,
     reminderMissedMinutes: settings.reminderMissedMinutes,
     moodLogGlobal: settings.moodLogGlobal,

@@ -32,7 +32,6 @@
     "copy": "Kopiuj",
     "copyDetails": "Kopiuj szczegóły",
     "retry": "Spróbuj ponownie",
-    "reportIssue": "Zgłoś problem",
     "showPassword": "Pokaż hasło",
     "hidePassword": "Ukryj hasło",
     "learnMore": "Dowiedz się więcej"
@@ -204,7 +203,6 @@
     "insights": "Insights",
     "achievements": "Osiągnięcia",
     "settings": "Ustawienia",
-    "bugreport": "Zgłoszenie błędu",
     "admin": "Konsola administratora",
     "logout": "Wyloguj",
     "login": "Zaloguj",
@@ -5064,7 +5062,6 @@
     "webPushGlobal": "Zezwól na powiadomienia push przeglądarki.",
     "moodLogGlobal": "Zezwól na przypomnienia dziennika nastroju.",
     "integrationWebPush": "Web Push",
-    "integrationBugReport": "Zgłoszenie błędu",
     "offlineGeoLabel": "Dane geograficzne",
     "offlineGeoEnabled": "Offline (GeoLite2)",
     "offlineGeoFallback": "Awaryjne (ipwho.is) — ustaw MAXMIND_LICENSE_KEY w CI",
@@ -5101,12 +5098,6 @@
     "configured": "Skonfigurowano",
     "monitoringTestSuccess": "Wysłano zdarzenie testowe",
     "monitoringTestFailed": "Test monitorowania nie powiódł się",
-    "bugReportGithub": "Zgłoszenie błędu (GitHub Issues)",
-    "bugReportGithubDescription": "Skonfiguruj token zgłoszeń GitHub i repozytorium dla przychodzących zgłoszeń błędów.",
-    "bugReportEnabledLabel": "Zgłaszanie błędów włączone",
-    "bugReportEnabledDescription": "Gdy wyłączone, przycisk zgłaszania w aplikacji jest ukryty — token i repozytorium pozostają skonfigurowane.",
-    "bugReportDeprecatedBadge": "Wycofane",
-    "bugReportDeprecatedNote": "Ta funkcja jest wycofywana i zostanie usunięta w przyszłej wersji.",
     "assistant": {
       "title": "Powierzchnie asystenta",
       "description": "Każdy przełącznik ukrywa powierzchnię opartą na modelu w całej aplikacji bez usuwania konfiguracji dostawcy. Główny wyłącznik wymusza wyłączenie każdej opcji podrzędnej.",
@@ -5140,10 +5131,6 @@
       "description": "Wyłącz moduł dla całego serwera. Moduł wyłączony tutaj jest nieaktywny dla każdego konta, niezależnie od preferencji użytkownika. Domeny podstawowe (waga, ciśnienie, tętno, leki) są zawsze włączone i nie można ich wyłączyć.",
       "saveError": "Nie udało się zaktualizować dostępności modułów."
     },
-    "bugReportRepo": "Repozytorium",
-    "bugReportRepoPlaceholder": "owner/repo",
-    "bugReportToken": "Token zgłoszeń",
-    "bugReportTokenPlaceholder": "ghp_...",
     "invites": {
       "title": "Zaproszenia",
       "description": "Linki z zaproszeniem do rejestracji — działają nawet przy zamkniętej rejestracji. Link jest wyświetlany tylko raz.",
@@ -5297,47 +5284,6 @@
     "reminderCheckNotifOff": "Powiadomienia wyłączone",
     "reminderCheckEventsToday": "Zdarzenia dzisiaj",
     "reminderCheckNotifSent": "Wysłane",
-    "feedback": {
-      "tabOpen": "Otwarte",
-      "tabAcknowledged": "Potwierdzone",
-      "tabResolved": "Rozwiązane",
-      "tabArchived": "Zarchiwizowane",
-      "subject": "Temat",
-      "category": "Kategoria",
-      "user": "Użytkownik",
-      "createdAt": "Przesłano",
-      "actions": "Akcje",
-      "details": "Szczegóły",
-      "emptyTitle": "Wszystko na bieżąco",
-      "emptyDescription": "Brak opinii użytkowników w tym statusie. Przesłane błędy, pytania i prośby o funkcje pojawią się tutaj.",
-      "loading": "Ładowanie opinii...",
-      "anonymous": "anonimowy",
-      "categoryBug": "Błąd",
-      "categoryFeature": "Funkcja",
-      "categoryQuestion": "Pytanie",
-      "categoryOther": "Inne",
-      "metadataHeading": "Metadane",
-      "metaUrl": "URL",
-      "metaLocale": "Język",
-      "metaUserAgent": "Agent użytkownika",
-      "metaAppVersion": "Wersja aplikacji",
-      "screenshotHeading": "Screenshot",
-      "adminNote": "Notatka administratora",
-      "adminNotePlaceholder": "Notatka wewnętrzna (niewidoczna dla użytkownika)",
-      "saveNote": "Zapisz notatkę",
-      "noteSaved": "Notatka zapisana",
-      "actionAcknowledge": "Potwierdź",
-      "actionResolve": "Rozwiąż",
-      "actionArchive": "Archiwizuj",
-      "actionPublishGithub": "Opublikuj na GitHub",
-      "publishedToGithub": "Opublikowano na GitHub",
-      "viewIssue": "Zobacz zgłoszenie",
-      "publishSuccess": "Utworzono zgłoszenie",
-      "publishFailed": "Publikacja na GitHub nie powiodła się",
-      "updateFailed": "Aktualizacja nie powiodła się",
-      "archiveConfirm": "Zarchiwizować ten wpis opinii?",
-      "submittedBy": "Przesłane przez"
-    },
     "shell": {
       "overview": "Przegląd",
       "sectionsNav": "Sekcje administracyjne"
@@ -5389,10 +5335,6 @@
       "coach": {
         "title": "Coach",
         "subtitle": "Powierzchnie asystenta, klucz serwera oraz tabele jakości opinii Coacha i analiz w jednym miejscu."
-      },
-      "feedback": {
-        "title": "Opinie",
-        "subtitle": "Segreguj opinie użytkowników, zgłoszenia błędów i prośby o funkcje."
       },
       "reminders": {
         "title": "Przypomnienia",
@@ -5583,10 +5525,6 @@
         "title": "Stara szkoła",
         "description": "Zaloguj się co najmniej raz nazwą użytkownika i hasłem."
       },
-      "bugReport1": {
-        "title": "Łowca błędów",
-        "description": "Wyślij zgłoszenie błędu."
-      },
       "loginStreak7": {
         "title": "Seria logowań 7d",
         "description": "Zaloguj się przez 7 kolejnych dni."
@@ -5775,10 +5713,6 @@
         "title": "Poliglota",
         "description": "Zmieniłeś język aplikacji co najmniej raz."
       },
-      "hiddenBugBuddy": {
-        "title": "Towarzysz błędów",
-        "description": "Wysłałeś co najmniej 5 zgłoszeń błędów — projekt Cię kocha."
-      },
       "missFree7": {
         "title": "Bez pominiętej dawki · 7 dni",
         "description": "7 kolejnych dni bez pominiętej dawki."
@@ -5830,26 +5764,6 @@
       "viewAll": "Zobacz wszystkie",
       "empty": "Brak osiągnięć — zapisuj dalej, aby odblokować pierwsze."
     }
-  },
-  "bugreport": {
-    "title": "Zgłoszenie błędu",
-    "subtitle": "Wyślij zgłoszenie błędu, sugestię funkcji lub pytanie. Administrator serwera zobaczy twoje zgłoszenie.",
-    "loginRequired": "Zaloguj się, aby zgłosić błąd.",
-    "bugTitle": "Tytuł",
-    "description": "Opis",
-    "submit": "Wyślij",
-    "success": "Dziękujemy! Twoje zgłoszenie zostało wysłane.",
-    "errorCreating": "Błąd tworzenia",
-    "category": "Rodzaj",
-    "categoryBug": "Błąd",
-    "categoryFeature": "Propozycja funkcji",
-    "categoryQuestion": "Pytanie",
-    "categoryOther": "Inna opinia",
-    "bugTitlePlaceholder": "Krótkie podsumowanie (opcjonalnie)",
-    "githubEscalationNote": "Twoja opinia zapisuje się lokalnie. Jeśli administrator włączy integrację z GitHubem, może zostać opublikowana jako publiczne issue na życzenie.",
-    "internalOnlyNote": "Twoja opinia zapisuje się lokalnie i jest widoczna tylko dla administratora tego serwera.",
-    "disabledTitle": "Zgłoszenia błędów są wyłączone",
-    "disabledBody": "Administrator wyłączył zgłoszenia błędów na tym serwerze."
   },
   "notifications": {
     "title": "Powiadomienia",
@@ -5955,7 +5869,8 @@
     "eventMeasurementReminder": "Przypomnienie o pomiarze",
     "eventMeasurementReminderDesc": "Wysyłane, gdy śledzony pomiar jest wymagany.",
     "eventMedicationIntakeSync": "Synchronizacja przyjęć leku",
-    "eventMedicationIntakeSyncDesc": "Aktualizacja między urządzeniami, gdy dawka zostanie zapisana, przyjęta lub pominięta."
+    "eventMedicationIntakeSyncDesc": "Aktualizacja między urządzeniami, gdy dawka zostanie zapisana, przyjęta lub pominięta.",
+    "loginRequired": "Zaloguj się, aby zarządzać powiadomieniami."
   },
   "i18n": {
     "maintainershipBanner": {

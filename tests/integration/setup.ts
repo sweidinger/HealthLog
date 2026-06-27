@@ -68,7 +68,6 @@ export async function truncateAllTables(client: PrismaClient): Promise<void> {
     "coach_usage",
     "data_backups",
     "devices",
-    "feedback",
     "host_metrics",
     "idempotency_keys",
     "integration_statuses",

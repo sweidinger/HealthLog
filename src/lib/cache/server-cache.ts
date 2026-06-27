@@ -428,7 +428,7 @@ export class ServerCache<T> {
  *
  * The blueprint's full eight-cache roster is provisioned so future
  * rounds can wire the remaining routes (`/api/medications`,
- * `/api/dashboard/widgets`, `/api/bugreport/status`, `/api/workouts`,
+ * `/api/dashboard/widgets`, `/api/workouts`,
  * `/api/mood/analytics`) without churning the helper module.
  */
 export const caches = {
@@ -510,11 +510,6 @@ export const caches = {
     name: "dashboardWidgets",
     maxEntries: 500,
     ttlMs: 300_000,
-  }),
-  bugreportStatus: new ServerCache<unknown>({
-    name: "bugreportStatus",
-    maxEntries: 10,
-    ttlMs: 600_000,
   }),
   workouts: new ServerCache<unknown>({
     name: "workouts",

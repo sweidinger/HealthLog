@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   Bell,
   BellRing,
-  Bug,
   Clock,
   Cog,
   Database,
@@ -156,14 +155,6 @@ export function SystemStatusSection() {
               <StatusItem
                 icon={BellRing}
                 label={t("admin.integrationWebPush")}
-                value={t("admin.configured")}
-                className="text-dracula-green"
-              />
-            )}
-            {status.integrations.bugReport && (
-              <StatusItem
-                icon={Bug}
-                label={t("admin.integrationBugReport")}
                 value={t("admin.configured")}
                 className="text-dracula-green"
               />
