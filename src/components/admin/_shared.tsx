@@ -26,6 +26,8 @@ export interface AdminUser {
   email: string | null;
   role: string;
   createdAt: string;
+  // v1.23 — per-user "require a second factor" override.
+  mfaEnforced: boolean;
   passkeyCount: number;
 }
 
@@ -65,6 +67,8 @@ export interface SystemStatus {
 
 export interface AdminSettings {
   registrationEnabled: boolean;
+  // v1.23 — instance-wide "require a second factor" policy.
+  mfaRequired: boolean;
   defaultLocale: string;
   telegramGlobal: boolean;
   ntfyGlobal: boolean;

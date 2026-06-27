@@ -30,6 +30,7 @@ import {
   persistRecoveryCodes,
 } from "@/lib/auth/mfa/recovery-codes";
 import { totpConfirmSchema } from "@/lib/validations/mfa";
+import { setMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
 
 export const dynamic = "force-dynamic";
 
@@ -112,6 +113,10 @@ export const POST = apiHandler(async (req: Request) => {
       data: { mfaVerifiedAt: new Date() },
     });
   });
+
+  // v1.23 — the account now has an active second factor, so any
+  // admin-enforced forced-enrollment redirect must clear immediately.
+  await setMfaEnrollCookie(false);
 
   await auditLog("auth.mfa.enabled", {
     userId: user.id,

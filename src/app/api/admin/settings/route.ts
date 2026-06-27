@@ -29,6 +29,7 @@ export const GET = apiHandler(async () => {
 
   return apiSuccess({
     registrationEnabled: settings?.registrationEnabled ?? true,
+    mfaRequired: settings?.mfaRequired ?? false,
     defaultLocale: settings?.defaultLocale ?? "de",
     telegramGlobal: settings?.telegramGlobal ?? true,
     ntfyGlobal: settings?.ntfyGlobal ?? true,
@@ -79,6 +80,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   // Boolean fields — direct mapping
   const booleanFields = [
     "registrationEnabled",
+    "mfaRequired",
     "telegramGlobal",
     "ntfyGlobal",
     "webPushGlobal",
@@ -216,6 +218,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
 
   return apiSuccess({
     registrationEnabled: settings.registrationEnabled,
+    mfaRequired: settings.mfaRequired,
     defaultLocale: settings.defaultLocale,
     telegramGlobal: settings.telegramGlobal,
     ntfyGlobal: settings.ntfyGlobal,

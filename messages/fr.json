@@ -278,6 +278,11 @@
       "useAuthenticator": "Utiliser votre application d'authentification",
       "backToLogin": "Retour à la connexion",
       "rememberDevice": "Faire confiance à cet appareil pendant 30 jours"
+    },
+    "enrollMfa": {
+      "title": "Configurer un second facteur",
+      "body": "Votre administrateur exige un second facteur sur ce compte. Ajoutez une application d'authentification ou une clé de sécurité pour continuer.",
+      "signOut": "Se déconnecter"
     }
   },
   "dashboard": {
@@ -5627,7 +5632,13 @@
       }
     },
     "carrier": "Opérateur",
-    "carrierUnavailableGeoFallback": "{location} — opérateur indisponible"
+    "carrierUnavailableGeoFallback": "{location} — opérateur indisponible",
+    "mfaRequired": "Exiger un second facteur",
+    "mfaRequiredDescription": "Tout compte sans second facteur actif est dirigé vers la configuration après la connexion.",
+    "mfaEnforcedOn": "MFA activé",
+    "mfaEnforcedOff": "MFA désactivé",
+    "mfaEnforcedOnHint": "Un second facteur est requis pour cet utilisateur. Cliquez pour ne plus l'exiger.",
+    "mfaEnforcedOffHint": "Exiger un second facteur pour cet utilisateur."
   },
   "achievements": {
     "title": "Réussites",

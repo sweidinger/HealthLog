@@ -111,6 +111,7 @@ describe("GET /api/admin/users", () => {
       email: true,
       role: true,
       createdAt: true,
+      mfaEnforced: true,
       _count: { select: { passkeys: true } },
     });
     expect(args.select).not.toHaveProperty("passwordHash");

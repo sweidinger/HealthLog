@@ -278,6 +278,11 @@
       "useAuthenticator": "Authenticator-App verwenden",
       "backToLogin": "Zurück zur Anmeldung",
       "rememberDevice": "Diesem Gerät 30 Tage vertrauen"
+    },
+    "enrollMfa": {
+      "title": "Zweiten Faktor einrichten",
+      "body": "Dein Administrator verlangt einen zweiten Faktor für dieses Konto. Füge eine Authenticator-App oder einen Sicherheitsschlüssel hinzu, um fortzufahren.",
+      "signOut": "Abmelden"
     }
   },
   "dashboard": {
@@ -5627,7 +5632,13 @@
       }
     },
     "carrier": "Anbieter",
-    "carrierUnavailableGeoFallback": "{location} — Anbieter nicht verfügbar"
+    "carrierUnavailableGeoFallback": "{location} — Anbieter nicht verfügbar",
+    "mfaRequired": "Zweiten Faktor verlangen",
+    "mfaRequiredDescription": "Jedes Konto ohne aktiven zweiten Faktor wird nach der Anmeldung zur Einrichtung geleitet.",
+    "mfaEnforcedOn": "MFA an",
+    "mfaEnforcedOff": "MFA aus",
+    "mfaEnforcedOnHint": "Für diesen Nutzer ist ein zweiter Faktor erforderlich. Klicken, um die Anforderung aufzuheben.",
+    "mfaEnforcedOffHint": "Einen zweiten Faktor für diesen Nutzer verlangen."
   },
   "achievements": {
     "title": "Erfolge",

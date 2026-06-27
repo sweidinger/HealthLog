@@ -278,6 +278,11 @@
       "useAuthenticator": "Użyj aplikacji uwierzytelniającej",
       "backToLogin": "Powrót do logowania",
       "rememberDevice": "Zaufaj temu urządzeniu na 30 dni"
+    },
+    "enrollMfa": {
+      "title": "Skonfiguruj drugi składnik",
+      "body": "Administrator wymaga drugiego składnika na tym koncie. Dodaj aplikację uwierzytelniającą lub klucz bezpieczeństwa, aby kontynuować.",
+      "signOut": "Wyloguj się"
     }
   },
   "dashboard": {
@@ -5627,7 +5632,13 @@
       }
     },
     "carrier": "Operator",
-    "carrierUnavailableGeoFallback": "{location} — operator niedostępny"
+    "carrierUnavailableGeoFallback": "{location} — operator niedostępny",
+    "mfaRequired": "Wymagaj drugiego składnika",
+    "mfaRequiredDescription": "Każde konto bez aktywnego drugiego składnika jest kierowane do konfiguracji po zalogowaniu.",
+    "mfaEnforcedOn": "MFA wł.",
+    "mfaEnforcedOff": "MFA wył.",
+    "mfaEnforcedOnHint": "Ten użytkownik musi używać drugiego składnika. Kliknij, aby przestać go wymagać.",
+    "mfaEnforcedOffHint": "Wymagaj drugiego składnika dla tego użytkownika."
   },
   "achievements": {
     "title": "Osiągnięcia",

@@ -16,6 +16,9 @@ const updateUserSchema = z.object({
   username: z.string().min(3).max(30).optional(),
   email: z.string().email().nullable().optional(),
   role: z.enum(["ADMIN", "USER"]).optional(),
+  // v1.23 — per-user "require a second factor" override. Effective requirement
+  // is the OR of this and the instance-wide AppSettings.mfaRequired policy.
+  mfaEnforced: z.boolean().optional(),
 });
 
 export const PUT = apiHandler(
@@ -64,6 +67,9 @@ export const PUT = apiHandler(
         }),
         ...(parsed.data.email !== undefined && { email: parsed.data.email }),
         ...(parsed.data.role !== undefined && { role: parsed.data.role }),
+        ...(parsed.data.mfaEnforced !== undefined && {
+          mfaEnforced: parsed.data.mfaEnforced,
+        }),
       },
       select: {
         id: true,
@@ -71,6 +77,7 @@ export const PUT = apiHandler(
         email: true,
         role: true,
         createdAt: true,
+        mfaEnforced: true,
       },
     });
 

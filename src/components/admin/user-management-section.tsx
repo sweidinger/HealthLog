@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Loader2, LogOut, Pencil, Shield, Users } from "lucide-react";
+import {
+  KeyRound,
+  Loader2,
+  LogOut,
+  Pencil,
+  Shield,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -176,6 +184,31 @@ export function UserManagementSection() {
       >
         <Shield className="h-3 w-3" aria-hidden="true" />
         {u.role === "ADMIN" ? t("admin.toUser") : t("admin.toAdmin")}
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className={`min-h-11 min-w-11 px-3 text-xs ${u.mfaEnforced ? "text-dracula-green" : ""}`}
+        onClick={() =>
+          updateUser.mutate({
+            id: u.id,
+            data: { mfaEnforced: !u.mfaEnforced },
+          })
+        }
+        title={
+          u.mfaEnforced
+            ? t("admin.mfaEnforcedOnHint")
+            : t("admin.mfaEnforcedOffHint")
+        }
+        aria-label={
+          u.mfaEnforced
+            ? t("admin.mfaEnforcedOnHint")
+            : t("admin.mfaEnforcedOffHint")
+        }
+        aria-pressed={u.mfaEnforced}
+      >
+        <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+        {u.mfaEnforced ? t("admin.mfaEnforcedOn") : t("admin.mfaEnforcedOff")}
       </Button>
       <Button
         variant="ghost"

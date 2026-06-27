@@ -43,6 +43,19 @@ export function GeneralSettingsSection() {
           disabled={updateSettings.isPending}
         />
 
+        {/* v1.23 — instance-wide "require a second factor" policy. Every
+            account without an active factor is sent to forced enrollment after
+            sign-in. */}
+        <SettingsToggle
+          label={t("admin.mfaRequired")}
+          description={t("admin.mfaRequiredDescription")}
+          checked={settings?.mfaRequired ?? false}
+          onCheckedChange={(checked) =>
+            updateSettings.mutate({ mfaRequired: checked })
+          }
+          disabled={updateSettings.isPending}
+        />
+
         {/* v1.4.27 MB7 / CF-56 — match the SettingsToggle stacking
             contract: stack on `<sm`, side-by-side on `sm+`. */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

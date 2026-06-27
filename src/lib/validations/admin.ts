@@ -8,6 +8,8 @@ import { isPublicUrl } from "@/lib/validations/notifications";
 export const adminSettingsSchema = z
   .object({
     registrationEnabled: z.boolean().optional(),
+    // v1.23 — instance-wide "require a second factor" policy.
+    mfaRequired: z.boolean().optional(),
     defaultLocale: z.enum(["de", "en"]).optional(),
     telegramGlobal: z.boolean().optional(),
     ntfyGlobal: z.boolean().optional(),

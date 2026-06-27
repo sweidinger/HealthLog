@@ -18,6 +18,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { verifyMfaRegistration } from "@/lib/auth/mfa/webauthn";
 import { mfaWebauthnRegisterVerifySchema } from "@/lib/validations/mfa";
+import { setMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
     select: { id: true, name: true, createdAt: true, lastUsedAt: true },
   });
+
+  // v1.23 — a registered security key satisfies an admin-enforced MFA policy,
+  // so clear any forced-enrollment redirect immediately.
+  await setMfaEnrollCookie(false);
 
   await auditLog("auth.mfa.webauthn.register", {
     userId: user.id,

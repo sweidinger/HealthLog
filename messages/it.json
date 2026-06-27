@@ -278,6 +278,11 @@
       "useAuthenticator": "Usa la tua app di autenticazione",
       "backToLogin": "Torna all'accesso",
       "rememberDevice": "Considera attendibile questo dispositivo per 30 giorni"
+    },
+    "enrollMfa": {
+      "title": "Configura un secondo fattore",
+      "body": "Il tuo amministratore richiede un secondo fattore su questo account. Aggiungi un'app di autenticazione o una chiave di sicurezza per continuare.",
+      "signOut": "Esci"
     }
   },
   "dashboard": {
@@ -5627,7 +5632,13 @@
       }
     },
     "carrier": "Operatore",
-    "carrierUnavailableGeoFallback": "{location} — operatore non disponibile"
+    "carrierUnavailableGeoFallback": "{location} — operatore non disponibile",
+    "mfaRequired": "Richiedi un secondo fattore",
+    "mfaRequiredDescription": "Ogni account senza un secondo fattore attivo viene indirizzato alla configurazione dopo l'accesso.",
+    "mfaEnforcedOn": "MFA attivo",
+    "mfaEnforcedOff": "MFA disattivato",
+    "mfaEnforcedOnHint": "Per questo utente è richiesto un secondo fattore. Clicca per non richiederlo più.",
+    "mfaEnforcedOffHint": "Richiedi un secondo fattore per questo utente."
   },
   "achievements": {
     "title": "Obiettivi",
