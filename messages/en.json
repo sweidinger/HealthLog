@@ -3240,6 +3240,7 @@
       },
       "vitals": {
         "sectionTitle": "Your vitals",
+        "sectionSubtitle": "Resting cardiovascular and respiratory signals against your own baseline",
         "loadingLabel": "Loading your vitals",
         "loadError": "Could not load your vitals right now.",
         "building": "Building your typical range — {count} of {target} days",
@@ -3366,6 +3367,7 @@
       },
       "scores": {
         "sectionTitle": "Your health scores",
+        "sectionSubtitle": "Composite recovery, stress and strain read from your connected devices",
         "loadError": "Could not load your wellness scores right now.",
         "recovery": "Recovery",
         "stress": "Stress",

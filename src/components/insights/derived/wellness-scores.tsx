@@ -211,6 +211,7 @@ export function WellnessScores({
         <SectionHeading
           icon={Activity}
           title={t("insights.derived.scores.sectionTitle")}
+          subtitle={t("insights.derived.scores.sectionSubtitle")}
         />
         <div
           data-slot="wellness-scores-error"
@@ -394,6 +395,7 @@ export function WellnessScores({
       <SectionHeading
         icon={Activity}
         title={t("insights.derived.scores.sectionTitle")}
+        subtitle={t("insights.derived.scores.sectionSubtitle")}
       />
       <div
         data-slot="wellness-scores-grid"

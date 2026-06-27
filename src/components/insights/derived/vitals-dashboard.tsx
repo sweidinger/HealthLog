@@ -729,6 +729,7 @@ export function VitalsDashboard({ batch, layout, className }: DashboardProps) {
           <SectionHeading
             icon={HeartPulse}
             title={t("insights.derived.vitals.sectionTitle")}
+            subtitle={t("insights.derived.vitals.sectionSubtitle")}
           />
           <div
             data-slot="vitals-dashboard-error"
@@ -774,6 +775,7 @@ export function VitalsDashboard({ batch, layout, className }: DashboardProps) {
           <SectionHeading
             icon={HeartPulse}
             title={t("insights.derived.vitals.sectionTitle")}
+            subtitle={t("insights.derived.vitals.sectionSubtitle")}
           />
           <div
             data-slot="vitals-dashboard-grid"

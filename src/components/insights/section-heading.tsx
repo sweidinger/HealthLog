@@ -34,6 +34,14 @@ interface SectionHeadingProps {
   icon: ComponentType<{ className?: string }>;
   /** Heading text rendered inside the `<h2>`. */
   title: ReactNode;
+  /**
+   * Optional one-line description rendered directly under the `<h2>`, in the
+   * same muted typography the detail pages use beneath their headings
+   * (`text-muted-foreground text-sm`). Opt-in per section so the overview can
+   * carry the "descriptive line under every heading" rule without forcing a
+   * subtitle where none reads well.
+   */
+  subtitle?: ReactNode;
   /** Optional trailing affordance pinned to the right edge of the row. */
   action?: ReactNode;
   /** Optional id on the `<h2>`, e.g. for an `aria-labelledby` link. */
@@ -44,6 +52,7 @@ interface SectionHeadingProps {
 export function SectionHeading({
   icon: Icon,
   title,
+  subtitle,
   action,
   id,
   className,
@@ -58,9 +67,19 @@ export function SectionHeading({
     >
       <div className="flex min-w-0 items-center gap-2">
         <Icon className="text-foreground h-5 w-5 shrink-0" aria-hidden="true" />
-        <h2 id={id} className="text-base font-semibold">
-          {title}
-        </h2>
+        <div className="min-w-0">
+          <h2 id={id} className="text-base font-semibold">
+            {title}
+          </h2>
+          {subtitle ? (
+            <p
+              data-slot="section-heading-subtitle"
+              className="text-muted-foreground text-sm"
+            >
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
       </div>
       {action ? (
         <div className="flex shrink-0 items-center gap-2">{action}</div>
