@@ -146,6 +146,13 @@ services:
       # container (the `environment:` block is a whitelist). See
       # docs/ops/tls-cert-pin.md.
       TLS_LEAF_SPKI_PINS: "${TLS_LEAF_SPKI_PINS:-}"
+      # Local-AI SSRF opt-in (optional). The local AI provider rejects
+      # private/internal hosts by default; set this to an exact host allowlist
+      # (e.g. "ollama.lan,10.0.0.5") or "true" for any private host, intended
+      # for a self-hosted Ollama / LM Studio. Listed here so an operator value
+      # in .env reaches the container (the `environment:` block is a whitelist).
+      # See docs/integrations/ai-providers.md.
+      ALLOW_LOCAL_AI_PRIVATE_HOSTS: "${ALLOW_LOCAL_AI_PRIVATE_HOSTS:-}"
       # v1.17.1 — SMTP transport for the email notification channel (optional,
       # all-or-none: HOST + PORT + FROM enable it; USER/PASS optional; SECURE
       # toggles implicit TLS). Listed here so operator values in .env reach the
