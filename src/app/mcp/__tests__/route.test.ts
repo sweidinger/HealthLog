@@ -67,6 +67,8 @@ const READ_TOOLS = [
   "get_medication_compliance",
   "get_metric_series",
   "list_metrics",
+  "search",
+  "fetch",
 ].sort();
 
 /** A valid, narrow-scope (`health:read`) token resolution. */
@@ -145,6 +147,48 @@ describe("/mcp — happy path", () => {
     expect(body.result.serverInfo.name).toBe("healthlog");
     // Tools + resources are advertised; no admin capability exists.
     expect(body.result.capabilities.tools).toBeDefined();
+  });
+});
+
+describe("/mcp — Origin gate (DNS-rebinding defense, spec PR #1439)", () => {
+  it("rejects a cross-origin browser request with 403 before auth", async () => {
+    validToken();
+    const res = await POST(
+      postRpc(TOOLS_LIST, { origin: "https://evil.example" }),
+    );
+    expect(res.status).toBe(403);
+    // The Origin check runs first — the token table is never consulted.
+    expect(resolveBearerToken).not.toHaveBeenCalled();
+  });
+
+  it("allows a same-origin request", async () => {
+    validToken();
+    const res = await POST(postRpc(TOOLS_LIST, { origin: "http://localhost" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("allows a request with no Origin header (non-browser MCP client)", async () => {
+    validToken();
+    const res = await POST(postRpc(TOOLS_LIST));
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("/mcp — 401 carries the RFC 9728 resource_metadata pointer", () => {
+  it("includes resource_metadata in the WWW-Authenticate challenge", async () => {
+    const res = await POST(
+      new Request("http://localhost/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(TOOLS_LIST),
+      }),
+    );
+    expect(res.status).toBe(401);
+    const challenge = res.headers.get("www-authenticate") ?? "";
+    expect(challenge).toMatch(/Bearer/);
+    expect(challenge).toMatch(
+      /resource_metadata="[^"]*\/\.well-known\/oauth-protected-resource"/,
+    );
   });
 });
 

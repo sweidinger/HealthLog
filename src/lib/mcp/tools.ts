@@ -19,6 +19,7 @@
  */
 import { z } from "zod/v4";
 
+import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
 import { buildCoachDataInventory } from "@/lib/ai/coach/tools/inventory";
@@ -26,7 +27,23 @@ import {
   coachScopeSourceSchema,
   coachScopeWindowSchema,
 } from "@/lib/ai/coach/types";
+import { resolveBaseOrigin } from "@/lib/mcp/oauth/config";
 import type { McpAuthContext } from "./auth";
+
+/**
+ * Tool annotations (MCP 2025-11-25). The cloud connectors REQUIRE these on every
+ * tool — the ChatGPT Apps SDK treats an omitted hint as a validation error, and
+ * the Claude directory requires a safety hint per tool. Every tool the MCP
+ * surface exposes is read-only over a closed personal record, so they all share
+ * the same shape (ADR-003): the read-only guarantee is structural, the
+ * annotation merely advertises it.
+ */
+const READ_ONLY_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
 
 /**
  * A registry entry. `inputShape` is a zod/v4 raw shape handed straight to the
@@ -38,6 +55,19 @@ export interface McpToolDefinition {
   title: string;
   description: string;
   inputShape: z.ZodRawShape;
+  /** Tool annotations — mandatory for the cloud connectors (see above). */
+  annotations: {
+    readOnlyHint: boolean;
+    destructiveHint: boolean;
+    idempotentHint: boolean;
+    openWorldHint: boolean;
+  };
+  /**
+   * When set, the tool declares a structured `outputSchema` and its result is
+   * returned as `structuredContent`. Used by `search` / `fetch` so ChatGPT can
+   * consume the exact `{id,title,url}[]` / `{id,title,text,url,metadata}` shapes.
+   */
+  outputShape?: z.ZodRawShape;
   run: (ctx: McpAuthContext, args: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -65,6 +95,194 @@ async function runCoachTool(
   return result;
 }
 
+/**
+ * The `search` + `fetch` pair — the de-facto two-tool retrieval convention and,
+ * critically, the ONLY tools ChatGPT can call in its default (non-Developer)
+ * mode. Without them HealthLog is invisible in default ChatGPT. The exact wire
+ * shapes are mandated by OpenAI:
+ *
+ *   - `search({ query })` → `{ results: [{ id, title, url }] }`
+ *   - `fetch({ id })`     → `{ id, title, text, url, metadata? }`
+ *
+ * Every result carries a REAL, user-openable HTTPS deep link (`url`) into the
+ * HealthLog web app — ChatGPT only creates citation metadata when `url` is a
+ * non-empty string. The internal `id` stays separate from `url`. Both tools are
+ * thin façades over the SAME server-authoritative read paths the other tools
+ * use; free-text fields (medication names, lab analytes) are returned as DATA,
+ * never interpreted as instructions (R-SEC-2).
+ */
+function searchAndFetchTools(): McpToolDefinition[] {
+  return [
+    {
+      name: "search",
+      title: "Search your health records",
+      description:
+        "Search the user's own health record — metric domains, medications, and lab biomarkers — for items matching a free-text query. Returns a list of { id, title, url }; pass an id to the `fetch` tool to hydrate it. Each `url` deep-links into the HealthLog web app for citation. Returns an empty list when nothing matches.",
+      inputShape: { query: z.string().max(200) },
+      annotations: READ_ONLY_ANNOTATIONS,
+      outputShape: {
+        results: z.array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            url: z.string(),
+          }),
+        ),
+      },
+      async run(ctx, args) {
+        const query =
+          typeof args.query === "string" ? args.query.trim().toLowerCase() : "";
+        const origin = resolveBaseOrigin();
+        const results: Array<{ id: string; title: string; url: string }> = [];
+
+        const inventory = await buildCoachDataInventory(ctx.userId, undefined);
+        for (const entry of inventory.entries) {
+          if (!entry.present) continue;
+          const hay = `${entry.domain} ${entry.metric ?? ""}`.toLowerCase();
+          if (query && !hay.includes(query)) continue;
+          results.push({
+            id: entry.metric
+              ? `metric:${entry.metric}`
+              : `domain:${entry.domain}`,
+            title: entry.domain,
+            url: `${origin}/insights`,
+          });
+        }
+
+        const meds = await prisma.medication.findMany({
+          where: { userId: ctx.userId },
+          select: { id: true, name: true, dose: true },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        });
+        for (const med of meds) {
+          if (query && !med.name.toLowerCase().includes(query)) continue;
+          results.push({
+            id: `med:${med.id}`,
+            title: med.dose ? `${med.name} ${med.dose}` : med.name,
+            url: `${origin}/medications`,
+          });
+        }
+
+        const labs = await prisma.labResult.findMany({
+          where: { userId: ctx.userId, deletedAt: null },
+          select: { analyte: true },
+          distinct: ["analyte"],
+          take: 200,
+        });
+        for (const lab of labs) {
+          if (query && !lab.analyte.toLowerCase().includes(query)) continue;
+          results.push({
+            id: `lab:${lab.analyte}`,
+            title: lab.analyte,
+            url: `${origin}/labs`,
+          });
+        }
+
+        const capped = results.slice(0, 50);
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "search", present: capped.length > 0 },
+        });
+        return { results: capped };
+      },
+    },
+    {
+      name: "fetch",
+      title: "Fetch one health record",
+      description:
+        "Hydrate a single record returned by `search`, by its id (e.g. `metric:weight`, `med:<id>`, `lab:LDL`). Returns { id, title, text, url, metadata } where `text` is a server-authoritative, plain-text summary suitable for citation and `url` deep-links into HealthLog. Returns a not-found message when the id does not resolve.",
+      inputShape: { id: z.string().min(1).max(200) },
+      annotations: READ_ONLY_ANNOTATIONS,
+      outputShape: {
+        id: z.string(),
+        title: z.string(),
+        text: z.string(),
+        url: z.string(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
+      },
+      async run(ctx, args) {
+        const id = typeof args.id === "string" ? args.id : "";
+        const origin = resolveBaseOrigin();
+        const sep = id.indexOf(":");
+        const kind = sep > 0 ? id.slice(0, sep) : "";
+        const rid = sep > 0 ? id.slice(sep + 1) : "";
+
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "fetch", kind: kind || "unknown" },
+        });
+
+        if (kind === "metric" && rid) {
+          const result = await executeCoachTool({
+            userId: ctx.userId,
+            name: "get_metric_series",
+            rawArguments: JSON.stringify({ metric: rid }),
+          });
+          return {
+            id,
+            title: rid,
+            text: JSON.stringify(result),
+            url: `${origin}/insights`,
+            metadata: { type: "metric", metric: rid },
+          };
+        }
+
+        if (kind === "lab" && rid) {
+          const result = await executeCoachTool({
+            userId: ctx.userId,
+            name: "get_labs",
+            rawArguments: JSON.stringify({ analyte: rid }),
+          });
+          return {
+            id,
+            title: rid,
+            text: JSON.stringify(result),
+            url: `${origin}/labs`,
+            metadata: { type: "lab", analyte: rid },
+          };
+        }
+
+        if (kind === "med" && rid) {
+          const med = await prisma.medication.findFirst({
+            where: { id: rid, userId: ctx.userId },
+            select: {
+              name: true,
+              dose: true,
+              treatmentClass: true,
+              asNeeded: true,
+            },
+          });
+          if (!med) {
+            return {
+              id,
+              title: "Not found",
+              text: "No medication matches this id.",
+              url: `${origin}/medications`,
+              metadata: { type: "medication" },
+            };
+          }
+          return {
+            id,
+            title: med.name,
+            text: JSON.stringify(med),
+            url: `${origin}/medications`,
+            metadata: { type: "medication" },
+          };
+        }
+
+        return {
+          id,
+          title: "Not found",
+          text: `No record matches the id "${id}".`,
+          url: `${origin}/insights`,
+          metadata: { type: "unknown" },
+        };
+      },
+    },
+  ];
+}
+
 export const MCP_TOOLS: McpToolDefinition[] = [
   {
     name: "list_metrics",
@@ -72,6 +290,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     description:
       "Enumerate which of the user's health data exists and how to fetch it: one row per domain with whether data is present, an approximate sample count, and the tool that retrieves it. Call this first to discover what is available before fetching figures.",
     inputShape: {},
+    annotations: READ_ONLY_ANNOTATIONS,
     async run(ctx) {
       const inventory = await buildCoachDataInventory(ctx.userId, undefined);
       annotate({
@@ -96,6 +315,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       metric: coachScopeSourceSchema,
       window: coachScopeWindowSchema.optional(),
     },
+    annotations: READ_ONLY_ANNOTATIONS,
     run(ctx, args) {
       return runCoachTool(ctx, "get_metric_series", args);
     },
@@ -108,6 +328,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     inputShape: {
       window: coachScopeWindowSchema.optional(),
     },
+    annotations: READ_ONLY_ANNOTATIONS,
     run(ctx, args) {
       return runCoachTool(ctx, "get_medication_compliance", args);
     },
@@ -120,6 +341,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     inputShape: {
       analyte: z.string().min(1).max(80).optional(),
     },
+    annotations: READ_ONLY_ANNOTATIONS,
     run(ctx, args) {
       return runCoachTool(ctx, "get_labs", args);
     },
@@ -130,10 +352,12 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     description:
       "Fetch the user's statistically-vetted (FDR-controlled) day-to-next-day driver pairs between behaviours (daylight, mood, glucose, blood pressure, steps) and outcomes (sleep, HRV, resting HR, weight), each with direction, lag, sample size, and a descriptive — never causal — note over a fixed trailing window. Returns { present: false } when too little paired data exists.",
     inputShape: {},
+    annotations: READ_ONLY_ANNOTATIONS,
     run(ctx, args) {
       return runCoachTool(ctx, "get_correlations", args);
     },
   },
+  ...searchAndFetchTools(),
 ];
 
 /** Stable list of the registered tool names. */

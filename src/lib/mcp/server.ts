@@ -39,12 +39,27 @@ export function createMcpServer(ctx: McpAuthContext): McpServer {
         title: tool.title,
         description: tool.description,
         inputSchema: tool.inputShape,
+        // Annotations are MANDATORY for the cloud connectors — the ChatGPT
+        // Apps SDK treats an omitted hint as a validation error. Every read
+        // tool is read-only, non-destructive, closed-world (ADR-003).
+        annotations: tool.annotations,
+        ...(tool.outputShape ? { outputSchema: tool.outputShape } : {}),
       },
       async (args: Record<string, unknown>) => {
         const result = await tool.run(ctx, args ?? {});
-        return {
-          content: [{ type: "text" as const, text: JSON.stringify(result) }],
-        };
+        const content = [
+          { type: "text" as const, text: JSON.stringify(result) },
+        ];
+        // When the tool declares an outputSchema (search / fetch), also return
+        // the object as `structuredContent` so ChatGPT + the model can read the
+        // typed shape; the JSON-in-`content` keeps backwards compatibility.
+        if (tool.outputShape) {
+          return {
+            content,
+            structuredContent: result as Record<string, unknown>,
+          };
+        }
+        return { content };
       },
     );
   }

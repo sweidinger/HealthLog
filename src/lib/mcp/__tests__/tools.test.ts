@@ -10,6 +10,17 @@ vi.mock("@/lib/ai/coach/tools/inventory", () => ({
 vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
+// v1.22.0 — `search` reads the record directly via Prisma; stub it so the
+// registry-wide loops never reach a DB.
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    medication: {
+      findMany: vi.fn(async () => []),
+      findFirst: vi.fn(async () => null),
+    },
+    labResult: { findMany: vi.fn(async () => []) },
+  },
+}));
 
 import { MCP_TOOLS, MCP_TOOL_NAMES } from "../tools";
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
@@ -44,8 +55,19 @@ describe("MCP tool registry — surface", () => {
         "get_medication_compliance",
         "get_metric_series",
         "list_metrics",
+        // v1.22.0 — the ChatGPT default-mode retrieval pair.
+        "search",
+        "fetch",
       ].sort(),
     );
+  });
+
+  it("annotates every tool read-only / closed-world (cloud-connector requirement)", () => {
+    for (const def of MCP_TOOLS) {
+      expect(def.annotations.readOnlyHint).toBe(true);
+      expect(def.annotations.destructiveHint).toBe(false);
+      expect(def.annotations.openWorldHint).toBe(false);
+    }
   });
 
   it("exposes no admin / write tool", () => {

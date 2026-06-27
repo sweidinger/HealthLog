@@ -47,6 +47,8 @@ import { withBackgroundEvent } from "@/lib/logging/background";
 import { annotate } from "@/lib/logging/context";
 import { isModuleEnabled } from "@/lib/modules/gate";
 import { checkMcpRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { resolveBaseOrigin } from "@/lib/mcp/oauth/config";
+import { wwwAuthenticateChallenge } from "@/lib/mcp/oauth/metadata";
 import type { ModuleKey } from "@/lib/modules/registry";
 
 // The Bearer resolver + module gate + rate limiter all touch Prisma, so the
@@ -56,17 +58,39 @@ export const dynamic = "force-dynamic";
 
 const MCP_MODULE: ModuleKey = "mcp";
 
-/** One blunt 401 for every authentication failure class — no oracle. */
-function unauthorized(): Response {
+/**
+ * One blunt 401 for every authentication failure class — no oracle. The
+ * `WWW-Authenticate` carries the RFC 9728 `resource_metadata` pointer so a
+ * remote client can discover the Authorization Server and start the OAuth flow
+ * (REQ-T3). An optional `scope` drives incremental consent (SEP-835).
+ */
+function unauthorized(request: Request, scope?: string): Response {
   return Response.json(
     { error: "unauthorized" },
     {
       status: 401,
-      // Pre-OAuth bridge: a bare Bearer challenge. The RFC 9728
-      // `resource_metadata` parameter is added when OAuth discovery lands.
-      headers: { "WWW-Authenticate": 'Bearer realm="healthlog-mcp"' },
+      headers: {
+        "WWW-Authenticate": wwwAuthenticateChallenge(request.url, scope),
+      },
     },
   );
+}
+
+/**
+ * DNS-rebinding defense (MCP spec PR #1439): reject a request whose `Origin`
+ * header does not match this deployment's own origin with a 403. A non-browser
+ * MCP client (Claude.ai / ChatGPT server-side) sends no `Origin`, so the absence
+ * of the header is allowed; only a present, mismatched browser `Origin` is
+ * refused — closing the rebinding hole without breaking the real clients.
+ */
+function originAllowed(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+  return origin === resolveBaseOrigin(request.url);
+}
+
+function forbiddenOrigin(): Response {
+  return Response.json({ error: "forbidden_origin" }, { status: 403 });
 }
 
 /**
@@ -101,11 +125,17 @@ function readBearer(request: Request): string | null {
 
 async function handleMcp(request: Request): Promise<Response> {
   return withBackgroundEvent("mcp.request", async () => {
+    // 0. ORIGIN — refuse a cross-origin browser request before anything else.
+    if (!originAllowed(request)) {
+      annotate({ action: { name: "mcp.origin.rejected" } });
+      return forbiddenOrigin();
+    }
+
     // 1. AUTH — Bearer only; a cookie is never consulted (admin unreachable).
     const raw = readBearer(request);
     if (!raw) {
       annotate({ action: { name: "mcp.auth.missing" } });
-      return unauthorized();
+      return unauthorized(request);
     }
 
     let ctx;
@@ -114,7 +144,7 @@ async function handleMcp(request: Request): Promise<Response> {
     } catch {
       // Do not echo the token or the rejection reason — one blunt 401.
       annotate({ action: { name: "mcp.auth.rejected" } });
-      return unauthorized();
+      return unauthorized(request);
     }
 
     // 2. RATE LIMIT — per `<userId>:<tokenId>` credential binding.
