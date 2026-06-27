@@ -280,8 +280,8 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     page,
   }, testInfo) => {
     // The in-panel history tray is gone from the drawer; the button
-    // navigates to `/coach?view=conversations`, where the full page opens
-    // the conversation list on arrival instead of a blank pane.
+    // navigates to the dedicated `/coach/conversations` page, which renders
+    // the search + recency-grouped conversation list.
     test.skip(
       testInfo.project.name !== "chromium-desktop",
       "exercises the desktop drawer layout",
@@ -312,12 +312,18 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     await expect(historyButton).toBeVisible({ timeout: 10_000 });
     await historyButton.click();
 
-    // No in-panel tray opens — the click navigates to the full view, which
-    // carries the `view=conversations` handoff so the list opens on arrival.
-    await page.waitForURL(/\/coach(\?|$)/, { timeout: 10_000 });
-    await expect(page.locator('[data-slot="coach-page"]')).toBeVisible({
-      timeout: 10_000,
-    });
+    // No in-panel tray opens — the click navigates to the dedicated
+    // conversation-history page, which renders the search field + list.
+    await page.waitForURL(/\/coach\/conversations(\?|$)/, { timeout: 10_000 });
+    await expect(
+      page.locator('[data-slot="coach-conversations-page"]'),
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.locator('[data-slot="coach-conversations-search"]'),
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.locator('[data-slot="coach-conversations-list"]'),
+    ).toBeVisible({ timeout: 10_000 });
     await expect(
       page.locator('[data-slot="coach-drawer-history-tray"]'),
     ).toHaveCount(0);

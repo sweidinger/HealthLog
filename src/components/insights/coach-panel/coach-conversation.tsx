@@ -2,17 +2,12 @@
 
 import { useEffect, useReducer, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -91,6 +86,19 @@ export function launchScopeToCoachScope(
     sources,
     ...(launchScope.window ? { window: launchScope.window } : {}),
   };
+}
+
+/**
+ * v1.21.4 (C2) — the localStorage key that records the seeded "worth a look"
+ * opener as dismissed for a given LOCAL calendar day. Date-stamped so the
+ * dismissal resets at midnight: a new day mints a new key the flag has not
+ * been written under yet, and the opener returns.
+ */
+function seededDismissStorageKey(now: Date = new Date()): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `coach-seeded-dismissed:${year}-${month}-${day}`;
 }
 
 export interface CoachConversationProps {
@@ -175,13 +183,6 @@ export interface CoachConversationProps {
    * "new chat" or thread switch is never overridden.
    */
   autoOpenMostRecent?: boolean;
-  /**
-   * v1.19.1 (C5) — page surface only: open the conversation-history drawer
-   * once on mount. The drawer's "Conversations" handoff routes to
-   * `/coach?view=conversations`, which sets this so the user always sees the
-   * conversation list on arrival instead of a blank new-chat pane.
-   */
-  openHistoryOnMount?: boolean;
 }
 
 export function CoachConversation({
@@ -198,26 +199,15 @@ export function CoachConversation({
   surface,
   initialConversationId,
   autoOpenMostRecent = false,
-  openHistoryOnMount = false,
 }: CoachConversationProps) {
   const { t } = useTranslations();
+  const router = useRouter();
 
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(initialConversationId ?? null);
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
-  // v1.18.11 (W11) — page surface only: conversation history is a LEFT
-  // slide-in drawer (overlay on every viewport, ChatGPT-style), opened from
-  // the composer's `+` actions menu. Replaces the old inline collapsible
-  // rail + top rail-tray strip; the top header bar is gone entirely on the
-  // page so the composer is the single control hub.
-  // v1.19.1 (C5) — seed the history drawer open when the page is entered via
-  // the drawer's "Conversations" handoff (`?view=conversations`), so the
-  // list is on screen immediately rather than a blank hero.
-  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(
-    () => openHistoryOnMount,
-  );
   const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
   // v1.16.4 — self-context backflow: `pendingAdopt` raises a quiet
   // offer to fold a clarifying-question answer back into the
@@ -425,7 +415,7 @@ export function CoachConversation({
       }
       showHub={surface === "page"}
       onNewChat={handleNewChat}
-      onOpenHistory={() => setHistoryDrawerOpen(true)}
+      onOpenHistory={() => router.push("/coach/conversations")}
     />
   );
 
@@ -461,7 +451,19 @@ export function CoachConversation({
   // it. When the server returns no signal the hint is null and the neutral
   // greeting stands — never a fabricated opener.
   const a2Metric = launchScope?.metric ?? null;
-  const seededEnabled = heroActive && a2Metric === null;
+  // v1.21.4 (C2) — once the user dismisses today's seeded opener it stays gone
+  // for the rest of the local calendar day; the fetch is skipped too, so a
+  // dismissed day costs nothing. SSR-safe lazy init guards `window`.
+  const [seededDismissedToday, setSeededDismissedToday] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(seededDismissStorageKey()) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const seededEnabled =
+    heroActive && a2Metric === null && !seededDismissedToday;
   const { data: seeded } = useQuery({
     queryKey: queryKeys.coachSeededQuestion(),
     queryFn: async () =>
@@ -472,6 +474,17 @@ export function CoachConversation({
 
   function seedComposer(question: string) {
     setInputValue(question);
+  }
+
+  function dismissSeeded() {
+    setSeededDismissedToday(true);
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(seededDismissStorageKey(), "1");
+    } catch {
+      // Storage can throw (private mode / quota); the in-memory flag still
+      // hides the opener for this session.
+    }
   }
 
   // `t()` returns the key string itself when a key is missing, so the only
@@ -507,7 +520,7 @@ export function CoachConversation({
         onSeed={seedComposer}
       />
     );
-  } else if (seeded?.signal) {
+  } else if (seeded?.signal && !seededDismissedToday) {
     // A3 — the notable derived signal. The label + opener are keyed on the
     // signal's sourceMetric (`readiness` / `recovery`); an unknown sentinel
     // (future detector additions) skips the opener rather than guessing.
@@ -523,6 +536,7 @@ export function CoachConversation({
           label={signalLabel}
           question={signalQuestion}
           onSeed={seedComposer}
+          onDismiss={dismissSeeded}
         />
       );
     }
@@ -577,41 +591,6 @@ export function CoachConversation({
     </div>
   );
 
-  // v1.18.11 (W11) — page surface: the conversation history is a LEFT
-  // slide-in drawer (overlay on every viewport), opened from the composer's
-  // `+` actions menu. Reuses the shared `<HistoryRail>` + conversation-list
-  // query; respects `prefers-reduced-motion` (the Sheet primitive disables
-  // its slide there). Selecting a conversation closes the drawer.
-  const historyDrawer = (
-    <Sheet open={historyDrawerOpen} onOpenChange={setHistoryDrawerOpen}>
-      <SheetContent
-        side="left"
-        data-slot="coach-history-drawer"
-        className="w-[88vw] max-w-[340px] p-0"
-      >
-        <SheetHeader className="border-border/70 border-b p-3">
-          <SheetTitle className="text-sm">
-            {t("insights.coach.historyTitle")}
-          </SheetTitle>
-        </SheetHeader>
-        <div className="flex min-h-0 flex-1 flex-col">
-          <HistoryRail
-            activeId={currentConversationId}
-            hideHeading
-            onSelect={(id) => {
-              // v1.16.5 — switching conversations drops the guided session;
-              // unanswered questions stay pending.
-              setCurrentConversationId(id);
-              setHistoryDrawerOpen(false);
-              setPendingAdopt(null);
-              dispatchGuided({ type: "RESET" });
-            }}
-          />
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-
   // v1.18.11 (W11) — the PAGE surface drops the top header bar and the
   // rail-tray strip entirely. The composer is the single control hub; the
   // thread (`[&>*]:max-w-2xl` inner gutter) and the docked composer
@@ -626,32 +605,9 @@ export function CoachConversation({
         data-variant={surface}
         className={cn("flex min-h-0 flex-1 flex-col", className)}
       >
-        {/* v1.21.0 — the page toolbar is now a single trailing affordance:
-            the settings gear in the top-right corner. The "Conversations"
-            and "New chat" controls were removed here — both still live in the
-            composer's `+` actions menu, keeping the new-chat surface calm and
-            uncluttered. The gear deep-links to Settings → AI (one place for
-            model + behaviour), matching the drawer header's gear. */}
-        <div
-          data-slot="coach-page-toolbar"
-          className="flex shrink-0 items-center justify-end px-4 pt-2 sm:px-6"
-        >
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            data-slot="coach-page-settings"
-            className="text-muted-foreground hover:text-foreground -mr-1 size-9 shrink-0"
-          >
-            <Link
-              href="/settings/ai"
-              aria-label={t("insights.coach.settingsAriaLabel")}
-              title={t("insights.coach.settingsAriaLabel")}
-            >
-              <Settings className="size-4" aria-hidden="true" />
-            </Link>
-          </Button>
-        </div>
+        {/* v1.21.4 (A) — the page-toolbar gear was removed; Settings now lives
+            in the composer's `+` actions menu alongside New chat and
+            Conversations, keeping the page chrome to the composer alone. */}
         {heroActive ? (
           <CoachHero composer={composerNode} scopeHint={scopeHint} />
         ) : (
@@ -675,7 +631,6 @@ export function CoachConversation({
             </div>
           </>
         )}
-        {historyDrawer}
       </div>
     );
   }

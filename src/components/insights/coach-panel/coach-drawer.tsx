@@ -100,15 +100,15 @@ export function CoachDrawer({
     router.push("/coach");
   }, [onOpenChange, router]);
 
-  // v1.19.1 (C5) — the drawer's "Conversations" affordance hands off to the
-  // full page WITH the `?view=conversations` flag so the page opens the
-  // conversation-history drawer on arrival. Previously it shared
-  // `handleMaximize` and, after the v1.19.1 new-chat default (C1), landed on
-  // a blank hero with no list — the dead-end the maintainer reported.
+  // v1.21.4 (Coach-UI B) — the drawer's "Conversations" affordance now hands
+  // off to the dedicated conversation-history page (`/coach/conversations`),
+  // which renders the search + recency-grouped list as a sibling of the
+  // Coach page. The former `?view=conversations` in-page slide-in drawer is
+  // gone; selecting a row there routes back to `/coach?c=<id>`.
   const handleOpenConversations = useCallback(() => {
     onOpenChange(false);
     resetRef.current?.();
-    router.push("/coach?view=conversations");
+    router.push("/coach/conversations");
   }, [onOpenChange, router]);
 
   return (
@@ -141,10 +141,10 @@ export function CoachDrawer({
           launchScope={scope}
           autoFocusComposer
           registerReset={registerReset}
-          // v1.16.1 — the "Conversations" affordance hands off to the
-          // full-page route instead of opening the broken in-panel left
-          // tray. v1.19.1 (C5) — it now carries `?view=conversations` so the
-          // page opens the history list on arrival, never a blank hero.
+          // v1.16.1 — the "Conversations" affordance hands off to a
+          // dedicated route instead of opening the broken in-panel left
+          // tray. v1.21.4 (Coach-UI B) — it now navigates to
+          // `/coach/conversations`, the standalone search + grouped-list page.
           onRequestFullView={handleOpenConversations}
           // Radix requires an accessible name + description on the
           // dialog content. Mount them through the title/description

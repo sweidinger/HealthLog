@@ -9,7 +9,16 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Loader2, MessagesSquare, Mic, Plus, Send, Square } from "lucide-react";
+import Link from "next/link";
+import {
+  Loader2,
+  MessagesSquare,
+  Mic,
+  Plus,
+  Send,
+  Settings,
+  Square,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -478,6 +487,12 @@ export function CoachInput({
         >
           <MessagesSquare className="size-4" aria-hidden="true" />
           {t("insights.coach.historyTitle")}
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild data-slot="coach-input-action-settings">
+          <Link href="/settings/ai">
+            <Settings className="size-4" aria-hidden="true" />
+            {t("insights.coach.settings")}
+          </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
