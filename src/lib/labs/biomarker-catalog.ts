@@ -226,6 +226,30 @@ export const BIOMARKER_CATALOG: readonly BiomarkerSeed[] = [
   },
 ] as const;
 
+/**
+ * v1.22 — resolve a reading's `analyte` (a display name) back to its catalog
+ * slug so the Labs page can surface the marker's descriptive subtitle.
+ *
+ * The lab row stores the localised name the marker was created under, not the
+ * slug. `localizedName(slug)` resolves the catalog name for the active locale
+ * (`t("labs.catalog.<slug>")`); a case- and whitespace-insensitive match maps
+ * the analyte to its slug. Free-text markers (and markers created under a
+ * different locale than the one in view) return null, and the caller shows no
+ * subtitle rather than a fabricated one.
+ */
+export function resolveCatalogSlug(
+  analyte: string,
+  localizedName: (slug: string) => string,
+): string | null {
+  const norm = analyte.trim().toLowerCase();
+  if (!norm) return null;
+  for (const seed of BIOMARKER_CATALOG) {
+    if (localizedName(seed.slug).trim().toLowerCase() === norm)
+      return seed.slug;
+  }
+  return null;
+}
+
 /** The set of panel keys present in the catalog, in display order. */
 export const BIOMARKER_PANELS = [
   "lipids",
