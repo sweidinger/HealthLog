@@ -9,7 +9,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import dynamic from "next/dynamic";
 import { ChartErrorBoundary } from "@/components/charts/chart-error-state";
@@ -45,13 +45,16 @@ function SleepStageStackedBar(
  *
  * Pulls the analytics `sleepStages` aggregate (added in v1.4.23 W2)
  * plus the SLEEP_DURATION trend series via `<SleepDurationChart>` and
- * renders three blocks:
+ * renders two blocks:
  *
- *   1. Headline card with the average nightly total (h / min) and the
- *      number of nights covered.
- *   2. Stage composition stacked bar (REM / Deep / Core / Awake / In
+ *   1. Stage composition stacked bar (REM / Deep / Core / Awake / In
  *      bed / Asleep) — the canonical sleep-phase distribution.
- *   3. Duration trend chart with chart-cog parity (`chartKey="sleep"`).
+ *   2. Duration trend chart with chart-cog parity (`chartKey="sleep"`).
+ *
+ * v1.22.0 — the leading "average per night" headline card was dropped:
+ * the same figure + label already renders in `<AverageSleepCard>` inside
+ * the shared sleep-rhythm grid row directly below, so the top card only
+ * duplicated it.
  *
  * v1.18.7 W-D — the single-night "Last night" hypnogram card was removed:
  * its per-stage breakdown (time + %) duplicated the phase distribution the
@@ -80,21 +83,9 @@ interface SleepAnalyticsResponse {
   sleepStages: SleepStageBreakdown | null;
 }
 
-function formatHoursMinutes(
-  totalMinutes: number,
-  locale: string,
-): { primary: string } {
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = Math.round(totalMinutes - hours * 60);
-  if (locale === "de") {
-    return { primary: `${hours} Std. ${mins} Min.` };
-  }
-  return { primary: `${hours}h ${mins}m` };
-}
-
 export function SleepOverview() {
   const { isAuthenticated, user } = useAuth();
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
 
   // v1.4.33 IW2 — sleep overview reads `sleepStages` (a thick-only
@@ -127,43 +118,8 @@ export function SleepOverview() {
     );
   }
 
-  const averageMinutes = sleepSummary?.avg30 ?? sleepSummary?.avg7 ?? null;
-  const suffix = t("insights.sleep.headlineCaptionSuffix");
-  const { primary } =
-    averageMinutes != null
-      ? formatHoursMinutes(averageMinutes, locale)
-      : { primary: "—" };
-
   return (
     <div className="space-y-4">
-      {/* v1.12.0 — headline card tightened: the default Card
-          `gap-4 md:gap-6` + `py-4 md:py-6` left a tall empty band around a
-          two-line readout. `gap-2 py-4 md:py-4` pulls the caption up under the
-          number without crowding it. */}
-      <Card className="gap-2 py-4 md:gap-2 md:py-4">
-        <CardHeader className="pb-0">
-          <div className="flex items-center gap-2">
-            <Moon className="text-dracula-cyan h-4 w-4" />
-            <CardTitle className="text-base font-semibold">
-              {t("insights.sleep.headlineTitle")}
-            </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-0.5">
-            <p className="text-2xl font-semibold">{primary}</p>
-            <p className="text-muted-foreground text-xs">
-              {sleepSummary?.count
-                ? t("insights.sleep.headlineCaption", {
-                    count: sleepSummary.count,
-                    suffix,
-                  })
-                : suffix}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       {sleepStages ? (
         <SleepStageStackedBar breakdown={sleepStages} />
       ) : (
