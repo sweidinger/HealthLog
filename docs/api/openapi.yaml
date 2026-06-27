@@ -6741,6 +6741,8 @@ paths:
                         - type: string
                           const: ""
                     - type: "null"
+                hidden:
+                  type: boolean
       responses:
         "200":
           description: Updated biomarker.
@@ -20212,6 +20214,8 @@ components:
           anyOf:
             - type: string
             - type: "null"
+        hidden:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
@@ -20225,11 +20229,14 @@ components:
         - panel
         - hasContext
         - context
+        - hidden
         - createdAt
         - updatedAt
       additionalProperties: false
       description: A user-scoped catalog marker. `context` is the decrypted per-marker note (or null); `hasContext` flags its
-        presence. A `LabResult` linking this marker resolves its unit + reference bounds from here.
+        presence. `hidden` drops the marker from the active catalog list and the lab-entry pickers without deleting it
+        (its readings and unit/range survive). A `LabResult` linking this marker resolves its unit + reference bounds
+        from here.
     CreateBiomarkerResponse:
       type: object
       properties:

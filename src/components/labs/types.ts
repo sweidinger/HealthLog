@@ -42,6 +42,8 @@ export interface BiomarkerDto {
   panel: string | null;
   hasContext: boolean;
   context: string | null;
+  /** v1.22 — a hidden marker drops from the active list + lab-entry pickers. */
+  hidden: boolean;
   createdAt: string;
   updatedAt: string;
 }

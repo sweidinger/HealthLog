@@ -6720,7 +6720,14 @@
         "savedToast": "Biomarker saved",
         "updatedToast": "Biomarker updated",
         "saveError": "Could not save the biomarker"
-      }
+      },
+      "hide": "Hide",
+      "unhide": "Restore",
+      "hiddenToast": "Biomarker hidden",
+      "unhiddenToast": "Biomarker restored",
+      "hideError": "Could not update the biomarker",
+      "allHidden": "Every biomarker is hidden.",
+      "hiddenSection": "Hidden"
     },
     "catalog": {
       "total-cholesterol": "Total cholesterol",

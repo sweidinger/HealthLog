@@ -39,6 +39,7 @@ function serialiseBiomarker(row: {
   lowerBound: number | null;
   upperBound: number | null;
   panel: string | null;
+  hidden: boolean;
   contextEncrypted: Uint8Array | null;
   createdAt: Date;
   updatedAt: Date;
@@ -54,6 +55,7 @@ function serialiseBiomarker(row: {
     context: row.contextEncrypted
       ? decryptContextFromBytes(row.contextEncrypted)
       : null,
+    hidden: row.hidden,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -137,6 +139,7 @@ export const PUT = apiHandler(
     if (d.lowerBound !== undefined) data.lowerBound = d.lowerBound;
     if (d.upperBound !== undefined) data.upperBound = d.upperBound;
     if (d.panel !== undefined) data.panel = d.panel;
+    if (d.hidden !== undefined) data.hidden = d.hidden;
 
     // Inverted-range guard for a PARTIAL bound update. The schema refine only
     // fires when both bounds arrive together; moving a single bound past the

@@ -3657,6 +3657,10 @@ model Biomarker {
   /// Optional panel grouping moved off the per-entry row, e.g.
   /// "Großes Blutbild". NULL = standalone marker.
   panel     String?
+  /// A marker the user no longer needs: dropped from the active catalog list
+  /// and from the lab-entry pickers, but never deleted — its readings and
+  /// canonical unit/range definition survive.
+  hidden    Boolean  @default(false) @map("hidden")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
