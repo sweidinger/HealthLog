@@ -18,6 +18,7 @@ vi.mock("@/lib/db", () => ({
     menstrualCycle: { findMany: vi.fn().mockResolvedValue([]) },
     cycleDayLog: { findMany: vi.fn().mockResolvedValue([]) },
     session: { findUnique: vi.fn() },
+    webauthnMfaCredential: { count: vi.fn() },
   },
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -54,6 +55,9 @@ beforeEach(() => {
     remaining: 9,
     reset: Date.now() + 3600_000,
   } as never);
+  // Default: no registered security key. Tests that exercise the
+  // WebAuthn-only cohort override this.
+  vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(0 as never);
 });
 
 describe("POST /api/export/encrypted", () => {
@@ -94,6 +98,39 @@ describe("POST /api/export/encrypted", () => {
       user: { id: "user-1", role: "USER", totpConfirmedAt: new Date() },
       session: { id: "sess-1" },
     } as never);
+    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+      mfaVerifiedAt: new Date(),
+    } as never);
+
+    const res = await POST(mkReq({ passphrase: PASSPHRASE }));
+    expect(res.status).toBe(200);
+    const buf = Buffer.from(await res.arrayBuffer());
+    expect(await decryptArchive(buf, PASSPHRASE)).toContain("schemaVersion");
+  });
+
+  it("blocks a WebAuthn-only account (no TOTP) without a fresh second factor (401 step-up)", async () => {
+    // No confirmed TOTP, but a registered security key — the account is still
+    // MFA-enrolled and must clear step-up before exporting the whole record.
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "user-1", role: "USER", totpConfirmedAt: null },
+      session: { id: "sess-1" },
+    } as never);
+    vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(1 as never);
+    // No fresh mfaVerifiedAt on the session row.
+    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+      mfaVerifiedAt: null,
+    } as never);
+
+    const res = await POST(mkReq({ passphrase: PASSPHRASE }));
+    expect(res.status).toBe(401);
+  });
+
+  it("allows a WebAuthn-only account with a fresh second factor", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "user-1", role: "USER", totpConfirmedAt: null },
+      session: { id: "sess-1" },
+    } as never);
+    vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(1 as never);
     vi.mocked(prisma.session.findUnique).mockResolvedValue({
       mfaVerifiedAt: new Date(),
     } as never);

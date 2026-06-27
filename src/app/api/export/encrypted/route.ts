@@ -8,9 +8,10 @@
  * `application/octet-stream`.
  *
  * SECURITY:
- *  - Step-up: when the account has a second factor enrolled, this is gated by
- *    `requireFreshMfa` — exporting the whole record is a sensitive action.
- *    Single-factor accounts fall back to a normal authenticated session.
+ *  - Step-up: when the account has any second factor enrolled (TOTP OR a
+ *    security key), this is gated by `requireFreshMfaIfEnrolled` — exporting the
+ *    whole record is a sensitive action. Single-factor accounts fall back to a
+ *    normal authenticated session.
  *  - The passphrase NEVER hits a log or wide-event: it is read off the parsed
  *    body, passed straight into the KDF, and never `annotate()`d. The egress
  *    redaction denylist already scrubs `/passphrase/i` (key-name) and the
@@ -28,8 +29,7 @@ import { prisma } from "@/lib/db";
 import { z } from "zod/v4";
 import {
   apiHandler,
-  requireAuth,
-  requireFreshMfa,
+  requireFreshMfaIfEnrolled,
   MFA_STEP_UP_MAX_AGE_SECONDS,
 } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
@@ -60,14 +60,13 @@ const encryptedExportSchema = z
   .strict();
 
 export const POST = apiHandler(async (request: NextRequest) => {
-  // Resolve the session first (cookie or Bearer), then escalate to a fresh
-  // second factor when the account has one enrolled. A single-factor account
-  // cannot produce a fresh-MFA proof, so gating it unconditionally would lock
-  // it out of its own encrypted export — the step-up applies to MFA users.
-  const auth = await requireAuth();
-  if (auth.user.totpConfirmedAt) {
-    await requireFreshMfa(MFA_STEP_UP_MAX_AGE_SECONDS);
-  }
+  // Resolve the session (cookie or Bearer), then escalate to a fresh second
+  // factor when the account has one enrolled. `requireFreshMfaIfEnrolled`
+  // covers BOTH cohorts — a confirmed TOTP secret AND a registered WebAuthn
+  // security key — so a security-key-only account is gated too. A single-factor
+  // account cannot produce a fresh-MFA proof, so it passes straight through
+  // rather than being locked out of its own encrypted export.
+  const auth = await requireFreshMfaIfEnrolled(MFA_STEP_UP_MAX_AGE_SECONDS);
   const user = auth.user;
   annotate({ action: { name: "user.export.encrypted" } });
 
