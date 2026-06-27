@@ -17,10 +17,10 @@
 --       encrypted-columns registry + the rotation script).
 --
 -- All columns are nullable / defaulted, so existing rows need no backfill.
-ALTER TABLE "User"
-  ADD COLUMN "ai_response_timeout_seconds" INTEGER,
-  ADD COLUMN "ai_ocr_enabled" BOOLEAN NOT NULL DEFAULT false,
-  ADD COLUMN "ai_ocr_provider" TEXT,
-  ADD COLUMN "ai_ocr_model" TEXT,
-  ADD COLUMN "ai_ocr_base_url" TEXT,
-  ADD COLUMN "ai_ocr_key_encrypted" TEXT;
+ALTER TABLE "users"
+  ADD COLUMN IF NOT EXISTS "ai_response_timeout_seconds" INTEGER,
+  ADD COLUMN IF NOT EXISTS "ai_ocr_enabled" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "ai_ocr_provider" TEXT,
+  ADD COLUMN IF NOT EXISTS "ai_ocr_model" TEXT,
+  ADD COLUMN IF NOT EXISTS "ai_ocr_base_url" TEXT,
+  ADD COLUMN IF NOT EXISTS "ai_ocr_key_encrypted" TEXT;

@@ -3,4 +3,4 @@
 -- processed, the grounded before/after result is written here. Additive,
 -- nullable Bytes column — no backfill, no enum change (the new statuses
 -- review_due / reviewed are app-side strings on the existing `status` column).
-ALTER TABLE "coach_plans" ADD COLUMN "outcome_encrypted" BYTEA;
+ALTER TABLE "coach_plans" ADD COLUMN IF NOT EXISTS "outcome_encrypted" BYTEA;
