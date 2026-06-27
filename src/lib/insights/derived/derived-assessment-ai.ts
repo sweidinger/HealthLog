@@ -37,9 +37,18 @@ import {
   readFreshStatusText,
   resolveReadOnlyStatusMiss,
   statusCacheAction,
+  computeStatusInputFingerprint,
+  gateUnchangedStatusInput,
 } from "@/lib/insights/status-cache";
+import type { MeasurementType } from "@/generated/prisma/client";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 import { annotate } from "@/lib/logging/context";
+import type { Locale } from "@/lib/i18n/config";
+import {
+  openerArchetypeHint,
+  dayRotatedSeed,
+} from "@/lib/ai/prompts/opener-archetype";
+import { findUngroundedScoreNumbers } from "./score-grounding";
 import {
   buildScoreSignal,
   isAssessableDerivedScore,
@@ -63,22 +72,37 @@ export function parseDerivedScoreScope(scope: string): DerivedMetricId | null {
   return scope.slice("derived-score:".length) as DerivedMetricId;
 }
 
+/**
+ * v1.22 (W6) — the contributor source metrics every assessable score derives
+ * from. A conservative superset across READINESS / SLEEP_SCORE / RECOVERY /
+ * STRESS / STRAIN so the input-hash gate regenerates whenever any driver moved
+ * and only skips on a genuinely quiet day. Mood joins via `includeMood`.
+ */
+const SCORE_INPUT_TYPES: readonly MeasurementType[] = [
+  "RESTING_HEART_RATE",
+  "HEART_RATE_VARIABILITY",
+  "SLEEP_DURATION",
+  "RESPIRATORY_RATE",
+] as MeasurementType[];
+
 // ── prompt ────────────────────────────────────────────────────────────────
 
 function scoreSystemPrompt(locale: SupportedLocale): string {
   const base = getBaseSystemPrompt(locale);
   const section =
     locale === "en"
-      ? `ARCHETYPE — COMPOSITE WELLNESS SCORE (write like a premium recovery coach — WHOOP / Oura — who genuinely wants this person to do well):
-- This is a 0–100 composite score, not a raw measurement. Explain WHY it sits where it does by naming the 1–2 contributors in \`signal.contributors[]\` that moved it most — a lower contributor value drags the score down. Each contributor is itself 0–100.
-- Lead with the score and its standing, then attribute it to the contributor(s). Do not invent a contributor that is not listed. When there are no contributors, use the trend (signal.delta) instead.
-- Warm and motivating: on a strong score, name the win and what it sets them up to do today; on a softer score, frame it as a recovery cue and one small thing within reach — supportive, never deflating. The encouragement is earned by the contributors / trend, never a reflexive compliment, and never bare number-echoing.
-- This is a daily wellness proxy, not a clinical or training-recovery verdict. Stay descriptive, never diagnostic, never alarming.`
-      : `ARCHETYP — ZUSAMMENGESETZTER WELLNESS-SCORE (schreibe wie ein Premium-Recovery-Coach — WHOOP / Oura —, der dieser Person echten Erfolg wünscht):
-- Das ist ein 0–100-Kompositscore, keine Rohmessung. Erkläre, WARUM er dort liegt, indem du die 1–2 Beiträge aus \`signal.contributors[]\` nennst, die ihn am stärksten bewegt haben — ein niedriger Beitragswert zieht den Score nach unten. Jeder Beitrag ist selbst 0–100.
-- Führe mit dem Score und seiner Einordnung, dann ordne ihn den Beiträgen zu. Erfinde keinen Beitrag, der nicht gelistet ist. Gibt es keine Beiträge, nutze stattdessen den Trend (signal.delta).
-- Warm und motivierend: bei einem starken Score den Erfolg benennen und was er heute ermöglicht; bei einem schwächeren Score als Erholungshinweis einordnen und eine kleine, erreichbare Sache nennen — unterstützend, nie entmutigend. Die Ermutigung ist durch die Beiträge / den Trend verdient, nie ein reflexhaftes Kompliment und nie bloße Zahlenwiederholung.
-- Das ist ein täglicher Wellness-Indikator, kein klinisches Urteil und keine Trainings-Recovery-Bewertung. Bleibe beschreibend, nie diagnostisch, nie alarmierend.`;
+      ? `ARCHETYPE — COMPOSITE WELLNESS SCORE (write like a premium recovery coach — WHOOP / Oura — who genuinely wants this person to do well). This is a 0–100 composite, not a raw measurement. Weave these FOUR beats into varied, connected prose (NOT a fixed template, NOT a labelled list) — lead per the OPENER HINT if one is given:
+- STANDING — the score and its band, in one short clause.
+- WHAT DROVE IT — name the contributor(s) in \`signal.contributors[]\` that HELPED (the strongest, highest values) AND the one(s) that HURT (the weakest, lowest values), so a good score earns its win and a soft score is explained honestly. Each contributor is itself 0–100; a low value drags the score down, a high one carries it. Never invent a contributor that is not listed. When none are listed, use the trend (signal.delta) instead.
+- WHAT IT MEANS FOR TODAY — translate the band into a forward read: a strong readiness/recovery score → a good day to take on more / push a little; a soft score → a lighter day would serve you, treat it as a recovery cue. This is a band-conditioned interpretation, NOT a new number — never invent a figure for it.
+- ONE NUDGE — close with the single grounded next step keyed to the weakest behaviourally addressable contributor. If nothing is behaviourally addressable (the soft driver is physiology only), affirm and name one thing to watch instead of manufacturing a step.
+This is a daily wellness proxy, not a clinical or training-recovery verdict. Stay descriptive, never diagnostic, never alarming; the encouragement is earned by the contributors / trend, never a reflexive compliment, never bare number-echoing.`
+      : `ARCHETYP — ZUSAMMENGESETZTER WELLNESS-SCORE (schreibe wie ein Premium-Recovery-Coach — WHOOP / Oura —, der dieser Person echten Erfolg wünscht). Das ist ein 0–100-Komposit, keine Rohmessung. Verwebe diese VIER Beats zu abwechslungsreicher, zusammenhängender Prosa (KEINE feste Vorlage, KEINE beschriftete Liste) — führe gemäß dem OPENER-HINWEIS, wenn einer mitgegeben ist:
+- EINORDNUNG — der Score und sein Band, in einer kurzen Wendung.
+- WAS IHN TRIEB — benenne die Beiträge aus \`signal.contributors[]\`, die GEHOLFEN haben (die stärksten, höchsten Werte) UND die, die GEBREMST haben (die schwächsten, niedrigsten), damit ein guter Score seinen Erfolg verdient und ein schwacher ehrlich erklärt wird. Jeder Beitrag ist selbst 0–100; ein niedriger Wert zieht den Score nach unten, ein hoher trägt ihn. Erfinde keinen Beitrag, der nicht gelistet ist. Gibt es keine, nutze den Trend (signal.delta).
+- WAS ES HEUTE BEDEUTET — übersetze das Band in einen Ausblick: ein starker Tagesform-/Erholungs-Score → ein guter Tag, um mehr zu wagen / etwas zu pushen; ein schwacher Score → ein ruhigerer Tag tut gut, nimm ihn als Erholungshinweis. Das ist eine band-bedingte Deutung, KEINE neue Zahl — erfinde dafür keine Zahl.
+- EIN ANSTOSS — schließe mit dem einen gegroundeten nächsten Schritt am schwächsten verhaltens-adressierbaren Beitrag. Ist nichts verhaltens-adressierbar (der schwache Treiber ist reine Physiologie), bestätige und nenne einen Punkt zum Beobachten, statt einen Schritt zu erfinden.
+Das ist ein täglicher Wellness-Indikator, kein klinisches Urteil und keine Trainings-Recovery-Bewertung. Bleibe beschreibend, nie diagnostisch, nie alarmierend; die Ermutigung ist durch die Beiträge / den Trend verdient, nie ein reflexhaftes Kompliment und nie bloße Zahlenwiederholung.`;
   return `${base}\n\n${section}`;
 }
 
@@ -87,6 +111,7 @@ function scoreUserPrompt(
   band: string,
   todayKey: string,
   locale: SupportedLocale,
+  openerHint: string,
 ): string {
   const snapshot = JSON.stringify(
     { promptVersion: PROMPT_VERSION, generatedForDay: todayKey, band, signal },
@@ -95,12 +120,14 @@ function scoreUserPrompt(
   );
   if (locale === "en") {
     return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of why ${signal.metric} is the score it is today: name the score and its standing, then attribute it to the 1–2 contributors that moved it most. Keep it to 2–3 sentences, descriptive only.
+OPENER HINT: ${openerHint}
+Write an assessment of ${signal.metric} today across the four beats — the standing, what helped AND what hurt it, what the band means for the day, and one grounded nudge. Aim for 3–5 sentences, roughly 45–75 words (this overrides the shorter base length cap). Connected prose, not a checklist.
 
 ${snapshot}`;
   }
   return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung, warum ${signal.metric} heute diesen Score hat: nenne den Score und seine Einordnung und ordne ihn dann den 1–2 stärksten Beiträgen zu. Halte dich an 2–3 Sätze, rein beschreibend.
+OPENER-HINWEIS: ${openerHint}
+Schreibe eine Einschätzung zu ${signal.metric} heute über die vier Beats — die Einordnung, was geholfen UND was gebremst hat, was das Band für den Tag bedeutet und ein gegroundeter Anstoß. Ziel sind 3–5 Sätze, rund 45–75 Wörter (das übersteuert die kürzere Basis-Längenvorgabe). Zusammenhängende Prosa, keine Checkliste.
 
 ${snapshot}`;
 }
@@ -190,13 +217,48 @@ export async function generateDerivedScoreAssessment(args: {
   const cacheAction = statusCacheAction(scope, locale);
   const todayKey = toBerlinDayKey(now);
 
+  // v1.22 (W6) — opener-archetype rotation + a day-rotated seed so a score
+  // assessment varies across scores and across days instead of riding the
+  // fixed reference seed. The key is per (user, score, day).
+  const seedKey = `${args.userId}:${scope}:${todayKey}`;
+  const openerHint = openerArchetypeHint(seedKey, locale as Locale);
+
+  // v1.22 (W6) — score-warm input-hash gate. A score is re-warmed daily even on
+  // a day with no new wearable data; this skips the LLM and re-stamps the cached
+  // text when none of the contributor sources (sleep / HRV / RHR / respiratory /
+  // mood) changed. Conservative superset → never staler than the data; a genuine
+  // input change still flips the hash and regenerates. Reuses the same audit-log
+  // `inputHash` column the per-metric status cards use (no new persistence).
+  const inputHash = await computeStatusInputFingerprint({
+    userId: args.userId,
+    types: SCORE_INPUT_TYPES,
+    includeMood: true,
+  });
+  const unchangedInput = await gateUnchangedStatusInput({
+    userId: args.userId,
+    cacheAction,
+    todayKey,
+    inputHash,
+    force: false,
+  });
+  if (unchangedInput) {
+    annotate({
+      action: { name: "insights.derived-assessment.input_unchanged" },
+      meta: { metric: args.metric },
+    });
+    return;
+  }
+
   const outcome = await runStatusCompletion({
     userId: args.userId,
     cacheAction,
     consentSurface: "insights",
     systemPrompt: scoreSystemPrompt(locale),
-    userPrompt: scoreUserPrompt(signal, band, todayKey, locale),
-    temperature: 0.45,
+    userPrompt: scoreUserPrompt(signal, band, todayKey, locale, openerHint),
+    // v1.22 (W6) — nudged up from 0.45 for variety; the grounding gate below
+    // catches any number the warmer sampling might drift onto.
+    temperature: 0.55,
+    seed: dayRotatedSeed(seedKey),
     maxTokens: 600,
   });
 
@@ -211,6 +273,24 @@ export async function generateDerivedScoreAssessment(args: {
   const text = normalizeSummaryText(parseSummaryFromContent(outcome.content));
   if (!text) return;
 
+  // v1.22 (W6) — score number-grounding gate. The only numbers the prose may
+  // state are the score and its contributor values. On a miss we do NOT persist
+  // the AI text — the route keeps serving the always-grounded deterministic
+  // fallback, so the field stays non-empty and never carries a fabricated
+  // figure. Non-blocking by construction (write nothing = fall back).
+  const ungrounded = findUngroundedScoreNumbers(text, signal);
+  if (ungrounded.length > 0) {
+    annotate({
+      action: { name: "insights.derived-assessment.ungrounded" },
+      meta: {
+        metric: args.metric,
+        count: ungrounded.length,
+        sample: ungrounded[0]?.source,
+      },
+    });
+    return;
+  }
+
   await persistStatusInsight({
     userId: args.userId,
     cacheAction,
@@ -220,6 +300,9 @@ export async function generateDerivedScoreAssessment(args: {
     providerType: outcome.providerType,
     model: outcome.model,
     tokensUsed: outcome.tokensUsed,
+    // v1.22 (W6) — store the input fingerprint so the next day's gate can skip
+    // the warm when no contributor source changed.
+    inputHash,
   });
   annotate({
     action: { name: "insights.derived-assessment.warmed" },

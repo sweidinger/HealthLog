@@ -110,3 +110,89 @@ describe("buildBriefingGroundingCorrection", () => {
     expect(msg.toLowerCase()).toContain("signalsofday");
   });
 });
+
+// v1.22 (W6, W8 seam) — the allow-set now also admits numbers from the W8
+// aggregate blocks (glucose / labs / preventive-care / workouts) so the model
+// may cite them, while still rejecting genuinely ungrounded values.
+describe("W8 aggregate-block grounding extension", () => {
+  const signals = [signal({})];
+
+  it("flags a glucose figure when only signals are passed (not in signalsOfDay)", () => {
+    const found = findUngroundedBriefingNumbers(
+      { paragraph: "Your glucose has averaged 118 mg/dL this month." },
+      signals,
+    );
+    expect(found.map((f) => f.value)).toContain(118);
+  });
+
+  it("admits the same glucose figure once the features block is passed", () => {
+    const found = findUngroundedBriefingNumbers(
+      { paragraph: "Your glucose has averaged 118 mg/dL this month." },
+      signals,
+      {
+        glucose: {
+          avg7: 120,
+          avg30: 118,
+          avg90: 115,
+          latest: 119,
+          latestDaysAgo: 0,
+          slope30: 0.1,
+          coverage: {} as never,
+        },
+      } as never,
+    );
+    expect(found).toEqual([]);
+  });
+
+  it("admits a flagged lab value + a workout count from the features block", () => {
+    const found = findUngroundedBriefingNumbers(
+      {
+        paragraph:
+          "Your LDL came back at 161, and you logged 5 workouts this week.",
+      },
+      signals,
+      {
+        labs: {
+          flagged: [
+            {
+              analyte: "LDL",
+              value: 161,
+              valueText: null,
+              unit: "mg/dL",
+              rangeStatus: "above",
+              trend: null,
+              takenAt: "2026-06-01",
+              daysAgo: 5,
+            },
+          ],
+          flaggedCount: 1,
+        },
+        workouts: {
+          last7: { count: 5, totalDurationMin: 220, totalDistanceKm: 30 },
+          last30: { count: 18, totalDurationMin: 800, totalDistanceKm: 120 },
+          latest: null,
+        },
+      } as never,
+    );
+    expect(found).toEqual([]);
+  });
+
+  it("still flags a fabricated number absent from every block", () => {
+    const found = findUngroundedBriefingNumbers(
+      { paragraph: "Your glucose hit 250 mg/dL." },
+      signals,
+      {
+        glucose: {
+          avg7: 120,
+          avg30: 118,
+          avg90: 115,
+          latest: 119,
+          latestDaysAgo: 0,
+          slope30: 0.1,
+          coverage: {} as never,
+        },
+      } as never,
+    );
+    expect(found.map((f) => f.value)).toContain(250);
+  });
+});

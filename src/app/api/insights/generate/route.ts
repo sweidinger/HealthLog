@@ -34,7 +34,10 @@ import {
   buildUserPrompt,
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
-import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import {
+  buildSystemPromptWithReferences,
+  buildBriefingPersonalisationBlock,
+} from "@/lib/ai/prompts/insight-generator";
 import {
   buildAboutMeInsightBlock,
   getSelfContextTextForUser,
@@ -398,6 +401,8 @@ export const POST = apiHandler((request: NextRequest) =>
         dateOfBirth: true,
         gender: true,
         heightCm: true,
+        // v1.22 (W6) — first name for the sparse, hash-gated briefing opener.
+        displayName: true,
       },
     });
 
@@ -666,6 +671,14 @@ export const POST = apiHandler((request: NextRequest) =>
       userPrompt += buildBriefingIllnessCyclePrompt(illnessCycleCtx, locale);
     }
 
+    // v1.22 (W6) — opener-archetype rotation + sparse first-name personalization
+    // (deterministic per user+day; omitted for unnamed accounts).
+    userPrompt += buildBriefingPersonalisationBlock(
+      userId,
+      dbUser?.displayName ?? null,
+      locale,
+    );
+
     // v1.12.7 (B5) — inject the curated SOURCES block for the metric sections
     // this briefing actually carries, so a normative claim can cite a real
     // `referenceId` the schema + UI footnote already support. Returns the plain
@@ -826,6 +839,7 @@ export const POST = apiHandler((request: NextRequest) =>
       let ungrounded = findUngroundedBriefingNumbers(
         readBriefingBlock(insights),
         signals,
+        features,
       );
       if (ungrounded.length > 0) {
         annotate({
@@ -855,6 +869,7 @@ export const POST = apiHandler((request: NextRequest) =>
           ungrounded = findUngroundedBriefingNumbers(
             readBriefingBlock(retryInsights),
             signals,
+            features,
           );
           if (ungrounded.length === 0) {
             insights = retryInsights;

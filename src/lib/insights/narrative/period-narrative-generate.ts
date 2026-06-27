@@ -30,6 +30,7 @@ import { encrypt, decrypt } from "@/lib/crypto";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { annotate } from "@/lib/logging/context";
 import { AI_BUDGETS, REFERENCE_AI_SEED } from "@/lib/ai/ai-budgets";
+import { dayRotatedSeed } from "@/lib/ai/prompts/opener-archetype";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   buildPeriodNarrativeContext,
@@ -51,7 +52,7 @@ import {
  * prompt below changes so the cross-feature attribution aggregator can slice
  * quality per (provider × prompt) and a prompt change is observable.
  */
-export const NARRATIVE_PROMPT_VERSION = "1.11.0" as const;
+export const NARRATIVE_PROMPT_VERSION = "1.12.0" as const;
 
 /** A narrative cached this recently is served without regenerating. */
 const NARRATIVE_FRESH_MS = 20 * 60 * 60 * 1000;
@@ -78,6 +79,13 @@ interface GenerateOptions {
   runCompletion?: typeof runStatusCompletion;
   /** Injected for tests — the shared client by default. */
   prisma?: PrismaClient;
+  /**
+   * v1.22 (W6) — pin the deterministic `REFERENCE_AI_SEED` instead of the
+   * day-rotated production seed. Used ONLY by the cross-feature attribution /
+   * diff baseline (and tests) that need byte-stable output; real users generate
+   * with a day-rotated seed so weekly / monthly narratives vary run-to-run.
+   */
+  referenceSeed?: boolean;
 }
 
 /** The labels-only provenance the surface renders as ⓘ chips. */
@@ -105,10 +113,11 @@ Hard rules:
 - Be DESCRIPTIVE, never CAUSAL. Say "X moved with Y" or "X was associated with Y", never "X caused Y" or "because of X".
 - The listed drivers already survived statistical multiple-comparison control; restate them only as associations and keep their conservative meaning.
 - No diagnosis, no medical advice, no alarm. Calm, factual, second person ("your"). When the period earned it, name one genuine win plainly; keep it warm and second-person, never a reflexive compliment.
+- SHAPE: lead with the period's one-line verdict (the overall read in plain words), then connect the top movers and surviving associations into a short arc, and close on continuity or one watch-item — synthesize, do not list each metric in turn.
 - 2 to 4 short sentences. Plain text only — no markdown, no headings, no bullet points, no emojis.
 - If the context is thin, say plainly that there is little to report this period rather than inventing detail.
 
-${composeSharedContracts("en", ["toneContract", "grounding", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller"])}`;
+${composeSharedContracts("en", ["toneContract", "grounding", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller", "formattingContract"])}`;
 
 const SYSTEM_PROMPT_DE = `Du fasst den Gesundheits-Tracking-ZEITRAUM einer Person (eine Woche oder einen Monat) für diese Person zusammen.
 Prompt-Version: ${NARRATIVE_PROMPT_VERSION}.
@@ -118,10 +127,11 @@ Feste Regeln:
 - Sei BESCHREIBEND, nie URSÄCHLICH. Sage "X bewegte sich mit Y" oder "X war mit Y assoziiert", nie "X verursachte Y" oder "wegen X".
 - Die genannten Zusammenhänge haben bereits die statistische Mehrfachvergleichskorrektur überstanden; gib sie nur als Assoziationen wieder und bewahre ihre vorsichtige Bedeutung.
 - Keine Diagnose, kein medizinischer Rat, keine Panik. Ruhig, sachlich, in der zweiten Person ("dein"). Wenn der Zeitraum es hergibt, benenne einen echten Erfolg klar; bleib warm und in der zweiten Person, nie ein reflexhaftes Kompliment.
+- FORM: Führe mit dem Ein-Satz-Urteil des Zeitraums (das Gesamtbild in klaren Worten), verbinde dann die stärksten Bewegungen und die belegten Zusammenhänge zu einem kurzen Bogen und schließe mit Konstanz oder einem Punkt zum Beobachten — Synthese, nicht jede Metrik nacheinander auflisten.
 - 2 bis 4 kurze Sätze. Nur Klartext — kein Markdown, keine Überschriften, keine Aufzählungen, keine Emojis.
 - Wenn der Kontext dünn ist, sage klar, dass es in diesem Zeitraum wenig zu berichten gibt, statt Details zu erfinden.
 
-${composeSharedContracts("de", ["toneContract", "grounding", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller"])}`;
+${composeSharedContracts("de", ["toneContract", "grounding", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller", "formattingContract"])}`;
 
 /**
  * Test-only view of the composed system prompts (incl. the appended shared
@@ -283,9 +293,13 @@ export async function generatePeriodNarrative(
     userPrompt: buildNarrativeUserPrompt(context, locale),
     temperature: AI_BUDGETS.narrative.temperature,
     maxTokens: AI_BUDGETS.narrative.maxTokens,
-    // v1.18.7 — reference surface: pin a deterministic seed so a prompt
-    // change is diff-able against a stable baseline (MEDIUM-4).
-    seed: REFERENCE_AI_SEED,
+    // v1.18.7 / v1.22 (W6) — the reference/diff path pins the deterministic
+    // seed (byte-stable for attribution); real users get a day-rotated seed so
+    // the weekly / monthly narrative varies run-to-run instead of reading
+    // near-identical every time (Root cause D — the fixed seed in prod).
+    seed: options.referenceSeed
+      ? REFERENCE_AI_SEED
+      : dayRotatedSeed(`${userId}:${period}:${dateKeyFor(now, tz)}`),
     // The narrative output is PLAIN TEXT (no markdown, no JSON), so suppress
     // the JSON-mode opt-in the status cards default into.
     responseFormat: "text",
