@@ -16,6 +16,7 @@ import { IntegrationsSection } from "@/components/settings/integrations-section"
 import { LabsSection } from "@/components/settings/labs-section";
 import { LayoutSection } from "@/components/settings/layout-section";
 import { MedicationsSection } from "@/components/settings/medications-section";
+import { McpSection } from "@/components/settings/mcp-section";
 import { ModulesSection } from "@/components/settings/modules-section";
 import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
@@ -73,6 +74,7 @@ const SECTION_COMPONENTS: Record<
   vorsorge: VorsorgeSection,
   thresholds: ThresholdsSection,
   api: ApiSection,
+  mcp: McpSection,
   gesundheitsakte: GesundheitsakteSection,
   sharing: SharingSection,
   export: ExportSection,

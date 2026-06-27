@@ -4162,6 +4162,10 @@
         "title": "Kanały",
         "description": "Dostarczanie przez Telegram, ntfy, Web Push, Webhook i e-mail.",
         "subtitle": "Gdzie dostarczane są przypomnienia i powiadomienia."
+      },
+      "mcp": {
+        "title": "Łącznik MCP",
+        "subtitle": "Połącz zewnętrznego asystenta z własnymi danymi zdrowotnymi."
       }
     },
     "profile": "Profil",
@@ -4892,7 +4896,19 @@
     "polarDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "ouraDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "nightscoutDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
-    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej."
+    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej.",
+    "mcp": {
+      "enableTitle": "Zdalny punkt końcowy MCP",
+      "enableDescription": "Zezwól asystentowi obsługującemu MCP (Claude.ai, ChatGPT) na odczyt danych zdrowotnych za pomocą ograniczonego tokenu. Domyślnie wyłączone.",
+      "enabled": "Włączony",
+      "disabled": "Wyłączony",
+      "enableToggleLabel": "Włącz punkt końcowy MCP",
+      "endpointLabel": "Adres URL łącznika",
+      "connectDescription": "Wklej ten adres URL w konfiguracji własnego łącznika asystenta, a następnie autoryzuj za pomocą poniższego tokenu lub zaloguj się po wyświetleniu monitu.",
+      "tokensTitle": "Tokeny łącznika",
+      "tokensDescription": "Wygeneruj token tylko do odczytu, aby połączyć asystenta. Token jest wyświetlany tylko raz.",
+      "scopeNote": "Tokeny są ograniczone do health:read — dostęp tylko do odczytu własnych danych. Nigdy nie mogą zapisywać danych ani uzyskać dostępu do funkcji administracyjnych."
+    }
   },
   "admin": {
     "title": "Administracja",

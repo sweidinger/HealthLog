@@ -73,6 +73,11 @@ export const SETTINGS_SECTION_SLUGS = [
   // the coach module. The `ai` entry keeps provider / model / BYOK only.
   "coach",
   "api",
+  // v1.22.0 — the remote MCP connector card: enable the opt-in `mcp` module and
+  // mint / revoke the dedicated `health:read` token used to connect an external
+  // assistant (Claude.ai / ChatGPT). Sits next to `api` (both are programmatic
+  // access surfaces). Not nav-gated — the card carries its own enable toggle.
+  "mcp",
   "gesundheitsakte",
   // v1.18.7 — `sharing` (clinician share links) sits directly after
   // `gesundheitsakte`, before `export`: minting a time-boxed read-only link

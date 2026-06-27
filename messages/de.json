@@ -4162,6 +4162,10 @@
         "title": "Kanäle",
         "description": "Zustellung über Telegram, ntfy, Web-Push, Webhook und E-Mail.",
         "subtitle": "Wohin Erinnerungen und Hinweise zugestellt werden."
+      },
+      "mcp": {
+        "title": "MCP-Connector",
+        "subtitle": "Verbinde einen externen Assistenten mit deinen eigenen Gesundheitsdaten."
       }
     },
     "profile": "Profil",
@@ -4892,7 +4896,19 @@
     "polarDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "ouraDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "nightscoutDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
-    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben."
+    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben.",
+    "mcp": {
+      "enableTitle": "Remote-MCP-Endpunkt",
+      "enableDescription": "Erlaube einem MCP-fähigen Assistenten (Claude.ai, ChatGPT), deine Gesundheitsdaten über ein begrenztes Token zu lesen. Standardmäßig aus.",
+      "enabled": "Aktiv",
+      "disabled": "Inaktiv",
+      "enableToggleLabel": "MCP-Endpunkt aktivieren",
+      "endpointLabel": "Connector-URL",
+      "connectDescription": "Füge diese URL in die Einrichtung des eigenen Connectors deines Assistenten ein und autorisiere dich mit dem Token unten oder melde dich bei Aufforderung an.",
+      "tokensTitle": "Connector-Tokens",
+      "tokensDescription": "Erzeuge ein schreibgeschütztes Token, um einen Assistenten zu verbinden. Das Token wird nur einmal angezeigt.",
+      "scopeNote": "Tokens sind auf health:read beschränkt — nur Lesezugriff auf deine eigenen Daten. Sie können niemals Daten schreiben oder Admin-Funktionen erreichen."
+    }
   },
   "admin": {
     "title": "Administration",

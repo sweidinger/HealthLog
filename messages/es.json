@@ -4162,6 +4162,10 @@
         "title": "Canales",
         "description": "Envío por Telegram, ntfy, Web Push, Webhook y correo electrónico.",
         "subtitle": "Dónde se entregan los recordatorios y avisos."
+      },
+      "mcp": {
+        "title": "Conector MCP",
+        "subtitle": "Conecta un asistente externo a tus propios datos de salud."
       }
     },
     "profile": "Perfil",
@@ -4892,7 +4896,19 @@
     "polarDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
     "ouraDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
     "nightscoutDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
-    "integrationCredentialsHint": "Dónde encontrar estas credenciales y cómo registrar tu propia aplicación se explica en la guía de configuración de arriba."
+    "integrationCredentialsHint": "Dónde encontrar estas credenciales y cómo registrar tu propia aplicación se explica en la guía de configuración de arriba.",
+    "mcp": {
+      "enableTitle": "Endpoint MCP remoto",
+      "enableDescription": "Permite que un asistente compatible con MCP (Claude.ai, ChatGPT) lea tus datos de salud mediante un token limitado. Desactivado por defecto.",
+      "enabled": "Activado",
+      "disabled": "Desactivado",
+      "enableToggleLabel": "Activar el endpoint MCP",
+      "endpointLabel": "URL del conector",
+      "connectDescription": "Pega esta URL en la configuración del conector personalizado de tu asistente y autoriza con el token de abajo o inicia sesión cuando se te solicite.",
+      "tokensTitle": "Tokens del conector",
+      "tokensDescription": "Genera un token de solo lectura para conectar un asistente. El token se muestra una sola vez.",
+      "scopeNote": "Los tokens se limitan a health:read: acceso de solo lectura a tus propios registros. Nunca pueden escribir datos ni acceder a funciones de administración."
+    }
   },
   "admin": {
     "title": "Administration",

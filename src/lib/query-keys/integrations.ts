@@ -5,6 +5,10 @@
  */
 export const integrationKeys = {
   tokens: () => ["tokens"] as const,
+  // v1.22.0 — MCP connector tokens (the dedicated `health:read` scope minted
+  // for the remote MCP endpoint). Distinct key from `tokens()` so the MCP
+  // settings card's mint / revoke mutations invalidate only this list.
+  mcpTokens: () => ["mcp-tokens"] as const,
   telegram: () => ["telegram"] as const,
   telegramSettings: () => ["telegram", "settings"] as const,
   withings: () => ["withings"] as const,

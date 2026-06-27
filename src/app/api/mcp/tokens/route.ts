@@ -1,0 +1,98 @@
+/**
+ * MCP connector tokens — list + mint.
+ *
+ * The MCP settings card mints a DEDICATED `health:read`-scoped Bearer here (NOT
+ * the `medication:ingest` scope the generic `/api/tokens` mints, and NEVER the
+ * `["*"]` wildcard). The raw `hlk_` value is shown once. This is the manual /
+ * stdio / power-user path; the OAuth bridge (`/api/mcp/oauth/*`) mints the same
+ * `health:read` scope automatically for cloud connectors. Both surface here so
+ * the user can see and revoke every credential that can read over MCP.
+ *
+ * `userId` is always narrowed from the session — never a body field. Scope is
+ * hardcoded `["health:read"]`, so this endpoint can never be coerced into
+ * minting a broader grant (no mass assignment).
+ */
+import { NextRequest } from "next/server";
+import { z } from "zod/v4";
+
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import {
+  apiError,
+  apiSuccess,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
+import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import { issueApiToken } from "@/lib/auth/issue-token";
+import { isApiGloballyEnabled } from "@/lib/app-settings";
+import { prisma } from "@/lib/db";
+import { SCOPE_HEALTH_READ } from "@/lib/mcp/oauth/config";
+
+const createSchema = z.object({
+  name: z.string().min(1, "Name required").max(100),
+  expiresInDays: z.number().int().min(1).max(365).optional(),
+});
+
+export const GET = apiHandler(async () => {
+  const { user } = await requireAuth();
+  annotate({ action: { name: "mcp.tokens.list" } });
+
+  if (!(await isApiGloballyEnabled())) {
+    return apiError("API is globally disabled", 403);
+  }
+
+  const tokens = await prisma.apiToken.findMany({
+    where: { userId: user.id, permissions: { has: SCOPE_HEALTH_READ } },
+    select: {
+      id: true,
+      name: true,
+      permissions: true,
+      lastUsedAt: true,
+      expiresAt: true,
+      createdAt: true,
+      revoked: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return apiSuccess(tokens);
+});
+
+export const POST = apiHandler(async (request: NextRequest) => {
+  const { user } = await requireAuth();
+  annotate({ action: { name: "mcp.tokens.create" } });
+
+  if (!(await isApiGloballyEnabled())) {
+    return apiError("API is globally disabled", 403);
+  }
+
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 16 * 1024,
+  });
+  if (jsonError) return jsonError;
+
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) {
+    return returnAllZodIssues(parsed.error, 422);
+  }
+
+  const issued = await issueApiToken({
+    userId: user.id,
+    name: parsed.data.name,
+    // Dedicated, least-privilege MCP read scope — never wildcard, never write.
+    permissions: [SCOPE_HEALTH_READ],
+    expiresInDays: parsed.data.expiresInDays ?? 90,
+  });
+
+  await auditLog("mcp.tokens.create", {
+    userId: user.id,
+    details: { tokenId: issued.tokenId, scope: SCOPE_HEALTH_READ },
+  });
+
+  // Return the raw token ONCE — it can never be retrieved again.
+  return apiSuccess(
+    { token: issued.token, name: issued.name, expiresAt: issued.expiresAt },
+    201,
+  );
+});

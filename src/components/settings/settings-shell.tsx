@@ -27,6 +27,7 @@ import {
   FlaskConical,
   Info,
   KeyRound,
+  Plug,
   LayoutDashboard,
   Layers,
   Link2,
@@ -208,6 +209,10 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     moduleGate: "coach",
   },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
+  // v1.22.0 — remote MCP connector. Not module-gated: the card carries its own
+  // enable toggle (mirroring `gesundheitsakte`), so the entry-point stays
+  // reachable even with the opt-in module off.
+  { slug: "mcp", titleKey: "settings.sections.mcp.title", icon: Plug },
   // v1.18.0 (S5) — the full health record (PDF + FHIR R4 + zip package)
   // earns its own home, lifted out of Export & Import.
   //
