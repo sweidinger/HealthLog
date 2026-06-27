@@ -129,10 +129,11 @@ describe("<HealthScoreCard>", () => {
   });
 
   it("threads aria-describedby from the delta text to the explainer body", () => {
-    // FB-I1 a11y — the delta `<span>` carries aria-describedby; the
-    // explainer trigger's aria-controls reads the same id. Both
-    // attributes share one `useId()` thread so SR can connect
-    // "−3 vs last week" to the three-sentence read.
+    // FB-I1 a11y — the delta `<span>` carries aria-describedby; the inline
+    // explainer caption carries the same id. v1.22 — the read no longer
+    // hides behind a "?" trigger (no aria-controls); the body renders inline
+    // and the shared `useId()` thread still connects "−3 vs last week" to the
+    // three-sentence read.
     const html = ssr(
       <HealthScoreCard
         score={64}
@@ -148,8 +149,12 @@ describe("<HealthScoreCard>", () => {
     expect(deltaSpan).not.toBeNull();
     const threadedId = deltaSpan?.[1] ?? "";
     expect(threadedId).not.toBe("");
-    // The same id sits on the trigger button's aria-controls.
-    expect(html).toContain(`aria-controls="${threadedId}"`);
+    // The same id sits on the inline explainer body.
+    expect(html).toMatch(
+      new RegExp(
+        `<span[^>]*id="${threadedId}"[^>]*data-slot="health-score-delta-explainer-body"`,
+      ),
+    );
   });
 
   it("renders four component rows with their values", () => {

@@ -215,7 +215,14 @@ export function resolveInsightsLayout(raw: unknown): InsightsLayout {
     });
 
   // Merge with defaults so new tiles introduced in later versions show
-  // up automatically (invisible by default, the user opts in).
+  // up automatically. v1.22 — appended tiles inherit the default's
+  // visibility (`visible: true` for every default tile) instead of being
+  // force-hidden. The old default-invisible override silently dropped the
+  // pill for any late-added tile id (e.g. `steps`, which entered the set in
+  // v1.12) on every read of an existing or iOS-synced layout that didn't
+  // enumerate it, so it never matched the fresh-account default. The
+  // per-tile data floor (`summaries[...].count > 0` at the call site) still
+  // keeps an empty metric from bloating the nav.
   const savedIds = new Set(filtered.map((t) => t.id));
   const missing = DEFAULT_INSIGHTS_LAYOUT.tiles.filter(
     (t) => !savedIds.has(t.id),
@@ -223,7 +230,6 @@ export function resolveInsightsLayout(raw: unknown): InsightsLayout {
   const maxOrder = Math.max(0, ...filtered.map((t) => t.order));
   const appended = missing.map((t, i) => ({
     ...t,
-    visible: false, // default-invisible on auto-upgrade
     order: maxOrder + 1 + i,
   }));
 

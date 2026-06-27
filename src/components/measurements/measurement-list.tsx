@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,10 @@ import {
   apiPost,
   apiPut,
 } from "@/lib/api/api-fetch";
+import {
+  INSIGHTS_OVERVIEW_PATH,
+  subPageSlugForType,
+} from "@/lib/insights/sub-page-metric";
 
 /**
  * v1.4.37 W7c — cumulative HK types whose list view collapses to one
@@ -277,6 +282,20 @@ export function MeasurementList({
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  // v1.22 — clicking a row's type badge drills into that metric's Insights
+  // sub-page when one exists, else into the filtered measurements list. The
+  // reverse map prefers the dedicated single-metric slug (PULSE → `pulse`,
+  // WEIGHT → `weight`); types with no sub-page fall back to the `?type=` deep
+  // link the page already supports.
+  const navigateForType = (type: string) => {
+    const slug = subPageSlugForType(type);
+    router.push(
+      slug
+        ? `${INSIGHTS_OVERVIEW_PATH}/${slug}`
+        : `/measurements?type=${encodeURIComponent(type)}`,
+    );
+  };
   // v1.8.5 — when `lockedType` is set the list is pinned to that metric
   // and the type selector is hidden; the filter state seeds from it.
   // v1.18.7 (Wave E) — `initialType` (from a `?type=` deep link) seeds the
@@ -922,12 +941,26 @@ export function MeasurementList({
                           </TableCell>
                           <TableCell>
                             <Badge
+                              asChild
                               variant="secondary"
-                              className={TYPE_COLORS[m.type] ?? ""}
+                              className={`focus-visible:ring-ring/50 cursor-pointer transition-colors focus-visible:ring-2 focus-visible:outline-none ${TYPE_COLORS[m.type] ?? ""}`.trim()}
                             >
-                              {TYPE_LABEL_KEYS[m.type]
-                                ? t(TYPE_LABEL_KEYS[m.type])
-                                : m.type}
+                              <button
+                                type="button"
+                                onClick={() => navigateForType(m.type)}
+                                aria-label={t(
+                                  "measurements.openMetricInsights",
+                                  {
+                                    type: TYPE_LABEL_KEYS[m.type]
+                                      ? t(TYPE_LABEL_KEYS[m.type])
+                                      : m.type,
+                                  },
+                                )}
+                              >
+                                {TYPE_LABEL_KEYS[m.type]
+                                  ? t(TYPE_LABEL_KEYS[m.type])
+                                  : m.type}
+                              </button>
                             </Badge>
                           </TableCell>
                           <TableCell className="font-semibold tabular-nums">
@@ -1111,11 +1144,18 @@ export function MeasurementList({
                           </div>
                         )}
                         {Icon && (
-                          <div
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${TYPE_COLORS[m.type] ?? ""}`}
+                          <button
+                            type="button"
+                            onClick={() => navigateForType(m.type)}
+                            aria-label={t("measurements.openMetricInsights", {
+                              type: TYPE_LABEL_KEYS[m.type]
+                                ? t(TYPE_LABEL_KEYS[m.type])
+                                : m.type,
+                            })}
+                            className={`focus-visible:ring-ring/50 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none ${TYPE_COLORS[m.type] ?? ""}`}
                           >
                             <Icon className="h-4 w-4" />
-                          </div>
+                          </button>
                         )}
                         <div className="min-w-0">
                           {/* v1.4.27 MB7 / CF-76 — bump the metadata

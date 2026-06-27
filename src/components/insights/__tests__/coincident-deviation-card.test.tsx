@@ -198,8 +198,8 @@ describe("<CoincidentDeviationCard>", () => {
     // At most amber — never destructive/red.
     expect(html).toContain("border-warning");
     expect(html).not.toContain("text-destructive");
-    // The provenance affordance reaches the card.
-    expect(html).toContain('data-slot="provenance-explainer-trigger"');
+    // The provenance method reaches the card.
+    expect(html).toContain('data-slot="provenance-explainer-method"');
     // The state change is announced politely to SR users (not assertively).
     expect(html).toContain('role="status"');
     expect(html).not.toContain('role="alert"');

@@ -511,6 +511,7 @@
     "previousPage": "Vorherige Seite",
     "nextPage": "Nächste Seite",
     "dailyTotalCaption": "({count} Einzelwerte)",
+    "openMetricInsights": "{type}-Auswertung öffnen",
     "sleepNapCaption": "+{count} Nickerchen",
     "sleepAwakeningsCaption": "{count} Wachphasen",
     "expandDay": "Einzelwerte dieses Tages anzeigen",
@@ -3240,6 +3241,7 @@
       },
       "vitals": {
         "sectionTitle": "Deine Vitalwerte",
+        "sectionSubtitle": "Ruhewerte von Herz-Kreislauf und Atmung im Vergleich zu deiner eigenen Baseline",
         "loadingLabel": "Vitalwerte werden geladen",
         "loadError": "Deine Vitalwerte konnten gerade nicht geladen werden.",
         "building": "Typischer Bereich entsteht — {count} von {target} Tagen",
@@ -3366,6 +3368,7 @@
       },
       "scores": {
         "sectionTitle": "Deine Gesundheitswerte",
+        "sectionSubtitle": "Zusammengesetzte Werte für Erholung, Stress und Belastung aus deinen verbundenen Geräten",
         "loadError": "Deine Wellness-Werte konnten gerade nicht geladen werden.",
         "recovery": "Erholung",
         "stress": "Stress",

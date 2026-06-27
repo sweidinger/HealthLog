@@ -69,10 +69,11 @@ describe("<MoodDiscoveredRelations>", () => {
     // factor label resolves to the localized measurement name
     expect(html).toContain("Time in Daylight");
     expect(html).toContain("higher next-day mood");
-    // The n/r/q detail rides a focusable explainer icon (its tooltip content
-    // is portalled on open, so it is absent from the static markup). Assert
-    // the icon is wired per pair instead of the inline stat string.
-    expect(html).toContain('aria-label="How this was computed"');
+    // v1.22 — the n/r/q detail no longer hides behind an "i" glyph + tooltip;
+    // it reads inline as a muted caption, so the stat string is present in the
+    // static markup.
+    expect(html).toContain('data-slot="mood-explainer-detail"');
+    expect(html).toContain("40 paired days");
   });
 
   it("phrases a mood → next-day outcome pair", () => {
@@ -85,7 +86,7 @@ describe("<MoodDiscoveredRelations>", () => {
     expect(html).toContain("lower next-day");
   });
 
-  it("filters to mood pairs and folds the full-family caveat into the subsection explainer", () => {
+  it("filters to mood pairs and reads the full-family caveat inline", () => {
     const html = renderWith(
       [
         pair({ behaviour: "TIME_IN_DAYLIGHT", outcome: "MOOD" }),
@@ -96,14 +97,12 @@ describe("<MoodDiscoveredRelations>", () => {
     expect((html.match(/data-slot="mood-discovered-pair"/g) ?? []).length).toBe(
       1,
     );
-    // The false-discovery footer + the observational disclaimer fold into the
-    // subsection explainer icon; its tooltip content is portalled on open, so
-    // assert the trigger exists rather than the (now hidden) footer string.
+    // v1.22 — the false-discovery footer + observational disclaimer no longer
+    // hide behind an "i" glyph + tooltip; they read inline as a muted caption,
+    // so both the caption slot and its text are present in the static markup.
     expect(
-      (html.match(/aria-label="How this was computed"/g) ?? []).length,
+      (html.match(/data-slot="mood-explainer-detail"/g) ?? []).length,
     ).toBeGreaterThanOrEqual(1);
-    // The former muted explainer paragraph + inline footnote rows are gone.
-    expect(html).not.toContain("day-to-day pairs tested");
-    expect(html).not.toContain("hold up after correcting");
+    expect(html).toContain("day-to-day pairs tested");
   });
 });

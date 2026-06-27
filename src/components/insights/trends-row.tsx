@@ -200,11 +200,7 @@ export function TrendsRow({
       <SectionHeading
         icon={TrendingUp}
         title={t("insights.trendsRow.title")}
-        action={
-          <p className="text-muted-foreground text-xs">
-            {t("insights.trendsRow.subtitle")}
-          </p>
-        }
+        subtitle={t("insights.trendsRow.subtitle")}
       />
       {/* v1.4.22 A4 — equal-height cards. The annotation prose
           below each chart varies in length, which used to leave the

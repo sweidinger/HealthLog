@@ -322,6 +322,52 @@ export const SUB_PAGE_MANAGER_GROUP_SLUGS: Record<
 ) as unknown as Record<ManagerGroup, readonly SubPageSlug[]>;
 
 /**
+ * v1.22 — reverse lookup: a measurement type → the routed insights sub-page
+ * slug that focuses it, when one exists.
+ *
+ * Built from {@link SUB_PAGE_METRIC}, preferring the slug whose metric list
+ * is exactly `[type]` so an ambiguous type resolves to its dedicated
+ * single-metric page rather than a multi-metric cluster: `PULSE` → `pulse`
+ * (not `blood-pressure`), `WEIGHT` → `weight` (not the derived `bmi`). When
+ * two single-metric pages list the same type (`weight` + `bmi` both list
+ * `WEIGHT`) the first in `SUB_PAGE_SLUGS` order wins (`weight`). A type that
+ * only ever appears on a multi-metric page (the two blood-pressure
+ * components, the two HRV flavours) falls back to that page. Types with no
+ * sub-page at all (BODY_FAT, RECOVERY_SCORE, the `*_EVENT` series, most
+ * device scores) are absent — the caller falls back to the filtered
+ * measurements list.
+ */
+export const TYPE_TO_SUB_PAGE_SLUG: Readonly<Record<string, SubPageSlug>> =
+  (() => {
+    const map: Record<string, SubPageSlug> = {};
+    // Pass 1 — exact single-metric pages win (first occurrence in slug order).
+    for (const slug of SUB_PAGE_SLUGS) {
+      const metrics = SUB_PAGE_METRIC[slug];
+      if (metrics.length !== 1) continue;
+      const type = metrics[0];
+      if (!(type in map)) map[type] = slug;
+    }
+    // Pass 2 — multi-metric pages fill any type a single-metric page misses.
+    for (const slug of SUB_PAGE_SLUGS) {
+      const metrics = SUB_PAGE_METRIC[slug];
+      if (metrics.length === 1) continue;
+      for (const type of metrics) {
+        if (!(type in map)) map[type] = slug;
+      }
+    }
+    return map;
+  })();
+
+/**
+ * The insights sub-page slug for a measurement type, or `undefined` when no
+ * routed card focuses it. See {@link TYPE_TO_SUB_PAGE_SLUG} for the
+ * ambiguity-resolution rule.
+ */
+export function subPageSlugForType(type: string): SubPageSlug | undefined {
+  return TYPE_TO_SUB_PAGE_SLUG[type];
+}
+
+/**
  * Mother-page route. Kept here as a named constant so call sites
  * never have to hard-code the string.
  */
