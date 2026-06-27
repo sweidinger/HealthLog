@@ -1,0 +1,130 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    mfaChallenge: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
+  },
+}));
+
+// Stand-in for the real HMAC: deterministic but NOT containing the raw
+// ticket, so the "raw ticket is never persisted" assertion is meaningful.
+vi.mock("@/lib/auth/hmac", () => ({
+  hashToken: vi.fn((t: string) => `H${t.length}`),
+}));
+
+import {
+  createMfaChallenge,
+  loadActiveChallenge,
+  recordChallengeFailure,
+  claimChallenge,
+  MFA_CHALLENGE_ATTEMPT_CAP,
+} from "../challenge";
+import { prisma } from "@/lib/db";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+function activeRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "ch-1",
+    userId: "user-1",
+    kind: "login",
+    attempts: 0,
+    expiresAt: new Date(Date.now() + 60_000),
+    consumedAt: null,
+    ...overrides,
+  };
+}
+
+describe("mfa challenge", () => {
+  it("mints a ticket and stores only its hash", async () => {
+    vi.mocked(prisma.mfaChallenge.create).mockResolvedValue({} as never);
+    const { ticket } = await createMfaChallenge("user-1", "login");
+    expect(typeof ticket).toBe("string");
+    expect(ticket.length).toBeGreaterThan(20);
+    const arg = vi.mocked(prisma.mfaChallenge.create).mock.calls[0][0];
+    expect(arg.data.ticketHash).toBe(`H${ticket.length}`);
+    // Raw ticket is never persisted.
+    expect(JSON.stringify(arg)).not.toContain(ticket);
+  });
+
+  it("loads an active challenge by hash", async () => {
+    vi.mocked(prisma.mfaChallenge.findUnique).mockResolvedValue(
+      activeRow() as never,
+    );
+    const res = await loadActiveChallenge("tkt");
+    expect(res?.id).toBe("ch-1");
+    expect(
+      vi.mocked(prisma.mfaChallenge.findUnique).mock.calls[0][0],
+    ).toMatchObject({ where: { ticketHash: "H3" } });
+  });
+
+  it("refuses a consumed ticket (single-use)", async () => {
+    vi.mocked(prisma.mfaChallenge.findUnique).mockResolvedValue(
+      activeRow({ consumedAt: new Date() }) as never,
+    );
+    expect(await loadActiveChallenge("tkt")).toBeNull();
+  });
+
+  it("refuses an expired ticket (TTL)", async () => {
+    vi.mocked(prisma.mfaChallenge.findUnique).mockResolvedValue(
+      activeRow({ expiresAt: new Date(Date.now() - 1000) }) as never,
+    );
+    expect(await loadActiveChallenge("tkt")).toBeNull();
+  });
+
+  it("refuses a ticket at the attempt cap", async () => {
+    vi.mocked(prisma.mfaChallenge.findUnique).mockResolvedValue(
+      activeRow({ attempts: MFA_CHALLENGE_ATTEMPT_CAP }) as never,
+    );
+    expect(await loadActiveChallenge("tkt")).toBeNull();
+  });
+
+  it("refuses an unknown ticket", async () => {
+    vi.mocked(prisma.mfaChallenge.findUnique).mockResolvedValue(null as never);
+    expect(await loadActiveChallenge("nope")).toBeNull();
+  });
+
+  it("burns the ticket when the attempt cap is reached", async () => {
+    vi.mocked(prisma.mfaChallenge.update).mockResolvedValue({
+      attempts: MFA_CHALLENGE_ATTEMPT_CAP,
+    } as never);
+    vi.mocked(prisma.mfaChallenge.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    const res = await recordChallengeFailure("ch-1");
+    expect(res.exhausted).toBe(true);
+    // Burn sets consumedAt only while still null (claim-once guard).
+    expect(prisma.mfaChallenge.updateMany).toHaveBeenCalledWith({
+      where: { id: "ch-1", consumedAt: null },
+      data: { consumedAt: expect.any(Date) },
+    });
+  });
+
+  it("does not burn below the attempt cap", async () => {
+    vi.mocked(prisma.mfaChallenge.update).mockResolvedValue({
+      attempts: 1,
+    } as never);
+    const res = await recordChallengeFailure("ch-1");
+    expect(res.exhausted).toBe(false);
+    expect(prisma.mfaChallenge.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("claim-once: only the winning update returns true", async () => {
+    vi.mocked(prisma.mfaChallenge.updateMany).mockResolvedValueOnce({
+      count: 1,
+    } as never);
+    expect(await claimChallenge("ch-1")).toBe(true);
+
+    vi.mocked(prisma.mfaChallenge.updateMany).mockResolvedValueOnce({
+      count: 0,
+    } as never);
+    expect(await claimChallenge("ch-1")).toBe(false);
+  });
+});

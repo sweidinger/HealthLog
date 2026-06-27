@@ -58,6 +58,11 @@ export async function createSession(
   onboardingPending: boolean,
   ipAddress?: string | null,
   userAgent?: string | null,
+  // v1.23 — set when this session was minted behind a completed second
+  // factor (the `/api/auth/mfa/verify` path) or a fresh factor re-confirm.
+  // `requireFreshMfa` reads it for step-up freshness; a null value means
+  // "single-factor session" and never satisfies step-up.
+  mfaVerifiedAt?: Date | null,
 ): Promise<string> {
   const session = await prisma.session.create({
     data: {
@@ -65,6 +70,7 @@ export async function createSession(
       expiresAt: new Date(Date.now() + SESSION_MAX_AGE_MS),
       ipAddress: ipAddress ?? null,
       userAgent: userAgent ?? null,
+      mfaVerifiedAt: mfaVerifiedAt ?? null,
     },
   });
 

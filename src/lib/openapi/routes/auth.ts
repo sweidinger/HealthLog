@@ -8,6 +8,11 @@
 import { z } from "zod/v4";
 import type { ZodOpenApiObject } from "zod-openapi";
 import { loginPasswordSchema } from "@/lib/validations/auth";
+import {
+  mfaVerifySchema,
+  totpConfirmSchema,
+  mfaDisableSchema,
+} from "@/lib/validations/mfa";
 import { dataEnvelope, stdResponses } from "./shared";
 
 // ── Sub-schemas owned here (route-specific shapes) ───────────────────
@@ -73,23 +78,193 @@ const accessRefreshBundle = z
       "Native-client token bundle returned by login + refresh. Web cookie-only callers see only `user`.",
   });
 
+// ── v1.23 second-factor (MFA) shapes ─────────────────────────────────
+
+const mfaRequiredEnvelope = z
+  .object({
+    data: z.null(),
+    error: z.null(),
+    meta: z.object({
+      mfaRequired: z.literal(true),
+      mfaTicket: z
+        .string()
+        .describe(
+          "Opaque, single-use, ~5-minute ticket to present to /api/auth/mfa/verify.",
+        ),
+      methods: z
+        .array(z.enum(["totp", "recovery"]))
+        .describe(
+          "Second factors the account can complete the challenge with.",
+        ),
+    }),
+  })
+  .meta({
+    id: "MfaRequiredResponse",
+    description:
+      "Password accepted but a second factor is required. Not an error and not a session — no token is issued until /api/auth/mfa/verify succeeds.",
+  });
+
+const totpSetupResponse = z
+  .object({
+    otpauthUri: z
+      .string()
+      .describe("otpauth:// URI to render as a QR code (carries the secret)."),
+    totpSecret: z
+      .string()
+      .describe("Base32 secret for manual entry. Pending until confirmed."),
+  })
+  .meta({ id: "TotpSetupResponse" });
+
+const recoveryCodesResponse = z
+  .object({
+    enabled: z.boolean().optional(),
+    recoveryCodes: z
+      .array(z.string())
+      .describe("Single-use recovery codes, shown once. Save them now."),
+    recoveryCodesRemaining: z.number().int(),
+  })
+  .meta({ id: "MfaRecoveryCodesResponse" });
+
+const mfaToggleResponse = z
+  .object({ enabled: z.boolean() })
+  .meta({ id: "MfaToggleResponse" });
+
 export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/auth/login": {
     post: {
       tags: ["Auth"],
       summary: "Email-or-username login (password)",
       description:
-        "Browser callers receive a session cookie. Native callers (X-Client-Type: native or HealthLog-iOS UA prefix) additionally receive a paired access + refresh token.",
+        "Browser callers receive a session cookie. Native callers (X-Client-Type: native or HealthLog-iOS UA prefix) additionally receive a paired access + refresh token.\n\n" +
+        "v1.23 — when the account has a confirmed second factor, the response carries no session/token. It returns HTTP 200 with `data: null, error: null` and `meta.mfaRequired: true` plus a single-use `meta.mfaTicket` and the `meta.methods` list. The client must POST the ticket + a code to `/api/auth/mfa/verify` to obtain the token bundle. Accounts without MFA are unchanged.",
       requestBody: {
         required: true,
         content: { "application/json": { schema: loginPasswordSchema } },
       },
       responses: {
         "200": {
-          description: "Login succeeded.",
+          description:
+            "Login succeeded (token bundle / cookie) — or a second factor is required (`meta.mfaRequired`).",
           content: {
             "application/json": {
-              schema: dataEnvelope(accessRefreshBundle, "LoginResponse"),
+              schema: z.union([
+                dataEnvelope(accessRefreshBundle, "LoginResponse"),
+                mfaRequiredEnvelope,
+              ]),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/mfa/verify": {
+    post: {
+      tags: ["Auth"],
+      summary: "Complete a second-factor login challenge",
+      description:
+        "Presents the `mfaTicket` from the login `meta.mfaRequired` response plus a TOTP or recovery code. On success returns the SAME token bundle / session the password path issues, with the session marked second-factor-verified. The ticket is single-use; wrong codes are throttled and the ticket is burned at the attempt cap.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: mfaVerifySchema } },
+      },
+      responses: {
+        "200": {
+          description:
+            "Second factor verified — session + optional bearer issued.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(accessRefreshBundle, "MfaVerifyResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/mfa/totp/setup": {
+    post: {
+      tags: ["Auth"],
+      summary: "Begin TOTP enrollment (cookie session only)",
+      description:
+        "Generates and stores a pending (encrypted) TOTP secret and returns the otpauth URI + Base32 secret. MFA is not active until /confirm. Cookie-only — a Bearer token cannot enrol MFA.",
+      responses: {
+        "200": {
+          description: "Pending secret created.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(totpSetupResponse, "TotpSetupEnvelope"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/mfa/totp/confirm": {
+    post: {
+      tags: ["Auth"],
+      summary: "Confirm TOTP enrollment (cookie session only)",
+      description:
+        "Verifies a code against the pending secret, activates the factor, and returns the one-time recovery codes. Cookie-only.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: totpConfirmSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Factor activated — recovery codes returned once.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                recoveryCodesResponse,
+                "TotpConfirmEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/mfa/disable": {
+    post: {
+      tags: ["Auth"],
+      summary: "Disable the second factor (step-up gated)",
+      description:
+        "Requires a fresh second-factor step-up (cookie session) AND a current TOTP or recovery code. Clears the secret and deletes recovery codes. Bearer can never satisfy the step-up gate.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: mfaDisableSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Factor disabled.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(mfaToggleResponse, "MfaDisableEnvelope"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/mfa/recovery-codes/regenerate": {
+    post: {
+      tags: ["Auth"],
+      summary: "Regenerate recovery codes (step-up gated)",
+      description:
+        "Invalidates the entire prior recovery-code set and returns a fresh batch once. Step-up gated; Bearer can never satisfy the gate.",
+      responses: {
+        "200": {
+          description: "Fresh recovery codes issued.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                recoveryCodesResponse,
+                "MfaRecoveryRegenEnvelope",
+              ),
             },
           },
         },
