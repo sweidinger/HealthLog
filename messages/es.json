@@ -2311,7 +2311,15 @@
         "question": {
           "readiness": "Mi disposición está rara hoy — ¿a qué se debe?",
           "recovery": "Mi recuperación ha cambiado — ¿qué hay detrás?"
-        }
+        },
+        "dismiss": "Descartar"
+      },
+      "settings": "Ajustes",
+      "history": {
+        "groupToday": "Hoy",
+        "groupYesterday": "Ayer",
+        "groupThisWeek": "Esta semana",
+        "groupEarlier": "Anteriores"
       }
     },
     "relativeJustNow": "ahora mismo",

@@ -2311,7 +2311,15 @@
         "question": {
           "readiness": "Ma disponibilité est inhabituelle aujourd'hui — qu'est-ce qui l'explique ?",
           "recovery": "Ma récupération a changé — qu'est-ce qui se cache derrière ?"
-        }
+        },
+        "dismiss": "Ignorer"
+      },
+      "settings": "Paramètres",
+      "history": {
+        "groupToday": "Aujourd'hui",
+        "groupYesterday": "Hier",
+        "groupThisWeek": "Cette semaine",
+        "groupEarlier": "Plus tôt"
       }
     },
     "relativeJustNow": "à l’instant",

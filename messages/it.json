@@ -2311,7 +2311,15 @@
         "question": {
           "readiness": "La mia prontezza è anomala oggi — da cosa dipende?",
           "recovery": "Il mio recupero è cambiato — cosa c'è dietro?"
-        }
+        },
+        "dismiss": "Ignora"
+      },
+      "settings": "Impostazioni",
+      "history": {
+        "groupToday": "Oggi",
+        "groupYesterday": "Ieri",
+        "groupThisWeek": "Questa settimana",
+        "groupEarlier": "Precedenti"
       }
     },
     "relativeJustNow": "proprio ora",

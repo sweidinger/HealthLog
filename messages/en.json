@@ -2311,7 +2311,15 @@
         "question": {
           "readiness": "My readiness is off today — what's driving it?",
           "recovery": "My recovery shifted — what's behind it?"
-        }
+        },
+        "dismiss": "Dismiss"
+      },
+      "settings": "Settings",
+      "history": {
+        "groupToday": "Today",
+        "groupYesterday": "Yesterday",
+        "groupThisWeek": "This week",
+        "groupEarlier": "Earlier"
       }
     },
     "relativeJustNow": "just now",

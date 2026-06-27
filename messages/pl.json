@@ -2311,7 +2311,15 @@
         "question": {
           "readiness": "Moja gotowość jest dziś nietypowa — z czego to wynika?",
           "recovery": "Moja regeneracja się zmieniła — co za tym stoi?"
-        }
+        },
+        "dismiss": "Odrzuć"
+      },
+      "settings": "Ustawienia",
+      "history": {
+        "groupToday": "Dziś",
+        "groupYesterday": "Wczoraj",
+        "groupThisWeek": "W tym tygodniu",
+        "groupEarlier": "Wcześniej"
       }
     },
     "relativeJustNow": "przed chwilą",
