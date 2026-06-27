@@ -200,6 +200,135 @@ describe("LocalOpenAICompatibleClient", () => {
     ).rejects.toThrow("Local AI returned empty content");
   });
 
+  // ── v1.22 (#89) — true token streaming ──────────────────────────
+  function sseStreamResponse(chunks: string[]) {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const c of chunks) controller.enqueue(encoder.encode(c));
+        controller.close();
+      },
+    });
+    return {
+      ok: true,
+      status: 200,
+      headers: {
+        get: (k: string) => (k === "content-type" ? "text/event-stream" : null),
+      },
+      body,
+    };
+  }
+
+  it("streams token deltas over stream:true and assembles the full reply", async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(
+        sseStreamResponse([
+          'data: {"choices":[{"delta":{"content":"Hel"}}]}\n\n',
+          'data: {"choices":[{"delta":{"content":"lo"}}]}\n\n',
+          'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
+          'data: {"choices":[{"delta":{}}],"usage":{"total_tokens":42}}\n\n',
+          "data: [DONE]\n\n",
+        ]),
+      );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new LocalOpenAICompatibleClient({
+      apiKey: null,
+      model: "llama3:8b",
+      baseUrl: "http://localhost:11434/v1",
+    });
+
+    const deltas: string[] = [];
+    const result = await client.generateCompletionStream(
+      singleUserTurn({ system: "s", user: "u" }),
+      (d) => deltas.push(d),
+    );
+
+    expect(deltas).toEqual(["Hel", "lo", " world"]);
+    expect(result.content).toBe("Hello world");
+    expect(result.tokensUsed).toBe(42);
+    expect(result.providerType).toBe("local");
+
+    // The request opted into streaming.
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.stream).toBe(true);
+    expect(body.stream_options).toEqual({ include_usage: true });
+  });
+
+  it("falls back to the buffered body when the server ignores stream:true", async () => {
+    // 200 OK but a normal JSON completion (not event-stream).
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      body: null,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: "buffered reply" } }],
+          usage: { total_tokens: 7 },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new LocalOpenAICompatibleClient({
+      apiKey: null,
+      model: "llama3",
+      baseUrl: "http://localhost:11434/v1",
+    });
+
+    const deltas: string[] = [];
+    const result = await client.generateCompletionStream(
+      singleUserTurn({ system: "s", user: "u" }),
+      (d) => deltas.push(d),
+    );
+
+    expect(result.content).toBe("buffered reply");
+    expect(result.tokensUsed).toBe(7);
+    // The whole buffered body is emitted as one delta.
+    expect(deltas).toEqual(["buffered reply"]);
+  });
+
+  it("falls back to non-streaming generateCompletion when streaming is rejected", async () => {
+    const mockFetch = vi
+      .fn()
+      // 1st call: the streaming attempt is rejected (server 400s on stream).
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        headers: { get: () => "application/json" },
+        text: () => Promise.resolve("stream not supported"),
+      })
+      // 2nd call: the buffered retry succeeds.
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: "non-stream reply" } }],
+            usage: { total_tokens: 5 },
+          }),
+      });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new LocalOpenAICompatibleClient({
+      apiKey: null,
+      model: "llama3",
+      baseUrl: "http://localhost:11434/v1",
+    });
+
+    const result = await client.generateCompletionStream(
+      singleUserTurn({ system: "s", user: "u" }),
+      () => {},
+    );
+
+    expect(result.content).toBe("non-stream reply");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    // The retry was the buffered (non-streaming) request shape.
+    const retryBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(retryBody).not.toHaveProperty("stream");
+  });
+
   it("degrades tools silently — never forwards a `tools` field", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,

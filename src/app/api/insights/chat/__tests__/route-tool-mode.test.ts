@@ -52,12 +52,12 @@ vi.mock("@/lib/i18n/server-locale", () => ({
   resolveServerLocale: vi.fn(async () => "en"),
 }));
 
-const { runRawCompletionWithFallback } = vi.hoisted(() => ({
-  runRawCompletionWithFallback: vi.fn(),
+const { runStreamingRawCompletionWithFallback } = vi.hoisted(() => ({
+  runStreamingRawCompletionWithFallback: vi.fn(),
 }));
 vi.mock("@/lib/ai/provider-runner", () => ({
   AllProvidersFailedError: class extends Error {},
-  runRawCompletionWithFallback,
+  runStreamingRawCompletionWithFallback,
 }));
 
 const { resolveProviderChain } = vi.hoisted(() => ({
@@ -194,6 +194,10 @@ const { parseKeyValuesSentinel } = await import("@/lib/ai/coach/keyvalues");
 const { parseSuggestReminder } =
   await import("@/lib/ai/coach/suggest-reminder");
 
+// v1.22 (#89) — the provider call + guards + persistence now run INSIDE the
+// stream producer (heartbeat-fronted). The mock captures the producer's promise
+// so tests can await it after `post()` before asserting on persisted effects.
+const sse = vi.hoisted(() => ({ done: Promise.resolve() as Promise<unknown> }));
 vi.mock("@/lib/sse/create-stream", () => ({
   createSseStream: (
     producer: (c: {
@@ -201,8 +205,9 @@ vi.mock("@/lib/sse/create-stream", () => ({
       enqueue: () => void;
     }) => void | Promise<void>,
   ) => {
-    void Promise.resolve(
-      producer({ signal: { aborted: true }, enqueue: () => {} }),
+    // aborted:false so the producer streams to completion (persist + frames).
+    sse.done = Promise.resolve(
+      producer({ signal: { aborted: false }, enqueue: () => {} }),
     );
     return new ReadableStream();
   },
@@ -211,6 +216,13 @@ vi.mock("@/lib/sse/create-stream", () => ({
 import { POST } from "../route";
 
 const post = POST as unknown as (req: Request) => Promise<Response>;
+
+/** Run a POST and wait for the in-stream producer to finish. */
+async function postAndDrain(body: Record<string, unknown>): Promise<Response> {
+  const res = await post(chatReq(body));
+  await sse.done;
+  return res;
+}
 
 function chatReq(body: Record<string, unknown>): Request {
   return new Request("http://localhost/api/insights/chat", {
@@ -233,10 +245,10 @@ describe("coach chat — tool-mode routing (F1)", () => {
     resolveProviderChain.mockResolvedValue([
       { providerType: "anthropic", instance: {} }, // no supportsTools=false ⇒ tools on
     ]);
-    await post(chatReq({ message: "How is my BP?" }));
+    await postAndDrain({ message: "How is my BP?" });
 
     expect(runCoachToolLoop).toHaveBeenCalledTimes(1);
-    expect(runRawCompletionWithFallback).not.toHaveBeenCalled();
+    expect(runStreamingRawCompletionWithFallback).not.toHaveBeenCalled();
     // The base context carries the inventory, NOT the snapshot figures.
     const loopArgs = (runCoachToolLoop.mock.calls[0] as unknown[])[0] as {
       messages: Array<{ content: string }>;
@@ -277,6 +289,7 @@ describe("coach chat — tool-mode routing (F1)", () => {
     );
 
     const res = await post(chatReq({ message: "How is my BP?" }));
+    await sse.done;
 
     // No throw → no 500. The provider-error frame streams over a 200.
     expect(res.status).toBe(200);
@@ -293,7 +306,7 @@ describe("coach chat — tool-mode routing (F1)", () => {
     resolveProviderChain.mockResolvedValue([
       { providerType: "anthropic", instance: {} },
     ]);
-    await post(chatReq({ message: "How is my BP?" }));
+    await postAndDrain({ message: "How is my BP?" });
     const calls = (appendMessage as ReturnType<typeof vi.fn>).mock.calls;
     const assistantCall = calls.find(
       (c) => (c[0] as { role: string }).role === "assistant",
@@ -338,7 +351,7 @@ describe("coach chat — tool-mode routing (F1)", () => {
         ],
       }),
     );
-    await post(chatReq({ message: "How is my BP?" }));
+    await postAndDrain({ message: "How is my BP?" });
     const calls = (appendMessage as ReturnType<typeof vi.fn>).mock.calls;
     const assistantCall = calls.find(
       (c) => (c[0] as { role: string }).role === "assistant",
@@ -353,14 +366,14 @@ describe("coach chat — tool-mode routing (F1)", () => {
       { providerType: "anthropic", instance: {} },
       { providerType: "local", instance: { supportsTools: false } },
     ]);
-    runRawCompletionWithFallback.mockResolvedValue({
+    runStreamingRawCompletionWithFallback.mockResolvedValue({
       result: { content: "Your BP is steady.", tokensUsed: 42, model: "m" },
       workingProvider: { providerType: "anthropic" },
     });
-    await post(chatReq({ message: "How is my BP?" }));
+    await postAndDrain({ message: "How is my BP?" });
 
     expect(runCoachToolLoop).not.toHaveBeenCalled();
-    expect(runRawCompletionWithFallback).toHaveBeenCalledTimes(1);
+    expect(runStreamingRawCompletionWithFallback).toHaveBeenCalledTimes(1);
     // Single-round budget reservation in the fallback path; the 4th arg is the
     // provider-aware daily cap (F1).
     expect(reserveBudget).toHaveBeenCalledWith(
@@ -371,7 +384,7 @@ describe("coach chat — tool-mode routing (F1)", () => {
     );
     // The legacy path ships the snapshot figures in the user turn.
     const params = (
-      (runRawCompletionWithFallback.mock.calls[0] as unknown[])[0] as {
+      (runStreamingRawCompletionWithFallback.mock.calls[0] as unknown[])[0] as {
         params: { messages: Array<{ content: string }> };
       }
     ).params;

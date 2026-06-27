@@ -191,6 +191,7 @@ async function main() {
     "aiAnthropicKeyEncrypted",
     "aiLocalKeyEncrypted",
     "aiOpenaiKeyEncrypted",
+    "aiOcrKeyEncrypted",
     "insuranceNumberEncrypted",
   ];
   for (const field of userFields) {

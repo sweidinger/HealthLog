@@ -11,6 +11,9 @@ import { annotate } from "@/lib/logging/context";
 export const dynamic = "force-dynamic";
 
 const ALLOWED = new Set(["OPENAI", "ANTHROPIC", "LOCAL", "CHATGPT_OAUTH"]);
+// v1.22 (#90) — the dedicated document-scan provider has no OAuth path, so the
+// allowlist is the three keyed/self-hosted providers only (no CHATGPT_OAUTH).
+const OCR_PROVIDERS = new Set(["OPENAI", "ANTHROPIC", "LOCAL"]);
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
@@ -25,6 +28,13 @@ export const GET = apiHandler(async () => {
       aiAnthropicKeyEncrypted: true,
       aiLocalKeyEncrypted: true,
       aiOpenaiKeyEncrypted: true,
+      // v1.22 (#89 + #90)
+      aiResponseTimeoutSeconds: true,
+      aiOcrEnabled: true,
+      aiOcrProvider: true,
+      aiOcrModel: true,
+      aiOcrBaseUrl: true,
+      aiOcrKeyEncrypted: true,
     },
   });
 
@@ -49,6 +59,18 @@ export const GET = apiHandler(async () => {
     hasOpenaiKey: Boolean(u?.aiOpenaiKeyEncrypted),
     openaiKeyPreview: u?.aiOpenaiKeyEncrypted
       ? `...${decrypt(u.aiOpenaiKeyEncrypted).slice(-4)}`
+      : null,
+    // v1.22 (#89) — per-user response timeout, in seconds (null = default).
+    responseTimeoutSeconds: u?.aiResponseTimeoutSeconds ?? null,
+    // v1.22 (#90) — dedicated document-scan (Lab-OCR) provider config. Key
+    // material is presence + 4-char preview only, like every other provider.
+    ocrEnabled: Boolean(u?.aiOcrEnabled),
+    ocrProvider: u?.aiOcrProvider ?? null,
+    ocrModel: u?.aiOcrModel ?? null,
+    ocrBaseUrl: u?.aiOcrBaseUrl ?? null,
+    hasOcrKey: Boolean(u?.aiOcrKeyEncrypted),
+    ocrKeyPreview: u?.aiOcrKeyEncrypted
+      ? `...${decrypt(u.aiOcrKeyEncrypted).slice(-4)}`
       : null,
   });
 });
@@ -129,6 +151,87 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
       updates.aiOpenaiKeyEncrypted = null;
     } else if (typeof body.openaiKey === "string") {
       updates.aiOpenaiKeyEncrypted = encrypt(body.openaiKey.trim());
+    }
+  }
+
+  // ── v1.22 (#89) — response timeout (seconds) ──────────────────
+  if (body.responseTimeoutSeconds !== undefined) {
+    if (body.responseTimeoutSeconds === null) {
+      updates.aiResponseTimeoutSeconds = null;
+    } else if (
+      typeof body.responseTimeoutSeconds === "number" &&
+      Number.isInteger(body.responseTimeoutSeconds)
+    ) {
+      // Sane bounds: 10 s floor (a stricter value just trips the timeout) and
+      // 600 s ceiling (a generous cap for a slow self-hosted backend).
+      if (
+        body.responseTimeoutSeconds < 10 ||
+        body.responseTimeoutSeconds > 600
+      ) {
+        throw new HttpError(
+          422,
+          "Response timeout must be between 10 and 600 seconds",
+        );
+      }
+      updates.aiResponseTimeoutSeconds = body.responseTimeoutSeconds;
+    } else {
+      throw new HttpError(422, "Invalid response timeout");
+    }
+  }
+
+  // ── v1.22 (#90) — dedicated document-scan (Lab-OCR) provider ──
+  if (body.ocrEnabled !== undefined) {
+    if (typeof body.ocrEnabled === "boolean") {
+      updates.aiOcrEnabled = body.ocrEnabled;
+    } else {
+      throw new HttpError(422, "Invalid ocrEnabled");
+    }
+  }
+
+  if (body.ocrProvider !== undefined) {
+    if (body.ocrProvider === null || body.ocrProvider === "") {
+      updates.aiOcrProvider = null;
+    } else if (
+      typeof body.ocrProvider === "string" &&
+      OCR_PROVIDERS.has(body.ocrProvider)
+    ) {
+      updates.aiOcrProvider = body.ocrProvider;
+    } else {
+      throw new HttpError(422, "Invalid OCR provider");
+    }
+  }
+
+  if (body.ocrModel !== undefined) {
+    if (body.ocrModel === null || body.ocrModel === "") {
+      updates.aiOcrModel = null;
+    } else if (typeof body.ocrModel === "string") {
+      updates.aiOcrModel = body.ocrModel.trim() || null;
+    }
+  }
+
+  if (body.ocrBaseUrl !== undefined) {
+    if (body.ocrBaseUrl === null || body.ocrBaseUrl === "") {
+      updates.aiOcrBaseUrl = null;
+    } else if (typeof body.ocrBaseUrl === "string") {
+      const trimmed = body.ocrBaseUrl.trim();
+      // Same SSRF guard as the main LOCAL base URL: reject private/internal
+      // hosts unless the operator opted in via ALLOW_LOCAL_AI_PRIVATE_HOSTS.
+      const allowPrivate = isLocalAiHostAllowed(trimmed);
+      if (!allowPrivate && !isPublicUrl(trimmed)) {
+        return apiError(
+          "OCR base URL points to an internal/private host. Ops must allow it on this instance via ALLOW_LOCAL_AI_PRIVATE_HOSTS.",
+          422,
+        );
+      }
+      updates.aiOcrBaseUrl = trimmed;
+    }
+  }
+
+  if (body.ocrKey !== undefined) {
+    if (body.ocrKey === null || body.ocrKey === "") {
+      updates.aiOcrKeyEncrypted = null;
+    } else if (typeof body.ocrKey === "string") {
+      updates.aiOcrKeyEncrypted = encrypt(body.ocrKey.trim());
     }
   }
 

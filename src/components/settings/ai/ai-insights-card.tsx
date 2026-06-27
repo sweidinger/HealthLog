@@ -31,9 +31,11 @@ import { queryKeys } from "@/lib/query-keys";
 import { AdminOpenAIProviderForm } from "./admin-openai-provider-form";
 import { AnthropicProviderForm } from "./anthropic-provider-form";
 import { CodexProviderForm } from "./codex-provider-form";
+import { DocumentScanCard } from "./document-scan-card";
 import { FallbackChainCard } from "./fallback-chain-card";
 import { LocalProviderForm } from "./local-provider-form";
 import { OpenAIProviderForm } from "./openai-provider-form";
+import { ResponseTimeoutCard } from "./response-timeout-card";
 import { RuntimeActionsRow } from "./runtime-actions-row";
 import {
   PROVIDER_TYPES,
@@ -170,6 +172,13 @@ export function AiInsightsCard({
           selected={selectedProvider}
           onSelect={pickProvider}
         />
+
+        {/* v1.22 (#89) — per-user response timeout (mainly for slow
+            local/self-hosted backends). */}
+        <ResponseTimeoutCard userProvider={userProvider} />
+
+        {/* v1.22 (#90) — dedicated document-scan (Lab-OCR) provider. */}
+        <DocumentScanCard userProvider={userProvider} />
 
         <RuntimeActionsRow
           provider={selectedProvider}
