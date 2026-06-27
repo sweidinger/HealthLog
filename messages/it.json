@@ -238,7 +238,7 @@
     },
     "cycle": "Ciclo",
     "labs": "Esami",
-    "vorsorge": "Prevenzione",
+    "vorsorge": "Controlli",
     "illness": "Malattia"
   },
   "auth": {
@@ -3677,8 +3677,8 @@
           "body": "Il diario delle malattie registra episodi acuti e diagnosi croniche con le loro riacutizzazioni. Nascosto: correlare un episodio alle tue misurazioni e la Modalità riposo che mette in pausa i promemoria. Così il Coach capisce perché i valori variano per un periodo."
         },
         "vorsorge": {
-          "title": "Prevenzione",
-          "body": "Prevenzione ti ricorda controlli e vaccinazioni con un proprio intervallo. Suggerimento: «Fatto» può creare direttamente una misurazione o un risultato di laboratorio. Le scadenze compaiono come promemoria e nel referto medico."
+          "title": "Controlli",
+          "body": "I controlli ti ricordano screening e vaccinazioni con un proprio intervallo. Suggerimento: «Fatto» può creare direttamente una misurazione o un risultato di laboratorio. Le scadenze compaiono come promemoria e nel referto medico."
         },
         "cycle": {
           "title": "Ciclo",
@@ -3702,7 +3702,7 @@
         },
         "export": {
           "title": "Referto medico",
-          "body": "Il referto medico raccoglie misurazioni, farmaci, valori di laboratorio e prevenzione in PDF o FHIR per la visita. Qui convergono tutti i moduli: un referto completo nasce solo da dati ben curati."
+          "body": "Il referto medico raccoglie misurazioni, farmaci, valori di laboratorio e controlli in PDF o FHIR per la visita. Qui convergono tutti i moduli: un referto completo nasce solo da dati ben curati."
         },
         "achievements": {
           "title": "Traguardi",
@@ -4132,8 +4132,8 @@
         "subtitle": "Gestisci la vista e l’ordine degli episodi."
       },
       "vorsorge": {
-        "title": "Prevenzione",
-        "description": "Vista, ordine e singoli promemoria di prevenzione.",
+        "title": "Controlli",
+        "description": "Vista, ordine e singoli promemoria di controllo.",
         "subtitle": "Gestisci la vista, l’ordine e i singoli promemoria."
       },
       "modules": {
@@ -6483,13 +6483,13 @@
     "selectionBarLabel": "Azioni di selezione"
   },
   "measurementReminders": {
-    "sectionTitle": "Prevenzione",
+    "sectionTitle": "Controlli",
     "sectionDescription": "Promemoria su cosa misurare o controllare, quando e dove.",
     "addButton": "Aggiungi promemoria",
     "markDone": "Fatto",
     "delete": "Elimina",
     "deleteConfirmTitle": "Eliminare il promemoria?",
-    "deleteConfirmDescription": "Questo promemoria di prevenzione verrà eliminato definitivamente.",
+    "deleteConfirmDescription": "Questo promemoria di controllo verrà eliminato definitivamente.",
     "disabledBadge": "Disattivato",
     "nextDue": {
       "none": "Non pianificato",
@@ -6551,7 +6551,7 @@
       "rruleHint": "RFC-5545, es. FREQ=YEARLY per un controllo annuale.",
       "firstDue": "Prima scadenza (facoltativo)"
     },
-    "pushTitle": "Promemoria di prevenzione",
+    "pushTitle": "Promemoria di controllo",
     "pushBody": "È ora di: {label}",
     "pushLocation": "(presso {location})",
     "edit": "Modifica",
@@ -6562,7 +6562,7 @@
     "measureNow": "Misura ora",
     "nextDueLabel": "Prossima scadenza:",
     "lastDoneLabel": "Ultima volta:",
-    "customize": "Personalizza prevenzione",
+    "customize": "Personalizza controlli",
     "adherence": {
       "label": "Nell'intervallo",
       "onTrack": "In linea",
@@ -6578,8 +6578,8 @@
       "empty": "Nessun promemoria da personalizzare."
     },
     "dashboard": {
-      "empty": "Nessun promemoria di prevenzione in arrivo.",
-      "openLink": "Apri prevenzione"
+      "empty": "Nessun promemoria di controllo in arrivo.",
+      "openLink": "Apri controlli"
     },
     "showMeasurements": "Mostra le misurazioni"
   },

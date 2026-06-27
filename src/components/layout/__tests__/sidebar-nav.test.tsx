@@ -142,7 +142,7 @@ describe("<SidebarNav> module gating (v1.18.0)", () => {
     expect(html).toContain('href="/measurements"');
     expect(html).toContain('href="/medications"');
     expect(html).toContain('href="/insights"');
-    expect(html).toContain('href="/vorsorge"');
+    expect(html).toContain('href="/checkups"');
   });
 
   it("renders a module's nav entry when its module is enabled", () => {

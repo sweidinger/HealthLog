@@ -238,7 +238,7 @@
     },
     "cycle": "Cycle",
     "labs": "Labs",
-    "vorsorge": "Preventive Care",
+    "vorsorge": "Checkups",
     "illness": "Illness"
   },
   "auth": {
@@ -3677,8 +3677,8 @@
           "body": "The illness journal records acute episodes and chronic diagnoses with their flares. Hidden: correlate an episode with your readings, and Rest Mode that pauses reminders. That’s how the Coach understands why values drift for a while."
         },
         "vorsorge": {
-          "title": "Preventive care",
-          "body": "Preventive care reminds you of check-ups and vaccinations on their own interval. Tip: “Done” can create a reading or a lab result directly. Due items appear as reminders and in the doctor report."
+          "title": "Checkups",
+          "body": "Checkups remind you of screenings and vaccinations on their own interval. Tip: “Done” can create a reading or a lab result directly. Due items appear as reminders and in the doctor report."
         },
         "cycle": {
           "title": "Cycle",
@@ -3702,7 +3702,7 @@
         },
         "export": {
           "title": "Doctor report",
-          "body": "The doctor report bundles readings, medications, lab values, and preventive care as PDF or FHIR for the appointment. This is where every module converges — a complete report only comes from well-kept data."
+          "body": "The doctor report bundles readings, medications, lab values, and checkups as PDF or FHIR for the appointment. This is where every module converges — a complete report only comes from well-kept data."
         },
         "achievements": {
           "title": "Achievements",
@@ -4132,8 +4132,8 @@
         "subtitle": "Manage the view and order of episodes."
       },
       "vorsorge": {
-        "title": "Preventive care",
-        "description": "View, order, and individual preventive-care reminders.",
+        "title": "Checkups",
+        "description": "View, order, and individual checkup reminders.",
         "subtitle": "Manage the view, order, and individual reminders."
       },
       "modules": {
@@ -6483,13 +6483,13 @@
     "selectionBarLabel": "Selection actions"
   },
   "measurementReminders": {
-    "sectionTitle": "Preventive care",
+    "sectionTitle": "Checkups",
     "sectionDescription": "Reminders for what to measure or check, when, and where.",
     "addButton": "Add reminder",
     "markDone": "Done",
     "delete": "Delete",
     "deleteConfirmTitle": "Delete reminder?",
-    "deleteConfirmDescription": "This preventive-care reminder will be permanently deleted.",
+    "deleteConfirmDescription": "This checkup reminder will be permanently deleted.",
     "disabledBadge": "Off",
     "nextDue": {
       "none": "Not scheduled",
@@ -6551,7 +6551,7 @@
       "rruleHint": "RFC-5545, e.g. FREQ=YEARLY for an annual check.",
       "firstDue": "First due (optional)"
     },
-    "pushTitle": "Preventive-care reminder",
+    "pushTitle": "Checkup reminder",
     "pushBody": "Time for: {label}",
     "pushLocation": "(at {location})",
     "edit": "Edit",
@@ -6562,7 +6562,7 @@
     "measureNow": "Measure now",
     "nextDueLabel": "Next due:",
     "lastDoneLabel": "Last done:",
-    "customize": "Customize preventive care",
+    "customize": "Customize checkups",
     "adherence": {
       "label": "Within interval",
       "onTrack": "On track",
@@ -6578,8 +6578,8 @@
       "empty": "No reminders to customize yet."
     },
     "dashboard": {
-      "empty": "No upcoming preventive-care reminders.",
-      "openLink": "Open preventive care"
+      "empty": "No upcoming checkup reminders.",
+      "openLink": "Open checkups"
     },
     "showMeasurements": "Show measurements"
   },

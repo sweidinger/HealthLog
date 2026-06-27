@@ -238,7 +238,7 @@
     },
     "cycle": "Cycle",
     "labs": "Analyses",
-    "vorsorge": "Prévention",
+    "vorsorge": "Examens",
     "illness": "Maladie"
   },
   "auth": {
@@ -3677,8 +3677,8 @@
           "body": "Le journal des maladies consigne les épisodes aigus et les diagnostics chroniques avec leurs poussées. Caché : corréler un épisode à vos mesures et le Mode repos qui suspend les rappels. Le Coach comprend ainsi pourquoi les valeurs dérivent un temps."
         },
         "vorsorge": {
-          "title": "Prévention",
-          "body": "Prévention vous rappelle examens et vaccins selon leur propre intervalle. Astuce : « Fait » peut créer directement une mesure ou un résultat de laboratoire. Les échéances apparaissent en rappels et dans le rapport médical."
+          "title": "Examens",
+          "body": "Les examens vous rappellent dépistages et vaccins selon leur propre intervalle. Astuce : « Fait » peut créer directement une mesure ou un résultat de laboratoire. Les échéances apparaissent en rappels et dans le rapport médical."
         },
         "cycle": {
           "title": "Cycle",
@@ -3702,7 +3702,7 @@
         },
         "export": {
           "title": "Rapport médical",
-          "body": "Le rapport médical regroupe mesures, médicaments, valeurs de laboratoire et prévention en PDF ou FHIR pour le rendez-vous. Tous les modules convergent ici — un rapport complet ne vient que de données bien tenues."
+          "body": "Le rapport médical regroupe mesures, médicaments, valeurs de laboratoire et examens en PDF ou FHIR pour le rendez-vous. Tous les modules convergent ici — un rapport complet ne vient que de données bien tenues."
         },
         "achievements": {
           "title": "Réussites",
@@ -4132,8 +4132,8 @@
         "subtitle": "Gérez l’affichage et l’ordre des épisodes."
       },
       "vorsorge": {
-        "title": "Prévention",
-        "description": "Affichage, ordre et rappels de prévention individuels.",
+        "title": "Examens",
+        "description": "Affichage, ordre et rappels d’examen individuels.",
         "subtitle": "Gérez l’affichage, l’ordre et les rappels individuels."
       },
       "modules": {
@@ -6483,13 +6483,13 @@
     "selectionBarLabel": "Actions de sélection"
   },
   "measurementReminders": {
-    "sectionTitle": "Prévention",
+    "sectionTitle": "Examens",
     "sectionDescription": "Rappels de ce qu'il faut mesurer ou vérifier, quand et où.",
     "addButton": "Ajouter un rappel",
     "markDone": "Terminé",
     "delete": "Supprimer",
     "deleteConfirmTitle": "Supprimer le rappel ?",
-    "deleteConfirmDescription": "Ce rappel de prévention sera définitivement supprimé.",
+    "deleteConfirmDescription": "Ce rappel d’examen sera définitivement supprimé.",
     "disabledBadge": "Désactivé",
     "nextDue": {
       "none": "Non planifié",
@@ -6551,7 +6551,7 @@
       "rruleHint": "RFC-5545, p. ex. FREQ=YEARLY pour un contrôle annuel.",
       "firstDue": "Première échéance (facultatif)"
     },
-    "pushTitle": "Rappel de prévention",
+    "pushTitle": "Rappel d’examen",
     "pushBody": "C'est l'heure : {label}",
     "pushLocation": "(chez {location})",
     "edit": "Modifier",
@@ -6562,7 +6562,7 @@
     "measureNow": "Mesurer maintenant",
     "nextDueLabel": "Prochaine échéance :",
     "lastDoneLabel": "Dernière fois :",
-    "customize": "Personnaliser la prévention",
+    "customize": "Personnaliser les examens",
     "adherence": {
       "label": "Dans l'intervalle",
       "onTrack": "Dans les temps",
@@ -6578,8 +6578,8 @@
       "empty": "Aucun rappel à personnaliser pour l'instant."
     },
     "dashboard": {
-      "empty": "Aucun rappel de prévention à venir.",
-      "openLink": "Ouvrir la prévention"
+      "empty": "Aucun rappel d’examen à venir.",
+      "openLink": "Ouvrir les examens"
     },
     "showMeasurements": "Afficher les mesures"
   },

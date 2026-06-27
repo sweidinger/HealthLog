@@ -238,7 +238,7 @@
     },
     "cycle": "Cykl",
     "labs": "Wyniki badań",
-    "vorsorge": "Profilaktyka",
+    "vorsorge": "Badania",
     "illness": "Choroba"
   },
   "auth": {
@@ -3677,8 +3677,8 @@
           "body": "Dziennik chorób zapisuje ostre epizody i przewlekłe diagnozy wraz z zaostrzeniami. Ukryte: korelacja epizodu z pomiarami oraz Tryb odpoczynku wstrzymujący przypomnienia. Dzięki temu Coach rozumie, czemu wartości przez chwilę odbiegają."
         },
         "vorsorge": {
-          "title": "Profilaktyka",
-          "body": "Profilaktyka przypomina o badaniach i szczepieniach z własnym interwałem. Wskazówka: „Wykonane” może od razu utworzyć pomiar lub wynik laboratoryjny. Terminy pojawiają się jako przypomnienia i w raporcie dla lekarza."
+          "title": "Badania",
+          "body": "Badania przypominają o przeglądach i szczepieniach z własnym interwałem. Wskazówka: „Wykonane” może od razu utworzyć pomiar lub wynik laboratoryjny. Terminy pojawiają się jako przypomnienia i w raporcie dla lekarza."
         },
         "cycle": {
           "title": "Cykl",
@@ -3702,7 +3702,7 @@
         },
         "export": {
           "title": "Raport dla lekarza",
-          "body": "Raport dla lekarza łączy pomiary, leki, wyniki laboratoryjne i profilaktykę w PDF lub FHIR na wizytę. Tu zbiegają się wszystkie moduły — pełny raport powstaje tylko z zadbanych danych."
+          "body": "Raport dla lekarza łączy pomiary, leki, wyniki laboratoryjne i badania w PDF lub FHIR na wizytę. Tu zbiegają się wszystkie moduły — pełny raport powstaje tylko z zadbanych danych."
         },
         "achievements": {
           "title": "Osiągnięcia",
@@ -4132,8 +4132,8 @@
         "subtitle": "Zarządzaj widokiem i kolejnością epizodów."
       },
       "vorsorge": {
-        "title": "Profilaktyka",
-        "description": "Widok, kolejność i poszczególne przypomnienia profilaktyczne.",
+        "title": "Badania",
+        "description": "Widok, kolejność i poszczególne przypomnienia o badaniach.",
         "subtitle": "Zarządzaj widokiem, kolejnością i poszczególnymi przypomnieniami."
       },
       "modules": {
@@ -6483,13 +6483,13 @@
     "selectionBarLabel": "Akcje zaznaczenia"
   },
   "measurementReminders": {
-    "sectionTitle": "Profilaktyka",
+    "sectionTitle": "Badania",
     "sectionDescription": "Przypomnienia, co, kiedy i gdzie zmierzyć lub sprawdzić.",
     "addButton": "Dodaj przypomnienie",
     "markDone": "Gotowe",
     "delete": "Usuń",
     "deleteConfirmTitle": "Usunąć przypomnienie?",
-    "deleteConfirmDescription": "To przypomnienie profilaktyczne zostanie trwale usunięte.",
+    "deleteConfirmDescription": "To przypomnienie o badaniu zostanie trwale usunięte.",
     "disabledBadge": "Wył.",
     "nextDue": {
       "none": "Niezaplanowane",
@@ -6551,7 +6551,7 @@
       "rruleHint": "RFC-5545, np. FREQ=YEARLY dla corocznego badania.",
       "firstDue": "Pierwszy termin (opcjonalnie)"
     },
-    "pushTitle": "Przypomnienie profilaktyczne",
+    "pushTitle": "Przypomnienie o badaniu",
     "pushBody": "Czas na: {label}",
     "pushLocation": "(u {location})",
     "edit": "Edytuj",
@@ -6562,7 +6562,7 @@
     "measureNow": "Zmierz teraz",
     "nextDueLabel": "Następny termin:",
     "lastDoneLabel": "Ostatnio wykonano:",
-    "customize": "Dostosuj profilaktykę",
+    "customize": "Dostosuj badania",
     "adherence": {
       "label": "W interwale",
       "onTrack": "Zgodnie z planem",
@@ -6578,8 +6578,8 @@
       "empty": "Brak przypomnień do dostosowania."
     },
     "dashboard": {
-      "empty": "Brak nadchodzących przypomnień profilaktycznych.",
-      "openLink": "Otwórz profilaktykę"
+      "empty": "Brak nadchodzących przypomnień o badaniach.",
+      "openLink": "Otwórz badania"
     },
     "showMeasurements": "Pokaż pomiary"
   },

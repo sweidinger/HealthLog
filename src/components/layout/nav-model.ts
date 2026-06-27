@@ -104,7 +104,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
   // render — not buried three taps deep under Settings → Reminders. The
   // Reminders hub still links to it; this is the direct front door.
   {
-    href: "/vorsorge",
+    href: "/checkups",
     tKey: "nav.vorsorge",
     icon: Stethoscope,
     tourId: "nav-vorsorge",
