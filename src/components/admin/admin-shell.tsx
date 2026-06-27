@@ -251,7 +251,7 @@ export function AdminShell({ active, children }: AdminShellProps) {
       <nav
         ref={mobileStripRef}
         aria-label={t("admin.shell.sectionsNav")}
-        className="no-scrollbar -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
+        className="no-scrollbar relative -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
           <li className="snap-start">

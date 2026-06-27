@@ -2617,8 +2617,6 @@
       "title": "Sen",
       "description": "Podział na fazy i nocna długość snu, dane z Apple Health.",
       "headlineTitle": "Średnia na noc",
-      "headlineCaption": "Uśrednione z {count} nocy — {suffix}",
-      "headlineCaptionSuffix": "na noc",
       "compositionTitle": "Rozkład faz",
       "compositionSubtitle": "Ostatnie {nights} nocy",
       "compositionAriaLabel": "Rozkład faz snu w {nights} nocach",

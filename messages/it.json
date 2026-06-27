@@ -2617,8 +2617,6 @@
       "title": "Sonno",
       "description": "Suddivisione per fasi e durata notturna, da Apple Health.",
       "headlineTitle": "Media per notte",
-      "headlineCaption": "Mediato su {count} notti — {suffix}",
-      "headlineCaptionSuffix": "per notte",
       "compositionTitle": "Distribuzione delle fasi",
       "compositionSubtitle": "Ultime {nights} notti",
       "compositionAriaLabel": "Distribuzione delle fasi del sonno su {nights} notti",

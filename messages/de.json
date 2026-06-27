@@ -2617,8 +2617,6 @@
       "title": "Schlaf",
       "description": "Phasen-Aufschlüsselung und nächtliche Dauer – gezogen aus Apple Health.",
       "headlineTitle": "Durchschnitt pro Nacht",
-      "headlineCaption": "Gemittelt über {count} Nächte – {suffix}",
-      "headlineCaptionSuffix": "pro Nacht",
       "compositionTitle": "Phasen-Verteilung",
       "compositionSubtitle": "Letzte {nights} Nächte",
       "compositionAriaLabel": "Schlafphasen-Verteilung über {nights} Nächte",

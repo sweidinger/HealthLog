@@ -450,7 +450,7 @@ export function SettingsShell({
       <nav
         ref={mobileStripRef}
         aria-label={t("settings.shell.sectionsNav")}
-        className="no-scrollbar -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
+        className="no-scrollbar relative -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
           {visibleSections.map((section) => {

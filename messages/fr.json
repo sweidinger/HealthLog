@@ -2617,8 +2617,6 @@
       "title": "Sommeil",
       "description": "Répartition des phases et durée nocturne, issues d’Apple Health.",
       "headlineTitle": "Moyenne par nuit",
-      "headlineCaption": "Moyenne sur {count} nuits — {suffix}",
-      "headlineCaptionSuffix": "par nuit",
       "compositionTitle": "Répartition des phases",
       "compositionSubtitle": "{nights} dernières nuits",
       "compositionAriaLabel": "Répartition des phases de sommeil sur {nights} nuits",

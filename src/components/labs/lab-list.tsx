@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/api-fetch";
-import { resolveCatalogSlug } from "@/lib/labs/biomarker-catalog";
+import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 import { formatDate } from "@/lib/format";
 import { formatReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabReading, formatLabValue } from "@/lib/labs/format-value";
@@ -81,8 +81,20 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   // v1.22 — a short, factual line under each marker heading describing what the
   // biomarker measures, sourced from the catalog via i18n. Free-text markers
   // (no catalog match) carry no subtitle rather than a fabricated one.
+  // v1.22.1 — build the localized name→slug map once per locale instead of
+  // re-scanning all catalog seeds (calling `t()` each) per group every render.
+  const slugByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const seed of BIOMARKER_CATALOG) {
+      const norm = t(`labs.catalog.${seed.slug}`).trim().toLowerCase();
+      if (norm) map.set(norm, seed.slug);
+    }
+    return map;
+  }, [t]);
   const describeMarker = (analyte: string): string | null => {
-    const slug = resolveCatalogSlug(analyte, (s) => t(`labs.catalog.${s}`));
+    const norm = analyte.trim().toLowerCase();
+    if (!norm) return null;
+    const slug = slugByName.get(norm);
     return slug ? t(`labs.catalog.desc.${slug}`) : null;
   };
 
@@ -287,7 +299,7 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
               />
               <CardContent>
                 {description ? (
-                  <p className="text-muted-foreground mb-2 text-sm">
+                  <p className="text-muted-foreground mb-2 text-xs">
                     {description}
                   </p>
                 ) : null}

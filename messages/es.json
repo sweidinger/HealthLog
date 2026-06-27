@@ -2617,8 +2617,6 @@
       "title": "Sueño",
       "description": "Desglose por fases y duración nocturna, tomados de Apple Health.",
       "headlineTitle": "Media por noche",
-      "headlineCaption": "Promediado sobre {count} noches — {suffix}",
-      "headlineCaptionSuffix": "por noche",
       "compositionTitle": "Distribución de fases",
       "compositionSubtitle": "Últimas {nights} noches",
       "compositionAriaLabel": "Distribución de fases del sueño en {nights} noches",
