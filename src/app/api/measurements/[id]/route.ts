@@ -46,7 +46,7 @@ export const GET = apiHandler(
       },
     });
 
-    return apiSuccess(measurement);
+    return apiSuccess(shapeMeasurementNotes(measurement));
   },
 );
 
