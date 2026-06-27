@@ -529,3 +529,253 @@ describe("compliance + symptom channels (FDREXTEND)", () => {
     expect(pair!.r).toBeLessThan(0); // higher adherence → lower next-day RHR
   });
 });
+
+// ─── v1.22 — new linkages + early detection + labs ────────────────────────
+
+import {
+  DISCOVERY_BEHAVIOURS as MATRIX_BEHAVIOURS,
+  DISCOVERY_OUTCOMES as MATRIX_OUTCOMES,
+  discoverEmergingCorrelations,
+  discoverLabOutcomeCorrelations,
+  filterSeriesToWindow,
+  EARLY_WINDOW_DAYS,
+  type LabDrawPoint,
+} from "../correlation-discovery";
+
+/** Contiguous daily series starting `startISO` (YYYY-MM-DD). */
+function seriesFrom(startISO: string, values: number[]): DailySeriesPoint[] {
+  const [y, m, d] = startISO.split("-").map(Number);
+  const start = Date.UTC(y, m - 1, d);
+  return values.map((value, i) => {
+    const dt = new Date(start + i * 24 * 60 * 60 * 1000);
+    return { day: dt.toISOString().slice(0, 10), value };
+  });
+}
+
+describe("v1.22 — new curated linkages", () => {
+  it("adds sleep as a behaviour (was outcome-only)", () => {
+    expect(MATRIX_BEHAVIOURS).toContain("SLEEP_DURATION");
+  });
+
+  it("adds blood pressure (both components) as outcomes", () => {
+    expect(MATRIX_OUTCOMES).toContain("BLOOD_PRESSURE_SYS");
+    expect(MATRIX_OUTCOMES).toContain("BLOOD_PRESSURE_DIA");
+  });
+
+  it("surfaces compliance→BP_SYS but skips the same-family BP→BP self-cross", () => {
+    const n = 80;
+    const adherence = Array.from({ length: n }, (_, i) =>
+      i % 2 === 0 ? 100 : 50,
+    );
+    // Higher adherence today → lower next-day systolic.
+    const sys = [
+      130,
+      ...adherence
+        .slice(0, n - 1)
+        .map((a, i) => 160 - a / 4 + (i % 2 ? 0.2 : -0.2)),
+    ];
+    const result = discoverCorrelations([
+      {
+        key: MEDICATION_COMPLIANCE_CHANNEL_KEY,
+        role: "behaviour",
+        points: longSeries(adherence),
+      },
+      // BP is both a behaviour and an outcome in the real matrix; the
+      // same-family guard must keep BP_SYS(behaviour)→BP_SYS(outcome) out.
+      { key: "BLOOD_PRESSURE_SYS", role: "behaviour", points: longSeries(sys) },
+      { key: "BLOOD_PRESSURE_SYS", role: "outcome", points: longSeries(sys) },
+    ]);
+    expect(
+      result.discovered.find(
+        (p) =>
+          p.behaviour === "BLOOD_PRESSURE_SYS" &&
+          p.outcome === "BLOOD_PRESSURE_SYS",
+      ),
+    ).toBeUndefined();
+    const link = result.discovered.find(
+      (p) =>
+        p.behaviour === MEDICATION_COMPLIANCE_CHANNEL_KEY &&
+        p.outcome === "BLOOD_PRESSURE_SYS",
+    );
+    expect(link).toBeDefined();
+    expect(link!.r).toBeLessThan(0);
+  });
+});
+
+describe("discoverEmergingCorrelations (early detection)", () => {
+  it("filterSeriesToWindow keeps only on/after the cutoff", () => {
+    const s: NamedSeries[] = [
+      {
+        key: "MOOD",
+        role: "behaviour",
+        points: seriesFrom("2026-03-01", [1, 2, 3, 4, 5]),
+      },
+    ];
+    const filtered = filterSeriesToWindow(s, "2026-03-03");
+    expect(filtered[0].points.map((p) => p.day)).toEqual([
+      "2026-03-03",
+      "2026-03-04",
+      "2026-03-05",
+    ]);
+  });
+
+  it("surfaces a fortnight-long signal the retrospective n≥20 floor cannot yet see", () => {
+    // Only ~18 days of data: a clean behaviour→next-day-outcome coupling. The
+    // retrospective scan needs ≥ 20 lagged pairs, so it sees NOTHING; the early
+    // window (floor 10) catches it — exactly the early-detection mandate.
+    const len = 18;
+    const beh = Array.from({ length: len }, (_, i) => (i % 2 ? 2 : 9));
+    const out = beh.map((b, i) => 40 + b * 3 + (i % 2 ? 0.3 : -0.3));
+    const series: NamedSeries[] = [
+      { key: "MOOD", role: "behaviour", points: longSeries(beh) },
+      {
+        key: "HEART_RATE_VARIABILITY",
+        role: "outcome",
+        points: longSeries(out),
+      },
+    ];
+    const retrospective = discoverCorrelations(series);
+    expect(retrospective.discovered).toHaveLength(0); // n too low for the floor
+
+    const cutoff = longSeries(beh)[0].day; // whole (short) window
+    const { emerging } = discoverEmergingCorrelations(series, retrospective, {
+      recentFromDayKey: cutoff,
+      minPairs: 10,
+    });
+    const pair = emerging.find(
+      (p) => p.behaviour === "MOOD" && p.outcome === "HEART_RATE_VARIABILITY",
+    );
+    expect(pair).toBeDefined();
+    expect(pair!.window).toBe("recent");
+    expect(pair!.provisional).toBe(true);
+  });
+
+  it("does not double-count a pair already established retrospectively", () => {
+    // A strong relationship across the WHOLE 80-day window → retrospective finds
+    // it; the emerging pass must NOT re-surface it.
+    const n = 80;
+    const beh = Array.from({ length: n }, (_, i) => (i % 2 ? 2 : 9));
+    const out = beh.map((b, i) => 40 + b * 3 + (i % 2 ? 0.3 : -0.3));
+    const series: NamedSeries[] = [
+      { key: "MOOD", role: "behaviour", points: longSeries(beh) },
+      {
+        key: "HEART_RATE_VARIABILITY",
+        role: "outcome",
+        points: longSeries(out),
+      },
+    ];
+    const retrospective = discoverCorrelations(series);
+    expect(
+      retrospective.discovered.some(
+        (p) => p.behaviour === "MOOD" && p.outcome === "HEART_RATE_VARIABILITY",
+      ),
+    ).toBe(true);
+    const cutoff = new Date(
+      Date.UTC(2026, 0, 1) + (n - EARLY_WINDOW_DAYS) * 24 * 60 * 60 * 1000,
+    )
+      .toISOString()
+      .slice(0, 10);
+    const { emerging } = discoverEmergingCorrelations(series, retrospective, {
+      recentFromDayKey: cutoff,
+      minPairs: 10,
+    });
+    expect(
+      emerging.find(
+        (p) => p.behaviour === "MOOD" && p.outcome === "HEART_RATE_VARIABILITY",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("returns nothing on pure noise (FDR + high bar hold in the short window)", () => {
+    const n = 30;
+    const beh = Array.from({ length: n }, (_, i) => (i * 7) % 11);
+    const out = Array.from({ length: n }, (_, i) => (i * 3) % 5);
+    const series: NamedSeries[] = [
+      { key: "MOOD", role: "behaviour", points: longSeries(beh) },
+      {
+        key: "HEART_RATE_VARIABILITY",
+        role: "outcome",
+        points: longSeries(out),
+      },
+    ];
+    const retrospective = discoverCorrelations(series);
+    const cutoff = longSeries(beh)[Math.max(0, n - EARLY_WINDOW_DAYS)].day;
+    const { emerging } = discoverEmergingCorrelations(series, retrospective, {
+      recentFromDayKey: cutoff,
+      minPairs: 10,
+    });
+    expect(emerging).toHaveLength(0);
+  });
+});
+
+describe("discoverLabOutcomeCorrelations (labs ↔ outcomes)", () => {
+  function weightSeries(): NamedSeries {
+    // Daily weight that drifts up over ~6 months.
+    const values = Array.from({ length: 180 }, (_, i) => 80 + i * 0.05);
+    return {
+      key: "WEIGHT",
+      role: "outcome",
+      points: seriesFrom("2026-01-01", values),
+    };
+  }
+
+  it("surfaces a lab that tracks the contemporaneous outcome window-mean", () => {
+    const weight = weightSeries();
+    // 8 monthly-ish HbA1c-like draws that rise with weight.
+    const draws: LabDrawPoint[] = [];
+    for (let i = 0; i < 8; i++) {
+      const dayIdx = 30 + i * 18; // spread draws across the window
+      const day = weight.points[dayIdx].day;
+      // Value tracks the period's weight mean (with tiny jitter).
+      const v = 5.0 + dayIdx * 0.01 + (i % 2 ? 0.02 : -0.02);
+      draws.push({ key: "LAB:HbA1c", day, value: v });
+    }
+    const result = discoverLabOutcomeCorrelations(draws, [weight], {
+      minDraws: 5,
+      minWindowPoints: 5,
+    });
+    const pair = result.discovered.find(
+      (d) => d.lab === "LAB:HbA1c" && d.outcome === "WEIGHT",
+    );
+    expect(pair).toBeDefined();
+    expect(pair!.n).toBeGreaterThanOrEqual(5);
+    expect(pair!.r).toBeGreaterThan(0);
+    expect(pair!.qValue).toBeLessThanOrEqual(result.fdrQ);
+    expect(pair!.interpretation).toMatch(/never a cause/i);
+  });
+
+  it("degrades to absent when the marker has too few draws", () => {
+    const weight = weightSeries();
+    const draws: LabDrawPoint[] = [0, 1, 2].map((i) => ({
+      key: "LAB:HbA1c",
+      day: weight.points[30 + i * 18].day,
+      value: 5 + i,
+    }));
+    const result = discoverLabOutcomeCorrelations(draws, [weight], {
+      minDraws: 5,
+    });
+    expect(result.discovered).toHaveLength(0);
+    expect(result.pairsTested).toBe(0);
+  });
+
+  it("ignores outcomes outside the curated lab-target set", () => {
+    const hrv: NamedSeries = {
+      key: "HEART_RATE_VARIABILITY",
+      role: "outcome",
+      points: seriesFrom(
+        "2026-01-01",
+        Array.from({ length: 180 }, (_, i) => 50 + i * 0.1),
+      ),
+    };
+    const draws: LabDrawPoint[] = Array.from({ length: 8 }, (_, i) => ({
+      key: "LAB:HbA1c",
+      day: hrv.points[30 + i * 18].day,
+      value: 5 + i,
+    }));
+    const result = discoverLabOutcomeCorrelations(draws, [hrv], {
+      minDraws: 5,
+    });
+    // HRV is not a curated lab-outcome target → no pair tested.
+    expect(result.pairsTested).toBe(0);
+  });
+});

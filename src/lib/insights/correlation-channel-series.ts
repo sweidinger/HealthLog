@@ -24,8 +24,11 @@ import {
 import {
   MEDICATION_COMPLIANCE_CHANNEL_KEY,
   SYMPTOM_SEVERITY_CHANNEL_KEY,
+  type LabDrawPoint,
   type NamedSeries,
 } from "@/lib/insights/correlation-discovery";
+import { resolveLabFields } from "@/lib/labs/serialise";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   buildComplianceDailySeries,
   buildSymptomSeverityDailySeries,
@@ -176,4 +179,77 @@ export async function fetchSymptomSeries(
     windowEnd: now,
     role: "outcome",
   });
+}
+
+/** Day key (YYYY-MM-DD) for an instant in the user's display timezone. */
+function tzDayKey(at: Date, tz: string): string {
+  const { year, month, day } = wallClockInTz(at, tz);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * v1.22 — build the user's lab draws for the labs ↔ outcome correlation pass.
+ *
+ * One {@link LabDrawPoint} per QUANTITATIVE reading in the window, keyed
+ * `LAB:<canonical analyte>` (the resolved name, so two spellings of one marker
+ * collapse). HIDDEN biomarkers are excluded (the W3 catalog `hidden` flag — a
+ * marker the user retired from the active list must not silently re-enter an
+ * analysis surface). Qualitative readings (no numeric `value`) and rows whose
+ * resolved value is non-finite are dropped — there is nothing to correlate.
+ * The encrypted note column is never selected.
+ *
+ * Returns an EMPTY array when the user has no usable readings, so the discovery
+ * pass degrades to absent rather than fabricating a link.
+ */
+export async function fetchLabDraws(
+  userId: string,
+  tz: string,
+  since: Date,
+): Promise<LabDrawPoint[]> {
+  const now = new Date();
+  const rows = await prisma.labResult.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      value: { not: null },
+      takenAt: { gte: since, lte: now },
+    },
+    orderBy: { takenAt: "asc" },
+    take: 5000,
+    select: {
+      analyte: true,
+      unit: true,
+      referenceLow: true,
+      referenceHigh: true,
+      panel: true,
+      value: true,
+      takenAt: true,
+      biomarkerId: true,
+      biomarker: {
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          lowerBound: true,
+          upperBound: true,
+          panel: true,
+          hidden: true,
+        },
+      },
+    },
+  });
+
+  const draws: LabDrawPoint[] = [];
+  for (const row of rows) {
+    // Exclude retired markers (W3 hidden flag); unlinked rows cannot be hidden.
+    if (row.biomarker?.hidden) continue;
+    if (row.value === null || !Number.isFinite(row.value)) continue;
+    const resolved = resolveLabFields(row, row.biomarker);
+    draws.push({
+      key: `LAB:${resolved.analyte}`,
+      day: tzDayKey(row.takenAt, tz),
+      value: row.value,
+    });
+  }
+  return draws;
 }
