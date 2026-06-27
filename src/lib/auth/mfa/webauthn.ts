@@ -122,9 +122,12 @@ export async function createMfaRegistrationOptions(
       // credential need not be discoverable — and a non-resident key does not
       // burn a discoverable-credential slot, allowing many keys per account.
       residentKey: "discouraged",
-      // A roaming security key supplies the possession factor; UV is a bonus,
-      // not a requirement, because the password already covered a factor.
-      userVerification: "preferred",
+      // The server verify enforces user verification (SimpleWebAuthn's default
+      // `requireUserVerification: true`), so the browser ceremony must ask for
+      // it too — a key that passes the browser but skips UV would otherwise
+      // fail server-side. Make the intent explicit rather than relying on the
+      // ceremony defaulting to a stricter posture.
+      userVerification: "required",
       authenticatorAttachment: "cross-platform",
     },
   });
@@ -200,7 +203,9 @@ export async function createMfaAuthenticationOptions(userId: string) {
 
   const options = await generateAuthenticationOptions({
     rpID: getRpId(),
-    userVerification: "preferred",
+    // Match server-side enforcement: the verify step requires user
+    // verification (SimpleWebAuthn default), so the browser must request it too.
+    userVerification: "required",
     allowCredentials: credentials.map((c) => ({
       id: c.credentialId,
       transports: c.transports as Transport[],

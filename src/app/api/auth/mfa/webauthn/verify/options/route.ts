@@ -54,6 +54,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Invalid or expired challenge", 401);
   }
 
+  // Only a login-issued challenge may begin a login assertion here. Reject any
+  // other challenge kind with the same generic 401.
+  if (challenge.kind !== "login") {
+    annotate({ action: { name: "auth.mfa.verify.invalid_ticket" } });
+    return apiError("Invalid or expired challenge", 401);
+  }
+
   const result = await createMfaAuthenticationOptions(challenge.userId);
   if (!result) {
     // No registered security key for this account — the client should fall
