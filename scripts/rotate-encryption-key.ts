@@ -319,11 +319,12 @@ async function main() {
   );
 
   // ───── CoachPlan (Bytes columns) ─────
-  // "ifCueEncrypted" "thenActionEncrypted" "targetEncrypted"
+  // "ifCueEncrypted" "thenActionEncrypted" "targetEncrypted" "outcomeEncrypted"
   for (const field of [
     "ifCueEncrypted",
     "thenActionEncrypted",
     "targetEncrypted",
+    "outcomeEncrypted",
   ]) {
     results.push(await rotateBytesColumn("CoachPlan", field, prisma.coachPlan));
   }

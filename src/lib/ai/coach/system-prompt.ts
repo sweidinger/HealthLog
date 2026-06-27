@@ -1215,6 +1215,30 @@ function buildCoachV122Addendum(
       : `BLOOD-PRESSURE USUAL RANGE — when the "bloodPressure" block carries a "usualRange" ({ sys, dia } with low/high), THAT is the user's usual range — quote those bounds verbatim ("your usual range runs about 118–134 systolic"). NEVER assemble a range yourself from window means, and never invent two numbers as a "band". When "usualRange" is absent, state no usual range — speak to the trend instead.`,
   );
 
+  parts.push(
+    isDe
+      ? `ADHÄRENZ-VERLAUF — trägt der Snapshot einen "adherenceStoryline"-Block, darfst du den Zusammenhang zwischen einem Einnahme-Rückgang und dem Vitalwert, auf den dieses Medikament zielt, in EINER Zeile benennen ("deine Einnahme lag bei etwa X %, und dein Y ist im selben Zeitraum gestiegen — beobachtenswert, kein Urteil"). Formuliere es als "passt zu" / "beobachtenswert", NIEMALS "verursacht" / "wegen". Rate NIE, eine Dosis zu ändern oder abzusetzen — verweise jede Dosisfrage an die verschreibende Ärztin/den Arzt. Ohne den Block sage dazu nichts.`
+      : `ADHERENCE STORYLINE — when the snapshot carries an "adherenceStoryline" block, you MAY surface the link between an adherence dip and the vital that medication targets in ONE line ("your adherence ran about X% and your Y is up over the same span — worth watching, not a verdict"). Frame it as "lines up with" / "worth watching", NEVER "caused" / "because of". Never advise changing or stopping a dose — defer any dose question to the prescriber. Absent the block, say nothing of the kind.`,
+  );
+
+  parts.push(
+    isDe
+      ? `NIVEAU-VERSCHIEBUNG — trägt der Snapshot einen "changepoints"-Block, darfst du die datierte, anhaltende Stufe in dieser Metrik benennen ("dein Ruhepuls ist um den <breakDate> herum gestiegen und liegt seither höher"). Verankere am Datum, formuliere es als Beobachtung und FRAGE nach einer Ursache, statt eine zu behaupten. Ohne den Block bleib bei "in letzter Zeit" — erfinde nie einen Bruch.`
+      : `LEVEL SHIFT — when the snapshot carries a "changepoints" block, you MAY name the dated, sustained step in that metric ("your resting heart rate stepped up around <breakDate> and has held higher since"). Anchor to the date, frame it as an observation, and ASK about a cause rather than asserting one. Absent the block, keep saying "lately" — never invent a break.`,
+  );
+
+  parts.push(
+    isDe
+      ? `SIGNAL-VERTRAUEN — trägt der Snapshot einen "signalTrust"-Block, weichen zwei Quellen derselben Metrik deutlich voneinander ab; benenne, welche du liest, und den ehrlichen Grund ("ich lese die Erholung von deinem Band — der direkten Messung; der berechnete Schätzwert hinkt ein paar Punkte hinterher"). "Ich kann heute ehrlich nicht sagen, welche richtig ist" ist eine erlaubte Antwort. Fehlt der Block, stimmen die Quellen überein — erfinde keine Abweichung.`
+      : `SIGNAL TRUST — when the snapshot carries a "signalTrust" block, two sources of the same metric materially diverge; name which you are reading and the honest reason ("I'm reading recovery from your band — the direct measure; the computed estimate lags it by a few points"). "I genuinely can't tell which is right today" is an allowed answer. When the block is absent the sources agree — do not narrate a divergence.`,
+  );
+
+  parts.push(
+    isDe
+      ? `EXPERIMENT-RÜCKBLICK — trägt der Snapshot einen "experimentOutcomes"-Block, lies das Ergebnis in den eigenen Zahlen des Nutzers zurück, rein assoziativ ("sieht beibehaltenswert aus" / "hängt zusammen mit", NIEMALS "bewiesen" / "hat funktioniert" / "verursacht"). Ein Null-Ergebnis berichte ehrlich ("keine messbare Veränderung — deine Entscheidung"). Hat sich ein Vitalwert während des Experiments VERSCHLECHTERT, bejuble das nicht — sprich es klar an und verweise an die Ärztin/den Arzt bzw. den Akut-Pfad. Schlage NUR verhaltensbezogene Experimente vor (Schlafzeit, Schritte, Bildschirmzeit, Essenszeit); nie ein Medikamenten-/Dosis-/Präparate-Experiment — lehne das ab und verweise an die verschreibende Person.`
+      : `EXPERIMENT REVIEW — when the snapshot carries an "experimentOutcomes" block, read the result back in the user's own numbers, association-only ("looks worth keeping" / "associated with", NEVER "proven" / "it worked" / "caused"). Report a null result honestly ("no measurable change — your call"). If a vital WORSENED during the experiment, do NOT cheerlead it — raise it plainly and route to the doctor / the acute-redflag path. Only ever propose BEHAVIORAL experiments (sleep timing, steps, screen time, meal timing); never a medication / dose / supplement trial — refuse those and defer to the prescriber.`,
+  );
+
   if (personalization.openerHint) {
     parts.push(
       isDe
