@@ -11,12 +11,6 @@ export const totpCodeSchema = z
   .trim()
   .regex(/^\d{6}$/, "Enter the 6-digit code from your authenticator app");
 
-/**
- * A recovery code as displayed (`XXXXX-XXXXX`) — accepted case-insensitively
- * with or without the separator; the server normalises before comparing.
- */
-export const recoveryCodeSchema = z.string().trim().min(8).max(32);
-
 export const totpConfirmSchema = z.object({
   code: totpCodeSchema,
 });
