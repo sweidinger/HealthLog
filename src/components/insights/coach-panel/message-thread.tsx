@@ -951,10 +951,9 @@ export function TypingDots({ label }: { label: string }) {
   return (
     <span
       data-slot="coach-typing-indicator"
-      // v1.18.7 — show the word alongside the dots (Claude/ChatGPT-like
-      // "Thinking…") with a gentle pulse, so the brief pre-stream beat
-      // reads as deliberate rather than a frozen empty bubble. The dots
-      // bounce in sequence; the label keeps the screen-reader text.
+      // v1.21.2.1 — the pre-stream beat shows ONLY the three bouncing dots,
+      // no "Thinking…" word. The label stays in an `sr-only` span so the
+      // screen-reader still announces the thinking state.
       className="text-muted-foreground inline-flex items-center gap-2 py-0.5"
     >
       <span className="sr-only">{label}</span>
@@ -966,12 +965,6 @@ export function TypingDots({ label }: { label: string }) {
             style={{ animationDelay: `${i * 150}ms`, animationDuration: "1s" }}
           />
         ))}
-      </span>
-      <span
-        aria-hidden="true"
-        className="animate-pulse text-xs motion-reduce:animate-none"
-      >
-        {label}
       </span>
     </span>
   );

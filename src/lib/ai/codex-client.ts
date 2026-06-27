@@ -116,15 +116,18 @@ function isSlugRejection(status: number, bodyExcerpt: string): boolean {
 const ORIGINATOR = "healthlog";
 const USER_AGENT = "HealthLog/1.0 (+https://github.com/MBombeck/HealthLog)";
 
+/** A Responses-API user/assistant content block. */
+type CodexContentBlock =
+  | { type: "input_text"; text: string }
+  | { type: "input_image"; image_url: string; detail: "high" }
+  | { type: "output_text"; text: string };
+
 /** A Responses-API input item. */
 type CodexInputItem =
   | {
       type: "message";
       role: "user" | "assistant";
-      content: Array<
-        | { type: "input_text"; text: string }
-        | { type: "input_image"; image_url: string; detail: "high" }
-      >;
+      content: CodexContentBlock[];
     }
   | {
       type: "function_call";
@@ -138,20 +141,21 @@ type CodexInputItem =
       output: string;
     };
 
-/** Map an `AiContentPart[]` body into Responses input content blocks. */
+/**
+ * Map an `AiContentPart[]` body into Responses input content blocks. Text parts
+ * on an assistant turn use `output_text` (Responses API requires it for
+ * assistant replays); user turns use `input_text`. Image parts are user-only.
+ */
 function mapCodexParts(
   parts: AiContentPart[],
-): Array<
-  | { type: "input_text"; text: string }
-  | { type: "input_image"; image_url: string; detail: "high" }
-> {
-  const out: Array<
-    | { type: "input_text"; text: string }
-    | { type: "input_image"; image_url: string; detail: "high" }
-  > = [];
+  role: "user" | "assistant",
+): CodexContentBlock[] {
+  const textType: "input_text" | "output_text" =
+    role === "assistant" ? "output_text" : "input_text";
+  const out: CodexContentBlock[] = [];
   for (const part of parts) {
     if (part.type === "text") {
-      out.push({ type: "input_text", text: part.text });
+      out.push({ type: textType, text: part.text });
     } else if (part.type === "image") {
       out.push({
         type: "input_image",
@@ -181,10 +185,18 @@ function buildCodexInput(messages: AiMessage[]): CodexInputItem[] {
       });
       continue;
     }
-    const content =
+    // v1.21.3 — assistant message replays MUST use `output_text`, not
+    // `input_text` (Responses API; docs/codex-protocol-spec.md §2b). The
+    // single-user-turn case never hit this — only the multi-round tool loop
+    // replays a prior assistant turn — so the spec violation surfaced as a 400
+    // exactly on the Coach tool-call path that broke in production. User turns
+    // keep `input_text` / `input_image`.
+    const textType: "input_text" | "output_text" =
+      m.role === "assistant" ? "output_text" : "input_text";
+    const content: CodexContentBlock[] =
       typeof m.content === "string"
-        ? [{ type: "input_text" as const, text: m.content }]
-        : mapCodexParts(m.content);
+        ? [{ type: textType, text: m.content }]
+        : mapCodexParts(m.content, m.role);
     items.push({ type: "message", role: m.role, content });
     if (m.role === "assistant" && m.toolCalls) {
       for (const tc of m.toolCalls) {
@@ -200,12 +212,23 @@ function buildCodexInput(messages: AiMessage[]): CodexInputItem[] {
   return items;
 }
 
-/** Map tool defs into the Responses `function` tool shape. */
+/**
+ * Map tool defs into the Responses `function` tool shape.
+ *
+ * v1.21.3 — the Responses-API function tool requires an explicit `strict`
+ * field; omitting it is one documented cause of a 400 on a client-supplied
+ * `tools` array. We send `strict: false` because the Coach tool schemas are
+ * not authored to the strict-mode contract (which additionally demands
+ * `additionalProperties: false` and every property in `required`). This is
+ * codex-only — the OpenAI Chat-Completions client nests tools differently and
+ * is untouched.
+ */
 function buildCodexTools(tools: AiToolDef[]) {
   return tools.map((t) => ({
     type: "function" as const,
     name: t.name,
     description: t.description,
+    strict: false,
     parameters: t.parameters,
   }));
 }
@@ -347,7 +370,18 @@ export class CodexClient implements AIProvider {
 
       // Non-slug error (5xx, 429, invalid_prompt, etc.) — propagate
       // immediately. Walking the chain wouldn't help.
-      const err = new Error(`Codex request failed (${firstAttempt.status})`);
+      //
+      // v1.21.3 — fold the redacted upstream body into the message itself, not
+      // just a side property. Codex's 400 body names the exact field/param it
+      // rejected; without it in the message the chain runner's `summariseError`
+      // (which reads `err.message`) logged a bare "Codex request failed (400)"
+      // with no actionable reason — which is what made the live tool-call 400
+      // un-diagnosable. The body is already redacted of bearer/sk- secrets.
+      const err = new Error(
+        bodyExcerpt
+          ? `Codex request failed (${firstAttempt.status}): ${bodyExcerpt}`
+          : `Codex request failed (${firstAttempt.status})`,
+      );
       Object.assign(err, {
         httpStatus: firstAttempt.status,
         upstream: "codex",
@@ -391,7 +425,13 @@ export class CodexClient implements AIProvider {
   ): Promise<Error> {
     const rawBody = await res.text().catch(() => "");
     const bodyExcerpt = redactBody(rawBody);
-    const err = new Error(`${message} (${res.status})`);
+    // v1.21.3 — fold the redacted body into the message (see the non-slug error
+    // path); the chain runner's `summariseError` reads `err.message`.
+    const err = new Error(
+      bodyExcerpt
+        ? `${message} (${res.status}): ${bodyExcerpt}`
+        : `${message} (${res.status})`,
+    );
     Object.assign(err, {
       httpStatus: res.status,
       upstream: "codex",

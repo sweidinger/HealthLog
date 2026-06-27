@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.21.2.1] — 2026-06-27 — Coach + briefing provider hotfix
+
+A hotfix. No migrations, no breaking changes.
+
+### Fixed
+
+- The Coach and the daily briefing failed for accounts signed in through the ChatGPT provider: the provider rejected the multi-step tool-call request, and the failure surfaced as a server error instead of a graceful message. A provider failure now always degrades to a clear in-chat notice — with the correct reconnect or rate-limit prompt where those apply — rather than a 500, and the provider request follows the documented tool-call wire format so the Coach's multi-round reasoning and the briefing generate again. The provider's own error detail is now captured for diagnosis.
+
+### Changed
+
+- While the Coach is thinking, the bubble shows only the three animated dots — the "Thinking…" word is gone (it remains for screen readers).
+
 ## [1.21.2] — 2026-06-27 — Ambient Coach presence
 
 A patch release. The Coach surfaces what it already computes — at the metric, on the score, in the briefing — instead of waiting to be asked. No migrations, no breaking changes.
