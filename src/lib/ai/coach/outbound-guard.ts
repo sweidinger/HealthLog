@@ -75,6 +75,14 @@ const DOSE_PRESCRIPTION_PATTERNS: readonly RegExp[] = [
     `\\bn[äa]chste\\s+(?:stufe|dosis)\\b[^.?!]{0,30}\\b[\\d.,]+\\s*${DOSE_UNIT}\\b`,
     "i",
   ),
+  // v1.22 (W9, C2): experiment-shaped dose changes the "to/by N unit" patterns
+  // miss — halve/double/skip/stop a DOSE or named medication AS AN EXPERIMENT.
+  // Both a nearby medication object AND a trial cue ("for two weeks", "to see")
+  // are required, so benign behavioral experiments ("double your steps for two
+  // weeks") and refusals ("changing a dose isn't something to test") never trip.
+  /\b(?:halv\w*|doubl\w*|skip\w*|stop\s+taking|quit\s+taking|come\s+off)\b[^.?!]{0,25}\b(?:dose|doses|pill|pills|tablet|tablets|medication|meds?|insulin|injection)\b[^.?!]{0,40}\b(?:for\s+\w+\s+(?:day|days|week|weeks|month|months)|to\s+(?:see|test|try|check)|next\s+(?:week|month))\b/i,
+  // DE: halbier/verdoppel/lass aus/setz ab/pausier — Dosis/Tablette + Versuchs-Cue
+  /\b(?:halbier\w*|verdoppel\w*|lass\w*\s+aus|setz\w*\s+ab|pausier\w*)\b[^.?!]{0,25}\b(?:dosis|tablette\w*|medikament\w*|spritze\w*|insulin)\b[^.?!]{0,40}\b(?:für\s+\w+\s+(?:tag|tage|woche|wochen|monat\w*)|um\s+zu\s+(?:sehen|testen)|zum\s+(?:test|ausprobieren))\b/i,
 ];
 
 /**

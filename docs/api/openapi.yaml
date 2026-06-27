@@ -4676,6 +4676,8 @@ paths:
               - active
               - met
               - abandoned
+              - review_due
+              - reviewed
           description: Filter to a single lifecycle status. Omit for the non-terminal set (proposed + active).
       responses:
         "200":
@@ -4724,6 +4726,8 @@ paths:
                     - active
                     - met
                     - abandoned
+                    - review_due
+                    - reviewed
                 reviewDate:
                   anyOf:
                     - type: string
@@ -17208,6 +17212,8 @@ components:
             - active
             - met
             - abandoned
+            - review_due
+            - reviewed
           description: "App-side lifecycle: proposed | active | met | abandoned."
         reviewDate:
           anyOf:

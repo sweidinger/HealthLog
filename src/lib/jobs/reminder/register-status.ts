@@ -40,6 +40,11 @@ import {
   runCoachReminderSweep,
 } from "@/lib/jobs/coach-reminder-sweep";
 import {
+  COACH_PLAN_REVIEW_QUEUE,
+  COACH_PLAN_REVIEW_CRON,
+  runCoachPlanReviewTick,
+} from "@/lib/jobs/coach-plan-review";
+import {
   MEDICATION_LOW_STOCK_QUEUE,
   MEDICATION_LOW_STOCK_CRON,
   runMedicationLowStockTick,
@@ -167,6 +172,9 @@ const allQueues = [
   // v1.22 (M4) — daily Coach-reminder sweep. Without this entry the 05:20
   // schedule silently no-ops and no "remind me" reminder ever surfaces.
   COACH_REMINDER_SWEEP_QUEUE,
+  // v1.22 (W9, C2) — daily n-of-1 experiment review worker. Without this entry
+  // the 05:25 schedule silently no-ops and no experiment read-back is written.
+  COACH_PLAN_REVIEW_QUEUE,
   // v1.16.11 — daily medication low-stock pass. Without this entry the 09:00
   // schedule silently no-ops and no low-stock alert ever fires.
   MEDICATION_LOW_STOCK_QUEUE,
@@ -216,6 +224,10 @@ const schedules: ScheduleEntry[] = [
   // the nudge tick. Flips overdue reminders to `due` + mints plan-review
   // reminders from passed CoachPlan.reviewDate. In-app surface only; no push.
   [COACH_REMINDER_SWEEP_QUEUE, COACH_REMINDER_SWEEP_CRON],
+  // v1.22 (W9, C2) — daily 05:25 Europe/Berlin n-of-1 experiment review, just
+  // after the reminder sweep mints the plan-review reminders this worker reads.
+  // Writes the grounded before/after read-back; no provider call, no push.
+  [COACH_PLAN_REVIEW_QUEUE, COACH_PLAN_REVIEW_CRON],
   // v1.16.11 — medication low-stock pass at 09:00 Europe/Berlin: a
   // supply alert is an errand prompt, so it fires at a time the user
   // can act on it. Once daily; the per-medication stamp keeps it at
@@ -478,6 +490,37 @@ export async function registerStatusQueues(
             result: {
               reminders_due: summary.remindersDue,
               plan_reviews_minted: summary.planReviewsMinted,
+              errored: summary.errored,
+            },
+          });
+        } catch (err) {
+          evt.setError(err);
+          recordError();
+          throw err;
+        }
+      });
+    },
+  );
+
+  // v1.22 (W9, C2) — n-of-1 experiment review worker: reads the plan-review
+  // reminders the sweep minted and writes the grounded before/after read-back
+  // into the plan's encrypted outcome column, flipping it to `reviewed`.
+  // Idempotent (a reviewed plan is not re-processed). No provider call, no push.
+  await boss.work(
+    COACH_PLAN_REVIEW_QUEUE,
+    { localConcurrency: 1 },
+    async () => {
+      await withBackgroundEvent("job.coach_plan_review", async (evt) => {
+        try {
+          const summary = await runCoachPlanReviewTick(
+            getWorkerPrisma(),
+            new Date(),
+          );
+          evt.setBackground({
+            task_name: "job.coach_plan_review",
+            result: {
+              reviewed: summary.reviewed,
+              insufficient: summary.insufficient,
               errored: summary.errored,
             },
           });

@@ -48,6 +48,11 @@ import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
 import { buildDerivedSnapshotBlock } from "./derived-snapshot";
 import { buildCorrelationsSnapshotBlock } from "./correlations-snapshot";
 import { buildCoachMemoryBlock } from "./memory-snapshot";
+import { buildExperimentOutcomeBlock } from "./plans";
+import { experimentVerdictEnabled } from "./experiment-flag";
+import { buildAdherenceStoryline } from "@/lib/insights/derived/adherence-storyline";
+import { buildChangepointSignals } from "@/lib/insights/derived/changepoint";
+import { buildSignalTrust } from "@/lib/insights/derived/signal-trust";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import { buildCycleSnapshotBlock } from "./cycle-snapshot";
 import { buildIllnessSnapshotBlock } from "./illness-snapshot";
@@ -2389,6 +2394,40 @@ async function buildCoachSnapshotImpl(
   // biomarker, never the decrypted note.
   if (labsBlock) {
     snapshot.labs = labsBlock;
+  }
+
+  // ── v1.22 (W9) — adherence storyline (B5), changepoints (C1), signal-trust
+  // (C3), experiment read-back (C2, flag-gated). Best-effort + fault-isolated;
+  // tiny descriptive objects attached WITHOUT a cluster registration (like
+  // illness/labs/scope, the budget degrader never sheds them). The C2 read-back
+  // is attached ONLY when the operator flag is on — the user-visible experiment
+  // verdict stays gated until its live B0 cases clear.
+  // These cross-cutting narrations belong on the BROAD Coach turn, not on a
+  // narrowed single-source snapshot (the F1 tool builds + metric-page contexts
+  // pass an explicit `scope.sources`). Skipping them there keeps a scoped read
+  // bounded to its domain and avoids spurious recovery/vital reads.
+  const isExplicitlyScoped =
+    Array.isArray(scope?.sources) && scope.sources.length > 0;
+  const [adherenceStoryline, changepoints, signalTrust, experimentOutcomes] =
+    isExplicitlyScoped
+      ? [null, null, null, null]
+      : await Promise.all([
+          excludesMedications
+            ? Promise.resolve(null)
+            : buildAdherenceStoryline(userId, userTz, now).catch(() => null),
+          buildChangepointSignals(userId, now).catch(() => null),
+          buildSignalTrust(userId, userTz, now).catch(() => null),
+          experimentVerdictEnabled()
+            ? buildExperimentOutcomeBlock(userId, { now }).catch(() => null)
+            : Promise.resolve(null),
+        ]);
+  if (adherenceStoryline) snapshot.adherenceStoryline = adherenceStoryline;
+  if (changepoints && changepoints.length > 0) {
+    snapshot.changepoints = changepoints;
+  }
+  if (signalTrust) snapshot.signalTrust = signalTrust;
+  if (experimentOutcomes) {
+    snapshot.experimentOutcomes = experimentOutcomes.experiments;
   }
 
   if (Object.keys(snapshot).length === 0) {
