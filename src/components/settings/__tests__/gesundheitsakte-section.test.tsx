@@ -29,7 +29,7 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
-import { SettingsSectionFrame } from "../settings-section-frame";
+import { SettingsSectionFrame } from "./section-frame-harness";
 import { GesundheitsakteSection } from "../gesundheitsakte-section";
 
 function render(node: React.ReactElement, locale: "en" | "de" = "en") {

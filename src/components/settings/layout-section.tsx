@@ -8,8 +8,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
+import { SettingsCard } from "./settings-card";
 
 /**
  * v1.17.1 (F-2) — the one "Layout & Personalization" home.
@@ -53,19 +53,18 @@ const LAYOUT_LINKS: ReadonlyArray<LayoutLink> = [
 export function LayoutSection() {
   const { t } = useTranslations();
 
-  // v1.18.6 (W9) — the visible heading + subtitle now come from the shared
-  // `<SettingsSectionFrame>` in the route; this body is the hub link list.
+  // The visible heading + subtitle are painted by `SettingsShell` from the
+  // section slug; this body is the hub link list.
   return (
     <ul className="space-y-3">
       {LAYOUT_LINKS.map((link) => {
         const Icon = link.icon;
         return (
           <li key={link.href}>
-            <Link
+            <SettingsCard
+              as={Link}
               href={link.href}
-              className={cn(
-                "bg-card border-border hover:bg-accent/40 group flex items-center gap-4 rounded-xl border p-4 transition-colors sm:p-5",
-              )}
+              className="hover:bg-accent/40 group flex items-center gap-4 transition-colors"
             >
               <Icon
                 className="text-muted-foreground h-5 w-5 shrink-0"
@@ -81,7 +80,7 @@ export function LayoutSection() {
                 className="text-muted-foreground/60 group-hover:text-foreground h-4 w-4 shrink-0 transition-colors"
                 aria-hidden="true"
               />
-            </Link>
+            </SettingsCard>
           </li>
         );
       })}

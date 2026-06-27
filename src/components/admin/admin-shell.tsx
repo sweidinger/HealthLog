@@ -316,7 +316,7 @@ export function AdminShell({ active, children }: AdminShellProps) {
           aria-label={t("admin.shell.sectionsNav")}
           className="hidden md:col-start-1 md:row-start-2 md:block"
         >
-          <div className="sticky top-20">
+          <div className="no-scrollbar sticky top-6 max-h-[calc(100dvh-5.5rem)] overflow-y-auto">
             <ul className="space-y-1">
               <li>
                 <Link
