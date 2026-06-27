@@ -34,8 +34,20 @@ export const dashboardKeys = {
    * `src/lib/cache/invalidate.ts`; the client read carries the same
    * 60 s `staleTime` as `DASHBOARD_QUERY_OPTS` so a warm return-to-
    * dashboard is a free cache hit.
+   *
+   * v1.21.3 (b) — optional `locale` segment so a locale switch lands the
+   * server-rendered prose (the snapshot carries localised tile copy /
+   * narrative text) on its own cache cell instead of serving the prior
+   * locale's prose until the slot goes stale. Mirrors the `analytics(slice?)`
+   * optional-segment precedent above: a ZERO-ARG call stays byte-identical to
+   * the legacy `["dashboard","snapshot"]` literal, so every prefix-based
+   * invalidation bundle (`measurementDependentKeys`, `medicationDependentKeys`)
+   * and zero-arg reader keeps prefix-matching the locale-keyed cells.
    */
-  dashboardSnapshot: () => ["dashboard", "snapshot"] as const,
+  dashboardSnapshot: (locale?: string) =>
+    locale
+      ? (["dashboard", "snapshot", locale] as const)
+      : (["dashboard", "snapshot"] as const),
 
   /**
    * v1.4.22 W5 reconcile (Code-LOW-5) — `["user", "dashboardWidgets"]`

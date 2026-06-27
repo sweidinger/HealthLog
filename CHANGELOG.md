@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.21.3] — 2026-06-27 — Coach memory and a standing quality harness
+
+A patch release. One additive migration (`0194` coach plans); no breaking changes.
+
+### Added
+
+- The Coach can remember a goal or an if-then plan you confirm — "if my resting pulse is up in the morning, I'll keep the evening easy" — and carry it across conversations. It proposes the plan; it is saved only when you accept, and you stay in control of what it keeps.
+- A standing quality harness runs in CI for the Coach: a graded set of reference cases plus an adversarial battery checks that every cited number traces to your own data, that the warmth never tips into over-validation, and that a red-flag symptom always escalates. An optional nightly model-judged pass is wired in and stays off until a key is configured.
+
+### Fixed
+
+- The dashboard and insights snapshot is cached per language, so switching language no longer briefly shows the previous language's briefing text.
+
 ## [1.21.2.1] — 2026-06-27 — Coach + briefing provider hotfix
 
 A hotfix. No migrations, no breaking changes.

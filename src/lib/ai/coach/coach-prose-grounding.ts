@@ -124,6 +124,112 @@ export function findUnverifiedCoachNumbers(
   return findings;
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * Structured-claim grounding (B0 — additive; the numeric API above is unchanged).
+ *
+ * The numeric verifier catches a figure the model invented or mis-copied. It
+ * cannot catch a CLAIM made in words: "your blood pressure is high", "this is
+ * above your usual range", "you scored well". Those carry no number, so the
+ * numeric set never grades them. The eval harness needs a high-precision
+ * deterministic floor for the claim categories the D5 taxonomy pins —
+ * threshold, own-baseline, and confident-verdict-on-sparse-data — to gate
+ * Coach changes without a paid judge call.
+ *
+ * Posture (deliberately narrow): each detector is HIGH PRECISION, not high
+ * recall. It fires only on unambiguous phrasings, so a green grade is trusted
+ * and the open-ended remainder (tone, nuance, partial claims) is left to the
+ * live judge in layer 2. A claim-grounding miss here is a false NEGATIVE the
+ * judge covers — never a false positive that blocks a good answer.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Confident-verdict phrasings: an unhedged state assertion. These are the
+ * phrasings a data-honesty case must NOT see when the snapshot is sparse —
+ * "still learning" framing is required there, never a confident verdict.
+ */
+const CONFIDENT_VERDICT_PATTERNS: readonly RegExp[] = [
+  /\byou(?:'re| are)\s+(?:clearly|definitely|certainly|obviously)\s+\w+/i,
+  /\bthis\s+(?:clearly|definitely|certainly)\s+(?:shows|means|proves)\b/i,
+  /\b(?:there(?:'s| is)\s+no\s+doubt|without\s+a\s+doubt|it'?s\s+clear\s+that)\b/i,
+];
+
+/**
+ * Threshold-verdict phrasings: a diagnosis-shaped claim that the user HAS a
+ * named condition. Surfaced as its own claim kind because the medical-claim
+ * boundary is the sharpest line — the Coach narrates data, it never diagnoses.
+ */
+const THRESHOLD_VERDICT_PATTERNS: readonly RegExp[] = [
+  /\byou\s+(?:have|'ve\s+got|are\s+developing|are\s+showing\s+signs\s+of)\s+(?:hypertension|hypotension|diabetes|prediabetes|a\s+condition|an?\s+arrhythmia)\b/i,
+  /\byou\s+(?:are|'re)\s+(?:hypertensive|diabetic|prediabetic)\b/i,
+];
+
+/**
+ * Hedge / data-honesty phrasings that make a sparse-data answer honest:
+ * "still learning", "early to say", "not enough data yet", "a few readings".
+ * Their PRESENCE is what a sparse case asserts; their ABSENCE alongside a
+ * confident verdict is the regression.
+ */
+const HONESTY_HEDGE_PATTERNS: readonly RegExp[] = [
+  /\bstill\s+(?:learning|getting\s+to\s+know|building)\b/i,
+  /\b(?:too\s+early|early\s+days|early\s+to\s+say|hard\s+to\s+say)\b/i,
+  /\bnot\s+(?:enough|much)\s+(?:data|readings?|history)\b/i,
+  /\b(?:only\s+)?(?:a\s+few|just\s+a\s+(?:few|couple))\s+(?:readings?|days?|entries)\b/i,
+  /\b(?:keep\s+logging|once\s+(?:i\s+have|there(?:'s| is)|it'?s|you\s+start)|when\s+you\s+start)\b/i,
+  /\bgive\s+it\s+(?:a\s+few\s+more|more)\s+(?:days|readings?)\b/i,
+  /\b(?:i\s+)?don'?t\s+have\s+(?:any\s+)?(?:\w+\s+)?(?:data|readings?|entries|history)\s+(?:logged\s+)?yet\b/i,
+  /\bno\s+(?:\w+\s+)?(?:data|readings?|entries)\s+(?:logged\s+)?yet\b/i,
+];
+
+/**
+ * Own-baseline framing: the answer is anchored to the USER's own range, not a
+ * population norm. "above your usual", "for you", "your typical", "compared to
+ * your baseline". Their presence is what an own-baseline case asserts.
+ */
+const OWN_BASELINE_PATTERNS: readonly RegExp[] = [
+  /\b(?:above|below|within|outside)\s+your\s+(?:usual|typical|normal|baseline|range)\b/i,
+  /\bfor\s+you\b/i,
+  /\byour\s+(?:usual|typical|own|personal)\s+(?:range|baseline|average|level)\b/i,
+  /\bcompared\s+to\s+your\b/i,
+  /\b(?:higher|lower)\s+than\s+(?:you\s+usually|your\s+usual)\b/i,
+];
+
+/**
+ * Population-norm framing the grader flags when a case forbids it: "the normal
+ * range is", "healthy adults", "the general population". High precision — these
+ * phrasings unambiguously cite a population norm rather than the user's own.
+ */
+const POPULATION_NORM_PATTERNS: readonly RegExp[] = [
+  /\bthe\s+normal\s+range\s+(?:is|for)\b/i,
+  /\b(?:healthy|most|the\s+average)\s+(?:adults?|people|population)\b/i,
+  /\bthe\s+general\s+population\b/i,
+  /\b(?:guidelines?|doctors?)\s+(?:say|recommend|consider)\b.{0,40}\bnormal\b/i,
+];
+
+/** True when the prose carries any data-honesty hedge. */
+export function hasHonestyHedge(prose: string): boolean {
+  return HONESTY_HEDGE_PATTERNS.some((p) => p.test(prose));
+}
+
+/** True when the prose anchors against the user's OWN range/baseline. */
+export function hasOwnBaselineFraming(prose: string): boolean {
+  return OWN_BASELINE_PATTERNS.some((p) => p.test(prose));
+}
+
+/** True when the prose cites a POPULATION norm (vs the user's own baseline). */
+export function hasPopulationNormFraming(prose: string): boolean {
+  return POPULATION_NORM_PATTERNS.some((p) => p.test(prose));
+}
+
+/** True when the prose makes an unhedged confident state verdict. */
+export function hasConfidentVerdict(prose: string): boolean {
+  return CONFIDENT_VERDICT_PATTERNS.some((p) => p.test(prose));
+}
+
+/** True when the prose makes a diagnosis-shaped threshold verdict. */
+export function hasThresholdVerdict(prose: string): boolean {
+  return THRESHOLD_VERDICT_PATTERNS.some((p) => p.test(prose));
+}
+
 /**
  * Soft-correct the prose: replace each unverified numeric token with a neutral
  * placeholder so a drifted figure never reaches the user as if authoritative,

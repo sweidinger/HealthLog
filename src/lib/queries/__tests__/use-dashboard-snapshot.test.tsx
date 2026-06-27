@@ -29,6 +29,14 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
+// v1.21.3 (b) — the hook now keys the cell by the active locale via
+// `useTranslations()`; the suite exercises the hook body directly (react-query
+// is mocked), so stub the i18n context to a fixed locale rather than mounting a
+// provider.
+vi.mock("@/lib/i18n/context", () => ({
+  useTranslations: () => ({ locale: "en" }),
+}));
+
 import {
   useDashboardSnapshot,
   prefetchDashboardSnapshot,
@@ -80,10 +88,12 @@ describe("useDashboardSnapshot — auto-refresh on an open page", () => {
     expect(opts.refetchOnWindowFocus).toBe(true);
   });
 
-  it("routes the queryKey through the centralised factory", () => {
+  it("routes the queryKey through the centralised factory, keyed by locale", () => {
     useDashboardSnapshot();
     const opts = lastOpts();
-    expect(opts.queryKey).toEqual(queryKeys.dashboardSnapshot());
+    // v1.21.3 (b) — the live cell carries the active locale; a zero-arg
+    // invalidation still prefix-matches it.
+    expect(opts.queryKey).toEqual(queryKeys.dashboardSnapshot("en"));
   });
 
   it("retries once on transient failures only (network / 5xx, never 4xx)", () => {
@@ -130,6 +140,14 @@ describe("prefetchDashboardSnapshot — hydration-safe promise handoff", () => {
     state?: { data: unknown; dataUpdatedAt: number } | undefined,
   ): QueryClient {
     return {
+      // v1.21.3 (b) — the preloader probes ALL locale-keyed snapshot cells
+      // via `getQueriesData` (prefix) then reads each cell's state. A fresh
+      // `state` stands in for one warm locale cell; absent → no warm cell.
+      getQueriesData: vi
+        .fn()
+        .mockReturnValue(
+          state ? [[queryKeys.dashboardSnapshot("en"), state.data]] : [],
+        ),
       getQueryState: vi.fn().mockReturnValue(state),
       getQueryData: getQueryDataMock,
       setQueryData: setQueryDataMock,

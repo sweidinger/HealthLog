@@ -570,6 +570,7 @@ model User {
   integrationStatuses    IntegrationStatus[]
   coachConversations     CoachConversation[]
   coachFacts             CoachFact[]
+  coachPlans             CoachPlan[]
   coachUsage             CoachUsage[]
   // v1.4.25 W8d — workout passthrough (Apple HKWorkout / Withings
   // getworkouts / future Strava). Schema lands now so the v1.5 iOS
@@ -3889,6 +3890,48 @@ model CoachFact {
 
   @@index([userId, deletedAt, confidence])
   @@map("coach_facts")
+}
+
+// v1.21.3 (B1) — durable, user-scoped goal / if-then implementation plans the
+// Coach proposes and the user CONFIRMS. The Coach extractor writes a plan as
+// status "proposed"; only the user-facing PATCH activates it (status "active")
+// — there is no silent self-edit of the user's plan. Free-text fields (the
+// if-cue, the then-action, and the optional target) are encrypted at rest
+// (AES-256-GCM, the same Bytes codec as CoachFact). `metric`, `status`, the
+// dates and the source-conversation id stay plain so the injection picker can
+// rank / filter without paying a per-row decrypt. Soft-delete via `deletedAt`
+// so an abandoned plan is hidden from injection but kept for audit.
+//
+// `status` is an APP-SIDE closed enum (NOT a DB enum, to keep the migration
+// purely additive): proposed | active | met | abandoned.
+model CoachPlan {
+  id                   String    @id @default(cuid())
+  userId               String    @map("user_id")
+  // The metric this plan moves (e.g. WEIGHT, SLEEP, BLOOD_PRESSURE). Plain so
+  // the picker can filter / group without a decrypt.
+  metric               String
+  // Free-text "if <cue>" and "then <action>" — implementation-intention prose,
+  // encrypted at rest. Never a number / measurement (those live in the data).
+  ifCueEncrypted       Bytes     @map("if_cue_encrypted")
+  thenActionEncrypted  Bytes     @map("then_action_encrypted")
+  // Optional free-text target ("70 kg by August", "lights out by 23:00"). Free
+  // prose like the cue/action, so encrypted at rest as well.
+  targetEncrypted      Bytes?    @map("target_encrypted")
+  // App-side closed enum: proposed | active | met | abandoned.
+  status               String    @default("proposed")
+  // Optional review checkpoint the Coach can recall ("how did this go by …").
+  reviewDate           DateTime? @map("review_date")
+  // Provenance — nullable so a future manual-entry surface can leave it null.
+  sourceConversationId String?   @map("source_conversation_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  // Soft-delete: hides the plan from injection but keeps the row for audit.
+  deletedAt            DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, deletedAt])
+  @@map("coach_plans")
 }
 
 // v1.15.20 — user-authored "about me" self-description the AI surfaces

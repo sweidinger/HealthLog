@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.21.2.1
+  version: 1.21.3
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -4651,6 +4651,136 @@ paths:
               schema:
                 $ref: "#/components/schemas/DeleteCoachAboutMeQuestionsResponse"
         "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/coach/plans:
+    get:
+      tags:
+        - Insights
+      summary: List the caller's Coach goal / if-then plans
+      description: v1.21.3 (B1) — returns the durable plans the Coach has proposed for the caller, newest first, each
+        decrypted on the fly. A plan is an "if-then" implementation intention tied to one metric, with an optional
+        target. The Coach extractor writes a plan as `proposed`; only `PATCH /api/coach/plans/{id}` activates it. Pass
+        `?status=` to filter (proposed | active | met | abandoned); omitted returns the non-terminal set (proposed +
+        active). Coach-gated (`requireModuleEnabled("coach")`); a disabled surface 403s. Auth via cookie or Bearer; the
+        owner is always narrowed from the session, never the body. Undecryptable rows are omitted rather than failing
+        the read.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - proposed
+              - active
+              - met
+              - abandoned
+          description: Filter to a single lifecycle status. Omit for the non-terminal set (proposed + active).
+      responses:
+        "200":
+          description: The caller's plans.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachPlansList"
+        "401": *a1
+        "403":
+          description: Coach surface disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/coach/plans/{id}:
+    patch:
+      tags:
+        - Insights
+      summary: Confirm or update a Coach plan's lifecycle
+      description: v1.21.3 (B1) — confirm a proposed plan (status proposed → active) or mark it met / abandoned, and
+        optionally set / clear a review date. The body carries ONLY lifecycle fields — never the metric or the encrypted
+        free text — so a client can change a plan's status but never inject or overwrite its prose. A foreign / unknown
+        / already-deleted id maps to 404 (never 403) so the existence channel does not leak across accounts.
+        Coach-gated. Auth via cookie or Bearer; the owner is narrowed from the session.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Plan id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - proposed
+                    - active
+                    - met
+                    - abandoned
+                reviewDate:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+              additionalProperties: false
+      responses:
+        "200":
+          description: The plan after the lifecycle update.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachPlanUpdated"
+        "401": *a1
+        "403":
+          description: Coach surface disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Plan not found or not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Insights
+      summary: Soft-delete one Coach plan
+      description: "v1.21.3 (B1) — soft-deletes a single plan owned by the caller. An unknown / cross-user / already-deleted
+        id is an idempotent no-op returning `{ deleted: false }`, never revealing whether the id exists under another
+        account. Coach-gated. Auth via cookie or Bearer."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Plan id.
+      responses:
+        "200":
+          description: "The plan was soft-deleted (`deleted: true`) or the id matched nothing the caller owns (`deleted: false`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachPlanDeleted"
+        "401": *a1
+        "403":
+          description: Coach surface disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/coach/reminder-suggestions:
@@ -16723,6 +16853,141 @@ components:
                 type: string
           required:
             - questions
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachPlansList:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            plans:
+              type: array
+              items:
+                $ref: "#/components/schemas/CoachPlan"
+              description: The caller's plans, newest first. Undecryptable rows are omitted from the list endpoint. No `status` filter
+                returns the non-terminal set (proposed + active).
+          required:
+            - plans
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachPlan:
+      type: object
+      properties:
+        id:
+          type: string
+        metric:
+          type: string
+          description: The metric this plan moves (e.g. WEIGHT, SLEEP).
+        ifCue:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Decrypted if-cue (the trigger). Null when the row's key id is no longer in the map.
+        thenAction:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Decrypted then-action. Null when the row's key id is no longer in the map.
+        target:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Decrypted optional target; null when none / undecryptable.
+        status:
+          type: string
+          enum:
+            - proposed
+            - active
+            - met
+            - abandoned
+          description: "App-side lifecycle: proposed | active | met | abandoned."
+        reviewDate:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+          description: Optional check-in checkpoint; null when none.
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      required:
+        - id
+        - metric
+        - ifCue
+        - thenAction
+        - target
+        - status
+        - reviewDate
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: One Coach goal / if-then plan, decrypted server-side. The free-text fields read null only when the
+        encryption key id has rotated out of the map.
+    CoachPlanUpdated:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            plan:
+              description: The plan after the lifecycle update.
+              $ref: "#/components/schemas/CoachPlan"
+          required:
+            - plan
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachPlanDeleted:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+              description: True when a plan owned by the caller was soft-deleted; false for an unknown / cross-user / already-deleted
+                id (idempotent no-op).
+          required:
+            - deleted
           additionalProperties: false
         error:
           type: "null"

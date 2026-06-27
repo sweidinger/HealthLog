@@ -318,6 +318,16 @@ async function main() {
     await rotateBytesColumn("CoachFact", "factEncrypted", prisma.coachFact),
   );
 
+  // ───── CoachPlan (Bytes columns) ─────
+  // "ifCueEncrypted" "thenActionEncrypted" "targetEncrypted"
+  for (const field of [
+    "ifCueEncrypted",
+    "thenActionEncrypted",
+    "targetEncrypted",
+  ]) {
+    results.push(await rotateBytesColumn("CoachPlan", field, prisma.coachPlan));
+  }
+
   // ───── UserHealthProfile (Bytes columns) ─────
   // "aboutMeEncrypted" "conditionsEncrypted" "allergiesEncrypted"
   // "coachFocusEncrypted" "pendingQuestionsEncrypted"

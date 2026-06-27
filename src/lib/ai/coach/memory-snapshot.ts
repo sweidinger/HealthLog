@@ -39,6 +39,7 @@ import {
 } from "@/lib/insights/narrative/period-narrative";
 import type { BaselineProfile } from "@/lib/insights/derived";
 import { buildCoachFactsBlock } from "./facts";
+import { buildCoachPlansBlock, type CoachPlanInjectEntry } from "./plans";
 
 /** The period the rolling profile recalls — month is the high-signal beat. */
 const MEMORY_PERIOD: NarrativePeriod = "month";
@@ -78,6 +79,12 @@ export interface CoachMemoryBlock {
    * confidence then recency). Descriptive, never diagnostic. Absent when none.
    */
   facts?: Array<{ category: string; text: string }>;
+  /**
+   * v1.21.3 (B1) — the user's ACTIVE goal / if-then plans (top-N, newest
+   * first). Only confirmed (`active`) plans appear here — a `proposed` plan is
+   * still awaiting the user's confirmation. Absent when none.
+   */
+  plans?: CoachPlanInjectEntry[];
 }
 
 /** Pull the headline + driver recall off the latest period narrative. */
@@ -166,12 +173,30 @@ export async function buildCoachMemoryBlock(
     facts = undefined;
   }
 
-  if (!priorNarrative && Object.keys(trendMemory).length === 0 && !facts) {
+  // Sub-source 4 (v1.21.3 B1): the user's confirmed goal / if-then plans.
+  // Fault-isolated like the facts block; only `active` plans are injected.
+  let plans: CoachPlanInjectEntry[] | undefined;
+  try {
+    const plansBlock = await buildCoachPlansBlock(userId);
+    if (plansBlock && plansBlock.plans.length > 0) {
+      plans = plansBlock.plans;
+    }
+  } catch {
+    plans = undefined;
+  }
+
+  if (
+    !priorNarrative &&
+    Object.keys(trendMemory).length === 0 &&
+    !facts &&
+    !plans
+  ) {
     return null;
   }
 
   const block: CoachMemoryBlock = { trendMemory };
   if (priorNarrative) block.priorNarrative = priorNarrative;
   if (facts) block.facts = facts;
+  if (plans) block.plans = plans;
   return block;
 }

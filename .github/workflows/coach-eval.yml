@@ -1,0 +1,64 @@
+name: Coach eval
+
+# B0 (v1.21.3) — the Coach evaluation harness, two layers.
+#
+#   1. The DETERMINISTIC suite (golden set + red-team battery + the grounding
+#      grader) runs ALWAYS. It is free, offline, and the per-change floor — the
+#      same suite `pnpm test` runs, pinned here as a standing nightly check.
+#   2. The LIVE JUDGE step runs ONLY when the `COACH_EVAL_API_KEY` repository
+#      secret is present, and is NON-BLOCKING (`continue-on-error: true`). With
+#      the secret absent it no-ops with a clear log line — the workflow stays
+#      green. The operator flips the secret on later; no rebuild needed.
+#
+# Schedule + manual only. This is NOT a required check.
+
+on:
+  schedule:
+    # Nightly at 04:20 UTC — off the busy hour, after any evening merges.
+    - cron: "20 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coach-eval:
+    name: Coach eval — deterministic floor (always) + live judge (opt-in)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm db:generate
+
+      # Layer 1 — the deterministic floor. Free, offline, ALWAYS runs. A
+      # failure here reds the workflow: a regression in the golden set or the
+      # red-team battery is a real find.
+      - name: Deterministic floor (golden set + red team)
+        run: pnpm exec vitest run src/lib/ai/coach/eval/__tests__/
+
+      # Layer 2 — the live judge. Runs ONLY when the secret is present, and is
+      # non-blocking either way. With the secret absent the script no-ops with a
+      # clear line and exits 0.
+      - name: Live judge (opt-in, non-blocking)
+        if: ${{ secrets.COACH_EVAL_API_KEY != '' }}
+        continue-on-error: true
+        env:
+          COACH_EVAL_API_KEY: ${{ secrets.COACH_EVAL_API_KEY }}
+        run: pnpm dlx tsx scripts/run-coach-eval.ts
+
+      # When the secret is absent, surface a clear no-op line so the run log
+      # explains why the live judge did not execute.
+      - name: Live judge skipped (no secret)
+        if: ${{ secrets.COACH_EVAL_API_KEY == '' }}
+        run: echo "COACH_EVAL_API_KEY not set — live Coach judge skipped (deterministic floor still gated above)."

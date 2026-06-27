@@ -1,0 +1,464 @@
+/**
+ * v1.21.3 (B1) — durable goal / if-then implementation-plan memory.
+ *
+ * The Coach learns the concrete PLANS a user agrees to in a conversation —
+ * an implementation intention of the form "IF <cue> THEN <action>" attached
+ * to a metric, with an optional target — and persists them encrypted at rest
+ * so future turns can recall and review them instead of re-negotiating the
+ * same plan cold. Plans are the user's OWN committed intentions, never a
+ * prescription the Coach invents.
+ *
+ * Coach-proposes-then-user-confirms is the spine of the feature: the
+ * extractor here only ever writes a plan as `status: "proposed"`. ONLY the
+ * user-facing PATCH (`/api/coach/plans/[id]`) flips a plan to `active`. There
+ * is no silent self-edit of the user's plan set — the extractor surfaces a
+ * candidate; the user confirms it.
+ *
+ * Two halves, mirroring `facts.ts`:
+ *  - `extractAndStorePlanProposals` — the background compute: load active +
+ *    proposed plans and the recent turns, run one bounded
+ *    `runStatusCompletion`, defensively parse the JSON array, drop anything
+ *    the Zod gate rejects, de-dup against the existing set, enforce a per-user
+ *    cap, and persist survivors field-by-field (no mass-assignment spread) as
+ *    `proposed`.
+ *  - `buildCoachPlansBlock` — the injection read: the active plans (newest
+ *    first), decrypted fault-isolated (an undecryptable row is skipped, never
+ *    thrown), for the snapshot memory block.
+ *
+ * The cue / action / target TEXT is encrypted via `bytes-codec.ts` (the same
+ * AES-256-GCM codec as `CoachFact`). `metric`, `status` and the dates stay
+ * plain so the picker can rank / filter without paying a per-row decrypt.
+ * Annotations carry counts + ids only — plan text is NEVER logged.
+ *
+ * Server-only — reads `@/lib/db`.
+ */
+import { z } from "zod";
+
+import { prisma } from "@/lib/db";
+import { runStatusCompletion } from "@/lib/insights/status-provider";
+import { annotate } from "@/lib/logging/context";
+
+import { decryptFromBytes, encryptToBytes } from "./bytes-codec";
+
+/** App-side closed status enum (NOT a DB enum — matches the schema column). */
+export const COACH_PLAN_STATUSES = [
+  "proposed",
+  "active",
+  "met",
+  "abandoned",
+] as const;
+
+/** Hard cap on non-terminal (proposed + active) plans per user. */
+export const MAX_PLANS_PER_USER = 25;
+/** Per-field text length cap (mirrors the Zod gate + the prompt instruction). */
+export const PLAN_FIELD_MAX_CHARS = 160;
+/** How many active plans the injection block carries into the snapshot. */
+export const PLANS_INJECT_TOP_N = 6;
+
+/** Cap on recent turns fed into the extraction prompt (bounds prompt size). */
+const RECENT_TURNS_CAP = 10;
+
+type RunCompletionFn = typeof runStatusCompletion;
+type PrismaLike = Pick<typeof prisma, "coachPlan" | "coachConversation">;
+
+interface ExtractOpts {
+  runCompletion?: RunCompletionFn;
+  prisma?: PrismaLike;
+  locale?: string;
+}
+
+interface BuildBlockOpts {
+  prisma?: PrismaLike;
+}
+
+// ---------------------------------------------------------------------------
+// Extraction prompt (EN + DE mirror)
+// ---------------------------------------------------------------------------
+
+const EXTRACTION_PROMPT_EN = `You extract concrete implementation PLANS the user has AGREED to in a coaching conversation, for the assistant's long-term memory. A plan is an "if-then" intention tied to ONE metric. Return a JSON array (no prose, no fences). Each item: { "metric": "<short metric key, e.g. WEIGHT, SLEEP, BLOOD_PRESSURE, STEPS>", "ifCue": "<the trigger, one short clause>", "thenAction": "<the action, one short clause>", "target": "<optional plain target, or omit>" }.
+ONLY extract a plan the user has clearly COMMITTED to in their own words ("I'll weigh myself every morning", "if I skip the gym I'll walk after dinner"). Record it descriptively in the user's framing — NEVER prescribe a plan the user did not agree to, never invent a clinical target, never record a raw measurement as a plan. EXCLUDE: vague wishes ("I should sleep more"), one-off intentions, and anything the user asked you to drop. If no concrete plan was agreed, return []. Prefer FEW clear plans over many speculative ones.`;
+
+const EXTRACTION_PROMPT_DE = `Du extrahierst konkrete UMSETZUNGS-PLÄNE, denen die Nutzerin oder der Nutzer in einem Coaching-Gespräch ZUGESTIMMT hat, für das Langzeitgedächtnis des Assistenten. Ein Plan ist eine "Wenn-dann"-Absicht, die an EINE Metrik gebunden ist. Gib ein JSON-Array zurück (kein Fließtext, keine Code-Zäune). Jedes Element: { "metric": "<kurzer Metrik-Schlüssel, z. B. WEIGHT, SLEEP, BLOOD_PRESSURE, STEPS>", "ifCue": "<der Auslöser, ein kurzer Satzteil>", "thenAction": "<die Handlung, ein kurzer Satzteil>", "target": "<optionales einfaches Ziel, oder weglassen>" }.
+Extrahiere NUR einen Plan, zu dem sich die Person klar in eigenen Worten VERPFLICHTET hat ("ich wiege mich jeden Morgen", "wenn ich das Training auslasse, gehe ich nach dem Essen spazieren"). Halte ihn beschreibend in der Formulierung der Person fest — VERORDNE NIEMALS einen Plan, dem die Person nicht zugestimmt hat, erfinde kein klinisches Ziel und erfasse keine reine Messung als Plan. SCHLIESSE AUS: vage Wünsche ("ich sollte mehr schlafen"), einmalige Absichten und alles, worum die Person gebeten hat, es fallen zu lassen. Wenn kein konkreter Plan vereinbart wurde, gib [] zurück. Bevorzuge WENIGE klare Pläne gegenüber vielen spekulativen.`;
+
+function extractionSystemPrompt(locale: string | undefined): string {
+  return locale?.toLowerCase().startsWith("de")
+    ? EXTRACTION_PROMPT_DE
+    : EXTRACTION_PROMPT_EN;
+}
+
+// ---------------------------------------------------------------------------
+// Zod gate for the model's JSON array
+// ---------------------------------------------------------------------------
+
+const rawPlanSchema = z.object({
+  metric: z.string().trim().min(1).max(60),
+  ifCue: z.string().trim().min(1).max(PLAN_FIELD_MAX_CHARS),
+  thenAction: z.string().trim().min(1).max(PLAN_FIELD_MAX_CHARS),
+  target: z.string().trim().min(1).max(PLAN_FIELD_MAX_CHARS).optional(),
+});
+
+const rawPlanArraySchema = z.array(z.unknown());
+
+interface ParsedPlan {
+  metric: string;
+  ifCue: string;
+  thenAction: string;
+  target?: string;
+}
+
+/**
+ * Parse the model output into validated plans. Returns `null` only when the
+ * top-level JSON is unparseable (the caller then annotates `parse_failed`);
+ * individual malformed items are dropped silently, not fatal.
+ */
+function parsePlans(
+  content: string,
+): { plans: ParsedPlan[]; dropped: number } | null {
+  let json: unknown;
+  try {
+    json = JSON.parse(content.trim());
+  } catch {
+    return null;
+  }
+
+  const arr = rawPlanArraySchema.safeParse(json);
+  if (!arr.success) return null;
+
+  const plans: ParsedPlan[] = [];
+  let dropped = 0;
+  for (const item of arr.data) {
+    const parsed = rawPlanSchema.safeParse(item);
+    if (parsed.success) {
+      const plan: ParsedPlan = {
+        metric: parsed.data.metric,
+        ifCue: parsed.data.ifCue,
+        thenAction: parsed.data.thenAction,
+      };
+      if (parsed.data.target) plan.target = parsed.data.target;
+      plans.push(plan);
+    } else {
+      dropped += 1;
+    }
+  }
+  return { plans, dropped };
+}
+
+// ---------------------------------------------------------------------------
+// De-dup — lowercase-normalise + token-overlap against the existing set
+// ---------------------------------------------------------------------------
+
+const TOKEN_SPLIT = /[^a-z0-9äöüß]+/i;
+
+function tokenSet(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .split(TOKEN_SPLIT)
+      .filter((t) => t.length > 1),
+  );
+}
+
+/** Jaccard-style overlap of the two token sets, 0..1. */
+function tokenOverlap(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter += 1;
+  const union = a.size + b.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+const DEDUP_OVERLAP_THRESHOLD = 0.6;
+
+/** A plan's de-dup signature is its if-then prose (metric-agnostic). */
+function planSignature(plan: ParsedPlan): string {
+  return `${plan.ifCue} ${plan.thenAction}`;
+}
+
+function isNearDuplicate(candidate: string, existing: string[]): boolean {
+  const cTokens = tokenSet(candidate);
+  const cNorm = candidate.trim().toLowerCase();
+  for (const ex of existing) {
+    if (ex.trim().toLowerCase() === cNorm) return true;
+    if (tokenOverlap(cTokens, tokenSet(ex)) >= DEDUP_OVERLAP_THRESHOLD)
+      return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Loading
+// ---------------------------------------------------------------------------
+
+function decryptOrNull(buf: Uint8Array | null): string | null {
+  if (!buf) return null;
+  try {
+    return decryptFromBytes(buf);
+  } catch {
+    return null;
+  }
+}
+
+interface ExistingPlanRow {
+  id: string;
+  ifCueEncrypted: Uint8Array;
+  thenActionEncrypted: Uint8Array;
+  status: string;
+}
+
+/**
+ * Load the non-terminal (proposed + active) plans and decrypt their if-then
+ * signature fault-isolated (undecryptable rows skipped). Used both for the
+ * cap count and for de-dup against the existing set.
+ */
+async function loadExistingPlans(
+  db: PrismaLike,
+  userId: string,
+): Promise<Array<{ id: string; signature: string; status: string }>> {
+  const rows = (await db.coachPlan.findMany({
+    where: { userId, deletedAt: null, status: { in: ["proposed", "active"] } },
+    select: {
+      id: true,
+      ifCueEncrypted: true,
+      thenActionEncrypted: true,
+      status: true,
+    },
+  })) as ExistingPlanRow[];
+
+  const out: Array<{ id: string; signature: string; status: string }> = [];
+  for (const r of rows) {
+    const ifCue = decryptOrNull(r.ifCueEncrypted);
+    const thenAction = decryptOrNull(r.thenActionEncrypted);
+    if (ifCue === null || thenAction === null) continue;
+    out.push({
+      id: r.id,
+      signature: `${ifCue} ${thenAction}`,
+      status: r.status,
+    });
+  }
+  return out;
+}
+
+interface ConversationTurnRow {
+  role: string;
+  encryptedContent: Uint8Array;
+}
+
+/** Load the last `RECENT_TURNS_CAP` turns of a conversation, decrypted. */
+async function loadRecentTurns(
+  db: PrismaLike,
+  conversationId: string,
+  userId: string,
+): Promise<Array<{ role: string; content: string }>> {
+  const row = (await db.coachConversation.findFirst({
+    where: { id: conversationId, userId },
+    select: {
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: RECENT_TURNS_CAP,
+        select: { role: true, encryptedContent: true },
+      },
+    },
+  })) as { messages: ConversationTurnRow[] } | null;
+
+  if (!row) return [];
+
+  // Loaded newest-first; reverse to chronological for the prompt.
+  const turns: Array<{ role: string; content: string }> = [];
+  for (const m of [...row.messages].reverse()) {
+    const content = decryptOrNull(m.encryptedContent);
+    if (content === null) continue;
+    turns.push({ role: m.role, content });
+  }
+  return turns;
+}
+
+function buildUserPrompt(
+  turns: Array<{ role: string; content: string }>,
+  existingSignatures: string[],
+): string {
+  const transcript = turns.map((t) => `${t.role}: ${t.content}`).join("\n");
+  const existing =
+    existingSignatures.length > 0
+      ? `\n\nEXISTING PLANS (do not re-emit these):\n${existingSignatures
+          .map((p) => `- ${p}`)
+          .join("\n")}`
+      : "\n\nEXISTING PLANS: none";
+  return `${transcript}${existing}`;
+}
+
+// ---------------------------------------------------------------------------
+// Extraction entry point
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract concrete plans the user agreed to and persist the survivors as
+ * `status: "proposed"` — the user confirms them through the PATCH route.
+ *
+ * Returns:
+ *  - `{status:"stored", count}` — at least one new proposal persisted.
+ *  - `{status:"none", count:0}` — the model produced nothing concrete (or the
+ *    JSON was unparseable, in which case `coach.plans.parse_failed` is
+ *    annotated).
+ *  - `{status:"skipped", count:0}` — no usable provider / timeout / error, or
+ *    every candidate was a dup / dropped / displaced by the cap.
+ */
+export async function extractAndStorePlanProposals(
+  conversationId: string,
+  userId: string,
+  opts?: ExtractOpts,
+): Promise<{ status: "stored" | "none" | "skipped"; count: number }> {
+  const db = opts?.prisma ?? prisma;
+  const runCompletion = opts?.runCompletion ?? runStatusCompletion;
+
+  const [existing, turns] = await Promise.all([
+    loadExistingPlans(db, userId),
+    loadRecentTurns(db, conversationId, userId),
+  ]);
+
+  if (turns.length === 0) {
+    return { status: "skipped", count: 0 };
+  }
+
+  const existingSignatures = existing.map((p) => p.signature);
+  const result = await runCompletion({
+    userId,
+    cacheAction: "coach.plans",
+    consentSurface: "coach",
+    systemPrompt: extractionSystemPrompt(opts?.locale),
+    userPrompt: buildUserPrompt(turns, existingSignatures),
+    temperature: 0.2,
+    maxTokens: 400,
+  });
+
+  if (result.kind !== "ok") {
+    return { status: "skipped", count: 0 };
+  }
+
+  const parsed = parsePlans(result.content);
+  if (parsed === null) {
+    annotate({
+      action: { name: "coach.plans.parse_failed" },
+      meta: { conversationId },
+    });
+    return { status: "none", count: 0 };
+  }
+
+  if (parsed.plans.length === 0) {
+    return { status: "none", count: 0 };
+  }
+
+  // De-dup against the existing set; grow the seen-set as we accept candidates
+  // so two near-identical candidates in one batch can't both land.
+  const seen = [...existingSignatures];
+  const accepted: ParsedPlan[] = [];
+  for (const cand of parsed.plans) {
+    const sig = planSignature(cand);
+    if (isNearDuplicate(sig, seen)) continue;
+    accepted.push(cand);
+    seen.push(sig);
+  }
+
+  if (accepted.length === 0) {
+    return { status: "skipped", count: 0 };
+  }
+
+  // Cap enforcement: never let proposals push the non-terminal set past the
+  // per-user cap. A user with a full plan set gets no new proposals until they
+  // act on (confirm / abandon) the ones they have.
+  const remainingCapacity = MAX_PLANS_PER_USER - existing.length;
+  if (remainingCapacity <= 0) {
+    return { status: "skipped", count: 0 };
+  }
+  const toStore = accepted.slice(0, remainingCapacity);
+
+  for (const p of toStore) {
+    // Field-by-field, no spread (mass-assignment rule, CLAUDE.md). Always
+    // written as "proposed" — only the user-facing PATCH activates a plan.
+    await db.coachPlan.create({
+      data: {
+        userId,
+        metric: p.metric,
+        ifCueEncrypted: encryptToBytes(p.ifCue),
+        thenActionEncrypted: encryptToBytes(p.thenAction),
+        targetEncrypted: p.target ? encryptToBytes(p.target) : null,
+        status: "proposed",
+        sourceConversationId: conversationId,
+      },
+    });
+  }
+
+  annotate({
+    action: { name: "coach.plans.extracted" },
+    meta: { count: toStore.length, conversationId },
+  });
+
+  return { status: "stored", count: toStore.length };
+}
+
+// ---------------------------------------------------------------------------
+// Injection block
+// ---------------------------------------------------------------------------
+
+interface InjectPlanRow {
+  metric: string;
+  ifCueEncrypted: Uint8Array;
+  thenActionEncrypted: Uint8Array;
+  targetEncrypted: Uint8Array | null;
+  status: string;
+  updatedAt: Date;
+}
+
+/** One active plan as the snapshot memory block carries it. */
+export interface CoachPlanInjectEntry {
+  metric: string;
+  ifCue: string;
+  thenAction: string;
+  target?: string;
+}
+
+/**
+ * Build the top-N ACTIVE plans for the snapshot memory block, newest first.
+ * Only `active` plans are injected — a `proposed` plan is still awaiting the
+ * user's confirmation and must not be recalled as a committed plan. Decrypt is
+ * fault-isolated — an undecryptable row is skipped, never thrown into the
+ * caller. Returns `null` when the user has no usable active plans.
+ */
+export async function buildCoachPlansBlock(
+  userId: string,
+  opts?: BuildBlockOpts,
+): Promise<{ plans: CoachPlanInjectEntry[] } | null> {
+  const db = opts?.prisma ?? prisma;
+
+  const rows = (await db.coachPlan.findMany({
+    where: { userId, deletedAt: null, status: "active" },
+    orderBy: [{ updatedAt: "desc" }],
+    select: {
+      metric: true,
+      ifCueEncrypted: true,
+      thenActionEncrypted: true,
+      targetEncrypted: true,
+      status: true,
+      updatedAt: true,
+    },
+  })) as InjectPlanRow[];
+
+  const plans: CoachPlanInjectEntry[] = [];
+  for (const r of rows) {
+    if (plans.length >= PLANS_INJECT_TOP_N) break;
+    const ifCue = decryptOrNull(r.ifCueEncrypted);
+    const thenAction = decryptOrNull(r.thenActionEncrypted);
+    if (ifCue === null || thenAction === null) continue;
+    const entry: CoachPlanInjectEntry = {
+      metric: r.metric,
+      ifCue,
+      thenAction,
+    };
+    const target = decryptOrNull(r.targetEncrypted);
+    if (target !== null) entry.target = target;
+    plans.push(entry);
+  }
+
+  if (plans.length === 0) return null;
+  return { plans };
+}
