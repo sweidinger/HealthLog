@@ -5518,7 +5518,7 @@
         "subtitle": "Version, Lizenz und Update-Status."
       },
       "module-availability": {
-        "title": "Modulverfügbarkeit",
+        "title": "Module",
         "subtitle": "Module für jedes Konto auf diesem Server aktivieren oder deaktivieren."
       }
     },

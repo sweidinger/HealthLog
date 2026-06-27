@@ -43,7 +43,6 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { scrollBehaviorForUser } from "@/lib/motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import type { ModuleKey } from "@/lib/modules/registry";
@@ -366,11 +365,11 @@ export function SettingsShell({
     // box, which is the origin for `scrollLeft`.
     const maxScroll = strip.scrollWidth - strip.clientWidth;
     const target = Math.max(0, Math.min(active.offsetLeft, maxScroll));
-    strip.scrollTo({
-      left: target,
-      // v1.4.43 W5-H5 — respect `prefers-reduced-motion`.
-      behavior: scrollBehaviorForUser(),
-    });
+    // Position the active chip instantly. A smooth behaviour here animates
+    // the strip from its reset `scrollLeft: 0` to the target on every tap,
+    // which reads as an unwanted "scroll from the start" sweep when swapping
+    // sections. An instant jump keeps the chip in view without the sweep.
+    strip.scrollTo({ left: target, behavior: "auto" });
   }, [activeSlug]);
 
   // v1.18.6.1 — resolve the heading once. Pages pass an explicit `heading`
@@ -497,36 +496,45 @@ export function SettingsShell({
           </div>
         ) : null}
 
-        {/* Desktop sticky sidebar — starts at the cards row (row 2). */}
+        {/* Desktop sticky sidebar — starts at the cards row (row 2).
+
+            The sticky lives on the `<aside>` grid item itself, with
+            `self-start` so it shrinks to its content instead of stretching
+            to the full row height. A sticky CHILD inside a stretched grid
+            item resolves its containing block to the stretched item, which
+            in some engines lets the nav scroll away with the content rather
+            than pin. Sticking the grid item directly — sized to content and
+            offset `top-6` to clear the scroll viewport's padding — keeps the
+            nav fixed while only the content column scrolls. `max-h` +
+            `overflow-y-auto` let a long section list scroll within the
+            pinned panel on short viewports. */}
         <aside
           aria-label={t("settings.shell.sectionsNav")}
-          className="hidden md:col-start-1 md:row-start-2 md:block"
+          className="no-scrollbar hidden max-h-[calc(100dvh-5.5rem)] overflow-y-auto md:sticky md:top-6 md:col-start-1 md:row-start-2 md:block md:self-start"
         >
-          <div className="no-scrollbar sticky top-6 max-h-[calc(100dvh-5.5rem)] overflow-y-auto">
-            <ul className="space-y-1">
-              {visibleSections.map((section) => {
-                const isActive = section.slug === activeSlug;
-                const Icon = section.icon;
-                return (
-                  <li key={section.slug}>
-                    <Link
-                      href={`/settings/${section.slug}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-accent",
-                      )}
-                    >
-                      <Icon className="h-4 w-4" aria-hidden="true" />
-                      {t(section.titleKey)}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          <ul className="space-y-1">
+            {visibleSections.map((section) => {
+              const isActive = section.slug === activeSlug;
+              const Icon = section.icon;
+              return (
+                <li key={section.slug}>
+                  <Link
+                    href={`/settings/${section.slug}`}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground hover:bg-accent",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    {t(section.titleKey)}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </aside>
 
         {/* Main column — page renders its own h1 + subtitle. The
