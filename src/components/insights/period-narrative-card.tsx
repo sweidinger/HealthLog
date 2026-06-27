@@ -2,18 +2,13 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarRange, Info } from "lucide-react";
+import { CalendarRange } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { AskCoachAction } from "@/components/insights/ask-coach-action";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { apiGet } from "@/lib/api/api-fetch";
 
 /**
@@ -64,6 +59,13 @@ async function fetchNarrative(
   return apiGet<NarrativeResponse>(`/api/insights/narrative?period=${period}`);
 }
 
+/**
+ * v1.22 — the round ⓘ provenance glyph that hid the "how this was computed"
+ * read behind a popover is removed; the maintainer wants the trailing info
+ * affordance gone across the insights surface. The method line — and, when
+ * present, the metrics it drew on — now reads inline as a muted caption at the
+ * foot of the card, always visible rather than disclosure-only.
+ */
 function ProvenanceDisclosure({
   provenance,
 }: {
@@ -72,27 +74,15 @@ function ProvenanceDisclosure({
   const { t } = useTranslations();
   const metrics = provenance.metrics.slice(0, 8).join(", ");
   return (
-    <Popover>
-      <PopoverTrigger
-        aria-label={t("insights.narrativeProvenanceLabel")}
-        className="text-muted-foreground hover:text-foreground inline-flex size-5 shrink-0 items-center justify-center rounded-full transition-colors"
-      >
-        <Info className="size-3.5" aria-hidden="true" />
-      </PopoverTrigger>
-      <PopoverContent className="w-80 text-sm" align="end">
-        <p className="text-foreground font-medium">
-          {t("insights.narrativeProvenanceLabel")}
-        </p>
-        <p className="text-muted-foreground mt-1">
-          {t("insights.narrativeProvenanceMethod")}
-        </p>
-        {metrics ? (
-          <p className="text-muted-foreground mt-2 text-xs">
-            {t("insights.narrativeProvenanceMetrics", { metrics })}
-          </p>
-        ) : null}
-      </PopoverContent>
-    </Popover>
+    <p
+      data-slot="period-narrative-provenance"
+      className="text-muted-foreground text-[11px] leading-snug"
+    >
+      {t("insights.narrativeProvenanceMethod")}
+      {metrics
+        ? ` ${t("insights.narrativeProvenanceMetrics", { metrics })}`
+        : ""}
+    </p>
   );
 }
 
@@ -168,11 +158,6 @@ export function PeriodNarrativeCard({
       <SectionHeading
         icon={CalendarRange}
         title={t("insights.narrativeTitle")}
-        action={
-          narrative?.provenance ? (
-            <ProvenanceDisclosure provenance={narrative.provenance} />
-          ) : undefined
-        }
       />
       <div
         data-slot="period-narrative-card"
@@ -214,6 +199,10 @@ export function PeriodNarrativeCard({
             {narrative?.text}
           </p>
         )}
+
+        {narrative?.provenance ? (
+          <ProvenanceDisclosure provenance={narrative.provenance} />
+        ) : null}
 
         {narrative ? (
           <p className="text-muted-foreground text-right text-[11px]">

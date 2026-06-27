@@ -26,7 +26,7 @@ const EMPTY_PROVENANCE: DerivedProvenance = {
 };
 
 describe("<ProvenanceExplainer>", () => {
-  it("renders an accessible trigger that controls the body (collapsed by default)", () => {
+  it("renders the method inline as a muted caption (no trigger glyph)", () => {
     const html = render(
       <ProvenanceExplainer
         provenance={PROVENANCE}
@@ -34,28 +34,21 @@ describe("<ProvenanceExplainer>", () => {
         bodyId="prov-1"
       />,
     );
-    expect(html).toContain('data-slot="provenance-explainer-trigger"');
-    expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain('aria-controls="prov-1"');
-    expect(html).toContain("aria-label");
+    expect(html).toContain('data-slot="provenance-explainer-method"');
+    expect(html).toContain("BMI is weight divided by height squared.");
+    expect(html).toContain('id="prov-1"');
+    // The old icon-only disclosure trigger is gone.
+    expect(html).not.toContain('data-slot="provenance-explainer-trigger"');
   });
 
-  it("meets the 44px hit-target floor on the trigger", () => {
-    const html = render(
-      <ProvenanceExplainer provenance={PROVENANCE} method="method copy" />,
-    );
-    expect(html).toContain("min-h-11");
-    expect(html).toContain("min-w-11");
-  });
-
-  it("renders the trigger for the empty-inputs / bad-date provenance without throwing", () => {
+  it("renders the empty-inputs / bad-date provenance without throwing", () => {
     const html = render(
       <ProvenanceExplainer
         provenance={EMPTY_PROVENANCE}
         method="method copy"
       />,
     );
-    expect(html).toContain('data-slot="provenance-explainer-trigger"');
+    expect(html).toContain('data-slot="provenance-explainer-method"');
   });
 
   it("accepts a cited standard prop without erroring", () => {
@@ -69,6 +62,6 @@ describe("<ProvenanceExplainer>", () => {
         }}
       />,
     );
-    expect(html).toContain('data-slot="provenance-explainer-trigger"');
+    expect(html).toContain('data-slot="provenance-explainer-method"');
   });
 });
