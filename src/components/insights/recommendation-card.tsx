@@ -377,7 +377,7 @@ export function RecommendationCard({
             <div className="flex flex-wrap items-center gap-2">
               {norm.severity && (
                 <Badge
-                  className={`text-[10px] tracking-wide uppercase ${
+                  className={`text-xs tracking-wide uppercase ${
                     SEVERITY_BADGE_STYLES[norm.severity] ?? ""
                   }`}
                   variant="outline"

@@ -44,6 +44,8 @@ describe("runCoachReminderSweep", () => {
         ]),
         update: vi.fn(async () => ({})),
       },
+      // The mint runs as one atomic batch; resolve the built ops together.
+      $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
     };
 
     const summary = await runCoachReminderSweep(prisma as never, NOW);
@@ -75,6 +77,10 @@ describe("runCoachReminderSweep", () => {
       where: { id: "p1" },
       data: { reviewDate: null },
     });
+
+    // The create + clear commit atomically — a half-applied mint would let the
+    // next tick re-select the plan and duplicate the review reminder.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 
   it("skips an undecryptable plan without sinking the tick", async () => {
@@ -95,6 +101,7 @@ describe("runCoachReminderSweep", () => {
         ]),
         update: vi.fn(async () => ({})),
       },
+      $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
     };
 
     const summary = await runCoachReminderSweep(prisma as never, NOW);

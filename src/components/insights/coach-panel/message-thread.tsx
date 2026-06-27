@@ -452,7 +452,10 @@ function ReadAloudButton({ content }: { content: string }) {
       aria-label={label}
       aria-pressed={speaking}
       title={label}
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-8 items-center gap-1 rounded px-1.5 py-1 text-xs outline-none focus-visible:ring-2"
+      // Interactive bubble affordances share one tap convention:
+      // `min-h-11 sm:min-h-9` (44px mobile floor → 36px desktop), matching the
+      // feedback buttons below. Keep TTS / remember / feedback in lockstep.
+      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-1.5 py-1 text-xs outline-none focus-visible:ring-2 sm:min-h-9"
     >
       {speaking ? (
         <VolumeX className="size-3" aria-hidden="true" />
@@ -488,7 +491,7 @@ function BubbleTimestamp({
         aria-label={t("insights.coach.messageTimeLabel", { time: label })}
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setOpen(false)}
-        className="peer text-muted-foreground/50 hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex size-6 items-center justify-center rounded outline-none focus-visible:ring-2"
+        className="peer text-muted-foreground/70 hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex size-11 items-center justify-center rounded outline-none focus-visible:ring-2 sm:size-8"
       >
         <Clock className="size-3" aria-hidden="true" />
       </button>
@@ -929,7 +932,7 @@ function ChatBubble({
           <div
             aria-hidden="true"
             data-slot="coach-bubble-user-avatar"
-            className="text-muted-foreground bg-muted/60 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold"
+            className="text-muted-foreground bg-muted/60 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
           >
             {initials ?? <User className="size-3.5" />}
           </div>
@@ -1278,7 +1281,7 @@ function RememberUserMessage({ content }: { content: string }) {
       disabled={remember.isPending}
       className={cn(
         "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50",
-        "inline-flex min-h-8 items-center gap-1 rounded px-1.5 py-1 text-xs",
+        "inline-flex min-h-11 items-center gap-1 rounded px-1.5 py-1 text-xs sm:min-h-9",
         "outline-none focus-visible:ring-2 disabled:opacity-50",
         // Calmer thread on pointer devices: the control stays invisible
         // until its bubble is hovered or holds focus. Touch viewports

@@ -1158,17 +1158,15 @@ export function MeasurementList({
                           </button>
                         )}
                         <div className="min-w-0">
-                          {/* v1.4.27 MB7 / CF-76 — bump the metadata
-                              badges from `text-[10px]` to `text-[11px]`
-                              so the legibility floor (12 px is the
-                              mobile baseline; 11 px is the lowest
-                              tolerated value for non-primary chrome)
-                              holds across the row. */}
+                          {/* v1.22 — metadata badges sit on the scale
+                              token `text-xs` (12 px, the mobile legibility
+                              baseline) instead of an arbitrary per-site
+                              size, so the row tracks the type scale. */}
                           {(m.type === "BLOOD_PRESSURE_SYS" ||
                             m.type === "BLOOD_PRESSURE_DIA") && (
                             <Badge
                               variant="outline"
-                              className="mr-1.5 h-5 px-1 text-[11px]"
+                              className="mr-1.5 h-5 px-1 text-xs"
                             >
                               {t(TYPE_LABEL_KEYS[m.type])}
                             </Badge>
@@ -1198,7 +1196,7 @@ export function MeasurementList({
                             <SleepNightCaption m={m} />
                           ) : (
                             isGrouped && (
-                              <span className="text-muted-foreground ml-1.5 text-[11px]">
+                              <span className="text-muted-foreground ml-1.5 text-xs">
                                 {t("measurements.dailyTotalCaption", {
                                   count: fmt.integer(m.sampleCount as number),
                                 })}
@@ -1217,7 +1215,7 @@ export function MeasurementList({
                               <Badge
                                 variant="outline"
                                 data-testid="measurement-source-badge"
-                                className={`ml-1.5 h-4 px-1 text-[11px] ${sourceBadgeClass(m.source)}`.trim()}
+                                className={`ml-1.5 h-4 px-1 text-xs ${sourceBadgeClass(m.source)}`.trim()}
                               >
                                 {formatMeasurementSource(m.source, t)}
                               </Badge>
@@ -1234,8 +1232,7 @@ export function MeasurementList({
                         {isGrouped ? (
                           <Button
                             variant="ghost"
-                            size="icon"
-                            className="size-11"
+                            size="icon-lg"
                             data-testid="measurement-day-expand"
                             onClick={() => toggleExpand(m.dayKey as string)}
                             aria-expanded={isExpanded}
@@ -1254,15 +1251,13 @@ export function MeasurementList({
                           <>
                             <Button
                               variant="ghost"
-                              size="icon"
-                              className="size-11"
+                              size="icon-lg"
                               onClick={() => startEdit(m)}
                               aria-label={t("common.edit")}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <DeleteButton
-                              className="size-11"
                               iconClassName="h-4 w-4"
                               onConfirm={() => deleteMutation.mutate(m.id)}
                               title={t("measurements.deleteConfirmTitle")}
@@ -1317,8 +1312,7 @@ export function MeasurementList({
             <div className="flex gap-1">
               <Button
                 variant="ghost"
-                size="icon"
-                className="size-11"
+                size="icon-lg"
                 disabled={page <= 1}
                 onClick={() => goToPage((p) => p - 1)}
                 aria-label={t("measurements.previousPage")}
@@ -1327,8 +1321,7 @@ export function MeasurementList({
               </Button>
               <Button
                 variant="ghost"
-                size="icon"
-                className="size-11"
+                size="icon-lg"
                 disabled={page >= totalPages}
                 onClick={() => goToPage((p) => p + 1)}
                 aria-label={t("measurements.nextPage")}
@@ -1430,8 +1423,7 @@ export function MeasurementList({
                         <Button
                           type="button"
                           variant="outline"
-                          size="icon"
-                          className="size-11"
+                          size="icon-lg"
                           disabled={
                             updateMutation.isPending || deleteMutation.isPending
                           }

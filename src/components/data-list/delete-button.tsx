@@ -32,7 +32,7 @@ export function DeleteButton({
   description,
   cancelLabel,
   confirmLabel,
-  className = "size-11",
+  className = "",
   iconClassName = "h-3.5 w-3.5",
 }: {
   onConfirm: () => void;
@@ -49,7 +49,7 @@ export function DeleteButton({
       <AlertDialogTrigger asChild>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-lg"
           className={`text-destructive ${className}`}
           aria-label={confirmLabel ?? t("common.delete")}
         >

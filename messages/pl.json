@@ -1946,7 +1946,6 @@
     "confidenceMittel": "Średnia",
     "confidenceGering": "Niska",
     "loadError": "Nie udało się załadować analiz",
-    "heroGenerated": "Wygenerowano {time}",
     "heroPersonalBaseline": "Na podstawie ostatnich 90 dni",
     "heroRegenerate": "Wygeneruj ponownie",
     "heroRegenerating": "Generowanie",
@@ -1958,7 +1957,6 @@
     "narrativeMonth": "Ten miesiąc",
     "narrativePreparing": "Przygotowywanie podsumowania…",
     "narrativeUpdating": "Aktualizowanie…",
-    "narrativeUpdated": "Zaktualizowano {time}",
     "narrativeProvenanceLabel": "Jak to powstało",
     "narrativeProvenanceMethod": "Podsumowanie okresu w prostym języku, oparte wyłącznie na zarejestrowanych wartościach i powiązaniach, które przeszły statystyczną korektę dla porównań wielokrotnych. Opisowe, nigdy nie przyczynowe.",
     "narrativeProvenanceMetrics": "Na podstawie: {metrics}",
@@ -4738,6 +4736,8 @@
       "changelog": "Changelog",
       "docs": "Dokumentacja",
       "linksHeading": "Źródła i dokumentacja",
+      "identityDescription": "Wersja, licencja i szczegóły kompilacji tej instancji.",
+      "linksDescription": "Kod źródłowy, dziennik zmian i dokumentacja.",
       "newerAvailable": "Nowa wersja: {tag}"
     },
     "testConnection": {

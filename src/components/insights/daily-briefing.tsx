@@ -29,6 +29,7 @@ import { AskCoachAction } from "@/components/insights/ask-coach-action";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type {
   DailyBriefing as DailyBriefingPayload,
@@ -353,6 +354,7 @@ export function DailyBriefing({
 }: DailyBriefingProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
+  const { user } = useAuth();
 
   return (
     // v1.13.1 — heading-above-card pattern. The "Tagesbriefing" title
@@ -431,7 +433,7 @@ export function DailyBriefing({
                 <div className="space-y-2">
                   <p
                     data-slot="daily-briefing-signals-title"
-                    className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase"
+                    className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
                   >
                     {t("insights.dailyBriefing.signalsTitle")}
                   </p>
@@ -449,7 +451,7 @@ export function DailyBriefing({
                 <div className="space-y-2">
                   <p
                     data-slot="daily-briefing-findings-title"
-                    className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase"
+                    className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
                   >
                     {t("insights.dailyBriefing.keyFindingsTitle")}
                   </p>
@@ -471,13 +473,14 @@ export function DailyBriefing({
                   {updatedAt && (
                     <p
                       data-slot="daily-briefing-updated"
-                      className="text-muted-foreground text-right text-[11px]"
+                      className="text-muted-foreground text-right text-xs"
                     >
                       {formatUpdatedLabel(
                         updatedAt,
                         t,
                         fmt.dateShort,
                         fmt.time,
+                        user?.timezone,
                       )}
                     </p>
                   )}
@@ -488,7 +491,7 @@ export function DailyBriefing({
                   {noProviderStale && (
                     <p
                       data-slot="daily-briefing-stale-no-provider"
-                      className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-right text-[11px]"
+                      className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-right text-xs"
                     >
                       <span>
                         {t("insights.dailyBriefing.staleNoProviderHint")}

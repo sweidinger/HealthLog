@@ -211,7 +211,7 @@ function CoachConversationsBody() {
                       <Button
                         type="button"
                         variant="ghost"
-                        size="icon"
+                        size="icon-lg"
                         onClick={() => handleDeleteRequest(c.id)}
                         aria-label={
                           isConfirming
@@ -221,7 +221,7 @@ function CoachConversationsBody() {
                         data-slot="coach-conversations-delete"
                         data-confirming={isConfirming ? "true" : undefined}
                         className={cn(
-                          "size-11 shrink-0",
+                          "shrink-0",
                           isConfirming &&
                             "text-dracula-red hover:text-dracula-red",
                         )}

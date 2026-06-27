@@ -50,10 +50,7 @@ export function ProvenanceExplainer({
     <span
       id={bodyId}
       data-slot="provenance-explainer-method"
-      className={cn(
-        "text-muted-foreground text-[11px] leading-snug",
-        className,
-      )}
+      className={cn("text-muted-foreground text-xs leading-snug", className)}
     >
       {method}
     </span>

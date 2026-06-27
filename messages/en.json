@@ -1946,7 +1946,6 @@
     "confidenceMittel": "Medium",
     "confidenceGering": "Low",
     "loadError": "Failed to load insights",
-    "heroGenerated": "Generated {time}",
     "heroPersonalBaseline": "Based on your last 90 days",
     "heroRegenerate": "Regenerate",
     "heroRegenerating": "Regenerating",
@@ -1958,7 +1957,6 @@
     "narrativeMonth": "This month",
     "narrativePreparing": "Preparing your summary…",
     "narrativeUpdating": "Updating…",
-    "narrativeUpdated": "Updated {time}",
     "narrativeProvenanceLabel": "How this was put together",
     "narrativeProvenanceMethod": "A plain-language summary of the period, drawn only from your logged numbers and the associations that survived statistical multiple-comparison control. Descriptive, never a cause.",
     "narrativeProvenanceMetrics": "Based on: {metrics}",
@@ -4738,6 +4736,8 @@
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources & docs",
+      "identityDescription": "Version, license, and build details for this instance.",
+      "linksDescription": "Source code, changelog, and documentation.",
       "newerAvailable": "Newer version: {tag}"
     },
     "testConnection": {

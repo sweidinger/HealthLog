@@ -30,7 +30,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
 import { apiError, apiSuccess } from "@/lib/api-response";
-import { annotate } from "@/lib/logging/context";
+import { annotate, getEvent } from "@/lib/logging/context";
+import { redactOptional, redactSecrets } from "@/lib/logging/redact";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -1169,10 +1170,23 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
       // surfaces a graceful `coach.provider.*` frame; anything else degrades to
       // a generic unavailable frame. A genuine defect is still annotated.
       const providerError = classifyBubblingProviderError(err);
+      if (!providerError) {
+        // Not a tagged provider failure — a genuine server defect raised
+        // inside the open producer (e.g. a DB error in the post-stream
+        // `appendMessage` persistence). Record it on the wide event and
+        // forward it to GlitchTip so it stays visible instead of reading
+        // as a provider outage; the stream is open, so we still emit an
+        // error frame below rather than a 500.
+        getEvent()?.setError(
+          err instanceof Error ? err : new Error(String(err)),
+        );
+        void reportCoachStreamDefect(err);
+      }
       annotate({
         action: { name: "insights.coach.streamError" },
         meta: {
           unwrapped: Boolean(providerError),
+          reported: !providerError,
           firstStatus: providerError?.httpStatus ?? null,
         },
       });
@@ -1325,6 +1339,46 @@ function classifyBubblingProviderError(err: unknown): {
   }
   if (status === 429) return { code: "rate_limited", httpStatus: status };
   return { code: "unavailable", httpStatus: status };
+}
+
+/**
+ * Fire-and-forget GlitchTip forward for a genuine server defect that
+ * surfaces INSIDE the open SSE producer — e.g. a Prisma failure in the
+ * post-stream `appendMessage` persistence, which runs after the provider
+ * call and therefore outside its try/catch. Once the stream is open the
+ * route can no longer return a 500, so without this such a defect would
+ * read as a generic provider outage in error tracking rather than the
+ * server bug it is. Mirrors the api-handler / worker forwarders: dynamic
+ * import (no cycle, no startup cost), redacted message + stack, and it
+ * NEVER throws so a sink failure cannot mask the original error.
+ */
+async function reportCoachStreamDefect(err: unknown): Promise<void> {
+  const e =
+    err instanceof Error ? err : new Error("Unknown coach stream error");
+  const message = redactSecrets(`[insights.coach.stream] ${e.message}`);
+  console.error("[coach-stream]", message, e);
+  try {
+    const [{ getGlitchtipSettings }, { sendGlitchtipEvent }] =
+      await Promise.all([
+        import("@/lib/monitoring-settings"),
+        import("@/lib/monitoring/glitchtip"),
+      ]);
+    const settings = await getGlitchtipSettings();
+    if (!settings.glitchtipEnabled || !settings.glitchtipDsn) return;
+    await sendGlitchtipEvent({
+      dsn: settings.glitchtipDsn,
+      input: {
+        environment: settings.glitchtipEnvironment || "production",
+        message,
+        level: "error",
+        type: e.name || "Error",
+        stack: redactOptional(e.stack),
+        sourceTag: "healthlog-api-handler",
+      },
+    });
+  } catch {
+    /* the reporter must never throw */
+  }
 }
 
 function streamProviderError(args: { code: string }): Response {
