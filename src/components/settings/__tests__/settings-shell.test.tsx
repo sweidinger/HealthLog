@@ -121,6 +121,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "sharing",
       "export",
       "advanced",
+      // v1.23 — "Data & Privacy" assembles the export / deletion / retention /
+      // encryption / session / activity pieces into one pane, after `advanced`.
+      "privacy",
       "about",
     ]);
   });

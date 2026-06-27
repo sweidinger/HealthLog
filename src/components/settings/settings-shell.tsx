@@ -30,6 +30,7 @@ import {
   LayoutDashboard,
   Layers,
   Link2,
+  Lock,
   Pill,
   Radio,
   Settings2,
@@ -250,6 +251,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "advanced",
     titleKey: "settings.sections.advanced.title",
     icon: Settings2,
+  },
+  {
+    slug: "privacy",
+    titleKey: "settings.sections.privacy.title",
+    icon: Lock,
   },
   {
     slug: "about",

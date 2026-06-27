@@ -4226,6 +4226,11 @@
       "security": {
         "title": "Sécurité",
         "subtitle": "Authentification à deux facteurs, codes de récupération et clés d'accès."
+      },
+      "privacy": {
+        "title": "Données et confidentialité",
+        "subtitle": "Vos données, leur conservation, le chiffrement et la sécurité du compte au même endroit.",
+        "description": "Export, suppression, conservation, état du chiffrement, sessions et activité de sécurité."
       }
     },
     "profile": "Profil",
@@ -5092,6 +5097,53 @@
         "unnamed": "Appareil inconnu",
         "current": "Cet appareil",
         "expires": "De confiance jusqu'au {date}"
+      }
+    },
+    "privacy": {
+      "intro": {
+        "title": "Vos données vous appartiennent",
+        "body": "HealthLog est auto-hébergé. Cette page réunit la façon dont vos données sont protégées, leur durée de conservation, comment les exporter et comment les supprimer."
+      },
+      "encryption": {
+        "title": "Chiffré au repos",
+        "description": "Les champs sensibles sont chiffrés dans la base de données.",
+        "summary": "Vos données sensibles sont chiffrées au repos avec {algorithm} sur {columns} champs dans {models} types d'enregistrement.",
+        "statement": "Vos données sensibles sont chiffrées au repos avec AES-256-GCM."
+      },
+      "stored": {
+        "title": "Ce qui est stocké",
+        "description": "Les catégories de données que contient ce compte.",
+        "measurements": "Mesures (poids, tension, pouls, glycémie, sommeil, composition corporelle)",
+        "medications": "Médicaments et historique des prises",
+        "moodLabs": "Entrées d'humeur et résultats de laboratoire",
+        "coach": "Conversations avec le coach",
+        "integrations": "Jetons d'intégration (chiffrés)",
+        "security": "Activité du compte et de sécurité (sessions, journal de connexion)"
+      },
+      "retention": {
+        "title": "Conservation",
+        "description": "Durée de conservation des enregistrements limités dans le temps avant le nettoyage automatique.",
+        "coach": "Conversations avec le coach : {days} jours",
+        "audit": "Journal de sécurité : {days} jours",
+        "delivery": "Journal d'envoi des notifications : {days} jours"
+      },
+      "export": {
+        "title": "Télécharger mes données",
+        "description": "Exportez vos enregistrements en CSV ou JSON, éventuellement chiffrés par phrase secrète, ou générez un dossier médical complet.",
+        "openExport": "Export et sauvegarde",
+        "openHealthRecord": "Dossier médical"
+      },
+      "delete": {
+        "title": "Supprimer ou réinitialiser",
+        "description": "Supprimez complètement votre compte, ou effacez vos données de santé tout en conservant le compte.",
+        "backupLag": "La suppression efface vos données immédiatement. Les sauvegardes chiffrées hors site les contiennent encore jusqu'à leur expiration selon la fenêtre de conservation de l'opérateur.",
+        "openAdvanced": "Supprimer ou réinitialiser"
+      },
+      "posture": {
+        "title": "Posture de confidentialité",
+        "description": "Contrôlez la quantité de données partagées avec les fonctions d'IA et la recherche optionnelle.",
+        "openAi": "Mode confidentialité IA",
+        "openResearch": "Mode recherche"
       }
     }
   },

@@ -4226,6 +4226,11 @@
       "security": {
         "title": "Security",
         "subtitle": "Two-factor authentication, recovery codes, and passkeys."
+      },
+      "privacy": {
+        "title": "Data & Privacy",
+        "subtitle": "Your data, retention, encryption, and account security in one place.",
+        "description": "Export, deletion, retention, encryption status, sessions, and security activity."
       }
     },
     "profile": "Profile",
@@ -5092,6 +5097,53 @@
         "unnamed": "Unknown device",
         "current": "This device",
         "expires": "Trusted until {date}"
+      }
+    },
+    "privacy": {
+      "intro": {
+        "title": "Your data stays yours",
+        "body": "HealthLog is self-hosted. This page brings together how your data is protected, how long it is kept, how to get it out, and how to delete it."
+      },
+      "encryption": {
+        "title": "Encrypted at rest",
+        "description": "Sensitive fields are encrypted in the database.",
+        "summary": "Your sensitive data is encrypted at rest with {algorithm} across {columns} fields in {models} record types.",
+        "statement": "Your sensitive data is encrypted at rest with AES-256-GCM."
+      },
+      "stored": {
+        "title": "What's stored",
+        "description": "The categories of data this account holds.",
+        "measurements": "Measurements (weight, blood pressure, pulse, glucose, sleep, body composition)",
+        "medications": "Medications and intake history",
+        "moodLabs": "Mood entries and lab results",
+        "coach": "Coach conversations",
+        "integrations": "Integration tokens (encrypted)",
+        "security": "Account and security activity (sessions, sign-in log)"
+      },
+      "retention": {
+        "title": "Retention",
+        "description": "How long time-bound records are kept before automatic cleanup.",
+        "coach": "Coach conversations: kept {days} days",
+        "audit": "Security activity log: kept {days} days",
+        "delivery": "Notification delivery log: kept {days} days"
+      },
+      "export": {
+        "title": "Download my data",
+        "description": "Export your records as CSV or JSON, optionally passphrase-encrypted, or generate a full health record.",
+        "openExport": "Export & backup",
+        "openHealthRecord": "Health record"
+      },
+      "delete": {
+        "title": "Delete or reset",
+        "description": "Remove your account entirely, or wipe your health records while keeping the account.",
+        "backupLag": "Deletion removes your data immediately. Encrypted off-host backups still contain it until they roll off the operator's backup retention window.",
+        "openAdvanced": "Delete or reset"
+      },
+      "posture": {
+        "title": "Privacy posture",
+        "description": "Control how much your data is shared with AI features and opt-in research.",
+        "openAi": "AI privacy mode",
+        "openResearch": "Research mode"
       }
     }
   },

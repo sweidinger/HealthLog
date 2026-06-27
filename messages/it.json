@@ -4226,6 +4226,11 @@
       "security": {
         "title": "Sicurezza",
         "subtitle": "Autenticazione a due fattori, codici di recupero e passkey."
+      },
+      "privacy": {
+        "title": "Dati e privacy",
+        "subtitle": "I tuoi dati, la conservazione, la cifratura e la sicurezza dell'account in un unico posto.",
+        "description": "Esportazione, eliminazione, conservazione, stato della cifratura, sessioni e attività di sicurezza."
       }
     },
     "profile": "Profilo",
@@ -5092,6 +5097,53 @@
         "unnamed": "Dispositivo sconosciuto",
         "current": "Questo dispositivo",
         "expires": "Attendibile fino al {date}"
+      }
+    },
+    "privacy": {
+      "intro": {
+        "title": "I tuoi dati restano tuoi",
+        "body": "HealthLog è self-hosted. Questa pagina riunisce come sono protetti i tuoi dati, per quanto tempo vengono conservati, come esportarli e come eliminarli."
+      },
+      "encryption": {
+        "title": "Cifrati a riposo",
+        "description": "I campi sensibili sono cifrati nel database.",
+        "summary": "I tuoi dati sensibili sono cifrati a riposo con {algorithm} su {columns} campi in {models} tipi di record.",
+        "statement": "I tuoi dati sensibili sono cifrati a riposo con AES-256-GCM."
+      },
+      "stored": {
+        "title": "Cosa viene memorizzato",
+        "description": "Le categorie di dati contenute in questo account.",
+        "measurements": "Misurazioni (peso, pressione, polso, glicemia, sonno, composizione corporea)",
+        "medications": "Farmaci e cronologia delle assunzioni",
+        "moodLabs": "Voci dell'umore e referti di laboratorio",
+        "coach": "Conversazioni con il coach",
+        "integrations": "Token di integrazione (cifrati)",
+        "security": "Attività dell'account e di sicurezza (sessioni, registro degli accessi)"
+      },
+      "retention": {
+        "title": "Conservazione",
+        "description": "Per quanto tempo i record a tempo vengono conservati prima della pulizia automatica.",
+        "coach": "Conversazioni con il coach: {days} giorni",
+        "audit": "Registro di sicurezza: {days} giorni",
+        "delivery": "Registro di invio delle notifiche: {days} giorni"
+      },
+      "export": {
+        "title": "Scarica i miei dati",
+        "description": "Esporta i tuoi record come CSV o JSON, eventualmente cifrati con passphrase, oppure genera un fascicolo sanitario completo.",
+        "openExport": "Esportazione e backup",
+        "openHealthRecord": "Fascicolo sanitario"
+      },
+      "delete": {
+        "title": "Elimina o reimposta",
+        "description": "Elimina completamente il tuo account oppure cancella i tuoi dati sanitari mantenendo l'account.",
+        "backupLag": "L'eliminazione rimuove subito i tuoi dati. I backup cifrati esterni li contengono ancora finché non scadono secondo la finestra di conservazione dell'operatore.",
+        "openAdvanced": "Elimina o reimposta"
+      },
+      "posture": {
+        "title": "Impostazione privacy",
+        "description": "Controlla quanti dei tuoi dati vengono condivisi con le funzioni di IA e la ricerca facoltativa.",
+        "openAi": "Modalità privacy IA",
+        "openResearch": "Modalità ricerca"
       }
     }
   },

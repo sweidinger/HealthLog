@@ -24,6 +24,7 @@ import {
   Layers,
   LayoutDashboard,
   Link2,
+  Lock,
   Pill,
   Radio,
   Settings2,
@@ -66,6 +67,7 @@ const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   sharing: Share2,
   export: Download,
   advanced: Settings2,
+  privacy: Lock,
   about: Info,
 };
 

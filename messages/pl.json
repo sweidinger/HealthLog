@@ -4226,6 +4226,11 @@
       "security": {
         "title": "Bezpieczeństwo",
         "subtitle": "Uwierzytelnianie dwuskładnikowe, kody odzyskiwania i klucze dostępu."
+      },
+      "privacy": {
+        "title": "Dane i prywatność",
+        "subtitle": "Twoje dane, retencja, szyfrowanie i bezpieczeństwo konta w jednym miejscu.",
+        "description": "Eksport, usuwanie, retencja, stan szyfrowania, sesje i aktywność zabezpieczeń."
       }
     },
     "profile": "Profil",
@@ -5092,6 +5097,53 @@
         "unnamed": "Nieznane urządzenie",
         "current": "To urządzenie",
         "expires": "Zaufane do {date}"
+      }
+    },
+    "privacy": {
+      "intro": {
+        "title": "Twoje dane pozostają Twoje",
+        "body": "HealthLog jest hostowany samodzielnie. Ta strona zbiera w jednym miejscu informacje o tym, jak chronione są Twoje dane, jak długo są przechowywane, jak je wyeksportować i jak je usunąć."
+      },
+      "encryption": {
+        "title": "Szyfrowane w spoczynku",
+        "description": "Wrażliwe pola są szyfrowane w bazie danych.",
+        "summary": "Twoje wrażliwe dane są szyfrowane w spoczynku algorytmem {algorithm} w {columns} polach w {models} typach rekordów.",
+        "statement": "Twoje wrażliwe dane są szyfrowane w spoczynku algorytmem AES-256-GCM."
+      },
+      "stored": {
+        "title": "Co jest przechowywane",
+        "description": "Kategorie danych przechowywanych na tym koncie.",
+        "measurements": "Pomiary (waga, ciśnienie, tętno, glukoza, sen, skład ciała)",
+        "medications": "Leki i historia przyjmowania",
+        "moodLabs": "Wpisy nastroju i wyniki badań laboratoryjnych",
+        "coach": "Rozmowy z asystentem",
+        "integrations": "Tokeny integracji (szyfrowane)",
+        "security": "Aktywność konta i zabezpieczeń (sesje, dziennik logowań)"
+      },
+      "retention": {
+        "title": "Retencja",
+        "description": "Jak długo rekordy ograniczone czasowo są przechowywane przed automatycznym czyszczeniem.",
+        "coach": "Rozmowy z asystentem: {days} dni",
+        "audit": "Dziennik zabezpieczeń: {days} dni",
+        "delivery": "Dziennik wysyłki powiadomień: {days} dni"
+      },
+      "export": {
+        "title": "Pobierz moje dane",
+        "description": "Wyeksportuj swoje rekordy jako CSV lub JSON, opcjonalnie zaszyfrowane hasłem, albo wygeneruj pełną dokumentację medyczną.",
+        "openExport": "Eksport i kopia zapasowa",
+        "openHealthRecord": "Dokumentacja medyczna"
+      },
+      "delete": {
+        "title": "Usuń lub zresetuj",
+        "description": "Usuń całe konto albo wyczyść dane zdrowotne, zachowując konto.",
+        "backupLag": "Usunięcie natychmiast usuwa Twoje dane. Zaszyfrowane kopie zapasowe poza serwerem nadal je zawierają, dopóki nie wygasną zgodnie z oknem retencji operatora.",
+        "openAdvanced": "Usuń lub zresetuj"
+      },
+      "posture": {
+        "title": "Ustawienia prywatności",
+        "description": "Kontroluj, ile Twoich danych jest udostępnianych funkcjom AI i opcjonalnym badaniom.",
+        "openAi": "Tryb prywatności AI",
+        "openResearch": "Tryb badawczy"
       }
     }
   },

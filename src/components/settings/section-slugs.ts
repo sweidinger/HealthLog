@@ -87,6 +87,11 @@ export const SETTINGS_SECTION_SLUGS = [
   "sharing",
   "export",
   "advanced",
+  // v1.23 — "Data & Privacy": a single surface that assembles the already-
+  // shipped export / deletion / retention / encryption / session / activity
+  // pieces into one coherent privacy pane. Sits next to `advanced` (the
+  // destructive-action home) and before `about`.
+  "privacy",
   "about",
 ] as const;
 

@@ -4226,6 +4226,11 @@
       "security": {
         "title": "Sicherheit",
         "subtitle": "Zwei-Faktor-Authentifizierung, Wiederherstellungscodes und Passkeys."
+      },
+      "privacy": {
+        "title": "Daten & Datenschutz",
+        "subtitle": "Deine Daten, Aufbewahrung, Verschlüsselung und Kontosicherheit an einem Ort.",
+        "description": "Export, Löschung, Aufbewahrung, Verschlüsselungsstatus, Sitzungen und Sicherheitsaktivität."
       }
     },
     "profile": "Profil",
@@ -5092,6 +5097,53 @@
         "unnamed": "Unbekanntes Gerät",
         "current": "Dieses Gerät",
         "expires": "Vertraut bis {date}"
+      }
+    },
+    "privacy": {
+      "intro": {
+        "title": "Deine Daten bleiben deine",
+        "body": "HealthLog wird selbst gehostet. Diese Seite fasst zusammen, wie deine Daten geschützt werden, wie lange sie gespeichert bleiben, wie du sie exportierst und wie du sie löschst."
+      },
+      "encryption": {
+        "title": "Verschlüsselt gespeichert",
+        "description": "Sensible Felder werden in der Datenbank verschlüsselt.",
+        "summary": "Deine sensiblen Daten werden mit {algorithm} verschlüsselt gespeichert – über {columns} Felder in {models} Datensatztypen.",
+        "statement": "Deine sensiblen Daten werden mit AES-256-GCM verschlüsselt gespeichert."
+      },
+      "stored": {
+        "title": "Was gespeichert wird",
+        "description": "Die Datenkategorien, die dieses Konto enthält.",
+        "measurements": "Messwerte (Gewicht, Blutdruck, Puls, Glukose, Schlaf, Körperzusammensetzung)",
+        "medications": "Medikamente und Einnahmeverlauf",
+        "moodLabs": "Stimmungseinträge und Laborwerte",
+        "coach": "Coach-Unterhaltungen",
+        "integrations": "Integrations-Tokens (verschlüsselt)",
+        "security": "Konto- und Sicherheitsaktivität (Sitzungen, Anmeldeprotokoll)"
+      },
+      "retention": {
+        "title": "Aufbewahrung",
+        "description": "Wie lange zeitgebundene Datensätze vor der automatischen Bereinigung gespeichert bleiben.",
+        "coach": "Coach-Unterhaltungen: {days} Tage",
+        "audit": "Sicherheitsprotokoll: {days} Tage",
+        "delivery": "Benachrichtigungsprotokoll: {days} Tage"
+      },
+      "export": {
+        "title": "Meine Daten herunterladen",
+        "description": "Exportiere deine Datensätze als CSV oder JSON, optional passphrasen-verschlüsselt, oder erstelle eine vollständige Gesundheitsakte.",
+        "openExport": "Export & Backup",
+        "openHealthRecord": "Gesundheitsakte"
+      },
+      "delete": {
+        "title": "Löschen oder zurücksetzen",
+        "description": "Lösche dein Konto vollständig oder lösche deine Gesundheitsdaten und behalte das Konto.",
+        "backupLag": "Die Löschung entfernt deine Daten sofort. Verschlüsselte Off-Host-Backups enthalten sie weiterhin, bis sie aus dem Aufbewahrungsfenster des Betreibers herausfallen.",
+        "openAdvanced": "Löschen oder zurücksetzen"
+      },
+      "posture": {
+        "title": "Datenschutz-Einstellung",
+        "description": "Steuere, wie viele deiner Daten an KI-Funktionen und die freiwillige Forschung weitergegeben werden.",
+        "openAi": "KI-Datenschutzmodus",
+        "openResearch": "Forschungsmodus"
       }
     }
   },
