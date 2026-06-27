@@ -18,6 +18,8 @@ vi.mock("@/lib/db", () => ({
     medicationIntakeEvent: { findMany: vi.fn().mockResolvedValue([]) },
     illnessEpisode: { findMany: vi.fn().mockResolvedValue([]) },
     illnessDayLog: { findMany: vi.fn().mockResolvedValue([]) },
+    // v1.22 — labs ↔ outcome pass fetches lab draws; default empty.
+    labResult: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -109,6 +111,8 @@ beforeEach(() => {
   (prisma.illnessDayLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(
     [],
   );
+  // v1.22 — labs ↔ outcome pass reads lab draws; default empty.
+  (prisma.labResult.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 });
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;

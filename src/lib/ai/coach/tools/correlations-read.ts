@@ -27,9 +27,12 @@ import { prisma } from "@/lib/db";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   discoverCorrelations,
+  discoverEmergingCorrelations,
+  discoverLabOutcomeCorrelations,
   discoveryMeasurementTypes,
   DISCOVERY_BEHAVIOURS,
   DISCOVERY_OUTCOMES,
+  EARLY_WINDOW_DAYS,
   MEDICATION_COMPLIANCE_CHANNEL_KEY,
   SYMPTOM_SEVERITY_CHANNEL_KEY,
   type DailySeriesPoint,
@@ -37,6 +40,7 @@ import {
 } from "@/lib/insights/correlation-discovery";
 import {
   fetchComplianceSeries,
+  fetchLabDraws,
   fetchSymptomSeries,
 } from "@/lib/insights/correlation-channel-series";
 import {
@@ -77,9 +81,38 @@ export interface CoachCoincidentFlag {
   illnessExplained: boolean;
 }
 
+/** One emerging (recent-window) driver — provisional, hedged. */
+export interface CoachEmergingDriver extends CoachCorrelationDriver {
+  /** Always true here — a recent-window signal on fewer days. */
+  provisional: true;
+}
+
+/** One labs ↔ outcome association — descriptive, never causal. */
+export interface CoachLabCorrelation {
+  /** Display analyte name (LAB: prefix stripped). */
+  lab: string;
+  /** The outcome it tracks with. */
+  outcome: string;
+  direction: "higher" | "lower";
+  /** Paired draws. */
+  n: number;
+  r: number;
+  note: string;
+}
+
 export interface CoachCorrelationsResult {
   present: boolean;
   drivers?: CoachCorrelationDriver[];
+  /**
+   * v1.22 — emerging recent-window drivers NOT yet established by the 180-day
+   * scan: early-detection signals the Coach narrates as provisional.
+   */
+  emerging?: CoachEmergingDriver[];
+  /**
+   * v1.22 — labs ↔ outcome associations (each draw vs the contemporaneous
+   * outcome window-mean), FDR-controlled. Descriptive, never causal.
+   */
+  labDrivers?: CoachLabCorrelation[];
   coincident?: CoachCoincidentFlag;
   /** How many behaviour×outcome pairs were tested (honest footer). */
   pairsTested?: number;
@@ -194,8 +227,12 @@ export async function readCoachCorrelations(
     // like the route. Each degrades to an empty series when the user has no
     // data, so the discovery loop drops the channel (it cannot clear the n ≥ 20
     // floor) — it can never surface a fabricated driver.
-    const complianceSeries = await fetchComplianceSeries(userId, tz, since);
-    const symptomSeries = await fetchSymptomSeries(userId, tz, since);
+    const [complianceSeries, symptomSeries, labDraws] = await Promise.all([
+      fetchComplianceSeries(userId, tz, since),
+      fetchSymptomSeries(userId, tz, since),
+      // v1.22 — lab draws for the labs ↔ outcome pass (degrades to absent).
+      fetchLabDraws(userId, tz, since),
+    ]);
 
     const series: NamedSeries[] = [];
     for (const key of DISCOVERY_BEHAVIOURS) {
@@ -230,17 +267,59 @@ export async function readCoachCorrelations(
       note: d.interpretation,
     }));
 
+    // v1.22 — rolling early-detection pass over the trailing window (re-uses
+    // the already-built series). Emerging pairs exclude anything the 180-day
+    // scan already established, so the Coach never narrates the same pattern as
+    // both "established" and "emerging".
+    const recentFromDayKey = tzDayKey(
+      new Date(Date.now() - EARLY_WINDOW_DAYS * MS_PER_DAY),
+      tz,
+    );
+    const emergingResult = discoverEmergingCorrelations(series, discovery, {
+      recentFromDayKey,
+    });
+    const emerging: CoachEmergingDriver[] = emergingResult.emerging.map(
+      (d) => ({
+        behaviour: humanise(d.behaviour),
+        outcome: humanise(d.outcome),
+        direction: d.r >= 0 ? "higher" : "lower",
+        lagDays: d.lagDays,
+        n: d.n,
+        r: Math.round(d.r * 100) / 100,
+        note: d.interpretation,
+        provisional: true,
+      }),
+    );
+
+    // v1.22 — labs ↔ outcome pass (point-vs-window over sparse draws).
+    const labResult = discoverLabOutcomeCorrelations(labDraws, series);
+    const labDrivers: CoachLabCorrelation[] = labResult.discovered.map((d) => ({
+      lab: d.lab.startsWith("LAB:") ? d.lab.slice("LAB:".length) : d.lab,
+      outcome: humanise(d.outcome),
+      direction: d.r >= 0 ? "higher" : "lower",
+      n: d.n,
+      r: Math.round(d.r * 100) / 100,
+      note: d.interpretation,
+    }));
+
     const coincident = buildCoincidentFlag(coincidentDerived);
 
-    // Nothing to say: no surviving driver AND the coincident flag is either
-    // insufficient or quiet (not fired). Report a clean miss.
-    if (drivers.length === 0 && (!coincident || !coincident.fired)) {
+    // Nothing to say: no surviving driver of any kind AND the coincident flag is
+    // either insufficient or quiet (not fired). Report a clean miss.
+    if (
+      drivers.length === 0 &&
+      emerging.length === 0 &&
+      labDrivers.length === 0 &&
+      (!coincident || !coincident.fired)
+    ) {
       return { present: false, reason: "no_significant_pattern" };
     }
 
     return {
       present: true,
       ...(drivers.length > 0 ? { drivers } : {}),
+      ...(emerging.length > 0 ? { emerging } : {}),
+      ...(labDrivers.length > 0 ? { labDrivers } : {}),
       ...(coincident ? { coincident } : {}),
       pairsTested: discovery.pairsTested,
       windowDays: WINDOW_DAYS,

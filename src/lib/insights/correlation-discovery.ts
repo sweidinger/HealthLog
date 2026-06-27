@@ -179,6 +179,22 @@ export interface DiscoveredCorrelation {
   interpretation: string;
   /** Lag in days applied (always 1 here). */
   lagDays: number;
+  /**
+   * v1.22 — which window surfaced the pair. `retrospective` = the standard
+   * 180-day scan (the established pattern). `recent` = the rolling
+   * early-detection pass over the trailing {@link EARLY_WINDOW_DAYS} days,
+   * surfaced ONLY when the pair is not already established retrospectively.
+   * Absent on the legacy path so existing consumers read it as the
+   * retrospective default.
+   */
+  window?: "retrospective" | "recent";
+  /**
+   * v1.22 — true for a `recent`-window emerging pair: it cleared a tighter
+   * FDR and a no-faint effect bar over a short window, but rests on fewer days
+   * than the retrospective scan, so the narration must hedge it as emerging /
+   * provisional rather than established.
+   */
+  provisional?: boolean;
 }
 
 export interface CorrelationDiscoveryResult {
@@ -470,6 +486,13 @@ export const DISCOVERY_BEHAVIOURS = [
   "BLOOD_GLUCOSE",
   "BLOOD_PRESSURE_SYS",
   "ACTIVITY_STEPS",
+  // v1.22 — sleep duration as a lag SOURCE too (it was outcome-only). This
+  // opens the clinically-obvious "poor sleep last night → next-day mood / HRV /
+  // a vital drifting" direction. The same-family guard collapses only the
+  // sleep→sleep self-lag (the key is its own family), so sleep stays free to
+  // pair cross-domain. The daily series is the same per-day collapse the outcome
+  // role already uses, so neither role sees a fabricated value.
+  "SLEEP_DURATION",
   // v1.21.0 (FDREXTEND) — daily adherence rate as a lag source: the high-value
   // "adherence dip today → a worse outcome tomorrow" direction.
   MEDICATION_COMPLIANCE_CHANNEL_KEY,
@@ -483,6 +506,16 @@ export const DISCOVERY_OUTCOMES = [
   "HEART_RATE_VARIABILITY",
   "RESTING_HEART_RATE",
   "WEIGHT",
+  // v1.22 — blood pressure as an OUTCOME (it was behaviour-only). This makes
+  // the clinically-obvious "medication adherence → next-day BP control" link
+  // discoverable (compliance reached HRV / RHR / weight but never BP). Both
+  // components are added so diastolic — previously never a candidate channel at
+  // all — can correlate too. The same-family guard skips every
+  // BP-behaviour → BP-outcome self/cross-component lag (serial autocorrelation),
+  // so only genuine cross-domain behaviours (compliance, mood, daylight, …) →
+  // BP survive. BH-FDR controls the wider pair family this opens up.
+  "BLOOD_PRESSURE_SYS",
+  "BLOOD_PRESSURE_DIA",
   // v1.11.5 (F3) — mood is now an OUTCOME channel too, not only a behaviour.
   // The discovery loop skips the MOOD→MOOD self-pair (`b.key === o.key`), so
   // promoting it lets the FDR scan surface "behaviour today → next-day mood"
@@ -504,3 +537,364 @@ export const DISCOVERY_OUTCOMES = [
   // documented here so the omission is intentional, not a gap (same posture
   // as the medication-compliance omission above).
 ] as const;
+
+// ─── v1.22 — rolling early-detection window ───────────────────────────────
+
+/**
+ * v1.22 — trailing window (days) for the rolling EARLY-detection pass.
+ *
+ * The standard discovery scan is retrospective: it needs n ≥ 20 paired days, so
+ * a pattern only surfaces once ~3 weeks of overlap have accrued INSIDE the
+ * 180-day window — it explains the past well but reacts slowly to an emerging
+ * shift (an illness pulling HRV + sleep down together over the last fortnight).
+ * This shorter window re-runs the SAME engine over only the trailing days so a
+ * fresh, concentrated pattern can surface before the long window dilutes it.
+ */
+export const EARLY_WINDOW_DAYS = 21;
+
+/**
+ * v1.22 — paired-day floor for the early window. Lower than the retrospective
+ * `MIN_PAIRED_N` (20) because 21 days cannot reach 20 lagged pairs, but still
+ * high enough that Pearson is defensible. The shorter, noisier series is
+ * counter-balanced by a TIGHTER FDR ({@link EARLY_FDR_Q}) and a no-faint effect
+ * bar (see {@link discoverEmergingCorrelations}), so the early pass keeps a HIGH
+ * firing bar despite the smaller n.
+ */
+export const EARLY_MIN_PAIRS = 12;
+
+/**
+ * v1.22 — tighter Benjamini-Hochberg target for the early window (vs the
+ * retrospective {@link FDR_Q} = 0.10). A short window is noisier, so the early
+ * pass demands a stricter false-discovery rate before it will narrate an
+ * emerging pattern.
+ */
+export const EARLY_FDR_Q = 0.05;
+
+/** Pure: keep only the points on/after `fromDayKey` (inclusive). */
+export function filterSeriesToWindow(
+  series: NamedSeries[],
+  fromDayKey: string,
+): NamedSeries[] {
+  return series.map((s) => ({
+    ...s,
+    points: s.points.filter((p) => p.day >= fromDayKey),
+  }));
+}
+
+/** Stable pair identity for double-count exclusion. */
+function pairKey(behaviour: string, outcome: string): string {
+  return `${behaviour} ${outcome}`;
+}
+
+export interface EmergingCorrelationResult {
+  /**
+   * Recent-window pairs that are NOT already established by the retrospective
+   * scan — the genuinely emerging signals. Each is flagged `window: "recent"`
+   * and `provisional: true`.
+   */
+  emerging: DiscoveredCorrelation[];
+  /** Trailing window (days) the early pass scanned. */
+  windowDays: number;
+  /** Paired-day floor enforced for the early pass. */
+  minPairs: number;
+  /** FDR target the early pass used. */
+  fdrQ: number;
+  /** How many pairs were tested in the early window (honest footer). */
+  pairsTested: number;
+}
+
+/**
+ * v1.22 — rolling early-detection pass.
+ *
+ * Re-runs {@link discoverCorrelations} over only the trailing
+ * {@link EARLY_WINDOW_DAYS} days (a lower n floor, a tighter FDR), then keeps
+ * ONLY pairs that:
+ *  1. are not already in the retrospective `discovered` set (no double-count —
+ *     an established pattern is reported once, retrospectively), and
+ *  2. clear a no-`faint` effect bar — over a short, noisy window a faint signal
+ *     is too likely to be transient noise to narrate as "emerging".
+ *
+ * The early window runs its OWN Benjamini-Hochberg control across its OWN tested
+ * family, so FDR discipline holds independently in each pass. Pure — the caller
+ * passes the full series and the day key of the early-window start.
+ */
+export function discoverEmergingCorrelations(
+  fullSeries: NamedSeries[],
+  retrospective: CorrelationDiscoveryResult,
+  opts: {
+    recentFromDayKey: string;
+    windowDays?: number;
+    lagDays?: number;
+    minPairs?: number;
+    fdrQ?: number;
+  },
+): EmergingCorrelationResult {
+  const windowDays = opts.windowDays ?? EARLY_WINDOW_DAYS;
+  const minPairs = opts.minPairs ?? EARLY_MIN_PAIRS;
+  const fdrQ = opts.fdrQ ?? EARLY_FDR_Q;
+
+  const recentSeries = filterSeriesToWindow(fullSeries, opts.recentFromDayKey);
+  const recent = discoverCorrelations(recentSeries, {
+    lagDays: opts.lagDays,
+    minPairs,
+    fdrQ,
+  });
+
+  const established = new Set(
+    retrospective.discovered.map((d) => pairKey(d.behaviour, d.outcome)),
+  );
+
+  const emerging = recent.discovered
+    // High firing bar for the noisier short window: drop faint-tier signals.
+    .filter((d) => d.tier !== "faint")
+    // No double-count: an already-established retrospective pair is reported
+    // once (retrospectively), never re-surfaced as "emerging".
+    .filter((d) => !established.has(pairKey(d.behaviour, d.outcome)))
+    .map((d) => ({
+      ...d,
+      window: "recent" as const,
+      provisional: true,
+    }));
+
+  return {
+    emerging,
+    windowDays,
+    minPairs,
+    fdrQ,
+    pairsTested: recent.pairsTested,
+  };
+}
+
+// ─── v1.22 — labs ↔ outcome correlation ───────────────────────────────────
+
+/**
+ * v1.22 — why labs are NOT a daily-lag channel in the matrix above.
+ *
+ * Lab draws are sparse and irregular (a panel every few months), so a day-D →
+ * day-D+1 lagged Pearson with an n ≥ 20 paired-DAY floor is structurally
+ * unreachable for a biomarker — folding `LAB:*` into `DISCOVERY_*` would only
+ * add channels that always degrade to absent (dead candidates). The clinically
+ * meaningful object for a sparse marker is different: each draw vs the
+ * CONTEMPORANEOUS windowed mean of an outcome the marker plausibly reflects
+ * (HbA1c ↔ the period's mean glucose; lipids ↔ weight). That is a point-vs-window
+ * statistic over the DRAWS (n = number of draws), not a daily lag — so it gets
+ * its own FDR-controlled pass here rather than a forced, never-firing channel.
+ */
+
+/** A single lab draw, day-keyed in the user's tz. */
+export interface LabDrawPoint {
+  /** Stable channel key — `LAB:<analyte>`. */
+  key: string;
+  /** Day key YYYY-MM-DD of the draw. */
+  day: string;
+  /** Numeric reading (qualitative rows are excluded by the caller). */
+  value: number;
+}
+
+/** One discovered lab ↔ outcome association — descriptive, never causal. */
+export interface DiscoveredLabCorrelation {
+  /** `LAB:<analyte>` channel key (display strips the prefix). */
+  lab: string;
+  /** Outcome channel key it tracks with. */
+  outcome: string;
+  /** Number of draws paired with a usable contemporaneous outcome window. */
+  n: number;
+  /** Pearson r across (draw value, contemporaneous outcome window-mean). */
+  r: number;
+  pValue: number;
+  qValue: number;
+  /** Trailing days each draw's outcome window spanned. */
+  windowDays: number;
+  /** Conservative, descriptive interpretation — never causal. */
+  interpretation: string;
+}
+
+export interface LabCorrelationResult {
+  discovered: DiscoveredLabCorrelation[];
+  /** Lab × outcome pairs assessed (honest footer). */
+  pairsTested: number;
+  fdrQ: number;
+  /** Minimum paired-draw count enforced per pair. */
+  minDraws: number;
+}
+
+/**
+ * v1.22 — curated outcome channels a lab biomarker is paired against. Kept
+ * small and physiologically broad (the flagship clinical wins the integration
+ * audit names) so the lab × outcome family stays tight and BH-FDR stays honest:
+ * a biomarker that tracks the period's mean weight, glucose, or systolic BP.
+ */
+export const LAB_OUTCOME_TARGETS: readonly string[] = [
+  "WEIGHT",
+  "BLOOD_GLUCOSE",
+  "BLOOD_PRESSURE_SYS",
+];
+
+/** Default trailing window (days) each draw's outcome mean is taken over. */
+export const LAB_OUTCOME_WINDOW_DAYS = 28;
+
+/** Default minimum draws (paired with a usable outcome window) per lab pair. */
+export const LAB_MIN_DRAWS = 5;
+
+/** Default minimum outcome points inside a draw's window for it to count. */
+export const LAB_MIN_WINDOW_POINTS = 5;
+
+/** YYYY-MM-DD `daysBack` days before `day` (inclusive lower bound). */
+function shiftDayBack(day: string, daysBack: number): string {
+  return shiftDay(day, -daysBack);
+}
+
+/**
+ * Mean of an outcome series over `(drawDay - windowDays, drawDay]` — the period
+ * the marker physiologically reflects. Returns `null` when too few outcome
+ * points fall in the window for a defensible mean. Pure.
+ */
+function outcomeWindowMean(
+  outcome: DailySeriesPoint[],
+  drawDay: string,
+  windowDays: number,
+  minPoints: number,
+): number | null {
+  const lower = shiftDayBack(drawDay, windowDays);
+  let sum = 0;
+  let count = 0;
+  for (const p of outcome) {
+    if (p.day > lower && p.day <= drawDay && Number.isFinite(p.value)) {
+      sum += p.value;
+      count += 1;
+    }
+  }
+  return count >= minPoints ? sum / count : null;
+}
+
+/**
+ * v1.22 — FDR-controlled labs ↔ outcome discovery.
+ *
+ * For each biomarker (grouped by `LabDrawPoint.key`) and each
+ * {@link LAB_OUTCOME_TARGETS} outcome, pair every draw value with the
+ * contemporaneous trailing-window mean of that outcome, then run Pearson + the
+ * exact p-value across the draws. Benjamini-Hochberg controls the lab × outcome
+ * family; the same effect-size floor + James-Stein shrinkage as the daily engine
+ * gate the survivors. A sparse marker simply fails the `minDraws` floor and
+ * degrades to absent — it never fabricates a link. Pure over already-fetched
+ * draws + outcome series.
+ */
+export function discoverLabOutcomeCorrelations(
+  labDraws: LabDrawPoint[],
+  series: NamedSeries[],
+  opts: {
+    windowDays?: number;
+    minDraws?: number;
+    minWindowPoints?: number;
+    fdrQ?: number;
+  } = {},
+): LabCorrelationResult {
+  const windowDays = opts.windowDays ?? LAB_OUTCOME_WINDOW_DAYS;
+  const minDraws = opts.minDraws ?? LAB_MIN_DRAWS;
+  const minWindowPoints = opts.minWindowPoints ?? LAB_MIN_WINDOW_POINTS;
+  const fdrQ = opts.fdrQ ?? FDR_Q;
+
+  // Group draws by biomarker key (newest-irrelevant; Pearson is order-free).
+  const drawsByLab = new Map<string, LabDrawPoint[]>();
+  for (const d of labDraws) {
+    if (!Number.isFinite(d.value)) continue;
+    const list = drawsByLab.get(d.key) ?? [];
+    list.push(d);
+    drawsByLab.set(d.key, list);
+  }
+
+  // Index the curated outcome series by key (last-write keeps a single series
+  // per key even when a channel appears in both roles).
+  const outcomeByKey = new Map<string, DailySeriesPoint[]>();
+  for (const s of series) {
+    if (LAB_OUTCOME_TARGETS.includes(s.key)) outcomeByKey.set(s.key, s.points);
+  }
+
+  interface RawLabPair {
+    lab: string;
+    outcome: string;
+    n: number;
+    r: number;
+    pValue: number;
+  }
+  const tested: RawLabPair[] = [];
+  for (const [lab, draws] of drawsByLab) {
+    for (const outcomeKey of LAB_OUTCOME_TARGETS) {
+      const outcome = outcomeByKey.get(outcomeKey);
+      if (!outcome || outcome.length === 0) continue;
+      const xs: number[] = [];
+      const ys: number[] = [];
+      for (const draw of draws) {
+        const mean = outcomeWindowMean(
+          outcome,
+          draw.day,
+          windowDays,
+          minWindowPoints,
+        );
+        if (mean === null) continue;
+        xs.push(draw.value);
+        ys.push(mean);
+      }
+      if (xs.length < minDraws) continue;
+      const result = pearson({ xs, ys, minPairs: minDraws });
+      if (result.status !== "ok") continue;
+      tested.push({
+        lab,
+        outcome: outcomeKey,
+        n: result.n,
+        r: result.r,
+        pValue: result.pValue,
+      });
+    }
+  }
+
+  const pairsTested = tested.length;
+  if (pairsTested === 0) {
+    return { discovered: [], pairsTested: 0, fdrQ, minDraws };
+  }
+
+  const qValues = benjaminiHochberg(tested.map((t) => t.pValue));
+  const discovered: DiscoveredLabCorrelation[] = tested
+    .map((t, i) => ({ ...t, qValue: qValues[i] }))
+    .filter((t) => t.pValue < 0.05 && t.qValue <= fdrQ)
+    .map((t) => {
+      const shrunkR = shrinkEstimate(t.r, t.n);
+      const tier = confidenceTier(shrunkR, t.n);
+      return { ...t, shrunkR, tier };
+    })
+    .filter(
+      (
+        t,
+      ): t is RawLabPair & {
+        qValue: number;
+        shrunkR: number;
+        tier: ConfidenceTier;
+      } => t.tier !== null,
+    )
+    .map((t) => ({
+      lab: t.lab,
+      outcome: t.outcome,
+      n: t.n,
+      r: t.r,
+      pValue: t.pValue,
+      qValue: Math.round(t.qValue * 1000) / 1000,
+      windowDays,
+      interpretation: interpretLab(t.lab, t.outcome, t.r),
+    }))
+    .sort((a, b) => Math.abs(b.r) - Math.abs(a.r) || a.qValue - b.qValue);
+
+  return { discovered, pairsTested, fdrQ, minDraws };
+}
+
+/** Strip the `LAB:` prefix for display. */
+function humaniseLab(key: string): string {
+  return key.startsWith("LAB:") ? key.slice("LAB:".length) : key;
+}
+
+/** Descriptive, never-causal interpretation for a lab ↔ outcome pair. */
+function interpretLab(lab: string, outcome: string, r: number): string {
+  const l = humaniseLab(lab);
+  const o = humanise(outcome);
+  const dir = r < 0 ? "lower" : "higher";
+  return `Higher ${l} readings line up with ${dir} ${o} over the same periods in your data — an association worth watching with your clinician, never a cause.`;
+}

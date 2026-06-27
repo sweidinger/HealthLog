@@ -18631,6 +18631,14 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
           description: Minimum paired-day count enforced per pair.
+        emerging:
+          description: v1.22 — rolling early-detection pass over the trailing window; emerging pairs not yet established
+            retrospectively (no double-count).
+          $ref: "#/components/schemas/EmergingCorrelationResult"
+        labCorrelations:
+          description: v1.22 — labs ↔ outcome associations (each draw vs the contemporaneous outcome window-mean), FDR-controlled;
+            absent-degrading on sparse draws.
+          $ref: "#/components/schemas/LabCorrelationResult"
       required:
         - discovered
         - pairsTested
@@ -18670,6 +18678,16 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
           description: Lag in days applied (1).
+        window:
+          description: v1.22 — which window surfaced the pair. Absent on the 180-day scan (retrospective default); `recent` for an
+            emerging early-detection pair.
+          type: string
+          enum:
+            - retrospective
+            - recent
+        provisional:
+          description: "v1.22 — true for an emerging recent-window pair: fewer days, hedged as provisional rather than established."
+          type: boolean
       required:
         - behaviour
         - outcome
@@ -18679,6 +18697,107 @@ components:
         - qValue
         - interpretation
         - lagDays
+      additionalProperties: false
+    EmergingCorrelationResult:
+      type: object
+      properties:
+        emerging:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveredCorrelation"
+          description: Recent-window pairs NOT already established retrospectively — the emerging signals (provisional, hedged).
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Trailing window (days) the early pass scanned.
+        minPairs:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Paired-day floor enforced for the early pass.
+        fdrQ:
+          type: number
+          description: FDR target the early pass used (tighter than the main scan).
+        pairsTested:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Pairs tested in the early window.
+      required:
+        - emerging
+        - windowDays
+        - minPairs
+        - fdrQ
+        - pairsTested
+      additionalProperties: false
+    LabCorrelationResult:
+      type: object
+      properties:
+        discovered:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveredLabCorrelation"
+          description: Lab ↔ outcome associations surviving the per-pair floor + BH-FDR.
+        pairsTested:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Lab × outcome pairs assessed.
+        fdrQ:
+          type: number
+          description: The FDR target the pass used.
+        minDraws:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Minimum paired-draw count enforced per pair.
+      required:
+        - discovered
+        - pairsTested
+        - fdrQ
+        - minDraws
+      additionalProperties: false
+    DiscoveredLabCorrelation:
+      type: object
+      properties:
+        lab:
+          type: string
+          description: "`LAB:<analyte>` channel key (display strips the prefix)."
+        outcome:
+          type: string
+          description: Outcome channel the marker tracks with (WEIGHT, BLOOD_GLUCOSE, BLOOD_PRESSURE_SYS).
+        n:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Draws paired with a usable contemporaneous outcome window.
+        r:
+          type: number
+          description: Pearson r over (draw value, contemporaneous outcome window-mean).
+        pValue:
+          type: number
+          description: Two-sided exact Student-t p-value (< 0.05).
+        qValue:
+          type: number
+          description: Benjamini-Hochberg FDR-adjusted q-value (≤ the surface threshold).
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Trailing days each draw's outcome window spanned.
+        interpretation:
+          type: string
+          description: Conservative, descriptive interpretation — never causal.
+      required:
+        - lab
+        - outcome
+        - n
+        - r
+        - pValue
+        - qValue
+        - windowDays
+        - interpretation
       additionalProperties: false
     MoodTagTreeEnvelope:
       type: object
