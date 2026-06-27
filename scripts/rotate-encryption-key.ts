@@ -328,6 +328,16 @@ async function main() {
     results.push(await rotateBytesColumn("CoachPlan", field, prisma.coachPlan));
   }
 
+  // ───── CoachReminder (Bytes column) ─────
+  // "noteEncrypted"
+  results.push(
+    await rotateBytesColumn(
+      "CoachReminder",
+      "noteEncrypted",
+      prisma.coachReminder,
+    ),
+  );
+
   // ───── UserHealthProfile (Bytes columns) ─────
   // "aboutMeEncrypted" "conditionsEncrypted" "allergiesEncrypted"
   // "coachFocusEncrypted" "pendingQuestionsEncrypted"
