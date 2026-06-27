@@ -50,6 +50,7 @@ function serialiseBiomarker(row: {
   lowerBound: number | null;
   upperBound: number | null;
   panel: string | null;
+  hidden: boolean;
   contextEncrypted: Uint8Array | null;
   createdAt: Date;
   updatedAt: Date;
@@ -63,6 +64,7 @@ function serialiseBiomarker(row: {
     panel: row.panel,
     hasContext: row.contextEncrypted !== null,
     context: decryptContextSoft(row.contextEncrypted),
+    hidden: row.hidden,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -71,9 +73,11 @@ function serialiseBiomarker(row: {
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
 
+  // Visible markers first, then hidden — the manager renders them in two
+  // sections and the lab-entry pickers drop the hidden tail client-side.
   const rows = await prisma.biomarker.findMany({
     where: { userId: user.id },
-    orderBy: [{ name: "asc" }],
+    orderBy: [{ hidden: "asc" }, { name: "asc" }],
   });
 
   annotate({

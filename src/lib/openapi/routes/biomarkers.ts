@@ -30,7 +30,7 @@ createBiomarkerSchema.meta({
 updateBiomarkerSchema.meta({
   id: "UpdateBiomarkerRequest",
   description:
-    "Partial edit of a biomarker. An omitted key leaves the column untouched; an explicit `null` on `context` / `panel` / a bound clears it. A rename that collides with another of the caller's markers is rejected 409.",
+    "Partial edit of a biomarker. An omitted key leaves the column untouched; an explicit `null` on `context` / `panel` / a bound clears it. Set `hidden` to drop / restore the marker in the active list + lab-entry pickers. A rename that collides with another of the caller's markers is rejected 409.",
 });
 
 const biomarkerRow = z
@@ -43,13 +43,14 @@ const biomarkerRow = z
     panel: z.string().nullable(),
     hasContext: z.boolean(),
     context: z.string().nullable(),
+    hidden: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
   .meta({
     id: "Biomarker",
     description:
-      "A user-scoped catalog marker. `context` is the decrypted per-marker note (or null); `hasContext` flags its presence. A `LabResult` linking this marker resolves its unit + reference bounds from here.",
+      "A user-scoped catalog marker. `context` is the decrypted per-marker note (or null); `hasContext` flags its presence. `hidden` drops the marker from the active catalog list and the lab-entry pickers without deleting it (its readings and unit/range survive). A `LabResult` linking this marker resolves its unit + reference bounds from here.",
   });
 
 const listResponse = z

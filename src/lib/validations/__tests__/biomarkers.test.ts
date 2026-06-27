@@ -72,4 +72,21 @@ describe("updateBiomarkerSchema", () => {
     });
     expect(r.success).toBe(false);
   });
+
+  it("accepts a hidden toggle", () => {
+    const r = updateBiomarkerSchema.safeParse({ hidden: true });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.hidden).toBe(true);
+  });
+
+  it("leaves hidden undefined when omitted", () => {
+    const r = updateBiomarkerSchema.safeParse({ unit: "mmol/L" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.hidden).toBeUndefined();
+  });
+
+  it("rejects a non-boolean hidden", () => {
+    const r = updateBiomarkerSchema.safeParse({ hidden: "yes" });
+    expect(r.success).toBe(false);
+  });
 });
