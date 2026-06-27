@@ -118,8 +118,23 @@ describe("isHardProviderFailure", () => {
     expect(isHardProviderFailure(err(503))).toBe(true);
   });
 
-  it("does NOT flag 4xx validation errors (e.g. 422) as hard — those bubble", () => {
-    expect(isHardProviderFailure(err(422))).toBe(false);
+  it("flags a raw provider-wire 4xx (e.g. a Codex 400 rejecting the tool-call request) as hard so it cascades and is wrapped rather than bubbling into a 500", () => {
+    // v1.21.3 — a 4xx surfaced by a provider wire is a provider failure, not a
+    // caller bug. It must cascade so the chain runner wraps it in
+    // AllProvidersFailedError; the route then surfaces a graceful provider
+    // frame instead of rethrowing into an HTTP 500.
+    expect(isHardProviderFailure(err(400))).toBe(true);
+    expect(isHardProviderFailure(err(422))).toBe(true);
+    expect(isHardProviderFailure(err(404))).toBe(true);
+  });
+
+  it("does NOT flag an InsightSchemaError as hard — the strict JSON 422 surface still bubbles", async () => {
+    const { InsightSchemaError } = await import("../schema");
+    expect(
+      isHardProviderFailure(
+        new InsightSchemaError("bad json", { attempts: 2 }),
+      ),
+    ).toBe(false);
   });
 
   it("flags network errors (no httpStatus) as hard", () => {
@@ -444,6 +459,45 @@ describe("runRawCompletionWithFallback — legacy route shim", () => {
     }
     expect(caught).toBeInstanceOf(AllProvidersFailedError);
     expect((caught as AllProvidersFailedError).attempts).toHaveLength(2);
+  });
+
+  it("wraps a sole-provider Codex 400 (tool-call request rejected) in AllProvidersFailedError instead of bubbling the raw error", async () => {
+    // v1.21.3 — RCA for the live 500. A Codex 400 on the richer tool-call
+    // request used to escape `isHardProviderFailure` (a non-401/403/429/5xx
+    // 4xx) and bubble OUT of the chain runner un-wrapped. The Coach route's
+    // catch only handled AllProvidersFailedError, so the raw error rethrew as
+    // an HTTP 500 — exactly the incident. The 400 must now cascade and, with no
+    // healthy provider left, be wrapped so the route can surface a graceful
+    // provider frame (httpStatus classifies to 503 → coach.provider.unavailable).
+    const codex = new ScriptedProvider({
+      type: "codex",
+      script: [
+        {
+          ok: false,
+          error: Object.assign(new Error("Codex request failed (400): {…}"), {
+            httpStatus: 400,
+            upstream: "codex",
+          }),
+        },
+      ],
+    });
+    let caught: unknown;
+    try {
+      await runRawCompletionWithFallback({
+        userId: "u-raw-codex400",
+        providers: [{ providerType: "codex", instance: codex }],
+        params: singleUserTurn({ system: "s", user: "u" }),
+      });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(AllProvidersFailedError);
+    const wrapped = caught as AllProvidersFailedError;
+    expect(wrapped.attempts).toHaveLength(1);
+    expect(wrapped.attempts[0].httpStatus).toBe(400);
+    expect(wrapped.primaryCredentialExpired).toBe(false);
+    // No 5xx / auth in the mix → generic unavailability (503) surface.
+    expect(wrapped.httpStatus).toBe(503);
   });
 });
 
