@@ -76,6 +76,11 @@ const READ_TOOLS = [
   "list_metrics",
   "search",
   "fetch",
+  // Phase 4 — deep-value reads.
+  "get_correlation",
+  "compare_metric",
+  "get_metric_baseline",
+  "detect_changepoints",
 ].sort();
 
 /** A valid, narrow-scope (`health:read`) token resolution. */

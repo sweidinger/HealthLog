@@ -16,6 +16,21 @@ export {
   type McpResourceDefinition,
 } from "./resources";
 export {
+  MCP_PROMPTS,
+  MCP_PROMPT_NAMES,
+  type McpPromptDefinition,
+  type McpPromptResult,
+  type McpPromptMessage,
+} from "./prompts";
+export {
+  getCorrelation,
+  compareMetric,
+  getMetricBaseline,
+  detectChangepoints,
+  resolveRichMetric,
+  type RichMetric,
+} from "./rich-reads";
+export {
   SCOPE_HEALTH_READ,
   SCOPE_HEALTH_WRITE,
   SCOPE_WILDCARD,

@@ -17,6 +17,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { McpAuthContext } from "./auth";
 import { MCP_TOOLS } from "./tools";
 import { MCP_RESOURCES } from "./resources";
+import { MCP_PROMPTS } from "./prompts";
 
 export const MCP_SERVER_NAME = "healthlog";
 export const MCP_SERVER_VERSION = "1.0.0";
@@ -60,6 +61,29 @@ export function createMcpServer(ctx: McpAuthContext): McpServer {
           };
         }
         return { content };
+      },
+    );
+  }
+
+  for (const prompt of MCP_PROMPTS) {
+    server.registerPrompt(
+      prompt.name,
+      {
+        title: prompt.title,
+        description: prompt.description,
+        argsSchema: prompt.argsShape,
+      },
+      async (args: Record<string, unknown>) => {
+        // The prompt assembles REAL, server-retrieved data + the central
+        // grounding framing; the result is a set of messages the host inserts
+        // into the conversation (ADR-004). Read-only, like every Phase-4
+        // surface — a prompt never mutates. Returned as a fresh literal so it
+        // conforms to the SDK's `GetPromptResult` (index-signatured) shape.
+        const result = await prompt.run(ctx, args ?? {});
+        return {
+          messages: result.messages,
+          ...(result.description ? { description: result.description } : {}),
+        };
       },
     );
   }

@@ -21,6 +21,15 @@ vi.mock("@/lib/db", () => ({
     labResult: { findMany: vi.fn(async () => []) },
   },
 }));
+// Phase 4 — the deep-value reads delegate to the rich-reads engines; stub them
+// so the registry-wide loops (surface / annotation / no-verdict) never reach a
+// real engine. Their own logic is covered in `rich-reads.test.ts`.
+vi.mock("../rich-reads", () => ({
+  getCorrelation: vi.fn(async () => ({ present: true })),
+  compareMetric: vi.fn(async () => ({ present: true })),
+  getMetricBaseline: vi.fn(async () => ({ present: true })),
+  detectChangepoints: vi.fn(async () => ({ present: true })),
+}));
 
 import { MCP_TOOLS, MCP_TOOL_NAMES } from "../tools";
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
@@ -47,7 +56,7 @@ beforeEach(() => {
 });
 
 describe("MCP tool registry — surface", () => {
-  it("registers exactly the Phase-1 read tools", () => {
+  it("registers exactly the read tools (Phase 1 + Phase 4)", () => {
     expect([...MCP_TOOL_NAMES].sort()).toEqual(
       [
         "get_correlations",
@@ -58,6 +67,11 @@ describe("MCP tool registry — surface", () => {
         // v1.22.0 — the ChatGPT default-mode retrieval pair.
         "search",
         "fetch",
+        // Phase 4 — deep-value reads.
+        "get_correlation",
+        "compare_metric",
+        "get_metric_baseline",
+        "detect_changepoints",
       ].sort(),
     );
   });

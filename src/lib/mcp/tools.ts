@@ -28,6 +28,12 @@ import {
   coachScopeWindowSchema,
 } from "@/lib/ai/coach/types";
 import { resolveBaseOrigin } from "@/lib/mcp/oauth/config";
+import {
+  getCorrelation,
+  compareMetric,
+  getMetricBaseline,
+  detectChangepoints,
+} from "@/lib/mcp/rich-reads";
 import type { McpAuthContext } from "./auth";
 
 /**
@@ -283,6 +289,97 @@ function searchAndFetchTools(): McpToolDefinition[] {
   ];
 }
 
+// ── Phase 4 deep-value output schemas ────────────────────────────────
+// Every field except `present` is optional so a grounded `{ present: false }`
+// miss and a full hit both conform — the SDK validates `structuredContent`
+// against these (REQ: structuredContent + outputSchema on the rich reads).
+
+const bandShape = z
+  .object({ low: z.number(), high: z.number() })
+  .nullable()
+  .optional();
+
+const getCorrelationOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  pair: z
+    .object({
+      behaviour: z.string(),
+      outcome: z.string(),
+      direction: z.enum(["higher", "lower"]),
+      lagDays: z.number(),
+      n: z.number(),
+      r: z.number(),
+      note: z.string(),
+    })
+    .optional(),
+  pairsTested: z.number().optional(),
+  windowDays: z.number().optional(),
+  association: z.literal("descriptive").optional(),
+};
+
+const metricWindowSnapshotSchema = z.object({
+  label: z.string(),
+  unit: z.string(),
+  band: bandShape,
+  windowDays: z.number(),
+  granularity: z.string(),
+  count: z.number(),
+  mean: z.number().nullable(),
+  min: z.number().nullable(),
+  max: z.number().nullable(),
+});
+
+const compareMetricOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  mode: z.enum(["metric_vs_metric", "window_vs_window"]).optional(),
+  a: metricWindowSnapshotSchema.optional(),
+  b: metricWindowSnapshotSchema.optional(),
+  delta: z
+    .object({ mean: z.number(), pct: z.number().nullable() })
+    .nullable()
+    .optional(),
+};
+
+const getMetricBaselineOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  metric: z.string().optional(),
+  unit: z.string().optional(),
+  baseline: z
+    .object({ low: z.number(), high: z.number(), sampleDays: z.number() })
+    .optional(),
+  latest: z.number().optional(),
+  placement: z.enum(["within", "above", "below"]).optional(),
+  referenceBand: bandShape,
+  driver: z
+    .object({ note: z.string(), behaviour: z.string(), outcome: z.string() })
+    .nullable()
+    .optional(),
+};
+
+const detectChangepointsOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  metric: z.string().optional(),
+  unit: z.string().optional(),
+  granularity: z.string().optional(),
+  windowDays: z.number().optional(),
+  bucketsAnalysed: z.number().optional(),
+  changepoints: z
+    .array(
+      z.object({
+        at: z.string(),
+        direction: z.enum(["increase", "decrease"]),
+        beforeMean: z.number(),
+        afterMean: z.number(),
+        delta: z.number(),
+      }),
+    )
+    .optional(),
+};
+
 export const MCP_TOOLS: McpToolDefinition[] = [
   {
     name: "list_metrics",
@@ -355,6 +452,81 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     annotations: READ_ONLY_ANNOTATIONS,
     run(ctx, args) {
       return runCoachTool(ctx, "get_correlations", args);
+    },
+  },
+  // ── Phase 4 deep-value reads (catalogue §5 #1, #3, #4, #7) ──────────
+  {
+    name: "get_correlation",
+    title: "Get a correlation between two metrics",
+    description:
+      "Fetch the statistically-vetted (FDR-controlled), lag-aware association between TWO named metrics the user tracks (e.g. 'sleep' and 'resting heart rate'). Re-exports the same discovery engine the other correlation surfaces run; returns the matched pair's direction, lag, sample size, Pearson r, and a descriptive — never causal — note. Returns { present: false } when no significant pattern links the pair (sparse data or the link did not clear the engine's floors).",
+    inputShape: {
+      metricA: z.string().min(1).max(60),
+      metricB: z.string().min(1).max(60),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getCorrelationOutput,
+    run(ctx, args) {
+      return getCorrelation(ctx.userId, {
+        metricA: String(args.metricA ?? ""),
+        metricB: String(args.metricB ?? ""),
+      });
+    },
+  },
+  {
+    name: "compare_metric",
+    title: "Compare metrics or windows",
+    description:
+      "Compare one metric against another over the same trailing window, OR a single metric across two trailing windows (e.g. last 30 days vs last 90 days). Returns each side's rollup statistics (count, mean, min, max) with units and reference bands, plus a delta + percent change when both sides share a unit. Windows are trailing-to-now. Returns { present: false } when a side has no data.",
+    inputShape: {
+      metric: z.string().min(1).max(60),
+      metricB: z.string().min(1).max(60).optional(),
+      window: coachScopeWindowSchema.optional(),
+      windowB: coachScopeWindowSchema.optional(),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: compareMetricOutput,
+    run(ctx, args) {
+      return compareMetric(ctx.userId, {
+        metric: String(args.metric ?? ""),
+        metricB: typeof args.metricB === "string" ? args.metricB : undefined,
+        window: args.window as never,
+        windowB: args.windowB as never,
+      });
+    },
+  },
+  {
+    name: "get_metric_baseline",
+    title: "Get a metric's personal baseline",
+    description:
+      "Fetch where the user's latest reading for ONE metric sits against their own usual range (median ± robust deviation), plus the strongest lagged driver of that metric. Re-exports the same baseline engine the metric page renders. Returns the personal band, today's value + placement (within/above/below), and the population reference band. Returns { present: false } with reason 'insufficient_history' below the 7-day learning floor — never a fabricated range.",
+    inputShape: {
+      metric: z.string().min(1).max(60),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getMetricBaselineOutput,
+    run(ctx, args) {
+      return getMetricBaseline(ctx.userId, {
+        metric: String(args.metric ?? ""),
+      });
+    },
+  },
+  {
+    name: "detect_changepoints",
+    title: "Detect level shifts in a metric",
+    description:
+      "Surface points where a metric's level shifted over a trailing window (e.g. 'when did my weight trend change?'). Runs a conservative changepoint scan over the rollup tier's bucket means and reports each shift's date, direction, and before/after means with units. High firing bar — returns { present: false } when too little data exists or no shift clears the threshold.",
+    inputShape: {
+      metric: z.string().min(1).max(60),
+      window: coachScopeWindowSchema.optional(),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: detectChangepointsOutput,
+    run(ctx, args) {
+      return detectChangepoints(ctx.userId, {
+        metric: String(args.metric ?? ""),
+        window: args.window as never,
+      });
     },
   },
   ...searchAndFetchTools(),
