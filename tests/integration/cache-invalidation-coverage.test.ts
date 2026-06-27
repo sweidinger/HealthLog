@@ -92,7 +92,6 @@ async function loginAs(userId: string) {
   cookieJar.set("healthlog_session", session.id);
 }
 
-
 beforeEach(async () => {
   await truncateAllTables(getPrismaClient());
   cookieJar.clear();
