@@ -4416,6 +4416,28 @@
         "clearedToast": "{count} gespeicherte Angaben vergessen.",
         "clearError": "Konnte die gespeicherten Angaben nicht löschen. Bitte erneut versuchen."
       },
+      "coachReminders": {
+        "title": "Deine Erinnerungen",
+        "description": "Dinge, um die du den Coach gebeten hast, später darauf zurückzukommen. Fällige erscheinen hier und beim Coach.",
+        "empty": "Noch keine Erinnerungen. Bitte den Coach, dich an etwas zu erinnern — dann erscheint es hier.",
+        "loadError": "Konnte deine Erinnerungen nicht laden.",
+        "dueHeading": "Jetzt fällig",
+        "allHeading": "Gespeichert",
+        "duePrefix": "fällig {when}",
+        "confirm": "Behalten",
+        "markDone": "Erledigt",
+        "dismiss": "Verwerfen",
+        "deleteAria": "Diese Erinnerung löschen",
+        "note": "Erinnerungen werden verschlüsselt gespeichert. Lösche eine jederzeit — sie wird aus dem entfernt, was der Coach sehen kann.",
+        "status": {
+          "proposed": "Vorgeschlagen",
+          "active": "Gespeichert",
+          "due": "Fällig",
+          "surfaced": "Angezeigt",
+          "done": "Erledigt",
+          "dismissed": "Verworfen"
+        }
+      },
       "aboutMe": {
         "title": "Über mich",
         "description": "Persönlicher Kontext, den Coach und Tagesbriefing zusätzlich zu deinen Daten lesen.",
@@ -7049,6 +7071,25 @@
         "weightDaily": "Wieg dich täglich, ungefähr zur selben Zeit",
         "bp722": "Miss deinen Blutdruck eine Woche lang zweimal täglich",
         "glucoseStructured": "Miss deine Glukose nach einem strukturierten Tagesplan"
+      }
+    },
+    "suggestedAction": {
+      "apply": "Hinzufügen",
+      "dismiss": "Jetzt nicht",
+      "applied": "Hinzugefügt",
+      "dismissed": "Verworfen",
+      "failed": "Konnte das nicht hinzufügen — bitte erneut versuchen",
+      "checkup": {
+        "title": "Vorsorge-Erinnerung hinzufügen?"
+      },
+      "note": {
+        "title": "Erinnerung speichern?"
+      },
+      "interval": {
+        "yearly": "Jedes Jahr",
+        "halfYearly": "Alle sechs Monate",
+        "quarterly": "Alle drei Monate",
+        "monthly": "Jeden Monat"
       }
     },
     "settings": {

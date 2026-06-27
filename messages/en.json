@@ -4416,6 +4416,28 @@
         "clearedToast": "Forgot {count} stored facts.",
         "clearError": "Could not clear the stored facts. Please try again."
       },
+      "coachReminders": {
+        "title": "Your reminders",
+        "description": "Things you asked the Coach to bring back later. Due ones show up here and on the Coach.",
+        "empty": "No reminders yet. Ask the Coach to remind you about something and it will appear here.",
+        "loadError": "Could not load your reminders.",
+        "dueHeading": "Due now",
+        "allHeading": "Saved",
+        "duePrefix": "due {when}",
+        "confirm": "Keep",
+        "markDone": "Done",
+        "dismiss": "Dismiss",
+        "deleteAria": "Delete this reminder",
+        "note": "Reminders are stored encrypted. Delete one any time — it is removed from what the Coach can see.",
+        "status": {
+          "proposed": "Suggested",
+          "active": "Saved",
+          "due": "Due",
+          "surfaced": "Surfaced",
+          "done": "Done",
+          "dismissed": "Dismissed"
+        }
+      },
       "aboutMe": {
         "title": "About me",
         "description": "Personal context the Coach and the daily briefing read alongside your data.",
@@ -7049,6 +7071,25 @@
         "weightDaily": "Weigh yourself daily, around the same time",
         "bp722": "Measure your blood pressure twice a day for a week",
         "glucoseStructured": "Test your glucose on a structured daily schedule"
+      }
+    },
+    "suggestedAction": {
+      "apply": "Add",
+      "dismiss": "Not now",
+      "applied": "Added",
+      "dismissed": "Dismissed",
+      "failed": "Couldn't add that — please try again",
+      "checkup": {
+        "title": "Add a check-up reminder?"
+      },
+      "note": {
+        "title": "Save a reminder?"
+      },
+      "interval": {
+        "yearly": "Every year",
+        "halfYearly": "Every six months",
+        "quarterly": "Every three months",
+        "monthly": "Every month"
       }
     },
     "settings": {

@@ -1,0 +1,212 @@
+"use client";
+
+/**
+ * v1.22 (B6) — Settings → AI "Your context: reminders" panel.
+ *
+ * The user-facing ledger for the durable "remind me about X" memory the Coach
+ * captures inline (the `---REMEMBER---` sentinel) and the sweep resurfaces. The
+ * due / surfaced reminders are highlighted at the top (the in-app surface of the
+ * sweep output); the rest are listed with view + lifecycle controls so the user
+ * stays in control of their stored memory:
+ *
+ *   GET    /api/coach/reminders                 → { data: { reminders: [...] } }
+ *   PATCH  /api/coach/reminders/{id} {status}   → confirm / done / dismiss
+ *   DELETE /api/coach/reminders/{id}            → { data: { deleted } }
+ *
+ * Reads unwrap `(await res.json()).data`; every key routes through
+ * `queryKeys.coachReminders()` so a mutation invalidates the list. Gated on the
+ * Coach surface like the rest of the memory controls.
+ */
+import { useMemo } from "react";
+import { BellRing, Check, Loader2, Trash2, X } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { formatDateOrRelative } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { useTranslations } from "@/lib/i18n/context";
+import {
+  useCoachReminders,
+  useCoachReminderMutations,
+  type CoachReminderDTO,
+} from "@/hooks/use-coach-reminders";
+
+const DUE_STATUSES = new Set(["due", "surfaced"]);
+
+export function CoachRemindersSection({
+  isAuthenticated,
+}: {
+  isAuthenticated: boolean;
+}) {
+  const { t } = useTranslations();
+  const query = useCoachReminders({ enabled: isAuthenticated });
+  const { setStatus, remove } = useCoachReminderMutations();
+
+  const reminders = useMemo(() => query.data ?? [], [query.data]);
+  const { due, rest } = useMemo(() => {
+    const due: CoachReminderDTO[] = [];
+    const rest: CoachReminderDTO[] = [];
+    for (const r of reminders) {
+      (DUE_STATUSES.has(r.status) ? due : rest).push(r);
+    }
+    return { due, rest };
+  }, [reminders]);
+
+  const pendingId =
+    (setStatus.isPending && setStatus.variables?.id) ||
+    (remove.isPending && remove.variables) ||
+    null;
+
+  const row = (r: CoachReminderDTO, highlighted: boolean) => {
+    const busy = pendingId === r.id;
+    const isProposed = r.status === "proposed";
+    return (
+      <li
+        key={r.id}
+        data-testid="settings-coach-reminder"
+        data-status={r.status}
+        className={
+          highlighted
+            ? "border-dracula-purple/40 bg-dracula-purple/5 flex flex-col gap-2 rounded-lg border p-3"
+            : "border-border bg-background flex flex-col gap-2 rounded-lg border p-3"
+        }
+      >
+        <p className="text-sm break-words">{r.note}</p>
+        <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          {r.metric && <span className="uppercase">{r.metric}</span>}
+          {r.dueAt && (
+            <span>
+              {t("settings.ai.coachReminders.duePrefix", {
+                when: formatDateOrRelative(r.dueAt, t),
+              })}
+            </span>
+          )}
+          <span>{t(`settings.ai.coachReminders.status.${r.status}`)}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {isProposed && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-9"
+              disabled={!isAuthenticated || busy}
+              data-testid="settings-coach-reminder-confirm"
+              onClick={() => setStatus.mutate({ id: r.id, status: "active" })}
+            >
+              <Check className="size-3.5" aria-hidden />
+              {t("settings.ai.coachReminders.confirm")}
+            </Button>
+          )}
+          {r.status !== "done" && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="min-h-9"
+              disabled={!isAuthenticated || busy}
+              data-testid="settings-coach-reminder-done"
+              onClick={() => setStatus.mutate({ id: r.id, status: "done" })}
+            >
+              <Check className="size-3.5" aria-hidden />
+              {t("settings.ai.coachReminders.markDone")}
+            </Button>
+          )}
+          {(r.status === "due" || r.status === "surfaced") && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="min-h-9"
+              disabled={!isAuthenticated || busy}
+              data-testid="settings-coach-reminder-dismiss"
+              onClick={() =>
+                setStatus.mutate({ id: r.id, status: "dismissed" })
+              }
+            >
+              <X className="size-3.5" aria-hidden />
+              {t("settings.ai.coachReminders.dismiss")}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-destructive min-h-9"
+            disabled={!isAuthenticated || busy}
+            data-testid="settings-coach-reminder-delete"
+            aria-label={t("settings.ai.coachReminders.deleteAria")}
+            onClick={() => remove.mutate(r.id)}
+          >
+            {busy ? (
+              <Loader2
+                className="size-3.5 animate-spin motion-reduce:animate-none"
+                aria-hidden
+              />
+            ) : (
+              <Trash2 className="size-3.5" aria-hidden />
+            )}
+          </Button>
+        </div>
+      </li>
+    );
+  };
+
+  return (
+    <SettingsCard
+      as="section"
+      aria-labelledby="settings-ai-coach-reminders-title"
+      data-testid="settings-coach-reminders-card"
+      className="space-y-4"
+    >
+      <SettingsCardHeader
+        icon={BellRing}
+        titleId="settings-ai-coach-reminders-title"
+        title={t("settings.ai.coachReminders.title")}
+        description={t("settings.ai.coachReminders.description")}
+      />
+
+      {query.isError && (
+        <p
+          role="status"
+          aria-live="polite"
+          className="text-destructive text-sm"
+        >
+          {t("settings.ai.coachReminders.loadError")}
+        </p>
+      )}
+
+      {!query.isError && reminders.length === 0 ? (
+        <p
+          data-testid="settings-coach-reminders-empty"
+          className="text-muted-foreground text-sm"
+        >
+          {t("settings.ai.coachReminders.empty")}
+        </p>
+      ) : (
+        <div className="space-y-5">
+          {due.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                {t("settings.ai.coachReminders.dueHeading")}
+              </h3>
+              <ul className="space-y-2">{due.map((r) => row(r, true))}</ul>
+            </div>
+          )}
+          {rest.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                {t("settings.ai.coachReminders.allHeading")}
+              </h3>
+              <ul className="space-y-2">{rest.map((r) => row(r, false))}</ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      <p className="text-muted-foreground border-border border-t pt-3 text-xs">
+        {t("settings.ai.coachReminders.note")}
+      </p>
+    </SettingsCard>
+  );
+}
