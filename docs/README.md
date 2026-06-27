@@ -9,13 +9,19 @@ notes, and machine-readable specs that ship alongside the source:
 
 - [`api/`](./api/) — the OpenAPI 3.1 spec for the native-client subset
   (iOS DTO codegen target). See [`api/README.md`](./api/README.md) for
-  the preview commands.
+  the preview commands. Also home to the MCP-server contract:
+  [`api/mcp-capabilities.md`](./api/mcp-capabilities.md) (tools,
+  resources, prompts, write model) and
+  [`api/mcp-skills.md`](./api/mcp-skills.md) (building a connector / skill).
 - [`ops/`](./ops/) — backup / restore + encryption-key-rotation
   playbooks. These are the runbooks an operator reaches for during an
   incident.
 - [`self-hosting/`](./self-hosting/) — horizontal-scaling notes
   (`HEALTHLOG_PROCESS_TYPE=web|worker|all`) and the deploy-pipeline
-  recipe. Routine install steps stay on `docs.healthlog.dev`.
+  recipe. Routine install steps stay on `docs.healthlog.dev`. Includes
+  [`self-hosting/mcp.md`](./self-hosting/mcp.md) — enabling the
+  off-by-default MCP connector and pointing Claude.ai / ChatGPT /
+  Claude Desktop at it.
 - [`migration/`](./migration/) — release-by-release migration notes.
   Read the entry for the version you're upgrading from.
 - [`audit/`](./audit/) — per-release audit summaries archived for
