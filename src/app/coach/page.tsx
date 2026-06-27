@@ -49,10 +49,9 @@ import { apiGet } from "@/lib/api/api-fetch";
  * the v1.19.0 (W7) "always resume most-recent" default the maintainer
  * disliked. Resolution order on mount:
  *   - `?c=<id>` → open that specific thread (explicit deep-link, unchanged).
+ *     The dedicated conversation-history page (`/coach/conversations`, added
+ *     in v1.21.4) routes back here with `?c=<id>` when a row is selected.
  *   - `?c=new` or no param → the new-chat hero.
- *   - `?view=conversations` → land on the new-chat hero AND open the
- *     conversation-history drawer, so the drawer's "Conversations" handoff
- *     (C5) never drops the user on a blank pane.
  *   - EXCEPTION: when the Coach has proactively written an UNREAD message
  *     (`/api/insights/coach/nudge-status` → `unread`), auto-open the
  *     most-recent thread so the user lands on what the Coach said.
@@ -66,19 +65,16 @@ function CoachPageBody() {
   // defaults to the new-chat hero.
   const rawC = searchParams.get("c");
   const deepLinkedId = rawC && rawC !== "new" ? rawC : null;
-  // C5 — the drawer's "Conversations" handoff routes here with this flag so
-  // the page opens the history drawer on arrival instead of a blank hero.
-  const openConversations = searchParams.get("view") === "conversations";
 
   // C1 exception — an unread coach-initiated message opens the most-recent
   // conversation (which holds that proactive turn). Only consulted when the
-  // entry did not pin a specific thread or ask for a fresh chat / list.
+  // entry did not pin a specific thread or ask for a fresh chat.
   const exceptionEligible = deepLinkedId === null && rawC !== "new";
   const { data: nudge } = useQuery({
     queryKey: queryKeys.coachNudgeStatus(),
     queryFn: async (): Promise<CoachNudgeStatus> =>
       apiGet<CoachNudgeStatus>("/api/insights/coach/nudge-status"),
-    enabled: exceptionEligible && !openConversations,
+    enabled: exceptionEligible,
     staleTime: 5 * 60 * 1000,
   });
   const hasUnreadCoachMessage = exceptionEligible && nudge?.unread === true;
@@ -91,7 +87,6 @@ function CoachPageBody() {
       // Default is the new-chat hero; only resume most-recent for the
       // unread coach-initiated exception.
       autoOpenMostRecent={hasUnreadCoachMessage}
-      openHistoryOnMount={openConversations}
     />
   );
 }
