@@ -34,6 +34,7 @@ import {
   FileText,
   MessageCircleHeart,
   Moon,
+  Plug,
   Pill,
   Smile,
   Sparkles,
@@ -71,6 +72,8 @@ const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   // v1.18.1 (D3) — medications graduated from CORE to a toggleable module.
   medications: Pill,
   doctorReport: FileText,
+  // v1.22.0 — the remote MCP endpoint (opt-in connectivity module).
+  mcp: Plug,
 };
 
 export function ModulesSection() {

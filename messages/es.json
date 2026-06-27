@@ -4231,6 +4231,10 @@
         "title": "Datos y privacidad",
         "subtitle": "Tus datos, su retención, el cifrado y la seguridad de la cuenta en un solo lugar.",
         "description": "Exportación, eliminación, retención, estado de cifrado, sesiones y actividad de seguridad."
+      },
+      "mcp": {
+        "title": "Conector MCP",
+        "subtitle": "Conecta un asistente externo a tus propios datos de salud."
       }
     },
     "profile": "Perfil",
@@ -5148,6 +5152,29 @@
         "openAi": "Modo de privacidad de IA",
         "openResearch": "Modo investigación"
       }
+    },
+    "mcp": {
+      "enableTitle": "Endpoint MCP remoto",
+      "enableDescription": "Permite que un asistente compatible con MCP (Claude.ai, ChatGPT) lea tus datos de salud mediante un token limitado. Desactivado por defecto.",
+      "enabled": "Activado",
+      "disabled": "Desactivado",
+      "enableToggleLabel": "Activar el endpoint MCP",
+      "endpointLabel": "URL del conector",
+      "connectDescription": "Pega esta URL en la configuración del conector personalizado de tu asistente y autoriza con el token de abajo o inicia sesión cuando se te solicite.",
+      "tokensTitle": "Tokens del conector",
+      "tokensDescription": "Genera un token de solo lectura para conectar un asistente. El token se muestra una sola vez.",
+      "scopeNote": "Los tokens se limitan a health:read: acceso de solo lectura a tus propios registros. Nunca pueden acceder a funciones de administración.",
+      "writeScopeToggleLabel": "Permitir registro (health:write)",
+      "writeScopeNote": "Añade el ámbito health:write para que el asistente pueda registrar nuevas mediciones y entradas de estado de ánimo en tu cuenta. Cada escritura se confirma antes. El token sigue sin poder eliminar ni editar entradas existentes, cambiar medicamentos ni acceder a funciones REST o de administración. Déjalo desactivado para acceso de solo lectura.",
+      "connectionsTitle": "Asistentes conectados",
+      "connectionsDescription": "Asistentes que autorizaste mediante el inicio de sesión. Revocar una conexión finaliza su acceso de inmediato, incluida su capacidad de renovación.",
+      "noConnections": "No hay asistentes conectados.",
+      "connectionConnected": "Conectado",
+      "connectionLastUsed": "Último uso",
+      "connectionNeverUsed": "Nunca usado",
+      "connectionRevoke": "Desconectar",
+      "connectionRevokeDescription": "Esto finaliza el acceso del asistente de inmediato e impide su renovación. Será necesario autorizarlo de nuevo para volver a conectarlo.",
+      "connectionRevokeFailed": "No se pudo desconectar el asistente."
     }
   },
   "admin": {
@@ -7119,6 +7146,10 @@
     "illness": {
       "label": "Diario de enfermedad",
       "description": "Registra episodios de enfermedad y dolencias con un historial diario de síntomas."
+    },
+    "mcp": {
+      "label": "Acceso de asistente externo (MCP)",
+      "description": "Permite que un asistente compatible con MCP lea tus datos de salud mediante un token con alcance limitado. Desactivado de forma predeterminada."
     }
   },
   "illness": {

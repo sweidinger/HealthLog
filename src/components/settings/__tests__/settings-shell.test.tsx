@@ -117,6 +117,7 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "ai",
       "coach",
       "api",
+      "mcp",
       "gesundheitsakte",
       "sharing",
       "export",

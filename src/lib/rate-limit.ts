@@ -88,6 +88,46 @@ export async function checkAnalyticsReadRateLimit(
 }
 
 /**
+ * v1.22.0 — per-credential ceiling for the remote MCP endpoint (`/mcp`).
+ * The bucket is keyed by the `<userId>:<tokenId>` binding the Bearer
+ * resolver surfaces — NOT the user alone — so a single leaked / shared
+ * token cannot exhaust the budget for the account's other tokens, and the
+ * cap is scoped to the exact credential in use (REQ-SEC-9, REQ-SEC-11).
+ * An MCP client legitimately fans several tool calls out per turn, so the
+ * window is generous; it only caps a runaway loop or a scripted drain.
+ */
+const MCP_LIMIT = 120;
+const MCP_WINDOW_MS = 60 * 1000;
+
+export async function checkMcpRateLimit(
+  binding: string,
+): Promise<RateLimitResult> {
+  return checkRateLimit(`mcp:${binding}`, MCP_LIMIT, MCP_WINDOW_MS);
+}
+
+/**
+ * v1.22.0 — tighter per-credential ceiling for the remote MCP WRITE surface
+ * (the `log_measurement` / `log_mood` tools), applied ON TOP of the general
+ * `/mcp` per-binding request limiter. Keyed by the same `<userId>:<tokenId>`
+ * binding so a single leaked / shared write-scoped token cannot flood writes
+ * into the account, and the cap is scoped to the exact credential in use.
+ * Writes are deliberate, low-frequency events, so this is far tighter than the
+ * read budget — 60 confirmed writes per 5 minutes only caps a runaway loop.
+ */
+const MCP_WRITE_LIMIT = 60;
+const MCP_WRITE_WINDOW_MS = 5 * 60 * 1000;
+
+export async function checkMcpWriteRateLimit(
+  binding: string,
+): Promise<RateLimitResult> {
+  return checkRateLimit(
+    `mcp-write:${binding}`,
+    MCP_WRITE_LIMIT,
+    MCP_WRITE_WINDOW_MS,
+  );
+}
+
+/**
  * v1.16.16 — per-user ceiling for the AI-consent surfaces
  * (`POST /api/consent/ai`, `POST /api/consent/ai/web`,
  * `GET/DELETE /api/consent/ai/latest`). The web client calls the heal

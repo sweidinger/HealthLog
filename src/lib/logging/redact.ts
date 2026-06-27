@@ -89,6 +89,14 @@ export function redactSecrets(input: string): string {
       // these prefixes (CLAUDE.md headless-client-API patterns); this
       // is the matching egress guard for log/error surfaces.
       .replace(/(^|[^A-Za-z0-9])hl[kr]_[A-Fa-f0-9]{32,}/g, "$1[REDACTED]")
+      // v1.22.0 — the MCP OAuth bridge artifacts: the authorization code
+      // (`hlac_`), refresh token (`hlrt_`), and DCR client id (`hlc_`). All
+      // are signed, base64url-bodied, and credential-bearing, so they are
+      // scrubbed at the egress boundary like the native token formats above.
+      .replace(
+        /(^|[^A-Za-z0-9])hl(?:ac|rt|c)_[A-Za-z0-9_.-]{16,}/g,
+        "$1[REDACTED]",
+      )
       // v1.7.0 — `insurance`/`insuranceNumber`/`kvnr` (German statutory-
       // insurance number) added as defence-in-depth: the value is
       // encrypted at rest and never deliberately logged, but a stray

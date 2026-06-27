@@ -92,6 +92,8 @@ import {
   handleAuditLogCleanup,
   CoachMessageCleanupPayload,
   handleCoachMessageCleanup,
+  McpTokenCleanupPayload,
+  handleMcpTokenCleanup,
 } from "./cleanup-handlers";
 import {
   HostMetricSamplePayload,
@@ -188,6 +190,14 @@ const COACH_MESSAGE_CLEANUP_CRON = "50 3 * * *";
 // migration converges without a restart. Idempotent + fail-closed per row.
 
 const NOTE_ENCRYPTION_BACKFILL_CRON = "55 3 * * *";
+// v1.24 — daily prune of expired/revoked MCP connector access tokens (every
+// code exchange + hourly refresh mints a 60-minute row) and long-revoked OAuth
+// connection anchors. Slots at 04:00 Europe/Berlin after the note-encryption
+// backfill discovery (03:55) so the two don't pile up on the same boss poll.
+
+const MCP_TOKEN_CLEANUP_QUEUE = "mcp-token-cleanup";
+
+const MCP_TOKEN_CLEANUP_CRON = "0 4 * * *";
 
 const allQueues = [
   DATA_BACKUP_QUEUE,
@@ -239,6 +249,10 @@ const allQueues = [
   // corpus to the active key. Without this entry pg-boss never provisions the
   // queue and the admin trigger silently no-ops.
   ENCRYPTION_KEY_ROTATE_QUEUE,
+  // v1.24 — expired/revoked MCP access-token + connection prune. Without this
+  // entry the daily schedule silently no-ops and the api_tokens table grows
+  // unbounded with dead 60-minute connector rows.
+  MCP_TOKEN_CLEANUP_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -294,6 +308,8 @@ const schedules: ScheduleEntry[] = [
   // The empty cron payload (no `userId`) is the handler's signal to fan out
   // one per-user job per account still holding a plaintext note.
   [NOTE_ENCRYPTION_BACKFILL_QUEUE, NOTE_ENCRYPTION_BACKFILL_CRON],
+  // v1.24 — daily 04:00 Europe/Berlin prune for dead MCP connector tokens.
+  [MCP_TOKEN_CLEANUP_QUEUE, MCP_TOKEN_CLEANUP_CRON],
 ];
 
 /**
@@ -382,6 +398,13 @@ export async function registerMaintenanceQueues(
     COACH_MESSAGE_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleCoachMessageCleanup,
+  );
+  // MCP Phase 3 (M2) — daily prune of dead MCP connector access tokens +
+  // long-revoked connection anchors. Single-flight like every other cleanup.
+  await boss.work<McpTokenCleanupPayload>(
+    MCP_TOKEN_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleMcpTokenCleanup,
   );
   await boss.work<PrDetectionPayload>(
     PR_DETECTION_QUEUE,

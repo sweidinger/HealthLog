@@ -4231,6 +4231,10 @@
         "title": "Dati e privacy",
         "subtitle": "I tuoi dati, la conservazione, la cifratura e la sicurezza dell'account in un unico posto.",
         "description": "Esportazione, eliminazione, conservazione, stato della cifratura, sessioni e attività di sicurezza."
+      },
+      "mcp": {
+        "title": "Connettore MCP",
+        "subtitle": "Collega un assistente esterno ai tuoi dati sulla salute."
       }
     },
     "profile": "Profilo",
@@ -5148,6 +5152,29 @@
         "openAi": "Modalità privacy IA",
         "openResearch": "Modalità ricerca"
       }
+    },
+    "mcp": {
+      "enableTitle": "Endpoint MCP remoto",
+      "enableDescription": "Consenti a un assistente compatibile con MCP (Claude.ai, ChatGPT) di leggere i tuoi dati sulla salute tramite un token limitato. Disattivato per impostazione predefinita.",
+      "enabled": "Attivo",
+      "disabled": "Inattivo",
+      "enableToggleLabel": "Attiva l'endpoint MCP",
+      "endpointLabel": "URL del connettore",
+      "connectDescription": "Incolla questo URL nella configurazione del connettore personalizzato del tuo assistente e autorizza con il token qui sotto o accedi quando richiesto.",
+      "tokensTitle": "Token del connettore",
+      "tokensDescription": "Genera un token in sola lettura per collegare un assistente. Il token viene mostrato una sola volta.",
+      "scopeNote": "I token sono limitati a health:read: accesso in sola lettura ai tuoi dati. Non possono mai raggiungere funzioni di amministrazione.",
+      "writeScopeToggleLabel": "Consenti la registrazione (health:write)",
+      "writeScopeNote": "Aggiunge l'ambito health:write così l'assistente può registrare nuove misurazioni e voci dell'umore nel tuo account. Ogni scrittura viene prima confermata. Il token non può comunque eliminare o modificare voci esistenti, cambiare i farmaci o raggiungere funzioni REST o di amministrazione. Lascia disattivato per l'accesso in sola lettura.",
+      "connectionsTitle": "Assistenti collegati",
+      "connectionsDescription": "Assistenti che hai autorizzato tramite l'accesso. Revocare una connessione ne termina subito l'accesso, inclusa la capacità di rinnovarsi.",
+      "noConnections": "Nessun assistente collegato.",
+      "connectionConnected": "Collegato",
+      "connectionLastUsed": "Ultimo utilizzo",
+      "connectionNeverUsed": "Mai usato",
+      "connectionRevoke": "Disconnetti",
+      "connectionRevokeDescription": "Questo termina immediatamente l'accesso dell'assistente e ne impedisce il rinnovo. Per riconnetterlo sarà necessaria una nuova autorizzazione.",
+      "connectionRevokeFailed": "Impossibile disconnettere l'assistente."
     }
   },
   "admin": {
@@ -7119,6 +7146,10 @@
     "illness": {
       "label": "Diario delle malattie",
       "description": "Registra episodi di malattia e disturbi con una cronologia giornaliera dei sintomi."
+    },
+    "mcp": {
+      "label": "Accesso assistente esterno (MCP)",
+      "description": "Consente a un assistente compatibile con MCP di leggere i tuoi dati sanitari tramite un token con ambito limitato. Disattivato per impostazione predefinita."
     }
   },
   "illness": {

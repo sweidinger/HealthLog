@@ -164,6 +164,11 @@ export class WideEventBuilder {
     return this.highestLevel;
   }
 
+  /** The HTTP method of the current request, if one was attached. */
+  getHttpMethod(): string | undefined {
+    return this.event.http?.method;
+  }
+
   getRequestId(): string {
     return this.event.request_id!;
   }
