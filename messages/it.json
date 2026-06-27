@@ -5127,7 +5127,8 @@
         "description": "Per quanto tempo i record a tempo vengono conservati prima della pulizia automatica.",
         "coach": "Conversazioni con il coach: {days} giorni",
         "audit": "Registro di sicurezza: {days} giorni",
-        "delivery": "Registro di invio delle notifiche: {days} giorni"
+        "delivery": "Registro di invio delle notifiche: {days} giorni",
+        "unavailable": "I dettagli di conservazione non sono disponibili al momento."
       },
       "export": {
         "title": "Scarica i miei dati",

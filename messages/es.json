@@ -5127,7 +5127,8 @@
         "description": "Cuánto tiempo se conservan los registros con límite temporal antes de su limpieza automática.",
         "coach": "Conversaciones con el asistente: {days} días",
         "audit": "Registro de seguridad: {days} días",
-        "delivery": "Registro de envío de notificaciones: {days} días"
+        "delivery": "Registro de envío de notificaciones: {days} días",
+        "unavailable": "Los detalles de retención no están disponibles en este momento."
       },
       "export": {
         "title": "Descargar mis datos",

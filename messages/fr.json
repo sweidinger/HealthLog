@@ -5127,7 +5127,8 @@
         "description": "Durée de conservation des enregistrements limités dans le temps avant le nettoyage automatique.",
         "coach": "Conversations avec le coach : {days} jours",
         "audit": "Journal de sécurité : {days} jours",
-        "delivery": "Journal d'envoi des notifications : {days} jours"
+        "delivery": "Journal d'envoi des notifications : {days} jours",
+        "unavailable": "Les détails de conservation sont indisponibles pour le moment."
       },
       "export": {
         "title": "Télécharger mes données",

@@ -5127,7 +5127,8 @@
         "description": "How long time-bound records are kept before automatic cleanup.",
         "coach": "Coach conversations: kept {days} days",
         "audit": "Security activity log: kept {days} days",
-        "delivery": "Notification delivery log: kept {days} days"
+        "delivery": "Notification delivery log: kept {days} days",
+        "unavailable": "Retention details are unavailable right now."
       },
       "export": {
         "title": "Download my data",

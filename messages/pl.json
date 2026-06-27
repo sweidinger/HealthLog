@@ -5127,7 +5127,8 @@
         "description": "Jak długo rekordy ograniczone czasowo są przechowywane przed automatycznym czyszczeniem.",
         "coach": "Rozmowy z asystentem: {days} dni",
         "audit": "Dziennik zabezpieczeń: {days} dni",
-        "delivery": "Dziennik wysyłki powiadomień: {days} dni"
+        "delivery": "Dziennik wysyłki powiadomień: {days} dni",
+        "unavailable": "Szczegóły przechowywania są obecnie niedostępne."
       },
       "export": {
         "title": "Pobierz moje dane",

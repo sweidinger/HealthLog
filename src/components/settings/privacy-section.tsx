@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { SettingsInfoTile } from "@/components/settings/_info-tile";
@@ -53,7 +54,11 @@ export function PrivacySection() {
   const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
 
-  const { data: summary } = useQuery({
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+  } = useQuery({
     queryKey: queryKeys.privacySummary(),
     queryFn: () => apiGet<PrivacySummary>("/api/settings/privacy-summary"),
     enabled: isAuthenticated,
@@ -99,7 +104,7 @@ export function PrivacySection() {
           description={t("settings.privacy.stored.description")}
           className="mb-4"
         />
-        <ul className="text-muted-foreground list-disc space-y-1 pl-12 text-sm">
+        <ul className="text-muted-foreground list-disc space-y-1 pl-7 text-sm">
           <li>{t("settings.privacy.stored.measurements")}</li>
           <li>{t("settings.privacy.stored.medications")}</li>
           <li>{t("settings.privacy.stored.moodLabs")}</li>
@@ -117,27 +122,35 @@ export function PrivacySection() {
           description={t("settings.privacy.retention.description")}
           className="mb-4"
         />
-        <ul className="text-muted-foreground space-y-1 pl-7 text-sm">
-          {summary && (
-            <>
-              <li>
-                {t("settings.privacy.retention.coach", {
-                  days: summary.retention.coachMessagesDays,
-                })}
-              </li>
-              <li>
-                {t("settings.privacy.retention.audit", {
-                  days: summary.retention.auditLogDays,
-                })}
-              </li>
-              <li>
-                {t("settings.privacy.retention.delivery", {
-                  days: summary.retention.deliveryLogDays,
-                })}
-              </li>
-            </>
-          )}
-        </ul>
+        {summaryLoading ? (
+          <div className="space-y-2 pl-7">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        ) : summaryError || !summary ? (
+          <p className="text-muted-foreground pl-7 text-sm">
+            {t("settings.privacy.retention.unavailable")}
+          </p>
+        ) : (
+          <ul className="text-muted-foreground space-y-1 pl-7 text-sm">
+            <li>
+              {t("settings.privacy.retention.coach", {
+                days: summary.retention.coachMessagesDays,
+              })}
+            </li>
+            <li>
+              {t("settings.privacy.retention.audit", {
+                days: summary.retention.auditLogDays,
+              })}
+            </li>
+            <li>
+              {t("settings.privacy.retention.delivery", {
+                days: summary.retention.deliveryLogDays,
+              })}
+            </li>
+          </ul>
+        )}
       </SettingsCard>
 
       {/* Export */}

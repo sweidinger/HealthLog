@@ -33,7 +33,17 @@ function render(node: React.ReactNode, locale: "en" | "de" = "en") {
   // assembled cards paint without firing network.
   client.setQueryData(queryKeys.sessions(), { sessions: [] });
   client.setQueryData(queryKeys.securityActivity(), { events: [] });
-  client.setQueryData(queryKeys.trustedDevices(), { devices: [] });
+  // Seed a trusted device so the card paints (it hides itself when empty).
+  client.setQueryData(queryKeys.trustedDevices(), {
+    devices: [
+      {
+        id: "td-1",
+        label: "Firefox on macOS",
+        isCurrent: true,
+        expiresAt: "2099-01-01T00:00:00.000Z",
+      },
+    ],
+  });
   return renderToStaticMarkup(
     <I18nProvider initialLocale={locale}>
       <QueryClientProvider client={client}>{node}</QueryClientProvider>
@@ -56,5 +66,31 @@ describe("<PrivacySection> — assembled Data & Privacy dashboard", () => {
     expect(html).toContain('href="/settings/advanced"');
     // Embedded active-session + security-activity cards.
     expect(html).toContain("settings-security-sessions-card");
+    // Trusted devices now lives here (and only here) — its single home is the
+    // Privacy dashboard, not the Security section.
+    expect(html).toContain("settings-trusted-devices-card");
+  });
+
+  it("shows a loading placeholder for the retention block before the summary resolves", () => {
+    // Render WITHOUT seeding the privacy summary: the query is pending, so the
+    // retention block must paint a skeleton rather than an empty list.
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, refetchOnMount: false },
+      },
+    });
+    client.setQueryData(queryKeys.sessions(), { sessions: [] });
+    client.setQueryData(queryKeys.securityActivity(), { events: [] });
+    client.setQueryData(queryKeys.trustedDevices(), { devices: [] });
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en">
+        <QueryClientProvider client={client}>
+          <PrivacySection />
+        </QueryClientProvider>
+      </I18nProvider>,
+    );
+    // Skeleton rows render while the summary is loading; no retention day-count.
+    expect(html).toContain('data-slot="skeleton"');
+    expect(html).not.toContain("365");
   });
 });

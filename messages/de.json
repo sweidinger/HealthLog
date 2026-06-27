@@ -5127,7 +5127,8 @@
         "description": "Wie lange zeitgebundene Datensätze vor der automatischen Bereinigung gespeichert bleiben.",
         "coach": "Coach-Unterhaltungen: {days} Tage",
         "audit": "Sicherheitsprotokoll: {days} Tage",
-        "delivery": "Benachrichtigungsprotokoll: {days} Tage"
+        "delivery": "Benachrichtigungsprotokoll: {days} Tage",
+        "unavailable": "Aufbewahrungsdetails sind derzeit nicht verfügbar."
       },
       "export": {
         "title": "Meine Daten herunterladen",
