@@ -78,7 +78,7 @@ export function MoodTimeOfDayChart({
           width-constrained), so an aspect ratio derived the height off the full
           card width and ballooned the chart to ~800px on a wide viewport. A
           bounded height keeps it the same size as the sibling charts. */}
-      <div className="h-[220px] w-full">
+      <div className="h-[clamp(160px,38vh,220px)] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}

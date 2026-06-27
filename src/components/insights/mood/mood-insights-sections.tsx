@@ -46,7 +46,9 @@ const MoodDistributionChart = dynamic(
     })),
   {
     ssr: false,
-    loading: () => <Skeleton className="h-[150px] w-full rounded-md" />,
+    loading: () => (
+      <Skeleton className="h-[clamp(120px,26vh,150px)] w-full rounded-md" />
+    ),
   },
 );
 const MoodWeekdayChart = dynamic(
@@ -56,7 +58,9 @@ const MoodWeekdayChart = dynamic(
     })),
   {
     ssr: false,
-    loading: () => <Skeleton className="h-[150px] w-full rounded-md" />,
+    loading: () => (
+      <Skeleton className="h-[clamp(120px,26vh,150px)] w-full rounded-md" />
+    ),
   },
 );
 const MoodTimeOfDayChart = dynamic(
@@ -66,7 +70,9 @@ const MoodTimeOfDayChart = dynamic(
     })),
   {
     ssr: false,
-    loading: () => <Skeleton className="h-[220px] w-full rounded-md" />,
+    loading: () => (
+      <Skeleton className="h-[clamp(160px,38vh,220px)] w-full rounded-md" />
+    ),
   },
 );
 import { MoodTagBreakdown, type MoodTagRow } from "./mood-tag-breakdown";

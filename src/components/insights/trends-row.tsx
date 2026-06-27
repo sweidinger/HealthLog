@@ -277,7 +277,14 @@ export function TrendsRow({
                       lives entirely on this slot. */}
               <div
                 data-slot="trends-row-chart-slot"
-                className="h-[180px] shrink-0 overflow-hidden [--chart-height:120px]"
+                // v1.22.0 — the slot height is responsive to the viewport so a
+                // rotated phone doesn't lose half the screen to a fixed 180 px
+                // band. `clamp(140px,32vh,180px)` pins the same 180 px envelope
+                // on desktop + portrait (where 32vh clears 180 px) and only
+                // shrinks toward the 140 px floor on short landscape viewports.
+                // `overflow-hidden` already clips any stray axis label, so the
+                // tighter band stays tidy.
+                className="h-[clamp(140px,32vh,180px)] shrink-0 overflow-hidden [--chart-height:120px]"
               >
                 <MetricChart config={config} title={title} />
               </div>
