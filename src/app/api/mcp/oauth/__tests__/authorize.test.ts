@@ -286,6 +286,8 @@ describe("POST /authorize — decision", () => {
     const code = new URL(loc).searchParams.get("code");
     expect(code).toMatch(/^hlac_/);
     expect(new URL(loc).searchParams.get("state")).toBe("xyz");
+    // RFC 9207 — the issuer identifier is echoed on the success redirect.
+    expect(new URL(loc).searchParams.get("iss")).toBe("https://health.example");
   });
 
   it("302s with access_denied on deny", async () => {
@@ -305,5 +307,7 @@ describe("POST /authorize — decision", () => {
     expect(res.status).toBe(302);
     const loc = res.headers.get("location") ?? "";
     expect(new URL(loc).searchParams.get("error")).toBe("access_denied");
+    // RFC 9207 — the issuer is echoed on the error redirect too.
+    expect(new URL(loc).searchParams.get("iss")).toBe("https://health.example");
   });
 });

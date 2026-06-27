@@ -77,6 +77,39 @@ describe("POST /register", () => {
     expect(res.status).toBe(400);
   });
 
+  it("honours a valid OIDC application_type and echoes it back", async () => {
+    const res = await POST(
+      jsonReq({
+        client_name: "Native app",
+        application_type: "native",
+        redirect_uris: ["http://127.0.0.1:8976/callback"],
+      }) as never,
+    );
+    expect(res.status).toBe(201);
+    expect((await res.json()).application_type).toBe("native");
+  });
+
+  it("defaults application_type to web when omitted", async () => {
+    const res = await POST(
+      jsonReq({
+        redirect_uris: ["https://chatgpt.com/cb"],
+      }) as never,
+    );
+    expect(res.status).toBe(201);
+    expect((await res.json()).application_type).toBe("web");
+  });
+
+  it("rejects an invalid application_type with invalid_client_metadata", async () => {
+    const res = await POST(
+      jsonReq({
+        application_type: "robot",
+        redirect_uris: ["https://chatgpt.com/cb"],
+      }) as never,
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("invalid_client_metadata");
+  });
+
   it("returns 503 when the API is globally disabled (M4)", async () => {
     vi.mocked(isApiGloballyEnabled).mockResolvedValue(false);
     const res = await POST(

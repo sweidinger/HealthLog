@@ -42,6 +42,7 @@ export interface AuthorizationServerMetadata {
   token_endpoint_auth_methods_supported: string[];
   code_challenge_methods_supported: string[];
   client_id_metadata_document_supported: boolean;
+  authorization_response_iss_parameter_supported: boolean;
 }
 
 /** RFC 9728 — the Protected Resource Metadata for the `/mcp` resource. */
@@ -76,6 +77,11 @@ export function authorizationServerMetadata(
     code_challenge_methods_supported: ["S256"],
     // CIMD is the preferred registration path (SEP-991); DCR is the fallback.
     client_id_metadata_document_supported: true,
+    // RFC 9207 — the authorization response carries an `iss` parameter the
+    // client validates against this metadata's `issuer`, so a code from a
+    // look-alike AS in a multi-AS deployment cannot be substituted (mix-up
+    // defence). The `/authorize` redirect always includes it.
+    authorization_response_iss_parameter_supported: true,
   };
 }
 
