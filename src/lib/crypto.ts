@@ -182,6 +182,16 @@ export function getActiveKeyId(): string {
   return getActiveKey().id;
 }
 
+/**
+ * The configured key ids (NOT the key material). Used by the admin
+ * encryption-status view to report how many keys the operator has loaded and
+ * by the rotation guard. Never expose the bytes — only the ids.
+ */
+export function getConfiguredKeyIds(): string[] {
+  const { keys } = loadKeys();
+  return [...keys.keys()];
+}
+
 function encryptWithKey(plaintext: string, key: Buffer): string {
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);

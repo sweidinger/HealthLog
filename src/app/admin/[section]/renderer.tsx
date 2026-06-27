@@ -25,6 +25,7 @@ import { ApiTokenOverviewSection } from "@/components/admin/api-token-overview-s
 import { AppLogPreviewSection } from "@/components/admin/app-log-preview-section";
 import { BackupsSection } from "@/components/admin/backups-section";
 import { DangerZoneSection } from "@/components/admin/danger-zone-section";
+import { EncryptionSection } from "@/components/admin/encryption-section";
 import { FeedbackInboxSection } from "@/components/admin/feedback-inbox-section";
 import { GeneralSettingsSection } from "@/components/admin/general-settings-section";
 import { IntegrationsGroupSection } from "@/components/admin/integrations-group-section";
@@ -193,6 +194,15 @@ export function AdminSectionRenderer({
           subtitle={t("admin.section.backups.subtitle")}
         >
           <BackupsSection />
+        </SectionFrame>
+      );
+    case "encryption":
+      return (
+        <SectionFrame
+          title={t("admin.section.encryption.title")}
+          subtitle={t("admin.section.encryption.subtitle")}
+        >
+          <EncryptionSection />
         </SectionFrame>
       );
     case "danger-zone":

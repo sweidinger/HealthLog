@@ -27,6 +27,8 @@ export const adminKeys = {
   adminModuleAvailability: () =>
     ["admin", "settings", "module-availability"] as const,
   adminBackups: () => ["admin", "backups"] as const,
+  /** v1.23 — encryption coverage + rotation progress (admin Encryption section). */
+  adminEncryptionStatus: () => ["admin", "encryption", "status"] as const,
   adminCoachFeedback: () => ["admin", "coach-feedback"] as const,
   adminFeedback: (status: string) => ["admin", "feedback", status] as const,
   adminFeedbackRoot: () => ["admin", "feedback"] as const,
