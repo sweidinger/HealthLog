@@ -44,7 +44,8 @@ describe("metricScopeFromExplainer", () => {
   it("resolves a mapped explainer token to a scope + opener", () => {
     const resolved = metricScopeFromExplainer("bloodPressure");
     expect(resolved?.metric).toBe("bp");
-    expect(resolved?.question).toMatch(/blood pressure/i);
+    // v1.22 (W6) — `question` is now an i18n key (resolved by the consumer).
+    expect(resolved?.question).toBe("insights.coach.seed.bloodPressure");
   });
 
   it("anchors the recovery page on its driver sources + short window", () => {

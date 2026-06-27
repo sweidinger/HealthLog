@@ -27,9 +27,11 @@ describe("PROMPT_VERSION (v1.4.23 Apple Health ratchet)", () => {
     // metric enum identifiers from prose. The pin loosens to accept
     // any 4.{>=23}.x revision so future additive ratchets don't
     // force a hostile test rewrite each time the rules grow.
-    const [, minor] = PROMPT_VERSION.split(".").map(Number);
-    expect(PROMPT_VERSION).toMatch(/^4\.\d+\.\d+$/);
-    expect(minor).toBeGreaterThanOrEqual(23);
+    // v1.22 (W6) bumped the briefing prompt to the 5.x train; accept 4.{>=23}.x
+    // OR any 5.x revision.
+    const [major, minor] = PROMPT_VERSION.split(".").map(Number);
+    expect(PROMPT_VERSION).toMatch(/^[45]\.\d+\.\d+$/);
+    expect(major === 4 ? minor >= 23 : true).toBe(true);
   });
 });
 

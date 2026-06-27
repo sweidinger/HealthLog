@@ -2324,6 +2324,33 @@
         "groupYesterday": "Yesterday",
         "groupThisWeek": "This week",
         "groupEarlier": "Earlier"
+      },
+      "seed": {
+        "bloodPressure": "Walk me through my blood pressure trend over the last 30 days — anything I should keep an eye on?",
+        "weight": "How has my weight been trending lately, and is the direction something to act on?",
+        "bmi": "What does my BMI trend tell me, and how should I read it?",
+        "pulse": "Walk me through my pulse readings — is anything out of the ordinary?",
+        "restingHr": "How has my resting heart rate been trending, and what does it say about my fitness?",
+        "hrv": "What is my heart-rate variability telling me about recovery and stress lately?",
+        "sleep": "Walk me through my recent sleep — duration, consistency, and anything worth changing.",
+        "mood": "What patterns do you see in my mood over the last few weeks?",
+        "medications": "How is my medication adherence looking, and is it lined up with how I've been feeling?",
+        "steps": "How active have I been lately based on my steps, and how does it compare to a healthy baseline?",
+        "activeEnergy": "What does my active-energy trend say about my activity level lately?",
+        "cardioFitness": "What does my cardio fitness (VO₂ max) trend mean, and how do I move it in the right direction?",
+        "bloodGlucose": "Walk me through my recent glucose readings — are they in a healthy range?",
+        "oxygenSaturation": "What does my blood-oxygen (SpO₂) trend tell me?",
+        "respiratoryRate": "What does my respiratory-rate trend say about my health?",
+        "workouts": "Walk me through my recent workouts — load, frequency, and how I'm recovering between them.",
+        "recoveryPage": "Why is my recovery where it is right now, and what's driving it?",
+        "briefing": "Walk me through today's briefing — what should I focus on, and is anything worth acting on?",
+        "healthScore": "Why is my health score {score} out of 100, and what would move it the most?",
+        "periodWeek": "Walk me through how my last week went across my health metrics — what stands out?",
+        "periodMonth": "Walk me through how my last month went across my health metrics — what stands out?",
+        "correlationBpCompliance": "How does my medication adherence relate to my blood pressure? Walk me through what this correlation means for me.",
+        "correlationMoodPulse": "Is there a real link between my mood and my pulse? Help me read this correlation.",
+        "correlationWeightWeekday": "Does my weight follow a weekly pattern? What does this day-of-week correlation tell me?",
+        "recommendation": "Tell me more about this recommendation: \"{text}\" — why does it apply to me, and what should I do about it?"
       }
     },
     "relativeJustNow": "just now",
@@ -3617,7 +3644,10 @@
       "returnLabel": "Your {metric} has been back inside your usual range for {count} days now — whatever that was, it's passed.",
       "daysInside": "{count} days inside",
       "daysOutside": "{count} days outside"
-    }
+    },
+    "updatedTodayAt": "Updated today, {time}",
+    "updatedYesterday": "Updated yesterday",
+    "updatedOn": "Updated on {date}"
   },
   "thresholds": {
     "defaultLabel": "Default",

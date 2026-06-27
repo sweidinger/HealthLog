@@ -85,13 +85,11 @@ const COACH_SOURCES_BY_KIND: Record<
   "weight-weekday": ["weight"],
 };
 
+// v1.22 (W6) — i18n keys (resolved at the call site), not hardcoded English.
 const COACH_QUESTION_BY_KIND: Record<CorrelationResult["kind"], string> = {
-  "bp-compliance":
-    "How does my medication adherence relate to my blood pressure? Walk me through what this correlation means for me.",
-  "mood-pulse":
-    "Is there a real link between my mood and my pulse? Help me read this correlation.",
-  "weight-weekday":
-    "Does my weight follow a weekly pattern? What does this day-of-week correlation tell me?",
+  "bp-compliance": "insights.coach.seed.correlationBpCompliance",
+  "mood-pulse": "insights.coach.seed.correlationMoodPulse",
+  "weight-weekday": "insights.coach.seed.correlationWeightWeekday",
 };
 
 export function CorrelationCard({ result }: CorrelationCardProps) {
@@ -183,7 +181,7 @@ export function CorrelationCard({ result }: CorrelationCardProps) {
               {/* v1.21.0 (C4 H2) — the live Coach hand-off sits beside the
                   roadmap CTA: it scopes to both sources in the pair. */}
               <AskCoachAction
-                question={COACH_QUESTION_BY_KIND[result.kind]}
+                question={t(COACH_QUESTION_BY_KIND[result.kind])}
                 scope={coachScope}
               />
             </div>

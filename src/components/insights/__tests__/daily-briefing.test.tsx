@@ -119,13 +119,15 @@ describe("<DailyBriefing>", () => {
     expect(html).toContain("bg-info"); // tone=info bar
   });
 
-  it("renders the 'Generated <time>' caption when updatedAt is supplied", () => {
+  it("renders the 'Updated today, <time>' caption when updatedAt is supplied", () => {
+    // v1.22 (W6) — the footer now uses `formatUpdatedLabel`: a same-day
+    // timestamp reads "Updated today, HH:MM".
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
     const html = render(
       <DailyBriefing briefing={baseBriefing} updatedAt={fiveMinutesAgo} />,
     );
     expect(html).toMatch(/data-slot="daily-briefing-updated"/);
-    expect(html).toContain("Generated");
+    expect(html).toContain("Updated today");
   });
 
   it("does NOT render the updated caption when updatedAt is missing", () => {

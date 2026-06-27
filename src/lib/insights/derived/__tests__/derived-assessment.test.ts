@@ -206,6 +206,44 @@ describe("resolveDeterministicAssessment", () => {
   });
 });
 
+// v1.22 (W6) — the deterministic fallback now closes with a band-conditioned
+// "what it means for today" read (a closed table; no number introduced), so the
+// provider-less + demo score cards carry the forward interpretation too.
+describe("band → meaning enrichment (deterministic fallback)", () => {
+  it("appends the forward read for a yellow readiness (en)", () => {
+    const a = resolveDeterministicAssessment(
+      "READINESS",
+      okDerived(readiness),
+      "en",
+      NOW,
+    );
+    expect(a!.text).toContain("usual load");
+  });
+
+  it("appends the forward read for a green sleep score (en)", () => {
+    const a = resolveDeterministicAssessment(
+      "SLEEP_SCORE",
+      okDerived(sleepScore),
+      "en",
+      NOW,
+    );
+    expect(a!.text.toLowerCase()).toContain("carry you well");
+  });
+
+  it("names BOTH a carry (green) AND the forward read (de)", () => {
+    const a = resolveDeterministicAssessment(
+      "SLEEP_SCORE",
+      okDerived(sleepScore),
+      "de",
+      NOW,
+    );
+    // green branch names the strongest contributor as the carry …
+    expect(a!.text).toContain("Getragen vor allem von");
+    // … and the closed band-meaning table appends the forward read.
+    expect(a!.text).toContain("durch den Tag tragen");
+  });
+});
+
 describe("buildScoreSignal", () => {
   it("carries contributors for READINESS", () => {
     const signal = buildScoreSignal("READINESS", readiness, "en");

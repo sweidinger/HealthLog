@@ -70,6 +70,7 @@ import {
 } from "@/lib/analytics/compliance";
 import type { DoseHistoryRow } from "@/lib/medications/scheduling/dose-history";
 import type { BaselineProfile } from "@/lib/insights/derived";
+import { buildBaselineBand } from "@/lib/insights/derived/baseline";
 import {
   CLUSTER_PRIORITY,
   clusterSourcesFromPrefs,
@@ -634,6 +635,30 @@ export function __resetCoachSnapshotCacheForTests(): void {
  * chat handler calls this once per turn; within the same conversation
  * the second+ turn lands a cache hit and skips the row-level reads.
  */
+/**
+ * v1.22 (W6) — the user's own usual range for one BP component, computed from
+ * the rows already fetched for the snapshot (no extra DB read) using the SAME
+ * median ± k·MAD statistic as the baseline engine. Returns null below the
+ * engine's 7-day history floor so the Coach never quotes a fabricated band.
+ */
+function bpBandFromRows(
+  rows: ReadonlyArray<{ measuredAt: Date; value: number }>,
+): { low: number; high: number } | null {
+  const byDay = new Map<string, { sum: number; count: number }>();
+  for (const r of rows) {
+    const day = r.measuredAt.toISOString().slice(0, 10);
+    const acc = byDay.get(day) ?? { sum: 0, count: 0 };
+    acc.sum += r.value;
+    acc.count += 1;
+    byDay.set(day, acc);
+  }
+  const dayMeans = [...byDay.values()].map((a) => a.sum / a.count);
+  if (dayMeans.length < 7) return null;
+  const band = buildBaselineBand(dayMeans);
+  if (!band) return null;
+  return { low: Math.round(band.low), high: Math.round(band.high) };
+}
+
 export async function buildCoachSnapshot(
   userId: string,
   scope?: CoachScope,
@@ -1358,6 +1383,21 @@ async function buildCoachSnapshotImpl(
     );
     const olderSys = sysRows.filter((r) => r.measuredAt < recentCutoff);
     const olderDia = diaRows.filter((r) => r.measuredAt < recentCutoff);
+    // v1.22 (W6) — the user's own usual range (median ± k·MAD), computed from
+    // the BP rows ALREADY in memory (no extra DB read) with the same
+    // `buildBaselineBand` statistic the baseline engine uses, so the Coach can
+    // quote the real band verbatim instead of fabricating one from window means
+    // (the "153–150" bug). Omitted below the engine's 7-day history floor — a
+    // never-fabricated range.
+    const sysBand = bpBandFromRows(sysRows);
+    const diaBand = bpBandFromRows(diaRows);
+    const bpUsualRange =
+      sysBand || diaBand
+        ? {
+            ...(sysBand ? { sys: sysBand } : {}),
+            ...(diaBand ? { dia: diaBand } : {}),
+          }
+        : undefined;
     snapshot.bloodPressure = {
       aggregate: features.bloodPressure,
       timeline: {
@@ -1366,6 +1406,7 @@ async function buildCoachSnapshotImpl(
         weeklyDia: bucketWeekly(olderDia, userTz),
         ...(bpCoarseTail ? { coarse: bpCoarseTail } : {}),
       },
+      ...(bpUsualRange ? { usualRange: bpUsualRange } : {}),
     };
     metrics.add("bp");
     windows.add("last30days");

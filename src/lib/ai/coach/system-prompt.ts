@@ -1099,10 +1099,25 @@ const LOCALE_REPLY_FOOTER_FALLBACK: Record<
   pl: "\n\nREPLY LANGUAGE: respond in Polish. Mirror the user's register (formal Pan/Pani for medical-adjacent topics); use natural Polish health vocabulary.",
 };
 
+/**
+ * v1.22 (W6) — per-turn personalization passed by the chat route. All fields
+ * are optional and the addendum is omitted when none apply, so the prompt is
+ * byte-identical to the pre-feature one for the coverage test + unnamed users.
+ */
+export interface CoachPersonalization {
+  /** The user's first name; null when no display name is set. */
+  firstName?: string | null;
+  /** True on the ~1-in-3 turns the name clause is allowed to fire. */
+  mayUseName?: boolean;
+  /** The hash-seeded opener-archetype hint for this turn. */
+  openerHint?: string | null;
+}
+
 export function getCoachSystemPrompt(
   locale: Locale,
   prefs: CoachPrefs = DEFAULT_COACH_PREFS,
   aboutMe: string | null = null,
+  personalization: CoachPersonalization = {},
 ): string {
   let base: string;
   if (locale === "de") {
@@ -1134,6 +1149,7 @@ export function getCoachSystemPrompt(
           "metricIdentifierBan",
           "forbiddenFiller",
           "outlookContract",
+          "formattingContract",
         ])}`
       : base;
   const prefix = buildPrefsPrefix(locale, prefs);
@@ -1143,10 +1159,80 @@ export function getCoachSystemPrompt(
   // block is locale-independent (English topic labels + URLs) and the model
   // may only link a slug it lists, so a fabricated /learn URL is impossible.
   const withLearn = `${withPrefix}\n\n${learnCatalogPromptBlock()}`;
+  // v1.22 (W6) — the narrative-quality addendum: the context-layer rule, the
+  // single-chart-token exception, the BP usual-range verbatim clause, plus the
+  // per-turn opener hint and sparse first-name personalization. Composed after
+  // the shared contracts so the chart-token exception can carve out the one
+  // place a `metric:<TYPE>` token is permitted.
+  const withV122 = `${withLearn}\n\n${buildCoachV122Addendum(locale, personalization)}`;
   // v1.15.20 — the user-authored "about me" self-description rides the
   // system prompt as a delimited, user-provided block (Settings → AI).
   const suffix = aboutMe ? buildAboutMeBlock(locale, aboutMe) : "";
-  return suffix ? `${withLearn}\n\n${suffix}` : withLearn;
+  return suffix ? `${withV122}\n\n${suffix}` : withV122;
+}
+
+/**
+ * v1.22 (W6) — narrative-quality + personalization addendum for the Coach.
+ *
+ * EN/DE are hand-composed; every other locale rides the EN body (these are
+ * internal instructions, not user-facing prose). Each clause is additive and
+ * grounding-safe:
+ *  - CONTEXT LAYER (WHOOP) — name the context that pre-empts the obvious
+ *    objection BEFORE a suggestion, so advice lands graded, not binary.
+ *  - CHART TOKEN — the ONE place a `metric:<TYPE>` token is allowed (the
+ *    surrounding ban otherwise stands). Provider-agnostic plain inline text, so
+ *    it works on every provider including codex.
+ *  - BP USUAL RANGE — when the snapshot's blood-pressure block carries a
+ *    `usualRange`, quote THOSE bounds verbatim; never invent a band from window
+ *    means (kills the fabricated "153–150" range).
+ *  - OPENER HINT — vary the turn's opening so a multi-turn session does not open
+ *    identically every time.
+ *  - NAME — sparse, anti-formulaic first-name address on the gated turns only.
+ */
+function buildCoachV122Addendum(
+  locale: Locale,
+  personalization: CoachPersonalization,
+): string {
+  const isDe = locale === "de";
+  const parts: string[] = [];
+  parts.push(isDe ? "COACH-ZUSATZ (v1.22)" : "COACH ADDENDUM (v1.22)");
+
+  parts.push(
+    isDe
+      ? `KONTEXT-EBENE — bevor du etwas vorschlägst, benenne in einem kurzen Halbsatz den relevanten Kontext, der den naheliegenden Einwand vorwegnimmt (gestern war ein Ruhetag, die Krankheit ist erst zwei Tage her, der Termin ist noch Wochen hin). So landet ein Rat abgestuft und konkret, nie als binäres "mach das" / "lass das".`
+      : `CONTEXT LAYER — before you suggest anything, name the relevant context that pre-empts the obvious objection in one short clause (yesterday was a rest day, the illness was only two days ago, the appointment is still weeks out). That makes advice land graded and specific, never a binary "do this" / "don't".`,
+  );
+
+  parts.push(
+    isDe
+      ? `CHART-TOKEN — wenn ein kleiner Verlauf die Antwort wirklich stützt, darfst du GENAU EIN Chart-Token der Form metric:<TYPE> in einer eigenen Zeile einfügen (z. B. metric:BLOOD_PRESSURE_SYS, metric:WEIGHT, metric:BLOOD_GLUCOSE) — nutze den kanonischen Enum-Namen der gemeinten Metrik. Das ist die EINZIGE Ausnahme vom Metrik-Identifier-Verbot: höchstens ein Token pro Antwort, nur für eine Metrik, die der SNAPSHOT trägt, und nie als Ersatz für deine Worte. Brauchst du keinen Verlauf, lass es weg. (Reiner Inline-Text — funktioniert bei jedem Anbieter.)`
+      : `CHART TOKEN — when a small trend genuinely supports the answer, you MAY include EXACTLY ONE chart token of the form metric:<TYPE> on its own line (e.g. metric:BLOOD_PRESSURE_SYS, metric:WEIGHT, metric:BLOOD_GLUCOSE) — use the canonical enum name of the metric you mean. This is the ONE exception to the metric-identifier ban: at most one token per reply, only for a metric the SNAPSHOT carries, and never as a substitute for your words. When no trend is needed, leave it out. (Plain inline text — works on every provider.)`,
+  );
+
+  parts.push(
+    isDe
+      ? `BLUTDRUCK-NORMBEREICH — trägt der "bloodPressure"-Block einen "usualRange" ({ sys, dia } mit low/high), ist DAS der übliche Bereich des Nutzers — zitiere diese Grenzen wörtlich ("dein üblicher Bereich liegt etwa bei 118–134 systolisch"). Bilde NIE selbst einen Bereich aus Fenster-Mittelwerten und erfinde nie zwei Zahlen als "Spanne". Fehlt "usualRange", nenne keinen üblichen Bereich — sprich vom Trend.`
+      : `BLOOD-PRESSURE USUAL RANGE — when the "bloodPressure" block carries a "usualRange" ({ sys, dia } with low/high), THAT is the user's usual range — quote those bounds verbatim ("your usual range runs about 118–134 systolic"). NEVER assemble a range yourself from window means, and never invent two numbers as a "band". When "usualRange" is absent, state no usual range — speak to the trend instead.`,
+  );
+
+  if (personalization.openerHint) {
+    parts.push(
+      isDe
+        ? `OPENER-HINWEIS für diesen Turn: ${personalization.openerHint} Variiere die Eröffnung, damit eine längere Sitzung nicht jedes Mal gleich beginnt.`
+        : `OPENER HINT for this turn: ${personalization.openerHint} Vary the opening so a longer session does not begin the same way every time.`,
+    );
+  }
+
+  if (personalization.mayUseName && personalization.firstName) {
+    const name = personalization.firstName;
+    parts.push(
+      isDe
+        ? `NAME — der Vorname des Nutzers ist "${name}". Du DARFST ihn in dieser Antwort einmal natürlich und warm einsetzen — nie als feste Begrüßungsformel, nie zweimal, und mal mittendrin, mal am Schluss. Wirkt es gekünstelt, lass ihn weg. Nutze nur genau diesen Namen, erfinde nie einen.`
+        : `NAME — the user's first name is "${name}". You MAY use it once in this reply, naturally and warmly — never as a rote opening greeting, never twice, sometimes mid-reply and sometimes as a closing line. If it would feel forced, leave it out. Use only this exact name; never invent one.`,
+    );
+  }
+
+  return parts.join("\n\n");
 }
 
 /**

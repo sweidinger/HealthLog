@@ -9,6 +9,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { AskCoachAction } from "@/components/insights/ask-coach-action";
+import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { apiGet } from "@/lib/api/api-fetch";
 
 /**
@@ -194,10 +195,11 @@ export function PeriodNarrativeCard({
             {t("insights.narrativePreparing")}
           </p>
         ) : (
-          // Plain text child — NO markdown renderer (XSS posture, CLAUDE.md).
-          <p className="text-foreground text-sm leading-relaxed whitespace-pre-line">
-            {narrative?.text}
-          </p>
+          // v1.22 (W6) — real paragraphs via the shared ProseBlocks helper
+          // (still plain text children — NO markdown renderer, XSS posture).
+          <div className="text-foreground text-sm">
+            <ProseBlocks text={narrative?.text ?? ""} />
+          </div>
         )}
 
         {narrative?.provenance ? (
@@ -222,11 +224,11 @@ export function PeriodNarrativeCard({
         {narrative ? (
           <div className="flex justify-end">
             <AskCoachAction
-              question={
+              question={t(
                 period === "week"
-                  ? "Walk me through how my last week went across my health metrics — what stands out?"
-                  : "Walk me through how my last month went across my health metrics — what stands out?"
-              }
+                  ? "insights.coach.seed.periodWeek"
+                  : "insights.coach.seed.periodMonth",
+              )}
             />
           </div>
         ) : null}

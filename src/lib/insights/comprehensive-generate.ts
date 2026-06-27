@@ -24,6 +24,7 @@ import {
   FeaturesPayloadTooLargeError,
   BRIEFING_FEATURE_WINDOW_DAYS,
   type SignalOfDay,
+  type AggregatedFeatures,
 } from "@/lib/insights/features";
 import {
   findUngroundedBriefingNumbers,
@@ -45,7 +46,10 @@ import {
   buildUserPrompt,
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
-import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import {
+  buildSystemPromptWithReferences,
+  buildBriefingPersonalisationBlock,
+} from "@/lib/ai/prompts/insight-generator";
 import { buildRetryCorrectionMessage } from "@/lib/ai/generate-insight";
 import { singleUserTurn } from "@/lib/ai/types";
 import {
@@ -190,6 +194,12 @@ async function rerollBriefingParagraph(args: {
    * it does not trace to one of these figures.
    */
   signals: readonly SignalOfDay[] | null;
+  /**
+   * v1.22 (W6, W8 seam) — the full feature snapshot so the grounding gate also
+   * admits numbers from the W8 aggregate blocks (glucose / labs / preventive-
+   * care / workouts) the reroll may now cite.
+   */
+  features?: AggregatedFeatures | null;
 }): Promise<{ text: string; providerType: string } | null> {
   let cached: Record<string, unknown>;
   try {
@@ -260,6 +270,7 @@ async function rerollBriefingParagraph(args: {
   const rerollUngrounded = findUngroundedBriefingNumbers(
     { paragraph: freshParagraph },
     args.signals,
+    args.features,
   );
   if (rerollUngrounded.length > 0) {
     return null;
@@ -717,6 +728,8 @@ export async function generateComprehensiveInsight(
       dashboardWidgetsJson: true,
       // v1.18.11 P5 — gender feeds the cycle context block (phase contrast).
       gender: true,
+      // v1.22 (W6) — first name for the sparse, hash-gated briefing opener.
+      displayName: true,
     },
   });
 
@@ -881,6 +894,16 @@ export async function generateComprehensiveInsight(
   if (illnessCycleCtx) {
     userPrompt += buildBriefingIllnessCyclePrompt(illnessCycleCtx, locale);
   }
+  // v1.22 (W6) — opener-archetype rotation + sparse first-name personalization.
+  // Both are deterministic per (user, day): the opener hint varies the briefing
+  // lead day-over-day, and the name appears on roughly one day in three (never a
+  // rote daily "Good morning, <name>"). The whole block is omitted when no
+  // display name is set, so unnamed / demo accounts are byte-identical.
+  userPrompt += buildBriefingPersonalisationBlock(
+    userId,
+    dbUser?.displayName ?? null,
+    locale,
+  );
   const systemPrompt = buildSystemPromptWithReferences(
     locale,
     referenceMetrics,
@@ -906,6 +929,7 @@ export async function generateComprehensiveInsight(
         cachedText: dbUser.insightsCachedText,
         locale,
         signals: features.signalsOfDay ?? null,
+        features,
       });
       if (rerolled) {
         await prisma.user.update({
@@ -1051,6 +1075,7 @@ export async function generateComprehensiveInsight(
     let ungrounded = findUngroundedBriefingNumbers(
       readBriefingBlock(insights),
       signals,
+      features,
     );
     if (ungrounded.length > 0) {
       annotate({
@@ -1075,6 +1100,7 @@ export async function generateComprehensiveInsight(
         const retryUngrounded = findUngroundedBriefingNumbers(
           readBriefingBlock(retryInsights),
           signals,
+          features,
         );
         if (retryInsights !== null && retryUngrounded.length === 0) {
           insights = retryInsights;

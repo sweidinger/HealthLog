@@ -714,7 +714,7 @@ export function HealthScoreCard({
             a single discreet entry, not a primary CTA. */}
         <div className="mt-auto flex justify-end pt-1">
           <AskCoachAction
-            question={`Why is my health score ${score} out of 100, and what would move it the most?`}
+            question={t("insights.coach.seed.healthScore", { score })}
           />
         </div>
       </div>

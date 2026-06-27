@@ -77,7 +77,10 @@ describe("base-system assessment prompt — V2: few-shot examples present", () =
   it("English: carries a GOOD grounded example and a BAD banned-filler counter-example", () => {
     const p = getBaseSystemPrompt("en");
     expect(p).toMatch(/EXAMPLES/);
-    expect(p).toMatch(/GOOD/);
+    // v1.22 (W6) — the examples now illustrate DIFFERENT shapes (verdict-led,
+    // trend-led, one-liner) instead of a single "GOOD" shape.
+    expect(p).toMatch(/VERDICT-LED/);
+    expect(p).toMatch(/ONE-LINER/);
     expect(p).toMatch(/BAD/);
     // The counter-example deliberately contains a banned phrase, labelled
     // "do NOT write this" so the model learns the failure form.
@@ -87,7 +90,8 @@ describe("base-system assessment prompt — V2: few-shot examples present", () =
   it("German: carries grounded + counter examples", () => {
     const p = getBaseSystemPrompt("de");
     expect(p).toMatch(/BEISPIELE/);
-    expect(p).toMatch(/GUT/);
+    expect(p).toMatch(/URTEIL-ZUERST/);
+    expect(p).toMatch(/EINZEILER/);
     expect(p).toMatch(/SCHLECHT/);
     expect(p).toMatch(/so NICHT/i);
   });

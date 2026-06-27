@@ -202,9 +202,11 @@ export function SubPageShell({
         also: resolved.also,
         window: resolved.window,
       },
-      resolved.question,
+      // v1.22 (W6) — `question` is now an i18n key; resolve it so the composer
+      // seed reads in the user's language.
+      t(resolved.question),
     );
-  }, [coachLaunch, registerScope, explainerMetric]);
+  }, [coachLaunch, registerScope, explainerMetric, t]);
 
   return (
     // The target-adjust provider bridges the header gear (rendered just

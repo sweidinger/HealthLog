@@ -283,6 +283,102 @@ function contributorPointer(key: string, locale: Locale): string | null {
 }
 
 /**
+ * v1.22 (W6) — band → "what it means for today" interpretation. A CLOSED
+ * deterministic table (so the read can never hallucinate a verdict) keyed by
+ * metric + band, mirroring the WHOOP/Oura forward read: a strong readiness /
+ * recovery / sleep score is a day to take on a little more; a soft one is a
+ * recovery cue. For strain/stress the bands already encode favourable→green, so
+ * green reads as "in a sustainable place" and red as "ease off". This is a
+ * band-conditioned interpretation, never a new number, so it carries no figure
+ * the score-grounding gate could flag.
+ */
+const SCORE_BAND_MEANING: Partial<
+  Record<
+    DerivedMetricId,
+    Record<"green" | "yellow" | "red", { de: string; en: string }>
+  >
+> = {
+  READINESS: {
+    green: {
+      de: "Heute ist ein guter Tag, um etwas mehr zu wagen.",
+      en: "Today reads like a good day to take on a little more.",
+    },
+    yellow: {
+      de: "Ein mittlerer Tag — gut für Gewohntes, ohne zu überziehen.",
+      en: "A middling day — fine for your usual load without overreaching.",
+    },
+    red: {
+      de: "Ein ruhigerer Tag würde dir guttun — nimm es als Erholungshinweis.",
+      en: "A lighter day would serve you — take it as a recovery cue.",
+    },
+  },
+  RECOVERY_SCORE: {
+    green: {
+      de: "Dein Körper wirkt erholt — Raum, heute etwas mehr zu geben.",
+      en: "Your body reads recovered — room to give a little more today.",
+    },
+    yellow: {
+      de: "Teilweise erholt — ein gewohnter Tag passt, kein harter Push.",
+      en: "Partly recovered — a normal day fits, nothing too hard.",
+    },
+    red: {
+      de: "Noch nicht erholt — heute eher schonen als pushen.",
+      en: "Not yet recovered — favour easing off over pushing today.",
+    },
+  },
+  SLEEP_SCORE: {
+    green: {
+      de: "Eine Nacht, die dich gut durch den Tag tragen sollte.",
+      en: "A night that should carry you well through the day.",
+    },
+    yellow: {
+      de: "Eine durchwachsene Nacht — heute etwas bewusster mit deiner Energie.",
+      en: "A mixed night — be a little deliberate with your energy today.",
+    },
+    red: {
+      de: "Eine kurze Nacht — plane heute bewusst Erholung ein.",
+      en: "A short night — build a little recovery into today on purpose.",
+    },
+  },
+  STRAIN_SCORE: {
+    green: {
+      de: "Deine Belastung liegt in einem gut tragbaren Bereich.",
+      en: "Your load is sitting in a comfortably sustainable place.",
+    },
+    yellow: {
+      de: "Eine spürbare Belastung — achte heute auf genug Erholung.",
+      en: "A noticeable load — keep an eye on recovery today.",
+    },
+    red: {
+      de: "Eine hohe Belastung — heute zählt Erholung mehr als noch mehr.",
+      en: "A high load — recovery matters more than more today.",
+    },
+  },
+  STRESS_SCORE: {
+    green: {
+      de: "Dein Stress liegt niedrig — eine gute Basis für den Tag.",
+      en: "Your stress is sitting low — a good base for the day.",
+    },
+    yellow: {
+      de: "Etwas erhöhter Stress — ein ruhiger Moment kann heute helfen.",
+      en: "Slightly raised stress — a calm moment could help today.",
+    },
+    red: {
+      de: "Erhöhter Stress — ein bewusst ruhigerer Tag würde dir guttun.",
+      en: "Raised stress — a deliberately calmer day would serve you.",
+    },
+  },
+};
+
+function scoreBandMeaning(
+  metric: DerivedMetricId,
+  band: "green" | "yellow" | "red",
+  locale: Locale,
+): string | null {
+  return SCORE_BAND_MEANING[metric]?.[band]?.[locale] ?? null;
+}
+
+/**
  * Compose the deterministic per-score assessment from the score's signal +
  * its contributors. Always returns a non-empty, factual, non-causal text.
  * Leads with the score + standing, then names the 1–2 lowest contributors
@@ -357,6 +453,13 @@ export function buildDeterministicScoreAssessment(
         : "That is in line with your usual level.",
     );
   }
+
+  // v1.22 (W6) — close with a band-conditioned "what it means for today" read
+  // from the closed deterministic table, so even the provider-less + demo score
+  // cards carry the forward interpretation the WHOOP/Oura voice does, not just
+  // the attribution. No number is introduced, so the grounding posture holds.
+  const meaning = scoreBandMeaning(metric, band, locale);
+  if (meaning) sentences.push(meaning);
 
   return sentences.join(" ");
 }

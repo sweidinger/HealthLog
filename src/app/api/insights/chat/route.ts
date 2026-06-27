@@ -72,6 +72,11 @@ import {
   coachOutboundFallback,
 } from "@/lib/ai/coach/outbound-guard";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
+import {
+  openerArchetypeHint,
+  shouldUseNameForTurn,
+  firstNameFromDisplayName,
+} from "@/lib/ai/prompts/opener-archetype";
 import { getSelfContextTextForUser } from "@/lib/ai/coach/about-me";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
 import {
@@ -366,7 +371,7 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // we don't accidentally widen narrow per-call scopes.
   const prefsRow = await prisma.user.findUnique({
     where: { id: userId },
-    select: { coachPrefsJson: true },
+    select: { coachPrefsJson: true, displayName: true },
   });
   const coachPrefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
   const effectiveScope =
@@ -386,7 +391,19 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // teaches the model to emit `---REMEMBER---` (durable "remind me" capture),
   // one teaches the closed `---SUGGEST-ACTION---` confirm-card allowlist. Both
   // are provider-neutral sentinels stripped from the prose before it streams.
-  const systemPrompt = `${getCoachSystemPrompt(locale, coachPrefs, aboutMe)}\n\n${buildRememberAddendum(locale)}\n\n${buildSuggestActionAddendum(locale)}`;
+  // v1.22 (W6) — per-turn personalization: a sparse, hash-gated first name and
+  // an opener-archetype hint so multi-turn sessions vary. The turn index is the
+  // count of prior turns, so the name surfaces on ~1-in-3 turns, varied and
+  // never on a fixed cadence; both omit cleanly when no display name is set.
+  const turnIndex = priorTurns.length;
+  const firstName = firstNameFromDisplayName(prefsRow?.displayName ?? null);
+  const coachPersonalization = {
+    firstName,
+    mayUseName:
+      firstName != null && shouldUseNameForTurn(`${userId}:${turnIndex}`),
+    openerHint: openerArchetypeHint(`${userId}:${turnIndex}`, locale),
+  };
+  const systemPrompt = `${getCoachSystemPrompt(locale, coachPrefs, aboutMe, coachPersonalization)}\n\n${buildRememberAddendum(locale)}\n\n${buildSuggestActionAddendum(locale)}`;
   const allTurns: CoachTurn[] = [
     ...priorTurns,
     { role: "user", content: message },
