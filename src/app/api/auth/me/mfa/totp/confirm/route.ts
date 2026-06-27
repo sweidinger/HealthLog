@@ -13,7 +13,12 @@
  * Cookie-only (`requireCookieAuth`): an API token can never enrol MFA.
  */
 import { apiHandler, requireCookieAuth, HttpError } from "@/lib/api-handler";
-import { apiError, apiSuccess, getClientIp } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
@@ -54,10 +59,10 @@ export const POST = apiHandler(async (req: Request) => {
     throw new HttpError(409, "Start enrollment before confirming");
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
+  const { data: body, error: jsonError } = await safeJson(req, {
+    maxBytes: 4096,
+  });
+  if (jsonError) {
     throw new HttpError(400, "Invalid JSON body");
   }
   const parsed = totpConfirmSchema.safeParse(body);

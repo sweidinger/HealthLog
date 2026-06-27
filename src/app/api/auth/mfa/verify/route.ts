@@ -70,6 +70,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Invalid or expired challenge", 401);
   }
 
+  // Only a login-issued challenge may be redeemed for a session here. A future
+  // step-up or webauthn challenge kind must never mint a login session through
+  // this endpoint, so reject anything but "login" with the same generic 401.
+  if (challenge.kind !== "login") {
+    annotate({ action: { name: "auth.mfa.verify.invalid_ticket" } });
+    return apiError("Invalid or expired challenge", 401);
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: challenge.userId },
     select: {

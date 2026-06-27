@@ -117,8 +117,9 @@ export async function verifyAndConsumeRecoveryCode(
   });
 
   for (const row of rows) {
-    // Argon2id verify is constant-time; iterate the full set so the match
-    // position is not observable through timing.
+    // Argon2id verify is constant-time per code. A match returns early (the 200
+    // already reveals validity, so match-position timing leaks nothing useful);
+    // a miss scans on, so a wrong code never reveals how many remain.
     const match = await verifyPassword(row.codeHash, normalised);
     if (!match) continue;
 
