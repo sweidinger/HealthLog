@@ -230,6 +230,12 @@ describe("metadata + audience", () => {
     expect(as.grant_types_supported).toContain("refresh_token");
   });
 
+  it("AS metadata advertises the RFC 9207 iss parameter and a matching issuer", () => {
+    const as = authorizationServerMetadata();
+    expect(as.authorization_response_iss_parameter_supported).toBe(true);
+    expect(as.issuer).toBe("https://health.example");
+  });
+
   it("the WWW-Authenticate challenge points at the PRM", () => {
     expect(wwwAuthenticateChallenge()).toMatch(
       /resource_metadata="https:\/\/health\.example\/\.well-known\/oauth-protected-resource"/,

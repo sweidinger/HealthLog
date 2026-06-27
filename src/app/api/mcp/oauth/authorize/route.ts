@@ -414,10 +414,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
     const { v } = result;
 
+    // RFC 9207 — the authorization-server issuer identifier. Echoed on EVERY
+    // authorization response (success AND error) so the client can pin the
+    // response to this AS and reject a code from a substituted one.
+    const iss = resolveBaseOrigin(request.url);
+
     if (params.decision !== "allow") {
       annotate({ action: { name: "mcp.oauth.authorize.denied" } });
       return redirectBack(v.redirectUri, {
         error: "access_denied",
+        iss,
         ...(v.state !== undefined ? { state: v.state } : {}),
       });
     }
@@ -450,6 +456,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     return redirectBack(v.redirectUri, {
       code,
+      iss,
       ...(v.state !== undefined ? { state: v.state } : {}),
     });
   });
