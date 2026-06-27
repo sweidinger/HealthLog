@@ -184,6 +184,13 @@ export const measurementSourceEnum = z.enum([
   // decode the rows it surfaces; the client-facing write surfaces still
   // reject it (see `WRITABLE_MEASUREMENT_SOURCES` + the batch allowlist).
   "TELEGRAM",
+  // v1.22.0 — measurements logged through the confirmed remote MCP write
+  // surface under a `health:write`-scoped token. Server-resolved (the row is
+  // written in-process over `/mcp`, never through the cookie/Bearer client
+  // write path), so it is excluded from `WRITABLE_MEASUREMENT_SOURCES`; part
+  // of this enum so the read/response shapes (and the iOS decoder) can decode
+  // the rows it surfaces.
+  "MCP",
 ]);
 
 /**

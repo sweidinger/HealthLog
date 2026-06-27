@@ -1033,6 +1033,15 @@ enum MeasurementSource {
   // (server-resolved only); iOS DTO mirrors this spelling so the
   // /api/sync/changes delta feed decodes the rows.
   TELEGRAM
+  // v1.22.0 — measurements logged through the remote MCP write surface. A
+  // distinct provenance from MANUAL/TELEGRAM: the row was confirmed and
+  // written by an external assistant over the `/mcp` wire under a
+  // `health:write`-scoped token, never the cookie/Bearer client write path.
+  // Its own value gives the MCP writes an isolated idempotency namespace
+  // `(userId, type, MCP, externalId)`. The client batch + single-POST
+  // surfaces still reject it (server-resolved only); iOS DTO mirrors this
+  // spelling so the /api/sync/changes delta feed decodes the rows.
+  MCP
 
   @@map("measurement_source")
 }
