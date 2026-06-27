@@ -35,7 +35,8 @@
     "reportIssue": "Signaler un problème",
     "showPassword": "Afficher le mot de passe",
     "hidePassword": "Masquer le mot de passe",
-    "learnMore": "En savoir plus"
+    "learnMore": "En savoir plus",
+    "dismiss": "Ignorer"
   },
   "doctorReport": {
     "title": "Rapport de santé",
@@ -263,7 +264,21 @@
     "passkeySetupLater": "Tu peux configurer les passkeys plus tard dans les paramètres.",
     "passwordMinLength": "Min. 12 caractères",
     "passwordTooShort": "Le mot de passe doit comporter au moins {minLength} caractères.",
-    "privacyPolicy": "Politique de confidentialité"
+    "privacyPolicy": "Politique de confidentialité",
+    "mfa": {
+      "title": "Authentification à deux facteurs",
+      "totpHint": "Saisissez le code à 6 chiffres de votre application d'authentification.",
+      "recoveryHint": "Saisissez l'un de vos codes de récupération enregistrés.",
+      "securityKeyHint": "Utilisez votre clé de sécurité enregistrée pour continuer.",
+      "codeLabel": "Code d'authentification",
+      "recoveryLabel": "Code de récupération",
+      "verify": "Vérifier",
+      "verifyFailed": "Échec de la vérification. Veuillez réessayer.",
+      "useSecurityKey": "Utiliser une clé de sécurité",
+      "useRecoveryCode": "Utiliser un code de récupération",
+      "useAuthenticator": "Utiliser votre application d'authentification",
+      "backToLogin": "Retour à la connexion"
+    }
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -4197,6 +4212,10 @@
         "title": "Canaux",
         "description": "Distribution via Telegram, ntfy, Web Push, Webhook et e-mail.",
         "subtitle": "Où sont envoyés les rappels et alertes."
+      },
+      "security": {
+        "title": "Sécurité",
+        "subtitle": "Authentification à deux facteurs, codes de récupération et clés d'accès."
       }
     },
     "profile": "Profil",
@@ -4968,7 +4987,63 @@
     "polarDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "ouraDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "nightscoutDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
-    "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus."
+    "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus.",
+    "security": {
+      "active": "Actif",
+      "inactive": "Inactif",
+      "stepUpRequired": "Pour votre sécurité, reconnectez-vous pour modifier votre second facteur.",
+      "useRecoveryCode": "Utiliser plutôt un code de récupération",
+      "useAuthenticator": "Utiliser plutôt votre application d'authentification",
+      "totp": {
+        "title": "Application d'authentification",
+        "description": "Utilisez un code temporaire d'une application d'authentification comme second facteur.",
+        "setUp": "Configurer",
+        "step1": "Scannez le code QR avec votre application d'authentification, ou saisissez le secret manuellement.",
+        "step2": "Saisissez le code à 6 chiffres affiché par l'application pour confirmer.",
+        "qrAlt": "Code QR pour configurer l'application d'authentification",
+        "qrUnavailable": "Code QR indisponible",
+        "manualEntry": "Ou saisissez ce secret manuellement",
+        "enterCode": "Saisissez le code à 6 chiffres",
+        "verify": "Vérifier",
+        "setupFailed": "Impossible de démarrer la configuration. Veuillez réessayer.",
+        "invalidCode": "Ce code n'est pas valide. Veuillez réessayer.",
+        "disable": "Désactiver",
+        "disableTitle": "Désactiver l'authentification à deux facteurs",
+        "disableConfirm": "Saisissez un code actuel pour désactiver votre second facteur. Cela supprime aussi vos codes de récupération.",
+        "currentCode": "Code actuel",
+        "disableFailed": "Impossible de désactiver le second facteur."
+      },
+      "recovery": {
+        "saveNow": "Enregistrez ces codes de récupération maintenant",
+        "saveNowHint": "Chaque code ne fonctionne qu'une fois. Ils ne sont affichés que cette fois — conservez-les en lieu sûr. Si vous perdez votre authentificateur, un code de récupération est le seul moyen de revenir.",
+        "download": "Télécharger",
+        "remainingOne": "{count} code de récupération restant.",
+        "remainingOther": "{count} codes de récupération restants.",
+        "regenerate": "Régénérer les codes",
+        "regenFailed": "Impossible de régénérer les codes de récupération.",
+        "savedIt": "Je les ai enregistrés"
+      },
+      "keys": {
+        "title": "Clés de sécurité",
+        "description": "Enregistrez une clé de sécurité matérielle ou de plateforme comme second facteur.",
+        "empty": "Aucune clé de sécurité enregistrée pour le moment.",
+        "add": "Ajouter une clé de sécurité",
+        "addFailed": "Impossible d'enregistrer la clé de sécurité.",
+        "rename": "Renommer",
+        "renameFailed": "Impossible de renommer la clé de sécurité.",
+        "remove": "Supprimer la clé de sécurité",
+        "removeFailed": "Impossible de supprimer la clé de sécurité.",
+        "removeConfirm": "Cette clé de sécurité ne fonctionnera plus comme second facteur.",
+        "lastUsed": "Dernière utilisation le {date}",
+        "neverUsed": "Jamais utilisée",
+        "added": "ajoutée le {date}",
+        "nameLabel": "Nom de la clé de sécurité"
+      },
+      "passkeyNudge": {
+        "title": "Ajoutez une clé d'accès pour une connexion plus rapide",
+        "body": "Les clés d'accès vous permettent de vous connecter avec votre empreinte, votre visage ou le code de votre appareil, sans mot de passe à retenir."
+      }
+    }
   },
   "admin": {
     "title": "Administration",

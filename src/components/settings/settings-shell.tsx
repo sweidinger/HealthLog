@@ -34,6 +34,7 @@ import {
   Radio,
   Settings2,
   Share2,
+  ShieldCheck,
   SlidersHorizontal,
   Smile,
   Sparkles,
@@ -99,6 +100,13 @@ interface SettingsSection {
  */
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { slug: "account", titleKey: "settings.sections.account.title", icon: User },
+  // v1.23 — the account-security home: second factors, recovery codes,
+  // passkey management. Sits directly under Account.
+  {
+    slug: "security",
+    titleKey: "settings.sections.security.title",
+    icon: ShieldCheck,
+  },
   // v1.18.0 — the "Was du trackst" hub. Sits right below Account: the one
   // place to enable/disable the secondary tracking domains.
   {

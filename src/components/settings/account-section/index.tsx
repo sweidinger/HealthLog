@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Loader2, Save, Shield, User } from "lucide-react";
+import { Loader2, Save, Shield, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
 import { locales, localeLabels, type Locale } from "@/lib/i18n/config";
 import { useTranslations } from "@/lib/i18n/context";
-import { describePasskeyError } from "@/lib/passkey-errors";
 import { AboutMeSection } from "@/components/settings/about-me-section";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
@@ -37,7 +36,6 @@ import {
   statusText,
   type StatusMessage,
 } from "./account-section-utils";
-import { PasskeyListSection } from "./passkey-list-section";
 import { AvatarSection } from "./avatar-section";
 
 export { resolveInitialTimezone } from "./account-section-utils";
@@ -77,12 +75,8 @@ export function AccountSection() {
   >(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
-  // Passkey registration state.
-  const [passkeyLoading, setPasskeyLoading] = useState(false);
-  const [passkeyMsg, setPasskeyMsg] = useState<StatusMessage | null>(null);
-  const [passkeyMsgType, setPasskeyMsgType] = useState<
-    "success" | "error" | null
-  >(null);
+  // v1.23 — passkey + second-factor management moved to the dedicated
+  // /settings/security hub so "how I secure my account" reads as one place.
 
   // Auth gate — push back to login if the user is unauthenticated. Effect
   // intentionally only navigates (never sets state in a way that re-runs the
@@ -175,56 +169,6 @@ export function AccountSection() {
       setSaveMsgType("error");
     }
     setSaving(false);
-  }
-
-  async function handleAddPasskey() {
-    setPasskeyLoading(true);
-    setPasskeyMsg(null);
-    setPasskeyMsgType(null);
-
-    try {
-      const optRes = await apiFetchRaw("/api/auth/passkey/register-options", {
-        method: "POST",
-      });
-
-      if (!optRes.ok) {
-        setPasskeyMsg({ key: "settings.passkeyOptionsError" });
-        setPasskeyMsgType("error");
-        setPasskeyLoading(false);
-        return;
-      }
-
-      const optJson = await optRes.json();
-      const { options, challengeId } = optJson.data;
-
-      const { startRegistration } = await import("@simplewebauthn/browser");
-      const credential = await startRegistration({ optionsJSON: options });
-
-      const verifyRes = await apiFetchRaw("/api/auth/passkey/register-verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ challengeId, credential }),
-      });
-
-      if (verifyRes.ok) {
-        setPasskeyMsg({ key: "settings.passkeyAdded" });
-        setPasskeyMsgType("success");
-      } else {
-        const verifyJson = await verifyRes.json();
-        setPasskeyMsg(
-          verifyJson.error
-            ? { text: verifyJson.error }
-            : { key: "settings.passkeyRegistrationFailed" },
-        );
-        setPasskeyMsgType("error");
-      }
-    } catch (err) {
-      const { key, params } = describePasskeyError(err);
-      setPasskeyMsg({ key, params });
-      setPasskeyMsgType("error");
-    } finally {
-      setPasskeyLoading(false);
-    }
   }
 
   async function handleChangePassword(e: React.FormEvent) {
@@ -518,43 +462,6 @@ export function AccountSection() {
           lets any account opt in (or opt out) before the gated /cycle page is
           reachable. */}
       <CycleTrackingCard isAuthenticated={isAuthenticated} />
-
-      {/* Passkeys card */}
-      <SettingsCard>
-        <SettingsCardHeader
-          icon={Shield}
-          title={t("settings.passkeys")}
-          className="mb-4"
-        />
-        <div className="pl-7">
-          <PasskeyListSection isAuthenticated={isAuthenticated} />
-        </div>
-        <div className="mt-4 flex justify-end pl-7">
-          <Button
-            variant="outline"
-            className="min-h-11 sm:min-h-9"
-            onClick={handleAddPasskey}
-            disabled={passkeyLoading}
-          >
-            {passkeyLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-            ) : (
-              <KeyRound className="h-4 w-4" />
-            )}
-            {t("settings.addPasskey")}
-          </Button>
-        </div>
-        {passkeyMsg && (
-          <p
-            role="alert"
-            className={`mt-2 text-right text-sm ${
-              passkeyMsgType === "success" ? "text-success" : "text-destructive"
-            }`}
-          >
-            {statusText(passkeyMsg, t)}
-          </p>
-        )}
-      </SettingsCard>
 
       {/* Password card. v1.4.19 A6: action-button placement contract —
           on mobile (`<sm`) the action button stacks below the title +

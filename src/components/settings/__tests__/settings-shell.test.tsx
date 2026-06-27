@@ -99,6 +99,7 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // health record belongs next to the health-record export.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
+      "security",
       "modules",
       "integrations",
       "channels",

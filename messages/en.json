@@ -35,7 +35,8 @@
     "reportIssue": "Report issue",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
-    "learnMore": "Learn more"
+    "learnMore": "Learn more",
+    "dismiss": "Dismiss"
   },
   "doctorReport": {
     "title": "Health Report",
@@ -263,7 +264,21 @@
     "passkeySetupLater": "You can set up passkeys at any time in Settings.",
     "passwordMinLength": "Min. 12 characters",
     "passwordTooShort": "Password must be at least {minLength} characters long.",
-    "privacyPolicy": "Privacy policy"
+    "privacyPolicy": "Privacy policy",
+    "mfa": {
+      "title": "Two-factor authentication",
+      "totpHint": "Enter the 6-digit code from your authenticator app.",
+      "recoveryHint": "Enter one of your saved recovery codes.",
+      "securityKeyHint": "Use your registered security key to continue.",
+      "codeLabel": "Authentication code",
+      "recoveryLabel": "Recovery code",
+      "verify": "Verify",
+      "verifyFailed": "Verification failed. Please try again.",
+      "useSecurityKey": "Use a security key",
+      "useRecoveryCode": "Use a recovery code",
+      "useAuthenticator": "Use your authenticator app",
+      "backToLogin": "Back to login"
+    }
   },
   "dashboard": {
     "title": "Dashboard",
@@ -4197,6 +4212,10 @@
         "title": "Channels",
         "description": "Telegram, ntfy, Web Push, Webhook, and Email delivery.",
         "subtitle": "Where reminders and alerts are delivered."
+      },
+      "security": {
+        "title": "Security",
+        "subtitle": "Two-factor authentication, recovery codes, and passkeys."
       }
     },
     "profile": "Profile",
@@ -4968,7 +4987,63 @@
     "polarDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
     "ouraDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
     "nightscoutDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
-    "integrationCredentialsHint": "Where to find these credentials and how to register your own app is covered in the setup guide above."
+    "integrationCredentialsHint": "Where to find these credentials and how to register your own app is covered in the setup guide above.",
+    "security": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "stepUpRequired": "For your security, sign in again to change your second factor.",
+      "useRecoveryCode": "Use a recovery code instead",
+      "useAuthenticator": "Use your authenticator app instead",
+      "totp": {
+        "title": "Authenticator app",
+        "description": "Use a time-based code from an authenticator app as your second factor.",
+        "setUp": "Set up",
+        "step1": "Scan the QR code with your authenticator app, or enter the secret manually.",
+        "step2": "Enter the 6-digit code the app shows to confirm.",
+        "qrAlt": "QR code for authenticator app setup",
+        "qrUnavailable": "QR code unavailable",
+        "manualEntry": "Or enter this secret manually",
+        "enterCode": "Enter the 6-digit code",
+        "verify": "Verify",
+        "setupFailed": "Could not start setup. Please try again.",
+        "invalidCode": "That code is not valid. Please try again.",
+        "disable": "Disable",
+        "disableTitle": "Disable two-factor authentication",
+        "disableConfirm": "Enter a current code to turn off your second factor. This also deletes your recovery codes.",
+        "currentCode": "Current code",
+        "disableFailed": "Could not disable the second factor."
+      },
+      "recovery": {
+        "saveNow": "Save these recovery codes now",
+        "saveNowHint": "Each code works once. They are shown only this time — store them somewhere safe. If you lose your authenticator, a recovery code is the only way back in.",
+        "download": "Download",
+        "remainingOne": "{count} recovery code remaining.",
+        "remainingOther": "{count} recovery codes remaining.",
+        "regenerate": "Regenerate codes",
+        "regenFailed": "Could not regenerate recovery codes.",
+        "savedIt": "I've saved them"
+      },
+      "keys": {
+        "title": "Security keys",
+        "description": "Register a hardware or platform security key as a second factor.",
+        "empty": "No security keys registered yet.",
+        "add": "Add security key",
+        "addFailed": "Could not register the security key.",
+        "rename": "Rename",
+        "renameFailed": "Could not rename the security key.",
+        "remove": "Remove security key",
+        "removeFailed": "Could not remove the security key.",
+        "removeConfirm": "This security key will no longer work as a second factor.",
+        "lastUsed": "Last used {date}",
+        "neverUsed": "Never used",
+        "added": "added {date}",
+        "nameLabel": "Security key name"
+      },
+      "passkeyNudge": {
+        "title": "Add a passkey for faster sign-in",
+        "body": "Passkeys let you sign in with your fingerprint, face, or device PIN — no password to remember."
+      }
+    }
   },
   "admin": {
     "title": "Administration",

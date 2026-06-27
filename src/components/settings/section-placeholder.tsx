@@ -28,6 +28,7 @@ import {
   Radio,
   Settings2,
   Share2,
+  ShieldCheck,
   SlidersHorizontal,
   Smile,
   Sparkles,
@@ -43,6 +44,7 @@ import type { SettingsSectionSlug } from "./section-slugs";
 
 const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   account: User,
+  security: ShieldCheck,
   modules: Blocks,
   integrations: Link2,
   channels: Radio,

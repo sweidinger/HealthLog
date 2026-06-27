@@ -35,7 +35,8 @@
     "reportIssue": "Zgłoś problem",
     "showPassword": "Pokaż hasło",
     "hidePassword": "Ukryj hasło",
-    "learnMore": "Dowiedz się więcej"
+    "learnMore": "Dowiedz się więcej",
+    "dismiss": "Odrzuć"
   },
   "doctorReport": {
     "title": "Raport zdrowotny",
@@ -263,7 +264,21 @@
     "passkeySetupLater": "Passkey możesz skonfigurować później w ustawieniach.",
     "passwordMinLength": "Min. 12 znaków",
     "passwordTooShort": "Hasło musi mieć co najmniej {minLength} znaków.",
-    "privacyPolicy": "Polityka prywatności"
+    "privacyPolicy": "Polityka prywatności",
+    "mfa": {
+      "title": "Uwierzytelnianie dwuskładnikowe",
+      "totpHint": "Wprowadź 6-cyfrowy kod z aplikacji uwierzytelniającej.",
+      "recoveryHint": "Wprowadź jeden z zapisanych kodów odzyskiwania.",
+      "securityKeyHint": "Użyj zarejestrowanego klucza bezpieczeństwa, aby kontynuować.",
+      "codeLabel": "Kod uwierzytelniający",
+      "recoveryLabel": "Kod odzyskiwania",
+      "verify": "Zweryfikuj",
+      "verifyFailed": "Weryfikacja nie powiodła się. Spróbuj ponownie.",
+      "useSecurityKey": "Użyj klucza bezpieczeństwa",
+      "useRecoveryCode": "Użyj kodu odzyskiwania",
+      "useAuthenticator": "Użyj aplikacji uwierzytelniającej",
+      "backToLogin": "Powrót do logowania"
+    }
   },
   "dashboard": {
     "title": "Pulpit",
@@ -4197,6 +4212,10 @@
         "title": "Kanały",
         "description": "Dostarczanie przez Telegram, ntfy, Web Push, Webhook i e-mail.",
         "subtitle": "Gdzie dostarczane są przypomnienia i powiadomienia."
+      },
+      "security": {
+        "title": "Bezpieczeństwo",
+        "subtitle": "Uwierzytelnianie dwuskładnikowe, kody odzyskiwania i klucze dostępu."
       }
     },
     "profile": "Profil",
@@ -4968,7 +4987,63 @@
     "polarDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "ouraDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "nightscoutDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
-    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej."
+    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej.",
+    "security": {
+      "active": "Aktywne",
+      "inactive": "Nieaktywne",
+      "stepUpRequired": "Ze względów bezpieczeństwa zaloguj się ponownie, aby zmienić drugi składnik.",
+      "useRecoveryCode": "Użyj zamiast tego kodu odzyskiwania",
+      "useAuthenticator": "Użyj zamiast tego aplikacji uwierzytelniającej",
+      "totp": {
+        "title": "Aplikacja uwierzytelniająca",
+        "description": "Użyj kodu czasowego z aplikacji uwierzytelniającej jako drugiego składnika.",
+        "setUp": "Skonfiguruj",
+        "step1": "Zeskanuj kod QR aplikacją uwierzytelniającą lub wprowadź sekret ręcznie.",
+        "step2": "Wprowadź 6-cyfrowy kod wyświetlany przez aplikację, aby potwierdzić.",
+        "qrAlt": "Kod QR do konfiguracji aplikacji uwierzytelniającej",
+        "qrUnavailable": "Kod QR niedostępny",
+        "manualEntry": "Lub wprowadź ten sekret ręcznie",
+        "enterCode": "Wprowadź 6-cyfrowy kod",
+        "verify": "Zweryfikuj",
+        "setupFailed": "Nie udało się rozpocząć konfiguracji. Spróbuj ponownie.",
+        "invalidCode": "Ten kod jest nieprawidłowy. Spróbuj ponownie.",
+        "disable": "Wyłącz",
+        "disableTitle": "Wyłącz uwierzytelnianie dwuskładnikowe",
+        "disableConfirm": "Wprowadź bieżący kod, aby wyłączyć drugi składnik. Spowoduje to również usunięcie kodów odzyskiwania.",
+        "currentCode": "Bieżący kod",
+        "disableFailed": "Nie udało się wyłączyć drugiego składnika."
+      },
+      "recovery": {
+        "saveNow": "Zapisz teraz te kody odzyskiwania",
+        "saveNowHint": "Każdy kod działa raz. Są wyświetlane tylko teraz — przechowuj je w bezpiecznym miejscu. Jeśli stracisz aplikację uwierzytelniającą, kod odzyskiwania będzie jedyną drogą powrotu.",
+        "download": "Pobierz",
+        "remainingOne": "Pozostał {count} kod odzyskiwania.",
+        "remainingOther": "Pozostało {count} kodów odzyskiwania.",
+        "regenerate": "Wygeneruj kody ponownie",
+        "regenFailed": "Nie udało się ponownie wygenerować kodów odzyskiwania.",
+        "savedIt": "Zapisałem je"
+      },
+      "keys": {
+        "title": "Klucze bezpieczeństwa",
+        "description": "Zarejestruj sprzętowy lub systemowy klucz bezpieczeństwa jako drugi składnik.",
+        "empty": "Nie zarejestrowano jeszcze żadnych kluczy bezpieczeństwa.",
+        "add": "Dodaj klucz bezpieczeństwa",
+        "addFailed": "Nie udało się zarejestrować klucza bezpieczeństwa.",
+        "rename": "Zmień nazwę",
+        "renameFailed": "Nie udało się zmienić nazwy klucza bezpieczeństwa.",
+        "remove": "Usuń klucz bezpieczeństwa",
+        "removeFailed": "Nie udało się usunąć klucza bezpieczeństwa.",
+        "removeConfirm": "Ten klucz bezpieczeństwa nie będzie już działać jako drugi składnik.",
+        "lastUsed": "Ostatnio użyty {date}",
+        "neverUsed": "Nigdy nieużywany",
+        "added": "dodany {date}",
+        "nameLabel": "Nazwa klucza bezpieczeństwa"
+      },
+      "passkeyNudge": {
+        "title": "Dodaj klucz dostępu, aby logować się szybciej",
+        "body": "Klucze dostępu pozwalają logować się odciskiem palca, twarzą lub kodem PIN urządzenia — bez hasła do zapamiętania."
+      }
+    }
   },
   "admin": {
     "title": "Administracja",

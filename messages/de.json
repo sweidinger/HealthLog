@@ -35,7 +35,8 @@
     "reportIssue": "Fehler melden",
     "showPassword": "Passwort anzeigen",
     "hidePassword": "Passwort verbergen",
-    "learnMore": "Mehr erfahren"
+    "learnMore": "Mehr erfahren",
+    "dismiss": "Schließen"
   },
   "doctorReport": {
     "title": "Gesundheitsbericht",
@@ -263,7 +264,21 @@
     "passkeySetupLater": "Passkeys kannst du jederzeit in den Einstellungen einrichten.",
     "passwordMinLength": "Min. 12 Zeichen",
     "passwordTooShort": "Passwort muss mindestens {minLength} Zeichen lang sein.",
-    "privacyPolicy": "Datenschutzerklärung"
+    "privacyPolicy": "Datenschutzerklärung",
+    "mfa": {
+      "title": "Zwei-Faktor-Authentifizierung",
+      "totpHint": "Gib den 6-stelligen Code aus deiner Authenticator-App ein.",
+      "recoveryHint": "Gib einen deiner gespeicherten Wiederherstellungscodes ein.",
+      "securityKeyHint": "Verwende deinen registrierten Sicherheitsschlüssel, um fortzufahren.",
+      "codeLabel": "Authentifizierungscode",
+      "recoveryLabel": "Wiederherstellungscode",
+      "verify": "Bestätigen",
+      "verifyFailed": "Bestätigung fehlgeschlagen. Bitte versuche es erneut.",
+      "useSecurityKey": "Sicherheitsschlüssel verwenden",
+      "useRecoveryCode": "Wiederherstellungscode verwenden",
+      "useAuthenticator": "Authenticator-App verwenden",
+      "backToLogin": "Zurück zur Anmeldung"
+    }
   },
   "dashboard": {
     "title": "Dashboard",
@@ -4197,6 +4212,10 @@
         "title": "Kanäle",
         "description": "Zustellung über Telegram, ntfy, Web-Push, Webhook und E-Mail.",
         "subtitle": "Wohin Erinnerungen und Hinweise zugestellt werden."
+      },
+      "security": {
+        "title": "Sicherheit",
+        "subtitle": "Zwei-Faktor-Authentifizierung, Wiederherstellungscodes und Passkeys."
       }
     },
     "profile": "Profil",
@@ -4968,7 +4987,63 @@
     "polarDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "ouraDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "nightscoutDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
-    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben."
+    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben.",
+    "security": {
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "stepUpRequired": "Melde dich aus Sicherheitsgründen erneut an, um deinen zweiten Faktor zu ändern.",
+      "useRecoveryCode": "Stattdessen Wiederherstellungscode verwenden",
+      "useAuthenticator": "Stattdessen Authenticator-App verwenden",
+      "totp": {
+        "title": "Authenticator-App",
+        "description": "Verwende einen zeitbasierten Code aus einer Authenticator-App als zweiten Faktor.",
+        "setUp": "Einrichten",
+        "step1": "Scanne den QR-Code mit deiner Authenticator-App oder gib das Geheimnis manuell ein.",
+        "step2": "Gib zur Bestätigung den 6-stelligen Code aus der App ein.",
+        "qrAlt": "QR-Code zur Einrichtung der Authenticator-App",
+        "qrUnavailable": "QR-Code nicht verfügbar",
+        "manualEntry": "Oder gib dieses Geheimnis manuell ein",
+        "enterCode": "Gib den 6-stelligen Code ein",
+        "verify": "Bestätigen",
+        "setupFailed": "Einrichtung konnte nicht gestartet werden. Bitte versuche es erneut.",
+        "invalidCode": "Dieser Code ist ungültig. Bitte versuche es erneut.",
+        "disable": "Deaktivieren",
+        "disableTitle": "Zwei-Faktor-Authentifizierung deaktivieren",
+        "disableConfirm": "Gib einen aktuellen Code ein, um deinen zweiten Faktor abzuschalten. Damit werden auch deine Wiederherstellungscodes gelöscht.",
+        "currentCode": "Aktueller Code",
+        "disableFailed": "Der zweite Faktor konnte nicht deaktiviert werden."
+      },
+      "recovery": {
+        "saveNow": "Speichere diese Wiederherstellungscodes jetzt",
+        "saveNowHint": "Jeder Code funktioniert einmal. Sie werden nur dieses eine Mal angezeigt — bewahre sie sicher auf. Wenn du deine Authenticator-App verlierst, ist ein Wiederherstellungscode der einzige Weg zurück.",
+        "download": "Herunterladen",
+        "remainingOne": "{count} Wiederherstellungscode übrig.",
+        "remainingOther": "{count} Wiederherstellungscodes übrig.",
+        "regenerate": "Codes neu erzeugen",
+        "regenFailed": "Wiederherstellungscodes konnten nicht neu erzeugt werden.",
+        "savedIt": "Ich habe sie gespeichert"
+      },
+      "keys": {
+        "title": "Sicherheitsschlüssel",
+        "description": "Registriere einen Hardware- oder Plattform-Sicherheitsschlüssel als zweiten Faktor.",
+        "empty": "Noch keine Sicherheitsschlüssel registriert.",
+        "add": "Sicherheitsschlüssel hinzufügen",
+        "addFailed": "Der Sicherheitsschlüssel konnte nicht registriert werden.",
+        "rename": "Umbenennen",
+        "renameFailed": "Der Sicherheitsschlüssel konnte nicht umbenannt werden.",
+        "remove": "Sicherheitsschlüssel entfernen",
+        "removeFailed": "Der Sicherheitsschlüssel konnte nicht entfernt werden.",
+        "removeConfirm": "Dieser Sicherheitsschlüssel funktioniert dann nicht mehr als zweiter Faktor.",
+        "lastUsed": "Zuletzt verwendet {date}",
+        "neverUsed": "Noch nie verwendet",
+        "added": "hinzugefügt {date}",
+        "nameLabel": "Name des Sicherheitsschlüssels"
+      },
+      "passkeyNudge": {
+        "title": "Füge einen Passkey für schnellere Anmeldung hinzu",
+        "body": "Mit Passkeys meldest du dich per Fingerabdruck, Gesicht oder Geräte-PIN an — ohne Passwort zum Merken."
+      }
+    }
   },
   "admin": {
     "title": "Administration",

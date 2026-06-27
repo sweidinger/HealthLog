@@ -35,7 +35,8 @@
     "reportIssue": "Segnala un problema",
     "showPassword": "Mostra password",
     "hidePassword": "Nascondi password",
-    "learnMore": "Scopri di più"
+    "learnMore": "Scopri di più",
+    "dismiss": "Ignora"
   },
   "doctorReport": {
     "title": "Rapporto sanitario",
@@ -263,7 +264,21 @@
     "passkeySetupLater": "Puoi configurare le passkey più tardi dalle impostazioni.",
     "passwordMinLength": "Min. 12 caratteri",
     "passwordTooShort": "La password deve avere almeno {minLength} caratteri.",
-    "privacyPolicy": "Informativa sulla privacy"
+    "privacyPolicy": "Informativa sulla privacy",
+    "mfa": {
+      "title": "Autenticazione a due fattori",
+      "totpHint": "Inserisci il codice a 6 cifre della tua app di autenticazione.",
+      "recoveryHint": "Inserisci uno dei tuoi codici di recupero salvati.",
+      "securityKeyHint": "Usa la tua chiave di sicurezza registrata per continuare.",
+      "codeLabel": "Codice di autenticazione",
+      "recoveryLabel": "Codice di recupero",
+      "verify": "Verifica",
+      "verifyFailed": "Verifica non riuscita. Riprova.",
+      "useSecurityKey": "Usa una chiave di sicurezza",
+      "useRecoveryCode": "Usa un codice di recupero",
+      "useAuthenticator": "Usa la tua app di autenticazione",
+      "backToLogin": "Torna all'accesso"
+    }
   },
   "dashboard": {
     "title": "Cruscotto",
@@ -4197,6 +4212,10 @@
         "title": "Canali",
         "description": "Recapito tramite Telegram, ntfy, Web Push, Webhook ed e-mail.",
         "subtitle": "Dove vengono recapitati promemoria e avvisi."
+      },
+      "security": {
+        "title": "Sicurezza",
+        "subtitle": "Autenticazione a due fattori, codici di recupero e passkey."
       }
     },
     "profile": "Profilo",
@@ -4968,7 +4987,63 @@
     "polarDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
     "ouraDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
     "nightscoutDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
-    "integrationCredentialsHint": "Dove trovare queste credenziali e come registrare la tua app è spiegato nella guida alla configurazione qui sopra."
+    "integrationCredentialsHint": "Dove trovare queste credenziali e come registrare la tua app è spiegato nella guida alla configurazione qui sopra.",
+    "security": {
+      "active": "Attivo",
+      "inactive": "Inattivo",
+      "stepUpRequired": "Per la tua sicurezza, accedi di nuovo per modificare il secondo fattore.",
+      "useRecoveryCode": "Usa invece un codice di recupero",
+      "useAuthenticator": "Usa invece la tua app di autenticazione",
+      "totp": {
+        "title": "App di autenticazione",
+        "description": "Usa un codice temporaneo di un'app di autenticazione come secondo fattore.",
+        "setUp": "Configura",
+        "step1": "Scansiona il codice QR con la tua app di autenticazione oppure inserisci il segreto manualmente.",
+        "step2": "Inserisci il codice a 6 cifre mostrato dall'app per confermare.",
+        "qrAlt": "Codice QR per la configurazione dell'app di autenticazione",
+        "qrUnavailable": "Codice QR non disponibile",
+        "manualEntry": "Oppure inserisci questo segreto manualmente",
+        "enterCode": "Inserisci il codice a 6 cifre",
+        "verify": "Verifica",
+        "setupFailed": "Impossibile avviare la configurazione. Riprova.",
+        "invalidCode": "Questo codice non è valido. Riprova.",
+        "disable": "Disattiva",
+        "disableTitle": "Disattiva l'autenticazione a due fattori",
+        "disableConfirm": "Inserisci un codice attuale per disattivare il secondo fattore. Questo elimina anche i tuoi codici di recupero.",
+        "currentCode": "Codice attuale",
+        "disableFailed": "Impossibile disattivare il secondo fattore."
+      },
+      "recovery": {
+        "saveNow": "Salva subito questi codici di recupero",
+        "saveNowHint": "Ogni codice funziona una sola volta. Vengono mostrati solo questa volta: conservali in un luogo sicuro. Se perdi l'autenticatore, un codice di recupero è l'unico modo per rientrare.",
+        "download": "Scarica",
+        "remainingOne": "{count} codice di recupero rimanente.",
+        "remainingOther": "{count} codici di recupero rimanenti.",
+        "regenerate": "Rigenera i codici",
+        "regenFailed": "Impossibile rigenerare i codici di recupero.",
+        "savedIt": "Li ho salvati"
+      },
+      "keys": {
+        "title": "Chiavi di sicurezza",
+        "description": "Registra una chiave di sicurezza hardware o di piattaforma come secondo fattore.",
+        "empty": "Nessuna chiave di sicurezza ancora registrata.",
+        "add": "Aggiungi chiave di sicurezza",
+        "addFailed": "Impossibile registrare la chiave di sicurezza.",
+        "rename": "Rinomina",
+        "renameFailed": "Impossibile rinominare la chiave di sicurezza.",
+        "remove": "Rimuovi chiave di sicurezza",
+        "removeFailed": "Impossibile rimuovere la chiave di sicurezza.",
+        "removeConfirm": "Questa chiave di sicurezza non funzionerà più come secondo fattore.",
+        "lastUsed": "Usata l'ultima volta il {date}",
+        "neverUsed": "Mai usata",
+        "added": "aggiunta il {date}",
+        "nameLabel": "Nome della chiave di sicurezza"
+      },
+      "passkeyNudge": {
+        "title": "Aggiungi una passkey per un accesso più rapido",
+        "body": "Le passkey ti permettono di accedere con impronta, volto o PIN del dispositivo, senza password da ricordare."
+      }
+    }
   },
   "admin": {
     "title": "Administration",

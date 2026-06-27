@@ -49,6 +49,10 @@
 // its own top-level entry.
 export const SETTINGS_SECTION_SLUGS = [
   "account",
+  // v1.23 — `security` is the dedicated account-security home: second-factor
+  // setup (TOTP + security keys), recovery codes, and passkey management. Sits
+  // right after `account` so the two identity surfaces read as neighbours.
+  "security",
   // v1.18.0 — `modules` ("Was du trackst") sits right after account: the
   // single front door for enabling/disabling secondary tracking domains.
   "modules",
