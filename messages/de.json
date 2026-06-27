@@ -276,7 +276,8 @@
       "useSecurityKey": "Sicherheitsschlüssel verwenden",
       "useRecoveryCode": "Wiederherstellungscode verwenden",
       "useAuthenticator": "Authenticator-App verwenden",
-      "backToLogin": "Zurück zur Anmeldung"
+      "backToLogin": "Zurück zur Anmeldung",
+      "rememberDevice": "Diesem Gerät 30 Tage vertrauen"
     }
   },
   "dashboard": {
@@ -5074,6 +5075,18 @@
       "passkeyNudge": {
         "title": "Füge einen Passkey für schnellere Anmeldung hinzu",
         "body": "Mit Passkeys meldest du dich per Fingerabdruck, Gesicht oder Geräte-PIN an — ohne Passwort zum Merken."
+      },
+      "trustedDevices": {
+        "title": "Vertrauenswürdige Geräte",
+        "description": "Browser, denen du vertraust, überspringen den zweiten Faktor für 30 Tage. Das Passwort wird weiterhin verlangt. Entziehe das Vertrauen, wenn du ein Gerät nicht kennst.",
+        "loadError": "Vertrauenswürdige Geräte konnten nicht geladen werden.",
+        "revokeError": "Gerät konnte nicht entfernt werden. Bitte erneut versuchen.",
+        "revoke": "Entfernen",
+        "revokeAll": "Alle Geräte vergessen",
+        "revokeAllDone": "{count} vertrauenswürdige(s) Gerät(e) entfernt.",
+        "unnamed": "Unbekanntes Gerät",
+        "current": "Dieses Gerät",
+        "expires": "Vertraut bis {date}"
       }
     }
   },

@@ -211,6 +211,10 @@ export async function destroyAllSessions(userId: string): Promise<void> {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     }),
+    // v1.23 — a credential rotation also kills every "remember this device"
+    // trusted-device token: a stolen device cookie must not survive a
+    // password change or account-credential remediation.
+    prisma.trustedDevice.deleteMany({ where: { userId } }),
   ]);
 }
 
@@ -238,6 +242,10 @@ export async function destroyOtherSessions(
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     }),
+    // v1.23 — "sign out everywhere" also drops every trusted device so a
+    // remembered browser can no longer skip the second factor (§1.7: a device
+    // cookie is killed on sign-out-everywhere).
+    prisma.trustedDevice.deleteMany({ where: { userId } }),
   ]);
   return { sessionsRevoked: deleted.count };
 }

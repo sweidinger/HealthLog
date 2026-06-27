@@ -276,7 +276,8 @@
       "useSecurityKey": "Usa una chiave di sicurezza",
       "useRecoveryCode": "Usa un codice di recupero",
       "useAuthenticator": "Usa la tua app di autenticazione",
-      "backToLogin": "Torna all'accesso"
+      "backToLogin": "Torna all'accesso",
+      "rememberDevice": "Considera attendibile questo dispositivo per 30 giorni"
     }
   },
   "dashboard": {
@@ -5074,6 +5075,18 @@
       "passkeyNudge": {
         "title": "Aggiungi una passkey per un accesso più rapido",
         "body": "Le passkey ti permettono di accedere con impronta, volto o PIN del dispositivo, senza password da ricordare."
+      },
+      "trustedDevices": {
+        "title": "Dispositivi attendibili",
+        "description": "I browser che hai scelto di considerare attendibili saltano il secondo fattore per 30 giorni. La password è comunque richiesta. Revoca quelli che non riconosci.",
+        "loadError": "Impossibile caricare i dispositivi attendibili.",
+        "revokeError": "Impossibile revocare il dispositivo. Riprova.",
+        "revoke": "Revoca",
+        "revokeAll": "Dimentica tutti i dispositivi",
+        "revokeAllDone": "Dimenticati {count} dispositivo/i attendibile/i.",
+        "unnamed": "Dispositivo sconosciuto",
+        "current": "Questo dispositivo",
+        "expires": "Attendibile fino al {date}"
       }
     }
   },

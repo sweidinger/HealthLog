@@ -276,7 +276,8 @@
       "useSecurityKey": "Utiliser une clé de sécurité",
       "useRecoveryCode": "Utiliser un code de récupération",
       "useAuthenticator": "Utiliser votre application d'authentification",
-      "backToLogin": "Retour à la connexion"
+      "backToLogin": "Retour à la connexion",
+      "rememberDevice": "Faire confiance à cet appareil pendant 30 jours"
     }
   },
   "dashboard": {
@@ -5074,6 +5075,18 @@
       "passkeyNudge": {
         "title": "Ajoutez une clé d'accès pour une connexion plus rapide",
         "body": "Les clés d'accès vous permettent de vous connecter avec votre empreinte, votre visage ou le code de votre appareil, sans mot de passe à retenir."
+      },
+      "trustedDevices": {
+        "title": "Appareils de confiance",
+        "description": "Les navigateurs auxquels vous faites confiance ignorent le second facteur pendant 30 jours. Le mot de passe reste requis. Révoquez ceux que vous ne reconnaissez pas.",
+        "loadError": "Impossible de charger les appareils de confiance.",
+        "revokeError": "Impossible de révoquer l'appareil. Veuillez réessayer.",
+        "revoke": "Révoquer",
+        "revokeAll": "Oublier tous les appareils",
+        "revokeAllDone": "{count} appareil(s) de confiance oublié(s).",
+        "unnamed": "Appareil inconnu",
+        "current": "Cet appareil",
+        "expires": "De confiance jusqu'au {date}"
       }
     }
   },

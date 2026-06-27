@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+vi.mock("@/lib/auth/mfa-enrollment", () => ({
+  setMfaEnrollCookie: vi.fn().mockResolvedValue(undefined),
+  syncMfaEnrollCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/api-handler", () => ({
   apiHandler: (fn: unknown) => fn,
 }));

@@ -10,6 +10,7 @@ import { TotpCard } from "./totp-card";
 import { SecurityKeysCard, type WebauthnKeyInfo } from "./security-keys-card";
 import { PasskeyListSection } from "./passkey-list-section";
 import { PasskeyUpgradeNudge } from "./passkey-upgrade-nudge";
+import { TrustedDevicesCard } from "@/components/settings/trusted-devices-card";
 
 interface MfaStatus {
   totp: { enabled: boolean };
@@ -67,6 +68,8 @@ export function SecuritySection() {
       <SecurityKeysCard keys={status.webauthn} />
 
       <PasskeyListSection isAuthenticated={isAuthenticated} />
+
+      <TrustedDevicesCard isAuthenticated={isAuthenticated} />
     </div>
   );
 }

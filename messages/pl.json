@@ -276,7 +276,8 @@
       "useSecurityKey": "Użyj klucza bezpieczeństwa",
       "useRecoveryCode": "Użyj kodu odzyskiwania",
       "useAuthenticator": "Użyj aplikacji uwierzytelniającej",
-      "backToLogin": "Powrót do logowania"
+      "backToLogin": "Powrót do logowania",
+      "rememberDevice": "Zaufaj temu urządzeniu na 30 dni"
     }
   },
   "dashboard": {
@@ -5074,6 +5075,18 @@
       "passkeyNudge": {
         "title": "Dodaj klucz dostępu, aby logować się szybciej",
         "body": "Klucze dostępu pozwalają logować się odciskiem palca, twarzą lub kodem PIN urządzenia — bez hasła do zapamiętania."
+      },
+      "trustedDevices": {
+        "title": "Zaufane urządzenia",
+        "description": "Przeglądarki, którym zaufałeś, pomijają drugi składnik przez 30 dni. Hasło jest nadal wymagane. Cofnij zaufanie tym, których nie rozpoznajesz.",
+        "loadError": "Nie udało się załadować zaufanych urządzeń.",
+        "revokeError": "Nie udało się cofnąć urządzenia. Spróbuj ponownie.",
+        "revoke": "Cofnij",
+        "revokeAll": "Zapomnij wszystkie urządzenia",
+        "revokeAllDone": "Zapomniano {count} zaufane urządzenie/a.",
+        "unnamed": "Nieznane urządzenie",
+        "current": "To urządzenie",
+        "expires": "Zaufane do {date}"
       }
     }
   },

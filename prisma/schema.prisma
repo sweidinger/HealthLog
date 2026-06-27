@@ -576,6 +576,10 @@ model User {
   mfaRecoveryCodes            MfaRecoveryCode[]
   webauthnMfaCredentials      WebauthnMfaCredential[]
   knownDevices                UserKnownDevice[]
+  // v1.23 — "remember this device" trusted-device tokens. A trusted device
+  // skips the second factor (factor 2 only) within the window; the password
+  // is still required. Revoked when the second factor is removed.
+  trustedDevices              TrustedDevice[]
   measurements                Measurement[]
   medications                 Medication[]
   intakeEvents                MedicationIntakeEvent[]
@@ -900,6 +904,34 @@ model UserKnownDevice {
   @@unique([userId, deviceHash])
   @@index([userId])
   @@map("user_known_devices")
+}
+
+// v1.23 — "remember this device" trusted-device token.
+//
+// At the second-factor step the user may opt in to trusting the browser for 30
+// days. On opt-in a random token is minted, set in an httpOnly+Secure cookie,
+// and only its HMAC hash (`tokenHash`, keyed by `API_TOKEN_HMAC_KEY`) is stored
+// here — a leaked row cannot reconstruct a usable cookie. On a later sign-in
+// from the same browser the password is still required (factor 1); a matching,
+// unexpired trusted-device row lets the login skip factor 2 only. The token is
+// NEVER accepted for step-up (`requireFreshMfa`) — a stolen cookie cannot reach
+// a destructive action. Revocable from the device list and revoked wholesale
+// when the second factor is removed or the user signs out everywhere.
+model TrustedDevice {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  tokenHash  String   @unique @map("token_hash")
+  label      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  expiresAt  DateTime @map("expires_at")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  // The reaper for expired trusted devices sweeps on `expiresAt`.
+  @@index([expiresAt])
+  @@map("trusted_devices")
 }
 
 model AuthChallenge {
@@ -3216,6 +3248,14 @@ model IntegrationStatus {
 model AppSettings {
   id                              String  @id @default("singleton")
   registrationEnabled             Boolean @default(true) @map("registration_enabled")
+  // v1.23 — instance-wide "require a second factor" policy. When true, every
+  // account without an active second factor (no confirmed TOTP and no
+  // registered security key) is sent through a forced-enrollment interstitial
+  // after sign-in until it enrolls one. A per-user override lives on
+  // `User.mfaEnforced`; the effective requirement is the OR of the two. The
+  // operator/CLI escape hatch (`scripts/disable-mfa.ts`, toggling this off)
+  // keeps the policy from locking anyone out irrecoverably.
+  mfaRequired                     Boolean @default(false) @map("mfa_required")
   defaultLocale                   String  @default("de") @map("default_locale") // "de" | "en"
   telegramGlobal                  Boolean @default(true) @map("telegram_global") // global toggle
   ntfyGlobal                      Boolean @default(true) @map("ntfy_global") // global toggle

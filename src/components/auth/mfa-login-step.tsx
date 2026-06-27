@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { KeyRound, Loader2, Lock, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
@@ -35,6 +36,7 @@ export function MfaLoginStep({
   const { t } = useTranslations();
   const codeFieldId = useId();
   const errorId = useId();
+  const rememberId = useId();
 
   const hasTotp = methods.includes("totp");
   const hasWebauthn = methods.includes("webauthn");
@@ -42,6 +44,9 @@ export function MfaLoginStep({
   // Default to a code entry when TOTP is available; otherwise lead with the
   // security-key path (a WebAuthn-only account).
   const [useRecovery, setUseRecovery] = useState(false);
+  // v1.23 — "remember this device" opt-in. Off by default (a 2FA-bypass token
+  // is opt-in only); a recovery-code login forces it off server-side.
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +60,7 @@ export function MfaLoginStep({
         mfaTicket,
         method: useRecovery ? "recovery" : "totp",
         code: code.trim(),
+        rememberDevice: useRecovery ? false : rememberDevice,
       });
       onSuccess();
     } catch (err) {
@@ -82,6 +88,7 @@ export function MfaLoginStep({
         mfaTicket,
         challengeId,
         credential,
+        rememberDevice,
       });
       onSuccess();
     } catch (err) {
@@ -167,6 +174,23 @@ export function MfaLoginStep({
           <KeyRound className="h-4 w-4" />
           {t("auth.mfa.useSecurityKey")}
         </Button>
+      )}
+
+      {/* v1.23 — "remember this device". Hidden on the recovery path (a
+          recovery-code login signals a lost device, so trusting the browser
+          would be unsafe — the server forces it off there too). */}
+      {!useRecovery && (
+        <label
+          htmlFor={rememberId}
+          className="text-muted-foreground flex items-center gap-2 text-sm"
+        >
+          <Checkbox
+            id={rememberId}
+            checked={rememberDevice}
+            onCheckedChange={(v) => setRememberDevice(v === true)}
+          />
+          {t("auth.mfa.rememberDevice")}
+        </label>
       )}
 
       {hasTotp && (

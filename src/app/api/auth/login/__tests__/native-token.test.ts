@@ -17,6 +17,14 @@ vi.mock("@/lib/auth/password", () => ({
   verifyPassword: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/mfa-enrollment", () => ({
+  syncMfaEnrollCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/auth/login-alert", () => ({
+  recordSignInDevice: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/auth/session", () => ({
   createSession: vi.fn().mockResolvedValue("session-id"),
   setOnboardingPendingCookie: vi.fn().mockResolvedValue(undefined),

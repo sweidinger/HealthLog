@@ -32,6 +32,9 @@ import {
 } from "@/lib/auth/mfa/challenge";
 import { verifyMfaFactor } from "@/lib/auth/mfa/verify-factor";
 import { mfaVerifySchema } from "@/lib/validations/mfa";
+import { mintTrustedDevice } from "@/lib/auth/trusted-device";
+import { coarseDeviceLabel } from "@/lib/auth/device-fingerprint";
+import { setMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +63,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (!parsed.success) {
     return apiError("Invalid request", 422);
   }
-  const { mfaTicket, method, code } = parsed.data;
+  const { mfaTicket, method, code, rememberDevice } = parsed.data;
 
   // Resolve the ticket. A single generic 401 covers unknown / expired /
   // consumed / over-cap so a ticket-guesser learns nothing.
@@ -136,6 +139,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
   annotate({ action: { name: "auth.mfa.verified" }, meta: { method } });
 
   const ua = request.headers.get("user-agent");
+
+  // The user just completed a second factor, so any forced-enrollment redirect
+  // must clear immediately.
+  await setMfaEnrollCookie(false);
+
+  // v1.23 — "remember this device". Mint the trusted-device token + cookie
+  // (only its hash is stored) so subsequent logins from this browser skip the
+  // second factor for 30 days. Set BEFORE finishLogin so both cookies land on
+  // the same response. A recovery-code login is excluded: it signals the user
+  // lost their device, so trusting the current browser would be unsafe.
+  if (rememberDevice && method !== "recovery") {
+    await mintTrustedDevice(user.id, coarseDeviceLabel(ua));
+  }
+
   return finishLogin({
     user,
     request,

@@ -30,6 +30,9 @@ import {
 } from "@/lib/auth/mfa/challenge";
 import { verifyMfaAuthentication } from "@/lib/auth/mfa/webauthn";
 import { mfaWebauthnLoginVerifySchema } from "@/lib/validations/mfa";
+import { mintTrustedDevice } from "@/lib/auth/trusted-device";
+import { coarseDeviceLabel } from "@/lib/auth/device-fingerprint";
+import { setMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +61,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (!parsed.success) {
     return apiError("Invalid request", 422);
   }
-  const { mfaTicket, challengeId, credential } = parsed.data;
+  const { mfaTicket, challengeId, credential, rememberDevice } = parsed.data;
 
   const challenge = await loadActiveChallenge(mfaTicket);
   if (!challenge) {
@@ -116,6 +119,16 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   const ua = request.headers.get("user-agent");
+
+  // The user just completed a second factor — clear any forced-enrollment hint.
+  await setMfaEnrollCookie(false);
+
+  // v1.23 — "remember this device": skip the second factor on this browser for
+  // 30 days. Set before finishLogin so both cookies share the response.
+  if (rememberDevice) {
+    await mintTrustedDevice(user.id, coarseDeviceLabel(ua));
+  }
+
   return finishLogin({
     user,
     request,

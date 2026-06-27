@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("@/lib/auth/mfa-enrollment", () => ({
+  setMfaEnrollCookie: vi.fn().mockResolvedValue(undefined),
+  syncMfaEnrollCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findFirst: vi.fn() },

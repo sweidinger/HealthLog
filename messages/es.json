@@ -276,7 +276,8 @@
       "useSecurityKey": "Usar una llave de seguridad",
       "useRecoveryCode": "Usar un código de recuperación",
       "useAuthenticator": "Usar tu aplicación de autenticación",
-      "backToLogin": "Volver al inicio de sesión"
+      "backToLogin": "Volver al inicio de sesión",
+      "rememberDevice": "Confiar en este dispositivo durante 30 días"
     }
   },
   "dashboard": {
@@ -5074,6 +5075,18 @@
       "passkeyNudge": {
         "title": "Añade una clave de acceso para iniciar sesión más rápido",
         "body": "Las claves de acceso te permiten iniciar sesión con tu huella, tu cara o el PIN del dispositivo, sin contraseñas que recordar."
+      },
+      "trustedDevices": {
+        "title": "Dispositivos de confianza",
+        "description": "Los navegadores en los que confías omiten el segundo factor durante 30 días. La contraseña sigue siendo obligatoria. Revoca los que no reconozcas.",
+        "loadError": "No se pudieron cargar los dispositivos de confianza.",
+        "revokeError": "No se pudo revocar el dispositivo. Inténtalo de nuevo.",
+        "revoke": "Revocar",
+        "revokeAll": "Olvidar todos los dispositivos",
+        "revokeAllDone": "Se olvidaron {count} dispositivo(s) de confianza.",
+        "unnamed": "Dispositivo desconocido",
+        "current": "Este dispositivo",
+        "expires": "De confianza hasta el {date}"
       }
     }
   },

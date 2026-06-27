@@ -276,7 +276,8 @@
       "useSecurityKey": "Use a security key",
       "useRecoveryCode": "Use a recovery code",
       "useAuthenticator": "Use your authenticator app",
-      "backToLogin": "Back to login"
+      "backToLogin": "Back to login",
+      "rememberDevice": "Trust this device for 30 days"
     }
   },
   "dashboard": {
@@ -5074,6 +5075,18 @@
       "passkeyNudge": {
         "title": "Add a passkey for faster sign-in",
         "body": "Passkeys let you sign in with your fingerprint, face, or device PIN — no password to remember."
+      },
+      "trustedDevices": {
+        "title": "Trusted devices",
+        "description": "Browsers you chose to trust skip the second factor for 30 days. The password is still required. Revoke any you don't recognize.",
+        "loadError": "Could not load trusted devices.",
+        "revokeError": "Could not revoke the device. Please try again.",
+        "revoke": "Revoke",
+        "revokeAll": "Forget all devices",
+        "revokeAllDone": "Forgot {count} trusted device(s).",
+        "unnamed": "Unknown device",
+        "current": "This device",
+        "expires": "Trusted until {date}"
       }
     }
   },

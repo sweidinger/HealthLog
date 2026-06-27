@@ -1779,6 +1779,60 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
+  /api/auth/me/trusted-devices:
+    get:
+      tags:
+        - Auth
+      summary: List trusted devices
+      description: v1.23 — the 'remember this device' list. A trusted device skips the second factor for 30 days (the password
+        is still required). Returns only an IP-free device label + lifecycle timestamps, never the token.
+      responses:
+        "200":
+          description: Trusted devices for the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustedDeviceListEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Auth
+      summary: Forget every trusted device
+      description: v1.23 — revokes all trusted devices for the caller and clears the caller's own trusted-device cookie.
+      responses:
+        "200":
+          description: All trusted devices revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustedDeviceRevokeAllEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/trusted-devices/{id}:
+    delete:
+      tags:
+        - Auth
+      summary: Revoke a single trusted device
+      description: v1.23 — revokes one trusted device by id, scoped to the authenticated user (a foreign id returns 404).
+      responses:
+        "200":
+          description: Trusted device revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustedDeviceRevokeEnvelope"
+        "401": *a1
+        "404":
+          description: Trusted device not found or not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
   /api/auth/me/security-activity:
     get:
       tags:
@@ -7883,6 +7937,10 @@ components:
           type: string
           minLength: 6
           maxLength: 32
+        rememberDevice:
+          description: Opt in to trusting this device for 30 days — subsequent logins skip the second factor (the password is
+            still required).
+          type: boolean
       required:
         - mfaTicket
         - code
@@ -8006,6 +8064,10 @@ components:
             - type
             - response
           description: SimpleWebAuthn ceremony response payload.
+        rememberDevice:
+          description: Opt in to trusting this device for 30 days — subsequent logins skip the second factor (the password is
+            still required).
+          type: boolean
       required:
         - mfaTicket
         - challengeId
@@ -11663,6 +11725,112 @@ components:
         - sessionsRevoked
       additionalProperties: false
     SessionRevokeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            revoked:
+              type: boolean
+          required:
+            - revoked
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TrustedDeviceListEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TrustedDeviceListResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TrustedDeviceListResponse:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              label:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: Coarse, IP-free device label (e.g. 'Firefox on macOS').
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              lastUsedAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              expiresAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              isCurrent:
+                type: boolean
+                description: True for the device making this request.
+            required:
+              - id
+              - label
+              - createdAt
+              - lastUsedAt
+              - expiresAt
+              - isCurrent
+            additionalProperties: false
+      required:
+        - devices
+      additionalProperties: false
+    TrustedDeviceRevokeAllEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            revoked:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - revoked
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TrustedDeviceRevokeEnvelope:
       type: object
       properties:
         data:

@@ -11,6 +11,8 @@ import { apiHandler } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { finishLogin } from "@/lib/auth/login-response";
 import { createMfaChallenge } from "@/lib/auth/mfa/challenge";
+import { consumeTrustedDevice } from "@/lib/auth/trusted-device";
+import { syncMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
 
 export const POST = apiHandler(async (request: NextRequest) => {
   // v1.4.43 W13 M-4 — `checkAuthSurfaceRateLimit` swaps to a tighter
@@ -114,6 +116,37 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const hasWebauthn = webauthnKeyCount > 0;
 
   if (hasTotp || hasWebauthn) {
+    // v1.23 — "remember this device". A browser the user previously trusted
+    // skips factor 2 within the 30-day window. The password (factor 1) has
+    // already been verified above, so a trusted device only ever drops the
+    // second challenge — it never replaces the password. The minted session is
+    // deliberately NOT stamped `mfaVerifiedAt` (mfaVerified omitted below), so a
+    // trusted-device login can never satisfy step-up (`requireFreshMfa`): a
+    // stolen device cookie cannot reach a destructive action.
+    if (await consumeTrustedDevice(user.id)) {
+      await auditLog("auth.mfa.trusted_device", {
+        userId: user.id,
+        ipAddress: ip,
+      });
+      annotate({
+        action: { name: "auth.mfa.trusted_device" },
+        meta: { mfa_skipped: true },
+      });
+      // The account has a second factor, so the enforcement gate is satisfied;
+      // keep the hint cookie honest.
+      await syncMfaEnrollCookie(user.id, {
+        totpConfirmedAt: user.totpConfirmedAt,
+        mfaEnforced: user.mfaEnforced,
+      });
+      return finishLogin({
+        user,
+        request,
+        ip,
+        userAgent: ua,
+        source: "login.password.trusted_device",
+      });
+    }
+
     const challenge = await createMfaChallenge(user.id, "login");
     // Recovery codes are only ever issued alongside TOTP enrollment, so the
     // recovery method is offered exactly when TOTP is active.
@@ -144,6 +177,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   annotate({ action: { name: "auth.login.password" } });
+
+  // v1.23 — admin-enforced MFA policy. A single-factor account under the policy
+  // is sent to forced enrollment after sign-in; the proxy reads this hint
+  // cookie without a DB round-trip. Cheap (short-circuits when not enforced).
+  await syncMfaEnrollCookie(user.id, {
+    totpConfirmedAt: user.totpConfirmedAt,
+    mfaEnforced: user.mfaEnforced,
+  });
 
   // No second factor — issue the session/token exactly as before.
   return finishLogin({

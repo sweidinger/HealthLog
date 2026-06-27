@@ -56,6 +56,13 @@ export const authKeys = {
    */
   mfaStatus: () => ["auth", "mfa", "status"] as const,
 
+  /**
+   * v1.23 — the "remember this device" trusted-device list behind
+   * `GET /api/auth/me/trusted-devices`. Revoking a device (or all of them)
+   * invalidates this key so the surface re-reads the live set.
+   */
+  trustedDevices: () => ["auth", "trusted-devices"] as const,
+
   userAiProvider: () => ["user", "ai-provider"] as const,
   userProfile: () => ["user", "profile"] as const,
   /**

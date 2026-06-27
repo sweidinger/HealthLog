@@ -42,6 +42,12 @@ export const mfaVerifySchema = z
       .describe("The opaque single-use ticket from the login response."),
     method: z.enum(["totp", "recovery"]).default("totp"),
     code: z.string().trim().min(6).max(32),
+    rememberDevice: z
+      .boolean()
+      .optional()
+      .describe(
+        "Opt in to trusting this device for 30 days — subsequent logins skip the second factor (the password is still required).",
+      ),
   })
   .meta({
     id: "MfaVerifyRequest",
@@ -105,6 +111,12 @@ export const mfaWebauthnLoginVerifySchema = z
     mfaTicket: z.string().min(1),
     challengeId: z.string().min(1),
     credential: webauthnCredentialSchema,
+    rememberDevice: z
+      .boolean()
+      .optional()
+      .describe(
+        "Opt in to trusting this device for 30 days — subsequent logins skip the second factor (the password is still required).",
+      ),
   })
   .meta({
     id: "MfaWebauthnLoginVerifyRequest",

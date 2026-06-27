@@ -163,6 +163,26 @@ const sessionListResponse = z
   })
   .meta({ id: "SessionListResponse" });
 
+const trustedDeviceListResponse = z
+  .object({
+    devices: z.array(
+      z.object({
+        id: z.string(),
+        label: z
+          .string()
+          .nullable()
+          .describe("Coarse, IP-free device label (e.g. 'Firefox on macOS')."),
+        createdAt: z.iso.datetime({ offset: true }),
+        lastUsedAt: z.iso.datetime({ offset: true }),
+        expiresAt: z.iso.datetime({ offset: true }),
+        isCurrent: z
+          .boolean()
+          .describe("True for the device making this request."),
+      }),
+    ),
+  })
+  .meta({ id: "TrustedDeviceListResponse" });
+
 const signOutEverywhereResponse = z
   .object({
     sessionsRevoked: z
@@ -641,6 +661,74 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         },
         "404": {
           description: "Session not found or not owned by the caller.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/trusted-devices": {
+    get: {
+      tags: ["Auth"],
+      summary: "List trusted devices",
+      description:
+        "v1.23 — the 'remember this device' list. A trusted device skips the second factor for 30 days (the password is still required). Returns only an IP-free device label + lifecycle timestamps, never the token.",
+      responses: {
+        "200": {
+          description: "Trusted devices for the caller.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                trustedDeviceListResponse,
+                "TrustedDeviceListEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Auth"],
+      summary: "Forget every trusted device",
+      description:
+        "v1.23 — revokes all trusted devices for the caller and clears the caller's own trusted-device cookie.",
+      responses: {
+        "200": {
+          description: "All trusted devices revoked.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ revoked: z.number().int() }),
+                "TrustedDeviceRevokeAllEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/trusted-devices/{id}": {
+    delete: {
+      tags: ["Auth"],
+      summary: "Revoke a single trusted device",
+      description:
+        "v1.23 — revokes one trusted device by id, scoped to the authenticated user (a foreign id returns 404).",
+      responses: {
+        "200": {
+          description: "Trusted device revoked.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ revoked: z.boolean() }),
+                "TrustedDeviceRevokeEnvelope",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Trusted device not found or not owned by the caller.",
           content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
