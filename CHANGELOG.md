@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [1.22.1] — 2026-06-27 — Mobile and Coach polish
+
+A reliability and quality-of-life patch focused on the mobile interface and the Coach.
+
+### Added
+
+- Each lab biomarker shows a short description under its heading, the way Insights describes its metrics.
+- Hover a Coach message for an action row: copy it, read it aloud, rate the reply, regenerate it, and see the time it was sent.
+
+### Changed
+
+- Read-aloud now selects a natural device voice instead of the default robotic one.
+- The Coach prompt stays on one line and the conversation search field spans the full width.
+- The settings and admin section navigation stays fixed while only the content scrolls, on both desktop and mobile.
+- The admin "Module availability" section is now simply "Modules".
+
+### Fixed
+
+- The settings and admin side navigation no longer drifts while scrolling.
+- Selecting a settings section on mobile no longer animates a scroll from the top of the page.
+- The profile menu rows are evenly spaced, and the "More" menu labels are no longer clipped on narrow screens.
+- Charts no longer crush the layout in landscape on small screens.
+- Sleep insights no longer repeats the nightly average above its tiles.
+
 ## [1.22.0] — 2026-06-27 — A Coach that speaks, remembers, and charts; richer narratives across the app
 
 A feature release. The Coach reads its replies aloud, can draw the metric it is discussing, remembers what you ask it to and resurfaces those reminders, and proposes checkups or measurement reminders you confirm inline. Insights and Coach assessments are rewritten for connected, motivating narratives instead of restated figures, and the daily read now folds in labs, preventive care, workouts, and glucose. Four additive migrations (`0195` hidden biomarkers, `0196` coach reminders, `0197` coach plan outcomes, `0198` AI settings); applied automatically on start — no operator action required.
