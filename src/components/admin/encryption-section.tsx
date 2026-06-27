@@ -150,7 +150,7 @@ export function EncryptionSection() {
           />
         </div>
         {s.rotationComplete ? (
-          <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+          <Badge className="border-success/40 bg-success/15 text-success">
             {t("admin.section.encryption.safeToDropLegacy")}
           </Badge>
         ) : (
