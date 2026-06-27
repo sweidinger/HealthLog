@@ -4436,7 +4436,24 @@
         "completeness": "{answered} sur {total} renseignés",
         "questionsTitle": "Le Coach a des questions",
         "questionsOpenCoach": "Y répondre dans le Coach"
-      }
+      },
+      "responseTimeoutHeading": "Délai de réponse",
+      "responseTimeoutBody": "Durée d'attente de la réponse de l'IA avant d'abandonner. Augmentez-la pour un modèle local ou auto-hébergé qui a besoin de temps pour se charger à la première requête.",
+      "responseTimeoutLabel": "Délai de réponse (secondes)",
+      "responseTimeoutPlaceholder": "Par défaut (~180)",
+      "responseTimeoutInvalid": "Saisissez un nombre entre 10 et 600 secondes.",
+      "ocrHeading": "Numérisation de documents (comptes rendus de laboratoire)",
+      "ocrBody": "Utilisez un fournisseur dédié pour lire les comptes rendus de laboratoire importés. Désactivé, la numérisation utilise votre fournisseur principal.",
+      "ocrEnableLabel": "Activer un fournisseur dédié à la numérisation de documents",
+      "ocrProviderLabel": "Fournisseur de numérisation",
+      "ocrProviderOption": {
+        "OPENAI": "OpenAI (votre clé API)",
+        "ANTHROPIC": "Anthropic (Claude)",
+        "LOCAL": "Modèle local (compatible OpenAI)"
+      },
+      "ocrModelPlaceholder": "p. ex. gpt-4o",
+      "ocrVisionHint": "Ce modèle ne peut peut-être pas lire les images. Choisissez un modèle capable de vision pour la numérisation de documents.",
+      "ocrKeyLabel": "Clé API"
     },
     "dashboard": {
       "units": {

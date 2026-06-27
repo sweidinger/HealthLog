@@ -68,6 +68,8 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "User", field: "aiAnthropicKeyEncrypted", kind: "string" },
   { model: "User", field: "aiLocalKeyEncrypted", kind: "string" },
   { model: "User", field: "aiOpenaiKeyEncrypted", kind: "string" },
+  // v1.22 (#90) — dedicated document-scan (Lab-OCR) provider key.
+  { model: "User", field: "aiOcrKeyEncrypted", kind: "string" },
   { model: "User", field: "insuranceNumberEncrypted", kind: "string" },
 
   // ───── OAuth token tables (`*_token`-convention columns) ─────

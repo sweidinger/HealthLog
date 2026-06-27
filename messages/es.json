@@ -4436,7 +4436,24 @@
         "completeness": "{answered} de {total} respondidas",
         "questionsTitle": "El Coach tiene preguntas",
         "questionsOpenCoach": "Responderlas en el Coach"
-      }
+      },
+      "responseTimeoutHeading": "Tiempo de espera de la respuesta",
+      "responseTimeoutBody": "Cuánto esperar a que responda la IA antes de cancelar. Aumenta el valor para un modelo local o autoalojado que necesita tiempo para cargarse en la primera solicitud.",
+      "responseTimeoutLabel": "Tiempo de espera de la respuesta (segundos)",
+      "responseTimeoutPlaceholder": "Predeterminado (~180)",
+      "responseTimeoutInvalid": "Introduce un número entre 10 y 600 segundos.",
+      "ocrHeading": "Escaneo de documentos (informes de laboratorio)",
+      "ocrBody": "Usa un proveedor dedicado para leer los informes de laboratorio subidos. Si está desactivado, el escaneo usa tu proveedor principal.",
+      "ocrEnableLabel": "Activar un proveedor dedicado para el escaneo de documentos",
+      "ocrProviderLabel": "Proveedor de escaneo",
+      "ocrProviderOption": {
+        "OPENAI": "OpenAI (tu clave de API)",
+        "ANTHROPIC": "Anthropic (Claude)",
+        "LOCAL": "Modelo local (compatible con OpenAI)"
+      },
+      "ocrModelPlaceholder": "p. ej. gpt-4o",
+      "ocrVisionHint": "Puede que este modelo no pueda leer imágenes. Elige un modelo con capacidad de visión para el escaneo de documentos.",
+      "ocrKeyLabel": "Clave de API"
     },
     "dashboard": {
       "units": {

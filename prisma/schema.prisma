@@ -254,6 +254,27 @@ model User {
   // behaviour (single-provider resolution via `aiProvider`).
   aiProviderChain Json? @map("ai_provider_chain")
 
+  // v1.22 (#89) — per-user response timeout for AI generation, in SECONDS.
+  // Threaded onto `CompletionParams.timeoutMs` (×1000). Null = the generous
+  // built-in default (~180 s). Surfaced in Settings → AI mainly for
+  // local/self-hosted servers (an MLX/exo backend can take >60 s on the
+  // first request while it loads the model), where the legacy 60 s client
+  // default timed the Coach out before the first token landed.
+  aiResponseTimeoutSeconds Int? @map("ai_response_timeout_seconds")
+
+  // v1.22 (#90) — dedicated document-scan (Lab-OCR) provider. OFF by default:
+  // the lab-report OCR path uses the main provider chain unchanged. When
+  // `aiOcrEnabled` is true the OCR ingestion resolves THIS provider/model/key
+  // instead, so a user can keep a cheap text Coach on one provider and route
+  // expensive vision OCR to a vision-capable one. The key is AES-256-GCM at
+  // rest like every other `*Encrypted` column (registered in
+  // `src/lib/crypto/encrypted-columns.ts` + the rotation script).
+  aiOcrEnabled      Boolean @default(false) @map("ai_ocr_enabled")
+  aiOcrProvider     String? @map("ai_ocr_provider") // "OPENAI" | "ANTHROPIC" | "LOCAL"
+  aiOcrModel        String? @map("ai_ocr_model")
+  aiOcrBaseUrl      String? @map("ai_ocr_base_url") // LOCAL OCR provider only
+  aiOcrKeyEncrypted String? @map("ai_ocr_key_encrypted")
+
   // Onboarding
   onboardingCompletedAt   DateTime? @map("onboarding_completed_at")
   // v1.4.25 W14b — last persisted onboarding wizard step.

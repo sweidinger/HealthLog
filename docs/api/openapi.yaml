@@ -14374,6 +14374,43 @@ components:
             - type: string
             - type: "null"
           description: "`...` + last 4 chars of the stored OpenAI key, or null."
+        responseTimeoutSeconds:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+          description: v1.22 (#89) — per-user response timeout for AI generation, in seconds (10–600). Null = the generous
+            built-in default (~180 s). Mainly for slow local/self-hosted backends.
+        ocrEnabled:
+          type: boolean
+          description: v1.22 (#90) — whether a dedicated document-scan (Lab-OCR) provider is active. When false the OCR path uses
+            the main provider chain.
+        ocrProvider:
+          anyOf:
+            - type: string
+              enum:
+                - OPENAI
+                - ANTHROPIC
+                - LOCAL
+            - type: "null"
+          description: The dedicated document-scan provider, or null when unset.
+        ocrModel:
+          anyOf:
+            - type: string
+            - type: "null"
+        ocrBaseUrl:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Custom base URL (LOCAL OCR provider only); null otherwise.
+        hasOcrKey:
+          type: boolean
+        ocrKeyPreview:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: "`...` + last 4 chars of the stored document-scan provider key, or null."
       required:
         - provider
         - model
@@ -14385,6 +14422,13 @@ components:
         - hasLocalKey
         - hasOpenaiKey
         - openaiKeyPreview
+        - responseTimeoutSeconds
+        - ocrEnabled
+        - ocrProvider
+        - ocrModel
+        - ocrBaseUrl
+        - hasOcrKey
+        - ocrKeyPreview
       additionalProperties: false
       description: The calling user's AI-provider configuration plus the effective availability (`aiAvailable` + `managedBy`).
         Reports key presence + a masked preview only — never a plaintext key.

@@ -4494,7 +4494,24 @@
         "completeness": "{answered} von {total} beantwortet",
         "questionsTitle": "Der Coach hat Rückfragen",
         "questionsOpenCoach": "Im Coach beantworten"
-      }
+      },
+      "responseTimeoutHeading": "Antwort-Timeout",
+      "responseTimeoutBody": "Wie lange auf die Antwort der KI gewartet wird, bevor abgebrochen wird. Erhöhe den Wert für ein lokales oder selbst gehostetes Modell, das beim ersten Aufruf Zeit zum Laden braucht.",
+      "responseTimeoutLabel": "Antwort-Timeout (Sekunden)",
+      "responseTimeoutPlaceholder": "Standard (~180)",
+      "responseTimeoutInvalid": "Gib eine Zahl zwischen 10 und 600 Sekunden ein.",
+      "ocrHeading": "Dokumentenscan (Laborberichte)",
+      "ocrBody": "Verwende einen eigenen Anbieter zum Auslesen hochgeladener Laborberichte. Ist die Option aus, nutzt der Scan deinen Hauptanbieter.",
+      "ocrEnableLabel": "Eigenen Anbieter für den Dokumentenscan aktivieren",
+      "ocrProviderLabel": "Scan-Anbieter",
+      "ocrProviderOption": {
+        "OPENAI": "OpenAI (dein API-Key)",
+        "ANTHROPIC": "Anthropic (Claude)",
+        "LOCAL": "Lokales Modell (OpenAI-kompatibel)"
+      },
+      "ocrModelPlaceholder": "z. B. gpt-4o",
+      "ocrVisionHint": "Dieses Modell kann möglicherweise keine Bilder lesen. Wähle für den Dokumentenscan ein Modell mit Bildverständnis.",
+      "ocrKeyLabel": "API-Key"
     },
     "dashboard": {
       "units": {

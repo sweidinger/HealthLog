@@ -10,7 +10,7 @@
  * vision allowlist.
  */
 import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
-import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
+import { resolveProvider, resolveOcrProviderChain } from "@/lib/ai/provider";
 import { resolveCodexVisionSlug } from "@/lib/ai/codex-client";
 import { prisma } from "@/lib/db";
 import {
@@ -70,14 +70,21 @@ export async function resolveVisionProvider(
     where: { id: "singleton" },
     select: { adminAiModel: true },
   });
-  const ctx: ModelContext = {
-    userModel: userRow?.aiModel ?? null,
-    adminModel: settings?.adminAiModel ?? null,
-  };
 
   const localOcrEnabled = userRow?.labsLocalOcrEnabled ?? false;
 
-  const chain = await resolveProviderChain(userId);
+  // v1.22 (#90) — resolve the OCR chain: the dedicated document-scan provider
+  // when the user enabled one, else the main provider chain unchanged. When a
+  // dedicated provider is active, ITS model drives the vision allowlist.
+  const ocr = await resolveOcrProviderChain(userId);
+  const ctx: ModelContext = {
+    userModel: ocr.dedicated
+      ? (ocr.ocrModelOverride ?? userRow?.aiModel ?? null)
+      : (userRow?.aiModel ?? null),
+    adminModel: settings?.adminAiModel ?? null,
+  };
+
+  const chain = ocr.chain;
   if (chain.length === 0) {
     // Mirror the Coach: fall back to the legacy single-provider resolution and
     // tag it as the admin-managed entry the consent gate recognises.
@@ -116,7 +123,9 @@ export async function resolveTextProvider(userId: string): Promise<{
   chain: ProviderChainResolved[];
   pick: { entry: ProviderChainResolved; providerType: string } | null;
 }> {
-  const chain = await resolveProviderChain(userId);
+  // v1.22 (#90) — use the dedicated document-scan provider when enabled, else
+  // the main chain (the text-mode structuring pass needs no vision).
+  const chain = (await resolveOcrProviderChain(userId)).chain;
   if (chain.length === 0) {
     const legacy = await resolveProvider(userId);
     if (legacy.type !== "none") {
