@@ -32,6 +32,7 @@ import {
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { coachPlanPatchSchema } from "@/lib/validations/coach-plan";
 
@@ -39,10 +40,36 @@ interface RouteCtx {
   params: Promise<{ id: string }>;
 }
 
+// Lifecycle mutations are cheap + owner-scoped; the limit only caps a runaway
+// client loop, mirroring the about-me management routes.
+const MUTATE_RATE_LIMIT = 40;
+const MUTATE_WINDOW_MS = 60_000;
+
+/** Apply the shared per-user mutation limit; returns a 429 response or null. */
+async function enforceMutateLimit(
+  op: string,
+  userId: string,
+): Promise<Response | null> {
+  const rl = await checkRateLimit(
+    `coach-plans:${op}:${userId}`,
+    MUTATE_RATE_LIMIT,
+    MUTATE_WINDOW_MS,
+  );
+  if (rl.allowed) return null;
+  const response = apiError("Too many requests", 429);
+  for (const [k, v] of Object.entries(rateLimitHeaders(rl))) {
+    response.headers.set(k, v);
+  }
+  return response;
+}
+
 export const PATCH = apiHandler(async (req: NextRequest, ctx: RouteCtx) => {
   const { user } = await requireAuth();
   const gate = await requireModuleEnabled(user.id, "coach");
   if (!gate.enabled) return gate.response;
+
+  const limited = await enforceMutateLimit("patch", user.id);
+  if (limited) return limited;
 
   const { id } = await ctx.params;
 
@@ -161,6 +188,9 @@ export const DELETE = apiHandler(
     const { user } = await requireAuth();
     const gate = await requireModuleEnabled(user.id, "coach");
     if (!gate.enabled) return gate.response;
+
+    const limited = await enforceMutateLimit("delete", user.id);
+    if (limited) return limited;
 
     const { id } = await ctx.params;
 

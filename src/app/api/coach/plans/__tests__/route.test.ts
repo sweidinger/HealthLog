@@ -33,6 +33,15 @@ vi.mock("@/lib/modules/gate", () => ({
   requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn(async () => ({
+    allowed: true,
+    remaining: 39,
+    resetAt: Date.now() + 60_000,
+  })),
+  rateLimitHeaders: vi.fn(() => ({})),
+}));
+
 vi.mock("@/lib/ai/coach/bytes-codec", () => ({
   decryptFromBytes: vi.fn((buf: Uint8Array) => {
     const tag = Buffer.from(buf).toString("utf8");
