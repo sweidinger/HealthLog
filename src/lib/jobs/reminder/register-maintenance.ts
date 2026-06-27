@@ -62,6 +62,12 @@ import {
   enqueueBootTimeNoteEncryptionBackfill,
   type NoteEncryptionBackfillPayload,
 } from "@/lib/jobs/note-encryption-backfill";
+import {
+  ENCRYPTION_KEY_ROTATE_QUEUE,
+  ENCRYPTION_KEY_ROTATE_CONCURRENCY,
+  handleEncryptionKeyRotate,
+  type EncryptionKeyRotatePayload,
+} from "@/lib/jobs/encryption-key-rotate";
 import { recordError } from "@/lib/jobs/worker-status";
 import { workerLog } from "./shared";
 import { createAndSchedule, type ScheduleEntry } from "./registrar-shared";
@@ -228,6 +234,11 @@ const allQueues = [
   // plaintext note; without this entry pg-boss never provisions the queue and
   // both the boot enqueue and the cron silently no-op.
   NOTE_ENCRYPTION_BACKFILL_QUEUE,
+  // v1.23 — admin-triggered encryption-key rotation. On-demand only (no
+  // cron): the admin panel enqueues a singleton run that re-encrypts the
+  // corpus to the active key. Without this entry pg-boss never provisions the
+  // queue and the admin trigger silently no-ops.
+  ENCRYPTION_KEY_ROTATE_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -488,6 +499,13 @@ export async function registerMaintenanceQueues(
         }
       }
     },
+  );
+
+  // v1.23 — admin-triggered encryption-key rotation (on-demand, singleton).
+  await boss.work<EncryptionKeyRotatePayload>(
+    ENCRYPTION_KEY_ROTATE_QUEUE,
+    { localConcurrency: ENCRYPTION_KEY_ROTATE_CONCURRENCY },
+    handleEncryptionKeyRotate,
   );
 
   return allQueues;

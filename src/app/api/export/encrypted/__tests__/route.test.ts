@@ -1,0 +1,116 @@
+/**
+ * v1.23 — POST /api/export/encrypted unit coverage.
+ *
+ * Mock-based. Pins the step-up gating contract (single-factor accounts export
+ * without step-up; MFA accounts need a fresh second factor) and that the
+ * passphrase produces a decryptable HLX1 archive — never a plaintext body.
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    measurement: { findMany: vi.fn().mockResolvedValue([]) },
+    medication: { findMany: vi.fn().mockResolvedValue([]) },
+    medicationIntakeEvent: { findMany: vi.fn().mockResolvedValue([]) },
+    moodEntry: { findMany: vi.fn().mockResolvedValue([]) },
+    cycleProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+    menstrualCycle: { findMany: vi.fn().mockResolvedValue([]) },
+    cycleDayLog: { findMany: vi.fn().mockResolvedValue([]) },
+    session: { findUnique: vi.fn() },
+  },
+}));
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: vi.fn() }));
+vi.mock("@/lib/auth/audit", () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/geo", () => ({
+  lookupIpLocation: vi.fn(),
+  lookupIpAsn: vi.fn(),
+}));
+vi.mock("@/lib/logging/transports", () => ({ emitStructuredLog: vi.fn() }));
+
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { POST } from "../route";
+import { decryptArchive } from "@/lib/export/passphrase-archive";
+
+const PASSPHRASE = "a-strong-passphrase-123";
+
+function mkReq(body: unknown): NextRequest {
+  return new NextRequest("http://localhost/api/export/encrypted", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(checkRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 9,
+    reset: Date.now() + 3600_000,
+  } as never);
+});
+
+describe("POST /api/export/encrypted", () => {
+  it("returns a decryptable HLX1 archive for a single-factor account", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "user-1", role: "USER", totpConfirmedAt: null },
+      session: { id: "sess-1" },
+    } as never);
+
+    const res = await POST(mkReq({ passphrase: PASSPHRASE }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("application/octet-stream");
+
+    const buf = Buffer.from(await res.arrayBuffer());
+    expect(buf.subarray(0, 4).toString("ascii")).toBe("HLX1");
+    const plaintext = await decryptArchive(buf, PASSPHRASE);
+    const payload = JSON.parse(plaintext);
+    expect(payload).toHaveProperty("schemaVersion");
+    expect(payload).toHaveProperty("measurements");
+  });
+
+  it("blocks an MFA account without a fresh second factor (401 step-up)", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "user-1", role: "USER", totpConfirmedAt: new Date() },
+      session: { id: "sess-1" },
+    } as never);
+    // No fresh mfaVerifiedAt on the session row.
+    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+      mfaVerifiedAt: null,
+    } as never);
+
+    const res = await POST(mkReq({ passphrase: PASSPHRASE }));
+    expect(res.status).toBe(401);
+  });
+
+  it("allows an MFA account with a fresh second factor", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "user-1", role: "USER", totpConfirmedAt: new Date() },
+      session: { id: "sess-1" },
+    } as never);
+    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+      mfaVerifiedAt: new Date(),
+    } as never);
+
+    const res = await POST(mkReq({ passphrase: PASSPHRASE }));
+    expect(res.status).toBe(200);
+    const buf = Buffer.from(await res.arrayBuffer());
+    expect(await decryptArchive(buf, PASSPHRASE)).toContain("schemaVersion");
+  });
+
+  it("rejects a too-short passphrase with 422", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "user-1", role: "USER", totpConfirmedAt: null },
+      session: { id: "sess-1" },
+    } as never);
+
+    const res = await POST(mkReq({ passphrase: "short" }));
+    expect(res.status).toBe(422);
+  });
+});

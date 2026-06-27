@@ -1349,6 +1349,35 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/export/encrypted:
+    post:
+      tags:
+        - Export
+      summary: Download the full backup as a passphrase-encrypted archive
+      description: v1.23. Same restore-compatible payload as the plaintext full backup, sealed into an `HLX1` archive
+        (Argon2id-derived key + AES-256-GCM) under the supplied `passphrase`. Returns `application/octet-stream` (a
+        `.hlx` file). When the account has a second factor enrolled, the call is step-up gated (`requireFreshMfa`,
+        cookie-only) and returns 401 `auth.stepup.required` without a fresh factor; single-factor accounts use a normal
+        session or Bearer. Shared `export:<userId>` rate bucket (10/h). The passphrase is never stored — a forgotten
+        passphrase makes the archive unrecoverable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EncryptedExportRequest"
+      responses:
+        "200":
+          description: Encrypted archive. `application/octet-stream`; the body is the `HLX1` binary (magic | version | Argon2
+            params | salt | iv | tag | ciphertext).
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/auth/login:
     post:
       tags:
@@ -7826,6 +7855,17 @@ paths:
         "429": *a4
 components:
   schemas:
+    EncryptedExportRequest:
+      type: object
+      properties:
+        passphrase:
+          type: string
+          minLength: 12
+          maxLength: 1024
+          description: User-chosen passphrase (>= 12 chars). Derives the archive key via Argon2id; never stored, never logged, no
+            server-side recovery.
+      required:
+        - passphrase
     MfaVerifyRequest:
       type: object
       properties:

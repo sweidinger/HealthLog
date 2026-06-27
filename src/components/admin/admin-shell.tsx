@@ -30,6 +30,7 @@ import {
   Server,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Ticket,
   Users,
@@ -130,6 +131,12 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     slug: "backups",
     titleKey: "admin.section.backups.title",
     icon: Database,
+  },
+  // v1.23 — encryption coverage + key-rotation status / safe trigger.
+  {
+    slug: "encryption",
+    titleKey: "admin.section.encryption.title",
+    icon: ShieldCheck,
   },
   {
     slug: "danger-zone",

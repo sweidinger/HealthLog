@@ -4073,7 +4073,12 @@
           },
           "fullBackup": {
             "title": "Copia completa",
-            "description": "Un único archivo JSON con todo — el mismo formato que la copia automática semanal. Útil para restaurar tú mismo mediante la carga de administrador."
+            "description": "Un único archivo JSON con todo — el mismo formato que la copia automática semanal. Útil para restaurar tú mismo mediante la carga de administrador.",
+            "encryptToggle": "Cifrar con una contraseña",
+            "passphrasePlaceholder": "Contraseña (mín. 12 caracteres)",
+            "passphraseHelp": "Deriva la clave del archivo con Argon2id y lo sella con AES-256-GCM. Guarda el archivo con la extensión .hlx.",
+            "noRecoveryWarning": "No hay recuperación: si pierdes esta contraseña, el archivo no se podrá abrir. Guárdala en un lugar seguro.",
+            "stepUpNeeded": "Confirma tu segundo factor y vuelve a intentarlo."
           },
           "cycle": {
             "title": "Ciclo",
@@ -5625,6 +5630,45 @@
       "module-availability": {
         "title": "Módulos",
         "subtitle": "Activa o desactiva módulos para todas las cuentas de este servidor."
+      },
+      "encryption": {
+        "title": "Cifrado",
+        "subtitle": "Cobertura de cifrado y estado de rotación de claves para los datos en reposo.",
+        "loading": "Cargando el estado de cifrado...",
+        "loadError": "No se pudo cargar el estado de cifrado.",
+        "coverageTitle": "Cobertura",
+        "coverageDescription": "Cuántas filas cifradas hay bajo cada id de clave. Solo se muestran los id de clave y los recuentos, nunca el material de la clave.",
+        "activeKeyId": "Id de clave activa",
+        "configuredKeys": "Claves configuradas",
+        "totalRows": "Filas cifradas",
+        "staleRows": "Filas que no usan la clave activa",
+        "safeToDropLegacy": "Es seguro eliminar la clave antigua",
+        "rotationIncomplete": "Aún quedan {count} filas por rotar",
+        "rotationTitle": "Rotación de claves",
+        "rotationDescription": "Vuelve a cifrar cada columna cifrada con la clave activa. La herramienta de línea de comandos sigue siendo la vía canónica; este disparador es una comodidad.",
+        "rotationState": "Estado",
+        "lastRun": "Última ejecución: {scanned} revisadas, {rotated} rotadas, {errors} errores.",
+        "rotateNow": "Rotar ahora",
+        "rotateConfirmTitle": "¿Volver a cifrar todo el registro?",
+        "rotateConfirmDescription": "Vuelve a cifrar cada columna cifrada con la clave activa. Nunca añade ni elimina una clave y se puede repetir con seguridad. En cuentas grandes puede tardar un rato.",
+        "cancel": "Cancelar",
+        "rotateConfirm": "Iniciar rotación",
+        "rotateEnqueued": "Rotación iniciada.",
+        "rotateFailed": "No se pudo iniciar la rotación.",
+        "stepUpNeeded": "Se requiere un segundo factor reciente. Confirma tu segundo factor o usa la herramienta de línea de comandos si no tienes ninguno configurado.",
+        "cliNote": "Se necesita un segundo factor para usar este botón. Los operadores sin él rotan con scripts/rotate-encryption-key.ts.",
+        "columnsTitle": "Cobertura por columna",
+        "columnsDescription": "Cada columna cifrada con sus recuentos de filas en la clave activa frente a claves anteriores.",
+        "colColumn": "Columna",
+        "colTotal": "Total",
+        "colActive": "En clave activa",
+        "colStale": "Obsoletas",
+        "state": {
+          "idle": "Inactivo",
+          "running": "En curso",
+          "completed": "Completado",
+          "failed": "Fallido"
+        }
       }
     },
     "carrier": "Operador",

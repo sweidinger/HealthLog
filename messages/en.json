@@ -4073,7 +4073,12 @@
           },
           "fullBackup": {
             "title": "Full backup",
-            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload."
+            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload.",
+            "encryptToggle": "Encrypt with a passphrase",
+            "passphrasePlaceholder": "Passphrase (min. 12 characters)",
+            "passphraseHelp": "Derives the archive key with Argon2id and seals it with AES-256-GCM. Save the file with a .hlx extension.",
+            "noRecoveryWarning": "There is no recovery — if you lose this passphrase, the archive cannot be opened. Keep it somewhere safe.",
+            "stepUpNeeded": "Confirm your second factor, then try again."
           },
           "cycle": {
             "title": "Cycle",
@@ -5625,6 +5630,45 @@
       "module-availability": {
         "title": "Modules",
         "subtitle": "Turn modules on or off for every account on this server."
+      },
+      "encryption": {
+        "title": "Encryption",
+        "subtitle": "Encryption coverage and key-rotation status for data at rest.",
+        "loading": "Loading encryption status...",
+        "loadError": "Failed to load encryption status.",
+        "coverageTitle": "Coverage",
+        "coverageDescription": "How many encrypted rows sit under each key id. Only key ids and counts are shown — never key material.",
+        "activeKeyId": "Active key id",
+        "configuredKeys": "Configured keys",
+        "totalRows": "Encrypted rows",
+        "staleRows": "Rows not on the active key",
+        "safeToDropLegacy": "Safe to drop the legacy key",
+        "rotationIncomplete": "{count} rows still need rotation",
+        "rotationTitle": "Key rotation",
+        "rotationDescription": "Re-encrypt every encrypted column to the active key. The command-line tool stays the canonical path; this trigger is a convenience.",
+        "rotationState": "State",
+        "lastRun": "Last run: scanned {scanned}, rotated {rotated}, errors {errors}.",
+        "rotateNow": "Rotate now",
+        "rotateConfirmTitle": "Re-encrypt the whole record?",
+        "rotateConfirmDescription": "Re-encrypts every encrypted column to the active key. It never adds or drops a key and is safe to re-run. This can take a while on large accounts.",
+        "cancel": "Cancel",
+        "rotateConfirm": "Start rotation",
+        "rotateEnqueued": "Rotation started.",
+        "rotateFailed": "Could not start the rotation.",
+        "stepUpNeeded": "A fresh second factor is required. Confirm your second factor, or use the command-line tool if you have no second factor enrolled.",
+        "cliNote": "A second factor is required to use this button. Operators without one rotate with scripts/rotate-encryption-key.ts.",
+        "columnsTitle": "Per-column coverage",
+        "columnsDescription": "Each encrypted column with its row counts on the active key versus older keys.",
+        "colColumn": "Column",
+        "colTotal": "Total",
+        "colActive": "On active key",
+        "colStale": "Stale",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "completed": "Completed",
+          "failed": "Failed"
+        }
       }
     },
     "carrier": "Carrier",

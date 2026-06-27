@@ -4073,7 +4073,12 @@
           },
           "fullBackup": {
             "title": "Pełna kopia zapasowa",
-            "description": "Pojedynczy plik JSON ze wszystkim — taki sam format jak cotygodniowa automatyczna kopia. Przydatny do samodzielnego przywracania przez przesłanie w panelu administratora."
+            "description": "Pojedynczy plik JSON ze wszystkim — taki sam format jak cotygodniowa automatyczna kopia. Przydatny do samodzielnego przywracania przez przesłanie w panelu administratora.",
+            "encryptToggle": "Zaszyfruj hasłem-frazą",
+            "passphrasePlaceholder": "Hasło-fraza (min. 12 znaków)",
+            "passphraseHelp": "Wyprowadza klucz archiwum za pomocą Argon2id i pieczętuje je AES-256-GCM. Zapisz plik z rozszerzeniem .hlx.",
+            "noRecoveryWarning": "Nie ma odzyskiwania — jeśli zgubisz tę frazę, archiwum nie da się otworzyć. Przechowuj ją bezpiecznie.",
+            "stepUpNeeded": "Potwierdź drugi składnik i spróbuj ponownie."
           },
           "cycle": {
             "title": "Cykl",
@@ -5625,6 +5630,45 @@
       "module-availability": {
         "title": "Moduły",
         "subtitle": "Włącz lub wyłącz moduły dla wszystkich kont na tym serwerze."
+      },
+      "encryption": {
+        "title": "Szyfrowanie",
+        "subtitle": "Pokrycie szyfrowaniem i status rotacji kluczy dla danych w spoczynku.",
+        "loading": "Ładowanie statusu szyfrowania...",
+        "loadError": "Nie udało się wczytać statusu szyfrowania.",
+        "coverageTitle": "Pokrycie",
+        "coverageDescription": "Ile zaszyfrowanych wierszy przypada na każdy identyfikator klucza. Pokazywane są tylko identyfikatory kluczy i liczby — nigdy materiał klucza.",
+        "activeKeyId": "Identyfikator aktywnego klucza",
+        "configuredKeys": "Skonfigurowane klucze",
+        "totalRows": "Zaszyfrowane wiersze",
+        "staleRows": "Wiersze poza aktywnym kluczem",
+        "safeToDropLegacy": "Można bezpiecznie usunąć stary klucz",
+        "rotationIncomplete": "Pozostało {count} wierszy do rotacji",
+        "rotationTitle": "Rotacja kluczy",
+        "rotationDescription": "Ponownie szyfruje każdą zaszyfrowaną kolumnę aktywnym kluczem. Narzędzie wiersza poleceń pozostaje kanoniczną drogą; ten przycisk to udogodnienie.",
+        "rotationState": "Status",
+        "lastRun": "Ostatni przebieg: sprawdzono {scanned}, zrotowano {rotated}, błędy {errors}.",
+        "rotateNow": "Rotuj teraz",
+        "rotateConfirmTitle": "Ponownie zaszyfrować cały rekord?",
+        "rotateConfirmDescription": "Ponownie szyfruje każdą zaszyfrowaną kolumnę aktywnym kluczem. Nigdy nie dodaje ani nie usuwa klucza i można go bezpiecznie uruchomić ponownie. Na dużych kontach może to chwilę potrwać.",
+        "cancel": "Anuluj",
+        "rotateConfirm": "Rozpocznij rotację",
+        "rotateEnqueued": "Rotacja rozpoczęta.",
+        "rotateFailed": "Nie udało się rozpocząć rotacji.",
+        "stepUpNeeded": "Wymagany jest świeży drugi składnik. Potwierdź drugi składnik lub użyj narzędzia wiersza poleceń, jeśli nie masz skonfigurowanego żadnego.",
+        "cliNote": "Do tego przycisku wymagany jest drugi składnik. Operatorzy bez niego rotują przez scripts/rotate-encryption-key.ts.",
+        "columnsTitle": "Pokrycie wg kolumn",
+        "columnsDescription": "Każda zaszyfrowana kolumna z liczbą wierszy na aktywnym kluczu względem starszych kluczy.",
+        "colColumn": "Kolumna",
+        "colTotal": "Razem",
+        "colActive": "Na aktywnym kluczu",
+        "colStale": "Przestarzałe",
+        "state": {
+          "idle": "Bezczynny",
+          "running": "W toku",
+          "completed": "Zakończono",
+          "failed": "Niepowodzenie"
+        }
       }
     },
     "carrier": "Operator",
