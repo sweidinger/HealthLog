@@ -238,7 +238,7 @@
     },
     "cycle": "Ciclo",
     "labs": "Análisis",
-    "vorsorge": "Prevención",
+    "vorsorge": "Revisiones",
     "illness": "Enfermedad"
   },
   "auth": {
@@ -3677,8 +3677,8 @@
           "body": "El diario de enfermedades registra episodios agudos y diagnósticos crónicos con sus brotes. Oculto: correlacionar un episodio con tus mediciones y el Modo descanso que pausa los recordatorios. Así el Coach entiende por qué los valores varían un tiempo."
         },
         "vorsorge": {
-          "title": "Prevención",
-          "body": "Prevención te recuerda revisiones y vacunas con su propio intervalo. Consejo: «Hecho» puede crear directamente una medición o un resultado de laboratorio. Lo pendiente aparece como recordatorio y en el informe médico."
+          "title": "Revisiones",
+          "body": "Las revisiones te recuerdan controles y vacunas con su propio intervalo. Consejo: «Hecho» puede crear directamente una medición o un resultado de laboratorio. Lo pendiente aparece como recordatorio y en el informe médico."
         },
         "cycle": {
           "title": "Ciclo",
@@ -3702,7 +3702,7 @@
         },
         "export": {
           "title": "Informe médico",
-          "body": "El informe médico reúne mediciones, medicación, valores de laboratorio y prevención en PDF o FHIR para la cita. Aquí convergen todos los módulos: un informe completo solo sale de datos bien cuidados."
+          "body": "El informe médico reúne mediciones, medicación, valores de laboratorio y revisiones en PDF o FHIR para la cita. Aquí convergen todos los módulos: un informe completo solo sale de datos bien cuidados."
         },
         "achievements": {
           "title": "Logros",
@@ -4132,8 +4132,8 @@
         "subtitle": "Gestiona la vista y el orden de los episodios."
       },
       "vorsorge": {
-        "title": "Prevención",
-        "description": "Vista, orden y recordatorios de prevención individuales.",
+        "title": "Revisiones",
+        "description": "Vista, orden y recordatorios de revisión individuales.",
         "subtitle": "Gestiona la vista, el orden y los recordatorios individuales."
       },
       "modules": {
@@ -6483,13 +6483,13 @@
     "selectionBarLabel": "Acciones de selección"
   },
   "measurementReminders": {
-    "sectionTitle": "Prevención",
+    "sectionTitle": "Revisiones",
     "sectionDescription": "Recordatorios de qué medir o revisar, cuándo y dónde.",
     "addButton": "Añadir recordatorio",
     "markDone": "Hecho",
     "delete": "Eliminar",
     "deleteConfirmTitle": "¿Eliminar recordatorio?",
-    "deleteConfirmDescription": "Este recordatorio de prevención se eliminará de forma permanente.",
+    "deleteConfirmDescription": "Este recordatorio de revisión se eliminará de forma permanente.",
     "disabledBadge": "Apagado",
     "nextDue": {
       "none": "Sin programar",
@@ -6551,7 +6551,7 @@
       "rruleHint": "RFC-5545, p. ej. FREQ=YEARLY para una revisión anual.",
       "firstDue": "Primer vencimiento (opcional)"
     },
-    "pushTitle": "Recordatorio de prevención",
+    "pushTitle": "Recordatorio de revisión",
     "pushBody": "Toca: {label}",
     "pushLocation": "(en {location})",
     "edit": "Editar",
@@ -6562,7 +6562,7 @@
     "measureNow": "Medir ahora",
     "nextDueLabel": "Próximo vencimiento:",
     "lastDoneLabel": "Última vez:",
-    "customize": "Personalizar prevención",
+    "customize": "Personalizar revisiones",
     "adherence": {
       "label": "Dentro del intervalo",
       "onTrack": "Al día",
@@ -6578,8 +6578,8 @@
       "empty": "Aún no hay recordatorios para personalizar."
     },
     "dashboard": {
-      "empty": "No hay recordatorios de prevención próximos.",
-      "openLink": "Abrir prevención"
+      "empty": "No hay revisiones próximas.",
+      "openLink": "Abrir revisiones"
     },
     "showMeasurements": "Ver mediciones"
   },

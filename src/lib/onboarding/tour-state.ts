@@ -137,7 +137,7 @@ const ALL_STOPS: readonly TourStop[] = [
     id: "vorsorge",
     targetId: "vorsorge-hero",
     placement: "bottom",
-    route: "/vorsorge",
+    route: "/checkups",
     titleKey: "onboarding.tour.steps.vorsorge.title",
     bodyKey: "onboarding.tour.steps.vorsorge.body",
   },

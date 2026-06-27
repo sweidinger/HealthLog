@@ -12,7 +12,7 @@ import { VorsorgeSection } from "@/components/measurement-reminders/vorsorge-sec
 import { queryKeys } from "@/lib/query-keys";
 
 /**
- * v1.17.1 — Vorsorge (preventive-care) reminders page. The dedicated
+ * v1.17.1 — Checkups (preventive-care) reminders page. The dedicated
  * feature surface for "wann muss ich was wo machen". Auth-gated; the
  * section component owns the list + create flow.
  *
@@ -20,7 +20,7 @@ import { queryKeys } from "@/lib/query-keys";
  * measurements): a pull invalidates the measurement-reminders read so the
  * list + server-computed next-due repaint.
  */
-export default function VorsorgePage() {
+export default function CheckupsPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const mounted = useMounted();
   const queryClient = useQueryClient();

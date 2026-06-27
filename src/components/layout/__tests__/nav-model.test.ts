@@ -45,17 +45,17 @@ describe("nav-model destination list", () => {
     }
   });
 
-  it("gives Vorsorge a top-level nav home in the clinical spine (N-3)", () => {
+  it("gives Checkups a top-level nav home in the clinical spine (N-3)", () => {
     const hrefs = NAV_DESTINATIONS.map((d) => d.href);
-    expect(hrefs).toContain("/vorsorge");
-    const vorsorge = NAV_DESTINATIONS.find((d) => d.href === "/vorsorge");
+    expect(hrefs).toContain("/checkups");
+    const vorsorge = NAV_DESTINATIONS.find((d) => d.href === "/checkups");
     expect(vorsorge?.tKey).toBe("nav.vorsorge");
-    // v1.19.1 (S4) — the fixed spine is Medications → Vorsorge → Labs →
-    // Illness → Insights, so Vorsorge sits after Medications and before Labs.
+    // v1.19.1 (S4) — the fixed spine is Medications → Checkups → Labs →
+    // Illness → Insights, so Checkups sits after Medications and before Labs.
     expect(hrefs.indexOf("/medications")).toBeLessThan(
-      hrefs.indexOf("/vorsorge"),
+      hrefs.indexOf("/checkups"),
     );
-    expect(hrefs.indexOf("/vorsorge")).toBeLessThan(hrefs.indexOf("/labs"));
+    expect(hrefs.indexOf("/checkups")).toBeLessThan(hrefs.indexOf("/labs"));
     expect(hrefs.indexOf("/labs")).toBeLessThan(hrefs.indexOf("/insights"));
   });
 
@@ -170,7 +170,7 @@ describe("visibleNavDestinations module gate", () => {
     expect(emptyMap).toContain("/measurements");
     expect(emptyMap).toContain("/medications");
     expect(emptyMap).toContain("/insights");
-    expect(emptyMap).toContain("/vorsorge");
+    expect(emptyMap).toContain("/checkups");
   });
 });
 
@@ -210,7 +210,7 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
     // Feature surfaces that left the always-visible strip stay reachable.
     expect(hub).toContain("/measurements");
     expect(hub).toContain("/mood");
-    expect(hub).toContain("/vorsorge");
+    expect(hub).toContain("/checkups");
     // The shared utility tail rides at the end.
     expect(hub).toContain("/bugreport");
     expect(hub).toContain("/settings/account");

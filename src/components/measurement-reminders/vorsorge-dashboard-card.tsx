@@ -5,7 +5,7 @@
  *
  * A compact chart-row card listing the next few due reminders with an
  * inline primary action per row — the same done-vs-capture branch the
- * dedicated `/vorsorge` page surfaces, scaled down for the dashboard.
+ * dedicated `/checkups` page surfaces, scaled down for the dashboard.
  * A free-text / self-planned exam marks done silently; a measurement-
  * linked reminder opens the real measurement-entry form and satisfies
  * the reminder in the same action.
@@ -109,7 +109,7 @@ export function VorsorgeDashboardCard() {
               {t("measurementReminders.dashboard.empty")}
             </p>
             <Button asChild variant="outline" size="sm">
-              <Link href="/vorsorge">
+              <Link href="/checkups">
                 {t("measurementReminders.dashboard.openLink")}
               </Link>
             </Button>
