@@ -21,9 +21,13 @@ vi.mock("@/lib/rate-limit", () => ({
   })),
   rateLimitHeaders: vi.fn(() => ({})),
 }));
+vi.mock("@/lib/app-settings", () => ({
+  isApiGloballyEnabled: vi.fn(async () => true),
+}));
 
 import { GET, POST } from "../authorize/route";
 import { getSession } from "@/lib/auth/session";
+import { isApiGloballyEnabled } from "@/lib/app-settings";
 import { registerDcrClient } from "@/lib/mcp/oauth/clients";
 import { s256Challenge } from "@/lib/mcp/oauth/pkce";
 
@@ -81,6 +85,7 @@ function signedIn() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSession).mockResolvedValue(null);
+  vi.mocked(isApiGloballyEnabled).mockResolvedValue(true);
 });
 
 describe("GET /authorize — consent gate", () => {
@@ -154,6 +159,92 @@ describe("GET /authorize — rejected requests", () => {
       ) as never,
     );
     expect(res.status).toBe(400);
+  });
+});
+
+describe("GET /authorize — consent provenance (L1)", () => {
+  it("labels a DCR client as unverified (self-asserted name)", async () => {
+    signedIn();
+    const res = await GET(getReq(authorizeUrl()) as never);
+    const body = await res.text();
+    expect(body).toMatch(/Unverified application/);
+  });
+});
+
+describe("authorize — surface availability (M1/M4)", () => {
+  it("GET returns 503 when the API is globally disabled", async () => {
+    signedIn();
+    vi.mocked(isApiGloballyEnabled).mockResolvedValue(false);
+    const res = await GET(getReq(authorizeUrl()) as never);
+    expect(res.status).toBe(503);
+  });
+
+  it("POST returns 503 when the API is globally disabled", async () => {
+    signedIn();
+    vi.mocked(isApiGloballyEnabled).mockResolvedValue(false);
+    const res = await POST(
+      postReq({
+        response_type: "code",
+        client_id: CLIENT.clientId,
+        redirect_uri: REDIRECT,
+        code_challenge: CHALLENGE,
+        code_challenge_method: "S256",
+        scope: "health:read",
+        resource: RESOURCE,
+        decision: "allow",
+      }) as never,
+    );
+    expect(res.status).toBe(503);
+  });
+});
+
+describe("POST /authorize — cross-origin guard (L3)", () => {
+  it("rejects a cross-origin Origin with 403", async () => {
+    signedIn();
+    const body = new URLSearchParams({
+      response_type: "code",
+      client_id: CLIENT.clientId,
+      redirect_uri: REDIRECT,
+      code_challenge: CHALLENGE,
+      code_challenge_method: "S256",
+      scope: "health:read",
+      resource: RESOURCE,
+      decision: "allow",
+    });
+    const req = new Request("https://health.example/api/mcp/oauth/authorize", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://evil.example",
+      },
+      body: body.toString(),
+    });
+    const res = await POST(req as never);
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects a cross-site Sec-Fetch-Site with 403", async () => {
+    signedIn();
+    const body = new URLSearchParams({
+      response_type: "code",
+      client_id: CLIENT.clientId,
+      redirect_uri: REDIRECT,
+      code_challenge: CHALLENGE,
+      code_challenge_method: "S256",
+      scope: "health:read",
+      resource: RESOURCE,
+      decision: "allow",
+    });
+    const req = new Request("https://health.example/api/mcp/oauth/authorize", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "sec-fetch-site": "cross-site",
+      },
+      body: body.toString(),
+    });
+    const res = await POST(req as never);
+    expect(res.status).toBe(403);
   });
 });
 

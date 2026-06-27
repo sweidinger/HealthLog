@@ -21,7 +21,13 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// The surface fails closed without a pinned origin (M1); pin it for the suite.
+process.env.APP_URL = "http://localhost";
+
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
+vi.mock("@/lib/app-settings", () => ({
+  isApiGloballyEnabled: vi.fn(async () => true),
+}));
 vi.mock("@/lib/auth/bearer", () => ({
   resolveBearerToken: vi.fn(),
   BearerAuthError: class BearerAuthError extends Error {},
@@ -60,6 +66,7 @@ import { POST, GET } from "../route";
 import { resolveBearerToken } from "@/lib/auth/bearer";
 import { isModuleEnabled } from "@/lib/modules/gate";
 import { checkMcpRateLimit } from "@/lib/rate-limit";
+import { isApiGloballyEnabled } from "@/lib/app-settings";
 
 const READ_TOOLS = [
   "get_correlations",
@@ -102,6 +109,7 @@ beforeEach(() => {
   headersGet.mockReturnValue(null);
   // Default happy-path: module on, under budget.
   vi.mocked(isModuleEnabled).mockResolvedValue(true);
+  vi.mocked(isApiGloballyEnabled).mockResolvedValue(true);
   vi.mocked(checkMcpRateLimit).mockResolvedValue({
     allowed: true,
     remaining: 119,
@@ -171,6 +179,17 @@ describe("/mcp — Origin gate (DNS-rebinding defense, spec PR #1439)", () => {
     validToken();
     const res = await POST(postRpc(TOOLS_LIST));
     expect(res.status).toBe(200);
+  });
+});
+
+describe("/mcp — operator kill-switch (M4)", () => {
+  it("hides the surface (404) when the API is globally disabled", async () => {
+    validToken();
+    vi.mocked(isApiGloballyEnabled).mockResolvedValue(false);
+    const res = await POST(postRpc(TOOLS_LIST));
+    expect(res.status).toBe(404);
+    // Fails closed before the token table is consulted.
+    expect(resolveBearerToken).not.toHaveBeenCalled();
   });
 });
 

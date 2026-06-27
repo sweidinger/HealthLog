@@ -536,6 +536,7 @@ model User {
   medications            Medication[]
   intakeEvents           MedicationIntakeEvent[]
   apiTokens              ApiToken[]
+  mcpOAuthConnections    McpOAuthConnection[]
   refreshTokens          RefreshToken[]
   auditLogs              AuditLog[]
   withingsConnection     WithingsConnection?
@@ -2369,11 +2370,50 @@ model ApiToken {
   expiresAt   DateTime? @map("expires_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   revoked     Boolean   @default(false)
+  // The MCP OAuth connection this access token belongs to, when it was minted
+  // through the `/api/mcp/oauth` bridge. Null for manually-minted tokens and
+  // native-client tokens. Lets a connection revoke kill every access row it
+  // ever issued (H2), and lets the connector token list exclude the transient
+  // 60-minute access rows so it does not flood (M2).
+  mcpConnectionId String? @map("mcp_connection_id")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mcpConnection McpOAuthConnection? @relation(fields: [mcpConnectionId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([mcpConnectionId])
   @@map("api_tokens")
+}
+
+// MCP OAuth connection — the revocable, theft-detectable anchor for a remote
+// connector's refresh-token chain (Phase 3 security fix, H2).
+//
+// The stateless `hlrt_` refresh artifact carries this row's `id` (`cid`) plus
+// the rotation `jti`; the row is the persistent server state the artifact alone
+// lacks. `currentJti` is the only refresh `jti` valid for the connection at any
+// moment — every rotation advances it. A presented refresh whose `jti` is not
+// `currentJti` is a replay of an already-rotated token (theft signal) and
+// revokes the connection (reuse-detection family revocation, mirroring
+// `refresh-token.ts`). `revokedAt` is the kill switch the settings card flips,
+// so revoking a connection stops every future refresh and (via the
+// `ApiToken.mcpConnectionId` back-link) kills its outstanding access tokens.
+model McpOAuthConnection {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  clientId   String    @map("client_id")
+  clientName String    @map("client_name")
+  scope      String
+  resource   String
+  currentJti String    @map("current_jti")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessTokens ApiToken[]
+
+  @@index([userId])
+  @@map("mcp_oauth_connections")
 }
 
 // v1.15.20 — registration invite tokens. When the operator has disabled

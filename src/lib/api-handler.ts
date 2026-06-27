@@ -10,6 +10,27 @@ import { auditLog } from "./auth/audit";
 import { resolveBearerToken, BearerAuthError } from "./auth/bearer";
 import { AssistantDisabledError } from "./feature-flags";
 import { ConsentRequiredError } from "./ai/consent-guard";
+import { SCOPE_HEALTH_READ } from "./mcp/oauth/config";
+
+/**
+ * HTTP methods a read-only credential may use on the REST surface. A request
+ * with any other method (POST / PUT / PATCH / DELETE) is a write.
+ */
+const READ_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * Whether a token is MCP-audience-bound (H1). The MCP OAuth bridge and the
+ * connector settings card mint tokens whose ONLY grant is `health:read`. Such a
+ * token is bound to the read surface: the `/mcp` resolver accepts it, and so do
+ * safe (read) REST methods, but it must never reach a REST write/delete. A token
+ * carrying any broader or legacy grant (`*`, `medication:ingest`, an explicit
+ * `health:write`, …) is NOT MCP-audience-bound and keeps its existing reach.
+ */
+function isMcpAudienceToken(permissions: readonly string[]): boolean {
+  return (
+    permissions.length > 0 && permissions.every((p) => p === SCOPE_HEALTH_READ)
+  );
+}
 
 /**
  * Custom error class for HTTP errors with status codes.
@@ -331,7 +352,30 @@ async function authenticateBearer(
     throw err;
   }
 
-  const { user, tokenId, expiresAt } = resolution;
+  const { user, tokenId, expiresAt, permissions } = resolution;
+
+  // H1 — audience binding at the resource server. A health:read-only token is
+  // the MCP read credential; it may reach `/mcp` (a separate resolver that
+  // never runs this edge) and safe REST reads, but a write/delete over REST is
+  // outside its audience and is refused. Fail closed when the method is unknown
+  // (no event context) since every real REST request runs inside apiHandler,
+  // which always sets the method — an unknown method means we cannot prove a
+  // read, so we deny. This is RFC 8707 audience binding on the credential the
+  // client actually holds, not only during the OAuth exchange.
+  if (isMcpAudienceToken(permissions)) {
+    const method = (getEvent()?.getHttpMethod() ?? "").toUpperCase();
+    if (!READ_HTTP_METHODS.has(method)) {
+      auditLog("auth.bearer.failure", {
+        userId: user.id,
+        details: {
+          reason: "mcp_audience_write_blocked",
+          tokenId,
+          method: method || "unknown",
+        },
+      }).catch(() => {});
+      throw new HttpError(403, "Insufficient permissions");
+    }
+  }
 
   auditLog("auth.bearer.success", {
     userId: user.id,

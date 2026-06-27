@@ -18,8 +18,12 @@ vi.mock("@/lib/rate-limit", () => ({
   })),
   rateLimitHeaders: vi.fn(() => ({})),
 }));
+vi.mock("@/lib/app-settings", () => ({
+  isApiGloballyEnabled: vi.fn(async () => true),
+}));
 
 import { POST } from "../register/route";
+import { isApiGloballyEnabled } from "@/lib/app-settings";
 
 function jsonReq(body: unknown): Request {
   return new Request("https://health.example/api/mcp/oauth/register", {
@@ -29,7 +33,10 @@ function jsonReq(body: unknown): Request {
   });
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(isApiGloballyEnabled).mockResolvedValue(true);
+});
 
 describe("POST /register", () => {
   it("registers a public client and returns an hlc_ client_id", async () => {
@@ -68,5 +75,14 @@ describe("POST /register", () => {
       jsonReq({ redirect_uris: ["http://evil.example/cb"] }) as never,
     );
     expect(res.status).toBe(400);
+  });
+
+  it("returns 503 when the API is globally disabled (M4)", async () => {
+    vi.mocked(isApiGloballyEnabled).mockResolvedValue(false);
+    const res = await POST(
+      jsonReq({ redirect_uris: ["https://chatgpt.com/cb"] }) as never,
+    );
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("temporarily_unavailable");
   });
 });

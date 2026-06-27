@@ -34,11 +34,23 @@ vi.mock("@/lib/rate-limit", () => ({
   })),
   rateLimitHeaders: vi.fn(() => ({})),
 }));
+vi.mock("@/lib/app-settings", () => ({
+  isApiGloballyEnabled: vi.fn(async () => true),
+}));
+vi.mock("@/lib/mcp/oauth/connections", () => ({
+  createConnection: vi.fn(async () => "conn-1"),
+  rotateConnection: vi.fn(async () => ({ ok: true })),
+}));
 
 import { randomUUID } from "node:crypto";
 import { POST } from "../token/route";
 import { issueApiToken } from "@/lib/auth/issue-token";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isApiGloballyEnabled } from "@/lib/app-settings";
+import {
+  createConnection,
+  rotateConnection,
+} from "@/lib/mcp/oauth/connections";
 import { signArtifact } from "@/lib/mcp/oauth/artifacts";
 import { s256Challenge } from "@/lib/mcp/oauth/pkce";
 
@@ -80,7 +92,26 @@ beforeEach(() => {
     remaining: 0,
     resetAt: Date.now() + 60_000,
   });
+  vi.mocked(isApiGloballyEnabled).mockResolvedValue(true);
+  vi.mocked(createConnection).mockResolvedValue("conn-1");
+  vi.mocked(rotateConnection).mockResolvedValue({ ok: true });
 });
+
+function refreshToken(overrides: Record<string, unknown> = {}): string {
+  return signArtifact(
+    "refreshToken",
+    {
+      jti: randomUUID(),
+      cid: "conn-1",
+      sub: "user-1",
+      client_id: CLIENT_ID,
+      scope: "health:read offline_access",
+      resource: RESOURCE,
+      ...overrides,
+    },
+    1_000_000,
+  );
+}
 
 describe("authorization_code grant", () => {
   it("exchanges a valid code + verifier for an access token (+ refresh)", async () => {
@@ -101,6 +132,22 @@ describe("authorization_code grant", () => {
     expect(body.scope).toContain("health:read");
     expect(issueApiToken).toHaveBeenCalledWith(
       expect.objectContaining({ permissions: ["health:read"] }),
+    );
+  });
+
+  it("creates a revocable connection anchor and links the access token (H2)", async () => {
+    await POST(
+      tokenReq({
+        grant_type: "authorization_code",
+        code: authCode(),
+        code_verifier: VERIFIER,
+        client_id: CLIENT_ID,
+        redirect_uri: REDIRECT,
+      }) as never,
+    );
+    expect(createConnection).toHaveBeenCalledTimes(1);
+    expect(issueApiToken).toHaveBeenCalledWith(
+      expect.objectContaining({ mcpConnectionId: "conn-1" }),
     );
   });
 
@@ -169,8 +216,61 @@ describe("authorization_code grant", () => {
 });
 
 describe("refresh_token grant", () => {
-  it("rotates: issues a new access + refresh pair", async () => {
-    const refresh = signArtifact(
+  it("rotates: issues a new access + refresh pair against a live connection", async () => {
+    const res = await POST(
+      tokenReq({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken(),
+        client_id: CLIENT_ID,
+      }) as never,
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.access_token).toMatch(/^hlk_/);
+    expect(body.refresh_token).toMatch(/^hlrt_/);
+    expect(rotateConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: "conn-1", clientId: CLIENT_ID }),
+    );
+  });
+
+  it("rejects a refresh whose connection was revoked (H2 — settings revoke)", async () => {
+    vi.mocked(rotateConnection).mockResolvedValue({
+      ok: false,
+      reason: "revoked",
+    });
+    const res = await POST(
+      tokenReq({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken(),
+        client_id: CLIENT_ID,
+      }) as never,
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("invalid_grant");
+    expect(issueApiToken).not.toHaveBeenCalled();
+  });
+
+  it("rejects a replayed refresh and reports reuse detection (H2)", async () => {
+    vi.mocked(rotateConnection).mockResolvedValue({
+      ok: false,
+      reason: "reuse_detected",
+    });
+    const res = await POST(
+      tokenReq({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken(),
+        client_id: CLIENT_ID,
+      }) as never,
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("invalid_grant");
+    expect(body.error_description).toMatch(/reuse/i);
+    expect(issueApiToken).not.toHaveBeenCalled();
+  });
+
+  it("rejects a legacy refresh token with no connection binding", async () => {
+    const legacy = signArtifact(
       "refreshToken",
       {
         jti: randomUUID(),
@@ -184,14 +284,31 @@ describe("refresh_token grant", () => {
     const res = await POST(
       tokenReq({
         grant_type: "refresh_token",
-        refresh_token: refresh,
+        refresh_token: legacy,
         client_id: CLIENT_ID,
       }) as never,
     );
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.access_token).toMatch(/^hlk_/);
-    expect(body.refresh_token).toMatch(/^hlrt_/);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("invalid_grant");
+    expect(rotateConnection).not.toHaveBeenCalled();
+  });
+});
+
+describe("operator kill-switch + origin config (M1/M4)", () => {
+  it("refuses to mint when the API is globally disabled", async () => {
+    vi.mocked(isApiGloballyEnabled).mockResolvedValue(false);
+    const res = await POST(
+      tokenReq({
+        grant_type: "authorization_code",
+        code: authCode(),
+        code_verifier: VERIFIER,
+        client_id: CLIENT_ID,
+        redirect_uri: REDIRECT,
+      }) as never,
+    );
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("temporarily_unavailable");
+    expect(issueApiToken).not.toHaveBeenCalled();
   });
 });
 

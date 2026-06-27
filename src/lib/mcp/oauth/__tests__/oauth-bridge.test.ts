@@ -149,6 +149,35 @@ describe("clients — CIMD via safeFetch (SSRF-safe)", () => {
     const res = await resolveClient("https://169.254.169.254/meta.json");
     expect(res).toEqual({ ok: false, reason: "ssrf_blocked" });
   });
+
+  it("rejects a CIMD doc with a non-https / non-loopback redirect (L2)", async () => {
+    const clientId = "https://app.example/mcp-client.json";
+    vi.mocked(safeFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          client_id: clientId,
+          client_name: "Sketchy",
+          redirect_uris: ["http://evil.example/cb"], // non-loopback http
+        }),
+        { status: 200 },
+      ),
+    );
+    const res = await resolveClient(clientId);
+    expect(res).toEqual({ ok: false, reason: "invalid_metadata" });
+  });
+
+  it("rejects an oversized CIMD body via the streaming cap (M3)", async () => {
+    const clientId = "https://app.example/mcp-client.json";
+    // Declared Content-Length over the 16 KB cap → rejected before reading.
+    vi.mocked(safeFetch).mockResolvedValue(
+      new Response("x".repeat(64), {
+        status: 200,
+        headers: { "content-length": String(64 * 1024) },
+      }),
+    );
+    const res = await resolveClient(clientId);
+    expect(res).toEqual({ ok: false, reason: "invalid_metadata" });
+  });
 });
 
 describe("clients — redirect URI matching", () => {

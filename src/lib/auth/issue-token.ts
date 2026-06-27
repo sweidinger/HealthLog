@@ -29,6 +29,12 @@ export interface IssueTokenOptions {
    * carries continuity). Ignored when `expiresInDays` alone is supplied.
    */
   expiresInMinutes?: number;
+  /**
+   * Links this access token to an MCP OAuth connection (H2). Set only by the
+   * `/api/mcp/oauth` bridge so a connection revoke can kill every access row it
+   * issued and the connector token list can exclude the transient access rows.
+   */
+  mcpConnectionId?: string;
 }
 
 /**
@@ -53,6 +59,9 @@ export async function issueApiToken(
       tokenHash: tokenHashValue,
       permissions: opts.permissions ?? ["*"],
       expiresAt,
+      ...(opts.mcpConnectionId
+        ? { mcpConnectionId: opts.mcpConnectionId }
+        : {}),
     },
     select: { id: true },
   });

@@ -23,6 +23,7 @@
  * ordinary registered entry.
  */
 import { safeFetch } from "@/lib/safe-fetch";
+import { readBodyCapped } from "@/lib/http/read-capped";
 import { ARTIFACT_KINDS, signArtifact, verifyArtifact } from "./artifacts";
 
 export interface ResolvedClient {
@@ -53,6 +54,30 @@ function asStringArray(value: unknown): string[] | null {
   }
   if (out.length === 0 || out.length > MAX_REDIRECT_URIS) return null;
   return out;
+}
+
+const REDIRECT_LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1", "[::1]"];
+
+/**
+ * A redirect URI must be an absolute HTTPS URL or an `http` loopback URL. This
+ * is the single source of truth shared by DCR (the `register` route) and CIMD
+ * (L2): both registration paths enforce the identical https/loopback floor.
+ */
+export function isAllowableRedirectUri(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol === "https:") return true;
+  if (
+    url.protocol === "http:" &&
+    REDIRECT_LOOPBACK_HOSTS.includes(url.hostname)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /** A `client_id` that is an HTTPS URL is a CIMD client (SEP-991). */
@@ -131,13 +156,16 @@ async function resolveCimdClient(clientId: string): Promise<ClientResolution> {
   }
   if (!res.ok) return { ok: false, reason: "unknown_client" };
 
-  const raw = await res.text();
-  if (raw.length > CIMD_MAX_BYTES) {
+  // M3 — enforce the byte cap WHILE reading: reject up front on an oversized
+  // Content-Length and abort the stream the moment it overflows, so a hostile
+  // CIMD host cannot buffer gigabytes into memory before a post-hoc check.
+  const read = await readBodyCapped(res, CIMD_MAX_BYTES);
+  if (!read.ok) {
     return { ok: false, reason: "invalid_metadata" };
   }
   let doc: Record<string, unknown>;
   try {
-    doc = JSON.parse(raw);
+    doc = JSON.parse(read.text);
   } catch {
     return { ok: false, reason: "invalid_metadata" };
   }
@@ -148,6 +176,10 @@ async function resolveCimdClient(clientId: string): Promise<ClientResolution> {
   }
   const redirectUris = asStringArray(doc.redirect_uris);
   if (!redirectUris) return { ok: false, reason: "invalid_metadata" };
+  // L2 — CIMD redirect URIs get the same https/loopback floor DCR enforces.
+  if (!redirectUris.every(isAllowableRedirectUri)) {
+    return { ok: false, reason: "invalid_metadata" };
+  }
 
   return {
     ok: true,

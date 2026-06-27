@@ -31,9 +31,12 @@ import { withBackgroundEvent } from "@/lib/logging/background";
 import { auditLog } from "@/lib/auth/audit";
 import { getSession } from "@/lib/auth/session";
 import { checkAuthSurfaceRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { isApiGloballyEnabled } from "@/lib/app-settings";
 import {
   audienceMatches,
   AUTH_CODE_TTL_SECONDS,
+  isMcpOriginConfigured,
+  resolveBaseOrigin,
   SCOPE_HEALTH_READ,
 } from "@/lib/mcp/oauth/config";
 import { redirectUriAllowed, resolveClient } from "@/lib/mcp/oauth/clients";
@@ -96,6 +99,10 @@ function grantScope(requested: string | undefined): string {
 interface ValidatedRequest {
   clientId: string;
   clientName: string;
+  /** The VERIFIED client origin shown on the consent screen (L1). */
+  clientOrigin: string;
+  /** Registration provenance — drives the trust label on consent (L1). */
+  clientSource: "cimd" | "dcr";
   redirectUri: string;
   codeChallenge: string;
   scope: string;
@@ -174,11 +181,28 @@ async function validate(
     };
   }
 
+  // L1 — the VERIFIED origin. For CIMD the `client_id` IS the document URL, so
+  // its host is cryptographically tied to the fetched-and-matched document; for
+  // DCR there is no verified origin (anyone can self-register), so the consent
+  // screen labels it unverified rather than trusting the self-asserted name.
+  const clientOrigin =
+    resolved.client.source === "cimd"
+      ? (() => {
+          try {
+            return new URL(p.client_id).host;
+          } catch {
+            return p.client_id;
+          }
+        })()
+      : "";
+
   return {
     ok: true,
     v: {
       clientId: p.client_id,
       clientName: resolved.client.clientName,
+      clientOrigin,
+      clientSource: resolved.client.source,
       redirectUri: p.redirect_uri,
       codeChallenge: p.code_challenge as string,
       scope: grantScope(p.scope),
@@ -186,6 +210,20 @@ async function validate(
       resource: p.resource as string,
     },
   };
+}
+
+/**
+ * L3 — same-origin assertion for the consent POST. A non-browser caller sends
+ * neither `Origin` nor `Sec-Fetch-Site`, so their absence is allowed; a present
+ * `Origin` that is not our own origin, or a `Sec-Fetch-Site` that is not
+ * `same-origin`, is refused. Mirrors the `/mcp` DNS-rebinding posture.
+ */
+function consentOriginAllowed(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  if (origin && origin !== resolveBaseOrigin(request.url)) return false;
+  const site = request.headers.get("sec-fetch-site");
+  if (site && site !== "same-origin") return false;
+  return true;
 }
 
 function redirectBack(
@@ -197,8 +235,19 @@ function redirectBack(
   return Response.redirect(url.toString(), 302);
 }
 
+/** Whether the surface is available (M1 origin pinned + M4 kill-switch off). */
+async function surfaceAvailable(): Promise<boolean> {
+  return isMcpOriginConfigured() && (await isApiGloballyEnabled());
+}
+
 export async function GET(request: NextRequest): Promise<Response> {
   return withBackgroundEvent("mcp.oauth.authorize", async () => {
+    if (!(await surfaceAvailable())) {
+      return Response.json(
+        { error: "temporarily_unavailable" },
+        { status: 503 },
+      );
+    }
     const rl = await checkAuthSurfaceRateLimit(
       request,
       "mcp:oauth:authorize",
@@ -244,10 +293,17 @@ export async function GET(request: NextRequest): Promise<Response> {
     // Consent screen — a plain POST form (no inline script/style, CSP-safe).
     const hidden = (name: string, value: string) =>
       `<input type="hidden" name="${name}" value="${htmlEscape(value)}">`;
+    // L1 — show the VERIFIED origin (or an explicit "unverified" label for DCR)
+    // next to the self-asserted name so the user authorizes who, not just what.
+    const provenance =
+      v.clientSource === "cimd"
+        ? `<p>Verified origin: <code>${htmlEscape(v.clientOrigin)}</code></p>`
+        : `<p><strong>Unverified application</strong> (dynamically registered — the name above is self-reported and not verified).</p>`;
     return html(
       `<main>
         <h1>Authorize access</h1>
         <p><strong>${htmlEscape(v.clientName)}</strong> is requesting access to your HealthLog data.</p>
+        ${provenance}
         <p>Scope: <code>${htmlEscape(v.scope)}</code> — read-only access to your own health records.</p>
         <form method="POST" action="/api/mcp/oauth/authorize">
           ${hidden("response_type", "code")}
@@ -268,6 +324,25 @@ export async function GET(request: NextRequest): Promise<Response> {
 
 export async function POST(request: NextRequest): Promise<Response> {
   return withBackgroundEvent("mcp.oauth.authorize", async () => {
+    if (!(await surfaceAvailable())) {
+      return Response.json(
+        { error: "temporarily_unavailable" },
+        { status: 503 },
+      );
+    }
+
+    // L3 — defence-in-depth same-origin assertion on the consent decision. The
+    // session cookie is already SameSite=Lax (a cross-site POST carries none),
+    // but reject an explicit cross-origin Origin / Sec-Fetch-Site outright so a
+    // forged "allow" cannot ride a present session.
+    if (!consentOriginAllowed(request)) {
+      annotate({ action: { name: "mcp.oauth.authorize.cross_origin" } });
+      return Response.json(
+        { error: "access_denied", error_description: "Cross-origin POST" },
+        { status: 403 },
+      );
+    }
+
     const rl = await checkAuthSurfaceRateLimit(
       request,
       "mcp:oauth:authorize",
@@ -341,6 +416,9 @@ export async function POST(request: NextRequest): Promise<Response> {
         jti: randomUUID(),
         sub: session.user.id,
         client_id: v.clientId,
+        // Carried so the token endpoint can label the persistent connection
+        // (H2) without re-resolving the client.
+        client_name: v.clientName,
         redirect_uri: v.redirectUri,
         code_challenge: v.codeChallenge,
         scope: v.scope,

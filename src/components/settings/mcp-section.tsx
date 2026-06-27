@@ -18,7 +18,7 @@
  */
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Key, Loader2, Plug, Trash2 } from "lucide-react";
+import { Check, Copy, Key, Link2, Loader2, Plug, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -54,12 +54,133 @@ interface McpTokenInfo {
   revoked: boolean;
 }
 
+interface McpConnectionInfo {
+  id: string;
+  clientName: string;
+  scope: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
 export function McpSection() {
   return (
     <div className="space-y-6">
       <McpEnableCard />
+      <McpConnectionsCard />
       <McpTokensCard />
     </div>
+  );
+}
+
+function McpConnectionsCard() {
+  const { t } = useTranslations();
+  const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: connections } = useQuery({
+    queryKey: queryKeys.mcpConnections(),
+    queryFn: async () => apiGet<McpConnectionInfo[]>("/api/mcp/connections"),
+    enabled: isAuthenticated,
+  });
+
+  async function handleRevoke(connectionId: string) {
+    try {
+      const res = await apiFetchRaw(`/api/mcp/connections/${connectionId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        toast.error(t("settings.mcp.connectionRevokeFailed"));
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpConnections() });
+    } catch {
+      toast.error(t("settings.mcp.connectionRevokeFailed"));
+    }
+  }
+
+  const list = connections ?? [];
+
+  return (
+    <SettingsCard>
+      <SettingsCardHeader
+        icon={Link2}
+        title={t("settings.mcp.connectionsTitle")}
+        description={t("settings.mcp.connectionsDescription")}
+      />
+
+      <div className="mt-4 space-y-4 pl-7">
+        {list.length === 0 ? (
+          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm">
+            {t("settings.mcp.noConnections")}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {list.map((conn) => (
+              <li
+                key={conn.id}
+                className="bg-muted/30 border-border space-y-2 rounded-lg border p-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 text-sm font-medium break-all">
+                    {conn.clientName}
+                  </p>
+                  <Badge className="bg-success/15 text-success text-[10px]">
+                    {t("settings.mcp.connectionConnected")}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground text-[11px]">
+                  <span className="font-medium">
+                    {t("settings.tokenTablePermissions")}:
+                  </span>{" "}
+                  {conn.scope}
+                </p>
+                <p className="text-muted-foreground text-[11px]">
+                  <span className="font-medium">
+                    {t("settings.mcp.connectionLastUsed")}:
+                  </span>{" "}
+                  {conn.lastUsedAt
+                    ? formatDateTime(conn.lastUsedAt)
+                    : t("settings.mcp.connectionNeverUsed")}
+                </p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive border-destructive/30 min-h-11 w-full"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {t("settings.mcp.connectionRevoke")}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {t("settings.mcp.connectionRevoke")}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t("settings.mcp.connectionRevokeDescription")}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>
+                        {t("common.cancel")}
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        onClick={() => handleRevoke(conn.id)}
+                      >
+                        {t("settings.mcp.connectionRevoke")}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </SettingsCard>
   );
 }
 

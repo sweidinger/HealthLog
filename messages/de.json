@@ -4907,7 +4907,16 @@
       "connectDescription": "Füge diese URL in die Einrichtung des eigenen Connectors deines Assistenten ein und autorisiere dich mit dem Token unten oder melde dich bei Aufforderung an.",
       "tokensTitle": "Connector-Tokens",
       "tokensDescription": "Erzeuge ein schreibgeschütztes Token, um einen Assistenten zu verbinden. Das Token wird nur einmal angezeigt.",
-      "scopeNote": "Tokens sind auf health:read beschränkt — nur Lesezugriff auf deine eigenen Daten. Sie können niemals Daten schreiben oder Admin-Funktionen erreichen."
+      "scopeNote": "Tokens sind auf health:read beschränkt — nur Lesezugriff auf deine eigenen Daten. Sie können niemals Daten schreiben oder Admin-Funktionen erreichen.",
+      "connectionsTitle": "Verbundene Assistenten",
+      "connectionsDescription": "Assistenten, die du über die Anmeldung autorisiert hast. Das Widerrufen einer Verbindung beendet den Zugriff sofort, einschließlich der Möglichkeit zur Erneuerung.",
+      "noConnections": "Keine verbundenen Assistenten.",
+      "connectionConnected": "Verbunden",
+      "connectionLastUsed": "Zuletzt verwendet",
+      "connectionNeverUsed": "Nie verwendet",
+      "connectionRevoke": "Trennen",
+      "connectionRevokeDescription": "Dies beendet den Zugriff des Assistenten sofort und verhindert eine Erneuerung. Für eine erneute Verbindung ist eine neue Autorisierung nötig.",
+      "connectionRevokeFailed": "Assistent konnte nicht getrennt werden."
     }
   },
   "admin": {

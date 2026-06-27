@@ -42,8 +42,15 @@ export const GET = apiHandler(async () => {
     return apiError("API is globally disabled", 403);
   }
 
+  // M2 — list only manually-minted connector tokens. OAuth access rows
+  // (`mcpConnectionId != null`) are transient 60-minute credentials that would
+  // flood this list; they are surfaced (and revoked) as connections instead.
   const tokens = await prisma.apiToken.findMany({
-    where: { userId: user.id, permissions: { has: SCOPE_HEALTH_READ } },
+    where: {
+      userId: user.id,
+      permissions: { has: SCOPE_HEALTH_READ },
+      mcpConnectionId: null,
+    },
     select: {
       id: true,
       name: true,

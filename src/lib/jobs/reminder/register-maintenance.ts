@@ -79,6 +79,8 @@ import {
   handleAuditLogCleanup,
   CoachMessageCleanupPayload,
   handleCoachMessageCleanup,
+  McpTokenCleanupPayload,
+  handleMcpTokenCleanup,
 } from "./cleanup-handlers";
 import {
   HostMetricSamplePayload,
@@ -168,6 +170,14 @@ const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
 const COACH_MESSAGE_CLEANUP_QUEUE = "coach-message-cleanup";
 
 const COACH_MESSAGE_CLEANUP_CRON = "50 3 * * *";
+// MCP Phase 3 (M2) — daily prune of expired/revoked MCP connector access
+// tokens (every code exchange + hourly refresh mints a 60-minute row) and
+// long-revoked OAuth connection anchors. Slots at 03:55 Europe/Berlin after
+// the coach-message cleanup (03:50), inside the existing 03:xx window.
+
+const MCP_TOKEN_CLEANUP_QUEUE = "mcp-token-cleanup";
+
+const MCP_TOKEN_CLEANUP_CRON = "55 3 * * *";
 
 const allQueues = [
   DATA_BACKUP_QUEUE,
@@ -209,6 +219,10 @@ const allQueues = [
   // the daily schedule silently no-ops and the encrypted coach_messages
   // table grows unbounded.
   COACH_MESSAGE_CLEANUP_QUEUE,
+  // MCP Phase 3 (M2) — expired/revoked MCP access-token + connection prune.
+  // Without this entry the daily schedule silently no-ops and the api_tokens
+  // table grows unbounded with dead 60-minute connector rows.
+  MCP_TOKEN_CLEANUP_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -260,6 +274,8 @@ const schedules: ScheduleEntry[] = [
   [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
   // v1.18.7 — daily 03:50 Europe/Berlin prune for stale Coach history.
   [COACH_MESSAGE_CLEANUP_QUEUE, COACH_MESSAGE_CLEANUP_CRON],
+  // MCP Phase 3 (M2) — daily 03:55 Europe/Berlin prune for dead MCP tokens.
+  [MCP_TOKEN_CLEANUP_QUEUE, MCP_TOKEN_CLEANUP_CRON],
 ];
 
 /**
@@ -348,6 +364,13 @@ export async function registerMaintenanceQueues(
     COACH_MESSAGE_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleCoachMessageCleanup,
+  );
+  // MCP Phase 3 (M2) — daily prune of dead MCP connector access tokens +
+  // long-revoked connection anchors. Single-flight like every other cleanup.
+  await boss.work<McpTokenCleanupPayload>(
+    MCP_TOKEN_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleMcpTokenCleanup,
   );
   await boss.work<PrDetectionPayload>(
     PR_DETECTION_QUEUE,

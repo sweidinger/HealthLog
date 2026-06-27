@@ -46,8 +46,12 @@ import { createMcpServer, resolveMcpAuthContext } from "@/lib/mcp";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { annotate } from "@/lib/logging/context";
 import { isModuleEnabled } from "@/lib/modules/gate";
+import { isApiGloballyEnabled } from "@/lib/app-settings";
 import { checkMcpRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
-import { resolveBaseOrigin } from "@/lib/mcp/oauth/config";
+import {
+  isMcpOriginConfigured,
+  resolveBaseOrigin,
+} from "@/lib/mcp/oauth/config";
 import { wwwAuthenticateChallenge } from "@/lib/mcp/oauth/metadata";
 import type { ModuleKey } from "@/lib/modules/registry";
 
@@ -129,6 +133,15 @@ async function handleMcp(request: Request): Promise<Response> {
     if (!originAllowed(request)) {
       annotate({ action: { name: "mcp.origin.rejected" } });
       return forbiddenOrigin();
+    }
+
+    // 0a. KILL-SWITCH + ORIGIN CONFIG — M1 fails closed without a pinned
+    //     origin; M4 honours the operator's global API switch. Both answer the
+    //     same invisible 404 as the module-off posture so a disabled instance
+    //     leaks nothing.
+    if (!isMcpOriginConfigured() || !(await isApiGloballyEnabled())) {
+      annotate({ action: { name: "mcp.surface.unavailable" } });
+      return moduleDisabled();
     }
 
     // 1. AUTH — Bearer only; a cookie is never consulted (admin unreachable).

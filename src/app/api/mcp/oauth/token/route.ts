@@ -30,6 +30,7 @@ import { annotate } from "@/lib/logging/context";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { auditLog } from "@/lib/auth/audit";
 import { issueApiToken } from "@/lib/auth/issue-token";
+import { isApiGloballyEnabled } from "@/lib/app-settings";
 import {
   checkRateLimit,
   checkAuthSurfaceRateLimit,
@@ -38,11 +39,16 @@ import {
 import {
   ACCESS_TOKEN_TTL_MINUTES,
   audienceMatches,
+  isMcpOriginConfigured,
   REFRESH_TOKEN_TTL_DAYS,
   SCOPE_HEALTH_READ,
 } from "@/lib/mcp/oauth/config";
 import { signArtifact, verifyArtifact } from "@/lib/mcp/oauth/artifacts";
 import { verifyPkceS256 } from "@/lib/mcp/oauth/pkce";
+import {
+  createConnection,
+  rotateConnection,
+} from "@/lib/mcp/oauth/connections";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,6 +88,7 @@ interface AuthCodeClaims {
   jti: string;
   sub: string;
   client_id: string;
+  client_name?: string;
   redirect_uri: string;
   code_challenge: string;
   scope: string;
@@ -90,40 +97,56 @@ interface AuthCodeClaims {
 
 interface RefreshClaims {
   jti: string;
+  /** Connection id — the persistent, revocable anchor for the chain (H2). */
+  cid?: string;
   sub: string;
   client_id: string;
   scope: string;
   resource: string;
 }
 
+/**
+ * Mint the access token (+ refresh artifact when `offline_access` is granted).
+ *
+ * `connectionId` is the persistent anchor for the refresh chain (H2): the access
+ * token is linked to it (so a connection revoke kills it) and the refresh
+ * artifact carries it (`cid`). `refreshJti` is the connection's new
+ * `currentJti` — for the `authorization_code` grant the caller has just created
+ * the connection seeded with it; for `refresh_token` the caller has just
+ * advanced the connection to it.
+ */
 async function mintTokenPair(args: {
   userId: string;
   clientId: string;
   scope: string;
   resource: string;
   grant: "authorization_code" | "refresh_token";
+  connectionId?: string;
+  refreshJti?: string;
 }): Promise<Response> {
   const access = await issueApiToken({
     userId: args.userId,
     name: "MCP connector",
     permissions: [SCOPE_HEALTH_READ],
     expiresInMinutes: ACCESS_TOKEN_TTL_MINUTES,
+    ...(args.connectionId ? { mcpConnectionId: args.connectionId } : {}),
   });
 
-  const includeRefresh = args.scope.split(/\s+/).includes("offline_access");
-  const refresh = includeRefresh
-    ? signArtifact(
-        "refreshToken",
-        {
-          jti: randomUUID(),
-          sub: args.userId,
-          client_id: args.clientId,
-          scope: args.scope,
-          resource: args.resource,
-        },
-        REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
-      )
-    : undefined;
+  const refresh =
+    args.connectionId && args.refreshJti
+      ? signArtifact(
+          "refreshToken",
+          {
+            jti: args.refreshJti,
+            cid: args.connectionId,
+            sub: args.userId,
+            client_id: args.clientId,
+            scope: args.scope,
+            resource: args.resource,
+          },
+          REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+        )
+      : undefined;
 
   await auditLog("mcp.oauth.token.issued", {
     userId: args.userId,
@@ -145,6 +168,16 @@ async function mintTokenPair(args: {
 
 export async function POST(request: NextRequest): Promise<Response> {
   return withBackgroundEvent("mcp.oauth.token", async () => {
+    // M1 — fail closed without a pinned origin; M4 — honour the operator's
+    // global API kill-switch. Either off and the bridge mints no tokens.
+    if (!isMcpOriginConfigured() || !(await isApiGloballyEnabled())) {
+      return oauthError(
+        "temporarily_unavailable",
+        "The MCP OAuth surface is unavailable",
+        503,
+      );
+    }
+
     const rl = await checkAuthSurfaceRateLimit(
       request,
       "mcp:oauth:token",
@@ -242,12 +275,34 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
 
+      // H2 — when offline_access is granted, create the persistent, revocable
+      // connection anchor seeded with the first refresh jti. Without it the
+      // refresh chain would be stateless and un-revocable.
+      const offlineGranted = claims.scope
+        .split(/\s+/)
+        .includes("offline_access");
+      let connectionId: string | undefined;
+      let refreshJti: string | undefined;
+      if (offlineGranted) {
+        refreshJti = randomUUID();
+        connectionId = await createConnection({
+          userId: claims.sub,
+          clientId: claims.client_id,
+          clientName: claims.client_name ?? "MCP client",
+          scope: claims.scope,
+          resource: claims.resource,
+          jti: refreshJti,
+        });
+      }
+
       return mintTokenPair({
         userId: claims.sub,
         clientId: claims.client_id,
         scope: claims.scope,
         resource: claims.resource,
         grant: "authorization_code",
+        connectionId,
+        refreshJti,
       });
     }
 
@@ -284,18 +339,41 @@ export async function POST(request: NextRequest): Promise<Response> {
           "Refresh token is bound to a different audience",
         );
       }
-      // Rotation: claim the presented refresh jti so it cannot be reused.
-      if (
-        !(await claimJti(
-          "refresh",
-          claims.jti,
-          REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
-        ))
-      ) {
-        annotate({ action: { name: "mcp.oauth.token.refresh_replayed" } });
+
+      // H2 — rotation against the persistent connection anchor. The connection's
+      // `currentJti` is the single valid refresh jti; presenting any other (an
+      // already-rotated artifact) is a replay that revokes the whole connection
+      // (reuse-detection family revocation). A revoked connection always fails,
+      // so the settings "revoke" terminates the chain.
+      if (!claims.cid) {
         return oauthError(
           "invalid_grant",
-          "Refresh token has already been used",
+          "Refresh token is not bound to a connection",
+        );
+      }
+      const newJti = randomUUID();
+      const rotation = await rotateConnection({
+        connectionId: claims.cid,
+        presentedJti: claims.jti,
+        newJti,
+        clientId: claims.client_id,
+        userId: claims.sub,
+      });
+      if (!rotation.ok) {
+        annotate({
+          action: {
+            name:
+              rotation.reason === "reuse_detected"
+                ? "mcp.oauth.token.refresh_reuse_detected"
+                : "mcp.oauth.token.refresh_rejected",
+          },
+          meta: { reason: rotation.reason },
+        });
+        return oauthError(
+          "invalid_grant",
+          rotation.reason === "reuse_detected"
+            ? "Refresh token reuse detected; the connection was revoked"
+            : "Refresh token is invalid, revoked, or already used",
         );
       }
 
@@ -305,6 +383,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         scope: claims.scope,
         resource: claims.resource,
         grant: "refresh_token",
+        connectionId: claims.cid,
+        refreshJti: newJti,
       });
     }
 

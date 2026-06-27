@@ -7,12 +7,23 @@
  * Claude.ai / ChatGPT can self-register and complete the OAuth 2.1 + PKCE flow.
  */
 import { authorizationServerMetadata } from "@/lib/mcp/oauth/metadata";
+import { isMcpOriginConfigured } from "@/lib/mcp/oauth/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export function GET(request: Request): Response {
+  // M1 — fail closed when no origin is pinned; never derive the issuer /
+  // endpoint URLs from the attacker-influenceable Host header.
+  if (!isMcpOriginConfigured()) {
+    return Response.json(
+      { error: "not_found" },
+      { status: 404, headers: { "Cache-Control": "no-store" } },
+    );
+  }
   return Response.json(authorizationServerMetadata(request.url), {
-    headers: { "Cache-Control": "public, max-age=300" },
+    // M1 — `private, no-store`: the document is host-derived, so a shared cache
+    // keyed on path (ignoring Host) must never serve it cross-tenant.
+    headers: { "Cache-Control": "private, no-store" },
   });
 }

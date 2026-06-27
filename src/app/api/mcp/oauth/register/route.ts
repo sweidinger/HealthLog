@@ -18,7 +18,12 @@ import { z } from "zod/v4";
 import { annotate } from "@/lib/logging/context";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { checkAuthSurfaceRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
-import { registerDcrClient } from "@/lib/mcp/oauth/clients";
+import { isApiGloballyEnabled } from "@/lib/app-settings";
+import { readBodyCapped } from "@/lib/http/read-capped";
+import {
+  isAllowableRedirectUri,
+  registerDcrClient,
+} from "@/lib/mcp/oauth/clients";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,24 +31,6 @@ export const dynamic = "force-dynamic";
 const REGISTER_LIMIT = 20;
 const REGISTER_WINDOW_MS = 60 * 60 * 1000;
 const MAX_BODY_BYTES = 16 * 1024;
-
-/** A redirect URI must be an absolute HTTPS URL or an http loopback URL. */
-function isAllowableRedirectUri(value: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return false;
-  }
-  if (url.protocol === "https:") return true;
-  if (
-    url.protocol === "http:" &&
-    ["localhost", "127.0.0.1", "::1", "[::1]"].includes(url.hostname)
-  ) {
-    return true;
-  }
-  return false;
-}
 
 const registrationSchema = z.object({
   redirect_uris: z
@@ -96,13 +83,20 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    const raw = await request.text();
-    if (raw.length > MAX_BODY_BYTES) {
+    // M4 — the operator API kill-switch covers the OAuth surface too.
+    if (!(await isApiGloballyEnabled())) {
+      return oauthError("temporarily_unavailable", "API is disabled", 503);
+    }
+
+    // M3 — enforce the cap WHILE reading the (unauthenticated) registration
+    // body so a hostile client cannot buffer an oversized payload first.
+    const read = await readBodyCapped(request, MAX_BODY_BYTES);
+    if (!read.ok) {
       return oauthError("invalid_client_metadata", "Payload too large", 400);
     }
     let body: unknown;
     try {
-      body = JSON.parse(raw);
+      body = JSON.parse(read.text);
     } catch {
       return oauthError("invalid_client_metadata", "Invalid JSON", 400);
     }

@@ -16,8 +16,48 @@
  */
 
 /**
+ * Thrown when the MCP/OAuth surface is asked to resolve its canonical origin but
+ * neither `APP_URL` nor `NEXT_PUBLIC_APP_URL` is configured. The surface fails
+ * closed in that case (M1): without an operator-pinned origin the issuer,
+ * endpoint URLs, and RFC 8707 audience would be derived from the attacker-
+ * influenceable `Host` header, so we refuse to serve rather than trust it.
+ */
+export class McpOriginNotConfiguredError extends Error {
+  constructor() {
+    super(
+      "APP_URL (or NEXT_PUBLIC_APP_URL) must be set to serve the MCP/OAuth surface",
+    );
+    this.name = "McpOriginNotConfiguredError";
+  }
+}
+
+/** The operator-configured origin, env-only — `Host` is never trusted. */
+function configuredOrigin(): string | null {
+  for (const value of [process.env.APP_URL, process.env.NEXT_PUBLIC_APP_URL]) {
+    const trimmed = value?.trim();
+    if (!trimmed) continue;
+    try {
+      return new URL(trimmed).origin;
+    } catch {
+      // try the next candidate
+    }
+  }
+  return null;
+}
+
+/** Whether the operator has pinned a canonical origin (M1 fail-closed gate). */
+export function isMcpOriginConfigured(): boolean {
+  return configuredOrigin() !== null;
+}
+
+/**
  * Resolve the public origin of this deployment, e.g. `https://health.example`.
- * Operator config wins; the request URL is the last resort.
+ *
+ * Operator config (`APP_URL` → `NEXT_PUBLIC_APP_URL`) is authoritative. The
+ * request URL is a last resort retained ONLY for non-security-bearing callers;
+ * every MCP/OAuth entry point first asserts `isMcpOriginConfigured()` and fails
+ * closed (M1), so on those paths the env value is always what is returned and
+ * the `Host`-derived fallback is never reached.
  */
 export function resolveBaseOrigin(requestUrl?: string): string {
   const candidates = [
@@ -36,6 +76,17 @@ export function resolveBaseOrigin(requestUrl?: string): string {
     }
   }
   return "http://localhost:3000";
+}
+
+/**
+ * Like `resolveBaseOrigin` but fails closed: throws `McpOriginNotConfiguredError`
+ * when no operator origin is set. Every MCP/OAuth surface calls this so a
+ * missing `APP_URL` refuses service instead of trusting the `Host` header (M1).
+ */
+export function requireBaseOrigin(): string {
+  const origin = configuredOrigin();
+  if (!origin) throw new McpOriginNotConfiguredError();
+  return origin;
 }
 
 /**

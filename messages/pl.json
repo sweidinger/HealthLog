@@ -4907,7 +4907,16 @@
       "connectDescription": "Wklej ten adres URL w konfiguracji własnego łącznika asystenta, a następnie autoryzuj za pomocą poniższego tokenu lub zaloguj się po wyświetleniu monitu.",
       "tokensTitle": "Tokeny łącznika",
       "tokensDescription": "Wygeneruj token tylko do odczytu, aby połączyć asystenta. Token jest wyświetlany tylko raz.",
-      "scopeNote": "Tokeny są ograniczone do health:read — dostęp tylko do odczytu własnych danych. Nigdy nie mogą zapisywać danych ani uzyskać dostępu do funkcji administracyjnych."
+      "scopeNote": "Tokeny są ograniczone do health:read — dostęp tylko do odczytu własnych danych. Nigdy nie mogą zapisywać danych ani uzyskać dostępu do funkcji administracyjnych.",
+      "connectionsTitle": "Połączeni asystenci",
+      "connectionsDescription": "Asystenci autoryzowani podczas logowania. Cofnięcie połączenia natychmiast kończy dostęp, w tym możliwość odnawiania.",
+      "noConnections": "Brak połączonych asystentów.",
+      "connectionConnected": "Połączono",
+      "connectionLastUsed": "Ostatnio użyto",
+      "connectionNeverUsed": "Nigdy nie użyto",
+      "connectionRevoke": "Rozłącz",
+      "connectionRevokeDescription": "To natychmiast kończy dostęp asystenta i uniemożliwia odnawianie. Ponowne połączenie będzie wymagać nowej autoryzacji.",
+      "connectionRevokeFailed": "Nie udało się rozłączyć asystenta."
     }
   },
   "admin": {

@@ -4907,7 +4907,16 @@
       "connectDescription": "Pega esta URL en la configuración del conector personalizado de tu asistente y autoriza con el token de abajo o inicia sesión cuando se te solicite.",
       "tokensTitle": "Tokens del conector",
       "tokensDescription": "Genera un token de solo lectura para conectar un asistente. El token se muestra una sola vez.",
-      "scopeNote": "Los tokens se limitan a health:read: acceso de solo lectura a tus propios registros. Nunca pueden escribir datos ni acceder a funciones de administración."
+      "scopeNote": "Los tokens se limitan a health:read: acceso de solo lectura a tus propios registros. Nunca pueden escribir datos ni acceder a funciones de administración.",
+      "connectionsTitle": "Asistentes conectados",
+      "connectionsDescription": "Asistentes que autorizaste mediante el inicio de sesión. Revocar una conexión finaliza su acceso de inmediato, incluida su capacidad de renovación.",
+      "noConnections": "No hay asistentes conectados.",
+      "connectionConnected": "Conectado",
+      "connectionLastUsed": "Último uso",
+      "connectionNeverUsed": "Nunca usado",
+      "connectionRevoke": "Desconectar",
+      "connectionRevokeDescription": "Esto finaliza el acceso del asistente de inmediato e impide su renovación. Será necesario autorizarlo de nuevo para volver a conectarlo.",
+      "connectionRevokeFailed": "No se pudo desconectar el asistente."
     }
   },
   "admin": {

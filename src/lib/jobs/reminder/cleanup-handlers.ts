@@ -11,6 +11,7 @@ import {
   cleanupExpiredWhoopOAuthStates,
 } from "@/lib/jobs/whoop-oauth-state-cleanup";
 import { cleanupExpiredIdempotencyKeys } from "@/lib/jobs/idempotency-cleanup";
+import { cleanupExpiredMcpTokens } from "@/lib/jobs/mcp-token-cleanup";
 import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
 import { cleanupOldCoachMessages } from "@/lib/jobs/coach-message-cleanup";
 import { cleanupExpiredWithingsOAuthStates } from "@/lib/jobs/withings-oauth-state-cleanup";
@@ -217,6 +218,32 @@ export async function handleCoachMessageCleanup(
       evt.addMeta("coach_message_cleanup_deleted", deleted);
     } catch (err) {
       evt.addWarning(`coach-message-cleanup failed: ${err}`);
+    }
+  });
+}
+
+export interface McpTokenCleanupPayload {
+  triggeredAt: string;
+}
+
+export async function handleMcpTokenCleanup(
+  jobs: Job<McpTokenCleanupPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.mcp_token_cleanup", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const result = await cleanupExpiredMcpTokens(p);
+      evt.addMeta(
+        "mcp_token_cleanup_access_deleted",
+        result.accessTokensDeleted,
+      );
+      evt.addMeta(
+        "mcp_token_cleanup_connections_deleted",
+        result.connectionsDeleted,
+      );
+    } catch (err) {
+      evt.addWarning(`mcp-token-cleanup failed: ${err}`);
     }
   });
 }
