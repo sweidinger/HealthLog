@@ -156,8 +156,16 @@ const WARM_PASS_CONCURRENCY = 3;
  * loop the cap also bounds head-of-line blocking: without it one stalled
  * provider pinned the whole batch behind a single candidate. Set a hair
  * below the queue's own retry horizon so a single tick stays bounded.
+ *
+ * v1.21.5 — raised from 45 s. The old cap sat BELOW the provider call's own
+ * timeout (`AI_BUDGETS.comprehensive.timeoutMs`, now 120 s), so on a large
+ * account the warm bound — not the provider — aborted the generation, and the
+ * briefing never landed. The cap must sit just above the provider timeout so
+ * the provider's own abort governs a genuine completion while this stays the
+ * backstop against a wedged call. The per-user budget gate + the WARM_PASS
+ * concurrency cap still bound total nightly cost.
  */
-const COMPREHENSIVE_WARM_TIMEOUT_MS = 45_000;
+const COMPREHENSIVE_WARM_TIMEOUT_MS = 130_000;
 
 /** Per-user result of one forced full warm. */
 export interface ForceWarmResult {
@@ -540,6 +548,21 @@ export async function runInsightPregenerate(
         );
         if (bounded.timedOut || bounded.errored || bounded.value === null) {
           result.failed++;
+          // v1.21.5 — make the warm failure queryable. The nightly loop used to
+          // bump `failed` with no annotation, so a candidate whose comprehensive
+          // generation timed out (e.g. the briefing clipped at the old 45 s
+          // bound) left the cached block empty AND emitted nothing greppable.
+          annotate({
+            action: { name: "insights.pregenerate.comprehensive_failed" },
+            meta: {
+              locale,
+              cause: bounded.timedOut
+                ? "timeout"
+                : bounded.errored
+                  ? "error"
+                  : "null",
+            },
+          });
         } else {
           outcome = bounded.value;
           switch (outcome.status) {

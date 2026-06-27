@@ -220,6 +220,9 @@ async function rerollBriefingParagraph(args: {
         // exactly what we are varying. Higher temperature for prose variety.
         temperature: BRIEFING_REROLL_TEMPERATURE,
         maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+        // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
+        // generation is not clipped at the client's 60 s default mid-stream.
+        timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
         responseFormat: "json",
       }),
     });
@@ -957,6 +960,9 @@ export async function generateComprehensiveInsight(
         user: userPrompt,
         temperature: AI_BUDGETS.comprehensive.temperature,
         maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+        // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
+        // generation is not clipped at the client's 60 s default mid-stream.
+        timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
         // v1.18.7 — structured surface: opt the non-OpenAI chains into their
         // strongest JSON mode (Ollama `format`, Anthropic `{` prefill) so a
         // first-pass JSON miss is rarer; stripJsonFences stays the net.
@@ -966,10 +972,30 @@ export async function generateComprehensiveInsight(
     result = fallback.result;
     workingProviderType = fallback.workingProvider.providerType;
   } catch (e) {
-    if (e instanceof AllProvidersFailedError) {
-      return { status: "failed", reason: "all-providers-failed" };
-    }
-    return { status: "failed", reason: "provider-error" };
+    // v1.21.5 — make the failed generation queryable. This path used to return
+    // a `failed` outcome with NO annotation, so a provider that consistently
+    // failed (e.g. a codex briefing aborted by the 60 s timeout on a large
+    // account) left the cached block empty AND emitted nothing the operator
+    // could grep — the briefing and the insights trend narrative that share
+    // the block stayed blank with no signal. No cache row is written, so the
+    // next warm / visit retries; the wider `timeoutMs` above is what lets that
+    // retry actually land.
+    const reason =
+      e instanceof AllProvidersFailedError
+        ? "all-providers-failed"
+        : "provider-error";
+    const err = e as { httpStatus?: number; message?: string };
+    annotate({
+      action: { name: "insights.generate.comprehensive_failed" },
+      meta: {
+        locale,
+        reason,
+        provider_status:
+          typeof err.httpStatus === "number" ? err.httpStatus : null,
+        provider_message: err.message?.slice(0, 240) ?? null,
+      },
+    });
+    return { status: "failed", reason };
   }
 
   // Anthropic + local have no native JSON mode, so a ```json-fenced or
@@ -999,6 +1025,8 @@ export async function generateComprehensiveInsight(
           )}`,
           temperature: AI_BUDGETS.comprehensive.temperature,
           maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+          // v1.21.5 — wider upstream budget; see the first generation call.
+          timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
           responseFormat: "json",
         }),
       });
@@ -1038,6 +1066,8 @@ export async function generateComprehensiveInsight(
             user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
             temperature: AI_BUDGETS.comprehensive.temperature,
             maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+            // v1.21.5 — wider upstream budget; see the first generation call.
+            timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
             responseFormat: "json",
           }),
         });
