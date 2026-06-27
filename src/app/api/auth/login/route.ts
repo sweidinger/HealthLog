@@ -1,22 +1,16 @@
 import { prisma } from "@/lib/db";
 import { loginPasswordSchema } from "@/lib/validations/auth";
 import { verifyPassword } from "@/lib/auth/password";
-import { createSession } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
 import { hashToken } from "@/lib/auth/hmac";
-import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
+import { apiError, safeJson } from "@/lib/api-response";
 import { checkAuthSurfaceRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { ensureDbCompatibility } from "@/lib/db-compat";
 import { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
-import { issueApiToken, isNativeClientRequest } from "@/lib/auth/issue-token";
-import {
-  resolveTokenPolicy,
-  shouldIssueBearerToken,
-  isCookielessNativeCaller,
-} from "@/lib/auth/native-client";
-import { issueAccessAndRefresh } from "@/lib/auth/refresh-token";
+import { finishLogin } from "@/lib/auth/login-response";
+import { createMfaChallenge } from "@/lib/auth/mfa/challenge";
 
 export const POST = apiHandler(async (request: NextRequest) => {
   // v1.4.43 W13 M-4 — `checkAuthSurfaceRateLimit` swaps to a tighter
@@ -95,93 +89,55 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   const ua = request.headers.get("user-agent");
-  // v1.4.22 W5 reconcile (Sr-H1) — `createSession` now anchors the
-  // `hl_onboarding` cookie itself; pass the user's onboarding state
-  // through so the proxy can short-circuit the redirect before the
-  // page hydrates.
-  await createSession(user.id, user.onboardingCompletedAt == null, ip, ua);
 
   await auditLog("auth.login.password", {
     userId: user.id,
     ipAddress: ip,
   });
 
-  annotate({ action: { name: "auth.login.password" } });
-
-  // v1.4 G4: Native callers (iOS, n8n, Health-Connect, unrecognised UAs)
-  // get a 24h access token + 60d rotating refresh token. Web UAs keep the
-  // legacy 90d Bearer (issued only when X-Client-Type: native is set —
-  // browser flows continue to use the session cookie).
-  if (
-    shouldIssueBearerToken(request.headers) ||
-    isNativeClientRequest(request.headers)
-  ) {
-    const policy = resolveTokenPolicy(request.headers);
-    const deviceId = request.headers.get("x-device-id");
-
-    // M-3 hardening: a 60-day refresh token is only ever delivered to a
-    // genuinely cookie-less native caller. A browser spoofing
-    // `X-Client-Type: native` (Mozilla UA or an inbound session cookie)
-    // falls through to the plain access-token path below — never handed a
-    // long-lived secret into a DOM/XSS-reachable context.
-    if (
-      policy.refreshTokenDays !== null &&
-      isCookielessNativeCaller(request.headers)
-    ) {
-      const bundle = await issueAccessAndRefresh({
-        userId: user.id,
-        policy,
-        deviceId,
-        userAgent: ua,
-        ipAddress: ip,
-        source: "login.password",
-      });
-      await auditLog("auth.token.autoissue.native", {
-        userId: user.id,
-        ipAddress: ip,
-        details: { source: "login.password", policy: "native" },
-      });
-      annotate({
-        action: { name: "auth.token.autoissue.native" },
-        meta: { token_policy: "native" },
-      });
-      return apiSuccess({
-        user: { id: user.id, username: user.username },
-        token: bundle.accessToken,
-        tokenExpiresAt: bundle.accessTokenExpiresAt.toISOString(),
-        refreshToken: bundle.refreshToken,
-        refreshTokenExpiresAt: bundle.refreshTokenExpiresAt.toISOString(),
-      });
-    }
-
-    // Web policy with explicit X-Client-Type:native (legacy iOS auto-login)
-    const issued = await issueApiToken({
-      userId: user.id,
-      name: `web auto-login ${new Date().toISOString()}`,
-      permissions: ["*"],
-      expiresInDays: policy.accessTokenDays,
-    });
-    await auditLog("auth.token.autoissue.native", {
+  // v1.23 — second-factor gate. The password is correct, but an account with
+  // a confirmed TOTP factor is NOT yet authenticated: no `Session` row and no
+  // token bundle is minted here. Instead a single-use, ~5-minute MFA ticket is
+  // returned (the partial state lives in the ticket, never in a half-built
+  // session) and the client completes the login at `/api/auth/mfa/verify`.
+  //
+  // Enumeration note: `meta.mfaRequired` is only ever returned AFTER a valid
+  // password, and the invalid-credentials response above is identical
+  // regardless of MFA state — an attacker without the password cannot learn
+  // whether an account has MFA.
+  if (user.totpConfirmedAt) {
+    const challenge = await createMfaChallenge(user.id, "login");
+    await auditLog("auth.mfa.challenge", {
       userId: user.id,
       ipAddress: ip,
-      details: {
-        tokenId: issued.tokenId,
-        source: "login.password",
-        policy: "web",
-      },
+      details: { source: "login.password" },
     });
     annotate({
-      action: { name: "auth.token.autoissue.native" },
-      meta: { token_policy: "web" },
+      action: { name: "auth.mfa.challenge" },
+      meta: { mfa_required: true },
     });
-    return apiSuccess({
-      user: { id: user.id, username: user.username },
-      token: issued.token,
-      tokenExpiresAt: issued.expiresAt.toISOString(),
-    });
+    return NextResponse.json(
+      {
+        data: null,
+        error: null,
+        meta: {
+          mfaRequired: true,
+          mfaTicket: challenge.ticket,
+          methods: ["totp", "recovery"],
+        },
+      },
+      { status: 200 },
+    );
   }
 
-  return apiSuccess({
-    user: { id: user.id, username: user.username },
+  annotate({ action: { name: "auth.login.password" } });
+
+  // No second factor — issue the session/token exactly as before.
+  return finishLogin({
+    user,
+    request,
+    ip,
+    userAgent: ua,
+    source: "login.password",
   });
 });

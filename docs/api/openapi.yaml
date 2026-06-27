@@ -1354,8 +1354,15 @@ paths:
       tags:
         - Auth
       summary: Email-or-username login (password)
-      description: "Browser callers receive a session cookie. Native callers (X-Client-Type: native or HealthLog-iOS UA
-        prefix) additionally receive a paired access + refresh token."
+      description: >-
+        Browser callers receive a session cookie. Native callers (X-Client-Type: native or HealthLog-iOS UA prefix)
+        additionally receive a paired access + refresh token.
+
+
+        v1.23 — when the account has a confirmed second factor, the response carries no session/token. It returns HTTP
+        200 with `data: null, error: null` and `meta.mfaRequired: true` plus a single-use `meta.mfaTicket` and the
+        `meta.methods` list. The client must POST the ticket + a code to `/api/auth/mfa/verify` to obtain the token
+        bundle. Accounts without MFA are unchanged.
       requestBody:
         required: true
         content:
@@ -1374,11 +1381,124 @@ paths:
                 - password
       responses:
         "200":
-          description: Login succeeded.
+          description: Login succeeded (token bundle / cookie) — or a second factor is required (`meta.mfaRequired`).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LoginResponse"
+                anyOf:
+                  - $ref: "#/components/schemas/LoginResponse"
+                  - $ref: "#/components/schemas/MfaRequiredResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/mfa/verify:
+    post:
+      tags:
+        - Auth
+      summary: Complete a second-factor login challenge
+      description: Presents the `mfaTicket` from the login `meta.mfaRequired` response plus a TOTP or recovery code. On
+        success returns the SAME token bundle / session the password path issues, with the session marked
+        second-factor-verified. The ticket is single-use; wrong codes are throttled and the ticket is burned at the
+        attempt cap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaVerifyRequest"
+      responses:
+        "200":
+          description: Second factor verified — session + optional bearer issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaVerifyResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/totp/setup:
+    post:
+      tags:
+        - Auth
+      summary: Begin TOTP enrollment (cookie session only)
+      description: Generates and stores a pending (encrypted) TOTP secret and returns the otpauth URI + Base32 secret. MFA is
+        not active until /confirm. Cookie-only — a Bearer token cannot enrol MFA.
+      responses:
+        "200":
+          description: Pending secret created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpSetupEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/totp/confirm:
+    post:
+      tags:
+        - Auth
+      summary: Confirm TOTP enrollment (cookie session only)
+      description: Verifies a code against the pending secret, activates the factor, and returns the one-time recovery codes.
+        Cookie-only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  pattern: ^\d{6}$
+              required:
+                - code
+      responses:
+        "200":
+          description: Factor activated — recovery codes returned once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpConfirmEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/disable:
+    post:
+      tags:
+        - Auth
+      summary: Disable the second factor (step-up gated)
+      description: Requires a fresh second-factor step-up (cookie session) AND a current TOTP or recovery code. Clears the
+        secret and deletes recovery codes. Bearer can never satisfy the step-up gate.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaDisableRequest"
+      responses:
+        "200":
+          description: Factor disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaDisableEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/recovery-codes/regenerate:
+    post:
+      tags:
+        - Auth
+      summary: Regenerate recovery codes (step-up gated)
+      description: Invalidates the entire prior recovery-code set and returns a fresh batch once. Step-up gated; Bearer can
+        never satisfy the gate.
+      responses:
+        "200":
+          description: Fresh recovery codes issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaRecoveryRegenEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -7492,6 +7612,43 @@ paths:
         "429": *a4
 components:
   schemas:
+    MfaVerifyRequest:
+      type: object
+      properties:
+        mfaTicket:
+          type: string
+          minLength: 1
+          description: The opaque single-use ticket from the login response.
+        method:
+          default: totp
+          type: string
+          enum:
+            - totp
+            - recovery
+        code:
+          type: string
+          minLength: 6
+          maxLength: 32
+      required:
+        - mfaTicket
+        - code
+      description: Complete a second-factor login challenge and receive the same token bundle the password path issues.
+    MfaDisableRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 32
+        method:
+          default: totp
+          type: string
+          enum:
+            - totp
+            - recovery
+      required:
+        - code
+      description: Disable the second factor. Requires fresh step-up plus a current TOTP or recovery code.
     PasskeyLoginVerifyRequest:
       type: object
       properties:
@@ -10660,6 +10817,166 @@ components:
         - tokenExpiresAt
       additionalProperties: false
       description: Native-client token bundle returned by login + refresh. Web cookie-only callers see only `user`.
+    MfaRequiredResponse:
+      type: object
+      properties:
+        data:
+          type: "null"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            mfaRequired:
+              type: boolean
+              const: true
+            mfaTicket:
+              type: string
+              description: Opaque, single-use, ~5-minute ticket to present to /api/auth/mfa/verify.
+            methods:
+              type: array
+              items:
+                type: string
+                enum:
+                  - totp
+                  - recovery
+              description: Second factors the account can complete the challenge with.
+          required:
+            - mfaRequired
+            - mfaTicket
+            - methods
+          additionalProperties: false
+      required:
+        - data
+        - error
+        - meta
+      additionalProperties: false
+      description: Password accepted but a second factor is required. Not an error and not a session — no token is issued
+        until /api/auth/mfa/verify succeeds.
+    MfaVerifyResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AccessRefreshBundle"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TotpSetupEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TotpSetupResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TotpSetupResponse:
+      type: object
+      properties:
+        otpauthUri:
+          type: string
+          description: otpauth:// URI to render as a QR code (carries the secret).
+        totpSecret:
+          type: string
+          description: Base32 secret for manual entry. Pending until confirmed.
+      required:
+        - otpauthUri
+        - totpSecret
+      additionalProperties: false
+    TotpConfirmEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MfaRecoveryCodesResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaRecoveryCodesResponse:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        recoveryCodes:
+          type: array
+          items:
+            type: string
+          description: Single-use recovery codes, shown once. Save them now.
+        recoveryCodesRemaining:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - recoveryCodes
+        - recoveryCodesRemaining
+      additionalProperties: false
+    MfaDisableEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MfaToggleResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaToggleResponse:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+      required:
+        - enabled
+      additionalProperties: false
+    MfaRecoveryRegenEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MfaRecoveryCodesResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     PasskeyLoginVerifyResponse:
       type: object
       properties:
