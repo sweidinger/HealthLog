@@ -5064,7 +5064,9 @@
         "remainingOther": "Pozostało {count} kodów odzyskiwania.",
         "regenerate": "Wygeneruj kody ponownie",
         "regenFailed": "Nie udało się ponownie wygenerować kodów odzyskiwania.",
-        "savedIt": "Zapisałem je"
+        "savedIt": "Zapisałem je",
+        "regenerateTitle": "Wygenerować nowe kody odzyskiwania?",
+        "regenerateConfirm": "Spowoduje to zastąpienie obecnych kodów odzyskiwania. Dotychczasowe kody natychmiast przestaną działać, a nowy zestaw zostanie pokazany tylko raz."
       },
       "keys": {
         "title": "Klucze bezpieczeństwa",

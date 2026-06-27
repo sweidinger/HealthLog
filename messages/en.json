@@ -5064,7 +5064,9 @@
         "remainingOther": "{count} recovery codes remaining.",
         "regenerate": "Regenerate codes",
         "regenFailed": "Could not regenerate recovery codes.",
-        "savedIt": "I've saved them"
+        "savedIt": "I've saved them",
+        "regenerateTitle": "Regenerate recovery codes?",
+        "regenerateConfirm": "This replaces your current recovery codes. Your existing codes will stop working immediately, and a new set is shown only once."
       },
       "keys": {
         "title": "Security keys",

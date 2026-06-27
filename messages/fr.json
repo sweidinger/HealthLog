@@ -5064,7 +5064,9 @@
         "remainingOther": "{count} codes de récupération restants.",
         "regenerate": "Régénérer les codes",
         "regenFailed": "Impossible de régénérer les codes de récupération.",
-        "savedIt": "Je les ai enregistrés"
+        "savedIt": "Je les ai enregistrés",
+        "regenerateTitle": "Régénérer les codes de récupération ?",
+        "regenerateConfirm": "Cela remplace vos codes de récupération actuels. Vos codes existants cesseront de fonctionner immédiatement et le nouveau jeu n'est affiché qu'une seule fois."
       },
       "keys": {
         "title": "Clés de sécurité",

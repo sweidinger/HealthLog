@@ -5064,7 +5064,9 @@
         "remainingOther": "{count} codici di recupero rimanenti.",
         "regenerate": "Rigenera i codici",
         "regenFailed": "Impossibile rigenerare i codici di recupero.",
-        "savedIt": "Li ho salvati"
+        "savedIt": "Li ho salvati",
+        "regenerateTitle": "Rigenerare i codici di recupero?",
+        "regenerateConfirm": "Questa operazione sostituisce i codici di recupero attuali. I codici esistenti smetteranno di funzionare immediatamente e il nuovo set viene mostrato una sola volta."
       },
       "keys": {
         "title": "Chiavi di sicurezza",

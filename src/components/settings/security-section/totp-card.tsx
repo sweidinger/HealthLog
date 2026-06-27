@@ -74,6 +74,7 @@ export function TotpCard({
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const codeFieldId = useId();
+  const disableCodeId = useId();
 
   const [setup, setSetup] = useState<SetupData | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -262,7 +263,7 @@ export function TotpCard({
                     type="button"
                     variant="outline"
                     size="icon"
-                    className="h-8 w-8 shrink-0"
+                    className="min-h-11 min-w-11 shrink-0 sm:h-8 sm:min-h-0 sm:w-8 sm:min-w-0"
                     onClick={copySecret}
                     aria-label={t("common.copy")}
                   >
@@ -350,18 +351,47 @@ export function TotpCard({
               )}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-11 sm:min-h-9"
-                onClick={() => regenerate.mutate()}
-                disabled={regenerate.isPending}
-              >
-                {regenerate.isPending && (
-                  <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-                )}
-                {t("settings.security.recovery.regenerate")}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 sm:min-h-9"
+                    disabled={regenerate.isPending}
+                  >
+                    {regenerate.isPending && (
+                      <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                    )}
+                    {t("settings.security.recovery.regenerate")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("settings.security.recovery.regenerateTitle")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("settings.security.recovery.regenerateConfirm")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={regenerate.isPending}
+                      aria-busy={regenerate.isPending || undefined}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        regenerate.mutate();
+                      }}
+                    >
+                      {regenerate.isPending && (
+                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                      )}
+                      {t("settings.security.recovery.regenerate")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -383,13 +413,19 @@ export function TotpCard({
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <div className="space-y-2">
-                    <Label htmlFor="disable-code">
+                    <Label htmlFor={disableCodeId}>
                       {t("settings.security.totp.currentCode")}
                     </Label>
                     <Input
-                      id="disable-code"
+                      id={disableCodeId}
                       value={disableCode}
-                      onChange={(e) => setDisableCode(e.target.value)}
+                      onChange={(e) =>
+                        setDisableCode(
+                          disableMethod === "totp"
+                            ? e.target.value.replace(/\D/g, "").slice(0, 6)
+                            : e.target.value,
+                        )
+                      }
                       inputMode={disableMethod === "totp" ? "numeric" : "text"}
                       autoComplete="one-time-code"
                       placeholder={
@@ -415,7 +451,12 @@ export function TotpCard({
                     <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                     <AlertDialogAction
                       variant="destructive"
-                      disabled={disable.isPending || disableCode.length < 6}
+                      disabled={
+                        disable.isPending ||
+                        (disableMethod === "totp"
+                          ? disableCode.length !== 6
+                          : disableCode.length < 6)
+                      }
                       aria-busy={disable.isPending || undefined}
                       onClick={(e) => {
                         e.preventDefault();

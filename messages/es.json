@@ -5064,7 +5064,9 @@
         "remainingOther": "Quedan {count} códigos de recuperación.",
         "regenerate": "Regenerar códigos",
         "regenFailed": "No se pudieron regenerar los códigos de recuperación.",
-        "savedIt": "Los he guardado"
+        "savedIt": "Los he guardado",
+        "regenerateTitle": "¿Regenerar los códigos de recuperación?",
+        "regenerateConfirm": "Esto reemplaza tus códigos de recuperación actuales. Tus códigos existentes dejarán de funcionar de inmediato y el nuevo conjunto se muestra solo una vez."
       },
       "keys": {
         "title": "Llaves de seguridad",

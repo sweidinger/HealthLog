@@ -5064,7 +5064,9 @@
         "remainingOther": "{count} Wiederherstellungscodes übrig.",
         "regenerate": "Codes neu erzeugen",
         "regenFailed": "Wiederherstellungscodes konnten nicht neu erzeugt werden.",
-        "savedIt": "Ich habe sie gespeichert"
+        "savedIt": "Ich habe sie gespeichert",
+        "regenerateTitle": "Wiederherstellungscodes neu erzeugen?",
+        "regenerateConfirm": "Damit werden deine aktuellen Wiederherstellungscodes ersetzt. Deine bisherigen Codes funktionieren sofort nicht mehr, und der neue Satz wird nur einmal angezeigt."
       },
       "keys": {
         "title": "Sicherheitsschlüssel",
