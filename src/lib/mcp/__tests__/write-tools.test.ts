@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const logMcpMeasurement = vi.fn();
 const logMcpMood = vi.fn();
+const logMcpBloodPressure = vi.fn();
 vi.mock("../writes", () => ({
   logMcpMeasurement: (...a: unknown[]) => logMcpMeasurement(...a),
   logMcpMood: (...a: unknown[]) => logMcpMood(...a),
+  logMcpBloodPressure: (...a: unknown[]) => logMcpBloodPressure(...a),
 }));
 
 const checkMcpWriteRateLimit = vi.fn();
@@ -42,11 +44,18 @@ beforeEach(() => {
 });
 
 describe("write-tool surface", () => {
-  it("exposes exactly log_measurement and log_mood", () => {
+  it("exposes exactly log_measurement, log_mood, and log_blood_pressure", () => {
     expect([...MCP_WRITE_TOOL_NAMES].sort()).toEqual([
+      "log_blood_pressure",
       "log_measurement",
       "log_mood",
     ]);
+  });
+
+  it("every write tool declares a structured outputSchema", () => {
+    for (const t of MCP_WRITE_TOOLS) {
+      expect(t.outputShape, `${t.name} lacks outputShape`).toBeDefined();
+    }
   });
 
   it("annotates writes as non-read-only, non-destructive, idempotent", () => {
@@ -199,5 +208,100 @@ describe("confirm gate — log_mood", () => {
     })) as Record<string, unknown>;
     expect(result.written).toBe(false);
     expect(logMcpMood).not.toHaveBeenCalled();
+  });
+});
+
+describe("confirm gate — log_blood_pressure", () => {
+  it("confirm:false previews BOTH values and writes nothing", async () => {
+    const result = (await tool("log_blood_pressure").run(CTX, {
+      systolic: 120,
+      diastolic: 80,
+      idempotencyKey: "bp-1",
+    })) as Record<string, unknown>;
+    expect(result.requiresConfirmation).toBe(true);
+    expect(result.written).toBe(false);
+    expect(result.preview).toMatchObject({
+      systolic: 120,
+      diastolic: 80,
+      unit: "mmHg",
+      source: "MCP",
+    });
+    expect(logMcpBloodPressure).not.toHaveBeenCalled();
+    expect(checkMcpWriteRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("confirm:true commits the paired reading", async () => {
+    logMcpBloodPressure.mockResolvedValue({
+      status: "written",
+      bloodPressure: {
+        systolic: 120,
+        diastolic: 80,
+        unit: "mmHg",
+        measuredAt: "x",
+        source: "MCP",
+      },
+    });
+    const result = (await tool("log_blood_pressure").run(CTX, {
+      systolic: 120,
+      diastolic: 80,
+      confirm: true,
+      idempotencyKey: "bp-1",
+    })) as Record<string, unknown>;
+    expect(logMcpBloodPressure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "u-1",
+        systolic: 120,
+        diastolic: 80,
+        idempotencyKey: "bp-1",
+      }),
+    );
+    expect(result.written).toBe(true);
+  });
+
+  it("an idempotent replay reports alreadyLogged", async () => {
+    logMcpBloodPressure.mockResolvedValue({
+      status: "already_logged",
+      bloodPressure: {
+        systolic: 120,
+        diastolic: 80,
+        unit: "mmHg",
+        measuredAt: "x",
+        source: "MCP",
+      },
+    });
+    const result = (await tool("log_blood_pressure").run(CTX, {
+      systolic: 120,
+      diastolic: 80,
+      confirm: true,
+      idempotencyKey: "bp-1",
+    })) as Record<string, unknown>;
+    expect(result.written).toBe(false);
+    expect(result.alreadyLogged).toBe(true);
+  });
+
+  it("surfaces an out-of-range refusal from the core", async () => {
+    logMcpBloodPressure.mockResolvedValue({
+      status: "out_of_range",
+      reason: "Systolic must be greater than diastolic",
+    });
+    const result = (await tool("log_blood_pressure").run(CTX, {
+      systolic: 80,
+      diastolic: 120,
+      confirm: true,
+      idempotencyKey: "bp-2",
+    })) as Record<string, unknown>;
+    expect(result.written).toBe(false);
+    expect(result.error).toBe("out_of_range");
+  });
+
+  it("rejects a non-numeric value before any write", async () => {
+    const result = (await tool("log_blood_pressure").run(CTX, {
+      systolic: Number.NaN,
+      diastolic: 80,
+      confirm: true,
+      idempotencyKey: "bp-3",
+    })) as Record<string, unknown>;
+    expect(result.written).toBe(false);
+    expect(logMcpBloodPressure).not.toHaveBeenCalled();
   });
 });

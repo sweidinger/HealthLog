@@ -48,7 +48,7 @@ const MCP_SOURCE = "MCP" as const;
  * Telegram or manual row.
  */
 function mcpExternalId(
-  prefix: "measure" | "mood",
+  prefix: "measure" | "mood" | "bp",
   idempotencyKey: string,
 ): string {
   const digest = createHash("sha256").update(idempotencyKey).digest("hex");
@@ -182,6 +182,190 @@ export async function logMcpMeasurement(input: {
   });
 
   return { status: "written", measurement: record };
+}
+
+/** Normalized blood-pressure record echoed back (preview + commit result). */
+export interface McpBloodPressureRecord {
+  systolic: number;
+  diastolic: number;
+  unit: string;
+  measuredAt: string;
+  source: typeof MCP_SOURCE;
+}
+
+export type McpBloodPressureResult =
+  | { status: "out_of_range"; reason: string }
+  | { status: "written"; bloodPressure: McpBloodPressureRecord }
+  | { status: "already_logged"; bloodPressure: McpBloodPressureRecord };
+
+/**
+ * Log one blood-pressure reading on behalf of the resolved MCP session.
+ *
+ * BP is two values (systolic + diastolic) so it cannot go through the
+ * single-value `logMcpMeasurement`. Both rows are written ATOMICALLY (one
+ * transaction, the SAME `measuredAt`) and share one idempotency namespace: the
+ * externalId is derived once from the caller's key and applied to both rows,
+ * which stay distinct under the `(userId, type, source, externalId)` unique
+ * because the type differs (SYS vs DIA). Each value is range-validated with the
+ * same `validateMeasurementRange` the manual route uses, plus a systolic >
+ * diastolic plausibility guard. No notes; `source` is pinned to `MCP`.
+ */
+export async function logMcpBloodPressure(input: {
+  userId: string;
+  systolic: number;
+  diastolic: number;
+  measuredAt?: Date;
+  idempotencyKey: string;
+}): Promise<McpBloodPressureResult> {
+  const sysError = validateMeasurementRange(
+    "BLOOD_PRESSURE_SYS",
+    input.systolic,
+  );
+  const diaError = validateMeasurementRange(
+    "BLOOD_PRESSURE_DIA",
+    input.diastolic,
+  );
+  if (sysError !== null || diaError !== null) {
+    annotate({
+      action: { name: "mcp.tool.write" },
+      meta: { tool: "log_blood_pressure", status: "out_of_range" },
+    });
+    return {
+      status: "out_of_range",
+      reason: sysError ?? diaError ?? "Value out of range",
+    };
+  }
+  // Plausibility: systolic is always the higher number. Reject a swapped /
+  // implausible pair rather than persist a clinically nonsensical reading.
+  if (input.systolic <= input.diastolic) {
+    annotate({
+      action: { name: "mcp.tool.write" },
+      meta: { tool: "log_blood_pressure", status: "out_of_range" },
+    });
+    return {
+      status: "out_of_range",
+      reason: "Systolic must be greater than diastolic",
+    };
+  }
+
+  const unit = "mmHg";
+  const measuredAt = input.measuredAt ?? new Date();
+  // ONE externalId for both rows — the shared idempotency namespace.
+  const externalId = mcpExternalId("bp", input.idempotencyKey);
+
+  const record: McpBloodPressureRecord = {
+    systolic: input.systolic,
+    diastolic: input.diastolic,
+    unit,
+    measuredAt: measuredAt.toISOString(),
+    source: MCP_SOURCE,
+  };
+
+  const [existingSys, existingDia] = await Promise.all([
+    prisma.measurement.findUnique({
+      where: {
+        userId_type_source_externalId: {
+          userId: input.userId,
+          type: "BLOOD_PRESSURE_SYS",
+          source: MCP_SOURCE,
+          externalId,
+        },
+      },
+      select: { value: true, measuredAt: true },
+    }),
+    prisma.measurement.findUnique({
+      where: {
+        userId_type_source_externalId: {
+          userId: input.userId,
+          type: "BLOOD_PRESSURE_DIA",
+          source: MCP_SOURCE,
+          externalId,
+        },
+      },
+      select: { value: true },
+    }),
+  ]);
+  if (existingSys && existingDia) {
+    annotate({
+      action: { name: "mcp.tool.write" },
+      meta: { tool: "log_blood_pressure", status: "already_logged" },
+    });
+    return {
+      status: "already_logged",
+      bloodPressure: {
+        systolic: existingSys.value,
+        diastolic: existingDia.value,
+        unit,
+        measuredAt: existingSys.measuredAt.toISOString(),
+        source: MCP_SOURCE,
+      },
+    };
+  }
+
+  // Both rows in one transaction so a partial BP pair can never persist. No
+  // mass assignment — every column is set explicitly from validated input.
+  await prisma.$transaction([
+    prisma.measurement.create({
+      data: {
+        userId: input.userId,
+        type: "BLOOD_PRESSURE_SYS",
+        value: input.systolic,
+        unit,
+        source: MCP_SOURCE,
+        measuredAt,
+        externalId,
+      },
+    }),
+    prisma.measurement.create({
+      data: {
+        userId: input.userId,
+        type: "BLOOD_PRESSURE_DIA",
+        value: input.diastolic,
+        unit,
+        source: MCP_SOURCE,
+        measuredAt,
+        externalId,
+      },
+    }),
+  ]);
+
+  invalidateUserMeasurements(input.userId, { evict: true });
+
+  // Best-effort rollup refresh for both series — a cache tier, never a
+  // write-path invariant.
+  try {
+    await Promise.all([
+      recomputeBucketsForMeasurement(
+        input.userId,
+        "BLOOD_PRESSURE_SYS",
+        measuredAt,
+      ),
+      recomputeBucketsForMeasurement(
+        input.userId,
+        "BLOOD_PRESSURE_DIA",
+        measuredAt,
+      ),
+    ]);
+  } catch (rollupErr) {
+    getEvent()?.addMeta(
+      "mcp_blood_pressure_rollup_failed",
+      rollupErr instanceof Error ? rollupErr.message : String(rollupErr),
+    );
+  }
+
+  await auditLog("mcp.write.blood_pressure", {
+    userId: input.userId,
+    details: {
+      source: MCP_SOURCE,
+      idempotencyKey: input.idempotencyKey,
+    },
+  });
+  annotate({
+    action: { name: "mcp.tool.write" },
+    meta: { tool: "log_blood_pressure", status: "written" },
+  });
+
+  return { status: "written", bloodPressure: record };
 }
 
 /** Normalized mood record echoed back to the assistant. */

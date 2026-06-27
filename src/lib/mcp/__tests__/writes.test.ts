@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { measurement, moodEntry } = vi.hoisted(() => ({
+const { measurement, moodEntry, $transaction } = vi.hoisted(() => ({
   measurement: {
     findUnique: vi.fn(),
     create: vi.fn(),
@@ -9,10 +9,11 @@ const { measurement, moodEntry } = vi.hoisted(() => ({
     findUnique: vi.fn(),
     create: vi.fn(),
   },
+  $transaction: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
-  prisma: { measurement, moodEntry },
+  prisma: { measurement, moodEntry, $transaction },
 }));
 
 vi.mock("@/lib/cache/invalidate", () => ({
@@ -42,13 +43,14 @@ vi.mock("@/lib/logging/context", () => ({
   getEvent: () => ({ addMeta: vi.fn() }),
 }));
 
-import { logMcpMeasurement, logMcpMood } from "../writes";
+import { logMcpMeasurement, logMcpMood, logMcpBloodPressure } from "../writes";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
 
 beforeEach(() => {
   vi.clearAllMocks();
   measurement.findUnique.mockResolvedValue(null);
   measurement.create.mockResolvedValue({ id: "m-1" });
+  $transaction.mockResolvedValue([{ id: "s-1" }, { id: "d-1" }]);
   moodEntry.findUnique.mockResolvedValue(null);
   moodEntry.create.mockResolvedValue({
     date: "2026-06-27",
@@ -191,5 +193,83 @@ describe("logMcpMood", () => {
     });
     expect(result.status).toBe("already_logged");
     expect(moodEntry.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("logMcpBloodPressure", () => {
+  it("writes BOTH systolic and diastolic rows atomically with one timestamp", async () => {
+    const result = await logMcpBloodPressure({
+      userId: "u-1",
+      systolic: 120,
+      diastolic: 80,
+      idempotencyKey: "bp-key",
+    });
+
+    expect(result.status).toBe("written");
+    // Two create calls (sys + dia), executed inside one transaction.
+    expect(measurement.create).toHaveBeenCalledTimes(2);
+    expect($transaction).toHaveBeenCalledTimes(1);
+
+    const sys = measurement.create.mock.calls[0][0].data;
+    const dia = measurement.create.mock.calls[1][0].data;
+    expect(sys.type).toBe("BLOOD_PRESSURE_SYS");
+    expect(sys.value).toBe(120);
+    expect(dia.type).toBe("BLOOD_PRESSURE_DIA");
+    expect(dia.value).toBe(80);
+    expect(sys.source).toBe("MCP");
+    expect(dia.source).toBe("MCP");
+    expect(sys.unit).toBe("mmHg");
+    // Same shared externalId namespace + the SAME measuredAt instant.
+    expect(sys.externalId).toMatch(/^mcp:bp:[0-9a-f]{64}$/);
+    expect(sys.externalId).toBe(dia.externalId);
+    expect(sys.measuredAt.getTime()).toBe(dia.measuredAt.getTime());
+    expect(auditLog).toHaveBeenCalledWith(
+      "mcp.write.blood_pressure",
+      expect.objectContaining({ userId: "u-1" }),
+    );
+  });
+
+  it("rejects an implausible pair (systolic ≤ diastolic) without writing", async () => {
+    const result = await logMcpBloodPressure({
+      userId: "u-1",
+      systolic: 80,
+      diastolic: 120,
+      idempotencyKey: "bp-bad",
+    });
+    expect(result.status).toBe("out_of_range");
+    expect(measurement.create).not.toHaveBeenCalled();
+    expect($transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects an out-of-range value without writing", async () => {
+    const result = await logMcpBloodPressure({
+      userId: "u-1",
+      systolic: 9999,
+      diastolic: 80,
+      idempotencyKey: "bp-oor",
+    });
+    expect(result.status).toBe("out_of_range");
+    expect(measurement.create).not.toHaveBeenCalled();
+  });
+
+  it("is idempotent — a replay with the same key writes nothing", async () => {
+    measurement.findUnique
+      .mockResolvedValueOnce({
+        value: 120,
+        measuredAt: new Date("2026-06-27T08:00:00Z"),
+      })
+      .mockResolvedValueOnce({ value: 80 });
+    const result = await logMcpBloodPressure({
+      userId: "u-1",
+      systolic: 120,
+      diastolic: 80,
+      idempotencyKey: "bp-key",
+    });
+    expect(result.status).toBe("already_logged");
+    expect($transaction).not.toHaveBeenCalled();
+    if (result.status === "already_logged") {
+      expect(result.bloodPressure.systolic).toBe(120);
+      expect(result.bloodPressure.diastolic).toBe(80);
+    }
   });
 });

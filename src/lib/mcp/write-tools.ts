@@ -35,7 +35,7 @@ import type { MeasurementType } from "@/generated/prisma/client";
 import { annotate } from "@/lib/logging/context";
 import { checkMcpWriteRateLimit } from "@/lib/rate-limit";
 import type { McpToolDefinition } from "./tools";
-import { logMcpMeasurement, logMcpMood } from "./writes";
+import { logMcpMeasurement, logMcpMood, logMcpBloodPressure } from "./writes";
 
 /**
  * Write-tool annotations (MCP 2025-11-25). NOT read-only and NOT destructive
@@ -49,6 +49,24 @@ const WRITE_ANNOTATIONS = {
   idempotentHint: true,
   openWorldHint: false,
 } as const;
+
+/**
+ * Shared output schema for the write tools. `written` is the boolean anchor on
+ * every return path (preview, commit, refusal); everything else is optional so a
+ * preview, a committed write, an already-logged no-op, and a structured refusal
+ * all validate as `structuredContent` (ChatGPT Apps-SDK conformance). `preview`
+ * / `record` carry the normalized echo of the row (shape per tool).
+ */
+const writeOutput: z.ZodRawShape = {
+  written: z.boolean(),
+  requiresConfirmation: z.boolean().optional(),
+  alreadyLogged: z.boolean().optional(),
+  error: z.string().optional(),
+  reason: z.string().optional(),
+  instruction: z.string().optional(),
+  preview: z.unknown().optional(),
+  record: z.unknown().optional(),
+};
 
 /** Shared confirm-gate inputs every write tool carries. */
 const confirmField = z
@@ -120,6 +138,7 @@ export const MCP_WRITE_TOOLS: McpToolDefinition[] = [
       idempotencyKey: idempotencyKeyField,
     },
     annotations: WRITE_ANNOTATIONS,
+    outputShape: writeOutput,
     async run(ctx, args) {
       const type = String(args.type ?? "") as MeasurementType;
       const value = typeof args.value === "number" ? args.value : Number.NaN;
@@ -205,6 +224,7 @@ export const MCP_WRITE_TOOLS: McpToolDefinition[] = [
       idempotencyKey: idempotencyKeyField,
     },
     annotations: WRITE_ANNOTATIONS,
+    outputShape: writeOutput,
     async run(ctx, args) {
       const score = typeof args.score === "number" ? args.score : Number.NaN;
       const note = typeof args.note === "string" ? args.note : undefined;
@@ -251,6 +271,86 @@ export const MCP_WRITE_TOOLS: McpToolDefinition[] = [
         };
       }
       return { written: true, record: result.moodEntry };
+    },
+  },
+  {
+    name: "log_blood_pressure",
+    title: "Log a blood-pressure reading",
+    description:
+      "Log ONE blood-pressure reading (systolic AND diastolic, in mmHg) to the user's own record. Blood pressure is two values so it cannot use log_measurement. Requires confirmation: call once to preview the exact reading, confirm the values with the user, then call again with confirm:true and the same idempotencyKey to commit. Both values are written atomically with the same timestamp.",
+    inputShape: {
+      systolic: z.number().describe("Systolic (the higher number), in mmHg."),
+      diastolic: z.number().describe("Diastolic (the lower number), in mmHg."),
+      measuredAt: z.iso
+        .datetime({ offset: true })
+        .optional()
+        .describe(
+          "Optional ISO-8601 instant the reading was taken; defaults to now.",
+        ),
+      confirm: confirmField,
+      idempotencyKey: idempotencyKeyField,
+    },
+    annotations: WRITE_ANNOTATIONS,
+    outputShape: writeOutput,
+    async run(ctx, args) {
+      const systolic =
+        typeof args.systolic === "number" ? args.systolic : Number.NaN;
+      const diastolic =
+        typeof args.diastolic === "number" ? args.diastolic : Number.NaN;
+      const measuredAt =
+        typeof args.measuredAt === "string"
+          ? new Date(args.measuredAt)
+          : undefined;
+      const confirm = args.confirm === true;
+      const idempotencyKey =
+        typeof args.idempotencyKey === "string" ? args.idempotencyKey : "";
+
+      if (!Number.isFinite(systolic) || !Number.isFinite(diastolic)) {
+        return { written: false, error: "invalid_number" };
+      }
+
+      if (!confirm) {
+        annotate({
+          action: { name: "mcp.tool.write" },
+          meta: { tool: "log_blood_pressure", status: "preview" },
+        });
+        return {
+          requiresConfirmation: true,
+          written: false,
+          preview: {
+            systolic,
+            diastolic,
+            unit: "mmHg",
+            measuredAt: measuredAt ? measuredAt.toISOString() : "now",
+            source: "MCP",
+          },
+          instruction: CONFIRM_INSTRUCTION,
+        };
+      }
+
+      if (!(await writeBudgetOk(ctx.binding))) {
+        return { written: false, error: "rate_limited" };
+      }
+
+      const result = await logMcpBloodPressure({
+        userId: ctx.userId,
+        systolic,
+        diastolic,
+        measuredAt,
+        idempotencyKey,
+      });
+
+      if (result.status === "out_of_range") {
+        return { written: false, error: "out_of_range", reason: result.reason };
+      }
+      if (result.status === "already_logged") {
+        return {
+          written: false,
+          alreadyLogged: true,
+          record: result.bloodPressure,
+        };
+      }
+      return { written: true, record: result.bloodPressure };
     },
   },
 ];
