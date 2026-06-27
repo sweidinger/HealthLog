@@ -71,6 +71,60 @@ describe("<ScopeHintBadge>", () => {
     onSeed(question);
     expect(onSeed).toHaveBeenCalledWith(question);
   });
+
+  // v1.21.4 (C2) — the seeded opener carries a dismiss control so the user can
+  // wave off today's suggestion. The control is gated to the seeded variant.
+  it("renders the dismiss control for the seeded variant when onDismiss is given", () => {
+    const html = render(
+      <ScopeHintBadge
+        variant="seeded"
+        label="readiness"
+        question="Why is my readiness lower today?"
+        onSeed={() => {}}
+        onDismiss={() => {}}
+      />,
+    );
+    expect(html).toContain('data-slot="coach-scope-hint-dismiss"');
+  });
+
+  it("omits the dismiss control for the seeded variant without onDismiss", () => {
+    const html = render(
+      <ScopeHintBadge
+        variant="seeded"
+        label="readiness"
+        question="Why is my readiness lower today?"
+        onSeed={() => {}}
+      />,
+    );
+    expect(html).not.toContain('data-slot="coach-scope-hint-dismiss"');
+  });
+
+  it("never renders the dismiss control for the non-dismissable scope pill", () => {
+    const html = render(
+      <ScopeHintBadge
+        variant="scope"
+        label="blood pressure"
+        question="Walk me through my blood pressure trend."
+        onSeed={() => {}}
+        onDismiss={() => {}}
+      />,
+    );
+    expect(html).not.toContain('data-slot="coach-scope-hint-dismiss"');
+  });
+
+  it("lets the seeded opener fill its column (no max-w-md cap)", () => {
+    const html = render(
+      <ScopeHintBadge
+        variant="seeded"
+        label="readiness"
+        question="Why is my readiness lower today?"
+        onSeed={() => {}}
+        onDismiss={() => {}}
+      />,
+    );
+    // The opener grows to the composer column width; the old narrow cap is gone.
+    expect(html).not.toContain("max-w-md");
+  });
 });
 
 describe("<CoachHero> scope hint slot", () => {
