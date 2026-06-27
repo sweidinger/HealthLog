@@ -261,6 +261,34 @@ describe("coach chat — tool-mode routing (F1)", () => {
     );
   });
 
+  it("surfaces a graceful provider-error stream (NOT an HTTP 500) when the tool loop throws a tagged provider error", async () => {
+    // v1.21.3 — RCA for the live incident. A Codex 400 raised inside the tool
+    // loop used to bubble out un-wrapped and rethrow as an HTTP 500. The route
+    // must now classify any tagged provider error (`upstream` + `httpStatus`)
+    // and return the graceful 200 SSE error frame the drawer decodes.
+    resolveProviderChain.mockResolvedValue([
+      { providerType: "codex", instance: {} },
+    ]);
+    (runCoachToolLoop as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      Object.assign(new Error("Codex request failed (400): {…}"), {
+        httpStatus: 400,
+        upstream: "codex",
+      }),
+    );
+
+    const res = await post(chatReq({ message: "How is my BP?" }));
+
+    // No throw → no 500. The provider-error frame streams over a 200.
+    expect(res.status).toBe(200);
+    // The full reservation is refunded (no tokens billed on a failed turn).
+    expect(reconcileSpend).toHaveBeenCalledWith(
+      "u1",
+      3000,
+      0,
+      expect.anything(),
+    );
+  });
+
   it("persists the tool trace onto provenance", async () => {
     resolveProviderChain.mockResolvedValue([
       { providerType: "anthropic", instance: {} },
