@@ -6861,6 +6861,10 @@
     "illness": {
       "label": "Dziennik chorób",
       "description": "Zapisuj epizody chorób i dolegliwości z dziennym przebiegiem objawów."
+    },
+    "mcp": {
+      "label": "Dostęp asystenta zewnętrznego (MCP)",
+      "description": "Pozwól asystentowi obsługującemu MCP czytać Twoje dane zdrowotne za pomocą tokena o ograniczonym zakresie. Domyślnie wyłączone."
     }
   },
   "illness": {

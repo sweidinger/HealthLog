@@ -6861,6 +6861,10 @@
     "illness": {
       "label": "Diario delle malattie",
       "description": "Registra episodi di malattia e disturbi con una cronologia giornaliera dei sintomi."
+    },
+    "mcp": {
+      "label": "Accesso assistente esterno (MCP)",
+      "description": "Consente a un assistente compatibile con MCP di leggere i tuoi dati sanitari tramite un token con ambito limitato. Disattivato per impostazione predefinita."
     }
   },
   "illness": {

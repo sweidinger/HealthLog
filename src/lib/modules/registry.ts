@@ -49,7 +49,8 @@ export type ModuleCategory =
   | "device" // device / passive-sync domains (sleep, workouts, recovery)
   | "engagement" // gamification (achievements)
   | "intelligence" // AI-driven surfaces (coach, insights)
-  | "export"; // outbound reporting (doctor report / FHIR)
+  | "export" // outbound reporting (doctor report / FHIR)
+  | "integration"; // external connectivity (the remote MCP endpoint)
 
 export interface ModuleDefinition {
   /** Stable key — the literal used in `modulePreferencesJson` + the API. */
@@ -66,6 +67,17 @@ export interface ModuleDefinition {
    * there is exactly one source of truth. See `ModuleDelegation`.
    */
   delegatesTo?: ModuleDelegation;
+  /**
+   * Inverts the per-user default for this key. Ordinary toggleable modules
+   * are a DISABLED allowlist (default-on; only an explicit `false` turns
+   * them off). An `optIn` module is the opposite: OFF until the user
+   * records an explicit `true`. Used for surfaces that expose a new
+   * external attack surface and must ship dark — the remote MCP endpoint
+   * (ADR-007 / REQ-OPS-1). The operator-availability layer still applies
+   * (an operator can disable it server-wide); this flag only flips the
+   * per-user default.
+   */
+  optIn?: boolean;
   /**
    * For delegated modules only: where the real on/off control lives, so the
    * Modules hub can render a read-only "managed in X" row that deep-links to
@@ -103,6 +115,14 @@ export const MODULE_KEYS = [
   // re-enabling finds the rows intact.
   "medications",
   "doctorReport",
+  // v1.22.0 — the remote Model Context Protocol endpoint (`/mcp`). Unlike
+  // every other module this is OPT-IN (off by default): it exposes a new
+  // external-assistant attack surface, so it ships dark and the operator /
+  // user turns it on deliberately (ADR-007 / REQ-OPS-1). The `optIn` marker
+  // on its registry entry inverts the per-user default; everything else
+  // (operator-availability layer, PATCH plumbing, the Modules hub toggle)
+  // reuses the existing module machinery unchanged.
+  "mcp",
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -236,6 +256,15 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       descriptionKey: "modules.doctorReport.description",
       category: "export",
     },
+    mcp: {
+      key: "mcp",
+      labelKey: "modules.mcp.label",
+      descriptionKey: "modules.mcp.description",
+      category: "integration",
+      // Off by default: exposes a remote external-assistant surface, so it
+      // must be turned on deliberately (ADR-007 / REQ-OPS-1).
+      optIn: true,
+    },
   });
 
 const MODULE_KEY_SET: ReadonlySet<string> = new Set(MODULE_KEYS);
@@ -250,4 +279,13 @@ export function moduleDelegatesTo(
   key: ModuleKey,
 ): ModuleDelegation | undefined {
   return MODULE_REGISTRY[key].delegatesTo;
+}
+
+/**
+ * True for a module whose per-user default is OFF (opt-in). The gate reads
+ * such a key as enabled only on an explicit `true`, the inverse of the
+ * disabled-allowlist default-on posture. See `ModuleDefinition.optIn`.
+ */
+export function isOptInModule(key: ModuleKey): boolean {
+  return MODULE_REGISTRY[key].optIn === true;
 }

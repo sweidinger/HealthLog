@@ -6861,6 +6861,10 @@
     "illness": {
       "label": "Illness journal",
       "description": "Track illness and condition episodes with a daily symptom timeline."
+    },
+    "mcp": {
+      "label": "External assistant access (MCP)",
+      "description": "Let an MCP-capable assistant read your health data over a scoped token. Off by default."
     }
   },
   "illness": {

@@ -6861,6 +6861,10 @@
     "illness": {
       "label": "Journal de maladie",
       "description": "Suivez les épisodes de maladie et d'affections avec un historique quotidien des symptômes."
+    },
+    "mcp": {
+      "label": "Accès assistant externe (MCP)",
+      "description": "Autorise un assistant compatible MCP à lire vos données de santé via un jeton à portée limitée. Désactivé par défaut."
     }
   },
   "illness": {

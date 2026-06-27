@@ -53,7 +53,12 @@ import {
   getOperatorModuleAvailability,
   type OperatorModuleAvailability,
 } from "./operator-availability";
-import { MODULE_KEYS, moduleDelegatesTo, type ModuleKey } from "./registry";
+import {
+  MODULE_KEYS,
+  isOptInModule,
+  moduleDelegatesTo,
+  type ModuleKey,
+} from "./registry";
 
 export {
   getOperatorModuleAvailability,
@@ -140,6 +145,13 @@ export function resolveModuleEnabled(
   if (delegate === "coach") {
     // Two-layer model: assistant master flag AND per-user opt-out.
     return assistantCoach && !inputs.disableCoach;
+  }
+
+  // Opt-in module (e.g. the remote MCP endpoint): OFF until the user
+  // records an explicit `true`. The inverse of the default-on posture so a
+  // new external surface ships dark (ADR-007 / REQ-OPS-1).
+  if (isOptInModule(key)) {
+    return inputs.modulePreferences[key] === true;
   }
 
   // Disabled allowlist: only an explicit `false` turns the module off.

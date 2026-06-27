@@ -88,6 +88,24 @@ export async function checkAnalyticsReadRateLimit(
 }
 
 /**
+ * v1.22.0 — per-credential ceiling for the remote MCP endpoint (`/mcp`).
+ * The bucket is keyed by the `<userId>:<tokenId>` binding the Bearer
+ * resolver surfaces — NOT the user alone — so a single leaked / shared
+ * token cannot exhaust the budget for the account's other tokens, and the
+ * cap is scoped to the exact credential in use (REQ-SEC-9, REQ-SEC-11).
+ * An MCP client legitimately fans several tool calls out per turn, so the
+ * window is generous; it only caps a runaway loop or a scripted drain.
+ */
+const MCP_LIMIT = 120;
+const MCP_WINDOW_MS = 60 * 1000;
+
+export async function checkMcpRateLimit(
+  binding: string,
+): Promise<RateLimitResult> {
+  return checkRateLimit(`mcp:${binding}`, MCP_LIMIT, MCP_WINDOW_MS);
+}
+
+/**
  * v1.16.16 — per-user ceiling for the AI-consent surfaces
  * (`POST /api/consent/ai`, `POST /api/consent/ai/web`,
  * `GET/DELETE /api/consent/ai/latest`). The web client calls the heal

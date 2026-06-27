@@ -86,6 +86,16 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
     return true;
   }
+  // v1.22.0 — the remote MCP endpoint authenticates by `Authorization:
+  // Bearer hlk_…`, never by a session cookie, so it must skip the page
+  // cookie-redirect (mirroring the webhook / `/api/c/` header-authed
+  // surfaces). The route handler resolves the Bearer token itself, gates on
+  // the off-by-default `mcp` module, and rate-limits per credential. Exact
+  // `/mcp` plus `/mcp/` only — a `/mcp-something` page can never inherit
+  // the bypass.
+  if (pathname === "/mcp" || pathname.startsWith("/mcp/")) {
+    return true;
+  }
   if (WELL_KNOWN_PUBLIC_PATHS.has(pathname)) {
     return true;
   }

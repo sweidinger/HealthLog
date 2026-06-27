@@ -21,6 +21,7 @@ import {
 import {
   isCoreDomain,
   isModuleKey,
+  isOptInModule,
   moduleDelegatesTo,
   MODULE_KEYS,
   CORE_DOMAIN_KEYS,
@@ -306,6 +307,57 @@ describe("resolveModuleEnabled — operator layer (two-layer AND)", () => {
     expect(resolveModuleEnabled("workouts", inputs(), true, op)).toBe(false);
     expect(resolveModuleEnabled("recovery", inputs(), true, op)).toBe(true);
     expect(resolveModuleEnabled("sleep", inputs(), true, op)).toBe(true);
+  });
+});
+
+describe("resolveModuleEnabled — mcp module (opt-in, default-OFF)", () => {
+  it("is OFF when no preference is recorded (inverse of the default-on siblings)", () => {
+    expect(resolveModuleEnabled("mcp", inputs(), false, ALL_AVAILABLE)).toBe(
+      false,
+    );
+  });
+
+  it("stays OFF on an explicit false", () => {
+    expect(
+      resolveModuleEnabled(
+        "mcp",
+        inputs({ modulePreferences: { mcp: false } }),
+        false,
+        ALL_AVAILABLE,
+      ),
+    ).toBe(false);
+  });
+
+  it("turns ON only on an explicit true (opt-in)", () => {
+    expect(
+      resolveModuleEnabled(
+        "mcp",
+        inputs({ modulePreferences: { mcp: true } }),
+        false,
+        ALL_AVAILABLE,
+      ),
+    ).toBe(true);
+  });
+
+  it("operator-off short-circuits even when the user opted in", () => {
+    expect(
+      resolveModuleEnabled(
+        "mcp",
+        inputs({ modulePreferences: { mcp: true } }),
+        false,
+        operator({ mcp: false }),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("registry — opt-in marker", () => {
+  it("marks only the mcp module opt-in (every other module is default-on)", () => {
+    expect(isOptInModule("mcp")).toBe(true);
+    for (const key of MODULE_KEYS) {
+      if (key === "mcp") continue;
+      expect(isOptInModule(key)).toBe(false);
+    }
   });
 });
 

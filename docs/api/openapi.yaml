@@ -8258,6 +8258,8 @@ components:
           type: boolean
         doctorReport:
           type: boolean
+        mcp:
+          type: boolean
       additionalProperties: false
       description: Partial module enable/disable update. Each key is an optional boolean; an omitted key is left untouched,
         `false` disables the module, `true` (re-)enables it. Only the toggleable "secondary domains" are accepted — a
@@ -14465,6 +14467,9 @@ components:
         doctorReport:
           type: boolean
           description: Whether the "doctorReport" module is enabled for this account.
+        mcp:
+          type: boolean
+          description: Whether the "mcp" module is enabled for this account.
       required:
         - cycle
         - mood
@@ -14479,6 +14484,7 @@ components:
         - insights
         - medications
         - doctorReport
+        - mcp
       additionalProperties: false
       description: Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means
         the surface should disappear end-to-end (nav, dashboard, insights, …). `cycle` mirrors `cycleTrackingEnabled`;

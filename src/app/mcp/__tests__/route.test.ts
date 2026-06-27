@@ -1,0 +1,269 @@
+/**
+ * Remote MCP endpoint (`/mcp`) — transport + gate tests.
+ *
+ * Drives the route handler with Web-standard `Request`s and asserts the
+ * four front gates plus the read-only / admin-unreachable posture over the
+ * HTTP wire:
+ *
+ *   - serves the tool list with a valid token (module on, under budget);
+ *   - rejects a missing / malformed / rejected (revoked / expired / unknown)
+ *     token with one blunt 401;
+ *   - hides the surface (404) when the off-by-default `mcp` module is off;
+ *   - trips 429 when the per-credential rate limit is exhausted;
+ *   - never consults a cookie session, so the cookie-only `requireAdmin()`
+ *     boundary is unreachable here regardless of token scope — a `["*"]`
+ *     wildcard token still sees only the read tools (ADR-003 / ADR-005).
+ *
+ * The Bearer validator, module gate, and rate limiter are mocked so the
+ * test exercises the route's own wiring without a DB; the structural
+ * cookie-only admin boundary itself is pinned by the sibling
+ * `src/lib/mcp/__tests__/admin-boundary.test.ts`.
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
+vi.mock("@/lib/auth/bearer", () => ({
+  resolveBearerToken: vi.fn(),
+  BearerAuthError: class BearerAuthError extends Error {},
+}));
+vi.mock("@/lib/modules/gate", () => ({ isModuleEnabled: vi.fn() }));
+vi.mock("@/lib/rate-limit", () => ({
+  checkMcpRateLimit: vi.fn(),
+  rateLimitHeaders: vi.fn((r: { remaining: number; resetAt: number }) => ({
+    "X-RateLimit-Remaining": String(r.remaining),
+    "X-RateLimit-Reset": new Date(r.resetAt).toISOString(),
+  })),
+}));
+// The factory pulls the Coach retrieval layer through `tools.ts`; stub the
+// heavy executor + inventory so importing the route never reaches a DB. The
+// list/reject paths never execute a tool, so the stubs are never called.
+vi.mock("@/lib/ai/coach/tools/executor", () => ({ executeCoachTool: vi.fn() }));
+vi.mock("@/lib/ai/coach/tools/inventory", () => ({
+  buildCoachDataInventory: vi.fn(),
+}));
+// A cookie path must NEVER be reached from the MCP wire. Mock both cookie
+// sources so the test can assert they are never consulted.
+const getSession = vi.fn();
+vi.mock("@/lib/auth/session", () => ({ getSession }));
+const cookiesGet = vi.fn(() => undefined);
+const headersGet = vi.fn(() => null);
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(async () => ({
+    get: cookiesGet,
+    set: () => {},
+    delete: () => {},
+  })),
+  headers: vi.fn(async () => ({ get: headersGet })),
+}));
+
+import { POST, GET } from "../route";
+import { resolveBearerToken } from "@/lib/auth/bearer";
+import { isModuleEnabled } from "@/lib/modules/gate";
+import { checkMcpRateLimit } from "@/lib/rate-limit";
+
+const READ_TOOLS = [
+  "get_correlations",
+  "get_labs",
+  "get_medication_compliance",
+  "get_metric_series",
+  "list_metrics",
+].sort();
+
+/** A valid, narrow-scope (`health:read`) token resolution. */
+function validToken(permissions: string[] = ["health:read"]) {
+  vi.mocked(resolveBearerToken).mockResolvedValue({
+    user: { id: "user-1" } as never,
+    tokenId: "token-1",
+    permissions,
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+  });
+}
+
+function postRpc(body: unknown, headers: Record<string, string> = {}): Request {
+  return new Request("http://localhost/mcp", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer hlk_" + "a".repeat(64),
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      ...headers,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+const TOOLS_LIST = { jsonrpc: "2.0", id: 1, method: "tools/list" };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  cookiesGet.mockReturnValue(undefined);
+  headersGet.mockReturnValue(null);
+  // Default happy-path: module on, under budget.
+  vi.mocked(isModuleEnabled).mockResolvedValue(true);
+  vi.mocked(checkMcpRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 119,
+    resetAt: Date.now() + 60_000,
+  });
+});
+
+describe("/mcp — happy path", () => {
+  it("serves the read-tool list over HTTP with a valid token", async () => {
+    validToken();
+    const res = await POST(postRpc(TOOLS_LIST));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const names = (body.result.tools as Array<{ name: string }>)
+      .map((t) => t.name)
+      .sort();
+    expect(names).toEqual(READ_TOOLS);
+
+    // The gate ran in the documented order: auth → rate-limit → module.
+    expect(resolveBearerToken).toHaveBeenCalledTimes(1);
+    expect(checkMcpRateLimit).toHaveBeenCalledWith("user-1:token-1");
+    expect(isModuleEnabled).toHaveBeenCalledWith("user-1", "mcp");
+  });
+
+  it("completes the initialize handshake with the HealthLog server identity", async () => {
+    validToken();
+    const res = await POST(
+      postRpc({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1" },
+        },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.result.serverInfo.name).toBe("healthlog");
+    // Tools + resources are advertised; no admin capability exists.
+    expect(body.result.capabilities.tools).toBeDefined();
+  });
+});
+
+describe("/mcp — authentication", () => {
+  it("rejects a request with no Authorization header (401 + challenge)", async () => {
+    const res = await POST(
+      new Request("http://localhost/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(TOOLS_LIST),
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(res.headers.get("www-authenticate")).toMatch(/Bearer/);
+    // The token table is never consulted when no token is presented.
+    expect(resolveBearerToken).not.toHaveBeenCalled();
+    // No module read, no rate-limit hit before auth fails.
+    expect(isModuleEnabled).not.toHaveBeenCalled();
+    expect(checkMcpRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed Authorization header (not Bearer) with 401", async () => {
+    const res = await POST(
+      postRpc(TOOLS_LIST, { authorization: "Basic abc123" }),
+    );
+    expect(res.status).toBe(401);
+    expect(resolveBearerToken).not.toHaveBeenCalled();
+  });
+
+  it("rejects a revoked / expired / unknown token with a blunt 401", async () => {
+    vi.mocked(resolveBearerToken).mockRejectedValue(new Error("revoked"));
+    const res = await POST(postRpc(TOOLS_LIST));
+
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    // No oracle: the body never echoes the rejection reason or the token.
+    expect(JSON.stringify(body)).not.toMatch(/revoked|expired|hlk_/);
+    // A rejected token never reaches the module gate or the transport.
+    expect(isModuleEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe("/mcp — module gate (off by default)", () => {
+  it("hides the surface with 404 when the mcp module is off", async () => {
+    validToken();
+    vi.mocked(isModuleEnabled).mockResolvedValue(false);
+
+    const res = await POST(postRpc(TOOLS_LIST));
+    expect(res.status).toBe(404);
+    // Authenticated first (so the module is resolved per-user), then hidden.
+    expect(resolveBearerToken).toHaveBeenCalledTimes(1);
+    expect(isModuleEnabled).toHaveBeenCalledWith("user-1", "mcp");
+  });
+});
+
+describe("/mcp — rate limit", () => {
+  it("trips 429 once the per-credential budget is exhausted", async () => {
+    validToken();
+    vi.mocked(checkMcpRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 30_000,
+    });
+
+    const res = await POST(postRpc(TOOLS_LIST));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("x-ratelimit-remaining")).toBe("0");
+    // The limiter is keyed by the `<userId>:<tokenId>` binding.
+    expect(checkMcpRateLimit).toHaveBeenCalledWith("user-1:token-1");
+    // A throttled request never reaches the module gate or the transport.
+    expect(isModuleEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe("/mcp — admin unreachable over HTTP (read-only, cookie-only boundary)", () => {
+  it("never consults a cookie session, even with a wildcard token", async () => {
+    validToken(["*"]);
+    const res = await POST(postRpc(TOOLS_LIST));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const names = (body.result.tools as Array<{ name: string }>).map(
+      (t) => t.name,
+    );
+
+    // A `["*"]` token still sees ONLY the read tools — no write tool is
+    // registered and no admin tool exists (read-only by construction).
+    expect(names.sort()).toEqual(READ_TOOLS);
+    for (const name of names) {
+      expect(name).not.toMatch(/admin/i);
+      expect(name).not.toMatch(/^(log_|create_|update_|delete_|write_)/);
+    }
+
+    // The route authenticates purely by Bearer: a cookie session is never
+    // read, so `requireAdmin()` (cookie-only) can never be reached here.
+    expect(getSession).not.toHaveBeenCalled();
+    expect(cookiesGet).not.toHaveBeenCalled();
+  });
+});
+
+describe("/mcp — GET transport", () => {
+  it("is wired for GET (SSE stream open) behind the same gates", async () => {
+    validToken();
+    const res = await GET(
+      new Request("http://localhost/mcp", {
+        method: "GET",
+        headers: {
+          authorization: "Bearer hlk_" + "a".repeat(64),
+          accept: "text/event-stream",
+        },
+      }),
+    );
+    // Auth + gates ran; the transport answers (a stream open or a
+    // method-specific status), never a 401/404/429 on the happy path.
+    expect([200, 405]).toContain(res.status);
+    expect(resolveBearerToken).toHaveBeenCalledTimes(1);
+    expect(isModuleEnabled).toHaveBeenCalledWith("user-1", "mcp");
+    // Release any opened stream so the test process can exit cleanly.
+    await res.body?.cancel().catch(() => {});
+  });
+});

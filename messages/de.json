@@ -6861,6 +6861,10 @@
     "illness": {
       "label": "Krankheitstagebuch",
       "description": "Krankheits- und Beschwerde-Episoden mit täglichem Symptomverlauf festhalten."
+    },
+    "mcp": {
+      "label": "Externer Assistentenzugriff (MCP)",
+      "description": "Einem MCP-fähigen Assistenten Lesezugriff auf deine Gesundheitsdaten über ein begrenztes Token erlauben. Standardmäßig aus."
     }
   },
   "illness": {
