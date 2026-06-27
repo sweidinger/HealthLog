@@ -13,6 +13,11 @@ import {
   INSIGHTS_SECTION_IDS,
 } from "@/lib/insights-layout";
 import { COACH_FACT_CATEGORIES } from "@/lib/ai/coach/facts";
+import { COACH_PLAN_STATUSES } from "@/lib/ai/coach/plans";
+import {
+  coachPlanPatchSchema,
+  coachPlansListQuerySchema,
+} from "@/lib/validations/coach-plan";
 import { coachChatRequestSchema } from "@/lib/ai/coach/types";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { createShareLinkSchema } from "@/lib/validations/clinician-share-link";
@@ -232,6 +237,83 @@ const coachFactDeletedResponse = z.object({
     .describe(
       "True when a fact owned by the caller was soft-deleted; false for an unknown / cross-user / already-deleted id (idempotent no-op).",
     ),
+});
+
+// ── Coach plans (v1.21.3 B1) ─────────────────────────────────────────
+// The durable goal / if-then plans the Coach proposes and the user
+// confirms. The extractor writes a plan as `proposed`; the PATCH below is
+// the only path that activates it. The list/PATCH never accept the metric
+// or the encrypted free text — a client can only confirm / change a plan's
+// lifecycle, never inject or overwrite its prose.
+
+const coachPlanItem = z
+  .object({
+    id: z.string(),
+    metric: z
+      .string()
+      .describe("The metric this plan moves (e.g. WEIGHT, SLEEP)."),
+    ifCue: z
+      .string()
+      .nullable()
+      .describe(
+        "Decrypted if-cue (the trigger). Null when the row's key id is no longer in the map.",
+      ),
+    thenAction: z
+      .string()
+      .nullable()
+      .describe(
+        "Decrypted then-action. Null when the row's key id is no longer in the map.",
+      ),
+    target: z
+      .string()
+      .nullable()
+      .describe("Decrypted optional target; null when none / undecryptable."),
+    status: z
+      .enum(COACH_PLAN_STATUSES)
+      .describe("App-side lifecycle: proposed | active | met | abandoned."),
+    reviewDate: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("Optional check-in checkpoint; null when none."),
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({
+    id: "CoachPlan",
+    description:
+      "One Coach goal / if-then plan, decrypted server-side. The free-text fields read null only when the encryption key id has rotated out of the map.",
+  });
+
+const coachPlansListResponse = z.object({
+  plans: z
+    .array(coachPlanItem)
+    .describe(
+      "The caller's plans, newest first. Undecryptable rows are omitted from the list endpoint. No `status` filter returns the non-terminal set (proposed + active).",
+    ),
+});
+
+const coachPlanUpdatedResponse = z.object({
+  plan: coachPlanItem.describe("The plan after the lifecycle update."),
+});
+
+const coachPlanDeletedResponse = z.object({
+  deleted: z
+    .boolean()
+    .describe(
+      "True when a plan owned by the caller was soft-deleted; false for an unknown / cross-user / already-deleted id (idempotent no-op).",
+    ),
+});
+
+coachPlanPatchSchema.meta({
+  id: "CoachPlanPatchRequest",
+  description:
+    "v1.21.3 — confirm or update a Coach plan's lifecycle. `status` moves a `proposed` plan to `active` (confirm), or to `met` / `abandoned`. `reviewDate` pins (ISO instant) or clears (null) a check-in checkpoint. At least one field is required. Strict: unknown keys 422 — the body can never carry the metric, the encrypted text, or a userId.",
+});
+
+coachPlansListQuerySchema.meta({
+  id: "CoachPlansListQuery",
+  description:
+    "Optional `?status=` filter for the plans list (proposed | active | met | abandoned). Omitted returns the non-terminal set (proposed + active).",
 });
 
 // ── Coach conversation history (v1.18.0) ─────────────────────────────
@@ -851,6 +933,118 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               ),
             },
           },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/coach/plans": {
+    get: {
+      tags: ["Insights"],
+      summary: "List the caller's Coach goal / if-then plans",
+      description:
+        'v1.21.3 (B1) — returns the durable plans the Coach has proposed for the caller, newest first, each decrypted on the fly. A plan is an "if-then" implementation intention tied to one metric, with an optional target. The Coach extractor writes a plan as `proposed`; only `PATCH /api/coach/plans/{id}` activates it. Pass `?status=` to filter (proposed | active | met | abandoned); omitted returns the non-terminal set (proposed + active). Coach-gated (`requireModuleEnabled("coach")`); a disabled surface 403s. Auth via cookie or Bearer; the owner is always narrowed from the session, never the body. Undecryptable rows are omitted rather than failing the read.',
+      parameters: [
+        {
+          name: "status",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: [...COACH_PLAN_STATUSES] },
+          description:
+            "Filter to a single lifecycle status. Omit for the non-terminal set (proposed + active).",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "The caller's plans.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(coachPlansListResponse, "CoachPlansList"),
+            },
+          },
+        },
+        "403": {
+          description: "Coach surface disabled.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/coach/plans/{id}": {
+    patch: {
+      tags: ["Insights"],
+      summary: "Confirm or update a Coach plan's lifecycle",
+      description:
+        "v1.21.3 (B1) — confirm a proposed plan (status proposed → active) or mark it met / abandoned, and optionally set / clear a review date. The body carries ONLY lifecycle fields — never the metric or the encrypted free text — so a client can change a plan's status but never inject or overwrite its prose. A foreign / unknown / already-deleted id maps to 404 (never 403) so the existence channel does not leak across accounts. Coach-gated. Auth via cookie or Bearer; the owner is narrowed from the session.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "Plan id.",
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: coachPlanPatchSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The plan after the lifecycle update.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachPlanUpdatedResponse,
+                "CoachPlanUpdated",
+              ),
+            },
+          },
+        },
+        "403": {
+          description: "Coach surface disabled.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "404": {
+          description: "Plan not found or not owned by the caller.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Insights"],
+      summary: "Soft-delete one Coach plan",
+      description:
+        "v1.21.3 (B1) — soft-deletes a single plan owned by the caller. An unknown / cross-user / already-deleted id is an idempotent no-op returning `{ deleted: false }`, never revealing whether the id exists under another account. Coach-gated. Auth via cookie or Bearer.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "Plan id.",
+        },
+      ],
+      responses: {
+        "200": {
+          description:
+            "The plan was soft-deleted (`deleted: true`) or the id matched nothing the caller owns (`deleted: false`).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachPlanDeletedResponse,
+                "CoachPlanDeleted",
+              ),
+            },
+          },
+        },
+        "403": {
+          description: "Coach surface disabled.",
+          content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
       },

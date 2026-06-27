@@ -12,6 +12,7 @@ import { annotate } from "@/lib/logging/context";
 
 import type { CoachMemoryRefreshPayload } from "./coach-memory-shared";
 import { extractAndStoreFacts } from "./facts";
+import { extractAndStorePlanProposals } from "./plans";
 import { refreshConversationSummary } from "./conversation-summary";
 
 export async function runCoachMemoryRefresh(
@@ -48,8 +49,27 @@ export async function runCoachMemoryRefresh(
     });
   }
 
+  // v1.21.3 (B1) — durable goal / if-then plan proposals. Same worker pass
+  // (no separate pg-boss queue), fault-isolated like the facts step: a failure
+  // or no-provider here never sinks the summary / facts work or the job. Plans
+  // are written as `proposed`; the user confirms them through the PATCH route.
+  let plansStatus = "error";
+  let plansCount = 0;
+  try {
+    const result = await extractAndStorePlanProposals(conversationId, userId, {
+      locale,
+    });
+    plansStatus = result.status;
+    plansCount = result.count;
+  } catch (err) {
+    annotate({
+      action: { name: "coach.memory.refresh.plans_failed" },
+      meta: { error: err instanceof Error ? err.message : String(err) },
+    });
+  }
+
   annotate({
     action: { name: "coach.memory.refresh.done" },
-    meta: { summaryStatus, factsStatus, factsCount },
+    meta: { summaryStatus, factsStatus, factsCount, plansStatus, plansCount },
   });
 }

@@ -68,8 +68,13 @@ export function OfflineBanner() {
   // v1.18.6 — when an offline install is showing last-synced data (the SW's
   // allowlisted read cache + the IndexedDB query persister hydrated the
   // dashboard snapshot), say so honestly rather than implying a blank screen.
-  const hasCachedData =
-    queryClient.getQueryData(queryKeys.dashboardSnapshot()) != null;
+  // v1.21.3 (b) — the snapshot cell is now locale-keyed, so match on the
+  // `["dashboard","snapshot"]` PREFIX (`getQueriesData`) rather than the
+  // exact zero-arg slot — any hydrated locale's snapshot proves cached data
+  // is present.
+  const hasCachedData = queryClient
+    .getQueriesData({ queryKey: queryKeys.dashboardSnapshot() })
+    .some(([, data]) => data != null);
 
   return (
     <div

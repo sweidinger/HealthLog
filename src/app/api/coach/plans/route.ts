@@ -1,0 +1,121 @@
+/**
+ * GET /api/coach/plans — list the caller's Coach goal / if-then plans.
+ *
+ * v1.21.3 (B1) — the management + confirm surface for the durable plans the
+ * Coach proposes. A plan is an "if-then" implementation intention tied to one
+ * metric, with an optional target. The Coach extractor writes a plan as
+ * `status: "proposed"`; only the user-facing PATCH (`/api/coach/plans/[id]`)
+ * activates it. There is no silent self-edit of the user's plan set.
+ *
+ * Ownership: every query is scoped `where: { userId, ... }`, so a caller can
+ * only ever see their own plans. The free-text fields (if-cue, then-action,
+ * target) are decrypted on the fly; an undecryptable row (a key rotated out of
+ * the map) is skipped rather than 500ing the whole list.
+ *
+ * Coach-gated by the same `requireModuleEnabled(userId, "coach")` kill-switch
+ * the rest of the Coach management stack uses (mirrors the about-me routes).
+ * The owner is always narrowed from the session, never the body.
+ *
+ * `?status=proposed|active|met|abandoned` optionally filters the list (e.g.
+ * the composer fetches `proposed` to surface confirm cards). Omitted returns
+ * the non-terminal set (proposed + active), newest first.
+ */
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { apiSuccess, returnAllZodIssues } from "@/lib/api-response";
+import { annotate } from "@/lib/logging/context";
+import { prisma } from "@/lib/db";
+import { requireModuleEnabled } from "@/lib/modules/gate";
+import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
+import { coachPlansListQuerySchema } from "@/lib/validations/coach-plan";
+
+export const GET = apiHandler(async (req: Request) => {
+  const { user } = await requireAuth();
+  // Coach module gate (operator availability + disableCoach), mirroring the
+  // about-me management routes.
+  const gate = await requireModuleEnabled(user.id, "coach");
+  if (!gate.enabled) return gate.response;
+
+  const url = new URL(req.url);
+  const parsed = coachPlansListQuerySchema.safeParse({
+    status: url.searchParams.get("status") ?? undefined,
+  });
+  if (!parsed.success) {
+    return returnAllZodIssues(parsed.error, 422);
+  }
+
+  // No status filter → the non-terminal set (the actionable plans). An
+  // explicit status filters to exactly that status.
+  const statusWhere = parsed.data.status
+    ? { status: parsed.data.status }
+    : { status: { in: ["proposed", "active"] } };
+
+  const rows = await prisma.coachPlan.findMany({
+    where: { userId: user.id, deletedAt: null, ...statusWhere },
+    orderBy: [{ updatedAt: "desc" }],
+    select: {
+      id: true,
+      metric: true,
+      ifCueEncrypted: true,
+      thenActionEncrypted: true,
+      targetEncrypted: true,
+      status: true,
+      reviewDate: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  const plans: Array<{
+    id: string;
+    metric: string;
+    ifCue: string;
+    thenAction: string;
+    target: string | null;
+    status: string;
+    reviewDate: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }> = [];
+
+  for (const row of rows) {
+    let ifCue: string;
+    let thenAction: string;
+    try {
+      ifCue = decryptFromBytes(row.ifCueEncrypted);
+      thenAction = decryptFromBytes(row.thenActionEncrypted);
+    } catch {
+      // Fail closed per row — never surface ciphertext, never 500 the whole
+      // list because one row's key id is no longer in the map.
+      continue;
+    }
+    let target: string | null = null;
+    if (row.targetEncrypted) {
+      try {
+        target = decryptFromBytes(row.targetEncrypted);
+      } catch {
+        target = null;
+      }
+    }
+    plans.push({
+      id: row.id,
+      metric: row.metric,
+      ifCue,
+      thenAction,
+      target,
+      status: row.status,
+      reviewDate: row.reviewDate?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    });
+  }
+
+  annotate({
+    action: { name: "coach.plans.listed" },
+    meta: { count: plans.length },
+  });
+
+  return apiSuccess({ plans });
+});
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";

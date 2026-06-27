@@ -32,6 +32,39 @@ describe("queryKeys factory", () => {
     expect(queryKeys.dashboardSnapshot()).toEqual(["dashboard", "snapshot"]);
   });
 
+  // v1.21.3 (b) — the snapshot key takes an optional `locale` segment so a
+  // locale switch reads freshly-localised prose on its own cell. The zero-arg
+  // call MUST stay byte-identical to the legacy literal so every prefix-based
+  // invalidation bundle + zero-arg reader keeps prefix-matching the new cells.
+  it("threads an optional locale segment through dashboardSnapshot", () => {
+    expect(queryKeys.dashboardSnapshot("en")).toEqual([
+      "dashboard",
+      "snapshot",
+      "en",
+    ]);
+    expect(queryKeys.dashboardSnapshot("de")).toEqual([
+      "dashboard",
+      "snapshot",
+      "de",
+    ]);
+  });
+
+  it("keeps the zero-arg dashboardSnapshot call byte-identical to the legacy literal", () => {
+    expect(queryKeys.dashboardSnapshot()).toEqual(["dashboard", "snapshot"]);
+    expect(queryKeys.dashboardSnapshot(undefined)).toEqual([
+      "dashboard",
+      "snapshot",
+    ]);
+  });
+
+  it("makes a zero-arg dashboardSnapshot key a prefix of a locale-keyed cell", () => {
+    // TanStack `invalidateQueries({ queryKey })` matches by prefix, so a
+    // zero-arg invalidate must reach every locale-keyed snapshot cell.
+    const zeroArg = queryKeys.dashboardSnapshot();
+    const localeKeyed = queryKeys.dashboardSnapshot("en");
+    expect(localeKeyed.slice(0, zeroArg.length)).toEqual(zeroArg);
+  });
+
   it("threads the slim slice through queryKeys.analytics", () => {
     expect(queryKeys.analytics("summaries")).toEqual([
       "analytics",
