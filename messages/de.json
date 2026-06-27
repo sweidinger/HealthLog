@@ -2324,6 +2324,33 @@
         "groupYesterday": "Gestern",
         "groupThisWeek": "Diese Woche",
         "groupEarlier": "Früher"
+      },
+      "seed": {
+        "bloodPressure": "Geh mit mir meinen Blutdruckverlauf der letzten 30 Tage durch — gibt es etwas, das ich im Auge behalten sollte?",
+        "weight": "Wie hat sich mein Gewicht zuletzt entwickelt, und ist die Richtung etwas, worauf ich reagieren sollte?",
+        "bmi": "Was sagt mir mein BMI-Verlauf, und wie sollte ich ihn lesen?",
+        "pulse": "Geh mit mir meine Pulswerte durch — ist irgendetwas ungewöhnlich?",
+        "restingHr": "Wie hat sich mein Ruhepuls entwickelt, und was sagt er über meine Fitness?",
+        "hrv": "Was sagt mir meine Herzfrequenzvariabilität zuletzt über Erholung und Stress?",
+        "sleep": "Geh mit mir meinen letzten Schlaf durch — Dauer, Regelmäßigkeit und was sich zu ändern lohnt.",
+        "mood": "Welche Muster siehst du in meiner Stimmung über die letzten Wochen?",
+        "medications": "Wie sieht meine Medikamentenadhärenz aus, und passt sie dazu, wie ich mich gefühlt habe?",
+        "steps": "Wie aktiv war ich zuletzt gemessen an meinen Schritten, und wie ist das im Vergleich zu einem gesunden Richtwert?",
+        "activeEnergy": "Was sagt mein Aktivenergie-Verlauf über mein Aktivitätsniveau zuletzt?",
+        "cardioFitness": "Was bedeutet mein Cardio-Fitness-Verlauf (VO₂max), und wie bewege ich ihn in die richtige Richtung?",
+        "bloodGlucose": "Geh mit mir meine letzten Glukosewerte durch — liegen sie in einem gesunden Bereich?",
+        "oxygenSaturation": "Was sagt mir mein Sauerstoffsättigungs-Verlauf (SpO₂)?",
+        "respiratoryRate": "Was sagt mein Atemfrequenz-Verlauf über meine Gesundheit?",
+        "workouts": "Geh mit mir meine letzten Workouts durch — Belastung, Häufigkeit und wie ich mich dazwischen erhole.",
+        "recoveryPage": "Warum steht meine Erholung gerade dort, wo sie steht, und was treibt das?",
+        "briefing": "Geh mit mir das heutige Briefing durch — worauf sollte ich mich konzentrieren, und gibt es etwas, das einen Schritt wert ist?",
+        "healthScore": "Warum liegt mein Gesundheits-Score bei {score} von 100, und was würde ihn am stärksten bewegen?",
+        "periodWeek": "Geh mit mir durch, wie meine letzte Woche über meine Gesundheitswerte hinweg lief — was sticht heraus?",
+        "periodMonth": "Geh mit mir durch, wie mein letzter Monat über meine Gesundheitswerte hinweg lief — was sticht heraus?",
+        "correlationBpCompliance": "Wie hängt meine Medikamentenadhärenz mit meinem Blutdruck zusammen? Geh mit mir durch, was dieser Zusammenhang für mich bedeutet.",
+        "correlationMoodPulse": "Gibt es einen echten Zusammenhang zwischen meiner Stimmung und meinem Puls? Hilf mir, diesen Zusammenhang zu lesen.",
+        "correlationWeightWeekday": "Folgt mein Gewicht einem Wochenmuster? Was sagt mir dieser Wochentags-Zusammenhang?",
+        "recommendation": "Erzähl mir mehr zu dieser Empfehlung: \"{text}\" — warum trifft sie auf mich zu, und was sollte ich tun?"
       }
     },
     "relativeJustNow": "gerade eben",
@@ -3617,7 +3644,10 @@
       "returnLabel": "Dein {metric} ist seit {count} Tagen wieder in deinem üblichen Bereich — was es auch war, es ist vorbei.",
       "daysInside": "{count} Tage drinnen",
       "daysOutside": "{count} Tage draußen"
-    }
+    },
+    "updatedTodayAt": "Heute aktualisiert, {time}",
+    "updatedYesterday": "Gestern aktualisiert",
+    "updatedOn": "Aktualisiert am {date}"
   },
   "thresholds": {
     "defaultLabel": "Default",

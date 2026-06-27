@@ -26,8 +26,8 @@ import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { AskCoachAction } from "@/components/insights/ask-coach-action";
-import { useTranslations } from "@/lib/i18n/context";
-import { formatRelativeTime } from "@/lib/i18n/relative-time";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { cn } from "@/lib/utils";
 import type {
@@ -352,6 +352,7 @@ export function DailyBriefing({
   memory = null,
 }: DailyBriefingProps) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
 
   return (
     // v1.13.1 — heading-above-card pattern. The "Tagesbriefing" title
@@ -472,9 +473,12 @@ export function DailyBriefing({
                       data-slot="daily-briefing-updated"
                       className="text-muted-foreground text-right text-[11px]"
                     >
-                      {t("insights.heroGenerated", {
-                        time: formatRelativeTime(updatedAt, t),
-                      })}
+                      {formatUpdatedLabel(
+                        updatedAt,
+                        t,
+                        fmt.dateShort,
+                        fmt.time,
+                      )}
                     </p>
                   )}
                   {/* v1.18.9 (#4) — a stale briefing that can never refresh
@@ -504,7 +508,7 @@ export function DailyBriefing({
                 picture. The briefing spans every metric, so no scope: the
                 default all-source snapshot reads best here. */}
               <div className="flex justify-end">
-                <AskCoachAction question="Walk me through today's briefing — what should I focus on, and is anything worth acting on?" />
+                <AskCoachAction question={t("insights.coach.seed.briefing")} />
               </div>
             </div>
           ) : noProvider ? (
