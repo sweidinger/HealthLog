@@ -40,7 +40,10 @@ export interface CoachReminderSweepSummary {
   errored: number;
 }
 
-type SweepPrisma = Pick<PrismaClient, "coachReminder" | "coachPlan">;
+type SweepPrisma = Pick<
+  PrismaClient,
+  "coachReminder" | "coachPlan" | "$transaction"
+>;
 
 /**
  * Run one sweep tick. Idempotent: a reminder already `due` is not re-flipped,
@@ -104,25 +107,30 @@ export async function runCoachReminderSweep(
         continue;
       }
 
-      await prisma.coachReminder.create({
-        data: {
-          userId: plan.userId,
-          noteEncrypted: encryptToBytes(note),
-          metric: plan.metric,
-          relatedPlanId: plan.id,
-          triggerKind: "date",
-          dueAt: now,
-          status: "due",
-          source: "extractor",
-          lastSurfacedAt: now,
-          surfaceCount: 1,
-        },
-      });
-      // Clear the plan's reviewDate so the review fires exactly once.
-      await prisma.coachPlan.update({
-        where: { id: plan.id },
-        data: { reviewDate: null },
-      });
+      // Mint the reminder and clear the plan's reviewDate atomically: if the
+      // clear failed after a standalone create committed, the next tick would
+      // re-select the plan (reviewDate still set) and mint a DUPLICATE review
+      // reminder. One transaction makes the pair all-or-nothing.
+      await prisma.$transaction([
+        prisma.coachReminder.create({
+          data: {
+            userId: plan.userId,
+            noteEncrypted: encryptToBytes(note),
+            metric: plan.metric,
+            relatedPlanId: plan.id,
+            triggerKind: "date",
+            dueAt: now,
+            status: "due",
+            source: "extractor",
+            lastSurfacedAt: now,
+            surfaceCount: 1,
+          },
+        }),
+        prisma.coachPlan.update({
+          where: { id: plan.id },
+          data: { reviewDate: null },
+        }),
+      ]);
       summary.planReviewsMinted += 1;
     } catch {
       summary.errored += 1;

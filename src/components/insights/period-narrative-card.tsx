@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarRange } from "lucide-react";
 
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { queryKeys } from "@/lib/query-keys";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { AskCoachAction } from "@/components/insights/ask-coach-action";
@@ -77,7 +79,7 @@ function ProvenanceDisclosure({
   return (
     <p
       data-slot="period-narrative-provenance"
-      className="text-muted-foreground text-[11px] leading-snug"
+      className="text-muted-foreground text-xs leading-snug"
     >
       {t("insights.narrativeProvenanceMethod")}
       {metrics
@@ -100,6 +102,8 @@ export function PeriodNarrativeCard({
   className,
 }: PeriodNarrativeCardProps) {
   const { t, locale } = useTranslations();
+  const fmt = useFormatters();
+  const { user } = useAuth();
   const [period, setPeriod] = useState<NarrativePeriod>("week");
 
   const query = useQuery({
@@ -207,14 +211,16 @@ export function PeriodNarrativeCard({
         ) : null}
 
         {narrative ? (
-          <p className="text-muted-foreground text-right text-[11px]">
+          <p className="text-muted-foreground text-right text-xs">
             {data?.revalidating
               ? t("insights.narrativeUpdating")
-              : t("insights.narrativeUpdated", {
-                  time: new Date(narrative.updatedAt).toLocaleDateString(
-                    locale === "de" ? "de-DE" : undefined,
-                  ),
-                })}
+              : formatUpdatedLabel(
+                  narrative.updatedAt,
+                  t,
+                  fmt.dateShort,
+                  fmt.time,
+                  user?.timezone,
+                )}
           </p>
         ) : null}
 

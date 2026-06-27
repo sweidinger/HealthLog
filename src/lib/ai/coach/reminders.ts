@@ -38,7 +38,6 @@ export const COACH_REMINDER_STATUSES = [
   "done",
   "dismissed",
 ] as const;
-export type CoachReminderStatus = (typeof COACH_REMINDER_STATUSES)[number];
 
 /** App-side closed trigger-kind enum (matches the schema column). */
 export const COACH_REMINDER_TRIGGER_KINDS = ["date", "context"] as const;
@@ -58,15 +57,6 @@ export const COACH_REMINDER_CONTEXT_CUES = [
 ] as const;
 export type CoachReminderContextCue =
   (typeof COACH_REMINDER_CONTEXT_CUES)[number];
-
-/** Provenance of a reminder row (matches the schema `source` column). */
-export const COACH_REMINDER_SOURCES = [
-  "sentinel",
-  "extractor",
-  "manual",
-  "action",
-] as const;
-export type CoachReminderSource = (typeof COACH_REMINDER_SOURCES)[number];
 
 /** Per-field caps (mirror the Zod gate + the prompt instruction). */
 export const REMINDER_NOTE_MAX_CHARS = 280;

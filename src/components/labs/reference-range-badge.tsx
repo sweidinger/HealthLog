@@ -39,7 +39,7 @@ export function ReferenceRangeBadge({
   // Compact: drop the icon, shrink the text and padding so the badge reads as a
   // subtle qualifier of the heading rather than a second focal point.
   const compactClass = compact
-    ? "h-auto gap-0.5 px-1.5 py-0 text-[0.625rem] font-normal [&>svg]:size-2.5"
+    ? "h-auto gap-0.5 px-1.5 py-0 text-xs font-normal [&>svg]:size-2.5"
     : "";
 
   if (status === "in-range") {

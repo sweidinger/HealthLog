@@ -232,7 +232,7 @@ export function LowStockCard({
             inputMode="numeric"
             min={MIN_DAYS}
             max={MAX_DAYS}
-            className="w-24"
+            className="w-auto"
             value={draft ?? String(days)}
             disabled={!isAuthenticated || saving}
             onChange={(e) => setDraft(e.target.value)}
@@ -263,7 +263,7 @@ export function LowStockCard({
               inputMode="numeric"
               min={MIN_LEAD}
               max={MAX_LEAD}
-              className="w-24"
+              className="w-auto"
               value={leadDraft ?? String(leadDays)}
               disabled={!isAuthenticated || saving}
               onChange={(e) => setLeadDraft(e.target.value)}

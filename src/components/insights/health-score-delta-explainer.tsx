@@ -52,10 +52,7 @@ export function HealthScoreDeltaExplainer({
     <span
       id={resolvedBodyId}
       data-slot="health-score-delta-explainer-body"
-      className={cn(
-        "text-muted-foreground text-[11px] leading-snug",
-        className,
-      )}
+      className={cn("text-muted-foreground text-xs leading-snug", className)}
     >
       {t("insights.healthScore.deltaExplainer.body")}
     </span>

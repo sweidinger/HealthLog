@@ -299,7 +299,7 @@ export interface CompletionParams {
    */
   signal?: AbortSignal;
   /**
-   * v1.21.5 — per-request upstream timeout, in milliseconds. Each client
+   * v1.22 (#89) — per-request upstream timeout, in milliseconds. Each client
    * passes this straight to its `safeFetch` call, falling back to the shared
    * 60 s default when unset — so every existing caller (Coach, status cards)
    * is byte-identical. The comprehensive briefing surface is the one caller
@@ -354,7 +354,7 @@ export function singleUserTurn(p: {
   toolChoice?: "auto" | "none";
   /** v1.20.1 — caller-owned cancel signal threaded to the client fetch. */
   signal?: AbortSignal;
-  /** v1.21.5 — per-request upstream timeout override (ms); see CompletionParams. */
+  /** v1.22 (#89) — per-request upstream timeout override (ms); see CompletionParams. */
   timeoutMs?: number;
 }): CompletionParams {
   const images = p.images ?? [];

@@ -126,7 +126,7 @@ export function CorrelationCard({ result }: CorrelationCardProps) {
               data-slot="correlation-card-confidence"
               variant="outline"
               className={cn(
-                "shrink-0 text-[10px]",
+                "shrink-0 text-xs",
                 CONFIDENCE_BADGE_CLASS[result.confidenceBand.label],
               )}
             >
@@ -153,7 +153,7 @@ export function CorrelationCard({ result }: CorrelationCardProps) {
             </p>
             <p
               data-slot="correlation-card-source"
-              className="text-muted-foreground text-[11px]"
+              className="text-muted-foreground text-xs"
             >
               {t("insights.correlationRow.sourceChip", {
                 n: result.n,

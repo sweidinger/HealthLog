@@ -879,7 +879,7 @@ export function discoverLabOutcomeCorrelations(
       pValue: t.pValue,
       qValue: Math.round(t.qValue * 1000) / 1000,
       windowDays,
-      interpretation: interpretLab(t.lab, t.outcome, t.r),
+      interpretation: interpretLab(t.lab, t.outcome, t.r, t.tier),
     }))
     .sort((a, b) => Math.abs(b.r) - Math.abs(a.r) || a.qValue - b.qValue);
 
@@ -891,10 +891,26 @@ function humaniseLab(key: string): string {
   return key.startsWith("LAB:") ? key.slice("LAB:".length) : key;
 }
 
-/** Descriptive, never-causal interpretation for a lab ↔ outcome pair. */
-function interpretLab(lab: string, outcome: string, r: number): string {
+/**
+ * Descriptive, never-causal interpretation for a lab ↔ outcome pair.
+ *
+ * v1.22 — honour the confidence tier the way the daily engine's `interpret`
+ * does: a surviving `faint`-tier pair (real, but below the confident
+ * effect-size bar) reads as "a faint hint, if anything" rather than the
+ * confident "line up with", so the narrated confidence never outruns the
+ * effect. The clinician caveat stays on every tier.
+ */
+function interpretLab(
+  lab: string,
+  outcome: string,
+  r: number,
+  tier: ConfidenceTier,
+): string {
   const l = humaniseLab(lab);
   const o = humanise(outcome);
   const dir = r < 0 ? "lower" : "higher";
+  if (tier === "faint") {
+    return `Higher ${l} readings show a faint hint, if anything, of ${dir} ${o} over the same periods in your data — too small to lean on, an association to raise with your clinician, never a cause.`;
+  }
   return `Higher ${l} readings line up with ${dir} ${o} over the same periods in your data — an association worth watching with your clinician, never a cause.`;
 }

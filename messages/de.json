@@ -1946,7 +1946,6 @@
     "confidenceMittel": "Mittel",
     "confidenceGering": "Gering",
     "loadError": "Auswertungen konnten nicht geladen werden",
-    "heroGenerated": "Erstellt {time}",
     "heroPersonalBaseline": "Basierend auf deinen letzten 90 Tagen",
     "heroRegenerate": "Neu generieren",
     "heroRegenerating": "Wird generiert",
@@ -1958,7 +1957,6 @@
     "narrativeMonth": "Dieser Monat",
     "narrativePreparing": "Deine Zusammenfassung wird erstellt…",
     "narrativeUpdating": "Wird aktualisiert…",
-    "narrativeUpdated": "Aktualisiert {time}",
     "narrativeProvenanceLabel": "Wie das zustande kam",
     "narrativeProvenanceMethod": "Eine Zusammenfassung des Zeitraums in einfacher Sprache, ausschließlich aus deinen erfassten Werten und den Zusammenhängen, die die statistische Mehrfachvergleichskorrektur überstanden haben. Beschreibend, nie eine Ursache.",
     "narrativeProvenanceMetrics": "Basierend auf: {metrics}",
@@ -4738,6 +4736,8 @@
       "changelog": "Changelog",
       "docs": "Dokumentation",
       "linksHeading": "Quellen & Dokumentation",
+      "identityDescription": "Version, Lizenz und Build-Details dieser Instanz.",
+      "linksDescription": "Quellcode, Änderungsprotokoll und Dokumentation.",
       "newerAvailable": "Neue Version: {tag}"
     },
     "testConnection": {

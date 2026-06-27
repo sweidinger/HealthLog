@@ -425,25 +425,28 @@ export async function runWithFallback(
 }
 
 /**
- * v1.22 (#89) — streaming sibling of {@link runRawCompletionWithFallback}.
- * Identical chain / fallback / health-ledger semantics, but each candidate is
- * driven through its `generateCompletionStream` (emitting `onDelta` per token)
- * when the provider implements one, and through the buffered
- * `generateCompletion` otherwise. The caller (the Coach SSE route) uses the
- * delta callback to keep the connection warm and — once safety guards have run
- * on the full reply — to confirm real tokens flowed. The returned shape matches
- * the buffered runner so the route is path-agnostic.
+ * Shared chain walker for the two RAW runners (streaming + buffered). Owns the
+ * one set of chain / fallback / health-ledger semantics — empty-chain guard,
+ * health-ledger + last-working reorder, hard-failure cascade with per-hop
+ * annotation, success memo + ledger write, and the terminal
+ * `AllProvidersFailedError`. The only per-runner delta is how a single
+ * candidate is invoked (`invoke`) and any extra success-path annotation
+ * (`successMeta`); both raw runners pass those in and keep one copy of the loop.
+ * Schema-class failures still bubble (they are not hard) exactly as before.
  */
-export async function runStreamingRawCompletionWithFallback(args: {
-  userId: string;
-  providers: ProviderChainResolved[];
-  params: CompletionParams;
-  /** Called once per streamed token/chunk for providers that stream. */
-  onDelta: (delta: string) => void;
-  /** See `RunWithFallbackParams.ledger`. */
-  ledger?: ProviderHealthLedger;
-}): Promise<RunRawWithFallbackResult> {
-  const { userId, providers, params, onDelta } = args;
+async function runRawChain(
+  args: {
+    userId: string;
+    providers: ProviderChainResolved[];
+    params: CompletionParams;
+    ledger?: ProviderHealthLedger;
+  },
+  invoke: (candidate: ProviderChainResolved) => Promise<CompletionResult>,
+  successMeta?: (
+    candidate: ProviderChainResolved,
+  ) => Record<string, string | number | boolean | null>,
+): Promise<RunRawWithFallbackResult> {
+  const { userId, providers } = args;
   const ledger = args.ledger ?? postgresProviderHealthLedger;
 
   if (providers.length === 0) {
@@ -456,20 +459,14 @@ export async function runStreamingRawCompletionWithFallback(args: {
   for (let i = 0; i < ordered.length; i += 1) {
     const candidate = ordered[i];
     try {
-      // Prefer the provider's streaming wire; fall back to the buffered call
-      // for providers (cloud clients today) that do not implement streaming.
-      const result = candidate.instance.generateCompletionStream
-        ? await candidate.instance.generateCompletionStream(params, onDelta)
-        : await candidate.instance.generateCompletion(params);
+      const result = await invoke(candidate);
       rememberWorkingProvider(userId, candidate.providerType);
       void ledger.recordSuccess(userId, candidate.providerType);
       annotate({
         meta: {
           ai_chain_working_provider: candidate.providerType,
           ai_chain_fallback_count: hops.length,
-          ai_chain_streamed: Boolean(
-            candidate.instance.generateCompletionStream,
-          ),
+          ...(successMeta ? successMeta(candidate) : {}),
         },
       });
       return {
@@ -508,6 +505,39 @@ export async function runStreamingRawCompletionWithFallback(args: {
     },
   });
   throw new AllProvidersFailedError(hops);
+}
+
+/**
+ * v1.22 (#89) — streaming sibling of {@link runRawCompletionWithFallback}.
+ * Identical chain / fallback / health-ledger semantics (via {@link runRawChain}),
+ * but each candidate is driven through its `generateCompletionStream` (emitting
+ * `onDelta` per token) when the provider implements one, and through the buffered
+ * `generateCompletion` otherwise. The caller (the Coach SSE route) uses the delta
+ * callback to keep the connection warm and — once safety guards have run on the
+ * full reply — to confirm real tokens flowed. The returned shape matches the
+ * buffered runner so the route is path-agnostic.
+ */
+export async function runStreamingRawCompletionWithFallback(args: {
+  userId: string;
+  providers: ProviderChainResolved[];
+  params: CompletionParams;
+  /** Called once per streamed token/chunk for providers that stream. */
+  onDelta: (delta: string) => void;
+  /** See `RunWithFallbackParams.ledger`. */
+  ledger?: ProviderHealthLedger;
+}): Promise<RunRawWithFallbackResult> {
+  return runRawChain(
+    args,
+    // Prefer the provider's streaming wire; fall back to the buffered call for
+    // providers (cloud clients today) that do not implement streaming.
+    (candidate) =>
+      candidate.instance.generateCompletionStream
+        ? candidate.instance.generateCompletionStream(args.params, args.onDelta)
+        : candidate.instance.generateCompletion(args.params),
+    (candidate) => ({
+      ai_chain_streamed: Boolean(candidate.instance.generateCompletionStream),
+    }),
+  );
 }
 
 export interface RunRawWithFallbackResult {
@@ -539,62 +569,7 @@ export async function runRawCompletionWithFallback(args: {
   /** See `RunWithFallbackParams.ledger`. */
   ledger?: ProviderHealthLedger;
 }): Promise<RunRawWithFallbackResult> {
-  const { userId, providers, params } = args;
-  const ledger = args.ledger ?? postgresProviderHealthLedger;
-
-  if (providers.length === 0) {
-    throw new AllProvidersFailedError([]);
-  }
-
-  const ordered = await resolveChainOrder(userId, providers, ledger);
-  const hops: FallbackHop[] = [];
-
-  for (let i = 0; i < ordered.length; i += 1) {
-    const candidate = ordered[i];
-    try {
-      const result = await candidate.instance.generateCompletion(params);
-      rememberWorkingProvider(userId, candidate.providerType);
-      void ledger.recordSuccess(userId, candidate.providerType);
-      annotate({
-        meta: {
-          ai_chain_working_provider: candidate.providerType,
-          ai_chain_fallback_count: hops.length,
-        },
-      });
-      return {
-        result,
-        workingProvider: candidate,
-        fallbackHops: hops,
-      };
-    } catch (error) {
-      if (!isHardProviderFailure(error)) {
-        throw error;
-      }
-      const summary = summariseError(error);
-      void ledger.recordFailure(userId, candidate.providerType, summary.status);
-      const hop: FallbackHop = {
-        providerType: candidate.providerType,
-        attempt: i + 1,
-        failureReason: summary.reason,
-        httpStatus: summary.status,
-      };
-      hops.push(hop);
-      annotate({
-        meta: {
-          [`ai_chain_hop_${i + 1}_provider`]: candidate.providerType,
-          [`ai_chain_hop_${i + 1}_status`]: summary.status,
-          [`ai_chain_hop_${i + 1}_reason`]: summary.reason.slice(0, 240),
-          [`ai_chain_hop_${i + 1}_body`]: summary.bodyExcerpt,
-        },
-      });
-    }
-  }
-
-  annotate({
-    meta: {
-      ai_chain_outcome: "all-failed",
-      ai_chain_fallback_count: hops.length,
-    },
-  });
-  throw new AllProvidersFailedError(hops);
+  return runRawChain(args, (candidate) =>
+    candidate.instance.generateCompletion(args.params),
+  );
 }

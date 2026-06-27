@@ -11,6 +11,7 @@ import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { AskCoachAction } from "@/components/insights/ask-coach-action";
 import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
@@ -339,17 +340,24 @@ function StatusBody({ text }: { text: string }) {
 function LastUpdatedFooter({ updatedAt }: { updatedAt: string | null }) {
   const { t } = useTranslations();
   const fmt = useFormatters();
+  const { user } = useAuth();
   if (!updatedAt) return null;
   return (
     // v1.11.5 — right-aligned so the timestamp tucks to the trailing edge
     // of the card for a tidier read against the left-aligned prose above.
     //
-    // v1.12.2 — the freshness caption is a relative read ("2 hours ago") via
-    // the shared `formatRelativeTime`, matching the briefing / hero /
-    // last-measurement / coach-history captions so two adjacent cards on the
-    // same page no longer read one relative and one absolute.
+    // v1.22 (W6) — the freshness caption is the calendar-bucketed
+    // `formatUpdatedLabel` ("Updated today, 14:30" / "yesterday" / "on DD.MM."),
+    // matching the briefing + per-metric cards. The day boundary follows the
+    // user's profile timezone, not the browser's.
     <p className="text-muted-foreground text-right text-xs">
-      {formatUpdatedLabel(updatedAt, t, fmt.dateShort, fmt.time)}
+      {formatUpdatedLabel(
+        updatedAt,
+        t,
+        fmt.dateShort,
+        fmt.time,
+        user?.timezone,
+      )}
     </p>
   );
 }

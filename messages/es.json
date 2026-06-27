@@ -1946,7 +1946,6 @@
     "confidenceMittel": "Media",
     "confidenceGering": "Baja",
     "loadError": "No se han podido cargar los análisis",
-    "heroGenerated": "Generado {time}",
     "heroPersonalBaseline": "Basado en tus últimos 90 días",
     "heroRegenerate": "Regenerar",
     "heroRegenerating": "Generando",
@@ -1958,7 +1957,6 @@
     "narrativeMonth": "Este mes",
     "narrativePreparing": "Preparando tu resumen…",
     "narrativeUpdating": "Actualizando…",
-    "narrativeUpdated": "Actualizado {time}",
     "narrativeProvenanceLabel": "Cómo se elaboró esto",
     "narrativeProvenanceMethod": "Un resumen del período en lenguaje sencillo, basado únicamente en tus valores registrados y en las asociaciones que superaron el control estadístico de comparaciones múltiples. Descriptivo, nunca una causa.",
     "narrativeProvenanceMetrics": "Basado en: {metrics}",
@@ -4738,6 +4736,8 @@
       "changelog": "Changelog",
       "docs": "Documentación",
       "linksHeading": "Fuentes y documentación",
+      "identityDescription": "Versión, licencia y detalles de compilación de esta instancia.",
+      "linksDescription": "Código fuente, registro de cambios y documentación.",
       "newerAvailable": "Nueva versión: {tag}"
     },
     "testConnection": {
