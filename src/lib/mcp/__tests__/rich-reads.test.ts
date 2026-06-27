@@ -15,12 +15,17 @@ vi.mock("@/lib/rollups/measurement-read-wmy", async (importOriginal) => {
     await importOriginal<typeof import("@/lib/rollups/measurement-read-wmy")>();
   return { ...actual, readBestGranularityRollups: vi.fn() };
 });
+const { labResult } = vi.hoisted(() => ({
+  labResult: { findMany: vi.fn() },
+}));
+vi.mock("@/lib/db", () => ({ prisma: { labResult } }));
 
 import {
   getCorrelation,
   compareMetric,
   getMetricBaseline,
   detectChangepoints,
+  getLabHistory,
   resolveRichMetric,
 } from "../rich-reads";
 import { readCoachCorrelations } from "@/lib/ai/coach/tools/correlations-read";
@@ -198,7 +203,7 @@ describe("compare_metric", () => {
   it("asks for a second metric or window when neither is given", async () => {
     const res = await compareMetric(USER, { metric: "weight" });
     expect(res.present).toBe(false);
-    expect(res.reason).toBe("specify_metricB_or_windowB");
+    expect(res.reason).toBe("specify_metricB_window_or_range");
   });
 
   it("honest-null on unknown metric", async () => {
@@ -362,5 +367,117 @@ describe("grounding / no fabrication", () => {
       expect(keys).not.toContain("diagnosis");
       expect(keys).not.toContain("advice");
     }
+  });
+});
+
+// ── explicit {from,to} date range ────────────────────────────────────
+describe("explicit date-range reads", () => {
+  /** A range entirely within the rows the reader will return. */
+  const fromMs = Date.now() - 40 * 24 * 60 * 60 * 1000;
+  const toMs = Date.now() - 10 * 24 * 60 * 60 * 1000;
+  const inRange = new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString();
+  const beforeRange = new Date(
+    Date.now() - 80 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const from = new Date(fromMs).toISOString();
+  const to = new Date(toMs).toISOString();
+
+  it("compare_metric serves a before-vs-after range comparison", async () => {
+    // Side A (range) and side B (rangeB) each read once; rows outside the
+    // bounds are filtered out before aggregation.
+    vi.mocked(readBestGranularityRollups)
+      .mockResolvedValueOnce({
+        granularity: "DAY",
+        rows: [row(inRange, 80), row(beforeRange, 200)],
+      })
+      .mockResolvedValueOnce({
+        granularity: "DAY",
+        rows: [row(inRange, 90)],
+      });
+    const res = await compareMetric(USER, {
+      metric: "weight",
+      range: { from, to },
+      rangeB: { from, to },
+    });
+    expect(res.present).toBe(true);
+    expect(res.mode).toBe("window_vs_window");
+    // The out-of-range 200 row was filtered → side A mean is 80, not 140.
+    expect(res.a?.mean).toBe(80);
+    expect(res.a?.from).toBe(from);
+    expect(res.a?.to).toBe(to);
+    expect(res.delta?.mean).toBe(10);
+  });
+
+  it("detect_changepoints accepts an explicit range and only scans in-range buckets", async () => {
+    const rows = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(
+        Date.now() - (35 - i) * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      rows.push(row(d, i < 6 ? 60 : 90));
+    }
+    // Add an out-of-range early bucket that must be excluded.
+    rows.unshift(row(beforeRange, 5));
+    vi.mocked(readBestGranularityRollups).mockResolvedValue({
+      granularity: "DAY",
+      rows,
+    });
+    const res = await detectChangepoints(USER, {
+      metric: "weight",
+      range: { from, to },
+    });
+    expect(res.present).toBe(true);
+    expect(res.bucketsAnalysed).toBe(12); // the out-of-range bucket excluded
+    expect(res.changepoints?.length ?? 0).toBeGreaterThan(0);
+  });
+});
+
+// ── 5. get_lab_history ───────────────────────────────────────────────
+describe("get_lab_history", () => {
+  function labRow(takenAt: string, value: number) {
+    return {
+      analyte: "LDL",
+      panel: "Lipids",
+      value,
+      valueText: null,
+      unit: "mg/dL",
+      referenceLow: null,
+      referenceHigh: 116,
+      takenAt: new Date(takenAt),
+      biomarkerId: null,
+      biomarker: null,
+    };
+  }
+
+  it("returns a newest-first trajectory with units + range status", async () => {
+    labResult.findMany.mockResolvedValue([
+      labRow("2026-06-01T00:00:00Z", 130),
+      labRow("2026-03-01T00:00:00Z", 110),
+    ]);
+    const res = await getLabHistory(USER, { analyte: "LDL", limit: 50 });
+    expect(res.present).toBe(true);
+    expect(res.analyte).toBe("LDL");
+    expect(res.readings).toHaveLength(2);
+    expect(res.readings?.[0].value).toBe(130);
+    expect(res.readings?.[0].rangeStatus).toBe("above");
+    expect(res.nextCursor).toBeUndefined();
+  });
+
+  it("paginates with an opaque cursor when more readings exist", async () => {
+    // Ask for limit 1: the reader peeks limit+1 rows to detect more.
+    labResult.findMany.mockResolvedValue([
+      labRow("2026-06-01T00:00:00Z", 130),
+      labRow("2026-03-01T00:00:00Z", 110),
+    ]);
+    const res = await getLabHistory(USER, { analyte: "LDL", limit: 1 });
+    expect(res.readings).toHaveLength(1);
+    expect(typeof res.nextCursor).toBe("string");
+  });
+
+  it("honest-null when no reading matches the analyte", async () => {
+    labResult.findMany.mockResolvedValue([]);
+    const res = await getLabHistory(USER, { analyte: "ferritin" });
+    expect(res.present).toBe(false);
+    expect(res.reason).toBe("analyte_not_found");
   });
 });

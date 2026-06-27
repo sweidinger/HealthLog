@@ -30,18 +30,59 @@
  */
 import type { MeasurementType } from "@/generated/prisma/client";
 
+import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
 import { readCoachCorrelations } from "@/lib/ai/coach/tools/correlations-read";
 import { buildCoachReadStrip } from "@/lib/insights/derived/coach-read";
 import {
   readBestGranularityRollups,
   aggregateWmyBuckets,
+  type RollupBucketRow,
 } from "@/lib/rollups/measurement-read-wmy";
 import {
   getMetricStatusMeta,
   METRIC_STATUS_IDS,
 } from "@/lib/insights/metric-status-registry";
+import { classifyReferenceRange } from "@/lib/labs/reference-range";
+import { resolveLabFields } from "@/lib/labs/serialise";
+import { sanitizeValueText } from "@/lib/ai/coach/labs-snapshot";
+import { encodeOffsetCursor } from "@/lib/mcp/pagination";
 import type { CoachScopeWindow } from "@/lib/ai/coach/types";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * An explicit, arbitrary ISO date range the rich reads can take in place of one
+ * of the five fixed trailing windows. Bounds are inclusive. The range is served
+ * over the SAME rollup tier the trailing windows use: the reader fetches the
+ * trailing buckets reaching back to `from` (the largest granularity that still
+ * resolves that span) and the rich read filters them to `[from, to]` — no new
+ * persisted analytics, no recompute. A coarse granularity (WEEK / MONTH /
+ * YEAR) is selected automatically for a range that reaches far into the past,
+ * and the resolved granularity is reported on the result.
+ */
+export interface DateRange {
+  /** Inclusive lower bound (ISO-8601 instant). */
+  from: string;
+  /** Inclusive upper bound (ISO-8601 instant). */
+  to: string;
+}
+
+/**
+ * Validate + normalise an explicit `{from,to}` range to millisecond bounds.
+ * Returns `null` for a missing, unparseable, or inverted range so the caller
+ * falls back to the trailing-window path rather than reading a nonsense span.
+ */
+function resolveRangeMs(
+  range: DateRange | undefined,
+): { fromMs: number; toMs: number } | null {
+  if (!range) return null;
+  const fromMs = Date.parse(range.from);
+  const toMs = Date.parse(range.to);
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs)) return null;
+  if (toMs <= fromMs) return null;
+  return { fromMs, toMs };
+}
 
 /** Trailing-day count for each window the rich reads accept. */
 const WINDOW_DAYS: Record<CoachScopeWindow, number> = {
@@ -297,6 +338,10 @@ interface MetricWindowSnapshot {
   mean: number | null;
   min: number | null;
   max: number | null;
+  /** Lower bound when the side was an explicit `{from,to}` range. */
+  from?: string;
+  /** Upper bound when the side was an explicit `{from,to}` range. */
+  to?: string;
 }
 
 export interface CompareMetricResult {
@@ -307,6 +352,12 @@ export interface CompareMetricResult {
   b?: MetricWindowSnapshot;
   /** Delta b − a, only when both sides share a unit; null otherwise. */
   delta?: { mean: number; pct: number | null } | null;
+}
+
+/** One side's horizon: an explicit range wins over a trailing window. */
+interface SideSpec {
+  window?: CoachScopeWindow;
+  range?: DateRange;
 }
 
 async function snapshotMetricWindow(
@@ -336,12 +387,69 @@ async function snapshotMetricWindow(
 }
 
 /**
- * Compare a metric against another metric (same trailing window) OR a single
- * metric across two trailing windows. Pure re-export of the WMY rollup reader +
- * the linear `aggregateWmyBuckets` composition — no new math. Windows are
- * trailing-to-now (e.g. last 30 days vs last 90 days); a delta is only computed
- * when both sides carry the same unit, so the result never compares unlike
- * scales. `{ present: false }` when neither side has data.
+ * Snapshot a metric over an explicit `{from,to}` range. Reuses the SAME rollup
+ * reader the trailing-window path uses: it fetches the trailing buckets reaching
+ * back to `from` (so the largest granularity that still resolves that reach is
+ * picked) and filters them to `[from, to]`. No new persisted analytics.
+ */
+async function snapshotMetricRange(
+  userId: string,
+  metric: RichMetric,
+  fromMs: number,
+  toMs: number,
+): Promise<MetricWindowSnapshot | null> {
+  // Reach back far enough to cover `from`; the upper bound is applied below.
+  const reachDays = Math.ceil((Date.now() - fromMs) / DAY_MS);
+  if (!Number.isFinite(reachDays) || reachDays <= 0) return null;
+  const read = await readBestGranularityRollups(
+    userId,
+    metric.measurementType,
+    reachDays,
+  );
+  if (!read) return null;
+  const rows = read.rows.filter((r) => {
+    const t = r.bucketStart.getTime();
+    return t >= fromMs && t <= toMs;
+  });
+  if (rows.length === 0) return null;
+  const agg = aggregateWmyBuckets(rows);
+  if (agg.count === 0) return null;
+  return {
+    label: metric.label,
+    unit: metric.unit,
+    band: metric.band,
+    windowDays: Math.max(1, Math.round((toMs - fromMs) / DAY_MS)),
+    granularity: read.granularity,
+    count: agg.count,
+    mean: agg.mean,
+    min: agg.min,
+    max: agg.max,
+    from: new Date(fromMs).toISOString(),
+    to: new Date(toMs).toISOString(),
+  };
+}
+
+/** Snapshot one comparison side — an explicit range wins over a window. */
+function snapshotSide(
+  userId: string,
+  metric: RichMetric,
+  spec: SideSpec,
+): Promise<MetricWindowSnapshot | null> {
+  const range = resolveRangeMs(spec.range);
+  if (range) {
+    return snapshotMetricRange(userId, metric, range.fromMs, range.toMs);
+  }
+  return snapshotMetricWindow(userId, metric, windowToDays(spec.window));
+}
+
+/**
+ * Compare a metric against another metric (same horizon) OR a single metric
+ * across two horizons. Each horizon is either one of the five fixed trailing
+ * windows OR an explicit `{from,to}` range (e.g. before vs after a date). Pure
+ * re-export of the WMY rollup reader + the linear `aggregateWmyBuckets`
+ * composition — no new math. A delta is only computed when both sides carry the
+ * same unit, so the result never compares unlike scales. `{ present: false }`
+ * when neither side has data.
  */
 export async function compareMetric(
   userId: string,
@@ -350,13 +458,15 @@ export async function compareMetric(
     metricB?: string;
     window?: CoachScopeWindow;
     windowB?: CoachScopeWindow;
+    range?: DateRange;
+    rangeB?: DateRange;
   },
 ): Promise<CompareMetricResult> {
   const metricA = resolveRichMetric(args.metric);
   if (!metricA) {
     return { present: false, reason: "unknown_metric" };
   }
-  const daysA = windowToDays(args.window);
+  const sideA: SideSpec = { window: args.window, range: args.range };
 
   const annotateMiss = () =>
     annotate({
@@ -366,7 +476,7 @@ export async function compareMetric(
 
   let mode: "metric_vs_metric" | "window_vs_window";
   let metricB: RichMetric;
-  let daysB: number;
+  let sideB: SideSpec;
 
   if (args.metricB) {
     const resolvedB = resolveRichMetric(args.metricB);
@@ -374,21 +484,22 @@ export async function compareMetric(
       annotateMiss();
       return { present: false, reason: "unknown_metric_b" };
     }
+    // Both metrics share side A's horizon (window or range).
     mode = "metric_vs_metric";
     metricB = resolvedB;
-    daysB = daysA;
-  } else if (args.windowB) {
+    sideB = sideA;
+  } else if (args.rangeB || args.windowB) {
     mode = "window_vs_window";
     metricB = metricA;
-    daysB = windowToDays(args.windowB);
+    sideB = { window: args.windowB, range: args.rangeB };
   } else {
     annotateMiss();
-    return { present: false, reason: "specify_metricB_or_windowB" };
+    return { present: false, reason: "specify_metricB_window_or_range" };
   }
 
   const [a, b] = await Promise.all([
-    snapshotMetricWindow(userId, metricA, daysA),
-    snapshotMetricWindow(userId, metricB, daysB),
+    snapshotSide(userId, metricA, sideA),
+    snapshotSide(userId, metricB, sideB),
   ]);
 
   if (!a || !b) {
@@ -591,19 +702,48 @@ function cusumSegment(
  */
 export async function detectChangepoints(
   userId: string,
-  args: { metric: string; window?: CoachScopeWindow },
+  args: { metric: string; window?: CoachScopeWindow; range?: DateRange },
 ): Promise<ChangepointsResult> {
   const metric = resolveRichMetric(args.metric);
   if (!metric) {
     return { present: false, reason: "unknown_metric" };
   }
-  const windowDays = windowToDays(args.window ?? "last90days");
 
-  const read = await readBestGranularityRollups(
-    userId,
-    metric.measurementType,
-    windowDays,
-  );
+  // Either an explicit `{from,to}` range (reach-back + filter) or one of the
+  // five fixed trailing windows — both land on the same rollup reader.
+  const rangeMs = resolveRangeMs(args.range);
+  let windowDays: number;
+  let rangeRows: RollupBucketRow[] | null = null;
+  let read: Awaited<ReturnType<typeof readBestGranularityRollups>> = null;
+
+  if (rangeMs) {
+    windowDays = Math.max(
+      1,
+      Math.round((rangeMs.toMs - rangeMs.fromMs) / DAY_MS),
+    );
+    const reachDays = Math.ceil((Date.now() - rangeMs.fromMs) / DAY_MS);
+    read =
+      Number.isFinite(reachDays) && reachDays > 0
+        ? await readBestGranularityRollups(
+            userId,
+            metric.measurementType,
+            reachDays,
+          )
+        : null;
+    rangeRows =
+      read?.rows.filter((r) => {
+        const t = r.bucketStart.getTime();
+        return t >= rangeMs.fromMs && t <= rangeMs.toMs;
+      }) ?? null;
+  } else {
+    windowDays = windowToDays(args.window ?? "last90days");
+    read = await readBestGranularityRollups(
+      userId,
+      metric.measurementType,
+      windowDays,
+    );
+    rangeRows = read?.rows ?? null;
+  }
 
   const miss = (reason: string): ChangepointsResult => {
     annotate({
@@ -619,11 +759,12 @@ export async function detectChangepoints(
     };
   };
 
-  if (!read || read.rows.length < 2 * MIN_SEGMENT) {
+  if (!read || !rangeRows || rangeRows.length < 2 * MIN_SEGMENT) {
     return miss("insufficient_data");
   }
 
-  const values = read.rows.map((r) => r.mean);
+  const rows = rangeRows;
+  const values = rows.map((r) => r.mean);
   const found: Array<{ index: number; beforeMean: number; afterMean: number }> =
     [];
   cusumSegment(values, 0, values.length, found);
@@ -644,7 +785,7 @@ export async function detectChangepoints(
     )
     .slice(0, MAX_CHANGEPOINTS)
     .map((cp) => ({
-      at: read.rows[cp.index].bucketStart.toISOString(),
+      at: rows[cp.index].bucketStart.toISOString(),
       direction:
         cp.afterMean >= cp.beforeMean
           ? ("increase" as const)
@@ -667,5 +808,152 @@ export async function detectChangepoints(
     windowDays,
     bucketsAnalysed: values.length,
     changepoints,
+  };
+}
+
+// ── 5. get_lab_history (per-analyte trajectory) ──────────────────────
+
+/** One reading on a single analyte's trajectory. */
+export interface LabHistoryReading {
+  /** Numeric reading; null for a qualitative row (see `valueText`). */
+  value: number | null;
+  /** Qualitative result text ("negativ" / …); null for a numeric row. */
+  valueText: string | null;
+  unit: string;
+  referenceLow: number | null;
+  referenceHigh: number | null;
+  /** in-range / below / above / unknown — computed from the resolved bounds. */
+  rangeStatus: "in-range" | "below" | "above" | "unknown";
+  /** Measured date (ISO). */
+  takenAt: string;
+}
+
+export interface LabHistoryResult {
+  present: boolean;
+  reason?: string;
+  /** The canonical analyte the trajectory resolved to. */
+  analyte?: string;
+  /** Newest-first readings for this analyte (the requested page). */
+  readings?: LabHistoryReading[];
+  /** Opaque cursor for the next page; absent when the last page was returned. */
+  nextCursor?: string;
+}
+
+/** Hard ceiling per page so a heavy panel history never balloons the wire. */
+export const LAB_HISTORY_MAX_LIMIT = 50;
+
+/**
+ * Return ONE analyte's reading trajectory (newest first) over the user's own
+ * lab record. Re-uses the SAME resolver + range classifier the latest-only labs
+ * snapshot and the Labs API use (`resolveLabFields` / `classifyReferenceRange`)
+ * — no new analytics, no fabricated value. DB-paginated by `offset` so a long
+ * history stays token-bounded: the page carries at most `limit` readings and a
+ * `nextCursor` when more exist. The encrypted `noteEncrypted` column is never
+ * selected, so a decrypted note can never reach the wire. `{ present: false }`
+ * when no reading matches the analyte.
+ */
+export async function getLabHistory(
+  userId: string,
+  args: { analyte: string; offset?: number; limit?: number },
+): Promise<LabHistoryResult> {
+  const needle = args.analyte.trim();
+  if (!needle) {
+    return { present: false, reason: "analyte_required" };
+  }
+  const offset =
+    typeof args.offset === "number" &&
+    Number.isFinite(args.offset) &&
+    args.offset > 0
+      ? Math.floor(args.offset)
+      : 0;
+  const rawLimit =
+    typeof args.limit === "number" &&
+    Number.isFinite(args.limit) &&
+    args.limit > 0
+      ? Math.floor(args.limit)
+      : LAB_HISTORY_MAX_LIMIT;
+  const limit = Math.min(LAB_HISTORY_MAX_LIMIT, rawLimit);
+
+  // Match the analyte either on the LabResult's own `analyte` column or on the
+  // linked Biomarker's canonical name. `take: limit + 1` peeks one row past the
+  // page to decide whether a `nextCursor` is warranted. Field-by-field `where`.
+  const rows = await prisma.labResult.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      OR: [
+        { analyte: { contains: needle, mode: "insensitive" } },
+        { biomarker: { name: { contains: needle, mode: "insensitive" } } },
+      ],
+    },
+    orderBy: { takenAt: "desc" },
+    skip: offset,
+    take: limit + 1,
+    select: {
+      analyte: true,
+      panel: true,
+      value: true,
+      valueText: true,
+      unit: true,
+      referenceLow: true,
+      referenceHigh: true,
+      takenAt: true,
+      biomarkerId: true,
+      biomarker: {
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          lowerBound: true,
+          upperBound: true,
+          panel: true,
+        },
+      },
+    },
+  });
+
+  if (rows.length === 0) {
+    annotate({
+      action: { name: "mcp.tool.invoked" },
+      meta: { tool: "get_labs", present: false },
+    });
+    return { present: false, reason: "analyte_not_found" };
+  }
+
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
+  const readings: LabHistoryReading[] = page.map((row) => {
+    const resolved = resolveLabFields(row, row.biomarker);
+    return {
+      value: row.value,
+      valueText: row.valueText ? sanitizeValueText(row.valueText) : null,
+      unit: resolved.unit,
+      referenceLow: resolved.referenceLow,
+      referenceHigh: resolved.referenceHigh,
+      rangeStatus:
+        row.value === null
+          ? "unknown"
+          : classifyReferenceRange(
+              row.value,
+              resolved.referenceLow,
+              resolved.referenceHigh,
+            ),
+      takenAt: row.takenAt.toISOString(),
+    };
+  });
+
+  // Canonical analyte for the trajectory — take the first (newest) resolved row.
+  const canonical = resolveLabFields(page[0], page[0].biomarker).analyte;
+
+  annotate({
+    action: { name: "mcp.tool.invoked" },
+    meta: { tool: "get_labs", present: true },
+  });
+  return {
+    present: true,
+    analyte: canonical,
+    readings,
+    ...(hasMore ? { nextCursor: encodeOffsetCursor(offset + limit) } : {}),
   };
 }
