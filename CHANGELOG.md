@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [1.23.0] — 2026-06-27 — Account security and data sovereignty
+
+A security release. It adds two-factor authentication, brings every sign-in and sensitive action under a stronger check, encrypts free-text health notes at rest, lets you download an encrypted copy of your record, and gathers export, deletion, and privacy controls into one place. Seven additive migrations (`0199`–`0205`) apply automatically on start; `0205` removes the retired bug-report tables.
+
+### Added
+
+- Two-factor authentication: an authenticator app (TOTP) or a hardware security key as a second factor, with one-time recovery codes — set up under Settings → Security.
+- Sign-in asks for the second factor when it is enabled; you can trust a device for 30 days to skip it, while the password is always still required.
+- Passkeys now show when they were last used and can be renamed, with a gentle prompt to add one.
+- An active-session list with sign-out-everywhere, and an alert when a new device signs in.
+- A security activity log of recent sign-ins, second-factor changes, and exports.
+- A passphrase-encrypted export, so a downloaded copy of your record is never plain text — keep the passphrase safe, there is no recovery.
+- A Data & Privacy page that gathers export, deletion, retention, encryption status, sessions, and activity in one place.
+- A check that warns when a chosen password has appeared in a known breach.
+- Admin controls to require a second factor and to review encryption coverage and key-rotation progress.
+
+### Changed
+
+- Free-text notes on measurements and mood entries are now encrypted at rest.
+- Sensitive actions — account deletion, data reset, encrypted export, disabling the second factor, and key rotation — require a fresh second-factor check.
+
+### Removed
+
+- The bug-report integration has been removed.
+
+### Security
+
+- A second-factor session is bound to the credential it was issued for; an API token can never satisfy a fresh-factor check or reach the admin surface.
+
 ## [1.22.1] — 2026-06-27 — Mobile and Coach polish
 
 A reliability and quality-of-life patch focused on the mobile interface and the Coach.
