@@ -23,6 +23,12 @@ export interface IssueTokenOptions {
   permissions?: string[];
   /** Lifetime in days. */
   expiresInDays?: number;
+  /**
+   * Lifetime in minutes. When set it WINS over `expiresInDays` — used for the
+   * short-lived OAuth access tokens the MCP bridge mints (the refresh token
+   * carries continuity). Ignored when `expiresInDays` alone is supplied.
+   */
+  expiresInMinutes?: number;
 }
 
 /**
@@ -35,9 +41,10 @@ export async function issueApiToken(
 ): Promise<IssuedToken> {
   const rawToken = `hlk_${randomBytes(32).toString("hex")}`;
   const tokenHashValue = hashToken(rawToken);
-  const expiresAt = new Date(
-    Date.now() + (opts.expiresInDays ?? 90) * 24 * 60 * 60 * 1000,
-  );
+  const expiresAt =
+    opts.expiresInMinutes !== undefined
+      ? new Date(Date.now() + opts.expiresInMinutes * 60 * 1000)
+      : new Date(Date.now() + (opts.expiresInDays ?? 90) * 24 * 60 * 60 * 1000);
 
   const created = await prisma.apiToken.create({
     data: {

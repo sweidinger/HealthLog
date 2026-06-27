@@ -81,6 +81,11 @@ export const SENSITIVE_KEY_PATTERNS: readonly RegExp[] = [
   /telegram[_-]?chat[_-]?id/i,
   /chatid/i,
   /chat[_-]id/i,
+  // v1.22.0 — the PKCE `code_verifier` (the proof-of-possession secret the MCP
+  // OAuth token endpoint receives). `access_token` / `refresh_token` /
+  // `client_secret` are already covered by `/token/i` + `/secret/i`; the
+  // verifier is the one secret-shaped key those patterns miss.
+  /verifier/i,
 ];
 
 const REDACTED = "[redacted]";
