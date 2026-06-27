@@ -1,15 +1,19 @@
 /**
- * v1.4.30 — `MoodEntry.note` column round-trip integration.
+ * v1.4.30 / v1.23 — mood-note round-trip integration.
+ *
+ * v1.23 moved the free-text note to AES-256-GCM at rest: new writes land in
+ * `noteEncrypted` (Bytes) and the legacy plaintext `note` column is nulled.
  *
  * Asserts:
- *   - POST /api/mood-entries accepts the new `note` field
- *   - PUT /api/mood-entries/[id] updates `note` (and accepts null to clear)
- *   - POST /api/mood-entries/bulk persists `note` per entry
+ *   - POST /api/mood-entries encrypts the `note` (plaintext column nulled)
+ *   - PUT /api/mood-entries/[id] re-encrypts `note` (and accepts null to clear)
+ *   - POST /api/mood-entries/bulk encrypts `note` per entry
  *   - The Zod cap (500 chars) rejects oversize prose
  */
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { readNote } from "@/lib/crypto/note-cipher";
 import { cookieJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
 
@@ -87,10 +91,18 @@ describe("MoodEntry.note round-trip (real Postgres)", () => {
       }),
     );
     expect(res.status).toBe(201);
+    // The response carries the decrypted note back to the client.
+    const body = (await res.json()) as { data: { note: string | null } };
+    expect(body.data.note).toBe("Long run before breakfast.");
     const stored = await getPrismaClient().moodEntry.findFirst({
       where: { userId: TEST_USER_ID },
     });
-    expect(stored?.note).toBe("Long run before breakfast.");
+    // At rest: plaintext column nulled, ciphertext present + decrypts back.
+    expect(stored?.note).toBeNull();
+    expect(stored?.noteEncrypted).not.toBeNull();
+    expect(readNote(stored?.noteEncrypted ?? null, null)).toBe(
+      "Long run before breakfast.",
+    );
   });
 
   it("PUT /api/mood-entries/[id] updates `note` and accepts null to clear it", async () => {
@@ -115,7 +127,8 @@ describe("MoodEntry.note round-trip (real Postgres)", () => {
     const after1 = await getPrismaClient().moodEntry.findUnique({
       where: { id: created.id },
     });
-    expect(after1?.note).toBe("revised note");
+    expect(after1?.note).toBeNull();
+    expect(readNote(after1?.noteEncrypted ?? null, null)).toBe("revised note");
 
     const res2 = await PUT(
       putRequest(`/api/mood-entries/${created.id}`, { note: null }),
@@ -125,7 +138,9 @@ describe("MoodEntry.note round-trip (real Postgres)", () => {
     const after2 = await getPrismaClient().moodEntry.findUnique({
       where: { id: created.id },
     });
+    // Cleared: both the plaintext and the ciphertext column are null.
     expect(after2?.note).toBeNull();
+    expect(after2?.noteEncrypted).toBeNull();
   });
 
   it("POST /api/mood-entries/bulk persists `note` per entry", async () => {
@@ -151,7 +166,12 @@ describe("MoodEntry.note round-trip (real Postgres)", () => {
       where: { userId: TEST_USER_ID },
       orderBy: { moodLoggedAt: "asc" },
     });
-    expect(stored.map((r) => r.note)).toEqual(["Morning", "Afternoon dip"]);
+    // Plaintext column nulled; ciphertext decrypts back to each note.
+    expect(stored.map((r) => r.note)).toEqual([null, null]);
+    expect(stored.map((r) => readNote(r.noteEncrypted, null))).toEqual([
+      "Morning",
+      "Afternoon dip",
+    ]);
   });
 
   it("rejects an oversize note (501 chars) with 422", async () => {

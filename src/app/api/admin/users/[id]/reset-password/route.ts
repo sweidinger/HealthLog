@@ -13,6 +13,8 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { destroyAllSessions } from "@/lib/auth/session";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { checkPasswordBreach } from "@/lib/auth/hibp";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
 
 export const POST = apiHandler(
   async (
@@ -61,6 +63,16 @@ export const POST = apiHandler(
     if (!strength.isAcceptable) {
       return apiError(
         strength.feedback[0] || "Password too weak (score < 3)",
+        422,
+      );
+    }
+
+    // v1.23 — reject an admin-set password found in a known breach corpus
+    // (HIBP k-anonymity). Fail-open on an unreachable HIBP.
+    const breach = await checkPasswordBreach(password);
+    if (breach?.breached) {
+      return apiError(
+        getServerTranslator(locale).t("auth.passwordBreached"),
         422,
       );
     }

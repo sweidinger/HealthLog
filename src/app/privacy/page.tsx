@@ -1581,7 +1581,7 @@ export default function PrivacyPage() {
                   <span className="text-foreground font-medium">
                     Nutzer-Inhalte
                   </span>{" "}
-                  (Notizen zu Messungen, Stimmungsnotizen, Bug-Reports).
+                  (Notizen zu Messungen, Stimmungsnotizen).
                 </li>
                 <li>
                   <span className="text-foreground font-medium">Kennungen</span>{" "}

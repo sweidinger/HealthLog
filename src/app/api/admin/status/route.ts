@@ -56,10 +56,6 @@ export const GET = apiHandler(async () => {
     appSettings?.webPushVapidPrivateKeyEncrypted &&
     appSettings?.webPushVapidSubject,
   );
-  const bugReportConfigured = Boolean(
-    appSettings?.githubIssueRepo && appSettings?.githubIssueTokenEncrypted,
-  );
-
   const workerStatus = getWorkerStatus();
 
   return apiSuccess({
@@ -89,7 +85,6 @@ export const GET = apiHandler(async () => {
           }
         : null,
       webPush: webPushConfigured ? { configured: true } : null,
-      bugReport: bugReportConfigured ? { configured: true } : null,
     },
   });
 });

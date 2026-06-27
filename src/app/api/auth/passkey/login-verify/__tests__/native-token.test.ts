@@ -22,6 +22,14 @@ vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/auth/mfa-enrollment", () => ({
+  syncMfaEnrollCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/auth/login-alert", () => ({
+  recordSignInDevice: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(),
   // v1.4.43 W13 M-4 — passkey/login-verify now uses the auth-surface
@@ -53,6 +61,7 @@ vi.mock("next/headers", () => ({
 import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { verifyAuthentication } from "@/lib/auth/passkey";
+import { createSession } from "@/lib/auth/session";
 import { checkRateLimit, checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
 
 const FAKE_USER = {
@@ -132,5 +141,15 @@ describe("POST /api/auth/passkey/login-verify — native token issuance", () => 
     const res = await POST(makeRequest({ "x-client-type": "native" }));
     expect(res.status).toBe(401);
     expect(prisma.apiToken.create).not.toHaveBeenCalled();
+  });
+
+  // v1.23 (M-review M1) — a primary passkey login is a satisfied second factor.
+  it("stamps mfaVerifiedAt on the session so the passkey satisfies step-up", async () => {
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    // createSession(userId, onboardingPending, ip, ua, mfaVerifiedAt) — the
+    // 5th argument must be a Date for a primary passkey sign-in.
+    const args = vi.mocked(createSession).mock.calls[0];
+    expect(args[4]).toBeInstanceOf(Date);
   });
 });

@@ -32,10 +32,10 @@
     "copy": "Kopiuj",
     "copyDetails": "Kopiuj szczegóły",
     "retry": "Spróbuj ponownie",
-    "reportIssue": "Zgłoś problem",
     "showPassword": "Pokaż hasło",
     "hidePassword": "Ukryj hasło",
-    "learnMore": "Dowiedz się więcej"
+    "learnMore": "Dowiedz się więcej",
+    "dismiss": "Odrzuć"
   },
   "doctorReport": {
     "title": "Raport zdrowotny",
@@ -204,7 +204,6 @@
     "insights": "Insights",
     "achievements": "Osiągnięcia",
     "settings": "Ustawienia",
-    "bugreport": "Zgłoszenie błędu",
     "admin": "Konsola administratora",
     "logout": "Wyloguj",
     "login": "Zaloguj",
@@ -263,7 +262,28 @@
     "passkeySetupLater": "Passkey możesz skonfigurować później w ustawieniach.",
     "passwordMinLength": "Min. 12 znaków",
     "passwordTooShort": "Hasło musi mieć co najmniej {minLength} znaków.",
-    "privacyPolicy": "Polityka prywatności"
+    "privacyPolicy": "Polityka prywatności",
+    "passwordBreached": "To hasło pojawia się w znanych wyciekach danych. Wybierz inne.",
+    "mfa": {
+      "title": "Uwierzytelnianie dwuskładnikowe",
+      "totpHint": "Wprowadź 6-cyfrowy kod z aplikacji uwierzytelniającej.",
+      "recoveryHint": "Wprowadź jeden z zapisanych kodów odzyskiwania.",
+      "securityKeyHint": "Użyj zarejestrowanego klucza bezpieczeństwa, aby kontynuować.",
+      "codeLabel": "Kod uwierzytelniający",
+      "recoveryLabel": "Kod odzyskiwania",
+      "verify": "Zweryfikuj",
+      "verifyFailed": "Weryfikacja nie powiodła się. Spróbuj ponownie.",
+      "useSecurityKey": "Użyj klucza bezpieczeństwa",
+      "useRecoveryCode": "Użyj kodu odzyskiwania",
+      "useAuthenticator": "Użyj aplikacji uwierzytelniającej",
+      "backToLogin": "Powrót do logowania",
+      "rememberDevice": "Zaufaj temu urządzeniu na 30 dni"
+    },
+    "enrollMfa": {
+      "title": "Skonfiguruj drugi składnik",
+      "body": "Administrator wymaga drugiego składnika na tym koncie. Dodaj aplikację uwierzytelniającą lub klucz bezpieczeństwa, aby kontynuować.",
+      "signOut": "Wyloguj się"
+    }
   },
   "dashboard": {
     "title": "Pulpit",
@@ -4057,7 +4077,12 @@
           },
           "fullBackup": {
             "title": "Pełna kopia zapasowa",
-            "description": "Pojedynczy plik JSON ze wszystkim — taki sam format jak cotygodniowa automatyczna kopia. Przydatny do samodzielnego przywracania przez przesłanie w panelu administratora."
+            "description": "Pojedynczy plik JSON ze wszystkim — taki sam format jak cotygodniowa automatyczna kopia. Przydatny do samodzielnego przywracania przez przesłanie w panelu administratora.",
+            "encryptToggle": "Zaszyfruj hasłem-frazą",
+            "passphrasePlaceholder": "Hasło-fraza (min. 12 znaków)",
+            "passphraseHelp": "Wyprowadza klucz archiwum za pomocą Argon2id i pieczętuje je AES-256-GCM. Zapisz plik z rozszerzeniem .hlx.",
+            "noRecoveryWarning": "Nie ma odzyskiwania — jeśli zgubisz tę frazę, archiwum nie da się otworzyć. Przechowuj ją bezpiecznie.",
+            "stepUpNeeded": "Potwierdź drugi składnik i spróbuj ponownie."
           },
           "cycle": {
             "title": "Cykl",
@@ -4197,6 +4222,15 @@
         "title": "Kanały",
         "description": "Dostarczanie przez Telegram, ntfy, Web Push, Webhook i e-mail.",
         "subtitle": "Gdzie dostarczane są przypomnienia i powiadomienia."
+      },
+      "security": {
+        "title": "Bezpieczeństwo",
+        "subtitle": "Uwierzytelnianie dwuskładnikowe, kody odzyskiwania i klucze dostępu."
+      },
+      "privacy": {
+        "title": "Dane i prywatność",
+        "subtitle": "Twoje dane, retencja, szyfrowanie i bezpieczeństwo konta w jednym miejscu.",
+        "description": "Eksport, usuwanie, retencja, stan szyfrowania, sesje i aktywność zabezpieczeń."
       }
     },
     "profile": "Profil",
@@ -4968,7 +5002,153 @@
     "polarDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "ouraDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "nightscoutDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
-    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej."
+    "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej.",
+    "security": {
+      "sessionsTitle": "Aktywne sesje",
+      "sessionsDescription": "Urządzenia i przeglądarki obecnie zalogowane na Twoje konto.",
+      "sessionsLoadError": "Nie udało się załadować aktywnych sesji.",
+      "sessionsEmpty": "Brak aktywnych sesji.",
+      "currentSession": "To urządzenie",
+      "lastActive": "Ostatnia aktywność {time}",
+      "unknownLocation": "Nieznana lokalizacja",
+      "revokeSession": "Wyloguj",
+      "revokeError": "Nie udało się zrealizować żądania. Spróbuj ponownie.",
+      "signOutEverywhere": "Wyloguj na pozostałych urządzeniach",
+      "signOutEverywhereDone": "Wylogowano {count} inną/e sesję/e.",
+      "activityTitle": "Aktywność zabezpieczeń",
+      "activityDescription": "Ostatnie logowania, zmiany zabezpieczeń i eksporty danych Twojego konta.",
+      "activityEmpty": "Brak aktywności zabezpieczeń.",
+      "activityLoadError": "Nie udało się załadować aktywności zabezpieczeń.",
+      "action": {
+        "newDevice": "Logowanie z nowego urządzenia",
+        "loginFailed": "Nieudane logowanie",
+        "login": "Logowanie",
+        "passwordChange": "Zmieniono hasło",
+        "mfa": "Zmiana uwierzytelniania dwuskładnikowego",
+        "sessionRevoke": "Wylogowano sesję",
+        "token": "Zmiana tokenu API",
+        "accountDelete": "Konto usunięte",
+        "dataClear": "Zresetowano dane",
+        "export": "Eksport danych",
+        "other": "Zdarzenie zabezpieczeń"
+      },
+      "active": "Aktywne",
+      "inactive": "Nieaktywne",
+      "stepUpRequired": "Ze względów bezpieczeństwa zaloguj się ponownie, aby zmienić drugi składnik.",
+      "useRecoveryCode": "Użyj zamiast tego kodu odzyskiwania",
+      "useAuthenticator": "Użyj zamiast tego aplikacji uwierzytelniającej",
+      "totp": {
+        "title": "Aplikacja uwierzytelniająca",
+        "description": "Użyj kodu czasowego z aplikacji uwierzytelniającej jako drugiego składnika.",
+        "setUp": "Skonfiguruj",
+        "step1": "Zeskanuj kod QR aplikacją uwierzytelniającą lub wprowadź sekret ręcznie.",
+        "step2": "Wprowadź 6-cyfrowy kod wyświetlany przez aplikację, aby potwierdzić.",
+        "qrAlt": "Kod QR do konfiguracji aplikacji uwierzytelniającej",
+        "qrUnavailable": "Kod QR niedostępny",
+        "manualEntry": "Lub wprowadź ten sekret ręcznie",
+        "enterCode": "Wprowadź 6-cyfrowy kod",
+        "verify": "Zweryfikuj",
+        "setupFailed": "Nie udało się rozpocząć konfiguracji. Spróbuj ponownie.",
+        "invalidCode": "Ten kod jest nieprawidłowy. Spróbuj ponownie.",
+        "disable": "Wyłącz",
+        "disableTitle": "Wyłącz uwierzytelnianie dwuskładnikowe",
+        "disableConfirm": "Wprowadź bieżący kod, aby wyłączyć drugi składnik. Spowoduje to również usunięcie kodów odzyskiwania.",
+        "currentCode": "Bieżący kod",
+        "disableFailed": "Nie udało się wyłączyć drugiego składnika."
+      },
+      "recovery": {
+        "saveNow": "Zapisz teraz te kody odzyskiwania",
+        "saveNowHint": "Każdy kod działa raz. Są wyświetlane tylko teraz — przechowuj je w bezpiecznym miejscu. Jeśli stracisz aplikację uwierzytelniającą, kod odzyskiwania będzie jedyną drogą powrotu.",
+        "download": "Pobierz",
+        "remainingOne": "Pozostał {count} kod odzyskiwania.",
+        "remainingOther": "Pozostało {count} kodów odzyskiwania.",
+        "regenerate": "Wygeneruj kody ponownie",
+        "regenFailed": "Nie udało się ponownie wygenerować kodów odzyskiwania.",
+        "savedIt": "Zapisałem je",
+        "regenerateTitle": "Wygenerować nowe kody odzyskiwania?",
+        "regenerateConfirm": "Spowoduje to zastąpienie obecnych kodów odzyskiwania. Dotychczasowe kody natychmiast przestaną działać, a nowy zestaw zostanie pokazany tylko raz."
+      },
+      "keys": {
+        "title": "Klucze bezpieczeństwa",
+        "description": "Zarejestruj sprzętowy lub systemowy klucz bezpieczeństwa jako drugi składnik.",
+        "empty": "Nie zarejestrowano jeszcze żadnych kluczy bezpieczeństwa.",
+        "add": "Dodaj klucz bezpieczeństwa",
+        "addFailed": "Nie udało się zarejestrować klucza bezpieczeństwa.",
+        "rename": "Zmień nazwę",
+        "renameFailed": "Nie udało się zmienić nazwy klucza bezpieczeństwa.",
+        "remove": "Usuń klucz bezpieczeństwa",
+        "removeFailed": "Nie udało się usunąć klucza bezpieczeństwa.",
+        "removeConfirm": "Ten klucz bezpieczeństwa nie będzie już działać jako drugi składnik.",
+        "lastUsed": "Ostatnio użyty {date}",
+        "neverUsed": "Nigdy nieużywany",
+        "added": "dodany {date}",
+        "nameLabel": "Nazwa klucza bezpieczeństwa"
+      },
+      "passkeyNudge": {
+        "title": "Dodaj klucz dostępu, aby logować się szybciej",
+        "body": "Klucze dostępu pozwalają logować się odciskiem palca, twarzą lub kodem PIN urządzenia — bez hasła do zapamiętania."
+      },
+      "trustedDevices": {
+        "title": "Zaufane urządzenia",
+        "description": "Przeglądarki, którym zaufałeś, pomijają drugi składnik przez 30 dni. Hasło jest nadal wymagane. Cofnij zaufanie tym, których nie rozpoznajesz.",
+        "loadError": "Nie udało się załadować zaufanych urządzeń.",
+        "revokeError": "Nie udało się cofnąć urządzenia. Spróbuj ponownie.",
+        "revoke": "Cofnij",
+        "revokeAll": "Zapomnij wszystkie urządzenia",
+        "revokeAllDone": "Zapomniano {count} zaufane urządzenie/a.",
+        "unnamed": "Nieznane urządzenie",
+        "current": "To urządzenie",
+        "expires": "Zaufane do {date}"
+      }
+    },
+    "privacy": {
+      "intro": {
+        "title": "Twoje dane pozostają Twoje",
+        "body": "HealthLog jest hostowany samodzielnie. Ta strona zbiera w jednym miejscu informacje o tym, jak chronione są Twoje dane, jak długo są przechowywane, jak je wyeksportować i jak je usunąć."
+      },
+      "encryption": {
+        "title": "Szyfrowane w spoczynku",
+        "description": "Wrażliwe pola są szyfrowane w bazie danych.",
+        "summary": "Twoje wrażliwe dane są szyfrowane w spoczynku algorytmem {algorithm} w {columns} polach w {models} typach rekordów.",
+        "statement": "Twoje wrażliwe dane są szyfrowane w spoczynku algorytmem AES-256-GCM."
+      },
+      "stored": {
+        "title": "Co jest przechowywane",
+        "description": "Kategorie danych przechowywanych na tym koncie.",
+        "measurements": "Pomiary (waga, ciśnienie, tętno, glukoza, sen, skład ciała)",
+        "medications": "Leki i historia przyjmowania",
+        "moodLabs": "Wpisy nastroju i wyniki badań laboratoryjnych",
+        "coach": "Rozmowy z asystentem",
+        "integrations": "Tokeny integracji (szyfrowane)",
+        "security": "Aktywność konta i zabezpieczeń (sesje, dziennik logowań)"
+      },
+      "retention": {
+        "title": "Retencja",
+        "description": "Jak długo rekordy ograniczone czasowo są przechowywane przed automatycznym czyszczeniem.",
+        "coach": "Rozmowy z asystentem: {days} dni",
+        "audit": "Dziennik zabezpieczeń: {days} dni",
+        "delivery": "Dziennik wysyłki powiadomień: {days} dni",
+        "unavailable": "Szczegóły przechowywania są obecnie niedostępne."
+      },
+      "export": {
+        "title": "Pobierz moje dane",
+        "description": "Wyeksportuj swoje rekordy jako CSV lub JSON, opcjonalnie zaszyfrowane hasłem, albo wygeneruj pełną dokumentację medyczną.",
+        "openExport": "Eksport i kopia zapasowa",
+        "openHealthRecord": "Dokumentacja medyczna"
+      },
+      "delete": {
+        "title": "Usuń lub zresetuj",
+        "description": "Usuń całe konto albo wyczyść dane zdrowotne, zachowując konto.",
+        "backupLag": "Usunięcie natychmiast usuwa Twoje dane. Zaszyfrowane kopie zapasowe poza serwerem nadal je zawierają, dopóki nie wygasną zgodnie z oknem retencji operatora.",
+        "openAdvanced": "Usuń lub zresetuj"
+      },
+      "posture": {
+        "title": "Ustawienia prywatności",
+        "description": "Kontroluj, ile Twoich danych jest udostępnianych funkcjom AI i opcjonalnym badaniom.",
+        "openAi": "Tryb prywatności AI",
+        "openResearch": "Tryb badawczy"
+      }
+    }
   },
   "admin": {
     "title": "Administracja",
@@ -5064,7 +5244,6 @@
     "webPushGlobal": "Zezwól na powiadomienia push przeglądarki.",
     "moodLogGlobal": "Zezwól na przypomnienia dziennika nastroju.",
     "integrationWebPush": "Web Push",
-    "integrationBugReport": "Zgłoszenie błędu",
     "offlineGeoLabel": "Dane geograficzne",
     "offlineGeoEnabled": "Offline (GeoLite2)",
     "offlineGeoFallback": "Awaryjne (ipwho.is) — ustaw MAXMIND_LICENSE_KEY w CI",
@@ -5101,12 +5280,6 @@
     "configured": "Skonfigurowano",
     "monitoringTestSuccess": "Wysłano zdarzenie testowe",
     "monitoringTestFailed": "Test monitorowania nie powiódł się",
-    "bugReportGithub": "Zgłoszenie błędu (GitHub Issues)",
-    "bugReportGithubDescription": "Skonfiguruj token zgłoszeń GitHub i repozytorium dla przychodzących zgłoszeń błędów.",
-    "bugReportEnabledLabel": "Zgłaszanie błędów włączone",
-    "bugReportEnabledDescription": "Gdy wyłączone, przycisk zgłaszania w aplikacji jest ukryty — token i repozytorium pozostają skonfigurowane.",
-    "bugReportDeprecatedBadge": "Wycofane",
-    "bugReportDeprecatedNote": "Ta funkcja jest wycofywana i zostanie usunięta w przyszłej wersji.",
     "assistant": {
       "title": "Powierzchnie asystenta",
       "description": "Każdy przełącznik ukrywa powierzchnię opartą na modelu w całej aplikacji bez usuwania konfiguracji dostawcy. Główny wyłącznik wymusza wyłączenie każdej opcji podrzędnej.",
@@ -5140,10 +5313,6 @@
       "description": "Wyłącz moduł dla całego serwera. Moduł wyłączony tutaj jest nieaktywny dla każdego konta, niezależnie od preferencji użytkownika. Domeny podstawowe (waga, ciśnienie, tętno, leki) są zawsze włączone i nie można ich wyłączyć.",
       "saveError": "Nie udało się zaktualizować dostępności modułów."
     },
-    "bugReportRepo": "Repozytorium",
-    "bugReportRepoPlaceholder": "owner/repo",
-    "bugReportToken": "Token zgłoszeń",
-    "bugReportTokenPlaceholder": "ghp_...",
     "invites": {
       "title": "Zaproszenia",
       "description": "Linki z zaproszeniem do rejestracji — działają nawet przy zamkniętej rejestracji. Link jest wyświetlany tylko raz.",
@@ -5297,47 +5466,6 @@
     "reminderCheckNotifOff": "Powiadomienia wyłączone",
     "reminderCheckEventsToday": "Zdarzenia dzisiaj",
     "reminderCheckNotifSent": "Wysłane",
-    "feedback": {
-      "tabOpen": "Otwarte",
-      "tabAcknowledged": "Potwierdzone",
-      "tabResolved": "Rozwiązane",
-      "tabArchived": "Zarchiwizowane",
-      "subject": "Temat",
-      "category": "Kategoria",
-      "user": "Użytkownik",
-      "createdAt": "Przesłano",
-      "actions": "Akcje",
-      "details": "Szczegóły",
-      "emptyTitle": "Wszystko na bieżąco",
-      "emptyDescription": "Brak opinii użytkowników w tym statusie. Przesłane błędy, pytania i prośby o funkcje pojawią się tutaj.",
-      "loading": "Ładowanie opinii...",
-      "anonymous": "anonimowy",
-      "categoryBug": "Błąd",
-      "categoryFeature": "Funkcja",
-      "categoryQuestion": "Pytanie",
-      "categoryOther": "Inne",
-      "metadataHeading": "Metadane",
-      "metaUrl": "URL",
-      "metaLocale": "Język",
-      "metaUserAgent": "Agent użytkownika",
-      "metaAppVersion": "Wersja aplikacji",
-      "screenshotHeading": "Screenshot",
-      "adminNote": "Notatka administratora",
-      "adminNotePlaceholder": "Notatka wewnętrzna (niewidoczna dla użytkownika)",
-      "saveNote": "Zapisz notatkę",
-      "noteSaved": "Notatka zapisana",
-      "actionAcknowledge": "Potwierdź",
-      "actionResolve": "Rozwiąż",
-      "actionArchive": "Archiwizuj",
-      "actionPublishGithub": "Opublikuj na GitHub",
-      "publishedToGithub": "Opublikowano na GitHub",
-      "viewIssue": "Zobacz zgłoszenie",
-      "publishSuccess": "Utworzono zgłoszenie",
-      "publishFailed": "Publikacja na GitHub nie powiodła się",
-      "updateFailed": "Aktualizacja nie powiodła się",
-      "archiveConfirm": "Zarchiwizować ten wpis opinii?",
-      "submittedBy": "Przesłane przez"
-    },
     "shell": {
       "overview": "Przegląd",
       "sectionsNav": "Sekcje administracyjne"
@@ -5389,10 +5517,6 @@
       "coach": {
         "title": "Coach",
         "subtitle": "Powierzchnie asystenta, klucz serwera oraz tabele jakości opinii Coacha i analiz w jednym miejscu."
-      },
-      "feedback": {
-        "title": "Opinie",
-        "subtitle": "Segreguj opinie użytkowników, zgłoszenia błędów i prośby o funkcje."
       },
       "reminders": {
         "title": "Przypomnienia",
@@ -5521,10 +5645,55 @@
       "module-availability": {
         "title": "Moduły",
         "subtitle": "Włącz lub wyłącz moduły dla wszystkich kont na tym serwerze."
+      },
+      "encryption": {
+        "title": "Szyfrowanie",
+        "subtitle": "Pokrycie szyfrowaniem i status rotacji kluczy dla danych w spoczynku.",
+        "loading": "Ładowanie statusu szyfrowania...",
+        "loadError": "Nie udało się wczytać statusu szyfrowania.",
+        "coverageTitle": "Pokrycie",
+        "coverageDescription": "Ile zaszyfrowanych wierszy przypada na każdy identyfikator klucza. Pokazywane są tylko identyfikatory kluczy i liczby — nigdy materiał klucza.",
+        "activeKeyId": "Identyfikator aktywnego klucza",
+        "configuredKeys": "Skonfigurowane klucze",
+        "totalRows": "Zaszyfrowane wiersze",
+        "staleRows": "Wiersze poza aktywnym kluczem",
+        "safeToDropLegacy": "Można bezpiecznie usunąć stary klucz",
+        "rotationIncomplete": "Pozostało {count} wierszy do rotacji",
+        "rotationTitle": "Rotacja kluczy",
+        "rotationDescription": "Ponownie szyfruje każdą zaszyfrowaną kolumnę aktywnym kluczem. Narzędzie wiersza poleceń pozostaje kanoniczną drogą; ten przycisk to udogodnienie.",
+        "rotationState": "Status",
+        "lastRun": "Ostatni przebieg: sprawdzono {scanned}, zrotowano {rotated}, błędy {errors}.",
+        "rotateNow": "Rotuj teraz",
+        "rotateConfirmTitle": "Ponownie zaszyfrować cały rekord?",
+        "rotateConfirmDescription": "Ponownie szyfruje każdą zaszyfrowaną kolumnę aktywnym kluczem. Nigdy nie dodaje ani nie usuwa klucza i można go bezpiecznie uruchomić ponownie. Na dużych kontach może to chwilę potrwać.",
+        "cancel": "Anuluj",
+        "rotateConfirm": "Rozpocznij rotację",
+        "rotateEnqueued": "Rotacja rozpoczęta.",
+        "rotateFailed": "Nie udało się rozpocząć rotacji.",
+        "stepUpNeeded": "Wymagany jest świeży drugi składnik. Potwierdź drugi składnik lub użyj narzędzia wiersza poleceń, jeśli nie masz skonfigurowanego żadnego.",
+        "cliNote": "Do tego przycisku wymagany jest drugi składnik. Operatorzy bez niego rotują przez scripts/rotate-encryption-key.ts.",
+        "columnsTitle": "Pokrycie wg kolumn",
+        "columnsDescription": "Każda zaszyfrowana kolumna z liczbą wierszy na aktywnym kluczu względem starszych kluczy.",
+        "colColumn": "Kolumna",
+        "colTotal": "Razem",
+        "colActive": "Na aktywnym kluczu",
+        "colStale": "Przestarzałe",
+        "state": {
+          "idle": "Bezczynny",
+          "running": "W toku",
+          "completed": "Zakończono",
+          "failed": "Niepowodzenie"
+        }
       }
     },
     "carrier": "Operator",
-    "carrierUnavailableGeoFallback": "{location} — operator niedostępny"
+    "carrierUnavailableGeoFallback": "{location} — operator niedostępny",
+    "mfaRequired": "Wymagaj drugiego składnika",
+    "mfaRequiredDescription": "Każde konto bez aktywnego drugiego składnika jest po zalogowaniu kierowane do konfiguracji. To zachęca użytkowników sieci do włączenia go, ale nie blokuje bezpośredniego dostępu przez API ani natywnego (Bearer) dla kont jeszcze nieskonfigurowanych.",
+    "mfaEnforcedOn": "MFA wł.",
+    "mfaEnforcedOff": "MFA wył.",
+    "mfaEnforcedOnHint": "Ten użytkownik musi używać drugiego składnika. Kliknij, aby przestać go wymagać.",
+    "mfaEnforcedOffHint": "Wymagaj drugiego składnika dla tego użytkownika."
   },
   "achievements": {
     "title": "Osiągnięcia",
@@ -5582,10 +5751,6 @@
       "passwordLogin1": {
         "title": "Stara szkoła",
         "description": "Zaloguj się co najmniej raz nazwą użytkownika i hasłem."
-      },
-      "bugReport1": {
-        "title": "Łowca błędów",
-        "description": "Wyślij zgłoszenie błędu."
       },
       "loginStreak7": {
         "title": "Seria logowań 7d",
@@ -5775,10 +5940,6 @@
         "title": "Poliglota",
         "description": "Zmieniłeś język aplikacji co najmniej raz."
       },
-      "hiddenBugBuddy": {
-        "title": "Towarzysz błędów",
-        "description": "Wysłałeś co najmniej 5 zgłoszeń błędów — projekt Cię kocha."
-      },
       "missFree7": {
         "title": "Bez pominiętej dawki · 7 dni",
         "description": "7 kolejnych dni bez pominiętej dawki."
@@ -5830,26 +5991,6 @@
       "viewAll": "Zobacz wszystkie",
       "empty": "Brak osiągnięć — zapisuj dalej, aby odblokować pierwsze."
     }
-  },
-  "bugreport": {
-    "title": "Zgłoszenie błędu",
-    "subtitle": "Wyślij zgłoszenie błędu, sugestię funkcji lub pytanie. Administrator serwera zobaczy twoje zgłoszenie.",
-    "loginRequired": "Zaloguj się, aby zgłosić błąd.",
-    "bugTitle": "Tytuł",
-    "description": "Opis",
-    "submit": "Wyślij",
-    "success": "Dziękujemy! Twoje zgłoszenie zostało wysłane.",
-    "errorCreating": "Błąd tworzenia",
-    "category": "Rodzaj",
-    "categoryBug": "Błąd",
-    "categoryFeature": "Propozycja funkcji",
-    "categoryQuestion": "Pytanie",
-    "categoryOther": "Inna opinia",
-    "bugTitlePlaceholder": "Krótkie podsumowanie (opcjonalnie)",
-    "githubEscalationNote": "Twoja opinia zapisuje się lokalnie. Jeśli administrator włączy integrację z GitHubem, może zostać opublikowana jako publiczne issue na życzenie.",
-    "internalOnlyNote": "Twoja opinia zapisuje się lokalnie i jest widoczna tylko dla administratora tego serwera.",
-    "disabledTitle": "Zgłoszenia błędów są wyłączone",
-    "disabledBody": "Administrator wyłączył zgłoszenia błędów na tym serwerze."
   },
   "notifications": {
     "title": "Powiadomienia",
@@ -5955,7 +6096,13 @@
     "eventMeasurementReminder": "Przypomnienie o pomiarze",
     "eventMeasurementReminderDesc": "Wysyłane, gdy śledzony pomiar jest wymagany.",
     "eventMedicationIntakeSync": "Synchronizacja przyjęć leku",
-    "eventMedicationIntakeSyncDesc": "Aktualizacja między urządzeniami, gdy dawka zostanie zapisana, przyjęta lub pominięta."
+    "eventMedicationIntakeSyncDesc": "Aktualizacja między urządzeniami, gdy dawka zostanie zapisana, przyjęta lub pominięta.",
+    "security": {
+      "newDeviceTitle": "Nowe logowanie do Twojego konta",
+      "newDeviceBody": "Nowe logowanie z {device} ({location}). Jeśli to nie Ty, natychmiast zmień hasło.",
+      "unknownLocation": "nieznana lokalizacja"
+    },
+    "loginRequired": "Zaloguj się, aby zarządzać powiadomieniami."
   },
   "i18n": {
     "maintainershipBanner": {

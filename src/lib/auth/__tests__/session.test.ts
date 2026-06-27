@@ -19,6 +19,9 @@ vi.mock("@/lib/db", () => ({
     refreshToken: {
       updateMany: vi.fn(),
     },
+    trustedDevice: {
+      deleteMany: vi.fn(),
+    },
     $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   },
 }));

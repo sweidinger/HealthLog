@@ -8,6 +8,8 @@ import { isPublicUrl } from "@/lib/validations/notifications";
 export const adminSettingsSchema = z
   .object({
     registrationEnabled: z.boolean().optional(),
+    // v1.23 — instance-wide "require a second factor" policy.
+    mfaRequired: z.boolean().optional(),
     defaultLocale: z.enum(["de", "en"]).optional(),
     telegramGlobal: z.boolean().optional(),
     ntfyGlobal: z.boolean().optional(),
@@ -62,20 +64,6 @@ export const adminSettingsSchema = z
       )
       .optional(),
     glitchtipEnvironment: z.string().optional(),
-    bugReportRepo: z
-      .string()
-      .refine(
-        (v) => {
-          const trimmed = v.trim();
-          if (!trimmed) return true;
-          return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(trimmed);
-        },
-        { message: "GitHub repository must be in owner/repo format" },
-      )
-      .optional(),
-    bugReportToken: z.string().optional(),
-    clearBugReportToken: z.boolean().optional(),
-    bugReportEnabled: z.boolean().optional(),
     reminderLateMinutes: z.number().int().min(15).max(480).optional(),
     reminderMissedMinutes: z.number().int().min(30).max(720).optional(),
     moodLogGlobal: z.boolean().optional(),

@@ -74,28 +74,14 @@ describe("nav-model utility tail (N-1 — one shared list)", () => {
     }
   });
 
-  it("lists the shared utility surfaces (Bug Report, Settings, Notifications)", () => {
+  it("lists the shared utility surfaces (Settings, Notifications)", () => {
     const hrefs = NAV_UTILITY_DESTINATIONS.map((d) => d.href);
-    expect(hrefs).toContain("/bugreport");
     expect(hrefs).toContain("/settings/account");
     expect(hrefs).toContain("/notifications");
   });
 
-  it("drops the bug-report entry unless the operator flag is on", () => {
-    const off = visibleUtilityDestinations(false).map((d) => d.href);
-    const on = visibleUtilityDestinations(true).map((d) => d.href);
-    expect(off).not.toContain("/bugreport");
-    expect(on).toContain("/bugreport");
-    // Non-gated entries are present either way.
-    expect(off).toContain("/settings/account");
-    expect(off).toContain("/notifications");
-  });
-
-  it("keeps a stable order (Bug Report → Settings → Notifications)", () => {
-    const hrefs = visibleUtilityDestinations(true).map((d) => d.href);
-    expect(hrefs.indexOf("/bugreport")).toBeLessThan(
-      hrefs.indexOf("/settings/account"),
-    );
+  it("keeps a stable order (Settings → Notifications)", () => {
+    const hrefs = visibleUtilityDestinations().map((d) => d.href);
     expect(hrefs.indexOf("/settings/account")).toBeLessThan(
       hrefs.indexOf("/notifications"),
     );
@@ -178,16 +164,13 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
   it("is exactly the visible feature destinations minus the primary slots, then the utility tail", () => {
     const opts = {
       modules: { cycle: false } as const,
-      bugReportEnabled: false,
     };
     const hub = mobileMoreHubDestinations(opts).map((d) => d.href);
 
     const expectedFeatures = visibleNavDestinations(opts.modules)
       .map((d) => d.href)
       .filter((href) => !BOTTOM_NAV_PRIMARY_SLOT_HREFS.includes(href));
-    const expectedTail = visibleUtilityDestinations(opts.bugReportEnabled).map(
-      (d) => d.href,
-    );
+    const expectedTail = visibleUtilityDestinations().map((d) => d.href);
 
     expect(hub).toEqual([...expectedFeatures, ...expectedTail]);
   });
@@ -195,7 +178,6 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
   it("never contains a primary slot (Home / Meds / Insights)", () => {
     const hub = mobileMoreHubDestinations({
       modules: { cycle: true },
-      bugReportEnabled: true,
     }).map((d) => d.href);
     for (const slot of BOTTOM_NAV_PRIMARY_SLOT_HREFS) {
       expect(hub).not.toContain(slot);
@@ -205,33 +187,27 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
   it("keeps the feature destinations and the utility tail reachable in the hub", () => {
     const hub = mobileMoreHubDestinations({
       modules: { cycle: false },
-      bugReportEnabled: true,
     }).map((d) => d.href);
     // Feature surfaces that left the always-visible strip stay reachable.
     expect(hub).toContain("/measurements");
     expect(hub).toContain("/mood");
     expect(hub).toContain("/checkups");
     // The shared utility tail rides at the end.
-    expect(hub).toContain("/bugreport");
     expect(hub).toContain("/settings/account");
     expect(hub).toContain("/notifications");
   });
 
-  it("gates Cycle by the module map and Bug Report by the operator flag, same as the sidebar", () => {
+  it("gates Cycle by the module map, same as the sidebar", () => {
     const off = mobileMoreHubDestinations({
       modules: { cycle: false, mood: false },
-      bugReportEnabled: false,
     }).map((d) => d.href);
     const on = mobileMoreHubDestinations({
       modules: { cycle: true, mood: true },
-      bugReportEnabled: true,
     }).map((d) => d.href);
     expect(off).not.toContain("/cycle");
     expect(off).not.toContain("/mood");
-    expect(off).not.toContain("/bugreport");
     expect(on).toContain("/cycle");
     expect(on).toContain("/mood");
-    expect(on).toContain("/bugreport");
   });
 });
 

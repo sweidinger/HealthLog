@@ -147,12 +147,29 @@ describe("encrypted-column registry", () => {
 
   it("is fully referenced by the key-rotation script", () => {
     const script = readFileSync(ROTATION_SCRIPT_PATH, "utf8");
-    const unreferenced = ENCRYPTED_COLUMNS.filter(
-      (c: EncryptedColumn) => !script.includes(`"${c.field}"`),
-    ).map(encryptedColumnKey);
+    // Field names are NOT unique across models (e.g. `noteEncrypted` lives on
+    // five models, `notesEncrypted` on two, `accessToken`/`refreshToken` on
+    // three connection tables each). A bare field-name substring match passes
+    // on the first occurrence and is blind to a same-named sibling whose model
+    // was never wired into rotation — exactly the "silently skipped →
+    // undecryptable after the old key is dropped" failure the registry exists
+    // to prevent. So require, per registry entry, BOTH the field literal AND
+    // the model's Prisma delegate (`prisma.<delegate>`) to appear in the script
+    // — the delegate proves that model's table is actually walked (some tables
+    // are rotated through a shared `for (const field of [...])` loop, where the
+    // field literal appears once but each delegate is named explicitly).
+    const delegate = (model: string) =>
+      `prisma.${model.charAt(0).toLowerCase()}${model.slice(1)}`;
+    const unreferenced = (ENCRYPTED_COLUMNS as EncryptedColumn[])
+      .filter(
+        (c) =>
+          !script.includes(`"${c.field}"`) ||
+          !script.includes(delegate(c.model)),
+      )
+      .map(encryptedColumnKey);
     expect(
       unreferenced,
-      "registry columns NOT referenced by scripts/rotate-encryption-key.ts",
+      "registry columns NOT fully referenced (field + model delegate) by scripts/rotate-encryption-key.ts",
     ).toEqual([]);
   });
 });

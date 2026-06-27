@@ -32,10 +32,10 @@
     "copy": "Copier",
     "copyDetails": "Copier les détails",
     "retry": "Réessayer",
-    "reportIssue": "Signaler un problème",
     "showPassword": "Afficher le mot de passe",
     "hidePassword": "Masquer le mot de passe",
-    "learnMore": "En savoir plus"
+    "learnMore": "En savoir plus",
+    "dismiss": "Ignorer"
   },
   "doctorReport": {
     "title": "Rapport de santé",
@@ -204,7 +204,6 @@
     "insights": "Insights",
     "achievements": "Succès",
     "settings": "Paramètres",
-    "bugreport": "Rapport de bug",
     "admin": "Console d’administration",
     "logout": "Se déconnecter",
     "login": "Se connecter",
@@ -263,7 +262,28 @@
     "passkeySetupLater": "Tu peux configurer les passkeys plus tard dans les paramètres.",
     "passwordMinLength": "Min. 12 caractères",
     "passwordTooShort": "Le mot de passe doit comporter au moins {minLength} caractères.",
-    "privacyPolicy": "Politique de confidentialité"
+    "privacyPolicy": "Politique de confidentialité",
+    "passwordBreached": "Ce mot de passe figure dans des fuites de données connues. Choisissez-en un autre.",
+    "mfa": {
+      "title": "Authentification à deux facteurs",
+      "totpHint": "Saisissez le code à 6 chiffres de votre application d'authentification.",
+      "recoveryHint": "Saisissez l'un de vos codes de récupération enregistrés.",
+      "securityKeyHint": "Utilisez votre clé de sécurité enregistrée pour continuer.",
+      "codeLabel": "Code d'authentification",
+      "recoveryLabel": "Code de récupération",
+      "verify": "Vérifier",
+      "verifyFailed": "Échec de la vérification. Veuillez réessayer.",
+      "useSecurityKey": "Utiliser une clé de sécurité",
+      "useRecoveryCode": "Utiliser un code de récupération",
+      "useAuthenticator": "Utiliser votre application d'authentification",
+      "backToLogin": "Retour à la connexion",
+      "rememberDevice": "Faire confiance à cet appareil pendant 30 jours"
+    },
+    "enrollMfa": {
+      "title": "Configurer un second facteur",
+      "body": "Votre administrateur exige un second facteur sur ce compte. Ajoutez une application d'authentification ou une clé de sécurité pour continuer.",
+      "signOut": "Se déconnecter"
+    }
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -4057,7 +4077,12 @@
           },
           "fullBackup": {
             "title": "Sauvegarde complète",
-            "description": "Un seul fichier JSON contenant tout — même format que la sauvegarde automatique hebdomadaire. Utile pour une restauration personnelle via le téléversement administrateur."
+            "description": "Un seul fichier JSON contenant tout — même format que la sauvegarde automatique hebdomadaire. Utile pour une restauration personnelle via le téléversement administrateur.",
+            "encryptToggle": "Chiffrer avec une phrase secrète",
+            "passphrasePlaceholder": "Phrase secrète (12 caractères min.)",
+            "passphraseHelp": "Dérive la clé de l'archive avec Argon2id et la scelle avec AES-256-GCM. Enregistrez le fichier avec l'extension .hlx.",
+            "noRecoveryWarning": "Aucune récupération possible : si vous perdez cette phrase secrète, l'archive ne pourra pas être ouverte. Conservez-la en lieu sûr.",
+            "stepUpNeeded": "Confirmez votre second facteur, puis réessayez."
           },
           "cycle": {
             "title": "Cycle",
@@ -4197,6 +4222,15 @@
         "title": "Canaux",
         "description": "Distribution via Telegram, ntfy, Web Push, Webhook et e-mail.",
         "subtitle": "Où sont envoyés les rappels et alertes."
+      },
+      "security": {
+        "title": "Sécurité",
+        "subtitle": "Authentification à deux facteurs, codes de récupération et clés d'accès."
+      },
+      "privacy": {
+        "title": "Données et confidentialité",
+        "subtitle": "Vos données, leur conservation, le chiffrement et la sécurité du compte au même endroit.",
+        "description": "Export, suppression, conservation, état du chiffrement, sessions et activité de sécurité."
       }
     },
     "profile": "Profil",
@@ -4968,7 +5002,153 @@
     "polarDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "ouraDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "nightscoutDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
-    "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus."
+    "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus.",
+    "security": {
+      "sessionsTitle": "Sessions actives",
+      "sessionsDescription": "Appareils et navigateurs actuellement connectés à votre compte.",
+      "sessionsLoadError": "Impossible de charger les sessions actives.",
+      "sessionsEmpty": "Aucune session active.",
+      "currentSession": "Cet appareil",
+      "lastActive": "Dernière activité {time}",
+      "unknownLocation": "Lieu inconnu",
+      "revokeSession": "Déconnecter",
+      "revokeError": "Impossible de traiter la demande. Veuillez réessayer.",
+      "signOutEverywhere": "Se déconnecter partout ailleurs",
+      "signOutEverywhereDone": "{count} autre(s) session(s) déconnectée(s).",
+      "activityTitle": "Activité de sécurité",
+      "activityDescription": "Connexions récentes, modifications de sécurité et exports de données de votre compte.",
+      "activityEmpty": "Aucune activité de sécurité pour l'instant.",
+      "activityLoadError": "Impossible de charger l'activité de sécurité.",
+      "action": {
+        "newDevice": "Connexion depuis un nouvel appareil",
+        "loginFailed": "Échec de connexion",
+        "login": "Connexion",
+        "passwordChange": "Mot de passe modifié",
+        "mfa": "Modification de la double authentification",
+        "sessionRevoke": "Session déconnectée",
+        "token": "Modification de jeton API",
+        "accountDelete": "Compte supprimé",
+        "dataClear": "Données réinitialisées",
+        "export": "Export de données",
+        "other": "Événement de sécurité"
+      },
+      "active": "Actif",
+      "inactive": "Inactif",
+      "stepUpRequired": "Pour votre sécurité, reconnectez-vous pour modifier votre second facteur.",
+      "useRecoveryCode": "Utiliser plutôt un code de récupération",
+      "useAuthenticator": "Utiliser plutôt votre application d'authentification",
+      "totp": {
+        "title": "Application d'authentification",
+        "description": "Utilisez un code temporaire d'une application d'authentification comme second facteur.",
+        "setUp": "Configurer",
+        "step1": "Scannez le code QR avec votre application d'authentification, ou saisissez le secret manuellement.",
+        "step2": "Saisissez le code à 6 chiffres affiché par l'application pour confirmer.",
+        "qrAlt": "Code QR pour configurer l'application d'authentification",
+        "qrUnavailable": "Code QR indisponible",
+        "manualEntry": "Ou saisissez ce secret manuellement",
+        "enterCode": "Saisissez le code à 6 chiffres",
+        "verify": "Vérifier",
+        "setupFailed": "Impossible de démarrer la configuration. Veuillez réessayer.",
+        "invalidCode": "Ce code n'est pas valide. Veuillez réessayer.",
+        "disable": "Désactiver",
+        "disableTitle": "Désactiver l'authentification à deux facteurs",
+        "disableConfirm": "Saisissez un code actuel pour désactiver votre second facteur. Cela supprime aussi vos codes de récupération.",
+        "currentCode": "Code actuel",
+        "disableFailed": "Impossible de désactiver le second facteur."
+      },
+      "recovery": {
+        "saveNow": "Enregistrez ces codes de récupération maintenant",
+        "saveNowHint": "Chaque code ne fonctionne qu'une fois. Ils ne sont affichés que cette fois — conservez-les en lieu sûr. Si vous perdez votre authentificateur, un code de récupération est le seul moyen de revenir.",
+        "download": "Télécharger",
+        "remainingOne": "{count} code de récupération restant.",
+        "remainingOther": "{count} codes de récupération restants.",
+        "regenerate": "Régénérer les codes",
+        "regenFailed": "Impossible de régénérer les codes de récupération.",
+        "savedIt": "Je les ai enregistrés",
+        "regenerateTitle": "Régénérer les codes de récupération ?",
+        "regenerateConfirm": "Cela remplace vos codes de récupération actuels. Vos codes existants cesseront de fonctionner immédiatement et le nouveau jeu n'est affiché qu'une seule fois."
+      },
+      "keys": {
+        "title": "Clés de sécurité",
+        "description": "Enregistrez une clé de sécurité matérielle ou de plateforme comme second facteur.",
+        "empty": "Aucune clé de sécurité enregistrée pour le moment.",
+        "add": "Ajouter une clé de sécurité",
+        "addFailed": "Impossible d'enregistrer la clé de sécurité.",
+        "rename": "Renommer",
+        "renameFailed": "Impossible de renommer la clé de sécurité.",
+        "remove": "Supprimer la clé de sécurité",
+        "removeFailed": "Impossible de supprimer la clé de sécurité.",
+        "removeConfirm": "Cette clé de sécurité ne fonctionnera plus comme second facteur.",
+        "lastUsed": "Dernière utilisation le {date}",
+        "neverUsed": "Jamais utilisée",
+        "added": "ajoutée le {date}",
+        "nameLabel": "Nom de la clé de sécurité"
+      },
+      "passkeyNudge": {
+        "title": "Ajoutez une clé d'accès pour une connexion plus rapide",
+        "body": "Les clés d'accès vous permettent de vous connecter avec votre empreinte, votre visage ou le code de votre appareil, sans mot de passe à retenir."
+      },
+      "trustedDevices": {
+        "title": "Appareils de confiance",
+        "description": "Les navigateurs auxquels vous faites confiance ignorent le second facteur pendant 30 jours. Le mot de passe reste requis. Révoquez ceux que vous ne reconnaissez pas.",
+        "loadError": "Impossible de charger les appareils de confiance.",
+        "revokeError": "Impossible de révoquer l'appareil. Veuillez réessayer.",
+        "revoke": "Révoquer",
+        "revokeAll": "Oublier tous les appareils",
+        "revokeAllDone": "{count} appareil(s) de confiance oublié(s).",
+        "unnamed": "Appareil inconnu",
+        "current": "Cet appareil",
+        "expires": "De confiance jusqu'au {date}"
+      }
+    },
+    "privacy": {
+      "intro": {
+        "title": "Vos données vous appartiennent",
+        "body": "HealthLog est auto-hébergé. Cette page réunit la façon dont vos données sont protégées, leur durée de conservation, comment les exporter et comment les supprimer."
+      },
+      "encryption": {
+        "title": "Chiffré au repos",
+        "description": "Les champs sensibles sont chiffrés dans la base de données.",
+        "summary": "Vos données sensibles sont chiffrées au repos avec {algorithm} sur {columns} champs dans {models} types d'enregistrement.",
+        "statement": "Vos données sensibles sont chiffrées au repos avec AES-256-GCM."
+      },
+      "stored": {
+        "title": "Ce qui est stocké",
+        "description": "Les catégories de données que contient ce compte.",
+        "measurements": "Mesures (poids, tension, pouls, glycémie, sommeil, composition corporelle)",
+        "medications": "Médicaments et historique des prises",
+        "moodLabs": "Entrées d'humeur et résultats de laboratoire",
+        "coach": "Conversations avec le coach",
+        "integrations": "Jetons d'intégration (chiffrés)",
+        "security": "Activité du compte et de sécurité (sessions, journal de connexion)"
+      },
+      "retention": {
+        "title": "Conservation",
+        "description": "Durée de conservation des enregistrements limités dans le temps avant le nettoyage automatique.",
+        "coach": "Conversations avec le coach : {days} jours",
+        "audit": "Journal de sécurité : {days} jours",
+        "delivery": "Journal d'envoi des notifications : {days} jours",
+        "unavailable": "Les détails de conservation sont indisponibles pour le moment."
+      },
+      "export": {
+        "title": "Télécharger mes données",
+        "description": "Exportez vos enregistrements en CSV ou JSON, éventuellement chiffrés par phrase secrète, ou générez un dossier médical complet.",
+        "openExport": "Export et sauvegarde",
+        "openHealthRecord": "Dossier médical"
+      },
+      "delete": {
+        "title": "Supprimer ou réinitialiser",
+        "description": "Supprimez complètement votre compte, ou effacez vos données de santé tout en conservant le compte.",
+        "backupLag": "La suppression efface vos données immédiatement. Les sauvegardes chiffrées hors site les contiennent encore jusqu'à leur expiration selon la fenêtre de conservation de l'opérateur.",
+        "openAdvanced": "Supprimer ou réinitialiser"
+      },
+      "posture": {
+        "title": "Posture de confidentialité",
+        "description": "Contrôlez la quantité de données partagées avec les fonctions d'IA et la recherche optionnelle.",
+        "openAi": "Mode confidentialité IA",
+        "openResearch": "Mode recherche"
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5064,7 +5244,6 @@
     "webPushGlobal": "Autoriser les notifications push du navigateur.",
     "moodLogGlobal": "Autoriser les rappels du journal d'humeur.",
     "integrationWebPush": "Web Push",
-    "integrationBugReport": "Rapport de bug",
     "offlineGeoLabel": "Données géographiques",
     "offlineGeoEnabled": "Hors ligne (GeoLite2)",
     "offlineGeoFallback": "Fallback (ipwho.is) — définissez MAXMIND_LICENSE_KEY dans la CI",
@@ -5101,12 +5280,6 @@
     "configured": "Configuré",
     "monitoringTestSuccess": "Événement de test envoyé",
     "monitoringTestFailed": "Échec du test de surveillance",
-    "bugReportGithub": "Rapport de bug (GitHub Issues)",
-    "bugReportGithubDescription": "Configurez le jeton d'issues GitHub et le dépôt pour les rapports de bug entrants.",
-    "bugReportEnabledLabel": "Rapports de bug activés",
-    "bugReportEnabledDescription": "Lorsque cette option est désactivée, le bouton de signalement dans l'app est masqué — le jeton et le dépôt restent configurés.",
-    "bugReportDeprecatedBadge": "Obsolète",
-    "bugReportDeprecatedNote": "Cette fonctionnalité est obsolète et sera supprimée dans une version future.",
     "assistant": {
       "title": "Surfaces d'assistance",
       "description": "Chaque bascule masque une surface pilotée par le modèle dans toute l'application sans retirer la configuration du fournisseur. Le commutateur principal force chaque option secondaire à off.",
@@ -5140,10 +5313,6 @@
       "description": "Désactivez un module pour tout le serveur. Un module désactivé ici est coupé pour chaque compte, quelle que soit la préférence personnelle. Les domaines essentiels (poids, tension, pouls, médicaments) restent toujours actifs et ne peuvent pas être désactivés.",
       "saveError": "Impossible de mettre à jour la disponibilité des modules."
     },
-    "bugReportRepo": "Dépôt",
-    "bugReportRepoPlaceholder": "owner/repo",
-    "bugReportToken": "Jeton d'issue",
-    "bugReportTokenPlaceholder": "ghp_...",
     "invites": {
       "title": "Invitations",
       "description": "Liens d'invitation pour l'inscription — ils fonctionnent même lorsque les inscriptions sont fermées. Le lien n'est affiché qu'une seule fois.",
@@ -5297,47 +5466,6 @@
     "reminderCheckNotifOff": "Notifications désactivées",
     "reminderCheckEventsToday": "Événements aujourd'hui",
     "reminderCheckNotifSent": "Envoyées",
-    "feedback": {
-      "tabOpen": "Ouvert",
-      "tabAcknowledged": "Pris en compte",
-      "tabResolved": "Résolu",
-      "tabArchived": "Archivé",
-      "subject": "Sujet",
-      "category": "Catégorie",
-      "user": "Utilisateur",
-      "createdAt": "Soumis",
-      "actions": "Actions",
-      "details": "Détails",
-      "emptyTitle": "Tout est à jour",
-      "emptyDescription": "Aucun retour utilisateur dans ce statut. Les bugs, questions et demandes de fonctionnalités soumis apparaîtront ici.",
-      "loading": "Chargement des retours...",
-      "anonymous": "anonyme",
-      "categoryBug": "Bug",
-      "categoryFeature": "Fonctionnalité",
-      "categoryQuestion": "Question",
-      "categoryOther": "Autre",
-      "metadataHeading": "Métadonnées",
-      "metaUrl": "URL",
-      "metaLocale": "Langue",
-      "metaUserAgent": "Agent utilisateur",
-      "metaAppVersion": "Version de l'app",
-      "screenshotHeading": "Screenshot",
-      "adminNote": "Note d'administration",
-      "adminNotePlaceholder": "Note interne (non visible par l'utilisateur)",
-      "saveNote": "Enregistrer la note",
-      "noteSaved": "Note enregistrée",
-      "actionAcknowledge": "Prendre en compte",
-      "actionResolve": "Résoudre",
-      "actionArchive": "Archiver",
-      "actionPublishGithub": "Publier sur GitHub",
-      "publishedToGithub": "Publié sur GitHub",
-      "viewIssue": "Voir l'issue",
-      "publishSuccess": "Issue créée",
-      "publishFailed": "Échec de la publication sur GitHub",
-      "updateFailed": "Échec de la mise à jour",
-      "archiveConfirm": "Archiver cette entrée de retour ?",
-      "submittedBy": "Soumis par"
-    },
     "shell": {
       "overview": "Vue d'ensemble",
       "sectionsNav": "Sections d'administration"
@@ -5389,10 +5517,6 @@
       "coach": {
         "title": "Coach",
         "subtitle": "Surfaces d'assistance, clé du serveur et les tableaux de qualité des retours du Coach et des analyses, au même endroit."
-      },
-      "feedback": {
-        "title": "Retours",
-        "subtitle": "Triez les retours utilisateurs, les rapports de bug et les demandes de fonctionnalités."
       },
       "reminders": {
         "title": "Rappels",
@@ -5521,10 +5645,55 @@
       "module-availability": {
         "title": "Modules",
         "subtitle": "Activez ou désactivez les modules pour tous les comptes de ce serveur."
+      },
+      "encryption": {
+        "title": "Chiffrement",
+        "subtitle": "Couverture du chiffrement et état de la rotation des clés pour les données au repos.",
+        "loading": "Chargement de l'état du chiffrement...",
+        "loadError": "Échec du chargement de l'état du chiffrement.",
+        "coverageTitle": "Couverture",
+        "coverageDescription": "Combien de lignes chiffrées relèvent de chaque id de clé. Seuls les id de clé et les décomptes sont affichés, jamais le matériel de clé.",
+        "activeKeyId": "Id de clé active",
+        "configuredKeys": "Clés configurées",
+        "totalRows": "Lignes chiffrées",
+        "staleRows": "Lignes hors de la clé active",
+        "safeToDropLegacy": "La clé ancienne peut être retirée",
+        "rotationIncomplete": "{count} lignes restent à faire tourner",
+        "rotationTitle": "Rotation des clés",
+        "rotationDescription": "Re-chiffre chaque colonne chiffrée avec la clé active. L'outil en ligne de commande reste la voie canonique ; ce déclencheur est un confort.",
+        "rotationState": "État",
+        "lastRun": "Dernière exécution : {scanned} analysées, {rotated} tournées, {errors} erreurs.",
+        "rotateNow": "Faire tourner maintenant",
+        "rotateConfirmTitle": "Re-chiffrer tout le dossier ?",
+        "rotateConfirmDescription": "Re-chiffre chaque colonne chiffrée avec la clé active. Cela n'ajoute ni ne retire jamais de clé et peut être relancé sans risque. Cela peut prendre du temps sur les gros comptes.",
+        "cancel": "Annuler",
+        "rotateConfirm": "Démarrer la rotation",
+        "rotateEnqueued": "Rotation démarrée.",
+        "rotateFailed": "Impossible de démarrer la rotation.",
+        "stepUpNeeded": "Un second facteur récent est requis. Confirmez votre second facteur, ou utilisez l'outil en ligne de commande si aucun n'est configuré.",
+        "cliNote": "Un second facteur est requis pour ce bouton. Les opérateurs sans second facteur utilisent scripts/rotate-encryption-key.ts.",
+        "columnsTitle": "Couverture par colonne",
+        "columnsDescription": "Chaque colonne chiffrée avec ses décomptes de lignes sur la clé active par rapport aux clés plus anciennes.",
+        "colColumn": "Colonne",
+        "colTotal": "Total",
+        "colActive": "Sur clé active",
+        "colStale": "Obsolètes",
+        "state": {
+          "idle": "Au repos",
+          "running": "En cours",
+          "completed": "Terminé",
+          "failed": "Échoué"
+        }
       }
     },
     "carrier": "Opérateur",
-    "carrierUnavailableGeoFallback": "{location} — opérateur indisponible"
+    "carrierUnavailableGeoFallback": "{location} — opérateur indisponible",
+    "mfaRequired": "Exiger un second facteur",
+    "mfaRequiredDescription": "Chaque compte sans deuxième facteur actif est dirigé vers la configuration après la connexion. Cela invite les utilisateurs web à l'activer, mais ne bloque pas l'accès direct par API ou natif (Bearer) pour les comptes pas encore configurés.",
+    "mfaEnforcedOn": "MFA activé",
+    "mfaEnforcedOff": "MFA désactivé",
+    "mfaEnforcedOnHint": "Un second facteur est requis pour cet utilisateur. Cliquez pour ne plus l'exiger.",
+    "mfaEnforcedOffHint": "Exiger un second facteur pour cet utilisateur."
   },
   "achievements": {
     "title": "Réussites",
@@ -5582,10 +5751,6 @@
       "passwordLogin1": {
         "title": "À l’ancienne",
         "description": "Connectez-vous au moins une fois avec un identifiant et un mot de passe."
-      },
-      "bugReport1": {
-        "title": "Chasseur de bugs",
-        "description": "Soumettez un rapport de bug."
       },
       "loginStreak7": {
         "title": "Série de connexions 7j",
@@ -5775,10 +5940,6 @@
         "title": "Polyglotte",
         "description": "Vous avez changé la langue de l’application au moins une fois."
       },
-      "hiddenBugBuddy": {
-        "title": "Compagnon des bugs",
-        "description": "Vous avez soumis au moins 5 rapports de bug — le projet vous adore."
-      },
       "missFree7": {
         "title": "Aucune dose oubliée · 7j",
         "description": "7 jours consécutifs sans dose oubliée."
@@ -5830,26 +5991,6 @@
       "viewAll": "Tout voir",
       "empty": "Pas encore de réussites — continuez à suivre pour débloquer la première."
     }
-  },
-  "bugreport": {
-    "title": "Rapport de bug",
-    "subtitle": "Envoie un bug, une suggestion ou une question. L’administrateur du serveur verra ton envoi.",
-    "loginRequired": "Connecte-toi pour signaler un bug.",
-    "bugTitle": "Titre",
-    "description": "Description",
-    "submit": "Envoyer",
-    "success": "Merci ! Ton rapport a bien été envoyé.",
-    "errorCreating": "Erreur lors de la création",
-    "category": "Type",
-    "categoryBug": "Bug",
-    "categoryFeature": "Suggestion",
-    "categoryQuestion": "Question",
-    "categoryOther": "Autre retour",
-    "bugTitlePlaceholder": "Résumé court (optionnel)",
-    "githubEscalationNote": "Ton retour est stocké localement. Si l’administrateur active l’intégration GitHub, il pourra être publié comme issue public à la demande.",
-    "internalOnlyNote": "Ton retour est stocké localement et n’est visible que par l’administrateur de ce serveur.",
-    "disabledTitle": "Les rapports de bug sont désactivés",
-    "disabledBody": "L'administrateur a désactivé les rapports de bug sur ce serveur."
   },
   "notifications": {
     "title": "Notifications",
@@ -5955,7 +6096,13 @@
     "eventMeasurementReminder": "Rappel de mesure",
     "eventMeasurementReminderDesc": "Envoyé lorsqu'une mesure suivie est due.",
     "eventMedicationIntakeSync": "Synchronisation des prises",
-    "eventMedicationIntakeSyncDesc": "Mise à jour entre appareils quand une dose est enregistrée, prise ou ignorée."
+    "eventMedicationIntakeSyncDesc": "Mise à jour entre appareils quand une dose est enregistrée, prise ou ignorée.",
+    "security": {
+      "newDeviceTitle": "Nouvelle connexion à votre compte",
+      "newDeviceBody": "Une nouvelle connexion depuis {device} ({location}). Si ce n'était pas vous, changez votre mot de passe immédiatement.",
+      "unknownLocation": "lieu inconnu"
+    },
+    "loginRequired": "Connecte-toi pour gérer les notifications."
   },
   "i18n": {
     "maintainershipBanner": {

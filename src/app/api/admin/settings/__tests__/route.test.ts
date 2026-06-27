@@ -98,7 +98,6 @@ describe("GET /api/admin/settings", () => {
     expect(body.data.registrationEnabled).toBe(true);
     expect(body.data.defaultLocale).toBe("de");
     expect(body.data.webPushVapidConfigured).toBe(false);
-    expect(body.data.bugReportConfigured).toBe(false);
     expect(body.data.glitchtipEnabled).toBe(false);
   });
 
@@ -120,8 +119,6 @@ describe("GET /api/admin/settings", () => {
       glitchtipEnabled: false,
       glitchtipDsn: null,
       glitchtipEnvironment: "production",
-      githubIssueRepo: "owner/repo",
-      githubIssueTokenEncrypted: "token-blob",
       reminderLateMinutes: 120,
       reminderMissedMinutes: 240,
       moodLogGlobal: true,
@@ -129,15 +126,12 @@ describe("GET /api/admin/settings", () => {
 
     const res = await GET();
     const body = (await res.json()) as { data: Record<string, unknown> };
-    // The two configured-flags must be true …
+    // The configured flag must be true …
     expect(body.data.webPushVapidConfigured).toBe(true);
-    expect(body.data.bugReportConfigured).toBe(true);
     // … but raw encrypted blobs must never reach the client.
     const serialized = JSON.stringify(body.data);
     expect(serialized).not.toContain("secret-blob");
-    expect(serialized).not.toContain("token-blob");
     expect(body.data).not.toHaveProperty("webPushVapidPrivateKeyEncrypted");
-    expect(body.data).not.toHaveProperty("githubIssueTokenEncrypted");
   });
 });
 
@@ -185,8 +179,6 @@ describe("PUT /api/admin/settings", () => {
       glitchtipEnabled: false,
       glitchtipDsn: null,
       glitchtipEnvironment: "production",
-      githubIssueRepo: null,
-      githubIssueTokenEncrypted: null,
       reminderLateMinutes: 120,
       reminderMissedMinutes: 240,
       moodLogGlobal: true,
@@ -227,8 +219,6 @@ describe("PUT /api/admin/settings", () => {
       glitchtipEnabled: false,
       glitchtipDsn: null,
       glitchtipEnvironment: null,
-      githubIssueRepo: null,
-      githubIssueTokenEncrypted: null,
       reminderLateMinutes: 120,
       reminderMissedMinutes: 240,
       moodLogGlobal: true,
@@ -257,8 +247,6 @@ describe("PUT /api/admin/settings", () => {
       glitchtipEnabled: false,
       glitchtipDsn: null,
       glitchtipEnvironment: null,
-      githubIssueRepo: null,
-      githubIssueTokenEncrypted: null,
       reminderLateMinutes: 120,
       reminderMissedMinutes: 240,
       moodLogGlobal: true,
@@ -292,8 +280,6 @@ describe("PUT /api/admin/settings", () => {
       glitchtipEnabled: true,
       glitchtipDsn: "https://abc@glitchtip.example.com/1",
       glitchtipEnvironment: "staging",
-      githubIssueRepo: "owner/repo",
-      githubIssueTokenEncrypted: "enc(gh-token)",
       reminderLateMinutes: 30,
       reminderMissedMinutes: 90,
       moodLogGlobal: false,
@@ -317,8 +303,6 @@ describe("PUT /api/admin/settings", () => {
         umamiWebsiteId: "site-uuid",
         glitchtipDsn: "https://abc@glitchtip.example.com/1",
         glitchtipEnvironment: "staging",
-        bugReportRepo: "owner/repo",
-        bugReportToken: "gh-token",
         reminderLateMinutes: 30,
         reminderMissedMinutes: 90,
       }),
@@ -336,8 +320,6 @@ describe("PUT /api/admin/settings", () => {
       umamiWebsiteId: "site-uuid",
       glitchtipDsn: "https://abc@glitchtip.example.com/1",
       glitchtipEnvironment: "staging",
-      githubIssueRepo: "owner/repo",
-      githubIssueTokenEncrypted: "enc(gh-token)",
       webPushVapidPublicKey: "vapid-pub",
       webPushVapidSubject: "mailto:ops@healthlog.dev",
       webPushVapidPrivateKeyEncrypted: "enc(secret)",
@@ -345,7 +327,6 @@ describe("PUT /api/admin/settings", () => {
       reminderMissedMinutes: 90,
     });
     expect(encrypt).toHaveBeenCalledWith("secret");
-    expect(encrypt).toHaveBeenCalledWith("gh-token");
   });
 
   it("clears nullable string fields when an empty string is submitted", async () => {
@@ -366,8 +347,6 @@ describe("PUT /api/admin/settings", () => {
       glitchtipEnabled: false,
       glitchtipDsn: null,
       glitchtipEnvironment: null,
-      githubIssueRepo: null,
-      githubIssueTokenEncrypted: null,
       reminderLateMinutes: 120,
       reminderMissedMinutes: 240,
       moodLogGlobal: true,
@@ -381,7 +360,6 @@ describe("PUT /api/admin/settings", () => {
         umamiWebsiteId: "",
         glitchtipDsn: "",
         glitchtipEnvironment: "",
-        bugReportRepo: "",
       }),
     );
     const upsert = vi.mocked(prisma.appSettings.upsert).mock.calls[0]?.[0];
@@ -392,37 +370,7 @@ describe("PUT /api/admin/settings", () => {
       umamiWebsiteId: null,
       glitchtipDsn: null,
       glitchtipEnvironment: null,
-      githubIssueRepo: null,
     });
-  });
-
-  it("clears the encrypted bug-report token when clear flag is set", async () => {
-    vi.mocked(prisma.appSettings.upsert).mockResolvedValue({
-      id: "singleton",
-      registrationEnabled: true,
-      defaultLocale: "en",
-      telegramGlobal: true,
-      ntfyGlobal: true,
-      webPushGlobal: true,
-      webPushVapidPublicKey: null,
-      webPushVapidSubject: null,
-      webPushVapidPrivateKeyEncrypted: null,
-      apiGlobal: true,
-      umamiEnabled: false,
-      umamiScriptUrl: null,
-      umamiWebsiteId: null,
-      glitchtipEnabled: false,
-      glitchtipDsn: null,
-      glitchtipEnvironment: null,
-      githubIssueRepo: null,
-      githubIssueTokenEncrypted: null,
-      reminderLateMinutes: 120,
-      reminderMissedMinutes: 240,
-      moodLogGlobal: true,
-    } as never);
-    await PUT(jsonReq({ clearBugReportToken: true }));
-    const upsert = vi.mocked(prisma.appSettings.upsert).mock.calls[0]?.[0];
-    expect(upsert?.update).toEqual({ githubIssueTokenEncrypted: null });
   });
 
   it("returns 415 when content-type is not JSON", async () => {
@@ -454,9 +402,6 @@ describe("PUT /api/admin/settings", () => {
       glitchtipEnabled: false,
       glitchtipDsn: null,
       glitchtipEnvironment: null,
-      githubIssueRepo: null,
-      githubIssueTokenEncrypted: null,
-      bugReportEnabled: true,
       reminderLateMinutes: 120,
       reminderMissedMinutes: 240,
       moodLogGlobal: true,
@@ -486,9 +431,6 @@ describe("PUT /api/admin/settings", () => {
       glitchtipEnabled: false,
       glitchtipDsn: null,
       glitchtipEnvironment: null,
-      githubIssueRepo: null,
-      githubIssueTokenEncrypted: null,
-      bugReportEnabled: true,
       reminderLateMinutes: 120,
       reminderMissedMinutes: 240,
       moodLogGlobal: true,

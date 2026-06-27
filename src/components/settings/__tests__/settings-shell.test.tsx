@@ -99,6 +99,7 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // health record belongs next to the health-record export.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
+      "security",
       "modules",
       "integrations",
       "channels",
@@ -120,6 +121,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "sharing",
       "export",
       "advanced",
+      // v1.23 — "Data & Privacy" assembles the export / deletion / retention /
+      // encryption / session / activity pieces into one pane, after `advanced`.
+      "privacy",
       "about",
     ]);
   });

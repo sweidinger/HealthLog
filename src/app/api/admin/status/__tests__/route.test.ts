@@ -89,11 +89,10 @@ describe("GET /api/admin/status (integration health summary)", () => {
       umami: null,
       glitchtip: null,
       webPush: null,
-      bugReport: null,
     });
   });
 
-  it("aggregates configured + enabled flags for umami / glitchtip / web-push / bugReport", async () => {
+  it("aggregates configured + enabled flags for umami / glitchtip / web-push", async () => {
     vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
       umamiScriptUrl: "https://x/script.js",
       umamiWebsiteId: "site-1",
@@ -103,8 +102,6 @@ describe("GET /api/admin/status (integration health summary)", () => {
       webPushVapidPublicKey: "pub",
       webPushVapidPrivateKeyEncrypted: "secret-blob",
       webPushVapidSubject: "mailto:a@b.com",
-      githubIssueRepo: "owner/repo",
-      githubIssueTokenEncrypted: "token-blob",
     } as never);
 
     const res = await GET();
@@ -121,7 +118,6 @@ describe("GET /api/admin/status (integration health summary)", () => {
       enabled: false,
     });
     expect(body.data.integrations.webPush).toEqual({ configured: true });
-    expect(body.data.integrations.bugReport).toEqual({ configured: true });
 
     // Regression: encrypted blobs MUST never appear in the response envelope.
     const serialized = JSON.stringify(body);

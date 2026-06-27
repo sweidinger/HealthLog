@@ -12,9 +12,8 @@
  *   - push_subscriptions          (raw browser push endpoints)
  *   - telegram_scheduled_deletions (queued message-delete tickets)
  *
- * Feedback rows are intentionally PRESERVED (T8 from v1.4.6 + admin
- * i18n copy now states this explicitly) — a wipe must not erase
- * user-submitted bug reports admins still need to triage.
+ * AuditLog rows are intentionally PRESERVED — a wipe must not erase the
+ * audit trail of the operation itself.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -58,7 +57,7 @@ beforeEach(async () => {
 });
 
 describe("DELETE /api/admin/data wipe scope", () => {
-  it("clears notification channels, push subscriptions, telegram deletions; preserves Feedback + AuditLog", async () => {
+  it("clears notification channels, push subscriptions, telegram deletions; preserves AuditLog", async () => {
     const prisma = getPrismaClient();
 
     // ── arrange ──
@@ -105,16 +104,6 @@ describe("DELETE /api/admin/data wipe scope", () => {
       },
     });
 
-    // Seed a feedback row that MUST survive the wipe (per i18n copy).
-    const feedbackRow = await prisma.feedback.create({
-      data: {
-        userId: admin.id,
-        category: "BUG",
-        subject: "survives wipe",
-        description: "feedback rows are preserved",
-      },
-    });
-
     // ── act: invoke the route handler exactly as Next.js would ──
     const { DELETE } = await import("@/app/api/admin/data/route");
     const req = new Request("http://localhost/api/admin/data", {
@@ -141,13 +130,7 @@ describe("DELETE /api/admin/data wipe scope", () => {
       }),
     ).toBe(0);
 
-    // ── assert: feedback row survives, AuditLog rows survive ──
-    const feedbackAfter = await prisma.feedback.findUnique({
-      where: { id: feedbackRow.id },
-    });
-    expect(feedbackAfter).not.toBeNull();
-    expect(feedbackAfter?.subject).toBe("survives wipe");
-
+    // ── assert: AuditLog rows survive ──
     // The wipe writes admin.data.clear.start AND admin.data.clear audit
     // entries. They must outlive the operation (audit log is immune).
     const auditCount = await prisma.auditLog.count({

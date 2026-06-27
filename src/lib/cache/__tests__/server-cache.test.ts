@@ -616,7 +616,6 @@ describe("global cache registry", () => {
     expect(caches.medications).toBeDefined();
     expect(caches.achievements).toBeDefined();
     expect(caches.dashboardWidgets).toBeDefined();
-    expect(caches.bugreportStatus).toBeDefined();
     expect(caches.workouts).toBeDefined();
     expect(caches.medicationsIntake).toBeDefined();
     expect(caches.moodAnalytics).toBeDefined();

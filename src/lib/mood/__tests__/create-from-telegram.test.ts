@@ -28,6 +28,23 @@ vi.mock("@/lib/logging/context", () => ({
   getEvent: () => ({ addMeta: vi.fn() }),
 }));
 
+// v1.23 — deterministic note-cipher so the unit test stays isolated from the
+// encryption-key env (mirrors the illness day-log-write test's bytes-codec
+// mock). `enc:<text>` stands in for the AES-256-GCM ciphertext.
+vi.mock("@/lib/crypto/note-cipher", () => ({
+  encryptNote: (s: string | null | undefined) =>
+    s === null || s === undefined || s.length === 0
+      ? null
+      : new Uint8Array(Buffer.from(`enc:${s}`, "utf8")),
+  readNote: (
+    cipher: Uint8Array | null | undefined,
+    plain: string | null | undefined,
+  ) =>
+    cipher && cipher.byteLength > 0
+      ? Buffer.from(cipher).toString("utf8").replace(/^enc:/, "")
+      : (plain ?? null),
+}));
+
 import {
   logTelegramMood,
   attachTelegramMoodNote,
@@ -106,7 +123,11 @@ describe("attachTelegramMoodNote", () => {
       userId: "user-1",
       deletedAt: null,
     });
-    expect(arg.data.note).toBe("rough night");
+    // v1.23 — the note now rides the encrypted column; the plaintext is nulled.
+    expect(arg.data.note).toBeNull();
+    expect(Buffer.from(arg.data.noteEncrypted).toString("utf8")).toBe(
+      "enc:rough night",
+    );
     expect(invalidateUserMood).toHaveBeenCalledWith("user-1");
   });
 

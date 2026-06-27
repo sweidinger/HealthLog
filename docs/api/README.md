@@ -41,8 +41,8 @@ intentional:
 - **`tags`** — domain groupings (`Auth`, `Measurements`, `Medications`,
   `Mood`, `Dashboard`, `Insights`, `Achievements`, `DoctorReport`,
   `Integrations`, `User`, `Tokens`, `Notifications`, `Onboarding`,
-  `Health`, `Settings`, `Analytics`, `Export`, `AuditLog`, `Feedback`,
-  `BugReport`, `Monitoring`, `Webhooks`, `Ingest`, `Admin`).
+  `Health`, `Settings`, `Analytics`, `Export`, `AuditLog`,
+  `Monitoring`, `Webhooks`, `Ingest`, `Admin`).
 - **`securitySchemes`**:
   - `bearerAuth` — long-lived `hlk_*` API tokens issued via `POST /api/tokens`.
     Required on `/api/ingest/medication`.

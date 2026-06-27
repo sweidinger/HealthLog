@@ -11,6 +11,7 @@ import {
   sanitiseZodIssues,
 } from "@/lib/api-response";
 import { updateMeasurementSchema } from "@/lib/validations/measurement";
+import { encryptNote, shapeMeasurementNotes } from "@/lib/crypto/note-cipher";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
@@ -45,7 +46,7 @@ export const GET = apiHandler(
       },
     });
 
-    return apiSuccess(measurement);
+    return apiSuccess(shapeMeasurementNotes(measurement));
   },
 );
 
@@ -110,7 +111,12 @@ export const PUT = apiHandler(
         data: {
           ...(data.value !== undefined && { value: data.value }),
           ...(data.measuredAt !== undefined && { measuredAt: data.measuredAt }),
-          ...(data.notes !== undefined && { notes: data.notes }),
+          // v1.23 — write the note to the encrypted column; null the legacy
+          // plaintext column. An explicit `null` clears the note.
+          ...(data.notes !== undefined && {
+            notes: null,
+            notesEncrypted: encryptNote(data.notes),
+          }),
         },
       });
     } catch (err) {
@@ -188,7 +194,7 @@ export const PUT = apiHandler(
       console.warn("[measurements] status-insight invalidate failed", err);
     });
 
-    return apiSuccess(measurement);
+    return apiSuccess(shapeMeasurementNotes(measurement));
   },
 );
 

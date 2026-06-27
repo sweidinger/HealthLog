@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { JSX } from "react";
 
 import { AccountSection } from "@/components/settings/account-section";
+import { SecuritySection } from "@/components/settings/security-section";
 import { AboutSection } from "@/components/settings/about-section";
 import { AdvancedSection } from "@/components/settings/advanced-section";
 import { AiSection } from "@/components/settings/ai-section";
@@ -19,6 +20,7 @@ import { MedicationsSection } from "@/components/settings/medications-section";
 import { ModulesSection } from "@/components/settings/modules-section";
 import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
+import { PrivacySection } from "@/components/settings/privacy-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
 import { VorsorgeSection } from "@/components/settings/vorsorge-section";
 // v1.18.1 (D4) — `channels` and `sources` are standalone left-side entries
@@ -55,6 +57,7 @@ const SECTION_COMPONENTS: Record<
   () => JSX.Element | null
 > = {
   account: AccountSection,
+  security: SecuritySection,
   modules: ModulesSection,
   about: AboutSection,
   ai: AiSection,
@@ -77,6 +80,7 @@ const SECTION_COMPONENTS: Record<
   sharing: SharingSection,
   export: ExportSection,
   advanced: AdvancedSection,
+  privacy: PrivacySection,
 };
 
 interface PageProps {

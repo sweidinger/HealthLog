@@ -92,26 +92,6 @@ async function loginAs(userId: string) {
   cookieJar.set("healthlog_session", session.id);
 }
 
-async function loginAsAdmin() {
-  const prisma = getPrismaClient();
-  const admin = await prisma.user.create({
-    data: {
-      username: "cache-admin",
-      email: "cache-admin@example.test",
-      role: "ADMIN",
-    },
-  });
-  const session = await prisma.session.create({
-    data: {
-      userId: admin.id,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-    },
-  });
-  cookieJar.clear();
-  cookieJar.set("healthlog_session", session.id);
-  return admin.id;
-}
-
 beforeEach(async () => {
   await truncateAllTables(getPrismaClient());
   cookieJar.clear();
@@ -239,27 +219,5 @@ describe("v1.4.34 IW-G — invalidation matrix across the major write surfaces",
 
     expect(caches.dashboardWidgets.get(PRIMARY_USER_ID)).toBeNull();
     expect(caches.dashboardWidgets.get(OTHER_USER_ID)).not.toBeNull();
-  });
-
-  it("admin app-settings PUT evicts the bugreportStatus singleton cache", async () => {
-    await loginAsAdmin();
-
-    const { caches } = await import("@/lib/cache/server-cache");
-    caches.bugreportStatus.set("singleton", { fake: "status" });
-    expect(caches.bugreportStatus.get("singleton")).not.toBeNull();
-
-    const { PUT } = await import("@/app/api/admin/settings/route");
-    const res = await PUT(
-      new NextRequest("http://localhost/api/admin/settings", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ bugReportRepo: "owner/repo" }),
-      }),
-    );
-    expect(res.status).toBe(200);
-
-    // The singleton bucket is gone — the next bugreport.status read
-    // will rebuild from app_settings.
-    expect(caches.bugreportStatus.get("singleton")).toBeNull();
   });
 });

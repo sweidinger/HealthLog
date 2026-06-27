@@ -32,10 +32,10 @@
     "copy": "Kopieren",
     "copyDetails": "Details kopieren",
     "retry": "Erneut versuchen",
-    "reportIssue": "Fehler melden",
     "showPassword": "Passwort anzeigen",
     "hidePassword": "Passwort verbergen",
-    "learnMore": "Mehr erfahren"
+    "learnMore": "Mehr erfahren",
+    "dismiss": "Schließen"
   },
   "doctorReport": {
     "title": "Gesundheitsbericht",
@@ -204,7 +204,6 @@
     "insights": "Insights",
     "achievements": "Erfolge",
     "settings": "Einstellungen",
-    "bugreport": "Bugreport",
     "admin": "Admin-Konsole",
     "logout": "Abmelden",
     "login": "Anmelden",
@@ -263,7 +262,28 @@
     "passkeySetupLater": "Passkeys kannst du jederzeit in den Einstellungen einrichten.",
     "passwordMinLength": "Min. 12 Zeichen",
     "passwordTooShort": "Passwort muss mindestens {minLength} Zeichen lang sein.",
-    "privacyPolicy": "Datenschutzerklärung"
+    "privacyPolicy": "Datenschutzerklärung",
+    "passwordBreached": "Dieses Passwort taucht in bekannten Datenlecks auf. Bitte wähle ein anderes.",
+    "mfa": {
+      "title": "Zwei-Faktor-Authentifizierung",
+      "totpHint": "Gib den 6-stelligen Code aus deiner Authenticator-App ein.",
+      "recoveryHint": "Gib einen deiner gespeicherten Wiederherstellungscodes ein.",
+      "securityKeyHint": "Verwende deinen registrierten Sicherheitsschlüssel, um fortzufahren.",
+      "codeLabel": "Authentifizierungscode",
+      "recoveryLabel": "Wiederherstellungscode",
+      "verify": "Bestätigen",
+      "verifyFailed": "Bestätigung fehlgeschlagen. Bitte versuche es erneut.",
+      "useSecurityKey": "Sicherheitsschlüssel verwenden",
+      "useRecoveryCode": "Wiederherstellungscode verwenden",
+      "useAuthenticator": "Authenticator-App verwenden",
+      "backToLogin": "Zurück zur Anmeldung",
+      "rememberDevice": "Diesem Gerät 30 Tage vertrauen"
+    },
+    "enrollMfa": {
+      "title": "Zweiten Faktor einrichten",
+      "body": "Dein Administrator verlangt einen zweiten Faktor für dieses Konto. Füge eine Authenticator-App oder einen Sicherheitsschlüssel hinzu, um fortzufahren.",
+      "signOut": "Abmelden"
+    }
   },
   "dashboard": {
     "title": "Dashboard",
@@ -4057,7 +4077,12 @@
           },
           "fullBackup": {
             "title": "Voll-Backup",
-            "description": "Eine einzige JSON-Datei mit allen Daten — gleiches Format wie das wöchentliche Auto-Backup. Praktisch zum Selbst-Wiederherstellen via Admin-Upload."
+            "description": "Eine einzige JSON-Datei mit allen Daten — gleiches Format wie das wöchentliche Auto-Backup. Praktisch zum Selbst-Wiederherstellen via Admin-Upload.",
+            "encryptToggle": "Mit einer Passphrase verschlüsseln",
+            "passphrasePlaceholder": "Passphrase (mind. 12 Zeichen)",
+            "passphraseHelp": "Leitet den Archivschlüssel per Argon2id ab und versiegelt ihn mit AES-256-GCM. Speichere die Datei mit der Endung .hlx.",
+            "noRecoveryWarning": "Es gibt keine Wiederherstellung — geht diese Passphrase verloren, lässt sich das Archiv nicht mehr öffnen. Bewahre sie sicher auf.",
+            "stepUpNeeded": "Bestätige deinen zweiten Faktor und versuche es erneut."
           },
           "cycle": {
             "title": "Zyklus",
@@ -4197,6 +4222,15 @@
         "title": "Kanäle",
         "description": "Zustellung über Telegram, ntfy, Web-Push, Webhook und E-Mail.",
         "subtitle": "Wohin Erinnerungen und Hinweise zugestellt werden."
+      },
+      "security": {
+        "title": "Sicherheit",
+        "subtitle": "Zwei-Faktor-Authentifizierung, Wiederherstellungscodes und Passkeys."
+      },
+      "privacy": {
+        "title": "Daten & Datenschutz",
+        "subtitle": "Deine Daten, Aufbewahrung, Verschlüsselung und Kontosicherheit an einem Ort.",
+        "description": "Export, Löschung, Aufbewahrung, Verschlüsselungsstatus, Sitzungen und Sicherheitsaktivität."
       }
     },
     "profile": "Profil",
@@ -4968,7 +5002,153 @@
     "polarDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "ouraDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "nightscoutDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
-    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben."
+    "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben.",
+    "security": {
+      "sessionsTitle": "Aktive Sitzungen",
+      "sessionsDescription": "Geräte und Browser, die aktuell bei deinem Konto angemeldet sind.",
+      "sessionsLoadError": "Aktive Sitzungen konnten nicht geladen werden.",
+      "sessionsEmpty": "Keine aktiven Sitzungen.",
+      "currentSession": "Dieses Gerät",
+      "lastActive": "Zuletzt aktiv {time}",
+      "unknownLocation": "Unbekannter Ort",
+      "revokeSession": "Abmelden",
+      "revokeError": "Anfrage konnte nicht abgeschlossen werden. Bitte erneut versuchen.",
+      "signOutEverywhere": "Überall sonst abmelden",
+      "signOutEverywhereDone": "{count} andere Sitzung(en) abgemeldet.",
+      "activityTitle": "Sicherheitsaktivität",
+      "activityDescription": "Letzte Anmeldungen, Sicherheitsänderungen und Datenexporte deines Kontos.",
+      "activityEmpty": "Noch keine Sicherheitsaktivität.",
+      "activityLoadError": "Sicherheitsaktivität konnte nicht geladen werden.",
+      "action": {
+        "newDevice": "Anmeldung von neuem Gerät",
+        "loginFailed": "Fehlgeschlagene Anmeldung",
+        "login": "Anmeldung",
+        "passwordChange": "Passwort geändert",
+        "mfa": "Zwei-Faktor-Änderung",
+        "sessionRevoke": "Sitzung abgemeldet",
+        "token": "API-Token-Änderung",
+        "accountDelete": "Konto gelöscht",
+        "dataClear": "Daten zurückgesetzt",
+        "export": "Datenexport",
+        "other": "Sicherheitsereignis"
+      },
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "stepUpRequired": "Melde dich aus Sicherheitsgründen erneut an, um deinen zweiten Faktor zu ändern.",
+      "useRecoveryCode": "Stattdessen Wiederherstellungscode verwenden",
+      "useAuthenticator": "Stattdessen Authenticator-App verwenden",
+      "totp": {
+        "title": "Authenticator-App",
+        "description": "Verwende einen zeitbasierten Code aus einer Authenticator-App als zweiten Faktor.",
+        "setUp": "Einrichten",
+        "step1": "Scanne den QR-Code mit deiner Authenticator-App oder gib das Geheimnis manuell ein.",
+        "step2": "Gib zur Bestätigung den 6-stelligen Code aus der App ein.",
+        "qrAlt": "QR-Code zur Einrichtung der Authenticator-App",
+        "qrUnavailable": "QR-Code nicht verfügbar",
+        "manualEntry": "Oder gib dieses Geheimnis manuell ein",
+        "enterCode": "Gib den 6-stelligen Code ein",
+        "verify": "Bestätigen",
+        "setupFailed": "Einrichtung konnte nicht gestartet werden. Bitte versuche es erneut.",
+        "invalidCode": "Dieser Code ist ungültig. Bitte versuche es erneut.",
+        "disable": "Deaktivieren",
+        "disableTitle": "Zwei-Faktor-Authentifizierung deaktivieren",
+        "disableConfirm": "Gib einen aktuellen Code ein, um deinen zweiten Faktor abzuschalten. Damit werden auch deine Wiederherstellungscodes gelöscht.",
+        "currentCode": "Aktueller Code",
+        "disableFailed": "Der zweite Faktor konnte nicht deaktiviert werden."
+      },
+      "recovery": {
+        "saveNow": "Speichere diese Wiederherstellungscodes jetzt",
+        "saveNowHint": "Jeder Code funktioniert einmal. Sie werden nur dieses eine Mal angezeigt — bewahre sie sicher auf. Wenn du deine Authenticator-App verlierst, ist ein Wiederherstellungscode der einzige Weg zurück.",
+        "download": "Herunterladen",
+        "remainingOne": "{count} Wiederherstellungscode übrig.",
+        "remainingOther": "{count} Wiederherstellungscodes übrig.",
+        "regenerate": "Codes neu erzeugen",
+        "regenFailed": "Wiederherstellungscodes konnten nicht neu erzeugt werden.",
+        "savedIt": "Ich habe sie gespeichert",
+        "regenerateTitle": "Wiederherstellungscodes neu erzeugen?",
+        "regenerateConfirm": "Damit werden deine aktuellen Wiederherstellungscodes ersetzt. Deine bisherigen Codes funktionieren sofort nicht mehr, und der neue Satz wird nur einmal angezeigt."
+      },
+      "keys": {
+        "title": "Sicherheitsschlüssel",
+        "description": "Registriere einen Hardware- oder Plattform-Sicherheitsschlüssel als zweiten Faktor.",
+        "empty": "Noch keine Sicherheitsschlüssel registriert.",
+        "add": "Sicherheitsschlüssel hinzufügen",
+        "addFailed": "Der Sicherheitsschlüssel konnte nicht registriert werden.",
+        "rename": "Umbenennen",
+        "renameFailed": "Der Sicherheitsschlüssel konnte nicht umbenannt werden.",
+        "remove": "Sicherheitsschlüssel entfernen",
+        "removeFailed": "Der Sicherheitsschlüssel konnte nicht entfernt werden.",
+        "removeConfirm": "Dieser Sicherheitsschlüssel funktioniert dann nicht mehr als zweiter Faktor.",
+        "lastUsed": "Zuletzt verwendet {date}",
+        "neverUsed": "Noch nie verwendet",
+        "added": "hinzugefügt {date}",
+        "nameLabel": "Name des Sicherheitsschlüssels"
+      },
+      "passkeyNudge": {
+        "title": "Füge einen Passkey für schnellere Anmeldung hinzu",
+        "body": "Mit Passkeys meldest du dich per Fingerabdruck, Gesicht oder Geräte-PIN an — ohne Passwort zum Merken."
+      },
+      "trustedDevices": {
+        "title": "Vertrauenswürdige Geräte",
+        "description": "Browser, denen du vertraust, überspringen den zweiten Faktor für 30 Tage. Das Passwort wird weiterhin verlangt. Entziehe das Vertrauen, wenn du ein Gerät nicht kennst.",
+        "loadError": "Vertrauenswürdige Geräte konnten nicht geladen werden.",
+        "revokeError": "Gerät konnte nicht entfernt werden. Bitte erneut versuchen.",
+        "revoke": "Entfernen",
+        "revokeAll": "Alle Geräte vergessen",
+        "revokeAllDone": "{count} vertrauenswürdige(s) Gerät(e) entfernt.",
+        "unnamed": "Unbekanntes Gerät",
+        "current": "Dieses Gerät",
+        "expires": "Vertraut bis {date}"
+      }
+    },
+    "privacy": {
+      "intro": {
+        "title": "Deine Daten bleiben deine",
+        "body": "HealthLog wird selbst gehostet. Diese Seite fasst zusammen, wie deine Daten geschützt werden, wie lange sie gespeichert bleiben, wie du sie exportierst und wie du sie löschst."
+      },
+      "encryption": {
+        "title": "Verschlüsselt gespeichert",
+        "description": "Sensible Felder werden in der Datenbank verschlüsselt.",
+        "summary": "Deine sensiblen Daten werden mit {algorithm} verschlüsselt gespeichert – über {columns} Felder in {models} Datensatztypen.",
+        "statement": "Deine sensiblen Daten werden mit AES-256-GCM verschlüsselt gespeichert."
+      },
+      "stored": {
+        "title": "Was gespeichert wird",
+        "description": "Die Datenkategorien, die dieses Konto enthält.",
+        "measurements": "Messwerte (Gewicht, Blutdruck, Puls, Glukose, Schlaf, Körperzusammensetzung)",
+        "medications": "Medikamente und Einnahmeverlauf",
+        "moodLabs": "Stimmungseinträge und Laborwerte",
+        "coach": "Coach-Unterhaltungen",
+        "integrations": "Integrations-Tokens (verschlüsselt)",
+        "security": "Konto- und Sicherheitsaktivität (Sitzungen, Anmeldeprotokoll)"
+      },
+      "retention": {
+        "title": "Aufbewahrung",
+        "description": "Wie lange zeitgebundene Datensätze vor der automatischen Bereinigung gespeichert bleiben.",
+        "coach": "Coach-Unterhaltungen: {days} Tage",
+        "audit": "Sicherheitsprotokoll: {days} Tage",
+        "delivery": "Benachrichtigungsprotokoll: {days} Tage",
+        "unavailable": "Aufbewahrungsdetails sind derzeit nicht verfügbar."
+      },
+      "export": {
+        "title": "Meine Daten herunterladen",
+        "description": "Exportiere deine Datensätze als CSV oder JSON, optional passphrasen-verschlüsselt, oder erstelle eine vollständige Gesundheitsakte.",
+        "openExport": "Export & Backup",
+        "openHealthRecord": "Gesundheitsakte"
+      },
+      "delete": {
+        "title": "Löschen oder zurücksetzen",
+        "description": "Lösche dein Konto vollständig oder lösche deine Gesundheitsdaten und behalte das Konto.",
+        "backupLag": "Die Löschung entfernt deine Daten sofort. Verschlüsselte Off-Host-Backups enthalten sie weiterhin, bis sie aus dem Aufbewahrungsfenster des Betreibers herausfallen.",
+        "openAdvanced": "Löschen oder zurücksetzen"
+      },
+      "posture": {
+        "title": "Datenschutz-Einstellung",
+        "description": "Steuere, wie viele deiner Daten an KI-Funktionen und die freiwillige Forschung weitergegeben werden.",
+        "openAi": "KI-Datenschutzmodus",
+        "openResearch": "Forschungsmodus"
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5064,7 +5244,6 @@
     "webPushGlobal": "Browser-Push-Benachrichtigungen erlauben.",
     "moodLogGlobal": "moodLog-Erinnerungen erlauben.",
     "integrationWebPush": "Web Push",
-    "integrationBugReport": "Bug-Reports",
     "offlineGeoLabel": "Geodaten",
     "offlineGeoEnabled": "Offline (GeoLite2)",
     "offlineGeoFallback": "Fallback (ipwho.is) — MAXMIND_LICENSE_KEY in CI setzen",
@@ -5101,12 +5280,6 @@
     "configured": "Konfiguriert",
     "monitoringTestSuccess": "Testevent wurde gesendet",
     "monitoringTestFailed": "Monitoring-Test fehlgeschlagen",
-    "bugReportGithub": "Bugreport (GitHub Issues)",
-    "bugReportGithubDescription": "Hinterlege GitHub-Issue-Token und Repository für eingehende Bugreports.",
-    "bugReportEnabledLabel": "Bug-Reports aktiviert",
-    "bugReportEnabledDescription": "Wenn deaktiviert, ist der Report-Button im Frontend nicht mehr sichtbar — Token und Repository bleiben gespeichert.",
-    "bugReportDeprecatedBadge": "Veraltet",
-    "bugReportDeprecatedNote": "Diese Funktion ist veraltet und wird in einer künftigen Version entfernt.",
     "assistant": {
       "title": "Assistenz-Oberflächen",
       "description": "Jeder Toggle versteckt eine modellgestützte Oberfläche app-weit, ohne die Provider-Konfiguration zu entfernen. Der Hauptschalter erzwingt jede Unter-Option aus.",
@@ -5140,10 +5313,6 @@
       "description": "Schalte ein Modul für den gesamten Server ab. Ein hier deaktiviertes Modul ist für jedes Konto aus – unabhängig von den persönlichen Einstellungen. Kerndaten (Gewicht, Blutdruck, Puls, Medikamente) sind immer aktiv und lassen sich nicht abschalten.",
       "saveError": "Modulverfügbarkeit konnte nicht aktualisiert werden."
     },
-    "bugReportRepo": "Repository",
-    "bugReportRepoPlaceholder": "owner/repo",
-    "bugReportToken": "Issue-Token",
-    "bugReportTokenPlaceholder": "ghp_...",
     "invites": {
       "title": "Einladungen",
       "description": "Einladungslinks für die Registrierung — funktionieren auch bei geschlossener Registrierung. Der Link wird nur einmal angezeigt.",
@@ -5297,47 +5466,6 @@
     "reminderCheckNotifOff": "Benachrichtigungen aus",
     "reminderCheckEventsToday": "Heutige Events",
     "reminderCheckNotifSent": "Gesendet",
-    "feedback": {
-      "tabOpen": "Offen",
-      "tabAcknowledged": "Bestätigt",
-      "tabResolved": "Erledigt",
-      "tabArchived": "Archiviert",
-      "subject": "Betreff",
-      "category": "Kategorie",
-      "user": "Benutzer",
-      "createdAt": "Eingegangen",
-      "actions": "Aktionen",
-      "details": "Details",
-      "emptyTitle": "Alles erledigt",
-      "emptyDescription": "Kein Nutzer-Feedback in diesem Status. Bug-Reports, Fragen und Feature-Wünsche erscheinen hier.",
-      "loading": "Lade Feedback...",
-      "anonymous": "anonym",
-      "categoryBug": "Bug",
-      "categoryFeature": "Feature",
-      "categoryQuestion": "Frage",
-      "categoryOther": "Sonstiges",
-      "metadataHeading": "Metadaten",
-      "metaUrl": "URL",
-      "metaLocale": "Sprache",
-      "metaUserAgent": "User-Agent",
-      "metaAppVersion": "App-Version",
-      "screenshotHeading": "Screenshot",
-      "adminNote": "Admin-Notiz",
-      "adminNotePlaceholder": "Interne Notiz (nicht für Benutzer sichtbar)",
-      "saveNote": "Notiz speichern",
-      "noteSaved": "Notiz gespeichert",
-      "actionAcknowledge": "Bestätigen",
-      "actionResolve": "Erledigen",
-      "actionArchive": "Archivieren",
-      "actionPublishGithub": "Auf GitHub veröffentlichen",
-      "publishedToGithub": "Auf GitHub veröffentlicht",
-      "viewIssue": "Issue ansehen",
-      "publishSuccess": "Issue erstellt",
-      "publishFailed": "GitHub-Veröffentlichung fehlgeschlagen",
-      "updateFailed": "Aktualisierung fehlgeschlagen",
-      "archiveConfirm": "Diesen Feedback-Eintrag archivieren?",
-      "submittedBy": "Eingereicht von"
-    },
     "shell": {
       "overview": "Übersicht",
       "sectionsNav": "Admin-Bereiche"
@@ -5389,10 +5517,6 @@
       "coach": {
         "title": "Coach",
         "subtitle": "Assistenz-Oberflächen, Server-Schlüssel sowie die Feedback-Qualitäts-Tabellen für Coach und Auswertungen an einem Ort."
-      },
-      "feedback": {
-        "title": "Feedback",
-        "subtitle": "Feedback, Bug-Reports und Feature-Wünsche der Nutzer sichten."
       },
       "reminders": {
         "title": "Erinnerungen",
@@ -5521,10 +5645,55 @@
       "module-availability": {
         "title": "Module",
         "subtitle": "Module für jedes Konto auf diesem Server aktivieren oder deaktivieren."
+      },
+      "encryption": {
+        "title": "Verschlüsselung",
+        "subtitle": "Verschlüsselungsabdeckung und Schlüsselrotations-Status für ruhende Daten.",
+        "loading": "Verschlüsselungsstatus wird geladen...",
+        "loadError": "Verschlüsselungsstatus konnte nicht geladen werden.",
+        "coverageTitle": "Abdeckung",
+        "coverageDescription": "Wie viele verschlüsselte Zeilen unter welcher Schlüssel-ID liegen. Es werden nur Schlüssel-IDs und Anzahlen gezeigt — niemals Schlüsselmaterial.",
+        "activeKeyId": "Aktive Schlüssel-ID",
+        "configuredKeys": "Konfigurierte Schlüssel",
+        "totalRows": "Verschlüsselte Zeilen",
+        "staleRows": "Zeilen nicht auf dem aktiven Schlüssel",
+        "safeToDropLegacy": "Alter Schlüssel kann entfernt werden",
+        "rotationIncomplete": "{count} Zeilen brauchen noch eine Rotation",
+        "rotationTitle": "Schlüsselrotation",
+        "rotationDescription": "Jede verschlüsselte Spalte auf den aktiven Schlüssel neu verschlüsseln. Das Kommandozeilen-Werkzeug bleibt der kanonische Weg; dieser Auslöser ist eine Bequemlichkeit.",
+        "rotationState": "Status",
+        "lastRun": "Letzter Lauf: {scanned} geprüft, {rotated} rotiert, {errors} Fehler.",
+        "rotateNow": "Jetzt rotieren",
+        "rotateConfirmTitle": "Den gesamten Datensatz neu verschlüsseln?",
+        "rotateConfirmDescription": "Verschlüsselt jede verschlüsselte Spalte auf den aktiven Schlüssel neu. Es wird nie ein Schlüssel hinzugefügt oder entfernt, und ein erneuter Lauf ist sicher. Bei großen Konten kann das eine Weile dauern.",
+        "cancel": "Abbrechen",
+        "rotateConfirm": "Rotation starten",
+        "rotateEnqueued": "Rotation gestartet.",
+        "rotateFailed": "Rotation konnte nicht gestartet werden.",
+        "stepUpNeeded": "Ein frischer zweiter Faktor ist erforderlich. Bestätige deinen zweiten Faktor oder nutze das Kommandozeilen-Werkzeug, falls kein zweiter Faktor eingerichtet ist.",
+        "cliNote": "Für diesen Knopf ist ein zweiter Faktor nötig. Betreiber ohne zweiten Faktor rotieren mit scripts/rotate-encryption-key.ts.",
+        "columnsTitle": "Abdeckung pro Spalte",
+        "columnsDescription": "Jede verschlüsselte Spalte mit ihren Zeilenzahlen auf dem aktiven Schlüssel gegenüber älteren Schlüsseln.",
+        "colColumn": "Spalte",
+        "colTotal": "Gesamt",
+        "colActive": "Auf aktivem Schlüssel",
+        "colStale": "Veraltet",
+        "state": {
+          "idle": "Bereit",
+          "running": "Läuft",
+          "completed": "Abgeschlossen",
+          "failed": "Fehlgeschlagen"
+        }
       }
     },
     "carrier": "Anbieter",
-    "carrierUnavailableGeoFallback": "{location} — Anbieter nicht verfügbar"
+    "carrierUnavailableGeoFallback": "{location} — Anbieter nicht verfügbar",
+    "mfaRequired": "Zweiten Faktor verlangen",
+    "mfaRequiredDescription": "Jedes Konto ohne aktiven zweiten Faktor wird nach der Anmeldung zur Einrichtung geleitet. Das fordert Web-Nutzer zur Einrichtung auf – es blockiert jedoch keinen direkten API- oder nativen (Bearer-)Zugriff für noch nicht eingerichtete Konten.",
+    "mfaEnforcedOn": "MFA an",
+    "mfaEnforcedOff": "MFA aus",
+    "mfaEnforcedOnHint": "Für diesen Nutzer ist ein zweiter Faktor erforderlich. Klicken, um die Anforderung aufzuheben.",
+    "mfaEnforcedOffHint": "Einen zweiten Faktor für diesen Nutzer verlangen."
   },
   "achievements": {
     "title": "Erfolge",
@@ -5582,10 +5751,6 @@
       "passwordLogin1": {
         "title": "Oldschool",
         "description": "Melde dich mindestens einmal mit Username und Passwort an."
-      },
-      "bugReport1": {
-        "title": "Fehlerjäger",
-        "description": "Reiche einen Bugreport ein."
       },
       "loginStreak7": {
         "title": "Login-Serie 7T",
@@ -5775,10 +5940,6 @@
         "title": "Polyglott",
         "description": "Du hast die App-Sprache mindestens einmal gewechselt."
       },
-      "hiddenBugBuddy": {
-        "title": "Bug-Kumpel",
-        "description": "Mindestens 5 Bugreports eingereicht — das Projekt liebt dich."
-      },
       "missFree7": {
         "title": "Lückenlos · 7T",
         "description": "7 Tage in Folge ohne eine verpasste Dosis."
@@ -5830,26 +5991,6 @@
       "viewAll": "Alle anzeigen",
       "empty": "Noch keine Erfolge — trage weiter ein, um deinen ersten freizuschalten."
     }
-  },
-  "bugreport": {
-    "title": "Bugreport",
-    "subtitle": "Sende eine Fehlermeldung, einen Feature-Wunsch oder eine Frage. Der Server-Administrator sieht deine Einreichung.",
-    "loginRequired": "Bitte anmelden, um einen Bug zu melden.",
-    "bugTitle": "Titel",
-    "description": "Beschreibung",
-    "submit": "Senden",
-    "success": "Vielen Dank! Dein Bug Report wurde erfolgreich übermittelt.",
-    "errorCreating": "Fehler beim Erstellen",
-    "category": "Art",
-    "categoryBug": "Fehlermeldung",
-    "categoryFeature": "Feature-Wunsch",
-    "categoryQuestion": "Frage",
-    "categoryOther": "Sonstiges Feedback",
-    "bugTitlePlaceholder": "Kurze Zusammenfassung (optional)",
-    "githubEscalationNote": "Dein Feedback wird lokal gespeichert. Wenn der Administrator die GitHub-Integration aktiviert, kann es auf Wunsch als öffentliches Issue veröffentlicht werden.",
-    "internalOnlyNote": "Dein Feedback wird lokal gespeichert und ist nur für den Administrator dieses Servers sichtbar.",
-    "disabledTitle": "Bug-Reports sind deaktiviert",
-    "disabledBody": "Der Administrator hat Bug-Reports auf diesem Server deaktiviert."
   },
   "notifications": {
     "title": "Benachrichtigungen",
@@ -5955,7 +6096,13 @@
     "eventMeasurementReminder": "Mess-Erinnerung",
     "eventMeasurementReminderDesc": "Wird gesendet, wenn eine erfasste Messung fällig ist.",
     "eventMedicationIntakeSync": "Einnahme-Synchronisierung",
-    "eventMedicationIntakeSyncDesc": "Geräteübergreifende Aktualisierung, wenn eine Dosis protokolliert, eingenommen oder übersprungen wird."
+    "eventMedicationIntakeSyncDesc": "Geräteübergreifende Aktualisierung, wenn eine Dosis protokolliert, eingenommen oder übersprungen wird.",
+    "security": {
+      "newDeviceTitle": "Neue Anmeldung bei deinem Konto",
+      "newDeviceBody": "Eine neue Anmeldung von {device} ({location}). Falls du das nicht warst, ändere sofort dein Passwort.",
+      "unknownLocation": "unbekannter Ort"
+    },
+    "loginRequired": "Bitte melde dich an, um Benachrichtigungen zu verwalten."
   },
   "i18n": {
     "maintainershipBanner": {

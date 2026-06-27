@@ -18,6 +18,15 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(),
 }));
 
+// v1.23 — deterministic note-cipher so the route test stays isolated from the
+// encryption-key env. `enc:<text>` stands in for the AES-256-GCM ciphertext.
+vi.mock("@/lib/crypto/note-cipher", () => ({
+  encryptNote: (s: string | null | undefined) =>
+    s === null || s === undefined || s.length === 0
+      ? null
+      : new Uint8Array(Buffer.from(`enc:${s}`, "utf8")),
+}));
+
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
 }));

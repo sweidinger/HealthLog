@@ -34,6 +34,7 @@ import { consentPaths } from "./consent";
 import { cyclePaths } from "./cycle";
 import { biomarkerPaths } from "./biomarkers";
 import { devicePaths } from "./devices";
+import { exportPaths } from "./export";
 import { healthRecordPaths } from "./health-record";
 import { illnessPaths } from "./illness";
 import { importPaths } from "./import";
@@ -55,6 +56,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...cyclePaths,
   ...metaPaths,
   ...healthRecordPaths,
+  ...exportPaths,
   ...authPaths,
   ...syncPaths,
   ...measurementPaths,

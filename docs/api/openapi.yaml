@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.22.1
+  version: 1.23.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -1349,13 +1349,49 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/export/encrypted:
+    post:
+      tags:
+        - Export
+      summary: Download the full backup as a passphrase-encrypted archive
+      description: v1.23. Same restore-compatible payload as the plaintext full backup, sealed into an `HLX1` archive
+        (Argon2id-derived key + AES-256-GCM) under the supplied `passphrase`. Returns `application/octet-stream` (a
+        `.hlx` file). When the account has a second factor enrolled, the call is step-up gated (`requireFreshMfa`,
+        cookie-only) and returns 401 `auth.stepup.required` without a fresh factor; single-factor accounts use a normal
+        session or Bearer. Shared `export:<userId>` rate bucket (10/h). The passphrase is never stored — a forgotten
+        passphrase makes the archive unrecoverable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EncryptedExportRequest"
+      responses:
+        "200":
+          description: Encrypted archive. `application/octet-stream`; the body is the `HLX1` binary (magic | version | Argon2
+            params | salt | iv | tag | ciphertext).
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/auth/login:
     post:
       tags:
         - Auth
       summary: Email-or-username login (password)
-      description: "Browser callers receive a session cookie. Native callers (X-Client-Type: native or HealthLog-iOS UA
-        prefix) additionally receive a paired access + refresh token."
+      description: >-
+        Browser callers receive a session cookie. Native callers (X-Client-Type: native or HealthLog-iOS UA prefix)
+        additionally receive a paired access + refresh token.
+
+
+        v1.23 — when the account has a confirmed second factor, the response carries no session/token. It returns HTTP
+        200 with `data: null, error: null` and `meta.mfaRequired: true` plus a single-use `meta.mfaTicket` and the
+        `meta.methods` list. The client must POST the ticket + a code to `/api/auth/mfa/verify` to obtain the token
+        bundle. Accounts without MFA are unchanged.
       requestBody:
         required: true
         content:
@@ -1374,11 +1410,263 @@ paths:
                 - password
       responses:
         "200":
-          description: Login succeeded.
+          description: Login succeeded (token bundle / cookie) — or a second factor is required (`meta.mfaRequired`).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LoginResponse"
+                anyOf:
+                  - $ref: "#/components/schemas/LoginResponse"
+                  - $ref: "#/components/schemas/MfaRequiredResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/mfa/verify:
+    post:
+      tags:
+        - Auth
+      summary: Complete a second-factor login challenge
+      description: Presents the `mfaTicket` from the login `meta.mfaRequired` response plus a TOTP or recovery code. On
+        success returns the SAME token bundle / session the password path issues, with the session marked
+        second-factor-verified. The ticket is single-use; wrong codes are throttled and the ticket is burned at the
+        attempt cap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaVerifyRequest"
+      responses:
+        "200":
+          description: Second factor verified — session + optional bearer issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaVerifyResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/totp/setup:
+    post:
+      tags:
+        - Auth
+      summary: Begin TOTP enrollment (cookie session only)
+      description: Generates and stores a pending (encrypted) TOTP secret and returns the otpauth URI + Base32 secret. MFA is
+        not active until /confirm. Cookie-only — a Bearer token cannot enrol MFA.
+      responses:
+        "200":
+          description: Pending secret created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpSetupEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/totp/confirm:
+    post:
+      tags:
+        - Auth
+      summary: Confirm TOTP enrollment (cookie session only)
+      description: Verifies a code against the pending secret, activates the factor, and returns the one-time recovery codes.
+        Cookie-only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  pattern: ^\d{6}$
+              required:
+                - code
+      responses:
+        "200":
+          description: Factor activated — recovery codes returned once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpConfirmEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/disable:
+    post:
+      tags:
+        - Auth
+      summary: Disable the second factor (step-up gated)
+      description: Requires a fresh second-factor step-up (cookie session) AND a current TOTP or recovery code. Clears the
+        secret and deletes recovery codes. Bearer can never satisfy the step-up gate.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaDisableRequest"
+      responses:
+        "200":
+          description: Factor disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaDisableEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/recovery-codes/regenerate:
+    post:
+      tags:
+        - Auth
+      summary: Regenerate recovery codes (step-up gated)
+      description: Invalidates the entire prior recovery-code set and returns a fresh batch once. Step-up gated; Bearer can
+        never satisfy the gate.
+      responses:
+        "200":
+          description: Fresh recovery codes issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaRecoveryRegenEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa:
+    get:
+      tags:
+        - Auth
+      summary: Second-factor status (cookie session only)
+      description: Whether TOTP is active, how many recovery codes remain, and the registered WebAuthn security keys. Metadata
+        only — no secret, code, or public key. Cookie-only.
+      responses:
+        "200":
+          description: Second-factor status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaStatusEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/webauthn/register/options:
+    post:
+      tags:
+        - Auth
+      summary: Begin registering a security key as a second factor
+      description: Returns SimpleWebAuthn creation options + a challenge id. Cookie-only — a Bearer token cannot enrol MFA.
+      responses:
+        "200":
+          description: Registration options issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnRegisterOptionsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/webauthn/register/verify:
+    post:
+      tags:
+        - Auth
+      summary: Finish registering a security key as a second factor
+      description: Verifies the attestation against the user-bound challenge and stores the credential in the second-factor
+        store (separate from primary passkeys). Cookie-only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaWebauthnRegisterVerifyRequest"
+      responses:
+        "200":
+          description: Security key registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnRegisterVerifyEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/mfa/webauthn/{id}:
+    patch:
+      tags:
+        - Auth
+      summary: Rename a registered security key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaWebauthnRenameRequest"
+      responses:
+        "200":
+          description: Security key renamed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnRenameEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Auth
+      summary: Remove a registered security key (step-up gated)
+      description: Requires a fresh second-factor step-up (cookie session). Bearer can never satisfy the gate.
+      responses:
+        "200":
+          description: Security key removed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnRemoveEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/mfa/webauthn/verify/options:
+    post:
+      tags:
+        - Auth
+      summary: Begin a mid-login security-key assertion
+      description: Presents the login `mfaTicket` and returns assertion options scoped to the password-identified user's
+        registered security keys. Anonymous surface; rate-limited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaWebauthnLoginOptionsRequest"
+      responses:
+        "200":
+          description: Assertion options issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnLoginOptionsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/mfa/webauthn/verify:
+    post:
+      tags:
+        - Auth
+      summary: Complete a security-key second-factor login challenge
+      description: Presents the login `mfaTicket` plus the assertion. On success returns the SAME token bundle / session the
+        password path issues, with the session marked second-factor-verified. The ticket is single-use; failures are
+        throttled and the ticket is burned at the attempt cap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaWebauthnLoginVerifyRequest"
+      responses:
+        "200":
+          description: Second factor verified — session + optional bearer issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaWebauthnVerifyResponse"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -1431,6 +1719,135 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RefreshResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/sessions:
+    get:
+      tags:
+        - Auth
+      summary: List active web sessions
+      description: "v1.23 — the user-facing active-session list (issue #64). One row per browser login with a coarse device
+        label, masked IP, resolved location, sliding last-active time, and the current-session marker. Distinct from
+        /api/auth/me/devices (notification devices)."
+      responses:
+        "200":
+          description: Active sessions for the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionListEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Auth
+      summary: Sign out everywhere else
+      description: v1.23 — revokes every OTHER web session plus all native refresh tokens, keeping the caller's current
+        session. API tokens are not touched (manage those under /settings/api-tokens).
+      responses:
+        "200":
+          description: Other sessions revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignOutEverywhereEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/sessions/{id}:
+    delete:
+      tags:
+        - Auth
+      summary: Revoke a single web session
+      description: v1.23 — revokes one session by id, scoped to the authenticated user (a foreign id returns 404, never
+        another user's row).
+      responses:
+        "200":
+          description: Session revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionRevokeEnvelope"
+        "401": *a1
+        "404":
+          description: Session not found or not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/auth/me/trusted-devices:
+    get:
+      tags:
+        - Auth
+      summary: List trusted devices
+      description: v1.23 — the 'remember this device' list. A trusted device skips the second factor for 30 days (the password
+        is still required). Returns only an IP-free device label + lifecycle timestamps, never the token.
+      responses:
+        "200":
+          description: Trusted devices for the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustedDeviceListEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Auth
+      summary: Forget every trusted device
+      description: v1.23 — revokes all trusted devices for the caller and clears the caller's own trusted-device cookie.
+      responses:
+        "200":
+          description: All trusted devices revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustedDeviceRevokeAllEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/me/trusted-devices/{id}:
+    delete:
+      tags:
+        - Auth
+      summary: Revoke a single trusted device
+      description: v1.23 — revokes one trusted device by id, scoped to the authenticated user (a foreign id returns 404).
+      responses:
+        "200":
+          description: Trusted device revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustedDeviceRevokeEnvelope"
+        "401": *a1
+        "404":
+          description: Trusted device not found or not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/auth/me/security-activity:
+    get:
+      tags:
+        - Auth
+      summary: List recent account-security activity
+      description: "v1.23 — the SHARED security-activity feed: the caller's recent auth + export + deletion audit events with
+        timestamp, resolved location, and a host-masked IP. `limit` query param caps at 100 (default 50). Reuses the
+        AuditLog store; no event detail bodies are surfaced."
+      responses:
+        "200":
+          description: Recent security events for the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityActivityEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -7492,6 +7909,171 @@ paths:
         "429": *a4
 components:
   schemas:
+    EncryptedExportRequest:
+      type: object
+      properties:
+        passphrase:
+          type: string
+          minLength: 12
+          maxLength: 1024
+          description: User-chosen passphrase (>= 12 chars). Derives the archive key via Argon2id; never stored, never logged, no
+            server-side recovery.
+      required:
+        - passphrase
+    MfaVerifyRequest:
+      type: object
+      properties:
+        mfaTicket:
+          type: string
+          minLength: 1
+          description: The opaque single-use ticket from the login response.
+        method:
+          default: totp
+          type: string
+          enum:
+            - totp
+            - recovery
+        code:
+          type: string
+          minLength: 6
+          maxLength: 32
+        rememberDevice:
+          description: Opt in to trusting this device for 30 days — subsequent logins skip the second factor (the password is
+            still required).
+          type: boolean
+      required:
+        - mfaTicket
+        - code
+      description: Complete a second-factor login challenge and receive the same token bundle the password path issues.
+    MfaDisableRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 32
+        method:
+          default: totp
+          type: string
+          enum:
+            - totp
+            - recovery
+      required:
+        - code
+      description: Disable the second factor. Requires fresh step-up plus a current TOTP or recovery code.
+    MfaWebauthnRegisterVerifyRequest:
+      type: object
+      properties:
+        challengeId:
+          type: string
+          minLength: 1
+        credential:
+          type: object
+          properties:
+            id:
+              type: string
+            rawId:
+              type: string
+            type:
+              type: string
+              const: public-key
+            response:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+            authenticatorAttachment:
+              type: string
+              enum:
+                - platform
+                - cross-platform
+            clientExtensionResults:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+          required:
+            - id
+            - rawId
+            - type
+            - response
+          description: SimpleWebAuthn ceremony response payload.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+        - challengeId
+        - credential
+      description: Finish registering a WebAuthn security key as a second factor.
+    MfaWebauthnRenameRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+        - name
+    MfaWebauthnLoginOptionsRequest:
+      type: object
+      properties:
+        mfaTicket:
+          type: string
+          minLength: 1
+          description: The opaque single-use ticket from the login response.
+      required:
+        - mfaTicket
+    MfaWebauthnLoginVerifyRequest:
+      type: object
+      properties:
+        mfaTicket:
+          type: string
+          minLength: 1
+        challengeId:
+          type: string
+          minLength: 1
+        credential:
+          type: object
+          properties:
+            id:
+              type: string
+            rawId:
+              type: string
+            type:
+              type: string
+              const: public-key
+            response:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+            authenticatorAttachment:
+              type: string
+              enum:
+                - platform
+                - cross-platform
+            clientExtensionResults:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+          required:
+            - id
+            - rawId
+            - type
+            - response
+          description: SimpleWebAuthn ceremony response payload.
+        rememberDevice:
+          description: Opt in to trusting this device for 30 days — subsequent logins skip the second factor (the password is
+            still required).
+          type: boolean
+      required:
+        - mfaTicket
+        - challengeId
+        - credential
+      description: Complete a second-factor login challenge with a WebAuthn security key and receive the same token bundle the
+        password path issues.
     PasskeyLoginVerifyRequest:
       type: object
       properties:
@@ -10660,6 +11242,361 @@ components:
         - tokenExpiresAt
       additionalProperties: false
       description: Native-client token bundle returned by login + refresh. Web cookie-only callers see only `user`.
+    MfaRequiredResponse:
+      type: object
+      properties:
+        data:
+          type: "null"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            mfaRequired:
+              type: boolean
+              const: true
+            mfaTicket:
+              type: string
+              description: Opaque, single-use, ~5-minute ticket to present to /api/auth/mfa/verify.
+            methods:
+              type: array
+              items:
+                type: string
+                enum:
+                  - totp
+                  - recovery
+                  - webauthn
+              description: Second factors the account can complete the challenge with. `webauthn` is completed via
+                /api/auth/mfa/webauthn/verify; the rest via /api/auth/mfa/verify.
+          required:
+            - mfaRequired
+            - mfaTicket
+            - methods
+          additionalProperties: false
+      required:
+        - data
+        - error
+        - meta
+      additionalProperties: false
+      description: Password accepted but a second factor is required. Not an error and not a session — no token is issued
+        until /api/auth/mfa/verify succeeds.
+    MfaVerifyResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AccessRefreshBundle"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TotpSetupEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TotpSetupResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TotpSetupResponse:
+      type: object
+      properties:
+        otpauthUri:
+          type: string
+          description: otpauth:// URI to render as a QR code (carries the secret).
+        totpSecret:
+          type: string
+          description: Base32 secret for manual entry. Pending until confirmed.
+      required:
+        - otpauthUri
+        - totpSecret
+      additionalProperties: false
+    TotpConfirmEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MfaRecoveryCodesResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaRecoveryCodesResponse:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        recoveryCodes:
+          type: array
+          items:
+            type: string
+          description: Single-use recovery codes, shown once. Save them now.
+        recoveryCodesRemaining:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - recoveryCodes
+        - recoveryCodesRemaining
+      additionalProperties: false
+    MfaDisableEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MfaToggleResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaToggleResponse:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+      required:
+        - enabled
+      additionalProperties: false
+    MfaRecoveryRegenEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MfaRecoveryCodesResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaStatusEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MfaStatusResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaStatusResponse:
+      type: object
+      properties:
+        totp:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+          required:
+            - enabled
+          additionalProperties: false
+        recoveryCodesRemaining:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        webauthn:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebauthnMfaCredentialInfo"
+        passkeyNudgeDismissed:
+          type: boolean
+      required:
+        - totp
+        - recoveryCodesRemaining
+        - webauthn
+        - passkeyNudgeDismissed
+      additionalProperties: false
+    WebauthnMfaCredentialInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        lastUsedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+      required:
+        - id
+        - name
+        - createdAt
+        - lastUsedAt
+      additionalProperties: false
+    MfaWebauthnRegisterOptionsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebauthnOptionsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    WebauthnOptionsResponse:
+      type: object
+      properties:
+        options:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+          description: SimpleWebAuthn options to pass to the browser ceremony.
+        challengeId:
+          type: string
+          description: Server-issued challenge id.
+      required:
+        - options
+        - challengeId
+      additionalProperties: false
+    MfaWebauthnRegisterVerifyEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebauthnMfaCredentialInfo"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaWebauthnRenameEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebauthnMfaCredentialInfo"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaWebauthnRemoveEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AuthSuccessFlagResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    AuthSuccessFlagResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+      additionalProperties: false
+    MfaWebauthnLoginOptionsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebauthnOptionsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MfaWebauthnVerifyResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AccessRefreshBundle"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     PasskeyLoginVerifyResponse:
       type: object
       properties:
@@ -10693,6 +11630,283 @@ components:
       required:
         - data
         - error
+      additionalProperties: false
+    SessionListEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SessionListResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SessionListResponse:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              device:
+                type: string
+                description: Coarse device label derived from the User-Agent.
+              ipMasked:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: IP with the host portion masked — never the full address.
+              location:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: Resolved coarse location, when available.
+              lastActiveAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                  - type: "null"
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              isCurrent:
+                type: boolean
+                description: True for the session making this request.
+            required:
+              - id
+              - device
+              - ipMasked
+              - location
+              - lastActiveAt
+              - createdAt
+              - isCurrent
+            additionalProperties: false
+      required:
+        - sessions
+      additionalProperties: false
+    SignOutEverywhereEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SignOutEverywhereResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SignOutEverywhereResponse:
+      type: object
+      properties:
+        sessionsRevoked:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Number of OTHER sessions removed (the current one is kept).
+      required:
+        - sessionsRevoked
+      additionalProperties: false
+    SessionRevokeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            revoked:
+              type: boolean
+          required:
+            - revoked
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TrustedDeviceListEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TrustedDeviceListResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TrustedDeviceListResponse:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              label:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: Coarse, IP-free device label (e.g. 'Firefox on macOS').
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              lastUsedAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              expiresAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              isCurrent:
+                type: boolean
+                description: True for the device making this request.
+            required:
+              - id
+              - label
+              - createdAt
+              - lastUsedAt
+              - expiresAt
+              - isCurrent
+            additionalProperties: false
+      required:
+        - devices
+      additionalProperties: false
+    TrustedDeviceRevokeAllEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            revoked:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - revoked
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    TrustedDeviceRevokeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            revoked:
+              type: boolean
+          required:
+            - revoked
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SecurityActivityEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SecurityActivityResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SecurityActivityResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+                description: Audit action name, e.g. auth.login.password.
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              location:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              ipMasked:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: Host-masked IP.
+              carrier:
+                anyOf:
+                  - type: string
+                  - type: "null"
+            required:
+              - action
+              - createdAt
+              - location
+              - ipMasked
+              - carrier
+            additionalProperties: false
+      required:
+        - events
       additionalProperties: false
     SyncStateEnvelope:
       type: object

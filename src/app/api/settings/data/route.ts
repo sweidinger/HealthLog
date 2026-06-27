@@ -2,7 +2,11 @@ import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
 import { NextRequest } from "next/server";
-import { apiHandler, requireAuth } from "@/lib/api-handler";
+import {
+  apiHandler,
+  requireFreshMfaIfEnrolled,
+  MFA_STEP_UP_MAX_AGE_SECONDS,
+} from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { invalidateUserData } from "@/lib/cache/invalidate";
 
@@ -10,9 +14,13 @@ export const dynamic = "force-dynamic";
 
 /**
  * Delete all user-owned health/integration data while keeping the account.
+ *
+ * v1.23 — gated by a fresh step-up for MFA-enrolled accounts (see the account
+ * deletion route); single-factor accounts keep the typed-confirmation-only
+ * contract.
  */
 export const DELETE = apiHandler(async (request: NextRequest) => {
-  const { user } = await requireAuth();
+  const { user } = await requireFreshMfaIfEnrolled(MFA_STEP_UP_MAX_AGE_SECONDS);
 
   let confirm = "";
   try {

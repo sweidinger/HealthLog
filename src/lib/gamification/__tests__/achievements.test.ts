@@ -25,7 +25,6 @@ const FULL_METRICS: AchievementMetrics = {
   passkeyLoginCount: 1000,
   passwordLoginCount: 1000,
   loginDayStreak: 1000,
-  bugReportCount: 1000,
   moodEntryCount: 1000,
   moodDayStreak: 1000,
   moodImprovementHit: 1000,
@@ -91,8 +90,8 @@ describe("gamification achievements", () => {
     ).toBe(3);
   });
 
-  it("ships the expanded definition list (65 total — v1.4.18 + v1.16.1 care routine)", () => {
-    expect(ACHIEVEMENT_DEFINITIONS).toHaveLength(65);
+  it("ships the expanded definition list (63 total — v1.4.18 + v1.16.1 care routine)", () => {
+    expect(ACHIEVEMENT_DEFINITIONS).toHaveLength(63);
   });
 
   it("includes mood and hidden categories in the render order", () => {
@@ -103,8 +102,8 @@ describe("gamification achievements", () => {
   it("evaluates unlocked achievements and points when all metrics maxed", () => {
     const result = evaluateAchievementsWithCompletionDates(FULL_METRICS, {});
 
-    expect(result.summary.unlockedCount).toBe(65);
-    expect(result.summary.totalCount).toBe(65);
+    expect(result.summary.unlockedCount).toBe(63);
+    expect(result.summary.totalCount).toBe(63);
     expect(result.summary.nextAchievement).toBeNull();
     expect(result.summary.earnedPoints).toBe(result.summary.totalPoints);
   });

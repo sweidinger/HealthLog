@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, CheckCircle2, RotateCcw, Bug } from "lucide-react";
-import Link from "next/link";
+import { Copy, CheckCircle2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
-import { useAppSettings } from "@/components/app-settings-provider";
 
 export interface ErrorDetailsProps {
   /** The error object, whether it's a runtime Error or a typed API error. */
@@ -16,8 +14,6 @@ export interface ErrorDetailsProps {
   requestId?: string | null;
   /** Extra fields to include in the diagnostic payload. */
   context?: Record<string, unknown>;
-  /** Override the "Report bug" link target. */
-  reportHref?: string;
 }
 
 /**
@@ -30,10 +26,8 @@ export function ErrorDetails({
   reset,
   requestId,
   context,
-  reportHref = "/bugreport",
 }: ErrorDetailsProps) {
   const { t, locale } = useTranslations();
-  const { bugReportEnabled } = useAppSettings();
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -102,14 +96,6 @@ export function ErrorDetails({
           )}
           {copied ? t("common.copied") : t("common.copyDetails")}
         </Button>
-        {bugReportEnabled && (
-          <Button asChild variant="outline">
-            <Link href={reportHref}>
-              <Bug className="h-4 w-4" />
-              {t("common.reportIssue")}
-            </Link>
-          </Button>
-        )}
       </div>
     </div>
   );

@@ -33,6 +33,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Extra-small breakpoint (30rem / 480px) for the narrowest phones — the
+     default scale starts at sm (640px), which leaves a gap between an iPhone SE
+     and a small tablet where two-up grids of fixed-width content overflow. */
+  --breakpoint-xs: 30rem;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);

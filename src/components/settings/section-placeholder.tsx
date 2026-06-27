@@ -24,10 +24,12 @@ import {
   Layers,
   LayoutDashboard,
   Link2,
+  Lock,
   Pill,
   Radio,
   Settings2,
   Share2,
+  ShieldCheck,
   SlidersHorizontal,
   Smile,
   Sparkles,
@@ -43,6 +45,7 @@ import type { SettingsSectionSlug } from "./section-slugs";
 
 const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   account: User,
+  security: ShieldCheck,
   modules: Blocks,
   integrations: Link2,
   channels: Radio,
@@ -64,6 +67,7 @@ const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   sharing: Share2,
   export: Download,
   advanced: Settings2,
+  privacy: Lock,
   about: Info,
 };
 

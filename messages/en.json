@@ -32,10 +32,10 @@
     "copy": "Copy",
     "copyDetails": "Copy details",
     "retry": "Retry",
-    "reportIssue": "Report issue",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
-    "learnMore": "Learn more"
+    "learnMore": "Learn more",
+    "dismiss": "Dismiss"
   },
   "doctorReport": {
     "title": "Health Report",
@@ -204,7 +204,6 @@
     "insights": "Insights",
     "achievements": "Achievements",
     "settings": "Settings",
-    "bugreport": "Bug Report",
     "admin": "Admin Console",
     "logout": "Sign out",
     "login": "Sign in",
@@ -263,7 +262,28 @@
     "passkeySetupLater": "You can set up passkeys at any time in Settings.",
     "passwordMinLength": "Min. 12 characters",
     "passwordTooShort": "Password must be at least {minLength} characters long.",
-    "privacyPolicy": "Privacy policy"
+    "privacyPolicy": "Privacy policy",
+    "passwordBreached": "This password has appeared in known data breaches. Please choose a different one.",
+    "mfa": {
+      "title": "Two-factor authentication",
+      "totpHint": "Enter the 6-digit code from your authenticator app.",
+      "recoveryHint": "Enter one of your saved recovery codes.",
+      "securityKeyHint": "Use your registered security key to continue.",
+      "codeLabel": "Authentication code",
+      "recoveryLabel": "Recovery code",
+      "verify": "Verify",
+      "verifyFailed": "Verification failed. Please try again.",
+      "useSecurityKey": "Use a security key",
+      "useRecoveryCode": "Use a recovery code",
+      "useAuthenticator": "Use your authenticator app",
+      "backToLogin": "Back to login",
+      "rememberDevice": "Trust this device for 30 days"
+    },
+    "enrollMfa": {
+      "title": "Set up a second factor",
+      "body": "Your administrator requires a second factor on this account. Add an authenticator app or a security key to continue.",
+      "signOut": "Sign out"
+    }
   },
   "dashboard": {
     "title": "Dashboard",
@@ -4057,7 +4077,12 @@
           },
           "fullBackup": {
             "title": "Full backup",
-            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload."
+            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload.",
+            "encryptToggle": "Encrypt with a passphrase",
+            "passphrasePlaceholder": "Passphrase (min. 12 characters)",
+            "passphraseHelp": "Derives the archive key with Argon2id and seals it with AES-256-GCM. Save the file with a .hlx extension.",
+            "noRecoveryWarning": "There is no recovery — if you lose this passphrase, the archive cannot be opened. Keep it somewhere safe.",
+            "stepUpNeeded": "Confirm your second factor, then try again."
           },
           "cycle": {
             "title": "Cycle",
@@ -4197,6 +4222,15 @@
         "title": "Channels",
         "description": "Telegram, ntfy, Web Push, Webhook, and Email delivery.",
         "subtitle": "Where reminders and alerts are delivered."
+      },
+      "security": {
+        "title": "Security",
+        "subtitle": "Two-factor authentication, recovery codes, and passkeys."
+      },
+      "privacy": {
+        "title": "Data & Privacy",
+        "subtitle": "Your data, retention, encryption, and account security in one place.",
+        "description": "Export, deletion, retention, encryption status, sessions, and security activity."
       }
     },
     "profile": "Profile",
@@ -4968,7 +5002,153 @@
     "polarDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
     "ouraDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
     "nightscoutDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
-    "integrationCredentialsHint": "Where to find these credentials and how to register your own app is covered in the setup guide above."
+    "integrationCredentialsHint": "Where to find these credentials and how to register your own app is covered in the setup guide above.",
+    "security": {
+      "sessionsTitle": "Active sessions",
+      "sessionsDescription": "Devices and browsers currently signed in to your account.",
+      "sessionsLoadError": "Active sessions could not be loaded.",
+      "sessionsEmpty": "No active sessions.",
+      "currentSession": "This device",
+      "lastActive": "Last active {time}",
+      "unknownLocation": "Unknown location",
+      "revokeSession": "Sign out",
+      "revokeError": "Could not complete the request. Please try again.",
+      "signOutEverywhere": "Sign out everywhere else",
+      "signOutEverywhereDone": "Signed out {count} other session(s).",
+      "activityTitle": "Security activity",
+      "activityDescription": "Recent sign-ins, security changes, and data exports on your account.",
+      "activityEmpty": "No security activity yet.",
+      "activityLoadError": "Security activity could not be loaded.",
+      "action": {
+        "newDevice": "New-device sign-in",
+        "loginFailed": "Failed sign-in",
+        "login": "Sign-in",
+        "passwordChange": "Password changed",
+        "mfa": "Two-factor change",
+        "sessionRevoke": "Session signed out",
+        "token": "API token change",
+        "accountDelete": "Account deleted",
+        "dataClear": "Data reset",
+        "export": "Data export",
+        "other": "Security event"
+      },
+      "active": "Active",
+      "inactive": "Inactive",
+      "stepUpRequired": "For your security, sign in again to change your second factor.",
+      "useRecoveryCode": "Use a recovery code instead",
+      "useAuthenticator": "Use your authenticator app instead",
+      "totp": {
+        "title": "Authenticator app",
+        "description": "Use a time-based code from an authenticator app as your second factor.",
+        "setUp": "Set up",
+        "step1": "Scan the QR code with your authenticator app, or enter the secret manually.",
+        "step2": "Enter the 6-digit code the app shows to confirm.",
+        "qrAlt": "QR code for authenticator app setup",
+        "qrUnavailable": "QR code unavailable",
+        "manualEntry": "Or enter this secret manually",
+        "enterCode": "Enter the 6-digit code",
+        "verify": "Verify",
+        "setupFailed": "Could not start setup. Please try again.",
+        "invalidCode": "That code is not valid. Please try again.",
+        "disable": "Disable",
+        "disableTitle": "Disable two-factor authentication",
+        "disableConfirm": "Enter a current code to turn off your second factor. This also deletes your recovery codes.",
+        "currentCode": "Current code",
+        "disableFailed": "Could not disable the second factor."
+      },
+      "recovery": {
+        "saveNow": "Save these recovery codes now",
+        "saveNowHint": "Each code works once. They are shown only this time — store them somewhere safe. If you lose your authenticator, a recovery code is the only way back in.",
+        "download": "Download",
+        "remainingOne": "{count} recovery code remaining.",
+        "remainingOther": "{count} recovery codes remaining.",
+        "regenerate": "Regenerate codes",
+        "regenFailed": "Could not regenerate recovery codes.",
+        "savedIt": "I've saved them",
+        "regenerateTitle": "Regenerate recovery codes?",
+        "regenerateConfirm": "This replaces your current recovery codes. Your existing codes will stop working immediately, and a new set is shown only once."
+      },
+      "keys": {
+        "title": "Security keys",
+        "description": "Register a hardware or platform security key as a second factor.",
+        "empty": "No security keys registered yet.",
+        "add": "Add security key",
+        "addFailed": "Could not register the security key.",
+        "rename": "Rename",
+        "renameFailed": "Could not rename the security key.",
+        "remove": "Remove security key",
+        "removeFailed": "Could not remove the security key.",
+        "removeConfirm": "This security key will no longer work as a second factor.",
+        "lastUsed": "Last used {date}",
+        "neverUsed": "Never used",
+        "added": "added {date}",
+        "nameLabel": "Security key name"
+      },
+      "passkeyNudge": {
+        "title": "Add a passkey for faster sign-in",
+        "body": "Passkeys let you sign in with your fingerprint, face, or device PIN — no password to remember."
+      },
+      "trustedDevices": {
+        "title": "Trusted devices",
+        "description": "Browsers you chose to trust skip the second factor for 30 days. The password is still required. Revoke any you don't recognize.",
+        "loadError": "Could not load trusted devices.",
+        "revokeError": "Could not revoke the device. Please try again.",
+        "revoke": "Revoke",
+        "revokeAll": "Forget all devices",
+        "revokeAllDone": "Forgot {count} trusted device(s).",
+        "unnamed": "Unknown device",
+        "current": "This device",
+        "expires": "Trusted until {date}"
+      }
+    },
+    "privacy": {
+      "intro": {
+        "title": "Your data stays yours",
+        "body": "HealthLog is self-hosted. This page brings together how your data is protected, how long it is kept, how to get it out, and how to delete it."
+      },
+      "encryption": {
+        "title": "Encrypted at rest",
+        "description": "Sensitive fields are encrypted in the database.",
+        "summary": "Your sensitive data is encrypted at rest with {algorithm} across {columns} fields in {models} record types.",
+        "statement": "Your sensitive data is encrypted at rest with AES-256-GCM."
+      },
+      "stored": {
+        "title": "What's stored",
+        "description": "The categories of data this account holds.",
+        "measurements": "Measurements (weight, blood pressure, pulse, glucose, sleep, body composition)",
+        "medications": "Medications and intake history",
+        "moodLabs": "Mood entries and lab results",
+        "coach": "Coach conversations",
+        "integrations": "Integration tokens (encrypted)",
+        "security": "Account and security activity (sessions, sign-in log)"
+      },
+      "retention": {
+        "title": "Retention",
+        "description": "How long time-bound records are kept before automatic cleanup.",
+        "coach": "Coach conversations: kept {days} days",
+        "audit": "Security activity log: kept {days} days",
+        "delivery": "Notification delivery log: kept {days} days",
+        "unavailable": "Retention details are unavailable right now."
+      },
+      "export": {
+        "title": "Download my data",
+        "description": "Export your records as CSV or JSON, optionally passphrase-encrypted, or generate a full health record.",
+        "openExport": "Export & backup",
+        "openHealthRecord": "Health record"
+      },
+      "delete": {
+        "title": "Delete or reset",
+        "description": "Remove your account entirely, or wipe your health records while keeping the account.",
+        "backupLag": "Deletion removes your data immediately. Encrypted off-host backups still contain it until they roll off the operator's backup retention window.",
+        "openAdvanced": "Delete or reset"
+      },
+      "posture": {
+        "title": "Privacy posture",
+        "description": "Control how much your data is shared with AI features and opt-in research.",
+        "openAi": "AI privacy mode",
+        "openResearch": "Research mode"
+      }
+    }
   },
   "admin": {
     "title": "Administration",
@@ -5064,7 +5244,6 @@
     "webPushGlobal": "Allow browser push notifications.",
     "moodLogGlobal": "Allow mood-log reminders.",
     "integrationWebPush": "Web Push",
-    "integrationBugReport": "Bug Report",
     "offlineGeoLabel": "Geo data",
     "offlineGeoEnabled": "Offline (GeoLite2)",
     "offlineGeoFallback": "Fallback (ipwho.is) — set MAXMIND_LICENSE_KEY in CI",
@@ -5101,12 +5280,6 @@
     "configured": "Configured",
     "monitoringTestSuccess": "Test event sent",
     "monitoringTestFailed": "Monitoring test failed",
-    "bugReportGithub": "Bug report (GitHub Issues)",
-    "bugReportGithubDescription": "Configure GitHub issue token and repository for incoming bug reports.",
-    "bugReportEnabledLabel": "Bug reports enabled",
-    "bugReportEnabledDescription": "When off, the in-app report button hides — token and repository stay configured.",
-    "bugReportDeprecatedBadge": "Deprecated",
-    "bugReportDeprecatedNote": "This feature is deprecated and will be removed in a future version.",
     "assistant": {
       "title": "Assistant Surfaces",
       "description": "Each toggle hides a model-driven surface app-wide without removing the provider configuration. The master kills every sub-flag at once.",
@@ -5140,10 +5313,6 @@
       "description": "Turn a module off for the whole server. A module disabled here is off for every account regardless of personal preference. Core domains (weight, blood pressure, pulse, medications) are always on and cannot be disabled.",
       "saveError": "Could not update module availability."
     },
-    "bugReportRepo": "Repository",
-    "bugReportRepoPlaceholder": "owner/repo",
-    "bugReportToken": "Issue token",
-    "bugReportTokenPlaceholder": "ghp_...",
     "invites": {
       "title": "Invites",
       "description": "Registration invite links — they work even while registration is closed. The link is shown only once.",
@@ -5297,47 +5466,6 @@
     "reminderCheckNotifOff": "Notifications off",
     "reminderCheckEventsToday": "Events today",
     "reminderCheckNotifSent": "Sent",
-    "feedback": {
-      "tabOpen": "Open",
-      "tabAcknowledged": "Acknowledged",
-      "tabResolved": "Resolved",
-      "tabArchived": "Archived",
-      "subject": "Subject",
-      "category": "Category",
-      "user": "User",
-      "createdAt": "Submitted",
-      "actions": "Actions",
-      "details": "Details",
-      "emptyTitle": "All caught up",
-      "emptyDescription": "No user feedback in this status. Submitted bugs, questions, and feature requests will appear here.",
-      "loading": "Loading feedback...",
-      "anonymous": "anonymous",
-      "categoryBug": "Bug",
-      "categoryFeature": "Feature",
-      "categoryQuestion": "Question",
-      "categoryOther": "Other",
-      "metadataHeading": "Metadata",
-      "metaUrl": "URL",
-      "metaLocale": "Locale",
-      "metaUserAgent": "User agent",
-      "metaAppVersion": "App version",
-      "screenshotHeading": "Screenshot",
-      "adminNote": "Admin note",
-      "adminNotePlaceholder": "Internal note (not visible to user)",
-      "saveNote": "Save note",
-      "noteSaved": "Note saved",
-      "actionAcknowledge": "Acknowledge",
-      "actionResolve": "Resolve",
-      "actionArchive": "Archive",
-      "actionPublishGithub": "Publish to GitHub",
-      "publishedToGithub": "Published to GitHub",
-      "viewIssue": "View issue",
-      "publishSuccess": "Issue created",
-      "publishFailed": "GitHub publish failed",
-      "updateFailed": "Update failed",
-      "archiveConfirm": "Archive this feedback entry?",
-      "submittedBy": "Submitted by"
-    },
     "shell": {
       "overview": "Overview",
       "sectionsNav": "Admin sections"
@@ -5389,10 +5517,6 @@
       "coach": {
         "title": "Coach",
         "subtitle": "Assistant surfaces, server key, and the Coach and Insights feedback-quality tables in one place."
-      },
-      "feedback": {
-        "title": "Feedback",
-        "subtitle": "Triage user feedback, bug reports, and feature requests."
       },
       "reminders": {
         "title": "Reminders",
@@ -5521,10 +5645,55 @@
       "module-availability": {
         "title": "Modules",
         "subtitle": "Turn modules on or off for every account on this server."
+      },
+      "encryption": {
+        "title": "Encryption",
+        "subtitle": "Encryption coverage and key-rotation status for data at rest.",
+        "loading": "Loading encryption status...",
+        "loadError": "Failed to load encryption status.",
+        "coverageTitle": "Coverage",
+        "coverageDescription": "How many encrypted rows sit under each key id. Only key ids and counts are shown — never key material.",
+        "activeKeyId": "Active key id",
+        "configuredKeys": "Configured keys",
+        "totalRows": "Encrypted rows",
+        "staleRows": "Rows not on the active key",
+        "safeToDropLegacy": "Safe to drop the legacy key",
+        "rotationIncomplete": "{count} rows still need rotation",
+        "rotationTitle": "Key rotation",
+        "rotationDescription": "Re-encrypt every encrypted column to the active key. The command-line tool stays the canonical path; this trigger is a convenience.",
+        "rotationState": "State",
+        "lastRun": "Last run: scanned {scanned}, rotated {rotated}, errors {errors}.",
+        "rotateNow": "Rotate now",
+        "rotateConfirmTitle": "Re-encrypt the whole record?",
+        "rotateConfirmDescription": "Re-encrypts every encrypted column to the active key. It never adds or drops a key and is safe to re-run. This can take a while on large accounts.",
+        "cancel": "Cancel",
+        "rotateConfirm": "Start rotation",
+        "rotateEnqueued": "Rotation started.",
+        "rotateFailed": "Could not start the rotation.",
+        "stepUpNeeded": "A fresh second factor is required. Confirm your second factor, or use the command-line tool if you have no second factor enrolled.",
+        "cliNote": "A second factor is required to use this button. Operators without one rotate with scripts/rotate-encryption-key.ts.",
+        "columnsTitle": "Per-column coverage",
+        "columnsDescription": "Each encrypted column with its row counts on the active key versus older keys.",
+        "colColumn": "Column",
+        "colTotal": "Total",
+        "colActive": "On active key",
+        "colStale": "Stale",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "completed": "Completed",
+          "failed": "Failed"
+        }
       }
     },
     "carrier": "Carrier",
-    "carrierUnavailableGeoFallback": "{location} — carrier unavailable"
+    "carrierUnavailableGeoFallback": "{location} — carrier unavailable",
+    "mfaRequired": "Require a second factor",
+    "mfaRequiredDescription": "Every account without an active second factor is sent to enrollment after sign-in. This prompts web users to enroll — it does not block direct API or native (Bearer) access for accounts not yet enrolled.",
+    "mfaEnforcedOn": "MFA on",
+    "mfaEnforcedOff": "MFA off",
+    "mfaEnforcedOnHint": "A second factor is required for this user. Click to stop requiring it.",
+    "mfaEnforcedOffHint": "Require a second factor for this user."
   },
   "achievements": {
     "title": "Achievements",
@@ -5582,10 +5751,6 @@
       "passwordLogin1": {
         "title": "Old school",
         "description": "Sign in at least once with username and password."
-      },
-      "bugReport1": {
-        "title": "Bug hunter",
-        "description": "Submit a bug report."
       },
       "loginStreak7": {
         "title": "Login streak 7d",
@@ -5775,10 +5940,6 @@
         "title": "Polyglot",
         "description": "Switched the app language at least once."
       },
-      "hiddenBugBuddy": {
-        "title": "Bug buddy",
-        "description": "Submitted at least 5 bug reports — the project loves you."
-      },
       "missFree7": {
         "title": "No dose missed · 7d",
         "description": "7 consecutive days without a missed dose."
@@ -5830,26 +5991,6 @@
       "viewAll": "View all",
       "empty": "No achievements yet — keep logging to unlock your first."
     }
-  },
-  "bugreport": {
-    "title": "Bug Report",
-    "subtitle": "Send a bug report, feature request, or question. The server administrator will see your submission.",
-    "loginRequired": "Please sign in to report a bug.",
-    "bugTitle": "Title",
-    "description": "Description",
-    "submit": "Send",
-    "success": "Thank you! Your bug report has been submitted successfully.",
-    "errorCreating": "Error creating report",
-    "category": "Type",
-    "categoryBug": "Bug report",
-    "categoryFeature": "Feature request",
-    "categoryQuestion": "Question",
-    "categoryOther": "Other feedback",
-    "bugTitlePlaceholder": "Short summary (optional)",
-    "githubEscalationNote": "Your feedback is stored locally. If the admin enables GitHub integration, it can be promoted to a public issue on request.",
-    "internalOnlyNote": "Your feedback is stored locally and only visible to the administrator of this server.",
-    "disabledTitle": "Bug reports are turned off",
-    "disabledBody": "The administrator has disabled bug reports on this server."
   },
   "notifications": {
     "title": "Notifications",
@@ -5955,7 +6096,13 @@
     "eventMeasurementReminder": "Measurement reminder",
     "eventMeasurementReminderDesc": "Sent when a tracked measurement is due.",
     "eventMedicationIntakeSync": "Medication intake sync",
-    "eventMedicationIntakeSyncDesc": "Cross-device update when a dose is logged, taken or skipped."
+    "eventMedicationIntakeSyncDesc": "Cross-device update when a dose is logged, taken or skipped.",
+    "security": {
+      "newDeviceTitle": "New sign-in to your account",
+      "newDeviceBody": "A new sign-in from {device} ({location}). If this wasn't you, change your password immediately.",
+      "unknownLocation": "unknown location"
+    },
+    "loginRequired": "Please sign in to manage notifications."
   },
   "i18n": {
     "maintainershipBanner": {

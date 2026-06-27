@@ -16,6 +16,7 @@ export const GET = apiHandler(async () => {
       email: true,
       role: true,
       createdAt: true,
+      mfaEnforced: true,
       _count: { select: { passkeys: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -28,6 +29,9 @@ export const GET = apiHandler(async () => {
       email: u.email,
       role: u.role,
       createdAt: u.createdAt,
+      // v1.23 — per-user "require a second factor" override. The effective
+      // requirement is the OR of this and the instance-wide policy.
+      mfaEnforced: u.mfaEnforced,
       passkeyCount: u._count.passkeys,
     })),
   );

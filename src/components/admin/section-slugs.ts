@@ -25,7 +25,6 @@ export const ADMIN_SECTION_SLUGS = [
   // (was stacked under Coach). It gates every module, not just the coach,
   // so it reads better next to Coach than buried inside it.
   "module-availability",
-  "feedback",
   "reminders",
   "users",
   // v1.16.0 — registration invites get their own section. They started
@@ -37,6 +36,10 @@ export const ADMIN_SECTION_SLUGS = [
   "login-overview",
   "app-logs",
   "backups",
+  // v1.23 — encryption coverage + key-rotation status / safe trigger. Sits
+  // next to Backups (both are data-at-rest concerns) and just before the
+  // danger zone.
+  "encryption",
   "danger-zone",
   // v1.4.36 W4e — About / version / update check folded into Admin
   // Console. Lives at /admin/about; the legacy /settings/about route

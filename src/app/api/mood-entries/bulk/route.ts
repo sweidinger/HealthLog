@@ -44,6 +44,7 @@ import {
   moodSourceEnum,
 } from "@/lib/validations/moodlog";
 import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
+import { encryptNote } from "@/lib/crypto/note-cipher";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
 import { pushMoodEntriesToMoodLog } from "@/lib/moodlog/push";
@@ -238,7 +239,8 @@ async function postBulk(request: NextRequest): Promise<Response> {
           mood: entry.mood,
           score,
           tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          note: entry.note ?? null,
+          note: null,
+          noteEncrypted: encryptNote(entry.note ?? null),
           source: resolvedSource,
           externalId: entry.externalId ?? null,
           moodLoggedAt: entry.moodLoggedAt,
@@ -253,7 +255,8 @@ async function postBulk(request: NextRequest): Promise<Response> {
           mood: entry.mood,
           score,
           tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          note: entry.note ?? null,
+          note: null,
+          noteEncrypted: encryptNote(entry.note ?? null),
           ...(entry.externalId
             ? { date, moodLoggedAt: entry.moodLoggedAt }
             : {}),

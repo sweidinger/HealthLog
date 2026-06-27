@@ -37,10 +37,14 @@ export const settingsKeys = {
   versionUpdateCheck: () => ["version", "update-check"] as const,
   researchMode: () => ["research-mode"] as const,
 
+  /**
+   * v1.23 — the Data & Privacy dashboard's read-only retention + encryption
+   * summary behind `GET /api/settings/privacy-summary`.
+   */
+  privacySummary: () => ["settings", "privacy-summary"] as const,
+
   /** v1.11.0 — owner's clinician share links (Settings → Sharing). */
   shareLinks: () => ["share-links"] as const,
 
   featureFlags: () => ["feature-flags"] as const,
-
-  bugreportStatus: () => ["bugreport", "status"] as const,
 };

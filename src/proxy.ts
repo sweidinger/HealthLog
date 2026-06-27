@@ -143,8 +143,6 @@ const LEGACY_ADMIN_ANCHORS: Record<string, string> = {
   "/admin/section-admin-umami": "/admin/integrations",
   "/admin/section-admin-glitchtip": "/admin/integrations",
   "/admin/section-admin-webpush": "/admin/integrations",
-  "/admin/section-admin-bugreport": "/admin/integrations",
-  "/admin/section-admin-feedback": "/admin/feedback",
   "/admin/section-admin-reminders": "/admin/reminders",
   "/admin/section-user-management": "/admin/users",
   "/admin/section-api-tokens": "/admin/api-tokens",
@@ -242,6 +240,23 @@ export function proxy(request: NextRequest) {
       pathname === "/onboarding" || pathname.startsWith("/onboarding/");
     if (onboardingPending && !isOnboardingSurface) {
       return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+
+    // v1.23 — admin-enforced MFA forced-enrollment gate. When the operator
+    // requires a second factor and the account has none, `/api/auth/me` (and
+    // every auth surface) sets `hl_mfa_enroll=required`; the proxy reads it
+    // without a DB round-trip — mirroring the onboarding hint — and walls the
+    // app behind the enrollment surface. Only `/enroll-mfa` and
+    // `/settings/security` stay reachable so the user can actually enrol;
+    // logout + the enrollment APIs are `/api/*` and never page-gated here.
+    // Onboarding takes precedence (the branch above already returned), so a
+    // brand-new account finishes onboarding first.
+    const mfaEnrollRequired =
+      request.cookies.get("hl_mfa_enroll")?.value === "required";
+    const isMfaEnrollSurface =
+      pathname === "/enroll-mfa" || pathname.startsWith("/settings/security");
+    if (mfaEnrollRequired && !isMfaEnrollSurface && !isOnboardingSurface) {
+      return NextResponse.redirect(new URL("/enroll-mfa", request.url));
     }
   }
 

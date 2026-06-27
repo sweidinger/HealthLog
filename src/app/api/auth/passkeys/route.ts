@@ -16,6 +16,7 @@ export const GET = apiHandler(async () => {
       credentialDeviceType: true,
       credentialBackedUp: true,
       createdAt: true,
+      lastUsedAt: true,
     },
     orderBy: { createdAt: "desc" },
   });

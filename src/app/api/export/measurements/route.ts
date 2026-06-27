@@ -23,6 +23,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { apiError, getClientIp } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { toCSV, formatMeasurementsForExport } from "@/lib/export";
+import { shapeMeasurementNotes } from "@/lib/crypto/note-cipher";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { resolveGlucoseUnit } from "@/lib/glucose";
@@ -65,12 +66,16 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const glucoseUnit = resolveGlucoseUnit(profile?.glucoseUnit ?? null);
 
   const csv = toCSV(
-    formatMeasurementsForExport(measurements, userTz, {
-      granularity,
-      sleepTz: userTz,
-      sourcePriorityJson,
-      glucoseUnit,
-    }),
+    formatMeasurementsForExport(
+      measurements.map(shapeMeasurementNotes),
+      userTz,
+      {
+        granularity,
+        sleepTz: userTz,
+        sourcePriorityJson,
+        glucoseUnit,
+      },
+    ),
   );
 
   await auditLog("user.export.measurements", {

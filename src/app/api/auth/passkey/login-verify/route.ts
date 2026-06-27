@@ -1,5 +1,7 @@
 import { verifyAuthentication } from "@/lib/auth/passkey";
 import { createSession } from "@/lib/auth/session";
+import { syncMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
+import { recordSignInDevice } from "@/lib/auth/login-alert";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
@@ -68,13 +70,36 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // `hl_onboarding` cookie itself; pass the user's onboarding state
   // through so the proxy short-circuits the redirect before
   // hydration.
+  //
+  // v1.23 (M-review M1) — stamp `mfaVerifiedAt` on a primary passkey login. A
+  // discoverable passkey is a phishing-resistant possession factor that already
+  // cleared user verification (`userVerification: 'required'` on the ceremony),
+  // so a passwordless passkey sign-in is itself a satisfied second factor: it
+  // meets an MFA-enforcement policy AND passes `requireFreshMfa` step-up,
+  // exactly like a completed password+TOTP login. (The password+TOTP path is
+  // unchanged — it stamps the session at `/api/auth/mfa/verify`.)
   const ua = request.headers.get("user-agent");
-  await createSession(user.id, user.onboardingCompletedAt == null, ip, ua);
+  await createSession(
+    user.id,
+    user.onboardingCompletedAt == null,
+    ip,
+    ua,
+    new Date(),
+  );
+
+  // v1.23 — sync the admin-enforced-MFA forced-enrollment hint cookie.
+  await syncMfaEnrollCookie(user.id, {
+    totpConfirmedAt: user.totpConfirmedAt,
+    mfaEnforced: user.mfaEnforced,
+  });
 
   await auditLog("auth.login.passkey", {
     userId: user.id,
     ipAddress: ip,
   });
+
+  // v1.23 — new-device / new-location alert, fire-and-forget (see finishLogin).
+  void recordSignInDevice({ userId: user.id, ip, userAgent: ua });
 
   annotate({ action: { name: "auth.login.passkey" } });
 

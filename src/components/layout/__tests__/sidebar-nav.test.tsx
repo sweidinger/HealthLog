@@ -43,13 +43,6 @@ vi.mock("@/components/providers", () => ({
   }),
 }));
 
-// The bug-report flag — each test mutates `mockSettingsRef.value` before
-// rendering so the sidebar reads the desired state.
-const mockSettingsRef = { value: { bugReportEnabled: true } };
-vi.mock("@/components/app-settings-provider", () => ({
-  useAppSettings: () => mockSettingsRef.value,
-}));
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nProvider } from "@/lib/i18n/context";
 import { SidebarNav } from "../sidebar-nav";
@@ -58,17 +51,14 @@ import { visibleUtilityDestinations } from "../nav-model";
 
 function render({
   pathname = "/",
-  bugReportEnabled = true,
   role = "USER" as "USER" | "ADMIN",
   modules = {} as Record<string, boolean>,
 }: {
   pathname?: string;
-  bugReportEnabled?: boolean;
   role?: "USER" | "ADMIN";
   modules?: Record<string, boolean>;
 } = {}) {
   mockPathnameRef.value = pathname;
-  mockSettingsRef.value = { bugReportEnabled };
   mockUserRef.value = { ...mockUserRef.value, role, modules };
   return renderToStaticMarkup(
     // The nav reads `useQueryClient()` for the medications intent
@@ -81,21 +71,6 @@ function render({
     </QueryClientProvider>,
   );
 }
-
-describe("<SidebarNav> bug-report toggle", () => {
-  it("renders the Bug Report entry when the admin flag is enabled", () => {
-    const html = render({ bugReportEnabled: true });
-    expect(html).toContain('href="/bugreport"');
-    // i18n string for the entry — sanity check that the link is the actual
-    // bug-report nav entry, not e.g. an error-page report-bug button.
-    expect(html).toContain("Bug Report");
-  });
-
-  it("hides the Bug Report entry when the admin flag is disabled", () => {
-    const html = render({ bugReportEnabled: false });
-    expect(html).not.toContain('href="/bugreport"');
-  });
-});
 
 describe("<SidebarNav> cycle entry gate (v1.15.0 / v1.18.0 module map)", () => {
   it("renders the Cycle entry when the cycle module is enabled", () => {
@@ -212,27 +187,16 @@ describe("<SidebarNav> shared utility tail (v1.17.1 N-1 parity guard)", () => {
   // therefore the shared list minus `/notifications`. Asserting they all
   // render straight from the shared list is the parity net that keeps the
   // sidebar footer from drifting away from the mobile More-hub tail.
-  const footerUtilities = (bugReportEnabled: boolean) =>
-    visibleUtilityDestinations(bugReportEnabled).filter(
-      (d) => d.href !== "/notifications",
-    );
+  const footerUtilities = () =>
+    visibleUtilityDestinations().filter((d) => d.href !== "/notifications");
 
   it("renders every footer utility destination straight from the shared list", () => {
-    const html = render({ bugReportEnabled: true });
-    for (const dest of footerUtilities(true)) {
+    const html = render();
+    for (const dest of footerUtilities()) {
       expect(html).toContain(`href="${dest.href}"`);
     }
-    // Bug Report and Settings are the footer utilities; both are present.
-    expect(html).toContain('href="/bugreport"');
+    // Settings is the footer utility entry; it is present.
     expect(html).toContain('href="/settings/account"');
-  });
-
-  it("drops the bug-report utility entry when the operator flag is off", () => {
-    const html = render({ bugReportEnabled: false });
-    for (const dest of footerUtilities(false)) {
-      expect(html).toContain(`href="${dest.href}"`);
-    }
-    expect(html).not.toContain('href="/bugreport"');
   });
 });
 

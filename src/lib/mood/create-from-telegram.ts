@@ -18,6 +18,7 @@ import { prisma as defaultPrisma } from "@/lib/db";
 import { MOOD_ENUM_BY_SCORE } from "@/lib/mood/labels";
 import { getScoreForMood } from "@/lib/validations/moodlog";
 import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
+import { encryptNote, readNote } from "@/lib/crypto/note-cipher";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
 import { pushMoodEntriesToMoodLog } from "@/lib/moodlog/push";
@@ -79,12 +80,21 @@ export async function logTelegramMood(input: {
       tz,
       mood,
       score,
-      note: input.note ?? null,
+      // v1.23 — encrypt the note at rest; legacy plaintext column nulled.
+      note: null,
+      noteEncrypted: encryptNote(input.note ?? null),
       source: "TELEGRAM",
       externalId: input.externalId,
       moodLoggedAt,
     },
-    select: { id: true, date: true, mood: true, note: true, tags: true },
+    select: {
+      id: true,
+      date: true,
+      mood: true,
+      note: true,
+      noteEncrypted: true,
+      tags: true,
+    },
   });
 
   invalidateUserMood(input.userId);
@@ -105,7 +115,7 @@ export async function logTelegramMood(input: {
       date: entry.date,
       moodLoggedAt,
       mood: entry.mood,
-      note: entry.note ?? null,
+      note: readNote(entry.noteEncrypted, entry.note),
       tags: entry.tags,
       source: "TELEGRAM",
     },
@@ -134,7 +144,8 @@ export async function attachTelegramMoodNote(input: {
       userId: input.userId,
       deletedAt: null,
     },
-    data: { note },
+    // v1.23 — encrypt the attached note at rest; legacy plaintext column nulled.
+    data: { note: null, noteEncrypted: encryptNote(note) },
   });
   if (updated.count === 0) return false;
   invalidateUserMood(input.userId);

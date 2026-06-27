@@ -21,8 +21,7 @@ import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { apiError, getClientIp } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { BACKUP_SCHEMA_VERSION } from "@/lib/validations/backup";
-import { buildCycleBackupSection } from "@/lib/cycle/backup";
+import { buildFullBackupPayload } from "@/lib/export/full-backup-payload";
 import { NextRequest, NextResponse } from "next/server";
 
 export const GET = apiHandler(async (request: NextRequest) => {
@@ -34,123 +33,24 @@ export const GET = apiHandler(async (request: NextRequest) => {
     return apiError("Maximum 10 exports per hour", 429);
   }
 
-  const [measurements, medications, intakeEvents, moodEntries, cycle] =
-    await Promise.all([
-      prisma.measurement.findMany({
-        // v1.4.41 W-DELETED-2 — soft-deleted rows are excluded from the
-        // user-initiated backup bundle so the round-trip via admin
-        // restore does not resurrect deleted measurements.
-        where: { userId: user.id, deletedAt: null },
-        orderBy: { measuredAt: "desc" },
-      }),
-      // Explicit `select` on the schedule columns — see the matching
-      // comment in `medications/route.ts` for the rationale (the
-      // integration testbed has an unmigrated `days_of_week` column on
-      // the schema branch we ship alongside).
-      prisma.medication.findMany({
-        where: { userId: user.id },
-        select: {
-          name: true,
-          dose: true,
-          active: true,
-          schedules: {
-            select: {
-              windowStart: true,
-              windowEnd: true,
-              label: true,
-              dose: true,
-            },
-          },
-        },
-      }),
-      prisma.medicationIntakeEvent.findMany({
-        // v1.7.0 sync — exclude tombstoned rows (mirrors the measurement
-        // `deletedAt: null` filter above on this user-facing export).
-        where: { userId: user.id, deletedAt: null },
-        include: { medication: { select: { name: true } } },
-        orderBy: { scheduledFor: "desc" },
-      }),
-      prisma.moodEntry.findMany({
-        // v1.7.0 sync — exclude tombstoned rows.
-        where: { userId: user.id, deletedAt: null },
-        orderBy: { moodLoggedAt: "desc" },
-      }),
-      // v1.15.0 — cycle tables (profile + observed spans + day-logs). The
-      // shared helper carries `notesEncrypted` verbatim (never decrypted).
-      buildCycleBackupSection(prisma, user.id),
-    ]);
-
-  // Shape mirrors the pg-boss `data-backup` worker exactly so the same
-  // `parseBackupPayload()` validator round-trips both blobs. Keep these
-  // two writers in sync — `src/lib/jobs/reminder-worker.ts` is the
-  // canonical reference.
-  const payload = {
-    schemaVersion: BACKUP_SCHEMA_VERSION,
-    exportedAt: new Date().toISOString(),
-    userId: user.id,
-    measurements: measurements.map((m) => ({
-      type: m.type,
-      value: m.value,
-      unit: m.unit,
-      measuredAt: m.measuredAt.toISOString(),
-      source: m.source,
-      notes: m.notes,
-    })),
-    medications: medications.map((m) => ({
-      name: m.name,
-      dose: m.dose,
-      active: m.active,
-      schedules: m.schedules.map((s) => ({
-        windowStart: s.windowStart,
-        windowEnd: s.windowEnd,
-        label: s.label,
-        dose: s.dose,
-      })),
-    })),
-    intakeEvents: intakeEvents.map((e) => ({
-      medication: e.medication.name,
-      scheduledFor: e.scheduledFor.toISOString(),
-      takenAt: e.takenAt?.toISOString() ?? null,
-      skipped: e.skipped,
-      source: e.source,
-    })),
-    moodEntries: moodEntries.map((e) => ({
-      date: e.date,
-      mood: e.mood,
-      score: e.score,
-      tags: e.tags,
-      source: e.source,
-      loggedAt: e.moodLoggedAt.toISOString(),
-    })),
-    // v1.15.0 — cycle slice (profile + observed spans + day-logs).
-    cycleProfile: cycle.cycleProfile,
-    cycles: cycle.cycles,
-    cycleDayLogs: cycle.cycleDayLogs,
-  };
+  // v1.23 — the payload builder is shared with the passphrase-encrypted
+  // export route so both emit the byte-for-byte same restore-compatible shape.
+  const { payload, counts } = await buildFullBackupPayload(prisma, user.id);
 
   await auditLog("user.export.full-backup", {
     userId: user.id,
     ipAddress: getClientIp(request),
-    details: {
-      counts: {
-        measurements: measurements.length,
-        medications: medications.length,
-        intakeEvents: intakeEvents.length,
-        moodEntries: moodEntries.length,
-        cycles: cycle.cycles.length,
-        cycleDayLogs: cycle.cycleDayLogs.length,
-      },
-    },
+    details: { counts },
   });
 
   annotate({
     meta: {
-      export_measurements_count: measurements.length,
-      export_medications_count: medications.length,
-      export_intake_count: intakeEvents.length,
-      export_mood_count: moodEntries.length,
-      export_cycle_count: cycle.cycles.length,
-      export_cycle_day_log_count: cycle.cycleDayLogs.length,
+      export_measurements_count: counts.measurements,
+      export_medications_count: counts.medications,
+      export_intake_count: counts.intakeEvents,
+      export_mood_count: counts.moodEntries,
+      export_cycle_count: counts.cycles,
+      export_cycle_day_log_count: counts.cycleDayLogs,
     },
   });
 

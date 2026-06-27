@@ -191,6 +191,21 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
             },
             { status: 403 },
           );
+        } else if (error instanceof StepUpRequiredError) {
+          // v1.23 — step-up gate not satisfied. Same 401 + meta.errorCode
+          // envelope shape as the assistant/consent gates so the client can
+          // branch on the stable code and launch a re-verification flow.
+          // Checked before the generic HttpError branch because
+          // StepUpRequiredError extends it.
+          evt.setError(error);
+          response = NextResponse.json(
+            {
+              data: null,
+              error: error.message,
+              meta: { errorCode: error.errorCode },
+            },
+            { status: error.statusCode },
+          );
         } else if (error instanceof HttpError) {
           evt.setError(error);
           response = NextResponse.json(
@@ -439,6 +454,152 @@ export async function requireAdmin(): Promise<AuthContext> {
     throw new HttpError(403, "Admin access required");
   }
   return sessionData;
+}
+
+/**
+ * v1.23 — require a cookie-backed session, refusing Bearer tokens.
+ *
+ * Cookie-only by the same structural argument as `requireAdmin`: it resolves
+ * the session via `getSession()` (which reads only the session cookie) and
+ * never falls through to the Bearer branch. The second-factor management
+ * surfaces (TOTP enroll / confirm / disable / recovery-code regenerate) use
+ * this so an API token — even a wildcard one — can never enrol or tear down
+ * MFA on the account it belongs to. MFA management is a browser-only action.
+ */
+export async function requireCookieAuth(): Promise<AuthContext> {
+  const sessionData = await getSession();
+  if (!sessionData) throw new HttpError(401, "Not authenticated");
+
+  const evt = getEvent();
+  if (evt) {
+    evt.setAuth({
+      user_id: sessionData.user.id,
+      user_role: sessionData.user.role,
+      auth_method: "session",
+    });
+  }
+  return sessionData;
+}
+
+/**
+ * Error thrown when a step-up gate is not satisfied. Carries `errorCode` so
+ * the route can surface a stable machine code (`auth.stepup.required`) the
+ * client branches on to launch a re-verification flow rather than parsing
+ * prose.
+ */
+export class StepUpRequiredError extends HttpError {
+  constructor(
+    public errorCode: string = "auth.stepup.required",
+    message = "Recent second-factor verification required",
+  ) {
+    super(401, message);
+    this.name = "StepUpRequiredError";
+  }
+}
+
+/**
+ * Default step-up freshness window (5 minutes) for sensitive mutations.
+ * Within the 5–15 min band OWASP recommends; tight end because the gated
+ * actions (disable MFA, regenerate codes, and later key rotation / export)
+ * are destructive.
+ */
+export const MFA_STEP_UP_MAX_AGE_SECONDS = 5 * 60;
+
+export type FreshMfaContext = AuthContext & { mfaVerifiedAt: Date };
+
+/**
+ * v1.23 — step-up gate. Passes only for a COOKIE session whose
+ * `Session.mfaVerifiedAt` is within `maxAgeSeconds` AND whose user has an
+ * active second factor (`totpConfirmedAt`). Throws `StepUpRequiredError`
+ * (401, `errorCode: "auth.stepup.required"`) otherwise.
+ *
+ * Bearer tokens can NEVER satisfy this — exactly like `requireAdmin`, the
+ * resolution path is `getSession()` (cookie-only) and there is no Bearer
+ * fall-through. A token transport carries no `mfaVerifiedAt` and cannot
+ * acquire one, so the boundary is structural, not a softenable runtime check.
+ *
+ * Consumed in Phase M by MFA disable + recovery-code regeneration; later
+ * waves gate account deletion, key rotation, and passphrase export on it.
+ */
+export async function requireFreshMfa(
+  maxAgeSeconds: number,
+): Promise<FreshMfaContext> {
+  const sessionData = await getSession();
+  if (!sessionData) throw new HttpError(401, "Not authenticated");
+
+  const evt = getEvent();
+  if (evt) {
+    evt.setAuth({
+      user_id: sessionData.user.id,
+      user_role: sessionData.user.role,
+      auth_method: "session",
+    });
+  }
+
+  // The user must actually have a second factor active. A single-factor
+  // account cannot produce a fresh-MFA proof, so step-up-gated actions are
+  // unreachable for it by design (the management UI gates enrolment first).
+  // Either factor counts: a confirmed TOTP secret OR a registered WebAuthn
+  // security key — both stamp `Session.mfaVerifiedAt` on a completed login.
+  if (!sessionData.user.totpConfirmedAt) {
+    const webauthnKeyCount = await prisma.webauthnMfaCredential.count({
+      where: { userId: sessionData.user.id },
+    });
+    if (webauthnKeyCount === 0) {
+      throw new StepUpRequiredError("auth.stepup.mfa_not_enrolled");
+    }
+  }
+
+  // Read the freshness stamp off the live session row — `getSession`'s
+  // projection intentionally omits it.
+  const row = await prisma.session.findUnique({
+    where: { id: sessionData.session.id },
+    select: { mfaVerifiedAt: true },
+  });
+  const verifiedAt = row?.mfaVerifiedAt ?? null;
+  if (!verifiedAt || verifiedAt.getTime() < Date.now() - maxAgeSeconds * 1000) {
+    throw new StepUpRequiredError();
+  }
+
+  return { ...sessionData, mfaVerifiedAt: verifiedAt };
+}
+
+/**
+ * v1.23 — conditional step-up for destructive account actions.
+ *
+ * Resolves the caller with the standard `requireAuth()` (cookie OR Bearer).
+ * For an account WITHOUT a confirmed second factor the caller passes straight
+ * through — a single-factor user is intentionally unaffected, so account
+ * deletion / data reset keeps its existing typed-confirmation-only contract.
+ * For an account WITH MFA active (`totpConfirmedAt` set) it additionally runs
+ * `requireFreshMfa`, which is cookie-only by construction: an MFA-enrolled
+ * account's Bearer transport carries no `mfaVerifiedAt` and therefore cannot
+ * satisfy step-up, surfacing `StepUpRequiredError` (401,
+ * `errorCode: "auth.stepup.required"`) so the UI launches a re-verification.
+ *
+ * Gating only the MFA-enrolled cohort keeps the boundary structural: a
+ * hijacked live cookie session for an MFA user cannot nuke the record without
+ * a fresh factor, while users who never opted into MFA are not forced through
+ * a flow they have no way to complete.
+ */
+export async function requireFreshMfaIfEnrolled(
+  maxAgeSeconds: number,
+): Promise<AuthContext> {
+  const auth = await requireAuth();
+  // Either factor enrols the account: a confirmed TOTP secret OR a registered
+  // WebAuthn security key. A webauthn-only user must clear step-up too, so the
+  // destructive-action boundary tracks `requireFreshMfa`'s either-factor rule.
+  let enrolled = Boolean(auth.user.totpConfirmedAt);
+  if (!enrolled) {
+    const webauthnKeyCount = await prisma.webauthnMfaCredential.count({
+      where: { userId: auth.user.id },
+    });
+    enrolled = webauthnKeyCount > 0;
+  }
+  if (enrolled) {
+    await requireFreshMfa(maxAgeSeconds);
+  }
+  return auth;
 }
 
 /**

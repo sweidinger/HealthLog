@@ -16,6 +16,7 @@ import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
+import { encryptNote, shapeMoodNote } from "@/lib/crypto/note-cipher";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
 import { replaceTagLinks } from "@/lib/mood/tag-links";
@@ -53,7 +54,7 @@ export const GET = apiHandler(
       meta: { moodEntryId: id },
     });
 
-    return apiSuccess({ ...entry, tags: parseTags(entry.tags) });
+    return apiSuccess({ ...shapeMoodNote(entry), tags: parseTags(entry.tags) });
   },
 );
 
@@ -128,7 +129,10 @@ export const PUT = apiHandler(
       updateData.tags = data.tags ? JSON.stringify(data.tags) : null;
     }
     if (data.note !== undefined) {
-      updateData.note = data.note;
+      // v1.23 — write to the encrypted column; null the legacy plaintext. An
+      // explicit `null` clears the note.
+      updateData.note = null;
+      updateData.noteEncrypted = encryptNote(data.note);
     }
 
     // v1.7.0 sync — mood is last-writer-wins by syncVersion; bump it on

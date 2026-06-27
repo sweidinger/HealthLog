@@ -9,7 +9,6 @@ import {
 } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { encrypt } from "@/lib/crypto";
-import { invalidateAppSettings } from "@/lib/cache/invalidate";
 import { z } from "zod/v4";
 import { NextRequest } from "next/server";
 
@@ -113,8 +112,6 @@ export const POST = apiHandler(async (request: NextRequest) => {
       webPushVapidSubject: subject,
     },
   });
-
-  invalidateAppSettings();
 
   await auditLog("admin.web_push_vapid.generate", {
     userId: user.id,

@@ -2,6 +2,7 @@ import { apiSuccess } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { setOnboardingPendingCookie } from "@/lib/auth/session";
+import { syncMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
 import { buildAvatarUrl } from "@/lib/avatar";
 import { decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
@@ -26,8 +27,16 @@ export const GET = apiHandler(async () => {
   // cycle-tracking gate; no row is forced, a NULL toggle derives from
   // gender) is a Postgres round-trip. Running them sequentially added
   // the cookie hop to every /me — and /me sits on every app boot path.
-  const [, cycleProfile, modules, moduleAvailability] = await Promise.all([
+  const [, , cycleProfile, modules, moduleAvailability] = await Promise.all([
     setOnboardingPendingCookie(user.onboardingCompletedAt == null),
+    // v1.23 — keep the admin-enforced-MFA hint cookie honest on every app
+    // boot, mirroring the onboarding-cookie resync. A locally edited cookie is
+    // corrected here; an account that enrols (or has the policy lifted) loses
+    // the redirect on the next /me read.
+    syncMfaEnrollCookie(user.id, {
+      totpConfirmedAt: user.totpConfirmedAt,
+      mfaEnforced: user.mfaEnforced,
+    }),
     prisma.cycleProfile.findUnique({
       where: { userId: user.id },
       select: { cycleTrackingEnabled: true },

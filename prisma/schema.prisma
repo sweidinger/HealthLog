@@ -128,8 +128,8 @@ model User {
   // running Nightscout on a private/LAN network can flip
   // `nightscoutAllowPrivateHost` to opt that instance past the public-host
   // requirement explicitly.
-  nightscoutUrlEncrypted   String?  @map("nightscout_url_encrypted")
-  nightscoutTokenEncrypted String?  @map("nightscout_token_encrypted")
+  nightscoutUrlEncrypted     String? @map("nightscout_url_encrypted")
+  nightscoutTokenEncrypted   String? @map("nightscout_token_encrypted")
   nightscoutAllowPrivateHost Boolean @default(false) @map("nightscout_allow_private_host")
 
   // v1.17.0 — Polar OAuth credentials (F4, per-user, encrypted at app level).
@@ -175,10 +175,10 @@ model User {
   //   { "WEIGHT": { "min": 70, "max": 85 },
   //     "BLOOD_PRESSURE_SYS": { "min": 110, "max": 130 }, ... }
   // Null or missing metric → use computed default.
-  thresholdsJson          Json?   @map("thresholds_json")
+  thresholdsJson           Json?                @map("thresholds_json")
   // Per-user dashboard layout — widget visibility + ordering.
   // Shape: { "widgets": [{ "id": "weight", "visible": true, "order": 0 }, ...], "version": 1 }
-  dashboardWidgetsJson    Json?   @map("dashboard_widgets_json")
+  dashboardWidgetsJson     Json?                @map("dashboard_widgets_json")
   // Per-user insights tile layout — tile visibility + ordering for the
   // `/insights` surface. Mirrors `dashboardWidgetsJson` so the iOS
   // client and the web Settings UI can persist insights tile order +
@@ -187,7 +187,7 @@ model User {
   // endpoint never lazy-writes — the column only carries data once
   // the user has explicitly saved a layout.
   // Shape: { "tiles": [{ "id": "blutdruck", "visible": true, "order": 0 }, ...], "version": 1 }
-  insightsLayoutJson      Json?   @map("insights_layout_json")
+  insightsLayoutJson       Json?                @map("insights_layout_json")
   // Per-user medications list presentation — the card/table view choice
   // plus the user-defined manual medication order shared by BOTH views.
   // Follows the per-surface-column convention of `dashboardWidgetsJson` /
@@ -195,23 +195,23 @@ model User {
   // The GET endpoint never lazy-writes — the column only carries data
   // once the user has explicitly toggled the view or saved an order.
   // Shape: { "version": 1, "view": "table", "order": ["<medicationId>", ...] }
-  medicationListLayoutJson Json?  @map("medication_list_layout_json")
+  medicationListLayoutJson Json?                @map("medication_list_layout_json")
   // v1.17.0 — per-user mood-tag presentation: group order + per-group tag
   // placement (catalogue tags "moved" into a group live here only — their
   // `categoryId` never changes). Display-only, preserve-when-absent PUT,
   // unknown keys dropped at read. Null = seeded defaults.
   // Shape: { "groupOrder": ["<categoryKey>", ...],
   //          "placements": { "<categoryKey>": ["<tagKey>", ...] } }
-  moodTagLayoutJson       Json?   @map("mood_tag_layout_json")
+  moodTagLayoutJson        Json?                @map("mood_tag_layout_json")
   // Blood-glucose display unit preference. Canonical storage is mg/dL.
-  glucoseUnit             String? @map("glucose_unit") // "mg/dL" | "mmol/L" | null = default "mg/dL"
+  glucoseUnit              String?              @map("glucose_unit") // "mg/dL" | "mmol/L" | null = default "mg/dL"
   // v1.18.6 — explicit "I have diabetes / clinician glucose targets" opt-in.
   // When `true`, the glucose target resolver applies the tighter ADA glycemic
   // GOAL bands (fasting 80–130, postprandial < 180) instead of the general
   // non-diabetic normal bands. NEVER auto-inferred from values, NEVER a
   // diagnosis — purely a user-declared preference that selects which target
   // band the user is judged against. Default `false`.
-  hasDiabetes             Boolean @default(false) @map("has_diabetes")
+  hasDiabetes              Boolean              @default(false) @map("has_diabetes")
   // v1.18.10 — opt-in local (in-browser) OCR for lab-report scans. When `true`,
   // a user whose AI provider cannot read images (e.g. ChatGPT-OAuth/Codex, a
   // text-only model) can still scan a report: the image is OCR'd in the browser
@@ -219,31 +219,31 @@ model User {
   // provider for structuring. Less accurate than native vision — the mandatory
   // review screen remains the safety backstop. Default `false`; vision-capable
   // users keep the higher-accuracy native path and never pay the WASM download.
-  labsLocalOcrEnabled     Boolean @default(false) @map("labs_local_ocr_enabled")
+  labsLocalOcrEnabled      Boolean              @default(false) @map("labs_local_ocr_enabled")
   // v1.7.0 unit pref — global metric/imperial display preference.
   // Canonical storage stays SI; this only selects the display-time
   // transform branch (km/h vs mph, km vs mi). Null = default "metric".
-  unitPreference          String? @map("unit_preference") // "metric" | "imperial" | null = default "metric"
+  unitPreference           String?              @map("unit_preference") // "metric" | "imperial" | null = default "metric"
   // Hour-cycle display preference. AUTO follows the locale convention
   // (en → AM/PM, de → 24h), H12 forces AM/PM, H24 forces 24-hour.
   // Display-time only — canonical storage stays UTC instants.
-  timeFormat              TimeFormatPreference @default(AUTO) @map("time_format")
+  timeFormat               TimeFormatPreference @default(AUTO) @map("time_format")
   // Date display preference. AUTO follows the active locale convention
   // (de → dd.MM.yyyy, en → MM/dd/yyyy); DMY pins day-month-year,
   // MDY pins month-day-year, YMD pins ISO yyyy-MM-dd. Display-time only —
   // canonical storage stays UTC instants.
-  dateFormat              DateFormatPreference @default(AUTO) @map("date_format")
+  dateFormat               DateFormatPreference @default(AUTO) @map("date_format")
   // AI provider selection for insights. Null = OPENAI fallback.
-  aiProvider              String? @map("ai_provider") // "OPENAI" | "ANTHROPIC" | "LOCAL" | "CHATGPT_OAUTH"
-  aiModel                 String? @map("ai_model")
-  aiBaseUrl               String? @map("ai_base_url")
-  aiAnthropicKeyEncrypted String? @map("ai_anthropic_key_encrypted")
-  aiLocalKeyEncrypted     String? @map("ai_local_key_encrypted")
+  aiProvider               String?              @map("ai_provider") // "OPENAI" | "ANTHROPIC" | "LOCAL" | "CHATGPT_OAUTH"
+  aiModel                  String?              @map("ai_model")
+  aiBaseUrl                String?              @map("ai_base_url")
+  aiAnthropicKeyEncrypted  String?              @map("ai_anthropic_key_encrypted")
+  aiLocalKeyEncrypted      String?              @map("ai_local_key_encrypted")
   // v1.4.3: per-user OpenAI API key for the OPENAI provider — previously
   // the schema only stored Anthropic and Local keys, leaving OPENAI without
   // a credential surface. Encrypted with the active ENCRYPTION_KEYS entry
   // before storage.
-  aiOpenaiKeyEncrypted    String? @map("ai_openai_key_encrypted")
+  aiOpenaiKeyEncrypted     String?              @map("ai_openai_key_encrypted")
 
   // v1.4.16 phase B5b — ordered fallback chain for multi-provider AI
   // redundancy. Each entry is `{ providerType, priority, enabled }`,
@@ -549,51 +549,77 @@ model User {
   avatarContentType String?   @map("avatar_content_type")
   avatarUpdatedAt   DateTime? @map("avatar_updated_at")
 
+  // v1.23 — second-factor (TOTP) + account-security flags. The TOTP shared
+  // secret rides the same AES-256-GCM at-rest envelope as every other
+  // credential (registered in ENCRYPTED_COLUMNS + the rotation script);
+  // `totpConfirmedAt` marks the pending→active promotion. `mfaEnforced` and
+  // `passkeyUpgradeNudgeDismissed` are per-account flags later waves read.
+  totpSecretEncrypted          String?   @map("totp_secret_encrypted")
+  totpConfirmedAt              DateTime? @map("totp_confirmed_at")
+  // v1.23 — TOTP replay guard. The last accepted time-step counter
+  // (RFC 6238 `T = floor(now / period)`). A code is rejected when its
+  // resolved step is <= this value even while still inside the ±1 drift
+  // window, so a captured code cannot be reused within its 30-second
+  // life. BigInt because the step counter grows unbounded with wall time.
+  totpLastStep                 BigInt?   @map("totp_last_step")
+  mfaEnforced                  Boolean   @default(false) @map("mfa_enforced")
+  passkeyUpgradeNudgeDismissed Boolean   @default(false) @map("passkey_upgrade_nudge_dismissed")
+
   // Relations
-  passkeys               Passkey[]
-  sessions               Session[]
-  challenges             AuthChallenge[]
-  measurements           Measurement[]
-  medications            Medication[]
-  intakeEvents           MedicationIntakeEvent[]
-  apiTokens              ApiToken[]
-  refreshTokens          RefreshToken[]
-  auditLogs              AuditLog[]
-  withingsConnection     WithingsConnection?
+  passkeys                    Passkey[]
+  sessions                    Session[]
+  challenges                  AuthChallenge[]
+  // v1.23 — second-factor stores (kept separate from `passkeys`, which is the
+  // passwordless-primary credential set; an MFA credential is meaningless
+  // without the password).
+  mfaChallenges               MfaChallenge[]
+  mfaRecoveryCodes            MfaRecoveryCode[]
+  webauthnMfaCredentials      WebauthnMfaCredential[]
+  knownDevices                UserKnownDevice[]
+  // v1.23 — "remember this device" trusted-device tokens. A trusted device
+  // skips the second factor (factor 2 only) within the window; the password
+  // is still required. Revoked when the second factor is removed.
+  trustedDevices              TrustedDevice[]
+  measurements                Measurement[]
+  medications                 Medication[]
+  intakeEvents                MedicationIntakeEvent[]
+  apiTokens                   ApiToken[]
+  refreshTokens               RefreshToken[]
+  auditLogs                   AuditLog[]
+  withingsConnection          WithingsConnection?
   // v1.4.47 W6 — short-lived `(nonce → userId)` ledger backing the
   // Withings OAuth state check. The connect route mints a row with a
   // 10-minute TTL; the callback resolves the user via this relation
   // instead of parsing the cookie value, closing the L-1 audit gap
   // where the legacy `${user.id}:${nonce}` shape leaked the user id
   // into request logs / network captures.
-  withingsOAuthStates    WithingsOAuthState[]
+  withingsOAuthStates         WithingsOAuthState[]
   // v1.11.0 — WHOOP integration. Mirrors the Withings connection (1:1) +
   // OAuth-state ledger (1:N) relations.
-  whoopConnection        WhoopConnection?
-  whoopOAuthStates       WhoopOAuthState[]
-  whoopConnectTickets    WhoopConnectTicket[]
+  whoopConnection             WhoopConnection?
+  whoopOAuthStates            WhoopOAuthState[]
+  whoopConnectTickets         WhoopConnectTicket[]
   // v1.12.0 — Fitbit/Pixel integration. Mirrors the WHOOP connection (1:1) +
   // OAuth-state ledger (1:N) relations.
-  fitbitConnection       FitbitConnection?
-  fitbitOAuthStates      FitbitOAuthState[]
-  moodEntries            MoodEntry[]
-  moodTagsCustom         MoodTag[]             @relation("UserMoodTags")
-  moodTagCategoriesCustom MoodTagCategory[]    @relation("UserMoodTagCategories")
-  moodTagsHidden         MoodTagHidden[]
-  notificationChannels   NotificationChannel[]
-  pushSubscriptions      PushSubscription[]
-  dataBackups            DataBackup[]
-  achievements           UserAchievement[]
-  feedback               Feedback[]
-  recommendationFeedback RecommendationFeedback[]
-  idempotencyKeys        IdempotencyKey[]
-  devices                Device[]
-  integrationStatuses    IntegrationStatus[]
-  coachConversations     CoachConversation[]
-  coachFacts             CoachFact[]
-  coachPlans             CoachPlan[]
-  coachReminders         CoachReminder[]
-  coachUsage             CoachUsage[]
+  fitbitConnection            FitbitConnection?
+  fitbitOAuthStates           FitbitOAuthState[]
+  moodEntries                 MoodEntry[]
+  moodTagsCustom              MoodTag[]                    @relation("UserMoodTags")
+  moodTagCategoriesCustom     MoodTagCategory[]            @relation("UserMoodTagCategories")
+  moodTagsHidden              MoodTagHidden[]
+  notificationChannels        NotificationChannel[]
+  pushSubscriptions           PushSubscription[]
+  dataBackups                 DataBackup[]
+  achievements                UserAchievement[]
+  recommendationFeedback      RecommendationFeedback[]
+  idempotencyKeys             IdempotencyKey[]
+  devices                     Device[]
+  integrationStatuses         IntegrationStatus[]
+  coachConversations          CoachConversation[]
+  coachFacts                  CoachFact[]
+  coachPlans                  CoachPlan[]
+  coachReminders              CoachReminder[]
+  coachUsage                  CoachUsage[]
   // v1.4.25 W8d — workout passthrough (Apple HKWorkout / Withings
   // getworkouts / future Strava). Schema lands now so the v1.5 iOS
   // session can build against a stable DTO. Routes hang off Workout
@@ -716,29 +742,29 @@ model User {
   // does not warrant the encrypted column treatment. Optional; an unset
   // field collapses the Coverage payor identifier exactly like an
   // unset `insurerName` collapses its name.
-  insurerIkNumber          String? @map("insurer_ik_number")
+  insurerIkNumber String? @map("insurer_ik_number")
 
   // v1.15.0 — cycle tracking. The CycleProfile is a 1:1 settings row
   // (lazily upserted on first cycle-surface access); MenstrualCycle +
   // CycleDayLog are the soft-deleted, sync-feed-bearing capture rows;
   // CyclePrediction is a 1:1 cached forecast (debounced regenerate).
-  cycleProfile     CycleProfile?
-  menstrualCycles  MenstrualCycle[]
-  cycleDayLogs     CycleDayLog[]
-  cyclePrediction  CyclePrediction?
+  cycleProfile        CycleProfile?
+  menstrualCycles     MenstrualCycle[]
+  cycleDayLogs        CycleDayLog[]
+  cyclePrediction     CyclePrediction?
   // v1.15.0 — owner of a per-user custom CycleSymptom (NULL = the global
   // seeded catalogue).
-  cycleSymptomsCustom CycleSymptom[] @relation("UserCycleSymptoms")
+  cycleSymptomsCustom CycleSymptom[]   @relation("UserCycleSymptoms")
 
   // v1.15.20 — user-authored "about me" context for the AI surfaces
   // (1:1, encrypted free text). See `UserHealthProfile`.
-  healthProfile UserHealthProfile?
+  healthProfile     UserHealthProfile?
   // v1.15.20 — registration invite tokens (closed-registration flow).
   // `InviteCreator` = admin who minted the invite; `InviteConsumer` =
   // the account that registered through it (last consumer wins on a
   // multi-use invite).
-  invitesCreated InviteToken[] @relation("InviteCreator")
-  invitesUsed    InviteToken[] @relation("InviteConsumer")
+  invitesCreated    InviteToken[]      @relation("InviteCreator")
+  invitesUsed       InviteToken[]      @relation("InviteConsumer")
   // v1.16.0 — per-signup invite redemption ledger (multi-use history).
   inviteRedemptions InviteRedemption[] @relation("InviteRedemptions")
 
@@ -746,16 +772,19 @@ model User {
 }
 
 model Passkey {
-  id                   String   @id @default(cuid())
-  userId               String   @map("user_id")
-  name                 String   @default("Passkey")
-  credentialId         String   @unique @map("credential_id")
-  credentialPublicKey  Bytes    @map("credential_public_key")
-  counter              BigInt   @default(0)
-  credentialDeviceType String   @map("credential_device_type")
-  credentialBackedUp   Boolean  @default(false) @map("credential_backed_up")
+  id                   String    @id @default(cuid())
+  userId               String    @map("user_id")
+  name                 String    @default("Passkey")
+  credentialId         String    @unique @map("credential_id")
+  credentialPublicKey  Bytes     @map("credential_public_key")
+  counter              BigInt    @default(0)
+  credentialDeviceType String    @map("credential_device_type")
+  credentialBackedUp   Boolean   @default(false) @map("credential_backed_up")
   transports           String[] // e.g. ["usb", "ble", "nfc", "internal"]
-  createdAt            DateTime @default(now()) @map("created_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  // v1.23 — stamped each time the credential's counter is bumped on a
+  // successful assertion, so the management UI can surface "last used".
+  lastUsedAt           DateTime? @map("last_used_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -763,12 +792,17 @@ model Passkey {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  ipAddress String?  @map("ip_address")
-  userAgent String?  @map("user_agent")
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  expiresAt     DateTime  @map("expires_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  ipAddress     String?   @map("ip_address")
+  userAgent     String?   @map("user_agent")
+  // v1.23 — step-up freshness stamp. Set when the session completes a second
+  // factor (or re-confirms it); `requireFreshMfa` (a later wave) reads it.
+  mfaVerifiedAt DateTime? @map("mfa_verified_at")
+  // v1.23 — sliding "last seen" for the user-facing active-session list.
+  lastActiveAt  DateTime? @map("last_active_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -777,6 +811,127 @@ model Session {
   // this index the cleanup degrades to a sequential scan on a busy instance.
   @@index([expiresAt])
   @@map("sessions")
+}
+
+// ─── v1.23 second-factor (MFA) substrate ───────────────────
+// These tables back the TOTP / WebAuthn-second-factor / recovery-code flows
+// that later waves build on. Phase F lands the empty stores only.
+
+// Single-use step-up ticket minted after a valid password when the account
+// has a second factor enabled. The partial "password OK, awaiting factor 2"
+// state lives in this row — never in a half-built Session — so no session or
+// token is issued before the second factor passes. The ticket is presented as
+// an opaque value; only its hash is stored.
+model MfaChallenge {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  // Which factor the ticket is being exercised against ("totp" | "webauthn" |
+  // "recovery_code"). A free-form column; the verify route validates it.
+  kind       String
+  ticketHash String    @unique @map("ticket_hash") // hashToken(ticket)
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  // The verify path and the expiry sweep both filter on `expiresAt`.
+  @@index([expiresAt])
+  @@map("mfa_challenges")
+}
+
+// One row per single-use recovery code. The code is Argon2id-hashed at rest
+// (same primitive as the password); `usedAt` burns it. Regeneration deletes the
+// prior set in a transaction.
+model MfaRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  codeHash  String    @map("code_hash") // Argon2id
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_recovery_codes")
+}
+
+// Second-factor WebAuthn credential (typically a roaming security key), kept
+// SEPARATE from `Passkey`: a `Passkey` row is a passwordless-primary login
+// credential, whereas an MFA credential only ever runs after the password has
+// identified the account. Mirrors the `Passkey` field encoding.
+model WebauthnMfaCredential {
+  id                  String    @id @default(cuid())
+  userId              String    @map("user_id")
+  name                String    @default("Security key")
+  credentialId        String    @unique @map("credential_id")
+  credentialPublicKey Bytes     @map("credential_public_key")
+  counter             BigInt    @default(0)
+  transports          String[] // e.g. ["usb", "ble", "nfc", "internal"]
+  createdAt           DateTime  @default(now()) @map("created_at")
+  lastUsedAt          DateTime? @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("webauthn_mfa_credentials")
+}
+
+// v1.23 — login-alert dedupe ledger. One row per (user, coarse device
+// fingerprint). The fingerprint is a one-way SHA-256 hash of
+// `userId | normalised-User-Agent | coarse-location-or-asn` — never the raw
+// User-Agent or IP, so the table holds no directly identifying request
+// metadata (`deviceHash` is salted by the userId, so the same browser on two
+// accounts yields two unrelated hashes). `label` is a coarse, human-readable
+// descriptor for the activity surface (e.g. "Firefox on macOS — Berlin, DE");
+// it intentionally omits the IP. First sighting of a hash fires one new-device
+// notification through the dispatcher; later sightings only bump `lastSeenAt`.
+model UserKnownDevice {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  deviceHash  String   @map("device_hash")
+  label       String?
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Dedupe is per-user: the same coarse fingerprint can never be inserted
+  // twice for one account, so the "first sighting → alert" decision is a
+  // single unique-constrained upsert.
+  @@unique([userId, deviceHash])
+  @@index([userId])
+  @@map("user_known_devices")
+}
+
+// v1.23 — "remember this device" trusted-device token.
+//
+// At the second-factor step the user may opt in to trusting the browser for 30
+// days. On opt-in a random token is minted, set in an httpOnly+Secure cookie,
+// and only its HMAC hash (`tokenHash`, keyed by `API_TOKEN_HMAC_KEY`) is stored
+// here — a leaked row cannot reconstruct a usable cookie. On a later sign-in
+// from the same browser the password is still required (factor 1); a matching,
+// unexpired trusted-device row lets the login skip factor 2 only. The token is
+// NEVER accepted for step-up (`requireFreshMfa`) — a stolen cookie cannot reach
+// a destructive action. Revocable from the device list and revoked wholesale
+// when the second factor is removed or the user signs out everywhere.
+model TrustedDevice {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  tokenHash  String   @unique @map("token_hash")
+  label      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  expiresAt  DateTime @map("expires_at")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  // The reaper for expired trusted devices sweeps on `expiresAt`.
+  @@index([expiresAt])
+  @@map("trusted_devices")
 }
 
 model AuthChallenge {
@@ -1074,8 +1229,8 @@ enum SleepStage {
 }
 
 model Measurement {
-  id                    String            @id @default(cuid())
-  userId                String            @map("user_id")
+  id                    String                @id @default(cuid())
+  userId                String                @map("user_id")
   type                  MeasurementType
   value                 Float
   // v1.19.2 (iOS #34 extension) — per-bucket spread for an aggregated row.
@@ -1086,28 +1241,32 @@ model Measurement {
   // samples. NULL for every other row (per-sample readings, per-day
   // cumulative `stats:` totals, manual entries) — the series reader hands
   // them through only for the heart-rate kind.
-  valueMin              Float?            @map("value_min")
-  valueMax              Float?            @map("value_max")
+  valueMin              Float?                @map("value_min")
+  valueMax              Float?                @map("value_max")
   unit                  String // kg, mmHg, bpm, %, minutes (sleep), steps, mg/dL, kcal, m, ms, mL/(kg·min), celsius
-  source                MeasurementSource @default(MANUAL)
-  measuredAt            DateTime          @map("measured_at")
-  notes                 String? // encrypted at app level if sensitive
+  source                MeasurementSource     @default(MANUAL)
+  measuredAt            DateTime              @map("measured_at")
+  notes                 String? // LEGACY plaintext — superseded by `notesEncrypted` (v1.23). New writes go to the encrypted column and null this; the boot-time backfill migrates the remaining rows. Column drop is a follow-up release once the backfill reports zero remaining.
+  // v1.23 — free-text measurement note, AES-256-GCM at rest (Bytes, matching
+  // the IllnessDayLog / CycleDayLog / LabResult note convention). Registered
+  // in ENCRYPTED_COLUMNS + the rotation script.
+  notesEncrypted        Bytes?                @map("notes_encrypted")
   // External-system dedup key. Withings used `grpid` (numeric); v1.4.23
   // adds Apple Health which uses `HKSample.uuid` (string). NULL for
   // manual entries — Postgres treats NULLs as distinct in unique
   // indexes, so two manual rows with the same (user, type, source) are
   // still allowed.
-  externalId            String?           @map("external_id")
+  externalId            String?               @map("external_id")
   // v1.4.23 — opaque marker for the source's schema version (HealthKit
   // sample's `metadata.HKWasUserEntered`, Withings model code, …).
   // Stored as a string so the ingest path can replay it back unchanged.
-  externalSourceVersion String?           @map("external_source_version")
+  externalSourceVersion String?               @map("external_source_version")
   // Only set for BLOOD_GLUCOSE measurements. NULL for all others.
-  glucoseContext        GlucoseContext?   @map("glucose_context")
+  glucoseContext        GlucoseContext?       @map("glucose_context")
   // v1.4.23 — per-stage sleep label. NULL for non-sleep rows; non-NULL
   // only for `type = SLEEP_DURATION`. Mirrors the glucoseContext
   // pattern. A single night produces ~5 rows (one per stage).
-  sleepStage            SleepStage?       @map("sleep_stage")
+  sleepStage            SleepStage?           @map("sleep_stage")
   // v1.10.0 — categorical events (WX-B). The device's own classification
   // verdict / severity for an EVENT row. NULL for every continuous
   // measurement; non-NULL only for the categorical EVENT `MeasurementType`s.
@@ -1127,7 +1286,7 @@ model Measurement {
   // NULL as `unknown`. Unique constraints intentionally do not
   // include `deviceType` so two ingest paths from the same source
   // still dedup on (type, source, externalId).
-  deviceType            String?           @map("device_type")
+  deviceType            String?               @map("device_type")
   // v1.4.30 — iOS SyncMode foundation (R-E C-2). Monotonically
   // incremented on every server-side mutation of the row. iOS uses
   // it for last-writer-wins reconciliation when two devices write
@@ -1135,18 +1294,18 @@ model Measurement {
   // update path is responsible for bumping it. Existing rows
   // start at the default after the additive migration so legacy
   // ingest keeps round-tripping unchanged.
-  syncVersion           Int               @default(1) @map("sync_version")
+  syncVersion           Int                   @default(1) @map("sync_version")
   // v1.4.30 — soft-delete column. The DELETE path on the
   // by-external-ids endpoint flips this rather than removing the row
   // so paired iOS clients can reconcile deletions without losing the
   // audit trail. NULL = live row; non-NULL = tombstoned at the
   // recorded instant. The unique-by-externalId index keeps both
   // states distinguishable for the bulk-backfill UPSERT path.
-  deletedAt             DateTime?         @map("deleted_at")
-  createdAt             DateTime          @default(now()) @map("created_at")
-  updatedAt             DateTime          @updatedAt @map("updated_at")
+  deletedAt             DateTime?             @map("deleted_at")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   // v1.19.0 — optional back-relation to the full ECG waveform recording(s)
   // paired with this EVENT row. SET NULL on the FK side keeps the trace if
   // the EVENT row is re-keyed / removed.
@@ -1245,31 +1404,31 @@ model Measurement {
 // RENDERING UI IS OUT OF SCOPE FOR v1.19.0 — this is ingest-only. A trace
 // view (and any analytics over the waveform) is a follow-up.
 model EcgRecording {
-  id                  String            @id @default(cuid())
-  userId              String            @map("user_id")
-  source              MeasurementSource @default(WITHINGS)
+  id                   String                @id @default(cuid())
+  userId               String                @map("user_id")
+  source               MeasurementSource     @default(WITHINGS)
   /// Source's stable per-recording id (Withings `signalid`, or `ts-<unix>`).
-  externalRecordingId String            @map("external_recording_id")
+  externalRecordingId  String                @map("external_recording_id")
   /// When the strip was recorded on-device (source timestamp).
-  recordedAt          DateTime          @map("recorded_at")
+  recordedAt           DateTime              @map("recorded_at")
   /// AES-256-GCM ciphertext of the JSON-encoded micro-volt sample array.
-  waveformEncrypted   Bytes             @map("waveform_encrypted")
+  waveformEncrypted    Bytes                 @map("waveform_encrypted")
   /// Sampling rate of the signal in Hz (sample index → time offset).
-  samplingFrequency   Int               @map("sampling_frequency")
+  samplingFrequency    Int                   @map("sampling_frequency")
   /// Number of samples in the (decrypted) waveform array.
-  sampleCount         Int               @map("sample_count")
+  sampleCount          Int                   @map("sample_count")
   /// `sampleCount / samplingFrequency` in seconds; NULL when frequency is 0.
-  durationSeconds     Float?            @map("duration_seconds")
+  durationSeconds      Float?                @map("duration_seconds")
   /// Recording lead / pathway label when the source reports it (else NULL).
-  lead                String?
+  lead                 String?
   /// Source-reported average heart rate (BPM) for the strip, when present.
-  averageHeartRate    Int?              @map("average_heart_rate")
+  averageHeartRate     Int?                  @map("average_heart_rate")
   /// Snapshot of the device AFib verdict for the paired EVENT row.
   rhythmClassification RhythmClassification? @map("rhythm_classification")
   /// FK to the IRREGULAR_RHYTHM_NOTIFICATION Measurement EVENT row, when known.
-  measurementId       String?           @map("measurement_id")
-  createdAt           DateTime          @default(now()) @map("created_at")
-  updatedAt           DateTime          @updatedAt @map("updated_at")
+  measurementId        String?               @map("measurement_id")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   measurement Measurement? @relation(fields: [measurementId], references: [id], onDelete: SetNull)
@@ -1516,20 +1675,20 @@ model WorkoutSamples {
 // table keeps it cleanly server-internal. Idempotent on `(userId, day)` so
 // a re-fired nightly tick overwrites the day's cache row in place.
 model StrainTrimpCache {
-  id     String @id @default(cuid())
-  userId String @map("user_id")
+  id           String @id @default(cuid())
+  userId       String @map("user_id")
   /// The scored UTC calendar day (`YYYY-MM-DD`), matching the score row's day key.
-  day    String
+  day          String
   /// Day-total Banister TRIMP for the day (0 when no usable HR series).
-  dayTrimp Float @map("day_trimp")
+  dayTrimp     Float  @map("day_trimp")
   /// EWMA-smoothed personal reference TRIMP in effect for this day's score.
-  refPersonal Float @map("ref_personal")
+  refPersonal  Float  @map("ref_personal")
   /// Which anchor produced this day's score: `personal` once enough personal
   /// training history accrued, `population` during cold start.
-  anchor String
+  anchor       String
   /// Distinct training days (TRIMP > 0) seen in the chronic window — drives
   /// the cold-start gate + the confidence label.
-  trainingDays Int @map("training_days")
+  trainingDays Int    @map("training_days")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1631,10 +1790,10 @@ enum MedicationScheduleType {
 }
 
 model Medication {
-  id                   String             @id @default(cuid())
-  userId               String             @map("user_id")
-  name                 String
-  dose                 String // e.g. "10mg"
+  id                            String                 @id @default(cuid())
+  userId                        String                 @map("user_id")
+  name                          String
+  dose                          String // e.g. "10mg"
   /// v1.4.25 W4d — treatment-class discriminator. GENERIC for the
   /// vast majority of meds; GLP1 unlocks injection-site rotation,
   /// dose-titration history, pen inventory, plateau detection, and
@@ -1642,11 +1801,11 @@ model Medication {
   /// not `category` to avoid clashing with the existing
   /// `medication_categories` side-table (clinical taxonomy) that the
   /// UI continues to read.
-  treatmentClass       MedicationCategory @default(GENERIC) @map("treatment_class")
+  treatmentClass                MedicationCategory     @default(GENERIC) @map("treatment_class")
   /// Doses per pen/vial — only meaningful for inventory-tracked meds
   /// (Mounjaro KwikPen = 4, Ozempic 0.25/0.5 mg = 4, Wegovy single-dose
   /// pen = 1). NULL = inventory tracking off.
-  dosesPerUnit         Int?               @map("doses_per_unit")
+  dosesPerUnit                  Int?                   @map("doses_per_unit")
   /// v1.16.10 — units consumed per dose. The inventory items count UNITS
   /// (tablets, ampoules, puffs); a single dose may consume several of
   /// them (2 × 2 mg tablets for a 4 mg dose). The intake consumption
@@ -1657,21 +1816,21 @@ model Medication {
   /// set of common fractions; the column stores their decimal value
   /// (¼=0.25, ⅓≈0.3333, ½=0.5, ⅔≈0.6667, ¾=0.75) plus whole numbers.
   /// Existing integer rows cast losslessly.
-  unitsPerDose         Decimal            @default(1) @map("units_per_dose") @db.Decimal(10, 4)
-  active               Boolean            @default(true)
-  notificationsEnabled Boolean            @default(true) @map("notifications_enabled")
-  pausedAt             DateTime?          @map("paused_at")
-  snoozedUntil         DateTime?          @map("snoozed_until")
+  unitsPerDose                  Decimal                @default(1) @map("units_per_dose") @db.Decimal(10, 4)
+  active                        Boolean                @default(true)
+  notificationsEnabled          Boolean                @default(true) @map("notifications_enabled")
+  pausedAt                      DateTime?              @map("paused_at")
+  snoozedUntil                  DateTime?              @map("snoozed_until")
   /// v1.5 — date the medication course begins. Anchors RRULE BYDAY /
   /// BYMONTHDAY patterns and the rolling-interval countdown's first
   /// window. NULL = "active from creation" (the legacy implicit
   /// behaviour preserved for backwards compatibility). Required when
   /// `oneShot` is true.
-  startsOn             DateTime?          @map("starts_on") @db.Date
+  startsOn                      DateTime?              @map("starts_on") @db.Date
   /// v1.5 — date the medication course ends. Reminder worker stops
   /// minting slots past this date. NULL = no end date (chronic).
   /// When `oneShot` is true, `endsOn` always equals `startsOn`.
-  endsOn               DateTime?          @map("ends_on") @db.Date
+  endsOn                        DateTime?              @map("ends_on") @db.Date
   /// v1.5 — single-administration medication (flu shot, vaccine,
   /// post-op single dose, etc.). When true the medication has at
   /// most one MedicationIntakeEvent and `active` flips to false once
@@ -1679,7 +1838,7 @@ model Medication {
   /// recurring schedules; the form layer enforces the constraint and
   /// the migration backfills `oneShot = false` for every existing
   /// row.
-  oneShot              Boolean            @default(false) @map("one_shot")
+  oneShot                       Boolean                @default(false) @map("one_shot")
   /// v1.16.11 (#316) — as-needed (PRN) medication. Taken only when the
   /// user needs it (pain relief, rescue inhaler): no fixed schedule,
   /// never due, never reminded, never counted in compliance, stays
@@ -1689,56 +1848,56 @@ model Medication {
   /// schedules array alongside `asNeeded: true`); every "never due /
   /// never reminded" surface follows structurally from the empty
   /// schedule list. Mutually exclusive with `oneShot`.
-  asNeeded             Boolean            @default(false) @map("as_needed")
+  asNeeded                      Boolean                @default(false) @map("as_needed")
   /// v1.6.0 — route of administration. Decoupled from `treatmentClass`
   /// so the injection-site picker can surface for any INJECTION dose.
   /// A one-time injection is `oneShot = true` + `deliveryForm =
   /// INJECTION`. The migration backfills ORAL for every existing row.
-  deliveryForm         MedicationDeliveryForm @default(ORAL) @map("delivery_form")
+  deliveryForm                  MedicationDeliveryForm @default(ORAL) @map("delivery_form")
   /// v1.8.5 — per-medication injection-site tracking opt-in. Only
   /// meaningful (and only offered in the UI) when `deliveryForm ===
   /// INJECTION`. Default false: after marking a dose taken the client
   /// prompts for the site only when this is true, and the prompt is
   /// always skippable (never blocking). Deactivatable at any time.
-  trackInjectionSites  Boolean @default(false) @map("track_injection_sites")
+  trackInjectionSites           Boolean                @default(false) @map("track_injection_sites")
   /// v1.8.5 — per-medication allowed / preferred injection sites. Empty
   /// = no per-medication restriction (every site is offered). The
   /// effective pickable set is this list MINUS the user-level
   /// `globalExcludedInjectionSites` deny-list (deny always wins). The
   /// intake write path validates a submitted site against the effective
   /// set and 422s on a disallowed value.
-  allowedInjectionSites InjectionSite[] @default([]) @map("allowed_injection_sites")
+  allowedInjectionSites         InjectionSite[]        @default([]) @map("allowed_injection_sites")
   /// v1.7.0 — iOS Live Activity opt-in for this medication's reminders.
   /// Default false; existing rows backfill false. The server stores +
   /// echoes the flag; the iOS client owns the ActivityKit lifecycle. No
   /// server-side behaviour hangs off it.
-  liveActivityEnabled  Boolean            @default(false) @map("live_activity_enabled")
+  liveActivityEnabled           Boolean                @default(false) @map("live_activity_enabled")
   /// v1.7.0 — iOS 26 AlarmKit critical-reminder opt-in. Critical alarms
   /// bypass the device mute switch / Focus. Default false; the server
   /// stores the preference only — it does not itself authorise anything
   /// server-side.
-  criticalAlarmEnabled Boolean            @default(false) @map("critical_alarm_enabled")
+  criticalAlarmEnabled          Boolean                @default(false) @map("critical_alarm_enabled")
   /// v1.9.0 — optional ATC classification code (active-substance class,
   /// e.g. `A10BX10`). User/clinician-asserted; never machine-guessed on
   /// the export path. NULL = no code (the FHIR exporter emits a text-only
   /// `medicationCodeableConcept`, the pre-v1.9.0 behaviour). The WHO URI
   /// `http://www.whocc.no/atc` is the emitted system. Validated on write
   /// against `^[A-Z]\d{2}[A-Z]{2}\d{2}$`.
-  atcCode              String?            @map("atc_code")
+  atcCode                       String?                @map("atc_code")
   /// v1.9.0 — optional RxNorm RxCUI (US; secondary coding). Same NULL
   /// semantics as `atcCode`. Validated on write against `^\d+$`. Emitted
   /// under `http://www.nlm.nih.gov/research/umls/rxnorm` alongside any
   /// ATC code, never instead of the free-text `.text` anchor.
-  rxNormCode           String?            @map("rxnorm_code")
+  rxNormCode                    String?                @map("rxnorm_code")
   /// v1.16.11 — low-stock notification stamp. Set when the daily
   /// low-stock pass dispatched a notification for the current
   /// threshold crossing; cleared (re-armed) when the projected runway
   /// rises back to / above the user's threshold (refill). NULL = armed.
-  lowStockNotifiedAt   DateTime?          @map("low_stock_notified_at")
+  lowStockNotifiedAt            DateTime?              @map("low_stock_notified_at")
   /// v1.16.11 — the user threshold (days) the stamp was written
   /// against. A changed threshold re-arms the medication even while
   /// the runway stays low, so the user hears about the new crossing.
-  lowStockNotifiedThresholdDays Int?      @map("low_stock_notified_threshold_days")
+  lowStockNotifiedThresholdDays Int?                   @map("low_stock_notified_threshold_days")
   /// v1.17.0 — optional per-medication reorder lead time in days (how
   /// long between placing a refill order and the new supply arriving).
   /// The low-stock alert adds this lead plus one dose-interval on top of
@@ -1746,9 +1905,9 @@ model Medication {
   /// cadence. NULL = inherit the per-user
   /// `notificationPrefs.medication.reorderLeadDays` default. Additive; no
   /// backfill.
-  reorderLeadDays      Int?               @map("reorder_lead_days")
-  createdAt            DateTime           @default(now()) @map("created_at")
-  updatedAt            DateTime           @updatedAt @map("updated_at")
+  reorderLeadDays               Int?                   @map("reorder_lead_days")
+  createdAt                     DateTime               @default(now()) @map("created_at")
+  updatedAt                     DateTime               @updatedAt @map("updated_at")
 
   schedules         MedicationSchedule[]
   intakeEvents      MedicationIntakeEvent[]
@@ -1785,8 +1944,8 @@ model Medication {
 }
 
 model MedicationSchedule {
-  id           String  @id @default(cuid())
-  medicationId String  @map("medication_id")
+  id                   String                 @id @default(cuid())
+  medicationId         String                 @map("medication_id")
   /// v1.4.25 W4e — schema-convention fix. Prior to this release the DB
   /// columns were the camelCase identifiers `"windowStart"` / `"windowEnd"`
   /// because the original 0001_init migration omitted `@map`. The
@@ -1794,10 +1953,10 @@ model MedicationSchedule {
   /// `windowEnd`); only the underlying SQL identifier is renamed to
   /// match the snake_case convention every other column on this model
   /// already follows.
-  windowStart  String  @map("window_start") // HH:mm format, e.g. "08:00"
-  windowEnd    String  @map("window_end") // HH:mm format, e.g. "10:00"
-  label        String? // e.g. "Morning", "Evening"
-  dose         String? // Per-schedule dose override; null = use Medication.dose
+  windowStart          String                 @map("window_start") // HH:mm format, e.g. "08:00"
+  windowEnd            String                 @map("window_end") // HH:mm format, e.g. "10:00"
+  label                String? // e.g. "Morning", "Evening"
+  dose                 String? // Per-schedule dose override; null = use Medication.dose
   /// Legacy string encoding of the cadence ("null | 1,3,5 | i2;1,3,5").
   /// v1.5 writes go to `rrule` / `rollingIntervalDays` and v1.5.1 flipped
   /// the readers to consult the new fields first.
@@ -1811,18 +1970,18 @@ model MedicationSchedule {
   /// the medications list/detail pages parse it through
   /// `parseScheduleRecurrence`). Dropping it would break those callers,
   /// so it stays until those readers are migrated off the legacy pair.
-  daysOfWeek   String? @map("days_of_week")
+  daysOfWeek           String?                @map("days_of_week")
   /// v1.5 — one or more `HH:mm` strings naming the times the dose is
   /// taken (in the user's timezone). Replaces the legacy single
   /// `windowStart` mental model — patients think in points-in-time,
   /// not in windows. Migration backfills `[windowStart]` for every
   /// pre-v1.5 row.
-  timesOfDay  String[] @default([]) @map("times_of_day")
+  timesOfDay           String[]               @default([]) @map("times_of_day")
   /// v1.5 — reminder grace window in minutes. Replaces the implicit
   /// `windowEnd - windowStart` computation for late-dose
   /// classification. NULL falls back to the legacy math (the
   /// reminder worker honours `windowEnd` when this is null).
-  reminderGraceMinutes Int? @map("reminder_grace_minutes")
+  reminderGraceMinutes Int?                   @map("reminder_grace_minutes")
   /// v1.5 — RFC 5545 RRULE string for calendar-anchored cadences
   /// (every N weeks, monthly, quarterly, yearly). Examples:
   ///   FREQ=DAILY
@@ -1834,27 +1993,27 @@ model MedicationSchedule {
   /// Mutually exclusive with `rollingIntervalDays` — enforced by the
   /// `medication_schedules_rrule_xor_rolling` CHECK constraint added
   /// in the v1.5 migration.
-  rrule        String? @map("rrule")
+  rrule                String?                @map("rrule")
   /// v1.5 — flexible-rolling interval in days, counted forward from
   /// the latest `MedicationIntakeEvent.takenAt` for the parent
   /// medication. NULL when the schedule is calendar-anchored.
   /// Mutually exclusive with `rrule`. Range 1..365 enforced at the
   /// Zod layer; the column itself is unconstrained at the DB so
   /// future extensions don't need a new migration.
-  rollingIntervalDays Int? @map("rolling_interval_days")
+  rollingIntervalDays  Int?                   @map("rolling_interval_days")
   /// v1.7.0 — schedule-type discriminator. SCHEDULED = the existing rrule
   /// / rolling / legacy cadence. PRN = as-needed (never projected,
   /// reminded, or counted in compliance expected; still loggable).
   /// CYCLIC = N weeks on / M weeks off, gating whichever inner cadence
   /// the rrule / legacy fields describe. Backfills SCHEDULED.
-  scheduleType MedicationScheduleType @default(SCHEDULED) @map("schedule_type")
+  scheduleType         MedicationScheduleType @default(SCHEDULED) @map("schedule_type")
   /// v1.7.0 — cyclic "on" weeks. Only meaningful when
   /// `scheduleType = CYCLIC`. The phase repeats (cyclicOnWeeks on, then
   /// cyclicOffWeeks off) from the medication's `startsOn ?? createdAt`.
-  cyclicOnWeeks  Int? @map("cyclic_on_weeks")
+  cyclicOnWeeks        Int?                   @map("cyclic_on_weeks")
   /// v1.7.0 — cyclic "off" weeks. Only meaningful when
   /// `scheduleType = CYCLIC`.
-  cyclicOffWeeks Int? @map("cyclic_off_weeks")
+  cyclicOffWeeks       Int?                   @map("cyclic_off_weeks")
   /// v1.15.18 — per-dose on-time intake WINDOW (the configurable lever).
   /// A JSON array of `{ timeOfDay, start, end }` HH:mm triples, one per
   /// dose time the user wants an explicit range for (e.g.
@@ -1864,7 +2023,7 @@ model MedicationSchedule {
   /// `timeOfDay` with no entry falls back to the symmetric ±1h default.
   /// The late tail stays cadence-derived. NULL = every slot uses the
   /// default derivation (unchanged behaviour). Additive + iOS-safe.
-  doseWindows  Json? @map("dose_windows")
+  doseWindows          Json?                  @map("dose_windows")
 
   medication       Medication                @relation(fields: [medicationId], references: [id], onDelete: Cascade)
   telegramMessages TelegramReminderMessage[]
@@ -1891,25 +2050,25 @@ model MedicationSchedule {
 /// at `max(medication.createdAt, startsOn)`; a times-only edit must
 /// never move `startsOn`.
 model MedicationScheduleRevision {
-  id           String   @id @default(cuid())
-  medicationId String   @map("medication_id")
+  id                     String   @id @default(cuid())
+  medicationId           String   @map("medication_id")
   /// Inclusive start of the era this archived state was live for.
   /// Chains from the previous revision's `validUntil`, or from
   /// `medication.createdAt` for the first revision.
-  validFrom    DateTime @map("valid_from") @db.Timestamptz(6)
+  validFrom              DateTime @map("valid_from") @db.Timestamptz(6)
   /// Exclusive end of the era — the instant the replace happened.
-  validUntil   DateTime @map("valid_until") @db.Timestamptz(6)
+  validUntil             DateTime @map("valid_until") @db.Timestamptz(6)
   /// Full snapshot of the superseded schedule rows: an array of
   /// `{ timesOfDay, windowStart, windowEnd, daysOfWeek, rrule,
   /// rollingIntervalDays, scheduleType, cyclicOnWeeks, cyclicOffWeeks,
   /// doseWindows, label, dose, reminderGraceMinutes }` objects — enough
   /// to rebuild a `CanonicalSchedule` list for era minting.
-  payload      Json
+  payload                Json
   /// v1.16.5 — provenance. 'ARCHIVED' = minted by the schedule-replace
   /// write path (immutable history). 'MANUAL' = user-entered pre-tracking
   /// era via POST /api/medications/{id}/schedule-revisions (deletable by
   /// the owner).
-  source       String   @default("ARCHIVED")
+  source                 String   @default("ARCHIVED")
   /// v1.16.6 — audit trail for corrected archives. When the owner
   /// corrects an ARCHIVED era through PATCH
   /// /api/medications/{id}/schedule-revisions/{revisionId}, the route
@@ -1917,8 +2076,8 @@ model MedicationScheduleRevision {
   /// original row stays as the audit record; every era consumer
   /// (splitter, list endpoint, live-boundary reads) skips rows where
   /// this is set.
-  supersededByRevisionId String? @map("superseded_by_revision_id")
-  createdAt    DateTime @default(now()) @map("created_at")
+  supersededByRevisionId String?  @map("superseded_by_revision_id")
+  createdAt              DateTime @default(now()) @map("created_at")
 
   medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
 
@@ -1985,12 +2144,12 @@ enum InjectionSite {
 }
 
 model MedicationIntakeEvent {
-  id             String         @id @default(cuid())
-  userId         String         @map("user_id")
-  medicationId   String         @map("medication_id")
-  scheduledFor   DateTime       @map("scheduled_for")
-  takenAt        DateTime?      @map("taken_at")
-  skipped        Boolean        @default(false)
+  id                   String                  @id @default(cuid())
+  userId               String                  @map("user_id")
+  medicationId         String                  @map("medication_id")
+  scheduledFor         DateTime                @map("scheduled_for")
+  takenAt              DateTime?               @map("taken_at")
+  skipped              Boolean                 @default(false)
   /// v1.15.9 — distinguishes a never-acted forgotten dose from a
   /// deliberate user skip. The hourly auto-miss cron sets this (NOT
   /// `skipped`) on a pending row past its miss cutoff so the compliance
@@ -1998,7 +2157,7 @@ model MedicationIntakeEvent {
   /// `skipped = true` stays excluded (a deliberate drug holiday). Every
   /// legacy row defaults to false (a user skip or a live pending row,
   /// neither of which is an auto-miss).
-  autoMissed     Boolean        @default(false) @map("auto_missed")
+  autoMissed           Boolean                 @default(false) @map("auto_missed")
   /// v1.15.20 — how this row's `scheduledFor` slot binding came to be.
   /// `AUTO` (default) = the write path attributed the take by window-band
   /// membership (or the row is a skip / pending mint anchored on its slot).
@@ -2010,19 +2169,19 @@ model MedicationIntakeEvent {
   /// re-running takenAt-band attribution — visibly marked, counted late,
   /// never on-time-washed — and surfaces released rows as ad-hoc; the
   /// nightly dedup leaves both standalone.
-  attributionSource IntakeAttributionSource @default(AUTO) @map("attribution_source")
-  source         IntakeSource   @default(WEB)
-  idempotencyKey String?        @unique @map("idempotency_key")
-  createdAt      DateTime       @default(now()) @map("created_at")
+  attributionSource    IntakeAttributionSource @default(AUTO) @map("attribution_source")
+  source               IntakeSource            @default(WEB)
+  idempotencyKey       String?                 @unique @map("idempotency_key")
+  createdAt            DateTime                @default(now()) @map("created_at")
   /// v1.4.25 W4d — only populated for GLP-1 intake events (the picker
   /// is the only surface that writes this column). Existing rows stay
   /// NULL forever and the read paths treat NULL as "no site recorded".
-  injectionSite  InjectionSite? @map("injection_site")
+  injectionSite        InjectionSite?          @map("injection_site")
   /// v1.16.4 — per-intake dose override. Free text (mirrors
   /// `Medication.dose`), populated only when the user edits the dose at
   /// log time (half tablet, titration day). NULL = the configured
   /// medication / schedule dose applies; read paths fall back to it.
-  doseTaken      String?        @map("dose_taken")
+  doseTaken            String?                 @map("dose_taken")
   /// v1.16.10 — inventory consumption stamp: `[{itemId, units}]` for the
   /// containers this taken event decremented. NULL = never consumed
   /// (pending / skipped / pre-v1.16.10 rows). The stamp is the exactly-
@@ -2031,22 +2190,22 @@ model MedicationIntakeEvent {
   /// the restore hook (taken → skipped / deleted refunds per item). The
   /// stamp freezes history: editing `Medication.unitsPerDose` later
   /// never changes what an already-taken dose consumed.
-  inventoryConsumption Json?    @map("inventory_consumption")
+  inventoryConsumption Json?                   @map("inventory_consumption")
   // v1.7.0 sync — server-set mutation timestamp. The model had no
   // `updatedAt`; the offline-sync keyset feed orders on it, so it is
   // added here. `@updatedAt` makes Prisma maintain it on every write.
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  updatedAt            DateTime                @updatedAt @map("updated_at")
   // v1.7.0 sync — reconciliation counter. An intake is an immutable
   // fact, so a "correction" is a tombstone + re-insert rather than an
   // in-place edit; syncVersion still bumps on the soft-delete write so
   // the feed echoes a monotonic value. Default 0 for legacy rows.
-  syncVersion    Int            @default(0) @map("sync_version")
+  syncVersion          Int                     @default(0) @map("sync_version")
   // v1.7.0 sync — soft-delete tombstone. The user-facing per-event
   // DELETE route flips this (and bumps syncVersion) rather than removing
   // the row, so `/api/sync/changes` surfaces the deletion as a tombstone
   // keyed on the server `id`. NULL = live; non-NULL = tombstoned.
   // Read paths (today / compliance / lists) filter `deletedAt: null`.
-  deletedAt      DateTime?      @map("deleted_at")
+  deletedAt            DateTime?               @map("deleted_at")
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
@@ -2494,13 +2653,13 @@ model RefreshToken {
 // ─── Withings ──────────────────────────────────────────────
 
 model WithingsConnection {
-  id             String    @id @default(cuid())
-  userId         String    @unique @map("user_id")
-  withingsUserId String    @map("withings_user_id")
-  accessToken    String    @map("access_token") // encrypted at app level
-  refreshToken   String    @map("refresh_token") // encrypted at app level
-  tokenExpiresAt DateTime  @map("token_expires_at")
-  lastSyncedAt   DateTime? @map("last_synced_at")
+  id                      String    @id @default(cuid())
+  userId                  String    @unique @map("user_id")
+  withingsUserId          String    @map("withings_user_id")
+  accessToken             String    @map("access_token") // encrypted at app level
+  refreshToken            String    @map("refresh_token") // encrypted at app level
+  tokenExpiresAt          DateTime  @map("token_expires_at")
+  lastSyncedAt            DateTime? @map("last_synced_at")
   /// v1.4.25 W5d — comma-separated OAuth scope string returned by the
   /// Withings authorisation flow. Legacy v1.4.24- connections sit on
   /// `user.metrics` only; v1.4.25 starts requesting
@@ -2508,7 +2667,7 @@ model WithingsConnection {
   /// activity / sleep endpoints unlock. Null = legacy connection that
   /// has never re-authed since v1.4.25 — the UI surfaces a banner
   /// inviting them to reconnect.
-  scope          String?   @map("scope")
+  scope                   String?   @map("scope")
   /// v1.17.1 — one-shot marker for the sleep-stamp backfill. Pre-fix Withings
   /// sleep rows were stamped with the segment START; the reader treats
   /// `measuredAt` as the END, shifting every night one segment-length earlier.
@@ -2516,8 +2675,8 @@ model WithingsConnection {
   /// and re-syncs with the corrected END stamp, then sets this so the discovery
   /// query drops the connection. Null = backfill not yet run.
   sleepTimelineBackfillAt DateTime? @map("sleep_timeline_backfill_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2568,18 +2727,18 @@ model WithingsOAuthState {
 // column registry extends the same way.
 
 model WhoopConnection {
-  id             String    @id @default(cuid())
-  userId         String    @unique @map("user_id")
-  whoopUserId    String    @map("whoop_user_id")
-  accessToken    String    @map("access_token") // encrypted at app level
-  refreshToken   String    @map("refresh_token") // encrypted at app level
-  tokenExpiresAt DateTime  @map("token_expires_at")
+  id                      String    @id @default(cuid())
+  userId                  String    @unique @map("user_id")
+  whoopUserId             String    @map("whoop_user_id")
+  accessToken             String    @map("access_token") // encrypted at app level
+  refreshToken            String    @map("refresh_token") // encrypted at app level
+  tokenExpiresAt          DateTime  @map("token_expires_at")
   /// Space-separated OAuth scope string granted by the WHOOP authorisation
   /// flow (`offline read:recovery read:sleep read:workout read:cycles
   /// read:profile read:body_measurement`). `offline` is required to receive
   /// a refresh token. Null = legacy connection that predates scope tracking.
-  scope          String?   @map("scope")
-  lastSyncedAt   DateTime? @map("last_synced_at")
+  scope                   String?   @map("scope")
+  lastSyncedAt            DateTime? @map("last_synced_at")
   /// v1.16.16 (iOS #17) — per-resource sync cursors. A JSON map
   /// `{ "recovery": "<iso>", "sleep": "<iso>", "workout": "<iso>",
   /// "cycle": "<iso>" }` of each resource's own last-synced instant. The
@@ -2588,10 +2747,10 @@ model WhoopConnection {
   /// 403-ing collection never drags the cursor forward for its siblings and
   /// its own late-arriving records stay inside the window. Null / a missing
   /// key falls back to the shared `lastSyncedAt` (legacy connection).
-  resourceCursors Json?    @map("resource_cursors")
+  resourceCursors         Json?     @map("resource_cursors")
   /// Set once the self-converging history backfill walks every collection to
   /// completion. Null = backfill still in flight (or never started).
-  backfillCompletedAt DateTime? @map("backfill_completed_at")
+  backfillCompletedAt     DateTime? @map("backfill_completed_at")
   /// v1.17.1 — one-shot marker for the sleep-timeline backfill. Pre-fix WHOOP
   /// sleep rows stamped all five stage totals on the one sleep-END instant, so
   /// the hypnogram stacked them on the night's right edge. The boot-time
@@ -2602,9 +2761,9 @@ model WhoopConnection {
   /// Max heart rate from the WHOOP body-measurement profile — a profile
   /// constant, not a time series, so it lives here rather than as a
   /// Measurement row.
-  maxHeartRate   Int?      @map("max_heart_rate")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  maxHeartRate            Int?      @map("max_heart_rate")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2622,16 +2781,16 @@ model WhoopConnection {
 ///     the row is gone.
 ///   * A daily cleanup cron sweeps abandoned rows whose `expiresAt` passed.
 model WhoopOAuthState {
-  nonce     String   @id
-  userId    String   @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  expiresAt DateTime @map("expires_at")
+  nonce        String   @id
+  userId       String   @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  expiresAt    DateTime @map("expires_at")
   /// v1.12.2 — optional native custom-scheme (e.g. `dev.healthlog.app`) the
   /// connect route validated against the strict allowlist. Carried here so it
   /// survives the OAuth round-trip server-side (never in the URL/cookie); the
   /// callback reads it off the consumed row to drive its FINAL redirect to
   /// `<scheme>://whoop?…` instead of the web settings URL. Null = web redirect.
-  returnScheme String? @map("return_scheme")
+  returnScheme String?  @map("return_scheme")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2677,21 +2836,21 @@ model WhoopConnectTicket {
 /// use, so `refreshToken` is overwritten only when a token response carries a
 /// fresh one.
 model FitbitConnection {
-  id             String    @id @default(cuid())
-  userId         String    @unique @map("user_id")
-  fitbitUserId   String    @map("fitbit_user_id") // Google/Fitbit external id
-  accessToken    String    @map("access_token") // encrypted at app level
-  refreshToken   String    @map("refresh_token") // encrypted at app level
-  tokenExpiresAt DateTime  @map("token_expires_at")
+  id                  String    @id @default(cuid())
+  userId              String    @unique @map("user_id")
+  fitbitUserId        String    @map("fitbit_user_id") // Google/Fitbit external id
+  accessToken         String    @map("access_token") // encrypted at app level
+  refreshToken        String    @map("refresh_token") // encrypted at app level
+  tokenExpiresAt      DateTime  @map("token_expires_at")
   /// Space-separated OAuth scope string granted by the Google authorisation
   /// flow. Null = legacy connection that predates scope tracking.
-  scope          String?   @map("scope")
-  lastSyncedAt   DateTime? @map("last_synced_at")
+  scope               String?   @map("scope")
+  lastSyncedAt        DateTime? @map("last_synced_at")
   /// Set once the self-converging history backfill walks every collection to
   /// completion. Null = backfill still in flight (or never started).
   backfillCompletedAt DateTime? @map("backfill_completed_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2724,12 +2883,12 @@ model FitbitOAuthState {
 // ─── Mood Entries (moodLog) ───────────────────────────────────
 
 model MoodEntry {
-  id           String   @id @default(cuid())
-  userId       String   @map("user_id")
-  date         String // YYYY-MM-DD — anchored to `tz` when not null, else legacy Europe/Berlin
-  mood         String // SUPER_GUT, GUT, OKAY, SCHLECHT, LAUSIG
-  score        Int // 1-5
-  tags         String? // JSON array of tag keys
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  date          String // YYYY-MM-DD — anchored to `tz` when not null, else legacy Europe/Berlin
+  mood          String // SUPER_GUT, GUT, OKAY, SCHLECHT, LAUSIG
+  score         Int // 1-5
+  tags          String? // JSON array of tag keys
   /// v1.4.30 — first-class free-text note. Replaces the
   /// `tags: ["note:<text>"]` workaround the iOS app shipped through
   /// v0.4.1.1 (per R-E H-5); the prior pattern contaminated the
@@ -2737,8 +2896,17 @@ model MoodEntry {
   /// taxonomic labels. Nullable for the additive-only migration
   /// path; the bulk-backfill endpoint pulls existing `note:...` tag
   /// rows into this column via the migration script.
-  note         String?  @db.Text
-  source       String   @default("MOODLOG") // WEB, TELEGRAM, DAYLIO
+  ///
+  /// LEGACY plaintext — superseded by `noteEncrypted` (v1.23). New writes go to
+  /// the encrypted column and null this; the boot-time backfill migrates the
+  /// remaining rows. Column drop is a follow-up release once the backfill
+  /// reports zero remaining.
+  note          String?   @db.Text
+  /// v1.23 — free-text mood note, AES-256-GCM at rest (Bytes, matching the
+  /// IllnessDayLog / CycleDayLog / LabResult note convention). Registered in
+  /// ENCRYPTED_COLUMNS + the rotation script.
+  noteEncrypted Bytes?    @map("note_encrypted")
+  source        String    @default("MOODLOG") // WEB, TELEGRAM, DAYLIO
   // v1.12.1 — stable per-source dedup id. NULL for native / MANUAL
   // entries (those dedup on the legacy `(userId, date, moodLoggedAt)`
   // key). When an importer receives a source-stable id (the moodLog
@@ -2747,23 +2915,23 @@ model MoodEntry {
   // idempotent even when `moodLoggedAt` re-rounds / re-zones. Postgres
   // treats NULLs as distinct in that unique, so MANUAL rows never
   // collide on it. See migration 0122.
-  externalId   String?  @map("external_id")
-  moodLoggedAt DateTime @map("mood_logged_at")
+  externalId    String?   @map("external_id")
+  moodLoggedAt  DateTime  @map("mood_logged_at")
   /// v1.4.25 W7b — per-row IANA timezone that the `date` string is
   /// anchored to. Nullable for backward compatibility: legacy rows
   /// (`tz IS NULL`) were written under the Europe/Berlin assumption
   /// and read-paths interpret them as such. New rows always carry the
   /// user's `displayTimezone` at write time.
-  tz           String?
-  syncedAt     DateTime @default(now()) @map("synced_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  tz            String?
+  syncedAt      DateTime  @default(now()) @map("synced_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
   // v1.7.0 sync — LWW reconciliation counter for the offline-sync feed.
   // Monotonically bumped on every server-side mutation (update +
   // soft-delete). Mood is last-writer-wins by syncVersion: the higher
   // value wins. Default 0 for the additive migration so legacy rows
   // round-trip unchanged.
-  syncVersion  Int       @default(0) @map("sync_version")
+  syncVersion   Int       @default(0) @map("sync_version")
   // v1.7.0 sync — soft-delete tombstone. The user-facing DELETE route
   // flips this (and bumps syncVersion) rather than removing the row, so
   // the `/api/sync/changes` feed surfaces the deletion as a tombstone
@@ -2771,7 +2939,7 @@ model MoodEntry {
   // NULL = live row; non-NULL = tombstoned at the recorded instant.
   // Every list / detail / analytics / rollup read filters
   // `deletedAt: null` so tombstoned rows never surface in normal reads.
-  deletedAt    DateTime? @map("deleted_at")
+  deletedAt     DateTime? @map("deleted_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -3080,6 +3248,14 @@ model IntegrationStatus {
 model AppSettings {
   id                              String  @id @default("singleton")
   registrationEnabled             Boolean @default(true) @map("registration_enabled")
+  // v1.23 — instance-wide "require a second factor" policy. When true, every
+  // account without an active second factor (no confirmed TOTP and no
+  // registered security key) is sent through a forced-enrollment interstitial
+  // after sign-in until it enrolls one. A per-user override lives on
+  // `User.mfaEnforced`; the effective requirement is the OR of the two. The
+  // operator/CLI escape hatch (`scripts/disable-mfa.ts`, toggling this off)
+  // keeps the policy from locking anyone out irrecoverably.
+  mfaRequired                     Boolean @default(false) @map("mfa_required")
   defaultLocale                   String  @default("de") @map("default_locale") // "de" | "en"
   telegramGlobal                  Boolean @default(true) @map("telegram_global") // global toggle
   ntfyGlobal                      Boolean @default(true) @map("ntfy_global") // global toggle
@@ -3095,13 +3271,6 @@ model AppSettings {
   glitchtipEnabled                Boolean @default(false) @map("glitchtip_enabled")
   glitchtipDsn                    String? @map("glitchtip_dsn")
   glitchtipEnvironment            String? @map("glitchtip_environment")
-  githubIssueTokenEncrypted       String? @map("github_issue_token_encrypted")
-  githubIssueRepo                 String? @map("github_issue_repo")
-  // v1.4.3: explicit toggle so an admin can hide the bug-report
-  // surface without nuking the token+repo config. Default true so
-  // existing instances with credentials don't accidentally lose
-  // the feature on upgrade.
-  bugReportEnabled                Boolean @default(true) @map("bug_report_enabled")
 
   // Medication reminder thresholds (minutes after windowEnd)
   reminderLateMinutes   Int @default(120) @map("reminder_late_minutes")
@@ -3170,52 +3339,6 @@ model AppSettings {
   moduleAvailabilityJson Json? @map("module_availability_json")
 
   @@map("app_settings")
-}
-
-// ─── Built-in Feedback ───────────────────────────────────────
-
-enum FeedbackCategory {
-  BUG
-  FEATURE_REQUEST
-  QUESTION
-  OTHER
-
-  @@map("feedback_category")
-}
-
-enum FeedbackStatus {
-  OPEN
-  ACKNOWLEDGED
-  RESOLVED
-  ARCHIVED
-
-  @@map("feedback_status")
-}
-
-/// Stores user-submitted feedback without requiring external GitHub config.
-/// Admin inbox lives at /admin#feedback; optional escalation publishes to a
-/// GitHub issue reusing the existing integration when configured.
-model Feedback {
-  id               String           @id @default(cuid())
-  userId           String?          @map("user_id") // Null after user deletion; email snapshot remains.
-  email            String? // Snapshot at submission time for triage continuity.
-  category         FeedbackCategory @default(BUG)
-  subject          String
-  description      String
-  screenshotBase64 String?          @map("screenshot_base64") // Optional, <5MB, PNG/JPG.
-  metadata         Json? // URL, userAgent, locale, appVersion, …
-  status           FeedbackStatus   @default(OPEN)
-  adminNote        String?          @map("admin_note")
-  gitHubIssueUrl   String?          @map("github_issue_url")
-  notifiedEmail    Boolean          @default(false) @map("notified_email")
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([status, createdAt])
-  @@index([userId])
-  @@map("feedback")
 }
 
 // ─── Audit Log ─────────────────────────────────────────────
@@ -3467,23 +3590,23 @@ model IdempotencyKey {
 /// for whatever new gateway labels Apple ships next without a forced
 /// migration.
 model Device {
-  id              String   @id @default(cuid())
-  userId          String   @map("user_id")
-  platform        String // "ios"
-  token           String   @unique
-  bundleId        String   @map("bundle_id")
-  locale          String?
-  appVersion      String?  @map("app_version")
-  model           String?
-  apnsToken       String?  @map("apns_token")
-  apnsEnvironment String?  @map("apns_environment") // "sandbox" | "production"
+  id                    String   @id @default(cuid())
+  userId                String   @map("user_id")
+  platform              String // "ios"
+  token                 String   @unique
+  bundleId              String   @map("bundle_id")
+  locale                String?
+  appVersion            String?  @map("app_version")
+  model                 String?
+  apnsToken             String?  @map("apns_token")
+  apnsEnvironment       String?  @map("apns_environment") // "sandbox" | "production"
   /// v1.7.0 — per-device medication-delivery override. NULL = inherit the
   /// user-level roaming default
   /// (`User.notificationPrefs.medication.deliveryDefault`). "server"
   /// forces server APNs for this device; "client" forces local. Stored +
   /// echoed in v1.7.0; cron suppression stays user-level (APNs fans out to
   /// all the user's devices and iOS dedupes locally).
-  medicationDelivery String? @map("medication_delivery")
+  medicationDelivery    String?  @map("medication_delivery")
   /// v1.17.1 (#22) — APNs push token for the iOS Live Activity update/end
   /// channel. ActivityKit issues a per-Activity push token distinct from the
   /// device APNs token; the server stores the most recent one so the worker
@@ -3491,10 +3614,10 @@ model Device {
   /// the device has no active Live Activity. The iOS client owns the
   /// ActivityKit lifecycle and registers/clears this token; no server-side
   /// behaviour hangs off it beyond addressing the update push.
-  liveActivityPushToken String? @map("live_activity_push_token")
-  lastSeen        DateTime @default(now()) @map("last_seen")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  liveActivityPushToken String?  @map("live_activity_push_token")
+  lastSeen              DateTime @default(now()) @map("last_seen")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -3630,7 +3753,7 @@ model LabResult {
   /// the Biomarker, ending the per-row free-text divergence ("LDL" vs "ldl"
   /// vs "LDL-C", `mg/dL` vs `mg/dl`). The legacy `analyte` / `unit` /
   /// `reference*` columns stay as historical truth for one release.
-  biomarkerId   String?    @map("biomarker_id")
+  biomarkerId   String?   @map("biomarker_id")
   /// Provenance: "MANUAL" today; import paths set their own source string.
   source        String    @default("MANUAL")
   /// Optional free-text note, AES-256-GCM encrypted at rest via
@@ -3662,29 +3785,29 @@ model LabResult {
 /// recomputes). Unique per user + name so there is never two "LDL"
 /// definitions.
 model Biomarker {
-  id         String  @id @default(cuid())
-  userId     String  @map("user_id")
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
   /// Canonical display name, e.g. "LDL Cholesterol".
-  name       String
+  name             String
   /// Canonical unit for every reading against this marker, e.g. "mg/dL".
-  unit       String
+  unit             String
   /// Optional reference-range bounds. The lab/sex/age-dependent "normal"
   /// window; the server's range verdict is computed against these.
-  lowerBound Float?  @map("lower_bound")
-  upperBound Float?  @map("upper_bound")
+  lowerBound       Float?   @map("lower_bound")
+  upperBound       Float?   @map("upper_bound")
   /// Optional per-marker context ("what this means"), AES-256-GCM encrypted
   /// at rest via `src/lib/crypto.ts` (Bytes column, `*Encrypted` suffix per
   /// convention).
-  contextEncrypted Bytes? @map("context_encrypted")
+  contextEncrypted Bytes?   @map("context_encrypted")
   /// Optional panel grouping moved off the per-entry row, e.g.
   /// "Großes Blutbild". NULL = standalone marker.
-  panel     String?
+  panel            String?
   /// A marker the user no longer needs: dropped from the active catalog list
   /// and from the lab-entry pickers, but never deleted — its readings and
   /// canonical unit/range definition survive.
-  hidden    Boolean  @default(false) @map("hidden")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  hidden           Boolean  @default(false) @map("hidden")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   results LabResult[]
@@ -4027,26 +4150,26 @@ model CoachReminder {
 // must never land in the table as plaintext. A cleared profile keeps the
 // row with a NULL payload so `updatedAt` documents the deletion instant.
 model UserHealthProfile {
-  id               String   @id @default(cuid())
-  userId           String   @unique @map("user_id")
+  id                        String   @id @default(cuid())
+  userId                    String   @unique @map("user_id")
   // Free text, hard-capped at 4 000 chars by the route's Zod schema
   // BEFORE encryption. NULL = cleared / never written.
-  aboutMeEncrypted Bytes?   @map("about_me_encrypted")
+  aboutMeEncrypted          Bytes?   @map("about_me_encrypted")
   // v1.16.0 — structured self-context companions to the free text.
   // Short answers (each capped at 500 chars BEFORE encryption).
   // Age/gender deliberately do NOT live here — they come from the User
   // profile and are merged into the prompt block at assembly time so
   // the data is never duplicated.
-  conditionsEncrypted Bytes? @map("conditions_encrypted")
-  allergiesEncrypted  Bytes? @map("allergies_encrypted")
-  coachFocusEncrypted Bytes? @map("coach_focus_encrypted")
+  conditionsEncrypted       Bytes?   @map("conditions_encrypted")
+  allergiesEncrypted        Bytes?   @map("allergies_encrypted")
+  coachFocusEncrypted       Bytes?   @map("coach_focus_encrypted")
   // v1.16.0 — up to 3 clarifying questions the server derives after a
   // save (AI-generated when a provider + budget allow, deterministic
   // hints otherwise). Encrypted JSON string[]; the Coach composer
   // renders them as tappable suggestion chips. NULL = none pending.
-  pendingQuestionsEncrypted Bytes? @map("pending_questions_encrypted")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  pendingQuestionsEncrypted Bytes?   @map("pending_questions_encrypted")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -4185,10 +4308,10 @@ model PushAttempt {
 // never-expiring share. Deleting the user cascades every share away so
 // the GDPR-erasure path stays clean.
 model ClinicianShareLink {
-  id        String @id @default(cuid())
-  userId    String @map("user_id")
+  id             String  @id @default(cuid())
+  userId         String  @map("user_id")
   /// HMAC-SHA256 of the raw `hls_` token (same scheme as `ApiToken.tokenHash`).
-  tokenHash String @unique @map("token_hash")
+  tokenHash      String  @unique @map("token_hash")
   /// v1.18.7 — HMAC-SHA256 of the passphrase second factor (same key as
   /// `tokenHash`). NULL for legacy links minted before the passphrase gate;
   /// those keep the possession-only contract (the public view renders without
@@ -4197,21 +4320,21 @@ model ClinicianShareLink {
   /// as this hash — there is no recovery path.
   passphraseHash String? @map("passphrase_hash")
   /// Human label the owner sets (e.g. a clinic/specialty note). Plaintext, bounded.
-  label     String
+  label          String
 
   // ── Frozen scope (write-once at creation; never widened) ──
   /// Reporting-window start (absolute, not "last N days"). Frozen so a
   /// rolling share can never reach data older than the owner chose.
-  rangeStart   DateTime @map("range_start")
+  rangeStart    DateTime  @map("range_start")
   /// Window end. Null = rolling ("up to now"); set = frozen snapshot window.
-  rangeEnd     DateTime? @map("range_end")
+  rangeEnd      DateTime? @map("range_end")
   /// Section toggles (the `DoctorReportPrefs` shape the export uses). JSON.
-  sectionsJson Json @map("sections_json")
+  sectionsJson  Json      @map("sections_json")
   /// FHIR resource types this link may serve (a subset of the catalogue),
   /// e.g. `["Observation","MedicationStatement"]`.
-  resourceTypes String[] @map("resource_types")
+  resourceTypes String[]  @map("resource_types")
   /// Whether the FHIR API is reachable via this link at all (vs the view only).
-  allowFhirApi Boolean @default(false) @map("allow_fhir_api")
+  allowFhirApi  Boolean   @default(false) @map("allow_fhir_api")
 
   /// REQUIRED — no never-expiring share (capped at `SHARE_LINK_MAX_DAYS`).
   expiresAt DateTime @map("expires_at")
@@ -4508,11 +4631,11 @@ model CycleProfile {
 
   /// When true, every cycle push body is generic ("HealthLog reminder")
   /// so no cycle-event naming reaches the lock screen.
-  discreetNotifications        Boolean @default(false) @map("discreet_notifications")
+  discreetNotifications       Boolean @default(false) @map("discreet_notifications")
   /// Default-ON for this category (post-Dobbs threat model): drives
   /// whether the intent-revealing day-log fields encrypt at the
   /// application layer in addition to the always-encrypted notes.
-  sensitiveCategoryEncryption  Boolean @default(true) @map("sensitive_category_encryption")
+  sensitiveCategoryEncryption Boolean @default(true) @map("sensitive_category_encryption")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -4541,14 +4664,14 @@ model MenstrualCycle {
 
   /// Observed cycle length in days (start→next start). NULL until the
   /// next cycle anchors it.
-  lengthDays         Int?     @map("length_days")
+  lengthDays         Int?    @map("length_days")
   /// YYYY-MM-DD — confirmed or estimated ovulation day.
-  ovulationDate      String?  @map("ovulation_date")
+  ovulationDate      String? @map("ovulation_date")
   /// True once ovulation is confirmed (symptothermal / temperature-trend),
   /// as opposed to a calendar estimate.
-  ovulationConfirmed Boolean  @default(false) @map("ovulation_confirmed")
+  ovulationConfirmed Boolean @default(false) @map("ovulation_confirmed")
   /// Forward-minted forecast row vs an observed cycle.
-  isPredicted        Boolean  @default(false) @map("is_predicted")
+  isPredicted        Boolean @default(false) @map("is_predicted")
 
   /// Per-row IANA timezone the date strings are anchored to (NULL =
   /// legacy Europe/Berlin), mirroring MoodEntry.tz.
@@ -4575,8 +4698,8 @@ model MenstrualCycle {
 /// canonical-day key plus the NULL-distinct external-dedup key for
 /// HealthKit re-ingest. Soft-deleted + syncVersion-bumped.
 model CycleDayLog {
-  id     String  @id @default(cuid())
-  userId String  @map("user_id")
+  id      String  @id @default(cuid())
+  userId  String  @map("user_id")
   /// YYYY-MM-DD — anchored to `tz` when non-null, else legacy
   /// Europe/Berlin (the MoodEntry.date convention).
   date    String
@@ -4585,25 +4708,25 @@ model CycleDayLog {
   cycleId String? @map("cycle_id")
 
   /// Menstrual-flow intensity (NULL = not logged this day).
-  flow                  FlowLevel?
+  flow                   FlowLevel?
   /// Spotting / bleeding outside the period window.
-  intermenstrualBleeding Boolean   @default(false) @map("intermenstrual_bleeding")
+  intermenstrualBleeding Boolean    @default(false) @map("intermenstrual_bleeding")
 
   /// Basal body temperature in Celsius. Queryable-plaintext — feeds the
   /// symptothermal confirmation. BBT also lands in Measurement
   /// (BODY_TEMPERATURE) for charting; this column is the cycle-local copy.
-  basalBodyTempC Float?         @map("basal_body_temp_c")
+  basalBodyTempC      Float?         @map("basal_body_temp_c")
   /// Whether this day's BBT is a disturbed/unreliable reading (fever,
   /// illness, alcohol, a late or short-sleep measurement) the user marked
   /// excluded. When true the symptothermal engine drops the reading from the
   /// cover-line baseline AND the shift evaluation, so a spike neither
   /// fabricates nor masks a temperature rise (Sensiplan: the cover line is
   /// drawn over the last six *unbracketed* values).
-  temperatureExcluded Boolean @default(false) @map("temperature_excluded")
+  temperatureExcluded Boolean        @default(false) @map("temperature_excluded")
   /// Ovulation predictor-kit (OPK) reading.
-  ovulationTest  OvulationTest? @map("ovulation_test")
+  ovulationTest       OvulationTest? @map("ovulation_test")
   /// Cervical-mucus quality.
-  cervicalMucus  CervicalMucus? @map("cervical_mucus")
+  cervicalMucus       CervicalMucus? @map("cervical_mucus")
 
   /// Cervix observation — the three standard Sensiplan cervix signs, used
   /// as the symptothermal secondary indicator when
@@ -4618,8 +4741,8 @@ model CycleDayLog {
   /// Intent-revealing fields. When CycleProfile.sensitiveCategoryEncryption
   /// is ON these are encrypted at the application layer (the dispatch
   /// envelope), default-ON for this category.
-  sexualActivity Boolean            @default(false) @map("sexual_activity")
-  protectedSex   Boolean?           @map("protected_sex")
+  sexualActivity   Boolean            @default(false) @map("sexual_activity")
+  protectedSex     Boolean?           @map("protected_sex")
   pregnancyTest    HomeTestResult?    @map("pregnancy_test")
   progesteroneTest HomeTestResult?    @map("progesterone_test")
   contraceptive    ContraceptiveKind? @map("contraceptive")
@@ -4759,39 +4882,39 @@ model CycleSymptomLink {
 /// hanging off a parent condition (`parentConditionId`). CHRONIC_ONGOING
 /// has no "recovered" date and is excluded from the recovery-gap math.
 model IllnessEpisode {
-  id     String @id @default(cuid())
-  userId String @map("user_id")
+  id                String           @id @default(cuid())
+  userId            String           @map("user_id")
   /// User-facing label for the episode, e.g. "Erkältung", "Heuschnupfen".
-  label  String
+  label             String
   /// Broad condition class. Widened beyond an infection log to cover the
   /// condition journal's scope.
-  type      IllnessType
+  type              IllnessType
   /// Where this episode sits in its lifecycle. FLARE rows reference a
   /// parent condition via `parentConditionId`.
-  lifecycle IllnessLifecycle @default(ACUTE)
+  lifecycle         IllnessLifecycle @default(ACUTE)
   /// When the episode began (UTC instant; wall-clock anchoring is the
   /// reader's concern per the schema's UTC-only convention).
-  onsetAt    DateTime  @map("onset_at")
+  onsetAt           DateTime         @map("onset_at")
   /// When the episode resolved. NULL = still ongoing. CHRONIC_ONGOING
   /// episodes stay NULL by design.
-  resolvedAt DateTime? @map("resolved_at")
+  resolvedAt        DateTime?        @map("resolved_at")
   /// Self-FK for flares: a FLARE/RECURRING bout hangs off the parent
   /// condition episode so the history threads under one condition.
-  parentConditionId String? @map("parent_condition_id")
+  parentConditionId String?          @map("parent_condition_id")
   /// Optional free-text note, AES-256-GCM encrypted at rest via
   /// `src/lib/crypto.ts` (Bytes column, `*Encrypted` suffix per
   /// convention).
-  noteEncrypted Bytes? @map("note_encrypted")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  noteEncrypted     Bytes?           @map("note_encrypted")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
   /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
-  deletedAt DateTime? @map("deleted_at")
+  deletedAt         DateTime?        @map("deleted_at")
 
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Parent condition for a flare/recurrence (self-relation).
-  parent   IllnessEpisode?  @relation("IllnessFlares", fields: [parentConditionId], references: [id], onDelete: SetNull)
-  flares   IllnessEpisode[] @relation("IllnessFlares")
-  dayLogs  IllnessDayLog[]
+  parent  IllnessEpisode?  @relation("IllnessFlares", fields: [parentConditionId], references: [id], onDelete: SetNull)
+  flares  IllnessEpisode[] @relation("IllnessFlares")
+  dayLogs IllnessDayLog[]
 
   @@index([userId, deletedAt])
   @@index([userId, onsetAt])
@@ -4803,30 +4926,30 @@ model IllnessEpisode {
 /// day's free-text note (encrypted), a coarse functional-impact slider,
 /// an optional fever reading, plus the symptom links. Soft-deleted.
 model IllnessDayLog {
-  id        String @id @default(cuid())
-  userId    String @map("user_id")
-  episodeId String @map("episode_id")
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  episodeId        String    @map("episode_id")
   /// YYYY-MM-DD — anchored to `tz` when non-null, else legacy
   /// Europe/Berlin (the CycleDayLog / MoodEntry date convention).
-  date String
+  date             String
   /// Coarse self-rated functional impact for the day (0 = no impact /
   /// fully functional … 3 = bedbound). NULL = not logged. A slider, not a
   /// symptom — kept on the day row like CycleDayLog's per-day signs.
-  functionalImpact Int? @map("functional_impact")
+  functionalImpact Int?      @map("functional_impact")
   /// Optional body temperature for the day, in Celsius. Queryable
   /// plaintext (the CycleDayLog.basalBodyTempC precedent): the fever
   /// signal feeds the retrospective curve. NULL = not measured.
-  feverC Float? @map("fever_c")
+  feverC           Float?    @map("fever_c")
   /// AES-256-GCM ciphertext envelope of the day's free-text note (always
   /// encrypted — the `*Encrypted` Bytes convention).
-  noteEncrypted Bytes? @map("note_encrypted")
+  noteEncrypted    Bytes?    @map("note_encrypted")
   /// Optional timezone the `date` is anchored to (the CycleDayLog
   /// precedent).
-  tz        String?
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  tz               String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
   /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
-  deletedAt DateTime? @map("deleted_at")
+  deletedAt        DateTime? @map("deleted_at")
 
   user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   episode      IllnessEpisode       @relation(fields: [episodeId], references: [id], onDelete: Cascade)
@@ -4892,9 +5015,9 @@ model CyclePrediction {
 
   /// YYYY-MM-DD — predicted next period start (point estimate) plus the
   /// ranged Low / High band (rendered as a band, never a single date).
-  nextPeriodStart     String  @map("next_period_start")
-  nextPeriodStartLow  String  @map("next_period_start_low")
-  nextPeriodStartHigh String  @map("next_period_start_high")
+  nextPeriodStart     String @map("next_period_start")
+  nextPeriodStartLow  String @map("next_period_start_low")
+  nextPeriodStartHigh String @map("next_period_start_high")
 
   /// YYYY-MM-DD — fertile-window bounds (goal-gated at the read surface).
   fertileWindowStart String? @map("fertile_window_start")

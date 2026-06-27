@@ -43,6 +43,16 @@ export const SENSITIVE_KEY_PATTERNS: readonly RegExp[] = [
   /otp/i,
   /recovery/i,
   /dsn/i,
+  // v1.23 — second-factor / account-recovery material. `/otp/i` already
+  // catches `totp`/`otpauth` and `/recovery/i` already catches
+  // `recoveryCode`, but the explicit `/totp/i`, `/mfa/i`, `/backup.?code/i`,
+  // `/recovery.?code/i` keep MFA secrets / recovery codes / the TOTP
+  // `otpauth://` URI off every wide-event excerpt regardless of field
+  // spelling. `passphrase` (the encrypted-export key) is covered above.
+  /totp/i,
+  /mfa/i,
+  /backup.?code/i,
+  /recovery.?code/i,
   // v1.7.0 — health-insurance identity. `insuranceNumber` / `kvnr`
   // (the German statutory-insurance number) is encrypted at rest and is
   // absent from every current wide-event excerpt, but the field name

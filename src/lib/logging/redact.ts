@@ -96,8 +96,12 @@ export function redactSecrets(input: string): string {
       // v1.12.2 — `ticket` (the one-time WHOOP connect ticket rides in the
       // `GET /api/whoop/connect?ticket=…` URL): scrub it so the opaque value
       // never lands in `http.path`/error strings reaching Loki/Glitchtip.
+      // v1.23 — second-factor / account-recovery / encrypted-export material.
+      // `totp`/`mfa` tickets-or-codes, `backup_code` / `recovery_code`, and the
+      // `passphrase` that derives the encrypted-export key must never land in
+      // `http.path` / error strings reaching Loki / Glitchtip.
       .replace(
-        /([?&])(secret|code|token|ticket|api[_-]?key|insurance(?:number)?|kvnr)=[^&\s]+/gi,
+        /([?&])(secret|code|token|ticket|api[_-]?key|insurance(?:number)?|kvnr|totp|mfa|backup[_-]?code|recovery[_-]?code|passphrase)=[^&\s]+/gi,
         "$1$2=[REDACTED]",
       )
   );
