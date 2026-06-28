@@ -406,11 +406,11 @@ async function authenticateBearer(
     }
   }
 
-  auditLog("auth.bearer.success", {
-    userId: user.id,
-    details: { tokenId },
-  }).catch(() => {});
-
+  // v1.25 — no per-request success audit row. The polling iOS client drove a
+  // constant INSERT + pool checkout on every authenticated Bearer request; the
+  // wide event below already records `auth_method: "bearer"` + `user_id`, so the
+  // success path stays fully observable without the write churn. The failure
+  // path keeps its audit row.
   const evt = getEvent();
   if (evt) {
     evt.setAuth({

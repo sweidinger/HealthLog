@@ -175,7 +175,13 @@ export async function runNoteEncryptionBackfillForUser(
  * set. pg-boss `singletonKey` coalesces duplicate sends. Best-effort: errors
  * come back through the result value so worker boot never fails on a miss.
  */
-export async function enqueueBootTimeNoteEncryptionBackfill(): Promise<{
+export async function enqueueBootTimeNoteEncryptionBackfill(
+  // Optional boot-storm stagger. When > 0 the per-user sends carry a
+  // `startAfter` delay (seconds) so this migration does not drain in parallel
+  // with the other boot backfills onto one heavy tenant. Default 0 keeps
+  // immediate semantics for any non-boot caller.
+  startAfterSeconds: number = 0,
+): Promise<{
   enqueued: number;
   skipped: number;
   error: string | null;
@@ -219,6 +225,7 @@ export async function enqueueBootTimeNoteEncryptionBackfill(): Promise<{
         retryDelay: 60,
         retryBackoff: true,
         singletonKey: `note-encryption-backfill|${userId}`,
+        ...(startAfterSeconds > 0 ? { startAfter: startAfterSeconds } : {}),
       });
       if (jobId) {
         enqueued += 1;

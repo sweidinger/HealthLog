@@ -105,9 +105,11 @@ describe("requireAuth — Bearer token path", () => {
       where: { id: "token-1" },
       data: { lastUsedAt: expect.any(Date) },
     });
-    expect(auditLog).toHaveBeenCalledWith(
+    // v1.25 — the success path no longer writes a per-request audit row; the
+    // wide event carries `auth_method: "bearer"` + `user_id` instead.
+    expect(auditLog).not.toHaveBeenCalledWith(
       "auth.bearer.success",
-      expect.objectContaining({ userId: "user-1" }),
+      expect.anything(),
     );
   });
 
@@ -219,9 +221,10 @@ describe("requireAuth — Bearer token path", () => {
     const ctx = await requireAuth();
     expect(ctx.user.id).toBe("user-1");
     expect(ctx.session.id).toBe("token-5a");
-    expect(auditLog).toHaveBeenCalledWith(
+    // v1.25 — no per-request success audit row on the accept path.
+    expect(auditLog).not.toHaveBeenCalledWith(
       "auth.bearer.success",
-      expect.objectContaining({ userId: "user-1" }),
+      expect.anything(),
     );
   });
 

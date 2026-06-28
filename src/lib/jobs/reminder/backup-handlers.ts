@@ -7,10 +7,15 @@
 import { type Job } from "pg-boss";
 import { recordError } from "@/lib/jobs/worker-status";
 import { encrypt } from "@/lib/crypto";
-import { readNote } from "@/lib/crypto/note-cipher";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { buildCycleBackupSection } from "@/lib/cycle/backup";
 import { runOffhostBackup } from "@/lib/jobs/offhost-backup";
+import {
+  collectPagedMeasurements,
+  MEASUREMENT_BACKUP_PAGE_SIZE,
+  sortWeeklyMeasurementsDesc,
+  toWeeklyBackupMeasurement,
+} from "@/lib/jobs/backup/measurement-page";
 import { getWorkerPrisma } from "./shared";
 
 export interface DataBackupPayload {
@@ -61,10 +66,41 @@ export async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
         try {
           const [measurements, medications, intakeEvents, moodEntries, cycle] =
             await Promise.all([
-              prisma.measurement.findMany({
-                where: { userId: user.id },
-                orderBy: { measuredAt: "desc" },
-              }),
+              // Keyset-paged narrow read instead of one full-set
+              // findMany + map: a heavy multi-year tenant otherwise
+              // loads every measurement ORM row into a single array
+              // alongside the giant JSON.stringify below, the worker's
+              // dominant heap spike. The page reader projects each page
+              // to the compact backup shape before the next page loads,
+              // bounding peak heap to the page size. Row scope is
+              // unchanged — no `deletedAt` filter, so tombstoned rows
+              // still round-trip exactly as before. The order is
+              // restored to measuredAt-desc to match the prior output.
+              collectPagedMeasurements({
+                fetchPage: (afterId, take) =>
+                  prisma.measurement.findMany({
+                    where: {
+                      userId: user.id,
+                      ...(afterId ? { id: { gt: afterId } } : {}),
+                    },
+                    // Exactly the columns the admin restore recreates a
+                    // row from, plus `id` for the keyset cursor.
+                    select: {
+                      id: true,
+                      type: true,
+                      value: true,
+                      unit: true,
+                      source: true,
+                      measuredAt: true,
+                      notes: true,
+                      notesEncrypted: true,
+                    },
+                    orderBy: { id: "asc" },
+                    take,
+                  }),
+                project: toWeeklyBackupMeasurement,
+                pageSize: MEASUREMENT_BACKUP_PAGE_SIZE,
+              }).then(sortWeeklyMeasurementsDesc),
               prisma.medication.findMany({
                 where: { userId: user.id },
                 include: { schedules: true },
@@ -89,16 +125,10 @@ export async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
             schemaVersion: "1",
             exportedAt: new Date().toISOString(),
             userId: user.id,
-            measurements: measurements.map((m) => ({
-              type: m.type,
-              value: m.value,
-              unit: m.unit,
-              measuredAt: m.measuredAt.toISOString(),
-              source: m.source,
-              // v1.23 — decrypt into the (whole-blob-encrypted) backup payload
-              // so an admin restore re-encrypts on re-insert.
-              notes: readNote(m.notesEncrypted, m.notes),
-            })),
+            // Already projected + ordered by the paged reader above; the
+            // decrypted note rode into each row so an admin restore
+            // re-encrypts on re-insert (v1.23 contract).
+            measurements,
             medications: medications.map((m) => ({
               name: m.name,
               dose: m.dose,

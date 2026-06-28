@@ -199,7 +199,8 @@ export async function enqueueBootTimeDenseIntradayRetention(): Promise<{
         retryDelay: 60,
         retryBackoff: true,
         // Defer past the boot storm so the drain never contends with
-        // startup + foreground for the shared connection pool.
+        // startup + foreground for the shared connection pool. This drain is
+        // the furthest-out stage among the boot backfills by design.
         startAfter: DENSE_INTRADAY_RETENTION_BOOT_DELAY_SECONDS,
         singletonKey: `dense-intraday-retention|${userId}`,
       });
