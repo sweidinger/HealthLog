@@ -4266,6 +4266,11 @@
       "mcp": {
         "title": "Conector MCP",
         "subtitle": "Conecta un asistente externo a tus propios datos de salud."
+      },
+      "anamnesis": {
+        "title": "Historial médico",
+        "subtitle": "Gestiona tus alergias y tus antecedentes familiares.",
+        "description": "Registros estructurados de alergias y antecedentes familiares."
       }
     },
     "profile": "Perfil",
@@ -7425,6 +7430,114 @@
       "title": "Hay una nueva versión disponible",
       "reload": "Recargar",
       "dismiss": "Descartar"
+    }
+  },
+  "records": {
+    "disclaimer": "Son tus propios registros, no un diagnóstico médico. HealthLog no diagnostica, no trata ni los interpreta.",
+    "allergies": {
+      "cardTitle": "Alergias e intolerancias",
+      "cardDescription": "Sustancias a las que reaccionas, con la reacción y su gravedad.",
+      "description": "Registrar una alergia o intolerancia.",
+      "add": "Añadir alergia",
+      "addFirst": "Añade tu primera alergia",
+      "addTitle": "Añadir alergia",
+      "editTitle": "Editar alergia",
+      "formDescription": "La sustancia se guarda como texto; la reacción y la nota se cifran.",
+      "emptyTitle": "No hay alergias registradas",
+      "emptyDescription": "Añade sustancias a las que reaccionas y sus reacciones.",
+      "loadError": "No se han podido cargar tus alergias.",
+      "deletedToast": "Alergia eliminada",
+      "deleteError": "No se ha podido eliminar la alergia.",
+      "deleteConfirmTitle": "¿Eliminar esta alergia?",
+      "deleteConfirmDescription": "Esto elimina el registro. No se puede deshacer.",
+      "category": {
+        "FOOD": "Alimento",
+        "MEDICATION": "Medicamento",
+        "ENVIRONMENT": "Ambiental",
+        "BIOLOGIC": "Biológico",
+        "OTHER": "Otro"
+      },
+      "type": {
+        "ALLERGY": "Alergia",
+        "INTOLERANCE": "Intolerancia"
+      },
+      "severity": {
+        "NONE": "Sin evaluar",
+        "MILD": "Leve",
+        "MODERATE": "Moderada",
+        "SEVERE": "Grave"
+      },
+      "status": {
+        "ACTIVE": "Activa",
+        "INACTIVE": "Inactiva",
+        "RESOLVED": "Resuelta"
+      },
+      "form": {
+        "substance": "Sustancia",
+        "substancePlaceholder": "p. ej. Penicilina, Cacahuetes",
+        "category": "Categoría",
+        "type": "Tipo",
+        "severity": "Gravedad",
+        "status": "Estado",
+        "onset": "Primera vez observada",
+        "reaction": "Reacción",
+        "reactionPlaceholder": "p. ej. urticaria, hinchazón, anafilaxia",
+        "note": "Nota",
+        "notePlaceholder": "Cualquier otra cosa que merezca recordar",
+        "requiredError": "Introduce la sustancia.",
+        "savedToast": "Alergia guardada",
+        "updatedToast": "Alergia actualizada",
+        "saveError": "No se ha podido guardar la alergia."
+      }
+    },
+    "family": {
+      "cardTitle": "Antecedentes familiares",
+      "cardDescription": "Enfermedades de tus familiares, una entrada por enfermedad.",
+      "description": "Registrar una enfermedad de un familiar.",
+      "add": "Añadir entrada",
+      "addFirst": "Añade tu primera entrada",
+      "addTitle": "Añadir antecedente familiar",
+      "editTitle": "Editar antecedente familiar",
+      "formDescription": "El parentesco y la enfermedad se guardan como texto; la nota se cifra.",
+      "emptyTitle": "No hay antecedentes familiares",
+      "emptyDescription": "Añade enfermedades que aparecen en tu familia.",
+      "loadError": "No se han podido cargar tus antecedentes familiares.",
+      "deletedToast": "Entrada eliminada",
+      "deleteError": "No se ha podido eliminar la entrada.",
+      "deleteConfirmTitle": "¿Eliminar esta entrada?",
+      "deleteConfirmDescription": "Esto elimina el registro. No se puede deshacer.",
+      "ageAtOnsetShort": "Edad {age}",
+      "relationship": {
+        "MOTHER": "Madre",
+        "FATHER": "Padre",
+        "SISTER": "Hermana",
+        "BROTHER": "Hermano",
+        "DAUGHTER": "Hija",
+        "SON": "Hijo",
+        "GRANDMOTHER_MATERNAL": "Abuela (materna)",
+        "GRANDFATHER_MATERNAL": "Abuelo (materno)",
+        "GRANDMOTHER_PATERNAL": "Abuela (paterna)",
+        "GRANDFATHER_PATERNAL": "Abuelo (paterno)",
+        "AUNT": "Tía",
+        "UNCLE": "Tío",
+        "COUSIN": "Primo/a",
+        "HALF_SIBLING": "Medio hermano/a",
+        "OTHER": "Otro familiar"
+      },
+      "form": {
+        "relationship": "Familiar",
+        "condition": "Enfermedad",
+        "conditionPlaceholder": "p. ej. Diabetes tipo 2, Cáncer de mama",
+        "ageAtOnset": "Edad de inicio",
+        "ageAtOnsetPlaceholder": "p. ej. 55",
+        "note": "Nota",
+        "notePlaceholder": "Cualquier otra cosa que merezca recordar",
+        "requiredError": "Introduce la enfermedad.",
+        "ageError": "Introduce una edad entre 0 y 120.",
+        "savedToast": "Entrada guardada",
+        "updatedToast": "Entrada actualizada",
+        "saveError": "No se ha podido guardar la entrada."
+      }
     }
   }
 }

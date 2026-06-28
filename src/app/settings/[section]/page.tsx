@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { JSX } from "react";
 
 import { AccountSection } from "@/components/settings/account-section";
+import { AnamnesisSection } from "@/components/settings/anamnesis-section";
 import { SecuritySection } from "@/components/settings/security-section";
 import { AboutSection } from "@/components/settings/about-section";
 import { AdvancedSection } from "@/components/settings/advanced-section";
@@ -74,6 +75,7 @@ const SECTION_COMPONENTS: Record<
   mood: MoodSection,
   labs: LabsSection,
   illness: IllnessSection,
+  anamnesis: AnamnesisSection,
   vorsorge: VorsorgeSection,
   thresholds: ThresholdsSection,
   api: ApiSection,

@@ -4266,6 +4266,11 @@
       "mcp": {
         "title": "MCP-Connector",
         "subtitle": "Verbinde einen externen Assistenten mit deinen eigenen Gesundheitsdaten."
+      },
+      "anamnesis": {
+        "title": "Anamnese",
+        "subtitle": "Verwalte deine Allergien und deine Familienanamnese.",
+        "description": "Strukturierte Datensätze zu Allergien und Familienanamnese."
       }
     },
     "profile": "Profil",
@@ -7425,6 +7430,114 @@
       "title": "Eine neue Version ist verfügbar",
       "reload": "Neu laden",
       "dismiss": "Schließen"
+    }
+  },
+  "records": {
+    "disclaimer": "Das sind deine eigenen Angaben, keine ärztliche Diagnose. HealthLog stellt keine Diagnose, behandelt nicht und deutet nichts.",
+    "allergies": {
+      "cardTitle": "Allergien & Unverträglichkeiten",
+      "cardDescription": "Stoffe, auf die du reagierst, mit Reaktion und Schweregrad.",
+      "description": "Eine Allergie oder Unverträglichkeit erfassen.",
+      "add": "Allergie hinzufügen",
+      "addFirst": "Erste Allergie hinzufügen",
+      "addTitle": "Allergie hinzufügen",
+      "editTitle": "Allergie bearbeiten",
+      "formDescription": "Der Stoff wird im Klartext gespeichert; Reaktion und Notiz werden verschlüsselt.",
+      "emptyTitle": "Keine Allergien erfasst",
+      "emptyDescription": "Erfasse Stoffe, auf die du reagierst, und die Reaktionen.",
+      "loadError": "Deine Allergien konnten nicht geladen werden.",
+      "deletedToast": "Allergie gelöscht",
+      "deleteError": "Die Allergie konnte nicht gelöscht werden.",
+      "deleteConfirmTitle": "Diese Allergie löschen?",
+      "deleteConfirmDescription": "Damit wird der Eintrag entfernt. Das lässt sich nicht rückgängig machen.",
+      "category": {
+        "FOOD": "Nahrungsmittel",
+        "MEDICATION": "Medikament",
+        "ENVIRONMENT": "Umwelt",
+        "BIOLOGIC": "Biologikum",
+        "OTHER": "Sonstiges"
+      },
+      "type": {
+        "ALLERGY": "Allergie",
+        "INTOLERANCE": "Unverträglichkeit"
+      },
+      "severity": {
+        "NONE": "Nicht bewertet",
+        "MILD": "Leicht",
+        "MODERATE": "Mittel",
+        "SEVERE": "Schwer"
+      },
+      "status": {
+        "ACTIVE": "Aktiv",
+        "INACTIVE": "Inaktiv",
+        "RESOLVED": "Abgeklungen"
+      },
+      "form": {
+        "substance": "Stoff",
+        "substancePlaceholder": "z. B. Penicillin, Erdnüsse",
+        "category": "Kategorie",
+        "type": "Art",
+        "severity": "Schweregrad",
+        "status": "Status",
+        "onset": "Erstmals bemerkt",
+        "reaction": "Reaktion",
+        "reactionPlaceholder": "z. B. Nesselsucht, Schwellung, Anaphylaxie",
+        "note": "Notiz",
+        "notePlaceholder": "Was du dir sonst merken möchtest",
+        "requiredError": "Bitte den Stoff angeben.",
+        "savedToast": "Allergie gespeichert",
+        "updatedToast": "Allergie aktualisiert",
+        "saveError": "Die Allergie konnte nicht gespeichert werden."
+      }
+    },
+    "family": {
+      "cardTitle": "Familienanamnese",
+      "cardDescription": "Erkrankungen bei Verwandten, ein Eintrag je Erkrankung.",
+      "description": "Eine Erkrankung bei einem Verwandten erfassen.",
+      "add": "Eintrag hinzufügen",
+      "addFirst": "Ersten Eintrag hinzufügen",
+      "addTitle": "Familienanamnese hinzufügen",
+      "editTitle": "Familienanamnese bearbeiten",
+      "formDescription": "Verwandtschaft und Erkrankung werden im Klartext gespeichert; die Notiz wird verschlüsselt.",
+      "emptyTitle": "Keine Familienanamnese erfasst",
+      "emptyDescription": "Erfasse Erkrankungen, die in deiner Familie vorkommen.",
+      "loadError": "Deine Familienanamnese konnte nicht geladen werden.",
+      "deletedToast": "Eintrag gelöscht",
+      "deleteError": "Der Eintrag konnte nicht gelöscht werden.",
+      "deleteConfirmTitle": "Diesen Eintrag löschen?",
+      "deleteConfirmDescription": "Damit wird der Eintrag entfernt. Das lässt sich nicht rückgängig machen.",
+      "ageAtOnsetShort": "Alter {age}",
+      "relationship": {
+        "MOTHER": "Mutter",
+        "FATHER": "Vater",
+        "SISTER": "Schwester",
+        "BROTHER": "Bruder",
+        "DAUGHTER": "Tochter",
+        "SON": "Sohn",
+        "GRANDMOTHER_MATERNAL": "Großmutter (mütterlich)",
+        "GRANDFATHER_MATERNAL": "Großvater (mütterlich)",
+        "GRANDMOTHER_PATERNAL": "Großmutter (väterlich)",
+        "GRANDFATHER_PATERNAL": "Großvater (väterlich)",
+        "AUNT": "Tante",
+        "UNCLE": "Onkel",
+        "COUSIN": "Cousin/Cousine",
+        "HALF_SIBLING": "Halbgeschwister",
+        "OTHER": "Andere/r Verwandte/r"
+      },
+      "form": {
+        "relationship": "Verwandte/r",
+        "condition": "Erkrankung",
+        "conditionPlaceholder": "z. B. Typ-2-Diabetes, Brustkrebs",
+        "ageAtOnset": "Alter bei Beginn",
+        "ageAtOnsetPlaceholder": "z. B. 55",
+        "note": "Notiz",
+        "notePlaceholder": "Was du dir sonst merken möchtest",
+        "requiredError": "Bitte die Erkrankung angeben.",
+        "ageError": "Bitte ein Alter zwischen 0 und 120 angeben.",
+        "savedToast": "Eintrag gespeichert",
+        "updatedToast": "Eintrag aktualisiert",
+        "saveError": "Der Eintrag konnte nicht gespeichert werden."
+      }
     }
   }
 }

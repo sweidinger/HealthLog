@@ -4266,6 +4266,11 @@
       "mcp": {
         "title": "Connettore MCP",
         "subtitle": "Collega un assistente esterno ai tuoi dati sulla salute."
+      },
+      "anamnesis": {
+        "title": "Anamnesi",
+        "subtitle": "Gestisci le tue allergie e la tua anamnesi familiare.",
+        "description": "Record strutturati di allergie e anamnesi familiare."
       }
     },
     "profile": "Profilo",
@@ -7425,6 +7430,114 @@
       "title": "È disponibile una nuova versione",
       "reload": "Ricarica",
       "dismiss": "Ignora"
+    }
+  },
+  "records": {
+    "disclaimer": "Sono i tuoi dati, non una diagnosi medica. HealthLog non diagnostica, non cura e non li interpreta.",
+    "allergies": {
+      "cardTitle": "Allergie e intolleranze",
+      "cardDescription": "Sostanze a cui reagisci, con la reazione e la sua gravità.",
+      "description": "Registra un'allergia o un'intolleranza.",
+      "add": "Aggiungi allergia",
+      "addFirst": "Aggiungi la tua prima allergia",
+      "addTitle": "Aggiungi allergia",
+      "editTitle": "Modifica allergia",
+      "formDescription": "La sostanza è salvata in chiaro; la reazione e la nota sono cifrate.",
+      "emptyTitle": "Nessuna allergia registrata",
+      "emptyDescription": "Aggiungi le sostanze a cui reagisci e le reazioni.",
+      "loadError": "Impossibile caricare le tue allergie.",
+      "deletedToast": "Allergia eliminata",
+      "deleteError": "Impossibile eliminare l'allergia.",
+      "deleteConfirmTitle": "Eliminare questa allergia?",
+      "deleteConfirmDescription": "Questo rimuove il record. Non può essere annullato.",
+      "category": {
+        "FOOD": "Alimento",
+        "MEDICATION": "Farmaco",
+        "ENVIRONMENT": "Ambiente",
+        "BIOLOGIC": "Biologico",
+        "OTHER": "Altro"
+      },
+      "type": {
+        "ALLERGY": "Allergia",
+        "INTOLERANCE": "Intolleranza"
+      },
+      "severity": {
+        "NONE": "Non valutata",
+        "MILD": "Lieve",
+        "MODERATE": "Moderata",
+        "SEVERE": "Grave"
+      },
+      "status": {
+        "ACTIVE": "Attiva",
+        "INACTIVE": "Inattiva",
+        "RESOLVED": "Risolta"
+      },
+      "form": {
+        "substance": "Sostanza",
+        "substancePlaceholder": "es. Penicillina, Arachidi",
+        "category": "Categoria",
+        "type": "Tipo",
+        "severity": "Gravità",
+        "status": "Stato",
+        "onset": "Notata per la prima volta",
+        "reaction": "Reazione",
+        "reactionPlaceholder": "es. orticaria, gonfiore, anafilassi",
+        "note": "Nota",
+        "notePlaceholder": "Qualsiasi altra cosa da ricordare",
+        "requiredError": "Inserisci la sostanza.",
+        "savedToast": "Allergia salvata",
+        "updatedToast": "Allergia aggiornata",
+        "saveError": "Impossibile salvare l'allergia."
+      }
+    },
+    "family": {
+      "cardTitle": "Anamnesi familiare",
+      "cardDescription": "Patologie dei tuoi parenti, una voce per patologia.",
+      "description": "Registra una patologia di un parente.",
+      "add": "Aggiungi voce",
+      "addFirst": "Aggiungi la tua prima voce",
+      "addTitle": "Aggiungi anamnesi familiare",
+      "editTitle": "Modifica anamnesi familiare",
+      "formDescription": "La parentela e la patologia sono salvate in chiaro; la nota è cifrata.",
+      "emptyTitle": "Nessuna anamnesi familiare",
+      "emptyDescription": "Aggiungi le patologie presenti nella tua famiglia.",
+      "loadError": "Impossibile caricare la tua anamnesi familiare.",
+      "deletedToast": "Voce eliminata",
+      "deleteError": "Impossibile eliminare la voce.",
+      "deleteConfirmTitle": "Eliminare questa voce?",
+      "deleteConfirmDescription": "Questo rimuove il record. Non può essere annullato.",
+      "ageAtOnsetShort": "Età {age}",
+      "relationship": {
+        "MOTHER": "Madre",
+        "FATHER": "Padre",
+        "SISTER": "Sorella",
+        "BROTHER": "Fratello",
+        "DAUGHTER": "Figlia",
+        "SON": "Figlio",
+        "GRANDMOTHER_MATERNAL": "Nonna (materna)",
+        "GRANDFATHER_MATERNAL": "Nonno (materno)",
+        "GRANDMOTHER_PATERNAL": "Nonna (paterna)",
+        "GRANDFATHER_PATERNAL": "Nonno (paterno)",
+        "AUNT": "Zia",
+        "UNCLE": "Zio",
+        "COUSIN": "Cugino/a",
+        "HALF_SIBLING": "Fratellastro/sorellastra",
+        "OTHER": "Altro parente"
+      },
+      "form": {
+        "relationship": "Parente",
+        "condition": "Patologia",
+        "conditionPlaceholder": "es. Diabete di tipo 2, Cancro al seno",
+        "ageAtOnset": "Età di insorgenza",
+        "ageAtOnsetPlaceholder": "es. 55",
+        "note": "Nota",
+        "notePlaceholder": "Qualsiasi altra cosa da ricordare",
+        "requiredError": "Inserisci la patologia.",
+        "ageError": "Inserisci un'età tra 0 e 120.",
+        "savedToast": "Voce salvata",
+        "updatedToast": "Voce aggiornata",
+        "saveError": "Impossibile salvare la voce."
+      }
     }
   }
 }

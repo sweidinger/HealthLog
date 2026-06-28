@@ -4266,6 +4266,11 @@
       "mcp": {
         "title": "Connecteur MCP",
         "subtitle": "Connectez un assistant externe à vos propres données de santé."
+      },
+      "anamnesis": {
+        "title": "Antécédents médicaux",
+        "subtitle": "Gérez vos allergies et vos antécédents familiaux.",
+        "description": "Dossiers structurés des allergies et des antécédents familiaux."
       }
     },
     "profile": "Profil",
@@ -7425,6 +7430,114 @@
       "title": "Une nouvelle version est disponible",
       "reload": "Recharger",
       "dismiss": "Ignorer"
+    }
+  },
+  "records": {
+    "disclaimer": "Ce sont vos propres informations, pas un diagnostic médical. HealthLog ne diagnostique pas, ne traite pas et ne les interprète pas.",
+    "allergies": {
+      "cardTitle": "Allergies & intolérances",
+      "cardDescription": "Substances auxquelles vous réagissez, avec la réaction et sa gravité.",
+      "description": "Enregistrer une allergie ou une intolérance.",
+      "add": "Ajouter une allergie",
+      "addFirst": "Ajoutez votre première allergie",
+      "addTitle": "Ajouter une allergie",
+      "editTitle": "Modifier l'allergie",
+      "formDescription": "La substance est stockée en clair ; la réaction et la note sont chiffrées.",
+      "emptyTitle": "Aucune allergie enregistrée",
+      "emptyDescription": "Ajoutez les substances auxquelles vous réagissez et leurs réactions.",
+      "loadError": "Impossible de charger vos allergies.",
+      "deletedToast": "Allergie supprimée",
+      "deleteError": "Impossible de supprimer l'allergie.",
+      "deleteConfirmTitle": "Supprimer cette allergie ?",
+      "deleteConfirmDescription": "Cela supprime l'enregistrement. C'est irréversible.",
+      "category": {
+        "FOOD": "Aliment",
+        "MEDICATION": "Médicament",
+        "ENVIRONMENT": "Environnement",
+        "BIOLOGIC": "Biologique",
+        "OTHER": "Autre"
+      },
+      "type": {
+        "ALLERGY": "Allergie",
+        "INTOLERANCE": "Intolérance"
+      },
+      "severity": {
+        "NONE": "Non évaluée",
+        "MILD": "Légère",
+        "MODERATE": "Modérée",
+        "SEVERE": "Sévère"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "INACTIVE": "Inactive",
+        "RESOLVED": "Résolue"
+      },
+      "form": {
+        "substance": "Substance",
+        "substancePlaceholder": "p. ex. Pénicilline, Arachides",
+        "category": "Catégorie",
+        "type": "Type",
+        "severity": "Gravité",
+        "status": "Statut",
+        "onset": "Première fois remarquée",
+        "reaction": "Réaction",
+        "reactionPlaceholder": "p. ex. urticaire, gonflement, anaphylaxie",
+        "note": "Note",
+        "notePlaceholder": "Tout autre élément à retenir",
+        "requiredError": "Saisissez la substance.",
+        "savedToast": "Allergie enregistrée",
+        "updatedToast": "Allergie mise à jour",
+        "saveError": "Impossible d'enregistrer l'allergie."
+      }
+    },
+    "family": {
+      "cardTitle": "Antécédents familiaux",
+      "cardDescription": "Maladies de vos proches, une entrée par maladie.",
+      "description": "Enregistrer une maladie d'un proche.",
+      "add": "Ajouter une entrée",
+      "addFirst": "Ajoutez votre première entrée",
+      "addTitle": "Ajouter un antécédent familial",
+      "editTitle": "Modifier l'antécédent familial",
+      "formDescription": "Le lien de parenté et la maladie sont stockés en clair ; la note est chiffrée.",
+      "emptyTitle": "Aucun antécédent familial",
+      "emptyDescription": "Ajoutez les maladies présentes dans votre famille.",
+      "loadError": "Impossible de charger vos antécédents familiaux.",
+      "deletedToast": "Entrée supprimée",
+      "deleteError": "Impossible de supprimer l'entrée.",
+      "deleteConfirmTitle": "Supprimer cette entrée ?",
+      "deleteConfirmDescription": "Cela supprime l'enregistrement. C'est irréversible.",
+      "ageAtOnsetShort": "Âge {age}",
+      "relationship": {
+        "MOTHER": "Mère",
+        "FATHER": "Père",
+        "SISTER": "Sœur",
+        "BROTHER": "Frère",
+        "DAUGHTER": "Fille",
+        "SON": "Fils",
+        "GRANDMOTHER_MATERNAL": "Grand-mère (maternelle)",
+        "GRANDFATHER_MATERNAL": "Grand-père (maternel)",
+        "GRANDMOTHER_PATERNAL": "Grand-mère (paternelle)",
+        "GRANDFATHER_PATERNAL": "Grand-père (paternel)",
+        "AUNT": "Tante",
+        "UNCLE": "Oncle",
+        "COUSIN": "Cousin/cousine",
+        "HALF_SIBLING": "Demi-frère/demi-sœur",
+        "OTHER": "Autre proche"
+      },
+      "form": {
+        "relationship": "Proche",
+        "condition": "Maladie",
+        "conditionPlaceholder": "p. ex. Diabète de type 2, Cancer du sein",
+        "ageAtOnset": "Âge d'apparition",
+        "ageAtOnsetPlaceholder": "p. ex. 55",
+        "note": "Note",
+        "notePlaceholder": "Tout autre élément à retenir",
+        "requiredError": "Saisissez la maladie.",
+        "ageError": "Saisissez un âge entre 0 et 120.",
+        "savedToast": "Entrée enregistrée",
+        "updatedToast": "Entrée mise à jour",
+        "saveError": "Impossible d'enregistrer l'entrée."
+      }
     }
   }
 }

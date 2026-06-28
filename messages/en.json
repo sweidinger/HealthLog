@@ -4266,6 +4266,11 @@
       "mcp": {
         "title": "MCP Connector",
         "subtitle": "Connect an external assistant to your own health data."
+      },
+      "anamnesis": {
+        "title": "Medical history",
+        "subtitle": "Manage your allergies and family history.",
+        "description": "Structured allergies and family history records."
       }
     },
     "profile": "Profile",
@@ -7425,6 +7430,114 @@
       "title": "A new version is available",
       "reload": "Reload",
       "dismiss": "Dismiss"
+    }
+  },
+  "records": {
+    "disclaimer": "These are your own records, not a medical diagnosis. HealthLog does not diagnose, treat, or interpret them.",
+    "allergies": {
+      "cardTitle": "Allergies & intolerances",
+      "cardDescription": "Substances you react to, with the reaction and how severe it is.",
+      "description": "Record an allergy or intolerance.",
+      "add": "Add allergy",
+      "addFirst": "Add your first allergy",
+      "addTitle": "Add allergy",
+      "editTitle": "Edit allergy",
+      "formDescription": "The substance is stored as plain text; the reaction and note are encrypted.",
+      "emptyTitle": "No allergies recorded",
+      "emptyDescription": "Add substances you react to and their reactions.",
+      "loadError": "Couldn't load your allergies.",
+      "deletedToast": "Allergy deleted",
+      "deleteError": "Couldn't delete the allergy.",
+      "deleteConfirmTitle": "Delete this allergy?",
+      "deleteConfirmDescription": "This removes the record. It can't be undone.",
+      "category": {
+        "FOOD": "Food",
+        "MEDICATION": "Medication",
+        "ENVIRONMENT": "Environment",
+        "BIOLOGIC": "Biologic",
+        "OTHER": "Other"
+      },
+      "type": {
+        "ALLERGY": "Allergy",
+        "INTOLERANCE": "Intolerance"
+      },
+      "severity": {
+        "NONE": "Not assessed",
+        "MILD": "Mild",
+        "MODERATE": "Moderate",
+        "SEVERE": "Severe"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "INACTIVE": "Inactive",
+        "RESOLVED": "Resolved"
+      },
+      "form": {
+        "substance": "Substance",
+        "substancePlaceholder": "e.g. Penicillin, Peanuts",
+        "category": "Category",
+        "type": "Type",
+        "severity": "Severity",
+        "status": "Status",
+        "onset": "First noticed",
+        "reaction": "Reaction",
+        "reactionPlaceholder": "e.g. hives, swelling, anaphylaxis",
+        "note": "Note",
+        "notePlaceholder": "Anything else worth remembering",
+        "requiredError": "Enter the substance.",
+        "savedToast": "Allergy saved",
+        "updatedToast": "Allergy updated",
+        "saveError": "Couldn't save the allergy."
+      }
+    },
+    "family": {
+      "cardTitle": "Family history",
+      "cardDescription": "Conditions in your relatives, one entry per condition.",
+      "description": "Record a condition in a relative.",
+      "add": "Add entry",
+      "addFirst": "Add your first entry",
+      "addTitle": "Add family history",
+      "editTitle": "Edit family history",
+      "formDescription": "The relationship and condition are stored as plain text; the note is encrypted.",
+      "emptyTitle": "No family history recorded",
+      "emptyDescription": "Add conditions that run in your family.",
+      "loadError": "Couldn't load your family history.",
+      "deletedToast": "Entry deleted",
+      "deleteError": "Couldn't delete the entry.",
+      "deleteConfirmTitle": "Delete this entry?",
+      "deleteConfirmDescription": "This removes the record. It can't be undone.",
+      "ageAtOnsetShort": "Age {age}",
+      "relationship": {
+        "MOTHER": "Mother",
+        "FATHER": "Father",
+        "SISTER": "Sister",
+        "BROTHER": "Brother",
+        "DAUGHTER": "Daughter",
+        "SON": "Son",
+        "GRANDMOTHER_MATERNAL": "Grandmother (maternal)",
+        "GRANDFATHER_MATERNAL": "Grandfather (maternal)",
+        "GRANDMOTHER_PATERNAL": "Grandmother (paternal)",
+        "GRANDFATHER_PATERNAL": "Grandfather (paternal)",
+        "AUNT": "Aunt",
+        "UNCLE": "Uncle",
+        "COUSIN": "Cousin",
+        "HALF_SIBLING": "Half-sibling",
+        "OTHER": "Other relative"
+      },
+      "form": {
+        "relationship": "Relative",
+        "condition": "Condition",
+        "conditionPlaceholder": "e.g. Type 2 diabetes, Breast cancer",
+        "ageAtOnset": "Age at onset",
+        "ageAtOnsetPlaceholder": "e.g. 55",
+        "note": "Note",
+        "notePlaceholder": "Anything else worth remembering",
+        "requiredError": "Enter the condition.",
+        "ageError": "Enter an age between 0 and 120.",
+        "savedToast": "Entry saved",
+        "updatedToast": "Entry updated",
+        "saveError": "Couldn't save the entry."
+      }
     }
   }
 }
