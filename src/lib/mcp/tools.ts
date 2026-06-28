@@ -35,6 +35,7 @@ import {
   detectChangepoints,
   getLabHistory,
   LAB_HISTORY_MAX_LIMIT,
+  MCP_CLINICAL_SIGNALS,
   type DateRange,
 } from "@/lib/mcp/rich-reads";
 import { encodeOffsetCursor, decodeOffsetCursor } from "@/lib/mcp/pagination";
@@ -189,6 +190,55 @@ function plainLabText(rid: string, result: unknown): string {
 }
 
 /**
+ * Render a `fetch` result for a v1.25 clinical signal (grip strength, pain NRS,
+ * waist circumference, waist-to-height) as a plain-text citation sentence. These
+ * sit off the Coach snapshot, so they hydrate through the rollup-backed baseline
+ * read (`get_metric_baseline`) rather than the Coach `get_metric_series` path:
+ * the latest reading, where it sits against the user's own usual range, and the
+ * population reference band. Quotes only values the result carried; never
+ * fabricates a figure or asserts a clinical verdict.
+ */
+function plainClinicalText(
+  label: string,
+  result: {
+    present?: boolean;
+    reason?: string;
+    unit?: string;
+    latest?: number;
+    placement?: "within" | "above" | "below";
+    baseline?: { low: number; high: number };
+    referenceBand?: { low: number; high: number } | null;
+  },
+): string {
+  const unit = result.unit ? ` ${result.unit}` : "";
+  const band = result.referenceBand
+    ? ` Reference band ${result.referenceBand.low}–${result.referenceBand.high}${unit}.`
+    : "";
+  if (!result.present) {
+    if (result.reason === "insufficient_history") {
+      return `${label}: still learning your usual range — too little history yet.${band}`;
+    }
+    return `No recent ${label.toLowerCase()} data is on file.`;
+  }
+  const parts: string[] = [];
+  if (typeof result.latest === "number") {
+    parts.push(`latest ${round1(result.latest)}${unit}`);
+  }
+  if (result.placement && result.baseline) {
+    parts.push(
+      `${result.placement} your usual ${round1(result.baseline.low)}–${round1(
+        result.baseline.high,
+      )}${unit}`,
+    );
+  }
+  const head =
+    parts.length > 0
+      ? `${label}: ${parts.join(", ")}.`
+      : `${label}: a reading is on file.`;
+  return `${head}${band}`.trim();
+}
+
+/**
  * The `search` + `fetch` pair — the de-facto two-tool retrieval convention and,
  * critically, the ONLY tools ChatGPT can call in its default (non-Developer)
  * mode. Without them HealthLog is invisible in default ChatGPT. The exact wire
@@ -288,6 +338,30 @@ function searchAndFetchTools(): McpToolDefinition[] {
           });
         }
 
+        // v1.25 clinical signals (grip strength, pain NRS, waist / WHtR) — off
+        // the Coach data inventory by design, so they are surfaced here directly.
+        // One grouped presence probe over their backing measurement types;
+        // present-only, in a stable (allowlist) order. `fetch metric:<KEY>`
+        // hydrates each via the rollup-backed baseline read.
+        const clinicalPresent = await prisma.measurement.groupBy({
+          by: ["type"],
+          where: {
+            userId: ctx.userId,
+            type: { in: MCP_CLINICAL_SIGNALS.map((s) => s.measurementType) },
+          },
+        });
+        const presentTypes = new Set(clinicalPresent.map((r) => r.type));
+        for (const sig of MCP_CLINICAL_SIGNALS) {
+          if (!presentTypes.has(sig.measurementType)) continue;
+          const hay = `${sig.label} ${sig.key}`.toLowerCase();
+          if (query && !hay.includes(query)) continue;
+          results.push({
+            id: `metric:${sig.key}`,
+            title: sig.label,
+            url: `${origin}/insights?metric=${encodeURIComponent(sig.key)}`,
+          });
+        }
+
         // Cursor pagination over the assembled result set (was a silent
         // slice(0,50)). The set is rebuilt deterministically each call (stable
         // ordering: metrics → medications → labs), so an opaque offset cursor
@@ -334,6 +408,24 @@ function searchAndFetchTools(): McpToolDefinition[] {
         });
 
         if (kind === "metric" && rid) {
+          // v1.25 clinical signals sit off the Coach snapshot, so hydrate them
+          // through the rollup-backed baseline read rather than the Coach
+          // `get_metric_series` path (which would report no data for them).
+          const clinical = MCP_CLINICAL_SIGNALS.find(
+            (s) => s.key.toLowerCase() === rid.toLowerCase(),
+          );
+          if (clinical) {
+            const baseline = await getMetricBaseline(ctx.userId, {
+              metric: clinical.key,
+            });
+            return {
+              id,
+              title: clinical.label,
+              text: plainClinicalText(clinical.label, baseline),
+              url: `${origin}/insights?metric=${encodeURIComponent(clinical.key)}`,
+              metadata: { type: "metric", metric: clinical.key },
+            };
+          }
           const result = await executeCoachTool({
             userId: ctx.userId,
             name: "get_metric_series",
@@ -823,7 +915,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     name: "get_metric_baseline",
     title: "Get a metric's personal baseline",
     description:
-      "Fetch where the user's latest reading for ONE metric sits against their own usual range (median ± robust deviation), plus the strongest lagged driver of that metric. Re-exports the same baseline engine the metric page renders. Returns the personal band, today's value + placement (within/above/below), and the population reference band. Returns { present: false } with reason 'insufficient_history' below the 7-day learning floor — never a fabricated range.",
+      "Fetch where the user's latest reading for ONE metric sits against their own usual range (median ± robust deviation), plus the strongest lagged driver of that metric. Re-exports the same baseline engine the metric page renders. Also resolves the clinical-signal metrics (grip strength, pain 0–10 NRS, waist circumference, waist-to-height ratio). Returns the personal band, today's value + placement (within/above/below), and the population reference band. Returns { present: false } with reason 'insufficient_history' below the 7-day learning floor — never a fabricated range.",
     inputShape: {
       metric: z.string().min(1).max(60),
     },

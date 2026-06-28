@@ -80,6 +80,49 @@ describe("resolveRichMetric", () => {
     expect(resolveRichMetric("bananas")).toBeNull();
     expect(resolveRichMetric("")).toBeNull();
   });
+
+  // ── v1.25 clinical signals (registry-grounded, MCP allowlist) ──────────
+  it("resolves the v1.25 clinical signals from the registry with units + bands", () => {
+    const grip = resolveRichMetric("grip strength");
+    expect(grip?.measurementType).toBe("GRIP_STRENGTH");
+    expect(grip?.unit).toBe("kg");
+    expect(grip?.band).toEqual({ low: 16, high: 60 });
+
+    expect(resolveRichMetric("pain")?.measurementType).toBe("PAIN_NRS");
+    expect(resolveRichMetric("waist")?.measurementType).toBe(
+      "WAIST_CIRCUMFERENCE",
+    );
+
+    const whtr = resolveRichMetric("waist-to-height ratio");
+    expect(whtr?.measurementType).toBe("WAIST_TO_HEIGHT");
+    expect(whtr?.band).toEqual({ low: 0, high: 0.5 });
+
+    // The exact registry key resolves too.
+    expect(resolveRichMetric("GRIP_STRENGTH")?.measurementType).toBe(
+      "GRIP_STRENGTH",
+    );
+  });
+
+  it("NEVER resolves the mental-health screeners or environmental signals (safety)", () => {
+    // PHQ-9 / GAD-7 item content + totals are excluded from AI/MCP by
+    // construction; the environmental signals are off MCP in v1. None of them
+    // are on the MCP clinical allowlist, so resolution must return null.
+    for (const off of [
+      "PHQ9_SCORE",
+      "phq9 score",
+      "phq-9",
+      "GAD7_SCORE",
+      "gad7 score",
+      "gad-7",
+      "ENV_TEMP_MEAN",
+      "ENV_SUNSHINE",
+      "ENV_PRESSURE_MEAN",
+      "daily temperature",
+      "barometric pressure",
+    ]) {
+      expect(resolveRichMetric(off)).toBeNull();
+    }
+  });
 });
 
 // ── 1. get_correlation ───────────────────────────────────────────────
