@@ -1,0 +1,154 @@
+/**
+ * v1.25 (W-DOCS-IN) — extraction mapping safety tests.
+ *
+ * The mapping is the safety boundary: it must reproduce STATED facts only and
+ * never let a code, value, or status leak across resource types or past the
+ * confidence gate. These tests pin "extract, never interpret" at the unit
+ * level with a canned provider response (no network).
+ */
+import { describe, expect, it } from "vitest";
+
+import {
+  InboundExtractError,
+  runInboundExtraction,
+} from "@/lib/documents/extract";
+import type { AIProvider } from "@/lib/ai/types";
+import type {
+  ConditionFactData,
+  MedicationStatementFactData,
+  ObservationFactData,
+} from "@/lib/validations/inbound-documents";
+
+/** A provider that returns one canned completion regardless of params. */
+function fakeProvider(content: string): AIProvider {
+  return {
+    // Only `generateCompletion` is exercised by the extractor.
+    generateCompletion: async () => ({ content }),
+  } as unknown as AIProvider;
+}
+
+describe("runInboundExtraction — stated-status-only mapping", () => {
+  it("keeps a stated ICD-10 code on a Condition and drops a mismatched system", async () => {
+    const provider = fakeProvider(
+      JSON.stringify({
+        reportDate: "2026-01-02",
+        kind: "DOCTOR_REPORT",
+        facts: [
+          {
+            type: "CONDITION",
+            label: "Type 2 diabetes mellitus",
+            code: "E11.9",
+            codeSystem: "ICD10",
+            clinicalStatus: "active",
+            verificationStatus: "confirmed",
+            effectiveDate: "2025-12-01",
+            confidence: 0.9,
+            sourceText: "Dx: Type 2 diabetes mellitus (E11.9)",
+          },
+          {
+            type: "CONDITION",
+            label: "Some finding",
+            code: "12345-6",
+            codeSystem: "LOINC", // wrong system for a Condition → dropped
+            confidence: 0.9,
+            sourceText: "finding",
+          },
+        ],
+      }),
+    );
+
+    const result = await runInboundExtraction({
+      provider,
+      providerType: "mock",
+    });
+
+    expect(result.reportDate).toBe("2026-01-02");
+    expect(result.facts).toHaveLength(2);
+
+    const first = result.facts[0]!.data as ConditionFactData;
+    expect(first.code).toBe("E11.9");
+    expect(first.codeSystem).toBe("ICD10");
+    expect(first.clinicalStatus).toBe("active");
+    expect(first.onsetDate).toBe("2025-12-01");
+
+    const second = result.facts[1]!.data as ConditionFactData;
+    expect(second.code).toBeNull();
+    expect(second.codeSystem).toBeNull();
+  });
+
+  it("never sets both value and valueText on an Observation and never range-flags", async () => {
+    const provider = fakeProvider(
+      JSON.stringify({
+        reportDate: null,
+        facts: [
+          {
+            type: "OBSERVATION",
+            label: "Glucose",
+            code: "2345-7",
+            codeSystem: "LOINC",
+            value: 95,
+            valueText: "normal", // model sent both → numeric wins, text dropped
+            unit: "mg/dL",
+            referenceLow: 70,
+            referenceHigh: 100,
+            effectiveDate: "2026-01-02",
+            confidence: 0.95,
+            sourceText: "Glucose 95 mg/dL (70-100)",
+          },
+        ],
+      }),
+    );
+
+    const result = await runInboundExtraction({
+      provider,
+      providerType: "mock",
+    });
+    const obs = result.facts[0]!.data as ObservationFactData;
+    expect(obs.value).toBe(95);
+    expect(obs.valueText).toBeNull();
+    expect(obs.code).toBe("2345-7");
+    // Reference bounds ride along as stated — but no flag/severity is computed.
+    expect(obs.referenceLow).toBe(70);
+    expect(obs.referenceHigh).toBe(100);
+    expect(obs).not.toHaveProperty("rangeStatus");
+    expect(obs).not.toHaveProperty("flag");
+  });
+
+  it("routes a stated RxNorm code onto the medication and gates low confidence", async () => {
+    const provider = fakeProvider(
+      JSON.stringify({
+        facts: [
+          {
+            type: "MEDICATION_STATEMENT",
+            label: "Metformin",
+            code: "6809",
+            codeSystem: "RXNORM",
+            dose: "500 mg",
+            medicationStatus: "ongoing",
+            confidence: 0.3, // below the floor → needsReview
+            sourceText: "Metformin 500 mg",
+          },
+        ],
+      }),
+    );
+
+    const result = await runInboundExtraction({
+      provider,
+      providerType: "mock",
+    });
+    const fact = result.facts[0]!;
+    expect(fact.needsReview).toBe(true);
+    const med = fact.data as MedicationStatementFactData;
+    expect(med.rxNormCode).toBe("6809");
+    expect(med.atcCode).toBeNull();
+    expect(med.dose).toBe("500 mg");
+    expect(med.statusStated).toBe("ongoing");
+  });
+
+  it("throws InboundExtractError on unparseable provider output", async () => {
+    const provider = fakeProvider("not json at all");
+    await expect(
+      runInboundExtraction({ provider, providerType: "mock" }),
+    ).rejects.toBeInstanceOf(InboundExtractError);
+  });
+});
