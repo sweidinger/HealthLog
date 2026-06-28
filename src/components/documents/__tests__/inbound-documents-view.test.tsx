@@ -34,6 +34,7 @@ vi.mock("@/lib/api/api-fetch", async () => {
 });
 
 import {
+  AlreadyConfirmedNote,
   DocumentDetail,
   DocumentMetaEditForm,
   InboundDocumentsView,
@@ -125,6 +126,42 @@ describe("<InboundDocumentsView> library", () => {
     expect(html).toContain("2 to review");
     // nextCursor → load-more button.
     expect(html).toContain("Load more");
+    // A11Y-M2: the row's aria-controls points at the detail region id.
+    expect(html).toContain('aria-controls="documents-detail-d1"');
+  });
+
+  it("disables the upload button and shows a hint until a file is chosen", () => {
+    const html = render(<InboundDocumentsView />, (qc) => {
+      qc.setQueryData(
+        queryKeys.inboundDocumentList({
+          q: undefined,
+          kind: undefined,
+          sort: "documentDate",
+          order: "desc",
+        }),
+        { pages: [{ documents: [], nextCursor: null }], pageParams: [null] },
+      );
+    });
+    // A11Y-M4: with no file staged, an inline hint explains why upload is
+    // disabled (the hint only renders on the !hasFile / not-pending path).
+    expect(html).toContain("Choose a file to upload.");
+  });
+
+  it("renders the document-date range filter inputs", () => {
+    const html = render(<InboundDocumentsView />, (qc) => {
+      qc.setQueryData(
+        queryKeys.inboundDocumentList({
+          q: undefined,
+          kind: undefined,
+          sort: "documentDate",
+          order: "desc",
+        }),
+        { pages: [{ documents: [], nextCursor: null }], pageParams: [null] },
+      );
+    });
+    // PERF-L: from/to date inputs are wired into the toolbar.
+    expect(html).toContain('id="doc-from"');
+    expect(html).toContain('id="doc-to"');
   });
 
   it("shows the empty state when there are no documents", () => {
@@ -208,6 +245,58 @@ describe("<DocumentDetail>", () => {
     );
     expect(html).not.toContain('data-slot="documents-extract"');
   });
+
+  it("hides the extract button once any fact is approved (PERF-H1 gate)", () => {
+    const approved: ExtractedFactDto = { ...fact("f1"), status: "APPROVED" };
+    const html = render(
+      <DocumentDetail documentId="d1" onClosed={() => {}} />,
+      (qc) => {
+        qc.setQueryData(
+          queryKeys.inboundDocument("d1"),
+          detail({ status: "EXTRACTED", factCount: 1, facts: [approved] }),
+        );
+      },
+    );
+    expect(html).not.toContain('data-slot="documents-extract"');
+  });
+
+  it("threads the region id onto the detail card for aria-controls", () => {
+    const html = render(
+      <DocumentDetail
+        documentId="d1"
+        regionId="documents-detail-d1"
+        onClosed={() => {}}
+      />,
+      (qc) => {
+        qc.setQueryData(queryKeys.inboundDocument("d1"), detail());
+      },
+    );
+    expect(html).toContain('id="documents-detail-d1"');
+  });
+
+  it("falls back to the kind label when title and filename are absent", () => {
+    const html = render(
+      <DocumentDetail documentId="d1" onClosed={() => {}} />,
+      (qc) => {
+        qc.setQueryData(
+          queryKeys.inboundDocument("d1"),
+          detail({ title: null, filename: null, kind: "IMAGING" }),
+        );
+      },
+    );
+    expect(html).toContain("Imaging");
+  });
+
+  it("offers a confirm step before discarding", () => {
+    const html = render(
+      <DocumentDetail documentId="d1" onClosed={() => {}} />,
+      (qc) => {
+        qc.setQueryData(queryKeys.inboundDocument("d1"), detail());
+      },
+    );
+    // A11Y-M3: discard is gated behind an AlertDialog trigger, not one click.
+    expect(html).toContain('data-slot="documents-discard-trigger"');
+  });
 });
 
 describe("<DocumentMetaEditForm>", () => {
@@ -227,9 +316,21 @@ describe("<DocumentMetaEditForm>", () => {
 });
 
 describe("<ProviderUnsupportedNote>", () => {
-  it("renders the calm inline note, not a hard error", () => {
+  it("renders the calm inline note as a polite live region (A11Y-H1)", () => {
     const html = render(<ProviderUnsupportedNote />);
     expect(html).toContain('data-slot="documents-provider-note"');
     expect(html).toContain("Configure a document-scan provider");
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-live="polite"');
+  });
+});
+
+describe("<AlreadyConfirmedNote>", () => {
+  it("renders a calm polite live region when extraction is refused", () => {
+    const html = render(<AlreadyConfirmedNote />);
+    expect(html).toContain('data-slot="documents-already-confirmed-note"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain("already been reviewed");
   });
 });

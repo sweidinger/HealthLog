@@ -82,6 +82,19 @@ export function isProviderUnsupportedError(error: unknown): boolean {
   );
 }
 
+/**
+ * True when an error is the extract route's 422 "this document has already been
+ * confirmed" signal. Re-extraction is refused server-side once any fact has
+ * been committed; the UI surfaces this as a calm inline note rather than a hard
+ * error toast, and hides the Extract control to match.
+ */
+export function isAlreadyConfirmedError(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.meta?.errorCode === "documents.inbound.alreadyConfirmed"
+  );
+}
+
 /** Format a YYYY-MM-DD group key into a locale-aware medium date label. */
 export function formatDateGroupLabel(key: string, locale: string): string {
   const date = new Date(`${key}T00:00:00`);

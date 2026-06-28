@@ -7841,7 +7841,8 @@
       "fileLabel": "File",
       "titleLabel": "Titolo (facoltativo)",
       "titlePlaceholder": "es. Referto di cardiologia",
-      "dateLabel": "Data del documento (facoltativa)"
+      "dateLabel": "Data del documento (facoltativa)",
+      "fileRequired": "Scegli un file da caricare."
     },
     "kind": {
       "DOCTOR_REPORT": "Referto medico",
@@ -7905,7 +7906,8 @@
       "extracted": "Dati estratti. Rivedili qui sotto.",
       "extractFailed": "Impossibile estrarre i dati.",
       "updated": "Documento aggiornato.",
-      "updateFailed": "Impossibile aggiornare il documento."
+      "updateFailed": "Impossibile aggiornare il documento.",
+      "discardFailed": "Impossibile eliminare il documento."
     },
     "toolbar": {
       "searchLabel": "Cerca",
@@ -7919,7 +7921,9 @@
         "title": "Titolo"
       },
       "orderAsc": "Crescente",
-      "orderDesc": "Decrescente"
+      "orderDesc": "Decrescente",
+      "fromLabel": "Dal",
+      "toLabel": "Al"
     },
     "detail": {
       "viewOriginal": "Vedi originale",
@@ -7927,7 +7931,12 @@
       "extract": "Estrai dati",
       "extracting": "Estrazione…",
       "discard": "Scarta",
-      "notExtracted": "Nessun dato estratto. Usa Estrai dati per leggere questo documento."
+      "notExtracted": "Nessun dato estratto. Usa Estrai dati per leggere questo documento.",
+      "viewOriginalNewTab": "(si apre in una nuova scheda)",
+      "discardConfirmTitle": "Eliminare questo documento?",
+      "discardConfirmBody": "Questo elimina definitivamente il documento, il file originale e i dati preparati. L'operazione non è reversibile.",
+      "discardConfirmAction": "Elimina",
+      "discardCancel": "Annulla"
     },
     "edit": {
       "title": "Modifica documento",
@@ -7940,7 +7949,8 @@
       "cancel": "Annulla"
     },
     "note": {
-      "providerUnsupported": "Configura un provider di scansione documenti nelle impostazioni IA per estrarre i dati automaticamente."
+      "providerUnsupported": "Configura un provider di scansione documenti nelle impostazioni IA per estrarre i dati automaticamente.",
+      "alreadyConfirmed": "Questo documento è già stato esaminato, quindi non può essere estratto di nuovo."
     }
   },
   "selfDescription": {

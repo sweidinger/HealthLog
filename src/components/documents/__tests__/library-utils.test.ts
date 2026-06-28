@@ -6,6 +6,7 @@ import {
   buildDocumentListSearch,
   documentDateKey,
   groupDocumentsByDate,
+  isAlreadyConfirmedError,
   isProviderUnsupportedError,
 } from "../library-utils";
 
@@ -121,5 +122,26 @@ describe("isProviderUnsupportedError", () => {
     ).toBe(false);
     expect(isProviderUnsupportedError(new Error("boom"))).toBe(false);
     expect(isProviderUnsupportedError(null)).toBe(false);
+  });
+});
+
+describe("isAlreadyConfirmedError", () => {
+  it("matches the extract 422 already-confirmed signal", () => {
+    const err = new ApiError("already confirmed", 422, {
+      errorCode: "documents.inbound.alreadyConfirmed",
+    });
+    expect(isAlreadyConfirmedError(err)).toBe(true);
+  });
+
+  it("rejects other API errors and non-errors", () => {
+    expect(
+      isAlreadyConfirmedError(
+        new ApiError("no provider", 422, {
+          errorCode: "documents.inbound.providerUnsupported",
+        }),
+      ),
+    ).toBe(false);
+    expect(isAlreadyConfirmedError(new Error("boom"))).toBe(false);
+    expect(isAlreadyConfirmedError(null)).toBe(false);
   });
 });

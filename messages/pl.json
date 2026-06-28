@@ -7841,7 +7841,8 @@
       "fileLabel": "Plik",
       "titleLabel": "Tytuł (opcjonalnie)",
       "titlePlaceholder": "np. Raport kardiologiczny",
-      "dateLabel": "Data dokumentu (opcjonalnie)"
+      "dateLabel": "Data dokumentu (opcjonalnie)",
+      "fileRequired": "Wybierz plik do przesłania."
     },
     "kind": {
       "DOCTOR_REPORT": "Raport lekarski",
@@ -7905,7 +7906,8 @@
       "extracted": "Fakty wyodrębnione. Przejrzyj je poniżej.",
       "extractFailed": "Nie udało się wyodrębnić faktów.",
       "updated": "Dokument zaktualizowany.",
-      "updateFailed": "Nie udało się zaktualizować dokumentu."
+      "updateFailed": "Nie udało się zaktualizować dokumentu.",
+      "discardFailed": "Nie udało się odrzucić dokumentu."
     },
     "toolbar": {
       "searchLabel": "Szukaj",
@@ -7919,7 +7921,9 @@
         "title": "Tytuł"
       },
       "orderAsc": "Rosnąco",
-      "orderDesc": "Malejąco"
+      "orderDesc": "Malejąco",
+      "fromLabel": "Od",
+      "toLabel": "Do"
     },
     "detail": {
       "viewOriginal": "Zobacz oryginał",
@@ -7927,7 +7931,12 @@
       "extract": "Wyodrębnij fakty",
       "extracting": "Wyodrębnianie…",
       "discard": "Odrzuć",
-      "notExtracted": "Nie wyodrębniono jeszcze faktów. Użyj Wyodrębnij fakty, aby odczytać ten dokument."
+      "notExtracted": "Nie wyodrębniono jeszcze faktów. Użyj Wyodrębnij fakty, aby odczytać ten dokument.",
+      "viewOriginalNewTab": "(otwiera się w nowej karcie)",
+      "discardConfirmTitle": "Odrzucić ten dokument?",
+      "discardConfirmBody": "Spowoduje to trwałe usunięcie dokumentu, oryginalnego pliku i przygotowanych danych. Tej operacji nie można cofnąć.",
+      "discardConfirmAction": "Odrzuć",
+      "discardCancel": "Anuluj"
     },
     "edit": {
       "title": "Edytuj dokument",
@@ -7940,7 +7949,8 @@
       "cancel": "Anuluj"
     },
     "note": {
-      "providerUnsupported": "Skonfiguruj dostawcę skanowania dokumentów w ustawieniach AI, aby automatycznie wyodrębniać fakty."
+      "providerUnsupported": "Skonfiguruj dostawcę skanowania dokumentów w ustawieniach AI, aby automatycznie wyodrębniać fakty.",
+      "alreadyConfirmed": "Ten dokument został już sprawdzony, więc nie można go ponownie wyodrębnić."
     }
   },
   "selfDescription": {
