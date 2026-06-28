@@ -582,7 +582,9 @@
     "typeGripStrength": "Forza di presa",
     "typePainNrs": "Dolore (0–10)",
     "typeWaistCircumference": "Circonferenza vita",
-    "typeWaistToHeight": "Rapporto vita-altezza"
+    "typeWaistToHeight": "Rapporto vita-altezza",
+    "unitScore": "pti",
+    "unitRatio": "rapporto"
   },
   "mood": {
     "title": "Umore",
@@ -3705,6 +3707,54 @@
       "statusBelow": "sotto l'intervallo",
       "statusAbove": "sopra l'intervallo",
       "directionFlat": "nessuna variazione"
+    },
+    "navGripStrength": "Forza di presa",
+    "navPainNrs": "Dolore",
+    "navWaistCircumference": "Vita",
+    "navWaistToHeight": "Vita/altezza",
+    "gripStrength": {
+      "title": "Forza di presa",
+      "description": "Forza massima di presa della mano: un indicatore robusto della forza di tutto il corpo. Sotto la soglia specifica per sesso (uomini 27 kg, donne 16 kg) segnala una probabile sarcopenia; il tuo andamento personale guida la lettura.",
+      "chartTitle": "Forza di presa",
+      "emptyState": {
+        "title": "Ancora nessuna forza di presa",
+        "description": "Registra una misura con un dinamometro manuale (annota la migliore di alcune strette) e l'andamento apparirà qui.",
+        "cta": "Registra la forza di presa"
+      },
+      "coachPrefill": "Non ho ancora registrato la forza di presa — cosa dice sulla salute dei miei muscoli e come la misuro e la miglioro?"
+    },
+    "pain": {
+      "title": "Dolore (0–10)",
+      "description": "Intensità del dolore riferita dal paziente sulla scala numerica 0–10, dove 0 è nessun dolore e 10 il peggiore immaginabile. Una variazione costante di 2 punti è il segnale da osservare.",
+      "chartTitle": "Dolore (0–10)",
+      "emptyState": {
+        "title": "Ancora nessun punteggio del dolore",
+        "description": "Registra come senti il dolore in questo momento sulla scala 0–10 e l'andamento apparirà qui.",
+        "cta": "Registra un punteggio del dolore"
+      },
+      "coachPrefill": "Non ho ancora registrato punteggi del dolore — come dovrei monitorare il dolore sulla scala 0–10 e cosa conta come variazione significativa?"
+    },
+    "waist": {
+      "title": "Circonferenza vita",
+      "description": "Circonferenza della vita in centimetri: un marcatore del grasso addominale. La soglia di rischio aumentato dell'OMS dipende dal sesso (uomini 94 cm, donne 80 cm); il tuo andamento personale guida la lettura.",
+      "chartTitle": "Circonferenza vita",
+      "emptyState": {
+        "title": "Ancora nessuna misura della vita",
+        "description": "Misura la vita nel punto medio tra l'ultima costola e l'osso dell'anca, a fine espirazione normale, e registrala qui.",
+        "cta": "Registra la circonferenza vita"
+      },
+      "coachPrefill": "Non ho ancora registrato misure della vita — come misuro la vita correttamente e cosa significa il numero per la mia salute?"
+    },
+    "waistToHeight": {
+      "title": "Rapporto vita-altezza",
+      "description": "La tua vita divisa per la tua altezza: il singolo numero più robusto tra le popolazioni. Tenerlo sotto 0,5 (vita inferiore alla metà dell'altezza) è l'obiettivo semplice.",
+      "chartTitle": "Rapporto vita-altezza",
+      "emptyState": {
+        "title": "Ancora nessun rapporto vita-altezza",
+        "description": "Registra un rapporto vita-altezza e l'andamento apparirà qui. Regola pratica: tieni la vita sotto la metà della tua altezza.",
+        "cta": "Registra il rapporto vita-altezza"
+      },
+      "coachPrefill": "Non ho ancora registrato un rapporto vita-altezza — perché è un numero utile e come lo tengo sotto 0,5?"
     }
   },
   "thresholds": {

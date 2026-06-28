@@ -582,7 +582,9 @@
     "typeGripStrength": "Griffstärke",
     "typePainNrs": "Schmerz (0–10)",
     "typeWaistCircumference": "Taillenumfang",
-    "typeWaistToHeight": "Taille-Größe-Verhältnis"
+    "typeWaistToHeight": "Taille-Größe-Verhältnis",
+    "unitScore": "Pkt.",
+    "unitRatio": "Verhältnis"
   },
   "mood": {
     "title": "Stimmung",
@@ -3705,6 +3707,54 @@
       "statusBelow": "unter dem Bereich",
       "statusAbove": "über dem Bereich",
       "directionFlat": "keine Änderung"
+    },
+    "navGripStrength": "Griffkraft",
+    "navPainNrs": "Schmerz",
+    "navWaistCircumference": "Taille",
+    "navWaistToHeight": "Taille/Größe",
+    "gripStrength": {
+      "title": "Griffkraft",
+      "description": "Maximale Handgriffkraft — ein robuster Stellvertreter für die Ganzkörperkraft. Unter dem geschlechtsspezifischen Grenzwert (Männer 27 kg, Frauen 16 kg) deutet sie auf eine mögliche Sarkopenie hin; dein eigener Verlauf führt die Einschätzung.",
+      "chartTitle": "Griffkraft",
+      "emptyState": {
+        "title": "Noch keine Griffkraft",
+        "description": "Erfasse einen Wert mit einem Handdynamometer — notiere den besten von mehreren Versuchen — und der Verlauf erscheint hier.",
+        "cta": "Griffkraft erfassen"
+      },
+      "coachPrefill": "Ich habe noch keine Griffkraft erfasst — was sagt sie über meine Muskelgesundheit aus, und wie messe und verbessere ich sie?"
+    },
+    "pain": {
+      "title": "Schmerz (0–10)",
+      "description": "Selbstberichtete Schmerzintensität auf der numerischen Skala 0–10, wobei 0 keinen Schmerz und 10 den stärksten vorstellbaren Schmerz bedeutet. Eine anhaltende Änderung um 2 Punkte ist das beobachtenswerte Signal.",
+      "chartTitle": "Schmerz (0–10)",
+      "emptyState": {
+        "title": "Noch keine Schmerzwerte",
+        "description": "Erfasse auf der Skala 0–10, wie sich dein Schmerz gerade anfühlt, und der Verlauf erscheint hier.",
+        "cta": "Schmerzwert erfassen"
+      },
+      "coachPrefill": "Ich habe noch keine Schmerzwerte erfasst — wie sollte ich Schmerz auf der Skala 0–10 verfolgen, und was gilt als bedeutsame Veränderung?"
+    },
+    "waist": {
+      "title": "Taillenumfang",
+      "description": "Taillenumfang in Zentimetern — ein Marker für Bauchfett. Der WHO-Grenzwert für erhöhtes Risiko ist geschlechtsspezifisch (Männer 94 cm, Frauen 80 cm); dein eigener Verlauf führt die Einschätzung.",
+      "chartTitle": "Taillenumfang",
+      "emptyState": {
+        "title": "Noch keine Taillenwerte",
+        "description": "Miss deine Taille mittig zwischen der untersten Rippe und dem Hüftknochen am Ende einer normalen Ausatmung und erfasse den Wert hier.",
+        "cta": "Taillenumfang erfassen"
+      },
+      "coachPrefill": "Ich habe noch keine Taillenwerte erfasst — wie messe ich meine Taille richtig, und was bedeutet der Wert für meine Gesundheit?"
+    },
+    "waistToHeight": {
+      "title": "Taille-zu-Größe-Verhältnis",
+      "description": "Deine Taille geteilt durch deine Größe — die ethnienunabhängige Einzelzahl. Sie unter 0,5 zu halten (Taille unter der halben Körpergröße) ist das einfache Ziel.",
+      "chartTitle": "Taille-zu-Größe-Verhältnis",
+      "emptyState": {
+        "title": "Noch kein Taille-zu-Größe-Verhältnis",
+        "description": "Erfasse ein Taille-zu-Größe-Verhältnis, und der Verlauf erscheint hier. Faustregel: Halte deine Taille unter der halben Körpergröße.",
+        "cta": "Taille-zu-Größe-Verhältnis erfassen"
+      },
+      "coachPrefill": "Ich habe noch kein Taille-zu-Größe-Verhältnis erfasst — warum ist es eine nützliche Zahl, und wie halte ich es unter 0,5?"
     }
   },
   "thresholds": {

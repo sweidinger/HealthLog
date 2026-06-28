@@ -582,7 +582,9 @@
     "typeGripStrength": "Siła chwytu",
     "typePainNrs": "Ból (0–10)",
     "typeWaistCircumference": "Obwód talii",
-    "typeWaistToHeight": "Stosunek talii do wzrostu"
+    "typeWaistToHeight": "Stosunek talii do wzrostu",
+    "unitScore": "pkt",
+    "unitRatio": "stosunek"
   },
   "mood": {
     "title": "Nastrój",
@@ -3705,6 +3707,54 @@
       "statusBelow": "poniżej zakresu",
       "statusAbove": "powyżej zakresu",
       "directionFlat": "bez zmian"
+    },
+    "navGripStrength": "Siła chwytu",
+    "navPainNrs": "Ból",
+    "navWaistCircumference": "Talia",
+    "navWaistToHeight": "Talia/wzrost",
+    "gripStrength": {
+      "title": "Siła chwytu",
+      "description": "Maksymalna siła chwytu dłoni — solidny wskaźnik ogólnej siły ciała. Poniżej progu zależnego od płci (mężczyźni 27 kg, kobiety 16 kg) sygnalizuje prawdopodobną sarkopenię; odczyt prowadzi Twój własny trend.",
+      "chartTitle": "Siła chwytu",
+      "emptyState": {
+        "title": "Brak pomiarów siły chwytu",
+        "description": "Zapisz pomiar z dynamometru ręcznego (zanotuj najlepszy z kilku ściśnięć), a trend pojawi się tutaj.",
+        "cta": "Zapisz siłę chwytu"
+      },
+      "coachPrefill": "Nie zapisałem jeszcze siły chwytu — co mówi o zdrowiu moich mięśni i jak ją zmierzyć oraz poprawić?"
+    },
+    "pain": {
+      "title": "Ból (0–10)",
+      "description": "Zgłaszana przez pacjenta intensywność bólu w skali numerycznej 0–10, gdzie 0 to brak bólu, a 10 najgorszy wyobrażalny. Utrzymująca się zmiana o 2 punkty to sygnał do obserwacji.",
+      "chartTitle": "Ból (0–10)",
+      "emptyState": {
+        "title": "Brak ocen bólu",
+        "description": "Zapisz, jak odczuwasz ból teraz, w skali 0–10, a trend pojawi się tutaj.",
+        "cta": "Zapisz ocenę bólu"
+      },
+      "coachPrefill": "Nie zapisałem jeszcze ocen bólu — jak śledzić ból w skali 0–10 i co liczy się jako istotna zmiana?"
+    },
+    "waist": {
+      "title": "Obwód talii",
+      "description": "Obwód talii w centymetrach — wskaźnik tłuszczu brzusznego. Próg zwiększonego ryzyka WHO zależy od płci (mężczyźni 94 cm, kobiety 80 cm); odczyt prowadzi Twój własny trend.",
+      "chartTitle": "Obwód talii",
+      "emptyState": {
+        "title": "Brak pomiarów talii",
+        "description": "Zmierz talię w połowie odległości między najniższym żebrem a kością biodrową, na końcu normalnego wydechu, i zapisz tutaj.",
+        "cta": "Zapisz obwód talii"
+      },
+      "coachPrefill": "Nie zapisałem jeszcze pomiarów talii — jak prawidłowo zmierzyć talię i co oznacza ta liczba dla mojego zdrowia?"
+    },
+    "waistToHeight": {
+      "title": "Stosunek talii do wzrostu",
+      "description": "Twoja talia podzielona przez wzrost — najbardziej uniwersalna pojedyncza liczba. Utrzymanie go poniżej 0,5 (talia mniejsza niż połowa wzrostu) to prosty cel.",
+      "chartTitle": "Stosunek talii do wzrostu",
+      "emptyState": {
+        "title": "Brak stosunku talii do wzrostu",
+        "description": "Zapisz stosunek talii do wzrostu, a trend pojawi się tutaj. Zasada: utrzymuj talię poniżej połowy wzrostu.",
+        "cta": "Zapisz stosunek talii do wzrostu"
+      },
+      "coachPrefill": "Nie zapisałem jeszcze stosunku talii do wzrostu — dlaczego to przydatna liczba i jak utrzymać ją poniżej 0,5?"
     }
   },
   "thresholds": {

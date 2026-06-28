@@ -87,7 +87,11 @@ const layoutSchema = z.object({
       }),
     )
     .min(1)
-    .max(50)
+    // Cap at the accepted-id universe (canonical slugs + legacy aliases) so a
+    // single PUT can cover every tile the layout knows about — the cap grows
+    // automatically as new sub-page slugs land, rather than tripping a 422
+    // once the slug count crosses a hard-coded ceiling.
+    .max(ACCEPTED_INSIGHTS_TILE_IDS.length)
     .optional(),
 });
 

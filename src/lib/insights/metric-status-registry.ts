@@ -140,7 +140,14 @@ export type MetricStatusMetricId =
   | "CARDIO_LOAD"
   | "AVERAGE_HEART_RATE"
   | "MAX_HEART_RATE"
-  | "ENERGY_EXPENDITURE_KJ";
+  | "ENERGY_EXPENDITURE_KJ"
+  // v1.25 — physical / clinical signals promoted to detail pages. Grip
+  // strength + waist carry a sex-aware band via the `norms.ts` tables the
+  // generic generator already threads through `lookupNormalRange`.
+  | "GRIP_STRENGTH"
+  | "PAIN_NRS"
+  | "WAIST_CIRCUMFERENCE"
+  | "WAIST_TO_HEIGHT";
 
 /**
  * The registry. Keyed by the HealthKit metric id. Each entry's
@@ -634,6 +641,54 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     unit: "kJ",
     direction: "higher-better",
     archetype: "activity-fitness",
+  },
+  // ── v1.25 — physical / clinical signals ──
+  // Grip strength — EWGSOP2 strength-limb marker. The flat 16 kg floor is the
+  // women's cut-off; the sex-aware `norms.ts` table sharpens it (men 27 /
+  // women 16) when the profile carries sex. Fields mirror the signal-registry
+  // entry exactly so the registry-invariant projection deep-equals this row.
+  GRIP_STRENGTH: {
+    id: "GRIP_STRENGTH",
+    measurementType: "GRIP_STRENGTH",
+    displayName: "Grip strength",
+    unit: "kg",
+    direction: "higher-better",
+    normalRange: { low: 16, high: 60 },
+    archetype: "activity-fitness",
+  },
+  // Pain NRS — the validated 0–10 numeric rating; lower is better, the
+  // no-pain/mild band sits at 0–3.
+  PAIN_NRS: {
+    id: "PAIN_NRS",
+    measurementType: "PAIN_NRS",
+    displayName: "Pain (0–10 NRS)",
+    unit: "score",
+    direction: "lower-better",
+    normalRange: { low: 0, high: 3 },
+    archetype: "physiological-vital",
+  },
+  // Waist circumference — WHO increased-risk threshold. The flat 94 cm anchor
+  // is the men's cut-off; the sex-aware `norms.ts` table sharpens it (men 94 /
+  // women 80) when the profile carries sex.
+  WAIST_CIRCUMFERENCE: {
+    id: "WAIST_CIRCUMFERENCE",
+    measurementType: "WAIST_CIRCUMFERENCE",
+    displayName: "Waist circumference",
+    unit: "cm",
+    direction: "lower-better",
+    normalRange: { low: 0, high: 94 },
+    archetype: "body-composition",
+  },
+  // Waist-to-height ratio — NICE keep-waist-under-half-your-height rule. WHtR
+  // ≥ 0.5 flags increased risk, so the last in-range value is 0.49.
+  WAIST_TO_HEIGHT: {
+    id: "WAIST_TO_HEIGHT",
+    measurementType: "WAIST_TO_HEIGHT",
+    displayName: "Waist-to-height ratio",
+    unit: "ratio",
+    direction: "lower-better",
+    normalRange: { low: 0, high: 0.49 },
+    archetype: "body-composition",
   },
 };
 

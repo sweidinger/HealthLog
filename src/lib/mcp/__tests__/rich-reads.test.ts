@@ -95,7 +95,8 @@ describe("resolveRichMetric", () => {
 
     const whtr = resolveRichMetric("waist-to-height ratio");
     expect(whtr?.measurementType).toBe("WAIST_TO_HEIGHT");
-    expect(whtr?.band).toEqual({ low: 0, high: 0.5 });
+    // WHtR ≥ 0.5 flags increased risk, so the last in-range value is 0.49.
+    expect(whtr?.band).toEqual({ low: 0, high: 0.49 });
 
     // The exact registry key resolves too.
     expect(resolveRichMetric("GRIP_STRENGTH")?.measurementType).toBe(

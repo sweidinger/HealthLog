@@ -112,7 +112,14 @@ export type InsightMetric =
   | "SIX_MINUTE_WALK_DISTANCE"
   | "STAIR_ASCENT_SPEED"
   | "STAIR_DESCENT_SPEED"
-  | "BREATHING_DISTURBANCES";
+  | "BREATHING_DISTURBANCES"
+  // v1.25 — physical / clinical signals. Each key equals its MeasurementType,
+  // so the generic `hasMetricData` fallback gates it on
+  // `summaries[metric].count > 0` (auto-light-up on the first reading).
+  | "GRIP_STRENGTH"
+  | "PAIN_NRS"
+  | "WAIST_CIRCUMFERENCE"
+  | "WAIST_TO_HEIGHT";
 
 /**
  * Inputs the gating helper consumes. The `summaries` shape mirrors
