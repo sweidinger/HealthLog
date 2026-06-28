@@ -7063,9 +7063,12 @@
     "restoredToast": "Medición restaurada",
     "restoreError": "No se pudo restaurar la medición",
     "detail": {
-      "history": "Historial",
       "emptyTitle": "Aún no hay mediciones",
-      "emptyDescription": "Añade un valor para seguir este biomarcador con el tiempo."
+      "emptyDescription": "Añade un valor para seguir este biomarcador con el tiempo.",
+      "valuesTitle": "{marker} — todas las lecturas",
+      "valuesDescription": "Cada lectura de este biomarcador. Edita o elimina una entrada directamente.",
+      "backToMarker": "Volver a {marker}",
+      "latestResult": "Último resultado"
     },
     "chart": {
       "empty": "Sin mediciones en este periodo.",

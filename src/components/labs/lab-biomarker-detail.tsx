@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useInfiniteQuery,
@@ -8,7 +9,13 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { FlaskConical, Pencil, Plus, SlidersHorizontal } from "lucide-react";
+import {
+  FlaskConical,
+  ListOrdered,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { DeleteButton } from "@/components/data-list";
@@ -26,9 +33,8 @@ import { useMounted } from "@/hooks/use-mounted";
 import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
 import { summarize, type DataSummary } from "@/lib/analytics/trends";
 import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
-import { classifyReferenceRange } from "@/lib/labs/reference-range";
-import { formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 
 import dynamic from "next/dynamic";
@@ -39,8 +45,6 @@ import { importWithRetry } from "@/lib/retry-import";
 
 import { BiomarkerForm } from "./biomarker-form";
 import { LabForm } from "./lab-form";
-import { LabHistoryList } from "./lab-history-list";
-import { ReferenceRangeBadge } from "./reference-range-badge";
 import type {
   BiomarkerDto,
   LabResultDto,
@@ -121,9 +125,6 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     data: list,
     isLoading,
     isError: listError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
   } = useInfiniteQuery({
     queryKey: queryKeys.labResultsInfinite({ biomarkerId, sortDir: "desc" }),
     initialPageParam: 0,
@@ -143,9 +144,6 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     () => list?.pages.flatMap((p) => p.results) ?? [],
     [list],
   );
-  const total = list?.pages[0]?.meta.total ?? 0;
-  // More rows exist on the server than are currently loaded.
-  const truncated = hasNextPage ?? false;
   const latest =
     readings.length > 0
       ? [...readings].sort(
@@ -164,6 +162,10 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     () => readings.filter((r) => r.value !== null),
     [readings],
   );
+  // A marker is qualitative when it has readings but none of them carry a
+  // numeric value — a stat strip / chart make no sense, so the page shows the
+  // latest result text + assessment + the history (via the values sub-page).
+  const isQualitative = readings.length > 0 && numericReadings.length === 0;
   const summary = useMemo<DataSummary | null>(
     () =>
       numericReadings.length > 0
@@ -178,7 +180,7 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   );
   const mounted = useMounted();
   const { data: assessment, isLoading: assessmentLoading } =
-    useInsightBiomarkerAssessment(biomarkerId, numericReadings.length > 0);
+    useInsightBiomarkerAssessment(biomarkerId, readings.length > 0);
 
   function afterAdd() {
     setAddOpen(false);
@@ -245,16 +247,6 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     );
   }
 
-  // A qualitative latest reading (numeric value null) has no range verdict.
-  const latestStatus =
-    latest && latest.value !== null
-      ? classifyReferenceRange(
-          latest.value,
-          marker?.lowerBound ?? null,
-          marker?.upperBound ?? null,
-        )
-      : "unknown";
-
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
@@ -270,6 +262,30 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {/* v1.25.1 — "show all readings" rides the header cluster as an icon
+              button, mirroring the metric sub-pages' `<SubPageShell>` control.
+              The full reading feed lives on `/labs/[biomarkerId]/values`; the
+              detail page keeps the numbers-first spine. */}
+          {readings.length > 0 ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              data-slot="lab-show-all-values"
+              className={cn(
+                "text-muted-foreground hover:text-foreground relative size-10",
+                "before:absolute before:-inset-1.5 before:content-['']",
+              )}
+            >
+              <Link
+                href={`/labs/${biomarkerId}/values`}
+                aria-label={t("insights.subPage.showAllValues")}
+                title={t("insights.subPage.showAllValues")}
+              >
+                <ListOrdered className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="icon"
@@ -313,25 +329,10 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
         </div>
       </div>
 
-      {latest ? (
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-2xl font-bold tabular-nums">
-            {latest.value !== null ? (
-              <>
-                {formatLabValue(latest.value)}{" "}
-                <span className="text-muted-foreground text-base font-normal">
-                  {marker?.unit ?? latest.unit}
-                </span>
-              </>
-            ) : (
-              // Qualitative latest reading — show the result text, no unit.
-              (latest.valueText ?? "")
-            )}
-          </span>
-          <ReferenceRangeBadge status={latestStatus} />
-        </div>
-      ) : null}
-
+      {/* v1.25.1 — the static description leads the page, directly beneath the
+          heading, mirroring the metric sub-pages' explainer caption. Resolves
+          the catalog slug from the marker name, falling back to the user's own
+          `context`. */}
       {(() => {
         const slug = marker?.name
           ? slugByName.get(marker.name.trim().toLowerCase())
@@ -346,21 +347,15 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
         ) : null;
       })()}
 
-      {/* Numbers-first stat strip — Min / Max / Median / Mean over the
-          numeric readings, mirroring the metric sub-pages. Self-gating:
-          renders nothing for a qualitative-only or empty marker. */}
-      <MetricStatStrip
-        summary={summary}
-        unit={marker?.unit ?? latest?.unit ?? ""}
-        seriesLabel={marker?.name}
-        icon={FlaskConical}
-      />
-
-      <Card>
-        <CardContent className="pt-6">
-          {isLoading ? (
+      {isLoading ? (
+        <Card>
+          <CardContent className="pt-6">
             <Skeleton className="h-60 w-full" />
-          ) : readings.length === 0 ? (
+          </CardContent>
+        </Card>
+      ) : readings.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6">
             <EmptyState
               icon={<FlaskConical className="size-6" />}
               title={t("labs.detail.emptyTitle")}
@@ -371,55 +366,47 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
                 </Button>
               }
             />
-          ) : (
-            <LabBiomarkerChart
-              readings={readings}
-              unit={marker?.unit ?? latest?.unit ?? ""}
-              lowerBound={marker?.lowerBound ?? null}
-              upperBound={marker?.upperBound ?? null}
-            />
-          )}
-        </CardContent>
-      </Card>
-
-      {readings.length > 0 ? (
-        <div className="space-y-2">
-          <h2 className="text-sm font-semibold">{t("labs.detail.history")}</h2>
-          {truncated ? (
+          </CardContent>
+        </Card>
+      ) : isQualitative ? (
+        // Qualitative marker — no numeric strip / chart. Show the latest
+        // result text on its own simple line, no unit, no range badge.
+        <Card>
+          <CardContent className="space-y-1 pt-6">
             <p className="text-muted-foreground text-xs">
-              {t("labs.showingLatestOf", {
-                shown: readings.length,
-                total,
-              })}
+              {t("labs.detail.latestResult")}
             </p>
-          ) : null}
+            <p className="text-2xl font-bold">{latest?.valueText ?? ""}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Numbers-first stat strip — Min / Max / Median / Mean over the
+              numeric readings, mirroring the metric sub-pages. */}
+          <MetricStatStrip
+            summary={summary}
+            unit={marker?.unit ?? latest?.unit ?? ""}
+            seriesLabel={marker?.name}
+            icon={FlaskConical}
+          />
           <Card>
-            <CardContent className="py-0">
-              <LabHistoryList readings={readings} />
+            <CardContent className="pt-6">
+              <LabBiomarkerChart
+                readings={readings}
+                unit={marker?.unit ?? latest?.unit ?? ""}
+                lowerBound={marker?.lowerBound ?? null}
+                upperBound={marker?.upperBound ?? null}
+              />
             </CardContent>
           </Card>
-          {hasNextPage ? (
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                className="min-h-11 sm:min-h-9"
-                disabled={isFetchingNextPage}
-                onClick={() => fetchNextPage()}
-              >
-                {isFetchingNextPage
-                  ? t("common.loading")
-                  : t("labs.loadMoreReadings")}
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+        </>
+      )}
 
       {/* AI assessment — the spine's closing block, mirroring the metric
-          sub-pages (intro → stat strip → chart → history → assessment). The
-          card self-suppresses when the operator disabled status cards, and
-          the hook is gated on the marker having numeric readings. */}
-      {numericReadings.length > 0 ? (
+          sub-pages (intro → stat strip → chart → assessment). The card
+          self-suppresses for a qualitative-only marker (the read-only route
+          returns `insufficient` without calling a provider). */}
+      {readings.length > 0 ? (
         <InsightStatusCard
           title={t("insights.assessmentTitle")}
           icon={<FlaskConical className="h-5 w-5" />}

@@ -7063,9 +7063,12 @@
     "restoredToast": "Wert wiederhergestellt",
     "restoreError": "Wert konnte nicht wiederhergestellt werden",
     "detail": {
-      "history": "Verlauf",
       "emptyTitle": "Noch keine Werte",
-      "emptyDescription": "Füge einen Wert hinzu, um diesen Biomarker über die Zeit zu verfolgen."
+      "emptyDescription": "Füge einen Wert hinzu, um diesen Biomarker über die Zeit zu verfolgen.",
+      "valuesTitle": "{marker} — alle Werte",
+      "valuesDescription": "Jeder Messwert für diesen Biomarker. Bearbeite oder entferne einen Eintrag direkt.",
+      "backToMarker": "Zurück zu {marker}",
+      "latestResult": "Letztes Ergebnis"
     },
     "chart": {
       "empty": "Keine Werte in diesem Zeitraum.",
