@@ -7563,8 +7563,7 @@
   "mentalHealth": {
     "pageTitle": "Sprawdzenie dobrostanu psychicznego",
     "pageDescription": "Dwa zwalidowane, dobrowolne testy — PHQ-9 (nastrój) i GAD-7 (lęk) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
-    "disclaimer": "To przesiewowa samoocena, a nie diagnoza. Wysoki lub niski wynik nie oznacza, że masz lub nie masz danego schorzenia. Tylko wykwalifikowany pracownik ochrony zdrowia może postawić diagnozę. W razie wątpliwości porozmawiaj z lekarzem.",
-    "optInNote": "Dobrowolne i prywatne: Twoje poszczególne odpowiedzi są szyfrowane, pozostają poza Coachem AI i eksportami i nigdy nie są udostępniane.",
+    "infoTooltip": "To jest przesiewowy autotest, a nie diagnoza.",
     "attributionLabel": "Źródło",
     "choosePrompt": "Wybierz sprawdzenie",
     "start": "Rozpocznij",

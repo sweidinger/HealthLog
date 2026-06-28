@@ -7563,8 +7563,7 @@
   "mentalHealth": {
     "pageTitle": "Check-in zum seelischen Wohlbefinden",
     "pageDescription": "Zwei validierte, freiwillige Selbsttests — PHQ-9 (Stimmung) und GAD-7 (Sorgen) — ergänzend zu deinem Stimmungstagebuch. Aussagekräftig ist der Verlauf über die Zeit, nicht ein einzelner Wert.",
-    "disclaimer": "Dies ist ein Screening-Selbsttest, keine Diagnose. Ein hoher oder niedriger Wert bedeutet nicht, dass eine Erkrankung vorliegt oder nicht. Nur eine qualifizierte Fachperson kann eine Diagnose stellen. Bei Sorgen sprich bitte mit deiner Ärztin oder deinem Arzt.",
-    "optInNote": "Freiwillig und privat: Deine einzelnen Antworten sind verschlüsselt, bleiben aus dem KI-Coach und aus Exporten heraus und werden nie geteilt.",
+    "infoTooltip": "Dieses ist ein Screening-Selbsttest, keine Diagnose.",
     "attributionLabel": "Quelle",
     "choosePrompt": "Check-in auswählen",
     "start": "Starten",

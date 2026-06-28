@@ -7563,8 +7563,7 @@
   "mentalHealth": {
     "pageTitle": "Point sur le bien-être mental",
     "pageDescription": "Deux auto-évaluations validées et facultatives — PHQ-9 (humeur) et GAD-7 (inquiétude) — en complément de ton suivi de l'humeur. Ce qui compte, c'est la tendance dans le temps, pas un chiffre isolé.",
-    "disclaimer": "Il s'agit d'une auto-évaluation de dépistage, pas d'un diagnostic. Un score élevé ou bas ne signifie pas que tu as ou n'as pas un trouble. Seul un professionnel de santé qualifié peut poser un diagnostic. En cas de doute, parles-en à ton médecin.",
-    "optInNote": "Facultatif et privé : tes réponses individuelles sont chiffrées, tenues à l'écart du Coach IA et des exports, et ne sont jamais partagées.",
+    "infoTooltip": "Il s'agit d'un autotest de dépistage, pas d'un diagnostic.",
     "attributionLabel": "Source",
     "choosePrompt": "Choisis un bilan",
     "start": "Commencer",

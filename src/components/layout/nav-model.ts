@@ -87,10 +87,10 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
   // Born-gated: `requiresModule: "mentalHealth"` reads the opt-in (default-off)
   // key from the resolved module map, so the entry is absent until the account
   // turns the module on from the Modules hub. The destination is the dedicated
-  // `/insights/mental-wellbeing` check-in surface (its own nav home — the
-  // active-detection helper defers `/insights` to it on that path).
+  // top-level `/mental-wellbeing` check-in surface (its own module page — it
+  // no longer borrows the Insights tab strip / layout shell).
   {
-    href: "/insights/mental-wellbeing",
+    href: "/mental-wellbeing",
     tKey: "nav.mentalWellbeing",
     icon: Brain,
     tourId: "nav-mental-wellbeing",
