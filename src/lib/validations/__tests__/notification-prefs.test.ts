@@ -110,6 +110,7 @@ describe("parseNotificationPrefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -134,6 +135,7 @@ describe("parseNotificationPrefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -160,6 +162,7 @@ describe("parseNotificationPrefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -202,6 +205,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -232,6 +236,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -259,6 +264,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -286,6 +292,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -314,6 +321,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -504,6 +512,7 @@ describe("resolveCoachNudgePrefs — v1.16.5 nudge cron gate", () => {
       enabled: true,
       groups: { medication: true, vitals: true, routine: true },
       minIntervalDays: 7,
+      aiComposed: false,
     });
   });
 
