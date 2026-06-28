@@ -63,6 +63,12 @@ model User {
   homeLon      Float?  @map("home_lon")
   homeLabel    String? @map("home_label")
   homeTimezone String? @map("home_timezone")
+  // v1.25 — effective-from instant for the home location. Stamped the moment a
+  // home is set/updated. Day resolution attributes a past day to home ONLY when
+  // the day is on/after this instant; earlier days are skipped (never fabricated
+  // from the current home). To fill the deep past the user adds an explicit
+  // dated location period instead. Backfill defaults its start to this instant.
+  homeSince    DateTime? @map("home_since")
 
   // Codex OAuth (ChatGPT subscription)
   codexAccessTokenEncrypted  String?   @map("codex_access_token_encrypted")
@@ -811,11 +817,16 @@ model User {
 // ─── v1.25 (W-ENV) Environmental-context module ──────────────────────────────
 
 /// How the location for an environment observation was resolved. HOME = the
-/// user's configured home location; TRAVEL = a manual date-range override.
-/// (iOS coarse device location is a v2 follow-up and not represented here.)
+/// user's configured home location; TRAVEL = an explicit dated location period
+/// (a past trip OR a corrected stretch of history) that overrides home for the
+/// days it covers; DEVICE = a future client-supplied coarse per-day location.
+/// DEVICE is the priority forward path for the iOS v2 client: the value exists
+/// so the resolver and the wire contract already accept it, but nothing writes
+/// it server-side yet.
 enum EnvironmentLocationSource {
   HOME
   TRAVEL
+  DEVICE
 }
 
 /// A per-day environmental observation (daily weather / daylight) for the
@@ -876,10 +887,13 @@ model EnvironmentContext {
   @@map("environment_contexts")
 }
 
-/// A manual travel override: for any day in `[startDate, endDate]` the weather
-/// fetch resolves against this location instead of the home location. Declared,
-/// not inferred — a stated trip dominates the home fallback so a winter week in
-/// a sunny locale is not mis-attributed to the home city. Coarse location only.
+/// An explicit dated LOCATION PERIOD: for any day in `[startDate, endDate]` the
+/// weather fetch resolves against this location instead of the home location.
+/// Declared, not inferred — it dominates the home fallback so a stretch spent
+/// elsewhere is not mis-attributed to the home city. Two uses share this one
+/// model: a discrete trip away from home, AND the mechanism to correct history
+/// (e.g. a whole-history home city for the years before the current home became
+/// effective). Coarse location only. (Stored under `source = TRAVEL`.)
 model EnvironmentTravelLocation {
   id     String @id @default(cuid())
   userId String @map("user_id")
