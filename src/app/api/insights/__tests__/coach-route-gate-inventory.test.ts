@@ -35,6 +35,9 @@ import { describe, expect, it } from "vitest";
 
 const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   // Non-Coach assistant surfaces — gated on a sibling sub-flag.
+  // Per-biomarker assessment. Gated on the same `insightStatus` sub-flag as
+  // the metric-status + specialised status routes (no Coach prose).
+  "src/app/api/insights/biomarker-assessment/route.ts",
   "src/app/api/insights/blood-pressure-status/route.ts",
   "src/app/api/insights/bmi-status/route.ts",
   "src/app/api/insights/cards/route.ts",

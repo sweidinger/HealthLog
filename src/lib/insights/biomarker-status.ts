@@ -231,7 +231,15 @@ export async function generateBiomarkerStatus(args: {
   // stored `inputHash`, nothing the prompt could see has changed since the
   // last reading, so re-stamp that text under today's day key and skip the
   // LLM entirely. A new reading flips the latest id / value / count and
-  // forces a real regeneration.
+  // forces a real regeneration — so the assessment regenerates ONLY on a new
+  // reading.
+  //
+  // The gate runs with `force: false` even on the worker's forced path: the
+  // outer `force` exists to bypass the SAME-DAY text cache (so a fresh day
+  // re-evaluates the fingerprint), not to burn an LLM call on an unchanged
+  // marker. The worker is re-enqueued whenever today's text cache misses, so
+  // letting the input gate run keeps an idle marker to one cheap re-stamp per
+  // day instead of a daily regeneration.
   const inputHash = hashInsightSnapshot({
     scope,
     locale,
@@ -249,7 +257,7 @@ export async function generateBiomarkerStatus(args: {
     cacheAction,
     todayKey,
     inputHash,
-    force,
+    force: false,
   });
   if (unchanged) {
     return {
