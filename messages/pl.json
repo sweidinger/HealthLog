@@ -3606,28 +3606,7 @@
     },
     "sleepQuality": {
       "title": "Jakość snu",
-      "subtitle": "Nocne wyniki z Twojego urządzenia",
-      "assessment": {
-        "metric": {
-          "SLEEP_SCORE": "Twój ogólny wynik snu",
-          "SLEEP_EFFICIENCY": "efektywność snu",
-          "SLEEP_PERFORMANCE": "wydajność snu",
-          "SLEEP_CONSISTENCY": "regularność snu"
-        },
-        "grade": {
-          "excellent": "doskonała",
-          "good": "solidna",
-          "fair": "przeciętna",
-          "low": "raczej niska"
-        },
-        "clause": "W ciągu ostatnich 30 nocy {metric} jest {grade} i wynosi {value}.",
-        "closing": {
-          "excellent": "Trzymaj się rutyny, która Cię tu doprowadziła.",
-          "good": "Bardziej stałe pory zasypiania i wstawania to zwykle następny zysk.",
-          "fair": "Utrzymanie stałego okna snu zwykle podnosi ten wynik najbardziej.",
-          "low": "Regularne wyciszenie wieczorem i stała pora pobudki to pierwsze dźwignie."
-        }
-      }
+      "subtitle": "Nocne wyniki z Twojego urządzenia"
     },
     "recovery": {
       "title": "Regeneracja",

@@ -295,6 +295,11 @@ export default function InsightsMedikamentePage() {
         text={status?.summary ?? null}
         hasProvider={status?.hasProvider ?? false}
         updatedAt={status?.updatedAt ?? null}
+        coachQuestion={t("insights.coach.assessmentPrompt", {
+          metric: t("insights.medicationCompliance"),
+        })}
+        coachScope={{ metric: "compliance" }}
+        coachAutoSend
         loading={isStatusLoading}
         preparing={status?.preparing ?? false}
       />

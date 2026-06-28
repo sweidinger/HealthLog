@@ -13,7 +13,7 @@ import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
-import { AskCoachAction } from "@/components/insights/ask-coach-action";
+import { AskCoachIconButton } from "@/components/insights/ask-coach-action";
 import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 
 // ─── Types ────────────────────────────────────────────────
@@ -236,8 +236,25 @@ export function InsightStatusCard({
         {/* v1.11.5 — the top-right "cached" label was removed: it surfaced
             an implementation detail and devalued the assessment. The card
             still consumes the warm cache; it just no longer announces it.
-            v1.12.6 — the icon + title row is the canonical `<TileHeader>`. */}
-        <TileHeader icon={nodeIcon(icon)} title={title} />
+            v1.12.6 — the icon + title row is the canonical `<TileHeader>`.
+            v1.25 — the Coach hand-off lives in the header's right slot as a
+            single icon button (no text label, tooltip + accessible name),
+            shared across every assessment card. Rendered only when the
+            caller supplied an opener; the button self-gates on the Coach
+            triple, so it never paints a dead control. */}
+        <TileHeader
+          icon={nodeIcon(icon)}
+          title={title}
+          right={
+            coachQuestion ? (
+              <AskCoachIconButton
+                question={coachQuestion}
+                scope={coachScope}
+                autoSend={coachAutoSend}
+              />
+            ) : undefined
+          }
+        />
       </CardHeader>
       <CardContent className="space-y-2">
         {/* v1.4.27 — defence-in-depth strip. Cached status text from
@@ -249,18 +266,6 @@ export function InsightStatusCard({
             they roll forward. */}
         <StatusBody text={stripChartTokens(text)} />
         <LastUpdatedFooter updatedAt={updatedAt} />
-        {/* v1.21.0 (C4 H2) — discreet hand-off so the user can take the
-            assessment into a scoped Coach conversation. Only when the
-            caller supplied an opener. */}
-        {coachQuestion ? (
-          <div className="flex justify-end">
-            <AskCoachAction
-              question={coachQuestion}
-              scope={coachScope}
-              autoSend={coachAutoSend}
-            />
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

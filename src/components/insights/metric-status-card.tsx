@@ -7,7 +7,10 @@ import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
-import { scopeSourceFromMetricKey } from "@/components/insights/coach-metric-scope";
+import {
+  scopeSourceFromMetricKey,
+  scopeSourceMetricLabelKey,
+} from "@/components/insights/coach-metric-scope";
 
 interface MetricStatusCardProps {
   /** The registry metric id the generic assessment route keys on. */
@@ -46,8 +49,14 @@ export function MetricStatusCard({
   // carry a snapshot block. Unmapped metrics still get a metric-named
   // opener, just against the default snapshot.
   const coachSource = scopeSourceFromMetricKey(metric);
+  // Prefer the EXISTING localised measurement-name key for the auto-sent
+  // preset so the opener reads in the user's language; fall back to the
+  // humanised token only for metrics without a localised name.
+  const coachLabelKey = scopeSourceMetricLabelKey(coachSource);
   const coachQuestion = t("insights.coach.assessmentPrompt", {
-    metric: metric.toLowerCase().replace(/_/g, " "),
+    metric: coachLabelKey
+      ? t(coachLabelKey)
+      : metric.toLowerCase().replace(/_/g, " "),
   });
 
   return (

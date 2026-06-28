@@ -104,12 +104,15 @@ export default function InsightsSchlafPage() {
         the HealthKit scaffold (Moon vs Sparkles).
 
         v1.18.1 — moved up to sit DIRECTLY with the duration/architecture chart
-        group it describes (`<SleepOverview>`), rather than trailing the whole
-        page. The sleep-quality block below now carries its OWN assessment, so
-        each distinct chart group reads its own matching text — the canonical
-        "multiple charts ⇒ multiple texts" rule the recovery page meets. The
-        card mounts only on this data-bearing branch, so a source-less account
-        never fetches.
+        group it describes (`<SleepOverview>`).
+
+        v1.25 — this is now the page's SINGLE assessment. The sleep-quality
+        block below used to carry a second SLEEP_SCORE assessment that mostly
+        never generated (no wearable score), leaving a duplicate "connect an AI
+        provider" / empty card at the foot of the page. That bottom assessment
+        is gone; the quality block keeps its score tiles only. The card mounts
+        only on this data-bearing branch, so a source-less account never
+        fetches.
       */}
       <MetricStatusCard
         metric="SLEEP_DURATION"
@@ -136,8 +139,8 @@ export default function InsightsSchlafPage() {
         disturbance count + the Oura sleep score) that were ingested but never
         rendered. Each tile is data-gated, so the block is invisible for
         non-wearable users and collapses metric-by-metric. Server-authoritative
-        — the tiles render stored values. v1.18.1 — the block carries its own
-        `<MetricStatusCard metric="SLEEP_SCORE">` assessment internally.
+        — the tiles render stored values. v1.25 — score tiles only; the page's
+        single assessment is the SLEEP_DURATION card above.
       */}
       <SleepQualitySection enabled={!isEmpty} />
 
