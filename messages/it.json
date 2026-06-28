@@ -35,7 +35,8 @@
     "showPassword": "Mostra password",
     "hidePassword": "Nascondi password",
     "learnMore": "Scopri di più",
-    "dismiss": "Ignora"
+    "dismiss": "Ignora",
+    "moreInfo": "Maggiori informazioni"
   },
   "doctorReport": {
     "title": "Rapporto sanitario",
@@ -750,7 +751,8 @@
     "sectionFactors": "Fattori",
     "sectionNoteDetails": "Nota e dettagli",
     "quickTagsHelp": "I tuoi tag frequenti: un tocco",
-    "quickTagsExpand": "Altro"
+    "quickTagsExpand": "Altro",
+    "loadError": "Impossibile caricare le voci dell'umore."
   },
   "medications": {
     "title": "Farmaci",
@@ -1852,7 +1854,20 @@
       "sat": "Sabato",
       "sun": "Domenica"
     },
-    "rangeBand": "Intervallo"
+    "rangeBand": "Intervallo",
+    "a11y": {
+      "summary": "Grafico {metric}. Intervallo da {min} a {max}, ultimo {latest}, tendenza {trend}.",
+      "noData": "Grafico {metric}. Nessun dato disponibile.",
+      "trendUp": "in aumento",
+      "trendDown": "in calo",
+      "trendFlat": "stabile",
+      "scatterSummary": "Grafico di correlazione, {count} punti che confrontano {xLabel} con {yLabel}.",
+      "scatterNoData": "Grafico di correlazione di {xLabel} e {yLabel}. Nessun dato disponibile.",
+      "moodHeatmap": "Mappa di calore dell'umore dal {start} al {end}, {days} giorni registrati.",
+      "moodHeatmapEmpty": "Mappa di calore dell'umore, nessun giorno ancora registrato.",
+      "complianceHeatmap": "Mappa di calore dell'aderenza ai farmaci dal {start} al {end}, {days} giorni attivi.",
+      "complianceHeatmapEmpty": "Mappa di calore dell'aderenza ai farmaci, nessun giorno attivo."
+    }
   },
   "chart": {
     "overlay": {
@@ -6173,7 +6188,9 @@
       "resetToDefault": "Ripristina predefinito",
       "saveSuccess": "Range obiettivo aggiornato",
       "saveError": "Impossibile salvare il range obiettivo",
-      "resetSuccess": "Range obiettivo ripristinato"
+      "resetSuccess": "Range obiettivo ripristinato",
+      "validationOrder": "Il minimo deve essere inferiore al massimo.",
+      "validationBounds": "Inserisci valori entro l'intervallo consentito indicato sotto."
     },
     "currentValue": "Attuale: {value} {unit}",
     "targetRangeValue": "Range obiettivo: {min}–{max} {unit}",
@@ -6831,7 +6848,8 @@
       "empty": "Nessun promemoria di controllo in arrivo.",
       "openLink": "Apri controlli"
     },
-    "showMeasurements": "Mostra le misurazioni"
+    "showMeasurements": "Mostra le misurazioni",
+    "loadError": "Impossibile caricare i promemoria."
   },
   "moduleList": {
     "viewToggleLabel": "Vista",
@@ -7312,7 +7330,8 @@
       "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
       "PULSE": "Pulse",
       "WEIGHT": "Weight"
-    }
+    },
+    "listLoadError": "Impossibile caricare gli episodi."
   },
   "coach": {
     "reminderSuggestion": {
@@ -7371,6 +7390,13 @@
       "glucoseHighTitle": "Glicemia molto alta",
       "glucoseHighDoctor": "Due misurazioni recenti erano di {value} mg/dL o superiori. Rimisura, idratati e contatta il medico al più presto se resta così alta.",
       "glucoseHighEmergency": "Due misurazioni recenti erano di {value} mg/dL o superiori e hai segnalato sintomi. In caso di vomito, respiro affannoso o confusione, chiama subito i soccorsi."
+    }
+  },
+  "version": {
+    "updateAvailable": {
+      "title": "È disponibile una nuova versione",
+      "reload": "Ricarica",
+      "dismiss": "Ignora"
     }
   }
 }

@@ -35,7 +35,8 @@
     "showPassword": "Pokaż hasło",
     "hidePassword": "Ukryj hasło",
     "learnMore": "Dowiedz się więcej",
-    "dismiss": "Odrzuć"
+    "dismiss": "Odrzuć",
+    "moreInfo": "Więcej informacji"
   },
   "doctorReport": {
     "title": "Raport zdrowotny",
@@ -750,7 +751,8 @@
     "sectionFactors": "Czynniki",
     "sectionNoteDetails": "Notatka i szczegóły",
     "quickTagsHelp": "Twoje częste tagi — jedno dotknięcie",
-    "quickTagsExpand": "Więcej"
+    "quickTagsExpand": "Więcej",
+    "loadError": "Nie udało się załadować wpisów nastroju."
   },
   "medications": {
     "title": "Leki",
@@ -1852,7 +1854,20 @@
       "sat": "Sobota",
       "sun": "Niedziela"
     },
-    "rangeBand": "Zakres"
+    "rangeBand": "Zakres",
+    "a11y": {
+      "summary": "Wykres {metric}. Zakres od {min} do {max}, ostatnio {latest}, trend {trend}.",
+      "noData": "Wykres {metric}. Brak dostępnych danych.",
+      "trendUp": "rosnący",
+      "trendDown": "malejący",
+      "trendFlat": "stały",
+      "scatterSummary": "Wykres korelacji, {count} punktów porównujących {xLabel} z {yLabel}.",
+      "scatterNoData": "Wykres korelacji {xLabel} i {yLabel}. Brak dostępnych danych.",
+      "moodHeatmap": "Mapa cieplna nastroju od {start} do {end}, zarejestrowano {days} dni.",
+      "moodHeatmapEmpty": "Mapa cieplna nastroju, brak zarejestrowanych dni.",
+      "complianceHeatmap": "Mapa cieplna przyjmowania leków od {start} do {end}, {days} aktywnych dni.",
+      "complianceHeatmapEmpty": "Mapa cieplna przyjmowania leków, brak aktywnych dni."
+    }
   },
   "chart": {
     "overlay": {
@@ -6173,7 +6188,9 @@
       "resetToDefault": "Przywróć wartość domyślną",
       "saveSuccess": "Zakres docelowy zaktualizowany",
       "saveError": "Nie udało się zapisać zakresu docelowego",
-      "resetSuccess": "Zakres docelowy przywrócono do domyślnego"
+      "resetSuccess": "Zakres docelowy przywrócono do domyślnego",
+      "validationOrder": "Wartość minimalna musi być niższa niż maksymalna.",
+      "validationBounds": "Wprowadź wartości w dozwolonym zakresie podanym poniżej."
     },
     "currentValue": "Aktualnie: {value} {unit}",
     "targetRangeValue": "Zakres docelowy: {min}–{max} {unit}",
@@ -6831,7 +6848,8 @@
       "empty": "Brak nadchodzących przypomnień o badaniach.",
       "openLink": "Otwórz badania"
     },
-    "showMeasurements": "Pokaż pomiary"
+    "showMeasurements": "Pokaż pomiary",
+    "loadError": "Nie udało się załadować przypomnień."
   },
   "moduleList": {
     "viewToggleLabel": "Widok",
@@ -7312,7 +7330,8 @@
       "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
       "PULSE": "Pulse",
       "WEIGHT": "Weight"
-    }
+    },
+    "listLoadError": "Nie udało się załadować epizodów."
   },
   "coach": {
     "reminderSuggestion": {
@@ -7371,6 +7390,13 @@
       "glucoseHighTitle": "Bardzo wysoki poziom cukru",
       "glucoseHighDoctor": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej. Zmierz ponownie, nawodnij się i jak najszybciej skontaktuj się z lekarzem, jeśli pozostaje tak wysoki.",
       "glucoseHighEmergency": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej i zgłosiłeś objawy. W razie wymiotów, przyspieszonego oddechu lub dezorientacji natychmiast zadzwoń po pomoc."
+    }
+  },
+  "version": {
+    "updateAvailable": {
+      "title": "Dostępna jest nowa wersja",
+      "reload": "Załaduj ponownie",
+      "dismiss": "Odrzuć"
     }
   }
 }

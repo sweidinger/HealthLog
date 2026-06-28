@@ -35,7 +35,8 @@
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
     "learnMore": "Más información",
-    "dismiss": "Descartar"
+    "dismiss": "Descartar",
+    "moreInfo": "Más información"
   },
   "doctorReport": {
     "title": "Informe de salud",
@@ -750,7 +751,8 @@
     "sectionFactors": "Factores",
     "sectionNoteDetails": "Nota y detalles",
     "quickTagsHelp": "Tus etiquetas frecuentes: un toque",
-    "quickTagsExpand": "Más"
+    "quickTagsExpand": "Más",
+    "loadError": "No se pudieron cargar tus registros de estado de ánimo."
   },
   "medications": {
     "title": "Medicamentos",
@@ -1852,7 +1854,20 @@
       "sat": "Sábado",
       "sun": "Domingo"
     },
-    "rangeBand": "Rango"
+    "rangeBand": "Rango",
+    "a11y": {
+      "summary": "Gráfico de {metric}. Rango de {min} a {max}, último {latest}, tendencia {trend}.",
+      "noData": "Gráfico de {metric}. No hay datos disponibles.",
+      "trendUp": "en aumento",
+      "trendDown": "en descenso",
+      "trendFlat": "estable",
+      "scatterSummary": "Gráfico de correlación, {count} puntos que comparan {xLabel} con {yLabel}.",
+      "scatterNoData": "Gráfico de correlación de {xLabel} frente a {yLabel}. No hay datos disponibles.",
+      "moodHeatmap": "Mapa de calor de estado de ánimo de {start} a {end}, {days} días registrados.",
+      "moodHeatmapEmpty": "Mapa de calor de estado de ánimo, aún no hay días registrados.",
+      "complianceHeatmap": "Mapa de calor de cumplimiento de medicación de {start} a {end}, {days} días activos.",
+      "complianceHeatmapEmpty": "Mapa de calor de cumplimiento de medicación, aún no hay días activos."
+    }
   },
   "chart": {
     "overlay": {
@@ -6173,7 +6188,9 @@
       "resetToDefault": "Restablecer por defecto",
       "saveSuccess": "Rango objetivo actualizado",
       "saveError": "No se ha podido guardar el rango objetivo",
-      "resetSuccess": "Rango objetivo restablecido por defecto"
+      "resetSuccess": "Rango objetivo restablecido por defecto",
+      "validationOrder": "El mínimo debe ser inferior al máximo.",
+      "validationBounds": "Introduce valores dentro del rango permitido que se muestra debajo."
     },
     "currentValue": "Actual: {value} {unit}",
     "targetRangeValue": "Rango objetivo: {min}–{max} {unit}",
@@ -6831,7 +6848,8 @@
       "empty": "No hay revisiones próximas.",
       "openLink": "Abrir revisiones"
     },
-    "showMeasurements": "Ver mediciones"
+    "showMeasurements": "Ver mediciones",
+    "loadError": "No se pudieron cargar tus recordatorios."
   },
   "moduleList": {
     "viewToggleLabel": "Vista",
@@ -7312,7 +7330,8 @@
       "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
       "PULSE": "Pulse",
       "WEIGHT": "Weight"
-    }
+    },
+    "listLoadError": "No se pudieron cargar tus episodios."
   },
   "coach": {
     "reminderSuggestion": {
@@ -7371,6 +7390,13 @@
       "glucoseHighTitle": "Glucosa muy alta",
       "glucoseHighDoctor": "Dos lecturas recientes fueron de {value} mg/dL o más. Vuelve a medir, hidrátate y contacta a tu médico cuanto antes si sigue así de alta.",
       "glucoseHighEmergency": "Dos lecturas recientes fueron de {value} mg/dL o más e indicaste síntomas. Si tienes vómitos, respiración rápida o confusión, llama a emergencias ya."
+    }
+  },
+  "version": {
+    "updateAvailable": {
+      "title": "Hay una nueva versión disponible",
+      "reload": "Recargar",
+      "dismiss": "Descartar"
     }
   }
 }
