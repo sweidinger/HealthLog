@@ -7789,11 +7789,7 @@
   },
   "documents": {
     "title": "Documents entrants",
-    "subtitle": "Importez un document clinique et vérifiez les données que nous y avons lues.",
-    "disclaimer": {
-      "title": "Nous lisons, nous n'interprétons pas",
-      "body": "Nous transcrivons uniquement ce qu'indique votre document — valeurs, codes et dates — et nous ne posons aucun diagnostic, n'interprétons et ne signalons rien. Rien n'est enregistré tant que vous ne l'avez pas vérifié et approuvé. Seul votre professionnel de santé peut interpréter ces résultats."
-    },
+    "subtitle": "Importez un document clinique et vérifiez les données extraites.",
     "upload": {
       "label": "Importer un document",
       "kindLabel": "Type de document",

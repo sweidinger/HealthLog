@@ -7789,11 +7789,7 @@
   },
   "documents": {
     "title": "Inbound documents",
-    "subtitle": "Upload a clinical document and review the facts we read from it.",
-    "disclaimer": {
-      "title": "We read, we don't interpret",
-      "body": "We only transcribe what your document states — values, codes, and dates — and never diagnose, interpret, or flag anything. Nothing is saved until you review and approve it. Only your clinician can interpret these results."
-    },
+    "subtitle": "Upload a clinical document and review the extracted details.",
     "upload": {
       "label": "Upload a document",
       "kindLabel": "Document type",

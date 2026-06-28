@@ -7789,11 +7789,7 @@
   },
   "documents": {
     "title": "Eingehende Dokumente",
-    "subtitle": "Lade ein klinisches Dokument hoch und prüfe die Angaben, die wir daraus gelesen haben.",
-    "disclaimer": {
-      "title": "Wir lesen, wir deuten nicht",
-      "body": "Wir übernehmen nur das, was dein Dokument angibt — Werte, Codes und Daten — und stellen keine Diagnose, deuten nichts und bewerten nichts. Nichts wird gespeichert, bevor du es geprüft und bestätigt hast. Nur deine Ärztin oder dein Arzt kann diese Ergebnisse beurteilen."
-    },
+    "subtitle": "Lade ein klinisches Dokument hoch und prüfe die ausgelesenen Angaben.",
     "upload": {
       "label": "Dokument hochladen",
       "kindLabel": "Dokumenttyp",

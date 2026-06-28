@@ -7789,11 +7789,7 @@
   },
   "documents": {
     "title": "Documentos entrantes",
-    "subtitle": "Sube un documento clínico y revisa los datos que hemos leído.",
-    "disclaimer": {
-      "title": "Leemos, no interpretamos",
-      "body": "Solo transcribimos lo que indica tu documento — valores, códigos y fechas — y nunca diagnosticamos, interpretamos ni marcamos nada. No se guarda nada hasta que lo revises y lo apruebes. Solo tu profesional sanitario puede interpretar estos resultados."
-    },
+    "subtitle": "Sube un documento clínico y revisa los datos extraídos.",
     "upload": {
       "label": "Subir un documento",
       "kindLabel": "Tipo de documento",
