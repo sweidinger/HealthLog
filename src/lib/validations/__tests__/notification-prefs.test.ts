@@ -109,6 +109,7 @@ describe("parseNotificationPrefs", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+        ambientSuggestions: true,
       },
       measurementReminder: {
         clientManaged: false,
@@ -132,6 +133,7 @@ describe("parseNotificationPrefs", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+        ambientSuggestions: true,
       },
       measurementReminder: {
         clientManaged: false,
@@ -157,6 +159,7 @@ describe("parseNotificationPrefs", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+        ambientSuggestions: true,
       },
       measurementReminder: {
         clientManaged: false,
@@ -198,6 +201,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+        ambientSuggestions: true,
       },
       measurementReminder: {
         clientManaged: false,
@@ -227,6 +231,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+        ambientSuggestions: true,
       },
       measurementReminder: {
         clientManaged: false,
@@ -253,6 +258,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+        ambientSuggestions: true,
       },
       measurementReminder: {
         clientManaged: false,
@@ -279,6 +285,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+        ambientSuggestions: true,
       },
       measurementReminder: {
         clientManaged: false,
@@ -306,6 +313,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         nudgeVitals: true,
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
+        ambientSuggestions: true,
       },
       measurementReminder: {
         clientManaged: false,

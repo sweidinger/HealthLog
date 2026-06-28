@@ -6107,7 +6107,10 @@
       "statusOff": "Disattivato",
       "enabledToast": "Avvisi proattivi del Coach attivati.",
       "disabledToast": "Avvisi proattivi del Coach disattivati.",
-      "saveError": "Impossibile salvare. Riprova più tardi."
+      "saveError": "Impossibile salvare. Riprova più tardi.",
+      "suggestionsLabel": "Suggerimenti di esempio",
+      "suggestionsDesc": "Mostra di tanto in tanto una domanda di esempio pronta all'uso nella schermata del Coach.",
+      "suggestionsAria": "Attiva o disattiva i suggerimenti di esempio del Coach"
     },
     "lowStock": {
       "title": "Avviso scorte basse",

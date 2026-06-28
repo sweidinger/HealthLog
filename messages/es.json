@@ -6107,7 +6107,10 @@
       "statusOff": "Desactivado",
       "enabledToast": "Avisos proactivos del Coach activados.",
       "disabledToast": "Avisos proactivos del Coach desactivados.",
-      "saveError": "No se pudo guardar. Inténtalo de nuevo más tarde."
+      "saveError": "No se pudo guardar. Inténtalo de nuevo más tarde.",
+      "suggestionsLabel": "Sugerencias de ejemplo",
+      "suggestionsDesc": "Muestra de vez en cuando una pregunta de ejemplo en la pantalla del Coach.",
+      "suggestionsAria": "Activar o desactivar las sugerencias de ejemplo del Coach"
     },
     "lowStock": {
       "title": "Aviso de existencias bajas",

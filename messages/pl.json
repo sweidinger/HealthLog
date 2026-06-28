@@ -6107,7 +6107,10 @@
       "statusOff": "Wyłączone",
       "enabledToast": "Proaktywne podpowiedzi Coacha włączone.",
       "disabledToast": "Proaktywne podpowiedzi Coacha wyłączone.",
-      "saveError": "Nie udało się zapisać. Spróbuj ponownie później."
+      "saveError": "Nie udało się zapisać. Spróbuj ponownie później.",
+      "suggestionsLabel": "Przykładowe sugestie",
+      "suggestionsDesc": "Czasami pokazuje gotowe przykładowe pytanie na ekranie Coacha.",
+      "suggestionsAria": "Przełącz przykładowe sugestie Coacha"
     },
     "lowStock": {
       "title": "Alert niskiego zapasu",

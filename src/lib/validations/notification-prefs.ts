@@ -125,6 +125,14 @@ const coachPrefsSchema = z
     nudgeRoutine: z.boolean(),
     /** v1.16.5 — frequency cap: one nudge per 7 or per 14 days. */
     nudgeFrequency: z.enum(["weekly", "biweekly"]),
+    /**
+     * v1.25.0 — opt-out for the proactive ambient SUGGESTIONS surfaced in the
+     * UI (the daily seeded example opener on the Coach hero + the "try asking"
+     * prompt chips). Default ON. Separate from `nudgesEnabled` (the push-nudge
+     * master switch) so a user can keep the nudges but silence the example
+     * prompts, or vice versa.
+     */
+    ambientSuggestions: z.boolean(),
   })
   .partial();
 
@@ -200,6 +208,11 @@ export interface NotificationPrefs {
     nudgeRoutine: boolean;
     /** v1.16.5 — cap interval: "weekly" (7 d) or "biweekly" (14 d). */
     nudgeFrequency: "weekly" | "biweekly";
+    /**
+     * v1.25.0 — proactive ambient example suggestions in the UI (seeded
+     * opener + suggested-prompt chips). Default `true`.
+     */
+    ambientSuggestions: boolean;
   };
   measurementReminder: {
     /**
@@ -256,6 +269,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
     nudgeVitals: true,
     nudgeRoutine: true,
     nudgeFrequency: "weekly",
+    ambientSuggestions: true,
   },
   measurementReminder: {
     clientManaged: false,
@@ -445,6 +459,16 @@ export interface CoachNudgePrefs {
   };
   /** 7 for "weekly", 14 for "biweekly". */
   minIntervalDays: number;
+}
+
+/**
+ * v1.25.0 — the single source every proactive ambient SUGGESTION surface
+ * consults (the daily seeded example opener on the Coach hero + the
+ * suggested-prompt chips). Default `true`; a null / drifted row resolves to
+ * the documented default so the suggestions work out of the box.
+ */
+export function resolveCoachAmbientSuggestionsEnabled(raw: unknown): boolean {
+  return parseNotificationPrefs(raw).coach.ambientSuggestions;
 }
 
 export function resolveCoachNudgePrefs(raw: unknown): CoachNudgePrefs {

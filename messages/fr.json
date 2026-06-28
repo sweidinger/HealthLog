@@ -6107,7 +6107,10 @@
       "statusOff": "Désactivé",
       "enabledToast": "Rappels proactifs du Coach activés.",
       "disabledToast": "Rappels proactifs du Coach désactivés.",
-      "saveError": "Impossible d'enregistrer. Veuillez réessayer plus tard."
+      "saveError": "Impossible d'enregistrer. Veuillez réessayer plus tard.",
+      "suggestionsLabel": "Suggestions d'exemples",
+      "suggestionsDesc": "Affiche de temps en temps une question d'exemple prête à l'emploi sur l'écran du Coach.",
+      "suggestionsAria": "Activer ou désactiver les suggestions d'exemples du Coach"
     },
     "lowStock": {
       "title": "Alerte de stock faible",

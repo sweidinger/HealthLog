@@ -6107,7 +6107,10 @@
       "frequencyAria": "Select nudge frequency",
       "enabledToast": "Proactive Coach nudges enabled.",
       "disabledToast": "Proactive Coach nudges disabled.",
-      "saveError": "Could not save. Please try again later."
+      "saveError": "Could not save. Please try again later.",
+      "suggestionsLabel": "Example suggestions",
+      "suggestionsDesc": "Show the occasional ready-made example question on the Coach screen.",
+      "suggestionsAria": "Toggle example Coach suggestions"
     },
     "lowStock": {
       "title": "Low-stock alert",

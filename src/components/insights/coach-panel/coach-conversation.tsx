@@ -40,6 +40,7 @@ import { MobileRailTray } from "./mobile-rail-tray";
 import { SelfContextAdoptOffer } from "./self-context-adopt-offer";
 import { SourcesRail } from "./sources-rail";
 import { useResettableValue } from "./use-resettable-value";
+import { useCoachAmbientSuggestionsEnabled } from "@/hooks/use-coach-ambient-suggestions";
 import {
   useCoachConversation,
   useCoachConversations,
@@ -516,8 +517,15 @@ export function CoachConversation({
       return false;
     }
   });
+  // v1.25.0 — the per-user opt-out for proactive ambient suggestions gates the
+  // seeded opener (and skips its fetch when off). The A2 launch scope below is
+  // NOT ambient — it reflects how the chat was opened — so it stays unaffected.
+  const ambientSuggestionsEnabled = useCoachAmbientSuggestionsEnabled();
   const seededEnabled =
-    heroActive && a2Metric === null && !seededDismissedToday;
+    heroActive &&
+    a2Metric === null &&
+    !seededDismissedToday &&
+    ambientSuggestionsEnabled;
   const { data: seeded } = useQuery({
     queryKey: queryKeys.coachSeededQuestion(),
     queryFn: async () =>
@@ -574,7 +582,11 @@ export function CoachConversation({
         onSeed={seedComposer}
       />
     );
-  } else if (seeded?.signal && !seededDismissedToday) {
+  } else if (
+    seeded?.signal &&
+    !seededDismissedToday &&
+    ambientSuggestionsEnabled
+  ) {
     // A3 — the notable derived signal. The label + opener are keyed on the
     // signal's sourceMetric (`readiness` / `recovery`); an unknown sentinel
     // (future detector additions) skips the opener rather than guessing.
