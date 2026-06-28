@@ -7841,7 +7841,8 @@
       "fileLabel": "Archivo",
       "titleLabel": "Título (opcional)",
       "titlePlaceholder": "p. ej. Informe de cardiología",
-      "dateLabel": "Fecha del documento (opcional)"
+      "dateLabel": "Fecha del documento (opcional)",
+      "fileRequired": "Elige un archivo para subir."
     },
     "kind": {
       "DOCTOR_REPORT": "Informe médico",
@@ -7905,7 +7906,8 @@
       "extracted": "Datos extraídos. Revísalos abajo.",
       "extractFailed": "No se pudieron extraer los datos.",
       "updated": "Documento actualizado.",
-      "updateFailed": "No se pudo actualizar el documento."
+      "updateFailed": "No se pudo actualizar el documento.",
+      "discardFailed": "No se pudo descartar el documento."
     },
     "toolbar": {
       "searchLabel": "Buscar",
@@ -7919,7 +7921,9 @@
         "title": "Título"
       },
       "orderAsc": "Ascendente",
-      "orderDesc": "Descendente"
+      "orderDesc": "Descendente",
+      "fromLabel": "Desde",
+      "toLabel": "Hasta"
     },
     "detail": {
       "viewOriginal": "Ver original",
@@ -7927,7 +7931,12 @@
       "extract": "Extraer datos",
       "extracting": "Extrayendo…",
       "discard": "Descartar",
-      "notExtracted": "Aún no se han extraído datos. Usa Extraer datos para leer este documento."
+      "notExtracted": "Aún no se han extraído datos. Usa Extraer datos para leer este documento.",
+      "viewOriginalNewTab": "(se abre en una pestaña nueva)",
+      "discardConfirmTitle": "¿Descartar este documento?",
+      "discardConfirmBody": "Esto elimina de forma permanente el documento, su archivo original y los datos preparados. No se puede deshacer.",
+      "discardConfirmAction": "Descartar",
+      "discardCancel": "Cancelar"
     },
     "edit": {
       "title": "Editar documento",
@@ -7940,7 +7949,8 @@
       "cancel": "Cancelar"
     },
     "note": {
-      "providerUnsupported": "Configura un proveedor de escaneo de documentos en los ajustes de IA para extraer datos automáticamente."
+      "providerUnsupported": "Configura un proveedor de escaneo de documentos en los ajustes de IA para extraer datos automáticamente.",
+      "alreadyConfirmed": "Este documento ya se ha revisado, por lo que no se puede volver a extraer."
     }
   },
   "selfDescription": {

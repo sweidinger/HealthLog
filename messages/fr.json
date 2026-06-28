@@ -7841,7 +7841,8 @@
       "fileLabel": "Fichier",
       "titleLabel": "Titre (facultatif)",
       "titlePlaceholder": "p. ex. Compte rendu de cardiologie",
-      "dateLabel": "Date du document (facultatif)"
+      "dateLabel": "Date du document (facultatif)",
+      "fileRequired": "Choisissez un fichier à téléverser."
     },
     "kind": {
       "DOCTOR_REPORT": "Compte rendu médical",
@@ -7905,7 +7906,8 @@
       "extracted": "Éléments extraits. Vérifiez-les ci-dessous.",
       "extractFailed": "Impossible d'extraire les éléments.",
       "updated": "Document mis à jour.",
-      "updateFailed": "Impossible de mettre à jour le document."
+      "updateFailed": "Impossible de mettre à jour le document.",
+      "discardFailed": "Impossible de supprimer le document."
     },
     "toolbar": {
       "searchLabel": "Rechercher",
@@ -7919,7 +7921,9 @@
         "title": "Titre"
       },
       "orderAsc": "Croissant",
-      "orderDesc": "Décroissant"
+      "orderDesc": "Décroissant",
+      "fromLabel": "Du",
+      "toLabel": "Au"
     },
     "detail": {
       "viewOriginal": "Voir l'original",
@@ -7927,7 +7931,12 @@
       "extract": "Extraire les éléments",
       "extracting": "Extraction…",
       "discard": "Écarter",
-      "notExtracted": "Aucun élément extrait pour l'instant. Utilisez Extraire les éléments pour lire ce document."
+      "notExtracted": "Aucun élément extrait pour l'instant. Utilisez Extraire les éléments pour lire ce document.",
+      "viewOriginalNewTab": "(s'ouvre dans un nouvel onglet)",
+      "discardConfirmTitle": "Supprimer ce document ?",
+      "discardConfirmBody": "Cela supprime définitivement le document, son fichier d'origine et les données préparées. Cette action est irréversible.",
+      "discardConfirmAction": "Supprimer",
+      "discardCancel": "Annuler"
     },
     "edit": {
       "title": "Modifier le document",
@@ -7940,7 +7949,8 @@
       "cancel": "Annuler"
     },
     "note": {
-      "providerUnsupported": "Configurez un fournisseur d'analyse de documents dans les paramètres d'IA pour extraire les éléments automatiquement."
+      "providerUnsupported": "Configurez un fournisseur d'analyse de documents dans les paramètres d'IA pour extraire les éléments automatiquement.",
+      "alreadyConfirmed": "Ce document a déjà été vérifié ; il ne peut pas être extrait à nouveau."
     }
   },
   "selfDescription": {

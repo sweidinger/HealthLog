@@ -7841,7 +7841,8 @@
       "fileLabel": "File",
       "titleLabel": "Title (optional)",
       "titlePlaceholder": "e.g. Cardiology report",
-      "dateLabel": "Document date (optional)"
+      "dateLabel": "Document date (optional)",
+      "fileRequired": "Choose a file to upload."
     },
     "kind": {
       "DOCTOR_REPORT": "Doctor report",
@@ -7905,7 +7906,8 @@
       "extracted": "Facts extracted. Review them below.",
       "extractFailed": "Couldn't extract facts.",
       "updated": "Document updated.",
-      "updateFailed": "Couldn't update the document."
+      "updateFailed": "Couldn't update the document.",
+      "discardFailed": "Couldn't discard the document."
     },
     "toolbar": {
       "searchLabel": "Search",
@@ -7919,7 +7921,9 @@
         "title": "Title"
       },
       "orderAsc": "Ascending",
-      "orderDesc": "Descending"
+      "orderDesc": "Descending",
+      "fromLabel": "From",
+      "toLabel": "To"
     },
     "detail": {
       "viewOriginal": "View original",
@@ -7927,7 +7931,12 @@
       "extract": "Extract facts",
       "extracting": "Extracting…",
       "discard": "Discard",
-      "notExtracted": "No facts extracted yet. Use Extract facts to read this document."
+      "notExtracted": "No facts extracted yet. Use Extract facts to read this document.",
+      "viewOriginalNewTab": "(opens in a new tab)",
+      "discardConfirmTitle": "Discard this document?",
+      "discardConfirmBody": "This permanently deletes the document, its original file, and any staged facts. This can't be undone.",
+      "discardConfirmAction": "Discard",
+      "discardCancel": "Cancel"
     },
     "edit": {
       "title": "Edit document",
@@ -7940,7 +7949,8 @@
       "cancel": "Cancel"
     },
     "note": {
-      "providerUnsupported": "Configure a document-scan provider in AI settings to extract facts automatically."
+      "providerUnsupported": "Configure a document-scan provider in AI settings to extract facts automatically.",
+      "alreadyConfirmed": "This document has already been reviewed, so it can't be extracted again."
     }
   },
   "selfDescription": {

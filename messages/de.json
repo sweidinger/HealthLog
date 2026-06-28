@@ -7841,7 +7841,8 @@
       "fileLabel": "Datei",
       "titleLabel": "Titel (optional)",
       "titlePlaceholder": "z. B. Kardiologie-Bericht",
-      "dateLabel": "Dokumentdatum (optional)"
+      "dateLabel": "Dokumentdatum (optional)",
+      "fileRequired": "Wähle eine Datei zum Hochladen."
     },
     "kind": {
       "DOCTOR_REPORT": "Arztbericht",
@@ -7905,7 +7906,8 @@
       "extracted": "Fakten extrahiert. Prüfe sie unten.",
       "extractFailed": "Fakten konnten nicht extrahiert werden.",
       "updated": "Dokument aktualisiert.",
-      "updateFailed": "Dokument konnte nicht aktualisiert werden."
+      "updateFailed": "Dokument konnte nicht aktualisiert werden.",
+      "discardFailed": "Dokument konnte nicht verworfen werden."
     },
     "toolbar": {
       "searchLabel": "Suche",
@@ -7919,7 +7921,9 @@
         "title": "Titel"
       },
       "orderAsc": "Aufsteigend",
-      "orderDesc": "Absteigend"
+      "orderDesc": "Absteigend",
+      "fromLabel": "Von",
+      "toLabel": "Bis"
     },
     "detail": {
       "viewOriginal": "Original ansehen",
@@ -7927,7 +7931,12 @@
       "extract": "Fakten extrahieren",
       "extracting": "Wird extrahiert…",
       "discard": "Verwerfen",
-      "notExtracted": "Noch keine Fakten extrahiert. Nutze „Fakten extrahieren“, um dieses Dokument zu lesen."
+      "notExtracted": "Noch keine Fakten extrahiert. Nutze „Fakten extrahieren“, um dieses Dokument zu lesen.",
+      "viewOriginalNewTab": "(öffnet in einem neuen Tab)",
+      "discardConfirmTitle": "Dieses Dokument verwerfen?",
+      "discardConfirmBody": "Das löscht das Dokument, die Originaldatei und alle vorbereiteten Fakten dauerhaft. Das lässt sich nicht rückgängig machen.",
+      "discardConfirmAction": "Verwerfen",
+      "discardCancel": "Abbrechen"
     },
     "edit": {
       "title": "Dokument bearbeiten",
@@ -7940,7 +7949,8 @@
       "cancel": "Abbrechen"
     },
     "note": {
-      "providerUnsupported": "Richte in den KI-Einstellungen einen Anbieter für Dokumentenscans ein, um Fakten automatisch zu extrahieren."
+      "providerUnsupported": "Richte in den KI-Einstellungen einen Anbieter für Dokumentenscans ein, um Fakten automatisch zu extrahieren.",
+      "alreadyConfirmed": "Dieses Dokument wurde bereits geprüft und kann nicht erneut ausgelesen werden."
     }
   },
   "selfDescription": {
