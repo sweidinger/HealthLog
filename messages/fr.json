@@ -4665,7 +4665,9 @@
         "focusPlaceholder": "P. ex. surveille ma tension, motive-moi à bouger davantage…",
         "completeness": "{answered} sur {total} renseignés",
         "questionsTitle": "Le Coach a des questions",
-        "questionsOpenCoach": "Y répondre dans le Coach"
+        "questionsOpenCoach": "Y répondre dans le Coach",
+        "recordsLink": "Les allergies, les antécédents familiaux et vos affections préexistantes font partie de vos antécédents médicaux.",
+        "recordsLinkCta": "Ouvrir les antécédents médicaux"
       },
       "responseTimeoutHeading": "Délai de réponse",
       "responseTimeoutBody": "Durée d'attente de la réponse de l'IA avant d'abandonner. Augmentez-la pour un modèle local ou auto-hébergé qui a besoin de temps pour se charger à la première requête.",
@@ -7774,6 +7776,15 @@
         "updatedToast": "Entrée mise à jour",
         "saveError": "Impossible d'enregistrer l'entrée."
       }
+    },
+    "conditions": {
+      "cardTitle": "Affections préexistantes",
+      "cardDescription": "Affections chroniques et ce que le Coach doit surveiller, d'après votre contexte personnel.",
+      "conditionsLabel": "Affections chroniques",
+      "focusLabel": "Ce que le Coach surveille",
+      "empty": "Rien de noté pour l'instant.",
+      "editCta": "Modifier dans le contexte personnel",
+      "loadError": "Impossible de charger vos antécédents."
     }
   },
   "environment": {

@@ -4665,7 +4665,9 @@
         "focusPlaceholder": "P. ej. vigila mi tensión arterial, motívame a moverme más…",
         "completeness": "{answered} de {total} respondidas",
         "questionsTitle": "El Coach tiene preguntas",
-        "questionsOpenCoach": "Responderlas en el Coach"
+        "questionsOpenCoach": "Responderlas en el Coach",
+        "recordsLink": "Las alergias, los antecedentes familiares y tus enfermedades preexistentes forman parte de tu historia clínica.",
+        "recordsLinkCta": "Abrir historia clínica"
       },
       "responseTimeoutHeading": "Tiempo de espera de la respuesta",
       "responseTimeoutBody": "Cuánto esperar a que responda la IA antes de cancelar. Aumenta el valor para un modelo local o autoalojado que necesita tiempo para cargarse en la primera solicitud.",
@@ -7774,6 +7776,15 @@
         "updatedToast": "Entrada actualizada",
         "saveError": "No se ha podido guardar la entrada."
       }
+    },
+    "conditions": {
+      "cardTitle": "Enfermedades preexistentes",
+      "cardDescription": "Enfermedades crónicas y aquello que el Coach debe vigilar, desde tu contexto personal.",
+      "conditionsLabel": "Enfermedades crónicas",
+      "focusLabel": "Qué vigila el Coach",
+      "empty": "Aún no hay nada anotado.",
+      "editCta": "Editar en el contexto personal",
+      "loadError": "No se pudieron cargar tus enfermedades."
     }
   },
   "environment": {
