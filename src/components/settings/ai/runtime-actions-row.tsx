@@ -245,6 +245,7 @@ export function RuntimeActionsRow({
               </p>
             </div>
             <Switch
+              aria-label={t("settings.rawData")}
               checked={privacyMode === "raw"}
               onCheckedChange={togglePrivacy}
             />

@@ -68,6 +68,7 @@ export function GeneralSettingsSection() {
             </p>
           </div>
           <NativeSelect
+            aria-label={t("admin.defaultLanguage")}
             value={settings?.defaultLocale ?? "de"}
             onChange={(e) =>
               updateSettings.mutate({ defaultLocale: e.target.value })
@@ -94,6 +95,7 @@ export function GeneralSettingsSection() {
             </p>
           </div>
           <NativeSelect
+            aria-label={t("admin.defaultUserTimezone")}
             value={currentDefaultTz}
             onChange={(e) =>
               updateSettings.mutate({ defaultUserTimezone: e.target.value })

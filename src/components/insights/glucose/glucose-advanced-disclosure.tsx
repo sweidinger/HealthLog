@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import type { GlucoseClinicalMetrics } from "@/lib/analytics/glucose-metrics";
@@ -146,8 +147,9 @@ function AdvancedStat({
 }) {
   return (
     <div className="space-y-0.5">
-      <dt className="text-muted-foreground text-xs" title={help}>
+      <dt className="text-muted-foreground flex items-center gap-1 text-xs">
         {label}
+        <InfoHint label={help} />
       </dt>
       <dd className="text-foreground text-base font-semibold tabular-nums">
         {value}
