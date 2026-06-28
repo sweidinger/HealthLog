@@ -131,13 +131,22 @@ describe("<DailyBriefing>", () => {
 
   it("renders the 'Updated today, <time>' caption when updatedAt is supplied", () => {
     // v1.22 (W6) — the footer now uses `formatUpdatedLabel`: a same-day
-    // timestamp reads "Updated today, HH:MM".
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
-    const html = render(
-      <DailyBriefing briefing={baseBriefing} updatedAt={fiveMinutesAgo} />,
-    );
-    expect(html).toMatch(/data-slot="daily-briefing-updated"/);
-    expect(html).toContain("Updated today");
+    // timestamp reads "Updated today, HH:MM". The label derives "today" from the
+    // real clock in the profile timezone (Europe/Berlin), so freeze the clock to
+    // a fixed mid-day instant and base `updatedAt` on it — otherwise a run that
+    // straddles local midnight reads the five-minutes-ago stamp as "yesterday".
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-10T12:00:00+02:00"));
+    try {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+      const html = render(
+        <DailyBriefing briefing={baseBriefing} updatedAt={fiveMinutesAgo} />,
+      );
+      expect(html).toMatch(/data-slot="daily-briefing-updated"/);
+      expect(html).toContain("Updated today");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does NOT render the updated caption when updatedAt is missing", () => {
