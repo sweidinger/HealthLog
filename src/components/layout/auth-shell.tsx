@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -8,8 +9,7 @@ import { MaintainershipBanner } from "@/components/i18n/maintainership-banner";
 import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
 import { LayoutCoachMount } from "@/components/insights/layout-coach-mount";
 import { TourLauncher } from "@/components/onboarding/tour-launcher";
-import { useAuth } from "@/hooks/use-auth";
-import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
+import { clearCachesForSessionEnd, useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { CoachLaunchProvider } from "@/lib/insights/coach-launch-context";
 import { BottomNav } from "./bottom-nav";
@@ -52,6 +52,7 @@ export function AuthShell({
   const { t } = useTranslations();
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const isPublicPage = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   // v1.4.26 — `/privacy` is a long-form legal page that brings its own
@@ -129,15 +130,16 @@ export function AuthShell({
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isPublicPage) {
       // Session END (expired / invalidated cookie → `/api/auth/me` 401). Wipe
-      // every client-side cache that can hold the previous account's health
-      // data before bouncing to login, so it never leaks to the next account
-      // on a shared device. Logout does the same from `useLogout`; this covers
-      // the expiry path that logout never runs through. Best-effort; the
-      // redirect proceeds regardless.
-      void clearOfflineCachesForSessionEnd();
+      // the in-memory query cache (the cross-user guard — the QueryClient
+      // outlives the navigation on this SPA and the health-data families are
+      // not user-scoped) plus the persisted IndexedDB + SW caches, so nothing
+      // leaks to the next account on a shared browser. Logout does the same
+      // from `useLogout`; this covers the expiry path logout never runs
+      // through. Best-effort; the redirect proceeds regardless.
+      clearCachesForSessionEnd(queryClient);
       router.replace("/auth/login");
     }
-  }, [isLoading, isAuthenticated, isPublicPage, router]);
+  }, [isLoading, isAuthenticated, isPublicPage, router, queryClient]);
 
   // Redirect non-admins away from /admin
   useEffect(() => {

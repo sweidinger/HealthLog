@@ -80,6 +80,18 @@ export default function LoginPage() {
   // can ride in parallel with the route transition + page-chunk
   // download instead of queueing behind the dashboard mount.
   function navigateAfterLogin() {
+    // Start the new session from an empty in-memory cache. The root
+    // QueryClient is created once and outlives every client-side navigation,
+    // so a previous user who closed the tab WITHOUT logging out (no logout
+    // fired) leaves their non-user-scoped health-data queries
+    // (`["measurements"]`, `["dashboard","snapshot"]`, …) sitting in memory.
+    // Clearing here — before any prefetch warms THIS user's data and before we
+    // navigate — guarantees a fresh login never inherits another account's
+    // cached entries. Logout / expiry clear the same cache from their own
+    // boundaries; this covers the no-logout path. `clear()` also drops the
+    // stale `["auth","me"]`, so the shell refetches it fresh on mount and the
+    // former explicit `invalidateQueries({ queryKey: auth() })` is redundant.
+    queryClient.clear();
     const target = getRedirectTarget();
     if (target === "/" && isDashboardSnapshotEnabled()) {
       prefetchDashboardSnapshot(queryClient);
@@ -105,7 +117,8 @@ export default function LoginPage() {
         credential,
       });
 
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
+      // `navigateAfterLogin` clears the in-memory cache (cross-user guard) and
+      // navigates; the shell refetches `["auth","me"]` fresh on mount.
       navigateAfterLogin();
     } catch (err) {
       // Route rejections carry the envelope error verbatim; everything
@@ -150,7 +163,8 @@ export default function LoginPage() {
         return;
       }
 
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
+      // `navigateAfterLogin` clears the in-memory cache (cross-user guard) and
+      // navigates; the shell refetches `["auth","me"]` fresh on mount.
       navigateAfterLogin();
     } catch (err) {
       setError(
@@ -193,7 +207,8 @@ export default function LoginPage() {
           challengeId,
           credential,
         });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
+        // `navigateAfterLogin` clears the in-memory cache (cross-user guard)
+        // and navigates; the shell refetches `["auth","me"]` fresh on mount.
         navigateAfterLogin();
       } catch {
         // Autofill aborts (no passkey, user dismisses, password path taken)
@@ -228,10 +243,10 @@ export default function LoginPage() {
             <MfaLoginStep
               mfaTicket={mfaChallenge.ticket}
               methods={mfaChallenge.methods}
-              onSuccess={async () => {
-                await queryClient.invalidateQueries({
-                  queryKey: queryKeys.auth(),
-                });
+              onSuccess={() => {
+                // `navigateAfterLogin` clears the in-memory cache (cross-user
+                // guard) and navigates; the shell refetches `["auth","me"]`
+                // fresh on mount.
                 navigateAfterLogin();
               }}
               onCancel={() => {
