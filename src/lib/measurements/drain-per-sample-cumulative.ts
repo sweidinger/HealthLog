@@ -34,6 +34,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
 import { isP2002 as isUniqueConstraintViolation } from "@/lib/prisma-errors";
+import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 
 import {
   CUMULATIVE_HK_TYPES,
@@ -355,6 +356,15 @@ export async function drainPerSampleCumulative(
         if (!isUniqueConstraintViolation(err)) throw err;
         removed = await foldOnce();
       }
+
+      // Re-aggregate the affected (user, type, day) rollup bucket after the
+      // fold commits — the per-sample rows are now gone and the canonical
+      // daily-sum row is the only live reading. The rollup tier reads only
+      // `deleted_at IS NULL`, so without this the day's DAY bucket keeps the
+      // stale pre-drain (double-counted) sumValue forever and never
+      // self-heals. Mirrors the mean drain's post-write recompute exactly.
+      await recomputeBucketsForMeasurement(userId, type, canonicalTimestamp);
+
       return { kind: "written", sourceRowsRemoved: removed };
     },
     recordBucket: ({
