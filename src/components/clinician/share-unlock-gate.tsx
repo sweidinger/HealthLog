@@ -25,18 +25,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiPost } from "@/lib/api/api-fetch";
 
-type Translate = (
-  key: string,
-  vars?: Record<string, string | number>,
-) => string;
+/**
+ * Plain, serializable copy for the gate. Resolved on the server (which owns the
+ * locale) and passed across the RSC boundary as data — never a `t` function, as
+ * functions cannot be serialized to a client component.
+ */
+export interface ShareUnlockGateStrings {
+  title: string;
+  description: string;
+  label: string;
+  error: string;
+  submit: string;
+}
 
 interface ShareUnlockGateProps {
-  t: Translate;
+  strings: ShareUnlockGateStrings;
   /** The raw `hls_` token from the path — used only to build the verify URL. */
   token: string;
 }
 
-export function ShareUnlockGate({ t, token }: ShareUnlockGateProps) {
+export function ShareUnlockGate({ strings, token }: ShareUnlockGateProps) {
   const [passphrase, setPassphrase] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
@@ -86,18 +94,12 @@ export function ShareUnlockGate({ t, token }: ShareUnlockGateProps) {
         }}
       >
         <div className="space-y-1.5">
-          <h1 className="text-lg font-semibold">
-            {t("clinicianView.unlock.title")}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {t("clinicianView.unlock.description")}
-          </p>
+          <h1 className="text-lg font-semibold">{strings.title}</h1>
+          <p className="text-muted-foreground text-sm">{strings.description}</p>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="share-passphrase">
-            {t("clinicianView.unlock.label")}
-          </Label>
+          <Label htmlFor="share-passphrase">{strings.label}</Label>
           <Input
             id="share-passphrase"
             value={passphrase}
@@ -113,7 +115,7 @@ export function ShareUnlockGate({ t, token }: ShareUnlockGateProps) {
 
         {error && (
           <p role="alert" className="text-destructive text-sm">
-            {t("clinicianView.unlock.error")}
+            {strings.error}
           </p>
         )}
 
@@ -122,7 +124,7 @@ export function ShareUnlockGate({ t, token }: ShareUnlockGateProps) {
           disabled={pending || !passphrase.trim()}
           className="min-h-11 w-full sm:min-h-9"
         >
-          {t("clinicianView.unlock.submit")}
+          {strings.submit}
         </Button>
       </form>
     </main>

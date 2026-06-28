@@ -6408,6 +6408,11 @@
       "label": "Passphrase",
       "error": "Diese Passphrase ist nicht korrekt.",
       "submit": "Entsperren"
+    },
+    "loadError": {
+      "title": "Diese geteilte Ansicht konnte nicht geladen werden",
+      "description": "Beim Öffnen dieser geteilten Gesundheitsdaten ist ein Fehler aufgetreten. Der Link ist möglicherweise abgelaufen, oder es lag ein vorübergehendes Problem vor. Versuche es erneut oder bitte die Person, die den Link geteilt hat, um einen neuen.",
+      "retry": "Erneut versuchen"
     }
   },
   "cycle": {

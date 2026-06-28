@@ -6408,6 +6408,11 @@
       "label": "Passphrase",
       "error": "La passphrase non è corretta.",
       "submit": "Sblocca"
+    },
+    "loadError": {
+      "title": "Impossibile caricare questa vista condivisa",
+      "description": "Si è verificato un errore durante l'apertura di questo referto sanitario condiviso. Il link potrebbe essere scaduto oppure si è verificato un problema temporaneo. Riprova o chiedi un nuovo link alla persona che lo ha condiviso.",
+      "retry": "Riprova"
     }
   },
   "cycle": {

@@ -6408,6 +6408,11 @@
       "label": "Frase de acceso",
       "error": "Esa frase de acceso no es correcta.",
       "submit": "Desbloquear"
+    },
+    "loadError": {
+      "title": "No se pudo cargar esta vista compartida",
+      "description": "Se produjo un error al abrir este registro de salud compartido. Puede que el enlace haya caducado o que haya habido un problema temporal. Inténtalo de nuevo o pide un enlace nuevo a la persona que lo compartió.",
+      "retry": "Intentar de nuevo"
     }
   },
   "cycle": {

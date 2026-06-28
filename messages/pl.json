@@ -6408,6 +6408,11 @@
       "label": "Hasło",
       "error": "To hasło jest nieprawidłowe.",
       "submit": "Odblokuj"
+    },
+    "loadError": {
+      "title": "Nie udało się załadować udostępnionego widoku",
+      "description": "Podczas otwierania udostępnionej dokumentacji zdrowotnej wystąpił błąd. Link mógł wygasnąć lub wystąpił chwilowy problem. Spróbuj ponownie albo poproś osobę, która go udostępniła, o nowy link.",
+      "retry": "Spróbuj ponownie"
     }
   },
   "cycle": {
