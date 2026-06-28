@@ -10,17 +10,10 @@ export type CyclePhase = "MENSTRUAL" | "FOLLICULAR" | "OVULATORY" | "LUTEAL";
 export type FlowLevel = "NONE" | "SPOTTING" | "LIGHT" | "MEDIUM" | "HEAVY";
 
 export type OvulationTest =
-  | "NEGATIVE"
-  | "POSITIVE_LH_SURGE"
-  | "ESTROGEN_SURGE"
-  | "INDETERMINATE";
+  "NEGATIVE" | "POSITIVE_LH_SURGE" | "ESTROGEN_SURGE" | "INDETERMINATE";
 
 export type CervicalMucus =
-  | "DRY"
-  | "STICKY"
-  | "CREAMY"
-  | "WATERY"
-  | "EGG_WHITE";
+  "DRY" | "STICKY" | "CREAMY" | "WATERY" | "EGG_WHITE";
 
 export type CycleGoal =
   | "GENERAL_HEALTH"

@@ -19,14 +19,7 @@ import { cn } from "@/lib/utils";
  */
 
 export type CyclePhaseCrosstabDisplay =
-  | "hours"
-  | "steps"
-  | "bpm"
-  | "ms"
-  | "kg"
-  | "celsius"
-  | "glucose"
-  | "mood";
+  "hours" | "steps" | "bpm" | "ms" | "kg" | "celsius" | "glucose" | "mood";
 
 export type CyclePhaseCrosstabConfidence = "low" | "medium" | "high";
 

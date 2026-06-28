@@ -83,11 +83,7 @@ const DEFAULTS: Required<ChronotypeOptions> = {
  * surface.
  */
 export type ChronotypeBand =
-  | "extreme_early"
-  | "early"
-  | "intermediate"
-  | "late"
-  | "extreme_late";
+  "extreme_early" | "early" | "intermediate" | "late" | "extreme_late";
 
 /**
  * Band a corrected mid-sleep (MSFsc, minutes-of-day) into the MCTQ chronotype

@@ -47,11 +47,7 @@ export type HealthScoreBand = "green" | "yellow" | "red";
  * client doesn't pull a heavy analytics import for one string union).
  */
 export type HealthScoreComponentSource =
-  | "manual"
-  | "withings"
-  | "appleHealth"
-  | "mixed"
-  | "none";
+  "manual" | "withings" | "appleHealth" | "mixed" | "none";
 
 export interface HealthScoreCardComponent {
   value: number | null;

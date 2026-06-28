@@ -77,11 +77,7 @@ export interface IntakeEvent {
 }
 
 export type IntakeTimingClass =
-  | "early"
-  | "on_time"
-  | "late"
-  | "very_late"
-  | "missed";
+  "early" | "on_time" | "late" | "very_late" | "missed";
 
 export interface ComplianceResult {
   totalExpected: number;

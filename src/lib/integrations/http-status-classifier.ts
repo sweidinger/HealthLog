@@ -25,10 +25,7 @@
 
 /** Outcome buckets shared across the HTTP-status-driven integrations. */
 export type IntegrationClassification =
-  | "success"
-  | "transient"
-  | "reauth_required"
-  | "persistent";
+  "success" | "transient" | "reauth_required" | "persistent";
 
 export interface ClassifiedHttpResponse {
   classification: IntegrationClassification;

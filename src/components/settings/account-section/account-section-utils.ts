@@ -47,8 +47,7 @@ export function resolveInitialTimezone(
  * provided error text (which has no key) rides `text` verbatim.
  */
 export type StatusMessage =
-  | { key: string; params?: Record<string, string | number> }
-  | { text: string };
+  { key: string; params?: Record<string, string | number> } | { text: string };
 
 export function statusText(
   msg: StatusMessage,

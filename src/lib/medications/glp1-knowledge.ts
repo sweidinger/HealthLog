@@ -33,11 +33,7 @@
  * UI looks up by id, not by brand name.
  */
 export type Glp1DrugId =
-  | "tirzepatide"
-  | "semaglutide"
-  | "liraglutide"
-  | "dulaglutide"
-  | "exenatide";
+  "tirzepatide" | "semaglutide" | "liraglutide" | "dulaglutide" | "exenatide";
 
 /**
  * Route enum — most agonists are subcutaneous; Rybelsus is oral

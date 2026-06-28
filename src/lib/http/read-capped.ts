@@ -12,8 +12,7 @@
  * returns the decoded UTF-8 text on success.
  */
 export type CappedReadResult =
-  | { ok: true; text: string }
-  | { ok: false; reason: "too_large" };
+  { ok: true; text: string } | { ok: false; reason: "too_large" };
 
 export async function readBodyCapped(
   source: { headers: Headers; body: ReadableStream<Uint8Array> | null },

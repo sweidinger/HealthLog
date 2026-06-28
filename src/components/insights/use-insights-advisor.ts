@@ -147,11 +147,7 @@ export function nextAdvisorPollInterval(
  * means only the transient 503 surface (provider chain unavailable).
  */
 export type AdvisorFetchOutcome =
-  | "fresh"
-  | "empty"
-  | "rate-limited"
-  | "timeout"
-  | "no-provider";
+  "fresh" | "empty" | "rate-limited" | "timeout" | "no-provider";
 
 interface AdvisorFetchResult {
   payload: InsightAdvisorPayload | null;

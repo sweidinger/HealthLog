@@ -112,12 +112,7 @@ export interface ChronotypeDto {
   msfMinutes: number | null;
   msfScMinutes: number | null;
   band:
-    | "extreme_early"
-    | "early"
-    | "intermediate"
-    | "late"
-    | "extreme_late"
-    | null;
+    "extreme_early" | "early" | "intermediate" | "late" | "extreme_late" | null;
   socialJetlagMinutes: number | null;
   freeNightsCounted: number;
   workNightsCounted: number;

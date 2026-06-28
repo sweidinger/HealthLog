@@ -458,10 +458,7 @@ export function referenceLabel(metric: ReferenceMetric): string {
  *                       (device-derived / baseline-only signals).
  */
 export type ReferencePlacement =
-  | "within"
-  | "slightly-outside"
-  | "outside"
-  | "insufficient";
+  "within" | "slightly-outside" | "outside" | "insufficient";
 
 /**
  * Place a value against a metric's population bands. Returns

@@ -140,8 +140,7 @@ function plainMetricText(rid: string, result: unknown): string {
   };
   if (!r?.present) return `No recent ${rid} data is on file.`;
   const section = (r.data?.section ?? r.data) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   const agg = section?.aggregate as Record<string, unknown> | undefined;
   const parts: string[] = [];
   const mean = num(agg?.mean);

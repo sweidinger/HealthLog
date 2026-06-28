@@ -123,10 +123,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
  * legacy / unmapped code. Secret-free by construction.
  */
 type TestFailureCode =
-  | "credentials"
-  | "rate_limited"
-  | "server_error"
-  | "unreachable";
+  "credentials" | "rate_limited" | "server_error" | "unreachable";
 
 /**
  * Map an upstream provider failure to a human-readable, secret-free

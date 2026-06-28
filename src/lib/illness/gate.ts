@@ -29,8 +29,7 @@ export function isIllnessEnabled(userId: string): Promise<boolean> {
  * verbatim — mirrors `CycleGateResult`.
  */
 export type IllnessGateResult =
-  | { enabled: true }
-  | { enabled: false; response: Response };
+  { enabled: true } | { enabled: false; response: Response };
 
 /**
  * Enforce the gate for an `/api/illness/*` route. Returns a 403

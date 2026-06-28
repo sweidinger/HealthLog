@@ -205,8 +205,7 @@ export default function DashboardPage() {
         bpInTargetCount90: snap.extras?.bpInTargetCount90 ?? null,
         bpInTargetSpanDays90: snap.extras?.bpInTargetSpanDays90 ?? null,
         glucoseByContext: snap.extras?.glucoseByContext as
-          | Record<string, DataSummary>
-          | undefined,
+          Record<string, DataSummary> | undefined,
       };
     }
     // v1.4.39.3 — the merge moved to `mergeSlimAndThickAnalytics` so
@@ -235,8 +234,7 @@ export default function DashboardPage() {
       bpInTargetCount90: merged.bpInTargetCount90,
       bpInTargetSpanDays90: merged.bpInTargetSpanDays90,
       glucoseByContext: merged.glucoseByContext as
-        | Record<string, DataSummary>
-        | undefined,
+        Record<string, DataSummary> | undefined,
     };
   }, [
     snapshotEnabled,

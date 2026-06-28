@@ -279,11 +279,7 @@ export function useAuthActionLabels(): Record<string, string> {
  * mirroring the convention established by `useAuthActionLabels`.
  */
 export type AuthProvider =
-  | "password"
-  | "passkey"
-  | "api_token"
-  | "withings"
-  | "unknown";
+  "password" | "passkey" | "api_token" | "withings" | "unknown";
 
 export function providerForAction(action: string): AuthProvider {
   if (

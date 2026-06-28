@@ -164,9 +164,7 @@ export interface MedicationStatementFactData {
 }
 
 export type FactData =
-  | ConditionFactData
-  | ObservationFactData
-  | MedicationStatementFactData;
+  ConditionFactData | ObservationFactData | MedicationStatementFactData;
 
 /** The staged-fact DTO the routes return + the review UI consumes. */
 export interface ExtractedFactDto {

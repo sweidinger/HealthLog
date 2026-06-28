@@ -478,12 +478,7 @@ export interface FitbitMappedMeasurement {
 
 /** HealthLog `SleepStage` values a Fitbit sleep stage maps onto. */
 export type FitbitSleepStage =
-  | "IN_BED"
-  | "AWAKE"
-  | "ASLEEP"
-  | "REM"
-  | "CORE"
-  | "DEEP";
+  "IN_BED" | "AWAKE" | "ASLEEP" | "REM" | "CORE" | "DEEP";
 
 // ── Weight + body fat (/body/log/{weight,fat}) ─────────────────
 //

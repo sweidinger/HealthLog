@@ -165,8 +165,7 @@ describe("GET /api/analytics — chunked per-type reads (Sr-H1)", () => {
     // which writes the row-count slot under `slim_summaries` rather than
     // the old `bp_aggregate.row_count`.
     const analytics = httpEvent!.meta!.analytics as
-      | { slim_summaries?: { row_count?: number } }
-      | undefined;
+      { slim_summaries?: { row_count?: number } } | undefined;
     expect(analytics?.slim_summaries?.row_count).toBe(ROW_COUNT);
   });
 });

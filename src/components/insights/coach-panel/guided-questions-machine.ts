@@ -36,11 +36,7 @@
 
 /** Lifecycle of one answered question's adopt offer. */
 export type GuidedAdoption =
-  | "pending"
-  | "adopted"
-  | "duplicate"
-  | "declined"
-  | "failed";
+  "pending" | "adopted" | "duplicate" | "declined" | "failed";
 
 export interface GuidedOutcome {
   /** Index of the question in the session snapshot (progress label). */

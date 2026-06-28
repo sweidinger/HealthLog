@@ -1677,10 +1677,7 @@ export const STABILITY_MIN_DAYS = 7;
 export const STABILITY_SD_FULL_SCALE = 1.5;
 
 export type StabilityBand =
-  | "verySteady"
-  | "steady"
-  | "variable"
-  | "veryVariable";
+  "verySteady" | "steady" | "variable" | "veryVariable";
 
 export interface MoodStability {
   /** 0..100; higher = steadier (lower day-to-day variance). */

@@ -49,8 +49,7 @@ function buildPagingFindMany(allRows: PerSampleRow[]) {
         const or = (and[1] as { OR?: Array<Record<string, unknown>> }).OR;
         const gt = or?.[0]?.measuredAt as { gt?: Date } | undefined;
         const tie = or?.[1] as
-          | { measuredAt?: Date; id?: { gt?: string } }
-          | undefined;
+          { measuredAt?: Date; id?: { gt?: string } } | undefined;
         afterTime = gt?.gt ? gt.gt.getTime() : null;
         afterId = tie?.id?.gt ?? null;
       }

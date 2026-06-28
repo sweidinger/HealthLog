@@ -840,8 +840,7 @@ export function MoodChart({
               const dateLabel = ts ? tzFmt.date(new Date(ts)) : "";
               const rows: RichTooltipRow[] = [];
               const hoverPoint = payload[0]?.payload as
-                | ChartDataPoint
-                | undefined;
+                ChartDataPoint | undefined;
               for (const item of payload) {
                 if (typeof item.value !== "number") continue;
                 const dataKey = String(item.dataKey ?? "");

@@ -13,10 +13,7 @@ export type IllnessType =
   | "OTHER";
 
 export type IllnessLifecycle =
-  | "ACUTE"
-  | "CHRONIC_ONGOING"
-  | "RECURRING"
-  | "FLARE";
+  "ACUTE" | "CHRONIC_ONGOING" | "RECURRING" | "FLARE";
 
 export interface IllnessSymptomSelection {
   key: string;

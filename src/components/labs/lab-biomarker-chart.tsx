@@ -188,8 +188,7 @@ export function LabBiomarkerChart({
                 content={(props) => {
                   const active = props.active ?? false;
                   const payload = props.payload as
-                    | ReadonlyArray<{ payload?: ChartPoint }>
-                    | undefined;
+                    ReadonlyArray<{ payload?: ChartPoint }> | undefined;
                   const point = payload?.[0]?.payload;
                   if (!active || !point) {
                     return <RichChartTooltip active={false} rows={[]} />;

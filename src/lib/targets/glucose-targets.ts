@@ -43,10 +43,7 @@ import type { TrafficRange } from "@/lib/analytics/value-bands";
 import { thresholdMetricForContext } from "@/lib/glucose";
 
 export type GlucoseContextKey =
-  | "FASTING"
-  | "POSTPRANDIAL"
-  | "RANDOM"
-  | "BEDTIME";
+  "FASTING" | "POSTPRANDIAL" | "RANDOM" | "BEDTIME";
 
 /**
  * ADA glycemic GOAL bands for people living with diabetes (mg/dL).

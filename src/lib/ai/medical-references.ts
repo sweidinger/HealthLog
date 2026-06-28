@@ -31,11 +31,7 @@
 export type MedicalReferenceOrg = "AHA" | "ESH" | "ESC" | "WHO" | "DGE" | "ADA";
 
 export type MedicalReferenceMetric =
-  | "bp"
-  | "weight"
-  | "pulse"
-  | "mood"
-  | "medication";
+  "bp" | "weight" | "pulse" | "mood" | "medication";
 
 export interface MedicalReference {
   /** Stable slug — used as `recommendation.referenceId`. */

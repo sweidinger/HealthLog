@@ -54,8 +54,7 @@ export interface AnalyticsThickLike extends AnalyticsSlimLike {
 export interface MergedDashboardAnalytics {
   summaries: Record<string, DataSummary>;
   lastSeenByType?:
-    | Record<string, { lastSeenAt: string; daysAgo: number } | null>
-    | undefined;
+    Record<string, { lastSeenAt: string; daysAgo: number } | null> | undefined;
   bpInTargetPct: number | null;
   bpInTargetPct7d: number | null;
   bpInTargetPct30d: number | null;
@@ -98,13 +97,13 @@ export function mergeSlimAndThickAnalytics(
 
   const slimFreshnessHasContent = hasContent(slim?.lastSeenByType ?? null);
   const lastSeenByType:
-    | Record<string, { lastSeenAt: string; daysAgo: number } | null>
-    | undefined = slimFreshnessHasContent
-    ? (slim!.lastSeenByType as Record<
-        string,
-        { lastSeenAt: string; daysAgo: number } | null
-      >)
-    : (thick?.lastSeenByType ?? undefined);
+    Record<string, { lastSeenAt: string; daysAgo: number } | null> | undefined =
+    slimFreshnessHasContent
+      ? (slim!.lastSeenByType as Record<
+          string,
+          { lastSeenAt: string; daysAgo: number } | null
+        >)
+      : (thick?.lastSeenByType ?? undefined);
 
   return {
     summaries,

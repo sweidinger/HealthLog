@@ -409,9 +409,10 @@ export async function buildComparisonSnapshotForUser(
           orderBy: { measuredAt: "asc" },
           select: { measuredAt: true, value: true },
         });
-        dataPoints = measurements.map(
-          (m): DataPoint => ({ date: m.measuredAt, value: m.value }),
-        );
+        dataPoints = measurements.map((m): DataPoint => ({
+          date: m.measuredAt,
+          value: m.value,
+        }));
       }
       const summary = summarize(dataPoints);
       const baselineAvg =

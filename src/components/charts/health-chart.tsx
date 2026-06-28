@@ -494,8 +494,7 @@ export function resolveVerticalMarkerPositions(
 
 export function resolveAnnotationPositions(
   annotations:
-    | Array<{ date: string; label: string; color: string }>
-    | undefined,
+    Array<{ date: string; label: string; color: string }> | undefined,
   chartData: Array<{ timestamp: number }> | undefined,
 ): ResolvedAnnotation[] {
   if (!annotations || !chartData || chartData.length === 0) return [];
@@ -2021,8 +2020,7 @@ export function HealthChart({
                     // current ↔ compare values come from the SAME
                     // payload object.
                     const hoverPoint = payload[0]?.payload as
-                      | ChartDataPoint
-                      | undefined;
+                      ChartDataPoint | undefined;
                     for (const item of payload) {
                       if (typeof item.value !== "number") continue;
                       const dataKey = String(item.dataKey ?? "");
@@ -2047,8 +2045,7 @@ export function HealthChart({
                       const compareValue =
                         effectiveCompareBaseline !== "none" && hoverPoint
                           ? (hoverPoint[`${dataKey}_compare`] as
-                              | number
-                              | undefined)
+                              number | undefined)
                           : undefined;
                       if (
                         effectiveCompareBaseline !== "none" &&

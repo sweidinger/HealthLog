@@ -133,8 +133,7 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
     const [message, opts] = vi.mocked(toast.success).mock.calls[0];
     expect(message).toBe("medications.intakeToastTaken:Mounjaro");
     const action = opts?.action as
-      | { label: string; onClick: (e: never) => void }
-      | undefined;
+      { label: string; onClick: (e: never) => void } | undefined;
     expect(action?.label).toBe("medications.intakeUndo");
 
     // Firing the action calls undoIntake with the just-created event id.

@@ -542,8 +542,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
               unit: p.row.unit as string,
               measuredAt: p.row.measuredAt as Date,
               externalSourceVersion: p.row.externalSourceVersion as
-                | string
-                | null,
+                string | null,
               deviceType: p.row.deviceType as Prepared["row"]["deviceType"],
               sleepStage: p.row.sleepStage as Prepared["row"]["sleepStage"],
             },

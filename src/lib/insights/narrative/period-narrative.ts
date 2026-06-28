@@ -171,8 +171,7 @@ export interface PeriodNarrativeInsufficient {
 }
 
 export type PeriodNarrativeResult =
-  | PeriodNarrativeContext
-  | PeriodNarrativeInsufficient;
+  PeriodNarrativeContext | PeriodNarrativeInsufficient;
 
 // ── pure helpers ──────────────────────────────────────────────────────────
 

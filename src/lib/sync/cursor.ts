@@ -28,11 +28,7 @@
 
 /** The sync domains the feed serves. */
 export type SyncDomain =
-  | "measurements"
-  | "mood"
-  | "intakes"
-  | "cycleDays"
-  | "cycles";
+  "measurements" | "mood" | "intakes" | "cycleDays" | "cycles";
 
 export const SYNC_DOMAINS: readonly SyncDomain[] = [
   "measurements",

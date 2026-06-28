@@ -28,12 +28,7 @@ export type DerivedConfidenceBand = "high" | "medium" | "low" | "draft";
  * = no data backed the value.
  */
 export type DerivedProvenanceSource =
-  | "DAY"
-  | "WEEK"
-  | "MONTH"
-  | "YEAR"
-  | "live"
-  | "none";
+  "DAY" | "WEEK" | "MONTH" | "YEAR" | "live" | "none";
 
 /**
  * Where a derived value's inputs came from. Lets every surface show the

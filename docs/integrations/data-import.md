@@ -36,12 +36,8 @@ arrays:
 
 ```json
 {
-  "measurements": [
-    /* … */
-  ],
-  "moodEntries": [
-    /* … */
-  ]
+  "measurements": [/* … */],
+  "moodEntries": [/* … */]
 }
 ```
 

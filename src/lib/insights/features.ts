@@ -281,13 +281,7 @@ export interface AggregatedFeatures {
 export interface SignalOfDay {
   /** Briefing `sourceMetric` discriminator the UI pins an icon + route on. */
   metric:
-    | "bp"
-    | "weight"
-    | "pulse"
-    | "mood"
-    | "sleep"
-    | "resting_hr"
-    | "glucose";
+    "bp" | "weight" | "pulse" | "mood" | "sleep" | "resting_hr" | "glucose";
   /** Natural-language label (no enum leak into prose). */
   label: string;
   /** Unit string when the metric carries one. */

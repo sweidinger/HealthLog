@@ -22,17 +22,10 @@
 export type FlowLevel = "NONE" | "SPOTTING" | "LIGHT" | "MEDIUM" | "HEAVY";
 
 export type OvulationTest =
-  | "NEGATIVE"
-  | "POSITIVE_LH_SURGE"
-  | "ESTROGEN_SURGE"
-  | "INDETERMINATE";
+  "NEGATIVE" | "POSITIVE_LH_SURGE" | "ESTROGEN_SURGE" | "INDETERMINATE";
 
 export type CervicalMucus =
-  | "DRY"
-  | "STICKY"
-  | "CREAMY"
-  | "WATERY"
-  | "EGG_WHITE";
+  "DRY" | "STICKY" | "CREAMY" | "WATERY" | "EGG_WHITE";
 
 /**
  * Which symptothermal SECONDARY sign pairs with the temperature primary sign
@@ -53,10 +46,7 @@ export type CervixOpening = "CLOSED" | "OPEN";
 export type CyclePhase = "MENSTRUAL" | "FOLLICULAR" | "OVULATORY" | "LUTEAL";
 
 export type PredictionMethod =
-  | "CALENDAR"
-  | "SYMPTOTHERMAL"
-  | "TEMPERATURE_TREND"
-  | "BLENDED";
+  "CALENDAR" | "SYMPTOTHERMAL" | "TEMPERATURE_TREND" | "BLENDED";
 
 export type CycleTrackingGoal =
   | "GENERAL_HEALTH"

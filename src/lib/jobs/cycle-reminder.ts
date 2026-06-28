@@ -76,9 +76,7 @@ export const FERTILE_SOON_LEAD_DAYS = 2;
 export const PERIOD_CONFIRM_GRACE_DAYS = 3;
 
 export type CycleReminderEvent =
-  | "CYCLE_PERIOD_SOON"
-  | "CYCLE_PERIOD_CONFIRM"
-  | "CYCLE_FERTILE_SOON";
+  "CYCLE_PERIOD_SOON" | "CYCLE_PERIOD_CONFIRM" | "CYCLE_FERTILE_SOON";
 
 export interface CycleReminderSummary {
   candidatesScanned: number;

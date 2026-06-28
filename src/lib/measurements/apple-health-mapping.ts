@@ -38,11 +38,7 @@ import type {
  * in the pipeline once we observe the production sample volume.
  */
 export type AppleHealthAggregation =
-  | "sum"
-  | "mean"
-  | "latest"
-  | "max"
-  | "median";
+  "sum" | "mean" | "latest" | "max" | "median";
 
 export interface AppleHealthMapping {
   /** HealthKit identifier (e.g. `HKQuantityTypeIdentifierBodyMass`). */

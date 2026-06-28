@@ -22,13 +22,7 @@
  */
 
 export type MoodTagIconGroup =
-  | "emotions"
-  | "activities"
-  | "health"
-  | "food"
-  | "weather"
-  | "places"
-  | "misc";
+  "emotions" | "activities" | "health" | "food" | "weather" | "places" | "misc";
 
 export interface MoodTagIconCatalogEntry {
   /** Lucide icon name — the value stored on `mood_tags.icon` / `mood_tag_categories.icon`. */

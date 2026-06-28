@@ -128,8 +128,7 @@ export function bucketRowsByDay(
 
 /** Outcome of writing a single per-day bucket. */
 export type DayWriteOutcome =
-  | { kind: "written"; sourceRowsRemoved: number }
-  | { kind: "skipped-conflict" };
+  { kind: "written"; sourceRowsRemoved: number } | { kind: "skipped-conflict" };
 
 /**
  * Context a per-day write strategy receives. The strategy owns its own

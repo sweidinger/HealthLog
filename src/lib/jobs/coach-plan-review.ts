@@ -124,11 +124,7 @@ export function resolvePlanMetric(metric: string): ResolvedMetric | null {
 }
 
 export type ExperimentVerdict =
-  | "improved"
-  | "worsened"
-  | "no_change"
-  | "changed"
-  | "insufficient";
+  "improved" | "worsened" | "no_change" | "changed" | "insufficient";
 
 export interface ExperimentOutcomeInput {
   label: string;

@@ -41,10 +41,7 @@ import { apiGet, apiPost } from "@/lib/api/api-fetch";
 type ChannelType = "TELEGRAM" | "NTFY" | "WEB_PUSH" | "APNS";
 
 type ChannelState =
-  | "active"
-  | "auto_disabled"
-  | "manually_disabled"
-  | "sending_paused";
+  "active" | "auto_disabled" | "manually_disabled" | "sending_paused";
 
 interface ChannelStatus {
   id: string;

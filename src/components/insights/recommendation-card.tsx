@@ -217,8 +217,7 @@ function RationaleCard({
 }: {
   rationale: InsightRecommendationRationale;
   metricSource:
-    | { type: string; timeRange: string; summary: string }
-    | undefined;
+    { type: string; timeRange: string; summary: string } | undefined;
   referenceId: string | undefined;
   confidence: number | undefined;
   locale: Locale;

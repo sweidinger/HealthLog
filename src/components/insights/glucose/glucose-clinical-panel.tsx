@@ -72,8 +72,7 @@ export function GlucoseClinicalPanel() {
   if (!clinical) return null;
 
   const byContext = query.data?.glucoseByContext as
-    | Record<string, DataSummary>
-    | undefined;
+    Record<string, DataSummary> | undefined;
 
   const formatGlucoseValue = (mgdl: number): string => {
     const v = convertGlucose(mgdl, glucoseUnit);

@@ -53,10 +53,7 @@ export interface ResolvedClient {
  * `SafeFetchError.kind` + message + cause) for the `/authorize` annotation.
  */
 export type ClientResolutionReason =
-  | "unknown_client"
-  | "invalid_metadata"
-  | "ssrf_blocked"
-  | "fetch_failed";
+  "unknown_client" | "invalid_metadata" | "ssrf_blocked" | "fetch_failed";
 
 export type ClientResolution =
   | { ok: true; client: ResolvedClient }

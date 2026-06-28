@@ -53,10 +53,7 @@
 
 /** Outcome buckets for a Withings response. */
 export type WithingsClassification =
-  | "success"
-  | "transient"
-  | "reauth_required"
-  | "persistent";
+  "success" | "transient" | "reauth_required" | "persistent";
 
 export interface ClassifiedResponse {
   classification: WithingsClassification;

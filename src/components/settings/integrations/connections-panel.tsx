@@ -52,8 +52,7 @@ const WITHINGS_OAUTH_ERROR_KEYS: Record<string, string> = {
 };
 
 type WithingsOauthOutcome =
-  | { kind: "connected" }
-  | { kind: "error"; reason: string };
+  { kind: "connected" } | { kind: "error"; reason: string };
 
 /**
  * The OAuth providers whose callbacks redirect back to the settings page with a

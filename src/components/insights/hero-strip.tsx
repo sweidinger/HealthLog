@@ -23,11 +23,7 @@ import type { DailyBriefing as DailyBriefingPayload } from "@/lib/ai/schema";
  * `insights.derived.composite.READINESS.component.{key}` labels.
  */
 export type ReadinessContributorKey =
-  | "rhr"
-  | "hrv"
-  | "sleep"
-  | "respiratory"
-  | "mood";
+  "rhr" | "hrv" | "sleep" | "respiratory" | "mood";
 
 /**
  * Insights redesign hero strip.

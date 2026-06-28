@@ -86,12 +86,7 @@ export interface InsightsTabStripProps {
    * mounts / no regenerate) falls back to the prior unconditional success.
    */
   regenerateOutcome?:
-    | "fresh"
-    | "empty"
-    | "rate-limited"
-    | "timeout"
-    | "no-provider"
-    | null;
+    "fresh" | "empty" | "rate-limited" | "timeout" | "no-provider" | null;
   /**
    * v1.4.27 F19 — analytics + event-driven availability inputs the
    * gating helper reads. When omitted the strip falls back to its

@@ -183,11 +183,7 @@ export interface ForceWarmResult {
    * card warm below.
    */
   comprehensive:
-    | GenerateOutcome["status"]
-    | "timeout"
-    | "fresh"
-    | "backoff"
-    | "capped";
+    GenerateOutcome["status"] | "timeout" | "fresh" | "backoff" | "capped";
   /** Count of specialised per-status assessments written warm. */
   assessmentsWarmed: number;
   /** Count of generic per-HealthKit-metric assessments written warm. */

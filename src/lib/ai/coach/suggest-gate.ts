@@ -43,8 +43,7 @@ export type SuggestionSuppressReason =
   | "duplicate";
 
 export type SuggestionDecision =
-  | { surface: true }
-  | { surface: false; reason: SuggestionSuppressReason };
+  { surface: true } | { surface: false; reason: SuggestionSuppressReason };
 
 /**
  * Pure pref-level decision (no DB). Applies opt-out, the explicit stop

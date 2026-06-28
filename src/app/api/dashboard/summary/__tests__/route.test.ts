@@ -175,8 +175,7 @@ describe("GET /api/dashboard/summary", () => {
     // The previous shape emitted "Gewicht" / "kg" / "Schritte" verbatim,
     // which injected DE into an English iOS UI.
     const weightCard = body.data.metrics.find((m) => m.id === "weight") as
-      | { titleKey: string; unitKey: string }
-      | undefined;
+      { titleKey: string; unitKey: string } | undefined;
     expect(weightCard?.titleKey).toBe("dashboard.metric.title.weight");
     expect(weightCard?.unitKey).toBe("dashboard.metric.unit.weight");
     expect(
