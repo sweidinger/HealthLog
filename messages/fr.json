@@ -3606,28 +3606,7 @@
     },
     "sleepQuality": {
       "title": "Qualité du sommeil",
-      "subtitle": "Scores nocturnes de votre wearable",
-      "assessment": {
-        "metric": {
-          "SLEEP_SCORE": "votre score de sommeil global",
-          "SLEEP_EFFICIENCY": "l’efficacité du sommeil",
-          "SLEEP_PERFORMANCE": "la performance de sommeil",
-          "SLEEP_CONSISTENCY": "la régularité du sommeil"
-        },
-        "grade": {
-          "excellent": "excellente",
-          "good": "solide",
-          "fair": "correcte",
-          "low": "plutôt faible"
-        },
-        "clause": "Sur les 30 dernières nuits, {metric} est {grade}, à {value}.",
-        "closing": {
-          "excellent": "Gardez la routine qui vous mène jusque-là.",
-          "good": "Des heures de coucher et de lever plus stables sont souvent le prochain gain.",
-          "fair": "Protéger une fenêtre de sommeil constante est ce qui fait le plus progresser ce point.",
-          "low": "Un rituel d’endormissement régulier et une heure de réveil fixe sont les premiers leviers."
-        }
-      }
+      "subtitle": "Scores nocturnes de votre wearable"
     },
     "recovery": {
       "title": "Récupération",
