@@ -10,7 +10,7 @@
  * a FENCED, muted wellness card carrying the load-bearing "descriptive, not a
  * clinical assessment / not a diagnosis" disclaimer.
  */
-import { DOCTOR_REPORT_TYPE_LABEL_KEYS } from "@/lib/doctor-report-pdf-core";
+import { DOCTOR_REPORT_TYPE_LABEL_KEYS } from "@/lib/doctor-report/type-label-keys";
 import type { DoctorReportData } from "@/lib/doctor-report-data";
 import type { DoctorReportPrefs } from "@/lib/validations/doctor-report-prefs";
 

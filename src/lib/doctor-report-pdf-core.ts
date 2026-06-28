@@ -11,6 +11,7 @@
  */
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { DOCTOR_REPORT_TYPE_LABEL_KEYS } from "./doctor-report/type-label-keys";
 import { makeFormatters } from "./format-locale";
 import type { Locale } from "./i18n/config";
 import { convertGlucose, resolveGlucoseUnit } from "./glucose";
@@ -150,23 +151,11 @@ export interface DoctorReportRenderOptions {
   aiSummary?: string | null;
 }
 
-/**
- * Per-vital label keys. Exported for coverage tests (issue #109 / phase P0)
- * so a future enum addition is caught by a unit test rather than reaching
- * production as a raw enum string in the PDF.
- */
-export const DOCTOR_REPORT_TYPE_LABEL_KEYS: Record<string, string> = {
-  WEIGHT: "doctorReport.typeWeight",
-  BLOOD_PRESSURE_SYS: "doctorReport.typeBpSys",
-  BLOOD_PRESSURE_DIA: "doctorReport.typeBpDia",
-  PULSE: "doctorReport.typePulse",
-  BODY_FAT: "doctorReport.typeBodyFat",
-  SLEEP_DURATION: "doctorReport.typeSleep",
-  ACTIVITY_STEPS: "doctorReport.typeSteps",
-  TOTAL_BODY_WATER: "doctorReport.typeTotalBodyWater",
-  BONE_MASS: "doctorReport.typeBoneMass",
-  OXYGEN_SATURATION: "doctorReport.typeOxygenSaturation",
-};
+// Per-vital label keys live in a jsPDF-free module so leaf consumers (the
+// public clinician share view) can import the map without dragging the PDF
+// renderer into their graph. Re-exported here so the PDF core stays the
+// single import surface its existing callers already use.
+export { DOCTOR_REPORT_TYPE_LABEL_KEYS };
 
 export const DOCTOR_REPORT_TYPE_UNIT_KEYS: Record<string, string | null> = {
   WEIGHT: "kg",
