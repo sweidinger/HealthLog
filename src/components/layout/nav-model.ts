@@ -1,6 +1,7 @@
 import {
   Activity,
   Bell,
+  Brain,
   Droplets,
   FileScan,
   FlaskConical,
@@ -81,6 +82,19 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     icon: Waves,
     tourId: "nav-mood",
     requiresModule: "mood",
+  },
+  // v1.25.0 — opt-in mental-health screeners (PHQ-9 / GAD-7), beside mood.
+  // Born-gated: `requiresModule: "mentalHealth"` reads the opt-in (default-off)
+  // key from the resolved module map, so the entry is absent until the account
+  // turns the module on from the Modules hub. The destination is the dedicated
+  // `/insights/mental-wellbeing` check-in surface (its own nav home — the
+  // active-detection helper defers `/insights` to it on that path).
+  {
+    href: "/insights/mental-wellbeing",
+    tKey: "nav.mentalWellbeing",
+    icon: Brain,
+    tourId: "nav-mental-wellbeing",
+    requiresModule: "mentalHealth",
   },
   {
     href: "/cycle",

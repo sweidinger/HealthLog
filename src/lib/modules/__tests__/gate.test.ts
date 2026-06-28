@@ -352,12 +352,19 @@ describe("resolveModuleEnabled — mcp module (opt-in, default-OFF)", () => {
 });
 
 describe("registry — opt-in marker", () => {
-  // The opt-in modules ship dark because they open an egress/attack surface:
-  // `mcp` (remote external-assistant endpoint), `environment` (outbound weather
-  // fetch tied to a coarse location), and `inboundDocuments` (sends an uploaded
-  // clinical document to the OCR/vision provider). Every other module is the
-  // default-on disabled-allowlist.
-  const OPT_IN_KEYS = new Set(["mcp", "environment", "inboundDocuments"]);
+  // The opt-in modules ship dark because they open an egress/attack surface or
+  // are highly sensitive: `mcp` (remote external-assistant endpoint),
+  // `environment` (outbound weather fetch tied to a coarse location),
+  // `inboundDocuments` (sends an uploaded clinical document to the OCR/vision
+  // provider), and `mentalHealth` (a depression / anxiety self-assessment — at
+  // least as sensitive as mood, surfaced only on explicit opt-in). Every other
+  // module is the default-on disabled-allowlist.
+  const OPT_IN_KEYS = new Set([
+    "mcp",
+    "environment",
+    "inboundDocuments",
+    "mentalHealth",
+  ]);
 
   it("marks only the egress-surface modules opt-in (every other is default-on)", () => {
     for (const key of MODULE_KEYS) {

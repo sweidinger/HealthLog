@@ -240,7 +240,8 @@
     "labs": "Esami",
     "vorsorge": "Controlli",
     "illness": "Malattia",
-    "documents": "Documenti"
+    "documents": "Documenti",
+    "mentalWellbeing": "Benessere mentale"
   },
   "auth": {
     "login": "Accedi",
@@ -7317,6 +7318,10 @@
     "inboundDocuments": {
       "label": "Documenti in entrata",
       "description": "Carica un referto medico o una lettera di dimissione; rivedi i dati estratti prima di salvarli. Disattivato per impostazione predefinita."
+    },
+    "mentalHealth": {
+      "label": "Benessere mentale",
+      "description": "Questionari PHQ-9 e GAD-7 facoltativi, accanto al diario dell'umore. Disattivato per impostazione predefinita; le risposte sono cifrate e tenute fuori dal Coach IA."
     }
   },
   "illness": {
@@ -7617,41 +7622,41 @@
     },
     "items": {
       "phq9": {
-        "1": "Little interest or pleasure in doing things",
-        "2": "Feeling down, depressed, or hopeless",
-        "3": "Trouble falling or staying asleep, or sleeping too much",
-        "4": "Feeling tired or having little energy",
-        "5": "Poor appetite or overeating",
-        "6": "Feeling bad about yourself — or that you are a failure or have let yourself or your family down",
-        "7": "Trouble concentrating on things, such as reading the newspaper or watching television",
-        "8": "Moving or speaking so slowly that other people could have noticed. Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
-        "9": "Thoughts that you would be better off dead, or of hurting yourself in some way"
+        "1": "Scarso interesse o piacere nel fare le cose",
+        "2": "Sentirsi giù di morale, depresso/a o disperato/a",
+        "3": "Difficoltà ad addormentarsi o a mantenere il sonno, oppure dormire troppo",
+        "4": "Sentirsi stanco/a o avere poca energia",
+        "5": "Scarso appetito o mangiare troppo",
+        "6": "Avere una cattiva opinione di sé, o sentirsi un/una fallito/a o aver deluso se stesso/a o i propri familiari",
+        "7": "Difficoltà a concentrarsi, ad esempio nel leggere il giornale o nel guardare la televisione",
+        "8": "Muoversi o parlare così lentamente che altre persone potrebbero averlo notato? Oppure, al contrario, essere così agitato/a o irrequieto/a da muoversi molto più del solito",
+        "9": "Pensare che sarebbe meglio morire o di farsi del male in qualche modo"
       },
       "gad7": {
-        "1": "Feeling nervous, anxious, or on edge",
-        "2": "Not being able to stop or control worrying",
-        "3": "Worrying too much about different things",
-        "4": "Trouble relaxing",
-        "5": "Being so restless that it is hard to sit still",
-        "6": "Becoming easily annoyed or irritable",
-        "7": "Feeling afraid as if something awful might happen"
+        "1": "Sentirsi nervoso/a, ansioso/a o teso/a",
+        "2": "Non riuscire a smettere di preoccuparsi o a controllare le preoccupazioni",
+        "3": "Preoccuparsi troppo per cose diverse",
+        "4": "Avere difficoltà a rilassarsi",
+        "5": "Essere così irrequieto/a da far fatica a stare seduto/a fermo/a",
+        "6": "Infastidirsi o irritarsi facilmente",
+        "7": "Avere paura come se potesse accadere qualcosa di terribile"
       }
     },
     "crisisResource": {
       "telefonSeelsorge": {
-        "name": "TelefonSeelsorge (24/7, free, confidential)"
+        "name": "TelefonSeelsorge (24/7, gratuito e riservato)"
       },
       "nummerGegenKummer": {
-        "name": "Nummer gegen Kummer (for young people)"
+        "name": "Nummer gegen Kummer (per i giovani)"
       },
       "krisenchat": {
-        "name": "krisenchat (24/7 chat, young people)"
+        "name": "krisenchat (chat 24/7, per i giovani)"
       },
       "findahelpline": {
-        "name": "Find a helpline (worldwide directory)"
+        "name": "Find a Helpline (elenco mondiale)"
       },
       "euEmotionalSupport": {
-        "name": "Emotional-support helpline"
+        "name": "Linea di supporto emotivo"
       },
       "lifeline988": {
         "name": "988 Suicide & Crisis Lifeline"

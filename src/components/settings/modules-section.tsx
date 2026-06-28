@@ -28,6 +28,7 @@ import {
   Activity,
   Award,
   Blocks,
+  Brain,
   CalendarHeart,
   Droplet,
   CloudSun,
@@ -80,6 +81,8 @@ const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   mcp: Plug,
   // v1.25.0 (W-DOCS-IN) — inbound clinical documents (opt-in).
   inboundDocuments: FileScan,
+  // v1.25.0 — opt-in mental-health screeners (PHQ-9 / GAD-7).
+  mentalHealth: Brain,
 };
 
 export function ModulesSection() {

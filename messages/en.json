@@ -240,7 +240,8 @@
     "labs": "Labs",
     "vorsorge": "Checkups",
     "illness": "Illness",
-    "documents": "Documents"
+    "documents": "Documents",
+    "mentalWellbeing": "Mental wellbeing"
   },
   "auth": {
     "login": "Sign in",
@@ -7317,6 +7318,10 @@
     "inboundDocuments": {
       "label": "Inbound documents",
       "description": "Upload a doctor report or discharge letter; review the extracted facts before they're saved. Off by default."
+    },
+    "mentalHealth": {
+      "label": "Mental wellbeing",
+      "description": "Opt-in PHQ-9 and GAD-7 screeners beside mood tracking. Off by default; answers are encrypted and kept out of the AI Coach."
     }
   },
   "illness": {

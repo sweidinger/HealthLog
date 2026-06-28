@@ -1515,6 +1515,16 @@ const MEASUREMENT_TYPE_MODULE: Record<string, ModuleKey> = {
   RECOVERY_SCORE: "recovery",
   STRESS_SCORE: "recovery",
   BLOOD_GLUCOSE: "glucose",
+  // v1.25.0 — the PHQ-9 / GAD-7 screener TOTALS ride the doctor-report / FHIR
+  // export only when the opt-in mental-health module is on (default OFF →
+  // excluded by default, privacy-by-default). Item-level answers are never a
+  // Measurement, so they can never leak through this path regardless. The total
+  // is the intended clinical artefact (total + band per clinical-instruments.md
+  // §4); gating it on the module keeps the export consistent with how mood /
+  // sleep / glucose are gated and avoids exporting a screener the account never
+  // opted into.
+  PHQ9_SCORE: "mentalHealth",
+  GAD7_SCORE: "mentalHealth",
 };
 
 function filterMeasurementKeys<T>(

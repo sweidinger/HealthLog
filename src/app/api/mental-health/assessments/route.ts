@@ -19,6 +19,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import {
+  apiError,
   apiSuccess,
   returnAllZodIssues,
   safeJson,
@@ -26,6 +27,9 @@ import {
 } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
+import { withIdempotency } from "@/lib/idempotency";
+import { requireModuleEnabled } from "@/lib/modules/gate";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import {
   createAssessmentSchema,
@@ -73,6 +77,11 @@ function shapeRow(row: {
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+  // Opt-in module (default OFF): the screener history is unreachable until the
+  // account turns the mental-health module on. Enforced server-side even for a
+  // valid Bearer token (the nav entry / page redirect are UX-only).
+  const gate = await requireModuleEnabled(user.id, "mentalHealth");
+  if (!gate.enabled) return gate.response;
   const params = Object.fromEntries(request.nextUrl.searchParams);
   const parsed = listAssessmentsSchema.safeParse(params);
   if (!parsed.success) {
@@ -112,9 +121,48 @@ export const GET = apiHandler(async (request: NextRequest) => {
   return apiSuccess({ assessments: rows.map(shapeRow) });
 });
 
-export const POST = apiHandler(async (request: NextRequest) => {
+// `withIdempotency` lets a double-tap / retry re-send the same
+// `Idempotency-Key` without minting a duplicate assessment row AND a duplicate
+// `*_SCORE` Measurement row that would skew the trend (the allergy / labs
+// create precedent).
+export const POST = apiHandler(withIdempotency<[NextRequest]>(postAssessment));
+
+async function postAssessment(request: NextRequest): Promise<Response> {
   const { user } = await requireAuth();
-  const body = await safeJson(request);
+
+  // Opt-in module (default OFF) — same gate as GET.
+  const gate = await requireModuleEnabled(user.id, "mentalHealth");
+  if (!gate.enabled) return gate.response;
+
+  // Write rate-limit: a screener is a deliberate, infrequent action, so the
+  // bucket is tight — it only caps a double-tap / scripted loop minting
+  // duplicate trend points (the recall window is 2 weeks; 30/hour is generous).
+  const rl = await checkRateLimit(
+    `mental-health-create:${user.id}`,
+    30,
+    60 * 60 * 1000,
+  );
+  if (!rl.allowed) {
+    const res = apiError(
+      "Too many check-ins. Please wait before submitting another.",
+      429,
+      { errorCode: "mentalHealth.rateLimited" },
+    );
+    for (const [k, v] of Object.entries(rateLimitHeaders(rl))) {
+      res.headers.set(k, v);
+    }
+    return res;
+  }
+
+  // Bounded body read BEFORE validation (the item answers are small; cap so an
+  // unbounded body can never reach `request.json()`). Destructure the
+  // `{ data, error }` envelope — passing the wrapper to `safeParse` would never
+  // match the schema, which is what left this route dead-on-arrival.
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 8 * 1024,
+  });
+  if (jsonError) return jsonError;
+
   const parsed = createAssessmentSchema.safeParse(body);
   if (!parsed.success) {
     annotate({
@@ -210,4 +258,4 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
     201,
   );
-});
+}

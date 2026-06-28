@@ -6,7 +6,10 @@
  * for PHQ-9; Spitzer 2006 for GAD-7). This module owns the canonical NUMERIC
  * contract; the human wording lives in `messages/*.json` under
  * `mentalHealth.items.*` (officially-validated translations per locale, English
- * fallback otherwise — re-wording invalidates the score).
+ * fallback otherwise — re-wording invalidates the score). The de/es/fr/it/pl
+ * item wordings are the public-domain Pfizer/PRIME-MD validated localized
+ * versions distributed via the MAPI Research Trust (de: Löwe/Gräfe et al.); they
+ * are NOT machine-translated. See `.planning/research/v125/clinical-instruments.md`.
  *
  * PHQ-9 item 9 (index 8) is the passive self-harm ideation screen and is the
  * safety-critical field (see `crisis-resources.ts` + the API handler): any

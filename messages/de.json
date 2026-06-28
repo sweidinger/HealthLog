@@ -240,7 +240,8 @@
     "labs": "Laborwerte",
     "vorsorge": "Vorsorge",
     "illness": "Krankheit",
-    "documents": "Dokumente"
+    "documents": "Dokumente",
+    "mentalWellbeing": "Seelisches Wohlbefinden"
   },
   "auth": {
     "login": "Anmelden",
@@ -7317,6 +7318,10 @@
     "inboundDocuments": {
       "label": "Eingehende Dokumente",
       "description": "Lade einen Arztbericht oder Entlassbrief hoch; prüfe die erkannten Angaben, bevor sie gespeichert werden. Standardmäßig aus."
+    },
+    "mentalHealth": {
+      "label": "Seelisches Wohlbefinden",
+      "description": "Freiwillige PHQ-9- und GAD-7-Selbsttests ergänzend zum Stimmungstagebuch. Standardmäßig aus; Antworten sind verschlüsselt und bleiben aus dem KI-Coach heraus."
     }
   },
   "illness": {
