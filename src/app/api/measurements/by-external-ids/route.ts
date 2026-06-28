@@ -10,6 +10,13 @@
  * rather than removing the row, so deletions surface as tombstones on the
  * `/api/sync/changes` delta feed).
  *
+ * Origin scope (v1.25, iOS #35): the delete only touches rows the iOS
+ * client minted through its HealthKit ingestion path (`source =
+ * APPLE_HEALTH`). An externalId the app never minted — an integration- or
+ * manually-sourced row that happens to collide on externalUUID — is a
+ * no-op, never a delete. Defence-in-depth so a foreign HealthKit sample
+ * with a colliding UUID cannot be tombstoned by this reconciliation.
+ *
  * Idempotency contract:
  *   - Cross-user safety: rows owned by another user are silently skipped
  *     (Prisma's `updateMany` with `userId` in the where-clause guarantees
@@ -105,9 +112,21 @@ async function deleteByExternalIds(request: NextRequest): Promise<Response> {
   // tombstoned by this call. We pre-fetch the (type, measuredAt) tuples
   // of the live matches so the rollup recompute below knows which
   // buckets to refresh.
+  //
+  // v1.25 (iOS #35) — scope to the app's HealthKit ingestion source
+  // (`APPLE_HEALTH`). This reconciliation removes HealthKit samples the
+  // iOS client minted; only `source = APPLE_HEALTH` rows are app-minted on
+  // this path. Defence-in-depth against a colliding externalId: an
+  // integration- or manually-sourced row (WITHINGS / OURA / MANUAL / …)
+  // that happens to share an externalUUID with a now-absent HealthKit
+  // sample is NOT app-minted, so it falls outside the predicate and the
+  // delete is a no-op for it rather than tombstoning a foreign-origin row.
+  const APP_MINTED_SOURCE = "APPLE_HEALTH" as const;
+
   const affectedRows = await prisma.measurement.findMany({
     where: {
       userId: user.id,
+      source: APP_MINTED_SOURCE,
       externalId: { in: externalIds },
       deletedAt: null,
     },
@@ -117,6 +136,7 @@ async function deleteByExternalIds(request: NextRequest): Promise<Response> {
   const result = await prisma.measurement.updateMany({
     where: {
       userId: user.id,
+      source: APP_MINTED_SOURCE,
       externalId: { in: externalIds },
       deletedAt: null,
     },

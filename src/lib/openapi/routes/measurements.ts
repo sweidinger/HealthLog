@@ -638,7 +638,7 @@ export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Measurements"],
       summary: "Delete measurements by external ID (iOS deletion-sync)",
       description:
-        "Removes the user's measurement rows whose externalId is in the request list. Rows owned by another user are silently skipped (cross-user 404 guard). Up to 500 externalIds per call.",
+        "Removes the user's HealthKit-ingested measurement rows (source `APPLE_HEALTH`) whose externalId is in the request list. Only app-minted rows are eligible: an externalId that maps to an integration- or manually-sourced row (a colliding externalUUID) is a no-op, never a delete. Rows owned by another user are silently skipped (cross-user 404 guard). Up to 500 externalIds per call.",
       requestBody: {
         required: true,
         content: {

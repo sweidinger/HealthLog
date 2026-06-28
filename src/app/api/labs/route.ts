@@ -179,6 +179,7 @@ async function postLabResult(request: NextRequest) {
     referenceHigh,
     takenAt,
     note,
+    source,
   } = parsed.data;
 
   // v1.18.9 — a qualitative reading carries `valueText` ("negativ" / …) instead
@@ -239,7 +240,11 @@ async function postLabResult(request: NextRequest) {
       referenceLow: biomarker.lowerBound,
       referenceHigh: biomarker.upperBound,
       takenAt,
-      source: "MANUAL",
+      // v1.25 (iOS #36) — provenance: the on-device-OCR path posts
+      // `source: "OCR"`; an omitted field stays "MANUAL" so the legacy
+      // hand-entry contract is unchanged. Narrowed to the closed enum by Zod,
+      // never spread from the body.
+      source: source ?? "MANUAL",
       noteEncrypted: note ? encryptNoteToBytes(note) : null,
     },
   });
@@ -258,6 +263,8 @@ async function postLabResult(request: NextRequest) {
       // Whether the client picked a catalog marker (structured) vs the
       // free-text path that resolved-or-minted one server-side.
       structured: biomarkerId !== undefined,
+      // v1.25 (iOS #36) — provenance of the reading ("MANUAL" | "OCR").
+      source: source ?? "MANUAL",
     },
   });
 
