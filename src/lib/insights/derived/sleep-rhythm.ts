@@ -34,10 +34,17 @@
  * window. The DTO is the shared wire shape the route, the dashboard summary,
  * and the iOS serializer all emit identically.
  */
-import type { MeasurementType } from "@/generated/prisma/client";
+import type {
+  MeasurementSource,
+  MeasurementType,
+} from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import {
+  parseSourcePriority,
+  resolveSleepDebtSource,
+} from "@/lib/validations/source-priority";
 import { loadBaselineProfile } from "./baseline";
 import { reconstructNights, sleepNeedMinutes } from "./sleep-score";
 import {
@@ -54,14 +61,14 @@ import {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Trailing read window in days. The sleep-debt rolling window is 14 nights and
- * chronotype wants a few weeks of free-day samples; 42 days (six weeks) gives
- * the debt window full coverage and ~12 weekend nights for a stable MSF while
- * staying a bounded per-stage read.
+ * Trailing read window in days. The sleep-debt rolling window is short (a few
+ * recent nights) and chronotype wants a few weeks of free-day samples; 42 days
+ * (six weeks) gives both windows full coverage and ~12 weekend nights for a
+ * stable MSF while staying a bounded per-stage read.
  */
 const DEFAULT_WINDOW_DAYS = 42;
 
-/** Wire DTO for the cumulative sleep debt — see `SleepDebtResult`. */
+/** Wire DTO for the rolling sleep debt — see `SleepDebtResult`. */
 export interface SleepDebtDto {
   state: "partial" | "ready";
   debtMinutes: number;
@@ -69,6 +76,13 @@ export interface SleepDebtDto {
   nightsCounted: number;
   windowNights: number;
   nightsUntilReady: number;
+  /**
+   * v1.25.0 — the active source the debt figure is resolved FROM, picked off
+   * the user's `sleepDebt` source ladder. `COMPUTED` means HealthLog's own
+   * rolling-balance estimate (the only producer today); a provider value would
+   * mean a device-native debt. The UI explains the figure when it is COMPUTED.
+   */
+  source: MeasurementSource;
 }
 
 /**
@@ -169,7 +183,10 @@ export function defaultDayType(night: string): "work" | "free" {
   return weekday === 0 || weekday === 6 ? "free" : "work";
 }
 
-function toDebtDto(r: SleepDebtResult): SleepDebtDto {
+function toDebtDto(
+  r: SleepDebtResult,
+  source: MeasurementSource,
+): SleepDebtDto {
   return {
     state: r.state,
     debtMinutes: r.debtMinutes,
@@ -177,6 +194,7 @@ function toDebtDto(r: SleepDebtResult): SleepDebtDto {
     nightsCounted: r.nightsCounted,
     windowNights: r.windowNights,
     nightsUntilReady: r.nightsUntilReady,
+    source,
   };
 }
 
@@ -237,6 +255,10 @@ const CHRONOTYPE_WINDOW_NIGHTS = 42;
 export function computeSleepRhythmFromNights(
   nights: readonly RhythmNight[],
   needMinutes: number,
+  // v1.25.0 — the resolved sleep-debt source off the user's ladder. Defaults to
+  // COMPUTED (the only producer today) so the dashboard + Coach snapshot
+  // callers, which always surface our own estimate, need not thread it.
+  sleepDebtSource: MeasurementSource = "COMPUTED",
 ): SleepRhythmDto {
   // Sort ascending by wake-day key so "trailing N" is well-defined regardless
   // of the caller's input order, then keep only scorable nights.
@@ -244,8 +266,8 @@ export function computeSleepRhythmFromNights(
     .filter((n) => n.asleepMinutes > 0)
     .sort((a, b) => (a.night < b.night ? -1 : a.night > b.night ? 1 : 0));
 
-  // Debt self-caps to its own 14-night window internally; pass every scorable
-  // night and let the module slice.
+  // Debt self-caps to its own short rolling window internally; pass every
+  // scorable night and let the module slice.
   const debtNights: SleepDebtNight[] = scorable.map((n) => ({
     night: n.night,
     asleepMinutes: n.asleepMinutes,
@@ -273,7 +295,7 @@ export function computeSleepRhythmFromNights(
   const averagePerNight = computeAverageSleep(scorable);
 
   return {
-    sleepDebt: toDebtDto(sleepDebt),
+    sleepDebt: toDebtDto(sleepDebt, sleepDebtSource),
     chronotype: toChronotypeDto(chronotype),
     averagePerNight,
   };
@@ -324,5 +346,10 @@ export async function buildSleepRhythm(
   const nights = reconstructNights(rows, tz, priorityJson);
 
   const needMinutes = sleepNeedMinutes(profile.ageYears);
-  return computeSleepRhythmFromNights(nights, needMinutes);
+  // v1.25.0 — resolve the active sleep-debt source off the user's ladder so the
+  // DTO (and the Sleep page) can name it and explain the COMPUTED estimate.
+  const sleepDebtSource = resolveSleepDebtSource(
+    parseSourcePriority(priorityJson),
+  );
+  return computeSleepRhythmFromNights(nights, needMinutes, sleepDebtSource);
 }

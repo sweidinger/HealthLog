@@ -2691,7 +2691,8 @@
         "caption": "Skumulowany niedobór z ostatnich {nights} nocy",
         "clearValue": "Na bieżąco",
         "clearCaption": "Brak skumulowanego niedoboru w ostatnich {nights} nocach",
-        "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodny bilans."
+        "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodny bilans.",
+        "computedInfo": "To własne oszacowanie HealthLog: ruchomy bilans potrzeby snu minus sen z ostatnich nocy, który sen nadrabiający zmniejsza. Może różnić się od natywnego wskaźnika długu snu z urządzenia, które korzysta z własnego modelu zapotrzebowania."
       },
       "average": {
         "title": "Średnia na noc",
@@ -4043,7 +4044,8 @@
           "skinTemperature": "Temperatura skóry",
           "respiratoryRate": "Częstość oddechów",
           "recovery": "Regeneracja",
-          "stress": "Stres"
+          "stress": "Stres",
+          "sleepDebt": "Dług snu"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",

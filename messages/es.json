@@ -2691,7 +2691,8 @@
         "caption": "Déficit acumulado de las últimas {nights} noches",
         "clearValue": "Al día",
         "clearCaption": "Sin déficit acumulado en las últimas {nights} noches",
-        "learning": "Aún estamos midiendo tu sueño — {counted} noches hasta ahora, faltan {remaining} para un balance fiable."
+        "learning": "Aún estamos midiendo tu sueño — {counted} noches hasta ahora, faltan {remaining} para un balance fiable.",
+        "computedInfo": "Esta es la estimación propia de HealthLog: un balance móvil de la necesidad menos el sueño de las últimas noches, que el sueño de recuperación va reduciendo. Puede diferir de la cifra de deuda de sueño nativa de un wearable, que usa su propio modelo de necesidad."
       },
       "average": {
         "title": "Media por noche",
@@ -4043,7 +4044,8 @@
           "skinTemperature": "Temperatura de la piel",
           "respiratoryRate": "Frecuencia respiratoria",
           "recovery": "Recuperación",
-          "stress": "Estrés"
+          "stress": "Estrés",
+          "sleepDebt": "Deuda de sueño"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",

@@ -2691,7 +2691,8 @@
         "caption": "Kumuliertes Defizit der letzten {nights} Nächte",
         "clearValue": "Ausgeglichen",
         "clearCaption": "Kein aufgelaufenes Defizit über die letzten {nights} Nächte",
-        "learning": "Dein Schlaf wird noch erfasst — {counted} Nächte bisher, noch {remaining} für eine verlässliche Bilanz."
+        "learning": "Dein Schlaf wird noch erfasst — {counted} Nächte bisher, noch {remaining} für eine verlässliche Bilanz.",
+        "computedInfo": "Das ist HealthLogs eigene Schätzung: eine gleitende Bilanz aus Bedarf minus Schlaf über die letzten Nächte, die Aufholschlaf wieder abbaut. Sie kann vom nativen Schlafdefizit eines Wearables abweichen, das ein eigenes Bedarfsmodell nutzt."
       },
       "average": {
         "title": "Durchschnitt pro Nacht",
@@ -4043,7 +4044,8 @@
           "skinTemperature": "Hauttemperatur",
           "respiratoryRate": "Atemfrequenz",
           "recovery": "Erholung",
-          "stress": "Stress"
+          "stress": "Stress",
+          "sleepDebt": "Schlafdefizit"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",

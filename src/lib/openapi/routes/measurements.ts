@@ -292,6 +292,9 @@ const sleepDebtResource = z.object({
     .describe(
       "Nights still needed before the debt is asserted (0 when ready).",
     ),
+  source: measurementSourceEnum.describe(
+    "v1.25.0 — the active source the debt is resolved FROM, picked off the user's `sleepDebt` source ladder. `COMPUTED` is HealthLog's own rolling-balance estimate (the only producer today); a provider value would be a device-native debt. Clients explain the figure when it is `COMPUTED`.",
+  ),
 });
 
 const chronotypeBandEnum = z.enum([

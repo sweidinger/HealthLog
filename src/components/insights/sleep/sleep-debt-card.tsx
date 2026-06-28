@@ -4,6 +4,7 @@ import { Moon } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoHint } from "@/components/ui/info-hint";
 import { LearningGate } from "@/components/ui/learning-gate";
 import type { SleepDebtDto } from "./use-sleep-rhythm";
 
@@ -37,6 +38,13 @@ export function SleepDebtCard({ debt }: { debt: SleepDebtDto }) {
             <CardTitle className="text-base font-semibold">
               {t("insights.sleep.debt.title")}
             </CardTitle>
+            {/* v1.25.0 — when the active source on the user's sleep-debt ladder
+                is our own COMPUTED engine (every user today, until a provider
+                ships a native debt), explain what the figure means and that it
+                differs from a wearable's native number. */}
+            {debt.source === "COMPUTED" ? (
+              <InfoHint label={t("insights.sleep.debt.computedInfo")} />
+            ) : null}
           </div>
         </CardHeader>
         <CardContent>

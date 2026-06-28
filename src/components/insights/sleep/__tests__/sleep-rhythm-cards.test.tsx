@@ -23,6 +23,7 @@ const PARTIAL_DEBT: SleepDebtDto = {
   nightsCounted: 3,
   windowNights: 5,
   nightsUntilReady: 1,
+  source: "COMPUTED",
 };
 
 const READY_DEBT: SleepDebtDto = {
@@ -32,6 +33,7 @@ const READY_DEBT: SleepDebtDto = {
   nightsCounted: 5,
   windowNights: 5,
   nightsUntilReady: 0,
+  source: "COMPUTED",
 };
 
 const LEARNING_CHRONO: ChronotypeDto = {

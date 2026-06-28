@@ -39,6 +39,7 @@ const READY_DTO: SleepRhythmDto = {
     nightsCounted: 10,
     windowNights: 14,
     nightsUntilReady: 0,
+    source: "COMPUTED",
   },
   chronotype: {
     state: "ready",
