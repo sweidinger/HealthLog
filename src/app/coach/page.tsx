@@ -136,7 +136,7 @@ export default function CoachPage() {
       // `env(safe-area-inset-bottom)`) so the docked composer / Stop control
       // always clears the nav instead of sitting under it. On `md+` the nav
       // is hidden, so the page reclaims the full height below the TopBar.
-      className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-8rem-env(safe-area-inset-bottom,0px))] min-h-[32rem] flex-col overflow-hidden md:-mx-6 md:h-[calc(100dvh-4rem)]"
+      className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-8rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] min-h-[32rem] flex-col overflow-hidden md:-mx-6 md:h-[calc(100dvh-4rem)]"
     >
       {/* `useSearchParams` requires a Suspense boundary so the client-search
           bailout never opts the whole route out of static optimisation. */}

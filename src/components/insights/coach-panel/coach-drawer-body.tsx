@@ -234,7 +234,7 @@ export function CoachDrawerBody({
         {/* Composer pinned to the bottom. */}
         <div
           data-slot="coach-drawer-composer"
-          className="border-border/70 flex flex-col gap-2 border-t p-3 sm:p-4"
+          className="border-border/70 flex flex-col gap-2 border-t p-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:p-4 sm:pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]"
         >
           {composer}
         </div>

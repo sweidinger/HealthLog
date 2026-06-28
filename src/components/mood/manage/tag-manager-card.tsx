@@ -502,7 +502,7 @@ function SortableTagRow({
       data-tag={tag.key}
       data-hidden={isHidden ? "true" : undefined}
       data-dragging={isDragging ? "true" : undefined}
-      className={`border-border bg-background/30 flex min-h-12 items-center gap-2 rounded-md border px-3 py-2 ${
+      className={`border-border bg-background/30 flex min-h-12 flex-wrap items-center gap-2 rounded-md border px-3 py-2 ${
         isDragging ? "ring-primary z-10 opacity-90 shadow-lg ring-2" : ""
       } ${isHidden ? "opacity-60" : ""}`}
     >
@@ -523,7 +523,7 @@ function SortableTagRow({
         className="text-muted-foreground h-4 w-4 shrink-0"
         aria-hidden="true"
       />
-      <span className="min-w-0 flex-1 truncate text-sm" title={name}>
+      <span className="min-w-[8rem] flex-1 truncate text-sm" title={name}>
         {name}
       </span>
       {tag.kind === "RATED" && (
@@ -536,106 +536,110 @@ function SortableTagRow({
           {t("mood.manage.usageCount", { count: String(tag.usageCount) })}
         </Badge>
       )}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-11 sm:size-9"
-        onClick={() => onToggleVisibility(tag)}
-        disabled={disabled}
-        aria-pressed={tag.custom ? undefined : isHidden}
-        aria-label={`${
-          tag.custom
-            ? t("mood.manage.archive")
-            : isHidden
-              ? t("mood.manage.showTag")
-              : t("mood.manage.hideTag")
-        } — ${name}`}
-        title={
-          tag.custom
-            ? t("mood.manage.archive")
-            : isHidden
-              ? t("mood.manage.showTag")
-              : t("mood.manage.hideTag")
-        }
-      >
-        {tag.custom ? (
-          <Archive className="h-4 w-4" aria-hidden="true" />
-        ) : isHidden ? (
-          <EyeOff className="h-4 w-4" aria-hidden="true" />
-        ) : (
-          <Eye className="h-4 w-4" aria-hidden="true" />
-        )}
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-11 sm:size-9"
-        onClick={() => onMove(groupKey, tag.key, -1)}
-        disabled={index === 0 || disabled}
-        aria-label={`${t("mood.manage.moveUp")} — ${name}`}
-      >
-        <ArrowUp className="h-4 w-4" />
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-11 sm:size-9"
-        onClick={() => onMove(groupKey, tag.key, 1)}
-        disabled={index === total - 1 || disabled}
-        aria-label={`${t("mood.manage.moveDown")} — ${name}`}
-      >
-        <ArrowDown className="h-4 w-4" />
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-11 sm:size-9"
-            aria-label={`${t("common.moreOptions")} — ${name}`}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {tag.custom && (
-            <DropdownMenuItem onClick={() => onEdit(tag)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              {t("common.edit")}
-            </DropdownMenuItem>
+      {/* The action cluster wraps to its own line on a narrow row so the
+          tag name keeps a readable floor instead of truncating away. */}
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-11 sm:size-9"
+          onClick={() => onToggleVisibility(tag)}
+          disabled={disabled}
+          aria-pressed={tag.custom ? undefined : isHidden}
+          aria-label={`${
+            tag.custom
+              ? t("mood.manage.archive")
+              : isHidden
+                ? t("mood.manage.showTag")
+                : t("mood.manage.hideTag")
+          } — ${name}`}
+          title={
+            tag.custom
+              ? t("mood.manage.archive")
+              : isHidden
+                ? t("mood.manage.showTag")
+                : t("mood.manage.hideTag")
+          }
+        >
+          {tag.custom ? (
+            <Archive className="h-4 w-4" aria-hidden="true" />
+          ) : isHidden ? (
+            <EyeOff className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Eye className="h-4 w-4" aria-hidden="true" />
           )}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <FolderInput className="mr-2 h-4 w-4" />
-              {t("mood.manage.moveToGroup")}
-            </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent>
-                {groupOptions
-                  .filter((group) => group.key !== groupKey)
-                  .map((group) => (
-                    <DropdownMenuItem
-                      key={group.key}
-                      onClick={() => onMoveToGroup(tag, group.key)}
-                    >
-                      {group.name}
-                    </DropdownMenuItem>
-                  ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-          </DropdownMenuSub>
-          {tag.custom && (
-            <DropdownMenuItem onClick={() => onToggleVisibility(tag)}>
-              <Archive className="mr-2 h-4 w-4" />
-              {t("mood.manage.archive")}
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-11 sm:size-9"
+          onClick={() => onMove(groupKey, tag.key, -1)}
+          disabled={index === 0 || disabled}
+          aria-label={`${t("mood.manage.moveUp")} — ${name}`}
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-11 sm:size-9"
+          onClick={() => onMove(groupKey, tag.key, 1)}
+          disabled={index === total - 1 || disabled}
+          aria-label={`${t("mood.manage.moveDown")} — ${name}`}
+        >
+          <ArrowDown className="h-4 w-4" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-11 sm:size-9"
+              aria-label={`${t("common.moreOptions")} — ${name}`}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {tag.custom && (
+              <DropdownMenuItem onClick={() => onEdit(tag)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                {t("common.edit")}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <FolderInput className="mr-2 h-4 w-4" />
+                {t("mood.manage.moveToGroup")}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  {groupOptions
+                    .filter((group) => group.key !== groupKey)
+                    .map((group) => (
+                      <DropdownMenuItem
+                        key={group.key}
+                        onClick={() => onMoveToGroup(tag, group.key)}
+                      >
+                        {group.name}
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+            {tag.custom && (
+              <DropdownMenuItem onClick={() => onToggleVisibility(tag)}>
+                <Archive className="mr-2 h-4 w-4" />
+                {t("mood.manage.archive")}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
