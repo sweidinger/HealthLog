@@ -4022,15 +4022,33 @@
       "subSectionsNav": "Sottosezioni delle impostazioni"
     },
     "groups": {
-      "account": { "title": "Account" },
-      "tracking": { "title": "Monitoraggio" },
-      "display": { "title": "Visualizzazione" },
-      "integrations": { "title": "Integrazioni" },
-      "notifications": { "title": "Notifiche" },
-      "ai": { "title": "IA e coach" },
-      "access": { "title": "API e accesso" },
-      "data": { "title": "Dati e privacy" },
-      "about": { "title": "Informazioni" }
+      "account": {
+        "title": "Account"
+      },
+      "tracking": {
+        "title": "Monitoraggio"
+      },
+      "display": {
+        "title": "Visualizzazione"
+      },
+      "integrations": {
+        "title": "Integrazioni"
+      },
+      "notifications": {
+        "title": "Notifiche"
+      },
+      "ai": {
+        "title": "IA e coach"
+      },
+      "access": {
+        "title": "API e accesso"
+      },
+      "data": {
+        "title": "Dati e privacy"
+      },
+      "about": {
+        "title": "Informazioni"
+      }
     },
     "sections": {
       "account": {
@@ -7335,8 +7353,8 @@
       "description": "Integra il meteo e le ore di luce giornaliere della tua posizione per correlarli con umore, sonno e parametri vitali. Disattivato di default."
     },
     "inboundDocuments": {
-      "label": "Documenti in entrata",
-      "description": "Carica un referto medico o una lettera di dimissione; rivedi i dati estratti prima di salvarli. Disattivato per impostazione predefinita."
+      "label": "Documenti",
+      "description": "Conserva i tuoi documenti clinici; facoltativamente estrai e rivedi i loro dati prima del salvataggio. Disattivato di default."
     },
     "mentalHealth": {
       "label": "Benessere mentale",
@@ -7813,34 +7831,46 @@
     }
   },
   "documents": {
-    "title": "Documenti in entrata",
-    "subtitle": "Carica un documento clinico e controlla i dati estratti.",
+    "title": "Documenti",
+    "subtitle": "Conserva i tuoi documenti clinici e controlla cosa contengono.",
     "upload": {
-      "label": "Carica un documento",
-      "kindLabel": "Tipo di documento",
+      "label": "Aggiungi un documento",
+      "kindLabel": "Categoria",
       "button": "Carica",
-      "uploading": "Lettura…",
-      "fileLabel": "File del documento"
+      "uploading": "Caricamento…",
+      "fileLabel": "File",
+      "titleLabel": "Titolo (facoltativo)",
+      "titlePlaceholder": "es. Referto di cardiologia",
+      "dateLabel": "Data del documento (facoltativa)"
     },
     "kind": {
       "DOCTOR_REPORT": "Referto medico",
       "DISCHARGE_LETTER": "Lettera di dimissione",
-      "OTHER": "Altro"
+      "OTHER": "Altro",
+      "LAB_RESULT": "Risultato di laboratorio",
+      "IMAGING": "Diagnostica per immagini",
+      "PRESCRIPTION": "Prescrizione",
+      "INSURANCE": "Assicurazione",
+      "VACCINATION": "Vaccinazione"
     },
     "list": {
-      "empty": "Ancora nessun documento."
+      "empty": "Nessun documento ancora.",
+      "noResults": "Nessun documento corrisponde ai filtri.",
+      "loadMore": "Carica altri",
+      "loadingMore": "Caricamento…",
+      "pending": "{count} da rivedere",
+      "facts": "{count} dati"
     },
     "status": {
       "EXTRACTING": "Lettura",
       "EXTRACTED": "Pronto per la revisione",
-      "FAILED": "Impossibile leggere",
+      "FAILED": "Lettura non riuscita",
       "CONFIRMED": "Rivisto",
-      "DISCARDED": "Scartato"
+      "DISCARDED": "Scartato",
+      "STORED": "Salvato"
     },
     "review": {
       "title": "Rivedi i dati estratti",
-      "discard": "Scarta",
-      "viewOriginal": "Vedi originale",
       "confirm": "Salva i dati approvati",
       "confirming": "Salvataggio…",
       "needsReview": "Da rivedere",
@@ -7871,7 +7901,46 @@
       "confirmed": "Dati approvati salvati.",
       "confirmFailed": "Impossibile salvare le tue scelte.",
       "saved": "Dato aggiornato.",
-      "discarded": "Documento scartato."
+      "discarded": "Documento scartato.",
+      "extracted": "Dati estratti. Rivedili qui sotto.",
+      "extractFailed": "Impossibile estrarre i dati.",
+      "updated": "Documento aggiornato.",
+      "updateFailed": "Impossibile aggiornare il documento."
+    },
+    "toolbar": {
+      "searchLabel": "Cerca",
+      "searchPlaceholder": "Titolo o nome file",
+      "kindFilterLabel": "Categoria",
+      "allKinds": "Tutte le categorie",
+      "sortLabel": "Ordina per",
+      "sort": {
+        "documentDate": "Data del documento",
+        "createdAt": "Data di aggiunta",
+        "title": "Titolo"
+      },
+      "orderAsc": "Crescente",
+      "orderDesc": "Decrescente"
+    },
+    "detail": {
+      "viewOriginal": "Vedi originale",
+      "edit": "Modifica",
+      "extract": "Estrai dati",
+      "extracting": "Estrazione…",
+      "discard": "Scarta",
+      "notExtracted": "Nessun dato estratto. Usa Estrai dati per leggere questo documento."
+    },
+    "edit": {
+      "title": "Modifica documento",
+      "subtitle": "Rinomina, ricategorizza o imposta la data del documento.",
+      "titleLabel": "Titolo",
+      "kindLabel": "Categoria",
+      "dateLabel": "Data del documento",
+      "save": "Salva",
+      "saving": "Salvataggio…",
+      "cancel": "Annulla"
+    },
+    "note": {
+      "providerUnsupported": "Configura un provider di scansione documenti nelle impostazioni IA per estrarre i dati automaticamente."
     }
   },
   "selfDescription": {
