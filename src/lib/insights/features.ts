@@ -29,6 +29,7 @@ import { getMedicationCategories } from "@/lib/medication-category";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { resolveLabFields } from "@/lib/labs/serialise";
 import { readRollupBuckets } from "@/lib/rollups/measurement-rollups";
+import { deriveBucketedTypes } from "@/lib/signals/adapters/correlation";
 import {
   ensureUserMoodRollupsFresh,
   readMoodDayRollups,
@@ -464,15 +465,11 @@ const BUCKET_WINDOWS: Array<{
  * block was suppressed. New `MeasurementType` enum values flow in by
  * adding one row; the rollup populator already covers every type.
  */
-const BUCKETED_TYPES: MeasurementType[] = [
-  "WEIGHT",
-  "BLOOD_PRESSURE_SYS",
-  "BLOOD_PRESSURE_DIA",
-  "PULSE",
-  "BODY_FAT",
-  "SLEEP_DURATION",
-  "ACTIVITY_STEPS",
-];
+// Derived from the signal registry: every signal flagged
+// `surfaces.correlationEligible` projects to its DB `MeasurementType`. The list
+// is a membership/iteration set (each type is read independently), so order is
+// not significant; the registry-invariant test pins the set byte-for-byte.
+const BUCKETED_TYPES: MeasurementType[] = deriveBucketedTypes();
 
 function stdDev(values: number[]): number | null {
   if (values.length < 2) return null;
