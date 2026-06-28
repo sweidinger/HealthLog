@@ -22,6 +22,7 @@ import {
 import { MfaLoginStep, type MfaMethod } from "@/components/auth/mfa-login-step";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import { prefetchDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
+import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -92,6 +93,16 @@ export default function LoginPage() {
     // stale `["auth","me"]`, so the shell refetches it fresh on mount and the
     // former explicit `invalidateQueries({ queryKey: auth() })` is redundant.
     queryClient.clear();
+    // Belt-and-suspenders to match the session-END wipe (logout / 401-expiry):
+    // also drop the OFFLINE layers — the IndexedDB query snapshot and the SW
+    // data/page caches — so a previous account's persisted dashboard never
+    // lingers on disk for the new session. The restore is already per-account
+    // bound, but a fresh login on a shared browser should leave nothing of the
+    // prior account behind. Order is clear → prefetch → navigate: the wipe is
+    // started here (best-effort, like logout) before the prefetch warms THIS
+    // user's data, and the persister's 1 s debounce gives the single IDB delete
+    // ample headroom to land before the new snapshot is written.
+    void clearOfflineCachesForSessionEnd();
     const target = getRedirectTarget();
     if (target === "/" && isDashboardSnapshotEnabled()) {
       prefetchDashboardSnapshot(queryClient);
