@@ -24,14 +24,35 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 test.describe("v1.4.28 — insights scroll restoration", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
-  test.fixme("returning to /insights from a sub-page lands at the top", async ({
+  test("returning to /insights from a sub-page lands at the top", async ({
     page,
   }) => {
     await page.goto("/insights", { waitUntil: "domcontentloaded" });
+
+    // v1.25.1 — the app-wide scroll-to-top resets the `#main-content`
+    // scroll container on every route change (auth-shell), with a
+    // `window.scrollTo(0,0)` fallback for the body-scrolled shells. The
+    // authenticated insights surface scrolls `#main-content`, so the
+    // regression lock reads that container, not `window`.
+    const readScrollTop = () =>
+      page.evaluate(() => {
+        const el = document.getElementById("main-content");
+        return el && el.scrollHeight > el.clientHeight
+          ? el.scrollTop
+          : window.scrollY;
+      });
+
     // Force the mother page tall enough that scrolling has somewhere
     // to go even on a sparse seed; the rendered Insights overview
     // already runs ~1500 px tall on the demo seed.
-    await page.evaluate(() => window.scrollTo({ top: 600, behavior: "auto" }));
+    await page.evaluate(() => {
+      const el = document.getElementById("main-content");
+      if (el && el.scrollHeight > el.clientHeight) {
+        el.scrollTop = 600;
+      } else {
+        window.scrollTo({ top: 600, behavior: "auto" });
+      }
+    });
 
     // Click the first available sub-page pill.
     const subPagePill = page
@@ -45,11 +66,10 @@ test.describe("v1.4.28 — insights scroll restoration", () => {
     await page.locator("[data-slot='insights-tab-strip-pill']").first().click();
     await page.waitForURL(/\/insights\/?$/);
 
-    // The mother page's mount-effect deferred a `scrollTo(0)` to the
-    // next animation frame. Wait a tick for it to land.
-    await page.waitForTimeout(50);
-    const y = await page.evaluate(() => window.scrollY);
-    expect(y).toBeLessThan(50);
+    // The shell's route-change effect resets the scroll on the next tick;
+    // `useScrollResetOnRoute` defers to `requestAnimationFrame`. Wait for it
+    // to settle, then assert the container is back at the top.
+    await expect.poll(readScrollTop, { timeout: 2000 }).toBeLessThan(50);
   });
 
   test("the sticky tab strip declares touch-action pan-y so vertical swipes pass through", async ({

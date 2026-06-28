@@ -270,6 +270,51 @@ describe("extractFeatures — v1.22 glucose aggregate block", () => {
   });
 });
 
+describe("extractFeatures — v1.25.1 clinical-depth aggregate blocks", () => {
+  it("emits grip, waist (with WHtR) and pain blocks from their readings", async () => {
+    prismaMock.measurement.findMany.mockResolvedValue([
+      measurementRow("GRIP_STRENGTH", 42, 1),
+      measurementRow("GRIP_STRENGTH", 40, 20),
+      measurementRow("WAIST_CIRCUMFERENCE", 90, 2),
+      measurementRow("WAIST_CIRCUMFERENCE", 92, 25),
+      measurementRow("PAIN_NRS", 4, 1),
+      measurementRow("PAIN_NRS", 2, 10),
+    ]);
+    const f = await extractFeatures("user-1", false);
+
+    expect(f.gripStrength).toBeDefined();
+    expect(f.gripStrength?.latest).toBe(42);
+
+    expect(f.waist).toBeDefined();
+    expect(f.waist?.latest).toBe(90);
+    // heightCm is 180 in the default user mock → WHtR = 90 / 180 = 0.5.
+    expect(f.waist?.whtrLatest).toBe(0.5);
+
+    expect(f.pain).toBeDefined();
+    expect(f.pain?.latest).toBe(4);
+  });
+
+  it("omits the clinical-depth blocks when there are no readings", async () => {
+    const f = await extractFeatures("user-1", false);
+    expect(f.gripStrength).toBeUndefined();
+    expect(f.waist).toBeUndefined();
+    expect(f.pain).toBeUndefined();
+  });
+
+  it("leaves WHtR null when height is unknown", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      heightCm: null,
+      dateOfBirth: new Date("1980-01-01"),
+      gender: "MALE",
+    });
+    prismaMock.measurement.findMany.mockResolvedValue([
+      measurementRow("WAIST_CIRCUMFERENCE", 90, 2),
+    ]);
+    const f = await extractFeatures("user-1", false);
+    expect(f.waist?.whtrLatest).toBeNull();
+  });
+});
+
 describe("extractFeatures — v1.22 labs briefing block", () => {
   it("surfaces an abnormal (out-of-range) biomarker", async () => {
     prismaMock.labResult.findMany.mockResolvedValue([

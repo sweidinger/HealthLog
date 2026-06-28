@@ -5630,9 +5630,10 @@ model InboundDocument {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
-  @@index([userId, deletedAt])
   // The list always filters `deletedAt: null` and sorts by `documentDate`, so
-  // deletedAt leads the sort column to keep the scan covered.
+  // deletedAt leads the sort column to keep the scan covered. This composite is
+  // a superset of the plain `(userId, deletedAt)` index, which is therefore
+  // redundant for read planning and dropped.
   @@index([userId, deletedAt, documentDate])
   @@map("inbound_documents")
 }

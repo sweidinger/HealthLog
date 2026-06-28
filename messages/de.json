@@ -7095,6 +7095,8 @@
     "detail": {
       "emptyTitle": "Noch keine Werte",
       "emptyDescription": "Füge einen Wert hinzu, um diesen Biomarker über die Zeit zu verfolgen.",
+      "title": "Biomarker",
+      "genericDescription": "Ein Laborwert, den du verfolgst. Erfasse Messwerte, um den Verlauf gegenüber dem Referenzbereich zu sehen.",
       "valuesTitle": "{marker} — alle Werte",
       "valuesDescription": "Jeder Messwert für diesen Biomarker. Bearbeite oder entferne einen Eintrag direkt.",
       "backToMarker": "Zurück zu {marker}",
@@ -7954,9 +7956,6 @@
     }
   },
   "selfDescription": {
-    "intendedPurpose": "HealthLog ist ein persönliches Werkzeug zur Gesundheitsdokumentation und zum Wohlbefinden. Es hilft dir, deine eigenen Gesundheitsdaten zu erfassen, zu visualisieren und zu exportieren. Es diagnostiziert, behandelt, heilt oder verhindert keine Krankheit und ist kein Medizinprodukt.",
-    "coach": "Der Coach arbeitet mit deinen eigenen erfassten Daten. Er ist kein Arzt und gibt keine medizinische Beratung — für Diagnose oder Behandlung wende dich an medizinisches Fachpersonal.",
-    "emergency": "Falls das ein Notfall sein könnte, wende dich jetzt an deine örtliche Notrufnummer oder an eine ärztliche Stelle. HealthLog kann im Notfall nicht helfen.",
     "dataPosture": "HealthLog wird selbst gehostet: Deine Gesundheitsdaten bleiben auf deiner eigenen Instanz und sind im Ruhezustand verschlüsselt. KI-Funktionen nutzen einen von dir mitgebrachten Anbieter-Schlüssel oder ein lokales Modell — nichts verlässt deine Instanz über den von dir konfigurierten Anbieter hinaus, und es gibt keine Drittanbieter-Analyse deiner Gesundheitsdaten."
   }
 }

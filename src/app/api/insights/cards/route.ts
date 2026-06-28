@@ -20,6 +20,12 @@ import {
   type HealthAlert,
 } from "@/lib/analytics/classifications";
 import { pairByTimestamp } from "@/lib/analytics/correlations";
+import {
+  buildComplianceMedicationContext,
+  calculateCompliance,
+  lastNonSkippedTakenAt,
+  SCHEDULE_COMPLIANCE_SELECT,
+} from "@/lib/analytics/compliance";
 import type { MeasurementType } from "@/generated/prisma/client";
 
 type Severity = "alert" | "caution" | "info" | "good";
@@ -86,11 +92,17 @@ export const GET = apiHandler(async () => {
       select: { type: true, value: true, measuredAt: true },
     }),
     prisma.medication.findMany({
-      where: { userId: user.id, active: true },
+      // v1.16.11 — as-needed (PRN) medications never surface a compliance
+      // rate (no expected doses).
+      where: { userId: user.id, active: true, asNeeded: false },
       include: {
-        schedules: true,
+        // Schedules through the shared compliance select so the configured
+        // per-dose windows reach the engine like every other surface.
+        schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
         // v1.16.3 — archived schedule eras for era-aware expected counts.
         scheduleRevisions: { orderBy: { validFrom: "asc" } },
+        // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+        pauseEras: { select: { pausedAt: true, resumedAt: true } },
       },
     }),
   ]);
@@ -135,7 +147,12 @@ export const GET = apiHandler(async () => {
     }
   }
 
-  // Lightweight medication compliance for alert input.
+  // Medication compliance for alert input — routed through the canonical
+  // cadence-aware engine (`calculateCompliance`), the same single source of
+  // truth the comprehensive insights, dashboard pillar, Coach snapshot and
+  // doctor report use. The naive `schedules.length × days` denominator was a
+  // #214 regression that falsely flagged weekly injectables and paused meds
+  // as low-adherence on this user-facing alert path.
   const medicationCompliance: Array<{
     name: string;
     compliance7: number;
@@ -150,8 +167,11 @@ export const GET = apiHandler(async () => {
         // v1.7.0 sync — exclude tombstoned rows.
         deletedAt: null,
         medicationId: { in: activeMeds.map((m) => m.id) },
-        scheduledFor: { gte: new Date(Date.now() - 30 * 86_400_000) },
+        // 90-day window: the rolling-cadence gap-walk re-anchors on prior
+        // intakes outside the 30-day rate window.
+        scheduledFor: { gte: ninetyDaysAgo },
       },
+      orderBy: { scheduledFor: "desc" },
       select: {
         medicationId: true,
         takenAt: true,
@@ -165,26 +185,36 @@ export const GET = apiHandler(async () => {
       arr.push(e);
       eventsByMed.set(e.medicationId, arr);
     }
-    const cutoff7 = Date.now() - 7 * 86_400_000;
+    const tz = user.timezone || "Europe/Berlin";
     for (const med of activeMeds) {
       const events = eventsByMed.get(med.id) ?? [];
-      const takenLast7 = events.filter(
-        (e) =>
-          e.takenAt !== null &&
-          !e.skipped &&
-          e.scheduledFor.getTime() >= cutoff7,
-      ).length;
-      const taken30 = events.filter(
-        (e) => e.takenAt !== null && !e.skipped,
-      ).length;
-      const expected7 = med.schedules.length * 7;
-      const expected30 = med.schedules.length * 30;
+      const mapped = events.map((e) => ({
+        takenAt: e.takenAt,
+        skipped: e.skipped,
+        scheduledFor: e.scheduledFor,
+      }));
+      // v1.7.0 SB-SCHED-2 — engine-routed denominator.
+      const medicationContext = buildComplianceMedicationContext(
+        med,
+        lastNonSkippedTakenAt(mapped),
+        tz,
+      );
+      const c7 = calculateCompliance(mapped, med.schedules, 7, med.createdAt, {
+        medicationContext,
+      });
+      const c30 = calculateCompliance(
+        mapped,
+        med.schedules,
+        30,
+        med.createdAt,
+        {
+          medicationContext,
+        },
+      );
       medicationCompliance.push({
         name: med.name,
-        compliance7:
-          expected7 > 0 ? Math.round((takenLast7 / expected7) * 100) : 0,
-        compliance30:
-          expected30 > 0 ? Math.round((taken30 / expected30) * 100) : 0,
+        compliance7: c7.rate,
+        compliance30: c30.rate,
       });
     }
   }

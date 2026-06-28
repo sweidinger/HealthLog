@@ -164,4 +164,68 @@ describe("GET /api/insights/cards", () => {
     expect(body.data[0].provider).toBe("anthropic");
     expect(body.data.some((c) => c.severity === "alert")).toBe(true);
   });
+
+  it("does NOT flag a fully-adherent weekly injectable as low compliance (#214 regression)", async () => {
+    // Pre-fix this path used a naive `schedules.length × 7` denominator, so a
+    // weekly Monday injectable with its one dose taken computed ~14% and fired
+    // a false "Low compliance" warning. The cadence-aware engine counts only
+    // the Monday in the window → 100%, no alert.
+    vi.useFakeTimers();
+    // Pin NOW to a Wednesday so the trailing 7-day window holds exactly one
+    // Monday (the prior 2025-01-13).
+    vi.setSystemTime(new Date("2025-01-15T12:00:00Z"));
+    try {
+      vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+      vi.mocked(prisma.medication.findMany).mockResolvedValue([
+        {
+          id: "med-weekly",
+          name: "Weekly injectable",
+          dose: null,
+          active: true,
+          asNeeded: false,
+          oneShot: false,
+          startsOn: null,
+          endsOn: null,
+          createdAt: new Date("2024-06-01T00:00:00Z"),
+          scheduleRevisions: [],
+          pauseEras: [],
+          schedules: [
+            {
+              id: "sched-mon",
+              windowStart: "08:00",
+              windowEnd: "10:00",
+              daysOfWeek: "1",
+              timesOfDay: ["08:30"],
+              reminderGraceMinutes: null,
+              rrule: "FREQ=WEEKLY;BYDAY=MO",
+              rollingIntervalDays: null,
+              scheduleType: "SCHEDULED",
+              cyclicOnWeeks: null,
+              cyclicOffWeeks: null,
+              doseWindows: null,
+            },
+          ],
+        },
+      ] as never);
+      vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+        {
+          medicationId: "med-weekly",
+          scheduledFor: new Date("2025-01-13T08:30:00Z"),
+          takenAt: new Date("2025-01-13T08:35:00Z"),
+          skipped: false,
+        },
+      ] as never);
+
+      const res = await callGet(makeReq());
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        data: Array<{ title: string }>;
+      };
+      expect(body.data.some((c) => c.title.startsWith("Low compliance"))).toBe(
+        false,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

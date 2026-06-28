@@ -71,6 +71,23 @@ async function commitObservation(
     referenceHigh: isQualitative ? null : data.referenceHigh,
     panel: null,
   });
+  // Fail closed on a unit mismatch against an EXISTING marker. A freshly
+  // minted marker adopts the document's unit, so this only bites when the
+  // stated unit disagrees with the catalog's authoritative one (e.g. a
+  // document states "6.1 mmol/L" against a marker stored in mg/dL). Writing
+  // the stated number under the catalog's unit would corrupt the reading AND
+  // break the "transcribe verbatim" contract — so reject the fact and let the
+  // user reconcile on the review screen, exactly like the `unitRequired` gate.
+  if (!isQualitative) {
+    const stated = (data.unit as string).trim().toLowerCase();
+    const target = biomarker.unit.trim().toLowerCase();
+    if (stated !== target) {
+      throw new FactCommitError(
+        "observation.unitMismatch",
+        `The stated unit (${(data.unit as string).trim()}) does not match the saved unit for ${biomarker.name} (${biomarker.unit || "none"}). Reconcile the unit before saving.`,
+      );
+    }
+  }
   const created = await prisma.labResult.create({
     data: {
       userId,

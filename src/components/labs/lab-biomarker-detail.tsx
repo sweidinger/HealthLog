@@ -111,7 +111,11 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   const [lowerInput, setLowerInput] = useState("");
   const [upperInput, setUpperInput] = useState("");
 
-  const { data: marker, isError: markerError } = useQuery({
+  const {
+    data: marker,
+    isError: markerError,
+    refetch: refetchMarker,
+  } = useQuery({
     queryKey: queryKeys.biomarkerDetail(biomarkerId),
     queryFn: () => apiGet<BiomarkerDto>(`/api/biomarkers/${biomarkerId}`),
   });
@@ -125,6 +129,7 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     data: list,
     isLoading,
     isError: listError,
+    refetch: refetchList,
   } = useInfiniteQuery({
     queryKey: queryKeys.labResultsInfinite({ biomarkerId, sortDir: "desc" }),
     initialPageParam: 0,
@@ -239,11 +244,50 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     onError: () => toast.error(t("labs.biomarker.targetRange.saveError")),
   });
 
+  // v1.25.1 — the per-marker description leads the page, mirroring the metric
+  // sub-pages' explainer caption. Resolve the catalog slug from the marker name
+  // and fall back to the user's own `context`, then to a generic explainer so a
+  // catalog-less custom marker never renders an empty description block (parity
+  // with the insights metric pages, which always carry one).
+  const catalogSlug = marker?.name
+    ? slugByName.get(marker.name.trim().toLowerCase())
+    : undefined;
+  const description = catalogSlug
+    ? t(`labs.catalog.desc.${catalogSlug}`)
+    : marker?.context?.trim()
+      ? marker.context.trim()
+      : t("labs.detail.genericDescription");
+
+  // v1.25.1 (H2-M2) — the error state keeps the heading + description and adds a
+  // retry, mirroring the insights `SubPageShell` recovery affordance rather than
+  // collapsing to a bare line with no context and no way back.
   if (markerError || listError) {
     return (
-      <p className="text-destructive py-8 text-center text-sm">
-        {t("labs.loadError")}
-      </p>
+      <div className="space-y-6">
+        <header className="space-y-1.5">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {marker?.name ?? t("labs.detail.title")}
+          </h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {description}
+          </p>
+        </header>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+            <p className="text-destructive text-sm">{t("labs.loadError")}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (markerError) void refetchMarker();
+                if (listError) void refetchList();
+              }}
+            >
+              {t("common.retry")}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -330,22 +374,12 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
       </div>
 
       {/* v1.25.1 — the static description leads the page, directly beneath the
-          heading, mirroring the metric sub-pages' explainer caption. Resolves
-          the catalog slug from the marker name, falling back to the user's own
-          `context`. */}
-      {(() => {
-        const slug = marker?.name
-          ? slugByName.get(marker.name.trim().toLowerCase())
-          : undefined;
-        const description = slug
-          ? t(`labs.catalog.desc.${slug}`)
-          : (marker?.context ?? null);
-        return description ? (
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            {description}
-          </p>
-        ) : null;
-      })()}
+          heading, mirroring the metric sub-pages' explainer caption. Computed
+          once above (catalog desc → user `context` → generic fallback) so a
+          catalog-less marker still carries a description. */}
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        {description}
+      </p>
 
       {isLoading ? (
         <Card>

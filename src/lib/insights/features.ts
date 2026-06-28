@@ -97,6 +97,45 @@ export interface AggregatedFeatures {
     slope30: number | null;
     coverage: DataCoverage;
   };
+  /**
+   * v1.25.1 — grip-strength aggregate (kg). A clinical-depth signal captured
+   * and shown on its own detail page with EWGSOP2 sarcopenia bands; this is its
+   * present-and-trend block so the daily briefing can narrate the trajectory.
+   * The sex-aware floor stays at the display edge (`norms.ts`); the briefing
+   * reads the trend. Omitted when no grip readings exist. PHQ-9/GAD-7 stay
+   * excluded — only physical signals reach the narrative.
+   */
+  gripStrength?: {
+    latest: number | null;
+    avg30: number | null;
+    slope30: number | null;
+    coverage: DataCoverage;
+  };
+  /**
+   * v1.25.1 — waist aggregate. `latest`/`avg30` are the circumference (cm);
+   * `whtrLatest` is the waist-to-height ratio (NICE keeps it < 0.5), computed
+   * from the freshest circumference and the user's height. Omitted when no
+   * waist readings exist.
+   */
+  waist?: {
+    latest: number | null;
+    avg30: number | null;
+    slope30: number | null;
+    whtrLatest: number | null;
+    coverage: DataCoverage;
+  };
+  /**
+   * v1.25.1 — pain aggregate (0–10 NRS, lower-better). Present-and-trend block
+   * so the briefing can flag a sustained or rising pain burden. Omitted when no
+   * pain readings exist.
+   */
+  pain?: {
+    latest: number | null;
+    avg7: number | null;
+    avg30: number | null;
+    slope30: number | null;
+    coverage: DataCoverage;
+  };
   mood?: {
     scale: string;
     avg7: number | null;
@@ -1289,6 +1328,51 @@ export async function extractFeatures(
       avg30: summary.avg30,
       slope30: summary.slope30?.slope ?? null,
       coverage: computeCoverage(fatData, now),
+    };
+  }
+
+  // Grip strength (kg) — clinical-depth signal; the briefing narrates the
+  // trajectory, the sex-aware EWGSOP2 floor stays at the display edge.
+  const gripData = byType("GRIP_STRENGTH");
+  if (gripData.length > 0) {
+    const summary = summarize(toDataPoints(gripData));
+    features.gripStrength = {
+      latest: summary.latest,
+      avg30: summary.avg30,
+      slope30: summary.slope30?.slope ?? null,
+      coverage: computeCoverage(gripData, now),
+    };
+  }
+
+  // Waist circumference (cm) + waist-to-height ratio. WHtR is computed from the
+  // freshest circumference and the user's height (the same canonical derivation
+  // the detail page uses); omitted when height is unknown.
+  const waistData = byType("WAIST_CIRCUMFERENCE");
+  if (waistData.length > 0) {
+    const summary = summarize(toDataPoints(waistData));
+    const whtrLatest =
+      user?.heightCm && summary.latest
+        ? Math.round((summary.latest / user.heightCm) * 100) / 100
+        : null;
+    features.waist = {
+      latest: summary.latest,
+      avg30: summary.avg30,
+      slope30: summary.slope30?.slope ?? null,
+      whtrLatest,
+      coverage: computeCoverage(waistData, now),
+    };
+  }
+
+  // Pain (0–10 NRS, lower-better) — surface a sustained or rising pain burden.
+  const painData = byType("PAIN_NRS");
+  if (painData.length > 0) {
+    const summary = summarize(toDataPoints(painData));
+    features.pain = {
+      latest: summary.latest,
+      avg7: summary.avg7,
+      avg30: summary.avg30,
+      slope30: summary.slope30?.slope ?? null,
+      coverage: computeCoverage(painData, now),
     };
   }
 

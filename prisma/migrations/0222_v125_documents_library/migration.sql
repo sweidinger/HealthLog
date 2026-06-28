@@ -84,3 +84,8 @@ END $$;
 -- deleted_at leads the sort column to keep the scan covered.
 CREATE INDEX IF NOT EXISTS "inbound_documents_user_id_deleted_at_document_date_idx"
   ON "inbound_documents"("user_id", "deleted_at", "document_date");
+
+-- DropIndex: the new `(user_id, deleted_at, document_date)` index above is a
+-- superset of the plain `(user_id, deleted_at)` index, so the 2-column index is
+-- redundant for read planning and only adds write/maintenance cost. Drop it.
+DROP INDEX IF EXISTS "inbound_documents_user_id_deleted_at_idx";
