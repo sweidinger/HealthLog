@@ -75,6 +75,23 @@ function shapeRow(row: {
   };
 }
 
+// Idempotent replay: return an already-recorded administration in the same
+// shape a fresh create returns. The crisis set is re-derived from the stored
+// item-9 flag + presented locale — no item content is decrypted. 200 (not 201)
+// signals "already exists" to the client.
+function respondExisting(row: Parameters<typeof shapeRow>[0]): Response {
+  const def = INSTRUMENTS[row.instrument as InstrumentId];
+  const crisis = row.item9Flagged ? crisisResourcesForLocale(row.locale) : null;
+  return apiSuccess(
+    {
+      assessment: shapeRow(row),
+      actionThreshold: def.actionThreshold,
+      crisis,
+    },
+    200,
+  );
+}
+
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   // Opt-in module (default OFF): the screener history is unreachable until the
@@ -172,10 +189,44 @@ async function postAssessment(request: NextRequest): Promise<Response> {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { instrument, items, functionalDifficulty, takenAt, tz, locale } =
-    parsed.data;
+  const {
+    instrument,
+    items,
+    functionalDifficulty,
+    takenAt,
+    tz,
+    locale,
+    source,
+    externalId,
+  } = parsed.data;
   const id = instrument as InstrumentId;
   const def = INSTRUMENTS[id];
+
+  // Durable dedup: a repeat externalId (the native client's outbox replaying a
+  // queued check-in beyond the 24h idempotency-key window) must return the
+  // existing administration, never a duplicate row + duplicate trend point. The
+  // partial unique index on `(user_id, external_id)` is the DB-level backstop
+  // (migration 0221); this pre-check returns the existing row cleanly without
+  // relying on a constraint throw. Scoped to the caller — externalId is unique
+  // per user, not globally.
+  if (externalId) {
+    const existing = await prisma.mentalHealthAssessment.findFirst({
+      where: { userId: user.id, externalId },
+      select: {
+        id: true,
+        instrument: true,
+        locale: true,
+        version: true,
+        totalScore: true,
+        severityBand: true,
+        item9Flagged: true,
+        crisisShownAt: true,
+        takenAt: true,
+        createdAt: true,
+      },
+    });
+    if (existing) return respondExisting(existing);
+  }
 
   // Server-authoritative scoring (the client never computes these).
   const total = scoreTotal(items);
@@ -193,37 +244,74 @@ async function postAssessment(request: NextRequest): Promise<Response> {
     }),
   );
 
-  const assessment = await prisma.mentalHealthAssessment.create({
-    data: {
-      userId: user.id,
-      instrument: id,
-      locale: presentedLocale,
-      version: "standard",
-      responsesEncrypted: blob,
-      totalScore: total,
-      severityBand: band,
-      item9Flagged: flagged,
-      crisisShownAt: flagged ? new Date() : null,
-      takenAt: when,
-      tz: tz ?? null,
-      source: "WEB",
-    },
-    select: {
-      id: true,
-      instrument: true,
-      locale: true,
-      version: true,
-      totalScore: true,
-      severityBand: true,
-      item9Flagged: true,
-      crisisShownAt: true,
-      takenAt: true,
-      createdAt: true,
-    },
-  });
+  const assessmentSelect = {
+    id: true,
+    instrument: true,
+    locale: true,
+    version: true,
+    totalScore: true,
+    severityBand: true,
+    item9Flagged: true,
+    crisisShownAt: true,
+    takenAt: true,
+    createdAt: true,
+  } as const;
+
+  let assessment;
+  try {
+    assessment = await prisma.mentalHealthAssessment.create({
+      data: {
+        userId: user.id,
+        instrument: id,
+        locale: presentedLocale,
+        version: "standard",
+        responsesEncrypted: blob,
+        totalScore: total,
+        severityBand: band,
+        item9Flagged: flagged,
+        crisisShownAt: flagged ? new Date() : null,
+        takenAt: when,
+        tz: tz ?? null,
+        source,
+        externalId: externalId ?? null,
+      },
+      select: assessmentSelect,
+    });
+  } catch (err: unknown) {
+    // Concurrent replay: two requests carrying the same externalId raced past
+    // the pre-check. The partial unique index (migration 0221) rejects the
+    // second insert with P2002 — re-fetch the winner and return it idempotently
+    // rather than surfacing a 500 (the cycle day-log conflict precedent).
+    if (
+      externalId &&
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code?: unknown }).code === "P2002"
+    ) {
+      const winner = await prisma.mentalHealthAssessment.findFirst({
+        where: { userId: user.id, externalId },
+        select: assessmentSelect,
+      });
+      if (winner) {
+        annotate({
+          action: { name: "mental-health.create.dedup" },
+          meta: { instrument: id },
+        });
+        return respondExisting(winner);
+      }
+    }
+    throw err;
+  }
 
   // Read-optimised projection: the total rides a Measurement row so the existing
-  // chart/rollup infra reads the trend without ever touching item content.
+  // chart/rollup infra reads the trend without ever touching item content. The
+  // externalId anchors the trend point to this administration; duplicate trend
+  // points are structurally impossible because a replayed externalId returns
+  // the existing assessment above before reaching this create. `MeasurementSource`
+  // carries no WEB/IOS member (a screener is questionnaire input, not a device
+  // sample), so the row stays MANUAL — the WEB/IOS provenance + client
+  // externalId live on the assessment this row links to.
   await prisma.measurement.create({
     data: {
       userId: user.id,
