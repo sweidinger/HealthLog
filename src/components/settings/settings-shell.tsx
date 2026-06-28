@@ -585,6 +585,39 @@ export function SettingsShell({
         }
       : null);
 
+  // v1.25.1 (A11Y-L6) — move focus to the section heading when the active
+  // section changes WITHIN the mounted shell (a sub-tab tap or a rail click;
+  // the shell instance is reused across `/settings/[section]` param changes,
+  // which is also why the mobile-strip effect above keys on `activeSlug`).
+  // Without this, keyboard / screen-reader users stay focused on the nav link
+  // they activated and the new content is never announced. The very first
+  // mount (a deep link or a fresh entry into Settings) is skipped on purpose:
+  // auto-focusing on initial page load is itself a jarring, unexpected focus
+  // move. The heading id is shared by two instances (mobile above the strip,
+  // desktop in the grid) — only one is visible per breakpoint — so we focus
+  // the visible one. `preventScroll` leaves the global scroll-reset in charge.
+  const headingId = resolvedHeading?.headingId;
+  const firstHeadingFocusRef = React.useRef(true);
+  React.useEffect(() => {
+    if (firstHeadingFocusRef.current) {
+      firstHeadingFocusRef.current = false;
+      return;
+    }
+    if (!headingId || typeof document === "undefined") return;
+    const candidates = document.querySelectorAll<HTMLElement>(
+      `[data-settings-heading="${headingId}"]`,
+    );
+    for (const el of candidates) {
+      // `offsetParent === null` ⇒ the element (or an ancestor) is
+      // `display:none` — i.e. the hidden-for-this-breakpoint instance. Skip it
+      // and focus the visible heading.
+      if (el.offsetParent !== null) {
+        el.focus({ preventScroll: true });
+        break;
+      }
+    }
+  }, [activeSlug, headingId]);
+
   const headingBlock = resolvedHeading ? (
     <div className="space-y-6">
       {resolvedHeading.topSlot ? <div>{resolvedHeading.topSlot}</div> : null}
@@ -592,7 +625,14 @@ export function SettingsShell({
         <div className="min-w-0">
           <h1
             id={resolvedHeading.headingId}
-            className="text-2xl font-bold tracking-tight"
+            data-settings-heading={resolvedHeading.headingId}
+            // v1.25.1 (A11Y-L6) — programmatically focusable so an in-shell
+            // section switch can move focus here (see the `activeSlug` effect).
+            // `tabIndex={-1}` keeps it out of the sequential tab order but lets
+            // `.focus()` land, so keyboard / screen-reader users are placed in
+            // the new section's content instead of being left on the nav link.
+            tabIndex={-1}
+            className="text-2xl font-bold tracking-tight outline-none"
           >
             {resolvedHeading.title}
           </h1>
@@ -773,7 +813,13 @@ export function SettingsShell({
                       "flex min-h-9 items-center rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
                       isActive
                         ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
+                        : // v1.25.1 (A11Y-L3) — inactive tab text over the
+                          // `bg-muted/50` strip. `text-muted-foreground` is tuned
+                          // for ~AA on the page background; over the tinted strip
+                          // the effective ratio drops below 4.5:1 in light mode.
+                          // `text-foreground/70` keeps the de-emphasised look but
+                          // clears the WCAG AA floor on the strip.
+                          "text-foreground/70 hover:text-foreground",
                     )}
                   >
                     {t(`settings.sections.${slug}.title`)}
