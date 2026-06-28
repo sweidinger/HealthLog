@@ -7802,11 +7802,7 @@
   },
   "documents": {
     "title": "Documenti in entrata",
-    "subtitle": "Carica un documento clinico e rivedi i dati che abbiamo letto.",
-    "disclaimer": {
-      "title": "Leggiamo, non interpretiamo",
-      "body": "Trascriviamo solo ciò che il documento indica — valori, codici e date — e non formuliamo diagnosi, non interpretiamo e non segnaliamo nulla. Niente viene salvato finché non lo verifichi e lo approvi. Solo il tuo medico può interpretare questi risultati."
-    },
+    "subtitle": "Carica un documento clinico e controlla i dati estratti.",
     "upload": {
       "label": "Carica un documento",
       "kindLabel": "Tipo di documento",

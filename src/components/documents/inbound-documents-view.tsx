@@ -7,28 +7,16 @@
  * the OCR/vision provider transcribed before any of them reaches the
  * structured stores. The screen reproduces what the document stated — it never
  * interprets. A low-confidence fact fails closed: it cannot be approved until
- * the user edits it. The non-diagnostic disclaimer is shown prominently.
+ * the user edits it.
  */
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  AlertTriangle,
-  ExternalLink,
-  FileScan,
-  Loader2,
-  Upload,
-} from "lucide-react";
+import { ExternalLink, FileScan, Loader2, Upload } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -95,24 +83,6 @@ export function InboundDocumentsView() {
           </p>
         </div>
       </header>
-
-      {/* Non-diagnostic disclaimer — most prominent, always visible. */}
-      <Card className="border-amber-300 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30">
-        <CardHeader className="flex-row items-start gap-3 space-y-0">
-          <AlertTriangle
-            className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
-            aria-hidden
-          />
-          <div>
-            <CardTitle className="text-base">
-              {t("documents.disclaimer.title")}
-            </CardTitle>
-            <CardDescription className="text-amber-900/80 dark:text-amber-200/80">
-              {t("documents.disclaimer.body")}
-            </CardDescription>
-          </div>
-        </CardHeader>
-      </Card>
 
       {/* Upload */}
       <Card>

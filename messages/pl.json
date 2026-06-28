@@ -7802,11 +7802,7 @@
   },
   "documents": {
     "title": "Dokumenty przychodzące",
-    "subtitle": "Prześlij dokument kliniczny i sprawdź dane, które z niego odczytaliśmy.",
-    "disclaimer": {
-      "title": "Odczytujemy, nie interpretujemy",
-      "body": "Przepisujemy tylko to, co podaje dokument — wartości, kody i daty — i nigdy nie stawiamy diagnozy, nie interpretujemy ani niczego nie oznaczamy. Nic nie zostaje zapisane, dopóki tego nie sprawdzisz i nie zatwierdzisz. Tylko lekarz może zinterpretować te wyniki."
-    },
+    "subtitle": "Prześlij dokument kliniczny i sprawdź wyodrębnione dane.",
     "upload": {
       "label": "Prześlij dokument",
       "kindLabel": "Typ dokumentu",
