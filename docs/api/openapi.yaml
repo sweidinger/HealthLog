@@ -8137,6 +8137,16 @@ paths:
                 locale:
                   type: string
                   maxLength: 16
+                source:
+                  default: WEB
+                  type: string
+                  enum:
+                    - WEB
+                    - IOS
+                externalId:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
               required:
                 - instrument
                 - items

@@ -78,15 +78,16 @@ const MEASUREMENT_TYPES_WITHOUT_HK_COUNTERPART = new Set<MeasurementType>([
   // resilience metric. No HK mapping by design.
   "RESILIENCE",
   // v1.25 — clinical-signals wave. The mental-health screener totals are
-  // derived from an in-app questionnaire, and grip strength / pain NRS / waist
-  // circumference + waist-to-height are manual / instrument readings — none
-  // ships a first-class HealthKit quantity we ingest, so they have no HK
-  // mapping by design.
+  // derived from an in-app questionnaire, and grip strength / pain NRS are
+  // manual / instrument readings — none ships a first-class HealthKit quantity
+  // we ingest, so they have no HK mapping by design. Waist-to-height is a
+  // server-derived ratio (no HK quantity). `WAIST_CIRCUMFERENCE` DOES round-
+  // trip via `HKQuantityTypeIdentifierWaistCircumference`, so it is NOT listed
+  // here.
   "PHQ9_SCORE",
   "GAD7_SCORE",
   "GRIP_STRENGTH",
   "PAIN_NRS",
-  "WAIST_CIRCUMFERENCE",
   "WAIST_TO_HEIGHT",
 ]);
 
@@ -286,6 +287,26 @@ describe("HK_QUANTITY_TYPE_DEFERRED", () => {
     const mapping =
       APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierBodyFatPercentage;
     expect(mapping.convertToDbUnit(0.245)).toBeCloseTo(24.5);
+  });
+
+  it("round-trips waist circumference from HK metres to canonical cm", () => {
+    const mapping =
+      APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierWaistCircumference;
+    expect(mapping.measurementType).toBe("WAIST_CIRCUMFERENCE");
+    expect(mapping.dbUnit).toBe("cm");
+    // 0.84 m → 84 cm.
+    expect(mapping.convertToDbUnit(0.84)).toBeCloseTo(84);
+    const out = mapAppleHealthEntry({
+      hkIdentifier: "HKQuantityTypeIdentifierWaistCircumference",
+      value: 0.92,
+      unit: "m",
+      startDate: "2026-06-28T08:00:00.000Z",
+      endDate: "2026-06-28T08:00:00.000Z",
+    });
+    expect(out).not.toBeNull();
+    expect(out!.type).toBe("WAIST_CIRCUMFERENCE");
+    expect(out!.value).toBeCloseTo(92);
+    expect(out!.unit).toBe("cm");
   });
 
   it("uses identity conversion for the SI-aligned identifiers", () => {

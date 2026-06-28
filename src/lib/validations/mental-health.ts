@@ -12,6 +12,15 @@ import {
 
 export const assessmentInstrumentEnum = z.enum(["PHQ9", "GAD7"]);
 
+/**
+ * Client provenance for an administration. Closed enum so the column can never
+ * carry a free-form label. `WEB` is the in-app questionnaire (the DB default);
+ * `IOS` is the native client. Distinct from `MeasurementSource` on purpose — a
+ * screener is questionnaire input, not a device sample, so it keeps its own
+ * narrow vocabulary.
+ */
+export const assessmentSourceEnum = z.enum(["WEB", "IOS"]);
+
 const itemAnswer = z.number().int().min(0).max(3);
 
 export const createAssessmentSchema = z
@@ -26,6 +35,16 @@ export const createAssessmentSchema = z
     tz: z.string().max(64).optional(),
     /** Locale of the validated wording actually presented. */
     locale: z.string().max(16).optional(),
+    /** Client provenance; defaults to WEB. */
+    source: assessmentSourceEnum.optional().default("WEB"),
+    /**
+     * Optional client-supplied idempotency anchor. When present, a repeat with
+     * the same value returns the existing administration instead of minting a
+     * duplicate — durable replay protection beyond the 24h idempotency-key
+     * window (the native client's outbox). Bounded to the 120-char measurement
+     * externalId cap.
+     */
+    externalId: z.string().min(1).max(120).optional(),
   })
   .superRefine((val, ctx) => {
     const def = INSTRUMENTS[val.instrument as InstrumentId];

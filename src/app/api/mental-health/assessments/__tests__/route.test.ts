@@ -15,7 +15,7 @@ import { NextRequest } from "next/server";
 vi.mock("@/lib/db", () => ({
   prisma: {
     appSettings: { findUnique: vi.fn().mockResolvedValue(null) },
-    mentalHealthAssessment: { create: vi.fn() },
+    mentalHealthAssessment: { create: vi.fn(), findFirst: vi.fn() },
     measurement: { create: vi.fn().mockResolvedValue({}) },
   },
 }));
@@ -92,6 +92,10 @@ beforeEach(() => {
     remaining: 29,
     resetAt: Date.now(),
   });
+  // No prior administration by default; the dedup test overrides this.
+  vi.mocked(prisma.mentalHealthAssessment.findFirst).mockResolvedValue(
+    null as never,
+  );
 });
 
 describe("POST /api/mental-health/assessments", () => {
@@ -186,6 +190,75 @@ describe("POST /api/mental-health/assessments", () => {
     expect(measArg.data.value).toBe(6);
     expect(measArg.data.unit).toBe("score");
     expect(measArg.data.externalId).toBe("assessment:mha_2");
+  });
+
+  it("dedups a repeat externalId: returns the existing administration, writes nothing new", async () => {
+    // The outbox replays a queued check-in with the same client externalId.
+    vi.mocked(prisma.mentalHealthAssessment.findFirst).mockResolvedValue({
+      id: "mha_dup",
+      instrument: "PHQ9",
+      locale: "en",
+      version: "standard",
+      totalScore: 4,
+      severityBand: "mild",
+      item9Flagged: false,
+      crisisShownAt: null,
+      takenAt: new Date("2026-06-28T00:00:00.000Z"),
+      createdAt: new Date("2026-06-28T00:00:00.000Z"),
+    } as never);
+
+    const res = await callPost(
+      makeReq({
+        instrument: "PHQ9",
+        items: [1, 1, 1, 1, 0, 0, 0, 0, 0],
+        source: "IOS",
+        externalId: "outbox-7f3c",
+      }),
+    );
+
+    // Existing row returned (200, not 201) — no duplicate assessment or trend point.
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { assessment: { id: string } };
+    };
+    expect(body.data.assessment.id).toBe("mha_dup");
+    expect(prisma.mentalHealthAssessment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", externalId: "outbox-7f3c" },
+      }),
+    );
+    expect(prisma.mentalHealthAssessment.create).not.toHaveBeenCalled();
+    expect(prisma.measurement.create).not.toHaveBeenCalled();
+  });
+
+  it("persists client provenance + externalId on a first write", async () => {
+    vi.mocked(prisma.mentalHealthAssessment.create).mockResolvedValue({
+      id: "mha_3",
+      instrument: "GAD7",
+      locale: "en",
+      version: "standard",
+      totalScore: 3,
+      severityBand: "mild",
+      item9Flagged: false,
+      crisisShownAt: null,
+      takenAt: new Date("2026-06-28T00:00:00.000Z"),
+      createdAt: new Date("2026-06-28T00:00:00.000Z"),
+    } as never);
+
+    const res = await callPost(
+      makeReq({
+        instrument: "GAD7",
+        items: [1, 1, 1, 0, 0, 0, 0],
+        source: "IOS",
+        externalId: "outbox-aa01",
+      }),
+    );
+    expect(res.status).toBe(201);
+
+    const createArg = vi.mocked(prisma.mentalHealthAssessment.create).mock
+      .calls[0][0] as { data: { source: string; externalId: string | null } };
+    expect(createArg.data.source).toBe("IOS");
+    expect(createArg.data.externalId).toBe("outbox-aa01");
   });
 
   it("rejects a wrong item count with 422 and never writes", async () => {
